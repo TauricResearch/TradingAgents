@@ -114,19 +114,19 @@ Most recent close (2026-05-29): **$738.31**, all-time-high territory for this da
 
 #### 7. Synthesis & Actionable Insights
 
-### Bull case (still intact)
+#### Bull case (still intact)
 - All MAs aligned & rising; price > 10 EMA > 50 > 200.
 - MACD line elevated and just re-curling up.
 - New all-time highs printed 2026-05-29 with reasonable (not exhausted) volume.
 - Bollinger band expanding, not contracting → trend has fuel.
 
-### Bear / caution case (developing)
+#### Bear / caution case (developing)
 - **RSI 77.2 with a lower high vs. May 11 reading of 83.2** = short-term bearish divergence.
 - **MACD histogram divergence** (lower highs while price made higher highs).
 - Price extended **~13% above 50 SMA / ~20% above 200 SMA** — historically rich.
 - No volume surge to confirm the late-May leg ($730–$738) — rally is narrowing.
 
-### Trade Posture
+#### Trade Posture
 - **Existing longs:** Hold; trail stops to ~$717–$722 zone (10-EMA / 2× ATR).
 - **New longs:** Avoid chasing at ~$738. A pullback to the 10 EMA (~$722) or 20-day Bollinger middle would offer better R:R.
 - **Shorts/hedges:** Premature without a *trigger* — wait for (a) a daily close < $722 (10 EMA), (b) MACD histogram closing below zero for 2+ days, and (c) RSI breaking back below 70.
@@ -169,7 +169,7 @@ Most recent close (2026-05-29): **$738.31**, all-time-high territory for this da
 
 #### QQQ Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1) Source-by-source breakdown
+#### 1) Source-by-source breakdown
 
 **News headlines (Yahoo Finance, ~20 articles):** Institutional framing is broadly constructive on price action but increasingly cautious on structure. The S&P 500 logged its 9th consecutive up week (longest since 2023), Nasdaq-100 closed at record highs, and DELL led the Nasdaq print on AI-server enthusiasm. Two major positive catalysts dominate: (a) US-Iran ceasefire / 60-day MOU progress (multiple Stocktwits-sourced and Barchart pieces) and (b) sustained AI capex and infrastructure spend. QQQ itself is cited as +10% MoM, +19% YTD, trading near $727. However, several institutional pieces lean cautionary: 24/7 Wall St. flags concentration risk in QQQ's top-5 holdings ("Hidden Risk… move together"), warns on QQQI yield mechanics, and pushes a "Great Migration" rotation thesis (VTV +11% YTD vs VUG +9.4%, value leading growth). Macro is mixed: Q1 core PCE was revised sharply higher (+2.7% → +4.4%), and a MoneyShow piece notes inflation is highest in ~3 years yet tech keeps bidding — a classic "looking through the data" setup that often precedes vol expansion. Fund flows are constructive (Invesco pulled in $2.4B on May 28). Net: mildly bullish tape, but with a growing chorus of structural / concentration / macro caveats.
 
@@ -177,13 +177,13 @@ Most recent close (2026-05-29): **$738.31**, all-time-high territory for this da
 
 **Reddit (6 posts, all r/wallstreetbets except one r/stocks; engagement metrics unavailable):** WSB tape is classic late-cycle behavior: a "$35k → $643k" 0-3DTE QQQ options post, "+17k intraday scalping" gain post, "Loaded up puts" post, a "This is the top" post, and a squeezed NQ short. The mix of euphoric gain-porn and "this is the top" / loaded-puts content is itself a sentiment signal — it tends to cluster near local tops. The single r/stocks post is a FOMO confession (lump-summed $175k into VTI/QQQ/etc.), another late-cycle tell. r/investing was silent on QQQ.
 
-### 2) Cross-source divergences and alignments
+#### 2) Cross-source divergences and alignments
 
 - **Alignment (bullish):** News confirms record highs, strong flows (+$2.4B Invesco), and a benign geopolitical catalyst (Iran ceasefire). StockTwits labeled ratio is 80/20 bullish.
 - **Divergence:** The *qualitative* StockTwits tape and Reddit behavior point to froth/exhaustion (200-wk MA stretch, bubble comparisons, FOMO confessions, gain-porn) at the same time the *price tape* and *flows* are making new highs. News also carries an undercurrent of caution (concentration, rotation, hot PCE) that retail bulls are dismissing.
 - **Macro divergence:** Core PCE is hot, yet equities are looking through it — historically an unstable equilibrium.
 
-### 3) Dominant narrative themes
+#### 3) Dominant narrative themes
 1. **AI capex / infrastructure leadership** still driving the index (DELL, NVDA, SMCI mentions).
 2. **US-Iran ceasefire** as the proximate macro catalyst — but with headline reversal risk ("Trump wants couple days to think").
 3. **AI-bubble / cost-spiral debate going mainstream** (Bloomberg, Axios, ET cited within 7 days).
@@ -191,11 +191,11 @@ Most recent close (2026-05-29): **$738.31**, all-time-high territory for this da
 5. **Great Rotation** — value (VTV) quietly leading growth (VUG) YTD.
 6. **Late-cycle retail behavior** — 0DTE moonshots, FOMO lump-sums, "this is the top" memes.
 
-### 4) Catalysts and risks
+#### 4) Catalysts and risks
 - **Catalysts (bullish):** Final Iran ceasefire signing; continued AI capex guides; sustained ETF inflows; momentum continuation (9-week SPX streak).
 - **Risks (bearish):** Iran-deal collapse / re-escalation in Hormuz; sticky inflation forcing Fed pushback on cuts; AI-spend ROI questions hitting hyperscaler multiples; mean-reversion from 62% over 200-wk MA; concentration unwind if any top-5 name disappoints; rotation into value continuing to drag growth-heavy QQQ.
 
-### 5) Summary table
+#### 5) Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -211,7 +211,7 @@ Most recent close (2026-05-29): **$738.31**, all-time-high territory for this da
 | Reddit/WSB behavior | Contrarian Bearish | Reddit | 0DTE gain-porn, FOMO lump-sum, "this is the top" memes |
 | Iran headline reversal risk | Bearish | News + StockTwits | "Trump wants couple days to think"; futures pulled back |
 
-### Bottom line
+#### Bottom line
 The hard tape (price, flows, breadth of news) is bullish, but the qualitative cross-section of retail chatter and a growing institutional caution chorus (concentration, rotation, hot inflation, AI-cost backlash) point to an over-extended, late-cycle setup. Sources clearly disagree on direction-from-here, which is the textbook definition of **Mixed**, with a slight bullish lean from price/flows. Confidence is **medium**: news sample is robust, StockTwits volume is modest with few labeled messages, and Reddit lacks engagement metrics.
 
 ### News Analyst
@@ -231,28 +231,28 @@ QQQ is closing the week near record highs around **$727**, up roughly **10% over
 
 #### 2. Key Drivers This Week
 
-### A. Geopolitics — US/Iran De-escalation (Bullish, Volatile)
+#### A. Geopolitics — US/Iran De-escalation (Bullish, Volatile)
 - US and Iranian negotiators agreed on a **60-day MoU to extend the ceasefire**, with talks moving toward Tehran's nuclear program (per Axios/Reuters reports).
 - Earlier in the week, "defensive" US strikes near the **Strait of Hormuz** caused intraday wobbles, but markets shrugged them off as AI capex enthusiasm dominated.
 - Trump signaled he wants "a couple days to think" before final determination — introducing **headline risk** as the calendar turns into June.
 - Net effect: Risk-on tone, **falling oil price tail-risk premium**, supportive for high-duration tech.
 
-### B. AI Capex Cycle — Still The Engine (Bullish)
+#### B. AI Capex Cycle — Still The Engine (Bullish)
 - **Dell (DELL) led Nasdaq to record highs** with blowout AI server demand commentary; reinforced thesis around NVDA/AVGO/MSFT/META capex.
 - 24/7 Wall St. flagged that QQQ's rebound from the early-April vol spike (VIX briefly >25) has been driven **almost entirely by the same handful of AI infrastructure names** — top 5 holdings move in lockstep.
 - Investor appetite remains intense: ETF.com flagged **SMH vs. SOXX**, and **QQQ/QQQM/SCHG/VUG** as the most-compared ETFs (97k user sessions in 28 days).
 
-### C. Inflation Re-Acceleration — The Bear Case (Bearish)
+#### C. Inflation Re-Acceleration — The Bear Case (Bearish)
 - **Core PCE jumped to a multi-year high**; Q1 core PCE quarter-over-quarter was revised from +2.7% (first read) to **+4.4%** in the latest revision — a major upside surprise.
 - Tech stocks "looked through" the print this week, but **a hot reading typically pressures duration-heavy QQQ** by raising the discount rate.
 - Investing.com headline explicitly asks: **"Will higher Treasury yields threaten the market's climb?"** — yields rising is the chief technical headwind.
 
-### D. Rotation Risk — "The Great Migration" (Caution)
+#### D. Rotation Risk — "The Great Migration" (Caution)
 - **Vanguard Value ETF (VTV) +11% YTD vs. Vanguard Growth (VUG) +9.4%** — value is leading growth in 2026, an emerging rotation narrative.
 - Energy stocks (XOM, CVX, FANG, DVN) getting upgraded across the board on Iran/oil tailwinds — capital may rotate toward cyclicals/energy if oil spikes.
 - A Motley Fool piece highlighted that a **global ETF beat the Nasdaq-100 over most of the past year**, indicating relative-performance erosion at the margin.
 
-### E. Flows — Still Constructive
+#### E. Flows — Still Constructive
 - **Invesco pulled in $2.4B on May 28 alone** (ETF League Tables) — confirming continued institutional accumulation.
 - However, "trading volume has slowed noticeably" per Zacks, typical of all-time-high regimes — **a low-volume melt-up that can reverse sharply**.
 
@@ -438,7 +438,7 @@ Let me make the case for staying long QQQ — and then directly take on the bear
 
 **QQQ is in a textbook primary uptrend backed by structural earnings power, accelerating secular tailwinds, and confirmed institutional demand.** The setup right now isn't speculation — it's a continuation trade with multiple independent pillars holding it up.
 
-### 1. The Trend Structure Is Pristine
+#### 1. The Trend Structure Is Pristine
 
 Look at the technical stack on May 29:
 - Price ($738.31) > 10 EMA ($722) > 50 SMA ($653) > 200 SMA ($617)
@@ -448,15 +448,15 @@ Look at the technical stack on May 29:
 
 This is what a healthy bull trend looks like. The bears want you to fear "extension" — but in strong secular bull markets, *extended is the default state*. Anyone who sold QQQ every time it traded 13% above its 50-day in 2013, 2017, 2019, 2020, or 2023 missed enormous returns.
 
-### 2. The AI Capex Cycle Is Real and Accelerating
+#### 2. The AI Capex Cycle Is Real and Accelerating
 
 This isn't 1999. Dell's blowout AI server commentary this week reinforced what NVDA, AVGO, MSFT, and META have been telling us for six straight quarters: **hyperscaler capex is not slowing — it's compounding.** The top QQQ holdings are generating real cash flows, real earnings growth, and real returns on that capex. A P/E of 36x sounds rich until you weight it against the earnings growth profile of the underlying constituents, which has consistently outpaced the S&P 500.
 
-### 3. Institutional Flows Confirm the Move
+#### 3. Institutional Flows Confirm the Move
 
 **Invesco pulled in $2.4 billion in a single day (May 28).** That's not retail FOMO — that's pension funds, RIAs, and institutional allocators voting with capital at record highs. When the bear points to "WSB gain-porn" as a top signal, I'd counter: institutional flows are the dominant signal, and they're decisively bullish.
 
-### 4. The Geopolitical Tail Risk Is Compressing
+#### 4. The Geopolitical Tail Risk Is Compressing
 
 The US-Iran 60-day MoU is a *bullish* development that the bears keep trying to spin as fragile. Risk premia are coming out of oil, out of equity vol, and out of EM. That's a tailwind to multiples, not a headwind.
 
@@ -464,27 +464,27 @@ The US-Iran 60-day MoU is a *bullish* development that the bears keep trying to 
 
 #### Now Let Me Refute the Bear's Concerns Directly
 
-### Bear claim #1: "RSI 77, MACD divergence — momentum is fading"
+#### Bear claim #1: "RSI 77, MACD divergence — momentum is fading"
 
 This is technical-analysis-by-checklist, and it ignores trend context. In strong uptrends, **RSI staying above 70 for weeks is bullish, not bearish.** It happened throughout 2017, 2020-21, and 2023-24. The "bearish divergence" between RSI 83 (May 11) and RSI 77 (May 29) is a 6-point spread in overbought territory — that's noise, not a top signal. Real distribution shows up as price *failure* on rising volume, and we're not seeing that. The MACD just flipped its histogram positive again on May 29 — that's re-acceleration, not breakdown.
 
-### Bear claim #2: "Concentration risk — top 5 holdings move together"
+#### Bear claim #2: "Concentration risk — top 5 holdings move together"
 
 Concentration is a **feature, not a bug,** when those top 5 names are the most profitable, cash-generative, moat-protected businesses in human history. NVDA, MSFT, AAPL, AMZN, GOOGL/META are not speculative tech — they're trillion-dollar cash machines with dominant competitive positions. The bear treats concentration like it's automatically bad, but concentration in *winners* is exactly how you outperform. Equal-weight indices have lagged for a decade for a reason.
 
-### Bear claim #3: "Hot PCE at +4.4% will crush duration-heavy tech"
+#### Bear claim #3: "Hot PCE at +4.4% will crush duration-heavy tech"
 
 This is the single weakest bear argument. **Tech already looked through this print.** Why? Because mega-cap tech has pricing power, margin expansion through AI productivity, and balance sheets that are net-cash positive — they're *less* rate-sensitive than the bears claim. The 2022 rate-shock playbook doesn't apply to 2026 mega-caps with 30%+ operating margins and AI-driven operating leverage. If yields were truly the threat, QQQ wouldn't be at all-time highs.
 
-### Bear claim #4: "Great Rotation — VTV +11% YTD vs VUG +9.4%"
+#### Bear claim #4: "Great Rotation — VTV +11% YTD vs VUG +9.4%"
 
 A 1.6 percentage point spread YTD is *not* a rotation — it's noise. And VUG isn't even QQQ; QQQ is +19% YTD, outperforming both. The rotation narrative has been called every year since 2010, and growth keeps winning the cycle that matters. Until I see 50-DMA breakdowns in NVDA, MSFT, and META simultaneously, the rotation thesis is a sell-side talking point, not a tradable signal.
 
-### Bear claim #5: "WSB euphoria, FOMO lump-sums — late-cycle behavior"
+#### Bear claim #5: "WSB euphoria, FOMO lump-sums — late-cycle behavior"
 
 Sentiment-as-contrarian-indicator is a coin flip at best. For every "WSB top" that worked, there are ten that didn't. More importantly, the StockTwits labeled ratio is **80/20 bullish**, news flow is constructive, and institutional flows are positive. Cherry-picking pessimistic Reddit posts to declare a top is confirmation bias, not analysis.
 
-### Bear claim #6: "9-week S&P streak is due for mean reversion"
+#### Bear claim #6: "9-week S&P streak is due for mean reversion"
 
 Streaks don't have memory. The 2017 melt-up went on for 15 months without a 3% pullback. Saying "we're due" is the gambler's fallacy applied to markets. What matters is whether the *fundamental drivers* are intact — and they are.
 
@@ -534,7 +534,7 @@ That's not a bear case. That's a **slightly more cautious bull case** wearing a 
 
 #### Now Let Me Dismantle the Specific Arguments
 
-### Counter #1: "62% Above 200-Week MA = 2021 Setup"
+#### Counter #1: "62% Above 200-Week MA = 2021 Setup"
 
 The bear loves this stat. Let me give you the context they omitted.
 
@@ -545,7 +545,7 @@ QQQ was also 60%+ above its 200-week MA in:
 
 The 2021 analogy is cherry-picked. The 200-week MA stretches *during secular bull markets* because secular bull markets compound returns. Using one negative comparable while ignoring three positive ones isn't analysis — it's confirmation bias. And critically: **the 2021 top was preceded by a Fed pivoting from zero rates to 425bps of hikes in 12 months.** Where's that catalyst today? The Fed is on *hold or cutting*, not embarking on the most aggressive tightening cycle in 40 years.
 
-### Counter #2: "Cisco Fell 89% — AI Could Be 1999"
+#### Counter #2: "Cisco Fell 89% — AI Could Be 1999"
 
 This is the laziest analogy in finance. Let me give you the numbers the bear didn't.
 
@@ -563,13 +563,13 @@ The bear says "AI revenue is small fraction of capex." Wrong framing. Microsoft'
 
 The Bloomberg/Axios "AI bubble debate" stories the bear cites? Those are *contrarian indicators*. When financial media pivots from "AI revolution" to "AI bubble debate" and prices keep making new highs, that tells you the wall of worry is intact. Bubbles don't peak with mainstream skepticism — they peak with universal euphoria.
 
-### Counter #3: "Institutional Flows Are Late-Stage"
+#### Counter #3: "Institutional Flows Are Late-Stage"
 
 The bear cites January 2000, October 2007, November 2021 as flow peaks. Convenient. Let me cite the *other* hundreds of months when ETF inflows surged and markets kept ripping: every single month of 2013, 2017, 2019, the entirety of 2023-2024.
 
 You can't claim "$2.4B inflow = top signal" without showing the base rate. The base rate is that large inflow days are *more often* followed by continued gains than reversals — because flows correlate with positive momentum, and momentum persists. The bear is using **three cherry-picked examples** to overrule a statistical reality.
 
-### Counter #4: "Concentration = Single-Factor Risk"
+#### Counter #4: "Concentration = Single-Factor Risk"
 
 The bear says 10 stocks drove 69% of the rally. Yes. And those 10 stocks generated:
 - Roughly **$500B+ in combined trailing free cash flow**
@@ -580,7 +580,7 @@ The bear lists antitrust, AI monetization, NVDA customer concentration, and Taiw
 
 And the "passive flows unwind on rails" argument? Cuts both ways. Passive flows have been *accumulating* for 15 years, and that's the dominant trend. Betting on flow reversal is betting against the structural bid in U.S. equities.
 
-### Counter #5: "2022 Proved Tech Is Rate-Sensitive"
+#### Counter #5: "2022 Proved Tech Is Rate-Sensitive"
 
 The 2022 comparison is the bear's strongest argument and also their most flawed. In 2022:
 - 10Y went from **1.5% to 4.3%** (180% increase)
@@ -594,13 +594,13 @@ Today:
 
 The bear treats the +4.4% Q1 revision as confirmation of stagflation. But monthly PCE prints have *not* re-accelerated to that level. One revised data point is not a trend. And critically — **mega-cap tech in 2022 was trading at 30-35x with zero AI revenue. Today they're at 36x with rapidly growing AI revenue that didn't exist 24 months ago.** The earnings denominator is doing the heavy lifting now in a way it wasn't then.
 
-### Counter #6: "VTV vs VUG — Rotation Is Real"
+#### Counter #6: "VTV vs VUG — Rotation Is Real"
 
 Let me reread the bear's argument: VTV +11% YTD, VUG +9.4%. **QQQ is +19% YTD.** 
 
 The bear is arguing rotation while QQQ is outperforming both indices they cite. That's not rotation — that's narrow growth indices lagging while the *real* growth winners (which dominate QQQ) are leading. If rotation were the dominant trade, QQQ wouldn't be at all-time highs. The bear's own data refutes the bear's narrative.
 
-### Counter #7: "Bull's Triggers Prove Asymmetry"
+#### Counter #7: "Bull's Triggers Prove Asymmetry"
 
 This is actually a clever argument from the bear, but it's wrong. They claim my 2.2% stop at the 10 EMA proves I'm "paying maximum price with tight stops."
 
@@ -611,7 +611,7 @@ That's *exactly how trend-following works.* You ride the trend with trailing sto
 
 **The bear is recommending market-timing in disguise. That has a documented track record of underperformance.**
 
-### Counter #8: "Sentiment Extremes Are Flashing"
+#### Counter #8: "Sentiment Extremes Are Flashing"
 
 WSB gain-porn, FOMO lump-sums, "QQQ to 1000" sarcasm. The bear is reading 6 Reddit posts and a few sarcastic StockTwits messages and calling it a sentiment top.
 
@@ -1361,7 +1361,7 @@ Now let me show you why the remaining gap should close further toward me, not th
 
 #### Refuting the Counters, One by One
 
-### Re: "The Bear Conceded the Thesis"
+#### Re: "The Bear Conceded the Thesis"
 
 The bull says my line *"normal pullback in an uptrend"* admits the trend is intact. Read it again: I said **"a pullback to the 50-SMA — entirely normal in any uptrend — would offer 12% better entry."** That's not an admission the trend continues uninterrupted. That's a statement that **even in the bull's best-case world, you get a better entry by waiting.**
 
@@ -1371,7 +1371,7 @@ The math is unforgiving:
 
 The bull's "exploited asymmetry" is **1.4:1**. Mine is **2.3:1** on the same thesis. *That's* what asymmetry exploitation looks like. The bull is buying the top of the range and calling it disciplined.
 
-### Re: "1996, 2017, 2020 — 60% Above 200-Week MA Was Fine"
+#### Re: "1996, 2017, 2020 — 60% Above 200-Week MA Was Fine"
 
 This is the bull's most dishonest counter. Let me check the receipts.
 
@@ -1381,7 +1381,7 @@ This is the bull's most dishonest counter. Let me check the receipts.
 
 So the bull's "three positive comparables" actually contain **a 33% drawdown, a 23% drawdown, and a 35% drawdown** within 12-24 months of each stretch reading. The bull cherry-picked endpoints and hid the volatility in between. **That's not analysis — that's survivorship bias dressed as base rates.**
 
-### Re: "NVDA Isn't Cisco — P/E 45x vs 196x"
+#### Re: "NVDA Isn't Cisco — P/E 45x vs 196x"
 
 Fair point on raw multiple. But the bull conveniently skipped the question that actually matters: **what's the right multiple if hyperscaler capex normalizes?**
 
@@ -1394,13 +1394,13 @@ The bull cites Azure AI at "$13B run rate growing triple digits." Great. Microso
 
 The Cisco analogy isn't about identical multiples. It's about **what happens to multiples when capex outruns revenue and the market loses patience**. Cisco's revenue kept growing for years after 2000 — the *multiple* collapsed. NVDA at 45x isn't Cisco at 196x, but **NVDA at 25x in a "show me the ROI" regime would imply a 45% drawdown in the largest QQQ holding by performance contribution.** That's the risk vector. The bull doesn't even engage with it.
 
-### Re: "Bloomberg AI-Bubble Stories Are Contrarian"
+#### Re: "Bloomberg AI-Bubble Stories Are Contrarian"
 
 This is the bull invoking the Cult of the Wall of Worry. Convenient — because it makes any bearish data point bullish by definition.
 
 Let me apply the same logic in reverse: if mainstream skepticism = bullish contrarian indicator, then by the bull's own framework, **the moment mainstream sentiment turns bullish on AI ROI, we top.** What does that look like? It looks like NVDA earnings beats getting smaller reactions, hyperscaler guidance getting questioned, and analyst notes pivoting from "AI transformation" to "AI digestion." **All three are happening right now in the data.** The bull can't have it both ways: either sentiment matters as a signal or it doesn't. They're cherry-picking which sentiment data points are signals.
 
-### Re: "Institutional Flows — Show the Base Rate"
+#### Re: "Institutional Flows — Show the Base Rate"
 
 The bull asks for the base rate. Fair. Here it is:
 
@@ -1410,7 +1410,7 @@ The bull asks for the base rate. Fair. Here it is:
 
 The bull is right that flows persist with momentum *most of the time*. But the question isn't "do flows predict next week?" — it's **"do peak flows occur near peak positioning?"** And the answer is yes, by definition. You can't have peak flows without peak demand, and peak demand requires the marginal buyer to already be in. **That's a structural truth, not a cherry-pick.**
 
-### Re: "Concentration in Trillion-Dollar Cash Machines = Feature"
+#### Re: "Concentration in Trillion-Dollar Cash Machines = Feature"
 
 The bull lists $500B in FCF, $2T in cash. Impressive. Now ask: **at what multiple is that cash flow currently being capitalized?**
 
@@ -1421,7 +1421,7 @@ The fundamental quality is real. **The price being paid for that quality is at d
 
 And on antitrust being "priced in" — tell that to GOOGL holders who watched the stock gap down 7% on the August 2024 search ruling. Known risks become surprises when **the resolution is worse than discounted**. The pipeline of pending decisions in 2026-2027 is dense.
 
-### Re: "2022 Comparison Is Flawed Because Rates Aren't Moving Like 2022"
+#### Re: "2022 Comparison Is Flawed Because Rates Aren't Moving Like 2022"
 
 This is where the bull's argument actively misleads. They say:
 - "10Y is stable in the 4-5% range" — **a 10Y at 5% is itself the warning sign**, not a calming reading. Equity multiples of 36x have historically required 10Ys of 2-3%, not 5%.
@@ -1429,13 +1429,13 @@ This is where the bull's argument actively misleads. They say:
 
 The bull's claim that "monthly PCE prints haven't re-accelerated" omits that the **Q1 revision was a sharp upward surprise**, and that May data drops in two weeks. If May core PCE prints hot, the 2022 analogy isn't perfect, but the *mechanism* (rate-driven multiple compression) reactivates. The bull is one data point away from losing this argument entirely.
 
-### Re: "QQQ +19% YTD Refutes Rotation"
+#### Re: "QQQ +19% YTD Refutes Rotation"
 
 Beautiful misdirection. **Rotation doesn't mean QQQ goes down — it means QQQ stops leading.** The fact that VTV is keeping pace YTD with VUG (which historically lags growth by 5-10 percentage points in growth-led years) is **the rotation signal in early form**. The bull is demanding the rotation be complete before they'll acknowledge it began. That's like demanding the storm hit before you put up the shutters.
 
 And here's what the bull skipped: **breadth.** 10 stocks = 69% of the rally since March. That means **90 of the 100 QQQ stocks contributed only 31% of the gain**. The index is masking weakness *underneath*. When the top 10 wobble, there's no support layer underneath. That's not rotation completed; that's rotation *coiled*.
 
-### Re: "Sentiment Tops Look Like 95/5, Not 80/20"
+#### Re: "Sentiment Tops Look Like 95/5, Not 80/20"
 
 The bull cites AAII spread, margin debt, IPO/SPAC volume, cab-driver tips. Let me check those receipts:
 
@@ -1446,7 +1446,7 @@ The bull cites AAII spread, margin debt, IPO/SPAC volume, cab-driver tips. Let m
 
 The bull cherry-picked the indicators that aren't yet flashing while skipping the ones that are. That's not a baseline — that's selective evidence.
 
-### Re: "You're Trading What Might Happen, Not What's Happening"
+#### Re: "You're Trading What Might Happen, Not What's Happening"
 
 The bull's strongest rhetorical line. Also their weakest analytical one.
 
@@ -1519,7 +1519,7 @@ The bull replaced my table with one that delivers +$2,000 to +$3,000 EV. Beautif
 
 The bull's entire EV improvement comes from **one assumption: the $722 stop executes cleanly at $722.** Let me destroy that assumption right now.
 
-### The $722 Stop Is a Fiction Under Stress
+#### The $722 Stop Is a Fiction Under Stress
 
 The bull keeps treating the trailing stop as a magical force field that caps losses at exactly 2.2%. **It doesn't.** Here's what actually happens in the scenarios that matter:
 
@@ -1538,7 +1538,7 @@ The honest expected loss in the catalyst scenario isn't 2.2%. It's **4-7%.** Plu
 
 **Honest EV: roughly +$300 to +$1,200 on $100k.** Positive, but barely — and dwarfed by the opportunity cost of the trade. **You're risking real capital for sub-1% expected return at a 36x P/E with macro pressure building.** That's not asymmetry exploitation. That's picking up nickels.
 
-### And I Bumped Catalyst Probability to 20%, Not the Bull's Cherry-Picked 7-9%
+#### And I Bumped Catalyst Probability to 20%, Not the Bull's Cherry-Picked 7-9%
 
 The bull asserts "7-9% historical base rate" for catalyst corrections in golden-cross + rising-50DMA + positive-flows regimes. Where's that number from? They didn't cite a source. I'll cite one: **In the past 25 years, QQQ has experienced 10%+ drawdowns within 90 days of new ATHs roughly 22% of the time** when prior 60-day return exceeded 20% (we're at +25% in 7.5 weeks). That's not 7-9%. **That's the bull pulling numbers from the ceiling because their table needs them low.**
 
@@ -1553,7 +1553,7 @@ The bull argues their full-position-with-stop dominates my trim-and-redeploy pla
 
 Let me show you the bear plan **the way it actually works**, not the strawman:
 
-### Trimmed Bull Position — Honest Math
+#### Trimmed Bull Position — Honest Math
 
 - **Sell $40k at $738.** Take 25% gain on that slice ($10k profit) **off the table, locked in.**
 - **Hold $60k with stop at $722.** Same trail discipline as bull, but on smaller size.

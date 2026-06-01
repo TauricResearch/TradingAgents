@@ -46,20 +46,20 @@ The most recent close (Fri 2026-05-29) is **$46.09**, the highest level since ea
 
 #### 3. Detailed Trend & Momentum Analysis
 
-### Trend structure
+#### Trend structure
 - **Short-term (10 EMA):** Inflected from $27.31 (May 1) to $37.52 (May 29) — a **+37% lift in 4 weeks**, characteristic of a momentum thrust phase.
 - **Medium-term (50 SMA $28.67):** Has begun curling upward only in the last ~2 weeks. Price now sits ~61% above the 50 SMA — historically an unsustainable spread that typically mean-reverts.
 - **Long-term (200 SMA $35.98):** Still in a **multi-month downtrend** (was $37.76 a month ago and $36.51 mid-May). Price closed *above* the 200 SMA on May 29 ($46.09 vs $35.98) — a notable medium-term signal but **the 200 SMA is not yet rising**, so this is a tentative trend reversal, not a confirmed one. A confirmed golden cross (50 > 200) would still require considerable additional advance — currently 50 SMA is ~$7 below the 200 SMA.
 
-### Momentum
+#### Momentum
 - **MACD** went positive around early May and has now accelerated to +3.23 — its highest reading in the dataset shown. **Histogram** has expanded sharply over the last 3 sessions (0.35 → 0.49 → 0.74 → 1.15), indicating momentum is *still accelerating*, not topping. No bearish divergence yet.
 - **RSI at 79.5** is overbought. In strong impulsive trends RSI can stay overbought, but each successive spike to ~80 carries higher pullback risk. Watch for the first lower RSI high while price still rises — that would be the divergence warning.
 
-### Volatility
+#### Volatility
 - **ATR has nearly doubled** (1.63 → 2.79) in 3 weeks. Combined with the price *outside* the upper Bollinger band, this is a classic **expansion / band-walk** signature — bullish in the short term, but it inflates stop-loss distances and position-sizing risk significantly.
 - The Bollinger upper band ($42.85) has been left behind; price closed $3.24 above it. Rallies that puncture the upper band typically either (a) keep band-walking for several days, or (b) snap back to the 20-day mid-line within 1–2 weeks. The 20-day mid-line ("boll" basis) is implicitly near ($42.85 - 2σ-distance), roughly the low-$30s, which aligns with the breakout zone.
 
-### Volume confirmation
+#### Volume confirmation
 - The May 6 surge (127.3M shares) and May 29 close ($46.09 on 93.0M shares) both occurred on **3–5× normal volume**, supporting the move. Volume on the rally has been increasing into the late stages — a positive *and* a warning (climax behavior often follows).
 
 ---
@@ -110,7 +110,7 @@ The most recent close (Fri 2026-05-29) is **$46.09**, the highest level since ea
 
 #### SMCI Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 headlines):** Overall tone is constructive but with clear caveats. The dominant positive driver is sector spillover from Dell Technologies' blowout fiscal Q1 2027 earnings (AI-server revenue +757% YoY, guidance raised). Dell shares jumped ~33% Friday, dragging SMCI up ~10–16% intraday to ~$45.48, with Barrons, Motley Fool, GuruFocus, 24/7 Wall St., and InvestorsHub all framing this as an AI-infrastructure tailwind that extends to SMCI. Company-specific positives include a European AI cloud partnership win with Verda (May 29) and a Q3 FY2026 print of $10.24B revenue, +122.68% YoY, with the CEO touting transformation into a "total datacenter infrastructure provider." YTD return cited at +41.1%.
 
@@ -120,13 +120,13 @@ Counter-balancing risks: (a) a Taiwan smuggling case in which three individuals 
 
 **Reddit:** Thin coverage. r/wallstreetbets shows 3 tangential posts (none SMCI-focused; titles like "are we winning now?" and a personal trading-loss story). r/stocks has a single post praising DELL ("Everyone forgot about DELL") that mentions SMCI only by association with the AI capex cycle. r/investing is silent. Engagement metrics (scores/comments) are unavailable from RSS, further weakening the signal. Net Reddit read: Neutral / inconclusive.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 - **Alignment:** Both news and StockTwits agree the Dell read-through is the dominant positive catalyst this week, and both are watching HPE's earnings (June 1) as the next confirming/disconfirming event.
 - **Divergence:** News surfaces real compliance/regulatory risk (Taiwan smuggling case, Jensen's public rebuke, Barrons' "rally misses the point" piece) and analyst bearishness (Schwab/CFRA sell-rating chatter on StockTwits) — but the StockTwits bullish-tagged crowd largely dismisses these as "BS" or short-seller noise. Retail is leaning harder into the bull thesis than the news flow strictly supports.
 - **Reddit silence** is itself notable: with the stock up ~10–16% on a single Friday session, an absence of WSB hype suggests SMCI is not yet a momentum-chase darling at this price level — neither contrarian-bullish nor contrarian-bearish.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 
 1. **AI server demand re-acceleration** (Dell read-through, hyperscaler capex, liquid-cooled dense systems).
 2. **Compliance & regulatory overhang** (Taiwan smuggling, Jensen Huang's compliance message, unfilled CFO seat, Munger litigation engagement, ongoing insider selling).
@@ -134,13 +134,13 @@ Counter-balancing risks: (a) a Taiwan smuggling case in which three individuals 
 4. **Squeeze / momentum mechanics** (retail focus on $50 breakout and $60 short-squeeze threshold).
 5. **HPE earnings as next-day catalyst** (June 1).
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 
 **Catalysts (near-term):** HPE earnings (June 1) — confirmatory AI-server demand signal; potential break above $50 technical level; further European/enterprise AI cloud wins.
 
 **Risks:** Escalation of the Taiwan export-control investigation; further Nvidia public commentary tightening compliance demands; analyst downgrades crystallizing (Schwab/CFRA sell ratings with sub-$20 PTs cited by users); insider selling continuing without offsetting buys; "sell-the-news" reaction if HPE disappoints; Dell taking incremental share in AI server wins.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -177,14 +177,14 @@ The macro backdrop is mixed-to-bullish for risk assets: the S&P 500 closed at a 
 
 #### 2. SMCI-Specific Catalysts (Past Week)
 
-### Bullish Drivers
+#### Bullish Drivers
 - **Dell read-through (May 29):** Dell's AI-optimized server revenue grew **757% YoY**; Dell raised full-year guidance. Dell stock surged ~33%. Sympathy buying lifted SMCI +10–16%, HPE +18%. This validates the hyperscaler AI capex thesis and signals demand has not peaked.
 - **Verda European AI Cloud Partnership:** Customer win for dense, liquid-cooled systems — SMCI's differentiated product line. Reinforces SMCI's competitive moat in liquid cooling, which is increasingly mandatory for Blackwell/Rubin-class GPU deployments.
 - **Q3 FY2026 Results (recent):** Revenue **$10.24B (+122.68% YoY)**. CEO Charles Liang flagged "transformation into a total datacenter infrastructure provider is accelerating." This is a meaningful step beyond pure server box-shipping toward higher-margin full-rack/datacenter deals.
 - **Compliance Win:** SMCI proactively worked with Taiwanese authorities; three individuals detained for forging export documents to smuggle SMCI-Nvidia AI servers into China. This is positioned as SMCI strengthening export-compliance posture — addressing a key overhang for institutional investors.
 - **Sector flow:** Invesco S&P 500 High Beta ETF on its best 7-day stretch in a year — risk-on tape favorable to SMCI's high-beta profile.
 
-### Risks / Overhangs
+#### Risks / Overhangs
 - **Jensen Huang publicly urged SMCI to "enhance and improve" regulatory/compliance practices.** Tonally supportive but signals NVDA is monitoring SMCI's compliance closely — any future infraction could threaten allocation of constrained Blackwell/Rubin GPUs.
 - **Competitive intensity:** Dell's market cap now exceeds the **combined value of HPE, HP, Super Micro, and Lenovo**. SMCI is losing relative share-of-mind among large enterprise/hyperscaler buyers, even as absolute demand grows.
 - **Barron's caveat:** "Super Micro Stock Rally Misses the Point From Dell Earnings" — implies the Dell read-through may be overextrapolated; Dell's strength came partly from PC/services, not just AI servers.
@@ -195,17 +195,17 @@ The macro backdrop is mixed-to-bullish for risk assets: the S&P 500 closed at a 
 
 #### 3. Macro Backdrop (Past Week)
 
-### Equities & Rates
+#### Equities & Rates
 - **S&P 500 hit a fresh all-time high**, 9th consecutive weekly gain — historically extended; mean-reversion risk rising.
 - **Treasury yields drifting higher** — Investing.com flagged the question "Will higher treasury yields threaten the market's climb?" Higher yields are negative for high-multiple AI/growth names like SMCI.
 - AI/tech is the dominant leadership theme; Dell's print is the most important catalyst of the week for the entire hardware sub-sector.
 
-### Geopolitics & Energy
+#### Geopolitics & Energy
 - **U.S.–Iran conflict ongoing** with truce-extension hopes lifting risk appetite on May 29. Oil prices remain elevated; **Exxon and Chevron have warned oil prices could "skyrocket in coming weeks."** Energy stocks (DVN, FANG, XOM, CVX, PBR) seeing analyst upgrades.
 - Sustained high oil = inflationary pressure on goods (footwear, fashion retail, food prices reportedly rising).
 - Silver prices opened higher on truce-extension news; Singapore launched USD-denominated silver futures, adding to precious-metals interest.
 
-### Inflation Signals (Mixed/Negative)
+#### Inflation Signals (Mixed/Negative)
 - Multiple consumer-goods price stories: shoe prices, tomato prices (+40% YoY), gas-price trickle-down to retail.
 - Coffee prices moderating on Brazilian harvest/dry weather.
 - Implication: Fed rate-cut path may be slower than markets are pricing — a headwind for long-duration tech.

@@ -24,7 +24,7 @@ Since the April 1 gap, NKE has traded between roughly **$41.88 (May 15 low) and 
 
 #### 2. Indicator-by-Indicator Read
 
-### 2.1 Trend Structure (Moving Averages)
+#### 2.1 Trend Structure (Moving Averages)
 
 | Date | Close | 10 EMA | 50 SMA | 200 SMA |
 |---|---|---|---|---|
@@ -39,7 +39,7 @@ Key observations:
 - **200 SMA at 60.56** sits ~31% above current price. NKE remains in a deep long-term bear regime; a "death cross" (50 below 200) is firmly entrenched and has been in place throughout the period.
 - **10 EMA crossed back above the 50 SMA** is approaching but has not yet occurred (45.03 vs 45.71). A clean cross would be the first short-term bullish trend signal in months.
 
-### 2.2 Momentum (MACD / MACD Histogram)
+#### 2.2 Momentum (MACD / MACD Histogram)
 
 | Date | MACD | MACD Hist |
 |---|---|---|
@@ -52,7 +52,7 @@ Key observations:
 - **MACD histogram has been steadily expanding** (+0.07 on 5/15 → +0.67 on 5/29), showing accelerating positive momentum — bullish.
 - The histogram turning positive *before* the MACD line crossed zero is a textbook early-recovery signature.
 
-### 2.3 RSI (14)
+#### 2.3 RSI (14)
 
 | Date | RSI |
 |---|---|
@@ -66,7 +66,7 @@ Key observations:
 - Has surged to **65.46 on 5/28** before pulling back to 57.61 — momentum is now in a healthy bullish zone but not yet overbought.
 - No sign of bearish divergence; RSI is making higher lows alongside price's higher lows since the April capitulation.
 
-### 2.4 Volatility (Bollinger Lower Band & ATR)
+#### 2.4 Volatility (Bollinger Lower Band & ATR)
 
 | Date | Close | Boll LB | ATR |
 |---|---|---|---|
@@ -136,7 +136,7 @@ Key observations:
 
 #### NIKE Sentiment Report — 2026-05-24 to 2026-05-31
 
-### Source-by-source breakdown
+#### Source-by-source breakdown
 
 **1. News headlines (Yahoo Finance, past 7 days)**
 - Result: "No news found for NIKE."
@@ -152,18 +152,18 @@ Key observations:
 - r/investing: no posts mentioning NIKE in the past 7 days.
 - Net: Reddit signal for NIKE is effectively **zero substantive posts**. The community is not actively discussing Nike during this window.
 
-### Cross-source divergences and alignments
+#### Cross-source divergences and alignments
 There is nothing to triangulate. News is empty, StockTwits is technically unavailable, and the only Reddit hit is a misclassified ServiceNow post. There is neither convergent enthusiasm nor convergent fear — there is simply an absence of signal across all three channels.
 
-### Dominant narrative themes
+#### Dominant narrative themes
 None can be identified from this data window. Nike is not the subject of any visible retail or institutional narrative in the captured feeds during 2026-05-24 to 2026-05-31.
 
-### Catalysts and risks surfaced by the data
+#### Catalysts and risks surfaced by the data
 - **Catalysts surfaced:** None in this dataset.
 - **Risks surfaced:** None directly. However, the *absence* of chatter heading into what is typically a fiscal Q4 reporting window for Nike (FY usually ends late May / reports late June) is itself worth noting — sentiment can shift quickly as earnings approach. Traders should monitor whether StockTwits and news flow re-engage in the coming days.
 - **Data-quality risk:** Two of three sources returned placeholders or unavailable data, and the third returned a misclassified hit. Confidence in any directional read is **low**.
 
-### Summary table
+#### Summary table
 
 | Signal | Direction | Source | Supporting evidence |
 |---|---|---|---|
@@ -175,7 +175,7 @@ None can be identified from this data window. Nike is not the subject of any vis
 | Engagement intensity | None | Reddit | No genuine NIKE threads with upvotes/comments to weigh |
 | Narrative theme | None identifiable | All | No recurring topic across any source |
 
-### Bottom line
+#### Bottom line
 With news empty, StockTwits unavailable, and Reddit returning only a misclassified post, this is a genuinely silent dataset rather than a directional one. The appropriate read is **Neutral with low confidence** — not because sentiment is balanced, but because there is essentially no sentiment to measure. Downstream agents should weight this report lightly and lean more heavily on fundamentals, technicals, and any fresh news as the trade decision is finalized. Re-running StockTwits and a broader news scan before acting is recommended.
 
 ### News Analyst
@@ -193,7 +193,7 @@ The setup is a classic battleground: deep underperformance with a recovery narra
 
 #### 1. Company-Specific Developments (Past 1–4 Weeks)
 
-### Bullish Drivers
+#### Bullish Drivers
 - **Q4 Earnings Beat**: Recent quarterly results came in ahead of expectations. Management outlined a plan to **shift manufacturing away from China** to mitigate tariff costs. The 7-day return turned positive (+5.3%) as sentiment improved.
 - **AI & Digital Push**: NIKE rolled out AI-enabled shopping via **Google Gemini and AI Mode search** in the US — a meaningful DTC tailwind if it lifts conversion.
 - **2026 FIFA World Cup Catalyst**: NIKE is kit supplier to multiple national teams. Barchart estimates the World Cup will generate up to **$40.9B in consumer spend**. This is a Q3/Q4 2026 revenue catalyst.
@@ -201,7 +201,7 @@ The setup is a classic battleground: deep underperformance with a recovery narra
 - **Competitor Exit**: Women-focused sneaker startup **Hilma shut down**, removing a niche competitor. Marginal positive but signals stress in the broader specialty space.
 - **Cramer reversed bearish view** on NKE — sentiment shift from a high-visibility commentator.
 
-### Bearish Drivers
+#### Bearish Drivers
 - **Stock Performance**: Down 27.3% YTD, down 23.7% over 12 months — among the worst-performing mega-cap consumer names.
 - **Bearish Options Signal**: Schaeffer's flagged a "historically bearish signal in NKE options pits" — short-term traders should be wary of chasing.
 - **China & EMEA Weakness**: Zacks specifically highlighted "sluggish China & EMEA consumer demand," promo intensity, and margin pressure.
@@ -213,23 +213,23 @@ The setup is a classic battleground: deep underperformance with a recovery narra
 
 #### 2. Macro & Sector Environment
 
-### Inflationary Pressures Hitting Footwear
+#### Inflationary Pressures Hitting Footwear
 Multiple Footwear News and WWD pieces over the past two weeks describe a deteriorating cost environment for the entire shoe sector:
 - **Shoe prices continuing to rise in March**, with the **Iran war adding fuel** to oil-driven cost inflation.
 - **Oil price spikes** (driven by US-Iran conflict) flowing through to petrochemical-based shoe components (synthetic rubber, EVA foams, polyester uppers) and freight costs.
 - **Kids' shoe prices** moving higher in February — suggests pricing power being tested across categories.
 - **"Job concerns, shoe price hikes and shaky consumer"** — Footwear News explicitly forecasts **slower sales on the horizon**.
 
-### Geopolitics — US/Iran
+#### Geopolitics — US/Iran
 - **Iran-US peace progress / truce extension** noted on May 29 lifted discretionary consumer stocks (Crocs, Wolverine, Deckers all jumped). This is a tailwind if sustained — but Exxon/Chevron warn oil prices "could skyrocket in coming weeks," indicating the truce is fragile.
 - Oil price direction is the **single most important macro variable for NKE near-term margins**.
 
-### Rates & Equity Backdrop
+#### Rates & Equity Backdrop
 - **Higher Treasury yields** are being flagged as a threat to the market's climb. Consumer discretionary names like NKE are rate-sensitive (long-duration earnings + housing-correlated demand).
 - However, NKE specifically rallied **+4% intraday** on a session when bond yields eased and oil pulled back — confirming NKE behaves as a long-duration, oil-sensitive trade.
 - Broader market at all-time highs, driven by AI (Dell soaring, "AI party keeps raging"). NKE has **not participated** in this rally — either a deep-value setup or a value trap.
 
-### Consumer Sector Cross-Currents
+#### Consumer Sector Cross-Currents
 - Lululemon mired in proxy battle / Chip Wilson feud (settled then re-escalated) — distraction at a key competitor could be a marginal positive for NKE.
 - The Very Group reporting fashion sales decline for 4th straight year — confirms broader apparel weakness.
 

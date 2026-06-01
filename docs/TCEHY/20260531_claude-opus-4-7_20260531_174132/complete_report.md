@@ -115,7 +115,7 @@ VWMA fell from $62.61 (May 1) to **$57.76 (May 29)**. Price ($54.60) trades mean
 
 **Volume:** Distribution confirmed by VWMA above price and reversal days on heaviest volume.
 
-### Trading Implications
+#### Trading Implications
 
 - **Trend-following bias:** Remains short/avoid. Any short-term bounce toward the 10 EMA ($56.40) or the falling 50 SMA ($60.85) is more likely to be resistance than a base.
 - **Counter-trend long thesis** would require: (a) RSI bullish divergence confirmation with a higher low in price, (b) MACD histogram crossing back above zero with follow-through, (c) close back above the 10 EMA on above-average volume. None of these are confirmed today.
@@ -151,7 +151,7 @@ The technical picture is unambiguously bearish at multiple timeframes. While ove
 
 #### TCEHY Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News headlines (Yahoo Finance, 7 items)** — Tone is constructive to mildly bullish, with a heavy operational/strategic narrative rather than earnings or guidance.
 - **Payments expansion is the dominant news theme (3 of 7 items):** Tencent linked WeChat Pay / TenPay Global to PayPal World, enabling U.S. (and later other-market) PayPal users to pay at WeChat Pay merchants in China via QR codes (Reuters, Electronic Payments). A separate item announced TenPay Global integrating with Eldik Bank to extend Central Asia inbound payments. These are tangible monetization and ecosystem-expansion catalysts for FinTech.
@@ -166,21 +166,21 @@ The technical picture is unambiguously bearish at multiple timeframes. While ove
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing)** — No posts mentioning TCEHY in the past 7 days. This is a meaningful absence: TCEHY is a U.S. OTC ADR and tends to get less Reddit airtime than BABA/JD. **No signal extractable**; this caps confidence at medium.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 - **Alignment:** News and StockTwits both lean positive on the **PayPal / WeChat Pay** story — institutional reporting and retail enthusiasm are reinforcing on the same catalyst.
 - **Mild divergence:** News sources flag analyst caution on AI capex payback and a small fair-value cut, while StockTwits frames Tencent as an "AI sleeper" with no bearish tags. Retail is more uniformly enthusiastic than the institutional read.
 - **Reddit silence** prevents triangulation against a third community lens.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **Cross-border payments expansion** (PayPal World integration, Eldik Bank / Central Asia) — the cleanest new positive catalyst this week.
 2. **China-tech AI race vs. capex discipline** — Tencent positioned as an AI player but with valuation/payback questions; ByteDance's potential $70B capex frames competitive intensity.
 3. **China-tech basket re-rating chatter** — Carter Worth bullish reversal call, KWEB-oversold posts, H200 chip clearance memory — TCEHY benefiting from sector tailwind sentiment.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 - **Catalysts:** PayPal World rollout to additional markets (phased); fee waivers through 2026 designed to drive adoption; Central Asia payments integration; AI model token-usage traction; potential Nvidia H200 deliveries; broader Trump–Xi diplomatic backdrop referenced by retail.
 - **Risks:** AI capex payback skepticism flagged by sell-side; ByteDance capex escalation as competitive threat; analyst fair-value drift slightly lower; recurring China-macro skepticism (housing crisis NYT video shared, China-short recurring posts); thin Reddit coverage suggests limited Western institutional/retail conviction depth.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Supporting evidence |
 |---|---|---|---|
@@ -196,7 +196,7 @@ The technical picture is unambiguously bearish at multiple timeframes. While ove
 | Reddit coverage | Neutral / No signal | Reddit | Zero posts across WSB / stocks / investing in window |
 | Sector skepticism (China macro, JD short refs) | Mildly Bearish | StockTwits | Recurring multi-cashtag bearish-basket posts |
 
-### Bottom line
+#### Bottom line
 Sentiment for TCEHY over 2026-05-24 to 2026-05-31 is **mildly bullish**, driven by tangible payments-platform wins (PayPal World, Central Asia) that both institutional reporters and retail traders are amplifying. Retail tone on StockTwits is uniformly positive among labeled messages (10/0), while news flow is constructive but tempered by analyst caution on AI capex payback and a small fair-value mark-down. Reddit's silence and the modest StockTwits sample cap confidence at **medium**. Treat as a supportive backdrop, not a standalone buy signal — pair with fundamentals (FinTech revenue trajectory, AI capex cadence) and technicals before sizing.
 
 ### News Analyst
@@ -220,35 +220,35 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 
 #### 2. Company-Specific Catalysts (Bullish Drivers)
 
-### 2.1 Fintech — Cross-Border Payments Step-Function
+#### 2.1 Fintech — Cross-Border Payments Step-Function
 - **PayPal ↔ WeChat Pay integration** (May 27): U.S. PayPal users can now spend at WeChat Pay's QR-code merchant network across China, with phased rollout to other markets. TenPay Global is now wired into PayPal World. Fee waivers extended through 2026 to drive adoption.
 - **TenPay Global × Eldik Bank** (Central Asia): Visitors from Central Asian markets can now pay in China with their domestic wallets — extending Tencent's payment moat into a previously underserved corridor.
 - **Trading implication:** These are durable, high-margin take-rate expansions. They monetize inbound tourism recovery and reinforce Tencent's fintech segment, which has been the most consistent growth driver outside gaming.
 
-### 2.2 AI Strategy — Twin Pillars
+#### 2.2 AI Strategy — Twin Pillars
 - **DeepSeek funding round participation**: Tencent reportedly nearing participation in DeepSeek's ~70B yuan ($10B) AI raise — DeepSeek's founder publicly committed to AGI research over near-term commercialization. Strategic optionality on China's leading frontier-model lab.
 - **Tencent Cloud partnerships** with Stream and ARKIE AI announced; AI-cloud monetization narrative strengthening.
 - **Healthcare AI**: Tencent Healthcare president made high-profile Reuters appearance highlighting AI adoption in pharma/biotech — broadening the AI use-case story beyond ads/gaming.
 
-### 2.3 ESG / Climate Finance
+#### 2.3 ESG / Climate Finance
 - Joined Singapore-based **Action for a Resilient Climate Coalition** alongside CATL — improves ESG scoring and diversifies the AI-cloud growth narrative with a credibility-anchored carbon-credit angle.
 
 ---
 
 #### 3. Competitive & Sector Dynamics
 
-### 3.1 ByteDance Capex Threat — **Most Important Item This Week**
+#### 3.1 ByteDance Capex Threat — **Most Important Item This Week**
 - **ByteDance considering up to $70B AI capex** — more than double last year. This is a direct competitive escalation in:
   - AI infrastructure (cloud)
   - Frontier-model talent
   - Ad-side AI tooling (where Douyin already pressures Tencent's ad inventory)
 - **Implication for TCEHY:** Tencent will likely face pressure to defend its own capex trajectory — feeding directly into the analyst concern around "payback from heavy AI spending" already cited in the SEHK:700 fair-value cut.
 
-### 3.2 China AI Ecosystem Tailwind
+#### 3.2 China AI Ecosystem Tailwind
 - **DeepSeek**, **Manus** (raising $1B to unwind Meta takeover at Beijing's request), **Kingsoft Cloud** strength — China's AI ecosystem is well-funded and increasingly insulated.
 - **IDG Capital** targeting $2B for a new China growth fund — global LPs revisiting China private markets, a structural sentiment positive.
 
-### 3.3 Semiconductor / Chip-Access Volatility
+#### 3.3 Semiconductor / Chip-Access Volatility
 - Mixed signals: U.S. cleared 10 Chinese firms to buy **Nvidia H200** chips (no deliveries yet), but China **banned the RTX 5090D V2** during Jensen Huang's Beijing visit. Beijing is steering procurement toward domestic chipmakers.
 - **Russia's Sberbank** seeking Chinese chips for GigaChat — raises the geopolitical profile of Chinese semiconductor supply chains and could attract incremental U.S. scrutiny.
 - **TCEHY exposure:** Tencent's AI training capex depends on chip availability. A bifurcated Chinese stack (Huawei Ascend + domestic) is the path forward but at higher cost/lower performance vs. Nvidia.
@@ -257,11 +257,11 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 
 #### 4. Geopolitical & Regulatory (Bearish/Watchlist)
 
-### 4.1 U.S.-China Financial Rivalry Re-Emerging
+#### 4.1 U.S.-China Financial Rivalry Re-Emerging
 - **Barron's (May 21):** "U.S.-China Financial Rivalry Flares Up. The Summit Smiles Are Fading." Specifically flags Chinese regulatory actions and U.S. congressional scrutiny that **directly threaten ADR-listed names like TCEHY** (which trades on PNK). PFOF/HFCAA-style risks remain dormant but not extinguished.
 - **Watch:** Any escalation could compress TCEHY's ADR premium relative to the H-share (700.HK) and trigger forced rotation by U.S. institutions.
 
-### 4.2 Manus / Meta Unwind Precedent
+#### 4.2 Manus / Meta Unwind Precedent
 - Beijing forcing the Manus founders to unwind Meta's takeover sets a precedent: cross-border tech M&A with U.S. parties faces high friction. Limits Tencent's optionality on U.S.-side stakes/divestitures.
 
 ---
@@ -389,7 +389,7 @@ The ADR (TCEHY) trades on the U.S. Pink Sheets and represents the H-shares liste
 - **Topline reacceleration:** Revenue growth has accelerated from 9.8% (FY23) → 8.4% (FY24) → **13.9% (FY25)** — the strongest rate since the pre-tightening era.
 - **Aggressive buyback shrinks the share count**, amplifying EPS growth (+17.9% FY25 vs +15.9% net income).
 
-### Latest Quarter (Q2 2025, ending June 30, 2025)
+#### Latest Quarter (Q2 2025, ending June 30, 2025)
 - **Revenue:** RMB 184.5B
 - **Gross Profit:** RMB 105.0B (gross margin 56.9%)
 - **Operating Income:** RMB 64.9B (op margin 35.2%)
@@ -475,7 +475,7 @@ These are best-in-class returns for a platform business and are still expanding.
 
 #### 8. Strengths, Risks, and Catalysts
 
-### Strengths
+#### Strengths
 1. **Dominant ecosystem moat** — WeChat is the operating system of Chinese digital life (>1.3B MAUs).
 2. **Margin inflection** — Sustained gross margin expansion suggests structural profitability gain (mix + AI productivity).
 3. **Valuation cushion** — 10.8x forward P/E with 13%+ revenue growth and 18% EPS growth.
@@ -483,7 +483,7 @@ These are best-in-class returns for a platform business and are still expanding.
 5. **Investment portfolio "stub"** — RMB 700B+ of investments (associates + financial assets), partly liquid public stakes.
 6. **AI-driven cycle** — Aggressive capex (RMB 87B PPE in FY25 vs RMB 21B in FY23) positions for cloud/Gen-AI monetization.
 
-### Risks
+#### Risks
 1. **China regulatory risk** — Gaming approvals, anti-monopoly, data security regulation remain ongoing overhangs.
 2. **Geopolitics / ADR risk** — TCEHY trades on Pink Sheets; potential delisting/sanctions risk in worst-case U.S.-China scenarios.
 3. **FX translation** — RMB weakness can mute USD-reported earnings.
@@ -491,7 +491,7 @@ These are best-in-class returns for a platform business and are still expanding.
 5. **Consumer macro** — Chinese consumer softness affects advertising and FinTech volumes.
 6. **Investee mark-to-market** — Listed associate stakes (Meituan, PDD) cause earnings volatility (RMB 12.6B unusual items in FY25).
 
-### Near-Term Catalysts
+#### Near-Term Catalysts
 - Continued buyback execution (HKD 80B+ pace).
 - Video Account ad load increase / mini-game take rate.
 - AI-related cloud revenue acceleration.

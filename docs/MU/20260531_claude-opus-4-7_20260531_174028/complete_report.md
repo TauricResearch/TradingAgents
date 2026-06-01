@@ -117,7 +117,7 @@ This is a **fresh MACD bullish crossover with histogram expansion** that ignited
 
 #### 1. Source-by-Source Breakdown
 
-### News (Yahoo Finance, ~20 headlines)
+#### News (Yahoo Finance, ~20 headlines)
 Institutional framing is overwhelmingly bullish, anchored by a single dominant event: **Micron has crossed the $1 trillion market cap threshold**, doing so in just 48 days from $500B (per Cramer commentary) — an even faster ascent than NVIDIA's. Key bullish threads:
 - **AI memory demand / structural cycle**: TheStreet ("a number Wall Street rarely writes" — a multi-year secular call), Motley Fool ("DRAM Memory Boom: Why Micron Stock Could Still Double"), Barchart cites BofA arguing 42x trailing earnings is "still cheap" with cycle strength intact.
 - **Anthropic partnership** at a $65B Series H valuation explicitly ties MU to AI infrastructure spend.
@@ -133,14 +133,14 @@ Counter / caution signals (a notable but minority share):
 
 Net: roughly 14 bullish / 4 cautionary / 2 neutral. Institutional tone is bullish but bubble chatter is now openly part of the conversation — a classic late-stage marker.
 
-### StockTwits (30 messages)
+#### StockTwits (30 messages)
 - **Labeled: 15 Bullish / 0 Bearish (100% of labeled)**, plus 15 unlabeled. This is an extreme, one-sided tape with **zero bearish posts** — a euphoric reading.
 - Price targets in the chatter: "$1,000 before open," "$1,500 incoming," UBS reportedly raised PT from $535 → **$1,625 (+204%, new Street high)** per @capitalthinktank.
 - Substantive bullish thesis posts (@EquitiesHam, @capitalthinktank): HBM booked through 2026 and much of 2027; suppliers meeting only ~50–60% of demand; HBM uses 3–4x wafer per bit, crowding out commodity DRAM; SoftBank €75B France AI buildout; structural repricing vs. cyclical trade.
 - Tone-only posts ("wow," "$MU 💪," "1k incoming") dominate the rest — pure momentum chasing.
 - @IamWallSt explicitly warns shorts off — a signal that bears have already been squeezed out.
 
-### Reddit (r/wallstreetbets, r/stocks, r/investing)
+#### Reddit (r/wallstreetbets, r/stocks, r/investing)
 - **r/wallstreetbets**: "+6,476% on MU LEAPS, should I sell?", "Officially hit 7 figures", "Almost hit 100% YTD." Pure euphoria / victory-lap posts.
 - **r/stocks**: "Is everyone getting ridiculously rich?", "People talking about $30k turning into $1M with MU," "When do people actually sell?" — these are textbook capitulation-to-the-upside / FOMO threads.
 - **r/investing**: "FOMO got to me and I bought more," trailing-stop questions — investors trying to lock in rather than initiate.
@@ -213,22 +213,22 @@ Micron Technology has just crossed the **US$1 trillion market cap** threshold, j
 
 #### 2. Company-Specific Catalysts (Past Week)
 
-### 2.1 Trillion-Dollar Milestone & Anthropic Partnership
+#### 2.1 Trillion-Dollar Milestone & Anthropic Partnership
 - **Micron crossed US$1 trillion market cap**, first memory-pure-play ever to do so. SK Hynix also hit $1T concurrently — confirming memory is in a structural re-rating, not idiosyncratic.
 - **Anthropic Series H Partnership**: Micron named a key infrastructure partner in Anthropic's $65B funding round. This locks in long-duration HBM/DRAM demand for generative AI infrastructure and gives MU a co-marketing halo similar to Nvidia/OpenAI.
 - **Speed of the move**: Jim Cramer noted it took Nvidia 490 days to go from $500B to $1T; Micron did it in **48 days**. This compression is a yellow flag on positioning/froth.
 
-### 2.2 Bullish Analyst & Sell-Side Commentary
+#### 2.2 Bullish Analyst & Sell-Side Commentary
 - **BofA**: MU at 42x trailing earnings is "still cheap" — argues earnings power is being underestimated as AI workloads tighten memory supply and elongate the cycle.
 - **Motley Fool**: Multiple pieces argue MU could "still double" given DRAM boom; data-center capex acceleration is the lead indicator.
 - **Industry framing shift**: TheStreet article highlights that Wall Street is finally writing numbers ("rarely written") that break the historical 40-year cyclical view of memory — analysts now modeling a secular AI demand floor.
 
-### 2.3 Bearish / Cautionary Signals
+#### 2.3 Bearish / Cautionary Signals
 - **Renaissance Technologies (Jim Simons)** is reportedly **selling MU** — a signal from one of the most data-driven quant funds. Their model has flagged a top.
 - **Bubble concerns**: Bloomberg ("AI Bubble Debate Gets Real as Chip Stocks Rally Turns Historic") and Motley Fool ("Are Micron and Sandisk Stocks in a Bubble?") explicitly question valuation.
 - **Big tech stock-split chatter**: Yahoo finance article hints retail investors are being priced out — historically a late-cycle indicator.
 
-### 2.4 Peer / Read-Through
+#### 2.4 Peer / Read-Through
 - **SK Hynix** also hit $1T — confirms HBM tightness is the dominant industry narrative; positive read-through for MU's HBM3E/HBM4 ramp.
 - **Sandisk (NAND)** has rallied alongside DRAM names; suggests broad-based memory strength, not just HBM.
 - **Nvidia's latest product launch** (referenced May 29) — incremental positive demand pull for HBM, MU benefits directly.
@@ -238,24 +238,24 @@ Micron Technology has just crossed the **US$1 trillion market cap** threshold, j
 
 #### 3. Macroeconomic Backdrop
 
-### 3.1 Geopolitics — US/Iran Conflict (HIGH RISK)
+#### 3.1 Geopolitics — US/Iran Conflict (HIGH RISK)
 - "US Says Deals With Iran for Safe Hormuz Transit Are Prohibited"
 - "Strait of Hormuz Ship Transits Are Rising Thanks to US Help"
 - "Americans Injured in Iranian Missile Strike on Kuwaiti Air Base"
 - **Truce extension with Iran** noted (May 29) — silver prices rose on the news, suggesting ongoing tension.
 - **Implication for MU**: MU's wafer fabs and key OSAT/foundry partners are geographically diversified across Taiwan, Japan, Singapore, US (Idaho/NY/Virginia). Direct exposure is limited, but a Hormuz disruption would spike oil, accelerate inflation, push yields higher → de-rate high-multiple tech.
 
-### 3.2 Inflation & Commodities
+#### 3.2 Inflation & Commodities
 - Oil prices rising; Exxon and Chevron warning oil could "skyrocket in coming weeks."
 - Consumer goods (shoes, tomatoes, apparel) showing renewed inflationary pressure.
 - **Implication**: Sticky inflation = higher-for-longer Fed = pressure on long-duration tech multiples. MU at 42x trailing is sensitive to discount rate.
 
-### 3.3 Rates & Risk Appetite
+#### 3.3 Rates & Risk Appetite
 - **Treasury yields rising** ("Will higher treasury yields threaten the market's climb?") — primary headwind for tech multiples.
 - **S&P 500 9-week winning streak** (+19.5% from March 30 low, +$11T market cap added). Historically rare; mean-reversion risk is elevated.
 - Silver futures launching in Singapore — broader hedging demand suggests institutions are positioning defensively.
 
-### 3.4 Energy Sector Rotation
+#### 3.4 Energy Sector Rotation
 - Multiple bullish energy stories (Devon, Diamondback, Exxon, Chevron, Petrobras upgrades). Capital may rotate from extended tech to energy on geopolitical premium — flow-of-funds risk for MU.
 
 ---
@@ -318,7 +318,7 @@ Micron Technology has just crossed the **US$1 trillion market cap** threshold, j
 
 Micron Technology is one of the world's three dominant memory semiconductor manufacturers, producing DRAM, NAND flash, and increasingly High-Bandwidth Memory (HBM) for AI accelerators. The company sits at the epicenter of the AI memory super-cycle, with HBM being the key strategic growth driver supplying NVIDIA, AMD, and hyperscaler AI infrastructure.
 
-### Key Market Statistics
+#### Key Market Statistics
 - **Market Capitalization:** ~$1.095 Trillion (entered the trillion-dollar club)
 - **Share Price Range (52-Week):** $94.40 – $981.00 (a ~10x move; current 50-day avg $557.56 vs. 200-day avg $338.74)
 - **Beta:** 1.92 (high cyclicality)

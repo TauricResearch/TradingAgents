@@ -46,26 +46,26 @@ I deliberately avoided `boll_lb`, `boll`, `vwma`, and `macdh` to prevent redunda
 
 #### 3. Indicator-by-Indicator Read (as of 2026-05-29)
 
-### Moving Averages
+#### Moving Averages
 - **Price ($305.68)** vs **10 EMA ($307.93)**: Price closed **just below** the 10 EMA for the first time in this leg — earliest sign of short-term momentum loss.
 - **50 SMA ($251.19)**: Strong rising medium-term trend; price is **+21.7%** above the 50-SMA, signaling extension.
 - **200 SMA ($201.28)**: Price is **+51.9%** above its 200-day average — a historically extreme level. Long-term trend remains decisively bullish (50 SMA well above 200 SMA — golden-cross posture intact).
 
-### MACD
+#### MACD
 - **MACD line:** 16.87 (down from a peak of **21.81 on 2026-05-14**).
 - **Signal line:** 18.61.
 - The MACD has now **crossed below its signal** (16.87 < 18.61), and the spread (-1.74) is widening. This is a **bearish momentum crossover** while still in positive territory — a classic momentum-fade warning rather than an outright trend reversal.
 
-### RSI
+#### RSI
 - **2026-05-29: 61.05**, down sharply from **77.15 (May 26)** and a recent peak of **80.41 (May 14)**.
 - RSI was in **overbought territory (>70)** on multiple days (May 4, 6, 11, 12, 13, 14, 15, 19, 20, 22, 26, 27).
 - The drop from 77 → 61 in 3 sessions while price made a higher high on May 26 vs the May 14 swing high (closes: $324.89 vs $308.17) but RSI made a **lower high (77.15 vs 80.41)** — that is a **bearish RSI divergence** confirmed by the subsequent breakdown.
 
-### Bollinger Upper Band
+#### Bollinger Upper Band
 - **Upper band 2026-05-29: $325.33**. Price closed at $305.68, well **inside** the band after tagging it on May 26 ($324.89 close vs $323.65 band — a clean ride along the upper band).
 - The May 26 high of **$326.42 marginally exceeded the band** ($323.65) — typical blow-off behavior, followed by a snap back inside the bands.
 
-### ATR (Volatility)
+#### ATR (Volatility)
 - ATR has **expanded from ~$9.03 (May 8) to $11.42 (May 29)**, +26%. Volatility regime is rising, consistent with a topping/distribution pattern. For risk management, **1× ATR ≈ $11.4**, **2× ATR ≈ $22.8**.
 
 ---
@@ -112,7 +112,7 @@ I deliberately avoided `boll_lb`, `boll`, `vwma`, and `macdh` to prevent redunda
 
 ---
 
-### Note on Verification
+#### Note on Verification
 The requested `get_verified_market_snapshot` tool is **not available in this environment** (it returned an error). All numbers above are sourced directly from `get_stock_data` and `get_indicators` outputs and dates/values are quoted exactly as returned. No support/resistance or percentage move is asserted that isn't traceable to the printed tool output above.
 
 ### Sentiment Analyst
@@ -121,7 +121,7 @@ The requested `get_verified_market_snapshot` tool is **not available in this env
 
 #### TXN Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1) Source-by-source breakdown
+#### 1) Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 headlines):** Institutional framing is predominantly constructive, with a couple of cautionary notes.
 - *Bullish catalysts:* BofA raised its TXN price target to $370 from $320 (Buy reiterated, May 25), citing under-appreciated multi-year content gains. Seaport Research upgraded TXN to Buy (Neutral prior) with a $400 PT, citing rising data-center power consumption and electrical intensity per rack. Simply Wall St. flagged "strong Q1 results" with 30-day return of +17.23% and YTD +83.02%, framing TXN as benefitting from AI data center + industrial demand. Barchart noted TXN "outperforming the technology sector" with analysts moderately bullish. Zacks/MarketBeat articles repeatedly tag TXN as a key beneficiary of analog/power semis demand from the AI build-out (800V architecture, high-voltage power for data centers). Macro tape was supportive: S&P 500 / Nasdaq 100 hitting record highs, "Iran peace optimism" tailwind, Micron crossing $1T market cap drawing attention to analog peers.
@@ -136,23 +136,23 @@ The requested `get_verified_market_snapshot` tool is **not available in this env
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing):** No posts found in the window. This is a meaningful gap — for a stock that just printed all-time highs and was upgraded by two sell-side desks, the absence of community discussion is unusual and limits confidence. It suggests TXN is not a meme/retail-cult favorite and is being driven more by institutional flow than crowd narrative.
 
-### 2) Cross-source divergences and alignments
+#### 2) Cross-source divergences and alignments
 - **Strong alignment** between News and StockTwits on the dominant theme: AI data-center power / 800V architecture / analog content gains. Both sources independently surface BofA and Seaport upgrades.
 - **Divergence:** News flags insider selling ($20m) as a hesitancy signal; StockTwits is silent on this — retail is not pricing the insider data point.
 - **Divergence:** A pocket of StockTwits posters worry about over-extension ("30 points below high," "end in tears"), echoing the Barchart "AI trade is overcrowded" warning. So a contrarian thread does exist, just thinly.
 - **Reddit absence** versus active news+twits flow suggests institutional > retail-narrative driver — generally a higher-quality setup than meme-driven runs.
 
-### 3) Dominant narrative themes
+#### 3) Dominant narrative themes
 1. **AI / data-center power demand → analog content gains** (BofA, Seaport, MarketBeat, Bloomberg "AI infra spending $3-4T," Nvidia 800V partner list). This is the central bull thesis.
 2. **Strong YTD price action** (~+83% YTD per Simply Wall St.), all-time highs printed on May 26.
 3. **Analog semis re-rating** — Micron's $1T cap pulling peers (Microchip, TXN, ON) into focus; Vishay +200% in 2 months cited as evidence of cyclical recovery.
 4. **Late-cycle / overcrowding caution** — minor counter-narrative from Barchart and a few StockTwits skeptics; insider selling as a slow-burn yellow flag.
 
-### 4) Catalysts and risks
+#### 4) Catalysts and risks
 - *Catalysts:* Continued AI capex commentary from Nvidia/hyperscalers; further analyst PT hikes (BofA already at $370, Seaport at $400); 800V architecture adoption milestones; potential 1H earnings beat given guidance momentum.
 - *Risks:* Insider selling pattern (~$20m over past year); AI-trade overcrowding/profit-taking risk after +17% in 30 days; semiconductor cyclicality if industrial end-markets soften; valuation stretch (no Reddit/long-term-investor enthusiasm at these prices is a subtle warning).
 
-### 5) Summary table
+#### 5) Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -167,7 +167,7 @@ The requested `get_verified_market_snapshot` tool is **not available in this env
 | Profit-taking / "rally will end in tears" | Mildly Bearish | StockTwits | 2-3 dissenting posters |
 | No Reddit discussion | Neutral / data-gap | Reddit | Zero posts across 3 subs |
 
-### Bottom line
+#### Bottom line
 Sentiment is **Mildly Bullish (~6.2/10)**: institutional news flow is clearly constructive (two upgrades, strong YTD, AI-power narrative), and StockTwits labeled sentiment is unanimously bullish on a small base. However, the rally is extended, insider selling is a non-trivial offset, a contrarian whisper exists on both sides, and the absence of Reddit engagement caps confidence. Confidence is **medium** because Reddit returned empty and the StockTwits sample is modest, even though the news set is rich and directionally consistent.
 
 ### News Analyst
@@ -185,7 +185,7 @@ Bias: **Constructive / Bullish**, but acknowledge near-term risk of profit-takin
 
 #### 2. Company-Specific Catalysts (TXN)
 
-### 2.1 Bullish Drivers
+#### 2.1 Bullish Drivers
 - **BofA price target raised to $370 from $320 (May 25)**, Buy reiterated. BofA argues TXN's "multi-year content gains" tied to **800V data-center power architecture** remain underappreciated. TXN was one of three top picks in BofA's analog AI-power note alongside peers.
 - **Seaport Research upgraded TXN to Buy with $400 PT (May 22)** — analyst Jay Goldberg cites *rising data-center power consumption and increasing electrical intensity per rack* as key drivers. $400 implies ~23% upside from $324.89.
 - **Strong Q1 2026 results** with solid YoY growth supported by AI data-center and industrial demand; **upbeat guidance** for the coming quarter (per Simply Wall St. valuation review).
@@ -194,7 +194,7 @@ Bias: **Constructive / Bullish**, but acknowledge near-term risk of profit-takin
 - **Sector tailwind**: Nvidia CFO Colette Kress now characterizes AI as "no longer a nice-to-have" and projects **$3–4 trillion in global AI infrastructure spending by end of decade** — analog content scales with this build-out.
 - **Micron joining the $1T market-cap club** is fueling rotation into adjacent semis, with TXN, MCHP, and ON specifically named as next-leg beneficiaries (Zacks).
 
-### 2.2 Bearish / Cautionary Signals
+#### 2.2 Bearish / Cautionary Signals
 - **Insider selling ~$20M over the past year** (Simply Wall St.) — interpreted as "hesitancy" by management/insiders despite the rally.
 - **Valuation stretched after +83% YTD move** — Simply Wall St.'s valuation check suggests momentum has run ahead of fundamentals on some metrics.
 - **Crowded AI trade**: Barchart explicitly warns the AI trade is "getting overcrowded," recommending diversified SOXX exposure over single-name concentration.
@@ -204,19 +204,19 @@ Bias: **Constructive / Bullish**, but acknowledge near-term risk of profit-takin
 
 #### 3. Macro & Cross-Asset Context
 
-### 3.1 Geopolitics — Iran War (Critical)
+#### 3.1 Geopolitics — Iran War (Critical)
 - The **Iran war has entered its fourth month** (Barron's, Oilprice.com). Notable items:
   - US has stated **deals with Iran for safe Hormuz transit are prohibited**, but **Strait of Hormuz transits are rising thanks to US naval support**.
   - **Truce/peace optimism on May 26–27** drove S&P +0.61%, Nasdaq 100 +1.76% — markets are highly sensitive to de-escalation headlines.
   - **Truce extension news (May 29)** lifted silver and risk assets.
   - **Energy markets remain "rewired"** — the war upended oil flows in May. Higher oil = input-cost pressure for semis (resin, transport) but limited direct exposure for TXN.
 
-### 3.2 Rates & Macro
+#### 3.2 Rates & Macro
 - **Treasury yields rising** — Investing.com explicitly questions whether higher yields will threaten the market's climb. Headwind for high-multiple growth/tech, including semis.
 - **June flagged as "crunch point"** for energy reserves and potential rate hikes (24/7 Wall St.) — front-loaded macro risk in next 30 days.
 - **Inflation pressure visible in consumer goods** (footwear, food — tomatoes +40% YoY) — sticky inflation reduces odds of Fed easing.
 
-### 3.3 Equity Market Tone
+#### 3.3 Equity Market Tone
 - S&P 500 and Nasdaq 100 hit **record highs** late May on tech strength.
 - Leadership broadening into **"reborn" 90s tech names** (Dell, Nokia, Cisco, Lenovo) on AI infrastructure demand — confirms AI capex theme is widening, supportive for analog semis.
 - Dell soaring on AI; Micron at $1T cap. **Semis remain the prime beneficiary group.**

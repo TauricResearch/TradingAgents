@@ -130,7 +130,7 @@ No bearish divergence is evident: price made a higher high May 13 ($453.40) and 
 
 #### TSLA Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1) Source-by-source breakdown
+#### 1) Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 headlines):** Institutional framing skews constructive but nuanced.
 - Bullish/constructive items: IBD flags TSLA as one of "5 Titans Near Buy Points" alongside NVDA; InvestorsHub notes TSLA has rallied >30% off April lows and is trading near $440, with Wall Street openly weighing a SpaceX combination; Motley Fool's "Why 2026 Is a Year of Foundational Growth for Tesla" reframes near-term optical overvaluation as long-term setup; multiple pieces tie TSLA to the $40T humanoid-robot TAM narrative (Jensen Huang) and the Optimus story; Barron's SpaceX-buys-Cybertrucks ($131M, ~8% of volume) is a positive demand-anchor data point.
@@ -146,23 +146,23 @@ No bearish divergence is evident: price made a higher high May 13 ($453.40) and 
 - r/stocks valuation threads ("S&P 500 at 31.8x earnings — what's the bull case?", "Contrarian allocation: highest-P/E US large caps") implicitly include TSLA in the high-multiple cohort viewed skeptically.
 - StockTwits chatter shows users mocking Michael Burry ("Burried", "Burry blowhard"), suggesting a known short/bear thesis exists on TSLA that retail is currently celebrating having squeezed. Net Reddit tone: **mildly bearish/skeptical on valuation**, but low-engagement and not TSLA-focused.
 
-### 2) Cross-source divergences and alignments
+#### 2) Cross-source divergences and alignments
 - **Alignment:** News and StockTwits both lean constructive, anchored on the same themes — robotics/Optimus, SpaceX merger speculation, post-April recovery momentum.
 - **Divergence:** Reddit (especially r/stocks/r/investing valuation threads and the WSB Burry-style post) is more skeptical, focused on stretched multiples and frustration with TSLA exposure. Bearish StockTwits posts citing FSD safety/insider distrust also diverge from the otherwise upbeat retail tape.
 - **Notable mismatch:** Retail is chasing $1,000 price targets while serious news items (Nio budget EV, Figure competitive wins, Reuters FSD-trust story, "zero profits" merger framing) are not yet priced into the conversation.
 
-### 3) Dominant narrative themes
+#### 3) Dominant narrative themes
 1. **Humanoid robots / Optimus as TAM expansion** — Huang's $40T figure is the dominant bullish frame.
 2. **SpaceX-Tesla merger speculation** — fresh catalyst driving the post-April rally toward ~$440.
 3. **Recovery momentum** — stock up >30% from April lows; retail extrapolating to $1,000.
 4. **Competitive pressure** — Nio (EV), Figure (robotics), and AI chip names (NVDA/AVGO) eclipsing TSLA's market cap narrative.
 5. **Valuation skepticism** — Reddit's macro lens flags high-P/E mega-caps as a group risk; FSD safety incidents reinforce this.
 
-### 4) Catalysts and risks
+#### 4) Catalysts and risks
 - **Catalysts:** SpaceX-Tesla merger headlines, Optimus product/patent updates ("New Optimus Patent" referenced in StockTwits), European sales comeback story, broader risk-on tape (Iran de-escalation, chip rally).
 - **Risks:** FSD reliability/safety headlines (autopilot pond fatality, Reuters insiders piece), Chinese EV price competition (Nio budget launch, BYD), humanoid-robot competition from Figure, stretched valuation in a 31.8x S&P backdrop, and the "zero-profit behemoth" critique of any SpaceX merger.
 
-### 5) Summary table
+#### 5) Summary table
 
 | Signal | Direction | Source | Supporting evidence |
 |---|---|---|---|
@@ -177,7 +177,7 @@ No bearish divergence is evident: price made a higher high May 13 ($453.40) and 
 | WSB frustration / Burry-style shorts | Bearish (low signal) | Reddit / StockTwits | "stuck with FKN Elon"; "Burried" mockery implies active short interest |
 | AI chip giants surpass TSLA market cap | Mildly Bearish | News (Motley Fool) | Narrative leadership shifting to NVDA/AVGO |
 
-### Bottom line
+#### Bottom line
 Sentiment is **Mildly Bullish (6.0/10)** with **medium confidence**. The institutional and retail tapes are aligned on the SpaceX-merger and Optimus narratives driving a >30% rebound, but Reddit valuation skepticism and credible FSD-safety/competitive headlines argue against extrapolating to the $1,000 retail targets. The asymmetry to watch: if FSD-safety newsflow accelerates or Nio/Figure deliver tangible share gains, the current narrative-driven premium is the first thing at risk.
 
 ### News Analyst
@@ -194,48 +194,48 @@ Tesla (TSLA) enters the final days of May 2026 trading near **$440/share**, with
 
 #### 1. TSLA-Specific Catalysts & Developments
 
-### Bullish Drivers
+#### Bullish Drivers
 - **Technical Setup**: TSLA is flagged by Investor's Business Daily as one of five mega-caps "near buy points" alongside NVDA, with the stock having reclaimed ~$440 after a >30% rebound from April lows. Momentum traders are re-engaging.
 - **SpaceX–Tesla Merger Speculation**: Wall Street has begun openly discussing a SpaceX/Tesla combination (Fortune, InvestorsHub, Barron's). A merger would create a **$3.4 trillion behemoth** — the largest M&A deal in history. Note the caveat from Fortune: combined entity would generate "zero profits" — meaning the deal is narrative-driven, not earnings-accretive, but could produce significant short-term re-rating.
 - **Cybertruck Demand Validation**: SpaceX has now purchased **8% of all Cybertrucks produced**, spending **$131M** at full price (no internal discount). This signals real fleet/B2B demand and counters bear arguments about Cybertruck being a flop.
 - **Physical AI / Humanoid Robotics Thesis**: Jensen Huang's repeated $40 trillion TAM call for humanoid robots directly benefits Tesla's Optimus narrative. Multiple Motley Fool / 24/7 Wall St. pieces frame Tesla as a primary beneficiary of the "physical AI" trade alongside chip names.
 - **2026 as "Foundational Growth Year"**: Motley Fool reframes weak trailing 2026 earnings as acceptable for long-term bulls, anchoring valuation on Robotaxi/Optimus/FSD optionality rather than current auto P&L.
 
-### Bearish / Risk Factors
+#### Bearish / Risk Factors
 - **Valuation Stretch**: At a $1.4T market cap on weak trailing earnings, Tesla looks "overvalued on a superficial basis" (Motley Fool's own framing). Multiple compression risk if AI/robotics narrative cools.
 - **Competitive Pressure from China**: **Nio launched a budget EV** specifically targeting Tesla and BYD with "lower prices and better margins." BYD continues global expansion. Tesla's pricing power in the mass-market segment is eroding.
 - **Humanoid Robotics Competition**: **Figure AI** (private rival to Optimus) landed a deal with JCPenney's parent and got White House visibility. Tesla no longer has uncontested mind-share in humanoids.
 - **AI Bubble Concerns**: Bloomberg's "AI Bubble Debate Gets Real" piece flags chipmaker rally as historically extreme — TSLA, increasingly traded as an AI/robotics story, is correlated with that risk-off catalyst.
 - **A chip giant has quietly surpassed Tesla in market cap** (Motley Fool, 5/30) — sentiment ranking matters; Tesla is no longer the unquestioned #1 narrative stock.
 
-### Elon Musk Commentary
+#### Elon Musk Commentary
 - Musk publicly endorsed **Austrian-school economics** (Mises) and criticized "socialist central planning" via X. Politically polarizing; could renew brand-damage debate among progressive consumers but resonates with Musk's core supporter base.
 
 ---
 
 #### 2. Macroeconomic Backdrop (Highly Relevant for TSLA)
 
-### Geopolitics — Iran War (4th Month)
+#### Geopolitics — Iran War (4th Month)
 - The **Iran conflict has entered its fourth month**, with mixed Trump signals on war escalation, Americans injured in Iranian missile strikes on Kuwaiti bases, and Strait of Hormuz transit issues.
 - **Truce extension news late last week** sparked a relief rally — silver opened higher on the news (5/29), and stocks hit fresh highs on "Iran deal hopes."
 - The U.S. has prohibited deals with Iran for safe Hormuz transit, even while transit volumes are rising with U.S. help.
 - **Trading implication for TSLA**: Iran de-escalation is risk-on positive (TSLA gained ~30% off April lows alongside this); re-escalation is a binary downside catalyst that would hit oil-sensitive consumer demand and equity beta.
 
-### Energy & Oil
+#### Energy & Oil
 - Oil prices have been elevated by the Iran conflict. "May rewired global energy markets."
 - **Mixed effect on TSLA**: High gasoline prices historically support EV adoption (mild positive), but the inflationary impulse keeps the Fed hawkish and pressures consumer discretionary spending on big-ticket items like vehicles.
 - "**June Crunch Point**": 24/7 Wall St. flags June as risk concentration with energy reserves depleting and rate hikes potentially looming.
 
-### Rates & Treasury Yields
+#### Rates & Treasury Yields
 - Investing.com flagged: "**Will higher Treasury yields threaten the market's climb?**" — yields rising is a direct headwind for long-duration high-multiple stocks like TSLA.
 - The combination of sticky inflation (food/oil-driven), Iran-war stagflation pressure, and possible **rate hikes** is the single biggest macro risk for TSLA's multiple.
 
-### Consumer & Inflation
+#### Consumer & Inflation
 - Persistent cost-push inflation: shoe prices rising, **tomato prices +40% YoY**, oil-driven cost pass-through to retail.
 - "**Job Concerns, Shoe Price Hikes and Shaky Consumer Suggests Slower Sales**" — direct read-through to softer auto demand in 2H 2026.
 - This consumer weakness is a clear headwind for Tesla's auto segment, partially offset by the AI/Robotics narrative supporting the multiple.
 
-### Equity Market Tone
+#### Equity Market Tone
 - **AI rally remains the dominant theme**: Dell soared on AI; chip stocks at historic highs; multiple new $1T+ market cap entrants.
 - Risk markets near all-time highs on Iran-truce hopes — this is a **late-cycle, narrative-heavy regime** where TSLA outperforms on momentum but is vulnerable to mean reversion on any AI-bubble crack or geopolitical shock.
 
@@ -249,7 +249,7 @@ Tesla (TSLA) enters the final days of May 2026 trading near **$440/share**, with
 | **Medium-term (1-3 months)** | Mixed / Volatile | June "crunch point" macro risk, rate-hike chatter, soft consumer = headwinds; SpaceX merger speculation = upside catalyst |
 | **Long-term (12mo+)** | Bullish (narrative-dependent) | Physical AI / Optimus / Robotaxi optionality; SpaceX merger could re-rate; but valuation already prices in heavy execution |
 
-### Specific Trades to Watch
+#### Specific Trades to Watch
 1. **TSLA + NVDA pair**: Both flagged at buy points; correlated AI trade. If AI bubble concerns crystallize, both fall together.
 2. **SpaceX–Tesla merger headlines**: Any official announcement is a major upside catalyst (potential 10-20% move). Even rumor escalation can move the stock.
 3. **China EV competition**: Watch Nio budget EV launch reception — could pressure Q2/Q3 China delivery numbers for Tesla.
@@ -429,7 +429,7 @@ Tesla, Inc. (TSLA) remains the world's leading pure-play electric vehicle manufa
 
 ---
 
-### Fundamental Verdict for Traders
+#### Fundamental Verdict for Traders
 
 Tesla is a **high-quality, fortress balance sheet company in a heavy reinvestment cycle**, with **encouraging gross-margin re-expansion** offset by **OpEx-driven operating margin compression, sizable share dilution, and historically low ROE/ROA**. The fundamental picture *alone* does not justify the ~400x P/E — the stock is being priced almost entirely on **AI/autonomy/robotaxi/Optimus optionality**.
 

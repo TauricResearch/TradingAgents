@@ -22,20 +22,20 @@ The most recent two sessions (May 28–29) printed the first meaningful pullback
 
 #### 2. Indicator-by-Indicator Read
 
-### Trend Structure (10 EMA / 50 SMA / 200 SMA)
+#### Trend Structure (10 EMA / 50 SMA / 200 SMA)
 - **10 EMA (May 29): ~$300.07** — well below the close of $342.85, meaning price is extended ~14% above its fastest trend line. Healthy in a strong uptrend, but historically a mean-reversion magnet.
 - **50 SMA (May 29): ~$190.42** — price trades **+80% above the 50 SMA**, an extreme stretch that almost always resolves with either a multi-week consolidation or a sharp drawdown.
 - **200 SMA (May 29): ~$173.84** — price is ~+97% above the 200 SMA. A **bullish 50/200 alignment is in place** (50 > 200 and the gap is widening), confirming a long-term trend reversal off the March low. This is structurally bullish but signals a heavily overbought tape.
 
-### Momentum (MACD / RSI)
+#### Momentum (MACD / RSI)
 - **MACD (May 29): +41.60**, rising sharply from +16.84 on May 18. Histogram is expanding — momentum is accelerating, not yet showing a bearish crossover or divergence with price.
 - **RSI (May 29): 80.63**, having printed **83.79 on May 28**. RSI has been above 70 since May 19 and above 76 since May 20. This is deeply overbought; in strong trends RSI can ride high, but readings >80 typically precede at least a short-term cooling-off.
 
-### Volatility (Bollinger Upper / ATR)
+#### Volatility (Bollinger Upper / ATR)
 - **Boll Upper (May 29): ~$358.20** — price closed at $342.85, just below the band. On May 28 the close ($349.17) was almost exactly at the upper band ($344.28). Price has been **walking the upper band** since mid-May — characteristic of a momentum breakout, not an immediate reversal signal, but expansion is unusually wide.
 - **ATR (May 29): ~$21.78** — daily expected range is now ~$22, vs. ~$13 in early May (a **~70% jump in realized volatility** in four weeks). For risk sizing, an ATR-based stop of 1.5×ATR ≈ $33 below entry is prudent; 2×ATR ≈ $44.
 
-### Volume Confirmation (VWMA)
+#### Volume Confirmation (VWMA)
 - **VWMA (May 29): ~$267.38** vs. close $342.85. Price is meaningfully above its volume-weighted average, confirming that the rally has had **real volume participation** (volumes May 13–28 ranged 4.6M–10.3M shares, well above the Feb–March base). This validates the breakout as not just thin-air drift.
 
 #### 3. Synthesis & Actionable Insights
@@ -92,7 +92,7 @@ FINAL TRANSACTION PROPOSAL: **HOLD**
 
 #### Source-by-source breakdown
 
-### News (Yahoo Finance, 2026-05-24 → 2026-05-31)
+#### News (Yahoo Finance, 2026-05-24 → 2026-05-31)
 News flow leans constructive but with notable cautionary counterweights. Positive/event-driven items dominate volume:
 - **Astera Labs founders won the 2026 EY World Entrepreneur of the Year** (Fortune) — high-prestige reputational tailwind.
 - **"Astera Labs Targets $10B AI Connectivity Opportunity as Scorpio X-Series Ramps"** (MarketBeat, 5/27) — management at TD Cowen TMT Conference flagged robust demand across the connectivity portfolio with multiple product lines contributing into 2H26 and 2027. Substantive bullish catalyst.
@@ -106,7 +106,7 @@ Counterweight (material):
 
 Net news read: **Mildly Bullish** — strong demand commentary, brand-elevating award, analyst upgrades and ~32% weekly rally, partially offset by a credible valuation/cycle downgrade.
 
-### StockTwits (30 most-recent messages)
+#### StockTwits (30 most-recent messages)
 Tagged sentiment: **Bullish 11 (37%) · Bearish 6 (20%) · Unlabeled 13 (43%)**. Bull/bear ratio ~1.83:1 — moderately bullish, not euphoric.
 
 Bullish themes:
@@ -125,7 +125,7 @@ Notable: even unlabeled messages skew positive (regret at selling at $305, "amaz
 
 Net StockTwits read: **Mildly Bullish with extension/froth risk flagged by a credible bear minority.**
 
-### Reddit (r/wallstreetbets, r/stocks, r/investing)
+#### Reddit (r/wallstreetbets, r/stocks, r/investing)
 Engagement is **very thin** — only one post per subreddit, all dated 2026-05-27, and *none of them are ALAB-primary*. ALAB is mentioned tangentially:
 - r/wsb: a $MU yolo retrospective with portfolio composition mentioning ALAB.
 - r/stocks: "$MU became the AI memory trade nobody wanted to chase — what's the next 'obvious in hindsight' chip-adjacent play?" — ALAB likely cited in body as a candidate.
@@ -195,14 +195,14 @@ Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setu
 
 #### 2. Company-Specific Catalysts (ALAB)
 
-### 2.1 Bullish Drivers
+#### 2.1 Bullish Drivers
 - **$10B AI Connectivity TAM:** At the TD Cowen TMT Conference (May 27), VP of Finance/IR Nick Aberle outlined "robust demand across the connectivity portfolio" with **Scorpio X-Series ramping into 2H26 and 2027**. Multi-product contribution narrative is intact (Aries, Taurus, Leo, Scorpio).
 - **Founder Recognition:** Astera Labs founders won the **2026 EY World Entrepreneur of the Year** — a brand/PR positive that reinforces management quality narrative.
 - **Momentum Trade:** Stock surged **~32% week-on-week** earlier in May driven by bullish analyst price-target hikes and Cramer commentary on Mad Money.
 - **Thematic Tailwind:** Multiple Motley Fool / IBD pieces frame ALAB alongside Broadcom, Credo, and Ciena as "next Nvidia-style" AI data-center connectivity plays. Credo (CRDO) reports June 1 — a **read-through catalyst** for ALAB given overlapping AEC/hyperscaler exposure.
 - **Insider Ownership:** ALAB repeatedly featured in Simply Wall St. high-insider-ownership growth screens — signals founder/management alignment.
 
-### 2.2 Bearish/Risk Drivers
+#### 2.2 Bearish/Risk Drivers
 - **Northland Downgrade (this week):** Cut ALAB (and Intel) from Buy to **Market Perform**, citing:
   1. Stretched valuation post-rally
   2. **Concerns hyperscaler AI infrastructure spending will decline in 2027**
@@ -214,16 +214,16 @@ Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setu
 
 #### 3. Macroeconomic Backdrop (Week of May 24–31, 2026)
 
-### 3.1 Geopolitical / Energy
+#### 3.1 Geopolitical / Energy
 - **US–Iran conflict ongoing**, with a truce extension reported May 29. Oil prices remain elevated; Exxon and Chevron are warning of further crude spikes.
 - **Inflation pass-through is back:** Footwear News, WWD, and CBS report rising shoe, apparel, and food (tomatoes +40% YoY) prices. This is **stagflation-flavor** data.
 
-### 3.2 Rates & Equities
+#### 3.2 Rates & Equities
 - **Higher Treasury yields** flagged this week as the key threat to the equity rally (Investing.com). Rising yields are typically **negative for high-multiple growth/AI semis** like ALAB.
 - **AI capex still bid:** Dell soared this week ("AI Party Keeps Raging") — the AI-infrastructure trade continues to absorb macro headwinds. Bullish read-through for ALAB demand.
 - **Broad market:** S&P up ~1.1–2.5% on rolling 7-day basis through May; +26–29% YoY. Earnings projected +17% next 12 months.
 
-### 3.3 Implications for ALAB
+#### 3.3 Implications for ALAB
 | Macro Vector | Direction | ALAB Impact |
 |---|---|---|
 | Rising oil / inflation | Negative | Slight margin pressure, multiple compression risk |
@@ -486,23 +486,23 @@ The product portfolio — Aries (PCIe), Taurus (Ethernet), Leo (CXL), Scorpio (P
 
 #### 3. Now Let Me Address the Bear's Likely Arguments Head-On
 
-### Bear Point #1: "Northland downgraded on 2027 hyperscaler capex concerns."
+#### Bear Point #1: "Northland downgraded on 2027 hyperscaler capex concerns."
 
 Counterpoint: **One sell-side desk's macro guess versus the actual capex commentary from Microsoft, Meta, Google, and Amazon — all of whom have *raised* AI capex guidance through 2026.** Dell just blew the doors off this week ("AI Party Keeps Raging"). Broadcom's AI revenue is still accelerating. The Northland call is a *valuation* downgrade dressed up as a *cycle* call. Note they cut to **Market Perform, not Sell** — they're not actually saying the business is broken; they're saying "we can't justify chasing here." That's a tactical view, not a thesis-killer.
 
-### Bear Point #2: "RSI is 80+, price is 80% above 50 SMA — this is parabolic and dangerous."
+#### Bear Point #2: "RSI is 80+, price is 80% above 50 SMA — this is parabolic and dangerous."
 
 Counterpoint: **Yes, tactically extended. No, that's not a reason to be bearish on the company.** The technical report itself confirms: 50 SMA > 200 SMA, both rising, MACD accelerating with no negative divergence, VWMA confirms institutional volume participation. **Price riding the upper Bollinger band is *strong-trend behavior*, not a reversal signal.** The honest read is: short-term consolidation likely, long-term trend intact. That's a **trim/hold setup, not a sell setup** — which is why I'm comfortable advocating to *hold and accumulate on pullbacks*, not chase.
 
-### Bear Point #3: "CEO sold $5.78M in May. Insiders are dumping."
+#### Bear Point #3: "CEO sold $5.78M in May. Insiders are dumping."
 
 Counterpoint: Context matters. **ALAB still ranks among the highest-insider-ownership growth stocks** per Simply Wall St. screens. A CEO trimming $5.78M after the stock 3x'd from $100 to $300+ is **rational diversification, not a vote of no confidence.** If insiders were truly bearish, you'd see coordinated, large-scale selling — not a single trim. And let's not forget: **the founders just won EY World Entrepreneur of the Year.** That's not a management team running for the exits.
 
-### Bear Point #4: "PE of 233x is absurd."
+#### Bear Point #4: "PE of 233x is absurd."
 
 Counterpoint: **Trailing PE is the wrong lens for a hyper-growth semiconductor in revenue inflection.** Forward PE is **81.5x** based on consensus EPS of $4.21. If the company hits $5+ in EPS in FY27 (entirely plausible given the Scorpio ramp), forward PE drops to ~60x. Compare that to Nvidia at peak excitement, or AVGO post-AI re-rating. **PEG ratio**, given expected 90%+ EPS growth, is actually under 1 — a *cheap* metric for hyper-growth.
 
-### Bear Point #5: "Receivables jumped 62% QoQ — quality of revenue concerns."
+#### Bear Point #5: "Receivables jumped 62% QoQ — quality of revenue concerns."
 
 Counterpoint: Receivables are growing alongside a major Scorpio product launch and a new acquisition that brought in additional customer accounts. **In a quarter with 14% sequential revenue growth and a product ramp, AR growth is expected.** I'd be worried if AR was growing while revenue stalled — that's the danger sign. Here, it's a footprint expansion signal.
 

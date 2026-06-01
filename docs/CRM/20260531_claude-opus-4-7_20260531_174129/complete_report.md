@@ -41,7 +41,7 @@ Avoided redundancy: did not pick both `boll` (middle band) and a third SMA (boll
 
 #### 3. Indicator-by-Indicator Read (values from tools)
 
-### Trend Structure
+#### Trend Structure
 - **Close (5/29):** $191.10
 - **10 EMA (5/29):** 179.99 → price is **+6.2% above** the 10 EMA. Short-term trend has flipped up.
 - **50 SMA (5/29):** 180.68 → price now **+5.8% above** the 50 SMA, after spending most of April–May *below* it. First meaningful reclaim.
@@ -50,14 +50,14 @@ Avoided redundancy: did not pick both `boll` (middle band) and a third SMA (boll
 
 **Interpretation:** A short-term breakout has occurred, but it is still a counter-trend move within a larger bear structure. Reclaiming the 200 SMA at ~$220 would be the first technical confirmation of a regime change.
 
-### Momentum
+#### Momentum
 - **MACD line (5/29):** −0.0012 (essentially zero), up from −1.17 on 5/28 and −3.14 trough on 5/14. The MACD is on the verge of crossing into positive territory.
 - **MACD Histogram (5/29):** +1.22, expanding from +0.36 on 5/28 — a strong bullish momentum thrust. Histogram has been positive since 5/20, confirming a bullish MACD signal-line crossover earlier in the week.
 - **RSI (5/29):** 60.54, jumping from 46.86 on 5/28. Sat in the 36–50 band most of May; now breaking above 60 for the first time since early May. Not yet overbought (>70), so room to run, but the 1-day jump is large.
 
 **Interpretation:** Momentum has clearly turned. MACD bullish cross + RSI thrust + histogram acceleration = textbook short-term buy signal. But: the May 14 RSI low of 36.73 was *not* a classic oversold (<30) print, so divergence-based reversal calls are weaker than they would be at deeper extremes.
 
-### Volatility / Bands
+#### Volatility / Bands
 - **Bollinger Upper Band (5/29):** 191.66 — close of 191.10 is **right at the upper band** (a tag, not a breakout).
 - **Bollinger Lower Band (5/29):** 166.40 — earlier in May (5/13–5/15), the close traded near the lower band (price 165.84–173.51 vs. band 166.26–169.08).
 - **Band width:** ~$25.3, fairly wide → high realized volatility regime.
@@ -131,7 +131,7 @@ I'll let the next assistant in the chain incorporate fundamentals/news/risk inpu
 
 #### CRM Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News headlines (Yahoo Finance, ~20 articles):** Institutional framing is genuinely mixed, leaning cautiously constructive on fundamentals but acknowledging persistent share-price weakness.
 - *Bullish/constructive items:* Salesforce printed its first $11.1B quarter with $6.7B operating cash flow and raised revenue guidance (Benzinga); Agentforce Health expansion with CVS Health described as the "largest Agentforce agreement in regulated industries" (Simply Wall St.); launch of Forward Deployed Engineering partner network with TTEC Digital (Insider Monkey); MarketBeat piece "Salesforce Stock Finds Support as AI Momentum Builds" projecting triple-digit upside; inclusion in Zacks "founder-led long-term wealth" list alongside PLTR/DELL; large active buyback (MarketBeat); ServiceNow's +14% pop on enterprise-software AI rotation following Dell's blowout AI-server quarter — a tailwind read-across for CRM.
@@ -147,18 +147,18 @@ Net institutional read: fundamentally solid quarter and clear AI/Agentforce trac
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing):** No posts in the window. This is a meaningful gap — for a name that just printed an $11.1B quarter and moved 8% on Friday, Reddit silence suggests CRM is not currently a retail-meme focus, which limits the breadth of the retail signal.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 - **Alignment:** Both news and StockTwits acknowledge a strong fundamental quarter (revenue, cash flow, guidance raise) and the Agentforce/AI narrative as the core bull thesis. Both also acknowledge the persistent YTD weakness.
 - **Divergence — magnitude:** StockTwits is noticeably more upbeat (0 bearish labels, options-flow excitement, $350 price targets) than the news flow (Northland cut, Cramer cautious, "cut bait" headline). This is a classic post-earnings retail-leans-in / sell-side-stays-cautious split.
 - **Divergence — Reddit absence vs. StockTwits activity:** Heavy StockTwits chatter without Reddit pickup suggests the move is being traded by active retail/options players but hasn't crossed into broader community discussion.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **Agentforce / Enterprise AI monetization** — central bull narrative (CVS expansion, TTEC partner network, Forward Deployed Engineering). Read-through from Dell's AI-server beat and ServiceNow's +14% rotation reinforces "enterprise AI software is back."
 2. **Valuation / drawdown reset** — stock down >30% YTD frames CRM as a beaten-down value-in-software setup; buybacks support this thesis.
 3. **Skeptic overhang** — persistent question of whether AI is a tailwind or a headwind to seat-based SaaS, captured by Cramer and Northland's PT cut.
 4. **Friday volume/options surge** — highest daily volume in ~2 years and a $1.46M July $185 call sweep suggest a tactical momentum re-rating attempt.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 **Catalysts (already in tape):**
 - $11.1B revenue quarter + raised guidance + $6.7B OCF (just reported).
 - CVS Agentforce expansion; TTEC Forward Deployed Engineering partner network.
@@ -172,7 +172,7 @@ Net institutional read: fundamentally solid quarter and clear AI/Agentforce trac
 - Reddit silence + thin StockTwits sample = retail conviction is narrower than headline bullish ratio implies.
 - Macro: any reversal in the AI-spend / Iran-deal risk-on backdrop disproportionately hits beaten-down high-beta software.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -190,7 +190,7 @@ Net institutional read: fundamentally solid quarter and clear AI/Agentforce trac
 | Reddit coverage in WSB/stocks/investing | Neutral (absent) | Reddit | No posts in window — limits breadth |
 | Macro: S&P/Nasdaq record highs, AI-spend rally | Bullish (tailwind) | News (MT Newswires, Barchart) | Risk-on backdrop into month-end |
 
-### Bottom line
+#### Bottom line
 The week's signals are genuinely **Mixed**, tilting marginally constructive. Fundamentals (record quarter, raised guide, Agentforce wins, buyback) and tape action (8% Friday, volume blow-off, bullish call sweeps, sector rotation) argue for a tactical bottoming attempt. Offsetting this are a sell-side PT cut, persistent 30%+ YTD drawdown, lingering AI-disruption skepticism, and absent Reddit engagement that caps the breadth of the retail signal. Confidence is **medium** — news flow is rich, StockTwits is usable but small and dominated by repeat posters, and Reddit returned no data.
 
 ### News Analyst
@@ -216,22 +216,22 @@ There are early signs of capital rotation back into beaten-down enterprise softw
 
 #### 2. Company-Specific Catalysts (Past Week)
 
-### 2.1 Earnings Print — Record Quarter, Mixed Reception
+#### 2.1 Earnings Print — Record Quarter, Mixed Reception
 - **Revenue:** First-ever **$11.1B** quarter (Benioff highlighted publicly).
 - **Operating cash flow:** $6.7B.
 - **Guidance:** Raised full-year revenue guidance.
 - **Stock reaction:** Despite the beat, CRM remains down >30% YTD — investors continue to discount the print on AI cannibalization fears (Cramer commentary: "There's a lot to consider here").
 - **Analyst response:** **Northland's Nehal Chokshi cut PT to $202 from $229** (Market Perform reiterated) — a defensive trim that underscores that even bulls are recalibrating multiples.
 
-### 2.2 Agentforce / AI Strategy — Real Enterprise Wins
+#### 2.2 Agentforce / AI Strategy — Real Enterprise Wins
 - **CVS Health partnership expanded** — described as Salesforce's **largest Agentforce agreement in regulated industries**. Significant proof point that Agentforce can land flagship healthcare logos.
 - **Forward Deployed Engineering partner network** launched with TTEC Digital — designed to scale enterprise AI agent deployments. TD Cowen remains bullish.
 - **Wedbush thesis** ("data layer as defining battleground"): Salesforce's proprietary CRM data stack is positioning it to capture downstream AI value — a structural bull case.
 
-### 2.3 Capital Returns
+#### 2.3 Capital Returns
 - Salesforce highlighted as one of "3 software stocks buying back shares hand over fist" alongside Adobe and ADP. Aggressive buybacks at depressed prices act as a floor and EPS tailwind.
 
-### 2.4 Sentiment / Positioning
+#### 2.4 Sentiment / Positioning
 - George Soros's portfolio still holds CRM (per Insider Monkey).
 - Marketing/brand momentum: "MrBeast Big Game" brand moment on NYSE Floor Talk — supports consumer mindshare.
 - **MarketBeat:** "Salesforce stock finds support as AI momentum builds" — technical commentary suggesting basing action.
@@ -241,12 +241,12 @@ There are early signs of capital rotation back into beaten-down enterprise softw
 
 #### 3. Sector & Peer Read-Throughs
 
-### Bullish for CRM
+#### Bullish for CRM
 - **Dell's blowout Q1 ($60B AI server sales)** confirmed AI capex remains intact — this is foundational demand for the application/agent layer Salesforce sells.
 - **ServiceNow +14% on May 29** — direct enterprise SaaS comp re-rating; capital is rotating back into beaten-down software peers. ServiceNow is still 47% off highs, suggesting CRM (down ~30% YTD) is in similar "rotation candidate" territory.
 - **Tech-led rally to record highs** on Friday May 29.
 
-### Bearish / Caution
+#### Bearish / Caution
 - Software has lagged the broader Q2 tech rebound (per MarketBeat). Investors continue to debate whether AI adds to or subtracts from per-seat licensing economics.
 - Northland PT cut to $202 illustrates that even after the print, sell-side is not adding multiple expansion.
 
@@ -254,17 +254,17 @@ There are early signs of capital rotation back into beaten-down enterprise softw
 
 #### 4. Macroeconomic Backdrop
 
-### 4.1 Geopolitics — US/Iran (Mixed)
+#### 4.1 Geopolitics — US/Iran (Mixed)
 - An **ongoing US-Iran conflict** is driving headlines, but markets rallied to **record highs late this week on "peace deal hopes"** as Trump set out conditions for an Iran deal, and a **truce extension** was reported May 29.
 - Risk: oil prices remain elevated — Exxon and Chevron warning crude could "skyrocket in coming weeks." A re-escalation would pressure equities broadly, with software (long-duration assets) particularly vulnerable to any associated yield spike.
 
-### 4.2 Rates & Bond Market
+#### 4.2 Rates & Bond Market
 - **"Will higher treasury yields threaten the market's climb?"** is a circulating concern. Long-duration software multiples (CRM included) are highly sensitive to the 10Y. Continued yield grind higher = headwind to CRM multiple expansion despite fundamentals.
 
-### 4.3 Inflation & Consumer
+#### 4.3 Inflation & Consumer
 - Persistent goods inflation (footwear, tomatoes +40% YoY, gas-driven retail pass-through) and "job concerns / shaky consumer" headlines suggest **a cooling consumer**. This is a marginal negative for SMB seat additions at Salesforce, but enterprise-driven Agentforce deals (CVS) are insulated.
 
-### 4.4 Commodities
+#### 4.4 Commodities
 - Silver/oil higher on geopolitics; coffee easing on Brazilian harvest. Energy strength is supportive of XOM/CVX (price target hikes for both) but a relative drag for software flow.
 
 ---
@@ -547,25 +547,25 @@ The lower Bollinger band at $166 *held perfectly* on the May 13 retest ($165.84)
 
 Now let me directly address what the bear will surely throw at me:
 
-### "The balance sheet is wrecked — debt tripled to $41.9B, D/E is 124%, tangible book is -$31.7B."
+#### "The balance sheet is wrecked — debt tripled to $41.9B, D/E is 124%, tangible book is -$31.7B."
 
 This is the bear's strongest-looking point and it's actually a *misread*. Here's what really happened: Salesforce executed a **textbook leveraged recapitalization** — issuing $24.8B in debt at low rates to retire $27.3B of stock at depressed prices. That's not financial distress; **that's management putting their balance sheet to work because they believe their stock is mispriced.** Apple did this. IBM did this. It's the playbook of cash-rich businesses with stable recurring revenue.
 
 Look at the coverage: **$16.5B in TTM FCF against ~$1.3B annualized interest expense. That's >12x interest coverage.** This balance sheet is not stressed — it's *optimized*. Negative tangible book is irrelevant for a software company; the same critique would condemn Microsoft, Oracle, and every M&A-active SaaS franchise on the planet.
 
-### "AI cannibalizes seat-based SaaS."
+#### "AI cannibalizes seat-based SaaS."
 
 If that were true, Q1 revenue wouldn't have *reaccelerated* to +13%, the CVS Agentforce deal wouldn't be the largest in regulated industries, and management wouldn't be raising guidance. The data is contradicting the narrative in real time. Bears are fighting last year's war.
 
-### "Northland cut PT to $202."
+#### "Northland cut PT to $202."
 
 A Market Perform target that still implies upside from $191. That's the *bearish* case from the sell side — and it's still positive. Meanwhile TD Cowen reiterated bullish, and the $1.46M call sweep at $185 strikes is voting with real capital, not just opinions.
 
-### "Stock is down 30% YTD — there's overhead supply."
+#### "Stock is down 30% YTD — there's overhead supply."
 
 Yes, and that's *exactly why the asymmetry exists.* You don't get 12x forward earnings on a 13%-growing, 38% FCF-margin software franchise without a drawdown creating the entry. Soros still holds it. Buybacks are eating the float at these prices. The setup is asymmetric: limited downside ($165 double-bottom is 14% away), substantial upside (200 SMA reclaim at $220 = +15%, prior highs at $267 = +40%).
 
-### "200 SMA still falling, long-term trend bearish."
+#### "200 SMA still falling, long-term trend bearish."
 
 Trends end. This is what the inflection looks like — high-volume thrust, momentum cross, fundamental catalysts, sector rotation. By the time the 200 SMA confirms, the easy 20% is gone.
 

@@ -55,17 +55,17 @@ I deliberately omitted boll/boll_lb (redundant with boll_ub for current context,
 
 #### 3. Indicator-by-Indicator Read (verified values for May 29, 2026)
 
-### Trend Structure
+#### Trend Structure
 - **10 EMA: 209.51** | **50 SMA: 159.05** | **200 SMA: 145.23**
 - Stack is **price (236.03) > 10 EMA > 50 SMA > 200 SMA** – a textbook fully-aligned bullish stack.
 - The 50 SMA crossed back above the 200 SMA's neighborhood on the rally; on May 29 the 50 SMA (159.05) is now **+13.82 above** the 200 SMA (145.23), an embryonic golden-cross posture from `get_indicators` data.
 - 10 EMA slope: rising from **174.23** (May 1) to **209.51** (May 29) = +20.3% in a month – aggressive short-term momentum.
 
-### Momentum
+#### Momentum
 - **MACD: 16.21**, **MACD Signal: 12.95** → MACD line is above signal by **+3.26**, and both lines turned positive on **Apr 15** (MACD 8.63, Signal 0.65 from the indicator output) after being deeply negative through early April (MACD bottom near **−6.66 on Apr 1**). This confirms the momentum-regime change.
 - **RSI: 69.09** on May 29, up from 43.90 on May 18 (the squeeze low). RSI is **just below the classic 70 overbought threshold** but did not yet print >70 on May 29. Earlier in the rally RSI peaked at **78.40 on Apr 22**, which preceded the late-April pullback – a precedent worth respecting.
 
-### Volatility
+#### Volatility
 - **Bollinger Upper Band: 236.60** vs. close 236.03 → price is **literally riding the upper band** (within $0.57 / 0.24%). In strong trends this is normal; in tired trends it marks exhaustion.
 - **ATR: 16.92** – elevated. Compare to **ATR 8.37 on Apr 1** – volatility has roughly **doubled**. A 1-ATR move at current levels is ~7.2% of price; risk parameters must widen accordingly.
 
@@ -129,7 +129,7 @@ The disciplined play is **not to chase strength at the upper band**, but rather 
 
 #### CRDO Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~11 relevant headlines):** Tone is constructively bullish with a single hedging note. Key items:
 - *Simply Wall St.* highlights CRDO "quietly assembling an AI datacenter connectivity moat" via the Rebellions ZeroFlap AEC integration and the DustPhotonics acquisition — a structural, vertically-integrated AI thesis.
@@ -151,20 +151,20 @@ Net news read: **Bullish on fundamentals and narrative; one yellow flag on exten
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing):** No posts found mentioning CRDO in the past 7 days. This is a meaningful gap — the WSB/r/stocks crowd is not yet piling in, which actually mitigates the over-extension worry from StockTwits. Read as **neutral / no signal.**
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 - **Aligned bullish**: News institutional framing (moat-building, hyperscaler ramp, Cohen position, +141% inflows) and StockTwits retail enthusiasm both point the same direction. The DustPhotonics + Rebellions narrative is echoed across both.
 - **Mild divergence**: 24/7 Wall St.'s "Hold at the 52-week high" call is the only news-side caution; it is *not* echoed on StockTwits, where retail is dismissing valuation risk and chasing higher PTs. This is the classic "institutions trim into strength while retail extrapolates" setup.
 - **Reddit silence vs. StockTwits froth**: The absence of Reddit chatter suggests the move has been driven by AI-thesis specialists and retail-trader subgroups, not yet meme-flow. That argues against blow-off-top dynamics but also limits broad-base support if the print disappoints.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 
 1. **AI-datacenter connectivity moat** — ZeroFlap AECs, DustPhotonics (optical/CPO), retimers, optical DSPs, SerDes IP. Vertical integration story.
 2. **Hyperscaler revenue ramp** — FY26 guide >$800M, +85% growth, with Q4 print on June 1 as the immediate catalyst.
 3. **Institutional accumulation** — +141% since June 2025 institutional signal; Point72/Cohen exposure.
 4. **Earnings as binary catalyst** — multiple posts and headlines explicitly key off the June 1 release.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 
 **Catalysts:**
 - **Q4 FY26 earnings on June 1** (consensus $1.03 EPS / $430M revenue) — primary near-term driver.
@@ -177,7 +177,7 @@ Net news read: **Bullish on fundamentals and narrative; one yellow flag on exten
 - **Concentration risk**: dependence on a small number of hyperscaler customers (industry-known issue, not specifically called out this week but implicit).
 - **Profit-taking trigger**: any guide-only-in-line print could produce a sharp pullback given retail PTs of $300–$1000.
 
-### 5. Summary signal table
+#### 5. Summary signal table
 
 | Signal | Direction | Source | Supporting evidence |
 |---|---|---|---|
@@ -191,7 +191,7 @@ Net news read: **Bullish on fundamentals and narrative; one yellow flag on exten
 | Reddit attention | Neutral | Reddit | No posts found across WSB/stocks/investing |
 | Dominant catalyst | Event | Cross-source | June 1 Q4 FY26 earnings print |
 
-### Bottom line
+#### Bottom line
 Sentiment is clearly **Bullish** with broad alignment between institutional news framing and retail enthusiasm around the AI-connectivity thesis. The score (7.5) reflects strong directional signal but discounts modestly for (a) StockTwits froth approaching contrarian territory, (b) explicit valuation caution from 24/7 Wall St. at 52-week highs, and (c) the binary June 1 earnings catalyst that could amplify moves in either direction. Confidence is **medium** because Reddit returned no posts and StockTwits sample (29) is moderate; news flow is the most substantive of the three sources.
 
 ### News Analyst
@@ -214,24 +214,24 @@ CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release 
 
 #### 2. CRDO-Specific Catalysts (Past ~30 Days)
 
-### A. Earnings Imminent — June 1, 2026 (FQ4'26)
+#### A. Earnings Imminent — June 1, 2026 (FQ4'26)
 - **Consensus:** ~$1.03 EPS / ~$430M revenue (per Zacks).
 - Fiscal Q3'26 already showed **+201.5% YoY revenue growth** — a hyper-growth print that sets a high bar.
 - Reports alongside **Broadcom and Ciena** in the same week — the entire AI connectivity cohort prints together, which means cross-read risk (positive or negative) into CRDO is elevated.
 - IBD framing: "Chipmaker aims for 9th straight triple-digit gain" — implies the buy-side already prices in another blowout.
 
-### B. Strategic M&A & Partnerships (Building a Moat)
+#### B. Strategic M&A & Partnerships (Building a Moat)
 - **DustPhotonics acquisition (~$750M)** — vertical integration into optical DSP / silicon photonics; positions CRDO into the optical interconnect stack alongside its AEC franchise.
 - **Rebellions partnership (announced May 20, 2026)** — ZeroFlap AECs integrated into RebelPOD AI inference clusters, expanding CRDO **beyond hyperscalers into enterprise AI factories**. Stock jumped **~8.3%** on the news.
 - Competitive framing: Zacks ran a head-to-head **CRDO vs. COHR (Coherent)** piece — Street is comparing CRDO's AEC-led model favorably vs. Coherent's transceiver/OCS approach.
 
-### C. Price Action & Positioning
+#### C. Price Action & Positioning
 - Stock up **141% since first institutional outlier in June 2025** (FX Empire).
 - Experienced a **~25.66% drawdown earlier in May** before recovering to within ~5% of the 52-week high ($233.70). This volatility signals positioning instability.
 - Held in **Steve Cohen's (Point72) portfolio** — confirms hedge fund sponsorship/momentum money.
 - 24/7 Wall St. published a **"Hold"** rating on May 29 at $221.23, citing parabolic run leaving "no margin for error." Zacks is the most bullish ("Bull of the Day").
 
-### D. Sentiment Read
+#### D. Sentiment Read
 - **Overwhelmingly bullish coverage:** Zacks Bull of the Day, IBD buy-area callouts, "alternative to NVDA" positioning, and "Quietly Assembling AI Datacenter Connectivity Moat" (Simply Wall St).
 - **Caution flags:** "Tests Lofty AI Valuation Expectations," 52-week-high warnings, recent 25% drawdown, and explicit "Hold" calls.
 
@@ -254,20 +254,20 @@ CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release 
 
 #### 4. Macro Backdrop (Past 7 Days)
 
-### Geopolitical
+#### Geopolitical
 - **US–Iran conflict ongoing**, but **truce extension hopes** lifted markets to fresh highs (5/30). Oil rate pressure prompting Exxon/Chevron warnings of "skyrocketing" prices.
 - Fresh highs on Iran de-escalation = risk-on tape favorable for CRDO momentum.
 
-### Rates & Inflation
+#### Rates & Inflation
 - **Core PCE (Fed's preferred inflation gauge)** released this week — referenced as market-moving.
 - **Treasury yields rising** — articles flagging "higher treasury yields threaten the market's climb." This is a **direct headwind for high-P/E semis like CRDO**.
 - Consumer cracks emerging (job concerns, shoe/food price hikes, "shaky consumer") — stagflation tail risk.
 
-### Energy & Commodities
+#### Energy & Commodities
 - Oil bid; energy stocks (XOM, CVX, FANG, DVN, PBR) getting upgrades.
 - Silver firm on Iran truce news; silver futures expansion to Singapore.
 
-### Equity Tape
+#### Equity Tape
 - Dow at record close; AI mega-cap rally extending; Nvidia/Tesla/AMZN at buy points.
 - Backdrop **constructive for CRDO into earnings**, but rates and oil risk are building.
 
@@ -275,18 +275,18 @@ CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release 
 
 #### 5. Risk/Reward Framework Into Earnings
 
-### Bull Case (Beat & Raise)
+#### Bull Case (Beat & Raise)
 - AEC ramp at hyperscalers + DustPhotonics + Rebellions enterprise expansion = TAM broadens
 - Q3'26 +201% YoY suggests Q4 could surprise to the upside
 - Likely target: $250+ on a clean beat & raise
 
-### Bear Case (In-Line / Soft Guide)
+#### Bear Case (In-Line / Soft Guide)
 - Stock priced for perfection at 52-week high
 - MRVL only met — peer signal is mixed
 - Drawdown to $180–190 (~15–20% downside) plausible on guidance disappointment
 - Rising yields amplify multiple compression risk
 
-### Base Case
+#### Base Case
 - Beat top/bottom but in-line guide → choppy reaction, likely range-bound $200–$235 short-term
 
 ---
@@ -532,31 +532,31 @@ This is what *institutional accumulation* looks like — sustained higher highs 
 
 #### Now Let Me Address the Bear Concerns Directly
 
-### Bear: "Valuation is extreme — 130× TTM P/E, no margin for error"
+#### Bear: "Valuation is extreme — 130× TTM P/E, no margin for error"
 
 Trailing P/E is the wrong lens for a company tripling revenue. **Forward P/E is 42.8×**, and if FY27 EPS comes in anywhere near the trajectory ($5.52 forward consensus is conservative given +200% topline growth), the multiple compresses fast. NVDA traded at similar forward multiples in 2023 and went on to a $5T market cap. The bears have been calling AI semis "expensive" the entire way up — and they've been wrong every quarter.
 
 Also: 24/7 Wall St.'s "Hold" call at $221.23 is a *positioning* note, not a *thesis* rebuttal. They didn't say sell. They said be careful at the highs — fine, but that doesn't refute the long-term compounding case.
 
-### Bear: "Inventory grew 291% — demand is softening"
+#### Bear: "Inventory grew 291% — demand is softening"
 
 This is contextual misreading. Revenue grew **201% YoY** and is accelerating **52% sequentially**. Inventory builds *ahead* of ramps in semis because hyperscaler orders are placed quarters in advance with binding commitments. AR also grew 55% — meaning customers are paying. If demand were softening, you'd see AR balloon while revenue stalled. Instead, we have all three (revenue, inventory, AR) growing in coordination. That's a **ramp signal, not a glut signal.**
 
-### Bear: "Stock is parabolic — overextended into earnings"
+#### Bear: "Stock is parabolic — overextended into earnings"
 
 Yes, RSI at 69 and price riding the upper Bollinger band means it's tactically extended. **I won't argue otherwise.** But "overextended" ≠ "wrong." The April precedent the bear loves to cite — RSI 78 on April 22, then a -12% pullback — *resumed higher and made new highs within four weeks*. That's a feature of strong trends, not a bear signal. Overextended uptrends correct *through pullbacks within structure*, and the structure here remains pristine.
 
 The disciplined bull plays buys pullbacks to the 10 EMA ($209) or 50 SMA ($159), with a stop below $159 — not exits at the highs.
 
-### Bear: "MRVL only met estimates — read-through is negative"
+#### Bear: "MRVL only met estimates — read-through is negative"
 
 Marvell is *not* a clean comp. Marvell is a diversified semi with custom ASIC, networking, storage, and carrier exposure. Their custom ASIC story has its own headwinds. **CRDO is a focused AEC/optical pure-play with 200% growth — Marvell hasn't grown like that in a decade.** Conflating them is exactly the kind of lazy peer-mapping that creates the bull entry. If anything, NVDA at record quarter and DELL "soaring" on AI server demand are far more relevant read-throughs — and both are positive.
 
-### Bear: "Customer concentration risk"
+#### Bear: "Customer concentration risk"
 
 Yes, hyperscaler concentration is real — but it's also the *reason the growth exists*. The hyperscalers (MSFT, META, GOOG, AMZN) have collectively committed to **~$300B+ in 2026 capex**. CRDO's content-per-rack is rising as AECs replace optics in shorter runs and as DustPhotonics extends them into longer runs. The Rebellions deal explicitly diversifies into the enterprise AI segment — so concentration is being actively addressed.
 
-### Bear: "SBC dilution and equity raise"
+#### Bear: "SBC dilution and equity raise"
 
 SBC of ~$180M annualized is real economic cost — granted. But share count grew 8.5% while EPS grew 413% and operating income grew several-fold. **Per-share value creation is overwhelmingly positive.** The $352M equity raise was opportunistic capital at premium prices — exactly what good management does.
 
@@ -904,7 +904,7 @@ The bear's "defensible" 30/35/25/10 distribution is **also unsourced** — he ju
 
 #### Now, Where the Bear's Final Argument Actually Falls Apart
 
-### The CSCO/INTC/AMBA/FSLY/ZM List Is the Bear's Own Survivorship Bias
+#### The CSCO/INTC/AMBA/FSLY/ZM List Is the Bear's Own Survivorship Bias
 
 The bear accused me of cherry-picking winners. **Let's count names:**
 
@@ -918,7 +918,7 @@ He cited CSCO (2000 dot-com bust), INTC (decade-long execution failure unrelated
 
 **His list isn't "the wreckage history forgets." It's "companies whose underlying businesses broke."** That's a completely different risk than the one CRDO faces. The bear is comparing apples to extinct oranges.
 
-### The Bear's Own Recommendation Confirms the Bull Thesis
+#### The Bear's Own Recommendation Confirms the Bull Thesis
 
 Read his final recommendation carefully. He says:
 - Beat-and-raise → "enter post-print at whatever level (even $260) with the binary risk eliminated"
@@ -934,7 +934,7 @@ Read his final recommendation carefully. He says:
 
 And here's what he's not telling you: in scenario 1 (beat-and-raise — the historically dominant outcome at 8/8), his "wait" strategy costs you $260 entry vs. $236 today. **He's asking you to pay 10% more for "certainty" in the most likely scenario** to save 15-20% in scenarios that combined are less likely than the single beat outcome.
 
-### The "Margin Compression" Argument Is Empirically Backwards
+#### The "Margin Compression" Argument Is Empirically Backwards
 
 The bear claims operating margins must compress as growth slows. **The verified data shows the opposite trajectory:**
 
@@ -950,7 +950,7 @@ The bear claims operating margins must compress as growth slows. **The verified 
 
 His SBC argument has the same empirical problem. He says SBC scaled "with" revenue (3.2× vs 3×). **OK — but as a percent of revenue, SBC went from 12% to 12.8%.** That's basically flat in a 200% growth ramp. As growth continues, SBC dollar growth typically lags revenue dollar growth (this is industry-standard) — meaning SBC% of revenue should *decline* in FY27, not climb.
 
-### The "Single Product Category" Framing Ignores What Actually Happened
+#### The "Single Product Category" Framing Ignores What Actually Happened
 
 The bear keeps calling CRDO "single-product-category" with "50%+ customer concentration." **The verified May 2026 news flow refutes both claims:**
 

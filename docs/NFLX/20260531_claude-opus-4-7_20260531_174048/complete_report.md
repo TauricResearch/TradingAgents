@@ -122,7 +122,7 @@ NFLX is in a **confirmed downtrend** (full bearish MA stack, RSI sub-50, MACD be
 
 #### NFLX Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1) Source-by-source breakdown
+#### 1) Source-by-source breakdown
 
 **News (Yahoo Finance, ~19 NFLX-relevant items):** Tone is constructively bullish with a clear "fallen-angel/comeback" framing. The stock is referenced as down ~25–28% over the past year, trading near $88, with multiple outlets explicitly calling it a bargain ("Down 28%, Netflix Stock Is Suddenly a Bargain" — Barchart; "3 Reasons to Buy Netflix Stock in June" — Motley Fool; "Netflix Could Be One of the Market's Biggest Comebacks With 250% Upside" — 24/7 Wall St., $318 PT vs ~$88 spot). Fundamental drivers are positive: (a) ad business on track to ~$3B in 2026 with advertiser count up ~70% YoY (Zacks, Insider Monkey, TD Cowen Buy reiterated at $112 PT); (b) FY free cash flow guidance raised to $12.5B from $11B; (c) Q1 2026 revenue $12.24B (+16% YoY); (d) consumer-products expansion (Moose Toys for Charlie vs. the Chocolate Factory and Young MacDonald, Ferrero for Wonka); (e) acquisition of Ben Affleck's AI startup InterPositive, with claims of up to $3.5B/yr in production cost savings (50% VFX, 70% background actors); (f) $100M co-investment with Spotify to pull Jay Shetty's "On Purpose" off YouTube. Negatives/risks: WBD deal terminated with a $2.8B break fee weighing on shares; German regulatory push to force local reinvestment by streamers; Zacks comparative piece favored AAPL over NFLX as the better streaming buy; Paramount-Skydance/WBD combination creates a larger scaled competitor. Net: roughly 12 bullish-leaning, 4 neutral/mixed, 3 bearish-leaning headlines.
 
@@ -130,13 +130,13 @@ NFLX is in a **confirmed downtrend** (full bearish MA stack, RSI sub-50, MACD be
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing):** Effectively silent on NFLX as a thesis. Only two WSB mentions, both incidental: a 0DTE rant and a CBOE pre-market options list including NFLX. r/stocks and r/investing returned zero NFLX posts in the window. No engagement metrics available. Reddit contributes essentially no directional signal.
 
-### 2) Cross-source divergences and alignments
+#### 2) Cross-source divergences and alignments
 
 - **Alignment:** News and StockTwits both lean positive on the medium-term thesis — ad business scaling to ~$3B, raised FCF guidance, and a discounted multiple after a ~28% drawdown. Both sources highlight the same comeback narrative and the 24/7 Wall St. $318 PT.
 - **Divergence:** News is forward-looking and fundamentals-driven (ad tier, AI cost takeout, content franchises). Retail is more focused on near-term price action ($85–86 support, "running next week", call OI). A subset of retail is visibly frustrated with the stock's chop near 52-week lows, which the news flow largely papers over.
 - **Reddit silence** removes a source of contrarian/exuberant retail color and lowers overall confidence.
 
-### 3) Dominant narrative themes
+#### 3) Dominant narrative themes
 
 1. **"Bargain after the drawdown"** — Stock at ~$88 vs $134 high; multiple outlets and retail call it oversold.
 2. **Ad-tier inflection** — ~$3B 2026 ad revenue, advertiser count +70% YoY, expansion to 27 countries by 2027.
@@ -144,13 +144,13 @@ NFLX is in a **confirmed downtrend** (full bearish MA stack, RSI sub-50, MACD be
 4. **Franchise/IP monetization** — Wonka (Ferrero), Young MacDonald, Charlie vs. the Chocolate Factory (Moose Toys); Jay Shetty podcast acquisition.
 5. **WBD overhang fading** — Break-fee paid; shareholder meeting and Q2 print viewed as catalysts to reset narrative.
 
-### 4) Catalysts and risks
+#### 4) Catalysts and risks
 
 **Catalysts:** Annual shareholder meeting next week; Q2 2026 earnings; continued ad-tier disclosures; AI-driven content cost reduction beginning to hit P&L; international ad-market rollout.
 
 **Risks:** German (and broader EU) reinvestment-quota regulation; Paramount Skydance + Warner Bros. Discovery emerging as a scaled competitor; AAPL preferred by some sell-side as the better streaming exposure; price action stuck near 52-week lows could break support if Q2 disappoints; retail is conspicuously one-sided bullish on StockTwits, a mild contrarian caution flag.
 
-### 5) Summary signal table
+#### 5) Summary signal table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -189,40 +189,40 @@ The macro backdrop is notably tense: an active US–Iran war, oil price spikes, 
 
 #### 2. Company-Specific Catalysts (Past Week)
 
-### 2.1 Warner Bros. Acquisition Terminated
+#### 2.1 Warner Bros. Acquisition Terminated
 Netflix walked away from the Warner Bros. acquisition, paying a **$2.8B termination fee**. Meanwhile, **Paramount Skydance** stretched into a **$110B takeover bid for Warner Bros. Discovery**. Implications:
 - Netflix avoids a debt-laden mega-merger; preserves balance sheet flexibility.
 - Paramount-WBD combination creates a heavily leveraged competitor, which may struggle to invest in content/tech, **net positive for NFLX competitive positioning**.
 - Capital freed up can flow back to buybacks, content, or AI/ad-tech investment.
 
-### 2.2 InterPositive AI Acquisition (~$600M)
+#### 2.2 InterPositive AI Acquisition (~$600M)
 Netflix acquired Ben Affleck's AI startup **InterPositive**. Per a 500-page patent disclosure:
 - Up to **50% savings on visual effects** and **70% on background actor costs**
 - Estimated **$3.5B/year in potential cost savings**
 This is a meaningful margin lever if executed — directly accretive to operating margins and FCF, supporting the raised FCF guide.
 
-### 2.3 Advertising Business Inflection
+#### 2.3 Advertising Business Inflection
 - 2026 ad revenue tracking near **$3B**
 - TD Cowen reiterated **Buy with $112 PT** highlighting strong upfront disclosures
 - New formats, **live events**, and ad-tech tools are scaling
 - Netflix expanded its advertising slate (per Marketing Dive)
 This is becoming the dominant growth narrative for the next 12–24 months as subscriber growth saturates.
 
-### 2.4 Consumer Products / Franchise Monetization
+#### 2.4 Consumer Products / Franchise Monetization
 - Partnership with **Moose Toys** for *Charlie vs. the Chocolate Factory* and *Young MacDonald*
 - Partnership with **Ferrero Group** on Wonka-branded products internationally
 Validates the franchise/IP flywheel strategy — small revenue impact short term, but margin-rich and supportive of the long-term Disney-style monetization thesis.
 
-### 2.5 Regulatory Headwind — Germany
+#### 2.5 Regulatory Headwind — Germany
 Netflix publicly criticized Germany's plan to require streamers to **reinvest a share of locally generated revenue** in domestic film production. France, Denmark, and Sweden have similar rules. EU regulatory drag is structural; manageable but margin-suppressive in Europe.
 
-### 2.6 Valuation Setup
+#### 2.6 Valuation Setup
 - Stock at ~$88.60 vs. 52-week high $134.12 (-34%)
 - YTD: -5.5%; TTM: -25.4%
 - Sentiment described as "suddenly a bargain" (Barchart) after years of premium multiple
 - Bull cases see $112–$318 12-month PTs; very wide dispersion = high optionality / debate
 
-### 2.7 Comparative Notes
+#### 2.7 Comparative Notes
 - Zacks: **AAPL edges NFLX** as a stronger 2026 buy, citing Services growth and ecosystem resilience
 - Netflix has lagged broader entertainment peers, but analyst ratings remain steady
 
@@ -230,25 +230,25 @@ Netflix publicly criticized Germany's plan to require streamers to **reinvest a 
 
 #### 3. Macroeconomic Backdrop (Relevant to NFLX)
 
-### 3.1 Geopolitical — US–Iran War
+#### 3.1 Geopolitical — US–Iran War
 - Active conflict, with US troops injured in Kuwait
 - Strait of Hormuz transit tensions; mixed signaling from the White House
 - Iran truce extension reported May 29, providing temporary relief
 - **Implication for NFLX:** Lower direct risk than energy/industrials, but elevated risk-off sentiment compresses multiples on growth/discretionary names.
 
-### 3.2 Energy / Inflation
+#### 3.2 Energy / Inflation
 - Exxon and Chevron warning oil prices could "skyrocket"
 - Footwear News + WWD flag rising apparel costs and gas-price trickle-down
 - Tomato prices +40% YoY; broad food inflation persists
 - **Implication for NFLX:** Consumer wallet pressure → bullish for the **ad-supported tier** (lower-priced subs) but headwind for premium-tier ARPU and pricing power. Net effect actually favors the ad-tier strategy.
 
-### 3.3 Rates & Equity Market
+#### 3.3 Rates & Equity Market
 - "Will higher treasury yields threaten the market's climb?" — yields rising
 - AI/data-center spending (Dell soaring) sustains tech leadership
 - Nvidia at $5.15T market cap; mega-cap tech dominance continues
 - **Implication for NFLX:** Higher yields = lower multiples for long-duration cash-flow stocks. NFLX is now valued more reasonably (compressed multiple), so rate sensitivity is reduced relative to past years.
 
-### 3.4 Consumer Signals
+#### 3.4 Consumer Signals
 - "Job Concerns, Shoe Price Hikes and Shaky Consumer Suggests Slower Sales"
 - Mixed labor market signals
 - **Implication for NFLX:** Streaming has historically been recession-resilient; the ad tier is well-positioned for trade-down behavior.

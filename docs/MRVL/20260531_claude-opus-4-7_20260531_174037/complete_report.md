@@ -54,15 +54,15 @@ I selected eight indicators that span trend, momentum, volatility, and reversal-
 | Boll Upper Band | 211.10 | 194.21 | Expanding (vol expansion) |
 | ATR (14) | 12.26 | 11.00 | Rising — daily ranges ~6% of price |
 
-### Trend Stack (very bullish)
+#### Trend Stack (very bullish)
 Price ($205) >> 10 EMA (193.70) >> 50 SMA (146.66) >> 200 SMA (98.37). All averages are sloping up and **stacked in textbook bullish order**. Price is trading **108% above the 200 SMA** — historically extreme and indicative of a stretched market.
 
-### Momentum (bullish but watch divergence risk)
+#### Momentum (bullish but watch divergence risk)
 - MACD = 15.80, Signal = 14.68 → bullish crossover regime intact since mid-May after a brief contraction (5/18–5/19 saw MACD compress to 12.24).
 - However, MACD's **5/4 high was 15.93** — at that time price was ~$163. Now price is $205, but MACD is only 15.80. **This is the early footprint of a bearish momentum divergence** (higher price highs, lower or equal MACD highs).
 - RSI 69.50 has actually pulled back from the 5/26 peak of 75.08 — also showing **negative divergence** vs. the price highs of 5/26–5/27.
 
-### Volatility (expanding sharply)
+#### Volatility (expanding sharply)
 - ATR has risen from **7.57 (5/04) to 12.26 (5/29)** — a **62% expansion** in three weeks. Daily ranges are now ~$12, meaning normal whipsaws can be $24+ over two days.
 - Bollinger upper band ($211.10) is just above the close ($205). The 5/26 high of $217.45 closed back below the band — another exhaustion signal.
 
@@ -70,20 +70,20 @@ Price ($205) >> 10 EMA (193.70) >> 50 SMA (146.66) >> 200 SMA (98.37). All avera
 
 #### 4. Key Observations & Actionable Insights
 
-### Bullish factors
+#### Bullish factors
 1. Long-term trend regime is unambiguously up (10 EMA > 50 SMA > 200 SMA).
 2. MACD made a fresh local upturn 5/19 → 5/29.
 3. Volume on April–May rallies (10x+ normal on 3/6 and 4/01) supports institutional sponsorship.
 4. RSI has not flipped below 50 once since late March — strong-trend characteristic.
 
-### Cautionary / bearish factors
+#### Cautionary / bearish factors
 1. **Negative momentum divergence (price/MACD and price/RSI)** — first since the rally began.
 2. **2026-05-27 high-volume reversal candle**: Open $217.98, High $218.26, Low $196.25, Close $198.70 on 54.2M shares. This is a textbook climactic exhaustion bar.
 3. Price is **+39.8% above the 50 SMA ($146.66)** — historically mean-reverting territory.
 4. ATR expansion of ~62% in 3 weeks is typical of late-stage trends, not early ones.
 5. Bollinger band-riding has stopped: 5/26 high pierced and closed back inside the band.
 
-### Levels to watch
+#### Levels to watch
 | Level | Source | Type |
 |---|---|---|
 | ~$211 | Bollinger upper band (5/29) | Resistance / breakout retest |
@@ -128,7 +128,7 @@ The trend is bullish, but the chart is showing **classic late-stage signals**: p
 
 #### 1. Source-by-source breakdown
 
-### News (Yahoo Finance, ~20 headlines)
+#### News (Yahoo Finance, ~20 headlines)
 The news flow is decisively **bullish**, dominated by reactions to Marvell's Q1 FY2027 earnings report released on May 27, 2026. Key signals:
 
 - **Multiple sell-side price-target hikes**: Deutsche Bank raised PT from $120 → $240 (Buy maintained). RBC also went to $240. Bank of America and Barclays "reset" targets sharply higher post-earnings (Barclays "nearly" doubled its target per TheStreet). This is a coordinated wave of upgrades.
@@ -139,7 +139,7 @@ The news flow is decisively **bullish**, dominated by reactions to Marvell's Q1 
 
 Stock context cited in articles: closed $204.03 on May 28 (+3.09%), +141% YTD as of May 29, +200%+ trailing 12 months.
 
-### StockTwits (30 most-recent messages)
+#### StockTwits (30 most-recent messages)
 Labeled split: **Bullish 7 (23%) / Bearish 1 (3%) / Unlabeled 22**. Among labeled messages the ratio is 7:1 bullish, but the heavy unlabeled tail dilutes signal strength. Reading the unlabeled posts qualitatively, tone skews bullish-to-euphoric:
 
 - Price targets being thrown around: "$220 wen", "Next week this is going to 230", "grind up to 250 or 300 before this A.I. supercycle show ends".
@@ -148,7 +148,7 @@ Labeled split: **Bullish 7 (23%) / Bearish 1 (3%) / Unlabeled 22**. Among labele
 - Notable bearish/contrarian voices: @AllinOrBusta repeatedly warning of "capitulation before the dump," shorting above $220, calling sell-the-news at conferences. @Warrent_jr tagged AMD/MU/MRVL "OVERVALUED." These are isolated.
 - Clear euphoria markers: "dot com boom 2.0", "milly milly baby status", "Picks and shovels baby!". Frothy retail tone is itself a contrarian yellow flag.
 
-### Reddit (6 posts total across subs)
+#### Reddit (6 posts total across subs)
 - **r/wallstreetbets (5 posts)**: All MRVL mentions are tangential — typically inside larger MU/AI portfolios. One user's portfolio is "30% MU, 30% MRVL." A "MRVL to the moon or Wendy's" post (low-effort YOLO framing). One post argues SOXS (3x semi bear) is doomed unless one of NVDA/MU/AMD/AVGO/MRVL craters — implicitly bullish on the cohort. Engagement metrics unavailable via RSS.
 - **r/stocks (1 post)**: About MU's trillion-dollar status, asking what's the next "obvious in hindsight" chip-adjacent play — MRVL implicitly part of that conversation.
 - **r/investing**: Silent on MRVL.
@@ -218,14 +218,14 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 
 #### 2. Company-Specific Analysis (MRVL)
 
-### 2.1 Q1 FY2027 Earnings (Reported May 27, 2026) — The Catalyst
+#### 2.1 Q1 FY2027 Earnings (Reported May 27, 2026) — The Catalyst
 - **Record revenue** with guidance above consensus
 - Management told investors growth would **accelerate every quarter** through the rest of FY2027
 - **FY2028 revenue forecast hiked**, implying FCF and price-target upside of ~23% (Barchart)
 - Strong **free cash flow** generation and FCF margins
 - **AI-related bookings** were the primary growth driver
 
-### 2.2 Sell-Side Reaction (Bullish)
+#### 2.2 Sell-Side Reaction (Bullish)
 | Firm | Action | New Price Target |
 |---|---|---|
 | Deutsche Bank | Raised, maintained Buy | **$240** (from $120) |
@@ -233,19 +233,19 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 | Bank of America | Raised post-earnings | (Reset higher) |
 | Barclays (Tom O'Malley) | Nearly doubled target | (Reset higher) |
 
-### 2.3 Strategic Positioning
+#### 2.3 Strategic Positioning
 - Trefis labels Marvell "**Broadcom's most credible rival**" in custom silicon / AI infrastructure
 - Stock has **re-rated**: P/S multiple expanded from <10x in January to **~22x** today
 - Key growth drivers: **data center networking, custom silicon (ASICs/XPUs for hyperscalers), interconnect/optical solutions**
 - Nvidia's **photonics push** is a bullish read-through for Marvell's optical DSP/interconnect business
 
-### 2.4 Risk Factors Specific to MRVL
+#### 2.4 Risk Factors Specific to MRVL
 - **Gross margin compression**: Custom silicon costs and competitive pressure are limiting GM expansion (Zacks)
 - **Valuation stretched**: At ~22x trailing sales, much of the good news is priced in. Barchart explicitly says "**not a screaming buy yet**"
 - **Competitive comparison**: Zacks argues NVDA has **the edge** vs. MRVL on revenue growth, gross margin, and valuation
 - **Crowded trade**: Cramer admits he "whiffed" — sentiment is unanimously bullish, raising contrarian concerns
 
-### 2.5 Technical Setup
+#### 2.5 Technical Setup
 - MarketBeat notes the recent pullback may be the "**setup bulls were waiting for**"
 - 141% YTD rally + 200%+ 12-month run = elevated volatility risk
 - Strong momentum continues, but stretched conditions favor scaling-in rather than chasing
@@ -254,27 +254,27 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 
 #### 3. Macroeconomic & Market Backdrop
 
-### 3.1 Equity Markets — Risk-On Regime
+#### 3.1 Equity Markets — Risk-On Regime
 - **S&P 500 and Nasdaq 100 both posted RECORD HIGHS** during the week
 - Tech stocks led the rally; AI infrastructure names (Dell, NetApp, Snowflake, Okta) were notable earnings winners
 - "**AI Party Keeps Raging**" — Dell soared, validating AI server/data-center demand thesis (direct positive read-through to MRVL)
 
-### 3.2 Geopolitics — U.S./Iran Ceasefire
+#### 3.2 Geopolitics — U.S./Iran Ceasefire
 - Markets rallied on **truce extension reports** between U.S. and Iran
 - This is **risk-on** for tech/growth names but caps oil-driven inflation risk
 - Reversal of any truce = downside catalyst (oil spike, risk-off)
 
-### 3.3 Commodities & Inflation
+#### 3.3 Commodities & Inflation
 - **Oil**: Tumbling on Iran truce optimism, but Exxon/Chevron warn prices "could skyrocket" if conflict resumes
 - **Silver**: Rallied on truce extension news — flight-to-quality unwinding
 - **Coffee, tomatoes**: Pockets of food inflation persist
 - **Consumer goods (footwear)**: Multiple articles note rising prices and weakening consumer
 
-### 3.4 Rates & Bonds — A Cautionary Note
+#### 3.4 Rates & Bonds — A Cautionary Note
 - **"Will higher Treasury yields threaten the market's climb?"** — Investing.com flagged elevated yields as a risk to high-multiple equities
 - MRVL at ~22x P/S is highly duration-sensitive; a yield spike is the most likely catalyst for a sharp pullback
 
-### 3.5 Consumer & Labor
+#### 3.5 Consumer & Labor
 - **"Job Concerns, Shoe Price Hikes and Shaky Consumer Suggests Slower Sales on the Horizon"** — early signs of consumer weakness
 - This is more bearish for consumer-discretionary names than for AI infrastructure plays like MRVL, which is driven by **enterprise/hyperscaler capex**, not consumer spending
 
@@ -282,20 +282,20 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 
 #### 4. Trading-Relevant Insights & Actionable Conclusions
 
-### Bull Case (Dominant)
+#### Bull Case (Dominant)
 1. Strong Q1 + accelerating quarterly growth guidance + raised FY27/FY28 outlook
 2. AI capex cycle still strengthening (Dell confirms; Nvidia photonics push)
 3. Multiple top-tier analyst upgrades to ~$240 target (~17% upside from $204)
 4. Risk-on macro: record highs, Iran truce, AI tailwind
 
-### Bear / Risk Case
+#### Bear / Risk Case
 1. **Stretched valuation** (22x P/S) with no margin of safety
 2. **Gross margin pressure** from custom silicon mix
 3. **Crowded long**; Cramer's "I whiffed" capitulation often marks short-term tops
 4. **Treasury yield risk** to high-multiple growth names
 5. **NVDA arguably better risk/reward** per Zacks comparison
 
-### Tactical Recommendation Framework
+#### Tactical Recommendation Framework
 - **Trend-followers / momentum**: Bias remains long; stay with the trend until it breaks
 - **New entrants**: Wait for the pullback Barchart and MarketBeat suggest; don't chase $204+ after a 141% YTD run
 - **Existing holders**: Consider trimming/scaling, locking in gains given valuation; trail stops below recent breakout levels
@@ -359,7 +359,7 @@ The stock is trading well above its 200-day average — a strong uptrend driven 
 
 #### 2. Income Statement — Growth Inflection
 
-### Annual Revenue & Profitability Trajectory (Fiscal year ends January)
+#### Annual Revenue & Profitability Trajectory (Fiscal year ends January)
 
 | FY (ending) | Revenue | Gross Profit | GM % | Operating Income | Net Income | Diluted EPS |
 |---|---|---|---|---|---|---|
@@ -371,7 +371,7 @@ The stock is trading well above its 200-day average — a strong uptrend driven 
 
 **Key inflection:** FY26 (the year just completed in January 2026) shows a dramatic recovery — revenue grew **+42% YoY**, gross margin expanded ~10 points back over 50%, and the company swung from a $885M loss to a $2.67B profit. Note: FY26 net income includes a one-time gain from the sale of a business (~$1.83B operating gains/losses line) recorded in Q3 FY26 (Oct-25 quarter).
 
-### Quarterly Trajectory (Most Recent 5 Quarters)
+#### Quarterly Trajectory (Most Recent 5 Quarters)
 
 | Quarter | Revenue | YoY Growth | Gross Profit | GM % | Operating Income | Net Income | Diluted EPS |
 |---|---|---|---|---|---|---|---|
@@ -422,7 +422,7 @@ Tangible book value moved from deeply negative (-$577M a year ago) to positive *
 
 #### 4. Cash Flow Quality — Strong & Consistent
 
-### Annual Cash Flow Summary
+#### Annual Cash Flow Summary
 
 | Metric | FY23 | FY24 | FY25 | FY26 |
 |---|---|---|---|---|
@@ -463,7 +463,7 @@ Underlying (ex-one-time items) operating margin is expanding sequentially — fr
 
 #### 6. Key Strategic / Fundamental Observations
 
-### Bullish drivers
+#### Bullish drivers
 1. **AI-driven revenue acceleration** — sequential and YoY growth re-accelerating; Q1 FY27 revenue +27.6% YoY at $2.42B.
 2. **Gross margin expansion** to 52%+ as custom silicon scales.
 3. **Free cash flow doubling** YoY; capital returns aggressive ($2B+ buybacks in FY26).
@@ -471,7 +471,7 @@ Underlying (ex-one-time items) operating margin is expanding sequentially — fr
 5. **Strategic M&A executed in Q1 FY27** — adds future revenue, financed without diluting common shareholders heavily (preferred + debt).
 6. **Forward EPS of $6.07** (vs. TTM $2.91) implies analyst expectations of ~108% earnings growth — the stock at ~$200 trades at 33x forward, reasonable given AI exposure.
 
-### Risks / Watch-outs
+#### Risks / Watch-outs
 1. **Q1 FY27 EPS only $0.04** — sharp interest expense spike + R&D step-up compressed earnings; if AI revenue ramp slows, multiple compression risk is severe.
 2. **Goodwill concentration**: $13.88B (52% of assets). Any failed acquisition could trigger impairment (MRVL has impaired before — $529M in FY25).
 3. **High beta (2.25)** — extreme cyclical/sentiment exposure. Stock has nearly tripled from 52-week low.

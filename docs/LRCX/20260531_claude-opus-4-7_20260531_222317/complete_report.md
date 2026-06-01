@@ -21,7 +21,7 @@ LRCX has experienced one of the most powerful uptrends in the semiconductor equi
 
 #### 2. Indicator-by-Indicator Read
 
-### Trend Architecture (close_50_sma, close_200_sma, close_10_ema)
+#### Trend Architecture (close_50_sma, close_200_sma, close_10_ema)
 | Indicator | Value (2026-05-29) | Reading |
 |---|---|---|
 | Close | 318.18 | — |
@@ -31,7 +31,7 @@ LRCX has experienced one of the most powerful uptrends in the semiconductor equi
 
 The 50 SMA crossed above the 200 SMA earlier in the year and the gap is widening (50-200 spread = ~71 points). This is a textbook **bullish trend stack** (price > 10 EMA > 50 SMA > 200 SMA), but the 65% price-to-200SMA premium is historically a zone where mean-reversion risk rises. The 10 EMA sloped sharply higher from $256.92 (5/1) to $306.40 (5/29) — a ~19% rise in one month, evidence of a parabolic acceleration.
 
-### Momentum (MACD, MACD Histogram, RSI)
+#### Momentum (MACD, MACD Histogram, RSI)
 | Indicator | 2026-05-29 | 2026-05-19 (recent low) | Comment |
 |---|---|---|---|
 | MACD | 15.10 | 9.82 | Re-accelerated higher |
@@ -42,7 +42,7 @@ The 50 SMA crossed above the 200 SMA earlier in the year and the gap is widening
 - **MACD Histogram**: After dipping negative around 5/18–5/21 (a healthy momentum reset), it has flipped positive and is expanding — bullish momentum re-engagement.
 - **RSI**: At 66, momentum is firm but **leaves room before the 70 overbought threshold**. Notably, RSI made a higher low on 5/19 (~51) than on 4/29 (~50) while price made a much higher high — **no negative divergence yet**, supportive of continuation.
 
-### Volatility (Bollinger Upper Band, ATR)
+#### Volatility (Bollinger Upper Band, ATR)
 | Indicator | 2026-05-29 |
 |---|---|
 | Bollinger Upper Band | 330.54 |
@@ -51,7 +51,7 @@ The 50 SMA crossed above the 200 SMA earlier in the year and the gap is widening
 - Price ($318.18) is just **~3.7% below the upper band ($330.54)**. On 5/26 the stock punched up to $323.98 (high) and 5/27 reached $333.33 — implying recent **band-riding behavior**, typical of strong trends.
 - **ATR at $13.94** has expanded from $11.65 in early May, a +20% rise in volatility. This means a **1-ATR stop ≈ $14**, and a 2-ATR stop ≈ $28 — meaningful risk for position sizing. A reasonable trailing stop sits near **$304** (close − 1 ATR) or **$290** (close − 2 ATR).
 
-### Volume Confirmation (VWMA)
+#### Volume Confirmation (VWMA)
 - **VWMA (20): $299.08** vs. close $318.18 → price is **~6.4% above VWMA**, confirming volume-supported uptrend.
 - The major up-days (5/5 +$17.23, 5/6 +$21.37, 5/26 +$17.33, 5/27 -$3.75 on highest volume) were accompanied by elevated volume (10–14M shares vs. ~8M baseline), validating institutional accumulation.
 
@@ -113,7 +113,7 @@ The 50 SMA crossed above the 200 SMA earlier in the year and the gap is widening
 
 #### 1. Source-by-source breakdown
 
-### News headlines (Yahoo Finance, ~20 articles)
+#### News headlines (Yahoo Finance, ~20 articles)
 Institutional framing is decisively constructive, with a dominant "AI-driven wafer fab equipment (WFE) supercycle" narrative:
 
 - **Bullish core thesis**: Lam Research CEO Tim Archer (speaking at Bernstein) flagged AI demand reshaping logic, memory, storage, and packaging into a **$140B chip-equipment boom**, which Bernstein's Stacy Rasgon called a "renaissance" for WFE. Jim Cramer separately called it "the greatest time in the history of the industry."
@@ -123,7 +123,7 @@ Institutional framing is decisively constructive, with a dominant "AI-driven waf
 
 Net news tone: **Bullish with valuation caveats** (~8/10).
 
-### StockTwits (30 most-recent messages)
+#### StockTwits (30 most-recent messages)
 - Labeled split: **13 Bullish / 0 Bearish / 17 unlabeled** → among labeled posts, 100% bullish; overall ~43% explicitly bullish, 0% bearish.
 - Notable evidence: multiple posts cheering ATH breakouts ("ripping past resistance, semiconductor bulls running wild"), a long position declaration, references to FY26 ~$5.68 / FY27 ~$7.93 EPS consensus, news of a planned Phoenix-area facility to support TSMC, and amplification of the CEO's $140B WFE comments.
 - Some price-target chatter ($320 repeated) and limit orders at $313–$317 suggest retail is anchoring near current highs.
@@ -132,7 +132,7 @@ Net news tone: **Bullish with valuation caveats** (~8/10).
 
 Net StockTwits tone: **Strongly bullish, slightly frothy** (~8/10).
 
-### Reddit (r/wallstreetbets, r/stocks, r/investing)
+#### Reddit (r/wallstreetbets, r/stocks, r/investing)
 - Only **1 indirect mention** in r/wallstreetbets — a Micron $1T market-cap thread (UBS PT raised to $1,625) which is a bullish read-through for memory capex and therefore for LRCX, but LRCX is not the primary subject.
 - r/stocks and r/investing: **silent on LRCX**. No engagement metrics available.
 - Reddit signal is **thin/inconclusive**, but what's there is tangentially supportive of the WFE/AI-memory thesis.
@@ -198,7 +198,7 @@ The trade is best characterized as a **high-momentum, structurally bullish story
 
 #### 1. Company-Specific Catalysts (LRCX)
 
-### Bullish Drivers
+#### Bullish Drivers
 - **CEO Tim Archer at Bernstein Conference (May 30):** Framed AI as fueling a **$140B chip-equipment market** spanning logic, memory, storage, and advanced packaging. Bernstein's Stacy Rasgon called it a WFE "renaissance."
 - **Analyst Fair Value Raised:** Simply Wall St. notes consensus fair value lifted to **US$313.69 from US$309.52**, with a cluster of upward target revisions tied to NAND, DRAM, and HBM (high-bandwidth memory) capacity expansion.
 - **Micron Read-Across:** Micron's "blowout day" earlier this week signaled structurally undersupplied AI memory demand, lifting the entire equipment complex (KLAC +6.6%, FormFactor, Amkor, Teradyne all surged). LRCX is a direct beneficiary as the leading etch/deposition supplier into memory fabs.
@@ -206,7 +206,7 @@ The trade is best characterized as a **high-momentum, structurally bullish story
 - **Options Flow:** Unusual put-selling volume (OTM puts) signals institutional confidence — investors collecting premium under the assumption shares hold or rise.
 - **30-day return: +22.92%; YTD: +72.34%; 1-year: +278%.** Momentum is extreme.
 
-### Bearish/Caution Signals
+#### Bearish/Caution Signals
 - **Valuation Risk:** Morningstar tags LRCX as **46% overvalued**. Barchart explicitly warns of a "volatile ride ahead" and recommends **tight stop-losses** for new entrants.
 - **Crowded Trade:** Semiconductor ETFs (SOXX, SMH, FTXL, PSI) are at 52-week highs; PSI ~doubled YTD. Mean-reversion risk is elevated when an entire sector has lapped the broad market this aggressively.
 - **High-Beta Exposure:** Invesco S&P 500 High Beta ETF on its best 7-day stretch in a year — the rally is concentrated in risk-on names like LRCX, vulnerable to any sentiment shift.
@@ -215,20 +215,20 @@ The trade is best characterized as a **high-momentum, structurally bullish story
 
 #### 2. Macro / Global Backdrop
 
-### Geopolitics — Iran War (Month 4)
+#### Geopolitics — Iran War (Month 4)
 - **Iran war has entered its fourth month**, materially repricing energy and risk markets.
 - Brief positive: a **truce extension with Iran** announced May 29 lifted silver and helped stocks reach record highs on "peace deal hopes."
 - However, "first 90 days upended energy markets," and June is being labeled a **"crunch point"** as strategic energy reserves are drawn down.
 
-### Inflation / Energy
+#### Inflation / Energy
 - Oil prices elevated, feeding through to consumer goods (footwear, food). **Tomato prices +40% YoY**; shoe prices and fashion retail seeing oil-driven cost pass-through.
 - Persistent goods inflation = pressure on the Fed.
 
-### Rates & Liquidity
+#### Rates & Liquidity
 - **Treasury yields rising**, with explicit market commentary asking whether higher yields will threaten the equity rally.
 - Concerns of **possible rate hikes in June** ("crunch point") — directly hostile to long-duration tech/semicap equipment names like LRCX, which trades on multi-year capacity buildout narratives.
 
-### Equities
+#### Equities
 - S&P 500, Dow, Nasdaq 100 hitting **record highs** on the combination of peace hopes + AI capex.
 - Dell soared on AI server demand — confirms hyperscaler/data center spend is intact, a direct positive read-through to LRCX.
 
@@ -242,7 +242,7 @@ The trade is best characterized as a **high-momentum, structurally bullish story
 | **Medium-term (3-6M)** | **Cautious-Constructive** | Strong fundamentals, but valuation (~46% overvalued per Morningstar) and crowded sector positioning warrant patience |
 | **Short-term (1-4 wks)** | **High volatility risk** | June Fed/macro "crunch point," Iran war risk, +278% 1-yr gain invites profit-taking; tight stops essential |
 
-### Actionable Insights
+#### Actionable Insights
 1. **Existing longs:** Trim/take partial profits into momentum strength; trail stops below 20-day moving average. The 30-day +23% move is unsustainable as a base rate.
 2. **New entrants:** Avoid market buys at these levels. Wait for a pullback to a prior support zone or a macro-driven reset (e.g., June FOMC). Consider selling cash-secured puts to mirror the institutional flow — earn premium and define entry below current spot.
 3. **Hedge:** Pair long LRCX with index puts or VIX calls into June; macro tail risk (Iran escalation, surprise rate hike, yield breakout) is asymmetric here.

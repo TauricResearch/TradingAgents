@@ -134,7 +134,7 @@ The longer-term uptrend in NVDA remains intact (price > 50-SMA > 200-SMA, both r
 
 #### NVDA Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1) Source-by-source breakdown
+#### 1) Source-by-source breakdown
 
 **News headlines (Yahoo Finance, ~20 items, institutional framing).**
 The news flow is genuinely two-sided this week:
@@ -169,26 +169,26 @@ NVDA is rarely the central subject — it's mentioned in passing within broader 
 
 Net: Reddit is **neutral-to-mildly-constructive** on NVDA, with the strongest signal being adjacent (DELL/AI demand confirmation, TSMC geopolitical concern shared by NVDA).
 
-### 2) Cross-source divergences and alignments
+#### 2) Cross-source divergences and alignments
 
 - **Alignment:** All three sources acknowledge the China/export-control overhang. News reports it as event; StockTwits dismisses it as priced-in; Reddit reflects it via the TSMC-geopolitics meta-thesis.
 - **Alignment (bullish):** AI capex/demand remains the durable thesis — $150B Taiwan commitment (news), Blackwell/Rubin ramp + PC chip reveal (StockTwits), Dell AI-server blowout (Reddit) all reinforce a healthy demand backdrop.
 - **Divergence:** News flow tonight is genuinely event-negative (loophole closure published Sunday), while StockTwits retail is leaning hard into "buy any dip" and a Jensen catalyst tonight. That is the classic setup where retail is leaning into a thesis the headlines haven't validated yet — could be vindicated quickly (Monday gap up on PC reveal) or punished (semis sell-off on China news).
 - **Divergence on hedge-fund signal:** Insider-Monkey-framed "bearish bet" by Aschenbrenner contrasts with retail's confident dip-buying.
 
-### 3) Dominant narrative themes
+#### 3) Dominant narrative themes
 
 1. **China export-control tightening** — fresh, this weekend; the only true new negative event.
 2. **Nvidia's PC/CPU expansion with Microsoft** — imminent (tonight/this week) catalyst, the dominant retail-bullish thread.
 3. **AI capex super-cycle still intact** — $150B Taiwan investment, Dell AI-server demand, $1T memory names, Quanta grid backlog all supportive.
 4. **Geopolitics around Taiwan/semis** — a slow-burn risk theme on Reddit.
 
-### 4) Catalysts and risks
+#### 4) Catalysts and risks
 
 - **Near-term catalysts:** Jensen Huang speech tonight (5/31, 11pm); Microsoft + Nvidia Windows-laptop CPU unveil "next week"; COMPUTEX/GTC Taipei; broader tape strength on Iran deal hopes.
 - **Risks:** Monday open could see a semi sell-off on the Commerce Department guidance; enforcement-tightening could escalate further if Beijing retaliates; hedge-fund short positioning (Aschenbrenner) is a non-trivial signal; TSMC/Taiwan geopolitical tail-risk.
 
-### 5) Summary table
+#### 5) Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -205,7 +205,7 @@ Net: Reddit is **neutral-to-mildly-constructive** on NVDA, with the strongest si
 | Dell AI-server blowout (+40% AH) | Bullish (read-through) | Reddit (r/stocks) | Confirms AI hardware demand |
 | Jensen Huang cited as bullish in bull-case posts | Bullish | Reddit (r/wsb) | "Bear to bull" portfolio post |
 
-### Bottom line
+#### Bottom line
 News is genuinely two-sided with a fresh negative China-export event balanced by a major positive capex commitment. Retail is leaning bullish into a near-term Nvidia/Microsoft PC-chip catalyst and dismissing the China headline as priced-in. Reddit is largely incidental but the AI-demand read-through (DELL) is supportive, while the TSMC/Taiwan geopolitical framing is a shared overhang. Net read: **Mixed**, with a slight bullish lean from retail catalyst-anticipation that doesn't quite outweigh the genuine event-driven negative in the news. Confidence is **medium** — sample sizes are workable but Reddit lacks engagement data and StockTwits labeled count is small (11).
 
 ### News Analyst
@@ -230,37 +230,37 @@ Macro backdrop is unusual: an **Iran war is in its fourth month**, oil/USO is up
 
 #### 2. Company-Specific Catalysts (NVDA)
 
-### 2a. Bearish Catalysts
+#### 2a. Bearish Catalysts
 - **U.S. Export Control Tightening (May 31, Reuters / Investing.com):** Commerce Dept. issued guidance closing the loophole that permitted Rubin/Blackwell exports to Chinese subsidiaries operating in third countries (e.g., Malaysia). This is a **direct revenue-headwind** for NVDA's Data Center segment serving Asian hyperscalers and creates renewed bilateral US–China friction. Expect immediate analyst question: how much of FY26 China-related revenue was actually flowing through these subsidiary channels?
 - **Notable Hedge Fund Short Disclosure:** Leopold Aschenbrenner's $13.7B Situational Awareness LP disclosed new short-side / bearish positioning against NVDA (ranked #2 on the list), AMD, MU, and TSM — a coordinated bearish AI-chip basket from a high-profile AI-focused PM. Sentiment-negative even though position size was not specified.
 - **Valuation Critique:** Yahoo Finance op-ed highlighted big-tech (NVDA included) as failing average investors via lack of stock splits / accessibility — soft narrative drag.
 
-### 2b. Bullish Catalysts
+#### 2b. Bullish Catalysts
 - **$150B Taiwan Investment (May 27, TheStreet):** Jensen Huang publicly committed up to **$150B/year** in Taiwan capacity build-out, which is positioned as a clear competitive moat over AMD's MI350x roadmap. Locks in TSMC priority, R&D presence, and CoWoS packaging access.
 - **Mega-Cap Buy-Point Setup (IBD):** NVDA cited alongside Tesla among five trillion-dollar "titans near buy points" as the index hit fresh highs on Iran-deal optimism — technical setup is constructive.
 - **AI Ecosystem Tailwind:** Dell soared on AI-server strength (May 29 "AI Party Keeps Raging"); SK Hynix and Micron crossed **$1 trillion market caps** — the entire AI memory + compute stack is being re-rated, which historically pulls NVDA along.
 - **No earnings disappointment** in the news flow (NVDA's FQ1 typically reports late May — absence of negative surprise is itself a positive signal).
 
-### 2c. Neutral / Watch Items
+#### 2c. Neutral / Watch Items
 - **Power/Grid Build-out:** Quanta Services backlog at ~$50B underscores AI data-center electrification demand, which is a leading indicator for sustained NVDA GPU demand 2027+.
 
 ---
 
 #### 3. Macro & Cross-Asset Backdrop
 
-### 3a. Geopolitics — Iran War (Month 4)
+#### 3a. Geopolitics — Iran War (Month 4)
 - The **US–Iran conflict has entered its fourth month** (Barron's). Truce extension news (May 29) lifted silver and equities briefly. This is a **dual-edged factor** for NVDA: (1) negative — risk-off flares, oil-led inflation hurts multiple expansion; (2) positive — DoD AI/defense spending tailwind benefits NVDA's defense-related compute contracts.
 
-### 3b. Oil & Inflation
+#### 3b. Oil & Inflation
 - **USO up ~98% YTD**, near $131. Oil-driven inflation is bleeding into consumer goods (shoes, fashion, food — multiple Footwear News/WWD pieces).
 - **Tomato prices +40% YoY**; gas prices elevated; this matters for NVDA because **rate-cut expectations are receding**, which compresses long-duration tech multiples.
 
-### 3c. Rates & Liquidity
+#### 3c. Rates & Liquidity
 - **Treasury yields rising** (Investing.com: "Will higher treasury yields threaten the market's climb?")
 - **June flagged as "Crunch Point"** for energy reserves and **rate-hike concerns** (24/7 Wall St.) — this is the single largest macro risk on the radar for high-multiple names like NVDA.
 - A 2027 Social Security COLA piece confirms inflation is becoming sticky in the data.
 
-### 3d. Risk Sentiment
+#### 3d. Risk Sentiment
 - Equity indexes at fresh highs (IBD)
 - Small-caps (IWM) participating — risk-on breadth is healthy
 - Crypto narratives (SOL, XRP) active — speculation alive but not euphoric
@@ -276,7 +276,7 @@ Macro backdrop is unusual: an **Iran war is in its fourth month**, oil/USO is up
 | **2–6 weeks** | June "crunch point" + potential rate-hike chatter is the biggest tail risk. AI capex narrative remains intact. | June FOMC / hot CPI = sell trigger; soft CPI + Iran de-escalation = breakout |
 | **3–12 months** | $150B Taiwan capacity + Rubin/Blackwell ramp + sovereign AI demand support secular bull case | Earnings revisions, China revenue commentary, hyperscaler capex guides |
 
-### Actionable Insights
+#### Actionable Insights
 1. **Do NOT chase NVDA at fresh highs into the export-control headline.** Wait for management quantification of China subsidiary exposure.
 2. **Hedge ideas:** Long NVDA / short AMD pair has fundamental support given the Taiwan capex differential.
 3. **Watch correlated tells:** SK Hynix / Micron at $1T caps confirms AI memory demand — bullish read-through. Aschenbrenner's bearish basket is a contrarian signal worth monitoring but not yet acting on.

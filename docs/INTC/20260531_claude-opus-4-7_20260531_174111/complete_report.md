@@ -122,7 +122,7 @@ Rationale: The long-term uptrend (price >> 50 SMA >> 200 SMA, golden cross activ
 
 #### INTC Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News headlines (Yahoo Finance, ~20 items):**
 The institutional news flow this week contains *no INTC-specific headlines*. Intel is not the subject of any of the ~20 articles surfaced; the feed is dominated by Nvidia, Micron, Cerebras, Snowflake, Rocket Lab, Buffett/Berkshire moves, and macro/AI-bubble commentary. The most relevant adjacent piece is Bloomberg's "AI Bubble Debate Gets Real as Chip Stocks Rally Turns Historic," which frames the semiconductor complex as extended — a backdrop Intel benefits from on the upside but is exposed to on the downside. The Micron piece ("DRAM Memory Boom: Why Micron Stock Could Still Double") and the Cerebras vs. Nvidia inference comparison both reinforce that institutional AI-chip narrative is centered on competitors, not Intel. Net read on news: **neutral-to-mildly-constructive by association** (chip sector strength), but with zero direct catalysts and a creeping "bubble" overhang.
@@ -145,23 +145,23 @@ Engagement metrics unavailable (RSS). Tone is constructive but tangential:
   - Other posts (Micron $1T, QCOM sex robots, world-traveler) only mention INTC peripherally.
 No bearish Reddit thesis surfaced, but no high-conviction bullish DD either. r/stocks silence is notable for a name with this kind of multi-month run.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 - **Alignment:** All three sources implicitly confirm INTC has been a strong recent performer riding the AI/chip rally — Reddit calls it a "best of May" winner, StockTwits users brag about a "monster trade," and news framing of the chip complex is hot.
 - **Divergence:** StockTwits tagged sentiment screams bullish (11/0) while the *unlabeled* StockTwits stream is meaningfully more cautious (chart-looks-bad posts, profit-taking, "Trump pump" framing). News flow is conspicuously *silent* on Intel-specific catalysts despite the run, and the Bloomberg AI-bubble piece introduces sector-level risk. This is a classic "retail euphoria meets institutional silence + emerging bubble talk" setup.
 - The r/investing post explicitly verbalizes the divergence: massive gains + dot-com déjà vu.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **Post-rally digestion / Friday profit-taking** — "chart looks bad," "all out, rotating," puts-seller worried.
 2. **"Trump pump" / political tailwind** — multiple references to Trump-administration favoritism toward INTC and speculation about Musk acquiring Intel.
 3. **AI/chip-sector beta** — INTC riding the same wave as MU, NVDA, AMD; Computex 2026 expectations referenced (wccftech link).
 4. **Bubble anxiety** — Bloomberg headline + dot-com comparisons in r/investing.
 5. **Foundry/EMIB technical progress** — one neutral StockTwits link to Intel Foundry's EMIB Part 2 post.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 **Catalysts:** Computex 2026 product/roadmap announcements; Intel Foundry EMIB progress notes; potential M&A speculation (Musk/Intel chatter — low credibility); CBOE pre-market options availability could increase liquidity/volatility; sector-wide AI-chip momentum.
 **Risks:** Friday sell-off and visible profit-taking flow; AI-bubble framing gaining institutional voice (Bloomberg); zero Intel-specific bullish news catalysts to refresh the thesis; retail tagged sentiment polluted by cross-cashtag spam (overstates true bullishness); dot-com analog gaining traction in considered (r/investing) discussion.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -175,7 +175,7 @@ No bearish Reddit thesis surfaced, but no high-conviction bullish DD either. r/s
 | Recent price action context | Mildly bearish (near-term) | StockTwits | Friday sell-off, profit-taking, defensive bulls |
 | Product/foundry catalysts | Mildly bullish | StockTwits links | Computex 2026 preview; Intel Foundry EMIB Part 2 |
 
-### Bottom line
+#### Bottom line
 INTC sentiment is **Mixed** with a slight positive lean. The stock has clearly had a strong run (validated across all three sources), tagged retail sentiment is loud-bullish, but the more textured signals — unlabeled StockTwits chatter, profit-taking flow, complete absence of fresh Intel-specific institutional news, and emerging AI-bubble framing — point to a tiring move rather than a fresh leg up. Score 5.4 reflects a marginally constructive tilt offset by clear post-rally exhaustion signals. **Confidence is low** because (a) no direct INTC news headlines were captured, (b) Reddit engagement metrics are unavailable, (c) StockTwits bullish tags are partially polluted by cross-cashtag spam, and (d) r/stocks returned no posts.
 
 ### News Analyst
@@ -215,7 +215,7 @@ The news flow over the past week (May 24 – May 31, 2026) reveals a market envi
 
 #### 3. Macro & Geopolitical Backdrop
 
-### 3.1 US–Iran Conflict (Material Risk)
+#### 3.1 US–Iran Conflict (Material Risk)
 Multiple Bloomberg/Yahoo headlines confirm:
 - "Americans Injured in Iranian Missile Strike on Kuwaiti Air Base"
 - "US Says Deals With Iran for Safe Hormuz Transit Are Prohibited"
@@ -226,12 +226,12 @@ Multiple Bloomberg/Yahoo headlines confirm:
 1. Higher input/energy costs for fabs (semiconductor manufacturing is highly energy-intensive).
 2. Risk-off events historically punish high-beta, capital-intensive turnaround names.
 
-### 3.2 Inflation & Consumer Weakness
+#### 3.2 Inflation & Consumer Weakness
 - Footwear News, WWD, CBS reporting **persistent price increases** (shoes, tomatoes +40% YoY) and **shaky consumer with job concerns**.
 - "An Economic Red Flag Is Flashing" pointing to higher 2027 Social Security COLA — confirms sticky inflation expectations.
 - Weak consumer = downside risk to **Intel's Client Computing Group (PC CPUs)**, which remains its single largest revenue segment.
 
-### 3.3 Rates & Equity Valuation
+#### 3.3 Rates & Equity Valuation
 - **"Will higher treasury yields threaten the market's climb?"** — Yields rising directly compresses long-duration tech multiples.
 - **"The Stock Market Is Doing Something Virtually Unprecedented"** — references stretched valuation extremes (only seen "one other time since the early 1870s") — a contrarian warning.
 - Wall Street consensus expects above-average returns next year — a contrarian *bearish* signal when sentiment is this lopsided.
@@ -398,7 +398,7 @@ The price action and re-rating suggest the market is pricing in a **major turnar
 
 #### 6. Catalysts, Risks & Investment Thesis
 
-### Bullish Drivers
+#### Bullish Drivers
 1. **Massive valuation re-rating already occurred** ($18.97 → $115+/share at recent levels), reflecting market belief in the turnaround.
 2. **Gross margins expanding** to 39.4% — operational leverage emerging as 18A node ramps.
 3. **Balance sheet transformed** via equity raise + asset sales: cash up ~56% YoY, net debt down 33%.
@@ -406,7 +406,7 @@ The price action and re-rating suggest the market is pricing in a **major turnar
 5. **Capex moderating** from peak — FCF inflection on the horizon.
 6. **Three quarters of positive GAAP operating income** confirms core stabilization.
 
-### Bearish/Risk Factors
+#### Bearish/Risk Factors
 1. **Forward P/E of 74.5x** is extremely demanding — the recovery is largely priced in.
 2. **TTM net loss of $3.17B** and ongoing GAAP losses driven by recurring write-offs/restructuring — quality of earnings remains low.
 3. **Q1 2026 had $4.03B in write-offs** — suggests asset impairment risk persists.
@@ -416,7 +416,7 @@ The price action and re-rating suggest the market is pricing in a **major turnar
 7. **No dividend** — equity holders' total return depends entirely on capital appreciation.
 8. **Heavy competition** from TSMC (foundry), NVIDIA (AI/GPU), AMD (CPU), and Samsung.
 
-### Verdict
+#### Verdict
 Intel is in the **late-stage turnaround** — operational metrics (revenue growth, gross margin, operating income, cash flow) are clearly inflecting positively, and the balance sheet is in dramatically better shape. However, **valuation has run far ahead of GAAP fundamentals** (Forward P/E ~74x, P/B ~5.2x). The risk/reward is now markedly less favorable than 12 months ago. New money entering at current levels needs the bull thesis (foundry wins, AI traction, EPS hitting $1.50+) to fully materialize.
 
 ---

@@ -26,7 +26,7 @@ The wider context (from Nov 2025): the stock has rallied from ~$280 to a peak ab
 
 #### 2. Indicator-by-Indicator Read
 
-### Trend (close_50_sma, close_200_sma, close_10_ema)
+#### Trend (close_50_sma, close_200_sma, close_10_ema)
 
 | Date | Close | 10 EMA | 50 SMA | 200 SMA |
 |---|---|---|---|---|
@@ -41,7 +41,7 @@ The wider context (from Nov 2025): the stock has rallied from ~$280 to a peak ab
 
 **Verdict:** Long/medium uptrend intact; short-term momentum has cracked.
 
-### Momentum (MACD, MACD Histogram, RSI)
+#### Momentum (MACD, MACD Histogram, RSI)
 
 | Date | MACD | MACD Hist | RSI |
 |---|---|---|---|
@@ -57,7 +57,7 @@ The wider context (from Nov 2025): the stock has rallied from ~$280 to a peak ab
 
 **Verdict:** Momentum unambiguously decelerating; not yet in oversold territory.
 
-### Volatility (Bollinger Upper Band, ATR)
+#### Volatility (Bollinger Upper Band, ATR)
 
 | Date | Close | Boll UB | ATR |
 |---|---|---|---|
@@ -128,7 +128,7 @@ The wider context (from Nov 2025): the stock has rallied from ~$280 to a peak ab
 
 #### GOOGL Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 headlines):** Institutional framing skews **mildly constructive but with clear overhangs**. Genuinely positive items include: (a) "Alphabet Stock Investors Just Got Great News From a Wall Street Analyst. It's Bad News for Nvidia." — framing Alphabet's TPU/AI accelerator push as a competitive wedge against NVDA; (b) "Google Cloud Strikes Major AI Deal With European Buyout Giant EQT" — a 300-portfolio-company AI/security distribution win; (c) "Google Just Changed Enlight Renewable Energy Stock's Entire Growth Story" — a long-term power agreement, reinforcing GOOGL as an anchor buyer of AI infrastructure capacity; (d) inclusion in multiple "core AI stocks to buy" and AI-ETF roundups. Negatives/risks: (a) "Alphabet Faces Youth Safety Settlement And India Ad Ruling Test" — multimillion-dollar U.S. school-district settlement plus an Indian trademark/keyword-ad ruling that hits the core ads business; (b) "Google forced to make costly AI fix after companies crashout" — enterprise CIOs blowing through annual AI budgets, forcing Google to respond on cost; (c) broader macro frames ("AI Bubble Debate Gets Real," "QQQ's Hidden Risk: Why the Fund's Top 5 Holdings Move Together," "FBI flags 'anti-tech extremism'") that put megacap AI names, including GOOGL, in the crosshairs of a bubble/concentration discussion. Net: roughly 5 clearly positive, 4 clearly negative/risk, balance neutral — a **mildly bullish to neutral institutional tone with elevated tail risk**.
 
@@ -136,25 +136,25 @@ The wider context (from Nov 2025): the stock has rallied from ~$280 to a peak ab
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing — 13 posts mentioning GOOGL; engagement metrics unavailable via RSS):** GOOGL is **not the protagonist of any thread**. It appears as a passing mention in posts that are actually about ARKK, FIG, TSMC, ADSK, AMD, NASDAQ index changes, or general "when do I sell?" questions. The most directly relevant item is r/investing's "Anthropic's rumored $900B IPO" thread, which calls out GOOGL as an incumbent competitor — neutral-to-slightly-positive (Alphabet owns ~14% of Anthropic per the StockTwits cross-reference) but framed as "AI hype justifiable?" skepticism. r/stocks "NASDAQ seasoning changes will dismantle passive investing" is a concentration/passive-flow risk piece that implicates megacaps including GOOGL. **Engagement signal is unavailable**, weakening the read. Net: **neutral**, with GOOGL not a focal long or short idea on Reddit this week.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 - **Divergence:** News is the most constructive (TPU/Nvidia narrative, EQT cloud deal, Enlight power deal); StockTwits is the most cautious (downgrade chatter, AI-ROI math, SpaceX-IPO rotation rumor); Reddit is largely silent. Retail is more skeptical than the institutional headlines.
 - **Alignment:** All three sources surface the **AI-capex / AI-bubble** debate. News frames it as a sector-wide question; StockTwits weaponizes it against GOOGL specifically (-15.7% projected AI ROI); Reddit echoes it via the Anthropic-IPO and AI-trade-bubble threads.
 - **Alignment:** Both news (India ad ruling, youth safety settlement) and StockTwits (downgrade, "get out now") raise **regulatory/legal and momentum-break risks** simultaneously.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 
 1. **AI infrastructure leadership vs. AI capex skepticism** — GOOGL's TPU positioning and cloud wins are real, but the market is openly debating whether the spend will earn its return.
 2. **Regulatory/legal overhang** — India ad ruling and U.S. youth-safety settlement land in the core ads business simultaneously.
 3. **Megacap concentration / passive-flow risk** — multiple pieces flag that GOOGL trades as part of a correlated top-5 basket; rotation risk into the SpaceX IPO is the near-term retail flavor of this.
 4. **Anthropic stake as embedded optionality** — surfaces in both Reddit and StockTwits as a positive sidebar.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 
 - **Catalysts (positive):** TPU/AI-accelerator competitive narrative vs. NVDA; Google Cloud EQT deal expanding portfolio-company footprint; Enlight power deal validating AI-infra demand; embedded Anthropic stake (~14%); Gemini/cybersecurity platform launch vs. OpenAI/Anthropic.
 - **Risks (negative):** India trademark/keyword-ad ruling (core ads exposure); U.S. youth-safety settlement; analyst downgrade chatter; SpaceX IPO (June 12) rotation flow; AI-bubble/concentration unwind risk; rising tech share of HY/IG bond market (leverage signal); enterprise AI budget exhaustion forcing pricing/cost concessions.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -172,7 +172,7 @@ The wider context (from Nov 2025): the stock has rallied from ~$280 to a peak ab
 | GOOGL not a focal thread on Reddit | Neutral | Reddit | Only passing mentions; engagement N/A |
 | DOJ Polymarket insider-data story | Mildly Bearish | StockTwits | Reputational, low financial impact |
 
-### Bottom line
+#### Bottom line
 News is **mildly bullish**, StockTwits is **mildly bearish**, Reddit is **neutral/silent**. The clear divergence between institutional headline flow and retail skepticism — both anchored to the same AI-capex debate — argues for a **Mixed** read at ~5.4/10. Confidence is **medium**: StockTwits sample (30) is adequate but Reddit lacks engagement metrics and GOOGL isn't a focal Reddit topic, and several StockTwits drivers (downgrade, SpaceX rotation) are unverified rumors that traders should corroborate with primary sources before acting.
 
 ### News Analyst
@@ -193,42 +193,42 @@ Alphabet (GOOGL) sits at a complex but constructive crossroads heading into June
 
 #### 2. Company-Specific Catalysts (GOOGL)
 
-### 2.1 Bullish / Positive Drivers
+#### 2.1 Bullish / Positive Drivers
 - **Google Cloud × EQT mega-deal (Benzinga, May 30):** A multi-year AI/security agreement giving 300+ EQT portfolio companies access to Google Cloud AI tools. This is a meaningful enterprise distribution win and strengthens GCP's standing vs. AWS/Azure in private-equity-owned mid-market.
 - **Custom AI silicon ("TPU") narrative gaining traction (Motley Fool, May 31):** A Wall Street analyst flagged Alphabet as ramping efforts to compete with Nvidia in AI accelerators — bullish for GOOGL's vertical integration story (TPU/Trillium roadmap) and a potential margin lever as inference workloads scale. The article framed the news as **"good for Alphabet, bad for Nvidia."**
 - **Enlight Renewable Energy power-purchase agreement (Barchart):** Alphabet's continued aggressive AI infrastructure build-out (PPA-based renewable capacity expansion) confirms that capex into AI compute remains uninterrupted — supports the "Alphabet is a key AI infrastructure spender" thesis.
 - **Google I/O Gemini pricing fix (TheStreet):** Google publicly responded to enterprise CIOs burning through annual AI budgets by mid-year. While framed as a "costly fix," it indicates Google is responsive to pricing pain and is locking in enterprise mindshare — a pricing/margin sacrifice now in exchange for deeper enterprise lock-in long term.
 - **AI infrastructure rally:** GOOGL is grouped with Nvidia, Tesla, and other "trillion-dollar titans near buy points" (IBD, May 27), suggesting positive technical setup heading into June.
 
-### 2.2 Bearish / Risk Drivers
+#### 2.2 Bearish / Risk Drivers
 - **Youth mental-health settlement (Simply Wall St., May 31):** Multimillion-dollar settlement with a US school district alleging YouTube/Google contributed to a student mental-health crisis. The dollar amount is immaterial, but it sets a **template for additional district-level claims** and reinforces ongoing "Section 230" / platform-liability narrative risk.
 - **Indian trademark/keyword-advertising ruling (Simply Wall St., May 31):** Indian court found Google liable for trademark infringement related to keyword ads. India is a top-3 search market by users; this directly impacts the **highest-margin core ad business** and could embolden similar suits in EU/Brazil.
 - **AI bubble debate intensifying (Bloomberg, May 27-28):** With chip stocks ripping and the QQQ up ~19% YTD driven by a top-5 concentration, GOOGL is exposed to a multiple-compression event if the "AI bubble" thesis takes hold. This is sentiment risk, not fundamentals risk — but it raises beta during any drawdown.
 - **"FBI flags anti-tech extremism" (TheStreet):** A reputational/regulatory tail risk; not actionable today but worth monitoring.
 - **Stock-split/retail-access narrative (Yahoo Finance):** Renewed criticism that mega-caps including GOOGL are "screwing the average investor" by not splitting — modest sentiment overhang but historically immaterial.
 
-### 2.3 Notable Absences
+#### 2.3 Notable Absences
 - **No earnings, no guidance update, no insider transactions** in the window. The next major catalyst is Q2 2026 earnings (late July). The current period is therefore a **news/macro-driven trading window** rather than a fundamentals window.
 
 ---
 
 #### 3. Macro Backdrop (Materially Relevant to GOOGL)
 
-### 3.1 Geopolitics — US/Iran War (Month 4)
+#### 3.1 Geopolitics — US/Iran War (Month 4)
 - The conflict has now entered its **fourth month** (Barron's). Reports of Americans injured in an Iranian missile strike on a Kuwaiti air base, mixed Trump signaling, and Qatar-mediated diplomacy keeping markets on edge.
 - **Truce extension** late last week pushed silver and risk assets higher (Yahoo Personal Finance, May 29).
 - **Oil/energy elevated** — May "rewired global energy markets" (Oil & Gas 360); Mizuho raised Devon Energy targets, Citi bullish on Diamondback. June labeled an **"energy crunch point."**
 - **Implication for GOOGL:** Persistent oil-driven inflation pressures consumer ad spend (less discretionary) while elevating data-center power costs. Both modestly negative for ad revenue and Cloud margins, though Alphabet's renewable PPAs partly insulate compute costs.
 
-### 3.2 Rates & Liquidity
+#### 3.2 Rates & Liquidity
 - **"Will higher treasury yields threaten the market's climb?"** (Investing.com) — yields rising, which is a direct headwind to mega-cap tech multiples. With Fed rate-hike chatter resurfacing into June, GOOGL's premium multiple is at risk.
 - The "June crunch point" headline (24/7 Wall St.) explicitly links rate-hike risk to the energy-reserves drawdown.
 
-### 3.3 Consumer & Inflation
+#### 3.3 Consumer & Inflation
 - **Goods inflation re-accelerating:** Tomato prices +40% YoY, multiple shoe-price hike articles, gas-prices-to-fashion-retail spillover. "Job concerns + shaky consumer + slower sales on the horizon."
 - **Implication for GOOGL:** Retail/CPG ad budgets — historically a meaningful Search/YouTube revenue cohort — are at risk of softening into H2 2026. Watch retailer ad-spend commentary in June pre-announcements.
 
-### 3.4 Market Structure
+#### 3.4 Market Structure
 - QQQ +19% YTD driven by top-5 holdings (GOOGL is among them). Concentration risk works both ways — a positive for momentum, a serious risk if any one mega-cap disappoints.
 - "Dell soars as AI party keeps raging" (May 29) — AI infra trade is still working, consistent with a constructive read on GOOGL's hyperscaler revenue.
 
@@ -323,7 +323,7 @@ The stock is trading near the upper end of its 52-week range, with the 50-day MA
 
 #### 3. Income Statement Analysis (Quarterly Trends)
 
-### Revenue Trajectory (Quarterly, $B)
+#### Revenue Trajectory (Quarterly, $B)
 | Quarter | Revenue | YoY Growth (est.) |
 |---|---|---|
 | Q1 2025 | $90.2B | — |
@@ -334,20 +334,20 @@ The stock is trading near the upper end of its 52-week range, with the 50-day MA
 
 Revenue has accelerated from ~$90B/quarter in early 2025 to ~$110B in Q1 2026 — a **~22% YoY growth rate**, exceptionally strong for a company at this scale, driven by AI-augmented Search, YouTube ads, and Google Cloud expansion.
 
-### Profitability (Q1 2026)
+#### Profitability (Q1 2026)
 - **Gross Profit:** $68.6B (Gross Margin: **62.4%**)
 - **Operating Income:** $39.7B (Operating Margin: **36.1%**)
 - **Net Income:** $62.6B — *boosted by $36.95B unusual gain on securities*
 - **Normalized Net Income (ex-unusual):** ~$32.7B (a cleaner core comparison)
 - **Diluted EPS:** $5.11 reported; ~$2.67 normalized
 
-### Operating Expense Composition (Q1 2026)
+#### Operating Expense Composition (Q1 2026)
 - **R&D:** $17.0B (15.5% of revenue) — heavy AI/cloud investment
 - **S&M:** $7.6B
 - **G&A:** $4.3B
 - Total OpEx: $28.9B
 
-### TTM Profitability (per fundamentals)
+#### TTM Profitability (per fundamentals)
 - Revenue TTM: **$422.5B**
 - Net Income TTM: **$160.2B**
 - EBITDA: **$161.3B**
@@ -360,7 +360,7 @@ Revenue has accelerated from ~$90B/quarter in early 2025 to ~$110B in Q1 2026 �
 
 #### 4. Balance Sheet Analysis
 
-### Strength & Liquidity (As of Q1 2026)
+#### Strength & Liquidity (As of Q1 2026)
 | Item | Value |
 |---|---|
 | Total Assets | **$703.9B** (vs $475.4B Q1'25, +48% YoY) |
@@ -373,7 +373,7 @@ Revenue has accelerated from ~$90B/quarter in early 2025 to ~$110B in Q1 2026 �
 | Current Ratio | **1.92** |
 | Debt/Equity | 20.0% (modest leverage) |
 
-### Key Observations
+#### Key Observations
 1. **Massive Asset Growth:** Total assets jumped **+$108B in just one quarter** (Q4'25 → Q1'26), driven by:
    - Net PP&E: $261.8B → **$296.5B** (+$34.7B) — enormous AI/datacenter capex
    - Investments: $68.7B → $106.9B (+$38.3B)
@@ -386,7 +386,7 @@ Revenue has accelerated from ~$90B/quarter in early 2025 to ~$110B in Q1 2026 �
 
 #### 5. Cash Flow Analysis
 
-### Quarterly Cash Flow Detail ($B)
+#### Quarterly Cash Flow Detail ($B)
 | Item | Q1'25 | Q2'25 | Q3'25 | Q4'25 | Q1'26 |
 |---|---|---|---|---|---|
 | Operating Cash Flow | 36.2 | 27.7 | 48.4 | 52.4 | 45.8 |
@@ -396,7 +396,7 @@ Revenue has accelerated from ~$90B/quarter in early 2025 to ~$110B in Q1 2026 �
 | Dividends | (2.4) | (2.5) | (2.5) | (2.5) | (2.5) |
 | Debt Issued (Net LT) | 0.0 | 13.0 | (1.1) | 20.2 | **29.9** |
 
-### Critical Insights
+#### Critical Insights
 - **CapEx exploded to $35.7B in Q1'26** alone — up from $17.2B a year prior (**+108% YoY**). Annualized CapEx run-rate now exceeds **$140B** — among the largest of any company globally, reflecting AI infrastructure arms race.
 - **FCF compressed to $10.1B in Q1'26** despite higher OCF, because CapEx is outpacing operating cash growth. TTM FCF: ~$27.9B (per fundamentals) — significantly below 2024 levels.
 - **Buybacks paused in Q1'26** ($0 vs $15.1B in Q1'25) — capital is being redirected toward CapEx and a major M&A deal ($33.6B).
@@ -407,14 +407,14 @@ Revenue has accelerated from ~$90B/quarter in early 2025 to ~$110B in Q1 2026 �
 
 #### 6. Strategic & Operational Insights
 
-### Positives ✅
+#### Positives ✅
 1. **Revenue growth accelerating** at ~22% YoY at $400B+ scale — best-in-class.
 2. **Profitability is structurally elite:** 38% net margin, 39% ROE.
 3. **AI monetization showing through** — gross margin holding above 62% despite cloud mix.
 4. **Fortress balance sheet** with $127B in cash/securities; can fund any strategic initiative.
 5. **Major acquisition** in Q1'26 ($33.6B) suggests platform consolidation/AI capabilities expansion.
 
-### Risks / Watch Items ⚠️
+#### Risks / Watch Items ⚠️
 1. **CapEx intensity is unsustainable in current trajectory** without commensurate cloud/AI revenue acceleration — will pressure FCF growth.
 2. **Net income volatility:** ~$37B unusual gain in Q1'26 from securities revaluation distorts headline EPS — **focus on normalized $32.7B**.
 3. **Buyback suspension** removes a key EPS support and may signal cash-allocation tightening.

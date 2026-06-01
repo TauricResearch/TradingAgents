@@ -49,32 +49,32 @@ The May 29 close of **$156.54** is the highest close since **2026-03-23 ($160.84
 
 #### 3. Indicator-by-Indicator Read
 
-### 3.1 Trend Framework — 50 SMA & 200 SMA
+#### 3.1 Trend Framework — 50 SMA & 200 SMA
 - **50 SMA on 2026-05-29: $141.79** — price ($156.54) is **~$14.75 (10.4%) above** the 50 SMA, the largest premium in weeks. The 50 SMA had been declining steadily from $147.24 (Apr 1) to $141.71 (May 28) but ticked **up** to $141.79 on May 29, the first up-tick after weeks of declines.
 - **200 SMA on 2026-05-29: $161.78** — price is still **~$5.24 (3.2%) below** the long-term trend. The 200 SMA is also in a clear downslope (was $164.13 on Apr 1, now $161.78). 
 - **Implication:** The **medium-term downtrend is just barely flattening**, but the **long-term trend remains down**. We are NOT in a confirmed bullish regime; we have a sharp counter-trend rally pressing into long-term resistance ($161.78).
 
-### 3.2 Short-Term Momentum — 10 EMA
+#### 3.2 Short-Term Momentum — 10 EMA
 - **10 EMA on 2026-05-29: $140.60**, vs. close $156.54. Price is **~11.3% above the 10 EMA** — an aggressive thrust.
 - The 10 EMA had bottomed at **$135.66 on 2026-05-27** and turned up sharply over two days. This is consistent with a momentum ignition, but stretched extensions like this often see at least a partial mean-reversion within 1–3 sessions.
 
-### 3.3 MACD & MACD Histogram
+#### 3.3 MACD & MACD Histogram
 - **MACD line on 2026-05-29: +0.484** (first positive print since 2026-05-04 at -0.759). It crossed from **-1.158 (May 28) to +0.484 (May 29)** — a strong bullish crossover above zero.
 - **MACD Histogram on 2026-05-29: +1.894**, the **largest positive bar in the entire dataset shown** (April–May). Prior values: +0.726 (May 28), +0.172 (May 27). This is a clear acceleration of upside momentum.
 - **Implication:** Bullish momentum reversal confirmed on a daily-bar basis. However, MACD is highly reactive after gaps; a follow-through close above $156.54 next session would solidify the signal.
 
-### 3.4 RSI (14)
+#### 3.4 RSI (14)
 - **RSI on 2026-05-29: 67.42**, just below the 70 overbought threshold.
 - Two-day jump: **41.36 (May 27) → 56.43 (May 28) → 67.42 (May 29)** — ~26 points in two sessions, a sign of forceful but extended buying.
 - Earlier in May, RSI repeatedly stalled in the **38–48 range** without ever making it above 50, confirming the prior weakness. The breakthrough above the 50 mid-line is technically meaningful.
 - **Implication:** Momentum bullish but **near-overbought**; entries here carry elevated risk of a 1–3 day pullback to digest.
 
-### 3.5 Bollinger Bands (Upper)
+#### 3.5 Bollinger Bands (Upper)
 - **Upper Bollinger Band on 2026-05-29: $149.49**. The May 29 close of **$156.54 closed roughly $7 ABOVE the upper band** — a strong volatility-expansion breakout.
 - The band was **contracting** prior to the breakout (UB: $144.67 on May 28 → $149.49 on May 29; LB: $129.20 → $126.12), and the May 29 expansion is the first material widening in two weeks.
 - **Implication:** This is classic "Bollinger squeeze release" behavior. Strong breakouts above the upper band can persist (price riding the band), but they also frequently mean-revert toward the 20-SMA mid-band (~$137.8) within 5–10 sessions if no follow-through volume appears.
 
-### 3.6 ATR (14)
+#### 3.6 ATR (14)
 - **ATR on 2026-05-29: $6.58** (~4.2% of price). It had been **declining** through May ($6.82 on May 5 → $5.48 on May 27) before re-expanding the last two sessions.
 - **Implication:** Volatility had been compressing — typical pre-breakout behavior — and is now re-expanding. For risk management, a **2× ATR stop ≈ $13.2** below entry is appropriate.
 
@@ -128,7 +128,7 @@ The May 29 close of **$156.54** is the highest close since **2026-03-23 ($160.84
 
 #### PLTR Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 headlines) — Tilt: Bullish, with valuation caveats.**
 The dominant story of the week is the **Dell earnings beat validating the Palantir/Dell "AI Factory" partnership**, which catalyzed a ~9–10% single-day rally (multiple outlets: TheStreet, StockStory, 24/7 Wall St., Barron's). Snowflake's earnings beat layered on a software-sector tailwind ("Best Day in a Year"). Supporting bullish items: Rosenblatt reiterated Buy with a $225 PT after meetings with CFO David Glazer; Zacks notes consensus PT implies ~35.9% upside; Motley Fool frames PLTR + ServiceNow as potential trillion-dollar AI-agent platforms; GuruFocus highlights renewed defense/drone-spending optimism; Wedbush thesis on the "data layer" battleground favors PLTR's positioning.
@@ -140,22 +140,22 @@ Labeled split: **13 Bullish (43%) vs 3 Bearish (10%)**, with 14 unlabeled — a 
 **Reddit (11 posts across r/wallstreetbets, r/stocks, r/investing) — Tilt: Mixed/Neutral; PLTR mostly tangential.**
 PLTR is rarely the primary subject. r/stocks has the most relevant signal: a "Tech Rotation into Software" post explicitly names PLTR among software names being rotated **into** (SNOW, NOW, MSFT, PLTR, ZETA, PATH) — mildly bullish. A long-term investor post asks whether to add PLTR or COST to a VTI/VXUS core — neutral. Counterweight: a "highest-P/E large caps as a basket" contrarian thread (cross-posted to r/investing) and an "S&P 500 at 31.8x earnings — what's the bull case?" thread surface valuation anxiety that disproportionately implicates PLTR. r/wallstreetbets posts mentioning PLTR are largely off-topic noise. Engagement scores are unavailable (RSS feed limitation), reducing weight.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 - **Aligned bullish**: News (Dell catalyst, analyst PTs, defense tailwind) + StockTwits (rally celebration, heavy call flow) + r/stocks rotation post all point the same direction this week.
 - **Divergence**: Valuation skepticism is consistent across the *thoughtful* segments of every source — Motley Fool's 42x-forward-sales piece, 24/7 Wall St.'s Hold, Renaissance trimming, and Reddit's high-P/E and 31.8x-S&P threads. Retail StockTwits largely ignores this.
 - **Subtle warning**: 92% call-side options premium with retail openly waiting for dips and projecting "$200" is the kind of one-sided positioning that historically precedes pullbacks even when the medium-term thesis is intact.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **Dell + Snowflake AI-software validation rally** (the week's main driver).
 2. **PLTR as the "data layer" / AI-operating-system** for governments and enterprises (Wedbush, Motley Fool, r/stocks rotation).
 3. **Defense/national-security tailwind** — AI manifesto, drone-spending optimism, Vatican ethics clash actually *reinforcing* PLTR's positioning with its core defense customer base.
 4. **Persistent valuation debate** — 42x forward sales, sell-side mixed (Rosenblatt $225 vs. Hold ratings), smart money (Renaissance) trimming.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 **Catalysts (positive):** Continued read-through from Dell/Snowflake AI capex; defense budget / drone-program flows; potential new commercial-AIP customer wins; analyst PT upgrades following the rally.
 **Risks (negative):** Extreme valuation (42x P/S) leaves no margin for a soft quarter; one-sided call-option positioning sets up gamma-unwind risk on any pullback; Thiel relocation headline could resurface as a governance/optics distraction; Vatican AI clash could attract ESG-mandate selling; Renaissance trimming may hint at quant-flow fatigue; PLTR still -12% YTD suggests prior overhang has not fully cleared.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Supporting evidence |
 |---|---|---|---|
@@ -197,21 +197,21 @@ The newsflow this week split into four distinct narratives:
 
 #### 2. Company-Specific Catalysts (PLTR)
 
-### 2.1 Bullish drivers
+#### 2.1 Bullish drivers
 - **Dell partnership validation (May 29)**: Dell's stellar Q1 earnings drove PLTR +8.5% to +10% intraday, closing near $158. The "AI Factory" partnership is being read as a real, revenue-bearing collaboration rather than a marketing tie-up. Halo extended to HPE, IBM, Super Micro.
 - **Snowflake earnings tailwind**: Restored confidence in enterprise software/AI spend, lifting PLTR alongside the cohort (Barron's: "Software Looks Like a Buy Again").
 - **Defense/drone spending narrative**: GuruFocus reports renewed military drone spending optimism, supporting Palantir's Gotham/defense franchise.
 - **Sell-side reiteration**: Rosenblatt reiterated **Buy, $225 PT** post-meeting with CFO David Glazer (May 21). Zacks notes Wall Street average implies +35.9% upside, with positive earnings estimate revisions.
 - **Long-term thesis**: Motley Fool framing Palantir + ServiceNow as "next trillion-dollar AI agent platforms"; Wedbush emphasizing the "data layer" as the AI battleground — a structurally favorable framing for PLTR's Foundry/AIP.
 
-### 2.2 Bearish/risk drivers
+#### 2.2 Bearish/risk drivers
 - **Valuation**: 42x forward sales is the headline bear case. Motley Fool explicitly contrasts with ServiceNow at 6x. Hold ratings prevalent in mid-$130s ("easy money has been made," 24/7 Wall St.).
 - **Insider/large-holder activity**: **Renaissance Technologies trimming stake** (continued reduction disclosed in 13F coverage). Quant flow has been a net seller.
 - **Peter Thiel relocation (May 28, NYT)**: Co-founder moved family to a $12M Buenos Aires mansion citing "harsh concerns" about the U.S. While not a direct Palantir headline, optics around founder posture matter and could attract narrative scrutiny.
 - **Vatican AI clash**: Palantir's nationalistic, defense-oriented "AI manifesto" sparked a public dispute with the Vatican's new encyclical urging AI demilitarization. Raises ESG/headline risk for institutional flows and certain European/Catholic-aligned capital.
 - **YTD performance**: Still down ~12% YTD — the Friday spike does not reverse the broader 2026 underperformance.
 
-### 2.3 Price action context
+#### 2.3 Price action context
 - Price points cited in the week: $136–$137 (mid-week), surging to ~$158 by Friday close.
 - Implied weekly move: roughly +10–15% off mid-week lows; volatility remains elevated.
 
@@ -219,23 +219,23 @@ The newsflow this week split into four distinct narratives:
 
 #### 3. Macro & Cross-Asset Backdrop (Trading-Relevant)
 
-### 3.1 Geopolitics — Iran War (Month 4)
+#### 3.1 Geopolitics — Iran War (Month 4)
 - The Iran war has now entered its 4th month, with a "truce extension" reported May 29 (silver opened higher on the news).
 - "First 90 days upended energy markets" (Oilprice.com); May "rewired global energy markets" (Oil & Gas 360).
 - **Implication for PLTR**: Defense/intelligence-tech demand tailwind. Palantir's Gotham platform and AI-targeting work (e.g., Maven-adjacent contracts) are direct beneficiaries of sustained kinetic conflict and elevated DoD/allied procurement.
 
-### 3.2 Energy & Inflation
+#### 3.2 Energy & Inflation
 - Oil price increases feeding through to consumer goods (footwear, fashion retail trickle-down stories prominent).
 - Food inflation: tomato prices +40% YoY; coffee volatile on Brazil supply.
 - Mizuho raised DVN PT on higher oil — confirming sell-side expectations of sustained higher crude.
 
-### 3.3 Rates & Equity Risk
+#### 3.3 Rates & Equity Risk
 - **"Will higher Treasury yields threaten the market's climb?"** (Investing.com) — yields rising into a stretched equity tape.
 - **"June crunch point"** (24/7 Wall St.) — energy reserves drawing down, rate hikes back on the table.
 - US market +1.8% on the week, +28% TTM; earnings forecast +17% annualized — a strong but increasingly fragile bull regime.
 - **Implication for PLTR**: A high-multiple, long-duration name like Palantir (42x forward sales) is the **most rate-sensitive** corner of equities. Any hawkish repricing into June FOMC is a direct PLTR headwind that can offset partnership-driven strength.
 
-### 3.4 Precious Metals / Risk-Off Hedge
+#### 3.4 Precious Metals / Risk-Off Hedge
 - Silver futures launched in Singapore (USD-denominated) — structural demand for non-COMEX hedges.
 - Silver bid on Iran headlines — confirms underlying risk-off pulse.
 
@@ -250,11 +250,11 @@ The newsflow this week split into four distinct narratives:
 | **Quarters (1–3)** | Constructive | Defense spending, AI data-layer narrative, partnership monetization (Dell, NVDA halo). Rosenblatt $225 PT. |
 | **Long term (12m+)** | Bullish if execution holds | "AI agent platform" thesis, government stickiness; 42x P/S requires continued >30% growth. |
 
-### Key levels to monitor
+#### Key levels to monitor
 - **Upside trigger**: Sustained close >$160; would open the path to retest prior highs and validate Rosenblatt's $225 case.
 - **Downside trigger**: Loss of $130 (gap-fill area pre-Dell) — would reaffirm YTD downtrend and quant selling (RenTech) thesis.
 
-### Risks that flip the call
+#### Risks that flip the call
 - Hawkish surprise from June FOMC / hot CPI → de-rate growth software.
 - Iran ceasefire → defense premium fades (offset by risk-on broadly).
 - Adverse government contracting headlines or AI-ethics escalations (Vatican narrative spreads).
@@ -300,7 +300,7 @@ I have comprehensive data on Palantir Technologies (PLTR). Let me compile a thor
 
 Palantir Technologies Inc. is a leading enterprise software company specializing in big data analytics platforms (Gotham for government/defense, Foundry for commercial enterprises, Apollo for software deployment, and AIP – Artificial Intelligence Platform). The company has emerged as a pure-play AI infrastructure beneficiary, with both its government and commercial businesses inflecting strongly through 2024–2026.
 
-### Market Snapshot (as of 2026-05-31)
+#### Market Snapshot (as of 2026-05-31)
 - **Market Capitalization:** ~$375.3 billion
 - **52-Week Range:** $118.93 – $207.52
 - **50-Day Avg Price:** $141.79
@@ -318,7 +318,7 @@ The stock has retraced from its 52-week high (~$207) toward ~$140 (50-day avg), 
 
 PLTR is delivering one of the steepest growth-rate acceleration curves of any large-cap software firm.
 
-### Quarterly Revenue Trend
+#### Quarterly Revenue Trend
 | Quarter | Revenue ($M) | QoQ Growth | YoY Growth (vs. same Q prior year) |
 |---|---|---|---|
 | Q3 2024 | n/a | — | — |
@@ -331,7 +331,7 @@ PLTR is delivering one of the steepest growth-rate acceleration curves of any la
 
 **Key takeaway:** Revenue nearly doubled YoY in Q1 2026 (+85%), an exceptional acceleration for a company at ~$5.2B+ TTM run-rate. The TTM revenue figure of $5.22B is now growing toward an annualized ~$6.5B based on Q1 2026 run-rate.
 
-### Profitability Expansion
+#### Profitability Expansion
 | Metric | Q1 2025 | Q2 2025 | Q3 2025 | Q4 2025 | Q1 2026 |
 |---|---|---|---|---|---|
 | Gross Profit ($M) | 710.9 | 810.8 | 973.8 | 1,190.8 | **1,416.8** |
@@ -344,7 +344,7 @@ PLTR is delivering one of the steepest growth-rate acceleration curves of any la
 
 **Operating leverage is striking.** Operating margin expanded from ~20% to ~46% in just five quarters. Net margin >50% is exceptional for a software company at this growth rate, reflecting both high gross margin (now ~87%) and disciplined opex (operating expenses grew from $535M to $663M while revenue almost doubled).
 
-### Cost Structure (Q1 2026)
+#### Cost Structure (Q1 2026)
 - **R&D:** $161.0M (~9.9% of revenue) – modest as a % despite absolute increase
 - **S&M:** $319.2M (~19.6% of revenue) – the largest expense, reflects commercial growth push
 - **G&A:** $182.6M (~11.2% of revenue)
@@ -356,7 +356,7 @@ PLTR is delivering one of the steepest growth-rate acceleration curves of any la
 
 PLTR has a pristine, cash-rich balance sheet with negligible real debt.
 
-### Key Balance Sheet Items (Q1 2026)
+#### Key Balance Sheet Items (Q1 2026)
 | Item | Q1 2025 | Q4 2025 | Q1 2026 | Trend |
 |---|---|---|---|---|
 | Cash + ST Investments ($M) | 5,430.7 | 7,177.0 | **8,026.4** | Rapid build |
@@ -368,7 +368,7 @@ PLTR has a pristine, cash-rich balance sheet with negligible real debt.
 | Retained Earnings ($M) | -4,973.4 | -3,562.4 | **-2,691.9** | Fast healing |
 | Deferred Revenue (Current) ($M) | 549.6 | 766.0 | **887.0** | Strong bookings |
 
-### Highlights
+#### Highlights
 - **Cash & Short-Term Investments: $8.03B** — ~2.1% of market cap; provides massive optionality.
 - **Effectively zero financial debt.** The "$212M debt" is entirely capital lease obligations.
 - **Current Ratio: 6.91** — extraordinary short-term liquidity.
@@ -382,7 +382,7 @@ PLTR has a pristine, cash-rich balance sheet with negligible real debt.
 
 Cash generation is robust and matches/exceeds reported earnings.
 
-### Quarterly Free Cash Flow
+#### Quarterly Free Cash Flow
 | Quarter | Operating CF ($M) | CapEx ($M) | Free Cash Flow ($M) | FCF Margin |
 |---|---|---|---|---|
 | Q1 2025 | 310.3 | -6.2 | 304.1 | 34.4% |

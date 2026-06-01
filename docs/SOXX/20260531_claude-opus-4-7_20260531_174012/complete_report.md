@@ -141,7 +141,7 @@ SOXX has staged an extraordinary 7-month rally from late-November 2025 lows. Key
 
 #### SOXX Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~19 headlines):** Institutional framing is predominantly **bullish on the underlying semiconductor trade**, but with a clear undercurrent of late-cycle anxiety.
 - Bullish drivers: SOXX cited as "up 87% YTD" in the AI capex/generative-AI ETF coverage; Micron crossed $1T market cap and UBS lifted MU PT from $535 → $1,625 (most bullish on the Street), driving sympathy rallies and lifting memory-exposed ETFs including SOXX. Multiple Zacks pieces explicitly tag SOXX as a beneficiary of the "AI memory shortage" narrative, with HBM order books reportedly stretching past 2027.
@@ -158,23 +158,23 @@ SOXX has staged an extraordinary 7-month rally from late-November 2025 lows. Key
 - r/stocks: silent.
 - Net: Reddit lean is **Neutral-to-Mildly Bearish** with very low sample size and no engagement data, so weight is low.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 The clearest divergence is **institutional news (Mildly Bullish, AI capex super-cycle intact) vs. social sentiment (Mildly Bearish, AI-ROI backlash + distribution top calls)**. News flow is still feeding the bull narrative (Micron $1T, UBS PT, HBM shortage), whereas StockTwits and r/investing are leaning into "this is getting too hot" — Buffett Indicator, margin debt, Wyckoff distribution, AI-cost backlash. This is a classic late-rally configuration: institutional reports celebrate the run while a vocal segment of retail starts hedging or shorting via SOXS.
 
 Alignment: **both** sources agree the run has been historic (SOXX +87% YTD, SOXL +291% YTD / +792% 1Y). They disagree on whether that's a feature or a warning.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **AI capex super-cycle / HBM memory shortage** — bullish, news-led (Micron, UBS PT, Zacks, 24/7 Wall St.).
 2. **AI-ROI backlash / "bubble debate gets real"** — bearish, social-led (ezekeil's link dump, Jefferies note, GitHub Copilot pricing).
 3. **Late-cycle / distribution / valuation extremes** — bearish, social-led (Buffett 236%, margin debt $1.3T, Wyckoff distribution, dot-com fiber analogy).
 4. **Macro tailwind from Middle East de-escalation** — bullish, news-led, but transient.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 - **Catalysts (bullish):** continued HBM tightness into 2027, Micron momentum, hyperscaler capex confirmation in upcoming prints, Middle East peace optimism, broad index records.
 - **Risks (bearish):** corporate AI-spend pullback (Jefferies, ServiceNow commentary, Copilot billing backlash), valuation/margin-debt extremes, distribution-pattern technicals, leveraged-ETF unwind risk if SOXX rolls over (SOXL gamma works both ways), single-name fragility (Synopsys diverging from PTs), Iran-deal headlines reversing.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -191,7 +191,7 @@ Alignment: **both** sources agree the run has been historic (SOXX +87% YTD, SOXL
 | r/wallstreetbets "calling the top" DD | Mildly Bearish | Reddit | TA post May 27 |
 | r/wallstreetbets bear-squeeze post | Mildly Bullish | Reddit | May 26 post |
 
-### Bottom line
+#### Bottom line
 News flow still supports the AI/semis bull case, but retail/social sentiment has tilted skeptical, fixated on AI-ROI backlash and late-cycle valuation signals. The two sources are pointing in different directions, which warrants a **Mixed** read with a slight bearish tilt (4.6/10) versus a pure neutral. Confidence is **medium**: news sample is solid, StockTwits sample is adequate but heavily concentrated in one user, and Reddit data is thin without engagement metrics.
 
 ### News Analyst
@@ -213,49 +213,49 @@ The semiconductor complex remains the dominant trade of 2026. **SOXX is up ~87% 
 
 #### 2. SOXX-Specific Catalysts (Past Week)
 
-### 2.1 Memory / HBM is the new bottleneck
+#### 2.1 Memory / HBM is the new bottleneck
 - **Micron (MU)** broke into the **$1 trillion club** this week. UBS hiked the MU price target from **$535 → $1,625** (now Wall Street's most bullish target), citing HBM order books "stretching past 2027."
 - The **AI memory shortage thesis** is intensifying: only three players (Micron, Samsung, SK Hynix) can produce stacked DRAM at scale for NVIDIA Blackwell. This is a direct tailwind to SOXX (Micron is a top-10 holding) and a compelling structural narrative supporting further upside.
 - **Roundhill DRAM ETF** (launched April 2, 2026) is up 90% since inception with $10.38B AUM — evidence of crowding, but also confirmation of the secular flow.
 
-### 2.2 Sympathy rally and broadening
+#### 2.2 Sympathy rally and broadening
 - The Micron PT raise lifted multiple semiconductor names in sympathy (per MarketBeat).
 - **AMD** narrative strengthening: ROCm software described as "good enough" to be a serious threat to NVIDIA's CUDA — incremental positive for SOXX given its more equal-weight tilt vs. SMH (which is more NVIDIA-heavy).
 
-### 2.3 Underperforming components & divergence
+#### 2.3 Underperforming components & divergence
 - **Synopsys (SNPS)** shares fell post-earnings even as analysts raised price targets — a divergence to monitor; EDA software is a key chip-cycle leading indicator.
 - **Wednesday this week:** "Stock market momentum stalls. Dow hits a record anyway." — chip stocks specifically stalled while broader indices made new highs. First whisper of rotation/exhaustion in the chip leadership.
 
-### 2.4 Positioning & sentiment
+#### 2.4 Positioning & sentiment
 - ETF.com data: **SMH vs. SOXX is the #1 most-compared ETF pair** (~2,478 user sessions in 28 days), confirming heavy retail engagement in semis.
 - **SOXL** (3x bull) attracting fresh inflows after a 12.8x in 12 months — historically a contrarian warning signal (recall SOXL -90% in 2022 vs. underlying -35%).
 - Michael Burry referenced as warning on the trade (per 24/7 Wall St.), but few are listening.
 
-### 2.5 SOXX vs. SMH — structural note
+#### 2.5 SOXX vs. SMH — structural note
 - SMH is NVIDIA-heavy; SOXX is more diversified across the semi value chain (Broadcom, AMD, Micron, AVGO, AMAT, LRCX, KLAC, INTC, etc.). YTD SMH has typically led, but if NVIDIA-specific concerns emerge (export controls, Blackwell competition), SOXX's broader exposure offers relative protection.
 
 ---
 
 #### 3. Macro Backdrop
 
-### 3.1 Geopolitics — US–Iran conflict (the dominant macro variable)
+#### 3.1 Geopolitics — US–Iran conflict (the dominant macro variable)
 - **New US attacks on Iran** reported Thursday, then a **truce/peace optimism** rally Tuesday and Friday — extreme intra-week volatility.
 - **Truce extension** announced May 29 lifted risk assets and silver.
 - Exxon and Chevron are publicly warning oil prices could "skyrocket in the coming weeks." This is a clear stagflationary risk vector.
 - **Implication for SOXX:** Higher oil → higher headline inflation → higher yields → P/E compression risk for high-multiple growth/semis. However, peace-deal flickers have repeatedly bid risk-on.
 
-### 3.2 Yields and the Fed
+#### 3.2 Yields and the Fed
 - "Will higher Treasury yields threaten the market's climb?" — explicit market concern surfacing in the press. A duration-sensitive sector like semis (especially memory at peak multiples) is most vulnerable to a yield re-rating.
 
-### 3.3 Consumer & inflation pulse
+#### 3.3 Consumer & inflation pulse
 - Multiple footwear/apparel/grocery articles flag persistent goods inflation: tomatoes +40% YoY, shoe prices climbing on Iran-driven oil pass-through, "shaky consumer."
 - Slower discretionary sales suggest a **K-shaped economy**, where AI/enterprise capex remains robust but consumer goods slow — a setup that *favors* SOXX over consumer discretionary names, but raises broader recession-risk tails.
 
-### 3.4 Commodities
+#### 3.4 Commodities
 - **Silver**: bid on Iran headlines; Singapore's new USD silver futures contract launching to compete with COMEX — structural positive for precious metals price discovery.
 - **Coffee**: Brazilian harvest resumption pressuring prices (mild disinflationary offset).
 
-### 3.5 AI ecosystem reads
+#### 3.5 AI ecosystem reads
 - **Dell soaring** on AI server orders (Market Minute 5/29) — direct positive read-through for upstream semis (especially Broadcom, NVIDIA, Micron in SOXX).
 - **Alphabet/Gemini 3.5** launch perceived strong, but stock slipping — concentration of gains in semis vs. hyperscalers continues.
 
@@ -263,13 +263,13 @@ The semiconductor complex remains the dominant trade of 2026. **SOXX is up ~87% 
 
 #### 4. Risk/Reward Assessment
 
-### Bullish drivers (still dominant)
+#### Bullish drivers (still dominant)
 1. AI capex cycle in year 3, with multi-year HBM/DRAM order book visibility into 2027+.
 2. Earnings revisions still positive (UBS' 3x PT raise on MU is exemplary).
 3. New ETF launches (DRAM) and surging inflows confirm flow tailwind.
 4. SOXX +87% YTD price action shows breadth — not just NVIDIA.
 
-### Bearish/tactical risks
+#### Bearish/tactical risks
 1. **Sentiment/positioning** is extreme; SOXL crowding mirrors classic late-cycle behavior.
 2. **Iran shock** could escalate again — oil spike → yields → growth de-rating.
 3. **Mid-week chip stall** while the Dow made new highs: first sign of leadership rotation.
@@ -277,7 +277,7 @@ The semiconductor complex remains the dominant trade of 2026. **SOXX is up ~87% 
 5. **Burry-esque short signals** circulating in financial media.
 6. Comparing 2022: SOXL fell 90% on a 35% underlying decline — leverage unwind risk if SOXX corrects even 15-20%.
 
-### Key catalysts to watch (next 1-4 weeks)
+#### Key catalysts to watch (next 1-4 weeks)
 - Iran truce stability and any Strait of Hormuz developments.
 - 10Y Treasury yield direction.
 - NVIDIA, Broadcom earnings print and guide (NVDA late May/early June).

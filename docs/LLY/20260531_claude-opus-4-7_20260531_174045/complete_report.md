@@ -42,7 +42,7 @@ LLY has staged a **massive V-shaped recovery**:
 - **Phase 1 — Blowoff & Decline (Nov 2025 – late Apr 2026):** Surged from ~$892 (Nov 3) to a peak around $1,107 (Nov 25), then drifted lower in a choppy decline through Q1, accelerating downward in mid-March (gap from ~$987 → $928 on 2026-03-17) into a capitulation low at **$849.05 on 2026-04-29**.
 - **Phase 2 — Sharp Reversal (Apr 30 – May 29):** From the $849 low, LLY rallied **~+30%** in 21 trading sessions, including a remarkable +5.7% breakout day on 2026-05-28 ($1,082.92 → $1,126.80 close on a $1,149.10 high). Volume on the rally has been elevated (3.5–8.2M vs. typical 2.5M).
 
-### Moving Average Stack (2026-05-29)
+#### Moving Average Stack (2026-05-29)
 - **10 EMA:** $1,060.82 — price ($1,105) is **above** and pulling away
 - **50 SMA:** $953.19 — price is +15.9% above
 - **200 SMA:** $934.56 — price is +18.2% above
@@ -54,7 +54,7 @@ The 50 SMA bottomed near $937.90 on 2026-05-12 and has since inflected upward (n
 
 #### 3. Momentum (MACD & RSI)
 
-### MACD
+#### MACD
 | Date | MACD | Signal | Histogram (implied) |
 |---|---|---|---|
 | 2026-05-01 | -9.77 | -14.79 | +5.02 |
@@ -67,7 +67,7 @@ The 50 SMA bottomed near $937.90 on 2026-05-12 and has since inflected upward (n
 - The MACD line itself is at **multi-month highs (+41.67)**, with the histogram still **expanding** — momentum is not yet rolling over.
 - This is a textbook **trend-acceleration** reading, but also one historically associated with mean-reversion risk if any negative catalyst hits.
 
-### RSI
+#### RSI
 - **2026-05-29:** **69.61** (intraday peak of **75.83 on 2026-05-28**)
 - The 75.83 reading is the highest in our 30-day window and pushed officially into **overbought** territory.
 - The pullback from 75.83 → 69.61 on 5/29 (price down -1.9% to $1,105) suggests the first sign of profit-taking.
@@ -77,12 +77,12 @@ The 50 SMA bottomed near $937.90 on 2026-05-12 and has since inflected upward (n
 
 #### 4. Volatility Profile
 
-### Bollinger Upper Band (boll_ub)
+#### Bollinger Upper Band (boll_ub)
 - **2026-05-29:** $1,116.48 vs. close $1,105.00 — price is **just below the upper band** after tagging it intraday on 5/28 ($1,149 high vs. ~$1,105 band).
 - The band has been **expanding rapidly** ($1,000 on 5/8 → $1,116 on 5/29), confirming a true volatility breakout rather than a squeeze.
 - "Riding the upper band" in conjunction with rising MACD historically signals trend continuation, but the next 1–2 sessions will tell whether price continues to walk the band or reverts toward the 20-day mean (currently ~$1,015).
 
-### ATR (Average True Range)
+#### ATR (Average True Range)
 - **2026-05-29:** **$32.93** (~3.0% of price)
 - ATR has expanded from ~$29.5 (mid-May) to $32.9 currently — volatility regime is **elevated and rising**.
 - **Risk-management implication:** A reasonable 2× ATR stop on a long position would sit near **$1,039**; a more conservative 3× ATR stop near **$1,006**.
@@ -110,7 +110,7 @@ The 50 SMA bottomed near $937.90 on 2026-05-12 and has since inflected upward (n
 
 The data tells a coherent story: LLY underwent a Q1 correction of ~25% from the November 2025 peak, capitulated in late April near $849, and has since executed an **extraordinary V-bottom recovery** that has reclaimed every key moving average and is now challenging all-time-high territory. The momentum confirmation is unambiguous (MACD at multi-month highs, expanding histogram, rising 50 SMA). However, RSI tagged 75.8 and price tagged the upper Bollinger band on 5/28, both of which historically precede at least a short-term consolidation.
 
-### Trade-Setup Considerations
+#### Trade-Setup Considerations
 - **Trend-followers / momentum buyers:** The trend is intact; pullbacks toward the **10 EMA ($1,060)** offer better risk/reward than chasing here. A sustained close above $1,150 would open path toward fresh price discovery.
 - **Mean-reversion / swing traders:** Watch for an RSI pullback below 60 and price reversion toward the **20 SMA / Bollinger middle near $1,015** — that area would be a higher-probability re-entry.
 - **Risk management:** Given ATR of ~$33, a position-sized stop should account for $30–60 of normal noise. The technical invalidation for the bull thesis sits at the **50 SMA ($953)**.
@@ -147,7 +147,7 @@ The data tells a coherent story: LLY underwent a Q1 correction of ~25% from the 
 
 #### 1. Source-by-source breakdown
 
-### News (Yahoo Finance, ~20 LLY-relevant headlines)
+#### News (Yahoo Finance, ~20 LLY-relevant headlines)
 Institutional framing is decisively **bullish**, anchored on three converging catalysts:
 
 - **Pipeline wins:** Phase 1b Heart-2 results for **VERVE-102** (PCSK9 base editor) reportedly cut PCSK9 by up to 88% and LDL-C by up to 62% — multiple outlets (Insider Monkey, Lilly IR via Reddit, Cramer) flagged this as a potential franchise-class cardiovascular asset. A separate Phase 3 readout (LIBRETTO-432, Retevmo/selpercatinib) showed an 83% reduction in recurrence/death risk in early-stage RET+ disease (StockTwits cite). Motley Fool also highlighted "the largest weight loss ever seen in a clinical trial" from a next-gen GLP-1 (Retatrutide).
@@ -158,7 +158,7 @@ Institutional framing is decisively **bullish**, anchored on three converging ca
 
 Net news tone: **Bullish, ~7.5/10**. Pipeline + access + valuation milestone ($1T) dominate; legal/pricing risks acknowledged but not leading.
 
-### StockTwits (30 most-recent messages; 21 Bullish / 0 Bearish / 9 unlabeled = 70% bull, 0% bear of total; 100% bull of labeled)
+#### StockTwits (30 most-recent messages; 21 Bullish / 0 Bearish / 9 unlabeled = 70% bull, 0% bear of total; 100% bull of labeled)
 Retail tone is **strongly bullish with zero explicit bears**, which is itself notable:
 - @LLYBULL is publishing $1,500–$2,000 price targets citing CAR-T, cholesterol (VERVE-102), and obesity stacking.
 - Multiple posters reference Retatrutide weight-loss data ("Fat guy here, if this works…$GAZILLIONS"), Foundayo/Zepbound CVS access, and a healthcare-vs-S&P valuation discount thesis.
@@ -168,7 +168,7 @@ Retail tone is **strongly bullish with zero explicit bears**, which is itself no
 
 A 21:0 labeled bull:bear ratio after a 30%/1-month rally is **mildly over-extended** and warrants contrarian caution, but the absence of any genuine bear thesis on a stock at all-time highs is consistent with strong momentum rather than blow-off-top behavior (volume noted as low).
 
-### Reddit (3 LLY mentions across r/wallstreetbets, r/stocks, r/investing)
+#### Reddit (3 LLY mentions across r/wallstreetbets, r/stocks, r/investing)
 Thin but directionally **bullish**:
 - r/stocks (2026-05-26): "LLY: promising results for hypercholesterolemia treatment, big deal!" — links Lilly IR on VERVE-102 88% PCSK9 / 62% LDL-C reduction. Substantive, fact-driven post.
 - r/wallstreetbets: two tangential mentions; one bullish-toned ("going to the moon"), one off-topic Micron post.
@@ -236,32 +236,32 @@ Eli Lilly (LLY) is at an inflection point — trading near an all-time high (~$1
 
 #### 1. Company-Specific Catalysts (LLY)
 
-### 1a. Commercial / Reimbursement Win — CVS Restores Zepbound Coverage (HIGH IMPACT, BULLISH)
+#### 1a. Commercial / Reimbursement Win — CVS Restores Zepbound Coverage (HIGH IMPACT, BULLISH)
 - CVS Caremark reversed its prior preferential treatment of Novo Nordisk's Wegovy and granted **preferred formulary status to Lilly's Zepbound and Foundayo** alongside Wegovy.
 - The decision **reopens access for ~10 million U.S. patients** following Lilly's price cuts.
 - LLY shares **jumped ~4% to a fresh all-time high** on the news (Zacks, GuruFocus).
 - **Trading implication:** Removes the largest near-term commercial overhang versus NVO and supports the Q2/Q3 obesity sales ramp. Positive for revenue beat probability into next earnings.
 
-### 1b. Pipeline — Record-Breaking Obesity Trial Data (HIGH IMPACT, BULLISH)
+#### 1b. Pipeline — Record-Breaking Obesity Trial Data (HIGH IMPACT, BULLISH)
 - Lilly's next-generation GLP-1 candidate (referenced as "Reta" — retatrutide) delivered the **largest weight loss ever observed in a clinical trial** (Motley Fool).
 - This supercharges the multi-year obesity-drug narrative and is cited as the primary engine behind LLY's renewed $1T valuation status.
 - **Trading implication:** Reinforces a multi-year growth runway and widens the moat vs. Novo Nordisk's pipeline.
 
-### 1c. Pipeline — VERVE-102 (Cardiovascular Gene Editing) (MEDIUM IMPACT, BULLISH)
+#### 1c. Pipeline — VERVE-102 (Cardiovascular Gene Editing) (MEDIUM IMPACT, BULLISH)
 - May 25 readout: Positive **Phase 1b Heart-2** results for VERVE-102, an in-vivo base-editing therapy targeting PCSK9 (cholesterol).
 - Significantly reduced PCSK9 in trial subjects — a "one-and-done" cholesterol management modality.
 - **Trading implication:** Diversifies the LLY thesis beyond obesity into a multi-billion-dollar cardiometabolic franchise; long-dated optionality.
 
-### 1d. Vaccine Market Entry — $4B Bet (MEDIUM IMPACT, NEUTRAL/BULLISH)
+#### 1d. Vaccine Market Entry — $4B Bet (MEDIUM IMPACT, NEUTRAL/BULLISH)
 - Lilly is making a $4B push into vaccines, broadening its therapeutic footprint.
 - Healthcare ETFs (e.g., IHE) with heavy LLY weighting are seeing renewed inflows.
 - **Trading implication:** Diversification away from the GLP-1 monoculture; modest near-term EPS dilution risk but improves long-term resilience.
 
-### 1e. Stock Split Speculation (LOW IMPACT, MILDLY BULLISH)
+#### 1e. Stock Split Speculation (LOW IMPACT, MILDLY BULLISH)
 - With shares above $1,100, market chatter (Motley Fool) is again pointing to a possible **stock split** — Lilly has done splits before.
 - **Trading implication:** A split announcement could provide a short-term sentiment lift and broaden retail participation.
 
-### 1f. Technical Setup
+#### 1f. Technical Setup
 - IBD: LLY broke out and is "near an all-time high" with shares testing a **$1,133.95 pivot** following a strong Q1 report.
 - 137 hedge funds hold the stock; ranked #2 in "Claude AI" healthcare picks.
 - **Trading implication:** Constructive technical posture; a clean break above $1,134 would confirm continuation.
@@ -270,40 +270,40 @@ Eli Lilly (LLY) is at an inflection point — trading near an all-time high (~$1
 
 #### 2. Risk Factors / Headwinds
 
-### 2a. Supreme Court Ruling — $220M Medicaid Fraud Verdict (MEDIUM IMPACT, BEARISH)
+#### 2a. Supreme Court Ruling — $220M Medicaid Fraud Verdict (MEDIUM IMPACT, BEARISH)
 - The U.S. Supreme Court **upheld a $220M False Claims Act verdict** against Lilly stemming from a 12-year whistleblower case.
 - Reportedly the **first jury verdict against a pharma company under this statute** — a precedent-setting headline-risk catalyst.
 - **Trading implication:** Manageable financial impact (~0.02% of market cap) but elevates regulatory/legal-tail-risk pricing for the sector. Watch for follow-on suits.
 
-### 2b. Drug Pricing / MFN Policy Overhang (HIGH IMPACT, BEARISH)
+#### 2b. Drug Pricing / MFN Policy Overhang (HIGH IMPACT, BEARISH)
 - "Lilly Presses Ahead As $529 Billion Drug Pricing Fight Looms" (GuruFocus): MFN pricing policy uncertainty + **Japan price cuts** + intensifying obesity-drug competition.
 - Lilly stated it will continue global launches despite the headwinds.
 - **Trading implication:** This is the single largest macro/political overhang on the entire pharma sector. Any executive action or legislative momentum on MFN would compress multiples.
 
-### 2c. Competitive Dynamics — Novo Nordisk
+#### 2c. Competitive Dynamics — Novo Nordisk
 - The CVS decision is a clear win for LLY but Novo retains parity, not loss of access. Watch NVO's pipeline response.
 
 ---
 
 #### 3. Macro / Global Backdrop
 
-### 3a. Geopolitics — Iran Conflict (MIXED)
+#### 3a. Geopolitics — Iran Conflict (MIXED)
 - News flow references an active "Iran War" with a **truce extension announced May 29** — silver and risk assets opened higher on the news.
 - Stock market hit fresh highs on **Iran deal hopes**; Trump made an "Iran move" cited as supportive.
 - **Implication for LLY:** Healthcare is largely insulated from oil shocks; LLY a relative defensive beneficiary if growth scares emerge from energy/inflation channel.
 
-### 3b. Inflation & Consumer
+#### 3b. Inflation & Consumer
 - Multiple consumer-price articles (footwear, fashion, tomatoes +40% YoY) point to **persistent goods inflation** partially driven by oil/Iran premium.
 - Consumer is described as "shaky" with job concerns rising — recession-risk narrative gaining traction.
 - **Implication for LLY:** Healthcare/pharma is a defensive harbor if cyclicals roll over; supports relative outperformance.
 
-### 3c. Rates & Equity Markets
+#### 3c. Rates & Equity Markets
 - Article: **"Will higher Treasury yields threaten the market's climb?"** — yields rising into resistance.
 - Despite this, Wall Street closed higher May 29, **driven by tech and healthcare**.
 - AI/tech leadership remains intact (Dell soared, Micron doubled in 48 days, Nvidia/Tesla near buy points).
 - **Implication for LLY:** Higher rates pressure long-duration growth multiples, but mega-cap healthcare with strong cash flows like LLY is less rate-sensitive than biotech peers.
 
-### 3d. Energy & Commodities
+#### 3d. Energy & Commodities
 - Exxon/Chevron warning of **oil price spikes** in coming weeks.
 - Coffee prices easing on Brazil harvest; silver bid on Iran truce headlines.
 - **Implication for LLY:** Limited direct impact; some input-cost pressure on manufacturing/logistics but rounding error vs. drug-price sensitivity.
@@ -546,14 +546,14 @@ When was the last time you saw a $1 trillion company growing revenue at 55% with
 
 #### Refuting the Bear's Concerns — Point by Point
 
-### Bear Claim #1: "Valuation is stretched at 39x P/E and 31x P/B"
+#### Bear Claim #1: "Valuation is stretched at 39x P/E and 31x P/B"
 
 This is the laziest bear argument in the book. Let me reframe:
 - **Forward P/E of 24.8x** against **57.8% expected EPS growth** gives a PEG of **1.48** — that's *cheap* for a franchise of this quality. Nvidia trades at higher multiples on slower forward growth from here.
 - The P/B of 31x is a **feature, not a bug** — it reflects the immense intangible value of LLY's IP estate (incretin patents, pipeline, manufacturing know-how). Pharma always trades on earnings power, not book value.
 - Historically LLY has traded at 40-50x P/E during slower-growth periods. We're getting it at 24.8x forward *while* it's growing 55%.
 
-### Bear Claim #2: "GLP-1 competition is intensifying — Novo, Viking, Roche, Amgen are coming"
+#### Bear Claim #2: "GLP-1 competition is intensifying — Novo, Viking, Roche, Amgen are coming"
 
 Here's where the bears completely miss the plot. **The CVS Caremark decision last week is a watershed event.** Novo Nordisk just *lost* its preferential formulary status. Zepbound and Foundayo (oral GLP-1) now have preferred status, reopening access to **10 million patients**. This isn't future competition — this is LLY *taking share* right now.
 
@@ -564,14 +564,14 @@ And consider the pipeline lead:
 
 Viking's VK2735? Phase 2. Roche's CT-388? Phase 2. Amgen's MariTide? Disappointing weight regain data. **LLY is 2-3 years ahead with manufacturing scale that competitors literally cannot replicate** — that's what the $10B+ annual CapEx is buying.
 
-### Bear Claim #3: "MFN drug pricing risk and the SCOTUS ruling"
+#### Bear Claim #3: "MFN drug pricing risk and the SCOTUS ruling"
 
 Let's be precise:
 - The $220M SCOTUS verdict is **0.02% of market cap**. It's a rounding error. The bear narrative that this opens "copycat litigation" is speculation without a specific threat vector.
 - MFN pricing is real, but it's a **sector-wide risk**, not LLY-specific. And critically, LLY has *already cut Zepbound prices proactively* — that's why CVS reopened access. They're getting ahead of the regulatory curve, which is exactly what best-in-class management does.
 - Dividend yield is modest (0.63%) but **buybacks accelerated to $2.36B in Q1'26 alone** — capital returns are ramping aggressively.
 
-### Bear Claim #4: "Sentiment is overheated — 21:0 bull/bear ratio, RSI at 75, +30% in a month"
+#### Bear Claim #4: "Sentiment is overheated — 21:0 bull/bear ratio, RSI at 75, +30% in a month"
 
 Fair point on the technicals — and I'll concede this honestly: **don't chase $1,105**. The RSI tagging 75.8 and price riding the upper Bollinger band signal short-term exhaustion. But this is a *tactical* concern, not a *thesis* concern. The 50-day SMA at $953 and 10 EMA at $1,060 provide clear pullback entries. The long-term trend (200 SMA at $934, rising) was never broken. This is a "buy the dip" setup, not a "sell the rally" setup.
 

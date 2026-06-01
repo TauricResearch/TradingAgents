@@ -36,7 +36,7 @@ The OHLCV series tells a three-act story:
 | Bollinger Upper Band (20,2) | 440.68 | **Price closed ABOVE upper band** ($446.77 vs $440.68) |
 | ATR (14) | 15.77 | Elevated; daily expected range ~3.5% |
 
-### Detailed observations
+#### Detailed observations
 
 **Trend stack (10 EMA > 50 SMA > 200 SMA, all rising):** Classic bullish alignment. The 50 SMA crossed above the 200 SMA materially earlier in the window and the spread continues to widen (50-200 spread = $34.28 on 5/29 vs $10.18 on 5/01) — a textbook trend-strengthening signal.
 
@@ -101,7 +101,7 @@ The OHLCV series tells a three-act story:
 
 #### AVGO Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 headlines):** Institutional framing is broadly constructive and event-driven, dominated by AI-infrastructure narratives and the upcoming earnings catalyst on June 3.
 - Materially bullish, AVGO-specific items:
@@ -130,22 +130,22 @@ The OHLCV series tells a three-act story:
   - r/stocks "obvious in hindsight chip-adjacent play" thread is searching for the next leg.
 - Net read: **Mildly Bullish by association**; AVGO-specific conviction on Reddit is thin this week — the AI/memory narrative is centered on MU.
 
-### 2. Cross-source alignment & divergence
+#### 2. Cross-source alignment & divergence
 - **Strong alignment**: All three sources point in the same direction (positive), driven by (a) the June 3 earnings catalyst, (b) the $36B Anthropic/Google financing optic, and (c) AVGO's positioning as core AI-infrastructure infrastructure (custom ASIC + networking).
 - **Divergence in tone**: News carries a real cautionary undercurrent (Bloomberg bubble piece, WSJ "final test of the rally"); StockTwits has zero bearish labels and price-target inflation ($475→$550). That gap — institutional caution vs. retail euphoria — is the classic late-cycle setup and is the main reason to dial overall conviction back from "Bullish" toward the lower end of that band.
 - **Reddit is quieter on AVGO than the cohort** — community attention is currently with MU, suggesting AVGO is "expected to deliver" rather than a fresh discovery; this raises bar-of-expectations risk into the print.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **Earnings on June 3 as the rally's stress test** — universally cited; "the big one" of the week.
 2. **AI infrastructure platform thesis** — $36B Anthropic financing, FuriosaAI partnership, custom-silicon + networking moat.
 3. **AI bubble debate** — historic chip rally raising overextension risk; AVGO is the bellwether.
 4. **Macro overlay** — jobs report Friday, PCE 3.8%, new Fed chair Warsh; rate-path uncertainty caps multiple expansion.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 - **Catalysts (next 1–2 weeks)**: Q2 earnings June 3 (AI revenue mix, FY guidance, custom-ASIC commentary), guidance on Anthropic-related revenue trajectory, jobs report June 6.
 - **Risks**: (a) "priced-for-perfection" reaction risk — retail PTs already at $475–$550; (b) cohort-wide bubble unwind if any AI-cap-ex headline sours; (c) macro: hot jobs print → rate-hike fear → multiple compression on highest-multiple semis; (d) zero-bearish StockTwits read is a contrarian yellow flag.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -161,7 +161,7 @@ The OHLCV series tells a three-act story:
 | Cohort tailwind (semis/AI complex) | Bullish | Reddit, News | Micron $1T, "AI earnings bonanza," SOXS-decay thesis |
 | Contrarian crowd-positioning flag | Mildly Bearish | StockTwits | 0 bearish labels in 30-msg sample = potential exhaustion signal |
 
-### Bottom line
+#### Bottom line
 Sentiment across all three sources is net positive heading into the June 3 print, with AVGO framed as a core AI-infrastructure platform. However, the combination of (i) zero bearish StockTwits labels and inflated retail price targets, (ii) explicit "bubble debate" language in institutional press, and (iii) elevated expectations bar tempers conviction. **Overall: Bullish (7.2/10), medium confidence** — strong directional signal, but with meaningful pre-earnings asymmetry that a trader should weigh alongside positioning, options-implied move, and fundamentals.
 
 ### News Analyst
@@ -180,23 +180,23 @@ Broadcom (AVGO) heads into its highly anticipated fiscal Q2 2026 earnings report
 
 #### 2. Company-Specific Catalysts (Past Week)
 
-### 2.1 The $36B Anthropic/Google AI Infrastructure Deal
+#### 2.1 The $36B Anthropic/Google AI Infrastructure Deal
 - Broadcom is acting as a **payment backstop and credit anchor** for a record $36B financing tied to AI chips and data-center infrastructure for Anthropic, with Google as a key partner.
 - Apollo and Blackstone are being lined up to fund a **TPU-backed debt structure**, signaling that Broadcom's custom ASIC business (the TPU franchise built with Google) is now being financialized via private credit markets.
 - **Implication:** This dramatically raises the visibility/duration of AVGO's AI ASIC revenue stream, deepens lock-in with hyperscalers, and validates Broadcom as a systemic AI infrastructure provider — not just a chip vendor. Adds modest counterparty/credit risk but is materially bullish for revenue forecasts FY26–FY28.
 
-### 2.2 FuriosaAI Partnership
+#### 2.2 FuriosaAI Partnership
 - Co-development of next-generation **rack-scale AI inference solutions** leveraging Broadcom's AI networking (Tomahawk/Jericho) and advanced packaging.
 - Expands AVGO's inference TAM beyond Google TPUs, Meta MTIA, and ByteDance — adding a Korean AI chip player to the ecosystem.
 - **Implication:** Reinforces the bull thesis that custom ASIC + networking is becoming a multi-customer, recurring franchise.
 
-### 2.3 Earnings Setup (June 3, 2026)
+#### 2.3 Earnings Setup (June 3, 2026)
 - WSJ flagged Broadcom as the **final mega-cap semiconductor giant to report** this cycle. Expectations are elevated, with the stock near all-time highs.
 - Zacks notes AVGO earnings/revenue projected to **more than double between FY25 and FY27**.
 - IBD/Motley Fool: AVGO has **underperformed semis YTD**, setting up a potential catch-up trade if Q2 prints/guides strong on AI ASIC and VMware integration.
 - **Risk:** With sentiment euphoric and the AI bubble debate intensifying (Bloomberg), even an in-line print could trigger profit-taking. The setup favors a beat-and-raise on AI revenue (consensus AI run-rate: closely watched).
 
-### 2.4 Sentiment & Positioning
+#### 2.4 Sentiment & Positioning
 - **202 hedge funds** hold AVGO — Claude AI-curated portfolios rank it #1.
 - AVGO surpassed Tesla in market cap; Motley Fool argues it remains "overlooked" relative to NVDA.
 - AVGO joined a select group of $1T+ AI names (alongside Meta, Tesla, NVDA, etc.).
@@ -210,36 +210,36 @@ Broadcom (AVGO) heads into its highly anticipated fiscal Q2 2026 earnings report
 
 #### 4. Macroeconomic Backdrop
 
-### 4.1 Geopolitics — US/Iran
+#### 4.1 Geopolitics — US/Iran
 - Ceasefire **truce extension** is supporting risk assets (silver up, equities up).
 - However, conflict has been disruptive: **shoe prices, gas prices, food prices** all elevated; Strait of Hormuz transit risk persists.
 - Exxon/Chevron warning oil prices could "skyrocket" — **cost-push inflation risk** remains live.
 - **AVGO read-through:** Limited direct exposure, but higher oil → stickier inflation → tighter Fed → multiple compression risk for high-multiple semis.
 
-### 4.2 Monetary Policy & Rates
+#### 4.2 Monetary Policy & Rates
 - **Kevin Warsh** is the new Fed Chair — perceived as more hawkish than Powell. First key data point: next Friday's **US jobs report** (June 6).
 - Reuters: Investors weighing whether **simmering inflation could prompt rate hikes**.
 - **Treasury yields rising** — Investing.com flags this as a key threat to the equity rally.
 - **Implication for AVGO:** Long-duration AI capex names are most sensitive to yields. A hot jobs/CPI print could compress AVGO's multiple even on a strong earnings beat.
 
-### 4.3 Consumer & Demand
+#### 4.3 Consumer & Demand
 - Footwear News, WWD: Consumer showing strain, slower sales projected; tomato +40% YoY, shoe prices rising.
 - **Implication:** Bifurcated economy — AI/data-center capex strong; consumer discretionary weakening. AVGO is on the favored side of this divide (hyperscaler capex), but if recession risk grows, even AI capex could be re-evaluated late-cycle.
 
 #### 5. Trading Implications & Actionable Insights
 
-### Bull Case (favored short-term):
+#### Bull Case (favored short-term):
 - **Pre-earnings momentum** + $36B Anthropic deal + FuriosaAI = strong narrative through June 3.
 - AVGO has **lagged peers YTD**, providing relative-value catch-up potential if results beat.
 - Custom ASIC franchise increasingly being recognized as a "second NVIDIA-like" structural growth engine.
 
-### Bear/Risk Case:
+#### Bear/Risk Case:
 - Stock is near ATH; sentiment is crowded (top hedge fund holding, top AI chatbot pick).
 - AI bubble debate going mainstream; rising yields a clear headwind.
 - Even an in-line print could disappoint elevated buy-side whisper numbers, especially on AI revenue run-rate guidance.
 - Macro: hot jobs/CPI or oil shock could derail the rally.
 
-### Tactical View:
+#### Tactical View:
 - **Lean constructive into earnings (June 3)** with awareness that the bar is high. The combination of fresh deal flow ($36B) + FuriosaAI partnership announced just days before earnings suggests management is signaling confidence.
 - Options market shows elevated IV — **"volatility equals opportunity"** (Yahoo Finance video) — favors defined-risk structures (call spreads or straddles) over outright directional bets given the binary nature of the print.
 - **Post-earnings**: monitor jobs report (June 6) — a hawkish surprise could trigger sector-wide multiple compression even after a Broadcom beat.

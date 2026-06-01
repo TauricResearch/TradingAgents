@@ -43,7 +43,7 @@ This three-day decline of **~12.6%** ($96.64 → $84.44) on cumulative volume ex
 
 #### 3. Momentum — MACD & RSI
 
-### MACD
+#### MACD
 | Date | MACD | MACD Histogram |
 |---|---|---|
 | 2026-05-21 | −0.91 | **+0.01** (briefly positive) |
@@ -54,7 +54,7 @@ This three-day decline of **~12.6%** ($96.64 → $84.44) on cumulative volume ex
 
 The MACD line has plunged from near zero to **−3.20** in three sessions, and the histogram has expanded sharply negative. Momentum is accelerating downward, **not bottoming**. There is no early sign of a divergence or reversal in MACD.
 
-### RSI (14-day)
+#### RSI (14-day)
 - 2026-05-26: 46.6 (neutral)
 - 2026-05-27: 32.7 (approaching oversold)
 - **2026-05-28: 29.3 (oversold)**
@@ -64,7 +64,7 @@ RSI dipped briefly below 30 on 2026-05-28 and has ticked back up to 32.3 — a p
 
 #### 4. Volatility — Bollinger Lower Band & ATR
 
-### Bollinger Lower Band (boll_lb)
+#### Bollinger Lower Band (boll_lb)
 | Date | Close | Lower Band | Close vs. LB |
 |---|---|---|---|
 | 2026-05-26 | $96.64 | 93.67 | Above |
@@ -74,7 +74,7 @@ RSI dipped briefly below 30 on 2026-05-28 and has ticked back up to 32.3 — a p
 
 Price has spent **three consecutive sessions below the lower Bollinger band**, an unusually deep stretch. The band itself has dropped from $93.67 → $85.34, expanding rapidly as volatility surges. The narrowing gap between close and lower band on 5/29 (−$0.90 vs. −$4.42 the prior day) suggests price is starting to reconverge toward the band — early sign that the most extreme oversold pressure may be moderating.
 
-### ATR (14-day)
+#### ATR (14-day)
 - 2026-05-22: 2.98
 - 2026-05-26: 3.01
 - 2026-05-27: 3.73
@@ -131,7 +131,7 @@ ATR has expanded **~27%** in three sessions, from ~$3.00 to ~$3.81. Daily expect
 
 #### PDD Holdings (PDD) — Sentiment Report, 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~18 headlines):** Institutional framing this week is decisively negative on the near term, but with a lingering bullish undertone on valuation.
 - The dominant story is the Q1 2026 earnings miss: revenue RMB 106.2B (+11% YoY) but well below expectations, and the stock fell ~11% on the print (Proactive, Barron's, IBD, GuruFocus). Management framed the miss as deliberate — multi-year supply chain investment and a new first-party brand business — but the market punished the margin/profit decline.
@@ -143,25 +143,25 @@ ATR has expanded **~27%** in three sessions, from ~$3.00 to ~$3.81. Daily expect
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing):** No posts found in the past 7 days. Notable absence given a -11% earnings move — suggests PDD is not currently a meme/retail focal point, which is itself a (weak) signal of muted broad retail interest.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 - **Divergence:** News is bearish on near-term fundamentals (miss, regulatory fines, IP suit) while StockTwits retail leans bullish on the deep-value/cash-pile thesis and "oversold China" rebound trade. This is a classic post-miss setup where fundamentals-focused press and retail dip-buyers diverge.
 - **Alignment:** Both news and Twits acknowledge the stock is down sharply (YTD -18%+, plus ~11% post-earnings). Both reference the cash-rich balance sheet and depressed valuation. Where they split is on whether that's a buy signal or a value trap given regulatory risk.
 - **Reddit silence** removes a typical contrarian/exuberance amplifier — there is no WSB FOMO and no r/stocks long-form bull/bear thesis to weigh.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 
 1. **Earnings miss + deliberate margin compression** from supply chain/first-party brand investments — bulls call it future growth, bears call it eroding profitability.
 2. **Regulatory siege on Temu** — EU $232M fine, more EU action telegraphed, Shein copyright litigation.
 3. **Deep value / cash fortress** — repeated retail emphasis on $60–68B net cash, calls for buyback, Morgan Stanley $148 PT vs. current price in the $80s.
 4. **China/KWEB mean-reversion** — retail framing PDD as part of a broader oversold China complex due to bounce.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 
 - **Catalysts (potential upside):** Buyback announcement (heavily anticipated by retail), China stimulus/KWEB rebound, supply-chain investment showing top-line acceleration in coming quarters, favorable resolution or settlement of Shein litigation.
 - **Risks (downside):** Additional EU enforcement actions against Temu (Commission has signaled more coming), adverse Shein ruling, continued margin compression as supply-chain spend ramps, US-China trade/tariff headlines, technical breakdown below $80/$77 cited by bears.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -176,7 +176,7 @@ ATR has expanded **~27%** in three sessions, from ~$3.00 to ~$3.81. Daily expect
 | Retail "oversold China" rebound thesis | Bullish | StockTwits | KWEB stoch low, MFI spiking |
 | No Reddit coverage | Neutral/weak negative | Reddit | Zero posts in 7 days despite -11% move |
 
-### Bottom line
+#### Bottom line
 Sources point in clearly different directions, which warrants a **Mixed** band leaning slightly bearish (score ~4.3): institutional/news flow is dominated by a confirmed earnings miss and an escalating regulatory/IP cost stack, while retail StockTwits chatter is contrarian-bullish on cash, valuation, and a China rebound. Reddit silence limits broader retail confirmation. Confidence is **medium** — news sample is rich and concrete, but StockTwits is small and concentrated in one user, and Reddit data is absent.
 
 ### News Analyst
@@ -201,7 +201,7 @@ Macro tailwinds (US equity indexes at record highs, Middle East de-escalation ho
 
 #### 2. Company-Specific Catalysts (Past 7 Days)
 
-### 2.1 Q1 FY2026 Earnings — Negative Reaction
+#### 2.1 Q1 FY2026 Earnings — Negative Reaction
 - **Revenue:** RMB 106.2B, **+11% YoY**, driven by transaction services. **Missed consensus**.
 - **Profitability:** Net income and margins **declined YoY**; the Barron's, IBD, and Proactive coverage all framed this as a clear miss.
 - **Stock reaction:** Shares fell **~11% on May 27** (earnings day). YTD return ~**-18.3%**.
@@ -209,18 +209,18 @@ Macro tailwinds (US equity indexes at record highs, Middle East de-escalation ho
 
 **Trader takeaway:** This is the third quarter in which PDD's growth has decelerated from prior triple-digit/40%+ pace toward the low teens. The stock now needs *evidence* of operating leverage from the supply-chain spend — not just the promise.
 
-### 2.2 Temu — Twin Regulatory & IP Headwinds
+#### 2.2 Temu — Twin Regulatory & IP Headwinds
 1. **EU €232M fine** (~$232M USD-equivalent reported by Moby) for "addictive design," poor recommendations, and defective merchandise. EU coverage explicitly signals **more action coming** under the Digital Services Act framework.
 2. **Shein copyright lawsuit** alleges **"industrial-scale"** copying of thousands of product images. Temu has **withdrawn legal defenses** for a wide range of contested listings and filed a counterclaim — a defensive posture that suggests material exposure on certain SKUs.
 3. **Compliance cost ramp**: Simply Wall St. analysis explicitly cites Temu compliance costs as a driver of pre-earnings de-rating.
 
 **Trader takeaway:** Temu was the principal *growth narrative* underpinning PDD's premium multiple. Regulatory drag is now a **persistent earnings headwind, not a one-time event**.
 
-### 2.3 China-ADR Cross-Border Risk
+#### 2.3 China-ADR Cross-Border Risk
 - **CSRC crackdown on Futu and Tiger Brokers (UP Fintech)** for unlicensed mainland operations chilled the entire US-listed China complex (BABA, JD, PDD).
 - This raises the **geopolitical/listing risk premium** demanded on PDD shares regardless of fundamentals.
 
-### 2.4 Sell-Side Sentiment
+#### 2.4 Sell-Side Sentiment
 - **Morgan Stanley (Eddy Wang)**: Overweight, **PT $148** (reiterated April 17). This pre-dates the Q1 miss; expect potential PT revisions in coming days.
 - Insider Monkey lists PDD among "Most Undervalued Foreign Stocks" and "Best Revenue Growth Stocks," reflecting the **value vs. value-trap debate** post-selloff.
 
@@ -342,7 +342,7 @@ PDD Holdings Inc. is a multinational commerce group that owns and operates a por
 
 *YoY computed where data permits.
 
-### Key Observations
+#### Key Observations
 - **Revenue Growth:** Q1 2026 revenue of RMB 106.2B is +11.0% YoY vs. Q1 2025 (95.67B). Growth has decelerated meaningfully from the ~50–80% rates of prior years — consistent with Temu reaching scale and intensifying competition (Shein, TikTok Shop, Amazon Haul).
 - **Margin Compression:** Operating margin declined from 24.8% in Q2 2025 to 18.4% in Q1 2026. This reflects (a) heavy continued investment in Temu international expansion, (b) merchant fee reductions on Pinduoduo as PDD shores up the seller ecosystem, and (c) higher S&M intensity (selling expense Q1-26: 33.8B = 31.8% of revenue).
 - **Net Income volatility:** Q1 2026 net income of 12.55B is down ~15% YoY. Sequential decline from Q4 2025 (23.0B) is partly seasonal but also reflects an interest expense flip (Q1-26 had RMB -632M net interest vs. positive +6–10B in prior quarters — likely FX/treasury-related on USD holdings as RMB moved).
@@ -365,7 +365,7 @@ PDD Holdings Inc. is a multinational commerce group that owns and operates a por
 | Total Debt (incl. leases) | 5.12B | 11.25B | -54% |
 | Working Capital | 324.91B | 250.75B | +29.6% |
 
-### Highlights
+#### Highlights
 - **Net cash position of ~RMB 431B** (~US$60B) — roughly **half the entire market cap** is sitting in cash and liquid securities. This is one of the strongest balance sheets in global e-commerce.
 - **Debt has been actively paid down** — total debt cut by more than half YoY; current debt portion fully retired by Q4 2025.
 - **Current ratio 2.54x** — exceptional liquidity.
@@ -504,7 +504,7 @@ And here's the kicker the bear conveniently glosses over: **PEG of 0.79.** Even 
 
 #### 2. Refuting the Bear's Core Claims
 
-### Bear Claim #1: "Earnings missed, margins are collapsing, growth is dead"
+#### Bear Claim #1: "Earnings missed, margins are collapsing, growth is dead"
 
 Look closer at the Q1 numbers:
 - **Revenue still grew +11% YoY to RMB 106.2B**
@@ -515,14 +515,14 @@ Why did margins compress? Management *explicitly* told you: multi-year supply ch
 
 R&D rose from 3.58B to 4.42B. Selling expenses ramped to support Temu's international flywheel. **These are choices, not symptoms of a broken business.** A broken business doesn't grow gross profit dollars and retained earnings 47% YoY.
 
-### Bear Claim #2: "Temu is under regulatory siege — EU fine, Shein lawsuit"
+#### Bear Claim #2: "Temu is under regulatory siege — EU fine, Shein lawsuit"
 
 Let's right-size this:
 - **EU fine: $232M.** PDD has **$60 BILLION** in cash. That's **0.4% of cash holdings** — a rounding error.
 - **Shein lawsuit:** Shein is suing Temu while preparing its own IPO. This is competitive lawfare, not an existential threat. It will settle, as these always do.
 - **Compliance costs:** Real, but bracketed. Temu has been adapting its model (semi-managed, local fulfillment) for over a year. The market is treating regulatory risk as if it's 2018-Facebook, when in reality Temu has the balance sheet to absorb 10x these fines without breaking a sweat.
 
-### Bear Claim #3: "The technicals are screaming sell"
+#### Bear Claim #3: "The technicals are screaming sell"
 
 Here's where I love the bear's own data. The technical report shows:
 - **RSI hit 29.3 (oversold) and is already turning up to 32.3**
@@ -534,7 +534,7 @@ Translation: **this is capitulation, not trend continuation.** The technical rep
 
 The 52-week low is $81.56. We closed Friday at $84.44. **The bear is asking you to short a stock $3 above its 52-week low with RSI already curling up.** That's not analysis, that's chasing.
 
-### Bear Claim #4: "Reddit silence, no retail catalyst"
+#### Bear Claim #4: "Reddit silence, no retail catalyst"
 
 Actually, this is *bullish*. There's no FOMO crowd to flush out. The capitulation is institutional/algorithmic, which means weak hands are already gone. When you see post-earnings drift exhaustion combined with no retail mania to unwind, you typically get clean basing action.
 

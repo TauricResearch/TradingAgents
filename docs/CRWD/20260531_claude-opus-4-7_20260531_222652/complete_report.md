@@ -151,7 +151,7 @@ I deliberately excluded redundant overlays: `boll` (middle band) duplicates the 
 
 #### 1) Source-by-source breakdown
 
-### News (Yahoo Finance, ~20 headlines)
+#### News (Yahoo Finance, ~20 headlines)
 Institutional/news framing skews **constructive-to-bullish**, with the dominant frame being "AI-cybersecurity winner heading into Q1 earnings (June 3)."
 - Pro-CRWD evidence:
   - Barchart/Wedbush: "ARR Swells on AI Tailwinds, CrowdStrike Stock Is a Cash Flow Machine" — Wedbush calls CRWD in "prime position."
@@ -165,13 +165,13 @@ Institutional/news framing skews **constructive-to-bullish**, with the dominant 
   - Reuters: SentinelOne's tepid guide and 8% layoffs underscore that "some corporate clients are tightening their budgets, scrutinizing deals and extending sales cycles" — a sector-wide demand caveat that bleeds into the read-through for CRWD.
 - Net: news flow is **mildly bullish**, dominated by AI tailwind narrative and earnings anticipation, with valuation/margin caveats.
 
-### StockTwits (30 most-recent messages; 13 Bullish / 2 Bearish / 15 unlabeled)
+#### StockTwits (30 most-recent messages; 13 Bullish / 2 Bearish / 15 unlabeled)
 Labeled ratio is **~87% bullish** (13/15 of those tagged), but with a meaningful unlabeled cohort that contains a mix of skeptical voices (bubble calls, "irrational exuberance," "free money era is over," "negative net margins"). Including the skeptical unlabeled posts, effective sentiment is closer to **65–70% bullish**.
 - Bullish themes: buy-the-dip post-earnings (mikesterz7), 10:1 split speculation (MaxPatterson, BillyBarue, charlottecorday), price targets of $800 median / $750 Oppenheimer / $700 Wedbush & Benchmark (MarketMaestro1), heavy call-option positioning around $730 strikes (gigafactory), "+1,122% on June 460 calls" trade-trumpeting (FITZSTOCK2004), projected $949 area target (TraderFlorida).
 - Bearish/cautious: "irrational exuberance" / "what's the PE now?" (LAstarDCstar), "Bubble" (RamblinGambler1), "ABJECT STUPIDITY… negative net margins" (Huck18), "free money era is over" (VIRDILUXVIVENTIUM), "blow out earnings already priced in" (AlrightAlrightAIright — bullish on RBRK but warning CRWD could drag the space down), "Companies… looking rather Overbought" (BinaryLogic).
 - Notable nuance: even bullish-tagged users (AlrightAlrightAIright, BillyBarue) flag risk of a post-earnings sell-off — i.e., crowd sees high expectations baked in.
 
-### Reddit (sparse)
+#### Reddit (sparse)
 - r/wallstreetbets: only 2 generic mentions (weekly earnings thread + a celebratory meme post). No dedicated CRWD thesis.
 - r/stocks: thread asking "Is CRWD in a short squeeze or something else?" noting the stock is up ~64% in a month — mixed-curious framing, not strongly directional.
 - r/investing: silent.
@@ -247,12 +247,12 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 
 #### 2. Company-Specific Catalysts (CRWD)
 
-### 2.1 Earnings Setup (Imminent)
+#### 2.1 Earnings Setup (Imminent)
 - **Q1 FY2027 print this week** — flagged in Barron's "Stocks to Watch" alongside Broadcom and Macy's.
 - Zacks preview emphasizes **strong demand for Falcon Flex** (the flexible licensing offering) and **AI security adoption** as drivers, while flagging **premium valuation** and **rising costs** as risks.
 - Sell-side preview articles ("Curious about CRWD Q1 Performance?") show analysts focused on **Net New ARR, Subscription Gross Margin, and Module Adoption** as the three swing metrics.
 
-### 2.2 Competitive Landscape — Strongly Favorable
+#### 2.2 Competitive Landscape — Strongly Favorable
 | Competitor | Recent Signal | Read-Across to CRWD |
 |---|---|---|
 | **SentinelOne (S)** | Tepid Q2 guide, 8% layoffs | **Bullish** — share donor; mentions "intense competition from CRWD/PANW/Microsoft" |
@@ -261,12 +261,12 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 | **Fortinet (FTNT)** | Motley Fool comparison piece — contrasting margins | Mixed; CRWD seen as higher-growth, lower-margin near-term |
 | **Rapid7 (RPD)** | +12.6% on Okta read-across | Confirms broad sector reflation |
 
-### 2.3 AI Narrative
+#### 2.3 AI Narrative
 - Reuters video (Kampitsis): "**The winners will be software companies that integrate AI into their offerings**" — explicitly names CRWD.
 - Wedbush: ARR swelling on AI tailwinds; CRWD a "cash flow machine."
 - Yahoo Finance panel debate: CRWD, PANW, SAIL leading the cybersecurity-AI cohort — significant gains in the past month and YTD 2026.
 
-### 2.4 Sentiment Tape
+#### 2.4 Sentiment Tape
 - "**Big movers**" coverage repeatedly flags CRWD as a leader in the up-tape (Zscaler, CRWD lumped together).
 - StockStory: CRWD/PANW "**soaring**" on AI conviction wave.
 
@@ -274,19 +274,19 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 
 #### 3. Macro Backdrop (Week Ending 2026-05-31)
 
-### 3.1 Bullish Macro Inputs
+#### 3.1 Bullish Macro Inputs
 - **Indexes at record highs**: S&P 500 +0.41%, Nasdaq 100 +0.66% on the most recent session, driven by **Iran peace-deal hopes** + AI capex.
 - **AI capex boom**: Dell blowout earnings, Snowflake record session, Broadcom set to extend the AI-earnings tape this week.
 - **Iran truce extension** (May 29) has temporarily eased the safe-haven bid (silver opened higher ironically on the truce news, suggesting positioning unwind).
 
-### 3.2 Bearish/Cross-Currents
+#### 3.2 Bearish/Cross-Currents
 - **Iran War in its 4th month** — energy markets remain "rewired"; oil materially higher than pre-conflict baseline. Mizuho raising oil-name PTs.
 - **Rising Treasury yields**: "Will higher treasury yields threaten the market's climb?" (Investing.com) — direct headwind to long-duration software multiples.
 - **June flagged as "Crunch Point"** for energy reserves and **rate-hike risk**.
 - **Consumer cracks**: Footwear/retail outlets warning on shoe price hikes, job concerns, shaky consumer.
 - **Upcoming labor data**: JOLTS + NFP this week — primary macro swing factor.
 
-### 3.3 Net Macro Read for CRWD
+#### 3.3 Net Macro Read for CRWD
 - High-quality, AI-leveraged software with mission-critical demand (cybersecurity is non-discretionary) is **relatively insulated** from consumer weakness and oil shocks.
 - Main multiple risk = **higher long yields** if NFP runs hot. CRWD trades at premium valuation; rate sensitivity is real.
 

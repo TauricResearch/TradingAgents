@@ -34,7 +34,7 @@ The stock now sits in a strong recovery uptrend but is encountering a **major ov
 
 #### 2. Indicator-by-Indicator Read (values as of 2026-05-29 close)
 
-### Trend Structure
+#### Trend Structure
 
 | Metric | Value (May 29) | Interpretation |
 |---|---|---|
@@ -45,7 +45,7 @@ The stock now sits in a strong recovery uptrend but is encountering a **major ov
 
 **Key observation — the bullish-MA stack:** As of May 29, we have **price > 10 EMA > 50 SMA**, and **price > 200 SMA**, but **50 SMA still well below 200 SMA**. This means a **golden cross is NOT yet in place** — the 50 SMA (170.96) needs to climb roughly 35 points to cross the 200 SMA (205.99). At the current rate of 50-SMA appreciation (~+1 point/day), a golden cross is at minimum **5–7 weeks away** and is contingent on price holding up.
 
-### Momentum
+#### Momentum
 
 | Metric | Value (May 29) | Prior session | Interpretation |
 |---|---|---|---|
@@ -55,7 +55,7 @@ The stock now sits in a strong recovery uptrend but is encountering a **major ov
 
 **Momentum verdict:** Powerful upside thrust, but the +9.0 single-day MACD jump and RSI launch from 66 to 75 in one session reflect **gap-up euphoria** rather than a measured trend. Historically (per the Apr 22 analog within this dataset), ORCL has not sustained RSI > 73 for long.
 
-### Volatility
+#### Volatility
 
 | Metric | Value (May 29) | Interpretation |
 |---|---|---|
@@ -146,7 +146,7 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 
 #### ORCL Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News headlines (Yahoo Finance, ~20 items):** Institutional framing is **net constructive but with clear caveats**. Bullish anchors include: (a) a Simply Wall St. piece highlighting ORCL's strong momentum (+22.7% 1-month, +40.1% 3-month, ~$549B market cap, $203.70 close) and 168.8% 5-year TSR; (b) a GuruFocus story on Snowflake/Oracle/ServiceNow rallying as the "AI trade heats up again"; (c) Zacks naming Oracle alongside Intuit and Progress Software as beneficiaries of AI/cloud demand; (d) repeated mentions of Oracle as a core beneficiary of OpenAI's compute footprint and the broader AI infrastructure buildout; (e) a "SaaSpocalypse overstated" theme emerging from Snowflake's strong print, lifting AI-adjacent software. Bearish/cautionary anchors: (a) Insider Monkey flagging Leopold Aschenbrenner as **bearish** on ORCL; (b) Insider Monkey/Impax letter citing "Concerns Over Debt Weigh on Oracle Amid AI Data Center Expansion"; (c) Benzinga noting Wall Street is **hedging Big Tech AI credit** via record CDS volumes, with ORCL named alongside NVDA and AMZN; (d) Barron's bubble-warning piece. Net: institutional tone leans positive on momentum and AI positioning, but debt/leverage and bubble framing are persistent counter-narratives.
 
@@ -154,13 +154,13 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 
 **Reddit (5 r/wallstreetbets posts; r/stocks and r/investing silent):** Engagement metrics unavailable (RSS). Tone is **bullish/exuberant**: a user reporting a 6.4k→200k gain on ORCL, an earnings-play call buyer at $245 strike, a "screw you space and semis, software wins" post. r/stocks and r/investing returning zero ORCL posts means we lack the more measured long-horizon community check — sentiment read here is WSB-skewed and should be discounted for that bias. ORCL also appears in the CBOE pre-market options expansion list, a mild structural positive (more retail access).
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 - **Alignment:** All three sources lean positive on ORCL's AI infrastructure positioning and recent price momentum. The "AI trade re-accelerating after SaaSpocalypse fears" narrative is consistent across news and social.
 - **Divergence:** News flow contains a substantive **debt/leverage counter-narrative** (Impax letter, Benzinga CDS hedging, bubble framing) that is largely absent or dismissed on StockTwits and WSB, where bulls are explicitly waving away debt concerns ("don't take on $50B of debt without conviction"). This is the classic late-cycle setup where institutional caution coexists with retail euphoria.
 - **Sample-size caveat:** Only 30 StockTwits messages and 5 WSB posts; r/stocks and r/investing silent. Confidence capped at medium.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 
 1. **AI infrastructure beneficiary** — Oracle as a top-tier OpenAI compute partner and database/AI backbone (~$47B 2028 expected profits cited).
 2. **Momentum and breakout** — strong 1M/3M returns, golden-cross chatter, "V-shape recovery" framing.
@@ -168,13 +168,13 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 4. **SaaSpocalypse reversal** — Snowflake's print rehabilitating AI-adjacent software, helping ORCL by association.
 5. **Bubble watch** — Barron's piece, Aschenbrenner short stance, contrarian voices.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 
 **Catalysts:** Upcoming ORCL earnings (referenced in WSB call-buying post); continued AI capex headlines from hyperscaler peers; OpenAI compute deal newsflow; potential further "SaaSpocalypse over" rotation into enterprise software; CBOE pre-market options launch in July adds retail liquidity.
 
 **Risks:** Rising CDS spreads on Big Tech AI credit; Impax-style fundamental concerns on debt service vs. AI ROI; bubble-pattern flagged by Barron's; high-profile bearish positioning (Aschenbrenner); retail euphoria with zero bearish StockTwits tags is a contrarian warning; one shared model shows ORCL with the **worst** AI-investment ROI among hyperscalers (-35.6%).
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Supporting evidence |
 |---|---|---|---|
@@ -206,50 +206,50 @@ The net read for ORCL is **bullish in momentum but increasingly fragile in tail 
 
 #### 1. Company-Specific (ORCL) Highlights
 
-### 1a. Price Action and Momentum
+#### 1a. Price Action and Momentum
 - **Last close (week ending 5/29/26):** ~$203.70; market cap ~$549.2B (Simply Wall St.).
 - 1-month return: **+22.7%**, 3-month return: **+40.1%**, 5-year TSR: **+168.8%**.
 - ORCL participated in a Friday rally led by **Snowflake, Oracle, ServiceNow** as "AI trade heats up again" (GuruFocus). Catalyst: Snowflake's strong earnings invalidated the "SaaSpocalypse" thesis that had erased ~$2T in software market cap since late 2025.
 - Dell's record Q1 earnings (5/29/26) further amplified the AI-infrastructure rally that ORCL is benefiting from.
 
-### 1b. AI / OpenAI Compute Tailwind
+#### 1b. AI / OpenAI Compute Tailwind
 - ORCL is repeatedly named alongside **NVDA, AMZN, and AMD** as a primary beneficiary of **OpenAI's ~1.4 GW power/compute footprint** (24/7 Wall St., 5/29). This is a continuation of the multi-year Stargate-style commitment that has driven Oracle Cloud Infrastructure (OCI) bookings to record levels.
 - Zacks Industry Outlook (5/28) explicitly highlighted **ORCL, INTU, and PRGS** as AI/cloud-demand winners despite macro and competitive headwinds.
 
-### 1c. Bear Case / Risk Flags
+#### 1c. Bear Case / Risk Flags
 - **Debt overhang:** *Insider Monkey* surfaced Impax Asset Management's Q1 2026 letter flagging **"Concerns Over Debt Weigh on Oracle Amid AI Data Center Expansion."** Impax's US Sustainable Economy Fund underperformed the Russell 1000 in Q1 partly due to *not owning* Oracle — but cited debt as the reason for caution.
 - **Hedge fund bearishness:** Leopold Aschenbrenner's **Situational Awareness LP** has reportedly added a new position in ORCL (per 13F filings), but the framing of the Insider Monkey piece is "bearish on this software stock," indicating mixed positioning at the smart-money level.
 - **CDS volume surge:** Wall Street is **"quietly hedging for trouble"** on ORCL, NVDA, and AMZN credit. The Kobeissi Letter notes Big Tech CDS outstanding has hit **record levels** as AI-era debt issuance accelerates (Benzinga, 5/28). This is an early-warning signal: equity often follows credit.
 - **Hyperscaler leverage context:** Counterbalancing the bear case, Barchart notes that despite massive AI capex debt, hyperscalers (including Oracle) still carry **lower net leverage than the broader S&P 500** — meaning the "debt panic" may be overstated relative to corporate America at large.
 
-### 1d. Valuation
+#### 1d. Valuation
 - At ~$203 with a market cap >$549B, ORCL trades near the upper end of its historical multiple. Simply Wall St.'s framing ("Investors are weighing that price against the company's size") suggests valuation discipline is becoming a debate.
 - Bubble concerns articulated by **Barron's** ("If It Walks Like a Bubble…") tie pending IPOs of SpaceX, Anthropic, OpenAI to a "speculative melt-up" — ORCL is part of that cohort by association.
 
-### 1e. Upcoming Catalysts
+#### 1e. Upcoming Catalysts
 - Oracle's **fiscal Q4 2026 earnings** typically report in mid-June. With shares running 40% in three months, the print is now a **high-bar event** — any miss on OCI growth, RPO/cRPO, or capex commentary could trigger a sharp drawdown. Conversely, a beat sustains the AI-driven rerating.
 
 ---
 
 #### 2. Macro & Cross-Asset Backdrop
 
-### 2a. Geopolitics — US–Iran War (Month 4)
+#### 2a. Geopolitics — US–Iran War (Month 4)
 - The **US–Iran war has entered its fourth month** (Barron's). However, a **truce/deal extension** narrative emerged on 5/29 (MT Newswires: "Equity Futures Rise Amid US-Iran Deal Optimism"; Yahoo: "Silver prices open higher after news of truce extension with Iran").
 - Equity indices (S&P 500, Dow, Nasdaq) hit **record highs** on a combination of "peace deal hopes and AI spending" (Barchart).
 - **Oil retreated** on the truce extension — easing inflation pressures and supporting growth/tech multiples. This is a clear positive for ORCL's risk-on profile.
 
-### 2b. Inflation, Rates & Consumer
+#### 2b. Inflation, Rates & Consumer
 - Consumer inflation remains sticky in pockets (shoe prices, tomatoes +40% YoY, fashion retail strain from gas prices) — the war has been a key driver.
 - **Treasury yields are rising**, with Investing.com asking "Will higher treasury yields threaten the market's climb?" — a direct headwind for long-duration tech.
 - **24/7 Wall St.** labels June a **"crunch point"** as energy reserves deplete and **rate hikes loom**. This is a notable hawkish pivot — if rate-hike chatter solidifies, it could compress ORCL's multiple regardless of fundamentals.
 - Job concerns and "shaky consumer" signals (Footwear News) point to **slowing discretionary demand** — but enterprise IT/cloud spend has historically been resilient relative to consumer cyclicals.
 
-### 2c. AI / Tech Tape
+#### 2c. AI / Tech Tape
 - **AI infrastructure rally is intact**: Dell's record Q1, Snowflake's beat, and broad software rally show institutional money is rotating *back* into AI software/infra after the late-2025 SaaS scare.
 - **AMD up 118% YTD, 322% over the trailing year** — illustrates how aggressive the rerating in AI infrastructure has been.
 - **Microsoft (MSFT) -12% over six months** — a divergence: not all hyperscalers are participating equally. ORCL has been a relative-outperformer vs. MSFT, which may be near-term frothy.
 
-### 2d. Bubble / Sentiment Risk
+#### 2d. Bubble / Sentiment Risk
 - Barron's bubble warning + record CDS hedging on AI-linked credit + record-high indices = the textbook setup where **risk/reward tilts negatively even as price action remains constructive**.
 
 ---
@@ -496,7 +496,7 @@ This is what early-stage bull markets look like in individual stocks.
 
 #### Now, Let Me Take On the Bear's Concerns Directly
 
-### Bear Concern #1: "Negative FCF of -$22B TTM is a red flag"
+#### Bear Concern #1: "Negative FCF of -$22B TTM is a red flag"
 
 **This is exactly backwards.** Negative FCF here is not a warning — it's the *signature of a company aggressively monetizing a once-in-a-generation opportunity*. Amazon ran negative FCF for years building AWS. Meta ran negative FCF building Reality Labs and Reels. The question isn't "is FCF negative?" — it's "is the capex producing economic returns?"
 
@@ -504,7 +504,7 @@ Oracle's PP&E doubled to $83.6B because it is **pre-selling that capacity** thro
 
 When FY27 hits and the capex curve flattens while the revenue from that capacity flows through, FCF will inflect violently positive. The market will reprice that inflection in advance — that's why the stock is up 40% in three months.
 
-### Bear Concern #2: "Debt at $153B / D-E of 415% is dangerous"
+#### Bear Concern #2: "Debt at $153B / D-E of 415% is dangerous"
 
 Two facts the bears conveniently omit:
 
@@ -513,23 +513,23 @@ Two facts the bears conveniently omit:
 
 The CDS hedging argument is also weak: record CDS *volumes* reflect record debt issuance across the whole AI complex, not Oracle-specific stress. Spreads themselves remain contained.
 
-### Bear Concern #3: "Gross margin compression from 70% to 64.6%"
+#### Bear Concern #3: "Gross margin compression from 70% to 64.6%"
 
 Yes — and **this is good news disguised as bad news**. The reason GMs are compressing is that OCI (lower margin, higher growth) is becoming a bigger share of mix. That's the *whole bull thesis playing out*. Cloud GMs scale with utilization. As those data centers fill (which the RPO backlog says they will), gross margins on the cloud segment will expand from ~30-40% today toward 50%+, just as AWS did.
 
 64.6% gross margin on accelerating 20%+ revenue growth >>> 70% gross margin on 5% growth.
 
-### Bear Concern #4: "RSI 75, overbought, price 6% above upper Bollinger Band"
+#### Bear Concern #4: "RSI 75, overbought, price 6% above upper Bollinger Band"
 
 A fair short-term observation, but here's the nuance: **overbought in a downtrend is bearish; overbought in a confirmed breakout regime is bullish continuation**. The April overbought episode the technical report cites came *into* a defined consolidation. This breakout is happening on a 200-DMA reclaim with MACD re-acceleration — totally different setup.
 
 Even if we get a 5-10% pullback to $206-213, that's a *gift entry*, not a thesis-killer. The trend structure is clearly intact.
 
-### Bear Concern #5: "Bubble warnings from Barron's, Aschenbrenner short, sentiment euphoria"
+#### Bear Concern #5: "Bubble warnings from Barron's, Aschenbrenner short, sentiment euphoria"
 
 Honestly? **Barron's has called every bull market a bubble for 30 years.** This is contrarian noise. The sentiment data shows StockTwits at 27% bullish / 0% bearish-tagged — but the report itself notes most "unlabeled" posts are bullish. Even taking the read at face value, retail euphoria *alone* doesn't kill bull markets. Earnings disappointments do. And on that front:
 
-### Bear Concern #6: "High-bar June earnings"
+#### Bear Concern #6: "High-bar June earnings"
 
 Bears frame this as risk; I frame it as **catalyst**. Oracle has beat on cloud growth and RPO every quarter for the last six quarters. The setup into the print is: accelerating revenue, contracted backlog, reaccelerating momentum. The base case is a beat, and a beat on RPO + FY27 capex commentary likely vaults the stock through the $220-240 supply zone toward new highs.
 

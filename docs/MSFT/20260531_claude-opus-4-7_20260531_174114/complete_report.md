@@ -117,7 +117,7 @@ Key observations:
 
 #### MSFT Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 headlines)** — Tilt: **Mildly Bullish, with macro/bubble caveats.**
 - The single most MSFT-specific headline is unambiguously bullish: *"Microsoft (MSFT) Is Up 7.6% After Revealing US$37B AI Run Rate And New EY Alliance"* (Simply Wall St.). A $37B annualized AI revenue run-rate plus a $1B EY alliance is a hard, fact-driven institutional signal.
@@ -141,18 +141,18 @@ Key observations:
 - r/investing: a single passive mention in a portfolio-allocation question.
 - Engagement scores unavailable, so weighting is limited; treat this source as directional only.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 - **Alignment**: News and StockTwits both highlight the NVIDIA/Windows AI PC partnership and Build conference as near-term catalysts; both also cite the $37B AI run-rate and Ackman buying as institutional validation.
 - **Divergence**: Reddit retail expresses *underperformance frustration* ("dud like MSFT") that is absent from StockTwits, where price-chasers are more excited. This suggests MSFT has been a relative laggard versus chip names (NVDA, MU, AVGO) even as fundamentals are strong — a classic "great company, lagging stock" setup that Cramer also flagged.
 - **Macro overlay**: News flow surfaces real bubble/rate-risk concerns (10Y near 4.7–5%, AI bubble debate, anti-tech extremism) that retail sources largely ignore.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **AI monetization is becoming concrete** — $37B run-rate, EY $1B alliance, Build conference next week, NVIDIA-powered Windows AI PCs.
 2. **Relative laggard within mega-cap AI** — MSFT trading ~$462–463 while chip peers go parabolic; sentiment of "cheap and overdue to ignite."
 3. **Macro/valuation overhang** — rising 10Y yields, bubble debate, concentration risk in QQQ/SCHX/SCHG top holdings (which include MSFT).
 4. **Software rotation thesis** — early signs of money rotating from AI hardware into software/hyperscalers.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 **Catalysts (next 1–2 weeks):**
 - Microsoft Build conference (next week, San Francisco) — new in-house AI models, NVIDIA-powered Windows AI PCs.
 - Continued enterprise AI deal flow (EY-style alliances).
@@ -165,7 +165,7 @@ Key observations:
 - Anti-tech regulatory/social backlash (FBI flagged extremism story).
 - Cramer-style fatigue: stock looks cheap but won't move — momentum traders rotate elsewhere.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -180,7 +180,7 @@ Key observations:
 | Concentration risk in top 5 | Bearish (structural) | News (24/7 Wall St.) | QQQ/SCHX/SCHG concentration warnings |
 | Retail price targets $484 / $550 | Bullish | StockTwits | @RomasKas, multiple "parabolic" calls |
 
-### Bottom line
+#### Bottom line
 The MSFT-specific signal is clearly **bullish** (record AI run-rate, marquee partnerships, Build conference catalyst, Ackman buying, strong retail labeled-sentiment skew). The drag comes from macro/valuation concerns and a real undercurrent of "stock is lagging" frustration on Reddit and from Cramer. Net read: **Mildly Bullish (6.2/10)** with **medium confidence** — sample sizes on StockTwits and Reddit are modest, and Reddit engagement metrics are unavailable, so the read leans on news and the labeled-Twit ratio.
 
 ### News Analyst
@@ -199,7 +199,7 @@ Microsoft (MSFT) sits in a strong fundamental position heading into June 2026, b
 
 #### 2. Microsoft-Specific Catalysts (Past 7 Days)
 
-### 2.1 Bullish Drivers
+#### 2.1 Bullish Drivers
 - **AI Run-Rate Disclosure ($37B):** The single most important fundamental data point. MSFT is now the most credibly monetizing hyperscaler, with AI revenue clearly broken out. The stock is up **~7.6%** on this and related disclosures (Simply Wall St., 2026-05-31).
 - **EY Strategic Alliance ($1B):** Deepens Microsoft's penetration in enterprise governance, audit, tax, and risk-advisory workflows — a high-margin, sticky verticalization of Azure + Copilot.
 - **In-house AI Models:** Microsoft has launched proprietary AI models, reducing dependency on OpenAI and improving long-term gross-margin trajectory in MAI Cloud.
@@ -207,35 +207,35 @@ Microsoft (MSFT) sits in a strong fundamental position heading into June 2026, b
 - **Smart Money Buying:** **Bill Ackman / Pershing Square** disclosed a large Q1 build in MSFT (and AMZN) — an institutional vote of confidence.
 - **Trillion-Dollar Club Reaffirmation:** Micron's entry into the trillion-dollar club references MSFT as part of the AI mega-cap leadership cohort, reinforcing its position in the AI infrastructure narrative.
 
-### 2.2 Bearish / Risk Signals
+#### 2.2 Bearish / Risk Signals
 - **Cramer "Got It Wrong":** Jim Cramer publicly conceded disappointment in MSFT's recent action, suggesting some short-term momentum frustration despite the long-term thesis.
 - **AI Bubble Debate (Bloomberg):** Chipmaker rally is "historic," and capital-allocation skeptics are louder. Any de-rating in the AI complex hits MSFT directly.
 - **QQQ Concentration Risk (24/7 Wall St.):** MSFT is one of the top 5 QQQ holdings driving the index — correlated drawdown risk if the AI cohort sells off in unison.
 - **FBI Flag on "Anti-Tech Extremism":** A new tail risk — the FBI is watching organized AI opposition. Regulatory or social blowback could create event-risk.
 - **"Big Tech Screwing Average Investor" Narrative:** Calls for stock splits and dividend criticism (S&P 500 yield at 1.08%, lowest since 1800s) — political/retail pressure could grow.
 
-### 2.3 Microsoft Identity Confirmation
+#### 2.3 Microsoft Identity Confirmation
 All news results confirm MSFT = Microsoft Corporation, NASDAQ/NMS listed. No tool result disproved the resolved identity.
 
 ---
 
 #### 3. Macroeconomic & Cross-Asset Backdrop
 
-### 3.1 Geopolitics — US/Iran Conflict (Active)
+#### 3.1 Geopolitics — US/Iran Conflict (Active)
 - **US–Iran war ongoing**, with Strait of Hormuz transit issues, missile strikes on a Kuwaiti air base, and US prohibitions on Iran-backed safe-passage deals.
 - A **truce extension** was reported May 29 (silver opened higher), suggesting de-escalation optionality but not resolution.
 - Exxon and Chevron are publicly warning of **oil price spikes** in coming weeks. This is feeding directly into headline inflation.
 
-### 3.2 Rates & Inflation
+#### 3.2 Rates & Inflation
 - **10-year Treasury yield ~4.7%**, the highest in a year, approaching the psychologically important **5% level**.
 - Footwear, fashion retail, gas, tomato (+40% YoY), and shoe-price articles all indicate **sticky goods inflation** transmitting from oil → consumer.
 - For long-duration tech like MSFT: **+25 bps in the 10-yr typically compresses ~5% of multiple** in the highest-multiple growth names. SCHG (large-cap growth ETF) cited as facing 12-month headwind risk if yields stay elevated.
 
-### 3.3 Consumer & Labor
+#### 3.3 Consumer & Labor
 - "Job Concerns, Shoe Price Hikes and Shaky Consumer Suggests Slower Sales" — clear early warning of a softening consumer in Q2/Q3 2026.
 - Implication for MSFT: **enterprise/AI capex remains insulated**, but Office/365 SMB and Xbox/consumer segments could see modest pressure.
 
-### 3.4 Sector Rotation Themes
+#### 3.4 Sector Rotation Themes
 - **AI infrastructure remains leadership** — Dell, Nokia, Lenovo, Cisco are being "reborn." Micron just hit $1T market cap. Datadog doubled. This is a clear sign capex is broadening, which **directly benefits Azure, MSFT's AI Foundry, and partner ecosystem**.
 - **AI = Energy** (Axios) — MSFT and other hyperscalers are now deep into power, storage, and grid investments, an emerging cost line and a strategic moat.
 - **Energy stocks** are getting upgrades (Devon, Diamondback, Exxon, Chevron, Petrobras) — confirming the sector rotation toward inflation-beneficiaries.
@@ -250,11 +250,11 @@ All news results confirm MSFT = Microsoft Corporation, NASDAQ/NMS listed. No too
 | **Medium-term (1–3 months)** | Constructive | EY alliance + on-device AI + Surface refresh provide multiple monetization vectors. AI capex cycle unbroken. |
 | **Long-term (12 months)** | Bullish but rate-sensitive | $37B AI run-rate compounding; enterprise stickiness. Risk: AI bubble de-rating + sustained 5% yields. |
 
-### Key Levels & Catalysts to Watch
+#### Key Levels & Catalysts to Watch
 - **Macro:** 10-yr Treasury crossing 5%; next CPI/PCE prints; Fed signaling on cuts; Iran truce status.
 - **Micro:** Next earnings AI run-rate update (now baseline = $37B, must beat); Azure growth rate; capex guidance vs. depreciation; any further OpenAI relationship news; antitrust/anti-tech regulatory headlines.
 
-### Risk Management
+#### Risk Management
 - Position sizing should account for **high correlation with QQQ top-5** — diversification benefit vs. NVDA/META/AMZN/GOOGL is limited.
 - Hedge candidates: long energy (XOM/CVX) or short-duration Treasuries to offset the inflation/rate combo risk.
 

@@ -137,7 +137,7 @@ This is a major risk-management signal. The recent two-day range of May 20 ($383
 
 #### 1. Source-by-Source Breakdown
 
-### News (Yahoo Finance, ~18 relevant headlines)
+#### News (Yahoo Finance, ~18 relevant headlines)
 News flow is decisively positive and dominated by a "beat-and-raise" Q2 FY2026 print plus AI/data-center momentum:
 - **Earnings beat & strong guide:** Q2 sales of $3.62B and net income of $1.18B; Q3 guide of ~$3.9B (±$100M), above LSEG consensus (Insider Monkey/Reuters, Simply Wall St.).
 - **Segment strength:** Industrial revenue up **56% YoY**; AI data-center revenue up **~90%**, driving record sales and margin expansion (Zacks).
@@ -147,7 +147,7 @@ News flow is decisively positive and dominated by a "beat-and-raise" Q2 FY2026 p
 - **Market backdrop:** Broad tech/AI risk-on tone with S&P/Nasdaq at record highs and chip-sector rallies.
 No genuinely bearish news items appeared in the window.
 
-### StockTwits (30 most-recent messages)
+#### StockTwits (30 most-recent messages)
 Labeled split: **Bullish 10 (33%) / Bearish 1 (3%) / Unlabeled 19 (63%)**. Of labeled messages, ratio is **10:1 bullish-to-bearish** — strongly positive but with a large unlabeled middle. Sample is moderate (30 messages).
 - Bullish posts cite the cascade of analyst upgrades (Citigroup $460, Keybanc $500, Wells Fargo $515, Daiwa $470), "totally undervalued," "no brainer adding down here," and a "very solid organization" engineering testimonial.
 - Technical/options framing is constructive: gamma-flip break above $398.40, reclaim of $400, RSI reset to 50, MA50 holding at $360, June $395 calls flagged.
@@ -156,7 +156,7 @@ Labeled split: **Bullish 10 (33%) / Bearish 1 (3%) / Unlabeled 19 (63%)**. Of la
 - Two non-substantive negatives ("Fuck these investors", "shit the bed") are venting tied to a brief post-earnings dip rather than thesis-level bearishness.
 - One off-topic note: a "$ADI" Ledger/ADI Chain crypto reference — unrelated to Analog Devices.
 
-### Reddit (r/wallstreetbets, r/stocks, r/investing)
+#### Reddit (r/wallstreetbets, r/stocks, r/investing)
 **No posts found** mentioning ADI in the past 7 days. ADI is not a meme/retail-Reddit focus stock; absence here is normal for a large-cap analog name and is neither bullish nor bearish on its own. Flag: this reduces overall confidence to medium.
 
 #### 2. Cross-Source Divergences & Alignments
@@ -223,33 +223,33 @@ The macro backdrop is mixed-but-supportive for tech: equities are at/near record
 
 #### 2. Company-Specific Catalysts (ADI)
 
-### 2.1 Earnings & Guidance (Q2 FY2026)
+#### 2.1 Earnings & Guidance (Q2 FY2026)
 - **Revenue:** $3,623M (beat)
 - **Net income:** $1,176M
 - **Q3 guide:** ~$3.9B ±$100M, **above** LSEG consensus
 - Management (CEO Vincent Roche) credited multi-year supply chain investments for scale/optionality and called out demand strength in **automation, aerospace/defense, and AI infrastructure**.
 
-### 2.2 Segment Detail
+#### 2.2 Segment Detail
 | Segment | Growth | Driver |
 |---|---|---|
 | Industrial | **+56% YoY** | AI infrastructure, factory automation, defense spending |
 | AI Data Center | **+90% YoY** | Optical, power management, mixed-signal content |
 | Automotive | (Implied stable) | EV/ADAS content gains |
 
-### 2.3 Sell-Side Re-Rating (Last ~10 Days)
+#### 2.3 Sell-Side Re-Rating (Last ~10 Days)
 - **Evercore ISI:** PT raised to **$474** (from $387), Outperform — large +22% bump
 - **Raymond James:** PT raised to **$430** (from $385), Outperform
 - **BofA:** Named ADI a top-3 analog pick, citing **800V data-center architecture** content gains as underappreciated
 - **Zacks:** Positive earnings estimate revisions; "well poised for a surge"
 - Average Brokerage Recommendation skewing Buy
 
-### 2.4 Structural Themes
+#### 2.4 Structural Themes
 - **800V power transition in AI data centers** → significant content per rack increase for ADI's power management franchise (key BofA thesis)
 - **Optical interconnect** scaling with hyperscaler AI buildouts
 - **Defense/aerospace supercycle** (consistent with elevated geopolitical environment — see Iran section)
 - **Five-year EPS CAGR forecast: 29.65%** — premium growth profile vs. analog peer median
 
-### 2.5 Peer-Group Read-Through
+#### 2.5 Peer-Group Read-Through
 - **Vishay (VSH):** +~200% in 2 months — confirms broad analog cycle inflection
 - **Texas Instruments (TXN), ON Semi (ON), Micron (MU), Sandisk:** highlighted in Zacks AI/analog basket
 - **Qualcomm/AMD** rallying — sector-wide AI tailwind
@@ -259,28 +259,28 @@ The macro backdrop is mixed-but-supportive for tech: equities are at/near record
 
 #### 3. Macro / Global Backdrop
 
-### 3.1 Geopolitics — Iran War (Now ~4 Months In)
+#### 3.1 Geopolitics — Iran War (Now ~4 Months In)
 - The Iran war "rewired global energy markets" in May.
 - A **US-Iran peace optimism / truce extension** drove equities higher into late May (S&P 500 and Nasdaq 100 hit **record highs**).
 - Energy markets remain volatile; oil/gas costs are filtering into consumer goods (apparel, footwear inflation).
 - **Implication for ADI:** Defense spending tailwind remains intact; risk-off flare-ups possible if truce collapses.
 
-### 3.2 Rates & Liquidity
+#### 3.2 Rates & Liquidity
 - **Treasury yields rising** — flagged as a potential threat to the equity rally (Investing.com).
 - **June labeled "crunch point"** — energy reserves drawing down + potential **rate hikes looming**.
 - Implication: Long-duration tech (including high-multiple ADI) is vulnerable to a yield spike. Watch 10Y closely.
 
-### 3.3 Inflation & Consumer
+#### 3.3 Inflation & Consumer
 - Persistent goods inflation: shoe prices, tomato prices (+~40% YoY), gas prices feeding through.
 - "Job concerns, shaky consumer" — points to weakening consumer cyclicals.
 - **Positive read for ADI:** Industrial/data-center/defense end-markets are largely insulated from the consumer slowdown; ADI has minimal direct consumer exposure.
 
-### 3.4 Risk-On Sentiment in Tech
+#### 3.4 Risk-On Sentiment in Tech
 - "AI Party Keeps Raging" — Dell, AMD, Qualcomm, NVDA-adjacent names all extended.
 - Nasdaq 100 at record highs.
 - **Implication:** Sentiment is euphoric in semis — adds asymmetric drawdown risk if any AI capex digestion narrative emerges.
 
-### 3.5 Commodities & Precious Metals
+#### 3.5 Commodities & Precious Metals
 - Silver up on Iran truce extension news.
 - Singapore launching USD silver futures (structural).
 - Coffee/agricultural prices volatile — limited direct ADI relevance.
@@ -289,21 +289,21 @@ The macro backdrop is mixed-but-supportive for tech: equities are at/near record
 
 #### 4. Trading-Relevant Insights & Actionable Takeaways
 
-### Bullish Drivers
+#### Bullish Drivers
 1. **Beat-and-raise quarter + multi-year EPS CAGR ~30%** → fundamental momentum strongest in years.
 2. **Two simultaneous secular tailwinds**: AI data-center 800V transition AND defense/industrial recovery.
 3. **Aggressive analyst PT hikes** create positive flow (institutions adding to positions).
 4. **Sector cycle confirmation** via VSH +200% — analog upcycle is real, broad-based.
 5. **Risk-on macro tape** with record-high indices.
 
-### Bearish / Risk Factors
+#### Bearish / Risk Factors
 1. **Stock up 96% YoY, 17% in 90 days** — extended, vulnerable to mean reversion.
 2. **Rising Treasury yields** could compress multiples on high-growth semis.
 3. **June "crunch point" / rate-hike risk** — central-bank tightening could shock equities.
 4. **Iran ceasefire fragility** — collapse would spike oil → inflation → yields → tech selloff.
 5. **AI capex digestion risk** — sentiment is euphoric; any hyperscaler capex cut would hit ADI's fastest-growing segment.
 
-### Tactical Considerations
+#### Tactical Considerations
 - **Trend remains UP** with strong fundamentals and supportive analyst flow.
 - Watch for entry on dips toward prior breakout levels rather than chasing record highs.
 - Monitor **10Y Treasury yield**, **Iran headlines**, and **hyperscaler capex commentary** as primary risk catalysts.
@@ -352,7 +352,7 @@ I have comprehensive data now. Let me compile the fundamental analysis report.
 
 Analog Devices, Inc. (ADI) is a global leader in high-performance analog, mixed-signal, and digital signal processing (DSP) integrated circuits. Following the 2021 acquisition of Maxim Integrated, ADI has consolidated its position as a top-tier semiconductor franchise serving industrial, automotive, communications, and consumer end-markets. With ~$26.97B of goodwill on the balance sheet, M&A-driven scale remains a defining structural feature.
 
-### Market Metrics
+#### Market Metrics
 - **Market Capitalization:** ~$201.6B
 - **Trailing P/E:** 61.77 — elevated due to amortization-heavy GAAP earnings
 - **Forward P/E:** 28.01 — significantly more reasonable; reflects strong forward EPS growth
@@ -369,7 +369,7 @@ Analog Devices, Inc. (ADI) is a global leader in high-performance analog, mixed-
 
 ADI is exhibiting a **textbook semiconductor cyclical recovery** with sequential revenue and margin expansion across the past five quarters.
 
-### Quarterly Revenue & Profitability Trajectory
+#### Quarterly Revenue & Profitability Trajectory
 
 | Quarter | Revenue ($M) | QoQ % | Gross Profit ($M) | Gross Margin | Operating Income ($M) | Op Margin | Net Income ($M) | Diluted EPS |
 |---|---|---|---|---|---|---|---|---|
@@ -379,7 +379,7 @@ ADI is exhibiting a **textbook semiconductor cyclical recovery** with sequential
 | Q3 FY25 (Jul-25) | 2,880.3 | +9.1% | 1,789.7 | 62.1% | 822.4 | 28.6% | 518.5 | $1.04 |
 | Q2 FY25 (Apr-25) | 2,640.1 | — | 1,611.6 | 61.0% | 679.7 | 25.7% | 569.8 | $1.14 |
 
-### Key Takeaways
+#### Key Takeaways
 - **Revenue +37.2% YoY** (Q2 FY26 vs. Q2 FY25), an extraordinary upcycle pace.
 - **Gross margins expanded ~630 bps YoY** to 67.3%, recovering toward ADI's structural ~70% target.
 - **Operating margin expanded ~1,240 bps YoY** to 38.1% — strong operating leverage.
@@ -405,7 +405,7 @@ ADI is exhibiting a **textbook semiconductor cyclical recovery** with sequential
 | Current Ratio | 1.75 | Adequate liquidity |
 | Debt/Equity | 25.8% | Conservative leverage |
 
-### Observations
+#### Observations
 - **Inventory rising:** $1.85B (+21% YoY) — could indicate channel restocking ahead of demand or potential overbuild risk; bears watching.
 - **Accounts Receivable jumped sharply** to $2.05B (+48% sequential, +48% YoY) — suggests strong end-quarter shipments but raises near-term collection-risk monitoring point.
 - **Share count declining**: 487.1M vs. 496.2M YoY — buybacks reducing share count ~1.8% YoY.
@@ -415,7 +415,7 @@ ADI is exhibiting a **textbook semiconductor cyclical recovery** with sequential
 
 #### 4. Cash Flow — Robust Free Cash Generation
 
-### Quarterly Cash Flow Summary ($M)
+#### Quarterly Cash Flow Summary ($M)
 
 | Quarter | Operating CF | CapEx | Free Cash Flow | Dividends Paid | Buybacks |
 |---|---|---|---|---|---|
@@ -426,7 +426,7 @@ ADI is exhibiting a **textbook semiconductor cyclical recovery** with sequential
 | Q2 FY25 | 819 | (90) | 729 | (491) | (249) |
 | **TTM Total** | **5,107** | **(541)** | **4,566** | **(1,997)** | **(3,044)** |
 
-### Cash Flow Highlights
+#### Cash Flow Highlights
 - **TTM FCF ~$4.57B**, FCF margin ~36% — among the best in the semiconductor industry.
 - **Capital return ~$5.04B TTM** (dividends + buybacks) modestly exceeds FCF, funded partly by debt issuance/cash drawdown — sustainable but worth monitoring.
 - **Dividend per quarter ~$1.10**, growing consistently; payout ratio against current EPS sustainable.
@@ -450,7 +450,7 @@ ROE is suppressed by the large equity base from Maxim acquisition. Underlying re
 
 #### 6. Investment Thesis — Bullish Bias
 
-### Positive Catalysts
+#### Positive Catalysts
 1. **Confirmed cyclical upturn**: 5 consecutive quarters of accelerating revenue & margin expansion.
 2. **Best-in-class FCF generation** (~$4.6B TTM, ~36% FCF margin).
 3. **Strong shareholder returns**: ~$5B/yr in buybacks + dividends; share count declining.
@@ -458,7 +458,7 @@ ROE is suppressed by the large equity base from Maxim acquisition. Underlying re
 5. **Industrial & automotive end-market exposure** poised to benefit from electrification, factory automation, and AI infrastructure power-management trends.
 6. R&D intensity sustained at 14% of sales — structural competitive moat.
 
-### Risks
+#### Risks
 1. **High trailing P/E (61.8x)** — valuation could compress if cycle peaks.
 2. **Stock near 52-week high ($435 vs. high $435.72)** — limited near-term margin of safety.
 3. **Inventory and receivables build** could presage a deceleration if not validated by sustained demand.

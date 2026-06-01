@@ -26,33 +26,33 @@ The 50 SMA crossed back above the 200 SMA during this period (a golden-cross reg
 
 #### 2. Indicator-by-Indicator Read
 
-### Trend Structure — Price vs. Moving Averages (May 29 close: 353.29)
+#### Trend Structure — Price vs. Moving Averages (May 29 close: 353.29)
 - **10 EMA:** 294.77 — price is **+58.52 (≈+19.9%) above** the 10 EMA. Even the fastest average can't keep up.
 - **50 SMA:** 198.44 — price is **+154.85 (≈+78.0%) above** the 50 SMA. Severe extension.
 - **200 SMA:** 150.84 — price is **+202.45 (≈+134.2%) above** the 200 SMA. Historically extreme stretch.
 - The 50 SMA has been rising every single session in May (149.84 → 198.44, +32.4% in one month), confirming a powerful underlying medium-term uptrend.
 - **Verdict:** Trend is unambiguously bullish, but the gap between price and trend lines is at a multi-month extreme.
 
-### Momentum — MACD & MACD Histogram
+#### Momentum — MACD & MACD Histogram
 - **MACD line (May 29): +38.10** — versus +13.29 on May 19 and +18.95 on May 1. MACD has nearly tripled in 4 weeks.
 - **MACD Histogram (May 29): +10.62** — has risen for 4 consecutive sessions (May 26: 8.99 → 27: 8.43 → 28: 9.52 → 29: 10.62), confirming **accelerating** bullish momentum, not yet rolling over.
 - Notably, MACD histogram dipped briefly negative May 11–18 (low of −2.16 on May 18) before flipping decisively positive — this was the launchpad for the parabolic move.
 - **Verdict:** Momentum is still expanding. No bearish divergence in the MACD itself yet, but the absolute level of MACD (+38) is unsustainable.
 
-### Momentum / Overbought — RSI (14)
+#### Momentum / Overbought — RSI (14)
 - **RSI on May 29: 77.49** — clearly overbought (>70). RSI sequence in the past week: 70.75 → 78.53 → 76.63 → 75.50 → 75.37 → 77.49.
 - RSI has held >70 for 6 consecutive sessions. This can persist in strong trends but is historically a short-term caution flag.
 - **Bearish divergence watch:** Price made a *new* high (353.29 on May 29) above the previous high (321.22 on May 26), but RSI made a *lower* peak (77.49 vs. 78.53). This is a **nascent negative divergence** — the first technical warning that momentum may be peaking even as price grinds higher.
 - **Verdict:** Overbought; early divergence forming. Not yet a sell signal, but a tightening risk gauge.
 
-### Volatility — Bollinger Upper Band & ATR
+#### Volatility — Bollinger Upper Band & ATR
 - **Bollinger Upper Band (20,2) on May 29: 349.09**. Closing price 353.29 is **above** the upper band — this is "walking the band," typical of strong trends but also of climactic phases.
 - The upper band itself has expanded violently: from ~234 on May 1 to 349 on May 29 (+49%).
 - **ATR (May 29): 21.68** — vs. 12.82 on May 1 (+69% in a month). Daily true range is now ~$22, meaning a 1-ATR stop on a fresh long would risk ~6% of capital per share.
 - Recent intraday ranges confirm this: May 28 H–L was **40.80**, May 21 H–L was **32.70**.
 - **Verdict:** Volatility is exploding. Risk per share has roughly doubled in 4 weeks. Position sizing must be cut accordingly.
 
-### Volume Confirmation — VWMA (20)
+#### Volume Confirmation — VWMA (20)
 - **VWMA on May 29: 266.15**. Price (353.29) is **+87.14 (+32.7%) above VWMA** — meaning recent up-moves have come at higher prices than the average volume-weighted price. Big buyers are paying up, not accumulating quietly.
 - VWMA itself has trended steadily higher (197.78 May 1 → 266.15 May 29), confirming the rally is volume-supported, not a thin-liquidity squeeze.
 - However, the Feb 5 (24.6M), May 6 (26.3M), May 21 (21.8M), and May 26 (10.9M) volume spikes should be flagged — these are typical of climactic / news-driven moves.
@@ -73,20 +73,20 @@ The 50 SMA crossed back above the 200 SMA during this period (a golden-cross reg
 
 #### 4. Actionable Trading Insights
 
-### For Trend-Following / Existing Longs
+#### For Trend-Following / Existing Longs
 - **HOLD with trailing stop discipline.** The momentum regime has not technically broken. A reasonable trailing stop is the **10 EMA (~$294.77)** on a daily close basis — losing it would be the first concrete sign the parabola is over.
 - A more conservative trail: 2× ATR below the close → 353.29 − 43.35 = **~$309.94** as a hard stop.
 
-### For New Longs (Entries)
+#### For New Longs (Entries)
 - **Avoid chasing here.** Buying at upper-band/extreme RSI/peak ATR is poor risk/reward. Wait for either:
   - A pullback to the 10 EMA / Bollinger middle band area (likely $270–$300), with RSI cooling to 55–65, **or**
   - A consolidation flag for several days that resets ATR.
 
-### For Tactical Shorts / Hedges
+#### For Tactical Shorts / Hedges
 - Do **not** short purely on overbought signals — the trend is strong and short squeezes are clearly happening (May 6, May 21–22, May 28).
 - Wait for confirmation: a daily close **below the 10 EMA (~$295)** *and* MACD histogram turning negative. Until both fire, fading this trend is statistically unfavorable.
 
-### For Position Sizing
+#### For Position Sizing
 - ATR-based sizing: with ATR=21.68, a 2-ATR stop = ~$43.35. For a 1% account risk on a $100K account ($1,000), max position is ~23 shares (~$8,100 notional). This is much smaller than what a complacent trader using April volatility would have sized.
 
 ---
@@ -117,7 +117,7 @@ The 50 SMA crossed back above the 200 SMA during this period (a golden-cross reg
 
 #### ARM Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-Source Breakdown
+#### 1. Source-by-Source Breakdown
 
 **News (Yahoo Finance, ~19 headlines)** — Net **bullish but with rising caution flags**.
 - *Bullish drivers:* Multiple constructive pieces tie ARM to the Nvidia AI infrastructure narrative. "Arm Surges as Nvidia's Vera Drives CPU Demand" (Barchart) cites Jefferies arguing Vera CPU momentum could "dramatically accelerate Arm's long-term royalty growth." "Nvidia's Next AI Wave Sparks Big Calls on Micron, Dell, Arm" (GuruFocus), "A New Chipmaker Just Topped Micron's 2026 Return" (Benzinga, citing a 38% three-session rip), and "Arm's AGI CPUs Put AI Data Center Growth Story In Focus" (Simply Wall St., highlighting the new Arm AGI CPU platform and expanded Red Hat collaboration) all reinforce the data-center/hyperscaler thesis. Motley Fool's "Can Arm Holdings Triple Your Money by the End of the Year?" and Cramer's public endorsement add retail-facing tailwinds.
@@ -135,23 +135,23 @@ The 50 SMA crossed back above the 200 SMA during this period (a golden-cross reg
 - r/investing: silent on ARM in the window.
 - Engagement metrics (scores/comments) were not available via RSS, limiting weighting precision. Volume is light, consistent with ARM being more of a hedge-fund/retail-Twitter name than a Reddit DD favorite.
 
-### 2. Cross-Source Divergences and Alignments
+#### 2. Cross-Source Divergences and Alignments
 - **Alignment:** All three sources acknowledge a powerful AI/Nvidia-Vera-driven rally and ARM's central role in AI data-center CPU adoption.
 - **Divergence:** News flow is increasingly **valuation-skeptical** (24/7 Wall St. target essentially at spot, Barchart "expiration date" piece, FTC probe), while StockTwits retail is leaning into $500+ moonshot calls. This is the classic "retail chasing while institutions trim" pattern. The skeptical voices on StockTwits (jrk77, Yunahess, Charlie_Omaha) echo the news caution but are drowned out by the labeled bulls.
 - **SoftBank overhang** appears on StockTwits but not in the curated news set — worth monitoring as a potential supply catalyst.
 
-### 3. Dominant Narrative Themes
+#### 3. Dominant Narrative Themes
 1. **Nvidia Vera / AGI CPU adoption** — ARM as the architectural beneficiary of the next AI infrastructure wave.
 2. **YTD performance bragging rights** — ARM at +177% to +223% YTD across various sources, leapfrogging Micron.
 3. **Valuation extremity** — 75× sales, "PE 400," "limited upside," "valued for eternity."
 4. **FTC antitrust probe** — fresh regulatory risk on licensing practices.
 5. **SoftBank funding pressure** — potential secondary/collateral supply tied to OpenAI commitments.
 
-### 4. Catalysts and Risks
+#### 4. Catalysts and Risks
 - *Catalysts (bullish):* Continued Vera/hyperscaler design wins, AGI CPU platform traction, Red Hat partnership, broader AI-chip sector momentum, macro tailwinds (US-Iran de-escalation, record indices).
 - *Risks (bearish):* FTC antitrust investigation, extreme valuation with sell-side targets at/below spot, SoftBank potential secondary, China exposure, gamma/short-squeeze unwind risk after the 38% three-session move, post-rally mean reversion.
 
-### 5. Summary Table
+#### 5. Summary Table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -190,7 +190,7 @@ The macro tape is constructive but mixed: equity indices (S&P 500, Nasdaq 100) a
 
 #### 1. Company-Specific Catalysts (Past 7 Days)
 
-### 1.1 Bullish Drivers
+#### 1.1 Bullish Drivers
 
 - **Nvidia "Vera" CPU tailwind (Jefferies):** Jefferies argued that Nvidia's Vera CPU momentum could "dramatically accelerate Arm's long-term royalty growth in AI infrastructure." ARM surged to fresh all-time highs on the call.
 - **Arm AGI CPU platform launch:** New CPU architecture targeted at **agentic AI workloads** in data centers. Nvidia and major hyperscalers signaled adoption — placing Arm at the architectural center of next-gen AI infra.
@@ -200,7 +200,7 @@ The macro tape is constructive but mixed: equity indices (S&P 500, Nasdaq 100) a
 - **Motley Fool ("Triple your money"):** Highlighting market share gains in AI compute.
 - **Three-day +38% surge** post-Nvidia earnings — leapfrogged Micron to #2 YTD chip performer.
 
-### 1.2 Bearish / Risk Drivers
+#### 1.2 Bearish / Risk Drivers
 
 - **FTC Antitrust Probe (May 16):** Federal Trade Commission investigating Arm's semiconductor **licensing practices** — a direct threat to the royalty/license business model that underpins the bull thesis. This is the single largest idiosyncratic risk.
 - **Valuation Saturation:** 24/7 Wall St. 12-month PT of **$314.30 vs. ~$302.71 spot = +3.8% upside** after a 177% YTD run. Barchart: "valued for eternity… silicon has an expiration date."
@@ -208,7 +208,7 @@ The macro tape is constructive but mixed: equity indices (S&P 500, Nasdaq 100) a
 - **China Exposure:** Zacks (ARM vs. SNPS) flagged China geopolitical/regulatory headwinds.
 - **Competitive Cross-Currents:** AMD and Qualcomm are both seeing analyst upgrades in the same AI thematic — capital may rotate. Wolfe Research called AMD "biggest winner in the next AI battle."
 
-### 1.3 Recent Price Action
+#### 1.3 Recent Price Action
 
 | Metric | Value |
 |---|---|
@@ -230,12 +230,12 @@ The macro tape is constructive but mixed: equity indices (S&P 500, Nasdaq 100) a
 
 #### 3. Macro Environment
 
-### 3.1 Risk-On Drivers
+#### 3.1 Risk-On Drivers
 - **S&P 500 & Nasdaq 100 at record highs** on (a) US-Iran truce/peace deal optimism and (b) sustained AI capex narrative.
 - **Iran-related premia easing:** Crude pulled back on truce extension news (Friday May 29) — a tailwind for risk assets and a margin tailwind for chipmakers (energy input cost).
 - **AI capex remains the dominant equity narrative** — Dell soaring, hyperscaler spending intact.
 
-### 3.2 Risk-Off / Caution Signals
+#### 3.2 Risk-Off / Caution Signals
 - **Treasury yields rising:** Investing.com flagged "Will higher treasury yields threaten the market's climb?" — direct multiple-compression risk for high-multiple names like ARM (forward P/E in triple digits).
 - **Consumer pressure:** Multiple Footwear News / WWD reports on rising shoe and apparel prices, "shaky consumer," "job concerns" — suggests slower discretionary sales ahead, a 2H consumer/handset risk for ARM royalties (smartphone end market).
 - **Oil price volatility:** Exxon/Chevron warning oil prices could "skyrocket"; Iran ceasefire still tenuous.

@@ -1,67 +1,23 @@
-"""Demote stray H1/H2 headings inside LLM-generated sections of complete_report.md.
+"""Batch-normalize heading levels across all ``docs/*/*/complete_report.md``.
 
-The CLI builder in ``cli/main.py`` wraps each agent's output with fixed
-wrapper headings (``## I. Analyst Team Reports`` … ``### Market Analyst`` …).
-Inside those wrappers, the LLM frequently emits its own ``# Title`` and
-``## Section`` lines, producing multiple H1s per page and a scrambled
-heading hierarchy.
-
-Inside each LLM body region this script demotes ``#`` to ``####`` and
-``##`` to ``####``, leaving H3+ alone. Idempotent: rerunning is a no-op
-because no body H1/H2 remains after the first pass.
+The actual transform now lives in the shipped ``cli.report_headings`` module
+(so it's importable in the Docker/site-packages layout where the CLI runs).
+This script stays as the repo-local batch entry point that walks ``docs/`` and
+rewrites every report in place; ``transform`` is re-exported for backward
+compatibility (e.g. the test suite).
 """
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
+# Make the repo root importable when run as ``python scripts/prune_report_headings.py``.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from cli.report_headings import transform  # noqa: E402  (re-exported)
+
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
-
-WRAPPER_H2 = re.compile(r"^## [IVX]+\. ")
-WRAPPER_H3 = re.compile(r"^### \S")
-HEADING = re.compile(r"^(#{1,6}) (.*)$")
-
-
-def demote(line: str) -> str:
-    m = HEADING.match(line)
-    if not m:
-        return line
-    level = len(m.group(1))
-    if level > 2:
-        return line
-    return f"{'#' * 4} {m.group(2)}\n"
-
-
-def transform(text: str) -> str:
-    lines = text.splitlines(keepends=True)
-    out: list[str] = []
-    in_body = False
-    in_fence = False
-    for line in lines:
-        stripped = line.lstrip()
-        if stripped.startswith("```") or stripped.startswith("~~~"):
-            in_fence = not in_fence
-            out.append(line)
-            continue
-        if in_fence:
-            out.append(line)
-            continue
-
-        if WRAPPER_H2.match(line):
-            in_body = False
-            out.append(line)
-            continue
-        if WRAPPER_H3.match(line):
-            in_body = True
-            out.append(line)
-            continue
-        if in_body:
-            out.append(demote(line))
-        else:
-            out.append(line)
-    return "".join(out)
 
 
 def main() -> int:

@@ -27,7 +27,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 
 #### 2. Indicator-by-Indicator Analysis
 
-### 2.1 Trend Structure — 50 SMA, 200 SMA, 10 EMA
+#### 2.1 Trend Structure — 50 SMA, 200 SMA, 10 EMA
 
 | Date | Close | 10 EMA | 50 SMA | 200 SMA |
 |---|---|---|---|---|
@@ -42,7 +42,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 - **200 SMA slope:** Gently rising ($254.67 → $262.79). The long-term trend has only recently turned constructive after the Jan–Mar correction.
 - **10 EMA at $305.87** — price still above it, but the gap is narrowing (close $312.06 vs EMA $305.87 = only ~2% premium), meaning short-term momentum is decelerating slightly compared to mid-May when daily gains were larger.
 
-### 2.2 Momentum — MACD & MACD Histogram
+#### 2.2 Momentum — MACD & MACD Histogram
 
 | Date | MACD | MACD Hist |
 |---|---|---|
@@ -55,7 +55,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 - **However, the MACD histogram peaked on 2026-05-13 at 2.07** and has since narrowed to 0.62. This is a classic **bearish momentum divergence**: price keeps making higher highs ($298.87 → $312.51), but the rate of momentum acceleration is slowing.
 - This does NOT signal an immediate reversal — it signals that the **easy gains of the rally are likely behind us**, and trend continuation will require fresh catalysts.
 
-### 2.3 RSI — Overbought Stress Test
+#### 2.3 RSI — Overbought Stress Test
 
 | Date | RSI |
 |---|---|
@@ -71,7 +71,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 - No bearish RSI divergence yet — RSI made a new high (80.03 on 5/28) along with price, so the trend is not yet exhausted in classical divergence terms.
 - **Trader takeaway:** Chasing here invites adverse short-term entry timing. Wait for RSI to reset to 60–65 area on a pullback.
 
-### 2.4 Volatility — Bollinger Upper Band & ATR
+#### 2.4 Volatility — Bollinger Upper Band & ATR
 
 | Date | Close | Boll UB | ATR |
 |---|---|---|---|
@@ -144,7 +144,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 
 #### AAPL Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News headlines (Yahoo Finance, ~20 items):** Institutional framing skews constructive but nuanced. The most concrete catalyst is Bank of America's Wamsi Mohan **raising his AAPL price target from $330 to $380 with a Buy rating on May 26** ("Apple's next AI test may not be Siri," TheStreet) — a clear positive datapoint. Simply Wall St. nudged its modeled fair value from $297.88 to $310.51, framed as a "recalibration" that incorporates Apple's AI roadmap, leadership changes, and ongoing iPhone/China/cost debates — modestly positive. Motley Fool's "Could Agentic AI Be Apple's Next Big Tailwind?" leans bullish ("those who bet against the iPhone maker usually lose"), and AAPL is named among the "3 Cheapest Magnificent Seven" stocks. Renaissance Technologies opening a new position is a mild positive flow signal. Counterweights: Bloomberg's "90s tech reborn on AI" and IBD's "power trends" pieces frame Apple as a participant rather than leader in the AI capex boom; Fortune's piece on Apple historically killing startups is neutral context; QQQ concentration-risk articles flag macro-level top-heavy risk that includes AAPL. Net: tilted positive, headlined by the BofA upgrade.
 
@@ -152,26 +152,26 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 
 **Reddit (r/wallstreetbets 3 posts, r/stocks 3 posts, r/investing 0):** Engagement metrics unavailable (RSS-only), so weight cautiously. The most directly relevant WSB post (2026-05-24) is bullish/curious: "Why no one is talking about 🍎?" — argues AAPL is a relative laggard among Mag 7 with low IV, framing it as a catch-up trade and "support to the market." The CBOE pre-market options post (May 27) is structurally positive for AAPL liquidity/optionality. Micron $1T post is tangential. r/stocks posts are general (when-to-sell musings, daily discussion, retro Reddit ETF thread) and don't carry a directional AAPL view. r/investing silence on AAPL suggests no thesis-driven controversy among longer-term holders.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 - **Alignment:** Both news (BofA $380 PT, agentic AI tailwind articles) and StockTwits bulls converge on the **AI-narrative-finally-helping-AAPL** theme. WSB's "catch-up trade" framing dovetails with Simply Wall St.'s recalibration-higher fair value.
 - **Divergence:** Institutional/news flow is constructive on AI optionality, while a vocal StockTwits minority pushes a **valuation/capital-allocation bear case** (PE premium vs. slowest growth, buybacks over capex). This is a real divergence: news isn't yet penalizing valuation, but retail is starting to.
 - **Latent risk not in news:** AIXI patent issue surfaced on StockTwits with a specific June 8, 2026 date — not picked up in the curated news set. Likely low-impact but worth flagging.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 
 1. **AI re-rating in progress** — BofA upgrade, Simply Wall St. fair-value bump, agentic-AI tailwind speculation. Apple is being repositioned from "AI laggard" to "AI distribution beneficiary."
 2. **Mag-7 catch-up trade** — WSB and Motley Fool independently flag AAPL as relatively cheap/under-loved within the Mag 7.
 3. **Valuation skepticism** — Retail bears point to a ~30% PE premium against the slowest growth profile in the cohort.
 4. **Macro overhang** — 10-yr Treasury near 4.7–5%, QQQ concentration risk in top holdings (which includes AAPL).
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 
 **Catalysts (positive):** BofA $380 PT (already in print), WWDC/agentic-AI announcements expected in June, pre-market options trading launch in July adding liquidity, Renaissance Technologies new position.
 
 **Risks (negative):** AIXI patent decision date June 8 (StockTwits-sourced, unverified scale), iPhone demand and China exposure debates, rising 10-yr yield pressuring high-multiple growth, valuation premium vs. growth rate, top-heavy QQQ concentration creating beta risk on any AI-trade unwind.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -205,43 +205,43 @@ Apple Inc. (AAPL) enters the final week of May 2026 amid a constructive but nuan
 
 #### 1. Company-Specific Drivers (AAPL)
 
-### Bullish Catalysts
+#### Bullish Catalysts
 - **BofA Upgrade (May 26):** Wamsi Mohan raised AAPL price target to **$380 from $330** with reiterated Buy. Thesis: Apple does not need to win the foundational AI model race; it wins by being the **distribution layer / agentic AI platform** on a ~2.2 billion device installed base.
 - **Agentic AI Tailwind:** Multiple outlets (Motley Fool, TheStreet) frame Apple's next leg of growth around **on-device AI and agents**, not Siri parity. WWDC 2026 (typically June) is an imminent catalyst window.
 - **Smart Money Flow:** **Renaissance Technologies** disclosed a new AAPL stake — ranked #3 in their portfolio. Quant validation typically follows momentum/earnings revisions.
 - **Magnificent Seven Valuation:** AAPL is highlighted as one of the **3 cheapest Mag-7 names** by P/E-relative metrics (Motley Fool), suggesting relative value vs. the AI-spend beneficiaries (NVDA, etc.).
 - **Fair Value Recalibration:** Modeled fair value lifted to **US$310.51** from $297.88 (Simply Wall St.) — directionally positive but modest.
 
-### Bearish / Watch Items
+#### Bearish / Watch Items
 - **Leadership Transition:** Ongoing succession discussions create execution-risk perception around the AI roadmap.
 - **China Exposure:** Persistent debate over iPhone demand in Greater China and supply chain re-globalization (echoed in WWD's "rethinking globalization" piece). Tariff and geopolitical exposure remains elevated.
 - **Cost Pressures:** Higher oil → higher logistics/component shipping costs; persistent Iran war pressuring input costs.
 - **Disruption Risk to AAPL Walled Garden:** Browser wars heating up (TechCrunch) — alternatives to Safari are gaining traction; potential Services-revenue headwind if default-search/browser deals are restructured.
 - **Index Concentration Risk:** QQQ Top 5 (AAPL among them) move together — AAPL rallies/sells off in lockstep with AI infrastructure names rather than on its own fundamentals, raising correlation/beta risk.
 
-### Sentiment Read
+#### Sentiment Read
 Net **moderately bullish**. The BofA $380 PT, Renaissance position, and agentic-AI narrative are clear positives; risk is discount-rate driven and geopolitical, not company-specific operational.
 
 ---
 
 #### 2. Macroeconomic Backdrop
 
-### Geopolitics — Iran War (Material Risk)
+#### Geopolitics — Iran War (Material Risk)
 - **U.S.–Iran war is in its fourth month.** A ceasefire/truce extension was being eyed late May (MarketBeat 5/25–5/29 review), and silver rose on truce-extension news (5/29), suggesting markets are pricing in tentative de-escalation but still hedging.
 - **Strait of Hormuz transits rising with U.S. assistance** — bullish for energy supply continuity, but the U.S. has prohibited deals with Iran for safe transit, keeping shipping insurance and oil risk premia elevated.
 - **Implication for AAPL:** Apple's logistics (Foxconn India, China assembly, sea-freight to U.S./EU) face ongoing freight cost pressure. Marginally negative for gross margin.
 
-### Rates & Yields (Material Risk to Multiple)
+#### Rates & Yields (Material Risk to Multiple)
 - **10-year Treasury yield ~4.7%, near the highest in a year** (24/7 Wall St.). Higher long rates compress growth-multiple stocks. AAPL's forward P/E is sensitive here.
 - **"June Crunch Point"** flagged — energy reserves burning through, **rate hikes loom**. A potential Fed hawkish surprise in June is a risk for high-multiple tech.
 - **S&P 500 dividend yield at 1.08%** — lowest since the 1800s — reflects stretched valuations across the market, not just Mag-7.
 
-### Energy & Inflation
+#### Energy & Inflation
 - Oil prices elevated due to Iran war; **gasoline → consumer goods cost pass-through** explicitly cited (footwear, fashion, food).
 - **Tomato prices +40% YoY**, footwear and consumer goods rising — sticky inflation reading. CPI prints in coming weeks could push yields higher still.
 - **Consumer wobble:** "Job concerns, shoe price hikes, shaky consumer suggest slower sales" — read-through to discretionary spend including premium iPhone/Mac upgrades.
 
-### Equity Market Tone
+#### Equity Market Tone
 - Tech rally: **QQQ +10% in past month, +19% YTD, near $727**, AI infrastructure (Dell, Nokia, Lenovo, Cisco) participating. Spring rally backdrop is supportive for AAPL beta.
 - VIX briefly above 25 in early April, now compressed — complacency risk if Iran escalates or June Fed surprises hawkishly.
 
@@ -255,14 +255,14 @@ Net **moderately bullish**. The BofA $380 PT, Renaissance position, and agentic-
 | **Medium-Term (1–3 months)** | **Cautiously Bullish** | Agentic AI narrative compounding; offset by rate risk and Iran tail-risk |
 | **Long-Term (6–12 months)** | **Bullish** | Installed base monetization via on-device AI + Services optionality; valuation reasonable vs. Mag-7 peers |
 
-### Key Catalysts to Watch
+#### Key Catalysts to Watch
 1. **WWDC 2026 (June)** — Apple's AI/agentic roadmap unveiling. Highest-conviction event.
 2. **Fed June meeting** — yield trajectory; if 10Y breaks 5.0%, expect mega-cap multiple compression.
 3. **Iran ceasefire extension** — risk-on tailwind; collapse → oil spike, supply chain hit.
 4. **June quarter pre-announcement risk** (China iPhone units, Services growth) — Apple typically reports late July/early August.
 5. **Browser/regulatory developments** — DOJ search-deal status with Google, EU DMA enforcement on App Store.
 
-### Risk Management
+#### Risk Management
 - AAPL's correlation with NVDA/QQQ Top 5 is elevated — **do not size as a diversifier**.
 - Hedge with **VIX calls or QQQ puts** if positioning long ahead of June Fed/WWDC.
 - Watch the 10Y yield: a break above 4.85–5.00% historically precedes 5–8% pullbacks in mega-cap tech.

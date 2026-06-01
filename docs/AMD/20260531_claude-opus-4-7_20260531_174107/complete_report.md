@@ -160,7 +160,7 @@ Volume on the *initial* breakout was huge, but recent up-days are coming on aver
 
 #### AMD Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 headlines):** Institutional framing is constructive-to-bullish, with several specific positive catalysts:
 - *AMD Taiwan AI Bet* — AMD committing >$10B to Taiwan AI infrastructure, paired with a high-profile Computex Taipei presence (June 2). Frames AMD as a central player in the global AI hardware buildout.
@@ -183,17 +183,17 @@ No outright bearish AMD-specific headlines surfaced, though there is implicit ri
 - *r/investing AI-bubble post* explicitly draws dot-com parallels.
 The Reddit tone is more about "have we run too far" than fresh bullish thesis-building.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 - **Alignment:** Across all three sources, AMD's data-center / AI-infrastructure franchise and the Computex 2026 catalyst are the dominant constructive themes.
 - **Divergence:** News framing is the most bullish (institutional analysts upgrading, $10B Taiwan investment, $1T club narrative), StockTwits is bullish-but-frothy with profit-taking voices emerging, and Reddit is the most cautious — repeatedly flagging the 170+ P/E and asking "should I sell?" after enormous YTD runs (+118%). This is the classic late-stage pattern where institutional flow is still positive but retail/community discussion is shifting from "buy" to "trim."
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **Computex Taipei (June 2) as next catalyst** — Nvidia, AMD, Intel, Qualcomm all presenting; product announcements expected.
 2. **AMD's AI/data-center franchise compounding** — Taiwan $10B commitment, Mizuho Buy at $615, partnership news (OneQode).
 3. **Valuation/extension anxiety** — P/E >170, 9-week S&P rally, High-Beta ETF on best run in a year, Reddit profit-taking threads, StockTwits put-buyers.
 4. **AI ROI skepticism (minority)** — rotation chatter to SaaS, "Meta will lead contract cancellations" claim, dot-com comparison threads.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 **Catalysts (near-term):**
 - Computex Taipei keynotes / product news (June 2 onward).
 - Mizuho $615 PT and continued sell-side reiteration.
@@ -207,7 +207,7 @@ The Reddit tone is more about "have we run too far" than fresh bullish thesis-bu
 - Broad-tape risk: S&P 9-week streak and high-beta leadership both at extremes.
 - Geopolitical/Taiwan supply-chain concentration (raised in WSB TSMC thread).
 
-### 5. Summary signals table
+#### 5. Summary signals table
 
 | Signal | Direction | Source | Supporting evidence |
 |---|---|---|---|
@@ -246,7 +246,7 @@ AMD enters the final week of May 2026 in a position of significant strength, rid
 
 #### 2. AMD-Specific Catalysts (Past 7 Days)
 
-### 2.1 Bullish Drivers
+#### 2.1 Bullish Drivers
 - **$10B+ Taiwan AI Infrastructure Investment** (Simply Wall St.): AMD announced a major commitment to support AI build-out in Taiwan, deepening its ties to TSMC and the Asian supply chain. This is a strategic counterweight to Nvidia's ecosystem dominance and signals confidence in long-duration data-center demand.
 - **Computex Taipei Lead-Up (June 2)**: AMD, Nvidia, Intel, and Qualcomm CEOs are descending on Taipei. AMD is expected to unveil next-gen MI-series accelerators and partnership news. Computex historically produces meaningful event-driven moves in the 1–2 weeks surrounding the keynote.
 - **Trillion-Dollar Club Member**: A Motley Fool piece explicitly references "After Micron and AMD" joining the $1T club — confirming AMD has reached this milestone, and reinforcing institutional-grade narrative momentum.
@@ -254,7 +254,7 @@ AMD enters the final week of May 2026 in a position of significant strength, rid
 - **Market Leadership**: Barron's flagged AMD as one of the names *driving* the S&P 500's narrow rally (alongside Micron, Intel, Sandisk, Dell). AMD is "significantly outperforming the Nasdaq" (Barchart).
 - **Lisa Su Brand Equity**: Her MIT commencement speech generated positive coverage, reinforcing AMD's perception as a thoughtful, mission-driven AI leader.
 
-### 2.2 Risks / Bearish Counterpoints
+#### 2.2 Risks / Bearish Counterpoints
 - **Stretched Technicals**: After +322% in one year and +118% YTD, AMD is in late-cycle euphoria territory. The Invesco S&P 500 High-Beta ETF having its best 7-day stretch in a year suggests speculation, not steady accumulation, is driving marginal moves.
 - **Narrow Market Breadth**: Equal-Weight S&P 500 up only 2.7% in May vs. cap-weighted gains — leadership concentration in semis means a rotation could hit AMD disproportionately.
 - **Competitive Pressure from Arm and Nvidia**: Arm Holdings is "gaining market share in this rapidly growing segment of AI compute," and Nvidia's cryptic teaser about a "new era of PC" chip (likely a Windows ARM SoC) directly threatens AMD's client CPU franchise.
@@ -265,17 +265,17 @@ AMD enters the final week of May 2026 in a position of significant strength, rid
 
 #### 3. Macro Backdrop (Past 7 Days)
 
-### 3.1 Geopolitics — Iran War (Active)
+#### 3.1 Geopolitics — Iran War (Active)
 - Multiple sources reference an **active US-Iran conflict** ("Iran War Adds Fuel to the Fire," "truce extension with Iran" — implying intermittent ceasefires, not resolution).
 - **Oil prices rising**, with Exxon and Chevron warning that "oil prices could skyrocket in the coming weeks." Energy stocks (Devon, Diamondback, Petrobras) being upgraded.
 - **Implication for AMD**: Higher input costs pressure consumer goods (already evident in footwear/food inflation news), risking consumer slowdown that could hurt PC/client segment demand. However, AI capex from hyperscalers is defensive vs. consumer cyclicality.
 
-### 3.2 Rates & Inflation
+#### 3.2 Rates & Inflation
 - **Treasury yields rising** ("Will higher treasury yields threaten the market's climb?" — Investing.com). Higher yields are typically a headwind for high-multiple growth/semi stocks.
 - **Inflation reaccelerating** in goods (tomatoes +40% YoY, footwear, gas prices trickling through retail). This raises the probability the Fed remains restrictive longer than the market currently prices.
 - **Consumer/Labor Concerns**: "Job Concerns, Shoe Price Hikes and Shaky Consumer Suggests Slower Sales on the Horizon" — early warning signal for cyclical PC demand.
 
-### 3.3 Equity Market Internals
+#### 3.3 Equity Market Internals
 - **S&P 500 just posted a 9-week win streak**, +19.5% from March 30 lows, adding ~$11T in market cap. 24/7 Wall St. notes such streaks are "rare" and historically precede consolidations.
 - **AI/semi remains the dominant trade**: South Korea's KOSPI +96% YTD on HBM exposure (Samsung, SK Hynix). Quantum computing now "commercially viable." Generative AI ETFs (CHAT, etc.) seeing inflows.
 - **Risk-on signal**: High-beta ETF on best 7-day run in a year — could be a contrarian late-cycle indicator.
@@ -290,14 +290,14 @@ AMD enters the final week of May 2026 in a position of significant strength, rid
 | **Medium-term (1-3 months)** | **Cautious / Trim into strength** | After +118% YTD, risk/reward asymmetric. 9-week SPX streak + rising yields + Iran/oil shock + narrow breadth = elevated correction risk. |
 | **Long-term (12+ months)** | **Constructive** | Data center franchise compounding; structural AI capex cycle intact; Taiwan investment positions AMD for next leg of supply. |
 
-### Key Levels & Catalysts to Monitor
+#### Key Levels & Catalysts to Monitor
 1. **June 2, 2026 — Computex Taipei keynote** (Lisa Su + Jensen Huang back-to-back). Buy the rumor, possibly sell the news.
 2. **Nvidia GTC Taipei** same week — competitive overhang risk if Nvidia announces ARM-based PC chip.
 3. **Treasury 10Y yield** — break above recent highs would pressure semi multiples.
 4. **Brent crude** — sustained move above $90-100 from Iran escalation = consumer demand risk.
 5. **AMD next earnings** (likely late July 2026 for Q2'26) — guide on data center / MI-series ramp.
 
-### Suggested Tactical Positioning
+#### Suggested Tactical Positioning
 - **Long-only investors**: HOLD existing positions; resist adding at these levels. Consider trimming 10-20% to lock in gains.
 - **Active traders**: Long into June 2 Computex with tight stops; consider hedging via puts post-event given crowded positioning.
 - **New money**: Wait for a 10-15% pullback or post-event consolidation before initiating.
@@ -486,7 +486,7 @@ ROE is still modest because the equity base is inflated by Xilinx-deal goodwill;
 
 ---
 
-### Compact Summary Table
+#### Compact Summary Table
 
 | Category | Key Data Point | Implication |
 |---|---|---|

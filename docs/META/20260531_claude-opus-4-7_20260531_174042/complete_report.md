@@ -34,7 +34,7 @@ Net: META is currently **−14.8% off the January peak** of $737.68 but has buil
 
 #### 2. Indicator-by-Indicator Read
 
-### Trend Structure — 50-SMA, 200-SMA, 10-EMA
+#### Trend Structure — 50-SMA, 200-SMA, 10-EMA
 
 | Date | Close | 10-EMA | 50-SMA | 200-SMA |
 |---|---|---|---|---|
@@ -49,7 +49,7 @@ Net: META is currently **−14.8% off the January peak** of $737.68 but has buil
 - The **10-EMA ($621.53) just crossed back above the 50-SMA ($618.53)** in the last two sessions — a **short-term bullish trigger** but only meaningful if confirmed by a sustained move above the 50-SMA. Friday's close of $632.51 is now **+2.3% above** the 50-SMA.
 - The 200-SMA is the major **overhead resistance**: roughly **+5.3% above current price**.
 
-### MACD (line only — paired with histogram via inference)
+#### MACD (line only — paired with histogram via inference)
 
 | Date | MACD |
 |---|---|
@@ -61,7 +61,7 @@ Net: META is currently **−14.8% off the January peak** of $737.68 but has buil
 
 **Read:** MACD has executed a sharp negative swing from +17 in late April to −7.5 around 5/20. **Over the last four sessions it has rallied from −6.55 → −1.08**, a steep recovery. A **bullish zero-line crossover is imminent** if the next 1–2 sessions extend the move. Until it crosses zero, however, the trend-following signal is still net negative.
 
-### RSI(14)
+#### RSI(14)
 
 | Date | RSI |
 |---|---|
@@ -73,7 +73,7 @@ Net: META is currently **−14.8% off the January peak** of $737.68 but has buil
 
 **Read:** RSI bottomed near 39 (oversold-ish but not extreme) and has rebounded **above the 50 midline** — a classic **regime-shift signal from bearish to neutral-bullish momentum**. Not yet overbought (70+), so there's headroom for further upside before exhaustion.
 
-### Bollinger Upper Band (boll_ub)
+#### Bollinger Upper Band (boll_ub)
 
 | Date | boll_ub | Close | Distance |
 |---|---|---|---|
@@ -83,7 +83,7 @@ Net: META is currently **−14.8% off the January peak** of $737.68 but has buil
 
 **Read:** The upper band has **collapsed from $717 → $634 in 4 weeks** — Bollinger compression is severe, indicating volatility has contracted sharply during May's consolidation. Friday's close of $632.51 is **right at the upper band ($634.07)**. This is significant: in a collapsing-band environment, a close *outside* the upper band is a high-probability **breakout signal**. Watch the next 1–2 sessions for a decisive close above ~$640 to confirm.
 
-### ATR(14)
+#### ATR(14)
 
 | Date | ATR |
 |---|---|
@@ -93,7 +93,7 @@ Net: META is currently **−14.8% off the January peak** of $737.68 but has buil
 
 **Read:** ATR has compressed from ~$21 → ~$15.5 over the month — a **~26% drop in realized volatility**. Combined with the band squeeze, this confirms META is in a **coiled spring** setup. For risk management, a 2× ATR stop = ~$31, so a swing-trade stop on a long entered near $632 would sit around **$601** (also below the recent 5/19 swing low of $600.55).
 
-### VWMA(20)
+#### VWMA(20)
 
 | Date | VWMA | Close |
 |---|---|---|
@@ -177,7 +177,7 @@ Risk-management note: ATR of ~$15.5 means a typical 1-day move of ±$15. Positio
 
 #### META Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~20 META-related items)** — Tone is **mixed-to-cautiously constructive**, with a clear "AI capex anxiety vs. monetization promise" duality:
 - *Bullish framing:* Bank of America reiterated **Buy with $835 PT**, arguing AI monetization and enterprise adoption could turn capacity into a "$1 trillion opportunity." 24/7 Wall St. published a "Can META reach $1,500 by 2030?" piece highlighting **Q1 revenue +33.08% to $56.31B** and ad revenue +33% YoY. Motley Fool ran a "Is this AI stock a buy after dropping 20% from its all-time high?" piece — framing the drawdown as opportunity. New AI chatbot subscription tiers introduce a fresh monetization angle.
@@ -196,14 +196,14 @@ Risk-management note: ATR of ~$15.5 means a typical 1-day move of ±$15. Positio
 - r/investing posts mention META only in passing as part of MAG7 baskets; no dedicated bull or bear thread.
 - Net: retail attention on META is **lukewarm relative to chip/AI-infrastructure names** (TSM, AMD, NTAP, ADSK dominate threads), reinforcing the "META is being left behind in the AI rally" narrative.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 - **Alignment:** All three sources converge on the **capex-vs-monetization tension** as the central debate. Bulls (BofA, SKIJK, WSB DD) lean on revenue growth and AI optionality; bears (TheStreet, rs328, r/stocks holders) lean on FCF compression and unclear ROI.
 - **Alignment:** Stock underperformance vs. peers is acknowledged across sources (-7.5% YTD per news, -4% YTD per StockTwits, ~-5% per r/stocks user, "hasn't rallied to new highs like the rest of the market" per Motley Fool).
 - **Divergence:** StockTwits labeled tags skew bullish (9:1) while Reddit r/stocks is openly contemplating selling. This is the classic StockTwits-vs-Reddit split — fast-money traders see a setup; longer-horizon holders see a thesis crisis.
 - **Divergence:** Sell-side (BofA $835, 47 Buy ratings) is materially more bullish than community sentiment suggests, indicating institutional support that retail hasn't fully priced.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 
 1. **"Show me the AI ROI"** — the dominant thread. $125–145B capex with FCF collapsed to $1.2B is the single most-repeated data point.
 2. **Underperformance frustration** — META is the laggard MAG7 in 2026.
@@ -211,7 +211,7 @@ Risk-management note: ATR of ~$15.5 means a typical 1-day move of ±$15. Positio
 4. **Subscription / Superintelligence Labs / Ray-Ban glasses** as nascent monetization proof points bulls cling to.
 5. **Reputational/regulatory drag** — EU scam complaints, "frog poison" ads, anti-tech extremism backdrop.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 
 **Potential catalysts:**
 - AI chatbot subscription tier rollout traction
@@ -227,7 +227,7 @@ Risk-management note: ATR of ~$15.5 means a typical 1-day move of ±$15. Positio
 - Continued relative underperformance triggers long-only outflows
 - "Anti-tech extremism" / political backdrop
 
-### 5. Summary signal table
+#### 5. Summary signal table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -245,7 +245,7 @@ Risk-management note: ATR of ~$15.5 means a typical 1-day move of ±$15. Positio
 | Peer AI-ROI analysis: META -28.8% | Bearish | StockTwits (@capitalthinktank) | Worst among MAG7 ex-AMZN |
 | Ray-Ban Meta dominance, Superintelligence Labs | Bullish | StockTwits (@SKIJK) | Product proof points |
 
-### Bottom line
+#### Bottom line
 Sentiment is genuinely **Mixed** — institutional sell-side and a vocal trader cohort lean bullish on valuation/AI optionality, while news flow and longer-horizon Reddit holders are skeptical given the FCF/capex math and YTD underperformance. The 9:1 StockTwits ratio overstates conviction (small sample, pump-heavy). I'd score this **5.2/10**, just barely on the constructive side of neutral, with **medium confidence** given the rich news flow but limited Reddit engagement metrics and modest StockTwits sample.
 
 ### News Analyst
@@ -262,24 +262,24 @@ Meta Platforms is at a pivotal inflection point. The stock is **down ~7.5% YTD a
 
 #### 2. Company-Specific Catalysts
 
-### 2.1 AI Strategy & Monetization (Bullish/Mixed)
+#### 2.1 AI Strategy & Monetization (Bullish/Mixed)
 - **Bank of America reiterated Buy / $835 PT** — argues "emerging signs of AI monetization and enterprise adoption" should improve sentiment. They frame Meta's AI capacity as a $1T TAM opportunity.
 - **Zuckerberg's 2026 Annual Meeting (May 30):** Outlined four AI pillars: (1) core apps/advertising AI uplift, (2) personal superintelligence, (3) AI agents/business messaging, (4) new device categories. Shareholders **rejected all outside investor proposals**, reaffirming Zuckerberg's autonomy on capex decisions.
 - **New AI Subscription Tiers:** Meta is rolling out paid subscription tiers for its AI chatbot — first concrete consumer monetization step beyond ads. Important signal: Meta is moving from pure-ad model to hybrid revenue.
 - **"Personal Superintelligence" rhetoric:** Aggressive framing, but commits Meta to a multi-year heavy spend cycle.
 
-### 2.2 Capital Expenditure Concerns (Bearish)
+#### 2.2 Capital Expenditure Concerns (Bearish)
 - **2026 capex guide: $125–$145B** (vs. industry-leading levels). 
 - **Free cash flow collapsed: $26B (Q1'25) → $1.2B (Q1'26)** — a >95% YoY decline.
 - TheStreet/BoA central question: **"What happens if all that compute does not get used fast enough?"** — utilization risk is the key bear thesis.
 - The stock is **~20% off all-time highs**, while peers (NVDA, AVGO, ORCL et al.) hit records. This relative underperformance suggests the market is pricing in capex skepticism.
 
-### 2.3 Regulatory / Reputational Risk (Bearish)
+#### 2.3 Regulatory / Reputational Risk (Bearish)
 - **EU Consumer Action:** BEUC + 29 EU consumer groups filed complaints alleging Meta does too little to stop financial scams on its platforms (May 21).
 - **The Telegraph exposé:** Facebook/Instagram running ads for a "frog poison" detox drug linked to deaths — risks DSA enforcement action and ad-quality fines.
 - **FBI flagged "anti-tech extremism"** as a rising concern — Meta is a high-profile target in the broader societal AI backlash.
 
-### 2.4 Quantitative Snapshot
+#### 2.4 Quantitative Snapshot
 | Metric | Q1 2026 | YoY Δ |
 |---|---|---|
 | Revenue | $56.31B | +33.08% |
@@ -292,45 +292,45 @@ Meta Platforms is at a pivotal inflection point. The stock is **down ~7.5% YTD a
 
 #### 3. Macro & Sector Backdrop
 
-### 3.1 Rates & Multiple Compression
+#### 3.1 Rates & Multiple Compression
 - **10-Year Treasury yield ≈ 4.7%, near 5%** — highest in the past year. Materially negative for long-duration growth/AI capex stories like Meta.
 - "Will higher treasury yields threaten the market's climb?" headlines suggest macro framing is shifting from disinflation to **stagflation-lite risk**.
 
-### 3.2 AI Bubble Debate Intensifying
+#### 3.2 AI Bubble Debate Intensifying
 - Bloomberg: "AI Bubble Debate Gets Real as Chip Stocks Rally Turns Historic." Chipmakers/hyperscaler infrastructure plays leading the rally — but concentration risk is rising.
 - **QQQ concentration risk:** Top 5 holdings (META being one) move together; idiosyncratic META weakness is a relative drag.
 - **Dell +255% YTD** since Trump's "buy a Dell" comments + $9.7B Pentagon AI deal — shows AI infra winners are diverging sharply from AI-platform names like Meta.
 
-### 3.3 Geopolitical / Inflation Pressures
+#### 3.3 Geopolitical / Inflation Pressures
 - **US-Iran conflict:** Strait of Hormuz transits being managed under US-mediated deals; Americans injured in Iranian missile strike on Kuwaiti air base. **Truce extension news (May 29)** but situation is fragile.
 - **Oil prices remain elevated** — Exxon/Chevron warning prices "could skyrocket." Inflationary pressure → keeps yields high → headwind for META's multiple.
 - **Consumer inflation:** Tomato prices +40% YoY, shoe prices rising, gasoline pass-through to retail. This pressures **ad budgets** — Meta's core revenue driver. Watch Q2 ad pricing closely.
 
-### 3.4 IPO / Capital Markets
+#### 3.4 IPO / Capital Markets
 - IPOs increasingly serving as exit ramps rather than growth-entry points (SpaceX, OpenAI Asian supply-chain windfalls). Less direct META impact, but signals capital migrating to private AI mega-rounds — competitive pressure on talent and compute.
 
 #### 4. Trading Implications & Actionable Insights
 
-### Bull Case (Constructive)
+#### Bull Case (Constructive)
 1. **Valuation gap vs. peers:** META at ~$610 with 33% revenue growth vs. mega-cap AI peers near ATHs creates **mean-reversion setup** if AI monetization data points emerge in Q2/Q3 prints.
 2. **BoA $835 PT = ~37% upside** if AI ad-CPM uplift and subscription tiers hit traction.
 3. **Subscription pivot** opens secondary revenue stream — durably re-rates the multiple if it scales.
 4. Shareholder rejection of activist proposals = **management has runway** for long-term bets.
 
-### Bear Case (Cautious)
+#### Bear Case (Cautious)
 1. **FCF collapse to $1.2B** is alarming for a company that historically returned massive capital to shareholders via buybacks.
 2. **Capex utilization risk** — if AI demand softens, $125–$145B becomes a stranded asset.
 3. **10Y yields near 5%** + AI bubble debate = multiple compression risk for the entire growth complex.
 4. **EU regulatory pipeline** (scam ads, DSA) remains a slow-burn fine/restriction risk.
 5. **Anti-tech sentiment / FBI extremism warning** raises tail-risk profile.
 
-### Key Catalysts to Watch (Next 60 Days)
+#### Key Catalysts to Watch (Next 60 Days)
 - **Q2 2026 earnings (late July):** Ad revenue trajectory, capex re-confirmation, FCF stabilization, AI subscription disclosure.
 - **EU regulatory action** — any formal DSA fine or BEUC-driven enforcement.
 - **10Y yield trajectory** — break above 5% likely triggers further multiple compression.
 - **Iran/Hormuz situation** — oil shock would re-accelerate inflation, hurt ad spend.
 
-### Suggested Positioning
+#### Suggested Positioning
 - **Tactical: Neutral-to-cautious near term.** Stock is in a clear relative-strength downtrend vs. peers; no near-term catalyst until Q2 earnings.
 - **Strategic: Constructive at current levels** for 12–18 month horizon if investor has tolerance for capex digestion period. Accumulate on weakness toward $560–$580 support; resistance at $660–$680.
 - **Hedges:** Pair long META with short on highest-flying AI-infra names if betting on AI bubble rotation. Be wary of QQQ correlation — diversification is illusory.
@@ -405,7 +405,7 @@ The PEG of 0.91 and forward P/E of 17.5x are **historically attractive** for a c
 
 #### 3. Income Statement — Quarterly Trend Analysis
 
-### Revenue Trajectory (Quarterly)
+#### Revenue Trajectory (Quarterly)
 | Quarter | Total Revenue | YoY Growth (vs Q1'25) |
 |---|---|---|
 | Q1 2025 | $42.31B | — |
@@ -416,7 +416,7 @@ The PEG of 0.91 and forward P/E of 17.5x are **historically attractive** for a c
 
 Revenue acceleration is impressive: Q1 2026 grew **33% YoY** vs. Q1 2025, reflecting strong ad pricing/volume from AI-driven targeting (Andromeda, Advantage+).
 
-### Profitability
+#### Profitability
 | Quarter | Operating Income | Op. Margin | Net Income | Diluted EPS |
 |---|---|---|---|---|
 | Q1 2025 | $17.56B | 41.5% | $16.64B | $6.43 |
@@ -427,7 +427,7 @@ Revenue acceleration is impressive: Q1 2026 grew **33% YoY** vs. Q1 2025, reflec
 
 *Q3 2025 net income was depressed by a ~$15.9B one-time non-cash deferred tax charge (tax provision spiked to $18.95B) — likely related to legislative/regulatory tax restructuring. Operating performance was healthy.*
 
-### Cost Structure (Q1 2026)
+#### Cost Structure (Q1 2026)
 - **R&D:** $17.70B (31.4% of revenue) — up from $12.15B Q1'25 (+45.7% YoY) — reflects massive AI/Llama/infrastructure investment
 - **S&M:** $2.91B (5.2% of revenue) — disciplined
 - **G&A:** $2.61B
@@ -450,7 +450,7 @@ The R&D surge is the key narrative — Meta is sacrificing near-term margin for 
 | Current Ratio | 2.35x |
 | Debt/Equity | 35.6% |
 
-### Key Observations:
+#### Key Observations:
 - **Debt has surged**: Total debt grew from $49.5B (Q1'25) → $86.8B (Q1'26), a ~$37B increase, driven by a major $29.9B debt issuance in Q4 2025 to fund AI capex.
 - **Net PPE exploded** from $149.1B → $218.0B (+46% YoY) — reflects massive data center buildout.
 - **Construction in Progress** alone is $61.0B (Q1'26), up from $32.4B a year earlier — signaling continued aggressive infrastructure spend.
@@ -469,7 +469,7 @@ The R&D surge is the key narrative — Meta is sacrificing near-term margin for 
 | Stock Buybacks | $(12.75)B | $(10.17)B | $(3.33)B | $0 | $0 |
 | Dividends Paid | $(1.33)B | $(1.33)B | $(1.33)B | $(1.34)B | $(1.35)B |
 
-### Critical Cash Flow Insights:
+#### Critical Cash Flow Insights:
 1. **CapEx is enormous and rising**: TTM capex = ~$75.7B vs. ~$40B a year ago — nearly doubled.
 2. **FCF is being squeezed**: TTM FCF ~$48.3B reported, but trailing tool data shows $25.6B — confirming margin pressure from infrastructure spend.
 3. **Buybacks halted** in Q4 2025 and Q1 2026 — a notable shift. Capital is being redirected to AI infrastructure and debt service.
@@ -638,7 +638,7 @@ Alright, the bear came armed and confident — and made some legitimate points I
 
 #### The Three Direct Challenges
 
-### Challenge 1: "What happens to FCF when capex hits $35B/quarter in Q4?"
+#### Challenge 1: "What happens to FCF when capex hits $35B/quarter in Q4?"
 
 Great question. Here's what actually happens: **FCF compresses to ~$0–5B in the heavy quarters, and that's perfectly fine.** Why? Because you're conflating "FCF" with "value creation."
 
@@ -652,7 +652,7 @@ Now here's what the bear refuses to model: **2027 onward.** Capex doesn't compou
 
 The bear is taking a one-year trough and extrapolating it forever. That's the same mistake people made shorting AMZN in 2014 when AWS capex was "destroying free cash flow." That trade lost 1,500%.
 
-### Challenge 2: "Forward EPS will be revised down as D&A hits the P&L"
+#### Challenge 2: "Forward EPS will be revised down as D&A hits the P&L"
 
 The bear's math: $61B CIP / 5 years = $12B annual D&A = $4–5/share EPS hit, pushing PEG to 1.5x.
 
@@ -664,7 +664,7 @@ The bear's math: $61B CIP / 5 years = $12B annual D&A = $4–5/share EPS hit, pu
 
 3. **Even if EPS falls to $32, the math doesn't break.** At $32 EPS with EPS *still growing* 15-20% (post-investment cycle), PEG is 1.0–1.3x. That's still cheap for a 40% operating margin business. The bear is comparing peak D&A drag against trough EPS — that's not analysis, that's worst-case anchoring.
 
-### Challenge 3: "META's AI ROI is -28.8%, worst-in-class"
+#### Challenge 3: "META's AI ROI is -28.8%, worst-in-class"
 
 This is the weakest leg of the bear's argument, and I'm glad he raised it. **Source: a single StockTwits post from @capitalthinktank.** Not a peer-reviewed analysis. Not a Goldman or Morgan Stanley report. A retail tweet calculating "implied AI ROI" using methodology that has never been published.
 
@@ -680,7 +680,7 @@ The bear cited a tweet. I'm citing the income statement.
 
 #### Now Let Me Push Back on the Rest
 
-### On "Sequential Revenue Decline of 6%"
+#### On "Sequential Revenue Decline of 6%"
 
 This is borderline disingenuous. Q1 is **always** sequentially down for ad businesses — Q4 has holiday/political ad cycles. Look at the Q1/Q4 sequential pattern across every ad business in history:
 - Google Q1'25 vs Q4'24: down ~5%
@@ -689,7 +689,7 @@ This is borderline disingenuous. Q1 is **always** sequentially down for ad busin
 
 The bear is presenting standard seasonality as deceleration. That's not analysis — that's framing.
 
-### On "Buybacks Halted = Capital Stress"
+#### On "Buybacks Halted = Capital Stress"
 
 The bear says mature compounders don't lever up and dilute simultaneously. **Wrong.** They do exactly that when they're capturing a generational platform shift:
 - AMZN 2012–2016: Levered up, paused buybacks, expanded SBC during AWS buildout. Stock 10x'd.
@@ -698,7 +698,7 @@ The bear says mature compounders don't lever up and dilute simultaneously. **Wro
 
 Meta with **$81B in cash and 33% ROE** is not a "capital structure under stress." Debt/equity is **35.6%** — below sector median. Interest coverage is >40x. The bear is pattern-matching a healthy company to distressed ones.
 
-### On the Technicals
+#### On the Technicals
 
 The bear says "Bollinger squeezes resolve violently in *either direction*" — true, but he ignored the directional tells:
 - The April 30 squeeze resolution he cites came **with negative MACD and falling RSI**
@@ -708,13 +708,13 @@ These are *opposite* configurations. The directional probability is not 50/50 �
 
 And the "three layers of resistance" framing is misleading. $640 isn't real resistance — it's the upper Bollinger, which moves with price. The 200-SMA at $666 is real, but it's only 5.3% away. If the bull case fires on Q2 earnings, $666 is one good day.
 
-### On Regulatory Risk
+#### On Regulatory Risk
 
 DSA fines can be 6% of global revenue *theoretically*. They've **never been levied at that level on any company.** Real-world DSA enforcement has been in the hundreds of millions, not tens of billions. The bear is quoting the maximum theoretical fine — that's like saying the IRS *could* audit anyone for 10 years, therefore everyone has tax risk.
 
 Meta has been navigating EU regulatory pressure for **a decade** and still grew revenue 33%. The regulatory overhang is real but priced in — it's why META trades at 17x forward instead of 25x like it "should."
 
-### On Sell-Side: "47 Buy / 0 Sell = Distribution"
+#### On Sell-Side: "47 Buy / 0 Sell = Distribution"
 
 This is a clever-sounding argument that doesn't survive scrutiny. **Distribution requires institutional selling.** What does institutional ownership look like? 78% of META is held by institutions, and 13F data through Q1 showed **net institutional buying**, not selling. The bear's "distribution" thesis has no flow data behind it.
 

@@ -132,7 +132,7 @@ Price/VWMA spread on 2026-05-29: $450.06 vs $434.84 → **+3.5%**. VWMA itself r
 
 #### Source-by-source breakdown
 
-### News headlines (Yahoo Finance, 2026-05-24 → 2026-05-31)
+#### News headlines (Yahoo Finance, 2026-05-24 → 2026-05-31)
 The institutional news flow is uniformly bullish, with no meaningfully bearish headlines in the set:
 
 - **Analyst actions**: Mizuho's Vijay Rakesh raised the AMAT price target to $540 from $500 (May 27), reiterating Outperform and lifting WFE spending estimates. Argus had previously raised its target to $500 from $420. No downgrades or cuts appear.
@@ -143,14 +143,14 @@ The institutional news flow is uniformly bullish, with no meaningfully bearish h
 
 Net news read: **strongly bullish**, with the only soft-bearish overtone being valuation/crowding concerns embedded in otherwise positive articles.
 
-### StockTwits (30 most-recent messages)
+#### StockTwits (30 most-recent messages)
 - Labeled split: **10 Bullish (33%) vs 1 Bearish (3%)**, with 19 unlabeled. Among labels alone the ratio is 10:1 bullish — strongly positive but with a large unlabeled cohort. Reading the unlabeled bodies, the tone skews bullish-to-euphoric ("500 tomorrow?", "470+ tomorrow", "the charge to 500", "ummm…. Wow…..", "Target reached. Took some off, riding rest").
 - Notable bullish posts: JElway calling "$550 EOY"; AryanAshok "$AMAT to 500 and beyond"; TraderFlorida noting +$74 from suggested entry with $467 target reached; multiple posts framing momentum as continuing.
 - Lone bearish: Warrent_jr arguing the 25% run is overextended, citing Elliott Wave revisions and a $440 target; warns of profit-taking. This is the only counter-voice and it is mild.
 - Information posts: DonCorleone77 flagged the Mizuho $540 PT, MarketBeat reposted Dickerson's AI commentary, TalkMarkets shared a Nasdaq 100 Elliott Wave update — all reinforcing the bull narrative.
 - Tone: euphoric / momentum-chasing, with frequent round-number price targets ($470, $500, $540, $550). This pattern is a classic late-stage retail signature and warrants contrarian caution even though the directional signal is clearly bullish.
 
-### Reddit (r/wallstreetbets, r/stocks, r/investing)
+#### Reddit (r/wallstreetbets, r/stocks, r/investing)
 **No posts found** mentioning AMAT in the past 7 days across these subreddits. This is unusual for a stock at all-time highs and reduces the breadth of the read; it could mean discussion is concentrated in semiconductor-specific subs or simply that AMAT isn't (yet) a meme/retail focal point on WSB. Flagged as a data gap — confidence is reduced from high to medium because of this silence.
 
 #### Cross-source divergences and alignments
@@ -217,29 +217,29 @@ Applied Materials (AMAT) is in the eye of an AI-driven semiconductor capital-equ
 
 #### 2. AMAT Company-Specific Catalysts (Past 1–2 Weeks)
 
-### 2.1 Price Action & Sentiment
+#### 2.1 Price Action & Sentiment
 - **All-time high $462.40** with a 100% "Buy" technical score (Barchart). 30-day return +17.99%; 1-year TSR +184%.
 - **Short interest only ~2%** — virtually no overhead from shorts; bullish positioning consensus.
 - **Jim Cramer**: called this "the greatest time in the history of the industry" on Mad Money — sentiment indicator at euphoric levels (contrarian caution flag).
 
-### 2.2 Analyst Upgrades
+#### 2.2 Analyst Upgrades
 - **Mizuho (Vijay Rakesh, May 27)**: PT raised to **$540** (from $500), Outperform reiterated. WFE estimates raised.
 - **Argus (May 19)**: PT to **$500** (from $420), Buy reiterated.
 - Trajectory of upward revisions remains intact.
 
-### 2.3 Fundamental Catalysts
+#### 2.3 Fundamental Catalysts
 - **February (Q1 FY26) earnings beat**: Cited multiple times as a key driver of the rally; outlook lifted on AI/data center demand.
 - **CEO Gary Dickerson**: Publicly framing AI as a "multi-year expansion" with AMAT positioned in the **fastest-growing segments of WFE — logic, DRAM (HBM), and advanced packaging**.
 - **Strategic Partnerships**:
   - **Broadcom joined the Applied Materials EPIC platform** (May 20) — co-development on advanced chip packaging for AI systems. Major customer alignment win.
   - **SCREEN partnership** on wafer cleaning — strengthens AMAT's process exposure in advanced nodes.
 
-### 2.4 Read-Throughs from Peers (Highly Bullish for AMAT)
+#### 2.4 Read-Throughs from Peers (Highly Bullish for AMAT)
 - **Micron blowout day** triggered a sector-wide rally: KLAC +6.6%, plus rallies in Lam, FormFactor, Amkor, Teradyne, Photronics, Amtech, Semtech — all sympathetic moves indicating **structurally undersupplied AI chip demand**, which is the most direct positive read-through to AMAT (the largest WFE supplier).
 - **AI Memory shortage**: HBM order books reportedly stretching past 2027 — directly bullish for AMAT's DRAM/packaging tools.
 - **KLA vs. AMAT (Zacks comparison)**: AMAT favored due to broader tech exposure and stronger growth forecasts.
 
-### 2.5 Risks Specific to AMAT
+#### 2.5 Risks Specific to AMAT
 - **Valuation**: After +180% in 12 months, AMAT trades on premium multiples; Barchart explicitly flags valuation concerns despite bullish technical opinion.
 - **Crowded AI trade**: Multiple articles (Barchart, Motley Fool) suggest investors are rotating from individual AI names to ETFs (SOXX, SMH) — could pressure single-name leaders if rotation accelerates.
 - **No China export-restriction news this week**, but this remains a latent overhang for the entire WFE group.
@@ -248,7 +248,7 @@ Applied Materials (AMAT) is in the eye of an AI-driven semiconductor capital-equ
 
 #### 3. Macro & Cross-Asset Backdrop
 
-### 3.1 Geopolitics — The Iran War (Now in Month 4)
+#### 3.1 Geopolitics — The Iran War (Now in Month 4)
 - **Iran war has entered its 4th month** ("first 90 days upended energy markets" — Oilprice).
 - **Truce/peace-deal headlines drove equity rallies** (US-Iran deal news lifted the S&P, Nasdaq to fresh highs).
 - **Energy markets re-priced**: oil higher; "May rewired global energy markets."
@@ -256,17 +256,17 @@ Applied Materials (AMAT) is in the eye of an AI-driven semiconductor capital-equ
 
 **Implication for AMAT**: AMAT is not energy-sensitive directly, but elevated oil → higher headline inflation → potential Fed pressure → higher discount rates on growth/duration names. A truce extension is net positive (risk-on), but a flare-up is a tail risk for high-multiple semis.
 
-### 3.2 Inflation & Consumer
+#### 3.2 Inflation & Consumer
 - Consumer goods (shoes, tomatoes +40% YoY, fashion retail) under cost pressure from oil/Iran.
 - **Job concerns and shaky consumer suggesting slower retail sales** — bifurcation in the economy: AI capex booming, consumer slowing.
 - Implication: Defensive into consumer discretionary; offensive into AI infrastructure (favorable for AMAT).
 
-### 3.3 Rates & Liquidity
+#### 3.3 Rates & Liquidity
 - **Treasury yields rising** — flagged as a potential threat to the market's climb (Investing.com).
 - **Rate hikes "loom"** per 24/7 Wall St.: a hawkish pivot would compress P/E multiples on momentum tech.
 - Silver futures launching in Singapore; precious metals up on Iran truce-extension headlines — classic stagflation-hedge behavior.
 
-### 3.4 Equity Market Tone
+#### 3.4 Equity Market Tone
 - **S&P 500, Dow, Nasdaq 100 at record highs** — sentiment euphoric on "peace deal hopes + AI spending."
 - **Dell soaring** on AI demand (May 29) — broad confirmation of AI capex narrative beyond chips.
 - Two simultaneous tailwinds for AMAT: peace optimism (risk-on) and AI capex acceleration (fundamental).
@@ -275,21 +275,21 @@ Applied Materials (AMAT) is in the eye of an AI-driven semiconductor capital-equ
 
 #### 4. Trading Implications & Actionable Insights
 
-### Bull Case (Dominant)
+#### Bull Case (Dominant)
 1. **Confirmed AI WFE supercycle** with multi-year visibility (HBM order book to 2027+).
 2. **Rising sell-side estimates** — Mizuho, Argus revisions higher; consensus drifting toward $500-540.
 3. **Ecosystem partnerships** (Broadcom EPIC, SCREEN) lock AMAT into next-gen logic/packaging roadmap.
 4. **Sympathy bid** from every peer rally (Micron, Lam, KLA, Amkor) confirms group leadership.
 5. **Low short interest (2%)** + 100% Buy technical score = no near-term technical resistance.
 
-### Bear / Risk Case
+#### Bear / Risk Case
 1. **Valuation extended** after +180% TTM; momentum unwind risk if any negative catalyst.
 2. **Cramer "greatest time ever"** language is a sentiment red flag.
 3. **June "crunch point"** macro: oil reserves, rate-hike risk, Iran flare-up.
 4. **Treasury yields rising** can de-rate growth/momentum names quickly.
 5. **AI trade overcrowding**: rotation to ETFs could leave individual names like AMAT vulnerable to factor-driven selloffs.
 
-### Tactical Stance
+#### Tactical Stance
 - **Bias: Bullish/Constructive on AMAT**, but acknowledge stretched conditions.
 - **Best add zones**: Pullbacks toward the 20-50 day moving average / prior breakout levels, especially if triggered by macro (yield/oil) rather than company-specific news.
 - **Watch list for risk-off**: Sustained 10Y yield breakout above recent range; Iran truce collapse; any China WFE export-control headline.
@@ -519,30 +519,30 @@ CEO Dickerson's "strongest period in industry history" comment isn't just promot
 
 #### Now Let Me Address the Bear's Likely Concerns Head-On
 
-### "Valuation is stretched at 42x P/E"
+#### "Valuation is stretched at 42x P/E"
 
 This is the laziest bear argument, and here's why: **TTM P/E is a backward-looking distortion**. The forward P/E is **27.8x** with 52% projected EPS growth — that's a **PEG of 1.53**, which is actually *cheap* for a category leader with 39.7% ROE and accelerating revenue. Compare that to NVIDIA at peak, or even ASML — AMAT is not richly valued relative to its growth trajectory.
 
 Also notice: as Q3/Q4 prints roll in with continued growth, that 42x TTM P/E mechanically compresses toward the high-20s. **Time fixes the valuation problem if execution holds — and execution is holding.**
 
-### "Cramer said 'greatest time in history' — sentiment is euphoric"
+#### "Cramer said 'greatest time in history' — sentiment is euphoric"
 
 Sentiment indicators are useful, but let's look at the *actual* positioning data:
 - **Short interest is just ~2%** — but there's also **no Reddit/WSB chatter**. The sentiment report explicitly flagged this: AMAT is *not yet* a meme stock. We have institutional buying (VWMA confirms) without retail blow-off. That's the *opposite* of a top.
 - A real top looks like GameStop 2021 or NVDA mid-2024 with TikTok videos and option-call frenzy. AMAT doesn't have that.
 
-### "Working capital build hurt Q2 FCF"
+#### "Working capital build hurt Q2 FCF"
 
 The bear will point to FCF dropping to $210M in Q2. But look at *why*: receivables surged $1.4B because **revenue ramped**. This is a high-class problem. TTM FCF is still ~$5.3B. When you're winning more business than you can collect on in 90 days, that's not a red flag — that's demand outrunning operations, exactly what you want in a leader.
 
-### "RSI divergence and ATR expansion suggest a top"
+#### "RSI divergence and ATR expansion suggest a top"
 
 The technical report flagged a mild RSI divergence — fair point. But here's the context:
 - Price is in a **textbook bullish stack**: above 10 EMA > VWMA > 50 SMA > 200 SMA, all expanding.
 - 50 SMA rose 7.5% in 4 weeks — **trends accelerate before they top, but they also accelerate in the middle of strong moves.** May 18's drawdown was bought aggressively.
 - The right play isn't "fade the high" — it's **buy the $434–$439 pullback zone**, which the technicals literally identify as support.
 
-### "China export controls / Iran macro risk"
+#### "China export controls / Iran macro risk"
 
 These are real but **chronic, not acute**. There's been *no new China headline this week*. Iran is in month 4 — markets have absorbed it. If anything, **truce optimism has been a tailwind**, not a headwind. Yes, June is a "crunch month," but AMAT's fundamentals don't depend on oil prices or 10Y yields — they depend on AI capex, which is *accelerating*.
 

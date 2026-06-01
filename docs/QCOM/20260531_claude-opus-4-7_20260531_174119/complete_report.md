@@ -25,17 +25,17 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 #### 2. Trend-Structure Indicators
 
-### close_200_sma — Long-term trend (now bullish)
+#### close_200_sma — Long-term trend (now bullish)
 - **2026-05-29: 161.33** vs. close **251.02**.
 - Price is ~56% above the 200-SMA. The 200-SMA itself just turned higher (155.35 on May 1 → 161.33 on May 29), which historically marks the transition into a confirmed **Stage 2 long-term uptrend**.
 - A **golden cross** has clearly occurred: 50-SMA (165.67 on May 29) is above 200-SMA (161.33) and rising fast.
 
-### close_50_sma — Medium-term trend
+#### close_50_sma — Medium-term trend
 - **2026-05-29: 165.67** (vs. 136.53 on May 1 — i.e., the 50-SMA gained ~21% in one month, an unusual slope).
 - Price is ~$85 above the 50-SMA, an extreme deviation that historically mean-reverts.
 - The 50-SMA is the **first major support shelf** on any pullback; a much closer dynamic support is the 10-EMA.
 
-### close_10_ema — Short-term momentum trend
+#### close_10_ema — Short-term momentum trend
 - **2026-05-29: 228.65**; price **$251** is ~10% above it.
 - Up-slope is steep but price has pulled away repeatedly and snapped back. Note **May 14 ($200.08)** retested the 10-EMA at $199.16 nearly to the cent and bounced — a clean trend-respect signal during the run.
 
@@ -43,12 +43,12 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 #### 3. Momentum Indicators
 
-### MACD & MACD Histogram
+#### MACD & MACD Histogram
 - **MACD: 22.03** on May 29 — the highest reading in the dataset. Up from 8.99 on May 1.
 - **MACD Histogram**: 2.40 on May 29, expanding again (was -1.04 on May 20 — a brief mid-rally cool-off — then flipped positive May 22 at +0.80 and accelerated).
 - Interpretation: **Momentum is positive AND re-accelerating**. The brief negative-histogram window May 19–21 marked the only meaningful pause and produced no MACD-line crossover; the trend signal stayed intact throughout.
 
-### RSI (14)
+#### RSI (14)
 - **2026-05-29: 69.99** — fractionally below the classic overbought 70 line.
 - Important context: RSI **already spent multiple sessions deeply overbought** earlier in this rally (May 1: 83.36; May 5: 78.36; May 6: 80.12; May 7: 82.65; May 8: 85.85; **May 11: 88.42** — extreme).
 - Since May 11, RSI has *cooled* (88 → 70) **even while price continued making higher highs** ($237 → $251). This is a **bearish RSI divergence forming** — momentum oscillator is weakening relative to price.
@@ -58,12 +58,12 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 #### 4. Volatility Indicators
 
-### Bollinger Upper Band (boll_ub)
+#### Bollinger Upper Band (boll_ub)
 - **2026-05-29: 259.24**; close **251.02** — price is *just below* the upper band.
 - The band has expanded violently from **171.67 (May 1)** to **259.24 (May 29)**, reflecting the volatility explosion.
 - Price has been **"riding the band"** — repeatedly poking above and pulling back: tagged or exceeded on May 7, 8, 11, 22, 26, 28, 29. In strong trends this is normal continuation behavior, **not** an automatic short signal — but it does mean the easy upside from band-walking is now fully priced.
 
-### ATR (14)
+#### ATR (14)
 - **2026-05-29: 16.42** (a single ATR = ~6.5% of current price).
 - Up from 7.34 on May 1 — volatility has **more than doubled**.
 - Translation for risk management: a "normal" daily range is now ~$16. A 2-ATR stop on a long position is roughly $33 wide. Position sizing must be cut sharply versus what would have been used at $135 in early April.
@@ -117,7 +117,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 #### QCOM Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-Source Breakdown
+#### 1. Source-by-Source Breakdown
 
 **News headlines (Yahoo Finance, ~20 items):** Institutional framing skews constructive but with notable caveats.
 - Clear bullish catalysts: "Qualcomm Stock Just Hit New Record Highs… ByteDance Deal" (Barchart) and "While Nvidia Battles AMD, Qualcomm Quietly Signed the Biggest AI Deal in Its History. With ByteDance" (24/7 Wall St., noting the stock has run ~100%). Zacks notes QCOM is up 35.5% since last earnings.
@@ -141,14 +141,14 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 - The other is a satirical WSB "QCOM DD — sex robots thesis" — engagement metrics unavailable, but the framing is exuberant/meme rather than substantive.
 - Net Reddit read: Low signal. Notable that r/stocks and r/investing are silent — institutional-style retail isn't writing thesis posts, which slightly tempers the bullish read.
 
-### 2. Cross-Source Divergences and Alignments
+#### 2. Cross-Source Divergences and Alignments
 
 - **Aligned bullish:** News + StockTwits both center on the ByteDance AI/data-center deal and Computex as catalysts. Both acknowledge the strong run (35–100% off lows). Dividend/ex-div date noted in both.
 - **Aligned cautious:** News (Insider Monkey) and one StockTwits unlabeled post (JazzyBulls) both flag the Apple modem loss as a structural risk. News (Barchart) and StockTwits (Warrent_jr, rav17) both flag the NVDA PC SoC threat.
 - **Divergence:** Reddit silence vs. StockTwits euphoria — usually when retail-trader chat is loud but longer-form retail (r/stocks/r/investing) is quiet, it suggests momentum-chasing rather than considered accumulation. Mild contrarian caution flag.
 - **Divergence:** Headline tone is event-driven and balanced (analysts "cautious" per Barchart) while StockTwits is in mania mode ($700 targets). The retail bid is running ahead of sell-side.
 
-### 3. Dominant Narrative Themes
+#### 3. Dominant Narrative Themes
 
 1. **AI / data-center pivot is real** — ByteDance ASIC deal + Alphawave acquisition validation is the single biggest positive narrative.
 2. **Computex 2026 (June 2) keynote** — near-term catalyst; Snapdragon/Dragonwing expansion into AI PCs, industrial AI, and data centers expected.
@@ -156,7 +156,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 4. **NVDA encroaching on the PC SoC market** — fresh competitive risk emerging this week.
 5. **Auto + edge AI diversification** — record auto revenue, Arduino acquisition, Stellantis partnership, drone/physical-AI angles.
 
-### 4. Catalysts and Risks
+#### 4. Catalysts and Risks
 
 **Catalysts (next 1–4 weeks):**
 - Computex 2026 keynote (June 2) — Snapdragon/Dragonwing announcements.
@@ -169,7 +169,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 - Stock has already run ~35% post-earnings / ~100% off lows — extension risk; retail euphoria is a contrarian flag.
 - Analyst caution per Barchart despite outperformance.
 
-### 5. Summary Table
+#### 5. Summary Table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -206,28 +206,28 @@ Computex 2026 (kicking off June 2 in Taipei) is the immediate next catalyst — 
 
 #### 2. Company-Specific Catalysts
 
-### 2.1 Bullish — ByteDance AI Deal (Primary Catalyst)
+#### 2.1 Bullish — ByteDance AI Deal (Primary Catalyst)
 - Qualcomm signed what 24/7 Wall St. calls **"the biggest AI deal in its history"** with ByteDance, validating Qualcomm's pivot from smartphone-centric revenue toward AI inference silicon (likely featuring its Cloud AI 100 / AI 200 family or follow-on parts).
 - This deal sent QCOM to **fresh all-time highs**, per Barchart reporting.
 - Strategic significance: ByteDance is one of the largest non-hyperscaler AI compute buyers globally; the win is a credible counter-narrative to "Qualcomm is just smartphones."
 
-### 2.2 Bullish — Strong Post-Earnings Momentum
+#### 2.2 Bullish — Strong Post-Earnings Momentum
 - Zacks confirms **+35.5% gain since last earnings report** — well ahead of sector benchmarks.
 - Barchart highlights QCOM is **outperforming the broader Technology sector**, although sell-side analysts have been slow to upgrade, leaving room for a "catch-up" upgrade cycle.
 
-### 2.3 Bullish — Computex 2026 Catalyst (June 2)
+#### 2.3 Bullish — Computex 2026 Catalyst (June 2)
 - CEOs of all major chip companies converge in Taipei. Qualcomm is named as a featured presenter alongside Nvidia, AMD, Intel.
 - Expected themes: AI PCs (Snapdragon X-series successor), edge AI, automotive ADAS chips.
 - Risk: Nvidia is rumored to announce a **Windows PC chip** at GTC Taipei — direct competitive threat to Qualcomm's Snapdragon X PC franchise.
 
-### 2.4 Bullish — Upcoming Dividend
+#### 2.4 Bullish — Upcoming Dividend
 - QCOM is **about to trade ex-dividend within ~4 days** (per Simply Wall St.), which can attract income-focused flows in the immediate window.
 
-### 2.5 Bearish — Apple Modem Insourcing (Structural Risk)
+#### 2.5 Bearish — Apple Modem Insourcing (Structural Risk)
 - Per Impax Asset Management Q1'26 letter (cited via Insider Monkey): **Apple's in-house modem chips threaten Qualcomm's major customer base.** Apple historically represents ~20%+ of QCOM revenue. The transition is now visible in fund commentary, suggesting institutional concern is rising.
 - Long-tail risk: If Apple ramps faster than the 2026–2027 schedule guided, handset segment revenue could face material step-downs.
 
-### 2.6 Bearish — Competitive Pressure from Arm & Nvidia
+#### 2.6 Bearish — Competitive Pressure from Arm & Nvidia
 - Motley Fool comparison: **Arm shows more consistent growth than QCOM's revenue volatility** — Arm continues to encroach into both data center and PC.
 - Nvidia's rumored Windows PC chip directly targets Snapdragon's AI PC niche.
 
@@ -235,19 +235,19 @@ Computex 2026 (kicking off June 2 in Taipei) is the immediate next catalyst — 
 
 #### 3. Macroeconomic Backdrop
 
-### 3.1 Risk-On / Equity Tailwinds
+#### 3.1 Risk-On / Equity Tailwinds
 - **S&P 500 and Nasdaq 100 hit record highs** during the week, driven by:
   - **US–Iran ceasefire/truce reports** (and possible truce extension)
   - **Continued AI capex spending** (Dell soaring, Nvidia momentum)
 - Tech leadership remains intact — supportive for QCOM as a high-beta semis name.
 
-### 3.2 Headwinds — Inflation & Rates
+#### 3.2 Headwinds — Inflation & Rates
 - **Oil prices remain elevated** due to Iran war fallout; Exxon and Chevron warning prices "could skyrocket."
 - Consumer-goods inflation visible in apparel/footwear/food (tomatoes +40% YoY, coffee volatility).
 - **Higher Treasury yields** are being flagged as a potential threat to the market climb (Investing.com) — a risk for high-multiple semiconductor names.
 - Silver and precious metals strength suggests persistent inflation hedging by investors.
 
-### 3.3 Geopolitical
+#### 3.3 Geopolitical
 - **US–Iran truce** is the dominant near-term geopolitical positive. Any breakdown would spike oil, hit equities, and pressure semiconductor names that depend on Asian supply chains.
 - No new China/Taiwan flashpoints in the past week — a quiet positive given Computex is being hosted in Taipei without security concerns.
 
@@ -351,14 +351,14 @@ The 50-day average ($165.67) sits very close to the 200-day average ($162.46), s
 | Q1 FY26 (Dec-25) | 12.25 | 6.68 | 3.37 | 3.00 | $2.78 |
 | Q2 FY26 (Mar-26) | 10.60 | 5.70 | 2.31 | **7.37** | **$6.88** |
 
-### Key Observations
+#### Key Observations
 - **Revenue:** TTM revenue of $44.49B; the latest quarter (Mar-26) saw a sequential drop (~13%), likely reflecting handset seasonality, but this is normal for QCOM's fiscal calendar (Q2 is typically softer).
 - **Gross Margin:** Consistently strong ~54-55%, characteristic of fabless semi + licensing model.
 - **Q4 FY25 anomaly:** Net loss of $3.12B was driven by a **$6.09B tax provision charge** (likely deferred-tax or one-time settlement). Operating income was healthy at $2.96B, so the net loss was non-operational.
 - **Q2 FY26 spike:** $7.37B net income reflects a **-$5.14B tax benefit (negative tax provision)** — a reversal/release of prior tax reserves. The headline $6.88 EPS therefore overstates underlying earnings power.
 - **Normalized EBITDA** ranges $2.78B–$3.94B/quarter; underlying earnings power is consistent.
 
-### R&D Investment
+#### R&D Investment
 R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment to AI-on-device, automotive, and 6G — ~23% of revenue. This is robust and suggests management is investing through cyclical softness.
 
 ---
@@ -391,7 +391,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 | Debt / Equity | 55.98% |
 | Goodwill + Intangibles | $15.83B (28% of assets) |
 
-### Key Trends
+#### Key Trends
 - Cash position **declined from $13.85B (Mar-25) → $9.80B (Mar-26)** — a $4B drawdown driven by aggressive buybacks and an M&A push (~$1.1B Q1 FY26 acquisition).
 - **Goodwill jumped** from $10.95B → $14.25B over four quarters, indicating recent acquisitions (likely Edge Impulse, Alphawave or similar bolt-ons).
 - Inventory rose from $6.20B → $7.37B (+19%) — bears watching; could indicate slower handset/IoT demand or inventory pre-build for upcoming product cycles.
@@ -410,7 +410,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 | Buybacks | n/a | -1.75B | -2.85B | -2.44B | -2.65B | -2.79B |
 | Dividends | n/a | -0.94B | -0.97B | -0.96B | -0.95B | -0.95B |
 
-### Capital Return
+#### Capital Return
 - **TTM FCF: ~$12.5B** vs. reported $9.59B (timing differences in tools).
 - **TTM Buybacks: ~$10.7B** + **TTM Dividends: ~$3.8B** = **~$14.5B total returned**, exceeding FCF — funded by drawing down cash. This is aggressive but signals management confidence.
 - Share count reduced from 1.10B → 1.059B (-4% YoY) from buybacks.
@@ -420,14 +420,14 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 
 #### 7. Strengths, Risks & Catalysts
 
-### Strengths
+#### Strengths
 - **Dominant IP moat** in 5G/6G with high-margin QTL licensing.
 - **Snapdragon X / Auto segment**: rapid growth in automotive (cited as fastest-growing segment historically).
 - **Strong FCF generation** (>$12B TTM) supporting capital return.
 - **Healthy balance sheet** with manageable leverage.
 - **Aggressive shareholder returns** — buybacks reducing share count meaningfully.
 
-### Risks
+#### Risks
 - **Apple modem in-housing**: a major near-term overhang for QCT segment revenues.
 - **Smartphone cyclicality** & China handset exposure.
 - **Inventory build (+19% YoY)** — possible demand softening signal.
@@ -435,7 +435,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 - **Cash declining** while M&A accelerates — execution risk on integration.
 - **Stock has fallen ~36% from 52-wk high**, suggesting market concerns are real.
 
-### Catalysts
+#### Catalysts
 - AI-on-device tailwinds (Snapdragon X for PCs, Copilot+ ecosystem).
 - Auto design wins ramping.
 - Continued buybacks supporting EPS.

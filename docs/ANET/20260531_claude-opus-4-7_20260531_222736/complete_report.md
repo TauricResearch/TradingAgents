@@ -41,15 +41,15 @@ I avoided redundant pairs (no stoch + RSI; no boll mid + 20 SMA; no macdh on top
 
 #### 3. Price Action — Detailed Read
 
-### The April rally (Mar 30 low → Apr 24 high)
+#### The April rally (Mar 30 low → Apr 24 high)
 - ANET launched from **$116.13 (Mar 30 low)** and ran to a **$179.80 intraday high on April 24** — a **~+55% rally in 17 sessions**, fueled by an earnings-style jump on April 8 (close $145.07 from $133.64).
 - The peak close was **$177.73 on April 22**.
 
-### The May 6 shock
+#### The May 6 shock
 - After topping out, price dropped sharply on **May 5–6**: $170.22 → **$147.06** (–13.6% in one session) on volume of **35.6M** (roughly 4–5× normal). This is the dominant chart event of the past two months.
 - Price kept bleeding to **$136.43 on May 11** before stabilizing.
 
-### The May 21–29 rebound
+#### The May 21–29 rebound
 - 6 sessions of higher closes: $148.59 → $154.03 → $158.01 → ... → **$159.47 (May 29)**.
 - Volume on the breakout day (May 21, +5.8%) was **11.6M**, on May 22 was **10.5M**, on May 26 was **11.8M** — all above the 30-day median, so the bounce is being **confirmed by volume**, not just drift.
 
@@ -57,21 +57,21 @@ I avoided redundant pairs (no stoch + RSI; no boll mid + 20 SMA; no macdh on top
 
 #### 4. Indicator-by-Indicator Findings
 
-### Trend Stack — Bullish but Stretched
+#### Trend Stack — Bullish but Stretched
 - **200-SMA (May 29): $140.15** — rising slope. Price is **+13.8% above** the 200-day. Long-term trend is intact and constructive.
 - **50-SMA (May 29): $148.85** — also rising. Price closed **above** the 50-SMA (close $159.47), reclaiming this level on May 22 after losing it on May 6. The 50-SMA now becomes the most important pullback-support line.
 - **10-EMA (May 29): $152.54** — the short-term EMA bottomed at $144.94 on May 20 and has since turned sharply higher. Price is **above** the 10-EMA, confirming a fresh short-term up-leg.
 
 **Trend verdict:** Price > 10-EMA > 50-SMA > 200-SMA — a clean, fully aligned bullish stack restored.
 
-### Momentum — Bullish Crossover, Early Stage
+#### Momentum — Bullish Crossover, Early Stage
 - **MACD (May 29): +0.49** vs **MACD Signal: –0.76** → **bullish crossover** (MACD line crossed above signal between May 28 and May 29; the May 28 reading was MACD –0.21 vs signal –1.07).
 - The MACD reached an **extreme negative print of –3.42 on May 20**, confirming the gap was a momentum washout. The recovery to positive territory in 7 sessions is rapid and constructive, but the histogram move is still small (~+1.25), so this is an early-stage signal.
 - **RSI (May 29): 57.4** — recovering from a low of **35.2 on May 11**. RSI is comfortably above neutral 50, **not yet overbought** (70+), leaving room for further upside before exhaustion.
 
 **Momentum verdict:** Fresh bullish MACD cross + neutral-to-rising RSI = constructive, not exhausted.
 
-### Volatility — Elevated but Compressing
+#### Volatility — Elevated but Compressing
 - **ATR (May 29): $6.95** — well above the early-May reading of $6.51 but below the post-shock peak of **$8.35 on May 7**. Volatility is **normalizing downward** but is still ~2x what would be considered a "calm" regime for ANET. This affects position sizing.
 - **Bollinger Upper Band (May 29): $173.02** — far above current price; not a near-term resistance.
 - **Bollinger Lower Band (May 29): $127.88** — bands are still wide. The May 11 low of $136.43 tagged the lower band region (lb that day was $137.62) and has since rejected upward. Classic **lower-band reversal**.
@@ -79,7 +79,7 @@ I avoided redundant pairs (no stoch + RSI; no boll mid + 20 SMA; no macdh on top
 
 **Volatility verdict:** High but receding. Use wider stops than usual (1.5–2× ATR ≈ $10–14).
 
-### Volume Confirmation
+#### Volume Confirmation
 - **VWMA (May 29): $146.45** — price closed **+8.9% above VWMA**, meaning the recent rally has been priced *above* the volume-weighted average, suggesting buyers are paying up. This is a bullish confirmation of the move off the lows.
 - VWMA is now turning higher after dipping with the May shock, lagging price as expected.
 
@@ -144,7 +144,7 @@ I avoided redundant pairs (no stoch + RSI; no boll mid + 20 SMA; no macdh on top
 
 #### ANET Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance, ~13 ANET-relevant headlines):** Institutional framing skews constructive but not uniformly so. The dominant positive thread is Arista's raised full-year revenue outlook, >100 customers deploying AI-optimized Ethernet, and management guidance that AI-related revenue will more than double in 2026 (Simply Wall St., Zacks "ANET Capitalizes on AI Infrastructure Spending"). Trefis notes ANET is up 8.5% over the prior five sessions and argues it is "more than just another AI trade." Sympathy tailwinds are also evident: Dell +33% on AI servers, Super Micro +16%, Micron upgraded by UBS citing "structurally undersupplied" AI hardware demand, Nokia +140% YTD on AI infrastructure repositioning — all reinforce the hyperscaler capex narrative that benefits Arista. Counterweight: a 24/7 Wall St. piece flags that over the past month Cisco surged 32% while ANET slumped 10% and Broadcom drifted, framing Cisco as the AI-networking leader and implying ANET has lost relative momentum. Two Zacks "trending stock"/sector-lag pieces are neutral-to-cautious in tone. Net news read: **Mildly Bullish**, with a clear competitive-share risk flag.
 
@@ -152,25 +152,25 @@ I avoided redundant pairs (no stoch + RSI; no boll mid + 20 SMA; no macdh on top
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing):** No posts mentioning ANET in the past 7 days. This is itself a mild signal — despite a strong monthly rally, ANET is not capturing meme/community attention, which argues against contrarian over-extension risk from that channel but also means we lose a cross-check. Confidence is reduced to **medium** as a result.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 
 - **Aligned bullish:** News and StockTwits both anchor on the same catalyst — raised AI networking outlook, AI revenue doubling in 2026, hyperscaler capex acceleration confirmed by Dell/SMCI/MU prints.
 - **Key divergence:** News flags an under-the-radar negative — relative-performance loss to Cisco (CSCO +32%, ANET −10% over the prior month per 24/7 Wall St.). Yet StockTwits users claim ANET is +85% MTD. These two framings appear contradictory; the most plausible reconciliation is that the prior month included a sharp drawdown followed by a strong recent-week rebound (Trefis cites +8.5% in 5 sessions), so both can be true depending on the window. Traders should treat the Cisco competitive narrative as a real risk regardless.
 - **Reddit silence vs. retail enthusiasm on StockTwits:** suggests the bullish lean is concentrated among ticker-followers, not yet a broader retail meme.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 
 1. **AI networking demand is structurally undersupplied** — hyperscaler capex, >100 customers on AI Ethernet, AI revenue doubling in 2026.
 2. **Competitive repositioning vs. Cisco** — the bear case the bulls must answer; Cisco's monthly outperformance is the single most important contrary data point in the news flow.
 3. **Sympathy/sector tailwind** — Dell, SMCI, Micron, Nokia all reinforcing the AI-hardware thesis.
 4. **Valuation debate** — retail calls ANET "undervalued"; institutions more measured, with Zacks noting sector lag YTD.
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 
 - **Catalysts:** Upcoming earnings (Motley Fool headline explicitly previews "before its next earnings report"); continued hyperscaler capex confirmations; AI Ethernet customer count milestones.
 - **Risks:** (a) Cisco share-gain narrative gaining traction; (b) the bear thesis that hyperscalers cut capex 75% as supply catches demand; (c) potential over-extension after a reported +85% MTD move — mean-reversion risk; (d) ANET trailing the broader tech sector YTD per Zacks, suggesting the recent rally may be catch-up rather than breakout.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -199,36 +199,36 @@ I have sufficient data to compile a comprehensive report. Let me synthesize the 
 
 #### 1. Company-Specific Catalysts & Narrative
 
-### Bullish Drivers
+#### Bullish Drivers
 - **Raised Full-Year Guidance:** Arista upgraded its 2026 revenue outlook earlier in May, citing accelerating demand for its AI-optimized Ethernet networking solutions. Management confirmed **AI-related revenues are expected to more than double in 2026** (Simply Wall St., May 28).
 - **Customer Momentum:** Over **100 customers** are now deploying Arista's AI Ethernet stack — a meaningful breadth indicator beyond the top hyperscaler concentration (Meta, Microsoft, Oracle).
 - **Hyperscaler CapEx Confirmation:** Dell Technologies' fiscal Q1 2027 print on May 28 sparked a **+33% single-day move** and a **+16%** rally in Super Micro on AI server demand. UBS hike to Micron signaled AI hardware demand is **structurally undersupplied** — a direct positive readthrough for Arista's switching/optics tied to those server racks.
 - **Sympathy/Sector Tailwind:** Nokia's 140% AI rally and Ciena's hyperscaler optical commentary confirm the AI networking secular thesis is broadening. ANET rallied **+8.5% over the last 5 trading days** on this momentum (Trefis, May 27).
 - **Trefis & Motley Fool framing:** ANET is being repositioned as more than "just an AI trade" — calling out durable enterprise + cloud networking moat.
 
-### Bearish/Risk Signals
+#### Bearish/Risk Signals
 - **Relative Underperformance vs. Cisco:** Over the past month, **CSCO surged +32%** while **ANET fell ~10%** and Broadcom drifted sideways (24/7 Wall St., May 26). This is the most important near-term concern: **share is rotating to Cisco**, which is winning campus + hyperscaler upgrade narratives. Trailing 30-day return for ANET was **-13.33%**, although the 1-year TSR remains strong at **+68.89%**.
 - **Post-earnings sell-off:** ANET sold off after its prior earnings print despite strong results — suggesting elevated expectations and valuation sensitivity. Multiple "buy the dip" articles (Fool May 22, Fool May 30) imply a contested setup.
 - **Valuation scrutiny:** Simply Wall St. flagged ANET as potentially overvalued after the mixed near-term performance; high-multiple AI names are vulnerable to rate-driven multiple compression.
 - **Competitive intensity:** Nvidia's networking business (~$60B run-rate trajectory) is positioned to **overtake Broadcom**, and Cisco is regaining hyperscaler mind-share. ANET faces a two-front competitive squeeze.
 
-### Upcoming Catalyst
+#### Upcoming Catalyst
 - **Next earnings report** is the next major catalyst — recent articles ("Buy Before Its Next Earnings Report?") confirm investors are positioning ahead of it.
 
 ---
 
 #### 2. Macro Backdrop (Trading-Relevant)
 
-### Geopolitics & Energy
+#### Geopolitics & Energy
 - **Iran war is in its 4th month** (Barron's), but a **truce extension** announced May 29 lifted risk sentiment and silver. Trump signaled a possible negotiated deal "shortly."
 - **Oil/energy prices elevated** — feeding through to consumer goods inflation (footwear, food). XLE traders watching for a potential Hormuz-related premium unwind.
 - "**June Crunch Point**" headlines warn of energy reserve depletion + **rate hike risk looming** (24/7 Wall St.).
 
-### Rates & Equities
+#### Rates & Equities
 - **Higher Treasury yields are a market-level threat** (Investing.com, May 29). This is critical for ANET: as a high-multiple growth stock, it is duration-sensitive. Renewed yield pressure is a meaningful headwind to the AI-networking re-rating story.
 - Despite the yield risk, **AI capex continues to fund the rally** (Dell, SMCI, MU, NOK all ripping). The AI bid is currently overpowering the rate concern, but this dynamic is fragile.
 
-### Consumer & Inflation
+#### Consumer & Inflation
 - Job concerns + persistent goods inflation (shoes, tomatoes +40% YoY) suggest **stagflationary undertones**, increasing odds of consumer-discretionary weakness — but **enterprise AI infrastructure spend appears decoupled** from consumer cyclicality.
 
 ---
@@ -505,7 +505,7 @@ This is exactly what a healthy recovery looks like.
 
 #### Now Let Me Address the Bear's Concerns Head-On
 
-### Bear Concern #1: "Cisco surged 32% while ANET fell 10% — share is rotating to Cisco"
+#### Bear Concern #1: "Cisco surged 32% while ANET fell 10% — share is rotating to Cisco"
 
 This is the bear's strongest punch, so let me hit it directly. **Relative performance over a single month is noise, not signal.** A few problems with this argument:
 
@@ -514,11 +514,11 @@ This is the bear's strongest punch, so let me hit it directly. **Relative perfor
 3. **Cisco and Arista serve different design points.** Cisco wins on campus/legacy enterprise. Arista wins on the AI/hyperscaler back-end fabric — which is the segment growing 100%+ annually. These aren't zero-sum.
 4. The pair-trade dynamic actually *favors* ANET into earnings — CSCO is stretched, ANET is mean-reverting from oversold.
 
-### Bear Concern #2: "Customer concentration with Meta/Microsoft is dangerous"
+#### Bear Concern #2: "Customer concentration with Meta/Microsoft is dangerous"
 
 This was a legitimate concern *two years ago*. Now? **100+ customers on AI Ethernet** — explicitly broadening the base. The concentration is *decreasing*, not increasing. And here's the kicker: even if you're worried about Meta/MSFT, both just *raised* their AI capex guides. The risk you're worried about is moving in the opposite direction.
 
-### Bear Concern #3: "Valuation is rich at 55x trailing P/E"
+#### Bear Concern #3: "Valuation is rich at 55x trailing P/E"
 
 Trailing P/E is the wrong lens for a company growing 35% YoY with accelerating bookings. **Forward P/E is 35.8.** PEG is 2.05. For a business with:
 - 43% operating margins
@@ -528,15 +528,15 @@ Trailing P/E is the wrong lens for a company growing 35% YoY with accelerating b
 
 …35x forward earnings is *cheap*, not expensive. Compare that to other AI infrastructure names trading at 50-70x forward.
 
-### Bear Concern #4: "NVIDIA Spectrum-X is a competitive threat"
+#### Bear Concern #4: "NVIDIA Spectrum-X is a competitive threat"
 
 NVIDIA's networking ambitions are real, but here's what the bears miss: **hyperscalers explicitly want a multi-vendor strategy.** Meta, Microsoft, and Oracle are not going to lock themselves into NVIDIA's full stack — they need an independent Ethernet pure-play, and that's Arista. The 100+ customer count *proves* customers are choosing ANET over NVIDIA's offering.
 
-### Bear Concern #5: "Rising yields will compress the multiple"
+#### Bear Concern #5: "Rising yields will compress the multiple"
 
 Already addressed above — but to repeat: ANET earns interest income on $12B cash, has zero debt, and trades at 35x forward (not 70x). The duration sensitivity argument applies to unprofitable growth names, not to a company throwing off $5B in FCF.
 
-### Bear Concern #6: "The recent rally is overextended / mean-reversion risk"
+#### Bear Concern #6: "The recent rally is overextended / mean-reversion risk"
 
 The 5-day +8.5% bounce came off a capitulation low after a -13% drawdown. We're not at the highs — we're at $159 vs. an April high of $179.80. There's **$20 of room to retest the prior highs** before we even start the "overextended" conversation. RSI is 57, not 80. That's not a frothy tape.
 

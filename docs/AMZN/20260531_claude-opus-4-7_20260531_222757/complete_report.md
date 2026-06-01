@@ -22,24 +22,24 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 
 #### 2. Indicator-by-Indicator Read
 
-### Trend Structure — 50 SMA, 200 SMA, 10 EMA
+#### Trend Structure — 50 SMA, 200 SMA, 10 EMA
 - **Close (May 29): $270.64**
 - **10 EMA: $268.67** — price is *just barely* above the 10 EMA, a sign of slowing short-term momentum but not yet a breakdown.
 - **50 SMA: $246.67** — well below price (~$24 below), confirming a healthy intermediate uptrend. The 50 SMA is rising sharply (was $213 on Apr 13, now $246.67) reflecting the April–May rally.
 - **200 SMA: $231.52** — price sits ~17% above this long-term anchor; the 200 SMA is also gently rising. **No death cross risk; uptrend structurally intact.**
 - The stack is **bullish: Price > 10 EMA > 50 SMA > 200 SMA**.
 
-### Momentum — MACD & MACD Histogram
+#### Momentum — MACD & MACD Histogram
 - **MACD (May 29): 5.37** — still positive, but has fallen meaningfully from its peak of **13.19 on May 6**. This is a clear sign of momentum exhaustion.
 - **MACD Histogram (May 29): −1.02** — *negative since around May 11*, when it flipped from +0.16 (May 8) to −0.41 (May 11) and has stayed negative. This is a confirmed bearish MACD line/signal cross, even while the MACD line itself remains above zero.
 - **Interpretation:** Trend is up, but momentum has rolled over. Classic late-stage trend signature — vulnerable to a corrective pullback even as the longer-term structure stays bullish.
 
-### Overbought/Oversold — RSI
+#### Overbought/Oversold — RSI
 - **RSI (May 29): 59.70**
 - RSI peaked at **81.15 on May 6** (deeply overbought) and has cooled to neutral-bullish territory. It dipped to **51.93 on May 19** and has bounced back into the high 50s/low 60s.
 - **No divergence signal, no extreme reading.** RSI says: momentum has reset constructively from overbought without breaking down — neither an entry trigger nor an exit trigger.
 
-### Volatility — Bollinger Upper Band & ATR
+#### Volatility — Bollinger Upper Band & ATR
 - **Boll UB (May 29): $276.75**; close $270.64 sits ~2.2% below the upper band — near the band but no longer riding it. Price was *outside* the upper band during the Apr 30 – May 6 thrust (close $268–$273 vs band ~$279–$280), then mean-reverted, classic post-breakout behavior.
 - **ATR (May 29): $6.64** — elevated relative to the April baseline (~$6.50) and well above March levels. Volatility regime is **medium-high**, reflecting the recent rally and the post-breakout digestion.
 - **Risk-sizing implication:** A 1×ATR stop is ~$6.64; a 2×ATR stop is ~$13.30. For a long position from current levels, a sensible technical stop sits near **$255–$258** (just under the 10 EMA cluster and ATR-derived band).
@@ -90,7 +90,7 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 
 #### AMZN Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News headlines (Yahoo Finance, ~20 AMZN-tagged items):** Institutional framing skews modestly constructive, but with notable cross-currents.
 - *Bullish anchors:* Bank of America reiterated a Buy with a $310 price objective, citing healthier AWS momentum (May 21). Multiple Motley Fool pieces frame AMZN as a top AI/data-center pick ("The Only Tech Stock I'd Buy If I Could Only Pick One Right Now," "3 Core AI Stocks to Buy," "Best Data Center Stock with Huge Upside Potential," "Greg Abel Just Dumped Amazon Stock. Here Are 5 Reasons to Buy It").
@@ -108,23 +108,23 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 - r/investing: The most AMZN-specific thread is "The Origin of Feeling Blue" — explicitly identifies AMZN/Project Kuiper as a *loser* from the Blue Origin New Glenn explosion, alongside ASTS and ULA. Mildly negative, narrow scope. The energy-stocks post lists AMZN as a current core holding (neutral).
 - *Engagement caveat:* RSS feed did not provide upvotes/comments, so we cannot weight by attention. Treat Reddit signal as directional only.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 - **Alignment (mild bull):** News (BofA Buy, multiple Fool buy theses, "next Amazon in AI") + StockTwits technical accumulation posts + the "AMZN is the only positive-AI-ROI hyperscaler" framing all reinforce a long-term constructive case.
 - **Alignment (mild bear):** New Glenn explosion → Project Kuiper risk shows up identically in news (WSJ, Moneywise), StockTwits (rocket skepticism, "stick to online sales"), and r/investing (Blue Origin losers thread). This is the cleanest cross-source negative.
 - **Divergence:** News flow is more bullish than retail. Retail (StockTwits/Reddit) is preoccupied with bubble/capex-unwind anxiety even as sell-side (BofA) and financial-media (Fool, WSJ "next Amazon" framing) lean constructive. Berkshire's trim sits awkwardly between the two — a fact news outlets are spinning bullishly ("here's why to buy anyway") while retail reads as a warning.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **AWS/AI as the core bull case** — BofA upgrade rationale, Fool features, and the "only positive AI-ROI hyperscaler" datapoint.
 2. **Capex/AI-bubble fear** — Bloomberg AI bubble piece, WSB/r-stocks "Capex Unwind 2027–2028" cross-post, multiple StockTwits bubble warnings.
 3. **Project Kuiper setback via Blue Origin** — most concrete near-term negative, replicated across all three sources.
 4. **Buffett/Berkshire trim** — neutral-to-negative tape, partly defused by sell-side defenses.
 5. **AI cost-discipline pivot** — KiroRank shutdown frames AMZN as more disciplined than peers (mild positive on margins, mild negative on AI-velocity optics).
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 - *Catalysts (positive):* AWS reacceleration commentary into next print; BofA $310 PT visibility; AMZN's relative AI-ROI advantage if the bubble debate intensifies (defensive bid).
 - *Risks (negative):* Kuiper launch slippage from New Glenn failure; broader AI-capex de-rating; further high-profile institutional trimming following Berkshire; Health-segment leadership transition.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Supporting evidence |
 |---|---|---|---|
@@ -140,7 +140,7 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 | Retail bullish/bearish ratio (labeled) | Mildly bullish | StockTwits | 6 Bull / 4 Bear of 30; small sample |
 | Reddit engagement weight | Unknown | Reddit | RSS feed; scores/comments unavailable |
 
-### 6. Bottom line
+#### 6. Bottom line
 Sentiment lands **Mixed, leaning marginally bullish** (score 5.4). The institutional/sell-side tape is constructive on AWS and the AI thesis, and AMZN screens as the relative winner among hyperscalers in bubble-stress narratives. Offsetting that are three concrete negatives — the Kuiper/New Glenn setback, Berkshire's trim, and a persistent capex-bubble fear in retail channels. Confidence is **medium**: the news set is rich, but StockTwits sentiment labels are sparse (only 10 of 30 messages tagged) and Reddit lacks engagement metrics. Use this as one input alongside fundamentals and price action; do not treat it as a directional call.
 
 ### News Analyst
@@ -156,13 +156,13 @@ Amazon.com, Inc. (NASDAQ: **AMZN**) enters the final week of May 2026 in a compl
 
 #### 1. Company-Specific Developments (AMZN)
 
-### Bullish Catalysts
+#### Bullish Catalysts
 - **Bank of America Reiterates Buy (May 21):** Analyst Justin Post maintained a "Buy" rating with a **$310 price target**, citing healthier momentum in AWS cloud. AMZN is also being highlighted as one of the "Best Wide Moat Stocks" per Wall Street.
 - **AWS / Data Center Positioning:** AMZN is being described in coverage as "**The Best Data Center Stock with Huge Upside Potential**" — directly benefiting from the historic chip/AI rally (Nvidia, Micron entering trillion-dollar club, Marvell strong outlook).
 - **WSJ feature:** "The High-Stakes Hunt for the Next Amazon in the AI Haystack" — reinforces AMZN's position as the secular benchmark in the AI/cloud space.
 - **Motley Fool single-pick endorsement:** "The Only Tech Stock I'd Buy If I Could Only Pick One Right Now" — pointing to AMZN due to AI, space (Project Kuiper/Blue Origin-adjacent), and cloud exposure.
 
-### Bearish/Risk Catalysts
+#### Bearish/Risk Catalysts
 - **Greg Abel (Berkshire Hathaway) Sold Amazon Stock:** A meaningful negative signal — Berkshire's incoming CEO trimming/exiting AMZN raises questions about valuation or near-term outlook. Motley Fool counter-argued with "5 Reasons to Buy It."
 - **Internal AI strategy reset (May ~25):** Amazon shut down its internal AI leaderboard "**KiroRank**" — a sign that the "use more AI" mandate to employees is not flowing to the bottom line as hoped. This echoes Microsoft's similar pivot and raises concern about the **ROI of AI capex** — a critical issue given AMZN's massive AI-related infrastructure spend.
 - **Leadership change (May 27):** Neil Lindsay is stepping back after 15+ years, including 5 leading the healthcare unit — adds execution uncertainty in a strategic growth vertical (Amazon Pharmacy, One Medical).
@@ -173,23 +173,23 @@ Amazon.com, Inc. (NASDAQ: **AMZN**) enters the final week of May 2026 in a compl
 
 #### 2. Macroeconomic Backdrop
 
-### Geopolitics — Iran War (Month 4)
+#### Geopolitics — Iran War (Month 4)
 - **Iran war entering its fourth month** (Barron's). US says deals with Iran for safe Hormuz transit are **prohibited**; Strait of Hormuz transits rising thanks to US naval support.
 - Reports of **Americans injured in Iranian missile strike on Kuwaiti air base**; Trump sending mixed signals on war escalation.
 - **Truce extension news (May 29)** lifted silver prices — markets pricing some de-escalation hope, but situation remains highly fluid.
 - **Implication for AMZN:** Higher oil/gas prices feed into fulfillment, last-mile delivery, and AWS power costs. Consumer purchasing-power compression is a direct headwind to retail GMV.
 
-### Inflation & Consumer
+#### Inflation & Consumer
 - **Shoe prices rising** in March driven by Iran war/oil; **kids' shoe prices up**; **gas prices** trickling into fashion retail; **tomato prices +40% YoY**.
 - **"Job Concerns, Shoe Price Hikes and Shaky Consumer"** (Footwear News) — explicitly flags slower retail sales on the horizon. This is directly negative for Amazon's North American retail segment (~60% of revenue).
 - Coffee prices declining (Brazil harvest) — minor disinflation offset.
 
-### Rates & Liquidity
+#### Rates & Liquidity
 - **Higher Treasury yields threatening market climb** (Investing.com). Long-duration growth names like AMZN are most sensitive to rising yields.
 - **June labeled "Crunch Point"** — energy reserves burning, **rate hikes loom**. A hawkish Fed pivot is a meaningful risk vector for high-multiple tech.
 - **S&P 500 dividend yield at 1.08% — lowest since the 1800s** — signals the market is richly valued on traditional metrics.
 
-### Equity Market Tone
+#### Equity Market Tone
 - Stock market hit **fresh highs on Iran deal hopes**; Nvidia, Tesla and 5 trillion-dollar titans near buy points.
 - **SpaceX targeting ~$1.8T IPO**; OpenAI windfall fueling Asian AI supply-chain bets — significant capital sloshing into AI ecosystem (positive read-through for AWS demand).
 - **IPO commentary:** "IPOs are no longer Wall Street's starting line — they're the exit ramp" — suggests late-cycle capital markets behavior.
@@ -269,7 +269,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 #### 3. Income Statement Analysis (Quarterly Trend)
 
-### Revenue & Profit Trajectory (in $ Billions)
+#### Revenue & Profit Trajectory (in $ Billions)
 
 | Quarter | Revenue | Gross Profit | Operating Income | Net Income | Diluted EPS |
 |---|---|---|---|---|---|
@@ -279,7 +279,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 | Q4 2025 | $213.39 | $103.43 | $24.98 | $21.19 | $1.95 |
 | **Q1 2026** | **$181.52** | **$94.06** | **$23.85** | **$30.26** | **$2.78** |
 
-### Key Observations:
+#### Key Observations:
 - **Revenue Growth:** Q1 2026 revenue of $181.5B vs. Q1 2025 of $155.7B = **~16.6% YoY growth** — strong for a company of this scale.
 - **Gross Margin Expansion:** Gross margin rose from ~50.6% (Q1 2025) to **~51.8% (Q1 2026)** — driven by AWS and ads mix shift.
 - **Operating Margin:** Q1 2026 operating margin of **13.1%** vs. 11.8% in Q1 2025 — a ~130 bps improvement.
@@ -291,7 +291,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 #### 4. Balance Sheet Analysis (as of Q1 2026)
 
-### Asset Base — Building the AI/Cloud Backbone
+#### Asset Base — Building the AI/Cloud Backbone
 
 | Item | Q1 2026 | Q1 2025 | YoY Change |
 |---|---|---|---|
@@ -302,7 +302,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 | Stockholders' Equity | $441.9B | $305.9B | **+44.5%** |
 | Working Capital | $38.4B | $8.5B | **+353%** |
 
-### Critical Insights:
+#### Critical Insights:
 - **Massive PP&E expansion** ($486B) reflects unprecedented capex on **AI infrastructure (GPUs, data centers, custom Trainium silicon)** for AWS.
 - **Debt surged dramatically:** Long-term debt jumped from $65.6B (Q4 2025) to **$119.1B (Q1 2026)** — Amazon raised ~$53.4B in long-term debt in Q1 2026 alone. This funds the AI buildout but **increases leverage risk**.
 - **Debt/Equity:** 53.3% — manageable but rising.
@@ -314,7 +314,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 #### 5. Cash Flow Analysis
 
-### Operating & Free Cash Flow Trends
+#### Operating & Free Cash Flow Trends
 
 | Metric (Quarterly, $B) | Q1 2025 | Q2 2025 | Q3 2025 | Q4 2025 | Q1 2026 |
 |---|---|---|---|---|---|
@@ -322,7 +322,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 | CapEx | -$25.0 | -$32.2 | -$35.1 | -$39.5 | **-$44.2** |
 | Free Cash Flow | -$8.0 | $0.3 | $0.4 | $14.9 | **-$18.2** |
 
-### Key Takeaways:
+#### Key Takeaways:
 - **CapEx is exploding:** $44.2B in Q1 2026 alone. TTM CapEx ≈ $151B — a structural shift to support AI/cloud demand.
 - **TTM Free Cash Flow only $9.8B**, severely compressed vs. historical levels because of capex intensity. **This is the single biggest fundamental concern.**
 - **Operating cash flow remains strong** ($148B+ TTM), but capex is consuming nearly all of it.
@@ -333,14 +333,14 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 #### 6. Strategic & Fundamental Themes
 
-### 🟢 Bullish Drivers
+#### 🟢 Bullish Drivers
 1. **AWS + AI dominance:** Massive infrastructure investment positions Amazon to capture next-gen enterprise AI workloads.
 2. **Margin expansion across retail:** Gross margins expanding ~120 bps YoY indicates operating leverage and Prime/ad mix benefits.
 3. **Advertising business** (now ~$60B+ run-rate) is a high-margin, fast-growing pillar.
 4. **ROE of 24.3%** demonstrates strong capital efficiency despite asset-heavy buildout.
 5. **Strong liquidity**: $143B in cash/short-term investments.
 
-### 🔴 Bearish / Risk Factors
+#### 🔴 Bearish / Risk Factors
 1. **Free cash flow collapse:** TTM FCF of only $9.8B vs. ~$50B+ historical levels — capex intensity is running ahead of cash generation.
 2. **Debt build-up:** $53B raised in Q1 2026; total debt now $209.9B vs. $133B a year ago. Rising interest expense risk.
 3. **Earnings quality:** Q1 2026 net income heavily boosted by **$15.7B in non-recurring security gains** — normalized EPS is closer to **$1.69 vs. reported $2.78**.
@@ -380,7 +380,7 @@ The standout narrative is the **transformation of Amazon's balance sheet into an
 
 ---
 
-### Actionable Synthesis for Traders
+#### Actionable Synthesis for Traders
 
 - **Long-term thesis intact**: AWS scaling, advertising, and operating margin expansion remain powerful. Amazon is investing through the cycle — historically rewarded.
 - **Short-term caution**: Free cash flow compression, rising debt, and earnings quality (unusual gains in Q1 2026) suggest traders should **avoid chasing strength near 52-week highs ($278)** and look for entries closer to the 200-day MA ($231) or on capex-related guidance pullbacks.

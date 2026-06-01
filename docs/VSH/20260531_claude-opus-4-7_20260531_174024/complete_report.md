@@ -20,24 +20,24 @@ The intraday range on May 28 ($48.03–$53.60) and May 29 ($50.84–$55.24) show
 
 #### 2. Indicator-by-Indicator Analysis
 
-### Trend (50 SMA, 200 SMA, 10 EMA)
+#### Trend (50 SMA, 200 SMA, 10 EMA)
 - **Close:** $52.05 (May 29)
 - **10 EMA (5/29):** **$45.74** — price ~13.8% above the 10 EMA, confirming acceleration steeper than even the fast trend filter can keep up with.
 - **50 SMA (5/29):** **$28.95** — price is roughly **+80% above its 50-day average**, an extraordinary statistical extension.
 - **200 SMA (5/29):** **$19.31** — price trades at **~2.7x the 200-day mean**, an exceedingly rare extension.
 - The 50 SMA is rising sharply ($26.93 on 5/26 → $28.95 on 5/29) and is well above the 200 SMA ($18.76 → $19.31), confirming a textbook **bullish long-term trend regime**. Slope is steepening.
 
-### Momentum (MACD, MACD Histogram, RSI)
+#### Momentum (MACD, MACD Histogram, RSI)
 - **MACD (5/29):** **6.28**, up from 4.63 on 5/22 and 3.85 on 5/20 — the line is rising and accelerating, not flattening.
 - **MACD Histogram (5/29):** **+1.23**, expanded from +0.29 on 5/20 → +0.77 on 5/22 → +1.27 on 5/28. Histogram is making higher highs, signalling **no momentum divergence yet**; price strength is being matched by indicator strength.
 - **RSI (5/29):** **84.13**. RSI has held above 70 essentially since early May (range 74–88 over the entire month). It hit a recent peak of **88.26 on 5/26**, then 84.85 on 5/28, and 84.13 on 5/29. This is a *trend-riding* RSI pattern — chronically overbought but not yet diverging. There is no negative divergence (price made new highs on 5/29, RSI did not exceed its 5/26 peak — a *very early* warning sign worth monitoring but not yet confirmed).
 
-### Volatility (Bollinger Upper Band, ATR)
+#### Volatility (Bollinger Upper Band, ATR)
 - **Bollinger Upper Band (5/29):** **$53.69**. Close of $52.05 sits just below the upper band — price is "riding the band," typical of strong trends but high-risk for late entries.
 - The upper band has expanded enormously: **$31.97 on 5/04 → $53.69 on 5/29 (+68% in 19 sessions)**. This reflects exploding standard deviation.
 - **ATR (5/29):** **$2.83**, up from $1.20 on 5/01 — a **+136% increase in average daily range**. A 1-ATR stop now equals ~5.4% of the share price; a 2-ATR stop (~$5.66) is required for breathing room.
 
-### Volume Confirmation (VWMA)
+#### Volume Confirmation (VWMA)
 - **VWMA (5/29):** **$42.34** vs. close $52.05. Price is ~23% above the volume-weighted mean — confirming that *the breakout is supported by genuine volume*, not just thin tape. Volume on the largest up-days (May 13: 11.9M; May 26: 9.8M; May 22: 9.1M) corroborates institutional participation.
 
 #### 3. Synthesis & Trading Implications
@@ -97,7 +97,7 @@ The intraday range on May 28 ($48.03–$53.60) and May 29 ($50.84–$55.24) show
 
 #### VSH Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 **News (Yahoo Finance / Zacks / StockStory) — Bullish framing, momentum-confirming.**
 Three headlines, all positive in tone and all centered on a single dominant narrative: Vishay Intertechnology's shares have surged ~185–200% in roughly two months. Zacks explicitly attributes the rally to "rising orders, backlog growth and AI-linked demand fuel[ing] the analog chip recovery," and groups VSH with high-profile peers (Micron, SanDisk, ON Semi, TXN, ADI), elevating it as a featured beneficiary of the analog/AI cycle. A second Zacks piece ("Stock Surges 185%, Can the Rally Continue?") asks the natural extension question — bullish framing, but with an implicit caution about sustainability. StockStory's piece flags VSH among "surging stocks with promising prospects" trading near 52-week highs. No bearish/cautionary headlines in the sample. Institutional framing is therefore bullish but starting to acknowledge the "is this overdone?" question.
@@ -106,21 +106,21 @@ Three headlines, all positive in tone and all centered on a single dominant narr
 
 **Reddit (r/wallstreetbets, r/stocks, r/investing) — Silent.** No posts found mentioning VSH in the past 7 days. Despite a parabolic move, the major equity subs have not picked it up — meaning the rally is institutional/momentum/StockTwits-driven rather than a WSB meme. This reduces the meme-blowoff risk somewhat but also limits cross-source confirmation.
 
-### 2. Cross-source divergences and alignments
+#### 2. Cross-source divergences and alignments
 - **Alignment:** News and StockTwits both lean bullish and both anchor on the same fact pattern (huge multi-hundred-percent rally, AI/analog demand recovery).
 - **Divergence:** News is starting to ask "can the rally continue?" while StockTwits retail is still in celebration/FOMO mode ("Can I enter now? Is it too high?", "over 50 soon"). The lone bearish StockTwits voice (overbought RSI short thesis) is not yet echoed in news flow.
 - **Reddit silence** is a mild divergence from the noise on StockTwits — suggests retail enthusiasm is concentrated on the cashtag-trader platform, not the broader Reddit community.
 
-### 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **AI-linked analog/semiconductor demand recovery** — the institutional thesis (Zacks).
 2. **Parabolic momentum / multi-bagger move from ~$1.70 to ~$10+ (and intra-week prints near $51 in options/cash discussions)** — the dominant retail theme.
 3. **Overbought / profit-taking risk** — minority but well-articulated counter-narrative (RSI 88–90+, "primed for a short").
 
-### 4. Catalysts and risks
+#### 4. Catalysts and risks
 - **Catalysts (bullish):** AI demand pull-through to analog chips; backlog/orders growth cited by Zacks; positive Dell earnings read-through (per StockTwits); inclusion in featured peer baskets alongside MU, SNDK, ON, TXN, ADI; momentum/technical breakout structure.
 - **Risks (bearish):** Extreme RSI readings (weekly 88–90+) flagged by short-sellers; promotional/pump-style posts clustering (often a late-cycle signal); news flow itself starting to question rally sustainability; no fundamental earnings catalyst in the window — move is sentiment- and flow-driven; thin Reddit attention means weak retail base if momentum traders rotate out.
 
-### 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -134,7 +134,7 @@ Three headlines, all positive in tone and all centered on a single dominant narr
 | FOMO entry questions | Late-stage bullish | StockTwits | "Can I enter now? Is it too high?" |
 | Reddit attention | Neutral / absent | Reddit | No posts in r/WSB, r/stocks, r/investing |
 
-### Bottom line
+#### Bottom line
 Sentiment for VSH over 2026-05-24 to 2026-05-31 is **Bullish** (score ~7.2/10), driven by alignment between positive news framing of an AI-linked analog recovery and a strongly bullish StockTwits skew. Confidence is **medium** because (a) Reddit data is empty, removing one cross-check, (b) the news sample is only three headlines, and (c) the very strength of the signal coincides with classic late-stage warning signs — pump-style victory posts, FOMO entry questions, and credible overbought/short thesis. Traders should weight this sentiment read against technicals (RSI extremes) and position-sizing discipline; the dominant direction is up, but the asymmetry of risk is deteriorating as the move matures.
 
 ### News Analyst
@@ -159,25 +159,25 @@ Vishay Intertechnology (**VSH**) has emerged as one of the most explosive moment
 
 #### 2. Company-Specific News (May 2026)
 
-### 2.1 Q1 2026 Earnings — Inflection Point (Reported May 13, 2026)
+#### 2.1 Q1 2026 Earnings — Inflection Point (Reported May 13, 2026)
 - **Revenue:** $839.2M, up **+17.3% YoY**, beating consensus.
 - **Gross Margin:** 21.0% — recovering from cyclical trough.
 - **GAAP EPS:** $0.05 (net income $7.16M), reversing prior-year loss of $4.09M. Non-GAAP EPS beat by $0.02.
 - **Q2 Guidance:** ~$890M midpoint, **1.6% above consensus** — implies continued sequential improvement.
 - **Strategic narrative:** Management cited "broad-based demand improvements," stronger bookings, and capacity investments under the **"Vishay 3.0" strategy**. Simply Wall St noted the strong earnings deserve scrutiny (potential one-offs), but the StockStory deep-dive characterized the recovery as broad-based with margin progress.
 
-### 2.2 Product Catalysts
+#### 2.2 Product Catalysts
 - **Automotive Grade Optocouplers** for EVs and solar inverters — high insulation, safety margins.
 - **PCIM Europe 2026 showcase** focused on electrification, energy efficiency, higher power density.
 - **New 3000W TVS (Transient Voltage Suppressors)** in DFN6546A package, AEC-Q101 qualified for automotive — addressing EV/ADAS surge protection.
 
-### 2.3 Stock Action & Sentiment Drivers
+#### 2.3 Stock Action & Sentiment Drivers
 - VSH up **+185%** over 2 months; Zacks Rank **#1 (Strong Buy)** added May 19 and May 22.
 - Featured in multiple bullish pieces: "5 Mid-Cap AI Infrastructure Stocks to Buy at Discounted Value," and momentum lists.
 - Trading alongside semiconductor peers (Teradyne, Monolithic Power, Lam Research, Semtech) ahead of NVDA earnings — VSH is being treated as an **AI infrastructure derivative** play (analog/passive content per AI server unit is rising).
 - Cited as benefiting from analog chip cycle recovery alongside Micron, Sandisk, ON Semi, Texas Instruments, and Analog Devices.
 
-### 2.4 Risk Flags
+#### 2.4 Risk Flags
 - **Valuation stretched:** Simply Wall St explicitly cited "elevated valuation concerns."
 - VSH appeared in a **"3 Cash-Burning Stocks We Think Twice About"** article — historical free cash flow has been pressured by capex under Vishay 3.0 capacity expansion plans.
 - Q1 print included potentially non-recurring items per Simply Wall St ("Additional Considerations… Strong Earnings").
@@ -186,42 +186,42 @@ Vishay Intertechnology (**VSH**) has emerged as one of the most explosive moment
 
 #### 3. Macroeconomic & Sector Backdrop
 
-### 3.1 Geopolitical: US-Iran Conflict
+#### 3.1 Geopolitical: US-Iran Conflict
 - Active **US-Iran war** is dominating headlines. Oil supermajors (Exxon, Chevron) warning prices "could skyrocket in the coming weeks."
 - **Truce extension news on May 29** lifted silver and risk assets briefly — fragile equilibrium.
 - Sector implications: Higher oil → input cost pressure for industrials/automotive customers of VSH; potential supply chain disruption risk.
 
-### 3.2 Rates & Liquidity
+#### 3.2 Rates & Liquidity
 - **Higher Treasury yields** are flagged as a potential threat to the market's climb (Investing.com). Rising yields typically pressure high-multiple semiconductor names — relevant for VSH given its sharp re-rating.
 
-### 3.3 Inflation & Consumer
+#### 3.3 Inflation & Consumer
 - Persistent goods inflation (footwear, gas-driven retail markups, tomatoes +40%, coffee volatility).
 - "Job concerns and shaky consumer" suggest **slower discretionary sales on the horizon** — a moderate negative for VSH's automotive/consumer end-markets, partially offset by industrial/AI strength.
 
-### 3.4 AI Infrastructure Tailwind (Dominant Equity Theme)
+#### 3.4 AI Infrastructure Tailwind (Dominant Equity Theme)
 - **"Dell Soars as AI Party Keeps Raging"** (Market Minute 5/29) — confirms AI capex cycle remains intense.
 - VSH benefits indirectly via passive/discrete content for AI servers (power conversion, filtering, protection). This is the single most important narrative driver of the recent rally.
 
-### 3.5 Commodities
+#### 3.5 Commodities
 - **Silver** rallying — bullish for component cost basis given silver's use in passive components (capacitors, contacts). Could pressure VSH gross margins if sustained, though the company is typically able to pass through pricing in tight markets.
 
 ---
 
 #### 4. Trading Implications & Actionable Insights
 
-### Bull Case
+#### Bull Case
 1. Genuine cyclical recovery confirmed by Q1 beat + raised Q2 guide.
 2. AI infrastructure tailwind plus structural EV/solar content growth.
 3. Strong Buy momentum rating; bookings and backlog accelerating.
 4. Vishay 3.0 capacity expansion timed to ramp into the up-cycle.
 
-### Bear Case
+#### Bear Case
 1. **+185% in 2 months is parabolic** — mean-reversion risk is high.
 2. Valuation concerns explicitly flagged; some sell-side viewing it as a momentum chase.
 3. Macro headwinds: rising yields, Iran war oil shock, weakening consumer, cash-burn flag.
 4. Gross margin still only 21% — meaningful runway to prove sustainability.
 
-### Tactical View
+#### Tactical View
 - **Trend-following longs**: Use the **21-day EMA** as trailing support per IBD piece — break below would mark first warning.
 - **New money**: Wait for an orderly pullback (10–15%) toward 21D EMA before initiating; chasing extension here is unfavorable risk/reward.
 - **Existing longs**: Trim into strength, ride a core position; protect gains with stops below 21D EMA.

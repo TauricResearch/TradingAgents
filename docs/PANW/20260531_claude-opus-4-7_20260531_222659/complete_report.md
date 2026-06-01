@@ -65,7 +65,7 @@ Net move from the 3/27 low ($147.02) to 5/29 ($281.69) = **+91.6% in ~9 weeks**.
 
 #### 3. Indicator-by-Indicator Reading
 
-### 3.1 Moving Averages — Bullish stack newly intact
+#### 3.1 Moving Averages — Bullish stack newly intact
 
 | Date | Close | 10 EMA | 50 SMA | 200 SMA |
 |---|---|---|---|---|
@@ -78,7 +78,7 @@ Net move from the 3/27 low ($147.02) to 5/29 ($281.69) = **+91.6% in ~9 weeks**.
 - **Price vs 10 EMA gap:** $281.69 − $252.01 = **$29.68 (11.8% extension)**. Historically extreme; mean-reversion risk.
 - **50 SMA / 200 SMA "near-cross":** On 5/29 the 50 SMA ($191.42) is now *above* the 200 SMA ($189.41) by ~$2 — a fresh **golden cross** has just occurred. Strategically bullish over a multi-month horizon.
 
-### 3.2 MACD — Powerful, still expanding
+#### 3.2 MACD — Powerful, still expanding
 
 | Date | MACD | Signal | Histogram |
 |---|---|---|---|
@@ -90,7 +90,7 @@ Net move from the 3/27 low ($147.02) to 5/29 ($281.69) = **+91.6% in ~9 weeks**.
 - MACD is at extreme positive levels (22.57) and remains above the signal line — uptrend intact.
 - **Watch the histogram:** It peaked around 5/15 at +5.69 and has narrowed to +2.78 by 5/29. This is an early hint that *acceleration* is fading even as price keeps making new highs — a subtle momentum divergence forming. Not a sell signal yet, but it removes the "easy" part of the trend.
 
-### 3.3 RSI — Persistently overbought, ripe for cooling
+#### 3.3 RSI — Persistently overbought, ripe for cooling
 
 | Date | RSI |
 |---|---|
@@ -106,7 +106,7 @@ Net move from the 3/27 low ($147.02) to 5/29 ($281.69) = **+91.6% in ~9 weeks**.
 - RSI has been above 70 essentially without break since 5/11 — almost three weeks. In strong trends this is normal, but the magnitude (peak 87) is in the top tier of historical overbought readings.
 - Because price made a fresh high ($281.69 on 5/29) while RSI's recent peak (87.00 on 5/18) was higher than its 5/29 reading (80.47), there is **a mild bearish RSI/price divergence**. This is a classical caution signal — not a definitive top, but argues against fresh chasing.
 
-### 3.4 ATR — Volatility expansion
+#### 3.4 ATR — Volatility expansion
 
 | Date | ATR (14) |
 |---|---|
@@ -118,7 +118,7 @@ Net move from the 3/27 low ($147.02) to 5/29 ($281.69) = **+91.6% in ~9 weeks**.
 - ATR jumped ~69% in five weeks. A $1 move now is "small"; expect typical daily ranges of $10–12. Position sizing must shrink accordingly.
 - Practical stop framework: a 2×ATR stop from the close = $281.69 − $23.38 = **~$258**, which neatly aligns with the 5/27 swing low of $245–$251. Tighter aggressive stop: 1×ATR ≈ $270.
 
-### 3.5 Bollinger Upper Band — Riding, not piercing
+#### 3.5 Bollinger Upper Band — Riding, not piercing
 
 | Date | Close | Upper Band | Distance |
 |---|---|---|---|
@@ -202,7 +202,7 @@ Net move from the 3/27 low ($147.02) to 5/29 ($281.69) = **+91.6% in ~9 weeks**.
 
 #### PANW Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1) Source-by-source breakdown
+#### 1) Source-by-source breakdown
 
 **News headlines (Yahoo Finance, ~20 PANW-relevant items):** Institutional framing skews clearly bullish into the June 2 fiscal Q3 earnings print.
 - **Sell-side upgrades:** Wedbush raised PT to $300 (from $225) on May 27 citing "platformization," then escalated to a Street-high $325 on accelerating AI cybersecurity demand and Q2 revenue of $2.6B. Morgan Stanley (Meta Marshall) raised PT to $253 from $223 with Overweight on May 20.
@@ -223,23 +223,23 @@ Net move from the 3/27 low ($147.02) to 5/29 ($281.69) = **+91.6% in ~9 weeks**.
 - r/stocks & r/investing: identical "highest-P/E large caps as a basket" thread — PANW appears as a member of the high-multiple cohort, which is a *valuation* mention rather than a bullish thesis. Implicitly cautionary on multiple risk.
 - Sample is too small to be a robust signal; flag this in confidence.
 
-### 2) Cross-source divergences and alignments
+#### 2) Cross-source divergences and alignments
 - **Strong alignment (bullish):** Sell-side, news flow, retail StockTwits all align on AI-cybersecurity tailwind, NATO win, and earnings optimism.
 - **Mild divergence:** Reddit's only substantive mention frames PANW within a *high-P/E* contrarian basket — a quiet valuation/extension caution that echoes the minority "extended chart / sell before ER" voices on StockTwits.
 - The dominant signal is bullish; the dissent is about *positioning into a binary event*, not about company fundamentals.
 
-### 3) Dominant narrative themes
+#### 3) Dominant narrative themes
 1. AI-driven cybersecurity demand accelerating; PANW + CRWD as primary platform beneficiaries.
 2. Platformization thesis validated — Wedbush's two PT hikes in a week and the new Street-high $325.
 3. NATO partnership as a credibility/government-vertical catalyst.
 4. Competitor weakness (SentinelOne layoffs/guide cut) consolidating share toward PANW.
 5. Pre-earnings extension risk — stock up materially YTD, multiples elevated.
 
-### 4) Catalysts and risks
+#### 4) Catalysts and risks
 - **Catalysts (next 1–2 weeks):** Fiscal Q3 earnings June 2 after close (PANW first out of cyber cohort, ahead of CRWD June 3); options market implying outsized move; NATO deal momentum; sector read-through if CRWD/AVGO also beat.
 - **Risks:** (a) Buy-the-rumor/sell-the-news given +67% move since April; (b) elevated multiples flagged on Reddit and by StockTwits skeptics; (c) PAN-OS GlobalProtect authentication advisory circulating (unverified severity); (d) macro — jobs report Friday, PCE 3.8%, Fed-rate-hike fear if payrolls hot; (e) corporate cyber budget tightening cited in SentinelOne piece could surprise on the print.
 
-### 5) Summary table
+#### 5) Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -274,7 +274,7 @@ Palo Alto Networks (PANW) enters the final week of May 2026 with **strongly bull
 
 #### 2. Company-Specific Catalysts (PANW)
 
-### 2.1 Bullish Drivers
+#### 2.1 Bullish Drivers
 - **NATO Strategic Partnership:** PANW announced a strategic cybersecurity partnership with NATO; shares jumped ~4.1% intraday. This is a major sovereign/defense customer win, validating the "platformization" thesis and opening a multi-year government revenue runway.
 - **Wedbush Street-High PT $325** (raised from $225 → $300 on May 27, then to $325): Cited (i) accelerating AI-driven cybersecurity demand, (ii) solid platformization momentum, (iii) Q2 FY26 revenue of $2.6B. Outperform reiterated.
 - **Morgan Stanley PT $253** (from $223, OW) — analyst Meta Marshall on May 20.
@@ -286,7 +286,7 @@ Palo Alto Networks (PANW) enters the final week of May 2026 with **strongly bull
 - **Competitive Positioning:** **SentinelOne** issued tepid guidance and announced 8% layoffs — explicit Reuters note that SentinelOne "faces intense competition from larger rivals such as CrowdStrike and Palo Alto Networks." Share consolidation accruing to PANW.
 - **Debt-Free Balance Sheet:** Highlighted as one of the "10 Best Debt-Free S&P 500 Stocks to Buy."
 
-### 2.2 Risk / Watch Items
+#### 2.2 Risk / Watch Items
 - **Demand softening signal:** Reuters notes "some corporate clients are tightening their budgets, scrutinizing deals and extending sales cycles" — a sector-wide caveat.
 - **Microsoft bundling threat:** Continues to pressure standalone cybersecurity vendors, though PANW's platform scale provides defense.
 - **Cisco** is intensifying competition, tying its Security segment + Splunk observability into AI infrastructure cycle.
@@ -296,22 +296,22 @@ Palo Alto Networks (PANW) enters the final week of May 2026 with **strongly bull
 
 #### 3. Macro Environment (Last 7 Days)
 
-### 3.1 Geopolitics — Iran War (4th Month)
+#### 3.1 Geopolitics — Iran War (4th Month)
 - The Iran war has now run **90+ days** and is fundamentally **rewiring global energy markets**.
 - Markets are **rallying on "Iran deal hopes"** and "peace deal" headlines — S&P 500, Dow, Nasdaq at fresh records.
 - **Truce extension news** (May 29) lifted silver and risk assets.
 - **Defense/cyber spending** is a structural beneficiary — directly relevant to PANW's NATO win.
 
-### 3.2 Energy & Inflation
+#### 3.2 Energy & Inflation
 - Oil prices elevated; Mizuho raising oil-sensitive E&P targets (Devon Energy).
 - Inflation pass-through visible: footwear, tomatoes (+40% YoY), gas → fashion retail.
 - "**June labeled 'Crunch Point'**" — energy reserves burning through; rate hikes loom.
 
-### 3.3 Rates & Equity Risk
+#### 3.3 Rates & Equity Risk
 - **"Will higher Treasury yields threaten the market's climb?"** — rising yields a notable headwind to high-multiple software (PANW).
 - Consumer signals weakening (job concerns, slower retail sales horizon).
 
-### 3.4 AI Spending Cycle Intact
+#### 3.4 AI Spending Cycle Intact
 - Dell soared on AI; Broadcom near highs into earnings; AI capex remains the dominant equity narrative.
 - PANW directly leverages this via AI-powered cybersecurity (Cortex XSIAM, Prisma AI, etc.).
 

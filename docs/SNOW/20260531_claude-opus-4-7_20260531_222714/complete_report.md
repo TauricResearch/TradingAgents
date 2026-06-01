@@ -160,7 +160,7 @@ SNOW has traveled through three distinct phases over the past seven months:
 
 #### SNOW Sentiment Report — 2026-05-24 to 2026-05-31
 
-### 1. Source-by-Source Breakdown
+#### 1. Source-by-Source Breakdown
 
 **News (Yahoo Finance, ~20 headlines):** Overwhelmingly bullish institutional framing centered on a blowout earnings print and a newly announced US$6 billion, five-year AWS AI infrastructure collaboration. Motley Fool calls Snowflake "the spark" that may end the software-sector laggard narrative; Simply Wall St. reports a 1-day share return of +6.84% and a 7-day return of +48.40% around the print. Fortune highlights CEO Sridhar Ramaswamy's commentary that the "monster quarter" validates consumption-based pricing in the AI age. Jim Cramer (via Insider Monkey) called the stock "flying as it should be," arguing AI displacement fears do not apply. Goldman Sachs "massively reset" its 2026 price target higher (TheStreet). Notably, at least eight separate StockStory articles cite Snowflake's "best single-session day on record" as the catalyst that broke the "SaaSpocalypse" narrative and triggered an AI-conviction wave across NOW, DDOG, TEAM, CRWD, PANW, HUBS, WDAY, NTNX, and others — meaning SNOW is being positioned as the bellwether for an entire software re-rating. The only mild caution comes from Simply Wall St.'s valuation piece, which juxtaposes the sharp short-term momentum against a softer 1-year backdrop, implying valuation risk after a +48% week.
 
@@ -172,20 +172,20 @@ SNOW has traveled through three distinct phases over the past seven months:
 - r/investing is silent, which is consistent with the move being too recent/momentum-driven for that community's typical longer-horizon discussion.
 - Engagement scores were unavailable (RSS feed), so we weight by post count and tone rather than upvotes.
 
-### 2. Cross-Source Alignment & Divergences
+#### 2. Cross-Source Alignment & Divergences
 
 All three sources are aligned bullish, which is unusual and itself a strong directional signal. Institutional news is event-driven (earnings beat, raised guidance, $6B AWS deal, Goldman PT reset), retail StockTwits is opinion-driven and momentum-chasing, and Reddit is celebratory/FOMO. The lack of any meaningful bearish counter-narrative is notable — the only friction comes from (a) valuation-after-the-rip caution in one Simply Wall St. piece and (b) a couple of technical traders on StockTwits flagging Wave B / pullback risk. No source disputes the underlying fundamentals.
 
 The mild divergence worth flagging: the news flow celebrates a *fundamental* re-acceleration; Reddit/StockTwits celebrate a *price* move. After +48% in a week, retail euphoria can be a contrarian short-term signal even when the fundamental story is intact.
 
-### 3. Dominant Narrative Themes
+#### 3. Dominant Narrative Themes
 
 1. **"SaaSpocalypse is over."** SNOW's print is being framed across news outlets and Reddit as proof that AI is a tailwind, not a displacement risk, for data-cloud software. This is the single largest narrative.
 2. **The $6B AWS AI partnership as a moat-deepener** — agentic AI, Cortex, foundation-model integration, governed enterprise data.
 3. **Sector bellwether / rotation trade** — SNOW's move triggered sympathy rallies across the entire software complex (NOW, DDOG, CRWD, PANW, TEAM, HUBS, WDAY, MDB, PLTR), and r/stocks explicitly identifies SNOW as the lead name in a hardware-to-software AI rotation.
 4. **Consumption-pricing vindication** — CEO commentary positioning consumption-based revenue models as structurally advantaged vs. seat-based SaaS in the AI era.
 
-### 4. Catalysts & Risks
+#### 4. Catalysts & Risks
 
 **Catalysts (already priced or pending):**
 - Q1 FY27 earnings beat + raised full-year product revenue guidance (already in price)
@@ -201,7 +201,7 @@ The mild divergence worth flagging: the news flow celebrates a *fundamental* re-
 - **Competitive pressure:** ServiceNow positioning itself as an AI "control tower" layered on top of Snowflake/Dell could pressure long-term value capture.
 - **Macro:** MarketBeat notes the rally was supported by tech leadership and a US-Iran ceasefire extension — geopolitical reversal would hit beta names like SNOW disproportionately.
 
-### 5. Summary Table
+#### 5. Summary Table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -238,26 +238,26 @@ This is a classic "reset-then-rip" setup — the question is whether the move is
 
 #### 1. Company-Specific Catalysts (Past 7 Days)
 
-### A. Earnings Re-acceleration
+#### A. Earnings Re-acceleration
 - **Revenue growth re-accelerated** (exact print not in news snippets but described as "blowout" / "shot the lights out" / "monster quarter").
 - **Full-year product revenue guidance was raised**, a meaningful reversal from the deceleration narrative that dominated Q1 2026.
 - Jim Cramer: *"ironclad proof that AI displacement worries simply don't apply to some software companies."*
 
-### B. The $6B AWS AI Deal — Structural Moat Expansion
+#### B. The $6B AWS AI Deal — Structural Moat Expansion
 - **Multi-year, ~$6 billion infrastructure commitment** with Amazon Web Services.
 - Deeper integration of Snowflake's **AI Data Cloud + Cortex AI** with AWS chips and global regions.
 - Positions Snowflake as the **governed enterprise data layer for foundation-model and agentic AI workloads** — directly addressing the bear thesis that hyperscalers (AWS, Azure, GCP) would disintermediate Snowflake in the AI era.
 - Effectively converts AWS from competitor-frenemy into a co-investor/co-seller for AI workloads.
 
-### C. CEO Strategic Messaging
+#### C. CEO Strategic Messaging
 - CEO **Sridhar Ramaswamy** publicly argued that **seat-based SaaS pricing models are obsolete in the AI era**, and **consumption-based pricing (Snowflake's model)** is the structural winner.
 - This narrative directly attacks competitors with per-seat models (Salesforce, Workday, HubSpot, even Microsoft 365 Copilot pricing) and reframes SNOW as the AI-pricing-model winner.
 
-### D. Sell-Side Reaction
+#### D. Sell-Side Reaction
 - **Goldman Sachs "massively reset" its 2026 price target** higher (specific number not provided in snippet, but context implies a major upgrade).
 - Stock closed the week with **+6.84% single-day** and **+48.40% 7-day** returns.
 
-### E. Competitive Read-throughs
+#### E. Competitive Read-throughs
 - **ServiceNow** is positioning itself as an "AI Control Tower" and integrating directly with Snowflake — reinforces SNOW as the data substrate for enterprise AI.
 - **Dell** earnings beat reinforced AI-infrastructure demand; **Palantir** rallied on Dell partnership validation. Both data points support the AI-data-stack thesis SNOW anchors.
 
@@ -267,43 +267,43 @@ This is a classic "reset-then-rip" setup — the question is whether the move is
 
 The macro environment is **mixed-to-cautious**, but tech/AI is decoupling positively from broader risk-off flows.
 
-### A. Geopolitical — U.S./Iran War (Now in Month 4)
+#### A. Geopolitical — U.S./Iran War (Now in Month 4)
 - The **Iran war has entered its fourth month** — energy markets remain "rewired."
 - A **U.S.–Iran ceasefire/truce extension** is being eyed by markets and was a tailwind for risk assets late last week.
 - First-order impact on SNOW is minimal, but elevated **oil/energy prices** are pressuring CPI and consumer goods (footwear, food).
 
-### B. Inflation & Rates
+#### B. Inflation & Rates
 - Energy-driven inflation pressures persist (oil, gas, tomatoes +40% YoY, footwear).
 - Headlines flagging **"rate hikes loom"** and **"higher Treasury yields threaten the market's climb"** — meaningful risk to high-multiple software names like SNOW if yields spike further.
 - **June labeled a "crunch point"** for energy reserves and rate decisions.
 
-### C. Equity Market Tone
+#### C. Equity Market Tone
 - Tech stocks **led a strong week** (MarketBeat Week in Review).
 - **AI conviction trade** is the dominant flow, sparked by SNOW + Dell.
 - Sympathy rallies across software (TEAM +15%, NOW +12.7%, DDOG +8%, PLTR +8.5%, CRWD, PANW, etc.) confirm broad re-risking into the group.
 
-### D. Consumer Stress Signals
+#### D. Consumer Stress Signals
 - Multiple headlines flag **slowing consumer sales, job concerns, rising goods prices** — bearish for cyclical names but somewhat insulating for **enterprise IT/AI capex**, which is currently in a secular spend cycle.
 
 ---
 
 #### 3. Trading-Relevant Insights & Risks
 
-### Bull Case (currently dominant)
+#### Bull Case (currently dominant)
 1. **Re-acceleration is real**, not a one-quarter blip — guidance raise validates.
 2. **AWS $6B deal** neutralizes the hyperscaler-disintermediation bear thesis.
 3. **Consumption pricing** thesis aligns with AI-era workload growth.
 4. **Sector rotation into software** is in early innings post-"SaaSpocalypse."
 5. Sell-side upgrades (Goldman) likely to be followed by others → consensus drift higher.
 
-### Bear/Risk Case
+#### Bear/Risk Case
 1. **Valuation reset**: stock is up ~48% in 7 days — **near-term overbought**, technical pullback risk high.
 2. **Higher Treasury yields** are an explicit risk to high-multiple software.
 3. **Iran war / energy inflation** could force the Fed hawkish, compressing multiples.
 4. The **$6B AWS commitment is a cash outflow** — capex intensity rises; margin/FCF profile needs monitoring.
 5. **1-year share return still negative** (per Simply Wall St.) — overhead supply from underwater holders may cap upside short-term.
 
-### Actionable Read
+#### Actionable Read
 - **Momentum/trend traders:** trend is strongly up; pullbacks toward the post-earnings gap likely buyable.
 - **Value/contrarian:** entry now is chasing — wait for a **5–10% consolidation** before adding.
 - **Pair trades:** Long SNOW vs. short legacy seat-based SaaS (e.g., per-seat CRM names) aligns with CEO's pricing-model thesis.
@@ -502,7 +502,7 @@ The stock has corrected from $280 → ~$155 area (50DMA), reflecting a multiple 
 
 ---
 
-### Trader Takeaway
+#### Trader Takeaway
 Snowflake remains a **high-quality, top-line growth story with elite FCF generation**, but **GAAP profitability is still distant**, **dilution from SBC is structural**, and the **stock's valuation remains demanding** (PEG 6.85, Fwd P/E ~98x). The recent ~45% drawdown from the 52-week high and break below the 200DMA indicates negative momentum and likely de-rating. Bulls can point to accelerating revenue (~30% YoY), improving margins, and $1.7B+ TTM FCF; bears highlight equity erosion, persistent GAAP losses, and rich multiples. Position sizing should reflect both elevated valuation risk and a structural growth thesis.
 
 ## II. Research Team Decision
