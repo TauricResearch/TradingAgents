@@ -29,7 +29,7 @@ class PriceState:
     tickers: Callable[[], list[str]]
 
 
-async def _poll_once(state: PriceState, broadcast: Callable[[dict], None]) -> None:
+async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], None]]) -> None:
     tickers = list(state.tickers())
     if not tickers:
         return
@@ -58,17 +58,18 @@ async def _poll_once(state: PriceState, broadcast: Callable[[dict], None]) -> No
             snap.stale = True
         state.snapshots[ticker] = snap
 
-        broadcast(events.make_event(
-            "price_update",
-            run_id=0,
-            data={
-                "ticker": ticker,
-                "price": snap.price,
-                "change_pct": snap.change_pct,
-                "sparkline": snap.sparkline,
-                "stale": snap.stale,
-            },
-        ))
+        if broadcast is not None:
+            broadcast(events.make_event(
+                "price_update",
+                run_id=0,
+                data={
+                    "ticker": ticker,
+                    "price": snap.price,
+                    "change_pct": snap.change_pct,
+                    "sparkline": snap.sparkline,
+                    "stale": snap.stale,
+                },
+            ))
 
 
 class PriceFeed:
@@ -78,7 +79,7 @@ class PriceFeed:
         self._task: Optional[asyncio.Task] = None
         self._stop = asyncio.Event()
 
-    async def _loop(self, broadcast: Callable[[dict], None]) -> None:
+    async def _loop(self, broadcast: Optional[Callable[[dict], None]]) -> None:
         while not self._stop.is_set():
             try:
                 await _poll_once(self.state, broadcast)
@@ -89,7 +90,7 @@ class PriceFeed:
             except asyncio.TimeoutError:
                 pass
 
-    def start(self, broadcast: Callable[[dict], None]) -> None:
+    def start(self, broadcast: Optional[Callable[[dict], None]] = None) -> None:
         if self._task is not None:
             return
         self._stop.clear()
