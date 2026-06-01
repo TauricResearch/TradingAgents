@@ -125,6 +125,7 @@ pip install .
 Alternatively, run with Docker:
 ```bash
 cp .env.example .env  # add your API keys
+docker compose build --no-cache tradingagents
 docker compose run --rm tradingagents
 ```
 
