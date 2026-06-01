@@ -855,6 +855,10 @@ class TestLegacyRemoval:
         mock_graph.debug = False
         mock_graph.config = {"results_dir": str(tmp_path)}
         mock_graph.graph.invoke.return_value = fake_state
+        # Non-debug path now streams (Task 2 fix) — mirror that here so the
+        # mock yields a single update chunk that merges to the same final
+        # state invoke() would have returned.
+        mock_graph.graph.stream.return_value = iter([{"some_node": fake_state}])
         mock_graph.propagator.create_initial_state.return_value = fake_state
         mock_graph.propagator.get_graph_args.return_value = {}
         mock_graph.signal_processor.process_signal.return_value = "Buy"

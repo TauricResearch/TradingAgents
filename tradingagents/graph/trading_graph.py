@@ -423,7 +423,25 @@ class TradingAgentsGraph:
                         logger.exception("event_callback raised; continuing")
                 final_state.update(chunk)
         else:
-            final_state = self.graph.invoke(init_agent_state, **args)
+            # Stream the graph so the event_callback fires in the non-debug
+            # path too (was previously only emitted in the debug branch).
+            # ``stream_mode="updates"`` yields {node_name: delta} per node;
+            # aggregating those deltas onto a copy of the initial state
+            # produces the same final object ``graph.invoke()`` would return.
+            final_state = dict(init_agent_state)
+            for chunk in self.graph.stream(
+                init_agent_state,
+                **{**args, "stream_mode": "updates"},
+            ):
+                if event_callback is not None:
+                    try:
+                        event_callback(
+                            "node_entered",
+                            {"node": next(iter(chunk)), "ts": _now_iso()},
+                        )
+                    except Exception:  # callbacks must never break the run
+                        logger.exception("event_callback raised; continuing")
+                final_state.update(next(iter(chunk.values())))
 
         # Store current state for reflection.
         self.curr_state = final_state
