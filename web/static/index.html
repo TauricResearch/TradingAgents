@@ -531,6 +531,9 @@
                     <!-- Analyst Selection -->
                     <div class="analyst-group">
                         <h3>Select Analysts</h3>
+                        <div class="checkbox-description" style="margin: 0 0 10px 0;">
+                            Fewer analysts = fewer LLM calls. Add more for a deeper analysis if your provider's rate limit allows.
+                        </div>
                         <div id="analystsList"></div>
                     </div>
 
@@ -685,18 +688,22 @@
                     providerSelect.appendChild(option);
                 });
 
-                // Populate analysts
+                // Populate analysts. Default to a lighter selection (market +
+                // news) so first runs stay well under low per-minute token
+                // limits; users can enable the rest for a fuller analysis.
+                const DEFAULT_ANALYSTS = ["market", "news"];
                 const analystsList = document.getElementById("analystsList");
                 data.analysts.forEach((analyst) => {
                     const div = document.createElement("div");
                     div.className = "checkbox-item";
+                    const checked = DEFAULT_ANALYSTS.includes(analyst.id) ? "checked" : "";
                     div.innerHTML = `
                         <input
                             type="checkbox"
                             id="analyst_${analyst.id}"
                             name="analysts"
                             value="${analyst.id}"
-                            checked
+                            ${checked}
                         >
                         <label for="analyst_${analyst.id}">${analyst.name}</label>
                         <div class="checkbox-description">${analyst.description}</div>
@@ -708,10 +715,11 @@
                 providerSelect.addEventListener("change", updateModelsForProvider);
                 updateModelsForProvider();
 
-                // Set defaults
+                // Set defaults. Default debate rounds to 1 to keep token usage
+                // low for first runs (users can raise it in Advanced Options).
                 if (data.default_config) {
                     document.getElementById("temperature").value = data.default_config.temperature || 0.7;
-                    document.getElementById("debateRounds").value = data.default_config.max_debate_rounds || 2;
+                    document.getElementById("debateRounds").value = 1;
                     document.getElementById("tempValue").textContent = data.default_config.temperature || 0.7;
                 }
 
