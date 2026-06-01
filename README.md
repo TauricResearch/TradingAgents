@@ -289,6 +289,8 @@ Backtest results are not guaranteed to match any published figure. Returns depen
 
 Contributions are welcome: bug fixes, documentation, and feature ideas; past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
 
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for development setup, testing, and PR guidelines.
+
 ## Citation
 
 Please reference our work if you find *TradingAgents* provides you with some help :)
