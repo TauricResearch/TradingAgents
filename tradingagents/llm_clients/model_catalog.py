@@ -175,6 +175,16 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "nvidia": {
+        "quick": [
+            ("Kimi K2.6 (MoonshotAI)", "moonshotai/kimi-k2.6"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Kimi K2.6 (MoonshotAI)", "moonshotai/kimi-k2.6"),
+            ("Custom model ID", "custom"),
+        ],
+    },
 }
 
 
