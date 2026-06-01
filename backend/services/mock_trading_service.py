@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -21,12 +21,15 @@ async def _get_price(ticker: str) -> Optional[float]:
     def _fetch():
         try:
             info = yf.Ticker(ticker).info
-            price = info.get("currentPrice") or info.get("regularMarketPrice")
+            # Use explicit None checks to avoid treating 0.0 as missing
+            price = info.get("currentPrice")
+            if price is None:
+                price = info.get("regularMarketPrice")
             if price is None:
                 hist = yf.Ticker(ticker).history(period="1d")
                 if not hist.empty:
                     price = float(hist["Close"].iloc[-1])
-            return float(price) if price else None
+            return float(price) if price is not None else None
         except Exception as e:
             _logger.warning("Price fetch failed for %s: %s", ticker, e)
             return None
@@ -72,13 +75,22 @@ async def get_portfolio_with_live_prices(db: AsyncSession) -> dict:
     tickers = [h.ticker for h in portfolio.holdings]
     prices = {}
     if tickers:
-        results = await asyncio.gather(*[_get_price(t) for t in tickers])
-        prices = {t: p for t, p in zip(tickers, results) if p is not None}
+        raw = await asyncio.gather(*[_get_price(t) for t in tickers], return_exceptions=True)
+        prices = {
+            t: p for t, p in zip(tickers, raw)
+            if p is not None and not isinstance(p, BaseException)
+        }
 
     holdings_data = []
     positions_value = 0.0
     for h in portfolio.holdings:
-        price = prices.get(h.ticker, h.current_price or h.avg_buy_price)
+        fetched = prices.get(h.ticker)
+        if fetched is not None:
+            price = fetched
+        elif h.current_price is not None:
+            price = h.current_price
+        else:
+            price = h.avg_buy_price
         cost_basis = h.avg_buy_price * h.quantity
         market_value = price * h.quantity
         unrealized_pnl = market_value - cost_basis
@@ -235,8 +247,9 @@ async def reset_portfolio(db: AsyncSession, initial_capital: float = 100_000.0) 
     portfolio = result.scalar_one_or_none()
 
     if portfolio:
-        for h in portfolio.holdings:
-            await db.delete(h)
+        # Bulk delete orders and holdings instead of iterating
+        await db.execute(delete(Order).where(Order.portfolio_id == portfolio.id))
+        await db.execute(delete(Holding).where(Holding.portfolio_id == portfolio.id))
         portfolio.cash_available = initial_capital
         portfolio.current_balance = initial_capital
         portfolio.initial_capital = initial_capital

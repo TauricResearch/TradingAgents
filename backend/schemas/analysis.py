@@ -33,6 +33,11 @@ class AnalysisResultRead(BaseModel):
     investment_plan: str
     trader_plan: str
     final_decision: str
+    bull_history: str = ""
+    bear_history: str = ""
+    investment_debate_history: str = ""
+    risk_debate_history: str = ""
+    judge_decision: str = ""
     llm_calls: int
     tool_calls: int
     tokens_in: int

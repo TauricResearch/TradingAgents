@@ -39,3 +39,48 @@ axios.interceptors.request.use(cfg => {
   if (token && cfg.headers) cfg.headers.Authorization = `Bearer ${token}`
   return cfg
 })
+
+// Axios interceptor: auto-refresh on 401
+let _refreshing = false
+let _queue: Array<(token: string) => void> = []
+
+axios.interceptors.response.use(
+  res => res,
+  async err => {
+    const original = err.config
+    if (err.response?.status !== 401 || original._retried) {
+      return Promise.reject(err)
+    }
+    original._retried = true
+
+    if (_refreshing) {
+      return new Promise(resolve => {
+        _queue.push((token: string) => {
+          original.headers.Authorization = `Bearer ${token}`
+          resolve(axios(original))
+        })
+      })
+    }
+
+    _refreshing = true
+    try {
+      const refreshToken = localStorage.getItem(REFRESH_KEY)
+      if (!refreshToken) throw new Error('No refresh token')
+      const res = await axios.post('/auth/refresh', { refresh_token: refreshToken })
+      const newToken: string = res.data.access_token
+      localStorage.setItem(TOKEN_KEY, newToken)
+      _queue.forEach(cb => cb(newToken))
+      _queue = []
+      original.headers.Authorization = `Bearer ${newToken}`
+      return axios(original)
+    } catch {
+      _queue = []
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(REFRESH_KEY)
+      window.location.href = '/login'
+      return Promise.reject(err)
+    } finally {
+      _refreshing = false
+    }
+  }
+)

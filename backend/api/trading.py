@@ -1,25 +1,38 @@
 """Mock trading API endpoints."""
-from typing import Optional
+import logging
+import re
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.deps import get_current_user, get_db
 from backend.services import mock_trading_service as svc
 
 router = APIRouter(prefix="/api/trading", tags=["trading"])
+_logger = logging.getLogger(__name__)
+
+_TICKER_RE = re.compile(r'^[A-Z0-9.\-]{1,20}$')
 
 
 class OrderRequest(BaseModel):
-    ticker: str
-    action: str       # BUY | SELL
-    quantity: float
+    ticker: str = Field(..., min_length=1, max_length=20)
+    action: Literal['BUY', 'SELL']
+    quantity: float = Field(..., gt=0, le=100_000)
     analysis_id: Optional[int] = None
+
+    @field_validator('ticker')
+    @classmethod
+    def validate_ticker(cls, v: str) -> str:
+        v = v.upper()
+        if not _TICKER_RE.match(v):
+            raise ValueError('Ticker must be 1–20 alphanumeric characters')
+        return v
 
 
 class ResetRequest(BaseModel):
-    initial_capital: float = 100_000.0
+    initial_capital: float = Field(default=100_000.0, gt=0, le=10_000_000)
 
 
 @router.get("/portfolio")
@@ -31,7 +44,8 @@ async def get_portfolio(
     try:
         return await svc.get_portfolio_with_live_prices(db)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        _logger.error("get_portfolio failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/order", status_code=status.HTTP_201_CREATED)
@@ -44,7 +58,7 @@ async def create_order(
     try:
         result = await svc.execute_order(
             db,
-            ticker=req.ticker.upper(),
+            ticker=req.ticker,
             action=req.action,
             quantity=req.quantity,
             analysis_id=req.analysis_id,
@@ -54,7 +68,8 @@ async def create_order(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        _logger.error("create_order failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/performance")
@@ -66,7 +81,8 @@ async def get_performance(
     try:
         return await svc.get_performance(db)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        _logger.error("get_performance failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/reset")
@@ -81,4 +97,5 @@ async def reset_portfolio(
         await db.commit()
         return result
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        _logger.error("reset_portfolio failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")

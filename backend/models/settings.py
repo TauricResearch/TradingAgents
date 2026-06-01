@@ -49,6 +49,25 @@ class AppSettings(Base):
     # Output & graph behaviour
     output_language: Mapped[str] = mapped_column(String(50), default="English")
     analyst_concurrency_limit: Mapped[int] = mapped_column(Integer, default=1)
+    checkpoint_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    max_recur_limit: Mapped[int] = mapped_column(Integer, default=1000)
+
+    # News fetching limits
+    news_article_limit: Mapped[int] = mapped_column(Integer, default=20)
+    global_news_article_limit: Mapped[int] = mapped_column(Integer, default=10)
+    global_news_lookback_days: Mapped[int] = mapped_column(Integer, default=7)
+
+    # Benchmark override (None = auto-detect from ticker suffix)
+    benchmark_ticker: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # Azure OpenAI deployment name (only needed when provider=azure)
+    azure_deployment: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Per-category data vendor (overrides active_data_vendor for each category)
+    data_vendor_core_stock: Mapped[str] = mapped_column(String(50), default="yfinance")
+    data_vendor_technicals: Mapped[str] = mapped_column(String(50), default="yfinance")
+    data_vendor_fundamentals: Mapped[str] = mapped_column(String(50), default="yfinance")
+    data_vendor_news: Mapped[str] = mapped_column(String(50), default="yfinance")
 
     # Debate rounds
     max_debate_rounds: Mapped[int] = mapped_column(Integer, default=1)

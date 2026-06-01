@@ -59,6 +59,17 @@ async def get_settings(
         google_thinking_level=settings.google_thinking_level,
         output_language=settings.output_language or "English",
         analyst_concurrency_limit=settings.analyst_concurrency_limit or 1,
+        checkpoint_enabled=getattr(settings, "checkpoint_enabled", False) or False,
+        max_recur_limit=getattr(settings, "max_recur_limit", 1000) or 1000,
+        news_article_limit=getattr(settings, "news_article_limit", 20) or 20,
+        global_news_article_limit=getattr(settings, "global_news_article_limit", 10) or 10,
+        global_news_lookback_days=getattr(settings, "global_news_lookback_days", 7) or 7,
+        benchmark_ticker=getattr(settings, "benchmark_ticker", None),
+        azure_deployment=getattr(settings, "azure_deployment", None),
+        data_vendor_core_stock=getattr(settings, "data_vendor_core_stock", None) or "yfinance",
+        data_vendor_technicals=getattr(settings, "data_vendor_technicals", None) or "yfinance",
+        data_vendor_fundamentals=getattr(settings, "data_vendor_fundamentals", None) or "yfinance",
+        data_vendor_news=getattr(settings, "data_vendor_news", None) or "yfinance",
         max_debate_rounds=settings.max_debate_rounds,
         max_risk_rounds=settings.max_risk_rounds,
         max_position_size_pct=settings.max_position_size_pct,
@@ -75,7 +86,7 @@ async def update_settings(
 ):
     settings = await _get_or_create_settings(db)
 
-    for field, value in body.model_dump(exclude_none=True).items():
+    for field, value in body.model_dump(exclude_unset=True).items():
         if field == "watchlist":
             settings.watchlist = value
         elif field == "selected_analysts":

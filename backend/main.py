@@ -23,6 +23,9 @@ from backend.api.logs import router as logs_router
 from backend.api.cron import router as cron_router
 from backend.api.trading import router as trading_router
 
+# Ensure all models are registered with SQLAlchemy metadata before create_all_tables
+import backend.models.portfolio_analysis  # noqa: F401
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 _logger = logging.getLogger(__name__)
 settings = get_settings()

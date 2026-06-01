@@ -18,6 +18,17 @@ interface Settings {
   google_thinking_level: string | null
   output_language: string
   analyst_concurrency_limit: number
+  checkpoint_enabled: boolean
+  max_recur_limit: number
+  news_article_limit: number
+  global_news_article_limit: number
+  global_news_lookback_days: number
+  benchmark_ticker: string | null
+  azure_deployment: string | null
+  data_vendor_core_stock: string
+  data_vendor_technicals: string
+  data_vendor_fundamentals: string
+  data_vendor_news: string
   max_debate_rounds: number
   max_risk_rounds: number
   max_position_size_pct: number
@@ -121,6 +132,7 @@ export default function Settings() {
   const [s, setS] = useState<Settings | null>(null)
   const [catalog, setCatalog] = useState<Catalog>({})
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -133,9 +145,14 @@ export default function Settings() {
   }, [])
 
   const save = async () => {
-    await axios.put('/api/settings', s)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setSaveError(null)
+    try {
+      await axios.put('/api/settings', s)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err: any) {
+      setSaveError(err.response?.data?.detail || 'Kaydetme başarısız.')
+    }
   }
 
   if (!s) return <div className="p-8 text-slate-400">Yükleniyor...</div>
@@ -145,22 +162,18 @@ export default function Settings() {
   const providerList = Object.keys(catalog)
   const currentProviderModels = catalog[s.llm_provider]
 
+  // Single setS call to avoid double render (bug fix)
   const handleProviderChange = (provider: string) => {
-    update('llm_provider', provider)
-    // Reset models to first option of new provider when switching
     const modes = catalog[provider]
-    if (modes) {
-      const firstDeep = modes.deep?.[0]?.value
-      const firstQuick = modes.quick?.[0]?.value
-      setS(prev => prev ? {
+    setS(prev => {
+      if (!prev) return prev
+      return {
         ...prev,
         llm_provider: provider,
-        deep_think_llm: firstDeep || prev.deep_think_llm,
-        quick_think_llm: firstQuick || prev.quick_think_llm,
-      } : prev)
-    } else {
-      update('llm_provider', provider)
-    }
+        deep_think_llm: modes?.deep?.[0]?.value || prev.deep_think_llm,
+        quick_think_llm: modes?.quick?.[0]?.value || prev.quick_think_llm,
+      }
+    })
   }
 
   return (
@@ -351,9 +364,56 @@ export default function Settings() {
         </div>
       </Section>
 
-      <button onClick={save} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-5 py-2 font-semibold">
-        <Save size={16} /> {saved ? 'Kaydedildi ✓' : 'Kaydet'}
-      </button>
+      <Section title="Veri Kaynakları (Kategori Bazlı)">
+        {(
+          [
+            ['data_vendor_core_stock', 'Hisse Fiyatı'],
+            ['data_vendor_technicals', 'Teknik Göstergeler'],
+            ['data_vendor_fundamentals', 'Temel Veriler'],
+            ['data_vendor_news', 'Haber'],
+          ] as [keyof Settings, string][]
+        ).map(([field, label]) => (
+          <Row key={field} label={label}>
+            <select className={Input} value={s[field] as string} onChange={e => update(field, e.target.value)}>
+              <option value="yfinance">yFinance</option>
+              <option value="alpha_vantage">Alpha Vantage</option>
+            </select>
+          </Row>
+        ))}
+      </Section>
+
+      <Section title="Gelişmiş Ayarlar">
+        <Row label="Checkpoint (Devam Etme)">
+          <input type="checkbox" checked={s.checkpoint_enabled} onChange={e => update('checkpoint_enabled', e.target.checked)} className="w-5 h-5 accent-indigo-600" />
+        </Row>
+        <Row label="Haber Sayısı (Ticker)">
+          <input type="number" min="1" max="100" className={Input} value={s.news_article_limit} onChange={e => update('news_article_limit', parseInt(e.target.value))} />
+        </Row>
+        <Row label="Global Haber Sayısı">
+          <input type="number" min="1" max="50" className={Input} value={s.global_news_article_limit} onChange={e => update('global_news_article_limit', parseInt(e.target.value))} />
+        </Row>
+        <Row label="Global Haber Geriye (Gün)">
+          <input type="number" min="1" max="30" className={Input} value={s.global_news_lookback_days} onChange={e => update('global_news_lookback_days', parseInt(e.target.value))} />
+        </Row>
+        <Row label="Max Recursion Limiti">
+          <input type="number" min="100" max="5000" className={Input} value={s.max_recur_limit} onChange={e => update('max_recur_limit', parseInt(e.target.value))} />
+        </Row>
+        <Row label="Benchmark Sembolü">
+          <input className={Input} value={s.benchmark_ticker || ''} onChange={e => update('benchmark_ticker', e.target.value || null)} placeholder="Boş bırakın = otomatik (SPY)" />
+        </Row>
+        {s.llm_provider === 'azure' && (
+          <Row label="Azure Deployment Adı">
+            <input className={Input} value={s.azure_deployment || ''} onChange={e => update('azure_deployment', e.target.value || null)} placeholder="gpt-4o" />
+          </Row>
+        )}
+      </Section>
+
+      <div className="flex items-center gap-3">
+        <button onClick={save} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-5 py-2 font-semibold">
+          <Save size={16} /> {saved ? 'Kaydedildi ✓' : 'Kaydet'}
+        </button>
+        {saveError && <span className="text-red-400 text-sm">{saveError}</span>}
+      </div>
     </div>
   )
 }

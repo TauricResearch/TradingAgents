@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import {
   LayoutDashboard, Search, BookMarked, Briefcase,
-  Settings, ScrollText, TrendingUp, LogOut, Clock, FlaskConical
+  Settings, ScrollText, TrendingUp, LogOut, Clock, FlaskConical, PieChart
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
@@ -11,6 +11,7 @@ const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { to: '/analysis', label: 'Analiz', icon: <Search size={18} /> },
   { to: '/trading', label: 'Simülasyon', icon: <FlaskConical size={18} /> },
+  { to: '/portfolio', label: 'Portföy', icon: <PieChart size={18} /> },
   { to: '/watchlist', label: 'İzleme Listesi', icon: <BookMarked size={18} /> },
   { to: '/orders', label: 'Emirler', icon: <Briefcase size={18} /> },
   { to: '/settings', label: 'Ayarlar', icon: <Settings size={18} /> },
