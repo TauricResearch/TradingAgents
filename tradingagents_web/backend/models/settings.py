@@ -1,0 +1,73 @@
+import json
+from datetime import datetime, timezone
+from typing import Any
+
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from backend.core.database import Base
+
+
+def _json_default(value: Any) -> str:
+    return json.dumps(value)
+
+
+class AppSettings(Base):
+    __tablename__ = "app_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+
+    # Trading mode
+    trading_mode: Mapped[str] = mapped_column(String(20), default="simulation")
+    active_broker: Mapped[str] = mapped_column(String(50), default="simulation")
+    active_data_vendor: Mapped[str] = mapped_column(String(50), default="yfinance")
+
+    # Cron
+    cron_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    cron_schedule: Mapped[str] = mapped_column(String(100), default="0 9 * * 1-5")
+    price_tolerance_pct: Mapped[float] = mapped_column(Float, default=0.5)
+
+    # Watchlist and analysts stored as JSON strings
+    _watchlist: Mapped[str] = mapped_column("watchlist", Text, default='[]')
+    _selected_analysts: Mapped[str] = mapped_column(
+        "selected_analysts",
+        Text,
+        default='["market", "news", "fundamentals", "social"]',
+    )
+
+    # LLM
+    llm_provider: Mapped[str] = mapped_column(String(50), default="openai")
+    deep_think_llm: Mapped[str] = mapped_column(String(100), default="gpt-4o")
+    quick_think_llm: Mapped[str] = mapped_column(String(100), default="gpt-4o-mini")
+
+    # Debate rounds
+    max_debate_rounds: Mapped[int] = mapped_column(Integer, default=1)
+    max_risk_rounds: Mapped[int] = mapped_column(Integer, default=1)
+
+    # Risk limits
+    max_position_size_pct: Mapped[float] = mapped_column(Float, default=10.0)
+    max_risk_per_trade_pct: Mapped[float] = mapped_column(Float, default=2.0)
+
+    # Encrypted broker credentials (JSON string of {api_key, api_secret})
+    broker_credentials_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    @property
+    def watchlist(self) -> list[str]:
+        return json.loads(self._watchlist or "[]")
+
+    @watchlist.setter
+    def watchlist(self, value: list[str]):
+        self._watchlist = json.dumps(value)
+
+    @property
+    def selected_analysts(self) -> list[str]:
+        return json.loads(self._selected_analysts or '[]')
+
+    @selected_analysts.setter
+    def selected_analysts(self, value: list[str]):
+        self._selected_analysts = json.dumps(value)

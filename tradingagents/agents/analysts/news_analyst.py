@@ -2,12 +2,23 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_global_news,
+    get_insider_transactions,
     get_language_instruction,
     get_news,
 )
+from tradingagents.agents.utils.search_tools import get_crypto_fear_and_greed_index
 from tradingagents.dataflows.config import get_config
+from tradingagents.agents.analyst_registry import register_analyst
 
 
+@register_analyst(
+    key="news",
+    agent_node="News Analyst",
+    clear_node="Msg Clear News",
+    tool_node="tools_news",
+    report_key="news_report",
+    tools=[get_news, get_global_news, get_insider_transactions, get_crypto_fear_and_greed_index],
+)
 def create_news_analyst(llm):
     def news_analyst_node(state):
         current_date = state["trade_date"]

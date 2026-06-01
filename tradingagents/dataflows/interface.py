@@ -23,9 +23,26 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .utils import safe_ticker_component
 
 # Configuration and routing logic
 from .config import get_config
+
+import logging
+_logger = logging.getLogger(__name__)
+
+# Methods whose first positional argument is a ticker symbol.
+# These are validated with safe_ticker_component before dispatch.
+_TICKER_FIRST_METHODS = frozenset({
+    "get_stock_data",
+    "get_indicators",
+    "get_fundamentals",
+    "get_balance_sheet",
+    "get_cashflow",
+    "get_income_statement",
+    "get_news",
+    "get_insider_transactions",
+})
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
@@ -133,7 +150,8 @@ class APICache:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except (json.JSONDecodeError, IOError) as e:
+            _logger.warning("API cache file corrupted or unreadable (%s), starting fresh: %s", path, e)
             return {}
 
     @classmethod
@@ -142,8 +160,8 @@ class APICache:
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f, indent=4)
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.warning("Failed to save API cache to %s: %s", path, e)
 
     @classmethod
     def get_ttl(cls, method: str) -> float:
@@ -214,6 +232,12 @@ def get_vendor(category: str, method: str = None) -> str:
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
+    # Validate ticker symbol for methods where first arg is a ticker.
+    # Tickers flow from LLM tool calls which can be influenced by prompt injection
+    # in fetched external content (news, filings, etc.).
+    if method in _TICKER_FIRST_METHODS and args:
+        safe_ticker_component(args[0])
+
     cached_val = APICache.get(method, *args, **kwargs)
     if cached_val is not None:
         return cached_val

@@ -5,7 +5,17 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
 )
 from tradingagents.dataflows.config import get_config
+from tradingagents.agents.analyst_registry import register_analyst
 
+
+@register_analyst(
+    key="macro",
+    agent_node="Macro Analyst",
+    clear_node="Msg Clear Macro",
+    tool_node="tools_macro",
+    report_key="macro_report",
+    tools=[get_macro_data],
+)
 def create_macro_analyst(llm):
 
     def macro_analyst_node(state):

@@ -4,9 +4,33 @@ from typing import Any, Dict
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from tradingagents.agents import *
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents import (
+    AgentState,
+    InvestDebateState,
+    RiskDebateState,
+    create_msg_delete,
+    create_bear_researcher,
+    create_bull_researcher,
+    create_aggressive_debator,
+    create_conservative_debator,
+    create_neutral_debator,
+    create_research_manager,
+    create_portfolio_manager,
+    create_trader,
+)
+# Import all analyst modules so their @register_analyst decorators fire and
+# populate the registry before setup_graph() queries it.
+import tradingagents.agents.analysts.market_analyst        # noqa: F401
+import tradingagents.agents.analysts.sentiment_analyst      # noqa: F401
+import tradingagents.agents.analysts.news_analyst           # noqa: F401
+import tradingagents.agents.analysts.fundamentals_analyst   # noqa: F401
+import tradingagents.agents.analysts.macro_analyst          # noqa: F401
+import tradingagents.agents.analysts.options_analyst        # noqa: F401
+import tradingagents.agents.analysts.quant_analyst          # noqa: F401
+import tradingagents.agents.analysts.earnings_analyst       # noqa: F401
+import tradingagents.agents.analysts.review_analyst         # noqa: F401
 
+from tradingagents.agents.analyst_registry import get_factory, sync_registry_to_graph
 from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
 
@@ -41,21 +65,24 @@ class GraphSetup:
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
         """
+        # Sync registry side-effects now that all packages are fully initialized.
+        # This adds custom analysts to ANALYST_NODE_SPECS and injects their
+        # should_continue_<key>() methods into ConditionalLogic.
+        sync_registry_to_graph()
+
         plan = build_analyst_execution_plan(
             selected_analysts,
             concurrency_limit=self.analyst_concurrency_limit,
         )
 
+        # Build analyst factory lambdas from the plugin registry.
+        # Any custom analyst registered via @register_analyst is automatically
+        # available here without modifying this file.
         analyst_factories = {
-            "market": lambda: create_market_analyst(self.quick_thinking_llm),
-            "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
-            "news": lambda: create_news_analyst(self.quick_thinking_llm),
-            "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
-            "macro": lambda: create_macro_analyst(self.quick_thinking_llm),
-            "options": lambda: create_options_analyst(self.quick_thinking_llm),
-            "quant": lambda: create_quant_analyst(self.quick_thinking_llm),
-            "earnings": lambda: create_earnings_analyst(self.quick_thinking_llm),
-            "review": lambda: create_review_analyst(self.quick_thinking_llm),
+            spec.key: (
+                lambda k=spec.key: get_factory(k)(self.quick_thinking_llm)
+            )
+            for spec in plan.specs
         }
 
         # Create researcher and manager nodes

@@ -6,8 +6,17 @@ from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
 )
 from tradingagents.dataflows.config import get_config
+from tradingagents.agents.analyst_registry import register_analyst
 
 
+@register_analyst(
+    key="market",
+    agent_node="Market Analyst",
+    clear_node="Msg Clear Market",
+    tool_node="tools_market",
+    report_key="market_report",
+    tools=[get_stock_data, get_indicators],
+)
 def create_market_analyst(llm):
 
     def market_analyst_node(state):

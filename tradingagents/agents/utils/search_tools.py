@@ -1,8 +1,11 @@
+import logging
 import os
 import requests
 from abc import ABC, abstractmethod
 from typing import List, Dict
 from langchain_core.tools import tool
+
+_logger = logging.getLogger(__name__)
 
 class BaseSearchEngine(ABC):
     @abstractmethod
@@ -35,6 +38,7 @@ class SearxNGSearchEngine(BaseSearchEngine):
                 })
             return results
         except Exception as e:
+            _logger.warning("SearxNG search failed for query %r: %s", query, e, exc_info=True)
             return [{"title": "Error", "link": "", "snippet": f"SearxNG Search Failed: {str(e)}"}]
 
 # Factory function for modularity

@@ -8,9 +8,18 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_transactions,
     get_language_instruction,
 )
+from tradingagents.agents.analyst_registry import register_analyst
 from tradingagents.dataflows.config import get_config
 
 
+@register_analyst(
+    key="fundamentals",
+    agent_node="Fundamentals Analyst",
+    clear_node="Msg Clear Fundamentals",
+    tool_node="tools_fundamentals",
+    report_key="fundamentals_report",
+    tools=[get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement],
+)
 def create_fundamentals_analyst(llm):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]

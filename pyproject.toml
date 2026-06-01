@@ -21,7 +21,6 @@ dependencies = [
     "parsel>=1.10.0",
     "pytz>=2025.2",
     "questionary>=2.1.0",
-    "redis>=6.2.0",
     "requests>=2.32.4",
     "rich>=14.0.0",
     "typer>=0.21.0",
@@ -54,5 +53,8 @@ markers = [
     "smoke: quick sanity-check tests",
 ]
 filterwarnings = [
-    "ignore::DeprecationWarning",
+    # Third-party libraries emit deprecation warnings that are not actionable
+    # from this codebase. Filter only those; internal deprecations remain visible.
+    "ignore::DeprecationWarning:pkg_resources",
+    "ignore::DeprecationWarning:distutils",
 ]

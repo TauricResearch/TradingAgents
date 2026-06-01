@@ -1,6 +1,9 @@
+import logging
 import yfinance as yf
 import pandas as pd
 from langchain_core.tools import tool
+
+_logger = logging.getLogger(__name__)
 
 @tool
 def run_strategy_backtest(ticker: str, strategy_type: str, curr_date: str | None = None) -> str:
@@ -84,4 +87,5 @@ def run_strategy_backtest(ticker: str, strategy_type: str, curr_date: str | None
             f"- Max Drawdown: {max_dd:.2%}"
         )
     except Exception as e:
+        _logger.error("Backtest failed for %s using %s: %s", ticker, strategy_type, e, exc_info=True)
         return f"Error running backtest for {ticker}: {str(e)}"

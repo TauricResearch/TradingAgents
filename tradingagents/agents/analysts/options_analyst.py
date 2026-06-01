@@ -5,7 +5,17 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
 )
 from tradingagents.dataflows.config import get_config
+from tradingagents.agents.analyst_registry import register_analyst
 
+
+@register_analyst(
+    key="options",
+    agent_node="Options Analyst",
+    clear_node="Msg Clear Options",
+    tool_node="tools_options",
+    report_key="options_report",
+    tools=[get_options_data],
+)
 def create_options_analyst(llm):
 
     def options_analyst_node(state):

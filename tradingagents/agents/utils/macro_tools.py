@@ -1,6 +1,9 @@
+import logging
 import yfinance as yf
 from langchain_core.tools import tool
 import pandas as pd
+
+_logger = logging.getLogger(__name__)
 
 @tool
 def get_macro_data(curr_date: str | None = None) -> str:
@@ -30,6 +33,7 @@ def get_macro_data(curr_date: str | None = None) -> str:
             else:
                 report.append(f"{name} ({ticker}): Data unavailable")
         except Exception as e:
+            _logger.warning("Failed to fetch macro data for %s (%s): %s", ticker, name, e, exc_info=True)
             report.append(f"{name} ({ticker}): Error fetching data - {str(e)}")
             
     return "\n".join(report)

@@ -4,7 +4,17 @@ from tradingagents.agents.utils.agent_utils import (
     search_web,
     get_language_instruction,
 )
+from tradingagents.agents.analyst_registry import register_analyst
 
+
+@register_analyst(
+    key="earnings",
+    agent_node="Earnings Analyst",
+    clear_node="Msg Clear Earnings",
+    tool_node="tools_earnings",
+    report_key="earnings_report",
+    tools=[search_web],
+)
 def create_earnings_analyst(llm):
 
     def earnings_analyst_node(state):

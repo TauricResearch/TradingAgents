@@ -1,0 +1,75 @@
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from backend.core.database import get_db
+from backend.models.settings import AppSettings
+from backend.models.user import User
+from backend.schemas.settings import SettingsRead, SettingsUpdate
+from backend.api.deps import get_current_user
+
+router = APIRouter(prefix="/api/settings", tags=["settings"])
+
+
+async def _get_or_create_settings(db: AsyncSession) -> AppSettings:
+    result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
+    settings = result.scalar_one_or_none()
+    if settings is None:
+        settings = AppSettings(id=1)
+        db.add(settings)
+        await db.flush()
+    return settings
+
+
+@router.get("", response_model=SettingsRead)
+async def get_settings(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    settings = await _get_or_create_settings(db)
+    return SettingsRead(
+        trading_mode=settings.trading_mode,
+        active_broker=settings.active_broker,
+        active_data_vendor=settings.active_data_vendor,
+        cron_enabled=settings.cron_enabled,
+        cron_schedule=settings.cron_schedule,
+        price_tolerance_pct=settings.price_tolerance_pct,
+        watchlist=settings.watchlist,
+        selected_analysts=settings.selected_analysts,
+        llm_provider=settings.llm_provider,
+        deep_think_llm=settings.deep_think_llm,
+        quick_think_llm=settings.quick_think_llm,
+        max_debate_rounds=settings.max_debate_rounds,
+        max_risk_rounds=settings.max_risk_rounds,
+        max_position_size_pct=settings.max_position_size_pct,
+        max_risk_per_trade_pct=settings.max_risk_per_trade_pct,
+        updated_at=settings.updated_at,
+    )
+
+
+@router.put("", response_model=SettingsRead)
+async def update_settings(
+    body: SettingsUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    settings = await _get_or_create_settings(db)
+
+    for field, value in body.model_dump(exclude_none=True).items():
+        if field == "watchlist":
+            settings.watchlist = value
+        elif field == "selected_analysts":
+            settings.selected_analysts = value
+        else:
+            setattr(settings, field, value)
+    settings.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    # Notify cron service to reconfigure if cron settings changed
+    from backend.services.cron_service import get_cron_service
+    cron = get_cron_service()
+    if cron:
+        await cron.apply_settings(settings)
+
+    return await get_settings(db=db, _=_)

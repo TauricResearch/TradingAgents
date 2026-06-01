@@ -162,66 +162,22 @@ class TradingAgentsGraph:
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
+        """Build ToolNode instances from the analyst plugin registry.
+
+        Each registered analyst declares its tools via the ``tools`` parameter
+        of ``@register_analyst``.  This method reads that list so tool nodes
+        always stay in sync with the registry without manual maintenance.
+
+        Analysts with an empty tool list (e.g. the Sentiment Analyst, which
+        pre-fetches data into the prompt) receive an empty ToolNode; the graph
+        wiring still creates the node but it will never be invoked.
+        """
+        # Ensure all analyst modules are imported so their decorators have run.
+        from tradingagents.agents.analyst_registry import get_tools, list_analysts
+
         return {
-            "market": ToolNode(
-                [
-                    # Core stock data tools
-                    get_stock_data,
-                    # Technical indicators
-                    get_indicators,
-                ]
-            ),
-            "social": ToolNode(
-                [
-                    # News tools for social media analysis
-                    get_news,
-                    get_crypto_fear_and_greed_index,
-                ]
-            ),
-            "news": ToolNode(
-                [
-                    # News and insider information
-                    get_news,
-                    get_global_news,
-                    get_insider_transactions,
-                    get_crypto_fear_and_greed_index,
-                ]
-            ),
-            "fundamentals": ToolNode(
-                [
-                    # Fundamental analysis tools
-                    get_fundamentals,
-                    get_balance_sheet,
-                    get_cashflow,
-                    get_income_statement,
-                ]
-            ),
-            "macro": ToolNode(
-                [
-                    get_macro_data,
-                ]
-            ),
-            "options": ToolNode(
-                [
-                    get_options_data,
-                ]
-            ),
-            "quant": ToolNode(
-                [
-                    get_quant_data,
-                ]
-            ),
-            "earnings": ToolNode(
-                [
-                    search_web,
-                ]
-            ),
-            "review": ToolNode(
-                [
-                    get_past_performance_data,
-                ]
-            ),
+            key: ToolNode(get_tools(key))
+            for key in list_analysts()
         }
 
     def _resolve_benchmark(self, ticker: str) -> str:
@@ -463,6 +419,128 @@ class TradingAgentsGraph:
         log_path = directory / f"full_states_log_{trade_date}.json"
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
+
+    # ------------------------------------------------------------------
+    # Async interface
+    # ------------------------------------------------------------------
+
+    async def async_propagate(
+        self,
+        company_name: str,
+        trade_date: str,
+        asset_type: str = "stock",
+    ):
+        """Non-blocking version of :meth:`propagate` for FastAPI / asyncio.
+
+        Identical semantics to the sync version — resolves pending memory
+        entries, builds the graph, invokes it, persists state and decision —
+        but all blocking operations are off-loaded to a thread-pool via
+        ``asyncio.to_thread`` so the event loop stays free.
+
+        The synchronous ``propagate()`` is kept unchanged for CLI and batch
+        usage.
+
+        Returns
+        -------
+        tuple[dict, str]
+            ``(final_state, signal)`` — same as :meth:`propagate`.
+        """
+        import asyncio
+
+        self.ticker = company_name
+
+        # Resolve pending memory-log entries asynchronously
+        await self._async_resolve_pending_entries(company_name)
+
+        # Checkpointer recompile is sync (<10ms) — acceptable on event loop
+        if self.config.get("checkpoint_enabled"):
+            self._checkpointer_ctx = get_checkpointer(
+                self.config["data_cache_dir"], company_name
+            )
+            saver = self._checkpointer_ctx.__enter__()
+            self.graph = self.workflow.compile(checkpointer=saver)
+
+        try:
+            return await self._async_run_graph(company_name, trade_date, asset_type)
+        finally:
+            if self._checkpointer_ctx is not None:
+                self._checkpointer_ctx.__exit__(None, None, None)
+                self._checkpointer_ctx = None
+                self.graph = self.workflow.compile()
+
+    async def _async_run_graph(
+        self,
+        company_name: str,
+        trade_date: str,
+        asset_type: str = "stock",
+    ):
+        """Async version of :meth:`_run_graph`."""
+        import asyncio
+
+        past_context = self.memory_log.get_past_context(company_name)
+        init_state = self.propagator.create_initial_state(
+            company_name, trade_date, asset_type=asset_type, past_context=past_context
+        )
+        args = self.propagator.get_graph_args()
+
+        if self.config.get("checkpoint_enabled"):
+            tid = thread_id(company_name, str(trade_date))
+            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
+
+        # graph.invoke() contains LLM + tool calls — run in thread pool
+        final_state = await asyncio.to_thread(self.graph.invoke, init_state, **args)
+        self.curr_state = final_state
+
+        # File I/O off-loaded to thread pool
+        await asyncio.to_thread(self._log_state, trade_date, final_state)
+        await asyncio.to_thread(
+            self.memory_log.store_decision,
+            company_name,
+            trade_date,
+            final_state["final_trade_decision"],
+        )
+
+        if self.config.get("checkpoint_enabled"):
+            clear_checkpoint(
+                self.config["data_cache_dir"], company_name, str(trade_date)
+            )
+
+        return final_state, self.process_signal(final_state["final_trade_decision"])
+
+    async def _async_resolve_pending_entries(self, ticker: str) -> None:
+        """Async version of :meth:`_resolve_pending_entries`."""
+        import asyncio
+
+        pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
+        if not pending:
+            return
+
+        benchmark = self._resolve_benchmark(ticker)
+        updates = []
+        for entry in pending:
+            raw, alpha, days = await asyncio.to_thread(
+                self._fetch_returns, ticker, entry["date"], benchmark=benchmark
+            )
+            if raw is None:
+                continue
+            reflection = await asyncio.to_thread(
+                self.reflector.reflect_on_final_decision,
+                final_decision=entry.get("decision", ""),
+                raw_return=raw,
+                alpha_return=alpha,
+                benchmark_name=benchmark,
+            )
+            updates.append({
+                "ticker": ticker,
+                "trade_date": entry["date"],
+                "raw_return": raw,
+                "alpha_return": alpha,
+                "holding_days": days,
+                "reflection": reflection,
+            })
+
+        if updates:
+            await asyncio.to_thread(self.memory_log.batch_update_with_outcomes, updates)
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""

@@ -29,12 +29,23 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
+from tradingagents.agents.analyst_registry import register_analyst
 
 
 def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
 
 
+@register_analyst(
+    # Wire key stays "social" for saved-config back-compat (AnalystType.SOCIAL = "social")
+    key="social",
+    agent_node="Sentiment Analyst",
+    clear_node="Msg Clear Sentiment",
+    tool_node="tools_social",
+    report_key="sentiment_report",
+    # Sentiment analyst pre-fetches data into the prompt — no tool-calling loop
+    tools=[],
+)
 def create_sentiment_analyst(llm):
     """Create a sentiment analyst node for the trading graph.
 

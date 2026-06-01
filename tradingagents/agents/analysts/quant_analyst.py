@@ -4,7 +4,17 @@ from tradingagents.agents.utils.agent_utils import (
     get_quant_data,
     get_language_instruction,
 )
+from tradingagents.agents.analyst_registry import register_analyst
 
+
+@register_analyst(
+    key="quant",
+    agent_node="Quant Analyst",
+    clear_node="Msg Clear Quant",
+    tool_node="tools_quant",
+    report_key="quant_report",
+    tools=[get_quant_data],
+)
 def create_quant_analyst(llm):
 
     def quant_analyst_node(state):

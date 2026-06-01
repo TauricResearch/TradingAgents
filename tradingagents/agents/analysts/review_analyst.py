@@ -8,7 +8,17 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
 )
 from tradingagents.agents.utils.review_tools import get_past_performance_data
+from tradingagents.agents.analyst_registry import register_analyst
 
+
+@register_analyst(
+    key="review",
+    agent_node="Performance Review Analyst",
+    clear_node="Msg Clear Review",
+    tool_node="tools_review",
+    report_key="review_report",
+    tools=[get_past_performance_data],
+)
 def create_review_analyst(llm):
     """Create the Performance Review Analyst agent."""
     

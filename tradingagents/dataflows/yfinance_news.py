@@ -1,5 +1,6 @@
 """yfinance-based news data fetching functions."""
 
+import logging
 from typing import Optional
 
 import yfinance as yf
@@ -8,6 +9,8 @@ from dateutil.relativedelta import relativedelta
 
 from .config import get_config
 from .stockstats_utils import yf_retry
+
+_logger = logging.getLogger(__name__)
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -105,6 +108,7 @@ def get_news_yfinance(
         return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
 
     except Exception as e:
+        _logger.error("Unexpected error fetching news for %s: %s", ticker, e, exc_info=True)
         return f"Error fetching news for {ticker}: {str(e)}"
 
 
@@ -199,4 +203,5 @@ def get_global_news_yfinance(
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
     except Exception as e:
+        _logger.error("Unexpected error fetching global news: %s", e, exc_info=True)
         return f"Error fetching global news: {str(e)}"

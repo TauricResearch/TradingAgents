@@ -226,3 +226,72 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# PropagateResult
+# ---------------------------------------------------------------------------
+
+
+class PropagateResult(BaseModel):
+    """Type-safe wrapper around the ``(final_state, signal)`` tuple returned
+    by ``TradingAgentsGraph.propagate()`` and ``async_propagate()``.
+
+    Usage::
+
+        state, signal = ta.propagate("AAPL", "2024-05-10")
+        result = PropagateResult.from_state(state, signal)
+
+        # Access reports without magic strings:
+        print(result.market_report)
+        print(result.signal)       # "Buy" | "Overweight" | ...
+
+    The raw ``(state, signal)`` tuple is still returned by ``propagate()``
+    for backward compatibility; this model is opt-in.
+    """
+
+    ticker: str
+    trade_date: str
+    asset_type: str = "stock"
+    signal: str  # Buy | Overweight | Hold | Underweight | Sell
+
+    # Analyst reports
+    market_report: str = ""
+    sentiment_report: str = ""
+    news_report: str = ""
+    fundamentals_report: str = ""
+    macro_report: str = ""
+    options_report: str = ""
+    quant_report: str = ""
+    earnings_report: str = ""
+    review_report: str = ""
+
+    # Decision chain
+    investment_plan: str = ""
+    trader_plan: str = ""
+    final_decision: str = ""
+
+    @classmethod
+    def from_state(cls, state: dict, signal: str) -> "PropagateResult":
+        """Construct from the raw state dict returned by propagate()."""
+        # Import here to avoid circular imports at module load time
+        from tradingagents.agents.utils.agent_states import StateKeys
+
+        return cls(
+            ticker=state.get(StateKeys.COMPANY, ""),
+            trade_date=state.get(StateKeys.TRADE_DATE, ""),
+            asset_type=state.get(StateKeys.ASSET_TYPE, "stock"),
+            signal=signal,
+            market_report=state.get(StateKeys.MARKET_REPORT, ""),
+            sentiment_report=state.get(StateKeys.SENTIMENT_REPORT, ""),
+            news_report=state.get(StateKeys.NEWS_REPORT, ""),
+            fundamentals_report=state.get(StateKeys.FUNDAMENTALS_REPORT, ""),
+            macro_report=state.get(StateKeys.MACRO_REPORT, ""),
+            options_report=state.get(StateKeys.OPTIONS_REPORT, ""),
+            quant_report=state.get(StateKeys.QUANT_REPORT, ""),
+            earnings_report=state.get(StateKeys.EARNINGS_REPORT, ""),
+            review_report=state.get(StateKeys.REVIEW_REPORT, ""),
+            investment_plan=state.get(StateKeys.INVESTMENT_PLAN, ""),
+            trader_plan=state.get(StateKeys.TRADER_INVESTMENT_PLAN, ""),
+            final_decision=state.get(StateKeys.FINAL_TRADE_DECISION, ""),
+        )

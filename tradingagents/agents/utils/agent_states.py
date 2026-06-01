@@ -3,6 +3,66 @@ from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
 
 
+class StateKeys:
+    """Type-safe string constants for AgentState dict access.
+
+    Use these instead of raw string literals to prevent typos and enable
+    IDE autocomplete / refactoring across the codebase.
+
+    Example::
+
+        # Before (fragile):
+        report = state["market_report"]
+
+        # After (safe):
+        from tradingagents.agents.utils.agent_states import StateKeys
+        report = state[StateKeys.MARKET_REPORT]
+    """
+
+    # ── Core inputs ────────────────────────────────────────────────────────
+    COMPANY = "company_of_interest"
+    ASSET_TYPE = "asset_type"
+    TRADE_DATE = "trade_date"
+    SENDER = "sender"
+    PAST_CONTEXT = "past_context"
+
+    # ── Analyst reports ────────────────────────────────────────────────────
+    MARKET_REPORT = "market_report"
+    SENTIMENT_REPORT = "sentiment_report"
+    NEWS_REPORT = "news_report"
+    FUNDAMENTALS_REPORT = "fundamentals_report"
+    MACRO_REPORT = "macro_report"
+    OPTIONS_REPORT = "options_report"
+    QUANT_REPORT = "quant_report"
+    EARNINGS_REPORT = "earnings_report"
+    REVIEW_REPORT = "review_report"
+
+    # ── Decision chain ─────────────────────────────────────────────────────
+    INVESTMENT_DEBATE_STATE = "investment_debate_state"
+    INVESTMENT_PLAN = "investment_plan"
+    TRADER_INVESTMENT_PLAN = "trader_investment_plan"
+    RISK_DEBATE_STATE = "risk_debate_state"
+    FINAL_TRADE_DECISION = "final_trade_decision"
+
+    # ── Convenience collections ────────────────────────────────────────────
+    #: All report keys in pipeline order — used by WebSocket streaming and
+    #: PropagateResult serialisation.
+    ALL_REPORT_KEYS: tuple[str, ...] = (
+        MARKET_REPORT,
+        SENTIMENT_REPORT,
+        NEWS_REPORT,
+        FUNDAMENTALS_REPORT,
+        MACRO_REPORT,
+        OPTIONS_REPORT,
+        QUANT_REPORT,
+        EARNINGS_REPORT,
+        REVIEW_REPORT,
+        INVESTMENT_PLAN,
+        TRADER_INVESTMENT_PLAN,
+        FINAL_TRADE_DECISION,
+    )
+
+
 # Researcher team state
 class InvestDebateState(TypedDict):
     bull_history: Annotated[

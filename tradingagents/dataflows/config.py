@@ -14,8 +14,10 @@ def initialize_config():
         _config = deepcopy(default_config.DEFAULT_CONFIG)
 
 
-def set_config(config: Dict):
+def set_config(config):
     """Update the configuration with custom values.
+
+    Accepts either a plain ``dict`` or a ``TradingAgentsConfig`` instance.
 
     Dict-valued keys (e.g. ``data_vendors``) are merged one level deep so a
     partial update like ``{"data_vendors": {"core_stock_apis": "alpha_vantage"}}``
@@ -23,6 +25,9 @@ def set_config(config: Dict):
     """
     global _config
     initialize_config()
+    # Support TradingAgentsConfig (or any object with to_dict())
+    if hasattr(config, "to_dict"):
+        config = config.to_dict()
     incoming = deepcopy(config)
     for key, value in incoming.items():
         if isinstance(value, dict) and isinstance(_config.get(key), dict):
@@ -32,7 +37,12 @@ def set_config(config: Dict):
 
 
 def get_config() -> Dict:
-    """Get the current configuration."""
+    """Return a snapshot of the current configuration.
+
+    Returns a deep copy so callers cannot accidentally mutate the shared
+    ``_config`` state.  The copy is intentional — do not replace it with a
+    direct reference without adding a read-only wrapper (e.g. MappingProxyType).
+    """
     if _config is None:
         initialize_config()
     return deepcopy(_config)
