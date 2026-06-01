@@ -30,10 +30,21 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=1.4.1",
+    "sqlmodel>=0.0.16",
+    "aiosqlite>=0.19.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "websockets>=12.0",
+    "python-multipart>=0.0.9",
 ]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]
@@ -42,7 +53,8 @@ include = ["tradingagents*", "cli*"]
 cli = ["static/*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "web/server/tests"]
+pythonpath = ["."]
 addopts = "-ra --strict-markers"
 markers = [
     "unit: fast isolated unit tests",
