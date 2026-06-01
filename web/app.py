@@ -9,14 +9,15 @@ from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+# Import lightweight config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.model_catalog import get_model_options, get_known_models
+
+# Heavy imports (trading_graph imports yfinance, etc.) will be done lazily in background tasks
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -59,7 +60,6 @@ app.add_middleware(
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """Serve the main web app."""
-    import os
     html_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
     with open(html_path) as f:
         return f.read()
@@ -265,14 +265,17 @@ async def websocket_analyze(websocket: WebSocket, analysis_id: str):
 # ============================================================================
 
 
-async def run_analysis_task(
+def run_analysis_task(
     analysis_id: str,
     ticker: str,
     date: str,
     config: Dict[str, Any],
     analysts: list,
 ):
-    """Run the trading agents analysis."""
+    """Run the trading agents analysis in background."""
+    # Import here to avoid loading heavy dependencies at startup
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
     analysis = active_analyses[analysis_id]
 
     try:
@@ -298,19 +301,15 @@ async def run_analysis_task(
 
         # Run analysis
         add_message(analysis_id, "info", f"Analyzing {ticker}...")
-        event_stream, decision = await asyncio.to_thread(
-            ta.propagate,
-            ticker,
-            date,
-        )
+        event_stream, decision = ta.propagate(ticker, date)
         analysis["progress"] = 90
 
-        # Store result
+        # Store result - ensure JSON serializable
         analysis["result"] = {
             "ticker": ticker,
             "date": date,
-            "decision": decision,
-            "event_stream": event_stream,
+            "decision": str(decision) if decision else None,
+            "summary": "Analysis completed successfully",
         }
         analysis["progress"] = 100
         analysis["status"] = "completed"
@@ -318,7 +317,7 @@ async def run_analysis_task(
         add_message(analysis_id, "success", f"Analysis completed for {ticker}")
 
     except Exception as e:
-        logger.error(f"Analysis error: {e}")
+        logger.error(f"Analysis error: {e}", exc_info=True)
         analysis["status"] = "failed"
         analysis["error"] = str(e)
         add_message(analysis_id, "error", f"Analysis failed: {str(e)}")
