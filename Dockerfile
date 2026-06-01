@@ -8,7 +8,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
 COPY . .
-RUN pip install --no-cache-dir . && pip install --no-cache-dir fastapi uvicorn[standard]
+# fastapi and uvicorn[standard] are declared in pyproject.toml, so installing
+# the package pulls them in — no separate install needed.
+RUN pip install --no-cache-dir .
 
 FROM python:3.12-slim
 

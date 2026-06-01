@@ -1,15 +1,14 @@
 """FastAPI web application for TradingAgents."""
 
 import asyncio
-import json
 import logging
 import os
 from datetime import datetime
 from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -24,8 +23,16 @@ from tradingagents.llm_clients.api_key_env import get_api_key_env, PROVIDER_API_
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Global state for active analysis
+# Path to the single-page UI, resolved once at import time.
+_INDEX_HTML = os.path.join(os.path.dirname(__file__), "static", "index.html")
+
+# Global store of analyses keyed by id. Capped to avoid unbounded growth in a
+# long-running process; see _evict_old_analyses.
 active_analyses: Dict[str, Dict[str, Any]] = {}
+
+# Maximum number of analyses to retain in memory. Oldest terminal analyses are
+# evicted first once this is exceeded.
+MAX_ANALYSES = int(os.getenv("TRADINGAGENTS_WEB_MAX_ANALYSES", "100"))
 
 # Sensible default models per provider, used when the chosen provider does
 # not match the configured models (e.g. provider=anthropic but the default
@@ -86,6 +93,65 @@ def _resolve_provider_models(provider: str, config: Dict[str, Any]) -> None:
         config["quick_think_llm"] = defaults["quick"]
 
 
+def _evict_old_analyses() -> None:
+    """Bound the in-memory store, evicting oldest terminal analyses first.
+
+    ``active_analyses`` preserves insertion order, so the earliest-created
+    entries appear first. Completed/failed analyses are dropped before any
+    still-running ones; if the cap is still exceeded (e.g. many concurrent
+    runs) the oldest entries are removed regardless.
+    """
+    if len(active_analyses) < MAX_ANALYSES:
+        return
+
+    terminal = [
+        aid for aid, a in active_analyses.items()
+        if a["status"] in ("completed", "failed")
+    ]
+    while len(active_analyses) >= MAX_ANALYSES and terminal:
+        active_analyses.pop(terminal.pop(0), None)
+
+    while len(active_analyses) >= MAX_ANALYSES:
+        oldest = next(iter(active_analyses))
+        active_analyses.pop(oldest, None)
+
+
+def _bump_progress(analysis_id: str, step: int = 2, ceiling: int = 85) -> None:
+    """Nudge progress forward as agents do work, capped below completion."""
+    analysis = active_analyses.get(analysis_id)
+    if analysis is not None and analysis["progress"] < ceiling:
+        analysis["progress"] = min(analysis["progress"] + step, ceiling)
+
+
+def _make_progress_callback(analysis_id: str):
+    """Build a LangChain callback handler that streams live agent activity.
+
+    Imported lazily so that importing this module (or running the API without
+    triggering an analysis) does not require langchain_core.
+    """
+    from langchain_core.callbacks import BaseCallbackHandler
+
+    class ProgressCallbackHandler(BaseCallbackHandler):
+        """Pushes real-time LLM/tool events into the analysis message feed."""
+
+        def on_chat_model_start(self, serialized, messages, **kwargs):
+            add_message(analysis_id, "info", "Agent reasoning...")
+            _bump_progress(analysis_id)
+
+        def on_llm_start(self, serialized, prompts, **kwargs):
+            _bump_progress(analysis_id)
+
+        def on_tool_start(self, serialized, input_str, **kwargs):
+            name = (serialized or {}).get("name", "tool")
+            add_message(analysis_id, "info", f"Fetching data via {name}")
+            _bump_progress(analysis_id)
+
+        def on_tool_error(self, error, **kwargs):
+            add_message(analysis_id, "warning", f"Tool error: {error}")
+
+    return ProgressCallbackHandler()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown."""
@@ -116,12 +182,10 @@ app.add_middleware(
 # ============================================================================
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def index():
-    """Serve the main web app."""
-    html_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
-    with open(html_path) as f:
-        return f.read()
+    """Serve the main web app without blocking the event loop."""
+    return FileResponse(_INDEX_HTML, media_type="text/html")
 
 
 @app.get("/api/config")
@@ -245,6 +309,9 @@ async def start_analysis(background_tasks: BackgroundTasks, request_data: Dict[s
         # Create analysis ID
         analysis_id = f"{ticker}_{int(datetime.now().timestamp())}"
 
+        # Bound the store before inserting a new entry.
+        _evict_old_analyses()
+
         # Store analysis state
         active_analyses[analysis_id] = {
             "id": analysis_id,
@@ -356,10 +423,17 @@ async def websocket_analyze(websocket: WebSocket, analysis_id: str):
             },
         })
 
+    except WebSocketDisconnect:
+        # Client navigated away or closed the tab — expected, not an error.
+        logger.info(f"WebSocket client disconnected from {analysis_id}")
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:
-        await websocket.close()
+        # Closing an already-disconnected socket raises; ignore it.
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
 
 
 # ============================================================================
@@ -399,12 +473,15 @@ def run_analysis_task(
         )
         analysis["progress"] = 20
 
-        # Initialize graph
+        # Initialize graph with a callback that streams real-time agent
+        # activity (LLM reasoning, tool/data fetches) into the message feed.
         add_message(analysis_id, "info", f"Selected analysts: {', '.join(analysts)}")
+        progress_callback = _make_progress_callback(analysis_id)
         ta = TradingAgentsGraph(
             selected_analysts=analysts,
             debug=True,
             config=merged_config,
+            callbacks=[progress_callback],
         )
         analysis["progress"] = 30
 
