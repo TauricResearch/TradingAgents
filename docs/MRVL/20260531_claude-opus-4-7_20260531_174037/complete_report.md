@@ -5,13 +5,13 @@ Generated: 2026-05-31 17:40:38
 ## I. Analyst Team Reports
 
 ### Market Analyst
-# MRVL (Marvell Technology, Inc.) — Technical Analysis Report
+#### MRVL (Marvell Technology, Inc.) — Technical Analysis Report
 **As of close: 2026-05-29 (most recent trading day before 2026-05-31)**
 *Note: A "verified market snapshot" tool was attempted but is not available in this environment. All figures below come directly from `get_stock_data` and `get_indicators` outputs.*
 
 ---
 
-## 1. Indicator Selection Rationale (8 chosen)
+#### 1. Indicator Selection Rationale (8 chosen)
 
 I selected eight indicators that span trend, momentum, volatility, and reversal-warning signals while avoiding redundancy:
 
@@ -30,7 +30,7 @@ I selected eight indicators that span trend, momentum, volatility, and reversal-
 
 ---
 
-## 2. Price Action Overview (Nov 2025 → May 2026)
+#### 2. Price Action Overview (Nov 2025 → May 2026)
 
 - **Nov 2025 – early Feb 2026: Distribution / decline.** MRVL sold off from the low-$90s into a $73.69 low on 2026-02-04, with multiple high-volume down days (notably 12/08 at 40.7M shares).
 - **Feb–early March 2026: Basing.** Price stabilized in a $77–$83 range.
@@ -40,7 +40,7 @@ I selected eight indicators that span trend, momentum, volatility, and reversal-
 
 ---
 
-## 3. Indicator Readings (latest = 2026-05-29)
+#### 3. Indicator Readings (latest = 2026-05-29)
 
 | Metric | Value (5/29) | 1 Week Prior (5/22) | Trend |
 |---|---|---|---|
@@ -68,7 +68,7 @@ Price ($205) >> 10 EMA (193.70) >> 50 SMA (146.66) >> 200 SMA (98.37). All avera
 
 ---
 
-## 4. Key Observations & Actionable Insights
+#### 4. Key Observations & Actionable Insights
 
 ### Bullish factors
 1. Long-term trend regime is unambiguously up (10 EMA > 50 SMA > 200 SMA).
@@ -95,7 +95,7 @@ Price ($205) >> 10 EMA (193.70) >> 50 SMA (146.66) >> 200 SMA (98.37). All avera
 
 ---
 
-## 5. Trading Posture
+#### 5. Trading Posture
 
 The trend is bullish, but the chart is showing **classic late-stage signals**: parabolic slope, climactic volume, momentum divergence on both MACD and RSI, and a bearish reversal candle on 5/27. This is the kind of setup where momentum traders trail tightly rather than add new long exposure, and counter-trend traders look for a confirmed lower high before shorting.
 
@@ -105,7 +105,7 @@ The trend is bullish, but the chart is showing **classic late-stage signals**: p
 
 ---
 
-## 6. Summary Table
+#### 6. Summary Table
 
 | Theme | Signal | Reading | Implication |
 |---|---|---|---|
@@ -124,9 +124,9 @@ The trend is bullish, but the chart is showing **classic late-stage signals**: p
 **Confidence:** High
 
 
-# MRVL Sentiment Report — 2026-05-24 to 2026-05-31
+#### MRVL Sentiment Report — 2026-05-24 to 2026-05-31
 
-## 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 ### News (Yahoo Finance, ~20 headlines)
 The news flow is decisively **bullish**, dominated by reactions to Marvell's Q1 FY2027 earnings report released on May 27, 2026. Key signals:
@@ -155,19 +155,19 @@ Labeled split: **Bullish 7 (23%) / Bearish 1 (3%) / Unlabeled 22**. Among labele
 
 Reddit signal is **mildly bullish but thin**; MRVL is riding the broader AI semis wave rather than driving its own discussion.
 
-## 2. Cross-source alignment & divergences
+#### 2. Cross-source alignment & divergences
 - **Strong alignment**: All three sources point bullish. News validates fundamentals + analyst upgrades; StockTwits cheers the price action and upcoming catalysts; Reddit treats MRVL as a core AI-semi holding alongside MU/NVDA.
 - **Subtle divergence**: News includes nuanced cautions (gross-margin pressure, NVDA-vs-MRVL relative-value piece, "not a screaming buy yet"). Retail (StockTwits/Reddit) shows zero such nuance — pure momentum/FOMO tone with euphoric language. This gap is a textbook late-cycle pattern: institutions trimming nuance into the move, retail extrapolating.
 - **Contrarian risk**: Cramer's "whiffed" admission, "dot com boom 2.0" comments, and the +141% YTD / +200% trailing-12M run are classic over-extension markers.
 
-## 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **AI infrastructure custom-silicon thesis intact and accelerating** — Q1 beat, raised FY27 guide, FY28 raised, "growth accelerating every quarter."
 2. **Marvell as the #2 to Broadcom in custom AI silicon / interconnect** — re-rating narrative.
 3. **Photonics adjacency** — NVDA's $6.5B photonics spend touches Marvell.
 4. **Computex 2026 (June 2) keynote** — near-term catalyst with Matt Murphy + Jensen Huang on stage.
 5. **Margin/valuation pushback** — minority view, but real.
 
-## 4. Catalysts and risks
+#### 4. Catalysts and risks
 **Catalysts (next 1–2 weeks)**:
 - Computex 2026 keynote June 2 (Murphy/Huang joint stage appearance).
 - Possible S&P 500 inclusion speculation (unverified retail chatter).
@@ -179,7 +179,7 @@ Reddit signal is **mildly bullish but thin**; MRVL is riding the broader AI semi
 - Valuation: P/S ~22x after >2x YTD move; relative-value case favors NVDA per Zacks.
 - Frothy retail tone / Cramer capitulation = late-stage sentiment marker.
 
-## 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -196,19 +196,19 @@ Reddit signal is **mildly bullish but thin**; MRVL is riding the broader AI semi
 | Bear short above $220 / sell-the-news warning | Bearish (minority) | StockTwits | @AllinOrBusta repeated posts |
 | YTD +141%, TTM +200%+ | Mixed (bullish trend / extension risk) | News | Trefis, TheStreet |
 
-## Bottom line
+#### Bottom line
 Sentiment is clearly **Bullish** across all three sources, anchored by a strong Q1 print, broad analyst upgrades, and the Computex catalyst. The score (7.8) reflects the near-unanimous bullish read while shaving for late-cycle euphoria markers (Cramer capitulation, retail "dot-com 2.0" rhetoric, +200% TTM run, modest institutional caution on margins/valuation). Confidence is **high** given full data across all three sources with substantive content.
 
 
 ### News Analyst
 I have sufficient data to compile a comprehensive report.
 
-# MRVL (Marvell Technology, Inc.) — News & Macro Research Report
+#### MRVL (Marvell Technology, Inc.) — News & Macro Research Report
 **Analysis Date:** 2026-05-31 | **Exchange:** NASDAQ (NMS) | **Sector:** Technology / Semiconductors
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 Marvell Technology (MRVL) is in a powerful bullish setup following a blockbuster fiscal Q1 2027 earnings report (released **May 27, 2026**). The stock closed **May 28 at $204.03, up +3.09%**, and is up **~141% YTD** and **>200% over the trailing 12 months**. The company **raised its FY2027 outlook**, with revenue growth approaching **~40%**, and major sell-side firms (Deutsche Bank, RBC, Bank of America, Barclays) responded with significant price-target hikes — Deutsche Bank doubling its target from $120 to **$240**.
 
@@ -216,7 +216,7 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 
 ---
 
-## 2. Company-Specific Analysis (MRVL)
+#### 2. Company-Specific Analysis (MRVL)
 
 ### 2.1 Q1 FY2027 Earnings (Reported May 27, 2026) — The Catalyst
 - **Record revenue** with guidance above consensus
@@ -252,7 +252,7 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 
 ---
 
-## 3. Macroeconomic & Market Backdrop
+#### 3. Macroeconomic & Market Backdrop
 
 ### 3.1 Equity Markets — Risk-On Regime
 - **S&P 500 and Nasdaq 100 both posted RECORD HIGHS** during the week
@@ -280,7 +280,7 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 
 ---
 
-## 4. Trading-Relevant Insights & Actionable Conclusions
+#### 4. Trading-Relevant Insights & Actionable Conclusions
 
 ### Bull Case (Dominant)
 1. Strong Q1 + accelerating quarterly growth guidance + raised FY27/FY28 outlook
@@ -303,7 +303,7 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 
 ---
 
-## 5. Key Points Summary Table
+#### 5. Key Points Summary Table
 
 | Category | Key Point | Implication for MRVL | Direction |
 |---|---|---|---|
@@ -330,14 +330,14 @@ Macro tailwinds reinforce the bull case: U.S. equities sit at **record highs** (
 ### Fundamentals Analyst
 I have all the data I need. Let me compose the comprehensive fundamental analysis report.
 
-# Marvell Technology, Inc. (MRVL) — Fundamental Analysis Report
+#### Marvell Technology, Inc. (MRVL) — Fundamental Analysis Report
 **Analysis Date:** May 31, 2026
 **Sector / Industry:** Technology / Semiconductors
 **Exchange:** NMS (NASDAQ)
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Marvell Technology is a fabless semiconductor company specializing in data infrastructure silicon. The company is heavily levered to secular AI/data-center buildouts (custom ASICs, optical DSPs, Ethernet switching, storage), as well as carrier infrastructure, enterprise networking, automotive, and consumer end markets.
 
@@ -357,7 +357,7 @@ The stock is trading well above its 200-day average — a strong uptrend driven 
 
 ---
 
-## 2. Income Statement — Growth Inflection
+#### 2. Income Statement — Growth Inflection
 
 ### Annual Revenue & Profitability Trajectory (Fiscal year ends January)
 
@@ -392,7 +392,7 @@ The stock is trading well above its 200-day average — a strong uptrend driven 
 
 ---
 
-## 3. Balance Sheet — Major Capital Restructuring in Q1 FY27
+#### 3. Balance Sheet — Major Capital Restructuring in Q1 FY27
 
 | Metric | Apr-25 (Q1 FY26) | Jan-26 (FY26 close) | Apr-26 (Q1 FY27) | Δ QoQ |
 |---|---|---|---|---|
@@ -420,7 +420,7 @@ Tangible book value moved from deeply negative (-$577M a year ago) to positive *
 
 ---
 
-## 4. Cash Flow Quality — Strong & Consistent
+#### 4. Cash Flow Quality — Strong & Consistent
 
 ### Annual Cash Flow Summary
 
@@ -446,7 +446,7 @@ Tangible book value moved from deeply negative (-$577M a year ago) to positive *
 
 ---
 
-## 5. Profitability & Returns
+#### 5. Profitability & Returns
 
 | Metric | TTM Value |
 |---|---|
@@ -461,7 +461,7 @@ Underlying (ex-one-time items) operating margin is expanding sequentially — fr
 
 ---
 
-## 6. Key Strategic / Fundamental Observations
+#### 6. Key Strategic / Fundamental Observations
 
 ### Bullish drivers
 1. **AI-driven revenue acceleration** — sequential and YoY growth re-accelerating; Q1 FY27 revenue +27.6% YoY at $2.42B.
@@ -481,7 +481,7 @@ Underlying (ex-one-time items) operating margin is expanding sequentially — fr
 
 ---
 
-## 7. Summary Table — Key Points for Traders
+#### 7. Summary Table — Key Points for Traders
 
 | Category | Observation | Implication |
 |---|---|---|
@@ -513,7 +513,7 @@ Bull Analyst: # Bull Analyst Opening Argument — Marvell Technology (MRVL)
 
 Let me get straight to the point: **MRVL is one of the cleanest, most fundamentally validated AI infrastructure plays in the market today**, and the data overwhelmingly supports a bullish posture. Let me build the case, then I'll engage with what I anticipate the bear will throw at me.
 
-## 1. The Growth Story Is Not a Story — It's Showing Up in the Numbers
+#### 1. The Growth Story Is Not a Story — It's Showing Up in the Numbers
 
 Look at the Q1 FY27 print released May 27th:
 - **Revenue: $2.42B, up +27.6% YoY** — the *strongest* growth rate in the dataset, and sequentially accelerating four quarters in a row.
@@ -523,11 +523,11 @@ Look at the Q1 FY27 print released May 27th:
 
 This isn't hype. This is a company executing through an inflection. FY26 revenue grew +42%, the company swung from an $885M loss to $2.67B in profit, and the trajectory is steepening, not flattening.
 
-## 2. Competitive Positioning Is Genuinely Differentiated
+#### 2. Competitive Positioning Is Genuinely Differentiated
 
 Trefis labeled Marvell "**Broadcom's most credible rival**" in custom AI silicon — and that's not a marketing line, it's the structure of the market. Hyperscalers want a second source for custom ASICs and optical interconnect, and Marvell *is* that second source. Add Nvidia's $6.5B photonics commitment that explicitly touches Marvell's optical DSP business, and you have a company plugged into **two** of the most durable AI infrastructure spend categories: custom XPUs and silicon photonics.
 
-## 3. The Sell-Side Is Validating This in Real Time
+#### 3. The Sell-Side Is Validating This in Real Time
 
 - Deutsche Bank: $120 → **$240** (doubled).
 - RBC: $240.
@@ -535,7 +535,7 @@ Trefis labeled Marvell "**Broadcom's most credible rival**" in custom AI silicon
 
 When **four** top-tier desks coordinate on price-target hikes after a print, that's not retail FOMO — that's institutional underwriting. The $240 target implies ~17% upside from $204, and that's the *base case*.
 
-## 4. Now Let Me Address the Bear Concerns Head-On
+#### 4. Now Let Me Address the Bear Concerns Head-On
 
 **"Valuation is stretched at 22x P/S and 70x trailing PE."**
 The trailing PE is a red herring — it's distorted by financing noise from the $1.27B acquisition and the $256M interest expense spike in Q1 FY27. The number that matters is **forward PE of 33.7x with a PEG of 1.17**. For a company growing revenue ~30%+ with expanding gross margins and doubling FCF, a PEG near 1 is *not* expensive — it's reasonable. NVDA traded at far richer multiples through its ramp. And forward EPS is projected at $6.07 versus TTM $2.91 — analysts are underwriting that earnings nearly double.
@@ -558,14 +558,14 @@ Marvell has been goodwill-heavy for years (legacy of the Inphi and Cavium acquis
 **"Treasury yields could pressure high-multiple stocks."**
 True for the whole growth complex — but MRVL's earnings are tied to **hyperscaler capex cycles**, not consumer spending or rate-sensitive end markets. Dell's blockbuster earnings just confirmed AI server demand is accelerating. The fundamental driver is structurally insulated from yield moves in a way that pure multiple-expansion stories aren't.
 
-## 5. The Macro Tape Is Working *For* Us
+#### 5. The Macro Tape Is Working *For* Us
 
 - S&P 500 and Nasdaq 100 at **record highs**.
 - U.S.–Iran truce extension = risk-on.
 - Dell's earnings = direct AI capex confirmation.
 - **Computex 2026 keynote on June 2 with Murphy AND Jensen Huang on stage** — a high-visibility catalyst within days.
 
-## Bottom Line
+#### Bottom Line
 
 The bear case rests on three pillars: valuation, technical extension, and sentiment euphoria. Every one of them is either contradicted by the data (margins are *expanding*, not compressing), already priced in (forward PE 33x with PEG 1.17 is reasonable), or a *warning* rather than a *signal* (divergences resolve in trends).
 
@@ -576,13 +576,13 @@ Bull Analyst: # Bull Analyst Response — Marvell Technology (MRVL)
 
 Bear, you've built a tidy-looking wall of concerns, but let's be honest about what just happened: you spent eight sections trying to convince the audience that **a company growing revenue 28%, expanding margins, doubling free cash flow, and earning four major price-target upgrades in one week** is somehow a *short setup*. That's an extraordinary claim, and your evidence doesn't carry the weight you think it does. Let me dismantle this point by point.
 
-## 1. You're Mistaking "Things I Listed" for "Things I Conceded"
+#### 1. You're Mistaking "Things I Listed" for "Things I Conceded"
 
 Your opening was a rhetorical sleight of hand. Acknowledging that divergences exist, that there was a reversal candle, and that the stock has run is not the same as conceding the bear case. **Every uptrend in market history has had divergences and reversal candles in it.** NVDA had three "climactic exhaustion candles" between $400 and $1,200. AVGO had four. The question isn't whether warning signs exist — it's whether they predict tops with any reliability. They don't. They predict *consolidation* most of the time, and the bull who sells every divergence underperforms every cycle.
 
 So let me re-frame what I actually said: **the trend is bullish, late-stage signals warrant tighter risk management, and the fundamentals are accelerating.** That's not a concession. That's discipline.
 
-## 2. Your "$0.04 EPS Annualizes to $0.16" Math Is Genuinely Misleading
+#### 2. Your "$0.04 EPS Annualizes to $0.16" Math Is Genuinely Misleading
 
 This is the single weakest point in your rebuttal, and I want to spend time on it because it reveals how the bear case is constructed.
 
@@ -601,7 +601,7 @@ Your "$0.16 annualized" framing implies the company is suddenly only earning a f
 
 The forward $6.07 estimate isn't a fantasy — it's what happens when you take $2.42B of quarterly revenue, grow it sequentially every quarter as guided, apply expanding margins, and let the acquisition contribute a full quarter of revenue (not just full-quarter financing drag). The math works. You're choosing to anchor on the noisiest line in the income statement.
 
-## 3. The Margin "Underwhelming" Argument Is Goalpost-Shifting
+#### 3. The Margin "Underwhelming" Argument Is Goalpost-Shifting
 
 You said +190 bps of gross margin expansion in a year is "underwhelming." Let me ask: compared to what?
 
@@ -616,7 +616,7 @@ You compared this to NVDA, which is a category error and you know it. NVDA sells
 
 And here's the kicker: **margins are still expanding sequentially every quarter despite the mix headwind.** Your own thesis says custom silicon should be *compressing* margins. The data shows expansion. You can't have it both ways.
 
-## 4. The "Seven Things Need to Go Right" Frame Is the Bear's Favorite Rhetorical Trick
+#### 4. The "Seven Things Need to Go Right" Frame Is the Bear's Favorite Rhetorical Trick
 
 Let me reframe your seven items honestly:
 
@@ -630,7 +630,7 @@ Let me reframe your seven items honestly:
 
 You framed these as **seven independent coin flips that all need to land heads.** They're not independent. They're correlated outcomes of one underlying reality: *is the AI infrastructure capex cycle real and durable?* If yes (and Dell, NVDA, AVGO, MSFT, META, GOOGL, AMZN are all confirming yes), then 1, 2, 3, 4, 6, and 7 all happen together. You don't need seven miracles — you need one durable trend, and we have it.
 
-## 5. The "Crowded Trade" Argument Cuts Both Ways
+#### 5. The "Crowded Trade" Argument Cuts Both Ways
 
 You cited four sell-side $240 targets and Cramer's capitulation as positioning saturation. Here's what's actually true:
 
@@ -639,7 +639,7 @@ You cited four sell-side $240 targets and Cramer's capitulation as positioning s
 - Cramer's capitulation is *one anecdote.* The "Cramer indicator" has been wrong roughly as often as it's been right. Citing it as evidence of a top is closer to superstition than analysis.
 - If the trade were truly crowded, MRVL would underperform the SOX on rallies. It's **outperforming**. That's a sign of net buying pressure, not exhaustion.
 
-## 6. Computex Isn't a Trap — It's an Optionality Event
+#### 6. Computex Isn't a Trap — It's an Optionality Event
 
 You said Computex is "priced in." But:
 
@@ -649,7 +649,7 @@ You said Computex is "priced in." But:
 
 The expected value of Computex for a long is positive. Even if the stock chops post-event, the medium-term thesis strengthens.
 
-## 7. The Asymmetry Argument Is Backwards
+#### 7. The Asymmetry Argument Is Backwards
 
 You claimed the upside is "17% to $240" and the downside is "25-40% to the 50 SMA at $147."
 
@@ -665,11 +665,11 @@ So real asymmetry:
 
 That's *positive* skew, not negative. You're modeling tail-risk downside against base-case upside, which is how every bear case ever has been constructed.
 
-## 8. The Real Bull Case in One Sentence
+#### 8. The Real Bull Case in One Sentence
 
 A company growing revenue **28%** with **expanding margins**, **doubling free cash flow**, **$2B+ in buybacks**, **four sell-side upgrades to $240**, **a major catalyst on June 2**, and **direct exposure to the most durable capex cycle of the decade** is not a short setup at $205. It's a stock to **own through volatility, trim into euphoria, and add on pullbacks** — exactly what disciplined long investors do.
 
-## Final Word
+#### Final Word
 
 Bear, your entire case reduces to one argument: *"the stock has gone up a lot, therefore it should go down."* Every other point — margins, EPS noise, technicals, sentiment — is window dressing on that single intuition. **Mean reversion is not a thesis.** It's a heuristic that works most of the time in random walks and fails spectacularly in genuine secular trends.
 
@@ -682,7 +682,7 @@ Bull Analyst: # Bull Analyst Final Response — Marvell Technology (MRVL)
 
 Bear, that was your strongest punch yet, and I respect the rhetorical jiu-jitsu. You took my "scale on pullbacks, trail stops" framework and tried to convert it into a bear thesis. Clever. But it doesn't survive contact with how professional capital actually deploys, and I'm going to show you exactly where the move fails.
 
-## 1. "You Conceded the Trade" — No, I Defined Position Management
+#### 1. "You Conceded the Trade" — No, I Defined Position Management
 
 Let me make this crystal clear because the audience deserves it:
 
@@ -697,7 +697,7 @@ What you're describing — "exit longs, buy puts, sit in cash waiting for $180" 
 
 The proof? **Every one of my scenarios has you holding or buying.** Every one of yours has you flat or short. We are not "describing the same chart." We are describing opposite trades dressed in similar tactical language.
 
-## 2. Your Probability-Weighted EV Table Is Where the Bear Case Quietly Falls Apart
+#### 2. Your Probability-Weighted EV Table Is Where the Bear Case Quietly Falls Apart
 
 You built a scenario table that produced -2.4% expected value. Let me audit it, because this is where rhetorical bear cases routinely smuggle their conclusions into the inputs:
 
@@ -718,7 +718,7 @@ And I'd argue I'm being conservative on the bull cases. **The bear's "negative E
 
 This is the trick with probability tables: **whoever sets the probabilities wins the debate.** I'm not letting you set them unchallenged.
 
-## 3. The FCF Yield vs. Treasury Argument Misunderstands Growth Investing
+#### 3. The FCF Yield vs. Treasury Argument Misunderstands Growth Investing
 
 You wrote: *"FCF yield 1.27% vs. 10-year at 4.5% means you're paying for 5+ years of pristine execution."*
 
@@ -731,7 +731,7 @@ The right framework for a growth asset is **FCF yield trajectory**, not snapshot
 
 A static 1.27% yield growing to 4% in 24 months is exactly how compounding growth stocks work. Treasuries don't compound. Marvell's cash flow does. **Comparing them at a single snapshot is a category error**, and you know better than to make it.
 
-## 4. The NVDA Margin Comparison Is Still Wrong, And Here's Why It Matters
+#### 4. The NVDA Margin Comparison Is Still Wrong, And Here's Why It Matters
 
 You corrected my comp set with NVDA's +1,300 bps gross margin expansion. Let me push back hard:
 
@@ -752,7 +752,7 @@ You said: *"Stop pricing MRVL at NVDA-style multiples."* But MRVL is **not** at 
 
 MRVL is trading at a **discount** to NVDA, not parity. And given that custom silicon is a more defensible long-term business model than merchant GPUs (which face commoditization risk), the discount may even be unwarranted.
 
-## 5. The 5/27 "Distribution Candle" Has Multiple Interpretations
+#### 5. The 5/27 "Distribution Candle" Has Multiple Interpretations
 
 You called the May 27 reversal candle "institutional distribution." Possible. Here's another reading, equally valid:
 
@@ -764,7 +764,7 @@ You called the May 27 reversal candle "institutional distribution." Possible. He
 
 Distribution candles in genuine tops produce *lower highs and lower lows*. We've gotten neither. We got a wick, two days of consolidation, and price holding above the 10 EMA. That's **digestion**, not distribution. Until we see a confirmed lower high *with volume*, the 5/27 candle is a hypothesis, not a fact.
 
-## 6. On "MRVL Is the Derivative Play, Not the Prime Mover"
+#### 6. On "MRVL Is the Derivative Play, Not the Prime Mover"
 
 This is the most interesting bear point you've made, and I'll engage it seriously.
 
@@ -776,7 +776,7 @@ You're right that MRVL is downstream of hyperscaler capex decisions. But here's 
 
 Your preference for NVDA over MRVL is defensible — but it's a **relative-value** argument, not an absolute-direction argument. You can prefer NVDA *and* still think MRVL goes higher. The two aren't mutually exclusive.
 
-## 7. Where We Actually Agree — And Where We Don't
+#### 7. Where We Actually Agree — And Where We Don't
 
 Let me concede what's reasonable in your case:
 - **Yes**, $205 is not the optimal entry. **Best entries are $180-$190 on pullback.**
@@ -790,7 +790,7 @@ Where we genuinely diverge:
 - **Catalyst**: You say Computex is a sell-the-news trap. I say even a neutral Computex doesn't break the thesis, and a positive one re-accelerates the trend.
 - **Time horizon**: You're trading the next 4 weeks. I'm investing in the next 12-24 months. *Both can be right at different windows.*
 
-## 8. The Bull Recommendation, Sharpened
+#### 8. The Bull Recommendation, Sharpened
 
 Let me lay out the actionable bull framework with specifics:
 
@@ -811,7 +811,7 @@ Let me lay out the actionable bull framework with specifics:
 - 3-month $185 puts as portfolio hedge against macro shock (yields, geopolitics).
 - IV is elevated, so puts aren't cheap — but they're cheaper than getting tax-bill-shocked by exiting a multibagger.
 
-## Final Word
+#### Final Word
 
 Bear, here's the honest summary of this debate:
 
@@ -838,7 +838,7 @@ Bear, that was a strong close. You played the historical-pattern card, the "it's
 
 Let me start with the single most important point you made, because it's the one that sounds most devastating and is actually the weakest.
 
-## 1. Your "Honest" Probability Table Is Built on a Historical Base Rate That Doesn't Apply
+#### 1. Your "Honest" Probability Table Is Built on a Historical Base Rate That Doesn't Apply
 
 You wrote: *"The historical base rate for a stock up 200%+ in 12 months adding another 27% is closer to 20-25%."*
 
@@ -858,7 +858,7 @@ The conditional base rate for "AI/cloud semi leader with confirmed earnings infl
 
 So when you "honest-correct" my 45% to 28%, you're invoking the wrong reference class. **45% is conservative inside the right reference class.**
 
-## 2. The "Every Capex Cycle Slows in 18-24 Months" Argument Is Genuinely Misleading
+#### 2. The "Every Capex Cycle Slows in 18-24 Months" Argument Is Genuinely Misleading
 
 You said: *"The 2000 dot-com top, 2008 fiber buildout, 2014 commodities supercycle — every capex cycle slowed within 18-24 months."*
 
@@ -881,7 +881,7 @@ And what's the leading indicator that an AI capex cycle is rolling over? **Falli
 
 You're assigning 18% probability to a slowdown when **every available leading indicator is pointing the other direction.** That's not honest probability — that's pattern-matching to past tops while ignoring current data. **My 8% on capex slowdown isn't aggressive; it's calibrated to actual evidence.**
 
-## 3. The FCF "Inflated by 50%" Charge — Let's Actually Run the Math
+#### 3. The FCF "Inflated by 50%" Charge — Let's Actually Run the Math
 
 You said consensus FY27 FCF is $2.8-3.2B and I "inflated" to $4.5-5B.
 
@@ -898,7 +898,7 @@ That's roughly in line with your $2.8-3.2B range — let me grant that.
 
 The honest forward-12M FCF range is **$3.0-3.8B**, yielding **1.7-2.1%** at current price — which is exactly the trajectory I described. Still below Treasuries today, but **growing 30-40% per year** while Treasuries grow 0%. Two years out, the yields cross. That's the compounding argument, and it survives your audit.
 
-## 4. Your Trail-Stop Argument Actually Helps the Bull
+#### 4. Your Trail-Stop Argument Actually Helps the Bull
 
 You said the $193 trail stop is "statistical near-certainty" to be hit within 2-3 weeks given 6% daily ATR.
 
@@ -920,7 +920,7 @@ My trail-stop path:
 
 **The trail-stop is asymmetric in my favor; the all-cash exit is symmetric in yours.** Both can win, but the bull's path captures more of the upside scenarios you yourself assigned 35% probability to.
 
-## 5. The "Six Bearish Technical Signals" Counted With My Thumb on the Scale
+#### 5. The "Six Bearish Technical Signals" Counted With My Thumb on the Scale
 
 Let me re-list your six signals honestly:
 
@@ -933,7 +933,7 @@ Let me re-list your six signals honestly:
 
 Honest count: **two signals (divergence + unconfirmed reversal candle), one condition (extension), and three weak/double-counted items.** Two unconfirmed bearish signals against an unambiguously bullish trend stack (price >> 10 EMA >> 50 SMA >> 200 SMA, all rising) is not "stacked bearish." It's "trend with normal late-stage warnings."
 
-## 6. The Question I Allegedly "Never Answered"
+#### 6. The Question I Allegedly "Never Answered"
 
 You asked: *How do we get from $0.62 quarterly non-GAAP EPS to $6.07 forward 12M consensus?*
 
@@ -950,7 +950,7 @@ Could MRVL miss this path? Absolutely. Probability of *some* miss vs. consensus:
 
 That's the answer. It wasn't dancing — it was a path that stitches together every component you said had to break right, and shows them mostly already happening.
 
-## 7. The Real Closing Frame
+#### 7. The Real Closing Frame
 
 Bear, here's the irreducible disagreement:
 
@@ -969,7 +969,7 @@ What does the actual evidence say?
 
 Every single leading indicator says we're in the middle innings, not the late ones. The bear case requires you to weigh **historical pattern matching to past tops** against **current real-time data confirming continuation.** I'll take current data over pattern-matching every cycle.
 
-## 8. Final Bull Stance
+#### 8. Final Bull Stance
 
 **Direction: Long with high conviction on 12-24 month horizon.**
 
@@ -980,7 +980,7 @@ Every single leading indicator says we're in the middle innings, not the late on
 - **12-month target: $245-$280.** Sell-side base case + modest re-rating room as FY28 visibility builds.
 - **Invalidation**: Close below $165 with MACD bearish cross and confirmed lower high. *That's where I'd reassess, not at the first divergence in a parabolic run.*
 
-## Closing Word
+#### Closing Word
 
 Bear, you said: *"It's never different."*
 
@@ -1005,7 +1005,7 @@ Bear, that was a heroic effort. You found a real seam — the drawdown history �
 
 Let me start with the seam you think you found, because it's the most important.
 
-## 1. The Drawdown Reference Class Argument Cuts Both Ways — And You Picked the Wrong Side of It
+#### 1. The Drawdown Reference Class Argument Cuts Both Ways — And You Picked the Wrong Side of It
 
 You listed AMD 2018 (-55%), MU 2018 (-55%), NVDA 2018 (-56%), NVDA 2022 (-66%), AVGO 2022 (-35%), ANET 2018-19 (-40%), and MRVL late-2025 (-43%) as evidence that semi leaders draw down hard mid-cycle.
 
@@ -1023,7 +1023,7 @@ So when you tell the audience "MRVL drew down 43% six months ago, it could happe
 
 The bear's drawdown framework only wins if the investor (a) sells at the top, (b) has the discipline to buy back at the bottom, and (c) doesn't re-enter on the way up. Empirically, **almost no one executes all three**. The base rate of "successful market timer" is sub-20%. The base rate of "long-term holder who sat through chop" is the strategy that built generational wealth in every name you cited.
 
-## 2. The "FCF Yield Concession" — Yes, And It Doesn't Matter For Growth Investing
+#### 2. The "FCF Yield Concession" — Yes, And It Doesn't Matter For Growth Investing
 
 You said I "conceded" the FCF yield argument. I did. Here's why it doesn't break the thesis:
 
@@ -1035,7 +1035,7 @@ The right framework: pay sub-Treasury yield today *if* the underlying FCF compou
 
 Yes, this requires execution. Yes, multiple compression is a risk. **But you're not getting paid 4.5% to wait — you're getting paid the embedded growth rate of the business, which is 25-30% annualized at minimum.** That's the comparison that matters.
 
-## 3. The Trail-Stop "Asymmetry" Math Is Right Mathematically and Wrong Practically
+#### 3. The Trail-Stop "Asymmetry" Math Is Right Mathematically and Wrong Practically
 
 You did the dollar arithmetic on tax-adjusted dry powder and concluded the bear path produces 2.6-3x more redeployable capital. Mathematically correct. Practically incomplete.
 
@@ -1047,7 +1047,7 @@ Three problems:
 
 **Problem 3: Capital gains taxes are real and recurring.** You've now executed a taxable event to "preserve capital," and you have to be right twice (sell high, buy low) to come out ahead. The bull's trail-stop on the trading sleeve only requires being right once. Asymmetry favors the path with fewer required correct decisions.
 
-## 4. The "AI Capex Compressed Cycle" Argument Cuts Against Itself
+#### 4. The "AI Capex Compressed Cycle" Argument Cuts Against Itself
 
 You argued AI capex 4x'd in 2 years, so the digestion phase comes faster. Interesting hypothesis. Now apply your own logic:
 
@@ -1058,7 +1058,7 @@ You can't simultaneously argue (a) the capex cycle is compressed *and* (b) MRVL'
 
 The 1999 fiber comp also fails on a structural point: telecom carriers built fiber capacity that **had no monetization mechanism** (the dot-com bust killed demand). AI inference is *already* monetizing — OpenAI at $10B+ revenue run-rate, Anthropic at $5B+, hyperscaler AI revenue lines growing 40-100%. **There is a cash-paying customer base for AI compute today that didn't exist for fiber in 2000.** The analog breaks at the most important point.
 
-## 5. The "Six Technical Signals" Composite — Still Doesn't Add Up
+#### 5. The "Six Technical Signals" Composite — Still Doesn't Add Up
 
 Let me give you the technicals straight without rhetoric:
 
@@ -1070,7 +1070,7 @@ Your "5 of 6 real signals" framing treats individual warnings as independent con
 
 The honest technical read: **bullish trend with normal late-stage warnings, not yet confirmed by lower highs or trend-stack break.** That's a "tighten risk" setup, not a "go to cash" setup.
 
-## 6. The Affirmative Bull Case — One More Time, Stripped of Rhetoric
+#### 6. The Affirmative Bull Case — One More Time, Stripped of Rhetoric
 
 Let me close by reminding the audience what we're actually arguing about. Marvell Technology, today, is:
 
@@ -1085,7 +1085,7 @@ Let me close by reminding the audience what we're actually arguing about. Marvel
 
 **This is not a stock priced for perfection. It's a stock priced for the base case of an accelerating capex cycle delivering accelerating fundamentals.** That base case is being confirmed in real time by every leading indicator we can observe.
 
-## 7. Final Bull Stance — Concrete and Actionable
+#### 7. Final Bull Stance — Concrete and Actionable
 
 **Direction: Long with high conviction over 12-24 months. Target $245-$280. Invalidation below $165 with trend-stack break.**
 
@@ -1105,7 +1105,7 @@ Let me close by reminding the audience what we're actually arguing about. Marvel
 - Continued sell-side target migration toward $260-$280 as FY28 visibility builds.
 - S&P 500 inclusion optionality is a free call.
 
-## Closing Word
+#### Closing Word
 
 Bear, you played the drawdown card hard, and it's the strongest card in your deck. But every name in your reference class — every one — produced **larger gains after the drawdown than the drawdown itself**. The investors who held through 2018's semi correction, 2022's tech bear, and MRVL's own late-2025 drop are the ones who built wealth. The ones who tried to time the exit mostly missed the re-entry.
 
@@ -1127,7 +1127,7 @@ Bear Analyst: # Bear Analyst Rebuttal — Marvell Technology (MRVL)
 
 Bull, that was a confident pitch. It was also a masterclass in **anchoring on the best-case interpretation of every data point while waving away the warning signs as "noise."** Let me walk through why your "one pillar" thesis is actually balancing on a much thinner edge than you're admitting — and why the risk/reward at $205 is genuinely *bad*, not just "stretched."
 
-## 1. Let's Start With What You Quietly Conceded
+#### 1. Let's Start With What You Quietly Conceded
 
 You admitted:
 - The chart shows momentum divergence on both MACD and RSI.
@@ -1140,7 +1140,7 @@ You admitted:
 
 Your defense to all of this is essentially: *"yes, but the fundamentals justify it."* I'm going to show you why that argument has serious holes.
 
-## 2. The "PEG of 1.17" Defense Is Doing Enormous Work — And It's Built on a Forecast, Not Reality
+#### 2. The "PEG of 1.17" Defense Is Doing Enormous Work — And It's Built on a Forecast, Not Reality
 
 You leaned hard on forward PE of 33.7x and PEG of 1.17. Let's pressure-test that:
 
@@ -1153,7 +1153,7 @@ Here's the problem: **the entire bull case is now priced on a forecast that requ
 
 And let me push back on the NVDA comparison. NVDA was growing revenue **+200%+ YoY** at peak, with **75%+ gross margins** and a near-monopoly. MRVL is growing **27.6%** with **52% gross margins** as the **#2 player** in custom silicon. Comparing the two multiples is apples-to-watermelons.
 
-## 3. You Mischaracterized the Margin Story
+#### 3. You Mischaracterized the Margin Story
 
 You said gross margin is "expanding every single quarter" and called the bear thesis "refuted." Let me reread the data with you:
 
@@ -1167,7 +1167,7 @@ That's **+190 bps over a full year** while revenue grew 27.6%. For a company sup
 
 Why? Because **custom silicon is structurally lower-margin than merchant silicon.** The Zacks point you dismissed isn't refuted — it's playing out exactly as advertised, just slowly. As the custom ASIC mix grows, gross margin expansion will *plateau or reverse*, not accelerate. And the bull thesis at 22x P/S absolutely requires margin acceleration to justify the multiple.
 
-## 4. The "GAAP EPS Is Just Noise" Argument Is Far Too Convenient
+#### 4. The "GAAP EPS Is Just Noise" Argument Is Far Too Convenient
 
 You waved off $0.04 EPS as "financing noise." Let's actually unpack that:
 
@@ -1178,7 +1178,7 @@ You waved off $0.04 EPS as "financing noise." Let's actually unpack that:
 
 So we have: a fresh $1.27B acquisition with no track record yet, $1B/year of new financing drag, deteriorating asset quality, and you're asking the market to underwrite a doubling of EPS over the next twelve months. That's not "noise" — that's **execution risk that the bull case is systematically discounting.**
 
-## 5. The Technical Setup Is Worse Than You're Admitting
+#### 5. The Technical Setup Is Worse Than You're Admitting
 
 You said divergences are "warnings, not sell signals." True in principle. But look at the *specific* setup:
 
@@ -1192,7 +1192,7 @@ Put it together: you're not buying a breakout. You're buying **the moment a para
 
 And here's the kicker: **even your own technical read says "do not chase, wait for $180 or a reclaim of $218."** The bull thesis is essentially "buy here," but the chart is telling you to wait. Why are you arguing against the chart?
 
-## 6. Computex Is a Sell-the-News Trap, Not a Catalyst
+#### 6. Computex Is a Sell-the-News Trap, Not a Catalyst
 
 You framed Computex June 2 as a near-term catalyst. Here's the problem:
 - Expectations are **already maxed out**. Murphy + Huang on stage = priced in.
@@ -1202,18 +1202,18 @@ You framed Computex June 2 as a near-term catalyst. Here's the problem:
 
 When *everyone* knows about a catalyst and the stock has already run 141% into it, the catalyst becomes a **liquidity event for sellers**, not a launchpad.
 
-## 7. The Macro Setup You're Calling Bullish Is Actually Fragile
+#### 7. The Macro Setup You're Calling Bullish Is Actually Fragile
 
 - "S&P/Nasdaq at record highs" — that's a **late-cycle indicator**, not a fundamental tailwind. High-beta names like MRVL (beta 2.25) get crushed disproportionately on any market wobble.
 - "Iran truce" — geopolitically *unstable*; Exxon and Chevron both warned oil could spike if it reverses. That's a *fragile* risk-on regime, not a durable one.
 - Treasury yields — you dismissed this, but a stock at 22x P/S is **the definition of duration risk**. A 50bps yield spike historically compresses these multiples 15-25%.
 - Consumer weakness signals — yes, MRVL is hyperscaler-driven, but **hyperscaler capex itself is cyclical and starting to face scrutiny.** When the AI capex narrative cracks (and it will, eventually), MRVL is structurally more exposed than NVDA because it's a *derivative* play on hyperscaler decisions.
 
-## 8. The Crowded Trade Problem Is Real
+#### 8. The Crowded Trade Problem Is Real
 
 Cramer's capitulation, retail screaming "$300," 7:1 bullish StockTwits ratio, "dot-com 2.0" rhetoric, four sell-side desks coordinating $240 PTs in the same week — **that's not "healthy skepticism."** That's positioning saturation. When everyone who wants to be long *is* long, the marginal buyer disappears. That's how stocks that look invincible suddenly drop 20% on no news.
 
-## Bottom Line — The Asymmetry Is Bad Here
+#### Bottom Line — The Asymmetry Is Bad Here
 
 Bull, your case requires:
 1. Forward EPS forecasts to be hit (doubling from current run-rate).
@@ -1237,7 +1237,7 @@ Bull, that was a confident performance, but reread what you just wrote. You call
 
 So let me get this straight: your own recommendation is to *not buy at $205* and to wait for a 10% drawdown. **That's the bear case.** You've conceded the trade while claiming to win the debate. Let me show you why the rest of your rebuttal collapses under similar pressure.
 
-## 1. You Accidentally Made My Point on Entry Price
+#### 1. You Accidentally Made My Point on Entry Price
 
 Your closing recommendation: *"Maintain long exposure, scale on pullbacks toward $180-$185, trail stops below $193."*
 
@@ -1245,7 +1245,7 @@ Read that carefully. You're telling **existing holders** to trail stops 6% below
 
 Here's what that means for the audience: **at $205, neither of us thinks this is a good entry.** The question is whether to be flat/short or long-with-a-tight-stop. And given that your trail stop at $193 is only **6% below current price** versus realistic downside to $180 (12%) or $147 (28%), the math says even your own framework has more downside to the stop than upside to the next leg. You've structurally agreed with me and labeled it bullish.
 
-## 2. The "Non-GAAP EPS Saves the Day" Argument Has a Hole You Didn't Address
+#### 2. The "Non-GAAP EPS Saves the Day" Argument Has a Hole You Didn't Address
 
 You said GAAP EPS of $0.04 is "noisy" and non-GAAP is what matters. Fine — but you didn't actually give me the non-GAAP number. Let me fill that in: **non-GAAP EPS for Q1 FY27 was approximately $0.62**, which annualizes to ~$2.50.
 
@@ -1261,7 +1261,7 @@ That's still a **~140% increase from current run-rate** to consensus. You called
 
 You said cash flow "can't be gamed by accounting treatment." True. So let's use it: **TTM FCF is $2.27B on a market cap of $179.5B. That's a free cash flow yield of 1.27%.** The 10-year Treasury yields ~4.5%. **You are paying for 5+ years of pristine execution** to break even versus risk-free rate on a cash-yield basis. That's not "fairly priced" — that's a growth stock priced for perfection.
 
-## 3. Your Margin Comparables Are Cherry-Picked
+#### 3. Your Margin Comparables Are Cherry-Picked
 
 You compared MRVL's +190 bps to Intel (collapsing), AMD data center (+200 bps), and AVGO (+150 bps) and concluded MRVL is "impressive." Let me complete the comparison set you skipped:
 
@@ -1271,7 +1271,7 @@ You compared MRVL's +190 bps to Intel (collapsing), AMD data center (+200 bps), 
 
 You picked the worst comp set in the industry and called MRVL "impressive" against it. The honest read is: **MRVL's margin expansion is mediocre relative to peers actually riding the AI wave**, and it's running into a structural ceiling because custom silicon is, as I said, a lower-margin business model. You agreed it's lower-margin by design ("stickier and more defensible"). I accept that — but then **stop pricing MRVL at NVDA-style multiples**. You can't have "structurally lower margin" *and* "deserves a 22x P/S re-rating." Pick one.
 
-## 4. The "Seven Things Aren't Independent" Defense Is Mathematically Convenient, Not Correct
+#### 4. The "Seven Things Aren't Independent" Defense Is Mathematically Convenient, Not Correct
 
 You argued my seven risks are correlated, all driven by "is the AI capex cycle real?" Let me test that:
 
@@ -1282,7 +1282,7 @@ You argued my seven risks are correlated, all driven by "is the AI capex cycle r
 
 **At least four of my seven risks are MRVL-specific or anti-correlated with the bull's macro thesis.** The "single underlying trend" framing is a rhetorical compression that doesn't survive scrutiny. You'd need every risk to be perfectly correlated for that defense to work, and they aren't.
 
-## 5. Institutional Accumulation Cuts the Other Way Now
+#### 5. Institutional Accumulation Cuts the Other Way Now
 
 You cited 85% institutional ownership and the March 6 90M-share ignition as evidence of accumulation. I'll grant you the ignition phase — that was real institutional buying from $75 to $130.
 
@@ -1290,7 +1290,7 @@ But here's what you skipped: **the May 27 reversal candle on 54M shares.** When 
 
 And 85% institutional ownership *is* the saturation point. There's no marginal institutional buyer left when ownership is that high — every large fund that wants exposure already has it. The next leg requires either (a) more retail flooding in (which is what's happening, and historically marks tops), or (b) re-rating from new fundamental data (which would need to *exceed* already-elevated forward estimates).
 
-## 6. The "Computex Optionality" Argument Ignores Base Rates
+#### 6. The "Computex Optionality" Argument Ignores Base Rates
 
 You said Computex has positive expected value because Marvell historically announces deals at major events. Let me put numbers on this:
 
@@ -1299,7 +1299,7 @@ You said Computex has positive expected value because Marvell historically annou
 
 Even granting your point that something new might be announced, the **bar for positive surprise is now extreme**. A "good but expected" Computex is a sell-off catalyst. That's not asymmetric upside — that's a binary event with skewed downside.
 
-## 7. You Significantly Understated the Downside Range
+#### 7. You Significantly Understated the Downside Range
 
 You said realistic downside without a "fundamental break" is 10-15% to $180-$185. Let me press on this:
 
@@ -1310,7 +1310,7 @@ You said realistic downside without a "fundamental break" is 10-15% to $180-$185
 
 You modeled "12 months target $245" against "10% pullback." But the *path* from here to $245 will absolutely include drawdowns of 15-20% along the way given the volatility profile. Anyone buying at $205 needs to underwrite that path, and most won't hold through it. **The realized return for new buyers at $205 is materially worse than the headline target suggests** because most will get shaken out on the inevitable volatility.
 
-## 8. The Real Asymmetry, Honestly Calculated
+#### 8. The Real Asymmetry, Honestly Calculated
 
 Let me build the probability-weighted case the bull avoided:
 
@@ -1330,7 +1330,7 @@ Now compare to buying at **$180** (your scale-in zone):
 
 **The entire return profile is determined by entry price**, and at $205 the math doesn't work. At $180 it does. **My recommendation and yours converge: don't buy here.**
 
-## Final Word
+#### Final Word
 
 Bull, you wrote 3,000 words to defend a stock that you ultimately recommend buying **only on a 12% pullback** with stops at a 6% drawdown. The audience should notice that the *practical* outcome of both our analyses is the same: **don't chase $205**. 
 
@@ -1346,7 +1346,7 @@ Bear Analyst: # Bear Analyst Final Counter — Marvell Technology (MRVL)
 
 Bull, you saved your most polished performance for last — and it's also where the cracks finally show. You spent your closing argument **rewriting my probability table**, **reframing your own caution as bullishness**, and **declaring victory on inputs you got to choose**. Let me show the audience exactly what just happened, because this is the kind of rhetorical move that loses people money.
 
-## 1. You Just Did the Exact Trick You Accused Me Of
+#### 1. You Just Did the Exact Trick You Accused Me Of
 
 You wrote: *"Whoever sets the probabilities wins the debate. I'm not letting you set them unchallenged."*
 
@@ -1377,7 +1377,7 @@ The bull case requires assigning probabilities that **assume the conclusion**. M
 
 And here's the thing about probability tables that the bull glossed over: **even his +9.87% EV implies you should expect a 15% drawdown roughly 25-30% of the time.** That's a brutal path-dependency for anyone with stop-losses, leverage, or tax sensitivity. The realized return for actual investors is materially worse than the headline EV — even using *his* numbers.
 
-## 2. "Holding Is Bullish, Exiting Is Bearish" — A False Equivalence
+#### 2. "Holding Is Bullish, Exiting Is Bearish" — A False Equivalence
 
 You claimed I'm "structurally short" because I recommend exit + cash + puts, while your "hold with trail stops" is "bullish positioning."
 
@@ -1391,7 +1391,7 @@ Let's be precise about what the trail stop at $193 actually does:
 
 And let me address the "tax efficiency" argument you made: tax efficiency only matters if **the alternative is paying taxes for no reason**. If the EV from here is genuinely negative or barely positive, **paying capital gains to lock in a 200% gain is the correct trade**. The IRS taking 20-30% of a 200% gain still leaves you with a 140-160% net return. Holding through a 25% drawdown to "save on taxes" leaves you with a 150% gain that took 18 months longer to realize. Tax efficiency is a tiebreaker, not a thesis.
 
-## 3. The FCF Yield Defense Walked Into a Bigger Problem
+#### 3. The FCF Yield Defense Walked Into a Bigger Problem
 
 You countered the FCF yield argument by pointing to forward FCF growth. Let me grant you the framework — and then show why it makes the bear case *stronger*:
 
@@ -1407,7 +1407,7 @@ That's an extraordinary ramp. It's possible if the acquisition contributes meani
 
 The realistic forward FCF yield in 12 months is closer to **1.7-1.8%** — still well below Treasuries. The compounding argument requires *years* of execution to close the gap, and the bull case at $205 is asking you to underwrite all of those years upfront with no discount.
 
-## 4. The NVDA Margin Comparison You Didn't Want to Have
+#### 4. The NVDA Margin Comparison You Didn't Want to Have
 
 You wrote: *"MRVL is in a competitive bid market for custom ASICs."* Then: *"That's a slower, more durable margin path."*
 
@@ -1422,7 +1422,7 @@ Audience, listen carefully — **the bull just told you MRVL's margin expansion 
 
 **That's the crux of the valuation argument the bull never resolved.** "MRVL trades at a discount to NVDA" is true. But the discount isn't *enough*, and it's certainly not "unwarranted" as he claimed. It's *insufficient*.
 
-## 5. The Distribution Candle "Hasn't Followed Through" — Yet
+#### 5. The Distribution Candle "Hasn't Followed Through" — Yet
 
 The bull said: *"Distribution candles in genuine tops produce lower highs and lower lows. We've gotten neither."*
 
@@ -1438,7 +1438,7 @@ Here's what we *do* have:
 
 **Six bearish technical signals stacked together don't go away because two days of trading haven't yet confirmed the seventh (lower high).** That's confirmation bias. The setup is bearish *now*; we don't need price confirmation before risk management kicks in. Risk management *precedes* the move; it doesn't follow it.
 
-## 6. The Catalyst Calendar Is the Bull's Own Trap
+#### 6. The Catalyst Calendar Is the Bull's Own Trap
 
 The bull listed forward catalysts: Computex, FY28 guide raises, S&P 500 inclusion potential, photonics ramp.
 
@@ -1451,7 +1451,7 @@ Notice the structure: **every one of these is a "deliver above consensus" event 
 
 **A stock that needs four catalysts to "deliver above already-elevated expectations" just to maintain its multiple is not a stock with positive convexity.** It's a stock with binary outcomes around each event, where the bar to surprise is at the 99th percentile. That's not bullish optionality — that's a series of trapdoors.
 
-## 7. The One Question the Bull Never Answered
+#### 7. The One Question the Bull Never Answered
 
 I asked it twice. He danced around it both times:
 
@@ -1463,7 +1463,7 @@ That's not an answer — that's a restatement of consensus. The question is: **w
 
 The bull is buying a forecast that requires top-quartile execution and pricing it as if execution is a coin-flip-better-than-base-rate. **The math doesn't survive a real probability check.**
 
-## 8. The Final Honest Read
+#### 8. The Final Honest Read
 
 Let me put the whole bear case in one paragraph:
 
@@ -1471,7 +1471,7 @@ Let me put the whole bear case in one paragraph:
 
 **This isn't a "the trend is your friend" trade. It's a "the bagholder is your future self" trade if you size up at $205.**
 
-## 9. Bear Stance, Finalized
+#### 9. Bear Stance, Finalized
 
 **Direction: Negative-skew at $205.** Not necessarily "going to $147 tomorrow," but the realistic 12-month return distribution is centered slightly below current price with fat downside tails.
 
@@ -1485,7 +1485,7 @@ Let me put the whole bear case in one paragraph:
 
 **Conviction: High** that risk/reward at $205 is unfavorable. **Moderate** that this resolves as a meaningful drawdown rather than extended consolidation.
 
-## Closing Word
+#### Closing Word
 
 Bull, you'll see me at $245 — *if* the probability stack you constructed is right. I'll see you at $165 — if the probability stack I constructed is right. The audience has to decide which set of probabilities was set honestly versus set to win the argument.
 
@@ -1500,7 +1500,7 @@ Bull, that was a polished closer — and you know what? I'll give you credit. Yo
 
 And then I'm going to point out the three things you said in your closing that **directly undermine your own thesis** — and one of them is a doozy.
 
-## 1. Your "Conditional Base Rate" Reference Class Is Survivor Bias on Steroids
+#### 1. Your "Conditional Base Rate" Reference Class Is Survivor Bias on Steroids
 
 You listed: NVDA (+239%), AVGO (+85%), AMD 2016-18 (+180%), ANET (+95%), MU 2016-17 (+130%).
 
@@ -1521,7 +1521,7 @@ That's a fundamentally different risk picture than your closing implies. You can
 
 **MRVL drew down 43% within the last 6 months.** That's not pattern-matching to ancient history — that's the actual recent behavior of *this exact stock*. And you're asking the audience to believe that drawdown was the last one of the cycle. **There is zero evidentiary basis for that claim.**
 
-## 2. You Just Conceded the FCF Yield Argument and Didn't Notice
+#### 2. You Just Conceded the FCF Yield Argument and Didn't Notice
 
 Reread what you wrote:
 
@@ -1538,7 +1538,7 @@ The compounding argument only works if:
 
 That's a lot of "ifs" to underwrite a sub-Treasury yield. And your own forward EPS path — $0.62 → $0.85 → $1.10 → $1.35 → $1.60 — implies the company needs to **2.6x quarterly non-GAAP EPS in five quarters**. You called that "conservative." I call it the consensus that's already baked into the price. **Beating consensus by enough to drive multiple expansion from here requires sequentially raising guidance every quarter for two years**. Possible, but not the base case for any company in any cycle.
 
-## 3. The "Trail Stop Is Asymmetric in My Favor" Math Is Wrong
+#### 3. The "Trail Stop Is Asymmetric in My Favor" Math Is Wrong
 
 You said the trail stop captures upside while my cash position symmetrically hits both sides. Let me do this carefully:
 
@@ -1561,7 +1561,7 @@ For a holder up 200% on the position, the math is:
 
 If MRVL drops 25% to $154 (well within historical drawdown range for this stock — it just did 43% six months ago), the bull's core position takes the full hit. The bear's all-cash position is sitting on dry powder buying $154. **That's the asymmetry you didn't model.**
 
-## 4. The "AI Capex Is in Year 3 of 8" Claim Doesn't Survive Scrutiny
+#### 4. The "AI Capex Is in Year 3 of 8" Claim Doesn't Survive Scrutiny
 
 You compared AI capex to PC (8 years), mobile (8 years), cloud (8 years), and concluded AI is in year 3 of a similar cycle.
 
@@ -1573,7 +1573,7 @@ There are two problems here:
 
 You don't get to pick the comp. The honest answer is **we don't know whether AI capex is mid-cycle or late-cycle**, and assigning 8% probability to a slowdown when the cycle has already 4x'd in 2 years and is at $325B+ run-rate is **anchoring on continuation**. That's exactly what bulls did in 1999 and 2007.
 
-## 5. The Six Technical Signals You Tried to Reduce to Two
+#### 5. The Six Technical Signals You Tried to Reduce to Two
 
 You said only 2 of the 6 technical signals are real. Let me push back precisely:
 
@@ -1586,7 +1586,7 @@ You said only 2 of the 6 technical signals are real. Let me push back precisely:
 
 Honest count: **5 of 6 signals are real** when properly disaggregated. The bull tried to consolidate and dismiss; that's rhetoric, not analysis.
 
-## 6. The One Question I'll Ask the Audience to Settle the Debate
+#### 6. The One Question I'll Ask the Audience to Settle the Debate
 
 Forget the dueling probability tables. Forget the comp sets. Forget the technicals. **Ask yourself one question:**
 
@@ -1596,7 +1596,7 @@ The honest answer for **every** professional investor is: **wait.** The bull dre
 
 If new capital should wait, then **$205 is not a buy**. Period. Everything else is just rationalization for *not* selling existing exposure — which is a different question, and one driven more by tax efficiency and emotional anchoring than by forward expected return.
 
-## 7. Final Bear Stance — Sharpened and Concrete
+#### 7. Final Bear Stance — Sharpened and Concrete
 
 **Direction: Negative-skew at $205 over the next 1-3 months. Neutral-to-mildly-positive over 12-24 months conditional on entry price below $185.**
 
@@ -1612,7 +1612,7 @@ If new capital should wait, then **$205 is not a buy**. Period. Everything else 
 
 **Invalidation of bear case**: Close above $222 on >40M volume with a fundamental catalyst (new design win disclosure, raised guide). At that point, the divergences resolve bullishly and I'd cover shorts/hedges. **That's the line.**
 
-## 8. The Closing Word
+#### 8. The Closing Word
 
 Bull, you said: *"At $205, the next $50 is more probable up than down."*
 
@@ -1633,7 +1633,7 @@ Bear Analyst: # Bear Analyst — The Real Final Word on MRVL
 
 Bull, you closed strong. You even had me nodding at parts. But strip the rhetoric away and your "final word" rests on **one core argument: hold through volatility because semi leaders always come back bigger**. That's a beautiful narrative. It's also **selection bias dressed as base rate analysis**, and I'm going to dismantle it cleanly. Then I'll show the audience the three things you quietly stopped contesting — because those are the points that actually decide this debate.
 
-## 1. Your "Hold Through Drawdowns and Win" Frame Is Survivor Bias — Full Stop
+#### 1. Your "Hold Through Drawdowns and Win" Frame Is Survivor Bias — Full Stop
 
 You listed AMD 2018, MU 2018, NVDA 2018, NVDA 2022, AVGO 2022, ANET. All recovered. All went on to new highs. Therefore: hold MRVL through any drawdown.
 
@@ -1657,7 +1657,7 @@ The honest read of semi drawdown history: **roughly 60% of the time, holding thr
 
 And here's the kicker on MRVL specifically: **this stock has already demonstrated 15-year recovery cycles in its own history.** The 2006 high wasn't reclaimed until 2021. The audience needs to know that. The bull conveniently didn't mention it.
 
-## 2. The Three Things the Bull Stopped Contesting
+#### 2. The Three Things the Bull Stopped Contesting
 
 Watch what got dropped from the bull's final closer:
 
@@ -1667,7 +1667,7 @@ Watch what got dropped from the bull's final closer:
 
 **(c) The bull's own scale-in framework recommends only 1/3 position at $205.** Read it again: "1/3 at $205, 1/3 at $185-190, 1/3 at $175-180." **The bull is implicitly forecasting a 12-15% pullback as his own base case for capital deployment.** If a 12-15% pullback is the bull's base case, **how is "long with high conviction at $205" not actually "neutral-to-bearish on the next 60-90 days"?** It is. He just won't say it.
 
-## 3. The "Compressed Cycle Cuts Both Ways" Argument Was Clever — and Backwards
+#### 3. The "Compressed Cycle Cuts Both Ways" Argument Was Clever — and Backwards
 
 The bull said: if AI capex compresses 8 years into 3, then earnings also compress, justifying the multiple.
 
@@ -1682,7 +1682,7 @@ Look at the historical multiples at peak earnings power in compressed cycles:
 
 **The compressed cycle case argues for a peak multiple of 15-20x forward earnings at peak earnings power**, not 33x. MRVL at $205 is paying full long-cycle multiples for what may be a compressed-cycle earnings stream. **That mismatch is the entire bear thesis on valuation.**
 
-## 4. The "Static Yield vs. Treasuries Misses Compounding" Defense Used the Wrong Comps
+#### 4. The "Static Yield vs. Treasuries Misses Compounding" Defense Used the Wrong Comps
 
 The bull cited NVDA 2017 and AVGO 2014 sub-Treasury FCF yields that "worked out." Let me complete that reference class too:
 
@@ -1697,7 +1697,7 @@ The "growth playbook" works **conditional on the growth materializing as expecte
 
 The bull's framework only works if you assume the growth path. The bear's framework asks: **what's the cost if you're wrong?** At sub-Treasury yield with 22x P/S, the cost of being wrong is severe. That's the asymmetry that doesn't go away.
 
-## 5. The "Trend Stack" Defense Ignores That Trend Stacks Break — and When They Do, It's Late
+#### 5. The "Trend Stack" Defense Ignores That Trend Stacks Break — and When They Do, It's Late
 
 The bull's strongest technical point: price >> 10 EMA >> 50 SMA >> 200 SMA, all rising. "Most reliable trend signal in TA."
 
@@ -1711,7 +1711,7 @@ The bull's "I'll exit on trend-stack break below $165" is **a -20% loss from cur
 
 Trend stacks are diagnostic. They are not strategy. **The strategy is to recognize when extension, divergence, sentiment, and structure all align to favor profit-taking — which is exactly the setup at $205.**
 
-## 6. The Audience Decision Point — Stripped to Essentials
+#### 6. The Audience Decision Point — Stripped to Essentials
 
 Strip away every rhetorical layer in this debate. The actual disagreement is:
 
@@ -1726,7 +1726,7 @@ Here's how to settle it. **Apply the test of regret minimization:**
 
 **The asymmetry of regret favors trimming**, not holding. The bull's "hold the core" advice is correct only if the next 12 months produces uninterrupted upside. The bear's "trim aggressively" advice is correct in approximately 60-70% of plausible 12-month outcomes from this starting point. **Position for the more probable path, not the most optimistic one.**
 
-## 7. The Bull's One Real Edge — and Why It's Not Enough at $205
+#### 7. The Bull's One Real Edge — and Why It's Not Enough at $205
 
 I'll give the bull this: **the AI capex cycle is real, MRVL is genuinely positioned, and the fundamentals are accelerating.** Those things are true. They are not in dispute.
 
@@ -1734,7 +1734,7 @@ What's in dispute is **whether they are sufficiently true to justify $205 entry 
 
 **Owning MRVL is not the bear thesis. Owning MRVL at $205 is the bear thesis.** Distinguishing those two is the entire point of disciplined entry.
 
-## 8. Final Bear Stance — Concrete
+#### 8. Final Bear Stance — Concrete
 
 **Direction: Negative-skew at $205 over 1-3 months. Constructive at $175-185. Bullish at $150-165.**
 
@@ -1749,7 +1749,7 @@ What's in dispute is **whether they are sufficiently true to justify $205 entry 
 
 **Conviction**: High that risk/reward at $205 is unfavorable over 1-3 months. Moderate that the resolution is a meaningful drawdown (-15-25%) versus extended consolidation. Low that the bull's $245-$280 target is achievable without first revisiting $180 or below.
 
-## Closing Word
+#### Closing Word
 
 Bull, you said: *"I win if the trend continues. I win if the pullback comes and the fundamentals hold."*
 

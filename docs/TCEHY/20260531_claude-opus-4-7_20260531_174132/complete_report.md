@@ -5,14 +5,14 @@ Generated: 2026-05-31 17:41:32
 ## I. Analyst Team Reports
 
 ### Market Analyst
-# TCEHY (Tencent Holdings ADR) — Technical Analysis Report
+#### TCEHY (Tencent Holdings ADR) — Technical Analysis Report
 **Analysis Date: 2026-05-31 | Last Trading Day: 2026-05-29 | Last Close: $54.60**
 
 > ⚠️ Note: The `get_verified_market_snapshot` tool was not available in this environment. All figures below are sourced directly from `get_stock_data` and `get_indicators`. I have not independently verified them through a secondary tool, so consumers should treat single-decimal price levels as reported by these tools rather than as cross-validated figures.
 
 ---
 
-## 1. Indicator Selection Rationale
+#### 1. Indicator Selection Rationale
 
 For TCEHY, which is in a sustained, accelerating downtrend with elevated volume, I selected the following 8 complementary indicators:
 
@@ -32,7 +32,7 @@ I deliberately excluded `boll` and `boll_ub` (redundant with `boll_lb` for an ov
 
 ---
 
-## 2. Price Action Overview
+#### 2. Price Action Overview
 
 TCEHY has experienced a **substantial multi-month decline**:
 
@@ -50,7 +50,7 @@ Both rallies were rejected, confirming **strong overhead supply**.
 
 ---
 
-## 3. Trend Structure (Moving Averages)
+#### 3. Trend Structure (Moving Averages)
 
 | Date | Close | 10 EMA | 50 SMA | 200 SMA |
 |---|---|---|---|---|
@@ -69,7 +69,7 @@ Both rallies were rejected, confirming **strong overhead supply**.
 
 ---
 
-## 4. Momentum (MACD & RSI)
+#### 4. Momentum (MACD & RSI)
 
 **MACD line:**
 - May 1: −1.20 → May 29: −1.79
@@ -86,7 +86,7 @@ Both rallies were rejected, confirming **strong overhead supply**.
 
 ---
 
-## 5. Volatility (Bollinger Lower Band & ATR)
+#### 5. Volatility (Bollinger Lower Band & ATR)
 
 **Bollinger Lower Band:**
 - May 29 lower band: **$54.29** vs. close $54.60 — price is **kissing the lower band**.
@@ -99,13 +99,13 @@ Both rallies were rejected, confirming **strong overhead supply**.
 
 ---
 
-## 6. Volume Confirmation (VWMA)
+#### 6. Volume Confirmation (VWMA)
 
 VWMA fell from $62.61 (May 1) to **$57.76 (May 29)**. Price ($54.60) trades meaningfully below VWMA, and the **two largest-volume sessions in May were down/reversal days** (May 13 squeeze rejected; May 21 −$1.83 on heavier flow). This indicates **distribution rather than accumulation**.
 
 ---
 
-## 7. Synthesis & Actionable Insights
+#### 7. Synthesis & Actionable Insights
 
 **Trend:** Decisively bearish across all timeframes (10 EMA, 50 SMA, 200 SMA all sloping down with price below each).
 
@@ -127,7 +127,7 @@ VWMA fell from $62.61 (May 1) to **$57.76 (May 29)**. Price ($54.60) trades mean
 
 ---
 
-## 8. Summary Table
+#### 8. Summary Table
 
 | Theme | Reading | Signal | Confidence |
 |---|---|---|---|
@@ -149,7 +149,7 @@ The technical picture is unambiguously bearish at multiple timeframes. While ove
 **Overall Sentiment:** **Mildly Bullish** (Score: 6.2/10)
 **Confidence:** Medium
 
-## TCEHY Sentiment Report — 2026-05-24 to 2026-05-31
+#### TCEHY Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1. Source-by-source breakdown
 
@@ -204,13 +204,13 @@ I have comprehensive data. Let me now compile the research report.
 
 ---
 
-# TCEHY (Tencent Holdings Ltd.) — News & Macro Research Report
+#### TCEHY (Tencent Holdings Ltd.) — News & Macro Research Report
 **Analysis Date:** 2026-05-31 | **Look-back Window:** May 15 – May 31, 2026
 **Identity Confirmed:** Tencent Holdings Ltd. (PNK: TCEHY / SEHK: 700) — Communication Services / Internet Content & Information
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 Tencent enters June 2026 with a constructive but **bifurcated narrative**. Company-specific catalysts are decisively positive—aggressive cross-border fintech expansion (PayPal, Central Asia), AI cloud momentum, and a likely participation in the high-profile **DeepSeek $10B funding round**. However, two macro pressure points complicate the setup: (1) **renewed U.S.-China financial rivalry** flagged by Barron's just as summit goodwill fades, and (2) a **risk-off macro tape** driven by the Iran war, surging oil prices, rising Treasury yields, and softening U.S. consumer signals. Analyst price targets on the SEHK:700 line have a slight downward bias (HK$723.55 → HK$708.79 fair-value mark) reflecting **AI capex-payback concerns**, even as Q1 execution was solid.
 
@@ -218,7 +218,7 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 
 ---
 
-## 2. Company-Specific Catalysts (Bullish Drivers)
+#### 2. Company-Specific Catalysts (Bullish Drivers)
 
 ### 2.1 Fintech — Cross-Border Payments Step-Function
 - **PayPal ↔ WeChat Pay integration** (May 27): U.S. PayPal users can now spend at WeChat Pay's QR-code merchant network across China, with phased rollout to other markets. TenPay Global is now wired into PayPal World. Fee waivers extended through 2026 to drive adoption.
@@ -235,7 +235,7 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 
 ---
 
-## 3. Competitive & Sector Dynamics
+#### 3. Competitive & Sector Dynamics
 
 ### 3.1 ByteDance Capex Threat — **Most Important Item This Week**
 - **ByteDance considering up to $70B AI capex** — more than double last year. This is a direct competitive escalation in:
@@ -255,7 +255,7 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 
 ---
 
-## 4. Geopolitical & Regulatory (Bearish/Watchlist)
+#### 4. Geopolitical & Regulatory (Bearish/Watchlist)
 
 ### 4.1 U.S.-China Financial Rivalry Re-Emerging
 - **Barron's (May 21):** "U.S.-China Financial Rivalry Flares Up. The Summit Smiles Are Fading." Specifically flags Chinese regulatory actions and U.S. congressional scrutiny that **directly threaten ADR-listed names like TCEHY** (which trades on PNK). PFOF/HFCAA-style risks remain dormant but not extinguished.
@@ -266,7 +266,7 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 
 ---
 
-## 5. Macro Backdrop (Risk-Off Tilt)
+#### 5. Macro Backdrop (Risk-Off Tilt)
 
 | Macro Theme | Status | Effect on TCEHY |
 |---|---|---|
@@ -279,14 +279,14 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 
 ---
 
-## 6. Sentiment & Analyst Positioning
+#### 6. Sentiment & Analyst Positioning
 - **Simply Wall St. consensus fair value (700.HK):** HK$723.55 → HK$708.79 (~2% reduction). Targets are **dispersing** — bull case = AI upside + Q1 execution; bear case = capex payback uncertainty.
 - **No earnings event** in the window. Q1 2026 print already delivered "solid execution" per analyst commentary.
 - Flow into China tech ADRs (KraneShares KWEB constituents) appears to be improving on trade-deal optimism per Zacks.
 
 ---
 
-## 7. Actionable Trading Insights
+#### 7. Actionable Trading Insights
 
 1. **Bias: Constructive / Mild Bullish** on a 3–6 month horizon. The fintech step-up + DeepSeek optionality + AI cloud commercialization are not yet fully priced; analyst dispersion = re-rating optionality once Q2 prints.
 2. **Near-term risks to size carefully:**
@@ -303,7 +303,7 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 
 ---
 
-## 8. Key Points Summary Table
+#### 8. Key Points Summary Table
 
 | # | Theme | Direction | Evidence | Trade Relevance |
 |---|---|---|---|---|
@@ -329,14 +329,14 @@ Net read: **Constructive medium-term setup with elevated near-term geopolitical 
 ### Fundamentals Analyst
 I now have comprehensive data to build a complete fundamental analysis report.
 
-# Tencent Holdings Limited (TCEHY) — Fundamental Analysis Report
+#### Tencent Holdings Limited (TCEHY) — Fundamental Analysis Report
 **Analysis Date:** 2026-05-31  
 **Exchange:** PNK (OTC ADR — 1 ADR = 1 H-share equivalent for reference; Tencent primary listing on HKEX 0700)  
 **Sector / Industry:** Communication Services / Internet Content & Information
 
 ---
 
-## 1. Company Profile
+#### 1. Company Profile
 
 Tencent Holdings is one of the largest internet conglomerates in the world, headquartered in Shenzhen, China. Its core business segments include:
 
@@ -349,7 +349,7 @@ The ADR (TCEHY) trades on the U.S. Pink Sheets and represents the H-shares liste
 
 ---
 
-## 2. Market Snapshot & Valuation
+#### 2. Market Snapshot & Valuation
 
 | Metric | Value |
 |---|---|
@@ -370,7 +370,7 @@ The ADR (TCEHY) trades on the U.S. Pink Sheets and represents the H-shares liste
 
 ---
 
-## 3. Income Statement — Multi-Year Trend (in RMB millions)
+#### 3. Income Statement — Multi-Year Trend (in RMB millions)
 
 | Metric | FY2022 | FY2023 | FY2024 | FY2025 | YoY (25 vs 24) |
 |---|---|---|---|---|---|
@@ -401,7 +401,7 @@ Quarterly EPS run-rate (RMB): Q1'25 5.13 → Q2'25 6.00 → Q3'25 6.78 → Q4'25
 
 ---
 
-## 4. Balance Sheet — Fortress Profile (as of latest quarter, 2025-06-30, RMB)
+#### 4. Balance Sheet — Fortress Profile (as of latest quarter, 2025-06-30, RMB)
 
 | Item | Value (RMB B) |
 |---|---|
@@ -429,7 +429,7 @@ Quarterly EPS run-rate (RMB): Q1'25 5.13 → Q2'25 6.00 → Q3'25 6.78 → Q4'25
 
 ---
 
-## 5. Cash Flow Analysis (FY2025 Annual, RMB)
+#### 5. Cash Flow Analysis (FY2025 Annual, RMB)
 
 | Item | FY2022 | FY2023 | FY2024 | FY2025 |
 |---|---|---|---|---|
@@ -450,7 +450,7 @@ Quarterly EPS run-rate (RMB): Q1'25 5.13 → Q2'25 6.00 → Q3'25 6.78 → Q4'25
 
 ---
 
-## 6. Profitability & Returns
+#### 6. Profitability & Returns
 
 | Metric | Value |
 |---|---|
@@ -464,7 +464,7 @@ These are best-in-class returns for a platform business and are still expanding.
 
 ---
 
-## 7. Capital Structure & Shareholder Returns
+#### 7. Capital Structure & Shareholder Returns
 
 - **Share count reduction:** Diluted shares fell from 9.70B (2022) → 9.24B (2025), a cumulative ~4.6% reduction, accelerated by the HKD 100B+ buyback authorizations.
 - **Dividend growth:** Cash dividends nearly tripled from RMB 13B (2022) to RMB 37.5B (2025) — rapidly emerging as a meaningful income story.
@@ -473,7 +473,7 @@ These are best-in-class returns for a platform business and are still expanding.
 
 ---
 
-## 8. Strengths, Risks, and Catalysts
+#### 8. Strengths, Risks, and Catalysts
 
 ### Strengths
 1. **Dominant ecosystem moat** — WeChat is the operating system of Chinese digital life (>1.3B MAUs).
@@ -499,7 +499,7 @@ These are best-in-class returns for a platform business and are still expanding.
 
 ---
 
-## 9. Actionable Trading View
+#### 9. Actionable Trading View
 
 **Bull case:** Revenue growth >12%, margin expansion to 35%+ operating margin, ROE remains >20%, share count keeps shrinking. At 15x forward earnings (still discounted to peers), 30%+ upside achievable.
 
@@ -509,7 +509,7 @@ These are best-in-class returns for a platform business and are still expanding.
 
 ---
 
-## 10. Summary Table — Key Points
+#### 10. Summary Table — Key Points
 
 | Category | Key Finding | Implication |
 |---|---|---|
@@ -542,7 +542,7 @@ Let me cut to the chase: TCEHY at $54.60 is one of the most compelling risk/rewa
 
 ---
 
-## 1. The Core Bull Thesis: Earnings Are Accelerating While the Stock Is De-Rating
+#### 1. The Core Bull Thesis: Earnings Are Accelerating While the Stock Is De-Rating
 
 Here's the inconvenient truth for the bear camp: **Tencent's fundamentals are getting BETTER, not worse, while the stock has dropped 36%.**
 
@@ -556,7 +556,7 @@ Now look at the valuation: **Forward P/E of 10.8x**. Meta trades at 22x. Alphabe
 
 ---
 
-## 2. Refuting the Technical Bear Argument
+#### 2. Refuting the Technical Bear Argument
 
 The bear will point to the chart: bearish MA stack, RSI at 30, walking the lower Bollinger Band, MACD diving. Fair observations. But here's what they're missing:
 
@@ -566,7 +566,7 @@ The bear says "every bounce gets sold." I'd counter: those bounces (March 10, Ma
 
 ---
 
-## 3. Refuting "AI Capex Will Crush Margins" (The ByteDance Boogeyman)
+#### 3. Refuting "AI Capex Will Crush Margins" (The ByteDance Boogeyman)
 
 The bears love the ByteDance $70B capex narrative. Let me dismantle it:
 
@@ -579,7 +579,7 @@ The bear conflates "capex going up" with "returns going down." Tencent's gross m
 
 ---
 
-## 4. Refuting "ADR/Geopolitical Risk Justifies the Discount"
+#### 4. Refuting "ADR/Geopolitical Risk Justifies the Discount"
 
 Yes, Barron's flagged renewed U.S.-China financial tensions. But:
 
@@ -589,7 +589,7 @@ Yes, Barron's flagged renewed U.S.-China financial tensions. But:
 
 ---
 
-## 5. The Hidden Catalysts the Bear Is Ignoring
+#### 5. The Hidden Catalysts the Bear Is Ignoring
 
 - **PayPal × WeChat Pay**: This is a step-function fintech expansion. Cross-border payments are high-margin and recurring. Bears completely overlook this.
 - **DeepSeek participation**: Strategic optionality on China's leading AI lab — essentially free upside.
@@ -598,13 +598,13 @@ Yes, Barron's flagged renewed U.S.-China financial tensions. But:
 
 ---
 
-## 6. The Sentiment Confirmation
+#### 6. The Sentiment Confirmation
 
 Even the social tape is turning: **StockTwits 10 Bullish / 0 Bearish** among labeled posts. News flow is constructive. The institutional narrative is mildly bullish. The ONLY thing that's bearish is the chart — and charts are rear-view mirrors at major bottoms.
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear case rests on a momentum chart and a generic "China risk" overlay. The bull case rests on:
 - **Accelerating revenue growth** (13.9%)
@@ -625,7 +625,7 @@ Let me show you exactly where the bear case collapses under its own weight.
 
 ---
 
-## 1. The Alibaba Comparison Is the Bear's Biggest Tell
+#### 1. The Alibaba Comparison Is the Bear's Biggest Tell
 
 The bear invokes Alibaba 2021 as a cautionary tale. **This comparison actively dismantles their own argument.** Let's actually compare:
 
@@ -644,7 +644,7 @@ And by the way — **BABA bottomed at 7x and is now meaningfully higher**. So ev
 
 ---
 
-## 2. The "Earnings Quality" Attack Is Fake Math
+#### 2. The "Earnings Quality" Attack Is Fake Math
 
 The bear claims FY25 earnings are "flattered" by RMB 12.6B in unusual items. Let's do the actual arithmetic they hoped you wouldn't:
 
@@ -659,7 +659,7 @@ But here's what really matters: **Operating Income grew 19.1% to RMB 248.8B.** O
 
 ---
 
-## 3. "Margin Expansion Is Decelerating" — Welcome to Math
+#### 3. "Margin Expansion Is Decelerating" — Welcome to Math
 
 The bear argues +330bps gross margin expansion is bearish because the prior year was +480bps. Let me translate: **"Margins are still expanding, just not as fast as before, therefore sell."**
 
@@ -669,7 +669,7 @@ The bear is moving the goalposts: when margins were flat, the complaint was "no 
 
 ---
 
-## 4. The Technical Argument Is Self-Defeating
+#### 4. The Technical Argument Is Self-Defeating
 
 The bear's strongest claim — "the trend is bearish, just wait for confirmation" — actually contains the seeds of its own destruction.
 
@@ -685,7 +685,7 @@ And the "wait for technical confirmation" framework has a fatal flaw: by the tim
 
 ---
 
-## 5. ByteDance Capex: The Bear's Logic Eats Itself
+#### 5. ByteDance Capex: The Bear's Logic Eats Itself
 
 The bear says ByteDance burning $70B is bad for Tencent. Then says Tencent's $15B capex is also bad for Tencent. Then says Tencent investing in DeepSeek is also bad for Tencent.
 
@@ -701,7 +701,7 @@ On chips: yes, H200 deliveries are pending. But Tencent is **on the approved lis
 
 ---
 
-## 6. ADR Risk: The Bear Is Selling Tail Risk as Base Case
+#### 6. ADR Risk: The Bear Is Selling Tail Risk as Base Case
 
 The bear invokes DIDI. Let me invoke reality:
 
@@ -714,7 +714,7 @@ The bear says "discounts compound when geopolitics worsens." True. They also **d
 
 ---
 
-## 7. The Catalyst Stress-Test — Bear Is Now Discrediting Their Own Sources
+#### 7. The Catalyst Stress-Test — Bear Is Now Discrediting Their Own Sources
 
 Watch this sleight of hand: When the bear quotes Simply Wall St. cutting fair value, that's "the analyst community speaking." When I cite the same sentiment report showing **constructive institutional framing on PayPal and AI**, that's "rounding error."
 
@@ -727,7 +727,7 @@ Let me restate the catalysts properly:
 
 ---
 
-## 8. The Macro Argument Cuts Both Ways
+#### 8. The Macro Argument Cuts Both Ways
 
 The bear cites Iran war and Treasury yields as headwinds. Fine. But:
 
@@ -738,7 +738,7 @@ The bear cites Iran war and Treasury yields as headwinds. Fine. But:
 
 ---
 
-## 9. The Asymmetry Is Now Mathematical
+#### 9. The Asymmetry Is Now Mathematical
 
 Let me end with the math the bear refuses to engage with:
 
@@ -757,7 +757,7 @@ Add the **~3.7% FCF yield** + **1.24% dividend** + **~3% buyback yield** = **~8%
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear's entire case reduces to: "the chart is bearish and I'm worried about things that might happen." Every concrete fundamental claim they made — earnings quality, margin deceleration, capex payback, ADR risk, catalyst skepticism — falls apart when you actually examine the numbers.
 
@@ -776,7 +776,7 @@ My bear colleague has now written 4,000 words to make a single argument: **"the 
 
 ---
 
-## 1. "Why Is It Down 36%?" — I'll Tell You Exactly Why
+#### 1. "Why Is It Down 36%?" — I'll Tell You Exactly Why
 
 The bear keeps demanding I answer this question as if it's a gotcha. Fine. Here are the actual reasons, none of which are "the fundamentals are deteriorating":
 
@@ -792,7 +792,7 @@ The bear's "the market knows something" framing is the oldest trap in investing.
 
 ---
 
-## 2. The "Forward EPS Is Wrong" Argument Is Pure Speculation
+#### 2. The "Forward EPS Is Wrong" Argument Is Pure Speculation
 
 The bear's central thesis now rests on this claim: **"What if forward EPS is $4.20 instead of $5.06?"**
 
@@ -811,7 +811,7 @@ The bear has invented a fictional EPS cut, then accused me of being unrealistic 
 
 ---
 
-## 3. The Alibaba Comparison — The Bear Keeps Losing This One
+#### 3. The Alibaba Comparison — The Bear Keeps Losing This One
 
 The bear now claims "BABA also showed accelerating segments in 2021." This is revisionist history. Let me give you the actual numbers:
 
@@ -828,7 +828,7 @@ And the BABA "$200 to $58" example? **The bear is making my point.** A buyer at 
 
 ---
 
-## 4. The SBC and "Adjusted Operating Income" Trick
+#### 4. The SBC and "Adjusted Operating Income" Trick
 
 The bear now wants to deduct SBC + capex from operating income to argue "real" profitability is lower. **This is accounting nonsense.**
 
@@ -841,7 +841,7 @@ The right metric is **free cash flow**. FY25 FCF: RMB 190B. After dividends (RMB
 
 ---
 
-## 5. "Buybacks Haven't Supported the Price" — Wrong Time Frame
+#### 5. "Buybacks Haven't Supported the Price" — Wrong Time Frame
 
 The bear's slickest line: "RMB 73B of buybacks in FY25 didn't stop a 36% decline."
 
@@ -859,7 +859,7 @@ The bear can't refute this math, so they pivot to "but the stock is going down r
 
 ---
 
-## 6. The PayPal Math Is Wrong — Let Me Show You
+#### 6. The PayPal Math Is Wrong — Let Me Show You
 
 The bear "did the math" on PayPal × WeChat Pay and got $180M. Here's what they missed:
 
@@ -874,7 +874,7 @@ The bear is doing static analysis on a dynamic business. That's how you miss com
 
 ---
 
-## 7. The Russia ADR Comparison Is Intellectually Dishonest
+#### 7. The Russia ADR Comparison Is Intellectually Dishonest
 
 The bear invokes Russian ADRs going to zero. **Russia invaded Ukraine.** That triggered SWIFT sanctions, asset freezes, and complete decoupling. Comparing Tencent to Russian ADRs requires you to believe China is on the verge of military conflict with the West.
 
@@ -884,7 +884,7 @@ The base-rate reality: **the U.S. and China just held a summit.** Trade-deal pro
 
 ---
 
-## 8. "Wait for Confirmation" Is the Most Expensive Strategy in History
+#### 8. "Wait for Confirmation" Is the Most Expensive Strategy in History
 
 The bear's closing pitch: "Wait for technical confirmation. Skip the heroics."
 
@@ -900,7 +900,7 @@ The right framework is **scaled entry**: position sized so you can absorb a furt
 
 ---
 
-## 9. The Final Asymmetry — Properly Stated
+#### 9. The Final Asymmetry — Properly Stated
 
 Let me close with the actual math, debiased:
 
@@ -921,7 +921,7 @@ That's a high-quality risk-adjusted setup. The bear's case requires the tail sce
 
 ---
 
-## Bottom Line: The Bear Confirmed the Trade
+#### Bottom Line: The Bear Confirmed the Trade
 
 Read the bear's final paragraph carefully: "There will be a time to buy Tencent. It is not when every momentum, volume, and trend indicator is screaming sell."
 
@@ -942,7 +942,7 @@ The bear's final post is impressive theater. It's also riddled with the exact an
 
 ---
 
-## 1. First, A Concession — Because Honest Debate Demands It
+#### 1. First, A Concession — Because Honest Debate Demands It
 
 The bear is correct on **one** point: I wrote "4.6% annual share count reduction" when I should have written "4.6% cumulative over four years." That's roughly 1.2%/year gross, ~0.5-1%/year net of SBC. Mea culpa.
 
@@ -960,7 +960,7 @@ This is the bear's "central error" attack. **They corrected a 4% input on a 30% 
 
 ---
 
-## 2. The Bear's Probability Table Manipulation — Their Own Game, Played Back
+#### 2. The Bear's Probability Table Manipulation — Their Own Game, Played Back
 
 The bear's most clever move: "Just adjust the tail probability up to 30%, and the EV collapses."
 
@@ -989,7 +989,7 @@ Still investable. Still beats T-bills by 6 percentage points on a 0.75-beta name
 
 ---
 
-## 3. The "Already at Lows" Argument the Bear Refuses to Engage
+#### 3. The "Already at Lows" Argument the Bear Refuses to Engage
 
 The bear keeps invoking BABA at $140 → $58 as the cautionary tale. **They keep ignoring that TCEHY is the BABA-at-$58 equivalent, not the BABA-at-$140 equivalent.**
 
@@ -1006,7 +1006,7 @@ Let me be precise:
 
 ---
 
-## 4. Forward EPS — The Bear Misread My Concession
+#### 4. Forward EPS — The Bear Misread My Concession
 
 The bear claims I "admitted $4.20 forward EPS is the base case." **No, I didn't.** Let me re-read what I actually wrote:
 
@@ -1024,7 +1024,7 @@ Is there revision risk? Yes — maybe 5-10% downward. **Not 17%.** And even at $
 
 ---
 
-## 5. The China-ADR "Survivorship Bias" Counter-Attack — They're Doing the Same Thing
+#### 5. The China-ADR "Survivorship Bias" Counter-Attack — They're Doing the Same Thing
 
 The bear accused me of cherry-picking Apple/Meta/Nvidia. Then they cherry-picked **NIO, DIDI, and Yatsen Holdings** as the "China ADR base rate."
 
@@ -1043,7 +1043,7 @@ This is preposterous. Let me show you why:
 
 ---
 
-## 6. The Sector Derating Argument Cuts Against the Bear
+#### 6. The Sector Derating Argument Cuts Against the Bear
 
 The bear's own claim: "You don't get a Tencent rerating in isolation — KWEB has to bottom first."
 
@@ -1053,7 +1053,7 @@ Carter Worth has flagged the bottom call. Zacks has called Chinese tech "appeali
 
 ---
 
-## 7. PayPal — The Bear's Math Is Still Static
+#### 7. PayPal — The Bear's Math Is Still Static
 
 Even using the bear's own restated number ($500M = 0.48% of revenue), they're missing the dynamic:
 - **FBS segment is ~33% of revenue and growing 25%+**
@@ -1068,7 +1068,7 @@ The bear keeps looking at near-term revenue contribution and missing that **mult
 
 ---
 
-## 8. The Stop Loss Argument — Now Engaging With It Honestly
+#### 8. The Stop Loss Argument — Now Engaging With It Honestly
 
 The bear is right that a stop at $48 has non-trivial probability of triggering. **So let's revise the risk plan to address that legitimate concern:**
 
@@ -1087,7 +1087,7 @@ This captures the bull case without forcing premature stop-outs:
 
 ---
 
-## 9. The Bear's Final Trap — "Wait for Confirmation" Math Is Wrong
+#### 9. The Bear's Final Trap — "Wait for Confirmation" Math Is Wrong
 
 The bear's clinching argument:
 > "If TCEHY bottoms at $50 and rallies to $70, buying at $58 (post-confirmation) gives you +21%. Buying at $54.60 with a $40 tail exposure is worse risk-adjusted."
@@ -1103,7 +1103,7 @@ The scaled-entry framework I just outlined dominates the bear's "wait for eviden
 
 ---
 
-## 10. The Verdict: What The Bear Is Actually Selling You
+#### 10. The Verdict: What The Bear Is Actually Selling You
 
 Strip away the bear's rhetoric and what's the recommendation?
 
@@ -1121,7 +1121,7 @@ Meanwhile, the bull framework says:
 
 ---
 
-## Final Bottom Line
+#### Final Bottom Line
 
 The bear's case has narrowed dramatically over four rounds:
 - **Round 1**: "The trend is bearish, distribution is happening"
@@ -1150,7 +1150,7 @@ Let me show you exactly where, then close this out with the trade that actually 
 
 ---
 
-## 1. The Bear Just Validated +10.4% Expected Return as Their Best Case Against Me
+#### 1. The Bear Just Validated +10.4% Expected Return as Their Best Case Against Me
 
 Read what the bear wrote carefully:
 
@@ -1173,7 +1173,7 @@ The bear conflated "loss aversion" with "risk management." They're not the same 
 
 ---
 
-## 2. The Bear's BABA Comparison Backfires Spectacularly
+#### 2. The Bear's BABA Comparison Backfires Spectacularly
 
 This is the most revealing section of the bear's post. They wrote:
 
@@ -1196,7 +1196,7 @@ And on book value: TCEHY at 2.91x book vs. BABA at 0.9x is **not a bear point** 
 
 ---
 
-## 3. The "52-Week Lows = More Lows" Argument Is Selectively Cited
+#### 3. The "52-Week Lows = More Lows" Argument Is Selectively Cited
 
 The bear cites AQR factor research showing 52-week lows continue ~60% of the time over 30 days. **They forgot to mention what happens on the 30-90 day horizon for fundamentally improving names.**
 
@@ -1211,7 +1211,7 @@ This is the bear's pattern throughout: cite a study, omit the conditioning varia
 
 ---
 
-## 4. The Scaled Entry "Concession" — Bear Misread What I Said
+#### 4. The Scaled Entry "Concession" — Bear Misread What I Said
 
 The bear claims my scaled entry plan is an admission that buying at $54.60 is wrong.
 
@@ -1244,7 +1244,7 @@ And here's the part they really avoided: **the bear's plan requires their tail s
 
 ---
 
-## 5. The Catalyst Table the Bear Built Actually Helps Me
+#### 5. The Catalyst Table the Bear Built Actually Helps Me
 
 Look at the bear's own catalyst table. They marked every single catalyst as weak. Let me re-grade with real analysis:
 
@@ -1264,7 +1264,7 @@ The bear demands "defined timelines and quantified earnings impact" before count
 
 ---
 
-## 6. The Geopolitical Risk Argument Cuts Both Ways
+#### 6. The Geopolitical Risk Argument Cuts Both Ways
 
 The bear says: "You can't quantify geopolitical risk — wait until it stabilizes."
 
@@ -1283,7 +1283,7 @@ The honest framing: **geopolitical risk is priced** at 10.8x forward vs. 22x for
 
 ---
 
-## 7. The Strongest Single Fact the Bear Cannot Refute
+#### 7. The Strongest Single Fact the Bear Cannot Refute
 
 Here it is, in one line:
 
@@ -1295,7 +1295,7 @@ The bear's response: "But the stock has been going down, so it might keep going 
 
 ---
 
-## 8. Why I'll Take This Trade — The Final Math
+#### 8. Why I'll Take This Trade — The Final Math
 
 Let me give you the trade as it should be sized for a sophisticated portfolio:
 
@@ -1318,7 +1318,7 @@ This is a high-quality risk-adjusted long. **Not a hero trade. Not a YOLO. A dis
 
 ---
 
-## The Final Verdict
+#### The Final Verdict
 
 The bear has spent six rounds telling you why patience beats action. Every argument has reduced to: "the trend is bearish, and trends continue."
 
@@ -1352,7 +1352,7 @@ My bull colleague has delivered a confident-sounding pitch built on a single, da
 
 ---
 
-## 1. "Earnings Are Accelerating While the Stock De-Rates" — You're Misreading the Tape
+#### 1. "Earnings Are Accelerating While the Stock De-Rates" — You're Misreading the Tape
 
 You frame this as a paradox. It isn't. **It's the market telling you something you don't want to hear.**
 
@@ -1369,7 +1369,7 @@ And let's interrogate those fundamentals you're celebrating:
 
 ---
 
-## 2. The Technicals Aren't "Lagging" — They're Leading You Off a Cliff
+#### 2. The Technicals Aren't "Lagging" — They're Leading You Off a Cliff
 
 You wave away the technical picture as a "rear-view mirror." Let's be precise about what the chart is actually saying:
 
@@ -1385,7 +1385,7 @@ And here's the kicker: **between $54 and $50, there is no technical support in t
 
 ---
 
-## 3. The ByteDance Capex Threat Is Real — Stop Hand-Waving It
+#### 3. The ByteDance Capex Threat Is Real — Stop Hand-Waving It
 
 You called it the "ByteDance boogeyman." Let me reframe what $70B of AI capex from a private competitor actually means:
 
@@ -1398,7 +1398,7 @@ And the chip story you cite as bullish? **The U.S. cleared H200 sales but no del
 
 ---
 
-## 4. ADR Risk: You're Defending the Indefensible
+#### 4. ADR Risk: You're Defending the Indefensible
 
 "TCEHY is fungible with 700.HK" — technically true, **practically misleading**.
 
@@ -1409,7 +1409,7 @@ And the chip story you cite as bullish? **The U.S. cleared H200 sales but no del
 
 ---
 
-## 5. Your "Hidden Catalysts" Are Smaller Than You Think
+#### 5. Your "Hidden Catalysts" Are Smaller Than You Think
 
 Let's stress-test each one:
 
@@ -1420,7 +1420,7 @@ Let's stress-test each one:
 
 ---
 
-## 6. Sentiment: Reading 30 StockTwits Posts Is Not Analysis
+#### 6. Sentiment: Reading 30 StockTwits Posts Is Not Analysis
 
 10 bullish vs. 0 bearish on StockTwits with **20 unlabeled posts** in a sample of 30 is statistical noise on an OTC ADR. The sentiment report itself caps confidence at **medium** and specifically notes **zero Reddit coverage** — which it correctly identifies as evidence of "limited Western institutional/retail conviction depth."
 
@@ -1428,7 +1428,7 @@ Meanwhile, the **institutional signals are mixed-to-negative**: analyst fair-val
 
 ---
 
-## 7. The Macro Backdrop You Skipped Entirely
+#### 7. The Macro Backdrop You Skipped Entirely
 
 Convenient omission from the bull case:
 - **Iran war active**, oil spiking, Exxon/Chevron warning of "skyrocketing" prices
@@ -1440,7 +1440,7 @@ In a risk-off macro environment, the *last* thing institutions add is a Chinese 
 
 ---
 
-## Bottom Line: This Is a Falling Knife, Not a Coiled Spring
+#### Bottom Line: This Is a Falling Knife, Not a Coiled Spring
 
 The bull case requires **three things to all go right**: (1) macro de-risks, (2) U.S.-China tensions don't escalate, (3) AI capex pays back faster than the market fears. Miss any one, and you're underwater.
 
@@ -1466,7 +1466,7 @@ The bull's answer is essentially: "The market is wrong, and I am right." Let me 
 
 ---
 
-## 1. The Bull's Core Logical Error: "Cheap + Accelerating = Buy"
+#### 1. The Bull's Core Logical Error: "Cheap + Accelerating = Buy"
 
 The bull keeps repeating that accelerating fundamentals + a low multiple = mispricing. This sounds compelling until you ask the obvious question: **who's selling, and why?**
 
@@ -1478,7 +1478,7 @@ That's the conversation the bull refuses to have.
 
 ---
 
-## 2. The Alibaba Comparison — The Bull Walked Right Into It
+#### 2. The Alibaba Comparison — The Bull Walked Right Into It
 
 The bull built a fancy table claiming BABA in 2021 was decelerating while TCEHY today is accelerating. Three problems:
 
@@ -1490,7 +1490,7 @@ The bull built a fancy table claiming BABA in 2021 was decelerating while TCEHY 
 
 ---
 
-## 3. "Earnings Quality" — The Bull's Math Is the One That Doesn't Add Up
+#### 3. "Earnings Quality" — The Bull's Math Is the One That Doesn't Add Up
 
 The bull claims Operating Income grew 19.1% and that's the "real" number. Let's actually pull this thread:
 
@@ -1507,7 +1507,7 @@ And the YoY comparison the bull cites? **Q1'25 was an exceptionally weak quarter
 
 ---
 
-## 4. The Asymmetry Argument Is Garbage Math
+#### 4. The Asymmetry Argument Is Garbage Math
 
 The bull presents a magnificent "3:1 to 5:1 reward-to-risk" calculation. Let me deconstruct it:
 
@@ -1523,7 +1523,7 @@ The "8% capital return floor" is also misleading. **FCF yield is not a floor.** 
 
 ---
 
-## 5. ByteDance and the Capex Reality Check
+#### 5. ByteDance and the Capex Reality Check
 
 The bull says my argument is "unfalsifiable" because I think both ByteDance capex and Tencent capex are problems. **It's not unfalsifiable — it's recognizing a structural industry shift.**
 
@@ -1535,7 +1535,7 @@ On chips: being "on the approved list" with **zero deliveries** is not a tailwin
 
 ---
 
-## 6. ADR Risk: The Bull Is Performing Survivorship Bias
+#### 6. ADR Risk: The Bull Is Performing Survivorship Bias
 
 The bull says "Tencent is too systemically important to delist." **Three years ago, the same was said about Russian ADRs in MSCI EM.** They were frozen overnight. Investors lost 100%. "Systemic importance" is exactly what makes a name *vulnerable* to political weaponization — it's a high-leverage hostage.
 
@@ -1547,7 +1547,7 @@ The bull's "discount decompresses when geopolitics improves" is a fair point —
 
 ---
 
-## 7. The Catalysts Don't Move the Needle — Math, Not Vibes
+#### 7. The Catalysts Don't Move the Needle — Math, Not Vibes
 
 The bull demands I "do the math" on PayPal × WeChat Pay. Fine, let's do it:
 
@@ -1566,7 +1566,7 @@ Buybacks at $54 — yes, mathematically accretive. But here's the question the b
 
 ---
 
-## 8. The "Pony Ma Is Buying" Closing Line — Empty Rhetoric
+#### 8. The "Pony Ma Is Buying" Closing Line — Empty Rhetoric
 
 The bull closes with: "Pony Ma is buying. Tencent's treasury is buying. The smart money in Hong Kong is buying."
 
@@ -1578,7 +1578,7 @@ This is the kind of rhetorical confidence-building that gets retail investors hu
 
 ---
 
-## 9. The Real Risk/Reward Asymmetry — Time and Capital
+#### 9. The Real Risk/Reward Asymmetry — Time and Capital
 
 Let me reframe the trade properly:
 
@@ -1599,7 +1599,7 @@ The bull frames "waiting" as giving up alpha. **I frame it as risk management.**
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bull case requires you to believe:
 1. The market is wrong and you are right
@@ -1630,7 +1630,7 @@ The bull has now written ~15,000 words across three increasingly elaborate posts
 
 ---
 
-## 1. The Bull's Probability Table Is the Smoking Gun
+#### 1. The Bull's Probability Table Is the Smoking Gun
 
 Look carefully at what the bull just published as their "debiased" math:
 
@@ -1657,7 +1657,7 @@ I just used the bull's own framework to demonstrate the trade is uncompelling. *
 
 ---
 
-## 2. The Bull Just Admitted the Stock Is Falling for Sector Reasons — That's Not a Defense
+#### 2. The Bull Just Admitted the Stock Is Falling for Sector Reasons — That's Not a Defense
 
 Read the bull's "Why is it down 36%?" section carefully. They list four reasons:
 
@@ -1677,7 +1677,7 @@ The bull's defense reduces to: "The stock is down for reasons that are still act
 
 ---
 
-## 3. The Forward EPS Argument — The Bull Did the Math Wrong
+#### 3. The Forward EPS Argument — The Bull Did the Math Wrong
 
 The bull did me the favor of running the numbers themselves. Watch this carefully:
 
@@ -1697,7 +1697,7 @@ And here's the deeper problem: forward analyst estimates of $5.06 are **likely t
 
 ---
 
-## 4. Buybacks: The Bull's Most Embarrassing Misreading
+#### 4. Buybacks: The Bull's Most Embarrassing Misreading
 
 The bull's defense of buybacks contains a logical contradiction so glaring it deserves its own section.
 
@@ -1721,7 +1721,7 @@ This is a serious error, not a rounding issue. **The bull's central compounding 
 
 ---
 
-## 5. The Cherry-Picked Tech Bottom Examples
+#### 5. The Cherry-Picked Tech Bottom Examples
 
 The bull cites Apple Jan 2019, Meta Nov 2022, Nvidia Oct 2022 as proof that "waiting for confirmation costs 30-50%."
 
@@ -1739,7 +1739,7 @@ The bull cited three winning examples out of the universe of stocks that bottome
 
 ---
 
-## 6. PayPal Math — The Bull Conceded Without Realizing It
+#### 6. PayPal Math — The Bull Conceded Without Realizing It
 
 The bull challenged my $180M revenue estimate and substituted... $500M annual contribution at scale.
 
@@ -1751,7 +1751,7 @@ This is the catalyst the bull listed as proof of structural reacceleration. **Th
 
 ---
 
-## 7. The "Russia Comparison Is Dishonest" Defense — Misses the Point
+#### 7. The "Russia Comparison Is Dishonest" Defense — Misses the Point
 
 The bull says comparing TCEHY to Russian ADRs requires "believing China is on the verge of military conflict."
 
@@ -1767,7 +1767,7 @@ The bull then cites "summit progress, IDG raising $2B, Nvidia H200 cleared" as e
 
 ---
 
-## 8. The Bull's Risk Management Plan Reveals the Truth
+#### 8. The Bull's Risk Management Plan Reveals the Truth
 
 The bull's stated risk management: "Set a stop at $48."
 
@@ -1785,7 +1785,7 @@ $48 is **12% below current price**. For a 0.75-beta stock with $1.37 ATR (~2.5%)
 
 ---
 
-## 9. The Decisive Reframe
+#### 9. The Decisive Reframe
 
 Let me re-state the trade as it actually exists:
 
@@ -1815,7 +1815,7 @@ Let me re-state the trade as it actually exists:
 
 ---
 
-## 10. Why This Matters: The Hidden Cost of Being Early
+#### 10. Why This Matters: The Hidden Cost of Being Early
 
 The bull's most seductive argument is "you'll miss the bottom if you wait." Let me give you the math the bull avoided:
 
@@ -1827,7 +1827,7 @@ The bull's "first leg of the move" mythology only matters if you have unlimited 
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bull has delivered 15,000 words of confident-sounding rhetoric built on:
 - A probability table where one assumption flip eliminates the entire expected value
@@ -1862,7 +1862,7 @@ The bull has now delivered five posts of escalating eloquence and decreasing rig
 
 ---
 
-## 1. The Bull Just Confessed to a +10.4% Expected Return — And Called It a Win
+#### 1. The Bull Just Confessed to a +10.4% Expected Return — And Called It a Win
 
 Read the bull's own recalibrated math carefully:
 
@@ -1885,7 +1885,7 @@ But here's the deeper problem: the bull's probabilities themselves are unsupport
 
 ---
 
-## 2. "TCEHY Is BABA-at-$58, Not BABA-at-$140" — Demonstrably Wrong
+#### 2. "TCEHY Is BABA-at-$58, Not BABA-at-$140" — Demonstrably Wrong
 
 The bull's most confident claim is that TCEHY is already "the bottom equivalent" of BABA at $58. Let me dismantle this with hard data:
 
@@ -1915,7 +1915,7 @@ The bull's defense will be: "But Tencent has higher quality than BABA had at the
 
 ---
 
-## 3. The Bull's "Tencent Has Never Traded Below 8x" Argument Is Cherry-Picked History
+#### 3. The Bull's "Tencent Has Never Traded Below 8x" Argument Is Cherry-Picked History
 
 The bull writes: "Tencent has never traded at 8x forward in its 22-year listing history."
 
@@ -1932,7 +1932,7 @@ The relevant comparison set is **post-2021 Chinese tech mega-caps under the curr
 
 ---
 
-## 4. The "Already at Lows = Limited Downside" Argument Ignores the Tape
+#### 4. The "Already at Lows = Limited Downside" Argument Ignores the Tape
 
 The bull's "TCEHY is at 52-week low, RSI 30, lower BB, oversold" argument fundamentally misunderstands trend mechanics.
 
@@ -1948,7 +1948,7 @@ The bull's "kissing the lower Bollinger Band" framing is even worse. The technic
 
 ---
 
-## 5. The PayPal "Multiple Expansion" Math Is Pure Fantasy
+#### 5. The PayPal "Multiple Expansion" Math Is Pure Fantasy
 
 The bull's most desperate pivot: "A 50bps acceleration in revenue growth justifies 1.5-2x multiple expansion = $5-10 per share."
 
@@ -1964,7 +1964,7 @@ And the bull's claim that FBS is "growing 25%+" needs verification. The fundamen
 
 ---
 
-## 6. The Bull's Scaled Entry "Solution" Is a Concession
+#### 6. The Bull's Scaled Entry "Solution" Is a Concession
 
 Watch what the bull just did. They started Round 1 with: "Buy here at $54.60." 
 
@@ -1981,7 +1981,7 @@ That's *exactly* what the bear has been arguing for: **wait for lower prices or 
 
 ---
 
-## 7. The Geopolitical Risk Cannot Be Quantified Away
+#### 7. The Geopolitical Risk Cannot Be Quantified Away
 
 The bull keeps trying to assign clean probabilities to geopolitical risk. **This is the wrong epistemological frame.** Geopolitical risk in Chinese ADRs is:
 - **Path-dependent** (each escalation makes the next one more likely)
@@ -1993,7 +1993,7 @@ You can't take a fat-tailed political risk and treat it as a 10% probability bul
 
 ---
 
-## 8. The Final Reality Check on Catalysts
+#### 8. The Final Reality Check on Catalysts
 
 Let me take stock of the bull's entire catalyst set:
 
@@ -2011,7 +2011,7 @@ Let me take stock of the bull's entire catalyst set:
 
 ---
 
-## Bottom Line: The Disciplined Recommendation
+#### Bottom Line: The Disciplined Recommendation
 
 The bull's case has been articulate, voluminous, and ultimately unconvincing because it requires too many things to go right while pricing too few things going wrong.
 
@@ -2042,7 +2042,7 @@ The trade I would put on instead:
 
 ---
 
-## The Closing Truth
+#### The Closing Truth
 
 The bull asked the question: "In 18 months, who compounded capital and who compounded caution?"
 
@@ -2067,7 +2067,7 @@ The bull has now delivered seven posts. Each one more confident than the last. E
 
 ---
 
-## 1. The Sharpe Ratio Math Is Fabricated — And It Falls Apart in 30 Seconds
+#### 1. The Sharpe Ratio Math Is Fabricated — And It Falls Apart in 30 Seconds
 
 The bull's closing flourish: "Implied Sharpe is ~0.35 — higher than the S&P 500's long-term average."
 
@@ -2083,7 +2083,7 @@ And the S&P comparison is itself dishonest. The S&P has **diversification across
 
 ---
 
-## 2. The BABA "Backfire" Is the Bull Reading What They Want to Read
+#### 2. The BABA "Backfire" Is the Bull Reading What They Want to Read
 
 The bull triumphantly claims I admitted TCEHY at 10.8x is "fair value at the bottom." Let me re-read what I actually wrote:
 
@@ -2105,7 +2105,7 @@ And the bull's selective reading of P/B continues. **Gordon growth implies 2.86x
 
 ---
 
-## 3. The "AQR Conditional Base Rate" Citation — The Bull Made This Up
+#### 3. The "AQR Conditional Base Rate" Citation — The Bull Made This Up
 
 The bull writes:
 > "52-week lows with improving fundamentals + earnings acceleration: continue only ~35%"
@@ -2120,7 +2120,7 @@ Even if such a conditional existed, the bull's premise — that Tencent has "imp
 
 ---
 
-## 4. The Scaled Entry Math — Now With Honest Numbers
+#### 4. The Scaled Entry Math — Now With Honest Numbers
 
 The bull's three-scenario comparison is hilariously rigged. Watch this:
 
@@ -2146,7 +2146,7 @@ And note what happens in tail scenarios: **the bull gets stopped out and locks i
 
 ---
 
-## 5. The Catalyst Counter-Counter — Bull Just Restated Hopes
+#### 5. The Catalyst Counter-Counter — Bull Just Restated Hopes
 
 The bull "re-graded" my catalyst table. Let's check the regrades:
 
@@ -2168,7 +2168,7 @@ This applies independence assumptions to highly correlated catalysts. **PayPal, 
 
 ---
 
-## 6. The Geopolitical Argument — The Bull's "Pick One" Trap Is Fake
+#### 6. The Geopolitical Argument — The Bull's "Pick One" Trap Is Fake
 
 The bull says: "Either the discount prices the risk (so buy) or the risk is too high (so don't). Pick one."
 
@@ -2190,7 +2190,7 @@ The bull keeps inventing strawman versions of my framework. The actual framework
 
 ---
 
-## 7. The "Strongest Single Fact" — Cuts Against the Bull
+#### 7. The "Strongest Single Fact" — Cuts Against the Bull
 
 The bull's clinching fact: "RMB 303B of OCF (+17% YoY), $15B returned to shareholders, stock down 36%."
 
@@ -2213,7 +2213,7 @@ The market is pricing some combination of these. The bull says "no, the market i
 
 ---
 
-## 8. The Trade as It Actually Sits
+#### 8. The Trade as It Actually Sits
 
 Let me close with the unvarnished truth about what the bull is asking you to do:
 
@@ -2240,7 +2240,7 @@ Let me close with the unvarnished truth about what the bull is asking you to do:
 
 ---
 
-## Final Recommendation: AVOID TCEHY at $54.60
+#### Final Recommendation: AVOID TCEHY at $54.60
 
 This is not a permanent bearish view on Tencent. It is a tactical view that the **risk/reward at current levels is materially worse than the bull's framework admits**, the **technical and macro setup is hostile**, and the **cost of patience is far lower than the cost of being early.**
 

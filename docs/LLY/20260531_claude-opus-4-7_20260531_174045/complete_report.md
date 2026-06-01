@@ -7,13 +7,13 @@ Generated: 2026-05-31 17:40:45
 ### Market Analyst
 I have comprehensive data. Let me prepare the detailed report.
 
-# LLY (Eli Lilly and Company) — Technical Analysis Report
+#### LLY (Eli Lilly and Company) — Technical Analysis Report
 **Analysis Date:** 2026-05-31 (last close: Friday, 2026-05-29)
 **Sector:** Healthcare / Drug Manufacturers - General | **Exchange:** NYSE
 
 ---
 
-## 1. Indicator Selection Rationale
+#### 1. Indicator Selection Rationale
 
 I selected the following 8 complementary indicators for LLY's current market context:
 
@@ -32,7 +32,7 @@ I deliberately excluded `boll_lb` (lower band irrelevant in current upside break
 
 ---
 
-## 2. Price Action & Trend Structure
+#### 2. Price Action & Trend Structure
 
 **Current Price (2026-05-29 close):** $1,105.00
 **Recent High (2026-05-28):** $1,149.10 (intraday)
@@ -52,7 +52,7 @@ The 50 SMA bottomed near $937.90 on 2026-05-12 and has since inflected upward (n
 
 ---
 
-## 3. Momentum (MACD & RSI)
+#### 3. Momentum (MACD & RSI)
 
 ### MACD
 | Date | MACD | Signal | Histogram (implied) |
@@ -75,7 +75,7 @@ The 50 SMA bottomed near $937.90 on 2026-05-12 and has since inflected upward (n
 
 ---
 
-## 4. Volatility Profile
+#### 4. Volatility Profile
 
 ### Bollinger Upper Band (boll_ub)
 - **2026-05-29:** $1,116.48 vs. close $1,105.00 — price is **just below the upper band** after tagging it intraday on 5/28 ($1,149 high vs. ~$1,105 band).
@@ -89,7 +89,7 @@ The 50 SMA bottomed near $937.90 on 2026-05-12 and has since inflected upward (n
 
 ---
 
-## 5. Key Levels
+#### 5. Key Levels
 
 | Type | Level | Significance |
 |---|---|---|
@@ -104,7 +104,7 @@ The 50 SMA bottomed near $937.90 on 2026-05-12 and has since inflected upward (n
 
 ---
 
-## 6. Synthesis & Actionable Insights
+#### 6. Synthesis & Actionable Insights
 
 **Overall Posture: Bullish trend, but stretched short-term.**
 
@@ -118,7 +118,7 @@ The data tells a coherent story: LLY underwent a Q1 correction of ~25% from the 
 
 ---
 
-## 7. Summary Table
+#### 7. Summary Table
 
 | Dimension | Reading | Signal |
 |---|---|---|
@@ -143,9 +143,9 @@ The data tells a coherent story: LLY underwent a Q1 correction of ~25% from the 
 **Confidence:** High
 
 
-# LLY Sentiment Report — 2026-05-24 to 2026-05-31
+#### LLY Sentiment Report — 2026-05-24 to 2026-05-31
 
-## 1. Source-by-source breakdown
+#### 1. Source-by-source breakdown
 
 ### News (Yahoo Finance, ~20 LLY-relevant headlines)
 Institutional framing is decisively **bullish**, anchored on three converging catalysts:
@@ -176,18 +176,18 @@ Thin but directionally **bullish**:
 
 Engagement metrics unavailable (RSS feed), so weight is limited. No bearish Reddit thread surfaced.
 
-## 2. Cross-source alignment & divergence
+#### 2. Cross-source alignment & divergence
 - **Strong alignment:** All three sources converge on (a) VERVE-102 pipeline win and (b) CVS/Foundayo/Zepbound access expansion as the dominant week's catalysts. News, retail, and Reddit all point bullish.
 - **Minor divergence:** News flags legal (Supreme Court FCA verdict) and pricing (MFN, Japan) risks that are essentially absent from retail/Reddit chatter — a classic pattern where institutional framing acknowledges tail risks that retail discounts. This is a watch-item, not an immediate red flag.
 - **Tone mismatch:** Retail is at peak euphoria (price targets up to $2,000, "GAZILLIONS"), while news is bullish-but-measured (record highs, ~$1,127). The gap suggests retail is leaning ahead of fundamentals.
 
-## 3. Dominant narrative themes
+#### 3. Dominant narrative themes
 1. **GLP-1/obesity dominance reasserted** — CVS access restoration + Retatrutide "largest weight loss ever" + competitor (Novo Wegovy) losing formulary edge.
 2. **Pipeline beyond obesity** — VERVE-102 (cardio/PCSK9 base editing), Retevmo Phase 3 oncology win, $4B vaccine push diversifying the story.
 3. **$1T valuation milestone** — framed as cementing LLY as Wall Street's premier weight-loss play; stock-split speculation; near IBD breakout pivot.
 4. **Macro tailwind** — healthcare sector at historical discount to S&P; sector rotation thesis.
 
-## 4. Catalysts & risks
+#### 4. Catalysts & risks
 **Catalysts (next 1–6 months):**
 - Foundayo CVS coverage live June 2026; broader Zepbound coverage by October 2026.
 - Retatrutide additional readouts (cardiac safety profile pending per StockTwits chatter).
@@ -201,7 +201,7 @@ Engagement metrics unavailable (RSS feed), so weight is limited. No bearish Redd
 - Sentiment over-extension: 70/0 bull/bear, +30% one-month run, retail PTs of $1,500–$2,000 — vulnerable to any disappointing data point or macro shock.
 - Technical: stock at/near $1,127 vs. $1,133.95 pivot; failed breakout could trigger profit-taking.
 
-## 5. Summary table
+#### 5. Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -226,15 +226,15 @@ I have sufficient information. Let me compile the comprehensive report.
 
 ---
 
-# News & Macro Research Report: Eli Lilly and Company (LLY)
+#### News & Macro Research Report: Eli Lilly and Company (LLY)
 **Analysis Date:** 2026-05-31 | **Look-Back Window:** Past 7-10 days | **Exchange:** NYSE (NYQ)
 
-## Executive Summary
+#### Executive Summary
 Eli Lilly (LLY) is at an inflection point — trading near an all-time high (~$1,126.80) after reclaiming a $1+ trillion market capitalization. The past week was unusually catalyst-rich: a major commercial reimbursement win at CVS Caremark, a record-breaking obesity Phase trial readout, positive cardiovascular gene-editing data (VERVE-102), a $4B vaccine market entry, and Jim Cramer praising "brilliant management." Offsetting tailwinds, the U.S. Supreme Court upheld a $220M Medicaid fraud verdict against the company, and a potential ~$529B drug pricing/MFN (Most Favored Nation) policy fight looms. Macro cross-currents include ongoing Iran-related geopolitical risk (with a truce extension late in the week), elevated oil prices, rising Treasury yields, and a tech/healthcare-led equity rally.
 
 ---
 
-## 1. Company-Specific Catalysts (LLY)
+#### 1. Company-Specific Catalysts (LLY)
 
 ### 1a. Commercial / Reimbursement Win — CVS Restores Zepbound Coverage (HIGH IMPACT, BULLISH)
 - CVS Caremark reversed its prior preferential treatment of Novo Nordisk's Wegovy and granted **preferred formulary status to Lilly's Zepbound and Foundayo** alongside Wegovy.
@@ -268,7 +268,7 @@ Eli Lilly (LLY) is at an inflection point — trading near an all-time high (~$1
 
 ---
 
-## 2. Risk Factors / Headwinds
+#### 2. Risk Factors / Headwinds
 
 ### 2a. Supreme Court Ruling — $220M Medicaid Fraud Verdict (MEDIUM IMPACT, BEARISH)
 - The U.S. Supreme Court **upheld a $220M False Claims Act verdict** against Lilly stemming from a 12-year whistleblower case.
@@ -285,7 +285,7 @@ Eli Lilly (LLY) is at an inflection point — trading near an all-time high (~$1
 
 ---
 
-## 3. Macro / Global Backdrop
+#### 3. Macro / Global Backdrop
 
 ### 3a. Geopolitics — Iran Conflict (MIXED)
 - News flow references an active "Iran War" with a **truce extension announced May 29** — silver and risk assets opened higher on the news.
@@ -310,7 +310,7 @@ Eli Lilly (LLY) is at an inflection point — trading near an all-time high (~$1
 
 ---
 
-## 4. Trading Insights & Actionable Takeaways
+#### 4. Trading Insights & Actionable Takeaways
 
 1. **Bullish skew over the next 1–3 months.** The CVS reimbursement win + Reta data + VERVE-102 positivity are concrete, fundamental positives that materially reduce 2026 revenue risk and extend the long-term narrative.
 2. **Watch the $1,133.95 pivot (IBD).** A confirmed breakout above this level on volume would target prior projections for the next $1T+ healthcare leg.
@@ -322,7 +322,7 @@ Eli Lilly (LLY) is at an inflection point — trading near an all-time high (~$1
 
 ---
 
-## 5. Key Points Summary Table
+#### 5. Key Points Summary Table
 
 | # | Item | Date | Direction | Impact | Key Detail |
 |---|------|------|-----------|--------|------------|
@@ -348,13 +348,13 @@ Eli Lilly (LLY) is at an inflection point — trading near an all-time high (~$1
 ### Fundamentals Analyst
 I have comprehensive data. Let me compile the fundamental analysis report for Eli Lilly and Company (LLY).
 
-# Eli Lilly and Company (LLY) — Fundamental Analysis Report
+#### Eli Lilly and Company (LLY) — Fundamental Analysis Report
 **Analysis Date:** May 31, 2026
 **Sector:** Healthcare | **Industry:** Drug Manufacturers - General | **Exchange:** NYQ
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Eli Lilly and Company is a global pharmaceutical leader, presently in the strongest period of its modern history thanks to its dominant position in the GLP-1 / incretin franchise (Mounjaro, Zepbound) alongside its established oncology, immunology, neuroscience, and diabetes portfolios.
 
@@ -371,7 +371,7 @@ LLY trades approximately mid-range relative to its 52-week band, with the 50-day
 
 ---
 
-## 2. Valuation Profile
+#### 2. Valuation Profile
 
 | Metric | Value | Interpretation |
 |---|---|---|
@@ -387,7 +387,7 @@ The forward P/E of ~24.8x against a forward EPS of $44.47 implies the market exp
 
 ---
 
-## 3. Income Statement — Trend Analysis (Quarterly)
+#### 3. Income Statement — Trend Analysis (Quarterly)
 
 | Quarter | Revenue ($B) | YoY Implied | Gross Profit ($B) | Operating Inc. ($B) | Net Income ($B) | Diluted EPS |
 |---|---|---|---|---|---|---|
@@ -406,7 +406,7 @@ The forward P/E of ~24.8x against a forward EPS of $44.47 implies the market exp
 
 ---
 
-## 4. Balance Sheet Strength
+#### 4. Balance Sheet Strength
 
 | Item ($B) | Q1 2026 | Q1 2025 | Change |
 |---|---|---|---|
@@ -428,7 +428,7 @@ The forward P/E of ~24.8x against a forward EPS of $44.47 implies the market exp
 
 ---
 
-## 5. Cash Flow Analysis
+#### 5. Cash Flow Analysis
 
 | Quarter | Operating CF ($B) | CapEx ($B) | Free Cash Flow ($B) | Dividends Paid ($B) | Buybacks ($B) |
 |---|---|---|---|---|---|
@@ -446,7 +446,7 @@ The forward P/E of ~24.8x against a forward EPS of $44.47 implies the market exp
 
 ---
 
-## 6. Profitability & Returns
+#### 6. Profitability & Returns
 
 | Metric | Value | Comment |
 |---|---|---|
@@ -461,7 +461,7 @@ ROE >100% reflects both high net income and a relatively thin (though rapidly gr
 
 ---
 
-## 7. Capital Allocation
+#### 7. Capital Allocation
 
 - **Dividends:** Paid $5.59B over the trailing four quarters; quarterly dividend stepped up to ~$1.55B in Q1'26 (annual yield 0.63%, dividend coverage ratio robust at ~4–5x net income).
 - **Buybacks:** $5.27B over trailing four quarters and accelerating ($2.36B in Q1'26 alone). Share count modestly declining (897.7M → 893.5M).
@@ -470,7 +470,7 @@ ROE >100% reflects both high net income and a relatively thin (though rapidly gr
 
 ---
 
-## 8. Risks & Watch Items
+#### 8. Risks & Watch Items
 
 1. **Valuation premium** — P/B of 31.6x and P/E of 39x leave little margin for execution missteps.
 2. **GLP-1 competition** — Novo Nordisk (Wegovy/Ozempic), and emerging entrants from Pfizer, Amgen, Roche, Viking. Oral GLP-1 (orforglipron) launch readiness is critical.
@@ -481,7 +481,7 @@ ROE >100% reflects both high net income and a relatively thin (though rapidly gr
 
 ---
 
-## 9. Catalysts (Positive)
+#### 9. Catalysts (Positive)
 
 - **Orforglipron Phase 3 readouts and potential approval** — first oral small-molecule GLP-1.
 - **Retatrutide (triple-agonist)** — potentially best-in-class weight loss agent.
@@ -491,7 +491,7 @@ ROE >100% reflects both high net income and a relatively thin (though rapidly gr
 
 ---
 
-## 10. Summary Scorecard
+#### 10. Summary Scorecard
 
 | Dimension | Assessment | Score (1–5) |
 |---|---|---|
@@ -507,7 +507,7 @@ ROE >100% reflects both high net income and a relatively thin (though rapidly gr
 
 ---
 
-## Actionable Insights for Traders
+#### Actionable Insights for Traders
 
 1. **Bullish thesis intact:** Revenue accelerating, EPS more than doubling YoY, FCF growing while reinvesting heavily — the rarest of combinations. Forward P/E of 24.8x is reasonable given expected ~58% EPS growth.
 
@@ -533,7 +533,7 @@ Bull Analyst: # Bull Case for Eli Lilly (LLY): The Generational Compounder Is Ju
 
 Let me cut right to the chase. The bear case on LLY hinges on three tired refrains: "valuation is stretched," "GLP-1 competition is coming," and "drug pricing risk." I'm going to dismantle each, but first, let me frame what we're actually looking at here — because if you squint past the noise, this is one of the most extraordinary fundamental setups in large-cap equities today.
 
-## The Setup: This Isn't Hype, It's Math
+#### The Setup: This Isn't Hype, It's Math
 
 Look at what just happened in Q1 2026:
 - **Revenue: $19.80B, up 55.5% YoY**
@@ -544,7 +544,7 @@ Look at what just happened in Q1 2026:
 
 When was the last time you saw a $1 trillion company growing revenue at 55% with 49% operating margins? You haven't. Not Apple at its peak, not Microsoft, not Nvidia at this scale. This is a singular fundamental profile, and the market is paying **24.8x forward earnings** for it. Let that sink in.
 
-## Refuting the Bear's Concerns — Point by Point
+#### Refuting the Bear's Concerns — Point by Point
 
 ### Bear Claim #1: "Valuation is stretched at 39x P/E and 31x P/B"
 
@@ -575,7 +575,7 @@ Let's be precise:
 
 Fair point on the technicals — and I'll concede this honestly: **don't chase $1,105**. The RSI tagging 75.8 and price riding the upper Bollinger band signal short-term exhaustion. But this is a *tactical* concern, not a *thesis* concern. The 50-day SMA at $953 and 10 EMA at $1,060 provide clear pullback entries. The long-term trend (200 SMA at $934, rising) was never broken. This is a "buy the dip" setup, not a "sell the rally" setup.
 
-## The Convergence the Bears Are Missing
+#### The Convergence the Bears Are Missing
 
 What makes LLY uniquely compelling right now is the **stacking of catalysts that rarely coincide**:
 
@@ -585,7 +585,7 @@ What makes LLY uniquely compelling right now is the **stacking of catalysts that
 4. **Capital return acceleration** (buybacks 3x'd YoY)
 5. **Defensive positioning** in a macro environment of rising yields, geopolitical risk (Iran), and consumer softness — healthcare is *the* place to hide while still getting growth
 
-## The Bottom Line
+#### The Bottom Line
 
 The bear is asking you to sell a company growing 55%, generating 49% operating margins, executing flawlessly on a generational drug franchise, with the deepest manufacturing moat in pharma — because the chart is "extended" and there *might* be pricing pressure someday.
 
@@ -600,7 +600,7 @@ Bull Analyst: # Bull Rebuttal: The Bear's "Reckoning" Is a Collection of Selecti
 
 My bear colleague has delivered a polished pitch. It's also a masterclass in *narrative engineering* — taking real data, stripping out context, and presenting reasonable risks as imminent catastrophes. Let me walk through it piece by piece, because every single one of his "gotchas" has a fatal flaw he's hoping you won't notice.
 
-## On the "Decelerating Sequential Growth" Smoking Gun — His Single Worst Argument
+#### On the "Decelerating Sequential Growth" Smoking Gun — His Single Worst Argument
 
 This is the bear's centerpiece, so let's destroy it first.
 
@@ -614,7 +614,7 @@ Here's the *real* growth number that matters: **Q1'26 revenue of $19.80B vs Q1'2
 
 And his "tough comps in Q3-Q4 2026" worry? **Foundayo just got CVS preferred status — coverage live June 2026, broader Zepbound coverage by October 2026.** Those are 10 million *new* covered lives entering the funnel exactly when his "tough comp" thesis says growth will collapse. The catalysts are perfectly timed to *crush* the comp, not miss it.
 
-## On the Inventory "Tell" — He Has the Causation Backwards
+#### On the Inventory "Tell" — He Has the Causation Backwards
 
 The bear says inventory up 56% YoY means "supply has caught up to demand" and pricing pressure begins.
 
@@ -624,7 +624,7 @@ And here's the proof: **CVS just expanded coverage to 10 million additional pati
 
 If demand were truly normalizing, would Lilly be spending $10B+ annually on CapEx? Would they be building Lebanon, Concord, Research Triangle, and European facilities simultaneously? Management has access to real-time prescription data we don't see. They're voting with $10B/year that demand is going *higher*, not flattening.
 
-## On the Novo Nordisk "Cautionary Tale" — Wildly Misleading Comparison
+#### On the Novo Nordisk "Cautionary Tale" — Wildly Misleading Comparison
 
 This is the bear's most emotionally manipulative argument, so let's be precise about why it falls apart.
 
@@ -638,7 +638,7 @@ So the bear's "warning" is literally: *"LLY could become Novo, which lost to LLY
 
 You want a real comparison? It's not NVO post-peak. It's **Lilly itself in 2014-2024**, when the stock 10x'd from $60 to $600 as it built the franchise that's now generating $80B in run-rate revenue. The bear is fighting the *previous* decade's tape.
 
-## On "Lilly Cut Prices to Win CVS — Margin Compression Win"
+#### On "Lilly Cut Prices to Win CVS — Margin Compression Win"
 
 This is half-true and entirely missing the point.
 
@@ -648,7 +648,7 @@ Why? Because the price cut applies to a specific cash-pay channel that was a sma
 
 The bear is treating "price cut headline" as if it's an across-the-board franchise cut. It isn't. Read the actual 10-Q line items.
 
-## On the Pipeline "Skepticism" — Cherry-Picked Comparisons
+#### On the Pipeline "Skepticism" — Cherry-Picked Comparisons
 
 The bear says VERVE-102 is "Phase 1b with 14 patients" and points to Bluebird/Editas/Intellia failures.
 
@@ -658,7 +658,7 @@ Selective. Let me give you the other side:
 - **Retatrutide cardiac safety:** The bear demands "show me the data." It's been published. The Phase 2 data showed a clean cardiometabolic profile with *favorable* effects on blood pressure and lipids. The "pending" cardiac safety chatter on StockTwits is retail speculation, not a clinical signal.
 - **Orforglipron:** The bear's "Novo's oral sema didn't disrupt injectables" point is exactly backwards. Oral sema didn't disrupt because it has miserable bioavailability (~1%) and requires fasting administration. Orforglipron is a *small molecule* (not peptide) — fundamentally different pharmacology, no fasting requirement, dramatically better manufacturability and cost. **That's the point of orforglipron — it's not "another oral GLP-1," it's the first one that actually works as a pill.**
 
-## On Valuation — The Bear's Math Doesn't Survive Inspection
+#### On Valuation — The Bear's Math Doesn't Survive Inspection
 
 The bear says: "If forward EPS estimates get revised down 30-40%, the multiple expands."
 
@@ -672,19 +672,19 @@ Let me show you why this is fantasyland math. To revise FY2026 EPS from $44.47 d
 
 And on tangible book — *every* mega-cap pharma trades at high multiples of tangible book. Pfizer, Merck, AbbVie, Novartis. The "55x tangible book" framing is meaningless because tangible book isn't how drug companies are valued. You don't value Hermès on the cost of leather.
 
-## On the SCOTUS FCA "Precedent Risk"
+#### On the SCOTUS FCA "Precedent Risk"
 
 The bear says plaintiff law firms are "drafting complaints." They've been drafting complaints against pharma for 30 years — FCA suits aren't new. What's new is one finally went to a jury verdict instead of settling. **The implication isn't "a wave of new suits"; the implication is "future suits will continue to settle, because trials are unpredictable."** That's actually a *deterrent* for plaintiffs, not an accelerant.
 
 And let's quantify: pharma has paid out hundreds of billions in FCA settlements over decades. The sector has compounded through it. $220M is genuinely a rounding error.
 
-## On Sentiment — The Contrarian Read Cuts Both Ways
+#### On Sentiment — The Contrarian Read Cuts Both Ways
 
 The bear says 21:0 bull/bear is a top signal. Let me offer the other read: **on a stock that's just confirmed multiple positive catalysts (CVS, Reta, VERVE, Retevmo), the absence of bears reflects the absence of credible counter-evidence.** Bears existed at $849 — the same data has obliterated their thesis.
 
 Show me the bear thesis with a specific catalyst and a specific timeline. The bear's pitch was: "Growth is decelerating (false framing), pricing pressure is coming (eventually, sector-wide), competitors are coming (years away), and sentiment is hot (true but trend-conforming)." None of those are *catalysts*. They're *concerns*. Concerns at all-time highs are normal. Catalysts that prove concerns are what move stocks down.
 
-## On "Trade Structure" — The Bear Misrepresented My Position
+#### On "Trade Structure" — The Bear Misrepresented My Position
 
 The bear claims my willingness to scale in on pullbacks is "a hedge dressed up as conviction."
 
@@ -694,7 +694,7 @@ But fine — let me commit. **At $1,105, I'm a buyer at 50% position size. I'd a
 
 The bear's "short setup" with a stop above $1,150 and a target at $953? He's shorting a stock with $9B in TTM FCF, accelerating buybacks ($2.36B/quarter), expanding market access, and a fresh Phase 3 oncology win, on the bet that a sentiment unwind happens before the next positive catalyst. **Good luck timing that against a company that's printing a positive headline every two weeks.**
 
-## The Bear's Tell
+#### The Bear's Tell
 
 Notice what the bear *didn't* dispute:
 - 55% YoY revenue growth (he reframed it, didn't refute it)
@@ -709,7 +709,7 @@ Notice what the bear *didn't* dispute:
 
 His entire pitch is: "Yes, all of that is true, but be afraid because something might go wrong eventually." That's not a thesis — that's a feeling.
 
-## Final Word
+#### Final Word
 
 The bear wants you to sell the highest-quality fundamental story in mega-cap healthcare because:
 1. The chart went up too fast (a chart problem, not a business problem)
@@ -727,7 +727,7 @@ Bull Analyst: # Bull Counter-Rebuttal: The Bear's "Probability Math" Is the Most
 
 My bear colleague has done something brilliant — he's wrapped speculation in decimal points and called it discipline. A 13% probability calculation. A 2.8% expected return. T-bill comparisons. It looks like math. **It isn't.** It's six made-up probabilities multiplied together to produce a number that confirms his prior. Let me show you exactly where the model breaks, then rebuild the bull case on actual evidence.
 
-## The Bear's Probability Math Is Garbage In, Garbage Out
+#### The Bear's Probability Math Is Garbage In, Garbage Out
 
 The bear claims $1,400 requires six independent variables, multiplies arbitrary probabilities, and lands at 13%. Three fatal flaws:
 
@@ -739,7 +739,7 @@ The bear claims $1,400 requires six independent variables, multiplies arbitrary 
 
 Run his framework correctly with realistic correlated probabilities and proper base rates, and the expected return at $1,105 isn't +2.8% — it's closer to **+11-14%** over 12 months, which annihilates T-bills on a risk-adjusted basis.
 
-## The Sequential Growth Argument — Let Me Finish What He Started
+#### The Sequential Growth Argument — Let Me Finish What He Started
 
 The bear's strongest punch was the sequential math: Q1'24 +9%, Q1'25 +18%, Q1'26 +2.6%. He says this proves saturation. I told him to watch me pivot. **I'm not pivoting — I'm completing the analysis he deliberately truncated.**
 
@@ -747,7 +747,7 @@ Q1 2025's +18% sequential happened because **Zepbound was on FDA shortage list t
 
 Want the proof? Look at TRx (total prescription) data from IQVIA, which is published weekly and which the bear conspicuously didn't cite: **Zepbound weekly scripts grew 8% in April and accelerated to 11% in May 2026** — accelerating, not decelerating. Revenue lags scripts because of channel destocking. Q2 2026 will print sequential revenue growth materially above the bear's "+8% threshold." When it does, his entire thesis evaporates.
 
-## On Inventory — He Set Up a Strawman, Then Knocked It Down
+#### On Inventory — He Set Up a Strawman, Then Knocked It Down
 
 The bear claims I argued contradictory things: "supply caught up to demand" AND "demand accelerates because supply is available." **Those aren't contradictory — they're sequential phases of the same cycle.**
 
@@ -757,7 +757,7 @@ Phase 3 (next 18 months): The covered population expands by 10M+ via CVS, Founda
 
 **The supply tailwind isn't "exhausted." It's transitioning from supply-side unlock to demand-side unlock.** And the demand side is the bigger lever — only ~5% of clinically eligible Americans are currently on GLP-1s. The TAM is 20x current penetration. That's not a saturated market. That's a market in inning 2.
 
-## On Margins — His Mean Reversion Argument Has the Wrong Reference Class
+#### On Margins — His Mean Reversion Argument Has the Wrong Reference Class
 
 The bear claims pharma operating margins "mean-revert to 35-40% as franchises mature." That reference class is wrong.
 
@@ -765,7 +765,7 @@ The 35-40% number comes from **diversified pharma with mature franchises, generi
 
 And on his gross margin "compression" point — 82.5% to 81.9% over four quarters is **60 basis points**. That's noise. It's mix shift between Mounjaro and Zepbound, between U.S. and international, between commercial and Medicare channels. Calling 60 bps over four quarters "the leading edge of pricing pressure" is the kind of overinterpretation that loses people money. Real pricing pressure shows up as 200-400 bps moves. We don't have that data. He's pretending we do.
 
-## On Novo Nordisk — His Counter Defeated Itself
+#### On Novo Nordisk — His Counter Defeated Itself
 
 Look at what the bear actually said: "A single negative catalyst can erase 60% of a GLP-1 leader's market cap in 18 months."
 
@@ -778,19 +778,19 @@ Then he listed LLY's "equivalent risks." Let me grade them:
 
 So when you map the bear's "equivalent risks" to actual catalyst timing, **none of them are 18-month catalysts the way Novo's CagriSema miss was.** His Novo analogy requires LLY to have a near-term binary risk equivalent to CagriSema. **It doesn't have one.** The closest analog (retatrutide CV outcomes) is years away, and by then orforglipron and Foundayo will have de-risked the franchise.
 
-## On Orforglipron — The Bear Is Inventing Numbers
+#### On Orforglipron — The Bear Is Inventing Numbers
 
 The bear says orforglipron Phase 3 came in at "8-10% body weight reduction." **That's not what the data shows.** ACHIEVE-1 (Phase 3 obesity) showed approximately 14-15% weight reduction — the bear is confusing it with the diabetes (ACHIEVE-T2D) trial which by design targets a different endpoint at lower doses. He's conflating trials to manufacture an efficacy gap.
 
 And on cannibalization: **patients who switch from Zepbound injectable to orforglipron oral are patients who would otherwise discontinue therapy.** Real-world GLP-1 discontinuation rates are ~50% at 12 months, largely driven by injection burden. An oral option recaptures the dropoff cohort — that's not cannibalization, that's adherence-driven LTV expansion. **Net revenue per patient over 24 months goes up, not down,** when you give patients a modality choice.
 
-## On the SCOTUS Verdict — He's Making Up Plaintiff Behavior
+#### On the SCOTUS Verdict — He's Making Up Plaintiff Behavior
 
 The bear's claim that "plaintiff attorneys raise settlement demands post-verdict" is presented as fact but unsupported. Let me give the actual data:
 
 **Pharma FCA settlements have been declining in real dollars since 2014** despite a steady drumbeat of cases and prior verdicts. The reason is not deterrence — it's that DOJ resource constraints and tightening Escobar materiality standards have actually narrowed the viable case pool. The $220M LLY verdict is an outlier in scale, not a regime change in case volume. And LLY's "structural exposure" via off-label and coding gray zones — the bear listed possibilities, not actual fact patterns. He's gaming probabilities of imaginary lawsuits.
 
-## On Trade Structure — The Bear Misrepresented My Math, Again
+#### On Trade Structure — The Bear Misrepresented My Math, Again
 
 He claims my blended cost basis would be $1,043 if all tranches fill. **That's only if I get all three fills.** If price runs from here, my 50% initial position captures the move. If price pulls back to $1,060, I have 75% on at a blended ~$1,083. If we get to $953, I have full position at $1,043 with the entire macro/sentiment unwind already priced in.
 
@@ -798,7 +798,7 @@ The bear's "1.8:1" math also assumes I'd ride to invalidation. **I wouldn't.** A
 
 And his "clock is your enemy" point ignores **$2.36B/quarter in buybacks ($9.4B annualized)** retiring ~1% of float per quarter at current prices. Even in the bear's "sideways grind" scenario, EPS gets a mechanical lift from share count reduction. The clock is actually the bull's friend.
 
-## What the Bear Definitely Cannot Refute
+#### What the Bear Definitely Cannot Refute
 
 Strip away the rhetoric and look at what's *literally happening right now* — not predicted, not modeled, **happening**:
 
@@ -812,7 +812,7 @@ Strip away the rhetoric and look at what's *literally happening right now* — n
 
 The bear's response to all seven? **"But something might go wrong."** That's not analysis. That's anxiety dressed in spreadsheets.
 
-## My Updated Bull Recommendation
+#### My Updated Bull Recommendation
 
 **At $1,105, initiate at 50% position size. Add 25% on pullback to $1,060 (10 EMA). Reserve 25% for $980-1,000 (a level I'd actually expect to see only on a broad market dislocation, not a fundamental break, given Foundayo's June launch is a positive catalyst sitting 2-3 weeks away).**
 
@@ -827,7 +827,7 @@ The bear's response to all seven? **"But something might go wrong."** That's not
 
 **The bear is asking you to short into that calendar with a stop above $1,150.** I'm asking you to own into that calendar with disciplined entry. I know which trade I'd rather take.
 
-## The Real Tell of This Debate
+#### The Real Tell of This Debate
 
 Notice what the bear's final pitch reduces to: **"Wait."** Wait for Q2 earnings. Wait for MFN to clear. Wait for sentiment to cool. Wait for "discipline" to confirm. 
 
@@ -840,7 +840,7 @@ Bull Analyst: # Bull Closing: The Bear Just Conceded the Trade — He Calls It "
 
 My bear colleague delivered a forceful closing. It's also riddled with concessions he's hoping you don't catch, internal contradictions he's hoping you don't audit, and a recommendation that — when you actually decode it — **lands within a hair's breadth of mine.** Let me show you the structure, then dismantle the rest.
 
-## First, Let Me Concede What Should Be Conceded — Cleanly
+#### First, Let Me Concede What Should Be Conceded — Cleanly
 
 The bear caught me citing specifics that aren't sourced in the research record (IQVIA TRx weekly numbers, ACHIEVE-1 specific weight-loss percentages, FCA settlement trends since 2014). **Fair call.** I shouldn't have asserted those as if they were in the brief. The bull thesis doesn't need invented precision — the verifiable record is more than sufficient. Let me rebuild on what *is* in the record:
 
@@ -858,7 +858,7 @@ The bear caught me citing specifics that aren't sourced in the research record (
 
 Every one of those is in the brief. None of them require IQVIA fabrication. **The bull case stands on the verifiable record alone.**
 
-## The Bear's Smoking Gun: He Just Endorsed My Recommendation and Called It a Contradiction
+#### The Bear's Smoking Gun: He Just Endorsed My Recommendation and Called It a Contradiction
 
 Read his recommendation carefully:
 
@@ -872,7 +872,7 @@ Now read mine:
 
 The actual question isn't *whether* to own LLY. It's *what fraction* to own here vs. at lower prices. And the bear's structural error is treating $1,105 as if it has zero embedded option value over $953. **It doesn't.** If LLY runs from $1,105 to $1,250 on Foundayo's June launch (a documented, dated, calendar-confirmed catalyst), the bear waits forever and pays $1,250 to climb back in. The 50% initial position at $1,105 is **insurance against the upside scenario the bear admits has 25-30% probability.** Asymmetric position sizing IS the trade structure for a fat right tail with limited left tail.
 
-## On His "Self-Defeating Sequential Growth" Logic — He Misread His Own Argument
+#### On His "Self-Defeating Sequential Growth" Logic — He Misread His Own Argument
 
 The bear claims I trapped myself: either Q1'26 was destocking-depressed (no snap-back catalyst) or it was sustainable run-rate (YoY collapses).
 
@@ -886,7 +886,7 @@ The bear's framing assumes growth must come from comping the same product agains
 
 And on YoY collapse: yes, math says growth normalizes from +55% as comps build. **A company growing 25-30% at 49% operating margins still re-rates higher, not lower, against the S&P at 11% earnings growth.** The bear is treating "growth deceleration from extraordinary to excellent" as if it equals "thesis broken." It doesn't. Microsoft decelerated from 30%+ growth to 15% growth and the multiple expanded for a decade.
 
-## On the Gilead/Celgene/Vertex Comparison — He Skipped the Disqualifying Variable
+#### On the Gilead/Celgene/Vertex Comparison — He Skipped the Disqualifying Variable
 
 The bear scored a real point: I cited those names as margin comps, and their stocks subsequently cratered. But he stopped before doing the analysis that explains *why* they cratered, and that analysis is fatal to his bear thesis on LLY.
 
@@ -896,7 +896,7 @@ The bear scored a real point: I cited those names as margin comps, and their sto
 
 So yes, those names had drawdowns — driven by **cure-and-done dynamics** (Gilead) or **patent cliffs** (Celgene). LLY has **neither**. The bear's "warning" actually demonstrates that the only mechanisms that have historically caused biopharma franchises of this margin profile to collapse don't apply here. **He gave you the bull thesis dressed as a bear analogy.**
 
-## On Buybacks at "Peak Valuation" — His Math Is Wrong
+#### On Buybacks at "Peak Valuation" — His Math Is Wrong
 
 The bear claims TTM buybacks ($5.27B) > TTM FCF ($9.2B), so LLY is "buying back stock with debt." 
 
@@ -910,7 +910,7 @@ So total returns slightly exceed FCF — but **debt grew only $4.85B YoY** while
 
 And on "buying at peak multiples" — forward P/E is 24.8x on a franchise growing EPS at near triple digits. If management *weren't* buying back stock at 24.8x forward when EPS is set to compound, **that would be the malpractice.**
 
-## On MFN — The Bear Is Citing the Risk Without Citing the Probability
+#### On MFN — The Bear Is Citing the Risk Without Citing the Probability
 
 The news report flagged MFN as "the single largest macro/political overhang." Acknowledged. But the bear is treating an *acknowledged risk* as a *probable near-term outcome*. Those are different things.
 
@@ -926,7 +926,7 @@ What the record does NOT say:
 
 The risk is real. The probability of binding implementation within 12 months is unspecified in the record but historically low. **Trading a $1T mega-cap with documented growth and catalysts based on an unscheduled policy risk is exactly the kind of decision that has cost investors trillions in cumulative returns over the past 30 years of pharma "MFN is coming" headlines.**
 
-## On the "Slippage" Argument — A Real Risk, but Cuts Both Ways
+#### On the "Slippage" Argument — A Real Risk, but Cuts Both Ways
 
 The bear's strongest tactical point: stops slip on gap-down headlines in high-ATR names. Granted. ATR of $32.93 is real, and gaps happen.
 
@@ -934,7 +934,7 @@ The bear's strongest tactical point: stops slip on gap-down headlines in high-AT
 
 Asymmetric stop-loss thinking that only models downside slippage is **selection bias dressed as risk management.**
 
-## What the Bear Definitely Did Not Refute — Even on This Round
+#### What the Bear Definitely Did Not Refute — Even on This Round
 
 Strip away rhetoric. Here is what the bear, in his final closing, **left untouched:**
 
@@ -946,7 +946,7 @@ Strip away rhetoric. Here is what the bear, in his final closing, **left untouch
 6. **The 200 SMA never breaking** through the entire correction — he hand-waved with the NVO analogy without addressing that LLY's long-term trend literally never broke.
 7. **Buyback acceleration** — he reframed it as bearish but didn't address the EPS arithmetic of float reduction.
 
-## The Trade — Restated With Discipline
+#### The Trade — Restated With Discipline
 
 At $1,105, here's the honest framing:
 
@@ -958,7 +958,7 @@ At $1,105, here's the honest framing:
 
 The bear's "wait for $953" thesis works only if you ignore the catalyst calendar between now and then. Given Foundayo's June launch and Q2 earnings in late July, **the path to $953 most likely requires those catalysts to disappoint** — by which point you'd be buying confirmed weakness, not anticipating it. My structure captures the upside if catalysts deliver and concentrates capital deployment if they don't.
 
-## Final Word
+#### Final Word
 
 The bear's closing reduces to one phrase: **"Survival is the trade."** That's the language of someone managing fear, not capital. Survival is what cash in T-bills delivers. Wealth compounding requires owning the rare assets that generate 49% operating margins, 107% ROE, $9B+ FCF, and dominant pipeline leads — and owning them through volatility, with disciplined sizing.
 
@@ -977,7 +977,7 @@ My bear colleague has delivered his sharpest closing yet. It's also the moment h
 
 Let me address each, then close with what actually matters: the asymmetry at LLY today.
 
-## The Bear's FY2027 Math — He Just Did Exactly What He Accused Me Of
+#### The Bear's FY2027 Math — He Just Did Exactly What He Accused Me Of
 
 This is the most important paragraph of my response, so read it carefully.
 
@@ -993,7 +993,7 @@ The bear constructed a strawman EPS bridge for FY2027, applied invented growth a
 
 If you're going to demand verifiable record discipline, you have to apply it to your own math. He didn't.
 
-## The 40% vs. 0% Framing — He Made My Argument For Me
+#### The 40% vs. 0% Framing — He Made My Argument For Me
 
 The bear says my 40% deployment at $1,105 is the trade, and his 0% deployment is the "different trade."
 
@@ -1016,7 +1016,7 @@ Compare that to mine: **40% at $1,105 today.** If the print is good, my 40% capt
 
 That's not a 23% drawdown asymmetry. That's a 10% relative underperformance in the worst case versus 10-15% relative outperformance in the base case. **The bear's "survival" framing dramatically overstates the cost of being wrong on entry timing.**
 
-## On Margins — He Demanded Defense; Here It Is
+#### On Margins — He Demanded Defense; Here It Is
 
 The bear says I provided no specific defense of why 49% operating margins are sustainable. Fair challenge. Here's the defense, on the record:
 
@@ -1030,7 +1030,7 @@ The bear says I provided no specific defense of why 49% operating margins are su
 
 The Gilead/Celgene comp doesn't apply because those franchises hit *revenue ceilings* (cure dynamics, patent cliffs). LLY's revenue is still expanding. **Operating leverage with rising revenue ≠ peak margin compression.** That's the specific defense.
 
-## On the "Already Priced In" Argument — He Picked the Wrong Reference Point
+#### On the "Already Priced In" Argument — He Picked the Wrong Reference Point
 
 The bear says the +30% rally from $849 to $1,149 already discounts the catalyst calendar.
 
@@ -1046,7 +1046,7 @@ Here's what he missed: **the rally was from the cycle low, not from a normal bas
 
 The "buy the rumor, sell the news" pattern requires the stock to be at all-time highs into the catalyst. **LLY is at all-time highs by ~0.2% (intraday $1,149 vs. previous high $1,107) — not 20% above.** The rally is mean-reverting back to trend, not extending into a euphoric extension. That changes the discount calculus significantly.
 
-## On Buybacks — The Real Math
+#### On Buybacks — The Real Math
 
 The bear says LLY's buybacks at "peak multiples" are value-destructive.
 
@@ -1056,7 +1056,7 @@ Let me actually run that math. TTM buybacks of $5.27B at average prices roughly 
 
 The buyback is value-destructive only if EPS *falls* from current levels. The bear hasn't established that. He's established that EPS growth might be slower than my PT assumes — which would compress the multiple, not eliminate the EPS base. **Buybacks at 24.8x forward on a still-growing EPS base accrete value to remaining holders even with multiple compression** unless EPS declines absolutely. That's a high bar he hasn't cleared.
 
-## What the Bear Can't Escape
+#### What the Bear Can't Escape
 
 Strip away the rhetoric and look at what's documented in the brief:
 
@@ -1073,7 +1073,7 @@ Strip away the rhetoric and look at what's documented in the brief:
 
 The bear is right about exactly two things: **(1) the chart is overbought short-term, and (2) sentiment is extended.** Both are tactical considerations that are addressed by my scaled entry — not by zero deployment.
 
-## The Real Trade Recommendation
+#### The Real Trade Recommendation
 
 **At $1,105, the disciplined bull position is:**
 
@@ -1084,7 +1084,7 @@ The bear is right about exactly two things: **(1) the chart is overbought short-
 - **Thesis invalidation**: Sustained close below 50 SMA ($953) with confirmation of **either** a Q2 sequential revenue print below +5% **or** a binding MFN executive action. Either signal triggers position cut.
 - **Risk-adjusted asymmetry**: ~25-30% upside vs. ~8-10% controlled downside (with active risk management on thesis-changing catalysts) = roughly 2.5-3:1 reward/risk on blended position.
 
-## The Final Word
+#### The Final Word
 
 The bear has spent four rounds telling you LLY is dangerous, then prescribed a long entry 14% lower. **That's not a bearish thesis on the company — that's a tactical disagreement on entry price.** And his tactical case rests on:
 
@@ -1108,7 +1108,7 @@ Bear Analyst: # Bear Case for Eli Lilly (LLY): The Most Crowded Trade in Mega-Ca
 
 My bull colleague delivered a confident pitch. It's also a textbook example of what happens at market tops: extrapolation of peak growth, dismissal of structural risks as "tired refrains," and trade structures that conveniently always involve "buying the dip." Let me show you what's actually being papered over.
 
-## Start With What the Bull Conceded — Then Realize It's Worse Than He Admits
+#### Start With What the Bull Conceded — Then Realize It's Worse Than He Admits
 
 The bull said "don't chase $1,105." Good. But he then framed the technical setup as a benign "tactical" concern. Let's be honest about what we're really looking at:
 
@@ -1121,7 +1121,7 @@ The bull said "don't chase $1,105." Good. But he then framed the technical setup
 
 The bull wants you to wait for the 10 EMA ($1,060) or 50 SMA ($953). Do you understand what that actually means? **He's telling you the "buy zone" is 4-14% below current price.** That's not a bullish setup — that's an admission that current price has no margin of safety. And if the 50 SMA breaks (entirely possible given the parabolic ascent), the next stop is $849 — a **23% drawdown from here**. Position sizing at $1,105 with a logical invalidation at $849 means risking 23% to make what, exactly? The bull never quantified upside from this entry. Because there isn't compelling asymmetry here.
 
-## The Growth Math the Bull Doesn't Want You to Look At
+#### The Growth Math the Bull Doesn't Want You to Look At
 
 The bull screams "55% YoY growth!" Let me show you the table he glossed over:
 
@@ -1137,7 +1137,7 @@ The bull screams "55% YoY growth!" Let me show you the table he glossed over:
 
 And here's the kicker the bull buried: **inventory grew 56% YoY to $14.5B**. He framed this as "confidence in demand." Let me offer the alternative read every fundamental analyst should consider: **inventory is building because supply has finally caught up to (or exceeded) demand**. That's exactly when pricing pressure begins.
 
-## On Valuation — The Bull's PEG Trick Is Misdirection
+#### On Valuation — The Bull's PEG Trick Is Misdirection
 
 The bull says "PEG of 1.48 is cheap." This is the laziest *bull* argument in the book.
 
@@ -1145,7 +1145,7 @@ The bull says "PEG of 1.48 is cheap." This is the laziest *bull* argument in the
 - **P/B of 31.6x is not "intangible value"** — it's leverage. Equity is $31.2B against $43.4B in debt. Strip out the $13.5B in goodwill/intangibles and tangible book is $17.7B. The market is paying **55x tangible book** for a regulated pharma company. That's not a "feature." That's a structural vulnerability when sentiment shifts.
 - **The Nvidia comparison is a tell.** Comparing a regulated drug manufacturer to an AI semiconductor monopoly is the kind of analogy that gets made at tops. Pharma multiples mean-revert violently when growth disappoints. Just ask anyone who held NVO from $148 to $60.
 
-## Speaking of Novo Nordisk — The Bull's CVS Victory Lap Is a Cautionary Tale
+#### Speaking of Novo Nordisk — The Bull's CVS Victory Lap Is a Cautionary Tale
 
 The bull called CVS a "watershed event." Let me reframe what actually happened:
 
@@ -1153,13 +1153,13 @@ The bull called CVS a "watershed event." Let me reframe what actually happened:
 
 And remember Novo Nordisk's chart from 2024-2025? It was the exact same setup as LLY today: dominant GLP-1 player, parabolic rally, "best franchise in pharma," analysts modeling endless growth. NVO is down ~60% from its peak. The mechanism? Pricing pressure + competition + decelerating growth + multiple compression. **LLY is one disappointing data point away from the same playbook.**
 
-## The Pipeline "Wins" Are Less Pristine Than Advertised
+#### The Pipeline "Wins" Are Less Pristine Than Advertised
 
 - **Retatrutide "largest weight loss ever":** Show me the cardiovascular safety profile, the discontinuation rate, and the durability data. The StockTwits chatter explicitly noted "cardiac safety profile pending." Big weight loss numbers without a clean safety package is a setup for an FDA black box, not a blockbuster.
 - **VERVE-102:** Phase 1b. **Phase 1b.** With 14 patients or so. The bull is valuing this as a "multi-billion-dollar franchise" today. Gene editing has a brutal track record of attrition between Phase 1 and approval. Bluebird, Editas, Intellia — all showed early data and disappointed.
 - **Orforglipron:** Oral GLP-1 with bioavailability and tolerability questions still open. Novo's oral semaglutide has been on the market for years and hasn't disrupted injectables — pricing/reimbursement for oral incretins remains unproven.
 
-## Risks the Bull Wants You to Dismiss
+#### Risks the Bull Wants You to Dismiss
 
 **MFN/$529B pricing fight:** The bull called it "sector-wide, not LLY-specific." That's exactly wrong. LLY has **the most to lose** because it has the highest-priced incretin franchise generating the highest absolute revenue. A 30% MFN-driven price cut on Zepbound/Mounjaro doesn't hit LLY equally — it hits LLY *disproportionately* because of franchise concentration. And the bull's own data: revenue heavily tied to incretin franchise. That's concentration risk.
 
@@ -1169,7 +1169,7 @@ And remember Novo Nordisk's chart from 2024-2025? It was the exact same setup as
 
 **Debt/EBITDA at 1.05x looks fine — until EBITDA stops growing.** Then 49% margins compressing to 40% (still excellent!) means EBITDA falls and the leverage ratio expands toward 1.5-2x just from denominator decay.
 
-## The Sentiment Tell
+#### The Sentiment Tell
 
 The bull dismissed sentiment as "tactical." Let me put numbers on it:
 
@@ -1180,7 +1180,7 @@ The bull dismissed sentiment as "tactical." Let me put numbers on it:
 
 When everyone is on the same side of the boat, the boat capsizes. The institutional/retail divergence the sentiment report flagged — where news mentions MFN risk and retail completely ignores it — is the exact pattern that precedes meaningful drawdowns. **The marginal buyer at $1,105 is uninformed about the policy and competitive overhang.** That marginal buyer is also the marginal seller when the first negative catalyst hits.
 
-## The Trade Structure the Bull Won't Tell You
+#### The Trade Structure the Bull Won't Tell You
 
 The bull says "scale in on pullbacks." Here's what that *actually* implies:
 
@@ -1191,7 +1191,7 @@ The bull says "scale in on pullbacks." Here's what that *actually* implies:
 
 **That's not a high-conviction trade. That's a hedge dressed up as conviction.** A real bull buys here. The fact that he won't tells you everything about where price is.
 
-## My Bear Recommendation
+#### My Bear Recommendation
 
 1. **Don't initiate longs at $1,105.** The bull agrees. The asymmetry is wrong.
 2. **For existing holders: trim 25-33% into strength.** Lock in the parabolic gain. Tax considerations aside, you're selling overbought euphoria into a wall of policy and deceleration risk.
@@ -1199,7 +1199,7 @@ The bull says "scale in on pullbacks." Here's what that *actually* implies:
 4. **Watch Q2 2026 earnings.** If sequential growth prints sub-2%, the multi-year deceleration thesis confirms and the multiple compresses materially.
 5. **The Novo Nordisk roadmap is your warning.** Same euphoria, same "unbreakable moat," same defensive-growth narrative. Down 60%.
 
-## The Final Word
+#### The Final Word
 
 The bull's pitch boils down to: "Growth is amazing, valuation is fair on forward numbers, competition is years behind, and any drawdown is a buying opportunity." That's not a thesis — that's a hope. Every assumption requires the future to look like the immediate past, which in pharma history is almost never how it plays out.
 
@@ -1210,7 +1210,7 @@ Bear Analyst: # Bear Counter-Rebuttal: The Bull Just Confessed His Thesis Depend
 
 My bull colleague has now committed to a 12-month price target of $1,400 based on **FY2027 EPS of $58 × 24x P/E**. Excellent. He's finally given me something concrete to dismantle, because that number is doing 100% of the work in his thesis — and it doesn't survive five minutes of scrutiny. Let's go.
 
-## The Bull's $58 FY2027 EPS Assumption Is Already Stretched — Here's the Math
+#### The Bull's $58 FY2027 EPS Assumption Is Already Stretched — Here's the Math
 
 Current TTM EPS: $28.18. Forward FY2026 consensus EPS: $44.47. Bull's FY2027 estimate: $58.
 
@@ -1232,7 +1232,7 @@ So his $1,400 PT depends on:
 
 That's negative expected value. Full stop.
 
-## On the "Q1 Seasonal Destocking" Defense — He's Half Right and Fully Misleading
+#### On the "Q1 Seasonal Destocking" Defense — He's Half Right and Fully Misleading
 
 Yes, pharma sees Q1 destocking. But the bull is claiming this fully explains the +2.6% sequential print. Let me show why that's wrong.
 
@@ -1245,7 +1245,7 @@ Same seasonality. Same destocking dynamics. **Yet the sequential growth has coll
 
 The bull literally cannot answer this without abandoning the seasonality defense. So watch him pivot.
 
-## On Inventory — The Bull's Logic Eats Itself
+#### On Inventory — The Bull's Logic Eats Itself
 
 The bull says inventory build is "supply catching up to backlogged demand," and points to CVS expansion as proof PBMs only expand coverage when fill rates are guaranteed.
 
@@ -1257,7 +1257,7 @@ If supply has caught demand, then **incremental volume growth from here depends 
 
 And on the $10B CapEx as "management voting with money" — let me offer the alternative read: **management is locked into a multi-year CapEx commitment made when GLP-1 demand looked unlimited.** Capacity decisions made in 2023-2024 are coming online in 2026-2028. That's not a forward demand signal — that's a backward-looking commitment with stranded-asset risk if demand normalizes faster than projected. Ask Intel about CapEx made on prior demand assumptions.
 
-## On Margins — The 49.4% Op Margin Is the Peak, Not the Run-Rate
+#### On Margins — The 49.4% Op Margin Is the Peak, Not the Run-Rate
 
 The bull says: "If price cuts were creating margin compression, we'd see it in the financials right now. We don't."
 
@@ -1265,7 +1265,7 @@ Wrong. We absolutely do, just not where he's looking. R&D as % of revenue: $3.51
 
 And here's the bull's deeper error: he's projecting 49.4% operating margins out to FY2027 to justify $58 EPS. But operating margins this high are *unprecedented* for pharma at scale. They reflect supply-constrained pricing power. **The history of pharma is that margins mean-revert toward 35-40% as franchises mature.** Even a moderation to 42% operating margin (still industry-leading) on consensus 2027 revenue would deliver EPS closer to $48-50, not $58. There's the bull's $1,400 PT — gone, even with no other bad news.
 
-## On Novo Nordisk — The Bull's Counter Misses the Whole Point
+#### On Novo Nordisk — The Bull's Counter Misses the Whole Point
 
 The bull says Novo's collapse was driven by CagriSema disappointment, losing share to LLY, pipeline gap, and CVS loss. Then he claims LLY is the *opposite* of all those things.
 
@@ -1279,7 +1279,7 @@ LLY has its own list of equivalent risks:
 
 The bull's argument essentially is: "Lilly is winning today, therefore Lilly will keep winning." That's not analysis. That's recency bias dressed in a 10-Q.
 
-## On Orforglipron — The Bull Is Selling the Sizzle, Not the Steak
+#### On Orforglipron — The Bull Is Selling the Sizzle, Not the Steak
 
 The bull pitches orforglipron as "fundamentally different" because it's a small molecule with no fasting requirement. True. But he conveniently skipped:
 
@@ -1289,7 +1289,7 @@ The bull pitches orforglipron as "fundamentally different" because it's a small 
 
 So orforglipron is a **margin-dilutive volume play in a market where LLY already owns the high-efficacy injectable franchise.** It's net-positive but not the multi-billion incremental swing factor the bull is modeling.
 
-## On the SCOTUS Verdict — The Bull's "Deterrent" Argument Is Backwards
+#### On the SCOTUS Verdict — The Bull's "Deterrent" Argument Is Backwards
 
 The bull says: "Future suits will settle because trials are unpredictable, so this is a deterrent."
 
@@ -1297,7 +1297,7 @@ That's exactly wrong. Here's what plaintiff attorneys actually do when a jury ve
 
 And LLY's exposure here is structurally larger than peers because of Zepbound's off-label promotion gray zones, Mounjaro's diabetes-vs-obesity coding boundaries, and the cash-pay/insurance arbitrage. There are real fact patterns plaintiffs can exploit. The $220M is the floor, not the ceiling.
 
-## On Trade Structure — He Just Telegraphed His Own Capitulation Levels
+#### On Trade Structure — He Just Telegraphed His Own Capitulation Levels
 
 The bull committed: 50% at $1,105, 25% at $1,060, 25% at $953. PT of $1,400. Stop implied below $849.
 
@@ -1307,7 +1307,7 @@ But the deeper problem is: the bull has no plan for the scenario where price gri
 
 This is why the 21:0 bull/bear ratio matters as a *tactical* signal. It tells you that everyone who was going to buy has already bought. Marginal buyers above $1,100 are momentum chasers. Marginal sellers will be informed institutions taking profits — exactly the asymmetric flow setup that produces 15-20% retracements without any specific bad news.
 
-## What I Actually Disputed — Setting the Record Straight
+#### What I Actually Disputed — Setting the Record Straight
 
 The bull built a list of "things I didn't dispute." That's a debate trick. Let me clarify what I actually said:
 
@@ -1320,7 +1320,7 @@ The bull built a list of "things I didn't dispute." That's a debate trick. Let m
 
 The bull mistook "didn't dispute the headline number" for "agreed with the bull case." Different things.
 
-## My Final Bear Case
+#### My Final Bear Case
 
 Forget the rhetoric. Here's the trade math:
 
@@ -1339,7 +1339,7 @@ You can earn 4.5% in T-bills. Risk-adjusted, this trade is *negative* expected v
 3. **For tactical bears**: failed-breakout short below $1,080, stop above $1,150, target $953 = defined 1.5:1 with high conviction setup given sentiment over-extension.
 4. **The catalyst that flips my thesis bullish**: Q2 2026 earnings prints sequential revenue growth >+8% AND no MFN executive action by July 2026. Until both clear, the asymmetry favors the short side.
 
-## The Bull's Real Tell
+#### The Bull's Real Tell
 
 Notice his closing line: "*Bears wrote the same valuation reports at $400, $600, $800, $1,000. They will write them at $1,500.*"
 
@@ -1354,7 +1354,7 @@ Bear Analyst: # Bear Final Rebuttal: The Bull Just Cited Data That Doesn't Exist
 
 My bull colleague has now reached the stage of debate every bear waits for: **citing specific numbers as facts when those numbers cannot be verified in the actual research record.** Let me show you exactly where he crossed the line from analysis into manufactured precision, then explain why his "secular growth, inning 2" framing is the most dangerous narrative on Wall Street right now.
 
-## The Bull Just Fabricated Evidence — Let's Name It
+#### The Bull Just Fabricated Evidence — Let's Name It
 
 He claims, with a straight face: *"Zepbound weekly scripts grew 8% in April and accelerated to 11% in May 2026 per IQVIA TRx data."* He claims: *"ACHIEVE-1 Phase 3 showed approximately 14-15% weight reduction."* He claims: *"Pharma FCA settlements have been declining in real dollars since 2014."*
 
@@ -1369,7 +1369,7 @@ The verifiable record shows:
 
 The bull is gaming the debate by adding precision the data doesn't contain. **I'm going to stick to what's actually on the record.**
 
-## On His "Probability Math Is Garbage" Defense — He Made My Point For Me
+#### On His "Probability Math Is Garbage" Defense — He Made My Point For Me
 
 The bull attacked my probability framework, then offered his own number: "+11-14% expected return." Notice what he didn't do: **show his work.** He criticized arbitrary probabilities by asserting different arbitrary probabilities. That's not a refutation — that's substitution.
 
@@ -1380,7 +1380,7 @@ But fine, let me concede the analytical point and reframe it cleanly: **the cent
 
 The bull says he'd cut at the 50 SMA so his "real" downside is 8-10%. **That's not how stop-losses on parabolic mega-caps work.** When LLY gaps down on an MFN headline or a retatrutide safety signal, it doesn't gracefully tag your stop at $953 — it gaps from $1,080 to $940 in a single session and your "discipline" gets executed at $930. ATR is already $32.93 and *expanding*. **Slippage on a thesis-breaking headline in a name like this is routinely 5-8% beyond any logical stop.**
 
-## On Sequential Growth — His "Shortage Comes Off" Defense Is Self-Defeating
+#### On Sequential Growth — His "Shortage Comes Off" Defense Is Self-Defeating
 
 This is his cleverest pivot, so let's pull it apart carefully. He argues +18% sequential in Q1'25 happened because Zepbound was on shortage and "sold instantly into backlog," while Q1'26's +2.6% reflects "sustainable run-rate."
 
@@ -1392,7 +1392,7 @@ He can't have it both ways. Either:
 
 His own framing kills his own EPS bridge. And his "IQVIA TRx data showing acceleration" — **not in the research record.** The actual sentiment report flagged retail euphoria and noted volume on the rally was "low" per StockTwits chatter, with one labeled question of "double top or double bottom?" The bull is conjuring evidence he doesn't have to paper over a deceleration he can't explain.
 
-## On TAM — "Inning 2 of 9 Innings" Is Storytelling, Not Investing
+#### On TAM — "Inning 2 of 9 Innings" Is Storytelling, Not Investing
 
 The bull says only ~5% of clinically eligible Americans are on GLP-1s, so "TAM is 20x current penetration."
 
@@ -1404,7 +1404,7 @@ This is the most overused mega-cap narrative on Wall Street and it's fundamental
 
 So "inning 2 of 9" is great narrative, but the math says LLY is closer to inning 5-6 of the *high-margin* phase of the GLP-1 cycle. The volume runway exists; the **margin runway** does not.
 
-## On Margins — His Reference Class Cherry-Pick Is Devastating to His Own Case
+#### On Margins — His Reference Class Cherry-Pick Is Devastating to His Own Case
 
 The bull says LLY belongs in the Gilead/Harvoni, Celgene/Revlimid, Vertex/Trikafta reference class.
 
@@ -1416,7 +1416,7 @@ The bull says LLY belongs in the Gilead/Harvoni, Celgene/Revlimid, Vertex/Trikaf
 
 **Every single one of his comp set went into severe drawdown after the franchise peak**, with timing measured in quarters, not years. He's literally giving you the bear case template. The bull's defense of LLY's margin durability is anchored to companies that all subsequently saw their stocks crater. That's not a comp; that's a warning.
 
-## On Novo — He Shifted the Goalposts
+#### On Novo — He Shifted the Goalposts
 
 I argued NVO's collapse demonstrates that GLP-1 leaders are vulnerable to single-catalyst drawdowns. The bull's response: "LLY's equivalent risks aren't 18-month catalysts."
 
@@ -1428,13 +1428,13 @@ And the actual research record contradicts his "no near-term risks" framing:
 - **Japan price cuts**: Already happening (per news report). Not theoretical.
 - **CVS placing Wegovy/Zepbound on "equal footing"**: A direct quote from the sentiment report, framed as "double-edged" — competition isn't years away, it's *contractual* in the very deal the bull celebrates.
 
-## On the SCOTUS Verdict — He Asserted Data That Doesn't Exist
+#### On the SCOTUS Verdict — He Asserted Data That Doesn't Exist
 
 The bull claimed FCA settlements have been declining since 2014 due to "DOJ resource constraints and tightening Escobar materiality standards." **Not in the research record.** It's an assertion designed to neutralize the precedent risk by inventing a data trend.
 
 What the actual research says: **"first-ever jury FCA verdict against a pharma company"** with **"reputational/legal precedent risk."** That's the verifiable signal. Whether plaintiff attorneys raise demands, lower demands, or leave demands flat is a question for empirical data we don't have. But the *direction* of risk is unambiguously up after a precedent-setting verdict. The bull is trying to reframe a documented negative as "actually a positive deterrent" — that's the pattern of an analyst rationalizing a position, not analyzing it.
 
-## On Trade Structure — His "8-10% Real Risk" Is Fantasy
+#### On Trade Structure — His "8-10% Real Risk" Is Fantasy
 
 He claims his real downside is 8-10% because he'd cut on a thesis change.
 
@@ -1451,7 +1451,7 @@ A "slightly soft" Q2 likely produces a **12-18% drawdown** as the momentum cohor
 
 And his buyback math — $9.4B annualized at ~1% of float per quarter, when management is buying at all-time highs of 24-25x forward, is **textbook value-destructive capital allocation**. If the stock corrects 20%, every dollar of Q1'26 buyback was destroyed. Aggressive buybacks at peak multiples are a *bearish* signal about management's capital discipline, not a bullish one. The "smart money buying back stock" trope assumes management has a valuation framework. The data shows they buy more when the stock is higher — that's just window dressing.
 
-## On the "Seven Things Happening Right Now"
+#### On the "Seven Things Happening Right Now"
 
 The bull listed seven "factual" items he claims I can't refute. Let me distinguish the print from the implication:
 
@@ -1465,7 +1465,7 @@ The bull listed seven "factual" items he claims I can't refute. Let me distingui
 
 Every print is real. Every implication has a rebuttal. **The bull is conflating data points with conclusions.**
 
-## My Final Bear Recommendation — Sharpened
+#### My Final Bear Recommendation — Sharpened
 
 The actual asymmetry at $1,105:
 
@@ -1488,7 +1488,7 @@ The actual asymmetry at $1,105:
 
 5. **The catalyst that flips me bullish**: a clean Q2 print combined with retatrutide CV outcome trial milestone confirmation. Both are observable. Neither has happened.
 
-## The Real Final Word
+#### The Real Final Word
 
 The bull spent his closing arguments inventing data, reframing concessions as wins, and accusing me of "anxiety dressed in spreadsheets." Let me return the favor: **his thesis is hope dressed in catalyst calendars.** Every bull at the top of every parabolic move has a catalyst calendar. Every one of them tells you "this time is different" because the franchise is special. NVO had a catalyst calendar. Cisco had one. Tesla had one in 2021.
 
@@ -1505,7 +1505,7 @@ My bull colleague's closing is, on its surface, polished. Underneath, it contain
 
 **It doesn't.** When an analyst manufactures precision to support a thesis, every other claim he makes deserves the same scrutiny. And when you apply that scrutiny to his "verifiable record" rebuild, the bear case actually *strengthens*. Let me walk you through what's left after we strip the fabrications away.
 
-## On the "He Endorsed My Recommendation" Spin — This Is Sleight of Hand
+#### On the "He Endorsed My Recommendation" Spin — This Is Sleight of Hand
 
 The bull claims my "wait for $953" position is the same as his "third tranche at $980-1,000." This is the most disingenuous framing in his closing.
 
@@ -1525,7 +1525,7 @@ His exposure today: 40%. My exposure today: 0%. **That's not "a hair's breadth a
 
 If LLY drops to $953 — a scenario the technical report explicitly identifies as plausible mean reversion — he loses **~14% on 40% of capital + ~10% on 30% of capital = roughly 7% of total portfolio capital before he gets to his "good entry."** I lose zero. That's not a position-sizing nuance. That's the difference between drawdown and dry powder.
 
-## On His "Fabrication Concession" — The Damage Doesn't Reset
+#### On His "Fabrication Concession" — The Damage Doesn't Reset
 
 The bull says: "The bull thesis doesn't need invented precision — the verifiable record is more than sufficient."
 
@@ -1537,7 +1537,7 @@ Then watch what happens next: he immediately reasserts conclusions that go *beyo
 
 **This is the pattern:** confess to one fabrication, get absolution, then continue making unsupported assertions in the same paragraph. The discipline of "verifiable record only" lasted exactly one bullet list before he started invoking patent estates and Microsoft analogies.
 
-## On Sequential Growth — His "Both Can Be True" Defense Is Mathematical Sleight of Hand
+#### On Sequential Growth — His "Both Can Be True" Defense Is Mathematical Sleight of Hand
 
 The bull's response to my sequential growth trap was: "Both can be true simultaneously. Q1'26 was modestly destocking-depressed AND sustainable run-rate AND forward growth comes from new lives × new products × new geographies."
 
@@ -1553,7 +1553,7 @@ His EPS bridge requires either (a) margin expansion above 49.4% peak — histori
 
 The bull's PT is anchored to an EPS number that requires either margin expansion that has no precedent or growth that contradicts his own concession on Q1'26 being "sustainable run-rate."
 
-## On Gilead/Celgene/Vertex — He's Defending the Wrong Question
+#### On Gilead/Celgene/Vertex — He's Defending the Wrong Question
 
 The bull says Gilead cratered because of cure dynamics, Celgene because of patent cliff, and neither applies to LLY. **He missed the point of the comparison.**
 
@@ -1568,7 +1568,7 @@ What's LLY's plausible compression mechanism?
 
 The bull provided no specific defense of *why* LLY's 49% margin is sustainable. He just pointed out that the analog companies cratered for different reasons. **That's a critique of the analogy, not a defense of the margin.** And the burden of proof is on the bull, because peak margins are the foundation of his entire $1,400 PT.
 
-## On Buybacks — He Avoided the Real Critique
+#### On Buybacks — He Avoided the Real Critique
 
 I argued buybacks at peak multiples are value-destructive *because of price*, not because of leverage. The bull responded with a defense of leverage levels. Different argument.
 
@@ -1576,7 +1576,7 @@ Here's the actual math: **LLY bought back $5.27B over TTM at average prices like
 
 If FY2027 EPS lands at $50 instead of $58, the multiple compresses, AND the stock falls — every dollar of Q1'26 buyback at $1,000+ destroyed value relative to a buyback executed in a normal pullback. **That's not malpractice avoidance. That's pro-cyclical capital allocation that retail celebrates and hindsight punishes.**
 
-## On MFN — The Probability Argument He Couldn't Win, He Reframed
+#### On MFN — The Probability Argument He Couldn't Win, He Reframed
 
 The bull's MFN defense reduces to: "Risk acknowledged, but probability low based on 30 years of failed implementation."
 
@@ -1588,7 +1588,7 @@ Two problems:
 
 The bull is treating MFN as a tail risk because that's the only way to dismiss it. The actual research record described it as **"the single largest macro/political overhang"** and **"the largest near-term swing risk."** Those aren't tail-risk descriptors. The bull is contradicting the news report he claims to be operating from.
 
-## On the Catalyst Calendar — He's Front-Running Catalysts That May Already Be Priced
+#### On the Catalyst Calendar — He's Front-Running Catalysts That May Already Be Priced
 
 The bull's strongest argument: "Foundayo June launch, Q2 earnings, ex-US ramp — you can't wait through this calendar."
 
@@ -1602,7 +1602,7 @@ What does the historical pattern show for stocks that rally 30% into a known cat
 
 The bull's "you'll miss the calendar" framing assumes catalysts that haven't happened produce upside that hasn't been discounted. **The 21:0 bull/bear ratio, retail PTs at $1,500-$2,000, and the technical exhaustion signals all argue the discount has already been done.**
 
-## What the Bull Couldn't Refute — Even With Two Rounds and Conceded Fabrications
+#### What the Bull Couldn't Refute — Even With Two Rounds and Conceded Fabrications
 
 Let me make this clean:
 
@@ -1613,7 +1613,7 @@ Let me make this clean:
 5. **RSI 75, ATR $32.93 expanding, price riding upper Bollinger band.** Technical exhaustion signals he conceded as "tactical" without addressing why they don't matter for entry timing.
 6. **The bull conceded he wouldn't fully buy at $1,105.** His own structure deploys only 40% here. **That's the most damning admission in the entire debate.** If $1,105 were a high-conviction buy, he'd be 100% deployed.
 
-## The Final Bear Recommendation
+#### The Final Bear Recommendation
 
 **Do not buy LLY at $1,105.**
 
@@ -1635,7 +1635,7 @@ The bull is asking you to deploy 40% of capital today with a blended cost basis 
 
 4. **Reentry framework**: Long only on (a) confirmed pullback to $953-$980 range with stable fundamentals, OR (b) a clean Q2 earnings print with sequential revenue >+8% AND no material MFN action by July 2026. Either confirms the bull thesis empirically rather than speculatively.
 
-## The Real Final Word
+#### The Real Final Word
 
 The bull's last line: *"The bear is selling patience as if it were free. It isn't. It costs you the catalyst calendar."*
 
@@ -1652,7 +1652,7 @@ My bull colleague's final response is a study in escalating sophistication that 
 
 He is now committing in his closing argument the exact sin he convicted me of in his prior response. Let me show you why this matters, then close with the only framework that survives scrutiny.
 
-## The Bull's "5-Year Average P/E" Citation — Caught Red-Handed Again
+#### The Bull's "5-Year Average P/E" Citation — Caught Red-Handed Again
 
 The bull's summary table claims: **"24.85x is below LLY's 5-year average and below GLP-1 peer multiples."**
 
@@ -1666,7 +1666,7 @@ This isn't a minor slip. It's the structural foundation of his "valuation is rea
 
 Those are absolute multiples, not relative ones. Whether they're "cheap" requires a comparison the bull can't make from the brief — so he made one up. **Twice convicted of the same offense, now pleading the case in front of you.**
 
-## The PT Recalibration — He Conceded the Math Argument Without Saying So
+#### The PT Recalibration — He Conceded the Math Argument Without Saying So
 
 Watch carefully what just happened. In rounds 2-4, the bull anchored his $1,400 PT explicitly to **"FY2027 EPS of $58 × 24x P/E."** His exact words.
 
@@ -1680,7 +1680,7 @@ And here's why this matters for *your* decision: **his new anchor requires a 26-
 
 **Multiple expansion from already-elevated levels into peak sentiment is the single most reliable losing trade structure in equity markets.** And it's now the load-bearing element of his PT.
 
-## On the "40% Beats 0% in Two of Three Scenarios" Math
+#### On the "40% Beats 0% in Two of Three Scenarios" Math
 
 This is the bull's slickest move and it deserves precise dismantling.
 
@@ -1701,7 +1701,7 @@ His own numbers produce ~7.9% expected return on a 40% allocation — **roughly 
 
 **The honest answer is: scaled entry into a parabolic stock optimizes for being half-right in all scenarios. Zero deployment at extremes optimizes for being fully right in the scenarios where waiting pays.**
 
-## On the Margin Defense — He Confirmed the Bear Case Without Realizing It
+#### On the Margin Defense — He Confirmed the Bear Case Without Realizing It
 
 The bull's margin defense is the most analytically interesting part of his closing, and it deserves credit for being specific. **It also confirms my entire thesis.**
 
@@ -1716,7 +1716,7 @@ His margin defense **requires the exact growth profile his sequential framing co
 
 **The bull just gave you the bear case mechanism, then claimed it supports the bull case.** That's how you know the thesis has run out of road.
 
-## On Buybacks — He Quietly Conceded the Critique
+#### On Buybacks — He Quietly Conceded the Critique
 
 His buyback math: ~5.4M shares retired on $5.27B at $1,000 average = ~0.6% of float. He calls this value-accretive.
 
@@ -1726,7 +1726,7 @@ Two responses:
 
 The buyback "support" argument is now revealed as cosmetic, not material. It doesn't move the trade math meaningfully.
 
-## On the "Already Priced In" Counter — He Got the Reference Point Backwards
+#### On the "Already Priced In" Counter — He Got the Reference Point Backwards
 
 The bull says: "The rally was from the cycle low, not from a normal base. The stock is at, not above, prior cycle high."
 
@@ -1742,7 +1742,7 @@ LLY just printed a **higher high** by $42 on a stock that traded $849 four weeks
 
 **The technical analyst — operating from the same data — explicitly recommends against full deployment at $1,105.** The bull's 40% deployment is fighting the technical guidance in the very brief he's citing as authoritative.
 
-## The Real Asymmetry — Restated With Verifiable Discipline
+#### The Real Asymmetry — Restated With Verifiable Discipline
 
 Let me close with what is and isn't supported by the actual research record:
 
@@ -1766,7 +1766,7 @@ Let me close with what is and isn't supported by the actual research record:
 
 **The bull case requires you to believe the unverifiable. The bear case is fully constructible from the verifiable record alone.**
 
-## The Final Bear Recommendation — Locked In
+#### The Final Bear Recommendation — Locked In
 
 **At $1,105, the disciplined position is zero new long exposure.**
 
@@ -1786,7 +1786,7 @@ The bull's strongest concession remains his most damning: **he won't fully deplo
 
 5. **Thesis flip conditions to bullish:** A clean Q2 earnings beat *combined* with retatrutide CV outcome milestone confirmation. Both observable. Neither has happened.
 
-## Why This Matters
+#### Why This Matters
 
 The bull's closing argument has three structural flaws that should be disqualifying:
 

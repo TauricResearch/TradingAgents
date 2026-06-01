@@ -7,13 +7,13 @@ Generated: 2026-05-31 17:41:11
 ### Market Analyst
 I have all the data I need. Let me synthesize a detailed report.
 
-# INTC (Intel Corporation) — Detailed Technical Analysis Report
+#### INTC (Intel Corporation) — Detailed Technical Analysis Report
 **As of: 2026-05-31 (last trading day: 2026-05-29)**
 **Last Close: $114.68** | Exchange: NMS | Sector: Technology / Semiconductors
 
 ---
 
-## 1. Big-Picture Context: A Once-in-a-Decade Re-Rating
+#### 1. Big-Picture Context: A Once-in-a-Decade Re-Rating
 
 INTC has undergone an **extraordinary parabolic re-rating** over the past ~6 months. From a low of **~$33.62** on 2025-11-20, the stock has rallied to an all-time high intraday of **$132.75** on 2026-05-11 — a gain of roughly **+295% in six months**. This is not a typical consolidation chart; it is a structural breakout/repricing event likely tied to either a fundamental catalyst (foundry contract, AI hardware design win, government/strategic investment) or an aggressive short squeeze. Discrete gap days like 2026-04-24 ($66.78 → $82.54, +24% in a single session on ~281M volume) and 2026-05-08 ($109.62 → $124.92 on ~228M volume) confirm news-driven repricing rather than gradual accumulation.
 
@@ -27,7 +27,7 @@ This is the first sign that the parabolic phase is exhausting.
 
 ---
 
-## 2. Trend Structure (Moving Averages)
+#### 2. Trend Structure (Moving Averages)
 
 | MA | Value (2026-05-29) | Price vs. MA | Interpretation |
 |---|---|---|---|
@@ -43,7 +43,7 @@ This is the first sign that the parabolic phase is exhausting.
 
 ---
 
-## 3. Momentum (MACD, RSI)
+#### 3. Momentum (MACD, RSI)
 
 **MACD line (2026-05-29):** 10.19, down from a peak of **17.05 on 2026-05-12**
 **MACD Histogram:** **−1.82** (and getting more negative for 5 consecutive sessions)
@@ -58,7 +58,7 @@ The MACD bearish cross (signal line crossing above MACD line) occurred around **
 
 ---
 
-## 4. Volatility (Bollinger Upper Band, ATR)
+#### 4. Volatility (Bollinger Upper Band, ATR)
 
 **Bollinger Upper Band (2026-05-29): $132.09**
 - Price closed at $114.68, ~13% **below** the upper band — a notable departure given price was riding/piercing the band repeatedly through April and early May.
@@ -71,7 +71,7 @@ The MACD bearish cross (signal line crossing above MACD line) occurred around **
 
 ---
 
-## 5. Synthesis & Actionable Insights
+#### 5. Synthesis & Actionable Insights
 
 **Confluence of bearish near-term signals:**
 1. ✅ Price broke 10 EMA for the first time in the parabolic leg
@@ -96,7 +96,7 @@ The MACD bearish cross (signal line crossing above MACD line) occurred around **
 
 ---
 
-## 6. Summary Table
+#### 6. Summary Table
 
 | Category | Indicator | Value (2026-05-29) | Signal | Strength |
 |---|---|---|---|---|
@@ -120,7 +120,7 @@ Rationale: The long-term uptrend (price >> 50 SMA >> 200 SMA, golden cross activ
 **Overall Sentiment:** **Mixed** (Score: 5.4/10)
 **Confidence:** Low
 
-## INTC Sentiment Report — 2026-05-24 to 2026-05-31
+#### INTC Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1. Source-by-source breakdown
 
@@ -183,13 +183,13 @@ I have sufficient information to compile the report. Direct INTC-specific news i
 
 ---
 
-# INTC (Intel Corporation) — News & Macro Research Report
+#### INTC (Intel Corporation) — News & Macro Research Report
 **Analysis Date:** 2026-05-31
 **Ticker:** INTC | **Exchange:** NMS | **Sector:** Technology / Semiconductors
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 The news flow over the past week (May 24 – May 31, 2026) reveals a market environment that is **bifurcated and unusually risk-laden** for Intel:
 
@@ -201,7 +201,7 @@ The news flow over the past week (May 24 – May 31, 2026) reveals a market envi
 
 ---
 
-## 2. Semiconductor Sector — Hot But Crowded
+#### 2. Semiconductor Sector — Hot But Crowded
 
 - **Bloomberg (May 31):** "Chipmakers are by far the hottest stocks in the market, but their recent surge is lending urgency to the debate over whether investors are buying into an AI bubble that's due to burst." This is a classic late-cycle warning for the entire semi complex.
 - **Micron** — "DRAM Memory Boom: Why Micron Stock Could Still Double" — share price doubled in 48 days. HBM/DRAM tightness is an indirect positive for Intel's data-center CPU pairing demand, but more importantly underscores the **memory cycle peak** narrative.
@@ -213,7 +213,7 @@ The news flow over the past week (May 24 – May 31, 2026) reveals a market envi
 
 ---
 
-## 3. Macro & Geopolitical Backdrop
+#### 3. Macro & Geopolitical Backdrop
 
 ### 3.1 US–Iran Conflict (Material Risk)
 Multiple Bloomberg/Yahoo headlines confirm:
@@ -238,7 +238,7 @@ Multiple Bloomberg/Yahoo headlines confirm:
 
 ---
 
-## 4. Intel-Specific Read-Through
+#### 4. Intel-Specific Read-Through
 
 | Theme | Signal | Direction for INTC |
 |---|---|---|
@@ -252,7 +252,7 @@ Multiple Bloomberg/Yahoo headlines confirm:
 
 ---
 
-## 5. Key Risks & Watch Items (Forward-Looking)
+#### 5. Key Risks & Watch Items (Forward-Looking)
 
 1. **AI bubble narrative cracking** — If Nvidia/Dell pull back further, INTC could be sold as a "low-quality semi" first.
 2. **18A node execution** — Any leak/news on Intel Foundry's 18A yields or major customer wins (or losses) is the single biggest stock-specific catalyst. None observed this week.
@@ -261,7 +261,7 @@ Multiple Bloomberg/Yahoo headlines confirm:
 
 ---
 
-## 6. Trading Insights & Actionable Conclusions
+#### 6. Trading Insights & Actionable Conclusions
 
 - **Relative positioning:** Within semis, INTC looks like a **laggard in a hot sector** — not a place to chase. Pure-play AI names (NVDA, AVGO, MU) and AI server names (DELL) are capturing flows.
 - **Sentiment skew:** With no positive Intel-specific news flow and growing macro/sector risks, the **risk/reward is asymmetric to the downside** in the near term.
@@ -270,7 +270,7 @@ Multiple Bloomberg/Yahoo headlines confirm:
 
 ---
 
-## 7. Summary Table — Key Points
+#### 7. Summary Table — Key Points
 
 | # | Theme | Evidence (date / source) | Direction for INTC | Confidence |
 |---|---|---|---|---|
@@ -292,13 +292,13 @@ Multiple Bloomberg/Yahoo headlines confirm:
 **Note to downstream analysts:** The most actionable observation is the **complete absence of INTC-specific catalysts** in a week where peers (Micron, Cerebras, Dell, Nvidia) dominated the AI narrative. Combined with macro headwinds (Iran war, rising yields, AI bubble debate), this argues for **caution / relative underweight** until a stock-specific catalyst (18A milestone, foundry customer, CHIPS funding event) emerges.
 
 ### Fundamentals Analyst
-# Intel Corporation (INTC) — Comprehensive Fundamental Analysis Report
+#### Intel Corporation (INTC) — Comprehensive Fundamental Analysis Report
 **Analysis Date:** May 31, 2026
 **Exchange:** NMS (Nasdaq) | **Sector:** Technology | **Industry:** Semiconductors
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Intel Corporation is one of the world's largest semiconductor manufacturers, designing CPUs, GPUs, AI accelerators, and operating its growing Intel Foundry Services (IFS) business. As of the analysis date:
 
@@ -314,7 +314,7 @@ The price action and re-rating suggest the market is pricing in a **major turnar
 
 ---
 
-## 2. Income Statement Analysis (Quarterly Trend)
+#### 2. Income Statement Analysis (Quarterly Trend)
 
 | Metric ($M) | Q1 2025 | Q2 2025 | Q3 2025 | Q4 2025 | Q1 2026 |
 |---|---|---|---|---|---|
@@ -336,7 +336,7 @@ The price action and re-rating suggest the market is pricing in a **major turnar
 
 ---
 
-## 3. Balance Sheet Analysis
+#### 3. Balance Sheet Analysis
 
 | Metric ($M) | Q1 2025 | Q4 2025 | Q1 2026 |
 |---|---|---|---|
@@ -361,7 +361,7 @@ The price action and re-rating suggest the market is pricing in a **major turnar
 
 ---
 
-## 4. Cash Flow Analysis
+#### 4. Cash Flow Analysis
 
 | Metric ($M) | Q1 2025 | Q2 2025 | Q3 2025 | Q4 2025 | Q1 2026 |
 |---|---|---|---|---|---|
@@ -383,7 +383,7 @@ The price action and re-rating suggest the market is pricing in a **major turnar
 
 ---
 
-## 5. Profitability & Efficiency Ratios
+#### 5. Profitability & Efficiency Ratios
 
 | Metric | Value | Interpretation |
 |---|---|---|
@@ -396,7 +396,7 @@ The price action and re-rating suggest the market is pricing in a **major turnar
 
 ---
 
-## 6. Catalysts, Risks & Investment Thesis
+#### 6. Catalysts, Risks & Investment Thesis
 
 ### Bullish Drivers
 1. **Massive valuation re-rating already occurred** ($18.97 → $115+/share at recent levels), reflecting market belief in the turnaround.
@@ -421,7 +421,7 @@ Intel is in the **late-stage turnaround** — operational metrics (revenue growt
 
 ---
 
-## 7. Summary Table — Key Fundamentals at a Glance
+#### 7. Summary Table — Key Fundamentals at a Glance
 
 | Category | Metric | Value | Trend / Signal |
 |---|---|---|---|
@@ -466,7 +466,7 @@ Let me cut right to it: the bear case on Intel rests on a fundamental misunderst
 
 ---
 
-## 1. This Isn't a Bubble — It's a Re-Rating Backed by Hard Operational Inflection
+#### 1. This Isn't a Bubble — It's a Re-Rating Backed by Hard Operational Inflection
 
 The bear will tell you "the easy money has been made" and point to a 295% rally. I'd counter: **the rally is the market finally catching up to fundamentals that have been improving for four straight quarters.** Look at what the data actually shows:
 
@@ -479,7 +479,7 @@ The bear who screams "AI bubble!" needs to reconcile that with the fact that Int
 
 ---
 
-## 2. The Balance Sheet Is Now a Fortress, Not a Liability
+#### 2. The Balance Sheet Is Now a Fortress, Not a Liability
 
 Bears love to talk about Intel's debt and capex burden. They're working with last year's playbook. Let's look at what actually happened:
 
@@ -492,7 +492,7 @@ The bear will counter, "But that came from 15% share dilution!" Fine — and wha
 
 ---
 
-## 3. Forward P/E of 74x Is Backward-Looking Misdirection
+#### 3. Forward P/E of 74x Is Backward-Looking Misdirection
 
 Here's where I really want to push back on the bear thesis. The "74x forward P/E is stretched!" argument relies on a forward EPS of $1.54 — which is a **deliberately conservative consensus number anchored to ongoing write-offs.** Let me show you why that's misleading:
 
@@ -505,7 +505,7 @@ If gross margins continue marching toward 42-45% (where they sat historically be
 
 ---
 
-## 4. Refuting the "AI Laggard" Narrative
+#### 4. Refuting the "AI Laggard" Narrative
 
 The bear's strongest argument is sentiment-based: "Intel isn't in the AI conversation. Cerebras vs. Nvidia, Dell pairs with NVDA, etc." 
 
@@ -519,7 +519,7 @@ The Iran/Hormuz risk the bears flag? **Actually accelerates the onshoring thesis
 
 ---
 
-## 5. Engaging the Technical Bear Case Directly
+#### 5. Engaging the Technical Bear Case Directly
 
 The bear's technicals — RSI divergence, MACD cross, 10 EMA break — describe a **healthy consolidation after a 295% run**, not a top. Let's be precise:
 
@@ -532,7 +532,7 @@ A pullback to $95-100 would be a **gift**, not a warning. That's where I'd add a
 
 ---
 
-## 6. The Bottom Line
+#### 6. The Bottom Line
 
 The bear case essentially argues: "It went up too fast, valuation is stretched, and there's no fresh news this week." That's a tactical, not strategic, view.
 
@@ -547,7 +547,7 @@ The bear delivered a confident-sounding takedown. The problem is that almost eve
 
 ---
 
-## 1. The Bear's $576B Market Cap Math Is Just Wrong
+#### 1. The Bear's $576B Market Cap Math Is Just Wrong
 
 This is the bear's lead argument, and it's built on a critical error. Let's check the work:
 
@@ -565,7 +565,7 @@ The bear is anchoring to the wrong comp set entirely. That's not analysis — th
 
 ---
 
-## 2. "Recovery From a Disaster" Is Exactly the Bull Thesis
+#### 2. "Recovery From a Disaster" Is Exactly the Bull Thesis
 
 The bear inadvertently delivered the most powerful bullish argument in the entire debate:
 
@@ -577,7 +577,7 @@ The bear says "halfway back" like it's an insult. **Halfway back from a disaster
 
 ---
 
-## 3. The Dilution Argument Is Backwards
+#### 3. The Dilution Argument Is Backwards
 
 The bear frames the equity raise as "selling stock at low prices to plug a hole." Let's actually look at the timeline:
 
@@ -589,7 +589,7 @@ And the bear's "selling the family silver" line about Altera/Mobileye? Those wer
 
 ---
 
-## 4. The "Seven Assumptions" Probability Math Is a Sophistry Trick
+#### 4. The "Seven Assumptions" Probability Math Is a Sophistry Trick
 
 This is my favorite part of the bear's argument because it's **mathematically dishonest in a way that's easy to expose:**
 
@@ -605,7 +605,7 @@ By the bear's own logic: the bear thesis requires **zero positive surprises acro
 
 ---
 
-## 5. The "Zero AI News This Week" Argument Is Tactical Noise, Not Strategic Signal
+#### 5. The "Zero AI News This Week" Argument Is Tactical Noise, Not Strategic Signal
 
 The bear repeats this point three times like it matters. Let me address it directly:
 
@@ -615,7 +615,7 @@ The bear repeats this point three times like it matters. Let me address it direc
 
 ---
 
-## 6. The Technical "Distribution" Read Misses the Bigger Picture
+#### 6. The Technical "Distribution" Read Misses the Bigger Picture
 
 The bear hammers the 5/29 distribution candle. Let's contextualize:
 
@@ -626,7 +626,7 @@ The bear hammers the 5/29 distribution candle. Let's contextualize:
 
 ---
 
-## 7. On "$95-100 Is Where I'd Add Aggressively" — The Bear Misread My Position
+#### 7. On "$95-100 Is Where I'd Add Aggressively" — The Bear Misread My Position
 
 The bear tried to score a rhetorical point: *"If $95-100 is the add zone, why are you bullish at $115?"*
 
@@ -634,7 +634,7 @@ Simple: **position sizing and conviction levels are different things.** I'd hold
 
 ---
 
-## 8. The Macro Argument Cuts Both Ways
+#### 8. The Macro Argument Cuts Both Ways
 
 The bear's macro section is the weakest part of the rebuttal because **every risk listed is sector-wide, not Intel-specific:**
 
@@ -645,7 +645,7 @@ The bear's macro section is the weakest part of the rebuttal because **every ris
 
 ---
 
-## 9. What the Bear Won't Tell You
+#### 9. What the Bear Won't Tell You
 
 Let me close with what's missing from the bear's analysis entirely:
 
@@ -663,7 +663,7 @@ Let me close with what's missing from the bear's analysis entirely:
 
 ---
 
-## Bottom Line: The Bear Wants You to Sell the Turnaround Right as It Starts Working
+#### Bottom Line: The Bear Wants You to Sell the Turnaround Right as It Starts Working
 
 Let me reframe the debate clearly:
 
@@ -686,7 +686,7 @@ The bear's final salvo was forceful, and I'll give credit where it's due: the TS
 
 ---
 
-## 1. The Bear's TSMC Table Is Real — But It's a Snapshot, Not a Trajectory
+#### 1. The Bear's TSMC Table Is Real — But It's a Snapshot, Not a Trajectory
 
 The bear's table is correct as a static snapshot. It is also **completely irrelevant to how multiples actually get assigned.**
 
@@ -706,7 +706,7 @@ The bear says: *"You don't pay 10x sales for 'if.'"* History disagrees. Investor
 
 ---
 
-## 2. The Bear's Margin Argument Self-Destructs
+#### 2. The Bear's Margin Argument Self-Destructs
 
 This is the cleanest contradiction in the bear's entire case. Read these two bear statements back to back:
 
@@ -721,7 +721,7 @@ The bear's "never again" framing requires you to believe Intel has *zero* pricin
 
 ---
 
-## 3. The Bear's Cisco/GE Analogs Are the Cherry-Pick
+#### 3. The Bear's Cisco/GE Analogs Are the Cherry-Pick
 
 The bear accuses me of cherry-picking MSFT/NVDA/TSLA winners. Let me return the favor on the bear's analogs:
 
@@ -735,7 +735,7 @@ The bear's analog list also conveniently omits the actual right comp: **AMD 2016
 
 ---
 
-## 4. The "Beta 2.19 = Not a Safe Haven" Argument Misreads the Mechanism
+#### 4. The "Beta 2.19 = Not a Safe Haven" Argument Misreads the Mechanism
 
 The bear scored a rhetorical point on the safe-haven framing, and I'll concede the wording was imprecise. But the underlying mechanism still holds, just on a different axis:
 
@@ -746,7 +746,7 @@ The bear's beta argument is also dated. **Intel's 2.19 beta is calculated on 5-y
 
 ---
 
-## 5. The Dilution "Math" From the Bear Is Backwards
+#### 5. The Dilution "Math" From the Bear Is Backwards
 
 The bear's argument: *"Existing shareholders had $50-70 billion of value transferred to dilution buyers."*
 
@@ -764,7 +764,7 @@ The bear's NVDA/AAPL/AVGO comparison is also unfair: **none of those companies w
 
 ---
 
-## 6. The Bear's Risk/Reward Table Has the Probabilities Wrong
+#### 6. The Bear's Risk/Reward Table Has the Probabilities Wrong
 
 Let me engage directly with the bear's scenario table because this is where the entire argument crystallizes:
 
@@ -787,7 +787,7 @@ Let me offer a more honest distribution informed by the actual data:
 
 ---
 
-## 7. The Catalyst Vacuum the Bear Calls "Empty" Is Actually Loaded
+#### 7. The Catalyst Vacuum the Bear Calls "Empty" Is Actually Loaded
 
 The bear's claim that "the catalyst slate is empty for next quarter" is just factually wrong. Look at what's actually scheduled or likely in the next 6 months:
 
@@ -802,7 +802,7 @@ The bear says "no catalyst." I count **six material catalysts in the next two qu
 
 ---
 
-## 8. Where I'll Concede the Bear Has a Point
+#### 8. Where I'll Concede the Bear Has a Point
 
 To my credit and the bear's, let me acknowledge what the bear got right:
 
@@ -818,7 +818,7 @@ These concerns don't change the strategic thesis — but they do change the **ta
 
 ---
 
-## 9. The Synthesized Bull Recommendation
+#### 9. The Synthesized Bull Recommendation
 
 **Strategic position:** Long-term bullish. Intel is in a multi-year structural turnaround with margin expansion, balance sheet repair, and foundry optionality that is meaningfully under-appreciated.
 
@@ -835,7 +835,7 @@ These concerns don't change the strategic thesis — but they do change the **ta
 
 ---
 
-## 10. The Final Frame: What This Debate Is Really About
+#### 10. The Final Frame: What This Debate Is Really About
 
 The bear's case boils down to: **"It went up too much, the multiple is too high, the technicals are tired, and turnarounds usually fail."**
 
@@ -856,7 +856,7 @@ The bear's closing was theatrical, confident, and built around one supposedly de
 
 ---
 
-## 1. The "Sell Now, Buy at $95" Logic Is Beautiful in Theory and Catastrophic in Practice
+#### 1. The "Sell Now, Buy at $95" Logic Is Beautiful in Theory and Catastrophic in Practice
 
 This is the bear's centerpiece, so let me destroy it directly:
 
@@ -876,7 +876,7 @@ The bear's "both scenarios favor selling" framing is the kind of math that wins 
 
 ---
 
-## 2. The Bear's Q1'26 OCF "Reversal" Is a Working Capital Story, Not a Trend Break
+#### 2. The Bear's Q1'26 OCF "Reversal" Is a Working Capital Story, Not a Trend Break
 
 The bear's most factually misleading claim: *"Q1'26 OCF dropped back to $1.1B, a 74% sequential decline. The 'movie' already hit a plot twist."*
 
@@ -891,7 +891,7 @@ The bear is doing exactly what he accused me of: **showing you one frame and cal
 
 ---
 
-## 3. The "Bankruptcy Concession" Is the Bear's Best Rhetorical Move and Worst Substantive One
+#### 3. The "Bankruptcy Concession" Is the Bear's Best Rhetorical Move and Worst Substantive One
 
 The bear thinks he caught me admitting Intel was on death's door. Let me clarify what I actually said and why it strengthens the bull case:
 
@@ -903,7 +903,7 @@ The bear's logic also collapses on itself: if the bankruptcy risk is gone (it is
 
 ---
 
-## 4. The AMD 2016 Comparison: The Bear Stopped Reading at the Convenient Moment
+#### 4. The AMD 2016 Comparison: The Bear Stopped Reading at the Convenient Moment
 
 The bear "destroyed" my AMD comparison by noting AMD was at $1.6B market cap in 2016 vs. Intel at $576B today. **He stopped his analysis exactly where it became inconvenient.**
 
@@ -919,7 +919,7 @@ The base rate the bear cites for "parabolic moves resolve lower" includes **meme
 
 ---
 
-## 5. The Probability Distribution Pushback Misses the Point
+#### 5. The Probability Distribution Pushback Misses the Point
 
 The bear cites "Bessembinder's parabolic studies" showing <25% of stocks that triple are higher 12 months later. Let me address this directly:
 
@@ -933,7 +933,7 @@ The bear's "1.25% expected value vs. T-bills at 4.5%" is a clean-sounding argume
 
 ---
 
-## 6. The Catalyst Slate Is Two-Sided — But the Asymmetry Favors Bulls
+#### 6. The Catalyst Slate Is Two-Sided — But the Asymmetry Favors Bulls
 
 The bear says every catalyst is "two-sided with asymmetric downside." Let me reframe with actual asymmetry analysis:
 
@@ -949,7 +949,7 @@ The bear says every catalyst is "two-sided with asymmetric downside." Let me ref
 
 ---
 
-## 7. The Macro "Headwinds" Argument Has Already Been Tested — and Failed to Stop the Rally
+#### 7. The Macro "Headwinds" Argument Has Already Been Tested — and Failed to Stop the Rally
 
 The bear's macro list (rising oil, rising yields, AI bubble, weak consumer) is comprehensive — **and every single one of those factors existed during the 295% rally.** Treasury yields have been elevated. Oil has been volatile. The AI bubble debate has been ongoing since 2024. Consumer weakness has been telegraphed for two years.
 
@@ -959,7 +959,7 @@ And specifically on the AI bubble: **Intel is the lowest-AI-narrative-beta name 
 
 ---
 
-## 8. What the Bear Cannot Refute
+#### 8. What the Bear Cannot Refute
 
 Let me close with the points the bear has not been able to credibly counter throughout this entire debate:
 
@@ -975,7 +975,7 @@ The bear's response to all of this is essentially: **"It's priced in."** That's 
 
 ---
 
-## 9. The Final Bull Recommendation
+#### 9. The Final Bull Recommendation
 
 **HOLD core position with active risk management. Add on weakness toward $95-105.**
 
@@ -994,7 +994,7 @@ The bear's response to all of this is essentially: **"It's priced in."** That's 
 
 ---
 
-## 10. The Bottom Line: Why the Bull Wins This Debate
+#### 10. The Bottom Line: Why the Bull Wins This Debate
 
 Strip away the rhetoric and here's what each side actually said:
 
@@ -1025,7 +1025,7 @@ The bear closed with a flourish and one supposedly killer question: *"Would you 
 
 ---
 
-## 1. Yes. I Would Buy a Fresh 5% Position at $115. Here's the Math the Bear Doesn't Want You to See.
+#### 1. Yes. I Would Buy a Fresh 5% Position at $115. Here's the Math the Bear Doesn't Want You to See.
 
 **The bear's "gotcha" rests on a false dichotomy: that "buy here" and "add more lower" are contradictory.** They're not. They're how every professional capital allocator builds positions in volatile, asymmetric setups.
 
@@ -1041,7 +1041,7 @@ So yes — I'd buy fresh today. And I'd add lower if offered. **Both can be — 
 
 ---
 
-## 2. The Bear's Tax Argument Critique Is a Strawman
+#### 2. The Bear's Tax Argument Critique Is a Strawman
 
 The bear claims my tax point was a desperate procedural objection. Let me clarify what I actually argued:
 
@@ -1053,7 +1053,7 @@ As for tax-deferred accounts — yes, 40% of equity is in 401ks/IRAs. **And thos
 
 ---
 
-## 3. The Working Capital Reframe Is the Bear's Biggest Self-Inflicted Wound
+#### 3. The Working Capital Reframe Is the Bear's Biggest Self-Inflicted Wound
 
 The bear attacks my Q1'26 OCF adjustment: *"Inventory build can be bullish OR bearish — you assumed the bullish interpretation."*
 
@@ -1071,7 +1071,7 @@ And on receivables: a $217M receivables build on $13.58B of revenue is **1.6% of
 
 ---
 
-## 4. The Bear's Failed-Turnaround List Proves Nothing — Because It Misses Intel's Structural Differences
+#### 4. The Bear's Failed-Turnaround List Proves Nothing — Because It Misses Intel's Structural Differences
 
 The bear lists Lehman, Sears, GE, Boeing, Peloton, WeWork, Bed Bath, Rite Aid, Yellow, AMC. Let me show you why this list is intellectually bankrupt:
 
@@ -1094,7 +1094,7 @@ The honest sample of "capital-intensive technology turnarounds with sovereign st
 
 ---
 
-## 5. The AMD Path Argument the Bear "Completed" Confirms the Bull Case
+#### 5. The AMD Path Argument the Bear "Completed" Confirms the Bull Case
 
 The bear shows AMD went from $34 (Sept 2018) → $17 (Dec 2018) → $36 (Mar 2020) → $160 (2021) and concludes: *"sellers at $30 made vastly more money than holders."*
 
@@ -1109,7 +1109,7 @@ The realistic AMD lesson: **holders won. Sellers who got back in won more in the
 
 ---
 
-## 6. The Catalyst Asymmetry Pushback Misses Base Rates
+#### 6. The Catalyst Asymmetry Pushback Misses Base Rates
 
 The bear claims a Q2'26 margin miss takes the stock to 40-50x P/E (30-40% downside). **Let me actually check what semis trade at after a margin miss:**
 
@@ -1124,7 +1124,7 @@ And on 18A foundry silence: the bear says "silence is not priced in." **Then exp
 
 ---
 
-## 7. The Macro Cumulative Risk Argument Cuts Both Ways
+#### 7. The Macro Cumulative Risk Argument Cuts Both Ways
 
 The bear says macro headwinds are "cumulative" — they wear down narratives over time. Fair point. **Now apply the same logic to the bull case:**
 
@@ -1138,7 +1138,7 @@ The bear says macro headwinds are "cumulative" — they wear down narratives ove
 
 ---
 
-## 8. The Distribution Candle the Bear Won't Stop Talking About
+#### 8. The Distribution Candle the Bear Won't Stop Talking About
 
 The bear keeps citing the 5/29 191M-volume distribution candle as definitive evidence. Let me give you the honest read:
 
@@ -1153,7 +1153,7 @@ The bear keeps citing the 5/29 191M-volume distribution candle as definitive evi
 
 ---
 
-## 9. The Bull Case Stands on Eight Pillars the Bear Has Not Toppled
+#### 9. The Bull Case Stands on Eight Pillars the Bear Has Not Toppled
 
 Let me close with what the bear failed to refute over four rounds of debate:
 
@@ -1175,7 +1175,7 @@ Let me close with what the bear failed to refute over four rounds of debate:
 
 ---
 
-## 10. The Final Bull Recommendation
+#### 10. The Final Bull Recommendation
 
 **BUY/HOLD with disciplined position management.**
 
@@ -1200,7 +1200,7 @@ Let me close with what the bear failed to refute over four rounds of debate:
 
 ---
 
-## The Single Question That Actually Settles This Debate
+#### The Single Question That Actually Settles This Debate
 
 The bear asked: *"Would you buy fresh at $115?"* Yes — with a plan, with reserves, with discipline.
 
@@ -1214,7 +1214,7 @@ The bear asked: *"Would you buy fresh at $115?"* Yes — with a plan, with reser
 
 ---
 
-## The Truth the Bear Buried
+#### The Truth the Bear Buried
 
 Strip away the rhetoric and here is what actually happened in this debate:
 
@@ -1239,7 +1239,7 @@ I'll give the bull credit — that was a polished pitch. But polished pitches ar
 
 ---
 
-## 1. "The Rally Is Fundamentals Catching Up" — No, the Fundamentals Don't Remotely Justify a $576B Market Cap
+#### 1. "The Rally Is Fundamentals Catching Up" — No, the Fundamentals Don't Remotely Justify a $576B Market Cap
 
 The bull wants you to believe a 295% rally in six months is "the market catching up to fundamentals." Let's actually do the math the bull conveniently skipped:
 
@@ -1253,7 +1253,7 @@ And let's address the gross margin victory lap: **39.4% is not a triumph, it's a
 
 ---
 
-## 2. The "Fortress Balance Sheet" Was Built on the Backs of Diluted Shareholders
+#### 2. The "Fortress Balance Sheet" Was Built on the Backs of Diluted Shareholders
 
 The bull's spin on dilution is genuinely impressive sophistry. Let me translate: **"Intel sold $13 billion of stock at low prices to plug a hole in its balance sheet, and you should be grateful."**
 
@@ -1267,7 +1267,7 @@ The bull says "existing shareholders got a healthier company." Existing sharehol
 
 ---
 
-## 3. The "Normalized Earnings" Argument Is a Magic Trick
+#### 3. The "Normalized Earnings" Argument Is a Magic Trick
 
 This is where the bull case really falls apart. Watch the sleight of hand:
 
@@ -1282,7 +1282,7 @@ Even granting the bull's optimistic $2.50 EPS in 18 months, you're paying **46x 
 
 ---
 
-## 4. The "AI Laggard" Problem Is Worse Than the Bull Admits
+#### 4. The "AI Laggard" Problem Is Worse Than the Bull Admits
 
 The bull tries to flip the AI narrative by calling Intel's exclusion "asymmetric upside." Let me destroy that argument with one observation:
 
@@ -1299,7 +1299,7 @@ As for the "Trump pump" / onshoring thesis: **political tailwinds are the most f
 
 ---
 
-## 5. The Technicals Are Screaming Distribution — and the Bull Is Whistling Past the Graveyard
+#### 5. The Technicals Are Screaming Distribution — and the Bull Is Whistling Past the Graveyard
 
 Let me re-read the bull's own technical interpretation: "RSI at 59 is neutral, not weak."
 
@@ -1317,7 +1317,7 @@ And the 50 SMA at $82? That's **39% below current price**. Mean reversion to tha
 
 ---
 
-## 6. The Macro/Geopolitical Setup Is a Loaded Gun Pointed at INTC
+#### 6. The Macro/Geopolitical Setup Is a Loaded Gun Pointed at INTC
 
 The bull tries to spin Iran/Hormuz as "accelerating onshoring." Let's be serious:
 
@@ -1328,7 +1328,7 @@ The bull tries to spin Iran/Hormuz as "accelerating onshoring." Let's be serious
 
 ---
 
-## 7. The Bull Case in One Sentence — and Why It's Wrong
+#### 7. The Bull Case in One Sentence — and Why It's Wrong
 
 Strip away the rhetoric and the bull case is: **"Trust that gross margins keep expanding, write-offs stop, foundry wins materialize, AI demand spills to Intel, geopolitics stays favorable, rates don't rise further, and the consumer holds up — and then this 74x forward P/E will look reasonable."**
 
@@ -1336,7 +1336,7 @@ That's seven assumptions. **Each one has to be right.** Multiply seven 70% proba
 
 ---
 
-## Bottom Line: This Is a Top, Not a Launchpad
+#### Bottom Line: This Is a Top, Not a Launchpad
 
 - Stock up 295% in 6 months on a narrative
 - Forward P/E of 74x with negative TTM FCF and negative TTM EPS
@@ -1358,7 +1358,7 @@ The bull's counter-rebuttal was rhetorically slick, but it crossed the line from
 
 ---
 
-## 1. The TSMC Comp Is the Most Dangerous Argument the Bull Made
+#### 1. The TSMC Comp Is the Most Dangerous Argument the Bull Made
 
 The bull's centerpiece pivot was: *"Compare Intel to TSMC at 8x sales, ASML at 12x, Broadcom at 18x — not legacy Intel."*
 
@@ -1378,7 +1378,7 @@ And the bull's own framing exposes it: *"If Intel executes its foundry transitio
 
 ---
 
-## 2. "Halfway Back From a Disaster" — The Bull Conflates Direction With Destination
+#### 2. "Halfway Back From a Disaster" — The Bull Conflates Direction With Destination
 
 The bull tried to flip my margin argument: *"39.4% rising toward 55-60% means $8-11B of incremental gross profit."*
 
@@ -1392,7 +1392,7 @@ Three problems:
 
 ---
 
-## 3. The Dilution Defense Is Embarrassing on the Numbers
+#### 3. The Dilution Defense Is Embarrassing on the Numbers
 
 The bull claims dilution happened "at meaningfully higher prices than the November $33 low." Let's check:
 
@@ -1407,7 +1407,7 @@ And the "Boeing comparison" is a tell — the bull is reaching for any analogy t
 
 ---
 
-## 4. The "Correlated Probabilities" Defense Actually Strengthens the Bear Case
+#### 4. The "Correlated Probabilities" Defense Actually Strengthens the Bear Case
 
 The bull's response to the seven-assumption critique was: *"They're correlated — 18A success resolves multiple at once."*
 
@@ -1422,7 +1422,7 @@ The bull's correlated-bet framing means **the entire $576B market cap is essenti
 
 ---
 
-## 5. "Intel Is the Safe Haven in a Bubble Unwind" — This Is Genuinely Indefensible
+#### 5. "Intel Is the Safe Haven in a Bubble Unwind" — This Is Genuinely Indefensible
 
 I have to stop and address this one directly because it's the most counterfactual statement in the bull's entire argument:
 
@@ -1434,7 +1434,7 @@ The "safe haven" trade in a chip-bubble unwind is cash, defensives, or maybe TSM
 
 ---
 
-## 6. The Technical Counter-Arguments Don't Hold Up
+#### 6. The Technical Counter-Arguments Don't Hold Up
 
 Let me address each:
 
@@ -1448,7 +1448,7 @@ Let me address each:
 
 ---
 
-## 7. The "What the Bear Won't Tell You" Section Is Mostly Vapor
+#### 7. The "What the Bear Won't Tell You" Section Is Mostly Vapor
 
 Let me address each piece of "hidden optionality":
 
@@ -1462,7 +1462,7 @@ Let me address each piece of "hidden optionality":
 
 ---
 
-## 8. The "Tactical vs Strategic" Frame Is the Bull's Final Escape Hatch
+#### 8. The "Tactical vs Strategic" Frame Is the Bull's Final Escape Hatch
 
 When all else fails, the bull invokes "you're trading the chart, I'm owning the turnaround." It's a comforting framing, but it's intellectually dishonest because:
 
@@ -1474,7 +1474,7 @@ When all else fails, the bull invokes "you're trading the chart, I'm owning the 
 
 ---
 
-## 9. The Honest Risk/Reward Math
+#### 9. The Honest Risk/Reward Math
 
 Let me leave you with the actual asymmetry:
 
@@ -1489,7 +1489,7 @@ Let me leave you with the actual asymmetry:
 
 ---
 
-## Bottom Line: This Is Not the Trade You Think It Is
+#### Bottom Line: This Is Not the Trade You Think It Is
 
 The bull keeps pointing to Microsoft 2014, Tesla 2019, Nvidia 2023. Let me give you the analogs the bull won't:
 
@@ -1512,7 +1512,7 @@ The bull just delivered a closing statement that was rhetorically masterful — 
 
 ---
 
-## 1. The Bull's "Movie vs. Photo" Framing Is the Oldest Trick in the Book
+#### 1. The Bull's "Movie vs. Photo" Framing Is the Oldest Trick in the Book
 
 The bull says: *"The bear shows you the photo. I'm showing you the movie."* Beautiful line. Completely unfalsifiable.
 
@@ -1531,7 +1531,7 @@ And the "TSMC in the early 2000s traded at higher P/S" claim? **TSMC was growing
 
 ---
 
-## 2. The "AMD 2016" Comparison Is the Bull's Most Dishonest Move
+#### 2. The "AMD 2016" Comparison Is the Bull's Most Dishonest Move
 
 The bull's trump card analog: *"AMD went from $2 to $30 on a turnaround thesis with worse fundamentals than today's Intel."*
 
@@ -1550,7 +1550,7 @@ The bull literally made my point: **the time to buy turnarounds is when they're 
 
 ---
 
-## 3. The "Margin Self-Destruction" Charge Misreads Bear Position — Because the Bull Wants It To
+#### 3. The "Margin Self-Destruction" Charge Misreads Bear Position — Because the Bull Wants It To
 
 The bull tries to score a contradiction point: *"Bear says Intel will never see 55% margins again, but compares to a 2-3x P/S that existed at 55% margins."*
 
@@ -1569,7 +1569,7 @@ At an actual realistic 42% gross margin and 5.2B shares (current), Intel earns r
 
 ---
 
-## 4. The Dilution Reframe Reveals the Bull's Position Is Built on Sand
+#### 4. The Dilution Reframe Reveals the Bull's Position Is Built on Sand
 
 The bull's final dilution defense: *"Without the dilution, stock goes to $15 and bankruptcy chatter starts. Dilution converted bankruptcy risk into equity."*
 
@@ -1585,7 +1585,7 @@ That's an extraordinary concession. Let me extract the implications:
 
 ---
 
-## 5. The Probability Table Reframe Is Pure Wishful Thinking
+#### 5. The Probability Table Reframe Is Pure Wishful Thinking
 
 The bull "corrects" my scenario probabilities to create a +12-15% expected value. Let me show what's actually happening:
 
@@ -1608,7 +1608,7 @@ For a stock with **$8.32 ATR, beta of 2.19, and 7% daily noise**, a 1.25% expect
 
 ---
 
-## 6. The "Loaded Catalyst Slate" Is Mostly Risk, Not Reward
+#### 6. The "Loaded Catalyst Slate" Is Mostly Risk, Not Reward
 
 The bull lists six catalysts as bullish. Let's examine each honestly:
 
@@ -1625,7 +1625,7 @@ The bull lists six catalysts as bullish. Let's examine each honestly:
 
 ---
 
-## 7. The Bull's Concessions Are Actually Concessions of the Whole Argument
+#### 7. The Bull's Concessions Are Actually Concessions of the Whole Argument
 
 Look at what the bull conceded in section 8:
 
@@ -1640,7 +1640,7 @@ And the bull's own price target — $150-180 in 12-18 months — implies **30-57
 
 ---
 
-## 8. The Real Asymmetry Is Wait, Not Buy
+#### 8. The Real Asymmetry Is Wait, Not Buy
 
 Here's the elegant resolution to this entire debate that the bull tried to obscure:
 
@@ -1652,7 +1652,7 @@ Here's the elegant resolution to this entire debate that the bull tried to obscu
 
 ---
 
-## 9. Final Bear Recommendation
+#### 9. Final Bear Recommendation
 
 **SELL or aggressively trim to ≤25% of original position.**
 
@@ -1675,7 +1675,7 @@ Here's the elegant resolution to this entire debate that the bull tried to obscu
 
 ---
 
-## The Final Word
+#### The Final Word
 
 The bull's closing pitch was *"don't sell Intel's optionality at the precise moment its results are starting to confirm the optionality."*
 
@@ -1694,7 +1694,7 @@ The bull's final response was confident, pretty, and **logically broken in ways 
 
 ---
 
-## 1. The Tax Argument Is the Bull's Most Embarrassing Moment
+#### 1. The Tax Argument Is the Bull's Most Embarrassing Moment
 
 The bull's flagship rebuttal: *"Selling triggers tax friction. You'd need the stock to fall to $85 just to break even on the round-trip after taxes."*
 
@@ -1712,7 +1712,7 @@ The bull's tax argument is a confession: **he can't argue the stock is a buy at 
 
 ---
 
-## 2. The "15% of Investors Re-Enter" Statistic Is Made-Up — and Cuts Against the Bull Anyway
+#### 2. The "15% of Investors Re-Enter" Statistic Is Made-Up — and Cuts Against the Bull Anyway
 
 The bull cites: *"Empirical research shows fewer than 15% of investors who sell winners actually re-enter at lower prices."*
 
@@ -1724,7 +1724,7 @@ The disciplined investor either trims here and adds at $95, or holds here and ad
 
 ---
 
-## 3. The "Catalyst Gap to $140 Overnight" Argument Concedes the Whole Bear Case
+#### 3. The "Catalyst Gap to $140 Overnight" Argument Concedes the Whole Bear Case
 
 The bull's third point: *"What if Intel announces a tier-1 foundry customer next week? The stock gaps to $140 overnight."*
 
@@ -1739,7 +1739,7 @@ Let's quantify the gap risk honestly:
 
 ---
 
-## 4. The Q1'26 OCF "Working Capital" Defense Is Selective Accounting
+#### 4. The Q1'26 OCF "Working Capital" Defense Is Selective Accounting
 
 The bull reframes Q1'26 OCF: *"Add back inventory build of $808M and receivables build of $217M. Adjusted OCF was ~$2.1B."*
 
@@ -1757,7 +1757,7 @@ The bull reframes Q1'26 OCF: *"Add back inventory build of $808M and receivables
 
 ---
 
-## 5. The "Tesla / Netflix / Apple Bankruptcy Chatter" Analogy Is Survivorship Bias on Steroids
+#### 5. The "Tesla / Netflix / Apple Bankruptcy Chatter" Analogy Is Survivorship Bias on Steroids
 
 The bull's third defense: *"Tesla had bankruptcy chatter in 2018. Netflix in 2011. Apple in 1997. They went up 50x."*
 
@@ -1779,7 +1779,7 @@ This is the most intellectually dishonest move in the entire debate. Let me expl
 
 ---
 
-## 6. The AMD Comparison the Bull "Completed" Actually Completes the Bear Case
+#### 6. The AMD Comparison the Bull "Completed" Actually Completes the Bear Case
 
 The bull tries to extend the AMD analogy: *"AMD at $30 in 2018 had P/S ~3x... investors who sold missed 8x."*
 
@@ -1799,7 +1799,7 @@ The bull's AMD comparison doesn't argue against trimming. **It argues for it.**
 
 ---
 
-## 7. The "Catalyst Asymmetry Table" Is Pure Confirmation Bias
+#### 7. The "Catalyst Asymmetry Table" Is Pure Confirmation Bias
 
 The bull constructs a table showing all six catalysts have "bullish skew." Let me retrade just two of them honestly:
 
@@ -1815,7 +1815,7 @@ A miss in this setup is catastrophic, not -8-12%. Stocks at 74x forward P/E that
 
 ---
 
-## 8. The "Macro Factors Existed During the Rally" Argument Is Logical Quicksand
+#### 8. The "Macro Factors Existed During the Rally" Argument Is Logical Quicksand
 
 The bull: *"Treasury yields, oil, AI bubble debate, weak consumer — all existed during the 295% rally. So they're not new risks."*
 
@@ -1830,7 +1830,7 @@ The bull's logic — "headwinds didn't stop the rally so they won't stop the nex
 
 ---
 
-## 9. The "Lowest AI-Narrative-Beta in Semis" Claim Is Demonstrably False
+#### 9. The "Lowest AI-Narrative-Beta in Semis" Claim Is Demonstrably False
 
 The bull's most creative argument: *"Intel is the lowest-AI-narrative-beta name in semis. When NVDA unwinds, capital rotates to less stretched names."*
 
@@ -1843,7 +1843,7 @@ The bull's most creative argument: *"Intel is the lowest-AI-narrative-beta name 
 
 ---
 
-## 10. What the Bull Cannot Actually Refute
+#### 10. What the Bull Cannot Actually Refute
 
 Let me close with the points the bull has danced around but not credibly addressed:
 
@@ -1861,7 +1861,7 @@ Let me close with the points the bull has danced around but not credibly address
 
 ---
 
-## The Bear's Final Position
+#### The Bear's Final Position
 
 **SELL or aggressively trim to ≤25% of original position size.**
 
@@ -1882,7 +1882,7 @@ This is not a panicked call. It is the disciplined response to a stock that has 
 
 ---
 
-## The Single Question That Settles This Debate
+#### The Single Question That Settles This Debate
 
 The bull spent thousands of words defending INTC at $115. **He did not answer one simple question: would you buy a fresh 5% portfolio position at $115 today?**
 
@@ -1894,7 +1894,7 @@ If no, why are you defending current holders staying long instead of trimming?
 
 ---
 
-## Final Word
+#### Final Word
 
 The bull says: *"You don't get confirmation cheap."* 
 
@@ -1913,7 +1913,7 @@ The bull's "final response" was a masterclass in rhetorical misdirection — eig
 
 ---
 
-## 1. The Bull's "Yes, I'd Buy Fresh at $115" Is the Most Damaging Sentence in This Entire Debate
+#### 1. The Bull's "Yes, I'd Buy Fresh at $115" Is the Most Damaging Sentence in This Entire Debate
 
 Read the bull's own framework carefully:
 
@@ -1931,7 +1931,7 @@ The bull invokes Apple-2023 and NVDA at $400 as analogs for "buy here, stronger 
 
 ---
 
-## 2. The Bull's Counter-Question Is a Trap He Set for Himself
+#### 2. The Bull's Counter-Question Is a Trap He Set for Himself
 
 The bull tried to flip the script: *"Would you short INTC at $115 with a stop at $125?"*
 
@@ -1945,7 +1945,7 @@ The bull asks: "Are you willing to put capital behind your conviction?" Yes. **A
 
 ---
 
-## 3. The "Pillars" Section Is a Litany of Mischaracterizations
+#### 3. The "Pillars" Section Is a Litany of Mischaracterizations
 
 The bull lists "eight pillars not refuted." Let me address each, briefly and definitively:
 
@@ -1967,7 +1967,7 @@ The bull lists "eight pillars not refuted." Let me address each, briefly and def
 
 ---
 
-## 4. The AMD Defense Continues to Eat the Bull's Own Argument
+#### 4. The AMD Defense Continues to Eat the Bull's Own Argument
 
 The bull says: *"Holders from $30 made 5.3x. That's a wildly successful outcome."*
 
@@ -1979,7 +1979,7 @@ The bull's "holders won" framing is survivorship-biased on the AMD example. **He
 
 ---
 
-## 5. The "Working Capital Was Bullish Because Margins Expanded" Argument Doesn't Survive Scrutiny
+#### 5. The "Working Capital Was Bullish Because Margins Expanded" Argument Doesn't Survive Scrutiny
 
 The bull triumphantly notes that Q1'26 had inventory build *and* margin expansion, concluding it must be ramp prep, not demand softening.
 
@@ -1991,7 +1991,7 @@ The honest analyst reads Q1'26 as **"OCF deteriorated sharply, working capital a
 
 ---
 
-## 6. The Distribution Candle Critique the Bull Botched
+#### 6. The Distribution Candle Critique the Bull Botched
 
 The bull claims I'm "cherry-picking" the 5/29 distribution candle while ignoring earlier high-volume up-days.
 
@@ -2008,7 +2008,7 @@ When you confuse accumulation and distribution candles by looking only at volume
 
 ---
 
-## 7. The Macro Cumulative Argument the Bull Tried to Flip
+#### 7. The Macro Cumulative Argument the Bull Tried to Flip
 
 The bull: *"Cumulative quarters of margin expansion build credibility too."*
 
@@ -2023,7 +2023,7 @@ Sure — and **the market has already priced that credibility into a 295% rally 
 
 ---
 
-## 8. The Real Asymmetry, One Last Time
+#### 8. The Real Asymmetry, One Last Time
 
 Let me restate the risk/reward at $115 with the bull's own numbers and my probabilities:
 
@@ -2043,7 +2043,7 @@ For a stock with **ATR of $8.32 (7% daily noise), beta of 2.19, and a 50 SMA $32
 
 ---
 
-## 9. The Honest Bear Closing
+#### 9. The Honest Bear Closing
 
 After four rounds of this debate, here is the honest synthesis:
 
@@ -2066,7 +2066,7 @@ After four rounds of this debate, here is the honest synthesis:
 
 ---
 
-## 10. Final Bear Recommendation
+#### 10. Final Bear Recommendation
 
 **SELL or aggressively trim to ≤25% of original position.** This is not a panicked call. It's a disciplined response to a stock that has tripled in six months with technical, valuation, sentiment, and macro warning lights all flashing simultaneously.
 
@@ -2081,7 +2081,7 @@ After four rounds of this debate, here is the honest synthesis:
 
 ---
 
-## The One Sentence That Ends This Debate
+#### The One Sentence That Ends This Debate
 
 The bull spent his entire closing arguing $115 is a buy, and then recommended a position-building strategy explicitly designed to achieve a cost basis below $115.
 

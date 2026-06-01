@@ -9,7 +9,7 @@ I now have all the data I need. Let me compose the detailed analysis report for 
 
 ---
 
-# ORCL (Oracle Corporation) — Technical Analysis Report
+#### ORCL (Oracle Corporation) — Technical Analysis Report
 **As of:** 2026-05-31 (last completed session: Friday, 2026-05-29)
 **Sector:** Technology / Software – Infrastructure | **Exchange:** NYQ
 
@@ -17,7 +17,7 @@ I now have all the data I need. Let me compose the detailed analysis report for 
 
 ---
 
-## 1. Big-Picture Narrative
+#### 1. Big-Picture Narrative
 
 ORCL has been on a **violent roller-coaster** over the past seven months:
 
@@ -32,7 +32,7 @@ The stock now sits in a strong recovery uptrend but is encountering a **major ov
 
 ---
 
-## 2. Indicator-by-Indicator Read (values as of 2026-05-29 close)
+#### 2. Indicator-by-Indicator Read (values as of 2026-05-29 close)
 
 ### Trend Structure
 
@@ -66,7 +66,7 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 
 ---
 
-## 3. Cross-Indicator Synthesis
+#### 3. Cross-Indicator Synthesis
 
 **Bullish convergences:**
 1. Multi-MA bullish stack just achieved (price > 10 EMA > 50 SMA, plus price reclaimed 200 SMA).
@@ -84,7 +84,7 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 
 ---
 
-## 4. Key Levels to Watch
+#### 4. Key Levels to Watch
 
 | Level | Type | Significance |
 |---|---|---|
@@ -99,7 +99,7 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 
 ---
 
-## 5. Actionable Insights
+#### 5. Actionable Insights
 
 - **Trend traders already long:** The May 29 breakout above the 200 SMA on heavy volume is a legitimate trend-confirmation event. Trail stops to ~$198 (10 EMA) or, more conservatively, ~$185 (consolidation shelf). Use ATR ($9.60) for sizing — a 2-ATR stop ≈ $19/share of risk.
 
@@ -113,7 +113,7 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 
 ---
 
-## 6. Summary Table
+#### 6. Summary Table
 
 | Category | Indicator | Value (2026-05-29) | Signal | Weight |
 |---|---|---|---|---|
@@ -144,7 +144,7 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 **Overall Sentiment:** **Mildly Bullish** (Score: 6.2/10)
 **Confidence:** Medium
 
-## ORCL Sentiment Report — 2026-05-24 to 2026-05-31
+#### ORCL Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1. Source-by-source breakdown
 
@@ -194,9 +194,9 @@ The May 29 close pierced the upper Bollinger Band by ~$13. Statistically, closes
 ### News Analyst
 I have sufficient data to build a comprehensive report. Let me synthesize the findings.
 
-# ORCL News & Macro Research Report — May 24–31, 2026
+#### ORCL News & Macro Research Report — May 24–31, 2026
 
-## Executive Summary
+#### Executive Summary
 
 Oracle Corporation (NYSE: **ORCL**) closed the analysis week at **~$203.70** with a market capitalization of **~$549.2B**. The stock has been one of the strongest performers among large-cap software, posting **+22.7% over the trailing month** and **+40.1% over three months**, driven by a powerful AI-infrastructure narrative tying ORCL to OpenAI compute demand, the broader hyperscaler buildout, and a renewed software-stack rerating after Snowflake's blowout earnings dispelled "SaaSpocalypse" fears. However, two structural concerns are emerging: (1) rising **debt loads** to fund AI data-center capex and (2) a **macro backdrop** that combines ongoing US–Iran war tensions (now in its 4th month, though a truce extension is reportedly in play), sticky inflation, rising Treasury yields, and growing chatter that equities — especially AI-linked names — are entering bubble territory.
 
@@ -204,7 +204,7 @@ The net read for ORCL is **bullish in momentum but increasingly fragile in tail 
 
 ---
 
-## 1. Company-Specific (ORCL) Highlights
+#### 1. Company-Specific (ORCL) Highlights
 
 ### 1a. Price Action and Momentum
 - **Last close (week ending 5/29/26):** ~$203.70; market cap ~$549.2B (Simply Wall St.).
@@ -231,7 +231,7 @@ The net read for ORCL is **bullish in momentum but increasingly fragile in tail 
 
 ---
 
-## 2. Macro & Cross-Asset Backdrop
+#### 2. Macro & Cross-Asset Backdrop
 
 ### 2a. Geopolitics — US–Iran War (Month 4)
 - The **US–Iran war has entered its fourth month** (Barron's). However, a **truce/deal extension** narrative emerged on 5/29 (MT Newswires: "Equity Futures Rise Amid US-Iran Deal Optimism"; Yahoo: "Silver prices open higher after news of truce extension with Iran").
@@ -254,7 +254,7 @@ The net read for ORCL is **bullish in momentum but increasingly fragile in tail 
 
 ---
 
-## 3. Actionable Insights for Traders
+#### 3. Actionable Insights for Traders
 
 1. **Momentum is bullish**: ORCL +22.7% / +40.1% over 1M/3M, technical structure intact, riding AI-infra rally and SaaS-revival narrative. Pure momentum trade remains long.
 2. **Earnings risk is asymmetric to the downside**: After a 40% three-month run, the mid-June FQ4 print becomes binary. Consider **trimming size or buying protective puts** ahead of earnings.
@@ -265,13 +265,13 @@ The net read for ORCL is **bullish in momentum but increasingly fragile in tail 
 
 ---
 
-## 4. Net Bias
+#### 4. Net Bias
 
 **Tactically Bullish / Strategically Cautious.** The AI-infrastructure narrative, OpenAI compute tie-ins, and broad SaaS reflation have created a powerful tape for ORCL through mid-2026. But the combination of (a) record CDS hedging on AI credit, (b) explicit debt concerns from sustainable funds, (c) bubble warnings from Barron's, (d) rising Treasury yields, and (e) a high-bar June earnings print makes the **risk/reward asymmetric beyond a 2–4 week horizon**. Traders should ride momentum into the print with hedges, and reassess based on FQ4 OCI growth, RPO disclosure, and capex/debt color.
 
 ---
 
-## Summary Table
+#### Summary Table
 
 | Category | Item | Direction for ORCL | Conviction |
 |---|---|---|---|
@@ -296,14 +296,14 @@ I have comprehensive data. Let me now compile the fundamental analysis report fo
 
 ---
 
-# Oracle Corporation (ORCL) — Fundamental Analysis Report
+#### Oracle Corporation (ORCL) — Fundamental Analysis Report
 **Analysis Date:** 2026-05-31
 **Exchange:** NYSE (NYQ)
 **Sector / Industry:** Technology / Software – Infrastructure
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Oracle Corporation is a global enterprise software and cloud infrastructure leader. It has emerged as one of the principal beneficiaries of the AI infrastructure buildout, with Oracle Cloud Infrastructure (OCI) winning major hyperscale-AI workload contracts. The financial profile over the past 12–18 months reflects an aggressive transformation from a software-first cash machine into a capital-intensive AI cloud builder.
 
@@ -322,7 +322,7 @@ Oracle Corporation is a global enterprise software and cloud infrastructure lead
 
 ---
 
-## 2. Income Statement Trends (Quarterly)
+#### 2. Income Statement Trends (Quarterly)
 
 Revenue is in a clear, accelerating uptrend driven by cloud:
 
@@ -344,7 +344,7 @@ Revenue is in a clear, accelerating uptrend driven by cloud:
 
 ---
 
-## 3. Balance Sheet — The Critical Story
+#### 3. Balance Sheet — The Critical Story
 
 Oracle's balance sheet has transformed dramatically over the past five quarters:
 
@@ -367,7 +367,7 @@ Oracle's balance sheet has transformed dramatically over the past five quarters:
 
 ---
 
-## 4. Cash Flow — The Red Flag
+#### 4. Cash Flow — The Red Flag
 
 | Quarter | Op. CF | CapEx | **Free Cash Flow** | Debt Issued | Dividends |
 |---|---|---|---|---|---|
@@ -386,7 +386,7 @@ Oracle's balance sheet has transformed dramatically over the past five quarters:
 
 ---
 
-## 5. Profitability & Efficiency
+#### 5. Profitability & Efficiency
 
 - **Profit Margin (TTM):** 25.30%
 - **Operating Margin:** 32.68%
@@ -397,7 +397,7 @@ Oracle's balance sheet has transformed dramatically over the past five quarters:
 
 ---
 
-## 6. Strategic Narrative & Risks
+#### 6. Strategic Narrative & Risks
 
 **Bull Case:**
 - Revenue acceleration to >20% YoY validates the OCI/AI thesis.
@@ -416,7 +416,7 @@ Oracle's balance sheet has transformed dramatically over the past five quarters:
 
 ---
 
-## 7. Actionable Insights for Traders
+#### 7. Actionable Insights for Traders
 
 1. **Momentum signal is bearish**: price below both 50-DMA ($171) and 200-DMA ($207). Wait for stabilization above 50-DMA before adding length.
 2. **Watch upcoming earnings (June 2026, FY26 Q4)** for: (a) RPO growth, (b) cloud revenue growth, (c) FY27 capex guidance, (d) gross margin trajectory. These are the four numbers that matter.
@@ -426,7 +426,7 @@ Oracle's balance sheet has transformed dramatically over the past five quarters:
 
 ---
 
-## 8. Summary Table — Key Points
+#### 8. Summary Table — Key Points
 
 | Category | Metric / Observation | Reading |
 |---|---|---|
@@ -467,7 +467,7 @@ Let me make this simple: **Oracle is in the middle of the most successful busine
 
 ---
 
-## 1. The Growth Story Is Real, Accelerating, and Underappreciated
+#### 1. The Growth Story Is Real, Accelerating, and Underappreciated
 
 Look at the revenue trajectory — this is what a transformation looks like:
 - FY26 Q1: **+5.6% YoY**
@@ -478,11 +478,11 @@ That's not a steady-state business. That's an **acceleration curve**, and accele
 
 The forward P/E is **28.1x**. For a company growing 20%+ with 32.7% operating margins and a multi-year RPO backlog tied to OpenAI and other hyperscale AI customers? That's not expensive — that's **reasonable-to-cheap** versus peers like Snowflake, CrowdStrike, or even Microsoft on a growth-adjusted basis.
 
-## 2. Competitive Moat: Oracle Has Something Nobody Else Does
+#### 2. Competitive Moat: Oracle Has Something Nobody Else Does
 
 Here's what bears miss: Oracle isn't competing with AWS on commodity compute. Oracle's edge is the **integrated stack** — the world's most mission-critical databases (still ~$180B+ of enterprise spend annually flows through Oracle DB) now natively coupled with high-performance AI compute. Migration friction works *for* Oracle, not against it. When OpenAI signs a 1.4 GW compute deal, that's not a fluke — it's because OCI offers superior price/performance for AI workloads, period.
 
-## 3. The Technical Picture Just Confirmed the Trend
+#### 3. The Technical Picture Just Confirmed the Trend
 
 - May 29: **+10.84% on 2x volume** — institutional accumulation, not retail froth
 - Reclaimed the **200-day SMA** ($206) on a closing basis
@@ -494,7 +494,7 @@ This is what early-stage bull markets look like in individual stocks.
 
 ---
 
-## Now, Let Me Take On the Bear's Concerns Directly
+#### Now, Let Me Take On the Bear's Concerns Directly
 
 ### Bear Concern #1: "Negative FCF of -$22B TTM is a red flag"
 
@@ -535,7 +535,7 @@ Bears frame this as risk; I frame it as **catalyst**. Oracle has beat on cloud g
 
 ---
 
-## The Bottom Line
+#### The Bottom Line
 
 The bear case rests on three pillars: high debt, negative FCF, and "things look frothy." But:
 - The debt funds **contracted, multi-year AI revenue**
@@ -551,7 +551,7 @@ I want to thank my bear colleague — because in trying to dismantle the bull th
 
 ---
 
-## 1. "The Acceleration Is a Statistical Mirage" — No, It's Independently Verifiable
+#### 1. "The Acceleration Is a Statistical Mirage" — No, It's Independently Verifiable
 
 The bear's first move is to wave away 5.6% → 13.7% → **21.7%** as a "statistical mirage" because of "weak comps." Let me push back hard:
 
@@ -562,7 +562,7 @@ The bear's first move is to wave away 5.6% → 13.7% → **21.7%** as a "statist
 
 **The acceleration is real. The bear is reaching.**
 
-## 2. "The Debt Math" — Let's Actually Do It Properly
+#### 2. "The Debt Math" — Let's Actually Do It Properly
 
 The bear wants to normalize EBITDA down by stripping out the $2.46B gain. Fair — let's do it cleanly:
 
@@ -576,7 +576,7 @@ On the preferred stock — the bear claims this is "financing-stress signal, ful
 
 And here's the comparison the bear made that actually helps me: **MSFT, GOOGL, AMZN run net cash.** True. And what are their forward P/Es? MSFT is at ~32x. GOOGL at ~22x. **Oracle at 28x is not pricing in the AI tailwind anywhere close to peer multiples** despite growing faster than MSFT this quarter. The bear just made the valuation argument *for me*.
 
-## 3. "The AWS Analogy Is Broken" — Actually, It's Confirmed
+#### 3. "The AWS Analogy Is Broken" — Actually, It's Confirmed
 
 The bear says Oracle's 100%+ capex/revenue ratio is "unprecedented." Let me reframe this for what it actually is:
 
@@ -586,13 +586,13 @@ The Amazon analogy holds in the way that matters: **build infrastructure → fil
 
 And the "concentration risk" framing on OpenAI? OpenAI is currently the **fastest-growing enterprise software company in history**, on track for $20B+ ARR in 2026, with backing from Microsoft, SoftBank, sovereign wealth, and the entire venture ecosystem. Calling it "an unproven private company that might tighten" is wildly out of step with the actual capital flows. **OpenAI is not the weak link in this trade — it's the anchor that makes the trade work.**
 
-## 4. The "-35.6% AI ROI Model" — Source: Anonymous StockTwits Post
+#### 4. The "-35.6% AI ROI Model" — Source: Anonymous StockTwits Post
 
 Let me address this directly because the bear leans on it heavily: **this number comes from "@capitalthinktank" on StockTwits.** It's an anonymous social media model with no methodology disclosed, no peer review, no publication. The bear is treating it as a fundamental analysis when it's a tweet.
 
 Meanwhile, **the actual sell-side AI capex ROI work** (from Morgan Stanley, Goldman, JPM) shows hyperscaler AI capex generating mid-to-high teens IRRs in base cases. Oracle is in that pool. **Cite primary research, not StockTwits anons.**
 
-## 5. The Technical "Exhaustion" Read Misses the Regime Change
+#### 5. The Technical "Exhaustion" Read Misses the Regime Change
 
 The bear paints the May 29 move as "blow-off-top." Let me reframe with what the technicals actually say:
 
@@ -603,7 +603,7 @@ The bear paints the May 29 move as "blow-off-top." Let me reframe with what the 
 
 The December 11 gap-down comparison is the bear's strongest technical point — but that gap happened from a stock priced for perfection at $345 with euphoric sentiment. **We're at $225 with a 34% lower starting valuation and contracted backlog that has since grown materially.** Different setup, different risk profile.
 
-## 6. The Macro Argument Cuts Both Ways
+#### 6. The Macro Argument Cuts Both Ways
 
 The bear says I "skipped macro." I didn't — I just don't think it argues for their case. Let's go through it:
 
@@ -614,7 +614,7 @@ The bear says I "skipped macro." I didn't — I just don't think it argues for t
 
 The macro setup isn't "actively hostile." It's mixed, with truce-driven tailwinds offsetting yield headwinds. **And for ORCL specifically, idiosyncratic catalysts dominate the macro signal.**
 
-## 7. The Earnings Setup — Why the Bear's Asymmetry Is Backwards
+#### 7. The Earnings Setup — Why the Bear's Asymmetry Is Backwards
 
 The bear claims earnings asymmetry favors the downside: "10% up on a beat, 20-30% down on a miss." Let me challenge the math:
 
@@ -627,7 +627,7 @@ The asymmetry is more like: **15-20% upside on a beat-and-raise that breaks $240
 
 ---
 
-## The Real Asymmetry the Bear Is Missing
+#### The Real Asymmetry the Bear Is Missing
 
 Here's the framing the bear refuses to engage with: **what does Oracle look like in 18 months if the bull case plays out?**
 
@@ -649,7 +649,7 @@ What does the bear case look like in 18 months?
 
 ---
 
-## Closing Argument
+#### Closing Argument
 
 The bear has built an impressive-sounding case by emphasizing every leverage metric, every overbought reading, every contrarian headline. But step back and ask: **what is the actual disconfirming evidence?**
 
@@ -674,7 +674,7 @@ My bear colleague has now delivered two thoughtful responses, and I want to give
 
 ---
 
-## 1. The "Flat Normalized Earnings" Trap — A Misread of How Cloud Transitions Work
+#### 1. The "Flat Normalized Earnings" Trap — A Misread of How Cloud Transitions Work
 
 The bear's centerpiece argument is that I "admitted" normalized earnings are flat while revenue grew 21.7%, and concludes incremental margins are "zero." This is the kind of analysis that sounds devastating until you understand **how cloud transitions actually flow through P&Ls**.
 
@@ -688,7 +688,7 @@ Compare to a cleaner counterfactual: if Oracle were running flat earnings on fla
 
 The bear is reading the income statement at the **moment of maximum capex drag** and extrapolating it forward. That's exactly the wrong moment to extrapolate.
 
-## 2. The Debt Math Argument Actually Has a Floor — And the Bear Is Ignoring It
+#### 2. The Debt Math Argument Actually Has a Floor — And the Bear Is Ignoring It
 
 The bear projects net debt/EBITDA going to 4.5-5.0x by FY27 year-end and calls it "credit-watch territory." Let me address this with what the data actually says:
 
@@ -700,7 +700,7 @@ On preferred stock: the bear is right that I overreached on the Apple/MSFT analo
 
 Look at the actual instrument: Oracle issued $5B of preferred at attractive coupons during a period when senior debt markets were *open and friendly* to them ($26B of senior debt issued the same quarter at IG spreads). **You don't issue preferred because you're shut out — you issue preferred because rating agencies give you partial equity credit, which protects your senior debt rating and lowers your blended cost of capital.** That's textbook capital structure optimization for a company in heavy capex mode, not a distress signal. The bear's "maxed out senior debt" framing is contradicted by the fact that senior debt windows are clearly still open.
 
-## 3. The "Compound Probability" Math Is Sleight of Hand
+#### 3. The "Compound Probability" Math Is Sleight of Hand
 
 This is the bear's most clever move and also their most flawed: "Seven independent variables, each at 75% = 13% joint probability."
 
@@ -714,7 +714,7 @@ Apply correct correlation math: if we have ~3 truly independent variables each a
 
 The bear is using a math trick to make a 40-50% upside scenario sound improbable. **It isn't.**
 
-## 4. On the Technicals: The Bear Wants to Have It Both Ways
+#### 4. On the Technicals: The Bear Wants to Have It Both Ways
 
 The bear says the December 11 gap-down is the "most relevant analog" because it happened on earnings into a stretched setup. But the bear also acknowledged that December's gap happened from a **less stretched** technical setup. So which is it? Either pre-event stretch matters (in which case December isn't the relevant analog because *it was less stretched*) or it doesn't.
 
@@ -726,7 +726,7 @@ Here's the actual analog hierarchy:
 
 The bear keeps invoking the December crash, but the December crash happened **from the prior peak**, not after a 6-month base. **You don't crash twice from the same level in the same regime.** The base has already been built. The trapped supply at $220-240 is real overhead, but it's not "untested" — every supply zone gets eaten with enough demand, and 41M shares of volume on May 29 was demand, not supply distribution.
 
-## 5. The OpenAI Counter-Risk Is Overstated
+#### 5. The OpenAI Counter-Risk Is Overstated
 
 The bear says OpenAI is "losing $5B/year" with "negative unit economics" and that's a counterparty risk. Let me push back with reality:
 
@@ -736,7 +736,7 @@ The bear says OpenAI is "losing $5B/year" with "negative unit economics" and tha
 
 The bear is treating Oracle's bespoke data centers as if they were custom-built for OpenAI alone with no alternative use. That's factually wrong. **GPU-dense data centers are the most generic, most in-demand capital asset in technology right now.**
 
-## 6. The Macro: The Bear Is Compounding Risks That Have Already Been Priced
+#### 6. The Macro: The Bear Is Compounding Risks That Have Already Been Priced
 
 Rising yields, war, inflation, CDS hedging, bubble warnings — the bear treats each as fresh risk. But here's the key question: **when did these risks emerge?**
 
@@ -747,7 +747,7 @@ Rising yields, war, inflation, CDS hedging, bubble warnings — the bear treats 
 
 And against all of those, **ORCL just rallied 40% in 3 months and broke out on heavy volume**. That's the market's verdict on the macro: idiosyncratic earnings power dominates the macro overlay for this name. The bear keeps citing risks that have failed to derail the stock and assumes their cumulative weight will eventually crack it. **That's confusing the existence of risk with its incremental impact**. Risks become catalysts only when something *changes* — and nothing in the bear's macro list represents a fresh deterioration.
 
-## 7. The Asymmetry Math, Honestly Calculated
+#### 7. The Asymmetry Math, Honestly Calculated
 
 The bear's revised asymmetry: +12-18% on a beat (capped by supply), -5-10% on in-line, -15-25% on a miss. Let me apply realistic probabilities:
 
@@ -760,7 +760,7 @@ That's positive expected value into a single binary event, which compounds to ma
 
 ---
 
-## What I'm Actually Recommending — With Discipline
+#### What I'm Actually Recommending — With Discipline
 
 Look, I'm not telling anyone to dump their savings into ORCL at $226 with no plan. The bear is correct that the technicals are short-term stretched. Here's the actionable approach:
 
@@ -774,7 +774,7 @@ This isn't reckless chasing. This is **disciplined participation in a structural
 
 ---
 
-## The Final Frame
+#### The Final Frame
 
 The bear's closing line — *"The market will give you a better price — it always does in names this leveraged and this stretched"* — is the most revealing sentence of the entire debate.
 
@@ -801,7 +801,7 @@ My bear colleague has delivered a genuinely impressive closing. It's well-struct
 
 ---
 
-## The Three Concessions the Bear Just Made
+#### The Three Concessions the Bear Just Made
 
 **Concession #1: The bear admits revenue probably beats in June.** Direct quote: *"Not because Oracle will miss revenue — they probably won't."* So the bear's entire downside scenario rests not on the business deteriorating, but on **second-derivative concerns about guidance commentary**. Stocks that beat revenue while growing 21.7% don't typically get crushed 25%. They occasionally get sold 5-8%. **The bear has just narrowed the credible downside scenario dramatically.**
 
@@ -813,7 +813,7 @@ Three concessions, all in the bear's own words. Now let me address the substanti
 
 ---
 
-## 1. The J-Curve Question the Bear Says I Won't Answer — Let Me Answer It
+#### 1. The J-Curve Question the Bear Says I Won't Answer — Let Me Answer It
 
 The bear claims I won't say when capex flattens. **Yes I will: the capex curve is sized to RPO, and Oracle's RPO duration is 4 years.** That means current capex is provisioning revenue that lands FY27-FY29. When you build to a 4-year RPO, capex peaks roughly 18-24 months ahead of revenue peak — which puts the capex inflection in **late FY27**, with FCF inflection following in **FY28**.
 
@@ -823,7 +823,7 @@ The bear's "what if it slips" argument has a price: every quarter of slippage co
 
 And the bear's analog choices are revealing: they cite Cisco 2000-2002, WeWork, FTX, Theranos, GE, Lehman, energy MLPs. **Notice what's missing: a single example of a profitable, cash-generative, investment-grade enterprise software company with $39B cash and 32% operating margins that imploded from an AI-cycle capex program.** That's because **it hasn't happened**. The bear is reaching across decades and asset classes to find dead bodies, while the actual peer comp set (MSFT, AMZN, GOOGL through their respective capex cycles) all rerated higher.
 
-## 2. On Credit: The Bear's "Lagging Indicator" Argument Cuts Both Ways
+#### 2. On Credit: The Bear's "Lagging Indicator" Argument Cuts Both Ways
 
 The bear says spreads are lagging, CDS is leading, and trust the smart money. **Fine — let's apply that consistently.**
 
@@ -836,7 +836,7 @@ The bear cherry-picks which "leading indicators" count. The honest read: **credi
 
 And the bear's "Lehman didn't get downgraded until September 2008" comparison is, frankly, beneath the rigor of the rest of their argument. **Oracle has $39B cash, $7B/quarter operating cash flow, 32% operating margins, and contracted multi-year revenue.** Lehman had toxic mortgage paper marked-to-myth. The pattern-match is rhetorically convenient and analytically empty.
 
-## 3. On Correlation: The Bear's Math Still Gives Positive Expected Value
+#### 3. On Correlation: The Bear's Math Still Gives Positive Expected Value
 
 The bear ran their own probability math and arrived at +12%. Let me show why even that is conservative:
 
@@ -851,7 +851,7 @@ Rerun with realistic inputs:
 
 That's a high-quality risk/reward. **Even on the bear's own framework with slightly less pessimistic inputs, the math says long.**
 
-## 4. On the "Crowded Trade" Framing — A Specific Counter
+#### 4. On the "Crowded Trade" Framing — A Specific Counter
 
 The bear keeps invoking "crowded trade" and "exhaustion of marginal buyers." Here's the specific counter:
 
@@ -861,7 +861,7 @@ The bear keeps invoking "crowded trade" and "exhaustion of marginal buyers." Her
 
 **Crowded trades have shallow base structures and concentrated late-cycle ownership. ORCL has neither.**
 
-## 5. On the Trade Plan "Concession" — The Bear Misreads What Discipline Looks Like
+#### 5. On the Trade Plan "Concession" — The Bear Misreads What Discipline Looks Like
 
 The bear says my staged-entry plan (60-70% now, 30-40% on pullbacks, hedge into earnings) is a concession. **It's the opposite — it's how professionals build positions in volatile names with binary catalysts.**
 
@@ -873,7 +873,7 @@ History on this is crystal clear: **stocks that just reclaimed their 200-DMA on 
 
 And to the "if waiting is better, why size 65% now" question: **because the staged approach captures expected value across both paths**. If the stock runs into earnings, you have meaningful exposure. If it pulls back, you average down. Waiting entirely captures upside in *only one path* (a pullback). **Staged entry is mathematically superior across the probability distribution.**
 
-## 6. The Bear's Strongest Point — and Why It Still Doesn't Reverse the Trade
+#### 6. The Bear's Strongest Point — and Why It Still Doesn't Reverse the Trade
 
 I want to give the bear genuine credit on one point: **the asymmetry into a single binary print is real.** If you're a one-month trader, the bear's caution is reasonable.
 
@@ -892,7 +892,7 @@ But this isn't a one-month trade. **It's an 18-month thesis on AI infrastructure
 
 ---
 
-## The Closing Frame
+#### The Closing Frame
 
 Let me end with the question the bear hasn't directly answered: **what is Oracle worth in 18 months if the AI infrastructure thesis is right?**
 
@@ -912,7 +912,7 @@ The honest summary: **the bear has built a case for hedging, sizing, and staging
 
 ---
 
-## Final Recommendation
+#### Final Recommendation
 
 **Long ORCL with discipline:**
 1. **Initiate 60-65% of target position at current levels** ($220-228 zone)
@@ -939,7 +939,7 @@ Let me walk through why every "unrefuted" point in the bear's checklist is actua
 
 ---
 
-## 1. The Bear's "Damodaran Base Rate" Citation Is Fabricated Rigor
+#### 1. The Bear's "Damodaran Base Rate" Citation Is Fabricated Rigor
 
 The bear cites "Damodaran cross-sectional valuation studies on leveraged growth names" to claim:
 - 25-30% historical probability of +35% returns
@@ -954,7 +954,7 @@ Let me give you the **actual** base rate data:
 
 When you use **actual** base rates rather than invented ones, the probability distribution skews materially more positive. **The bear constructed a 0% expected value table by inventing the inputs.** That's the central tell.
 
-## 2. "Mediocre Risk-Adjusted Return" — The Bear Just Made the Buy Argument
+#### 2. "Mediocre Risk-Adjusted Return" — The Bear Just Made the Buy Argument
 
 The bear's strongest-sounding rebuttal: "+12% over 18 months in a 50% volatility stock is a coin flip dressed in a tuxedo."
 
@@ -969,7 +969,7 @@ That's in line with broad equity market Sharpe ratios over multi-year horizons. 
 
 The bear is comparing un-hedged ORCL to risk-free Treasuries and claiming the spread is mediocre. That's not how professionals evaluate trades. **You compare hedged ORCL to hedged alternatives.** And on that basis, ORCL with hedges through earnings offers asymmetric exposure to a structural transformation at a Sharpe ratio that justifies the position.
 
-## 3. The "Path Risk" Argument Is the Bear's Own Trap
+#### 3. The "Path Risk" Argument Is the Bear's Own Trap
 
 The bear says path matters because of "quarterly reviews, drawdown thresholds, margin calls, behavioral stop-outs."
 
@@ -986,7 +986,7 @@ And here's the empirical kicker: **stocks that just reclaimed their 200-DMA on 2
 
 **The bear is structuring their plan around a 25-30% scenario as if it's the base case.** That's not patience — that's overweighting tail outcomes. Their own probability framework (with corrections) doesn't support waiting for $170.
 
-## 4. The "Larry Ellison Owns 40%" Correction Cuts Both Ways
+#### 4. The "Larry Ellison Owns 40%" Correction Cuts Both Ways
 
 The bear correctly notes Ellison owns ~40% of Oracle, deflating my "institutional underweight" argument. **Fair point — partial concession.** But notice what this actually means:
 
@@ -998,7 +998,7 @@ What this structure actually tells you: **the marginal seller in a drawdown is m
 
 **The bear's correction actually strengthens the bull case on path risk.**
 
-## 5. The "Unrefuted" Checklist Is Half-Refuted, Half-Mischaracterized
+#### 5. The "Unrefuted" Checklist Is Half-Refuted, Half-Mischaracterized
 
 Let me take the bear's "what the bull has not refuted" list head-on:
 
@@ -1022,7 +1022,7 @@ Let me take the bear's "what the bull has not refuted" list head-on:
 
 The bear's "unrefuted" list is rhetorical scoring, not analytical reality.
 
-## 6. The Bear's Own Trade Plan Is the Bull Trade With More Friction
+#### 6. The Bear's Own Trade Plan Is the Bull Trade With More Friction
 
 Read the bear's recommendations carefully:
 
@@ -1051,7 +1051,7 @@ The difference between expected entries: **~$12, or roughly 6%**. And in exchang
 
 **The bear's plan saves 6% on entry in exchange for surrendering the right tail.** That's a poor structural trade for any investor with an 18-month horizon.
 
-## 7. The Real Question the Bear Won't Address
+#### 7. The Real Question the Bear Won't Address
 
 After five exchanges, here's the question that hasn't been answered: **what specifically would need to be true for the bull case to be wrong?**
 
@@ -1065,7 +1065,7 @@ Not "what could go wrong" — that's the bear's recurring rhetorical move. But w
 
 The bear's case requires the base case to break. The bull case requires the base case to play. **Base cases play more often than they break** — that's literally what makes them base cases.
 
-## 8. Edge Versus Certainty — The Real Disagreement
+#### 8. Edge Versus Certainty — The Real Disagreement
 
 Here's the deepest point of disagreement, and I want to be honest about it:
 
@@ -1087,7 +1087,7 @@ The bear assumes the print is highly informative. **But consider what we already
 
 ---
 
-## Final Bull Recommendation
+#### Final Bull Recommendation
 
 **Long ORCL with discipline. Conviction, structure, and humility — all three.**
 
@@ -1105,7 +1105,7 @@ The bear assumes the print is highly informative. **But consider what we already
 
 ---
 
-## The Final Frame
+#### The Final Frame
 
 The bear closed with a beautifully written line: *"The bears are right not because Oracle is a bad company, but because $225 is a bad price for a great story that's already been told."*
 
@@ -1133,7 +1133,7 @@ My bull colleague has delivered a polished narrative, but strip away the rhetori
 
 ---
 
-## 1. The "Acceleration" Story Is Built on a Statistical Mirage
+#### 1. The "Acceleration" Story Is Built on a Statistical Mirage
 
 The bull keeps repeating "5.6% → 13.7% → 21.7%" as if it's a compounding miracle. Let's be honest about what this actually is:
 
@@ -1144,7 +1144,7 @@ The bull keeps repeating "5.6% → 13.7% → 21.7%" as if it's a compounding mir
 
 **Acceleration is the rarest signal in equities — and so is a one-time-gain-flattered earnings base. Bulls are conflating the two.**
 
-## 2. The Debt Math the Bull Refuses to Confront
+#### 2. The Debt Math the Bull Refuses to Confront
 
 The bull says "net debt/EBITDA is 3.5x, investment-grade territory." Let's actually do the math:
 
@@ -1157,7 +1157,7 @@ And here's the part bulls won't address: **EBITDA is flattered by that same $2.4
 
 The "lower net leverage than S&P 500" claim is a Barchart aggregate that's lazy at best, misleading at worst. Compare ORCL to its actual peer group: MSFT runs net cash. GOOGL runs net cash. AMZN runs minimal net leverage. **Oracle is the most leveraged hyperscaler by a country mile**, and that's the comparison that matters when AI capex returns get tested.
 
-## 3. The Amazon/AWS Analogy Is Fundamentally Broken
+#### 3. The Amazon/AWS Analogy Is Fundamentally Broken
 
 The bull invokes Amazon's negative-FCF AWS buildout. Let's stress-test this:
 
@@ -1168,7 +1168,7 @@ The bull invokes Amazon's negative-FCF AWS buildout. Let's stress-test this:
 
 **This isn't the AWS playbook. This is a leveraged bet on AI workload economics that haven't been proven yet.**
 
-## 4. The Customer Concentration Bomb the Bull Ignored
+#### 4. The Customer Concentration Bomb the Bull Ignored
 
 One model circulating on StockTwits showed ORCL with **-35.6% expected return on its AI investments — the worst among all hyperscalers**. The bull dismissed this. Let me explain why it matters:
 
@@ -1177,7 +1177,7 @@ One model circulating on StockTwits showed ORCL with **-35.6% expected return on
 - The RPO backlog the bull cites is **non-binding in important ways** — these aren't take-or-pay contracts in the traditional sense. Customers can and do renegotiate when economics change.
 - "Pre-selling capacity" is the bull's framing; **"concentrated counterparty exposure"** is the honest framing.
 
-## 5. The Technical Setup Is Textbook Exhaustion, Not Continuation
+#### 5. The Technical Setup Is Textbook Exhaustion, Not Continuation
 
 The bull cherry-picked the bullish indicators. Let me give you the complete picture from the technical report:
 
@@ -1192,7 +1192,7 @@ The bull's analog to "April overbought leading to consolidation" is exactly the 
 
 And let's not forget — this stock was at **$345 six months ago** and crashed to **$134** in February. That's a 60% drawdown. The volatility regime here is brutal. ATR has expanded 47% since April. **This is not a stock you chase at $226.**
 
-## 6. The Macro Setup Is Actively Hostile to This Trade
+#### 6. The Macro Setup Is Actively Hostile to This Trade
 
 The bull skipped macro entirely. Let me fill that gap:
 
@@ -1202,7 +1202,7 @@ The bull skipped macro entirely. Let me fill that gap:
 - **Record CDS volumes on Big Tech AI credit** — the bull dismissed this as "narrative." But credit markets have led equity markets at every major inflection in the last 25 years. When sophisticated money is paying record amounts to hedge AI-linked corporate credit, **that's a signal, not noise**.
 - **Barron's bubble warnings, Aschenbrenner short positioning, Impax fund flagging Oracle debt specifically** — the bull dismisses all of this as "contrarian noise." Funny how "noise" tends to look prescient in hindsight.
 
-## 7. The Earnings Setup Is Asymmetric — to the Downside
+#### 7. The Earnings Setup Is Asymmetric — to the Downside
 
 The bull frames the June print as a "catalyst." Let's be precise about what's actually being priced in:
 
@@ -1217,7 +1217,7 @@ Remember December 11, 2025? The stock gapped from $221 to $197 on an earnings ev
 
 ---
 
-## The Bottom Line
+#### The Bottom Line
 
 The bull's case rests on a beautifully constructed narrative: AI infrastructure champion, contracted backlog, accelerating growth, technical breakout. But narratives don't pay coupons — cash flows do. And Oracle's cash flows are going **the wrong direction** at unprecedented scale.
 
@@ -1239,7 +1239,7 @@ My bull colleague has delivered another well-crafted response, but I want to poi
 
 ---
 
-## 1. "Normalized Earnings Are Stable While Revenue Accelerates" — Read That Sentence Again
+#### 1. "Normalized Earnings Are Stable While Revenue Accelerates" — Read That Sentence Again
 
 The bull just made a remarkable concession and then tried to spin it as bullish. Let's quote them directly:
 
@@ -1256,7 +1256,7 @@ And it gets worse. Look at what's eating that incremental revenue:
 
 The 21.7% revenue acceleration the bull keeps citing is **being entirely consumed by the cost structure of the AI buildout**. There is no earnings leverage flowing through. The bull's own normalization confirms this.
 
-## 2. The Debt Math: 3.85x Leverage Is Catastrophic for a Capex-Inflecting Company
+#### 2. The Debt Math: 3.85x Leverage Is Catastrophic for a Capex-Inflecting Company
 
 The bull says "investment-grade software companies routinely operate at 3-4x leverage" and treats 3.85x net debt/EBITDA as comfortable. **This misses the entire point.**
 
@@ -1272,7 +1272,7 @@ That's not "investment-grade software." That's **credit-watch territory**.
 
 On preferred stock: the bull cites Apple, Microsoft, and Berkshire as examples of "sophisticated capital management." **Apple has never issued preferred stock.** Microsoft hasn't issued preferred since the 1990s. Berkshire *receives* preferreds from distressed companies (GS in 2008, BAC in 2011) — they don't issue them. The bull's analogy is factually wrong. Companies that issue preferred are typically those that have **maxed out senior debt capacity at acceptable spreads**. That's the textbook definition of financing strain.
 
-## 3. The "Contracted Backlog" Is Not What the Bull Thinks It Is
+#### 3. The "Contracted Backlog" Is Not What the Bull Thinks It Is
 
 The bull's entire case rests on the idea that RPO = contracted, locked-in revenue. **This is technically incorrect and materially misleading.**
 
@@ -1283,7 +1283,7 @@ The bull's entire case rests on the idea that RPO = contracted, locked-in revenu
 
 The bull keeps saying "the demand is already contracted." **It's not contracted in the sense the bull is using the word.** It's a forward-pipeline disclosure that has substantial conversion and counterparty risk attached.
 
-## 4. On OpenAI: "Anchor Tenant" Cuts Both Ways
+#### 4. On OpenAI: "Anchor Tenant" Cuts Both Ways
 
 The bull calls OpenAI "the anchor that makes the trade work." Let me ask the obvious question: **what happens if the anchor moves?**
 
@@ -1294,7 +1294,7 @@ The bull calls OpenAI "the anchor that makes the trade work." Let me ask the obv
 
 I'm not predicting OpenAI implodes. I'm pointing out that **building $50-75B of bespoke data center capacity on the back of a single counterparty with negative unit economics is the textbook definition of concentration risk** — regardless of how exciting the customer's growth narrative is.
 
-## 5. The Technical Setup: The Bull Is Cherry-Picking the Analog
+#### 5. The Technical Setup: The Bull Is Cherry-Picking the Analog
 
 The bull says: "the April overbought episode bottomed at $161 and now we're at $225 — that's bullish." **This is selection bias.**
 
@@ -1307,7 +1307,7 @@ Let me give you the full picture the bull skipped:
 
 The bull dismisses the December comparison by saying "different starting valuation." But mid-2026 ORCL has higher debt, lower normalized earnings growth, more capex burn, and is sitting under the same overhead supply zone. **The vulnerability is structurally similar.**
 
-## 6. The Macro Backdrop: Bull Is Hand-Waving Real Risks
+#### 6. The Macro Backdrop: Bull Is Hand-Waving Real Risks
 
 Let me push back on the macro dismissals:
 
@@ -1316,7 +1316,7 @@ Let me push back on the macro dismissals:
 - **"CDS volume ≠ spread."** Correct in textbook terms. But **record CDS volume on Big Tech AI credit reflects sophisticated money buying record amounts of insurance**. Insurance gets bought when the insured think the risk is rising. The signal isn't in the spread — the signal is in the **demand for protection**. Markets price what they expect; smart money hedges what they fear. The fear is real.
 - **"Barron's has called bubbles continuously since 2013."** Cute. Barron's also called the 2000 bubble correctly. The 2007 housing bubble correctly. The 2021 crypto/SPAC top correctly. Selection bias works both ways. **The Aschenbrenner bearish framing, the Impax debt concerns, the bubble warnings — these aren't all noise. They're a chorus.**
 
-## 7. The Earnings Setup: The Bull Just Made My Asymmetry Argument
+#### 7. The Earnings Setup: The Bull Just Made My Asymmetry Argument
 
 The bull pushes back on my downside scenario, then says: "The asymmetry is more like 15-20% upside on a beat-and-raise that breaks $240, vs. 8-12% downside on a sloppy print that finds support at the 200-DMA at $206."
 
@@ -1335,7 +1335,7 @@ That's a roughly **symmetric or slightly negative** expected value at $225, espe
 
 ---
 
-## What the Bull's "18-Month Forward Look" Actually Requires
+#### What the Bull's "18-Month Forward Look" Actually Requires
 
 The bull's bull case requires **all of the following to go right**:
 
@@ -1353,7 +1353,7 @@ This isn't 3:1 risk/reward. **It's a binary trade dressed up as a glide path.**
 
 ---
 
-## The Closing Argument
+#### The Closing Argument
 
 The bull's response demonstrates exactly why I'm bearish. When pressed:
 
@@ -1386,7 +1386,7 @@ Let me address each pillar of the bull's closing in turn, and then explain what'
 
 ---
 
-## 1. The "J-Curve Operating Leverage" Story Is Doing All the Heavy Lifting
+#### 1. The "J-Curve Operating Leverage" Story Is Doing All the Heavy Lifting
 
 The bull's response to flat normalized earnings is essentially: *"Wait until capex flattens, then operating leverage inflects, and the J-curve bottoms out — that's NOW."*
 
@@ -1400,7 +1400,7 @@ The bull says I'm "extrapolating from the moment of maximum capex drag." Fine. B
 
 **Here's the question the bull won't directly answer**: if the J-curve bottom is here, why is capex still accelerating, why is normalized EPS still flat, and why is the company still issuing new debt every quarter? The bottom of an operating-leverage J-curve is supposed to *look* like inflection — declining capex intensity, stabilizing margins, debt issuance pace slowing. **None of that is happening. The bull is calling a bottom that hasn't formed yet.**
 
-## 2. "Investment Grade Spreads Don't Reflect Stress" — A Lagging Indicator Mistaken for a Leading One
+#### 2. "Investment Grade Spreads Don't Reflect Stress" — A Lagging Indicator Mistaken for a Leading One
 
 The bull's strongest-sounding rebuttal: senior debt trades at 150-180 bps over Treasuries, IG spreads, no negative watch. **All true. All also lagging indicators.**
 
@@ -1410,7 +1410,7 @@ The bull's strongest-sounding rebuttal: senior debt trades at 150-180 bps over T
 
 The honest read: **Oracle's credit is fine today and at risk of meaningful repricing tomorrow.** The bull is using today's spread to dismiss tomorrow's risk.
 
-## 3. The Correlation Argument Cuts the Bull's Way — Until It Doesn't
+#### 3. The Correlation Argument Cuts the Bull's Way — Until It Doesn't
 
 The bull's cleverest response was on compound probability: my "seven independent variables" should collapse to ~3 because they're correlated. Let me concede the point partially and then turn it around.
 
@@ -1434,7 +1434,7 @@ That changes the expected value math materially. Run it:
 
 And that's a generous read. **Adjust for the fact that the +35% scenario assumes the stock breaks $300+ in 18 months from here, which requires multiple expansion AND earnings growth simultaneously — and you're closer to flat-to-slightly-positive expected value with materially fat left tails.**
 
-## 4. The Technicals: The Bull Is Picking the Analog They Like
+#### 4. The Technicals: The Bull Is Picking the Analog They Like
 
 The bull says December is irrelevant because it happened "from the prior peak, not after a 6-month base." **Let me push back hard on this.**
 
@@ -1444,7 +1444,7 @@ The bull says December is irrelevant because it happened "from the prior peak, n
 
 The honest technical read: **the May 29 gap-up is an emotional move into resistance with a high probability of mean reversion in the next 5-15 sessions, regardless of the longer-term thesis.** Even the bull's technical analyst said: *"Chasing $225.78 is statistically poor."* The bull's own source contradicts the bull's recommendation.
 
-## 5. OpenAI Counterparty Risk — The Bull Can't Wave This Away
+#### 5. OpenAI Counterparty Risk — The Bull Can't Wave This Away
 
 The bull's response on OpenAI is: zero cost of capital, MSFT exclusivity gone, data centers fungible. **Let me address each:**
 
@@ -1454,7 +1454,7 @@ The bull's response on OpenAI is: zero cost of capital, MSFT exclusivity gone, d
 
 The bull keeps treating OpenAI's growth as monotonic and AI demand as infinite. **Both are assumptions, not facts.**
 
-## 6. "Already Priced" Is the Most Dangerous Phrase in Investing
+#### 6. "Already Priced" Is the Most Dangerous Phrase in Investing
 
 The bull's macro argument: yields rising, war, CDS hedging, bubble warnings — all "already priced" because the stock rallied 40%.
 
@@ -1467,7 +1467,7 @@ The bull's macro argument: yields rising, war, CDS hedging, bubble warnings — 
 
 ORCL at $225 with RSI 75, after a 40% three-month run, is **the textbook profile of a crowded trade**. The bull dismisses bubble warnings as priced; **bubbles don't pop because of new information, they pop because of exhaustion of marginal buyers.**
 
-## 7. The Trade Plan Is Where the Bull Concedes Half the Bear Case
+#### 7. The Trade Plan Is Where the Bull Concedes Half the Bear Case
 
 Pay close attention to what the bull's "actionable approach" actually says:
 
@@ -1482,7 +1482,7 @@ And here's the kicker: **if the bull's plan is to wait for $206-213 to add 30-40
 
 ---
 
-## What I Keep Coming Back To
+#### What I Keep Coming Back To
 
 Let me end with what the bull's closing actually proves:
 
@@ -1507,7 +1507,7 @@ The bull's framing is that the bear thesis is *"what if it all goes wrong?"* Tha
 
 ---
 
-## My Final Recommendation
+#### My Final Recommendation
 
 **Do not initiate long ORCL at $225.** The risk/reward at this level is poor, and the bull's own trade plan effectively concedes this (60-70% sizing, hedges, stops at $185).
 
@@ -1547,7 +1547,7 @@ The latest response is the most revealing yet. The bull has now told you, in the
 
 ---
 
-## 1. The "Three Concessions" Framing Is Backwards
+#### 1. The "Three Concessions" Framing Is Backwards
 
 The bull cherry-picked three sentences from my closing and called them concessions. Let me restore context:
 
@@ -1557,7 +1557,7 @@ The bull cherry-picked three sentences from my closing and called them concessio
 
 **On "chase if it breaks $240":** Yes — *with discipline, with confirmation, with volume*. That's a fundamentally different setup than buying at $225 into stretched technicals before a binary catalyst. **Paying 7% more for a confirmed breakout is paying 7% to remove ~50% of the binary risk.** That's not "paying retail for confirmation" — that's **paying for information**. Every options trader on earth understands the value of waiting for resolution. The bull is pretending this is irrational. It's not.
 
-## 2. The J-Curve Timeline Just Got Sketched in Pencil
+#### 2. The J-Curve Timeline Just Got Sketched in Pencil
 
 The bull finally answered the J-curve question: **"capex inflection late FY27, FCF inflection FY28."**
 
@@ -1572,7 +1572,7 @@ Now let's stress-test the bull's own timeline:
 
 And on the bull's "no peer comp imploded" point: **Microsoft, Amazon, Google all funded their capex from internal cash flow, not $26B/quarter of debt issuance.** The bull keeps invoking those names while ignoring the fundamental funding-mechanism difference. **There is no historical analog for a software company running 100%+ capex/revenue, debt-funded, on a single-customer-cluster anchor.** The bull can't find the dead bodies because **this experiment hasn't run before**. That's not comforting — that's the absence of base rates.
 
-## 3. The "Two of Three Leading Indicators" Argument Misuses Volume
+#### 3. The "Two of Three Leading Indicators" Argument Misuses Volume
 
 The bull says: trust price-volume on May 29 as smart-money accumulation, sell-side estimate revisions as earnings momentum, OCI wins as future revenue.
 
@@ -1584,7 +1584,7 @@ The bull says: trust price-volume on May 29 as smart-money accumulation, sell-si
 
 Meanwhile, the leading indicator the bull dismisses — **CDS volume growth outpacing debt issuance growth** — is actual smart money paying actual dollars to hedge actual exposure. Insurance demand isn't bullish narrative; **it's quantified risk-aversion at scale**. The bull keeps trying to wave this away because it doesn't fit the thesis.
 
-## 4. The Probability Math: The Bull Just Inverted Their Own Tail
+#### 4. The Probability Math: The Bull Just Inverted Their Own Tail
 
 The bull rebuilt the probability table:
 - 60% × +35% = +21%
@@ -1606,7 +1606,7 @@ Honest reframe:
 
 That's the math when you stop assuming the bull case as base case. **The bull's "+16%" is what you get when you've already decided to be long and reverse-engineer the probabilities.**
 
-## 5. Institutional Ownership: The Bull's Number Is Misleading
+#### 5. Institutional Ownership: The Bull's Number Is Misleading
 
 The bull cites ORCL institutional ownership at "~43%" as evidence of "deep marginal buyer pool."
 
@@ -1614,7 +1614,7 @@ The bull cites ORCL institutional ownership at "~43%" as evidence of "deep margi
 
 The "deep buyer pool" thesis evaporates when you correct for Ellison's stake. **The marginal buyer pool is about as deep as MSFT's, GOOGL's, or AMZN's** — meaning the "underweight rotation" catalyst the bull is implying simply doesn't exist as described.
 
-## 6. The Trade Plan Comparison Reveals the Truth
+#### 6. The Trade Plan Comparison Reveals the Truth
 
 The bull compared:
 - "Bull plan: 65% at $225, 35% at $210 → blended $220"
@@ -1631,7 +1631,7 @@ The right comparison is:
 
 In **both** of the bear plan's outcomes, you have **better information and a better entry price than the bull plan**. The bull plan only wins in one specific scenario: **the stock goes straight up from $225 without giving any pullback below $220**. Examine the historical data — **stocks at RSI 75, 6% above the upper Bollinger Band, 14% above the 10-EMA, mean-revert at least once within 4 weeks roughly 80% of the time**. The bull is betting against an 80% base rate to get marginal entry-timing benefit.
 
-## 7. The 18-Month Frame Hides the Path Risk
+#### 7. The 18-Month Frame Hides the Path Risk
 
 The bull's strongest move is reframing the trade as "18 months — one print is noise." **This is a sleight of hand.** 
 
@@ -1650,7 +1650,7 @@ And the bull's "both scenarios end higher in 18 months" is *not supported by dat
 
 ---
 
-## What the Bull Has Actually Proven
+#### What the Bull Has Actually Proven
 
 After four exchanges, here's what the bull has actually demonstrated:
 
@@ -1674,7 +1674,7 @@ And here's what the bull has *not* refuted:
 
 ---
 
-## Final Bear Recommendation
+#### Final Bear Recommendation
 
 **Do not initiate ORCL longs at $225.** The risk/reward is poor regardless of how the bull frames the staged-entry plan. Specifically:
 
@@ -1696,7 +1696,7 @@ And here's what the bull has *not* refuted:
 
 ---
 
-## The Final Frame
+#### The Final Frame
 
 The bull has spent four responses arguing that "the math supports buying" while building a trade plan that hedges, stages, and trails stops at -18%. **If the math truly supported buying, you wouldn't need that infrastructure.** The amount of risk management baked into the bull's "conviction" trade is itself the strongest argument for the bear case.
 
@@ -1719,7 +1719,7 @@ Let me address it directly, then dismantle the substantive claims, and end with 
 
 ---
 
-## 1. "Edge vs. Certainty" Is a False Dichotomy — And the Bull Knows It
+#### 1. "Edge vs. Certainty" Is a False Dichotomy — And the Bull Knows It
 
 The bull frames the debate as: bulls have edge (act early on probabilistic information), bears want certainty (wait for consensus). **This is rhetorical sleight-of-hand.**
 
@@ -1738,7 +1738,7 @@ My answer remains no. Here's why, with the bull's own framework:
 
 This isn't edge versus certainty. **It's edge versus impatience.** And impatience is what the bull is selling.
 
-## 2. The "Base Rate" Counter Is Selective Citation
+#### 2. The "Base Rate" Counter Is Selective Citation
 
 The bull accuses me of fabricating Damodaran citations and counters with "Bespoke and Ned Davis Research" base rates: 70%+ positive returns over 6 months for stocks reclaiming the 200-DMA after 40%+ drawdowns.
 
@@ -1757,7 +1757,7 @@ Second — and this is the substantive point — **even granting the 70%+ base r
 
 The cohort the bull cites (NVDA, AVGO, AMD, ANET, VRT, CRWV) producing 40%+ returns is a **survivor-biased list**. The cohort also includes names that lost 30-50% along the way — IBM, IBM after Red Hat, Cisco's various AI pivots, etc. Cherry-picking the winners doesn't establish a base rate.
 
-## 3. The Sharpe Ratio Calculation Is Doing Selective Work
+#### 3. The Sharpe Ratio Calculation Is Doing Selective Work
 
 The bull's Sharpe ratio math: 
 - Expected return: +12-16%
@@ -1774,7 +1774,7 @@ So the actual comparison is: **ORCL offers a worse Sharpe ratio than the index, 
 
 **Sharpe-adjusted, the trade is inferior to the index.** The bull arrived at a different answer by understating volatility.
 
-## 4. The "Path Risk" Argument Inverts on the Bull, Not Me
+#### 4. The "Path Risk" Argument Inverts on the Bull, Not Me
 
 The bull says my plan caps downside at -13%, theirs caps at -18% but with full upside. Then claims my plan "surrenders 100% of upside in the no-pullback scenario."
 
@@ -1788,7 +1788,7 @@ The bull's math:
 
 **The bear plan has lower defined risk and similar upside (because we're entering after the binary catalyst, not before).** The bull's framing that I "surrender upside" only works if you ignore that I deploy capital — just at a different time and price, with materially better information.
 
-## 5. The Ellison Stake "Ballast" Argument Cuts Both Ways
+#### 5. The Ellison Stake "Ballast" Argument Cuts Both Ways
 
 The bull pivots on the Ellison correction to argue founder ownership creates "ballast" that limits drawdowns. **History disagrees.**
 
@@ -1796,7 +1796,7 @@ ORCL went from $345 to $134 — **a 61% drawdown** — with Ellison's stake full
 
 **If Ellison's ownership couldn't prevent a 61% drawdown six months ago, it can't prevent a 20-25% drawdown now.** The bull is invoking a structural feature that **demonstrably failed to provide support** in the most recent stress test.
 
-## 6. The "Capex Acceleration Means Demand Outrunning Supply" Argument Is the Most Dangerous
+#### 6. The "Capex Acceleration Means Demand Outrunning Supply" Argument Is the Most Dangerous
 
 The bull's spin: capex still accelerating is bullish because it means demand is outrunning supply.
 
@@ -1811,7 +1811,7 @@ The bull's spin: capex still accelerating is bullish because it means demand is 
 
 The hyperscaler AI capex cohort is collectively committing **>$400B/year**. At some point in 2027-2028, **this capacity comes online simultaneously**. Oracle is the most leveraged participant in that cohort. **When the supply glut hits, Oracle's debt service doesn't get refinanced on the same terms.** That's the structural risk the bull keeps reframing as "demand signal."
 
-## 7. The "Question I Won't Address"
+#### 7. The "Question I Won't Address"
 
 The bull asks: what specifically would invalidate the bull case?
 
@@ -1827,7 +1827,7 @@ Bear thesis is invalidated if:
 
 The bull bets on confirmation arriving. The bear waits for confirmation to arrive. **In a stock that just went from $345 to $134 to $225 in seven months, waiting two weeks for the catalyst is not "spectator behavior" — it's basic risk management.**
 
-## 8. The Real Final Frame
+#### 8. The Real Final Frame
 
 The bull closed with: *"By the time the bear's confirmation entry triggers, the market will have already priced 60-70% of the move."*
 
@@ -1845,7 +1845,7 @@ The bull's claim that early action captures the alpha is empirically weak. **Mos
 
 ---
 
-## My Final Recommendation: Sell / Don't Buy at $225
+#### My Final Recommendation: Sell / Don't Buy at $225
 
 After six exchanges, the position is unchanged and reinforced:
 
@@ -1871,7 +1871,7 @@ After six exchanges, the position is unchanged and reinforced:
 
 ---
 
-## The Structural Bear Case in One Paragraph
+#### The Structural Bear Case in One Paragraph
 
 **Oracle at $225 is a leveraged bet on AI infrastructure economics that haven't been proven, funded by record debt issuance, anchored to a single counterparty with negative unit economics, trading at full fair value with stretched technicals, going into a binary earnings catalyst with a high bar set by sell-side, after a 67% four-month run that ate through the entire prior crash and now sits beneath months of distribution supply — all while the macro backdrop features rising yields, an active war, and record CDS hedging on AI-linked credit.** Each element individually is manageable. **In combination, the asymmetry is poor and the path risk is severe.**
 

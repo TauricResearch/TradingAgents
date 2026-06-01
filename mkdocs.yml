@@ -81,6 +81,9 @@ markdown_extensions:
 plugins:
   - search
 
+extra_css:
+  - stylesheets/extra.css
+
 not_in_nav: |
   /**/[1-5]_*/**.md
 

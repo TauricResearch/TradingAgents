@@ -7,9 +7,9 @@ Generated: 2026-05-31 22:27:50
 ### Market Analyst
 Note: I attempted to call `get_verified_market_snapshot` per the system instructions, but the tool is not available in this environment. I will rely on the OHLCV pulled via `get_stock_data` and the indicator outputs as the source of truth for all numerical claims.
 
-# AAPL Technical Analysis Report — As of 2026-05-31
+#### AAPL Technical Analysis Report — As of 2026-05-31
 
-## 1. Macro Context & Price Action Narrative
+#### 1. Macro Context & Price Action Narrative
 
 Apple Inc. (AAPL, NMS) closed Friday, **2026-05-29 at $312.06** (intraday high $315.00, low $309.53), capping an extraordinarily strong May 2026. Looking back over the past ~7 months of price action observed in the data:
 
@@ -25,7 +25,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 
 ---
 
-## 2. Indicator-by-Indicator Analysis
+#### 2. Indicator-by-Indicator Analysis
 
 ### 2.1 Trend Structure — 50 SMA, 200 SMA, 10 EMA
 
@@ -87,7 +87,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 
 ---
 
-## 3. Synthesis — Confluence of Signals
+#### 3. Synthesis — Confluence of Signals
 
 **Bullish factors:**
 1. Full bullish MA stacking (price > 10 EMA > 50 SMA > 200 SMA) with all slopes rising.
@@ -104,7 +104,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 
 ---
 
-## 4. Actionable Trade Plan
+#### 4. Actionable Trade Plan
 
 - **Trend bias:** Bullish (medium and long term).
 - **Tactical bias (1–3 weeks):** Cautious — trend is intact but extended. **Do not chase** at $312.
@@ -118,7 +118,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 
 ---
 
-## 5. Summary Table
+#### 5. Summary Table
 
 | Indicator | Value (2026-05-29) | Reading | Implication |
 |---|---|---|---|
@@ -134,7 +134,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 
 ---
 
-## FINAL TRANSACTION PROPOSAL: **HOLD**
+#### FINAL TRANSACTION PROPOSAL: **HOLD**
 
 **Rationale:** The primary and intermediate trends are unambiguously bullish, so existing longs should be held with trailing stops below the 10 EMA / $305. However, the confluence of **RSI ~79–80, MACD-histogram divergence, price ~13% extended above the 50 SMA, and Bollinger upper-band proximity** makes initiating new longs at $312 a poor risk/reward proposition. A **HOLD** posture is warranted: stay long if already in, but wait for a pullback to the $300–$306 zone (or an RSI reset to ~60–65) before adding. Only a break below the 50 SMA (~$275) would shift the bias to outright bearish.
 
@@ -142,7 +142,7 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 **Overall Sentiment:** **Mildly Bullish** (Score: 6.0/10)
 **Confidence:** Medium
 
-## AAPL Sentiment Report — 2026-05-24 to 2026-05-31
+#### AAPL Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1. Source-by-source breakdown
 
@@ -195,15 +195,15 @@ This is a textbook V-shaped recovery, transitioning from a corrective downtrend 
 ### News Analyst
 I have sufficient information. Let me compile the comprehensive report.
 
-# AAPL News & Macro Research Report — May 31, 2026
+#### AAPL News & Macro Research Report — May 31, 2026
 
-## Executive Summary
+#### Executive Summary
 
 Apple Inc. (AAPL) enters the final week of May 2026 amid a constructive but nuanced backdrop. The narrative around AAPL is **shifting positively on AI/agentic AI optionality** and a notable analyst upgrade from Bank of America (price target raised from $330 → $380), while macro headwinds — a **U.S.–Iran war now in its fourth month**, **10-year Treasury yields approaching 5% (~4.7%)**, **rising oil prices**, and **softening consumer signals** — create a more challenging discount-rate environment for mega-cap multiples. Apple is also in a **leadership transition** and consensus fair value has been recalibrated upward (US$297.88 → US$310.51 per Simply Wall St.), reflecting cautious optimism rather than a re-rating breakout. Smart money flows are constructive: **Renaissance Technologies opened a new position** in AAPL (now its #3 holding per recent 13F).
 
 ---
 
-## 1. Company-Specific Drivers (AAPL)
+#### 1. Company-Specific Drivers (AAPL)
 
 ### Bullish Catalysts
 - **BofA Upgrade (May 26):** Wamsi Mohan raised AAPL price target to **$380 from $330** with reiterated Buy. Thesis: Apple does not need to win the foundational AI model race; it wins by being the **distribution layer / agentic AI platform** on a ~2.2 billion device installed base.
@@ -224,7 +224,7 @@ Net **moderately bullish**. The BofA $380 PT, Renaissance position, and agentic-
 
 ---
 
-## 2. Macroeconomic Backdrop
+#### 2. Macroeconomic Backdrop
 
 ### Geopolitics — Iran War (Material Risk)
 - **U.S.–Iran war is in its fourth month.** A ceasefire/truce extension was being eyed late May (MarketBeat 5/25–5/29 review), and silver rose on truce-extension news (5/29), suggesting markets are pricing in tentative de-escalation but still hedging.
@@ -247,7 +247,7 @@ Net **moderately bullish**. The BofA $380 PT, Renaissance position, and agentic-
 
 ---
 
-## 3. Trading Implications & Actionable Insights
+#### 3. Trading Implications & Actionable Insights
 
 | Time Horizon | View | Rationale |
 |---|---|---|
@@ -269,7 +269,7 @@ Net **moderately bullish**. The BofA $380 PT, Renaissance position, and agentic-
 
 ---
 
-## 4. Summary Table — Key Points
+#### 4. Summary Table — Key Points
 
 | Theme | Signal | Direction for AAPL | Conviction |
 |---|---|---|---|
@@ -296,12 +296,12 @@ Net **moderately bullish**. The BofA $380 PT, Renaissance position, and agentic-
 ### Fundamentals Analyst
 I have comprehensive data. Let me compile a detailed fundamental analysis report.
 
-# Apple Inc. (AAPL) — Fundamental Analysis Report
+#### Apple Inc. (AAPL) — Fundamental Analysis Report
 **Analysis Date:** 2026-05-31 | **Exchange:** NMS | **Sector:** Technology / Consumer Electronics
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Apple Inc. (AAPL) is the world's most valuable consumer electronics company, designing and selling iPhones, Macs, iPads, wearables, and a fast-growing services portfolio (App Store, iCloud, Apple Music, Apple TV+, AppleCare, advertising, payments). As of 2026-05-31:
 
@@ -311,7 +311,7 @@ Apple Inc. (AAPL) is the world's most valuable consumer electronics company, des
 - **Beta:** 1.065 (slightly more volatile than market)
 - **Dividend Yield:** 0.35% (low yield; capital-return favors buybacks)
 
-## 2. Valuation Metrics
+#### 2. Valuation Metrics
 
 | Metric | Value | Interpretation |
 |---|---|---|
@@ -324,7 +324,7 @@ Apple Inc. (AAPL) is the world's most valuable consumer electronics company, des
 
 **Takeaway:** Valuation is stretched. AAPL is priced for premium execution, requiring continued services growth and successful AI/hardware cycles to justify multiples.
 
-## 3. Income Statement — Quarterly Trend (Last 5 Quarters)
+#### 3. Income Statement — Quarterly Trend (Last 5 Quarters)
 
 | Quarter | Revenue ($B) | Gross Profit ($B) | GM % | Operating Inc ($B) | Net Income ($B) | Diluted EPS |
 |---|---|---|---|---|---|---|
@@ -342,7 +342,7 @@ Apple Inc. (AAPL) is the world's most valuable consumer electronics company, des
 - **R&D up sharply:** $11.42B in Q2-FY26 vs. $8.55B prior year (+33%) — AI investment intensifying
 - **Q1-FY26 (Dec quarter)** delivered record $143.76B holiday revenue and $42.1B net income
 
-## 4. Balance Sheet Strength
+#### 4. Balance Sheet Strength
 
 | Item (as of 2026-03-31) | Value ($B) |
 |---|---|
@@ -362,7 +362,7 @@ Apple Inc. (AAPL) is the world's most valuable consumer electronics company, des
 - **Debt/Equity 79.5%** — moderate; easily serviced by FCF
 - **Goodwill/Intangibles:** $21.3B newly recorded — suggests an acquisition in the most recent quarter
 
-## 5. Cash Flow Analysis
+#### 5. Cash Flow Analysis
 
 | Quarter | Operating CF ($B) | CapEx ($B) | Free Cash Flow ($B) | Buybacks ($B) | Dividends ($B) |
 |---|---|---|---|---|---|
@@ -377,7 +377,7 @@ Apple Inc. (AAPL) is the world's most valuable consumer electronics company, des
 - **CapEx light:** Asset-light model continues — CapEx declining vs. mega-cap peers heavy in AI infra
 - **Buyback pace moderating** (Q2-FY26: $12.3B vs. $25.9B yr-ago), allowing balance sheet recapitalization
 
-## 6. Profitability & Returns
+#### 6. Profitability & Returns
 
 | Metric | Value |
 |---|---|
@@ -389,7 +389,7 @@ Apple Inc. (AAPL) is the world's most valuable consumer electronics company, des
 
 ROE is mathematically inflated by the buyback program; ROA at 26.2% is the more meaningful metric and is exceptional.
 
-## 7. Key Strengths
+#### 7. Key Strengths
 1. **Massive cash generation:** $129B TTM FCF
 2. **Margin expansion:** Gross margin trending 49%+ on services mix
 3. **Brand/ecosystem moat** keeping iPhone ASPs high
@@ -397,7 +397,7 @@ ROE is mathematically inflated by the buyback program; ROA at 26.2% is the more 
 5. **Balance sheet recovery:** Equity rebuilt, debt reduced
 6. **R&D acceleration** at +33% YoY signals serious AI/hardware roadmap
 
-## 8. Key Risks
+#### 8. Key Risks
 1. **Premium valuation** — Forward P/E 32.5x leaves little margin for error
 2. **PEG 2.72** suggests growth not adequately priced in
 3. **China/regulatory exposure** (App Store antitrust, EU DMA fines)
@@ -405,7 +405,7 @@ ROE is mathematically inflated by the buyback program; ROA at 26.2% is the more 
 5. **Recent acquisition** (~$21B intangibles addition) — execution risk
 6. **Currency/macro headwinds** could pressure consumer spending
 
-## 9. Insights for Traders
+#### 9. Insights for Traders
 
 - **Technical setup:** Price near 52-week high ($315) with 50DMA > 200DMA — bullish trend, but extended.
 - **Earnings momentum:** Last reported quarter (Q2-FY26) showed +19% YoY net income growth — positive surprise potential into next print.
@@ -415,7 +415,7 @@ ROE is mathematically inflated by the buyback program; ROA at 26.2% is the more 
 
 ---
 
-## 📊 Summary Table — Key Points
+#### 📊 Summary Table — Key Points
 
 | Category | Metric / Observation | Signal |
 |---|---|---|
@@ -451,7 +451,7 @@ Let me cut right to it: the bear case on Apple in 2026 is essentially a recycled
 
 ---
 
-## 1. Growth Is Reaccelerating — And It's Not Priced In Yet
+#### 1. Growth Is Reaccelerating — And It's Not Priced In Yet
 
 Look at the actual numbers, not the narrative:
 
@@ -465,7 +465,7 @@ When bears say "PE 30% above other Mag-7s with the slowest growth," they're usin
 
 ---
 
-## 2. The AI Re-Rating Is Just Beginning
+#### 2. The AI Re-Rating Is Just Beginning
 
 Here's what the bears are missing: **Apple doesn't need to win the foundational AI model race.** It needs to win the *distribution* layer — and it already has.
 
@@ -478,7 +478,7 @@ The bears want to call this "late stage." I call it **the early innings of an AI
 
 ---
 
-## 3. Refuting the Bear's Specific Concerns
+#### 3. Refuting the Bear's Specific Concerns
 
 **Bear claim: "Valuation is stretched at 32.5x forward P/E."**
 My counter: AAPL traded at 30x in 2021 with *lower* margins, *lower* services mix, and *no* AI optionality. Today it has 49.3% gross margins, $129B in FCF, a 16.6% growth quarter, and a generational platform shift in front of it. The multiple is *justified*, not stretched. And PEG of 2.72 uses lagging growth estimates that the most recent quarter already blew through.
@@ -499,7 +499,7 @@ This is the most honest bear point — and even our own technical report says **
 
 ---
 
-## 4. The Setup: Why Risk-Reward Favors Longs
+#### 4. The Setup: Why Risk-Reward Favors Longs
 
 Let's be honest about the asymmetry here:
 
@@ -510,7 +510,7 @@ That's roughly a **2:1 reward-to-risk** with a high-quality, cash-gushing, monop
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear case on Apple boils down to: "It's gone up a lot, and the multiple looks high." Both can be true *and* the stock can keep working — because the fundamentals are accelerating, the catalyst calendar is loaded, smart money is accumulating, and the AI thesis is shifting in Apple's favor.
 
@@ -523,7 +523,7 @@ The bear delivered a polished argument, but read it carefully and you'll notice 
 
 ---
 
-## 1. The "Cherry-Picked Reacceleration" Charge Falls Apart Under Scrutiny
+#### 1. The "Cherry-Picked Reacceleration" Charge Falls Apart Under Scrutiny
 
 The bear claims Q2-FY26's 16.6% growth is against an "easy comp." Let's check the tape:
 
@@ -537,7 +537,7 @@ The bear claims Q2-FY26's 16.6% growth is against an "easy comp." Let's check th
 
 ---
 
-## 2. The "Distribution Layer" Critique Reveals the Bear Doesn't Understand Apple's Business Model
+#### 2. The "Distribution Layer" Critique Reveals the Bear Doesn't Understand Apple's Business Model
 
 The bear says "where's the monetization model?" — let me show him:
 
@@ -554,7 +554,7 @@ The bear says "where's the monetization model?" — let me show him:
 
 ---
 
-## 3. Valuation Math — The Bear's Numbers Actually Support the Bull Case
+#### 3. Valuation Math — The Bear's Numbers Actually Support the Bull Case
 
 Let's redo the math the bear "did":
 
@@ -567,7 +567,7 @@ Let's redo the math the bear "did":
 
 ---
 
-## 4. On Technicals — The Bear is Reading the Same Indicator and Drawing the Wrong Conclusion
+#### 4. On Technicals — The Bear is Reading the Same Indicator and Drawing the Wrong Conclusion
 
 I'll concede this is the bear's strongest section, but he's still wrong on the key inference:
 
@@ -578,7 +578,7 @@ I'll concede this is the bear's strongest section, but he's still wrong on the k
 
 ---
 
-## 5. Macro Risks — Real But Cuts Both Ways
+#### 5. Macro Risks — Real But Cuts Both Ways
 
 - **Iran war:** I didn't dismiss it; I observed that AAPL has rallied 28% *during* it. That's not recency bias — that's the market efficiently pricing the actual operational impact, which has been minimal because Apple's component flow goes through Pacific routes, not Hormuz. The bear is conflating energy supply chains (which transit Hormuz) with semiconductor supply chains (which don't).
 - **Consumer wobble:** Yes, tomatoes are up 40%. But Apple's customer base is the **upper-income tier most insulated from inflation**. iPhone ASPs have been rising while volumes hold. The "$1,200 iPhone gets deferred" thesis has been wrong every cycle for 5 years.
@@ -587,7 +587,7 @@ I'll concede this is the bear's strongest section, but he's still wrong on the k
 
 ---
 
-## 6. The Bear's Scenario Tree is Rigged
+#### 6. The Bear's Scenario Tree is Rigged
 
 Let me take the bear's table and fix the probabilities honestly:
 
@@ -604,7 +604,7 @@ The bear's "right time to buy was March at $245" is **hindsight pseudo-wisdom**.
 
 ---
 
-## 7. The Real Question the Bear Won't Answer
+#### 7. The Real Question the Bear Won't Answer
 
 The bear keeps saying "wait for $280-290." Fine — what's the catalyst that *gets us there*?
 
@@ -616,7 +616,7 @@ The bear keeps saying "wait for $280-290." Fine — what's the catalyst that *ge
 
 ---
 
-## Closing: Quality + Momentum + Catalyst = The Setup You Wait Years For
+#### Closing: Quality + Momentum + Catalyst = The Setup You Wait Years For
 
 The bear's final line — "this is a stock everyone wants to own because it's gone up" — is rhetorically clever but factually wrong. According to the sentiment report, **r/investing has zero AAPL discussion**, StockTwits is only 62% bullish among labeled posts, and there's a **vocal valuation-skeptic minority on retail platforms**. This is not euphoria. This is what *early* re-rating looks like — analyst upgrades coming through, smart money positioning, technical breakout, but retail skepticism still present.
 
@@ -633,7 +633,7 @@ The bear's Round 3 was his most aggressive — and his most revealing. Let me sh
 
 ---
 
-## 1. The "Gotcha" That Wasn't: Position Sizing ≠ Thesis Concession
+#### 1. The "Gotcha" That Wasn't: Position Sizing ≠ Thesis Concession
 
 The bear's headline argument is that I "conceded the tactical case" by saying add on pullbacks to $300-306 and full size at $290. He calls this the bear case. **It isn't — and the conflation matters.**
 
@@ -649,7 +649,7 @@ And here's what the bear keeps ducking: **he has no plan if AAPL goes to $330 fi
 
 ---
 
-## 2. The Growth Comp Critique Cuts Both Ways — And the Bear Picked the Wrong Side
+#### 2. The Growth Comp Critique Cuts Both Ways — And the Bear Picked the Wrong Side
 
 The bear says GOOGL at 22x and META at 25x are the honest comps. Let's run with that:
 
@@ -670,7 +670,7 @@ Apple at 32.5x has:
 
 ---
 
-## 3. The AI Monetization Question — Let Me Actually Answer It
+#### 3. The AI Monetization Question — Let Me Actually Answer It
 
 The bear demanded specifics. Fair. Here they are:
 
@@ -687,7 +687,7 @@ The bear says consensus has Apple Intelligence Pro at "<$5B." Fine — that's *c
 
 ---
 
-## 4. The FCF Yield Math — The Bear Made the Mistake, Not Me
+#### 4. The FCF Yield Math — The Bear Made the Mistake, Not Me
 
 The bear's Round 3 attempted gotcha: "yield-on-cost ≠ forward yield." He's technically correct on the definitions but **completely misses the point I was making.**
 
@@ -699,7 +699,7 @@ The bear's "honest" comparison reaches the same conclusion I did — he just fra
 
 ---
 
-## 5. The Technical Argument — I'll Take the Bear's Own Source
+#### 5. The Technical Argument — I'll Take the Bear's Own Source
 
 The bear demanded a study on RSI > 80 forward returns. Fair point — I overreached on the specific claim. Let me sharpen it with what's actually defensible:
 
@@ -710,7 +710,7 @@ The bear demanded a study on RSI > 80 forward returns. Fair point — I overreac
 
 ---
 
-## 6. Macro — The Bear's Own Logic Defeats His Conclusion
+#### 6. Macro — The Bear's Own Logic Defeats His Conclusion
 
 - **Iran demand-side risk:** The bear says oil to $120 = recession = iPhone deferrals. **But oil is currently NOT at $120, the truce-extension narrative is in play, and Apple has been growing 16.6% through this entire war.** He's pricing a tail scenario as a base case. If Iran escalates, AAPL goes down — *along with everything else, including the bear's cash position which gets eroded by inflation.* In a global recession, **AAPL outperforms because of flight-to-quality dynamics in mega-cap.** 2020 demonstrated this perfectly.
 - **China:** The bear cited Q1-FY24 -13% China revenue. Yes — and Apple navigated through it. Stock is at all-time highs *despite* persistent China noise. The bear keeps presenting known, priced-in risks as fresh bombs.
@@ -719,7 +719,7 @@ The bear demanded a study on RSI > 80 forward returns. Fair point — I overreac
 
 ---
 
-## 7. The Real Scenario Tree — Honest Probabilities
+#### 7. The Real Scenario Tree — Honest Probabilities
 
 The bear claims my probability adjustments were "vibes." Let me defend them with actual base rates:
 
@@ -737,7 +737,7 @@ The bear's "5-condition AND statement" attack is statistical sophistry. Catalyst
 
 ---
 
-## 8. What I'm Engaging With That the Bear Demanded
+#### 8. What I'm Engaging With That the Bear Demanded
 
 He claimed I dodged. Let me address each directly:
 
@@ -748,7 +748,7 @@ He claimed I dodged. Let me address each directly:
 
 ---
 
-## Closing: This Is the Setup
+#### Closing: This Is the Setup
 
 Strip away both sides' rhetoric. Here's what we agree on:
 - AAPL is a high-quality business with reaccelerating fundamentals
@@ -777,7 +777,7 @@ The bear's Round 4 was rhetorically his sharpest yet. He found a real number in 
 
 ---
 
-## 1. The "+1.4% Over 3 Months" Gotcha Is a Frame, Not a Refutation
+#### 1. The "+1.4% Over 3 Months" Gotcha Is a Frame, Not a Refutation
 
 The bear's headline is that my own probability-weighted return is below T-bills over 3 months. Let's deal with this honestly.
 
@@ -793,7 +793,7 @@ The honest framing: **Over 90 days, this is roughly a coin flip with mild positi
 
 ---
 
-## 2. Position Sizing — The Bear Still Doesn't Understand the Difference
+#### 2. Position Sizing — The Bear Still Doesn't Understand the Difference
 
 The bear repeats: "If $312 is good, why hold back capital?" Let me make this concrete with numbers he can't dismiss:
 
@@ -809,7 +809,7 @@ That's not sophistry — that's how every credible institutional book is run. Th
 
 ---
 
-## 3. The AI Monetization Pressure Test — The Bear Conceded More Than He Realizes
+#### 3. The AI Monetization Pressure Test — The Bear Conceded More Than He Realizes
 
 Re-read the bear's pressure test of my five bullets. What he actually conceded:
 
@@ -827,7 +827,7 @@ Re-read the bear's pressure test of my five bullets. What he actually conceded:
 
 ---
 
-## 4. The Gordon Growth Math — Let Me Finish What I Started
+#### 4. The Gordon Growth Math — Let Me Finish What I Started
 
 The bear says I'm "confused about my own equation" because Gordon assumes constant multiple. **He's right that constant multiple is the assumption — and he's wrong that this defeats the bull case.** Here's why:
 
@@ -843,7 +843,7 @@ And his "10-year median P/E ~22x" cherry-picks the 2014-2019 era when AAPL was a
 
 ---
 
-## 5. The Comps — The Bear's "Honest" Set Doesn't Survive His Own Test
+#### 5. The Comps — The Bear's "Honest" Set Doesn't Survive His Own Test
 
 The bear says GOOGL at 22x is the right comp because "same regulatory risk, same AI disruption risk, slower growth." Let's test:
 
@@ -855,7 +855,7 @@ The bear says GOOGL at 22x is the right comp because "same regulatory risk, same
 
 ---
 
-## 6. The Technical Concession the Bear Misread
+#### 6. The Technical Concession the Bear Misread
 
 I conceded my specific RSI > 80 forward-return claim was overreach. **That's intellectual honesty, not thesis collapse.** The actual technical case:
 
@@ -869,7 +869,7 @@ The bear keeps citing the technical report as if it's a SELL recommendation. **I
 
 ---
 
-## 7. The Macro Argument — 2022 Cuts Both Ways
+#### 7. The Macro Argument — 2022 Cuts Both Ways
 
 The bear's strongest macro point: AAPL fell -31% in 2022, worse than the S&P. True. **What were the conditions?**
 - Forward P/E at the start of 2022: **30x** (similar to today)
@@ -887,7 +887,7 @@ Now compare to today:
 
 ---
 
-## 8. The Falsification Test — Refined
+#### 8. The Falsification Test — Refined
 
 The bear correctly challenged my falsification triggers as "too deep." Fair. Let me tighten them:
 
@@ -905,7 +905,7 @@ These trigger **before** catastrophic damage and give actionable risk management
 
 ---
 
-## 9. The Real Asymmetry
+#### 9. The Real Asymmetry
 
 Let me close with the math that actually matters — the **12-month expected value** the bear keeps ducking:
 
@@ -922,7 +922,7 @@ Compare to T-bills at 5%. **AAPL offers ~750 bps of excess return for taking equ
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear won the 90-day argument. **He didn't win the trade.**
 
@@ -950,7 +950,7 @@ The bear delivered his most confident close yet. He's done what skilled bears al
 
 ---
 
-## 1. The "Manufactured Probabilities" Charge Cuts Both Ways — Hard
+#### 1. The "Manufactured Probabilities" Charge Cuts Both Ways — Hard
 
 The bear's centerpiece in Round 6 is that I assigned 60% probability to outcomes ≥ $365 and that this is "statistically untenable." He then offers his own table assigning **45% probability to negative outcomes** and calls it "neutral base rates."
 
@@ -966,7 +966,7 @@ The right framing: **Even on the bear's "neutral" probabilities, AAPL delivers +
 
 ---
 
-## 2. The Sharpe Math the Bear Won't Compute
+#### 2. The Sharpe Math the Bear Won't Compute
 
 The bear repeatedly anchors to "T-bills give you 5% risk-free." Fair. But he never computes the **risk-adjusted comparison.**
 
@@ -985,7 +985,7 @@ Against that real comparison set:
 
 ---
 
-## 3. The "Buffett Sold Half" Argument — Reframed Correctly
+#### 3. The "Buffett Sold Half" Argument — Reframed Correctly
 
 The bear's strongest rhetorical hit: "Buffett sold half in 2024 below $200 — what does $312 say?"
 
@@ -1000,7 +1000,7 @@ Let me give you the **real** context Buffett provided:
 
 ---
 
-## 4. The "Averaging Down Disaster" Examples Are Survivor-Bias in Reverse
+#### 4. The "Averaging Down Disaster" Examples Are Survivor-Bias in Reverse
 
 The bear's most ominous warning: META -77%, NFLX -76%, PYPL -80%. "Quality businesses, catastrophic averaging down."
 
@@ -1016,7 +1016,7 @@ The bear's most ominous warning: META -77%, NFLX -76%, PYPL -80%. "Quality busin
 
 ---
 
-## 5. The Comp Set — One More Time, With Correct Data
+#### 5. The Comp Set — One More Time, With Correct Data
 
 The bear claims: "GOOGL averaged 13-14% revenue growth over 8 quarters; AAPL 6-8%. Two-year stacked, GOOGL faster."
 
@@ -1041,7 +1041,7 @@ Now factor in the **quality differential:**
 
 ---
 
-## 6. The Multiple-Compression History — Context Matters
+#### 6. The Multiple-Compression History — Context Matters
 
 The bear: "AAPL's forward multiple has compressed from 32x to 22x three times in five years."
 
@@ -1060,7 +1060,7 @@ The bear: "AAPL's forward multiple has compressed from 32x to 22x three times in
 
 ---
 
-## 7. The Risk-Reward Math — The Bear's Most Misleading Section
+#### 7. The Risk-Reward Math — The Bear's Most Misleading Section
 
 The bear's killer line: **"You're risking $12 to make $1.40. -8.5x risk-reward."**
 
@@ -1081,7 +1081,7 @@ Expected gain path:
 
 ---
 
-## 8. The "Why Now and Not Later" Question — Actually Answered
+#### 8. The "Why Now and Not Later" Question — Actually Answered
 
 The bear's challenge: "If 12-month thesis is real, waiting 30-60 days costs nothing."
 
@@ -1103,7 +1103,7 @@ The bear has it backward: **the cost of waiting isn't time value; it's the loss 
 
 ---
 
-## 9. The Strongest Bear Point — Honestly Engaged
+#### 9. The Strongest Bear Point — Honestly Engaged
 
 The single best argument the bear made across seven rounds: **"AAPL trades at the 95th percentile of its post-2020 forward P/E range, with RSI 79, 13% above 50 SMA."**
 
@@ -1120,7 +1120,7 @@ The honest synthesis: **AAPL at $312 is fully valued for the current information
 
 ---
 
-## Final Bull Recommendation — Disciplined and Defensible
+#### Final Bull Recommendation — Disciplined and Defensible
 
 The bear's closing was: **"Don't pay $312 to feel comfortable. Pay $280-290 to be right."**
 
@@ -1159,7 +1159,7 @@ I appreciate the bull's confidence, but let me show you why this argument is exa
 
 ---
 
-## 1. The "Reacceleration" Narrative Is Cherry-Picked
+#### 1. The "Reacceleration" Narrative Is Cherry-Picked
 
 The bull leans hard on Q2-FY26's 16.6% YoY growth. Let me give you the honest version:
 
@@ -1172,7 +1172,7 @@ You can't simultaneously argue "asset-light model, no need for capex" *and* "R&D
 
 ---
 
-## 2. The AI "Distribution Layer" Thesis Is a Hope, Not a Plan
+#### 2. The AI "Distribution Layer" Thesis Is a Hope, Not a Plan
 
 The bull's centerpiece — "Apple wins by being the distribution layer" — sounds elegant but it's exactly the kind of hand-wavy thesis that gets sold at tops.
 
@@ -1183,7 +1183,7 @@ The bull's centerpiece — "Apple wins by being the distribution layer" — soun
 
 ---
 
-## 3. Valuation Math the Bull Won't Do
+#### 3. Valuation Math the Bull Won't Do
 
 Let me run the actual numbers the bull glossed over:
 
@@ -1195,7 +1195,7 @@ Let me run the actual numbers the bull glossed over:
 
 ---
 
-## 4. The Technicals Are Screaming "Don't Chase" — Even Your Own Report Says So
+#### 4. The Technicals Are Screaming "Don't Chase" — Even Your Own Report Says So
 
 The bull called overbought conditions "trend confirmation." That's revisionist:
 
@@ -1207,7 +1207,7 @@ The bull called overbought conditions "trend confirmation." That's revisionist:
 
 ---
 
-## 5. Macro Risks the Bull Dismissed Too Quickly
+#### 5. Macro Risks the Bull Dismissed Too Quickly
 
 - **U.S.-Iran war in month four.** The bull didn't mention this once. Apple has massive sea-freight exposure through the Strait of Hormuz region for components. A truce collapse = oil to $120+ = consumer discretionary crater = iPhone upgrade cycles delayed.
 - **Consumer is wobbling.** The macro report explicitly cited "shoe price hikes, tomato +40%, shaky consumer." Apple's $1,200 iPhones and $3,500 Vision Pros are *exactly* the discretionary purchases that get deferred when consumers tighten up.
@@ -1216,7 +1216,7 @@ The bull called overbought conditions "trend confirmation." That's revisionist:
 
 ---
 
-## 6. The Real Risk-Reward (Honestly Calculated)
+#### 6. The Real Risk-Reward (Honestly Calculated)
 
 The bull's "2:1 setup" assumes BofA's $380 target hits and the 50 SMA holds as the floor. Let me give you the honest scenario tree:
 
@@ -1233,7 +1233,7 @@ The right time to buy AAPL was **March at $245**, when RSI was washed out and no
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bull asks "what's the catalyst that breaks this trend?" Wrong question. The right question is: **what catalyst justifies paying 32.5x forward earnings for a stock 13% above its 50-day moving average with RSI at 80, into a Fed meeting, an Iran war, a softening consumer, and an unproven AI monetization story?**
 
@@ -1248,7 +1248,7 @@ The bull's rebuttal was rhetorically polished and substantively hollow. Strip aw
 
 ---
 
-## 1. The Bull Just Conceded the Whole Tactical Case — Then Pretended He Didn't
+#### 1. The Bull Just Conceded the Whole Tactical Case — Then Pretended He Didn't
 
 Re-read the bull's Round 2 carefully. He literally writes:
 
@@ -1260,7 +1260,7 @@ So let's be honest about what we're actually debating: Is initiating a new long 
 
 ---
 
-## 2. The Growth Narrative Math Doesn't Survive Honest Scrutiny
+#### 2. The Growth Narrative Math Doesn't Survive Honest Scrutiny
 
 The bull says NVDA at 35x and MSFT at 33x justify AAPL at 32.5x. **This is exactly the comparison that exposes the problem:**
 
@@ -1274,7 +1274,7 @@ The bull says NVDA at 35x and MSFT at 33x justify AAPL at 32.5x. **This is exact
 
 ---
 
-## 3. The "Distribution Layer" Defense Is Built on Sand
+#### 3. The "Distribution Layer" Defense Is Built on Sand
 
 The bull's response to "where's the AI monetization?" was:
 
@@ -1291,7 +1291,7 @@ Concrete questions the bull won't answer:
 
 ---
 
-## 4. The Valuation Math Rebuttal is Where the Bull Fully Reveals Himself
+#### 4. The Valuation Math Rebuttal is Where the Bull Fully Reveals Himself
 
 This is where I want you to pay close attention, because the bull's argument here is genuinely misleading:
 
@@ -1308,7 +1308,7 @@ The honest comparison: 2.8% FCF yield with 10% growth = roughly 12.8% required r
 
 ---
 
-## 5. The Technical Defense is Statistical Sleight of Hand
+#### 5. The Technical Defense is Statistical Sleight of Hand
 
 The bull's claim:
 > "Forward 3-6 month returns from RSI > 80 are positive on average because strong momentum begets strong momentum."
@@ -1326,7 +1326,7 @@ The histogram going from 2.07 to 0.62 is a **70% collapse in momentum accelerati
 
 ---
 
-## 6. The Macro Dismissals Are Where the Bull Stops Even Trying
+#### 6. The Macro Dismissals Are Where the Bull Stops Even Trying
 
 - **"Apple's components don't go through Hormuz."** True for direct shipping, **wrong on second-order effects.** Iran escalation = oil to $120 = global recession risk = consumer discretionary collapse = iPhone ASPs and upgrade cycles hit. The bull addressed the supply chain but ignored the demand side, which is the bigger exposure.
 - **"Upper-income consumer is insulated."** Tell that to Q1-FY24 when iPhone China revenue dropped 13%. The "premium consumer is bulletproof" thesis has been wrong repeatedly. Even premium consumers defer $1,200 phone upgrades during recessions — they just upgrade every 4 years instead of 3.
@@ -1335,7 +1335,7 @@ The histogram going from 2.07 to 0.62 is a **70% collapse in momentum accelerati
 
 ---
 
-## 7. The Real Scenario Tree — With Honest Probabilities
+#### 7. The Real Scenario Tree — With Honest Probabilities
 
 The bull "fixed" my probabilities by lowering the disappointment scenario from 35% to 20% based on... vibes. Let me defend my original numbers and add what he ignored:
 
@@ -1353,7 +1353,7 @@ The bull "fixed" my probabilities by lowering the disappointment scenario from 3
 
 ---
 
-## 8. What the Bull Won't Engage With
+#### 8. What the Bull Won't Engage With
 
 Notice what the bull never addressed in two rounds:
 
@@ -1364,7 +1364,7 @@ Notice what the bull never addressed in two rounds:
 
 ---
 
-## Bottom Line: The Bull's Own Words Make the Bear Case
+#### Bottom Line: The Bull's Own Words Make the Bear Case
 
 The bull wants to "add on pullback to $300-306, accumulate to full size on flush to $290." **Translation: $312 is a poor entry; lower prices are better entries.** That is the bear's argument. We agree on the trade — we just disagree on whether to call it bullish or bearish.
 
@@ -1387,7 +1387,7 @@ That's not a bull case. That's a closet bear case with a "BUY" sticker on it. Le
 
 ---
 
-## 1. The Position-Sizing Defense Is Sophistry — And He Knows It
+#### 1. The Position-Sizing Defense Is Sophistry — And He Knows It
 
 The bull says position sizing and thesis are "independent decisions." That's true in textbooks. **It's false in practice when you're recommending a starter at $312 and full size at $290.**
 
@@ -1403,7 +1403,7 @@ The bull's framework — "own it now, add lower, take profits higher" — sounds
 
 ---
 
-## 2. The AI Monetization Math Is Where the Bull Got Caught
+#### 2. The AI Monetization Math Is Where the Bull Got Caught
 
 The bull responded to my "show me the monetization" challenge with a five-bullet list. Let's actually pressure-test it:
 
@@ -1428,7 +1428,7 @@ The bull responded to my "show me the monetization" challenge with a five-bullet
 
 ---
 
-## 3. The Gordon Growth Math — The Bull Is Confused About His Own Equation
+#### 3. The Gordon Growth Math — The Bull Is Confused About His Own Equation
 
 The bull doubled down: "2.8% FCF yield growing at 10% = 12.8% required return per Gordon growth."
 
@@ -1444,7 +1444,7 @@ And his "8% ERP is in line with historical" claim ignores that **historical ERP 
 
 ---
 
-## 4. The Comps Argument — The Bull Just Picked His Own Pocket
+#### 4. The Comps Argument — The Bull Just Picked His Own Pocket
 
 The bull's defense of 32.5x:
 - "GOOGL at 22x has DOJ risk and AI cannibalization"
@@ -1461,7 +1461,7 @@ The bull says GOOGL's 22x is "deserved discount." Fine. **Apple has the same reg
 
 ---
 
-## 5. The Technical Argument — The Bull Conceded the Core Point
+#### 5. The Technical Argument — The Bull Conceded the Core Point
 
 Notice what just happened in Round 4. The bull said:
 
@@ -1479,7 +1479,7 @@ The bull's recommendation is to **initiate a new long at $312** (his "starter po
 
 ---
 
-## 6. The Macro Defense Is Where the Bull Substitutes Anecdote for Analysis
+#### 6. The Macro Defense Is Where the Bull Substitutes Anecdote for Analysis
 
 - **"AAPL outperforms in flight-to-quality."** Sometimes. In the **2022 bear market, AAPL drew down -31% peak to trough** — worse than the S&P (-25%). Quality didn't save it when rates rose. The bull is using 2020 (a Fed-rescued V-recovery) as his template; 2022 is the better analog for a rate-driven multiple compression environment.
 - **"Apple has digested 4.7% yields."** Yes — *while AI narrative provided offsetting tailwind.* The bull's argument is essentially "the rally happened, therefore the rally is justified." That's circular. The relevant question is what happens when one of the two pillars (AI narrative, accommodative liquidity) cracks.
@@ -1487,7 +1487,7 @@ The bull's recommendation is to **initiate a new long at $312** (his "starter po
 
 ---
 
-## 7. The Scenario Tree — Even On His Own Numbers, He Loses
+#### 7. The Scenario Tree — Even On His Own Numbers, He Loses
 
 Let me re-show the bull's table with one critical observation:
 
@@ -1514,7 +1514,7 @@ He calls these "correlated." That's actually true — but the correlation runs *
 
 ---
 
-## 8. The Falsification Test the Bull Failed
+#### 8. The Falsification Test the Bull Failed
 
 I asked: what invalidates the thesis? He gave four conditions:
 - Services growth <8% (current ~12-14%)
@@ -1528,7 +1528,7 @@ A real falsification test triggers **before catastrophic loss**, not after. The 
 
 ---
 
-## Bottom Line: The Trade the Bull Is Recommending
+#### Bottom Line: The Trade the Bull Is Recommending
 
 Strip away every page of debate and look at what the bull is asking you to do:
 
@@ -1557,7 +1557,7 @@ The bull's Round 5 was his most desperate yet. Caught with a +1.4% expected thre
 
 ---
 
-## 1. The 12-Month Table Is a Manufactured Result, Not a Forecast
+#### 1. The 12-Month Table Is a Manufactured Result, Not a Forecast
 
 Look carefully at the bull's "decisive" 12-month scenario tree:
 
@@ -1594,7 +1594,7 @@ The bull's "750 bps ERP" evaporates the moment you stop assigning 60% probabilit
 
 ---
 
-## 2. The Position-Sizing PM Comparison Is Rigged
+#### 2. The Position-Sizing PM Comparison Is Rigged
 
 The bull constructed a thought experiment: Bear PM with 0% at $312, Bull PM with 2.5% at $312 + adds lower. He claims Bull PM beats Bear PM by 150-300 bps annually. **Watch what he assumed:**
 
@@ -1614,7 +1614,7 @@ Run the same exercise honestly:
 
 ---
 
-## 3. The AI Monetization "Concessions" Argument Is Linguistic Trickery
+#### 3. The AI Monetization "Concessions" Argument Is Linguistic Trickery
 
 The bull claims I "conceded" his AI monetization bullets because I called them "plausible." Let me clarify what plausible means: **possible, but not probable enough to underwrite a multiple expansion thesis.**
 
@@ -1630,7 +1630,7 @@ Let's restate what's actually true about each of his vectors:
 
 ---
 
-## 4. The Gordon Growth Defense Hits a Wall
+#### 4. The Gordon Growth Defense Hits a Wall
 
 The bull's final attempt: "Earnings yield 3.08% + growth 12% = 15% expected return, ERP ~10%."
 
@@ -1657,7 +1657,7 @@ We are at the **upper Bollinger band of valuation history**, not the middle. The
 
 ---
 
-## 5. The Comp Defense Is Where the Bull Genuinely Misled
+#### 5. The Comp Defense Is Where the Bull Genuinely Misled
 
 The bull claims AAPL deserves a 50% premium to GOOGL because GOOGL faces "existential business-model risk." Three problems:
 
@@ -1671,7 +1671,7 @@ The bull claims AAPL deserves a 50% premium to GOOGL because GOOGL faces "existe
 
 ---
 
-## 6. The Macro Defense Is "It's Different This Time"
+#### 6. The Macro Defense Is "It's Different This Time"
 
 The bull's macro defense in Round 5 reduces to: **"2022 was different because rates went up 250 bps; today they're already up, so the worst is over."**
 
@@ -1687,7 +1687,7 @@ The bull's "Fed won't let 10Y blow through 6%" is a faith-based statement, not a
 
 ---
 
-## 7. The Falsification Test "Refinement" Still Doesn't Save the Trade
+#### 7. The Falsification Test "Refinement" Still Doesn't Save the Trade
 
 The bull tightened his exit triggers:
 - Weekly close below 50 SMA ($275) = -11.9% from current
@@ -1700,7 +1700,7 @@ This is the math no professional risk manager would approve. The bull is asking 
 
 ---
 
-## 8. What the Bull Still Won't Address
+#### 8. What the Bull Still Won't Address
 
 After five rounds, the bull has not engaged with:
 
@@ -1714,7 +1714,7 @@ After five rounds, the bull has not engaged with:
 
 ---
 
-## Final Bottom Line: The Trade As It Actually Is
+#### Final Bottom Line: The Trade As It Actually Is
 
 Forget rhetoric. Here's what's measurably true:
 
@@ -1756,7 +1756,7 @@ The bull's Round 7 closed with bravado, but read what he actually wrote and you'
 
 ---
 
-## 1. The Probability Audit He Demanded — Returned With Interest
+#### 1. The Probability Audit He Demanded — Returned With Interest
 
 The bull's Round 7 centerpiece is auditing my probability assignments and calling them "manufactured." Fine — let me audit his with the same rigor.
 
@@ -1789,7 +1789,7 @@ That's *negative* expected value over 12 months when you anchor probabilities to
 
 ---
 
-## 2. The Sharpe Math He Claims I Won't Compute — Computed
+#### 2. The Sharpe Math He Claims I Won't Compute — Computed
 
 The bull says I won't engage with risk-adjusted comparisons. **Let me oblige.**
 
@@ -1815,7 +1815,7 @@ The bull's portfolio defense ("AAPL vs. equity sleeve, not vs. T-bills") actuall
 
 ---
 
-## 3. The Buffett Defense Just Made My Case Stronger
+#### 3. The Buffett Defense Just Made My Case Stronger
 
 The bull's Round 7 Buffett defense is — and I say this without exaggeration — **the most damaging self-inflicted wound of the entire debate.** Let's read what he wrote:
 
@@ -1829,7 +1829,7 @@ And the "tax management" defense doesn't hold up either. **Berkshire could have 
 
 ---
 
-## 4. The META/NFLX "Recovery" Argument Inverts His Own Logic
+#### 4. The META/NFLX "Recovery" Argument Inverts His Own Logic
 
 The bull's response to the META/NFLX/PYPL averaging-down disasters: "META came back to $700, NFLX to $1,000 — averaging down was vindicated."
 
@@ -1845,7 +1845,7 @@ And his "AAPL has expanding margins, not deteriorating fundamentals" defense ign
 
 ---
 
-## 5. The Multiple-Compression "Each Time Was Different" Defense Is Always Wrong
+#### 5. The Multiple-Compression "Each Time Was Different" Defense Is Always Wrong
 
 The bull's response to my three historical compressions: "Each had a specific cause; none of those causes are present today."
 
@@ -1860,7 +1860,7 @@ What the bull says isn't present today:
 
 ---
 
-## 6. The Risk-Reward Math the Bull Recomputed in His Own Favor
+#### 6. The Risk-Reward Math the Bull Recomputed in His Own Favor
 
 The bull's defense of his -8.5x risk-reward problem: "Stop loss is the bound on max loss, not expected loss. Expected loss is -4.5%."
 
@@ -1884,7 +1884,7 @@ The bull's recomputation worked only because he assigned an artificially low los
 
 ---
 
-## 7. The Catalyst Optionality Argument Fails Standard Event-Study Analysis
+#### 7. The Catalyst Optionality Argument Fails Standard Event-Study Analysis
 
 The bull's "buying ahead of catalyst captures optionality" is a well-worn equity argument. **It's also empirically wrong for AAPL specifically.**
 
@@ -1902,7 +1902,7 @@ And the broader empirical literature on event-driven trading is clear: **buying 
 
 ---
 
-## 8. The "Fully Valued" Admission Is the End of the Bull Case
+#### 8. The "Fully Valued" Admission Is the End of the Bull Case
 
 I want to return to what the bull wrote in Section 9 of Round 7, because it's the moment the debate effectively ended:
 
@@ -1921,7 +1921,7 @@ When a stock is "fully valued," the disciplined action is one of:
 
 ---
 
-## 9. The Convergence That Should End the Debate
+#### 9. The Convergence That Should End the Debate
 
 The bull noted in Round 7 that we're "60% aligned on what existing holders should do." Let's make this explicit because **the alignment is actually closer to 80%:**
 
@@ -1941,7 +1941,7 @@ But here's the key: **that 4-7% difference is the entire margin of safety on a "
 
 ---
 
-## 10. The Final Math — Stripped of Rhetoric
+#### 10. The Final Math — Stripped of Rhetoric
 
 Let me lay out what an institutional risk committee would actually see:
 
@@ -1961,7 +1961,7 @@ Let me lay out what an institutional risk committee would actually see:
 
 ---
 
-## Final Bear Recommendation: SELL Into Strength / Do Not Initiate
+#### Final Bear Recommendation: SELL Into Strength / Do Not Initiate
 
 **For existing longs:**
 - **Trim 25-50% above $310** to lock in gains from the 28% nine-week rally

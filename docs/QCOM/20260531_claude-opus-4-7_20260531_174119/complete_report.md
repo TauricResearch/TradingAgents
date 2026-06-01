@@ -5,14 +5,14 @@ Generated: 2026-05-31 17:41:19
 ## I. Analyst Team Reports
 
 ### Market Analyst
-# QCOM (QUALCOMM Inc.) — Technical Analysis Report
+#### QCOM (QUALCOMM Inc.) — Technical Analysis Report
 **As of 2026-05-31 (last trading day: 2026-05-29, close $251.02)**
 
 > ⚠️ Note: The verification snapshot tool was unavailable in this environment. All numbers below come directly from `get_stock_data` and `get_indicators` tool outputs, with explicit dates cited.
 
 ---
 
-## 1. Big-Picture Regime
+#### 1. Big-Picture Regime
 QCOM has undergone a **stunning regime change** in the past five weeks. Recapping the price journey from the OHLCV data:
 
 - **Nov 2025 → mid-Apr 2026: Multi-month downtrend.** Close fell from ~$178.65 (Nov 3, 2025) to a cycle low of **$124.07 (Apr 7, 2026)** — roughly a 30% drawdown.
@@ -23,7 +23,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 ---
 
-## 2. Trend-Structure Indicators
+#### 2. Trend-Structure Indicators
 
 ### close_200_sma — Long-term trend (now bullish)
 - **2026-05-29: 161.33** vs. close **251.02**.
@@ -41,7 +41,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 ---
 
-## 3. Momentum Indicators
+#### 3. Momentum Indicators
 
 ### MACD & MACD Histogram
 - **MACD: 22.03** on May 29 — the highest reading in the dataset. Up from 8.99 on May 1.
@@ -56,7 +56,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 ---
 
-## 4. Volatility Indicators
+#### 4. Volatility Indicators
 
 ### Bollinger Upper Band (boll_ub)
 - **2026-05-29: 259.24**; close **251.02** — price is *just below* the upper band.
@@ -70,7 +70,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 ---
 
-## 5. Synthesis & Actionable Read
+#### 5. Synthesis & Actionable Read
 
 **Trend:** Unambiguously bullish on every timeframe. 200-SMA rising, 50-SMA above 200-SMA (golden cross), price above 10-EMA, 10-EMA above 50-SMA above 200-SMA — perfect bullish stack.
 
@@ -91,7 +91,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 
 ---
 
-## 6. Key Levels & Indicators — Summary Table
+#### 6. Key Levels & Indicators — Summary Table
 
 | Category | Indicator | Latest Value (2026-05-29) | Reading | Signal |
 |---|---|---|---|---|
@@ -115,7 +115,7 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 **Overall Sentiment:** **Bullish** (Score: 7.2/10)
 **Confidence:** Medium
 
-## QCOM Sentiment Report — 2026-05-24 to 2026-05-31
+#### QCOM Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1. Source-by-Source Breakdown
 
@@ -190,13 +190,13 @@ This pattern — a long base, a powerful breakout on volume, and a near-vertical
 ### News Analyst
 I have sufficient information to construct the report. Let me synthesize the findings.
 
-# QCOM (Qualcomm Inc.) — News & Macro Research Report
+#### QCOM (Qualcomm Inc.) — News & Macro Research Report
 **Analysis Date:** May 31, 2026
 **Exchange:** NASDAQ (NMS) | **Sector:** Technology / Semiconductors
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 Qualcomm enters the final week of May 2026 in a strongly bullish technical and fundamental posture. The stock has rallied **~35.5% since its last earnings report** and **~100% over the past six weeks**, hitting **fresh record highs** on the back of a transformational AI inference deal with **ByteDance** — described in the press as "the biggest AI deal in Qualcomm's history." Supporting tailwinds include record highs in major US indexes driven by a US–Iran ceasefire/truce and surging AI capex. However, the long-shadow risk remains: **Apple's in-house modem program is now actively eating into Qualcomm's largest single customer base**, and analysts remain cautious despite the run-up.
 
@@ -204,7 +204,7 @@ Computex 2026 (kicking off June 2 in Taipei) is the immediate next catalyst — 
 
 ---
 
-## 2. Company-Specific Catalysts
+#### 2. Company-Specific Catalysts
 
 ### 2.1 Bullish — ByteDance AI Deal (Primary Catalyst)
 - Qualcomm signed what 24/7 Wall St. calls **"the biggest AI deal in its history"** with ByteDance, validating Qualcomm's pivot from smartphone-centric revenue toward AI inference silicon (likely featuring its Cloud AI 100 / AI 200 family or follow-on parts).
@@ -233,7 +233,7 @@ Computex 2026 (kicking off June 2 in Taipei) is the immediate next catalyst — 
 
 ---
 
-## 3. Macroeconomic Backdrop
+#### 3. Macroeconomic Backdrop
 
 ### 3.1 Risk-On / Equity Tailwinds
 - **S&P 500 and Nasdaq 100 hit record highs** during the week, driven by:
@@ -253,7 +253,7 @@ Computex 2026 (kicking off June 2 in Taipei) is the immediate next catalyst — 
 
 ---
 
-## 4. Trading-Relevant Insights & Actionable Takeaways
+#### 4. Trading-Relevant Insights & Actionable Takeaways
 
 | Theme | Direction | Trade Implication for QCOM |
 |---|---|---|
@@ -269,7 +269,7 @@ Computex 2026 (kicking off June 2 in Taipei) is the immediate next catalyst — 
 
 ---
 
-## 5. Key Risks to Monitor This Week
+#### 5. Key Risks to Monitor This Week
 
 1. **Computex 2026 (June 2 onward)** — Nvidia PC chip announcement could overshadow Qualcomm's narrative.
 2. **Apple WWDC 2026 (June)** — Any modem/silicon roadmap acceleration is materially negative for QCOM.
@@ -279,7 +279,7 @@ Computex 2026 (kicking off June 2 in Taipei) is the immediate next catalyst — 
 
 ---
 
-## 6. Summary Table — Key Points at a Glance
+#### 6. Summary Table — Key Points at a Glance
 
 | # | Item | Type | Impact on QCOM | Time Horizon |
 |---|------|------|----------------|--------------|
@@ -303,14 +303,14 @@ Computex 2026 (kicking off June 2 in Taipei) is the immediate next catalyst — 
 ### Fundamentals Analyst
 I have comprehensive data. Let me compile the fundamental analysis report.
 
-# QUALCOMM Incorporated (QCOM) — Fundamental Analysis Report
+#### QUALCOMM Incorporated (QCOM) — Fundamental Analysis Report
 **Analysis Date:** May 31, 2026  
 **Sector / Industry:** Technology / Semiconductors  
 **Exchange:** NASDAQ (NMS)
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 QUALCOMM Incorporated is a global leader in wireless technology, mobile chipsets (Snapdragon), RF front-end, automotive semiconductor solutions, and IoT/edge AI silicon. The company also generates high-margin licensing revenue (QTL) from its dominant patent portfolio in CDMA, OFDMA, and 5G/6G standards.
 
@@ -326,7 +326,7 @@ The 50-day average ($165.67) sits very close to the 200-day average ($162.46), s
 
 ---
 
-## 2. Valuation Metrics
+#### 2. Valuation Metrics
 
 | Metric | Value | Interpretation |
 |---|---|---|
@@ -341,7 +341,7 @@ The 50-day average ($165.67) sits very close to the 200-day average ($162.46), s
 
 ---
 
-## 3. Income Statement Trends (Quarterly)
+#### 3. Income Statement Trends (Quarterly)
 
 | Quarter | Revenue ($B) | Gross Profit ($B) | Op. Income ($B) | Net Income ($B) | Diluted EPS |
 |---|---|---|---|---|---|
@@ -363,7 +363,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 
 ---
 
-## 4. Profitability & Returns
+#### 4. Profitability & Returns
 
 | Metric | Value |
 |---|---|
@@ -377,7 +377,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 
 ---
 
-## 5. Balance Sheet Health
+#### 5. Balance Sheet Health
 
 | Item (Q2 FY26, Mar-26) | Value |
 |---|---|
@@ -400,7 +400,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 
 ---
 
-## 6. Cash Flow Analysis
+#### 6. Cash Flow Analysis
 
 | Metric (Quarterly) | Q1 FY25 | Q2 FY25 | Q3 FY25 | Q4 FY25 | Q1 FY26 | Q2 FY26 |
 |---|---|---|---|---|---|---|
@@ -418,7 +418,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 
 ---
 
-## 7. Strengths, Risks & Catalysts
+#### 7. Strengths, Risks & Catalysts
 
 ### Strengths
 - **Dominant IP moat** in 5G/6G with high-margin QTL licensing.
@@ -443,7 +443,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 
 ---
 
-## 8. Actionable Insights for Traders
+#### 8. Actionable Insights for Traders
 
 1. **Underlying earnings strength is solid** — core operating income ($2.3–$3.4B/qtr) is stable. Don't be fooled by GAAP volatility from tax items in Q4 FY25 and Q2 FY26.
 2. **Valuation is reasonable, not cheap.** 23.6x forward P/E with PEG of ~1.07 means upside requires either growth re-acceleration or multiple expansion — neither imminent.
@@ -454,7 +454,7 @@ R&D rose from $2.22B (Q2 FY25) → **$2.46B (Q2 FY26)**, reflecting commitment t
 
 ---
 
-## 9. Summary Table — Key Fundamentals at a Glance
+#### 9. Summary Table — Key Fundamentals at a Glance
 
 | Category | Metric | Value | Verdict |
 |---|---|---|---|
@@ -497,7 +497,7 @@ Look, I've heard the bearish hand-wringing — "the stock has run too far," "App
 
 ---
 
-## 1. The ByteDance Deal Changes the Entire Narrative
+#### 1. The ByteDance Deal Changes the Entire Narrative
 
 The bears have been hammering "Qualcomm is just smartphones" for years. That story died this month. The press is calling the ByteDance AI inference deal **"the biggest AI deal in Qualcomm's history"** — and that's not retail hype, that's 24/7 Wall St. and Barchart reporting it.
 
@@ -511,7 +511,7 @@ Here's why this matters more than the bears want to admit:
 
 ---
 
-## 2. Apple Modem Risk is the Most Over-Discussed Story in Semis
+#### 2. Apple Modem Risk is the Most Over-Discussed Story in Semis
 
 Yes, Apple is bringing modems in-house. This has been known since **2019**. It's been baked into every analyst model for half a decade. And meanwhile:
 
@@ -527,7 +527,7 @@ The bears are fighting a 2019 thesis. Qualcomm has been **actively diversifying*
 
 ---
 
-## 3. The Technicals Bears Are Misreading the Setup
+#### 3. The Technicals Bears Are Misreading the Setup
 
 Let's tackle the "RSI divergence, parabolic, overbought" argument:
 
@@ -541,7 +541,7 @@ Let's tackle the "RSI divergence, parabolic, overbought" argument:
 
 ---
 
-## 4. The Fundamentals Justify the Move (and Then Some)
+#### 4. The Fundamentals Justify the Move (and Then Some)
 
 Strip away the GAAP noise from tax provisions and look at the actual business:
 
@@ -561,7 +561,7 @@ A company growing forward EPS 14%, generating $12.5B FCF, returning $14.5B to sh
 
 ---
 
-## 5. The Catalyst Path Forward is Loaded
+#### 5. The Catalyst Path Forward is Loaded
 
 - **June 2: Computex 2026 keynote** — Snapdragon/Dragonwing AI PC and data center announcements. The bear narrative says "NVDA might launch a Windows chip!" — but QCOM has a *two-year head start* with Microsoft on Snapdragon X in Copilot+ PCs. NVDA entering validates the market QCOM created; it doesn't kill it.
 - **June 4: Ex-dividend** — income flows incoming.
@@ -570,7 +570,7 @@ A company growing forward EPS 14%, generating $12.5B FCF, returning $14.5B to sh
 
 ---
 
-## 6. Engaging the Bear Directly
+#### 6. Engaging the Bear Directly
 
 The bear case ultimately rests on three pillars:
 1. **"It's run too far, too fast"** — Momentum is not a fundamental thesis. NVDA "ran too far" at $400, $600, $800. Trends end on bad news, not on calendar dates.
@@ -581,7 +581,7 @@ Meanwhile, the bull case has **hard, current evidence**: a transformational AI d
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bears want you to sell a fundamentally re-rating business at 23x forward earnings because RSI ticked down from 88 to 70. That's not analysis — that's pattern-matching to a story that no longer fits the facts. **QCOM has transitioned from "smartphone cyclical with Apple risk" to "diversified AI silicon platform with Apple offsets."** The market is finally pricing that reality, and we're early in that re-rating, not late.
 
@@ -594,7 +594,7 @@ The bear just delivered a tour de force of pattern-matching to past blowups — 
 
 ---
 
-## 1. "ByteDance is Just a Press Release" — Then Why Are You Pricing in Failure?
+#### 1. "ByteDance is Just a Press Release" — Then Why Are You Pricing in Failure?
 
 The bear demands deal terms, unit volumes, and margins — and concludes that without them, the stock shouldn't have moved. That's fundamentally backwards from how markets work.
 
@@ -615,7 +615,7 @@ The bear's "sell-the-news" thesis only works if you believe steps 2-4 don't happ
 
 ---
 
-## 2. The Apple Math: The Bear Just Made an Arithmetic Error
+#### 2. The Apple Math: The Bear Just Made an Arithmetic Error
 
 This is where the bear's case actually breaks. Let me redo the math the bear botched:
 
@@ -632,7 +632,7 @@ When you actually do the offset math: auto growing 25% annually (it's been faste
 
 ---
 
-## 3. The Technicals: The Bear's "Distribution Day" Argument is Self-Defeating
+#### 3. The Technicals: The Bear's "Distribution Day" Argument is Self-Defeating
 
 The bear cites the May 12 (-11.5% intraday) and May 27 (-6.2%) reversals as "distribution days showing institutions selling into strength."
 
@@ -657,7 +657,7 @@ The bear's "this is SMCI" claim is intellectually lazy. The only thing they shar
 
 ---
 
-## 4. Valuation: Let's Do Real Math, Not Bear-Flavored Speculation
+#### 4. Valuation: Let's Do Real Math, Not Bear-Flavored Speculation
 
 The bear says forward EPS will get cut as analysts reduce Apple-segment estimates. **This assumes analysts haven't already modeled Apple insourcing — they have, for years.** The Apple ramp schedule has been public since 2023. The $10.64 forward EPS *already incorporates* Apple step-down assumptions. It does NOT incorporate ByteDance or follow-on AI deals.
 
@@ -673,7 +673,7 @@ That's not Boeing. That's not IBM. That's *Buffett-style* capital allocation, an
 
 ---
 
-## 5. The Catalyst Calendar: The Bear's "Trap" is My Lottery Ticket
+#### 5. The Catalyst Calendar: The Bear's "Trap" is My Lottery Ticket
 
 The bear says Computex is binary and high-bar. **Yes — and the option premium asymmetry is exactly why bulls win here.**
 
@@ -692,7 +692,7 @@ This is the same flawed logic that said "AMD entering data-center GPUs caps NVDA
 
 ---
 
-## 6. Sentiment: The Bear is Confusing Visibility with Mania
+#### 6. Sentiment: The Bear is Confusing Visibility with Mania
 
 The bear cites StockTwits 89% bullish ratio as a "contrarian sell signal." Let me offer reality:
 - StockTwits is *always* bullish on stocks that are going up. It's a momentum-trader platform. The 89% bullish ratio for a stock at all-time highs is **completely normal**, not extreme.
@@ -705,7 +705,7 @@ Real retail mania looks like GME 2021 or AMC 2021 — Reddit threads with 50,000
 
 ---
 
-## 7. Macro: The Bear's Strongest Point, and It's Still Not Enough
+#### 7. Macro: The Bear's Strongest Point, and It's Still Not Enough
 
 The bear's macro concerns — rising yields, oil, Iran truce fragility — are real. I'll give them that. But:
 
@@ -717,7 +717,7 @@ The macro argument isn't a QCOM-specific bear case. It's a "sell stocks" case dr
 
 ---
 
-## 8. The Risk/Reward Math the Bear Got Backwards
+#### 8. The Risk/Reward Math the Bear Got Backwards
 
 The bear's downside math:
 - 50-SMA at $166 = -34%
@@ -742,7 +742,7 @@ The bear is computing point-to-point worst case. The bull is computing probabili
 
 ---
 
-## Bottom Line: The Bear Has a Tactical Point, Not a Strategic One
+#### Bottom Line: The Bear Has a Tactical Point, Not a Strategic One
 
 I'll give the bear this: **at $251, fresh longs need to size carefully and use the ATR for stops.** That's tactical wisdom. The 10-EMA at $228 is the right line in the sand. I don't disagree with tightening stops on existing longs.
 
@@ -776,7 +776,7 @@ Read that twice. **The bear just admitted the bull thesis is correct on the comp
 
 ---
 
-## 1. The Bear's "Honest Math" is Their Most Dishonest Moment
+#### 1. The Bear's "Honest Math" is Their Most Dishonest Moment
 
 The bear constructed a probability table that lands at -13.1% expected value. Let me show you the rigged inputs:
 
@@ -806,7 +806,7 @@ And critically — this is a 6-12 month frame. The bull thesis plays out over 12
 
 ---
 
-## 2. The Bear Conceded The Most Important Point — Then Tried to Hide It
+#### 2. The Bear Conceded The Most Important Point — Then Tried to Hide It
 
 Watch this beautiful self-own from the bear's closing:
 
@@ -820,7 +820,7 @@ I have no problem with trimming on extension. I said it myself: tighten stops, s
 
 ---
 
-## 3. The CRWD/PANW/MU Comparisons Are The Bear's Strongest Argument — And They Prove The Bull Case
+#### 3. The CRWD/PANW/MU Comparisons Are The Bear's Strongest Argument — And They Prove The Bull Case
 
 The bear's best move was citing CRWD ($400 → -25%), PANW ($370 → -28%), and MU ($145 → -40%) as parabolic-then-retrace examples. Fair pattern recognition. **But look where those stocks are now:**
 
@@ -836,7 +836,7 @@ The bear's playbook requires perfect execution on both ends. The bull's playbook
 
 ---
 
-## 4. ByteDance: The Bear Keeps Demanding A Crystal Ball The Market Doesn't Need
+#### 4. ByteDance: The Bear Keeps Demanding A Crystal Ball The Market Doesn't Need
 
 The bear says I'm running on "faith" because I can't quote the deal terms. Let me reframe this.
 
@@ -853,7 +853,7 @@ The bear says "NVDA's H20 China saga" proves announcements can get blocked. True
 
 ---
 
-## 5. Apple Math: The Bear Is Now Arguing Against Themselves
+#### 5. Apple Math: The Bear Is Now Arguing Against Themselves
 
 The bear "calculated" $6B cumulative revenue loss over three years and called it damning. Let me put that in context:
 
@@ -868,7 +868,7 @@ On the inventory point — the bear says "+19% YoY inventory has correlated with
 
 ---
 
-## 6. The Technical Picture The Bear Won't Acknowledge
+#### 6. The Technical Picture The Bear Won't Acknowledge
 
 Let me restate what the bear cannot refute:
 
@@ -884,7 +884,7 @@ The bullish moving-average stack is the single most reliable trend indicator in 
 
 ---
 
-## 7. The Seven-Pillar Argument is Bear Sophistry
+#### 7. The Seven-Pillar Argument is Bear Sophistry
 
 The bear's final move: "you need seven things to break right; I need one thing to break wrong."
 
@@ -901,7 +901,7 @@ By the bear's logic, you'd never own any stock — every long thesis can be deco
 
 ---
 
-## 8. What The Bear Cannot Answer
+#### 8. What The Bear Cannot Answer
 
 After four rebuttals, here's what the bear has not addressed:
 
@@ -916,7 +916,7 @@ The bear's response to all of these is essentially silence or deflection. **That
 
 ---
 
-## The Final Trade
+#### The Final Trade
 
 Let me give you a position framework that the bear's own concessions support:
 
@@ -932,7 +932,7 @@ Let me give you a position framework that the bear's own concessions support:
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear has spent four rebuttals arguing for a tactical trim on a structural bull. They've conceded:
 - The company is high-quality
@@ -961,7 +961,7 @@ Let me prove it.
 
 ---
 
-## 1. The "+3% EV" Gotcha The Bear Built Their Closing Around Is Mathematically Wrong
+#### 1. The "+3% EV" Gotcha The Bear Built Their Closing Around Is Mathematically Wrong
 
 The bear's centerpiece: *"The bull's own probability table produces +3.0% expected value. T-bills pay more. The bull conceded the trade without realizing."*
 
@@ -986,7 +986,7 @@ The bear cited my conservative 6-12 month scenario and pretended it was the enti
 
 ---
 
-## 2. The Bear's Trim-and-Reload Math Is Built On Hindsight
+#### 2. The Bear's Trim-and-Reload Math Is Built On Hindsight
 
 The bear's CRWD example: trimmed 40% at $400, redeployed at $310, picked up 28% more shares.
 
@@ -1004,7 +1004,7 @@ Buy-and-hold of a quality compounder through volatility has beaten trim-and-relo
 
 ---
 
-## 3. Revenue Growth Is The Bear's Strongest Point — And It's Already Inflecting
+#### 3. Revenue Growth Is The Bear's Strongest Point — And It's Already Inflecting
 
 I'll give the bear credit: *"If diversification is working, why is revenue 0% YoY?"* is a fair question.
 
@@ -1025,7 +1025,7 @@ The bear's "0% revenue growth" claim is a backward-looking statistic on a forwar
 
 ---
 
-## 4. The "Made Up Facts" Accusation Cuts Both Ways
+#### 4. The "Made Up Facts" Accusation Cuts Both Ways
 
 The bear accused me of manufacturing facts about Cloud AI 200/250 export compliance. Fair — I should have been more careful with sourcing. But let's apply the same standard to the bear:
 
@@ -1038,7 +1038,7 @@ The bear has spent five exchanges accusing me of vibes-based analysis while depl
 
 ---
 
-## 5. The Apple Math Resolution The Bear Won't Accept
+#### 5. The Apple Math Resolution The Bear Won't Accept
 
 The bear claims I made their case for them by computing $2B/year Apple drag.
 
@@ -1059,7 +1059,7 @@ That's **10-15% revenue growth over two years** even with the Apple drag fully b
 
 ---
 
-## 6. The Six Questions The Bear "Answered" — Let's Audit Them
+#### 6. The Six Questions The Bear "Answered" — Let's Audit Them
 
 The bear claimed to answer my six questions in "one minute." Let me audit:
 
@@ -1079,7 +1079,7 @@ The bear claimed to answer my six questions in "one minute." Let me audit:
 
 ---
 
-## 7. The Bull Case, Distilled
+#### 7. The Bull Case, Distilled
 
 Strip the rhetoric on both sides. Here's what's actually true:
 
@@ -1106,7 +1106,7 @@ Strip the rhetoric on both sides. Here's what's actually true:
 
 ---
 
-## 8. The Trade — Final Answer
+#### 8. The Trade — Final Answer
 
 I've moved closer to the bear on tactics across this debate, because that's what intellectual honesty requires. Here's my final framework:
 
@@ -1129,7 +1129,7 @@ I've moved closer to the bear on tactics across this debate, because that's what
 
 ---
 
-## Closing
+#### Closing
 
 The bear has run a sophisticated argument that ultimately reduces to one tactical claim: *"$251 is a bad entry; $215 is a better entry."* I largely agree on that narrow point — and said so multiple times throughout this debate.
 
@@ -1156,7 +1156,7 @@ I'll take that win — but let me also dismantle the bear's final round on the m
 
 ---
 
-## 1. The Bear's "Bull Migration" Narrative Is The Real Sleight Of Hand
+#### 1. The Bear's "Bull Migration" Narrative Is The Real Sleight Of Hand
 
 The bear's frame: *"The bull went from 'hold aggressively at $251' in Round 1 to 'don't chase $251' in Round 6. The bull migrated to my position."*
 
@@ -1172,7 +1172,7 @@ Read the rounds. The arc the bear describes doesn't exist.
 
 ---
 
-## 2. The "Trim Math" Is Cherry-Picked — Run The Full Distribution
+#### 2. The "Trim Math" Is Cherry-Picked — Run The Full Distribution
 
 The bear's table:
 
@@ -1199,7 +1199,7 @@ For a confirmed Stage 2 advance with a real catalyst in hand, **the upside tail 
 
 ---
 
-## 3. The "+5-6% EV" Re-rigging Is Itself Rigged
+#### 3. The "+5-6% EV" Re-rigging Is Itself Rigged
 
 The bear took my 18-24 month probability table and "honestly re-weighted" it to produce +5-6%. Let me audit their re-weighting:
 
@@ -1217,7 +1217,7 @@ And here's the kicker on the T-bill comparison: **T-bills don't have a $0.92 qua
 
 ---
 
-## 4. The Q1 FY26 Inflection Is Real — Bear's "Cherry-Pick" Charge Backfires
+#### 4. The Q1 FY26 Inflection Is Real — Bear's "Cherry-Pick" Charge Backfires
 
 The bear's response to the +11.5% YoY Q1 FY26 print: *"Q1 is QCOM's seasonal peak. The honest comparison is TTM-to-TTM, which is 0%."*
 
@@ -1237,7 +1237,7 @@ The bear's "0% revenue growth" stat is a backward-looking artifact that resolves
 
 ---
 
-## 5. The Apple Offset "Likely Case" Is The Bear's Worst Manipulation
+#### 5. The Apple Offset "Likely Case" Is The Bear's Worst Manipulation
 
 The bear's "likely case" table:
 
@@ -1264,7 +1264,7 @@ That's not the 1.1% the bear computed. That's 3.8% — and that supports the cur
 
 ---
 
-## 6. The "Sell-Side Silent" Argument Has A Glaring Hole
+#### 6. The "Sell-Side Silent" Argument Has A Glaring Hole
 
 The bear's repeated claim: *"Sell-side has refused to upgrade in four weeks despite the rally — the analysts know something."*
 
@@ -1276,7 +1276,7 @@ The bear is timing analyst inertia and calling it information. It isn't. Major s
 
 ---
 
-## 7. Where I Actually Agree With The Bear
+#### 7. Where I Actually Agree With The Bear
 
 Let me be candid about the legitimate tactical points the bear has made across seven rounds:
 
@@ -1292,7 +1292,7 @@ These are tactical risk management points. **They are not a bear case on QCOM. T
 
 ---
 
-## 8. What This Debate Actually Resolved
+#### 8. What This Debate Actually Resolved
 
 Strip the rhetoric away. Here's what both sides effectively agree on:
 
@@ -1311,7 +1311,7 @@ Strip the rhetoric away. Here's what both sides effectively agree on:
 
 ---
 
-## The Final Bull Trade (Unchanged Across Seven Rounds)
+#### The Final Bull Trade (Unchanged Across Seven Rounds)
 
 **Existing longs:**
 - Hold the core position. The structural re-rate has 12-24 months left to play out.
@@ -1329,7 +1329,7 @@ Strip the rhetoric away. Here's what both sides effectively agree on:
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear has spent seven rounds making a tactical entry-timing argument while writing it in the prose of a structural short. **They concede the company is high quality, the structural trade is long, the cash flow is real, and their own redeployment plan ends with 100% long exposure 9-15% below current price.** That is a bull case wearing bear costume.
 
@@ -1366,7 +1366,7 @@ Let's go through this.
 
 ---
 
-## 1. The ByteDance Deal: A Press Release, Not an Earnings Stream
+#### 1. The ByteDance Deal: A Press Release, Not an Earnings Stream
 
 The bull's entire thesis pivots on the ByteDance deal being a "structural re-rate." Let me ask the obvious questions the bull conveniently skipped:
 
@@ -1380,7 +1380,7 @@ The bull compares this to NVDA's data-center re-rating "taking 18 months." That'
 
 ---
 
-## 2. Apple Modem: The Bull Just Made My Argument For Me
+#### 2. Apple Modem: The Bull Just Made My Argument For Me
 
 The bull's defense here is genuinely remarkable: "Apple risk is a 2019 story, fully priced." Then in the very next paragraph: "Apple was 25% of revenue three years ago, now 20%."
 
@@ -1396,7 +1396,7 @@ You'd need automotive to nearly **double from here** just to fill the Apple hole
 
 ---
 
-## 3. The Technicals: The Bull Cherry-Picked the Bullish Half
+#### 3. The Technicals: The Bull Cherry-Picked the Bullish Half
 
 Let me bring back what the bull conveniently skipped from our own technical report:
 
@@ -1410,7 +1410,7 @@ The bull's NVDA comparison is the giveaway. NVDA didn't go +87% in 25 days durin
 
 ---
 
-## 4. The "Cheap on Valuation" Claim Falls Apart Under Scrutiny
+#### 4. The "Cheap on Valuation" Claim Falls Apart Under Scrutiny
 
 The bull says 23.6x forward P/E is "reasonable." Let me be really precise about the math here:
 
@@ -1428,7 +1428,7 @@ The "QCOM is cheaper than NVDA at 35x" argument is also nonsense. NVDA is growin
 
 ---
 
-## 5. The Catalyst Calendar is a Trap, Not a Tailwind
+#### 5. The Catalyst Calendar is a Trap, Not a Tailwind
 
 The bull frames Computex (June 2) as "asymmetrically skewed to upside." That's exactly backwards:
 
@@ -1440,7 +1440,7 @@ Computex is a sell-the-news setup. Even our own news report flagged it as "binar
 
 ---
 
-## 6. The Sentiment Picture is a Red Flag, Not a Green Light
+#### 6. The Sentiment Picture is a Red Flag, Not a Green Light
 
 Let me read directly from our sentiment report:
 - StockTwits: **17 bullish, 2 bearish** in the labeled set. **89% bullish.**
@@ -1453,7 +1453,7 @@ The bull frames cautious analysts as "fuel for an upgrade cycle." Let me offer t
 
 ---
 
-## 7. The Macro Backdrop the Bull Ignored Entirely
+#### 7. The Macro Backdrop the Bull Ignored Entirely
 
 Notice what the bull didn't mention even once:
 - **Treasury yields are rising** — directly compresses high-multiple semiconductor multiples.
@@ -1464,7 +1464,7 @@ QCOM at $251 with beta 1.49 is a **levered bet on the macro staying perfect**. I
 
 ---
 
-## Direct Engagement with the Bull's Closing
+#### Direct Engagement with the Bull's Closing
 
 The bull's final line was "Your move, bear." Here it is:
 
@@ -1483,7 +1483,7 @@ The asymmetry isn't to the upside. It's to the downside.
 
 **Risk/reward at $251 is roughly 2.5x worse to the downside.**
 
-## The Bear's Trade
+#### The Bear's Trade
 
 Don't initiate longs here. Existing longs should be tightening stops to below $228 (10-EMA), not "aggressively holding" as the bull suggests. For aggressive traders, the setup for a tactical short emerges on a confirmed lower-high and a break of the 10-EMA — that's the signal that distribution is winning.
 
@@ -1498,7 +1498,7 @@ Let me dismantle every single one of these "rebuttals," because under examinatio
 
 ---
 
-## 1. The "Probability-Weighted EV" Trick is the Bull's Entire Case Collapsing in Real Time
+#### 1. The "Probability-Weighted EV" Trick is the Bull's Entire Case Collapsing in Real Time
 
 Look at what the bull just did. They assigned:
 - 25% probability to a +40% move over 6-12 months
@@ -1525,7 +1525,7 @@ When you assign probabilities that **add up to 100% and include the realistic po
 
 ---
 
-## 2. The ByteDance Defense Has Now Officially Become Faith-Based
+#### 2. The ByteDance Defense Has Now Officially Become Faith-Based
 
 Re-read what the bull just wrote: *"Markets price probability-weighted future cash flows. They don't wait for line items in a 10-Q."*
 
@@ -1547,7 +1547,7 @@ You don't have to take my word for it. Just notice: **the bull asserted the regu
 
 ---
 
-## 3. The Apple Math: The Bull "Corrected" Me With Numbers That Make My Case Worse
+#### 3. The Apple Math: The Bull "Corrected" Me With Numbers That Make My Case Worse
 
 The bull says I'm wrong because Apple isn't a "one-quarter cliff" but a phase-out across iPhone 18, 19, 20 cycles at $400-600M/quarter step-downs.
 
@@ -1564,7 +1564,7 @@ The bull says "QCOM grows through the Apple step-down." Let's just look at the d
 
 ---
 
-## 4. The Technicals: "Then Explain How the Stock is at $251" is Recency Bias, Not Analysis
+#### 4. The Technicals: "Then Explain How the Stock is at $251" is Recency Bias, Not Analysis
 
 The bull's killer line: *"If institutions were genuinely distributing, the stock breaks $200 support, not makes new highs."*
 
@@ -1583,7 +1583,7 @@ That's the actual risk. Not that QCOM is SMCI. That QCOM is MU March 2024 — a 
 
 ---
 
-## 5. The Valuation Math Has Three Errors I Need to Call Out
+#### 5. The Valuation Math Has Three Errors I Need to Call Out
 
 The bull "corrected" my PEG math, claiming I said PEG 1.07 implies 22% growth. Let me re-read what I wrote: *"PEG of 1.07 assumes 22% growth"* — fair, I should have said 14.5% to be precise to the EPS line. **My substantive point stands and the bull never addressed it: revenue is flat YoY at $44.5B. EPS growth of 14.5% is being engineered through buybacks and tax benefits, not operating leverage.**
 
@@ -1605,7 +1605,7 @@ Read what the bull just admitted: **the buyback EPS support is going away.** Tha
 
 ---
 
-## 6. The Catalyst Calendar: The Bull Just Made a Bear's Argument
+#### 6. The Catalyst Calendar: The Bull Just Made a Bear's Argument
 
 The bull's framing of Computex:
 - Soft Computex: -10% to 10-EMA
@@ -1621,7 +1621,7 @@ On the NVDA PC chip dismissal: The bull says NVDA entering "legitimizes ARM-on-W
 
 ---
 
-## 7. The Sentiment Argument the Bull Got Half-Right
+#### 7. The Sentiment Argument the Bull Got Half-Right
 
 I'll grant the bull a small point: QCOM isn't a GME-style retail mania. Fair.
 
@@ -1635,7 +1635,7 @@ The bull says they "haven't seen the first move yet" on upgrades. We're a month 
 
 ---
 
-## 8. The Macro Dismissal is the Bull's Weakest Move
+#### 8. The Macro Dismissal is the Bull's Weakest Move
 
 The bull's response to macro: "It's not a QCOM-specific bear case, it's a 'sell stocks' case."
 
@@ -1650,7 +1650,7 @@ The bull is essentially saying: "yes, the macro is a risk, but it's not unique t
 
 ---
 
-## 9. The Real Risk/Reward at $251
+#### 9. The Real Risk/Reward at $251
 
 Let me put the honest math on the table without bull-flavored probability massaging:
 
@@ -1672,7 +1672,7 @@ The reward/risk asymmetry is the bull's weakest flank. They need everything to g
 
 ---
 
-## The Trade — Refined
+#### The Trade — Refined
 
 **This isn't a "short QCOM into oblivion" call.** Qualcomm is a quality business. I've conceded that throughout. The bear case is timing, not existential.
 
@@ -1684,7 +1684,7 @@ The reward/risk asymmetry is the bull's weakest flank. They need everything to g
 
 ---
 
-## The Bull's Final Line, Reversed
+#### The Bull's Final Line, Reversed
 
 The bull closed by saying I'm "the trade that gets you out of NVDA at $400." Let me reverse that frame: **I'm the trade that got you OUT of CRWD at $400 in October 2023 before the -25% drawdown. The trade that took profits in PANW at $370 before the -28% drop. The trade that trimmed MU at $145 in March 2024 before the -40% retrace.** All three of those names eventually went higher — but the parabolic phase always retraces.
 
@@ -1715,7 +1715,7 @@ Let me close this debate the way it should be closed: **by holding the bull to t
 
 ---
 
-## 1. The Bull's "Honest Math" Is Self-Refuting
+#### 1. The Bull's "Honest Math" Is Self-Refuting
 
 The bull built their own probability table that lands at **+3.0% expected value over 6-12 months.**
 
@@ -1734,7 +1734,7 @@ And that's with the bull stacking the deck:
 
 ---
 
-## 2. The "Trim 50-70%" Strawman Is The Bull's Most Dishonest Move
+#### 2. The "Trim 50-70%" Strawman Is The Bull's Most Dishonest Move
 
 The bull keeps repeating: *"The bear is telling you to stay 50-70% long. That's a bull trade with bear marketing."*
 
@@ -1750,7 +1750,7 @@ Reframe: **the bear is recommending you take 30-50% of an 87% gain off the table
 
 ---
 
-## 3. The CRWD/PANW/MU "Gotcha" Backfires Catastrophically
+#### 3. The CRWD/PANW/MU "Gotcha" Backfires Catastrophically
 
 The bull's killer argument: *"All three of those names are higher today. Patience wins."*
 
@@ -1773,7 +1773,7 @@ The bull is selling buy-and-hold complacency. The bear is selling active risk ma
 
 ---
 
-## 4. ByteDance: The Bull Just Made Up Facts
+#### 4. ByteDance: The Bull Just Made Up Facts
 
 The bull's closing claims:
 > *"Qualcomm's AI 200/250 family is purpose-engineered to operate within those thresholds for inference workloads."*
@@ -1799,7 +1799,7 @@ The bull's analogy compares the *highest-quality entry point in semiconductor hi
 
 ---
 
-## 5. The Apple Math: The Bull Is Now Doing Bear Work For Me
+#### 5. The Apple Math: The Bull Is Now Doing Bear Work For Me
 
 Read the bull's "rebuttal" carefully:
 
@@ -1819,7 +1819,7 @@ On forward EPS growth of 14.5% — that growth is being **engineered through buy
 
 ---
 
-## 6. The Bull's "Three Things" Replaces Real Risk With Slogans
+#### 6. The Bull's "Three Things" Replaces Real Risk With Slogans
 
 The bull's reframe: *"You only need three things — current business holds, ByteDance contributes anything, trend remains intact."*
 
@@ -1835,7 +1835,7 @@ The bull's "three things" framing is a magic trick. **Each "thing" contains 3-5 
 
 ---
 
-## 7. The Bull's "Six Questions I Can't Answer"
+#### 7. The Bull's "Six Questions I Can't Answer"
 
 The bull listed six questions and claimed bear silence. Let me answer all six in one minute.
 
@@ -1850,7 +1850,7 @@ There. Six answers. The bull's "silence" was rhetorical, not substantive.
 
 ---
 
-## 8. What The Bull Cannot Answer (Round Two)
+#### 8. What The Bull Cannot Answer (Round Two)
 
 After five exchanges, here's what the *bull* hasn't answered:
 
@@ -1864,7 +1864,7 @@ These are the questions that determine the trade. The bull has answered none of 
 
 ---
 
-## The Real Trade — Stated Plainly
+#### The Real Trade — Stated Plainly
 
 Forget the rhetoric. Look at the data.
 
@@ -1895,7 +1895,7 @@ Forget the rhetoric. Look at the data.
 
 ---
 
-## Closing Statement
+#### Closing Statement
 
 The bull has spent five exchanges arguing that **a stock up 87% in 25 sessions on an undisclosed deal, trading 56% above its long-term moving average, with 0% revenue growth and a structural Apple cliff approaching, is "early in a re-rate."**
 
@@ -1937,7 +1937,7 @@ The bull then tried to flip this concession into a strawman: "the bear ends with
 
 ---
 
-## 1. The "100% Long Eventually" Trick Is Mathematical Sleight Of Hand
+#### 1. The "100% Long Eventually" Trick Is Mathematical Sleight Of Hand
 
 The bull's repeated framing: *"Your terminal recommendation is 100% long at $195-215, so you're really a bull."*
 
@@ -1961,7 +1961,7 @@ The bull keeps insisting "buy-and-hold beats trim-and-reload 80% of the time on 
 
 ---
 
-## 2. The "+11% EV Over 18-24 Months" Magic Trick
+#### 2. The "+11% EV Over 18-24 Months" Magic Trick
 
 The bull realized their 6-12 month math produced +3% and quietly extended the horizon to 18-24 months to manufacture +11%. **Watch the goalposts move.**
 
@@ -1981,7 +1981,7 @@ And the bull's new table contains a tell: **a 35% probability of ByteDance rampi
 
 ---
 
-## 3. The Q1 FY26 +11.5% YoY "Inflection" — Cherry-Picked Quarter
+#### 3. The Q1 FY26 +11.5% YoY "Inflection" — Cherry-Picked Quarter
 
 The bull's most clever move in their final round: citing Q1 FY26 revenue at +11.5% YoY as proof of inflection.
 
@@ -2001,7 +2001,7 @@ The bull just set a falsifiable test against themselves. The historical pattern 
 
 ---
 
-## 4. The Apple Offset Math — Bull's Largest Number Manipulation
+#### 4. The Apple Offset Math — Bull's Largest Number Manipulation
 
 The bull constructed this offset table:
 
@@ -2026,7 +2026,7 @@ When you assume base cases instead of bull cases, **QCOM grows 1-3% annually thr
 
 ---
 
-## 5. The "Concessions" The Bull Claims I Made — Reframed Honestly
+#### 5. The "Concessions" The Bull Claims I Made — Reframed Honestly
 
 The bull audited my answers to their six questions and called five of six "concessions." Let me re-audit:
 
@@ -2046,7 +2046,7 @@ The bull audited my answers to their six questions and called five of six "conce
 
 ---
 
-## 6. The Sourcing Standard Cuts Both Ways — But In One Direction Decisively
+#### 6. The Sourcing Standard Cuts Both Ways — But In One Direction Decisively
 
 The bull caught me on a few unsourced statistics. Fair point. But notice the asymmetry of what each side is claiming requires sources:
 
@@ -2063,7 +2063,7 @@ The bull caught me on a few unsourced statistics. Fair point. But notice the asy
 
 ---
 
-## 7. What The Audience Should Actually Take Away
+#### 7. What The Audience Should Actually Take Away
 
 Strip everything else away. Here's the trade math the bull cannot escape:
 
@@ -2083,7 +2083,7 @@ Strip everything else away. Here's the trade math the bull cannot escape:
 
 ---
 
-## The Final Bear Trade
+#### The Final Bear Trade
 
 **For existing longs (made 87% in 25 sessions):**
 - Trim 30-40% at $251. Bank the gain. The bull's "15-20% trim" recommendation is timid — the parabolic extension warrants more aggressive de-risking.
@@ -2110,7 +2110,7 @@ Strip everything else away. Here's the trade math the bull cannot escape:
 
 ---
 
-## Closing
+#### Closing
 
 The bull spent six rounds defending $251 as a buy and ended their final round saying "do not chase $251." That arc tells you everything.
 
@@ -2142,7 +2142,7 @@ Let me show the audience why each of these claims is wrong on the math, the data
 
 ---
 
-## 1. The "You're Secretly Long, Therefore I Win" Frame Is Logically Bankrupt
+#### 1. The "You're Secretly Long, Therefore I Win" Frame Is Logically Bankrupt
 
 The bull's centerpiece: *"The bear ends with 60-70% long exposure and redeploys at lower prices. That's the bull trade with extra steps."*
 
@@ -2156,7 +2156,7 @@ The bull keeps insisting the only "real" bear is one who shorts to zero. By that
 
 ---
 
-## 2. The Bull's "Honest Distribution" Table Has The Same Rigging They Accused Me Of
+#### 2. The Bull's "Honest Distribution" Table Has The Same Rigging They Accused Me Of
 
 Look carefully at the bull's distribution:
 
@@ -2191,7 +2191,7 @@ The bull accused me of cherry-picking a single $230 outcome. They responded by c
 
 ---
 
-## 3. The Q1 FY26 "Inflection" Argument Collapses Under Sequential Analysis
+#### 3. The Q1 FY26 "Inflection" Argument Collapses Under Sequential Analysis
 
 The bull's most aggressive claim: *"Q1 FY26 revenue +11.5% YoY proves inflection. The TTM-flat number is mechanically resolving."*
 
@@ -2221,7 +2221,7 @@ The mechanical TTM tailwind from Q3/Q4 FY26 is **immediately offset by the Apple
 
 ---
 
-## 4. The Apple Offset Math — The Bull's Numbers Don't Survive Audit
+#### 4. The Apple Offset Math — The Bull's Numbers Don't Survive Audit
 
 The bull "audited" my likely case and produced their own:
 
@@ -2251,7 +2251,7 @@ We're back inside my original 1-3% CAGR estimate. **The bull's 3.8% CAGR require
 
 ---
 
-## 5. The Sell-Side Defense Is Internally Inconsistent
+#### 5. The Sell-Side Defense Is Internally Inconsistent
 
 The bull's response on analyst silence: *"Sell-side publishes on quarterly cadence tied to earnings. The post-Q3 FY26 print is when the upgrade cycle gets its catalyst."*
 
@@ -2263,7 +2263,7 @@ And the bull's own framing creates a trap: if Q3 FY26 prints +8-12% YoY revenue 
 
 ---
 
-## 6. The Areas Of Agreement Reveal The Bull's Concession, Not The Bear's
+#### 6. The Areas Of Agreement Reveal The Bull's Concession, Not The Bear's
 
 The bull constructed a table of agreements and disagreements. Let me reframe what the table actually shows:
 
@@ -2287,7 +2287,7 @@ The three disagreements:
 
 ---
 
-## 7. The Historical Comparisons Cut Decisively Against The Bull
+#### 7. The Historical Comparisons Cut Decisively Against The Bull
 
 The bull's closing relies heavily on selective history: "anyone who trimmed NVDA at $400, AVGO at $800, or AMD at $130 has spent two years trying to buy back higher."
 
@@ -2304,7 +2304,7 @@ QCOM at $251 is in the same setup. The bull is asking you to bet it's an NVDA. T
 
 ---
 
-## 8. The Trade — Final Bear Position
+#### 8. The Trade — Final Bear Position
 
 **The setup at $251:**
 - Up 87% in 25 sessions (parabolic by any definition)
@@ -2348,7 +2348,7 @@ QCOM at $251 is in the same setup. The bull is asking you to bet it's an NVDA. T
 
 ---
 
-## Closing
+#### Closing
 
 The bull's victory lap rests on three claims: that my plan is "secretly the bull plan," that my probability tables are rigged, and that Q1 FY26 proves inflection. All three fail under audit:
 

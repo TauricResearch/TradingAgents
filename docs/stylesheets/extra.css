@@ -1,0 +1,18 @@
+/* Ultra-wide layout for report pages */
+.md-grid {
+  max-width: 100%;
+}
+
+.md-main__inner {
+  max-width: 100%;
+}
+
+.md-content {
+  max-width: 100%;
+}
+
+/* Keep tables readable at ultra width without horizontal scroll surprises */
+.md-typeset table:not([class]) {
+  display: table;
+  width: 100%;
+}

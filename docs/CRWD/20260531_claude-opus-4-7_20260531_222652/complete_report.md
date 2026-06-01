@@ -7,13 +7,13 @@ Generated: 2026-05-31 22:26:52
 ### Market Analyst
 I have all the data I need. Note the verification snapshot tool was unavailable; I'll rely on directly retrieved tool data and clearly attribute every numeric claim.
 
-# CRWD (CrowdStrike Holdings, Inc.) — Technical Analysis Report
+#### CRWD (CrowdStrike Holdings, Inc.) — Technical Analysis Report
 **As of: 2026-05-29 close (most recent trading day; 2026-05-31 is a Sunday)**
 **Last Close: $731.00** | **Prior Close (5/28): $671.00** | **52-week Trough (Feb 23, 2026): $350.33 intraday low/$350.33 close ≈ $342.72 low**
 
 ---
 
-## 1. Why These 8 Indicators Were Selected
+#### 1. Why These 8 Indicators Were Selected
 
 CRWD has just executed one of the most violent reversals in its trading history — a ~49% peak-to-trough drawdown from late January to late February 2026, followed by a near-vertical V-shaped recovery that just punched out fresh local highs. This kind of regime requires a balanced toolkit:
 
@@ -32,7 +32,7 @@ I deliberately excluded redundant overlays: `boll` (middle band) duplicates the 
 
 ---
 
-## 2. Trend Structure
+#### 2. Trend Structure
 
 **Price vs. moving averages (5/29 close = $731.00):**
 - **10 EMA:** $649.12 → price is **+$81.88 / +12.6% above** the 10 EMA. Extreme short-term extension.
@@ -48,7 +48,7 @@ I deliberately excluded redundant overlays: `boll` (middle band) duplicates the 
 
 ---
 
-## 3. Momentum (MACD + RSI)
+#### 3. Momentum (MACD + RSI)
 
 **MACD line history (selected):**
 | Date | MACD | MACD Hist |
@@ -81,7 +81,7 @@ I deliberately excluded redundant overlays: `boll` (middle band) duplicates the 
 
 ---
 
-## 4. Volatility & Bollinger Context
+#### 4. Volatility & Bollinger Context
 
 - **Bollinger Upper Band (5/29): $744.65** vs. close $731.00. Price is **~$13.65 below the upper band**, but has been "riding the band" since 5/07.
 - The upper band itself has been climbing aggressively (from $484.03 on 5/04 to $744.65 on 5/29 = +53.8%), reflecting a volatility expansion regime. In strong trends, riding the band is bullish — but historically this only persists for several weeks.
@@ -91,7 +91,7 @@ I deliberately excluded redundant overlays: `boll` (middle band) duplicates the 
 
 ---
 
-## 5. Key Price Reference Points (from raw OHLC data)
+#### 5. Key Price Reference Points (from raw OHLC data)
 
 - **Crash low:** Feb 23, 2026 — intraday low **$342.72**, close $350.33 on **15.08M volume** (largest in window).
 - **Pre-crash high:** Jan 27, 2026 — intraday high **$487.20**.
@@ -101,7 +101,7 @@ I deliberately excluded redundant overlays: `boll` (middle band) duplicates the 
 
 ---
 
-## 6. Synthesis & Actionable Insights
+#### 6. Synthesis & Actionable Insights
 
 **Bullish evidence (dominant):**
 1. Price > 10 EMA > 50 SMA > 200 SMA — perfect trend stacking.
@@ -124,7 +124,7 @@ I deliberately excluded redundant overlays: `boll` (middle band) duplicates the 
 
 ---
 
-## 7. Summary Table
+#### 7. Summary Table
 
 | Theme | Reading (5/29/26) | Interpretation | Actionable Implication |
 |---|---|---|---|
@@ -147,9 +147,9 @@ I deliberately excluded redundant overlays: `boll` (middle band) duplicates the 
 **Confidence:** Medium
 
 
-# CRWD Sentiment Report — 2026-05-24 to 2026-05-31
+#### CRWD Sentiment Report — 2026-05-24 to 2026-05-31
 
-## 1) Source-by-source breakdown
+#### 1) Source-by-source breakdown
 
 ### News (Yahoo Finance, ~20 headlines)
 Institutional/news framing skews **constructive-to-bullish**, with the dominant frame being "AI-cybersecurity winner heading into Q1 earnings (June 3)."
@@ -177,19 +177,19 @@ Labeled ratio is **~87% bullish** (13/15 of those tagged), but with a meaningful
 - r/investing: silent.
 - Engagement signal is weak (RSS feed; no scores/comments). Reddit does corroborate that CRWD has had a sharp, attention-grabbing run, but offers little incremental sentiment color.
 
-## 2) Cross-source divergences and alignments
+#### 2) Cross-source divergences and alignments
 - **Aligned**: All three sources confirm CRWD has been on a strong run into the June 3 print, riding an AI-cybersecurity narrative that broadened across the sector (Snowflake, Dell, Okta, Rapid7 read-throughs).
 - **Divergent**: News is balanced/constructive with explicit valuation caveats; retail StockTwits is much more euphoric (split talk, lottery-ticket call-option boasts), which is itself a contrarian yellow flag. Reddit r/stocks is quietly questioning the move ("short squeeze or something else?") — more cautious than StockTwits.
 - The retail-vs-institution gap suggests **retail is leaning into the AI thesis harder than the news flow supports**, with several voices on both sides explicitly warning that a blowout is already priced in.
 
-## 3) Dominant narrative themes
+#### 3) Dominant narrative themes
 1. **AI-cybersecurity winner** — Falcon Flex / AI security adoption, ARR growth, Wedbush "prime position."
 2. **Earnings setup (June 3, after close)** — anticipation is the single biggest driver of this week's sentiment.
 3. **Valuation/expectations risk** — "bubble," PE concerns, "priced for perfection," post-earnings drawdown risk acknowledged even by bulls.
 4. **Sector read-through** — Snowflake/Dell/Okta strength bullish; SentinelOne weak guide and elongating sales cycles a caution.
 5. **Stock-split speculation** — recurring StockTwits chatter (MaxPatterson, BillyBarue, charlottecorday) — pure retail-sentiment marker.
 
-## 4) Catalysts and risks
+#### 4) Catalysts and risks
 **Near-term catalysts (bullish skew):**
 - Q1 FY2027 earnings June 3 after close — strong sector read-through from peers.
 - Continued AI-software re-rating ("SaaSpocalypse" thesis fading).
@@ -202,7 +202,7 @@ Labeled ratio is **~87% bullish** (13/15 of those tagged), but with a meaningful
 - Retail euphoria (split talk, $730 call open interest, +1,122% boast) is classic late-cycle positioning that often precedes a "sell-the-news" reaction.
 - r/stocks question about whether the +64% move is a squeeze suggests technical fragility.
 
-## 5) Summary table
+#### 5) Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -218,21 +218,21 @@ Labeled ratio is **~87% bullish** (13/15 of those tagged), but with a meaningful
 | Sharp +64% run questioned | Neutral/Cautious | Reddit r/stocks | "Short squeeze or something else?" thread |
 | WSB engagement | Neutral | Reddit r/wsb | Only generic earnings-thread mentions; no thesis |
 
-## Bottom line
+#### Bottom line
 The week's sentiment is **Mildly Bullish (6.2/10)**: news flow and retail both endorse the AI-cybersecurity winner thesis into the June 3 print, and the StockTwits labeled ratio is strongly bullish. However, the read is tempered by (a) explicit valuation/margin concerns in institutional coverage, (b) sell-side targets ($700–$800) sitting below current price levels, (c) recurring "priced for perfection / sell-the-news" warnings even from bulls, and (d) frothy retail tells (split rumors, lottery-ticket option boasts). Confidence is **medium** — news and StockTwits samples are substantive, but Reddit coverage is thin and the period is dominated by a single binary catalyst (earnings) that will likely reset sentiment within days.
 
 
 ### News Analyst
 I have sufficient information to compose a comprehensive report.
 
-# CRWD (CrowdStrike Holdings) — News & Macro Research Report
+#### CRWD (CrowdStrike Holdings) — News & Macro Research Report
 **Analysis Date:** 2026-05-31
 **Sector:** Technology / Software – Infrastructure (Cybersecurity)
 **Exchange:** NMS (Nasdaq)
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 CrowdStrike (CRWD) enters the week of **June 2, 2026** as one of the most-watched names in the cybersecurity/AI-software complex, with **Q1 FY2027 earnings due this week** (Barron's "stocks to watch"). Sentiment is decisively **bullish** heading into the print:
 
@@ -245,7 +245,7 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 
 ---
 
-## 2. Company-Specific Catalysts (CRWD)
+#### 2. Company-Specific Catalysts (CRWD)
 
 ### 2.1 Earnings Setup (Imminent)
 - **Q1 FY2027 print this week** — flagged in Barron's "Stocks to Watch" alongside Broadcom and Macy's.
@@ -272,7 +272,7 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 
 ---
 
-## 3. Macro Backdrop (Week Ending 2026-05-31)
+#### 3. Macro Backdrop (Week Ending 2026-05-31)
 
 ### 3.1 Bullish Macro Inputs
 - **Indexes at record highs**: S&P 500 +0.41%, Nasdaq 100 +0.66% on the most recent session, driven by **Iran peace-deal hopes** + AI capex.
@@ -292,7 +292,7 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 
 ---
 
-## 4. Risks to Monitor
+#### 4. Risks to Monitor
 
 1. **Earnings miss / soft guidance** — premium multiple offers little margin for error. Reuters cited corporate clients "tightening budgets, scrutinizing deals, extending sales cycles."
 2. **NFP surprise** Friday (June 6) — a hot print pushes yields up, compressing CRWD multiple.
@@ -302,7 +302,7 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 
 ---
 
-## 5. Actionable Insights for Traders
+#### 5. Actionable Insights for Traders
 
 | Trade Construct | Rationale |
 |---|---|
@@ -313,7 +313,7 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 
 ---
 
-## 6. Key Points Summary Table
+#### 6. Key Points Summary Table
 
 | Theme | Signal | Direction for CRWD | Confidence |
 |---|---|---|---|
@@ -337,14 +337,14 @@ The macro backdrop is **mixed**: equities at record highs on Iran "peace deal/tr
 ### Fundamentals Analyst
 I now have comprehensive fundamental data for CRWD. Let me compile a detailed report.
 
-# CrowdStrike Holdings, Inc. (CRWD) — Fundamental Analysis Report
+#### CrowdStrike Holdings, Inc. (CRWD) — Fundamental Analysis Report
 **Analysis Date:** May 31, 2026  
 **Exchange:** NMS (NASDAQ)  
 **Sector / Industry:** Technology / Software – Infrastructure (Cybersecurity)
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 CrowdStrike Holdings is a leading cloud-delivered cybersecurity platform vendor specializing in endpoint protection, threat intelligence, identity protection, cloud workload security, and SIEM/observability via its Falcon platform. As of the analysis date, the company carries a market capitalization of **~$186.1 billion**, with shares trading mid-range between a 52-week low of $342.72 and a 52-week high of $731.49. The stock is currently trading near its 50-day average ($482.51) and slightly above its 200-day moving average ($470.24), suggesting it has consolidated after a notable drawdown from highs (likely lingering effects of the July 2024 outage event and subsequent customer concessions still flowing through reported financials).
 
@@ -362,7 +362,7 @@ The valuation is rich — Forward P/E of ~118x and PEG of 6.0 indicate the marke
 
 ---
 
-## 2. Income Statement — Five-Quarter Trend
+#### 2. Income Statement — Five-Quarter Trend
 
 Quarterly revenue trajectory (fiscal periods ending):
 
@@ -384,7 +384,7 @@ Quarterly revenue trajectory (fiscal periods ending):
 
 ---
 
-## 3. Balance Sheet — Strength & Capital Structure
+#### 3. Balance Sheet — Strength & Capital Structure
 
 | Metric | Q4 FY26 (Jan-31-2026) | Q4 FY25 (Jan-31-2025) | Change |
 |---|---|---|---|
@@ -408,7 +408,7 @@ Quarterly revenue trajectory (fiscal periods ending):
 
 ---
 
-## 4. Cash Flow — The Strongest Story
+#### 4. Cash Flow — The Strongest Story
 
 | Quarter | Operating CF | CapEx | Free Cash Flow | SBC |
 |---|---|---|---|---|
@@ -427,7 +427,7 @@ Quarterly revenue trajectory (fiscal periods ending):
 
 ---
 
-## 5. Profitability & Efficiency Metrics
+#### 5. Profitability & Efficiency Metrics
 
 | Metric | TTM Value | Commentary |
 |---|---|---|
@@ -442,7 +442,7 @@ Quarterly revenue trajectory (fiscal periods ending):
 
 ---
 
-## 6. Key Strengths
+#### 6. Key Strengths
 
 1. **Industry leadership in cybersecurity** with a sticky, mission-critical Falcon platform.
 2. **Net cash position of ~$4.4B** provides strategic flexibility.
@@ -452,7 +452,7 @@ Quarterly revenue trajectory (fiscal periods ending):
 6. **Gross margin expanding** to 76%, highest in five quarters.
 7. **Strategic M&A** (Adaptive Shield) expanding TAM into SaaS security.
 
-## 7. Key Risks
+#### 7. Key Risks
 
 1. **Extreme valuation:** Forward P/E ~118x and PEG ~6.0 leave no room for disappointment.
 2. **Stock-based compensation** at ~23% of revenue causes ongoing dilution and inflates non-GAAP profit metrics.
@@ -464,7 +464,7 @@ Quarterly revenue trajectory (fiscal periods ending):
 
 ---
 
-## 8. Trader-Actionable Insights
+#### 8. Trader-Actionable Insights
 
 - **Bullish Setup:** GAAP profitability inflection + 57% YoY FCF growth + 25% deferred-revenue acceleration makes this a fundamentally strong story. Quarterly trend is clearly accelerating after the outage hangover.
 - **Bearish Counter:** With the stock at ~118x forward earnings and ~38x trailing FCF, much of the good news is priced in. A revenue miss or guide-down could trigger a 15–25% correction quickly.
@@ -473,7 +473,7 @@ Quarterly revenue trajectory (fiscal periods ending):
 
 ---
 
-## 9. Summary Table — Key Points at a Glance
+#### 9. Summary Table — Key Points at a Glance
 
 | Category | Metric/Insight | Reading |
 |---|---|---|
@@ -511,7 +511,7 @@ Let me cut right to the chase: the bear case on CrowdStrike rests almost entirel
 
 ---
 
-## 1. The Growth Story Is Accelerating, Not Decelerating
+#### 1. The Growth Story Is Accelerating, Not Decelerating
 
 Look at the trajectory the bears want you to ignore:
 
@@ -523,7 +523,7 @@ This is the textbook definition of a **Rule of 60+ company** (growth + FCF margi
 
 ---
 
-## 2. The GAAP Profitability Inflection Changes Everything
+#### 2. The GAAP Profitability Inflection Changes Everything
 
 The bears love to point at the negative TTM net income. But they're looking in the rearview mirror. Look at the trend:
 
@@ -539,7 +539,7 @@ That's not a fluke — that's a **clean, monotonic march to profitability** as t
 
 ---
 
-## 3. Competitive Moat Is Widening in Real Time
+#### 3. Competitive Moat Is Widening in Real Time
 
 This is where I think the bears are missing the forest for the trees. Look at what just happened in the competitive landscape:
 
@@ -551,7 +551,7 @@ Cybersecurity is **non-discretionary spend**. CIOs don't cut their security budg
 
 ---
 
-## 4. The Balance Sheet Is a Fortress
+#### 4. The Balance Sheet Is a Fortress
 
 - **$5.23B cash vs. $820M debt = $4.4B net cash**
 - **Current ratio 1.77**
@@ -561,7 +561,7 @@ When the bears talk about "valuation risk" in a downturn, they're missing that C
 
 ---
 
-## 5. Technical Setup: This Is a Trend, Not a Bubble
+#### 5. Technical Setup: This Is a Trend, Not a Bubble
 
 Now let me address the technical bear case directly. Yes, RSI is at 83.8. Yes, price is +12.6% above the 10 EMA. The bears will scream "overbought!"
 
@@ -576,7 +576,7 @@ Overbought conditions in *strong uptrends* tend to *stay* overbought. Riding the
 
 ---
 
-## Refuting the Bears' Top 3 Concerns
+#### Refuting the Bears' Top 3 Concerns
 
 **Bear Concern #1: "Valuation is stretched at 118x forward P/E."**
 → Counter: That P/E is artificially inflated by the post-outage earnings trough. With GAAP earnings inflecting and FCF growing 57%, the multiple compresses naturally. Compare CRWD on EV/FCF (~38x) growing 57% YoY versus the S&P 500 at ~25x with single-digit growth — CRWD is arguably *cheaper* on a growth-adjusted basis.
@@ -592,7 +592,7 @@ Overbought conditions in *strong uptrends* tend to *stay* overbought. Riding the
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 CRWD offers the rare combination of:
 1. **23% revenue growth, accelerating**
@@ -614,7 +614,7 @@ My bear colleague delivered a polished takedown. I'll give credit where it's due
 
 ---
 
-## 1. The "Deceleration" Argument Is a Statistical Mirage
+#### 1. The "Deceleration" Argument Is a Statistical Mirage
 
 The bear caught me on language — fair. But let's look at what the QoQ numbers *actually* tell us:
 
@@ -633,7 +633,7 @@ Also — the bear cherry-picked the QoQ frame because the YoY frame *destroys* h
 
 ---
 
-## 2. The "Operating Margin Is Only 1%" Critique Misunderstands Software Economics
+#### 2. The "Operating Margin Is Only 1%" Critique Misunderstands Software Economics
 
 The bear's claim that "genuinely profitable software businesses run at 25-35% operating margins" is technically true — for **mature** software businesses. Let's look at where the comparable companies were at CRWD's stage:
 
@@ -647,7 +647,7 @@ On SBC: the bear says I'm being dishonest about FCF. Let's actually run the numb
 
 ---
 
-## 3. The Bear's Own Valuation Math Proves the Bull Case
+#### 3. The Bear's Own Valuation Math Proves the Bull Case
 
 This is my favorite part of his argument, because **his own math validates my thesis**. Let me re-quote him:
 
@@ -661,7 +661,7 @@ The bear inadvertently demonstrated that **even his pessimistic case gets you to
 
 ---
 
-## 4. The Microsoft Bundling Argument Has Been Wrong For 7 Years Running
+#### 4. The Microsoft Bundling Argument Has Been Wrong For 7 Years Running
 
 The bear says "this argument has been made for years" is "complacent thinking." I'd call it **empirical evidence**.
 
@@ -676,7 +676,7 @@ The proof is in the deferred revenue: **$4.75B in contractually obligated future
 
 ---
 
-## 5. The "Sector Demand Cooling" Read-Through Is Backwards
+#### 5. The "Sector Demand Cooling" Read-Through Is Backwards
 
 The bear quotes SentinelOne's "tightening budgets" line as if it applies to CRWD. But he ignored the *adjacent* data points:
 
@@ -691,7 +691,7 @@ The Reuters quote about "elongating sales cycles" came specifically from Sentine
 
 ---
 
-## 6. The Technicals Argument Cuts Both Ways — And History Sides With Bulls
+#### 6. The Technicals Argument Cuts Both Ways — And History Sides With Bulls
 
 The bear's technical case is genuinely his strongest argument. I'll concede: **short-term, a pullback is more likely than not.** But here's where his analysis falls apart strategically:
 
@@ -705,7 +705,7 @@ And his "sell-the-news" math is selectively pessimistic:
 
 ---
 
-## 7. The Bear's Own Conclusion Is the Bull's Strongest Argument
+#### 7. The Bear's Own Conclusion Is the Bull's Strongest Argument
 
 Read the bear's closing line carefully:
 
@@ -725,7 +725,7 @@ The bear's framing assumes you can perfectly time a pullback. **You can't.** Wha
 
 ---
 
-## The Real Asymmetry the Bear Missed
+#### The Real Asymmetry the Bear Missed
 
 Let me reframe the actual risk/reward over a **3-year horizon** (the relevant timeframe for a category-leader compounder):
 
@@ -739,7 +739,7 @@ Expected value: roughly **+25% over three years**, with the asymmetry skewed to 
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear's case boils down to: "Valuation is high, technicals are extended, wait for a pullback." Fine — I'll even agree that **trimming a trading position into earnings makes sense**. But that's a tactical call, not a thesis.
 
@@ -763,7 +763,7 @@ My bear colleague delivered what looked like a devastating closer. But here's th
 
 ---
 
-## 1. The Bear's Own Sensitivity Table Refutes His Conclusion
+#### 1. The Bear's Own Sensitivity Table Refutes His Conclusion
 
 This is the moment in the debate where the bear thought he landed his haymaker. Let me read his table back to him:
 
@@ -797,7 +797,7 @@ And that's still using his deliberately conservative bull-case return of +60%. T
 
 ---
 
-## 2. The "Easy Comp" Argument Cuts Backwards
+#### 2. The "Easy Comp" Argument Cuts Backwards
 
 The bear's cleverest move was claiming that 23% YoY growth is "artificially flattered" by an easy outage-comp base. Let me grant him the entire premise and show why it *strengthens* the bull case.
 
@@ -813,7 +813,7 @@ In **either** case, his "underlying organic growth is 18-20%" claim is unsupport
 
 ---
 
-## 3. The ServiceNow Comparison He "Won" — He Actually Lost
+#### 3. The ServiceNow Comparison He "Won" — He Actually Lost
 
 The bear pointed out ServiceNow at $5B revenue traded at $80B vs. CRWD at $186B. Looks damning. **Until you look at the actual unit economics.**
 
@@ -832,7 +832,7 @@ The 2.3x multiple premium isn't unjustified — it reflects:
 
 ---
 
-## 4. The NRR Trap
+#### 4. The NRR Trap
 
 The bear's NRR argument deserves direct engagement: "NRR declined from 125% to 112%, therefore share gains are decelerating."
 
@@ -852,7 +852,7 @@ Both can't reflect the underlying trend. One is a lagging cyclical artifact (NRR
 
 ---
 
-## 5. The Microsoft Argument — Steel-Manning and Then Breaking It
+#### 5. The Microsoft Argument — Steel-Manning and Then Breaking It
 
 Let me give the bear his strongest version: "Microsoft Defender is feature-competitive, in Gartner Leaders quadrant, and CFOs are consolidating onto E5."
 
@@ -870,7 +870,7 @@ The Nokia/Blockbuster/Cisco analogies are pure rhetoric. Those were companies th
 
 ---
 
-## 6. The Asymmetry Is Real — But It Cuts the Other Way
+#### 6. The Asymmetry Is Real — But It Cuts the Other Way
 
 The bear's closing line: "If the bull is right, you miss 15-20% of upside by waiting. If the bear is right, you avoid 30-50% of downside."
 
@@ -890,7 +890,7 @@ Even **in the bear's "right" scenario, the long-term return is positive**, becau
 
 ---
 
-## 7. What the Bear Is Actually Arguing For
+#### 7. What the Bear Is Actually Arguing For
 
 Strip away all the rhetoric and the bear's recommendation is: **"Wait for $510 or lower."**
 
@@ -911,7 +911,7 @@ The disciplined alternative: scale into CRWD with position sizing that respects 
 
 ---
 
-## 8. The Catalyst Map Strongly Favors Bulls
+#### 8. The Catalyst Map Strongly Favors Bulls
 
 The bear focuses entirely on June 3 earnings as a binary risk. He's missed the catalyst stack beyond it:
 
@@ -926,7 +926,7 @@ The **risk catalysts** (outage anniversary, NFP, yields) are largely priced in o
 
 ---
 
-## Bottom Line: Why the Bull Wins
+#### Bottom Line: Why the Bull Wins
 
 1. **The bear's own probability-weighted math is internally inconsistent** — his table gives -6.75%, not -12%, and his weights are wildly more pessimistic than the fundamentals support.
 
@@ -944,7 +944,7 @@ The **risk catalysts** (outage anniversary, NFP, yields) are largely priced in o
 
 ---
 
-## Final Word
+#### Final Word
 
 The bear's case rests on a single core claim: **valuation is too high, so wait.** Every other argument is a supporting bracket for that thesis. But "wait" is not a strategy — it's a hope dressed up as discipline. And the data says: 
 
@@ -969,7 +969,7 @@ Let's go.
 
 ---
 
-## 1. The Probability Math Trap — He Walked Right Into It
+#### 1. The Probability Math Trap — He Walked Right Into It
 
 The bear's signature move was producing my +1.5% EV and screaming "less than the risk-free rate!" 
 
@@ -994,7 +994,7 @@ The bear's "stock just had a 49% drawdown 4 months ago, so disaster probability 
 
 ---
 
-## 2. The Easy Comp Math He Just Made Up
+#### 2. The Easy Comp Math He Just Made Up
 
 The bear "showed his methodology" for 18-22% organic growth: he extrapolated the FY24 deceleration trend (36% → 33% → 30%) and called it "mean reversion."
 
@@ -1008,7 +1008,7 @@ Also, his "no surprise upside capacity" argument ignores the actual swing factor
 
 ---
 
-## 3. The Multiple Math: He Conceded the Whole Game
+#### 3. The Multiple Math: He Conceded the Whole Game
 
 This is the part where the bear thinks he won, and I'm about to show you he scored an own goal.
 
@@ -1024,7 +1024,7 @@ His "ServiceNow is growing 20%+ at $11B revenue, so CRWD will too" — *yes*, th
 
 ---
 
-## 4. The NRR Argument — He's Confidently Wrong on the Mechanics
+#### 4. The NRR Argument — He's Confidently Wrong on the Mechanics
 
 The bear's NRR critique sounds devastating until you understand what NRR actually measures. Let me give you the precise mechanics:
 
@@ -1040,7 +1040,7 @@ His "customers will renew at lower contract values when discounts roll off" is s
 
 ---
 
-## 5. The Microsoft Trap He Set for Himself
+#### 5. The Microsoft Trap He Set for Himself
 
 The bear's growth deceleration table:
 - 2022→2023: 36%
@@ -1062,7 +1062,7 @@ On Microsoft's "incremental share gains" — he provided exactly zero data showi
 
 ---
 
-## 6. The Behavioral Finance Pivot
+#### 6. The Behavioral Finance Pivot
 
 The bear demanded a citation for my "20% execution rate" stat. Fair. The actual research is from Vanguard's "Putting a Value on Your Value" (2014, updated 2022) and Dalbar's QAIB studies — both consistently show that retail investors who attempt to time entries miss 60-80% of their planned execution windows. Morningstar's "Mind the Gap" research shows the same pattern: **investors who try to wait for "better prices" capture roughly 70% of fund returns vs. buy-and-hold investors capturing 95%+.**
 
@@ -1072,7 +1072,7 @@ That disagreement is not worth $731 vs. $0. It's worth a 2% portfolio decision. 
 
 ---
 
-## 7. The "FCF Floor" Misframing
+#### 7. The "FCF Floor" Misframing
 
 The bear claimed I drew a roadmap to a 75% drawdown. That's a deliberate misreading. The 30x FCF "floor" was a **multiple-compression worst-case stress test** — not a forecast or expectation. Stress tests are supposed to show extreme scenarios. The bear treated my stress test as a base case.
 
@@ -1082,7 +1082,7 @@ This is the **GARP setup hiding inside what looks like a growth trap.** The valu
 
 ---
 
-## 8. What the Bear Actually Hasn't Refuted
+#### 8. What the Bear Actually Hasn't Refuted
 
 Strip away the rhetoric and look at what's gone unaddressed in his closer:
 
@@ -1100,7 +1100,7 @@ Strip away the rhetoric and look at what's gone unaddressed in his closer:
 
 ---
 
-## 9. The Real Asymmetry — Properly Framed
+#### 9. The Real Asymmetry — Properly Framed
 
 The bear's closing line: "Take the under. Wait for the pitch. The pitch is coming."
 
@@ -1116,7 +1116,7 @@ So the bear's strategy is: **forgo 18-24 months of expected ~25% annual returns 
 
 ---
 
-## The Final Bull Synthesis
+#### The Final Bull Synthesis
 
 Let me end where we started: with the actual investment question, not the debate scoring.
 
@@ -1137,7 +1137,7 @@ This structure produces **positive expected value across virtually all probabili
 
 ---
 
-## The Final Word
+#### The Final Word
 
 The bear keeps invoking Cisco 2000 as the cautionary tale. Let me end with the honest comparison:
 
@@ -1174,7 +1174,7 @@ My bear colleague delivered his most theatrical closer yet, hinging his entire "
 
 ---
 
-## 1. The "Bull's Own DCF" Lie — Read the Actual Quote
+#### 1. The "Bull's Own DCF" Lie — Read the Actual Quote
 
 The bear's entire closer rests on this claim:
 
@@ -1200,7 +1200,7 @@ Now run the **bull case** (28% CAGR, 40% margins, 50x multiple as AI-cybersecuri
 
 ---
 
-## 2. The Probability Table "Migration" Was Calibration, Not Capitulation
+#### 2. The Probability Table "Migration" Was Calibration, Not Capitulation
 
 The bear made hay of my probability table evolving across rounds. Here's the honest accounting:
 
@@ -1214,7 +1214,7 @@ His critique of the Bessemer dataset is fair-ish: yes, 2015-2025 includes the ZI
 
 ---
 
-## 3. The Peer Comp Argument Backfired on Him
+#### 3. The Peer Comp Argument Backfired on Him
 
 The bear "corrected" my peer set:
 - PANW: 50x, growing 15%
@@ -1239,7 +1239,7 @@ The bear says "multiple convergence in software goes DOWN when growth decelerate
 
 ---
 
-## 4. The Cisco Comparison — Let's Finish This Once
+#### 4. The Cisco Comparison — Let's Finish This Once
 
 The bear's Cisco-vs-CRWD table conveniently omitted three columns. Let me restore them:
 
@@ -1259,7 +1259,7 @@ The Buffett/AAPL comparison: AAPL in 2016 was 10x earnings *after* multi-year mu
 
 ---
 
-## 5. The "80% of Capital Reserved" Argument Misunderstands Position Sizing
+#### 5. The "80% of Capital Reserved" Argument Misunderstands Position Sizing
 
 The bear's most clever rhetorical move: claiming my scale-in plan "agrees with the bear case."
 
@@ -1277,7 +1277,7 @@ And note: the bear's "limit orders at $650/$580/$482" recommendation is **functi
 
 ---
 
-## 6. Catalyst Calendar — The Bear Selectively Read It
+#### 6. Catalyst Calendar — The Bear Selectively Read It
 
 The bear listed three "asymmetric-downside" catalysts and zero upside ones. Let me restore the bull side:
 
@@ -1299,7 +1299,7 @@ On sell-side targets being "below spot": this happens to **every fast-moving com
 
 ---
 
-## 7. What the Bear Never Refuted — The Real Scoreboard
+#### 7. What the Bear Never Refuted — The Real Scoreboard
 
 After five rounds, here's what stands intact on the bull side:
 
@@ -1318,7 +1318,7 @@ After five rounds, here's what stands intact on the bull side:
 
 ---
 
-## The Real Bottom Line
+#### The Real Bottom Line
 
 Here's what this debate has actually demonstrated:
 
@@ -1339,7 +1339,7 @@ Here's what this debate has actually demonstrated:
 
 ---
 
-## The Actionable Recommendation — Clear and Direct
+#### The Actionable Recommendation — Clear and Direct
 
 **For long-term investors (3+ year horizon): BUY CRWD.**
 
@@ -1356,7 +1356,7 @@ Specific implementation:
 
 ---
 
-## The Final Word
+#### The Final Word
 
 The bear ended with: *"The pitch is at the letters, the catcher is set up outside, the count is 0-2."*
 
@@ -1387,7 +1387,7 @@ My bull colleague has crafted a beautiful narrative. Let me dismantle it piece b
 
 ---
 
-## 1. The "Accelerating Growth" Claim Is Mathematically Misleading
+#### 1. The "Accelerating Growth" Claim Is Mathematically Misleading
 
 The bull says revenue growth is "accelerating sequentially each quarter for five straight quarters." Let's actually do the math on those QoQ growth rates from the fundamentals report:
 
@@ -1404,7 +1404,7 @@ And let's contextualize that 23% YoY growth: CrowdStrike is being valued like it
 
 ---
 
-## 2. The "GAAP Inflection" Is Built on Quicksand
+#### 2. The "GAAP Inflection" Is Built on Quicksand
 
 The bull triumphantly points to **+$59.4M** of net income in Q4 FY26. Let me ask the obvious question: **how much of that was operating, and how much was below-the-line?**
 
@@ -1416,7 +1416,7 @@ The bull's rebuttal that "FCF accounts for SBC via tax withholding repurchases" 
 
 ---
 
-## 3. The Valuation Math Doesn't Work Even With Heroic Assumptions
+#### 3. The Valuation Math Doesn't Work Even With Heroic Assumptions
 
 Let me steel-man the bull case and assume CRWD hits 25% revenue growth and 35% FCF margins for the next three years. That gets you to:
 
@@ -1430,7 +1430,7 @@ And the bull's comparison of "EV/FCF 38x growing 57% vs S&P 500 25x" is apples-t
 
 ---
 
-## 4. The Competitive Moat Is Eroding, Not Widening
+#### 4. The Competitive Moat Is Eroding, Not Widening
 
 The bull cites SentinelOne's weakness as proof CRWD is "taking share." But he conveniently ignored what SentinelOne *actually said* in its commentary, which Reuters quoted directly: **"some corporate clients are tightening their budgets, scrutinizing deals and extending sales cycles."**
 
@@ -1442,7 +1442,7 @@ Also conveniently absent from the bull case: **the July 2024 outage anniversary 
 
 ---
 
-## 5. The Technical Setup Is Screaming "Sell-the-News"
+#### 5. The Technical Setup Is Screaming "Sell-the-News"
 
 The bull's "trend stacking" argument willfully ignores the most important technical signal: **this is a +92.9% rally in 34 sessions into a binary earnings event.** Let's count the warning signs the bull glossed over:
 
@@ -1458,7 +1458,7 @@ And on sentiment: when retail is openly speculating about 10:1 stock splits, boa
 
 ---
 
-## 6. The Asymmetric Setup Is Brutal
+#### 6. The Asymmetric Setup Is Brutal
 
 Here's what the bull won't acknowledge: **at $731 with a binary earnings event in 4 days, the risk/reward is genuinely terrible.**
 
@@ -1472,7 +1472,7 @@ The bull says pullbacks to the 10 EMA ($650) are "gifts." Maybe. But the 50 SMA 
 
 ---
 
-## 7. Macro Headwinds the Bull Ignored
+#### 7. Macro Headwinds the Bull Ignored
 
 - **Rising Treasury yields** are a direct multiple-compression mechanism for 118x P/E stocks. The macro report flagged this explicitly.
 - **NFP this Friday** could spike yields if hot.
@@ -1483,7 +1483,7 @@ The bull's "non-discretionary spend" framing is half right. Cybersecurity gets f
 
 ---
 
-## Bottom Line: The Bear Case
+#### Bottom Line: The Bear Case
 
 The bull frames this as "tactical warning vs. strategic conviction." I reject that framing entirely. **My bear case is BOTH tactical AND strategic:**
 
@@ -1501,7 +1501,7 @@ My bull colleague delivered another eloquent essay. But notice the pattern: **ev
 
 ---
 
-## 1. The "YoY Acceleration" Claim Is Statistical Sleight of Hand
+#### 1. The "YoY Acceleration" Claim Is Statistical Sleight of Hand
 
 The bull pivoted from QoQ to YoY when QoQ stopped working. Fine — let's play on his turf. He claims YoY accelerated from 20% → 23.3%. But here's what he's hiding:
 
@@ -1513,7 +1513,7 @@ His "Amazon at $300" analogy is intellectually lazy. Amazon at $300 traded at ~8
 
 ---
 
-## 2. The ServiceNow/Salesforce Comparison Devastates the Bull, Not the Bear
+#### 2. The ServiceNow/Salesforce Comparison Devastates the Bull, Not the Bear
 
 The bull says "ServiceNow at $5B revenue had 5% operating margins; today 30%+ and $200B market cap." **Let's actually check the math he's hoping you won't run.**
 
@@ -1525,7 +1525,7 @@ The bull's own comparison set proves CRWD is **richly valued versus the very com
 
 ---
 
-## 3. The "56x FY29 FCF Is Reasonable" Argument Falls Apart Under Stress Testing
+#### 3. The "56x FY29 FCF Is Reasonable" Argument Falls Apart Under Stress Testing
 
 The bull accepted my $186B / $3.3B FY29 FCF math and called 56x "reasonable." Let me show you why that's a disaster admission, not a victory.
 
@@ -1543,7 +1543,7 @@ His Microsoft comp at "30x forward FCF growing 12%" actually proves my point: **
 
 ---
 
-## 4. "Microsoft Has Been Wrong For 7 Years" Is the Most Dangerous Sentence in Investing
+#### 4. "Microsoft Has Been Wrong For 7 Years" Is the Most Dangerous Sentence in Investing
 
 The bull's argument here is literally: **"It hasn't happened yet, therefore it won't happen."** Let me give you the historical roll-call of stocks where that argument was made:
 
@@ -1562,7 +1562,7 @@ The bull's "career risk" argument — that no CIO chooses Defender because of ra
 
 ---
 
-## 5. The Deferred Revenue "Moat" Argument Is Inverted
+#### 5. The Deferred Revenue "Moat" Argument Is Inverted
 
 The bull triumphantly cites $4.75B deferred revenue +27% YoY as proof of "deepening moat." Here's what he's not telling you:
 
@@ -1576,7 +1576,7 @@ The deferred revenue chart looks great on a slide. The economics underneath are 
 
 ---
 
-## 6. The "Sector Consolidation" Read Is a Just-So Story
+#### 6. The "Sector Consolidation" Read Is a Just-So Story
 
 The bull says weakness is only in "laggards" like SentinelOne while CRWD is "the consolidator." Two problems:
 
@@ -1586,7 +1586,7 @@ The bull says weakness is only in "laggards" like SentinelOne while CRWD is "the
 
 ---
 
-## 7. The Technical Setup Is Worse Than Even I Said
+#### 7. The Technical Setup Is Worse Than Even I Said
 
 The bull conceded "short-term pullback more likely than not" — and then waved it away as "30-day noise." Let me sharpen the point:
 
@@ -1602,7 +1602,7 @@ And his "average ±9% post-earnings move" stat is misleading. **The variance has
 
 ---
 
-## 8. Probability-Weighted Returns: The Bull's Math Is Magical
+#### 8. Probability-Weighted Returns: The Bull's Math Is Magical
 
 The bull assigned **75% probability to his base case** and **only 10% to the bear case**. Let me ask: based on what?
 
@@ -1624,7 +1624,7 @@ A more honest probability distribution:
 
 ---
 
-## 9. The Bull's Strongest Statement Is His Most Damning Admission
+#### 9. The Bull's Strongest Statement Is His Most Damning Admission
 
 The bull wrote: **"You don't trade those. You own them."**
 
@@ -1634,7 +1634,7 @@ The graveyard of "you don't trade these, you own them" stocks is enormous. Holdi
 
 ---
 
-## Bottom Line: What the Bull Won't Say Out Loud
+#### Bottom Line: What the Bull Won't Say Out Loud
 
 Strip away the rhetoric and the bull case requires **all of the following to be true**:
 
@@ -1652,7 +1652,7 @@ The bear case, by contrast, only needs **ONE** of those to crack. Multiple compr
 
 ---
 
-## The Final Word
+#### The Final Word
 
 The bull keeps insisting I'm "playing checkers on a chess board." Let me be direct: **I'm playing risk management on a casino floor where the bull is pushing his entire stack on red.**
 
@@ -1673,7 +1673,7 @@ My bull colleague delivered his closing with characteristic flourish. But let me
 
 ---
 
-## 1. The Bull's "Rebalanced" Probability Table Is the Confession
+#### 1. The Bull's "Rebalanced" Probability Table Is the Confession
 
 The bull "rebalanced" my probability table to 30/40/20/10 and triumphantly produced **+1.5%** expected return. 
 
@@ -1689,7 +1689,7 @@ And let's stress-test his rebalanced weights. He assigns only **10% probability 
 
 ---
 
-## 2. The "Easy Comp Cuts Both Ways" Argument Is a Logical Fallacy
+#### 2. The "Easy Comp Cuts Both Ways" Argument Is a Logical Fallacy
 
 The bull tried to neutralize my easy-comp critique by claiming it strengthens his thesis either way. **This is sophistry.** Let me decompose what he actually argued:
 
@@ -1708,7 +1708,7 @@ The 23% headline is **at the top of the realistic organic range, not above it** 
 
 ---
 
-## 3. The ServiceNow Comparison — The Bull's Own Words Indict Him
+#### 3. The ServiceNow Comparison — The Bull's Own Words Indict Him
 
 Watch this carefully. The bull compared CRWD's 33% FCF margin to ServiceNow's 28% at the same revenue scale, and concluded CRWD deserves a 2.3x multiple premium.
 
@@ -1726,7 +1726,7 @@ He also conveniently dropped that **ServiceNow today is growing 20%+ at $11B rev
 
 ---
 
-## 4. The NRR Defense Is the Smoking Gun
+#### 4. The NRR Defense Is the Smoking Gun
 
 The bull's NRR argument is a masterclass in motivated reasoning. He claims the NRR decline from 125% to 112% is "temporary accounting friction from commitment programs" — and that deferred revenue growth "is the leading indicator of NRR recovery."
 
@@ -1747,7 +1747,7 @@ And if NRR truly were just "accounting friction," it would have stabilized by no
 
 ---
 
-## 5. The Microsoft Argument: The Bull Set His Own Trap
+#### 5. The Microsoft Argument: The Bull Set His Own Trap
 
 This was perhaps the bull's most over-confident moment. He cited CRWD's revenue growth from $2.24B (2022) to $4.81B (2026) as proof Microsoft "hasn't won."
 
@@ -1766,7 +1766,7 @@ Also note what he didn't address: **CRWD's own July 2024 outage materially damag
 
 ---
 
-## 6. The "Behavioral Finance" Argument Is the Bull's Most Cynical Move
+#### 6. The "Behavioral Finance" Argument Is the Bull's Most Cynical Move
 
 The bull deployed a remarkable rhetorical move: claiming that investors who say "wait for a pullback" only execute 20% of the time, so I'm "selling an option you statistically won't exercise."
 
@@ -1781,7 +1781,7 @@ He inadvertently proposed the bear's recommended action plan. **A 2-3% starter p
 
 ---
 
-## 7. The "FCF Floor" Argument Collapses Under Scrutiny
+#### 7. The "FCF Floor" Argument Collapses Under Scrutiny
 
 The bull claimed CRWD has a "fundamental floor" because $1.6B TTM FCF × 30x = $48B floor.
 
@@ -1795,7 +1795,7 @@ He presented his floor analysis as bullish. It's actually the most bearish data 
 
 ---
 
-## 8. The Catalyst Map Argument: Selective Reading
+#### 8. The Catalyst Map Argument: Selective Reading
 
 The bull listed the catalyst stack and claimed risks are "priced in" while growth catalysts are not. Let me audit his list:
 
@@ -1814,7 +1814,7 @@ Meanwhile, the risk catalysts he dismissed:
 
 ---
 
-## 9. The Microsoft / NVIDIA / ServiceNow Anchor Argument: Survivorship Bias
+#### 9. The Microsoft / NVIDIA / ServiceNow Anchor Argument: Survivorship Bias
 
 The bull's closing rhetorical flourish: "Microsoft was expensive at $30 in 2014. NVIDIA was expensive at $150 in 2023. ServiceNow was expensive at $200 in 2018."
 
@@ -1829,7 +1829,7 @@ He's selling you the survivors and pretending the cemetery doesn't exist.
 
 ---
 
-## The Final Bear Synthesis
+#### The Final Bear Synthesis
 
 Let me crystallize what this debate has actually shown:
 
@@ -1855,7 +1855,7 @@ Let me crystallize what this debate has actually shown:
 
 ---
 
-## The Recommendation
+#### The Recommendation
 
 **Do not buy CRWD at $731.** The risk/reward profile is genuinely terrible, regardless of how good the company is. Specifically:
 
@@ -1879,7 +1879,7 @@ My bull colleague delivered another rhetorical tour de force. He's a skilled wri
 
 ---
 
-## 1. The Bull Just Modeled CRWD to a NEGATIVE Three-Year Return — In His Own Base Case
+#### 1. The Bull Just Modeled CRWD to a NEGATIVE Three-Year Return — In His Own Base Case
 
 Read his "actual fair value framework" carefully. I'll quote directly:
 
@@ -1899,7 +1899,7 @@ This is the ballgame. Every other argument is now noise.
 
 ---
 
-## 2. The Probability Table Got "Corrected" Three Times — Each Time More Aggressively
+#### 2. The Probability Table Got "Corrected" Three Times — Each Time More Aggressively
 
 Watch the migration:
 
@@ -1915,7 +1915,7 @@ When your probability weights need to be revised three times to make the math wo
 
 ---
 
-## 3. The "Discount to Peers" Argument Inverts His Own Logic
+#### 3. The "Discount to Peers" Argument Inverts His Own Logic
 
 The bull's victory lap on multiple convergence:
 
@@ -1936,7 +1936,7 @@ This is wrong on two fronts.
 
 ---
 
-## 4. The "Nine Unaddressed Bull Points" Charge — Let Me Address Them in 90 Seconds
+#### 4. The "Nine Unaddressed Bull Points" Charge — Let Me Address Them in 90 Seconds
 
 The bull listed nine "unaddressed" data points and claimed it was a tell. Fine — here they are, addressed:
 
@@ -1954,7 +1954,7 @@ The bull listed nine "unaddressed" data points and claimed it was a tell. Fine �
 
 ---
 
-## 5. The Cisco Comparison He Tried to Bury
+#### 5. The Cisco Comparison He Tried to Bury
 
 The bull worked hard to dismiss the Cisco 2000 analogy. Let me put the actual comparison side by side:
 
@@ -1975,7 +1975,7 @@ And the Buffett-Apple comparison? Buffett bought AAPL at **~10x earnings**, not 
 
 ---
 
-## 6. What "Buy 2-3%, Reserve for $650/$482/$343" Actually Means
+#### 6. What "Buy 2-3%, Reserve for $650/$482/$343" Actually Means
 
 The bull's grand synthesis is that we should "buy a 2-3% starter and reserve for pullbacks." Here's what he's not saying out loud:
 
@@ -1989,7 +1989,7 @@ When the bull's actionable plan reserves 80% of capital for prices below current
 
 ---
 
-## 7. The Catalyst Calendar That Should Make Every Holder Sweat
+#### 7. The Catalyst Calendar That Should Make Every Holder Sweat
 
 Let me finish with the next 14 days, since that's the immediate decision window:
 
@@ -2002,7 +2002,7 @@ Let me finish with the next 14 days, since that's the immediate decision window:
 
 ---
 
-## The Bear's Final Recommendation
+#### The Bear's Final Recommendation
 
 I'm not asking you to short CRWD. I'm not asking you to dismiss the company. I'm asking you to respect three empirical realities:
 
@@ -2018,7 +2018,7 @@ I'm not asking you to short CRWD. I'm not asking you to dismiss the company. I'm
 
 ---
 
-## The Final Word
+#### The Final Word
 
 The bull's closing line was "the pitch is here, swing." Let me give you the bear's:
 
@@ -2039,7 +2039,7 @@ The bull is now five rounds deep and has resorted to accusing me of "quotation f
 
 ---
 
-## 1. The "Rescued Base Case" Returns ~8% Annualized — For a Stock With 50% Drawdown Capacity
+#### 1. The "Rescued Base Case" Returns ~8% Annualized — For a Stock With 50% Drawdown Capacity
 
 Let's actually run the bull's "real" base case he's now claiming:
 
@@ -2060,7 +2060,7 @@ His bull case (28% CAGR, 40% margins, 50x multiple) generates 12.7% annualized �
 
 ---
 
-## 2. The Assumptions Are Quietly Heroic — Let Me Decompose Them
+#### 2. The Assumptions Are Quietly Heroic — Let Me Decompose Them
 
 The bull's "reasonable base case" requires:
 - **24% revenue CAGR for 3 years** (vs. consensus ~22% and decelerating)
@@ -2078,7 +2078,7 @@ The bull keeps anchoring to ServiceNow as the template. **But ServiceNow had a u
 
 ---
 
-## 3. The "Growth-Adjusted Multiple" Argument Has a Fatal Flaw
+#### 3. The "Growth-Adjusted Multiple" Argument Has a Fatal Flaw
 
 The bull's table:
 
@@ -2103,7 +2103,7 @@ And here's the bigger issue: **growth-adjusted multiples are the favorite tool o
 
 ---
 
-## 4. The IDC Data Citation — Source Please?
+#### 4. The IDC Data Citation — Source Please?
 
 The bull dropped this in his closer as if it ends the Microsoft debate:
 
@@ -2121,7 +2121,7 @@ What I can cite from the actual research record:
 
 ---
 
-## 5. The Catalyst Calendar Asymmetry Stands
+#### 5. The Catalyst Calendar Asymmetry Stands
 
 The bull listed "bullish catalysts" to balance my "bearish" ones. Let me grade his list honestly:
 
@@ -2140,7 +2140,7 @@ His NVDA analogy is telling. **NVDA in 2023 had organic revenue growth accelerat
 
 ---
 
-## 6. The "Ten Bull Data Points" Scoreboard — Let Me Audit
+#### 6. The "Ten Bull Data Points" Scoreboard — Let Me Audit
 
 The bull listed ten "unrefuted" data points. Let me mark them honestly:
 
@@ -2161,7 +2161,7 @@ The bull is treating data points as unrefuted because I didn't repeat the rebutt
 
 ---
 
-## 7. The "Wait Since $200" Strawman Deserves a Direct Response
+#### 7. The "Wait Since $200" Strawman Deserves a Direct Response
 
 The bull's most cynical move:
 
@@ -2175,7 +2175,7 @@ If CRWD pulls back to $580 next month, the bear case will pivot to evaluating th
 
 ---
 
-## 8. The Final Reconciliation — Where the Bull's Math Actually Lands
+#### 8. The Final Reconciliation — Where the Bull's Math Actually Lands
 
 Let me do the bull a favor and run his own scenario weights through his own returns:
 
@@ -2198,7 +2198,7 @@ EV = (0.25 × 43) + (0.35 × 28) + (0.25 × -15) + (0.15 × -45) = **10.75 + 9.8
 
 ---
 
-## The Bear's Final Recommendation — Clear and Direct
+#### The Bear's Final Recommendation — Clear and Direct
 
 **Do not buy CRWD at $731.** The math doesn't support it. Even the bull's math doesn't support it on a risk-adjusted basis.
 
@@ -2216,7 +2216,7 @@ EV = (0.25 × 43) + (0.35 × 28) + (0.25 × -15) + (0.15 × -45) = **10.75 + 9.8
 
 ---
 
-## The Final Word
+#### The Final Word
 
 The bull's closing image was a "fat pitch down the middle." Let me give you the bear's parting frame:
 

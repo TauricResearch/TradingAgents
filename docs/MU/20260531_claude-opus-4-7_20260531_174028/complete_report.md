@@ -5,13 +5,13 @@ Generated: 2026-05-31 17:40:28
 ## I. Analyst Team Reports
 
 ### Market Analyst
-# MU (Micron Technology, Inc.) — Technical Analysis Report
+#### MU (Micron Technology, Inc.) — Technical Analysis Report
 **Date:** 2026-05-31 (last trading session: Fri 2026-05-29)
 **Sector:** Technology / Semiconductors (NMS)
 
 > Note: The `get_verified_market_snapshot` tool was not available in this environment. All numbers below are sourced directly from `get_stock_data` and `get_indicators` tool outputs and dated to specific trading days.
 
-## 1. Big-Picture Price Action
+#### 1. Big-Picture Price Action
 
 MU has undergone a **historic, multi-leg rally** over the seven-month window analyzed:
 
@@ -29,7 +29,7 @@ From the 2026-03-30 low ($321.80) to 2026-05-29 close ($971.00), MU has gained *
 
 This is textbook **parabolic / "blow-off" stage three** behavior in a strong secular uptrend — likely driven by AI/HBM memory demand catalysts in the semiconductor space.
 
-## 2. Trend Structure (Moving Averages)
+#### 2. Trend Structure (Moving Averages)
 
 | Indicator (2026-05-29) | Value | vs. Close $971.00 |
 |---|---|---|
@@ -42,7 +42,7 @@ This is textbook **parabolic / "blow-off" stage three** behavior in a strong sec
 - The **50/200 SMA spread has exploded**: 50 SMA is now ~64% above the 200 SMA, an extreme deviation that historically precedes mean-reversion phases — but does not, by itself, mark a top.
 - Price is **trading 15.5% above its own 10 EMA** — a clear sign of acceleration that is unsustainable on a multi-week timeframe. Past instances in this dataset where MU reached >12% above its 10 EMA (e.g., 2026-01-29, 2026-03-18) preceded sharp pullbacks of 10–30%.
 
-## 3. Momentum (MACD & RSI)
+#### 3. Momentum (MACD & RSI)
 
 **MACD (line):**
 - 2026-05-22: 71.08 (cooling)
@@ -60,7 +60,7 @@ This is a **fresh MACD bullish crossover with histogram expansion** that ignited
 - Earlier in May, RSI peaked at 85.84 (May 11) and 83.78 (May 8), then **cooled to 59.6 (May 18) without price collapsing** — a hallmark of a "strong-trend" RSI reset.
 - Current 78 reading is elevated but **not yet at the May 11 extreme**, leaving some room for further upside before exhaustion.
 
-## 4. Volatility (Bollinger Upper Band & ATR)
+#### 4. Volatility (Bollinger Upper Band & ATR)
 
 **Bollinger Upper Band (20, 2σ):**
 - 2026-05-29: **$980.57** — close of $971.00 is just $9.57 below the upper band (~99% of band).
@@ -73,7 +73,7 @@ This is a **fresh MACD bullish crossover with histogram expansion** that ignited
 
 **Risk implication:** Position sizing must be cut roughly in half versus early-May norms. A reasonable trailing stop is **2× ATR ≈ $112 below entry**, or ~$859 from current levels.
 
-## 5. Key Synthesis & Trading Implications
+#### 5. Key Synthesis & Trading Implications
 
 **Bullish factors:**
 - Trend across all three timeframes (10 EMA / 50 SMA / 200 SMA) is unambiguously up and accelerating.
@@ -93,7 +93,7 @@ This is a **fresh MACD bullish crossover with histogram expansion** that ignited
 - **Existing longs:** consider trimming partial size to lock in gains, trail remaining position with a 2× ATR stop (~$859) or a break of the 10 EMA on a closing basis.
 - **No short signal yet** — momentum confirms price; wait for either (a) MACD histogram contraction / bearish cross, (b) bearish RSI divergence at a new price high, or (c) a decisive close back inside the Bollinger band before considering counter-trend trades.
 
-## 6. Summary Table
+#### 6. Summary Table
 
 | Category | Indicator | Value (2026-05-29) | Reading | Implication |
 |---|---|---|---|---|
@@ -113,9 +113,9 @@ This is a **fresh MACD bullish crossover with histogram expansion** that ignited
 **Confidence:** High
 
 
-# MU Sentiment Report — 2026-05-24 to 2026-05-31
+#### MU Sentiment Report — 2026-05-24 to 2026-05-31
 
-## 1. Source-by-Source Breakdown
+#### 1. Source-by-Source Breakdown
 
 ### News (Yahoo Finance, ~20 headlines)
 Institutional framing is overwhelmingly bullish, anchored by a single dominant event: **Micron has crossed the $1 trillion market cap threshold**, doing so in just 48 days from $500B (per Cramer commentary) — an even faster ascent than NVIDIA's. Key bullish threads:
@@ -146,7 +146,7 @@ Net: roughly 14 bullish / 4 cautionary / 2 neutral. Institutional tone is bullis
 - **r/investing**: "FOMO got to me and I bought more," trailing-stop questions — investors trying to lock in rather than initiate.
 - Engagement metrics not provided via RSS, but the *content pattern* (multiple millionaire-claim posts, exit-strategy questions) is a well-known late-cycle signature.
 
-## 2. Cross-Source Alignment & Divergence
+#### 2. Cross-Source Alignment & Divergence
 **Alignment**: All three sources are strongly bullish on direction. The AI-memory / HBM-shortage / trillion-dollar-club narrative is consistent from Bloomberg/BofA down to retail.
 
 **Divergence (subtle but important)**:
@@ -154,14 +154,14 @@ Net: roughly 14 bullish / 4 cautionary / 2 neutral. Institutional tone is bullis
 - StockTwits and Reddit show **no such caution** — Bullish:Bearish on ST is 15:0, and Reddit posts are celebratory rather than analytical.
 - This is the classic retail-leans-harder-than-institutions pattern that often precedes consolidation, even within a strong uptrend.
 
-## 3. Dominant Narrative Themes
+#### 3. Dominant Narrative Themes
 1. **HBM/DRAM structural shortage through 2026–2027** — supply booked, customers getting 50–60% of asks.
 2. **AI capex supercycle** (Anthropic, SoftBank France, hyperscaler buildouts) reframing memory from cyclical to structural.
 3. **Trillion-dollar milestone** as validation — and as a debate trigger ("too late to buy?").
 4. **Sell-side chase**: UBS reportedly to $1,625; broad PT revisions higher.
 5. **Bubble debate** emerging on the institutional side; absent on retail side.
 
-## 4. Catalysts & Risks
+#### 4. Catalysts & Risks
 **Catalysts**
 - Upcoming Micron earnings (typically late June) — chatter explicitly anticipates.
 - Broadcom (AVGO) earnings June 3 will set tone for AI semis.
@@ -175,7 +175,7 @@ Net: roughly 14 bullish / 4 cautionary / 2 neutral. Institutional tone is bullis
 - Macro/geopolitical: Iran/Strait of Hormuz headlines bleed into risk appetite.
 - Stock doubled in 48 days — pullback risk on any negative AI-capex datapoint.
 
-## 5. Summary Table
+#### 5. Summary Table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -191,7 +191,7 @@ Net: roughly 14 bullish / 4 cautionary / 2 neutral. Institutional tone is bullis
 | FOMO buying / exit-strategy questions | Late-cycle flag | Reddit (r/investing, r/stocks) | "FOMO got to me", "When do people sell?" |
 | Geopolitics (Hormuz/Iran) | Risk | News (Bloomberg) | Recurring in headlines |
 
-## Bottom Line
+#### Bottom Line
 Sentiment is decisively **Bullish** across all three sources, with a powerful structural AI-memory narrative and confirmatory institutional price-target revisions. However, the *quality* of the bullishness is showing late-cycle characteristics: zero bearish StockTwits posts, Reddit victory laps, mainstream bubble debate, and at least one quant fund (RenTec) distributing. Score 7.8 reflects strong directional sentiment tempered by clear over-extension / contrarian-risk markers. Confidence is high given substantive coverage across all three sources.
 
 
@@ -200,10 +200,10 @@ I have enough data to compose a comprehensive report.
 
 ---
 
-# Micron Technology (MU) — Weekly News & Macro Research Report
+#### Micron Technology (MU) — Weekly News & Macro Research Report
 **Analysis Date:** 2026-05-31 | **Ticker:** MU (NasdaqGS) | **Sector:** Technology / Semiconductors (Memory)
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 Micron Technology has just crossed the **US$1 trillion market cap** threshold, joining an elite club populated previously by Nvidia, Microsoft, AMD, and others. The stock has approximately **doubled in 48 days**, an extraordinarily fast trajectory that itself is now a focal point of debate: structural AI memory super-cycle vs. late-cycle bubble. Sentiment around MU is overwhelmingly bullish but increasingly contested, with cracks appearing (Renaissance Technologies trimming, Bloomberg AI-bubble framing). Macroeconomic crosscurrents — namely a US-Iran conflict, oil price spikes, sticky inflation, and rising Treasury yields — present meaningful risk to the broader risk-on rally that has carried MU.
 
@@ -211,7 +211,7 @@ Micron Technology has just crossed the **US$1 trillion market cap** threshold, j
 
 ---
 
-## 2. Company-Specific Catalysts (Past Week)
+#### 2. Company-Specific Catalysts (Past Week)
 
 ### 2.1 Trillion-Dollar Milestone & Anthropic Partnership
 - **Micron crossed US$1 trillion market cap**, first memory-pure-play ever to do so. SK Hynix also hit $1T concurrently — confirming memory is in a structural re-rating, not idiosyncratic.
@@ -236,7 +236,7 @@ Micron Technology has just crossed the **US$1 trillion market cap** threshold, j
 
 ---
 
-## 3. Macroeconomic Backdrop
+#### 3. Macroeconomic Backdrop
 
 ### 3.1 Geopolitics — US/Iran Conflict (HIGH RISK)
 - "US Says Deals With Iran for Safe Hormuz Transit Are Prohibited"
@@ -260,7 +260,7 @@ Micron Technology has just crossed the **US$1 trillion market cap** threshold, j
 
 ---
 
-## 4. Trading Implications & Actionable Insights
+#### 4. Trading Implications & Actionable Insights
 
 | Time Horizon | Bias | Rationale |
 |---|---|---|
@@ -282,7 +282,7 @@ Micron Technology has just crossed the **US$1 trillion market cap** threshold, j
 
 ---
 
-## 5. Summary Table — Key Points
+#### 5. Summary Table — Key Points
 
 | # | Theme | Signal | Direction | Importance |
 |---|---|---|---|---|
@@ -307,14 +307,14 @@ Micron Technology has just crossed the **US$1 trillion market cap** threshold, j
 **Bottom Line for the Trading Desk:** MU's fundamental story is the strongest it has ever been, but the stock has *front-loaded* much of that thesis in 48 days. With Renaissance trimming, bubble headlines proliferating, geopolitical tail risk live (Iran/Hormuz), and Treasury yields creeping higher, the asymmetry has shifted. Traders should **trim into strength / harvest gains**, maintain core long exposure, and look to re-add on a 10–20% pullback or post-earnings reset. New money chasing here carries elevated drawdown risk despite the intact long-term bull thesis.
 
 ### Fundamentals Analyst
-# Micron Technology, Inc. (MU) — Comprehensive Fundamental Analysis Report
+#### Micron Technology, Inc. (MU) — Comprehensive Fundamental Analysis Report
 **Report Date:** May 31, 2026  
 **Sector / Industry:** Technology / Semiconductors (Memory — DRAM & NAND)  
 **Exchange:** NASDAQ (NMS)
 
 ---
 
-## 1. Company Profile & Snapshot
+#### 1. Company Profile & Snapshot
 
 Micron Technology is one of the world's three dominant memory semiconductor manufacturers, producing DRAM, NAND flash, and increasingly High-Bandwidth Memory (HBM) for AI accelerators. The company sits at the epicenter of the AI memory super-cycle, with HBM being the key strategic growth driver supplying NVIDIA, AMD, and hyperscaler AI infrastructure.
 
@@ -331,7 +331,7 @@ The combination of a 45x trailing PE collapsing to a 9x forward PE and a PEG of 
 
 ---
 
-## 2. Income Statement Trends (Quarterly)
+#### 2. Income Statement Trends (Quarterly)
 
 The quarterly progression is the single most striking story in the entire dataset — Micron is in the most powerful upward earnings inflection of its history.
 
@@ -354,7 +354,7 @@ The quarterly progression is the single most striking story in the entire datase
 
 ---
 
-## 3. Balance Sheet Strength
+#### 3. Balance Sheet Strength
 
 | Metric | Feb 2026 | Nov 2025 | Aug 2025 | May 2025 | Feb 2025 |
 |---|---|---|---|---|---|
@@ -378,7 +378,7 @@ The quarterly progression is the single most striking story in the entire datase
 
 ---
 
-## 4. Cash Flow Analysis
+#### 4. Cash Flow Analysis
 
 | Quarter | Operating CF ($B) | CapEx ($B) | Free Cash Flow ($B) | Dividends ($M) | Buybacks ($M) | Debt Repaid ($B) |
 |---|---|---|---|---|---|---|
@@ -399,7 +399,7 @@ The quarterly progression is the single most striking story in the entire datase
 
 ---
 
-## 5. Profitability & Returns
+#### 5. Profitability & Returns
 
 - **Profit Margin (TTM):** 41.5%
 - **Operating Margin (TTM):** 67.6% (most recent quarter; TTM lower — note the figure on the fundamentals card may reflect the latest quarter)
@@ -411,7 +411,7 @@ These returns sit at the very top end of the memory cycle peak — comparable on
 
 ---
 
-## 6. Strategic & Cyclical Context
+#### 6. Strategic & Cyclical Context
 
 **Bullish drivers:**
 1. **HBM is structurally different** from commodity DRAM — multi-year qualification cycles, NVIDIA/AMD lock-in, and capacity allocation through 2027 already booked.
@@ -429,7 +429,7 @@ These returns sit at the very top end of the memory cycle peak — comparable on
 
 ---
 
-## 7. Valuation Read
+#### 7. Valuation Read
 
 | Valuation Lens | Reading |
 |---|---|
@@ -443,7 +443,7 @@ The stock is essentially priced as if peak EPS will *not* fully sustain. If even
 
 ---
 
-## 8. Actionable Insights for Traders
+#### 8. Actionable Insights for Traders
 
 - **Momentum/Trend traders:** Strong primary uptrend (50-DMA $557 vs. 200-DMA $339; ~65% gap). Earnings inflection is real and accelerating; revenue and EPS revisions will likely continue upward into the next print.
 - **Value/Quality investors:** Forward PE 9x + PEG 0.33 + ROE 40% + net debt near zero is a high-quality cyclical trough valuation despite the price action. Position with awareness of cycle risk.
@@ -453,7 +453,7 @@ The stock is essentially priced as if peak EPS will *not* fully sustain. If even
 
 ---
 
-## 9. Summary Table — Key Fundamentals at a Glance
+#### 9. Summary Table — Key Fundamentals at a Glance
 
 | Category | Metric | Value | Read |
 |---|---|---|---|
@@ -502,7 +502,7 @@ Let me cut right to the chase: **Micron is not a bubble. It's a structural re-ra
 
 ---
 
-## 1. The Fundamentals Are Staggering — and Underappreciated
+#### 1. The Fundamentals Are Staggering — and Underappreciated
 
 Forget the chart for a moment. Look at what this company just did:
 
@@ -519,7 +519,7 @@ If the bear thesis is right that this is "peak cycle," fine — but even at 60-7
 
 ---
 
-## 2. This Cycle Is Structurally Different — HBM Changes Everything
+#### 2. This Cycle Is Structurally Different — HBM Changes Everything
 
 The bear's favorite playbook is "memory is cyclical, it always reverts." That argument is **fighting the last war.** Here's why HBM breaks the historical pattern:
 
@@ -532,7 +532,7 @@ This isn't 2018 PC DRAM. This is a long-duration, contracted, supply-constrained
 
 ---
 
-## 3. Refuting the Bear's Specific Concerns
+#### 3. Refuting the Bear's Specific Concerns
 
 **Bear: "Renaissance Technologies is selling — smart money is out!"**
 
@@ -561,7 +561,7 @@ Micron's fab footprint is Idaho, NY, Virginia, Taiwan, Japan, Singapore — **ze
 
 ---
 
-## 4. Catalysts Are Stacking Up
+#### 4. Catalysts Are Stacking Up
 
 - **Late June earnings** — given Q2 was $12.07 EPS and HBM is supply-constrained, the setup for another beat-and-raise is elite
 - **HBM4 ramp news flow** — next-generation product cycle just beginning
@@ -571,7 +571,7 @@ Micron's fab footprint is Idaho, NY, Virginia, Taiwan, Japan, Singapore — **ze
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear case relies on **pattern-matching to historical memory cycles that no longer apply**, **technical extension that fundamentals have justified**, and **sentiment indicators that always look frothy at the start of structural re-ratings.**
 
@@ -586,7 +586,7 @@ Bear, that was a beautifully written argument. It was also **wrong in three foun
 
 ---
 
-## 1. Your 2018 and 2022 Comparisons Are Category Errors
+#### 1. Your 2018 and 2022 Comparisons Are Category Errors
 
 You anchored your whole bear case on "Micron in 2018 at 4x forward earnings collapsed 45%" and "2022 at 6x collapsed 50%." Let me show you why that analogy is fatally flawed:
 
@@ -600,7 +600,7 @@ You said "every memory cycle ends with analysts saying 'this time is different.'
 
 ---
 
-## 2. Your Samsung HBM4 Threat Is Already Priced In — and Overrated
+#### 2. Your Samsung HBM4 Threat Is Already Priced In — and Overrated
 
 You asked what my floor is when Samsung qualifies HBM4 at NVIDIA. Here's my answer: **it's already happening, and it doesn't matter the way you think.**
 
@@ -613,7 +613,7 @@ My downside floor on a Samsung HBM4 qual announcement: **a 10-15% knee-jerk pull
 
 ---
 
-## 3. Your Margin Reversion Math Is Lazy — Let's Actually Run It
+#### 3. Your Margin Reversion Math Is Lazy — Let's Actually Run It
 
 You claim gross margins go from 74% → 40-45% by FY28. Let's stress-test that:
 
@@ -627,7 +627,7 @@ At $14-18 trough EPS, MU at $971 trades at **54-69x trough earnings** — yes, t
 
 ---
 
-## 4. On Renaissance — Let's Actually Look at What "Smart Money" Is Doing
+#### 4. On Renaissance — Let's Actually Look at What "Smart Money" Is Doing
 
 You called my dismissal of RenTec "hubris." Let me give you the full picture you conveniently omitted:
 
@@ -639,7 +639,7 @@ Cherry-picking one quant fund's algorithmic trim against a wave of fundamental c
 
 ---
 
-## 5. The Asymmetry Math — You Got the Probabilities Backwards
+#### 5. The Asymmetry Math — You Got the Probabilities Backwards
 
 You framed this as "upside requires everything to go right, downside requires one thing to go wrong." Let me reframe with actual base rates:
 
@@ -658,7 +658,7 @@ You need **multiple things to go wrong simultaneously** AND for the market to ig
 
 ---
 
-## 6. Conceding What Deserves to Be Conceded — and Why It Doesn't Change the Trade
+#### 6. Conceding What Deserves to Be Conceded — and Why It Doesn't Change the Trade
 
 I'll give you this, Bear: **you are correct that chasing $971 with full size into the upper Bollinger band is poor risk management.** I'm not arguing for that. The technical report itself says "avoid initiating fresh full-size longs at $971."
 
@@ -670,7 +670,7 @@ That's how you respect the technical extension WITHOUT abandoning a fundamental 
 
 ---
 
-## Bottom Line — The Question You Have to Answer
+#### Bottom Line — The Question You Have to Answer
 
 Bear, here's what you can't escape: **the company just printed $12.07 in quarterly EPS. That's a $48 annualized run-rate. Even if margins compress 30% from here, you still have a company doing $30+ in earnings against a balance sheet with zero net debt and $11.9B in quarterly operating cash flow.**
 
@@ -689,7 +689,7 @@ Let me clean up the rhetorical sleight-of-hand and put the real bull case to bed
 
 ---
 
-## 1. You Misrepresented My "Concessions" — Let Me Set the Record Straight
+#### 1. You Misrepresented My "Concessions" — Let Me Set the Record Straight
 
 You ran a victory lap claiming I "conceded" six points. Let me re-state what I actually said versus what you pretended I said:
 
@@ -705,7 +705,7 @@ You confused **"manage the position"** with **"abandon the thesis."** Those are 
 
 ---
 
-## 2. Your Mid-Cycle Math Has a Glaring Error — Let Me Walk Through It
+#### 2. Your Mid-Cycle Math Has a Glaring Error — Let Me Walk Through It
 
 You declared mid-cycle EPS is "$24-28, not $40-50" because "mid-cycle is 50-60% of peak." Bear, **you applied a commodity DRAM heuristic to a business that is now 50%+ HBM by 2027.** That's the entire flaw.
 
@@ -734,7 +734,7 @@ Now here's the part that breaks your argument: **the market does NOT pay 15-18x 
 
 ---
 
-## 3. Your Historical Analogies All Failed for the Same Reason
+#### 3. Your Historical Analogies All Failed for the Same Reason
 
 You ran the parade of horribles: 2000 Cisco, 2007 housing, 2021 SaaS, 2021 crypto, 2022 Peloton/Zoom. Bear, **every single one of those failures had one common denominator: collapsing unit economics or revenue.**
 
@@ -749,7 +749,7 @@ The correct analogue is not Cisco 2000. It's **NVIDIA in early 2023 at $300/shar
 
 ---
 
-## 4. Your "AI Capex Cracking" Evidence Is Thin and Cherry-Picked
+#### 4. Your "AI Capex Cracking" Evidence Is Thin and Cherry-Picked
 
 You cited:
 - **MIT research questioning AI ROI** — those papers are about *enterprise* AI deployments, not foundation model training. Hyperscaler demand for HBM is driven by training and inference at the model layer, not enterprise SaaS adoption.
@@ -767,7 +767,7 @@ You need AI capex to decelerate from 65% growth to 35% to crack the supply-deman
 
 ---
 
-## 5. Your Expected Value Math Was Manipulated — Let Me Run It Honestly
+#### 5. Your Expected Value Math Was Manipulated — Let Me Run It Honestly
 
 You ran an EV calculation that arrived at +0.9% expected return. Let me show how rigged it was:
 
@@ -791,7 +791,7 @@ The real flaw in your EV: you assigned 40% probability to peak upside but ignore
 
 ---
 
-## 6. The "Smart Money" Tape Reading — Let Me Show You What's Actually Happening
+#### 6. The "Smart Money" Tape Reading — Let Me Show You What's Actually Happening
 
 You demanded 13F evidence on Druckenmiller, Ackman, Tepper. Fair. Here's what we actually know:
 
@@ -804,7 +804,7 @@ You said "RenTec also sold Cisco in 1999 and missed nothing." Bear, **Cisco peak
 
 ---
 
-## 7. The Catalyst Calendar Is Asymmetric in My Favor
+#### 7. The Catalyst Calendar Is Asymmetric in My Favor
 
 You said catalysts are "priced in." Let me push back hard on each:
 
@@ -818,7 +818,7 @@ You called this "buy the rumor, sell the news." **The data says it's "beat the r
 
 ---
 
-## 8. The Final Synthesis — What the Bear Just Inadvertently Proved
+#### 8. The Final Synthesis — What the Bear Just Inadvertently Proved
 
 Bear, let me distill what you actually argued:
 
@@ -832,7 +832,7 @@ Bear, let me distill what you actually argued:
 
 ---
 
-## My Final Recommendation
+#### My Final Recommendation
 
 **Hold the core. Trim 15-20% on strength to harvest some gains. Trail with a 2× ATR stop at ~$859. Re-deploy aggressively on any 10-15% pullback toward the 10 EMA at $840.**
 
@@ -844,7 +844,7 @@ Bear, let me distill what you actually argued:
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 Bear, you wrote a brilliant essay arguing that **a company tripling revenue, expanding margins 38 points, generating $5.5B quarterly FCF, with zero net debt, contracted demand through 2027, lead-supplier status at NVIDIA, and a 9x forward P/E** should be sold because the chart looks scary and Reddit is happy.
 
@@ -863,7 +863,7 @@ Bear, that was a brilliant rhetorical performance. You quoted me selectively, ma
 
 ---
 
-## 1. The "You Just Published the Bear Case" Trick — Let Me Expose It
+#### 1. The "You Just Published the Bear Case" Trick — Let Me Expose It
 
 Bear, you took my **stress-test scenarios** — where I deliberately ran *bearish* multiples on *bearish* earnings to show the worst-case math — and presented them as if they were my **base case**. That's not analysis. That's selective quotation worthy of a political attack ad.
 
@@ -879,7 +879,7 @@ You didn't refute my framework. **You took my stress test and tried to sell it a
 
 ---
 
-## 2. The Quasi-Monopoly Argument — You Misread the Industry Structure
+#### 2. The Quasi-Monopoly Argument — You Misread the Industry Structure
 
 Bear, you said Micron is "the #3 player in its supposed moat product" with 20% HBM share — implying weakness. Let me flip that on its head with the actual industry math:
 
@@ -892,7 +892,7 @@ And the NVIDIA comparison? You said NVIDIA has "90% share, CUDA lock-in, 70% mar
 
 ---
 
-## 3. On the HBM Contracts — You're Right About Pricing, Wrong About the Conclusion
+#### 3. On the HBM Contracts — You're Right About Pricing, Wrong About the Conclusion
 
 Bear, I'll concede a piece of ground: HBM agreements are volume-locked, not price-fixed. You're correct on that point. But you misread what it means.
 
@@ -910,7 +910,7 @@ OK, that's a tougher trough than I initially modeled. Fair. **But here's where y
 
 ---
 
-## 4. The EV Math — Your "Honest Probabilities" Have Their Own Problems
+#### 4. The EV Math — Your "Honest Probabilities" Have Their Own Problems
 
 Bear, your revised distribution:
 - 25% upside +20%
@@ -931,7 +931,7 @@ The honest framing for a long-term holder is:
 
 ---
 
-## 5. The Microsoft Lease Cancellation Argument — Show Me the Capex Number
+#### 5. The Microsoft Lease Cancellation Argument — Show Me the Capex Number
 
 Bear, you cited TD Cowen and Wells Fargo on Microsoft "speculative lease cancellations" as the canary. Here's what the actual public data says:
 
@@ -946,7 +946,7 @@ You cited "Citi's data center capex tracker showed first signs of moderation in 
 
 ---
 
-## 6. The Earnings Setup — You're Now Arguing Against a Beat-and-Raise History
+#### 6. The Earnings Setup — You're Now Arguing Against a Beat-and-Raise History
 
 Bear, you said a 35%+ beat-vs.-consensus is needed just to maintain $971. Let's look at the actual beat history:
 
@@ -964,7 +964,7 @@ That's exactly the playbook for MU. **Even if the post-print reaction is muted o
 
 ---
 
-## 7. The Sell-Side "Fade" Argument Cuts Both Ways
+#### 7. The Sell-Side "Fade" Argument Cuts Both Ways
 
 You said sell-side PT chasing is contrarian. Fair point in extreme cases. But:
 
@@ -974,7 +974,7 @@ You said sell-side PT chasing is contrarian. Fair point in extreme cases. But:
 
 ---
 
-## 8. What This Debate Has Actually Established
+#### 8. What This Debate Has Actually Established
 
 Let me clear away the rhetorical smoke and state what's actually been established:
 
@@ -996,7 +996,7 @@ Let me clear away the rhetorical smoke and state what's actually been establishe
 
 ---
 
-## My Final Recommendation — Sticking With Conviction
+#### My Final Recommendation — Sticking With Conviction
 
 **Hold the core. Trim 15-25% on strength to lock in gains. Trail with a 2× ATR stop near $859. Re-deploy aggressively on any 10-15% pullback toward the 10 EMA at $840.**
 
@@ -1012,7 +1012,7 @@ Let me clear away the rhetorical smoke and state what's actually been establishe
 
 ---
 
-## The Final Word
+#### The Final Word
 
 Bear, you wrote a beautifully constructed argument. It rests on three pillars:
 1. **Memory cycles always revert** — true historically, contestable in the AI-HBM regime
@@ -1032,7 +1032,7 @@ Bear, that was your most rhetorically polished round — and your weakest substa
 
 ---
 
-## 1. The "Goalposts" Accusation Is Backwards — You Moved the Frame, Not Me
+#### 1. The "Goalposts" Accusation Is Backwards — You Moved the Frame, Not Me
 
 Bear, you accused me of pivoting from "9x forward earnings" to "18-22x normalized EPS." That's not a pivot. **Those are the same valuation framework expressed two different ways**, and any analyst worth their seat knows it:
 
@@ -1047,7 +1047,7 @@ You ran zero scenarios for *upside*. Not one. You modeled trough × trough multi
 
 ---
 
-## 2. The TSMC Comparison — You Built a Strawman and Knocked It Down
+#### 2. The TSMC Comparison — You Built a Strawman and Knocked It Down
 
 Bear, you produced a beautiful table comparing TSMC vs. Micron and "demolished" the comp. Problem: **I never said Micron deserves TSMC's exact multiple.** I said TSMC is the existence proof that the market pays mid-20s multiples for **qualified-supplier oligopolists with structural pricing power**, contradicting your claim that "memory has never sustained 25-30x."
 
@@ -1062,7 +1062,7 @@ And on your "memory comp is SK Hynix at 8-12x" — Bear, **SK Hynix is currently
 
 ---
 
-## 3. The Hyperscaler Capex Deceleration Argument — Watch What I'm About to Show You
+#### 3. The Hyperscaler Capex Deceleration Argument — Watch What I'm About to Show You
 
 This is your strongest point, so let me address it head-on with actual math instead of hand-waving.
 
@@ -1081,7 +1081,7 @@ That's the part you missed: **HBM demand growth is the product of (AI capex grow
 
 ---
 
-## 4. The "Latecomer Ramper Gets Crushed" Argument — Wrong Cycle, Wrong Product
+#### 4. The "Latecomer Ramper Gets Crushed" Argument — Wrong Cycle, Wrong Product
 
 Bear, you compared Micron's HBM ramp to its 2017-2018 NAND share gain that ended in a 2019 collapse. The analogy fails on **product structure**:
 
@@ -1094,7 +1094,7 @@ This is why I keep saying your historical analogies are category errors. You're 
 
 ---
 
-## 5. The "Beat Deceleration" Argument Is a Statistical Artifact
+#### 5. The "Beat Deceleration" Argument Is a Statistical Artifact
 
 You cited beat magnitudes 22% → 28% → 35% → 41% → 42% and called the +1pt last quarter a roll-over signal. Bear, **look at the absolute dollar beats**, not the percentage:
 
@@ -1115,7 +1115,7 @@ All three signals are pointing the same way: **late-June print has a high probab
 
 ---
 
-## 6. The "70-85% Straight-Line Collapse" Claim Is Unhinged
+#### 6. The "70-85% Straight-Line Collapse" Claim Is Unhinged
 
 Bear, you took my $11 trough EPS sensitivity at 12-15x and called it a "-83% straight-line collapse." Let me address this directly because it's the most reckless claim in your entire closing:
 
@@ -1140,7 +1140,7 @@ The realistic drawdown distribution given the current setup:
 
 ---
 
-## 7. What the Bear Just Conceded — And What It Means
+#### 7. What the Bear Just Conceded — And What It Means
 
 Let me flip the bear's "concession tally" trick on him, because his closing actually conceded the entire fundamental case:
 
@@ -1156,7 +1156,7 @@ Let me flip the bear's "concession tally" trick on him, because his closing actu
 
 ---
 
-## My Final Recommendation — Sticking With Conviction, Refined
+#### My Final Recommendation — Sticking With Conviction, Refined
 
 **Long MU. Position-managed, not max-leveraged. Here's the precise playbook:**
 
@@ -1177,7 +1177,7 @@ Let me flip the bear's "concession tally" trick on him, because his closing actu
 
 ---
 
-## The Closing Word — What This Debate Actually Established
+#### The Closing Word — What This Debate Actually Established
 
 The bear wrote brilliant prose. He cited real risks. He correctly identified technical extension and sentiment euphoria. **None of that constitutes a short signal in a stock with accelerating fundamentals and a 24-month structural runway.**
 
@@ -1211,7 +1211,7 @@ Bull, you asked which earnings numbers reverse and by when. **I'll tell you exac
 
 ---
 
-## 1. Your "Forward P/E of 9x" Argument Is the Oldest Trap in Cyclicals
+#### 1. Your "Forward P/E of 9x" Argument Is the Oldest Trap in Cyclicals
 
 Bull, I almost laughed when you led with the 9.2x forward P/E. **That's not a value signal — that's a cyclical peak signal.** Let me show you the playbook:
 
@@ -1225,7 +1225,7 @@ You're telling me 74% margins are the new normal because "HBM is different." Let
 
 ---
 
-## 2. The HBM "Structural" Story Has Massive Holes
+#### 2. The HBM "Structural" Story Has Massive Holes
 
 You claim HBM is "structurally different." Here's what you're not telling the audience:
 
@@ -1243,7 +1243,7 @@ Yes, HBM crowds out supply *now*. But it also means every fab dollar of capex cr
 
 ---
 
-## 3. Receivables — Bull, You Got the Math Wrong
+#### 3. Receivables — Bull, You Got the Math Wrong
 
 You said receivables grew 70% while revenue grew 75%, "slower than revenue." Let me re-check the actual numbers:
 
@@ -1258,7 +1258,7 @@ OK, DSO is roughly flat. But look at the **absolute number**: $17.3B in receivab
 
 ---
 
-## 4. The Technical Setup Is Screaming Distribution
+#### 4. The Technical Setup Is Screaming Distribution
 
 You waved away the chart. Let's not:
 
@@ -1272,7 +1272,7 @@ Your "RSI cooled from 85 to 59" comment is selective. RSI is back to 78 and ATR 
 
 ---
 
-## 5. Sentiment Is Textbook Late-Cycle Euphoria
+#### 5. Sentiment Is Textbook Late-Cycle Euphoria
 
 Bull, you didn't even address this. Let me lay it out:
 
@@ -1286,7 +1286,7 @@ You said "bubble headlines appeared at NVIDIA $500B too." Sure — but NVIDIA's 
 
 ---
 
-## 6. The Macro Setup Is Hostile
+#### 6. The Macro Setup Is Hostile
 
 You claimed MU is "rate-insensitive" at 9x forward. Wrong direction of analysis:
 
@@ -1298,7 +1298,7 @@ You claimed MU is "rate-insensitive" at 9x forward. Wrong direction of analysis:
 
 ---
 
-## 7. The Asymmetry Is Now Inverted — You Just Don't See It
+#### 7. The Asymmetry Is Now Inverted — You Just Don't See It
 
 Bull, you said "the asymmetry is on our side." Let's actually do the math:
 
@@ -1310,7 +1310,7 @@ That's roughly 1.7:1 upside to a 1.0 downside, but the **probability weighting**
 
 ---
 
-## Bottom Line — The Bear Case
+#### Bottom Line — The Bear Case
 
 Bull, you're holding a cyclical stock at peak earnings, peak margins, peak sentiment, peak technicals, and peak narrative — and calling it "value" because forward P/E looks low. **Every memory cycle in history has ended this way: with smart analysts arguing "this time is different" right before margins compressed by half.**
 
@@ -1334,7 +1334,7 @@ Now let me dismantle the rest.
 
 ---
 
-## 1. "This Time Is Different" — You Just Said the Four Most Expensive Words in Finance
+#### 1. "This Time Is Different" — You Just Said the Four Most Expensive Words in Finance
 
 Bull, you literally wrote: *"Sometimes it actually IS different."* Let me catalog the recent graveyard of "this time is different":
 
@@ -1350,7 +1350,7 @@ The burden of proof you tried to flip onto me? **It's actually on you.** You're 
 
 ---
 
-## 2. Your Margin Math Just Confirmed the Bear Case — You Don't See It
+#### 2. Your Margin Math Just Confirmed the Bear Case — You Don't See It
 
 Bull, watch what just happened in your own argument:
 
@@ -1364,7 +1364,7 @@ Then you pivoted to "20-25x mid-cycle earnings of $40-50 is reasonable." Bull, *
 
 ---
 
-## 3. The HBM "Demand > Supply Forever" Argument Has a Fatal Flaw
+#### 3. The HBM "Demand > Supply Forever" Argument Has a Fatal Flaw
 
 You cited TrendForce and SemiAnalysis showing HBM demand growing 60-70% vs. capacity 40-50%. Let me show you the part of that data you skipped:
 
@@ -1380,7 +1380,7 @@ The HBM supply-demand gap closes the moment **demand growth decelerates from 65%
 
 ---
 
-## 4. Your "Asymmetry" Argument Is Mathematically Incoherent
+#### 4. Your "Asymmetry" Argument Is Mathematically Incoherent
 
 You said:
 - Bull case (to $1,200+): +24% upside
@@ -1402,7 +1402,7 @@ Expected value: (0.40 × +24%) + (0.30 × -5%) + (0.20 × -17%) + (0.10 × -38%)
 
 ---
 
-## 5. The "Smart Money" Counter — You Cited Names, I'll Cite Behavior
+#### 5. The "Smart Money" Counter — You Cited Names, I'll Cite Behavior
 
 You named-dropped Druckenmiller, Ackman, Tepper. Let me ask you a direct question, Bull: **do you have any 13F evidence that those investors added MU specifically in the last 90 days at these levels?** No, you don't. You're inferring "semis exposure" from public commentary that may have been about NVIDIA, AVGO, or TSM at much lower prices.
 
@@ -1415,7 +1415,7 @@ And let me flip your NVIDIA-2023 analogy: **RenTec also sold Cisco in 1999 and m
 
 ---
 
-## 6. The Catalysts You Listed Are Already Priced In — That's the Problem
+#### 6. The Catalysts You Listed Are Already Priced In — That's the Problem
 
 You said your bull case requires:
 1. Late-June beat-and-raise — **stock is up 200% in 8 weeks. What does "beat-and-raise" actually need to look like to surprise positively?** Whisper numbers are now far above consensus. The bar is in the stratosphere.
@@ -1428,7 +1428,7 @@ This is the classic "buy the rumor, sell the news" setup. Even if all three cata
 
 ---
 
-## 7. The Macro Wall Is Real — and You Hand-Waved It
+#### 7. The Macro Wall Is Real — and You Hand-Waved It
 
 You barely addressed:
 - **Iran/Hormuz** is live tail risk. Oil to $120 sends the entire risk-on trade into reverse.
@@ -1440,7 +1440,7 @@ Beta 1.92 cuts both ways. You celebrated it on the way up. **It's going to bite 
 
 ---
 
-## Bottom Line — Why I'm Right and the Trade Is to Sell
+#### Bottom Line — Why I'm Right and the Trade Is to Sell
 
 Bull, let's tally what you actually conceded in your "rebuttal":
 1. ✅ Don't chase at $971 with full size — agreed (your words)
@@ -1476,7 +1476,7 @@ Bull, that was a masterclass in motion. You danced through eight sections, manuf
 
 ---
 
-## 1. You Just Published the Bear Case in Section 2 — Let Me Read It Back to You
+#### 1. You Just Published the Bear Case in Section 2 — Let Me Read It Back to You
 
 This is the single most important moment of this debate. Bull, here's what you wrote — verbatim:
 
@@ -1495,7 +1495,7 @@ The only way you escape this is by paying 20-25x mid-cycle — a multiple **the 
 
 ---
 
-## 2. Your "Quasi-Monopoly Premium" Doesn't Exist in Memory — It Never Has
+#### 2. Your "Quasi-Monopoly Premium" Doesn't Exist in Memory — It Never Has
 
 You keep using "quasi-monopoly" to justify 20-25x multiples. Let me challenge that head-on:
 
@@ -1507,7 +1507,7 @@ You cited NVIDIA at "80x trough earnings going up 4x." NVIDIA is a **literal mon
 
 ---
 
-## 3. Your "HBM Contracts Floor-Lock Trough EPS at $25-30" — Show Me the Contracts
+#### 3. Your "HBM Contracts Floor-Lock Trough EPS at $25-30" — Show Me the Contracts
 
 You claimed HBM revenue is "contractually floor-locked," lifting trough EPS from $16 to $25-30. Bull, **provide the disclosure.** Because here's what the actual public disclosures say:
 
@@ -1521,7 +1521,7 @@ You manufactured a "floor-locked $25-30 trough" out of vibes. **The actual contr
 
 ---
 
-## 4. Your EV Math Is Even More Manipulated Than Mine Was
+#### 4. Your EV Math Is Even More Manipulated Than Mine Was
 
 You criticized my probabilities and replaced them with this:
 
@@ -1545,7 +1545,7 @@ Bull, **that distribution is fantasy**. Let me show you why:
 
 ---
 
-## 5. The "Microsoft Cancelled Speculative Leases" Defense Is Exactly Wrong
+#### 5. The "Microsoft Cancelled Speculative Leases" Defense Is Exactly Wrong
 
 You said Microsoft's lease cancellations were "noise" because they simultaneously announced $80B in capex. Bull, **that's the canary, not the dismissal.**
 
@@ -1558,7 +1558,7 @@ You can't dismiss the leading indicator and cling to the lagging announcement. T
 
 ---
 
-## 6. Your Earnings Setup Argument Has a Survivorship Problem
+#### 6. Your Earnings Setup Argument Has a Survivorship Problem
 
 You said: "MU printed $12.07 vs. consensus $8.50 — a 42% beat. Another 20%+ beat is plausible."
 
@@ -1575,7 +1575,7 @@ Bull, **whisper numbers are now $14-15** by your own admission. Consensus catche
 
 ---
 
-## 7. The Smart Money Tape Reading — You're Citing Sell-Side Cheerleaders
+#### 7. The Smart Money Tape Reading — You're Citing Sell-Side Cheerleaders
 
 You held up UBS at $1,625, BofA "still cheap," Citi at $1,400 as evidence of hardening conviction. Bull, **sell-side price target inflation at all-time highs is the most reliable contrarian signal in finance.**
 
@@ -1588,7 +1588,7 @@ When sell-side targets get this aggressive at this technical extension, **they'r
 
 ---
 
-## 8. The Real Bottom Line — Your Own Framework Defeats You
+#### 8. The Real Bottom Line — Your Own Framework Defeats You
 
 Bull, let's put this debate to bed with your own words and numbers:
 
@@ -1606,7 +1606,7 @@ For 10-15% probability of fair-value-or-better, you're accepting 50%+ probabilit
 
 ---
 
-## My Final Recommendation — With Receipts
+#### My Final Recommendation — With Receipts
 
 **SELL into strength. Trim 50-70% of any existing position above $900.**
 
@@ -1617,7 +1617,7 @@ For 10-15% probability of fair-value-or-better, you're accepting 50%+ probabilit
 
 ---
 
-## The Closing Argument
+#### The Closing Argument
 
 Bull, you wrote 4,000 words trying to defend $971. You produced **one** scenario where the price is justified — **20-25x mid-cycle multiples on contractually floor-locked HBM earnings with continuous AI capex acceleration.** Every assumption in that chain is contestable. Many are demonstrably weakening.
 
@@ -1636,7 +1636,7 @@ Bull, that was an Olympic-level rhetorical pivot. You spent four prior rounds de
 
 ---
 
-## 1. The "Stress Test" Defense Is a Retroactive Edit — Receipts Below
+#### 1. The "Stress Test" Defense Is a Retroactive Edit — Receipts Below
 
 Bull, you claim your $570-685 mid-cycle math was "stress test, not base case." Let me quote you directly from your prior round:
 
@@ -1655,7 +1655,7 @@ And here's the kicker: **even with your retrofitted $55-65 EPS at 18-22x, the lo
 
 ---
 
-## 2. You Conceded the Pricing Mechanism — And Didn't Notice
+#### 2. You Conceded the Pricing Mechanism — And Didn't Notice
 
 Bull, in your Section 3, you wrote (verbatim):
 
@@ -1669,7 +1669,7 @@ That defense has a name in markets: **picking up pennies in front of a steamroll
 
 ---
 
-## 3. The "TSMC Trades at 22-25x" Comparison Is Indefensible
+#### 3. The "TSMC Trades at 22-25x" Comparison Is Indefensible
 
 Bull, you cited TSMC trading at 22-25x forward earnings as your justification for paying mid-20s multiples on Micron. **Let's look at what TSMC actually has that Micron doesn't:**
 
@@ -1688,7 +1688,7 @@ You cannot apply TSMC's multiple to Micron. That's not analysis — that's wishf
 
 ---
 
-## 4. The Hyperscaler Capex Numbers — You Cited Them, Now Let's Read the Footnotes
+#### 4. The Hyperscaler Capex Numbers — You Cited Them, Now Let's Read the Footnotes
 
 Bull, you confidently asserted:
 - Microsoft FY26 capex: $80B+, raised twice
@@ -1711,7 +1711,7 @@ Of Microsoft's $80B, real estate is ~$20B, networking is ~$15B, GPUs are ~$25B, 
 
 ---
 
-## 5. The "Fastest Share Gain" Argument Cuts the Wrong Way
+#### 5. The "Fastest Share Gain" Argument Cuts the Wrong Way
 
 Bull, you said Micron's HBM share went from 5% to 20% in two years and called this "the trajectory is the story." 
 
@@ -1725,7 +1725,7 @@ You said "all three players are showing capex discipline." Bull, **$25B/year is 
 
 ---
 
-## 6. The "Time Horizon" Argument Is Where Bulls Always Hide
+#### 6. The "Time Horizon" Argument Is Where Bulls Always Hide
 
 Bull, you reframed: "6-month EV maybe -2 to +5%, 18-month +20-40%, 3-year +60-100%."
 
@@ -1741,7 +1741,7 @@ This is the standard cyclical-bull escape hatch — **"just hold longer."** Let 
 
 ---
 
-## 7. The Beat History Argument Is Mathematically Self-Defeating
+#### 7. The Beat History Argument Is Mathematically Self-Defeating
 
 You cited 22% → 28% → 35% → 41% → 42% beat magnitudes as evidence the trend continues. Bull, **look at the second derivative**: the rate of beat-magnitude expansion is decelerating (+6, +7, +6, +1). **The last quarter's beat barely expanded from the prior quarter.** That's the first sign the Street is catching up to the trajectory.
 
@@ -1753,7 +1753,7 @@ That's not me speculating. **That's how every parabolic stock has resolved into 
 
 ---
 
-## 8. The Honest Final Tally
+#### 8. The Honest Final Tally
 
 Let me close by listing what the bull actually conceded across this debate:
 
@@ -1775,7 +1775,7 @@ These are not opposite positions. **They are different intensities of the same d
 
 ---
 
-## My Final Recommendation — Without the Rhetorical Cushioning
+#### My Final Recommendation — Without the Rhetorical Cushioning
 
 **SELL 50-70% of any existing position above $900.**
 
@@ -1786,7 +1786,7 @@ These are not opposite positions. **They are different intensities of the same d
 
 ---
 
-## The Closing Thought
+#### The Closing Thought
 
 Bull, you said I'm "shorting the chart and sentiment, not the business." Let me correct you one final time: **I'm shorting the price relative to the business.** The business is excellent. The price has front-loaded 24 months of excellent. **That's the trade.**
 
@@ -1807,7 +1807,7 @@ Bull, you delivered that with conviction. I'll give you that. But conviction isn
 
 ---
 
-## 1. You Just Quietly Halved Your Own EPS Forecast — And Hoped No One Noticed
+#### 1. You Just Quietly Halved Your Own EPS Forecast — And Hoped No One Noticed
 
 Bull, this is the moment of the debate. Watch.
 
@@ -1828,7 +1828,7 @@ Your own framework now prices fair value at $825-1,170 with the midpoint at **$9
 
 ---
 
-## 2. The HBM TAM Math Cuts Against You, Not For You
+#### 2. The HBM TAM Math Cuts Against You, Not For You
 
 You ran the HBM TAM build: $45-50B (2026) → $62B (2027) → $74B (2028). Then declared "65% growth over 24 months, supply-demand gap doesn't close until 2028+."
 
@@ -1846,7 +1846,7 @@ You said "the supply-demand gap closes around 10-12% growth — that's a 2028+ p
 
 ---
 
-## 3. The "Sequenced Frames" Defense Is Mathematically Incoherent
+#### 3. The "Sequenced Frames" Defense Is Mathematically Incoherent
 
 You said "9x on $105 forward" and "18x on $55-65 normalized" are "the same framework expressed two different ways." Bull, that's not true and you know it.
 
@@ -1861,7 +1861,7 @@ You can't have it both ways: either forward EPS is $105 (and the bull case rests
 
 ---
 
-## 4. The "Beat in Dollars Is Accelerating" Argument Is a Trap
+#### 4. The "Beat in Dollars Is Accelerating" Argument Is a Trap
 
 You pivoted from beat percentages to absolute dollar beats: $0.30 → $0.45 → $0.85 → $1.50 → $3.57. You called this "accelerating."
 
@@ -1873,7 +1873,7 @@ This is precisely how NVIDIA Feb 2025 played out: a $2B revenue beat that would 
 
 ---
 
-## 5. Your Probability Distribution Has Internal Contradictions
+#### 5. Your Probability Distribution Has Internal Contradictions
 
 You posted:
 - 35% probability: 10-20% pullback (buyable)
@@ -1896,7 +1896,7 @@ Run the EV honestly:
 
 ---
 
-## 6. The "Position-Managed Long" Recommendation Is the Bear Case Wearing a Bull's Hat
+#### 6. The "Position-Managed Long" Recommendation Is the Bear Case Wearing a Bull's Hat
 
 Bull, your final recommendation:
 - Trim 15-25%
@@ -1911,7 +1911,7 @@ But here's the thing: **at this technical extension, with sentiment euphoric and
 
 ---
 
-## 7. What I'm Actually Short — And Why It Matters
+#### 7. What I'm Actually Short — And Why It Matters
 
 Bull, you keep saying "you're shorting the chart and sentiment, not the business."  Let me state it precisely one final time:
 
@@ -1921,7 +1921,7 @@ The asymmetric trade isn't long — it's **wait**. Standing aside costs T-bill y
 
 ---
 
-## Final Recommendation — Cleanly Stated
+#### Final Recommendation — Cleanly Stated
 
 **SELL/Trim aggressively into strength. 50-70% position reduction above $900.**
 
@@ -1935,7 +1935,7 @@ The asymmetric trade isn't long — it's **wait**. Standing aside costs T-bill y
 
 ---
 
-## The Closing Word
+#### The Closing Word
 
 Bull, you wrote five rounds of compelling prose. You also:
 - **Cut your own forward EPS estimate by 45%** between rounds

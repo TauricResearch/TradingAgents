@@ -7,15 +7,15 @@ Generated: 2026-05-31 17:41:08
 ### Market Analyst
 I have a comprehensive dataset. Note that `get_verified_market_snapshot` is not available in this environment — I'll rely on `get_stock_data` and `get_indicators` outputs as my source of truth and cite specific dates/values rather than invent reconciled numbers.
 
-# AMD Technical Analysis Report — As of 2026-05-31
+#### AMD Technical Analysis Report — As of 2026-05-31
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 Advanced Micro Devices (AMD) is in the midst of an **explosive parabolic uptrend** that began in early April 2026 and accelerated dramatically from late-April onward. The stock has more than doubled in roughly six weeks (from ~$200 in late March to $516.10 close on 2026-05-29). All trend indicators are aligned bullishly, momentum is at multi-month extremes, but several short-term overheating signals (RSI pinned near 75–81, price riding the upper Bollinger Band, ATR almost doubling) suggest the risk/reward of fresh long entries is deteriorating. This is a "trend-following — but trail stops aggressively" tape rather than a "fresh chase" setup.
 
 ---
 
-## 2. Indicator Selection Rationale
+#### 2. Indicator Selection Rationale
 
 For a momentum-driven, post-breakout, high-volatility regime, I selected 8 complementary indicators:
 
@@ -34,7 +34,7 @@ For a momentum-driven, post-breakout, high-volatility regime, I selected 8 compl
 
 ---
 
-## 3. Trend Structure
+#### 3. Trend Structure
 
 **Long-term (200 SMA)**: Rising steadily — 2026-04-01: $196.43 → 2026-05-29: $237.58. Price ($516.10) sits **~117% above the 200 SMA**, an unusually wide premium that reflects the parabolic move.
 
@@ -46,7 +46,7 @@ For a momentum-driven, post-breakout, high-volatility regime, I selected 8 compl
 
 ---
 
-## 4. The Parabolic Phase: Key Dated Events
+#### 4. The Parabolic Phase: Key Dated Events
 
 From the OHLCV data:
 - **2026-05-05 close**: $355.26
@@ -60,7 +60,7 @@ From the OHLCV data:
 
 ---
 
-## 5. Momentum (MACD & RSI)
+#### 5. Momentum (MACD & RSI)
 
 **MACD line** climbed from 19.02 (2026-04-21) → peak 52.85 (2026-05-14) → 49.86 (2026-05-29). It briefly cooled in the 5/19–5/22 dip (43.3) and is now re-expanding — but **lower than its May 14 peak even though price is higher**. This is an early *bearish momentum divergence* warning to monitor (not yet confirmed).
 
@@ -75,7 +75,7 @@ RSI staying in the 70–80 zone in a strong uptrend is normal — but combined w
 
 ---
 
-## 6. Volatility Regime
+#### 6. Volatility Regime
 
 **ATR** has nearly doubled in one month: 2026-05-01: $15.80 → 2026-05-29: $26.03. Daily true ranges of $25+ are now baseline. Implications:
 - A standard 1×ATR stop = ~$26; a 2×ATR stop = ~$52.
@@ -86,7 +86,7 @@ RSI staying in the 70–80 zone in a strong uptrend is normal — but combined w
 
 ---
 
-## 7. Volume Confirmation (from OHLCV)
+#### 7. Volume Confirmation (from OHLCV)
 
 - 5/06 breakout: **87.7M** (massive)
 - 5/08 thrust: 58.1M
@@ -100,7 +100,7 @@ Volume on the *initial* breakout was huge, but recent up-days are coming on aver
 
 ---
 
-## 8. Levels That Matter
+#### 8. Levels That Matter
 
 | Level | Price | Type |
 |---|---|---|
@@ -113,7 +113,7 @@ Volume on the *initial* breakout was huge, but recent up-days are coming on aver
 
 ---
 
-## 9. Actionable Insights
+#### 9. Actionable Insights
 
 **For trend-followers already long**: Hold, but **trail a stop** to either (a) the 10 EMA (~$476) or (b) below the 5/19 swing low ($393.36). A close below $420 (gap origin) would substantially damage the technical structure.
 
@@ -125,7 +125,7 @@ Volume on the *initial* breakout was huge, but recent up-days are coming on aver
 
 ---
 
-## 10. Key Risks to the Bullish Thesis
+#### 10. Key Risks to the Bullish Thesis
 
 1. **Bearish MACD divergence forming** (lower MACD high vs higher price high).
 2. **Volume not expanding** on most recent push to highs (5/27–5/29 ~28–31M vs 87M on 5/06).
@@ -135,7 +135,7 @@ Volume on the *initial* breakout was huge, but recent up-days are coming on aver
 
 ---
 
-## Summary Table
+#### Summary Table
 
 | Dimension | Reading | Signal | Conviction |
 |---|---|---|---|
@@ -158,7 +158,7 @@ Volume on the *initial* breakout was huge, but recent up-days are coming on aver
 **Overall Sentiment:** **Mildly Bullish** (Score: 6.2/10)
 **Confidence:** Medium
 
-## AMD Sentiment Report — 2026-05-24 to 2026-05-31
+#### AMD Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1. Source-by-source breakdown
 
@@ -231,20 +231,20 @@ I have sufficient data to compile a comprehensive report. Let me structure the a
 
 ---
 
-# AMD (Advanced Micro Devices, Inc.) — News & Macro Research Report
+#### AMD (Advanced Micro Devices, Inc.) — News & Macro Research Report
 **Analysis Date:** May 31, 2026
 **Ticker:** AMD (NasdaqGS / NMS)
 **Sector:** Technology / Semiconductors
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 AMD enters the final week of May 2026 in a position of significant strength, riding one of the most powerful AI/semiconductor rallies of the cycle. The stock is **up ~118% YTD** and **~322% over the trailing twelve months**, having recently joined the **$1 trillion market cap club** alongside Micron. Sentiment is overwhelmingly bullish heading into **Computex Taipei (June 2, 2026)**, where AMD is expected to make major data-center and AI product announcements alongside a freshly disclosed **$10B+ Taiwan AI infrastructure commitment**. However, several macro risks are building beneath the surface: an **active US-Iran conflict**, **rising oil prices**, **rising Treasury yields**, **a 9-week S&P 500 win streak that history flags as stretched**, and emerging signals of consumer/labor weakness.
 
 ---
 
-## 2. AMD-Specific Catalysts (Past 7 Days)
+#### 2. AMD-Specific Catalysts (Past 7 Days)
 
 ### 2.1 Bullish Drivers
 - **$10B+ Taiwan AI Infrastructure Investment** (Simply Wall St.): AMD announced a major commitment to support AI build-out in Taiwan, deepening its ties to TSMC and the Asian supply chain. This is a strategic counterweight to Nvidia's ecosystem dominance and signals confidence in long-duration data-center demand.
@@ -263,7 +263,7 @@ AMD enters the final week of May 2026 in a position of significant strength, rid
 
 ---
 
-## 3. Macro Backdrop (Past 7 Days)
+#### 3. Macro Backdrop (Past 7 Days)
 
 ### 3.1 Geopolitics — Iran War (Active)
 - Multiple sources reference an **active US-Iran conflict** ("Iran War Adds Fuel to the Fire," "truce extension with Iran" — implying intermittent ceasefires, not resolution).
@@ -282,7 +282,7 @@ AMD enters the final week of May 2026 in a position of significant strength, rid
 
 ---
 
-## 4. Actionable Trading Insights for AMD
+#### 4. Actionable Trading Insights for AMD
 
 | Time Horizon | View | Rationale |
 |---|---|---|
@@ -304,7 +304,7 @@ AMD enters the final week of May 2026 in a position of significant strength, rid
 
 ---
 
-## 5. Summary Table — Key Points
+#### 5. Summary Table — Key Points
 
 | # | Theme | Direction | Evidence | Trading Implication |
 |---|---|---|---|---|
@@ -331,12 +331,12 @@ AMD enters the final week of May 2026 in a position of significant strength, rid
 ### Fundamentals Analyst
 I have comprehensive data. Let me compile the fundamental analysis report.
 
-# AMD (Advanced Micro Devices, Inc.) — Fundamental Analysis Report
+#### AMD (Advanced Micro Devices, Inc.) — Fundamental Analysis Report
 **Analysis Date:** 2026-05-31 | **Exchange:** NMS (NASDAQ) | **Sector:** Technology / Semiconductors
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Advanced Micro Devices (AMD) is a global semiconductor company designing CPUs (Ryzen, EPYC), GPUs (Radeon, Instinct MI series), adaptive SoCs/FPGAs (post-Xilinx), and embedded products. The company has emerged as the principal challenger to Nvidia in AI accelerators (MI300/MI325/MI350 families) and to Intel in data-center CPUs (EPYC).
 
@@ -357,7 +357,7 @@ Advanced Micro Devices (AMD) is a global semiconductor company designing CPUs (R
 
 ---
 
-## 2. Income Statement Trends (Quarterly)
+#### 2. Income Statement Trends (Quarterly)
 
 | Quarter | Revenue ($M) | YoY chg | Gross Profit | GM% | Operating Inc. | Op Margin | Net Income | Diluted EPS |
 |---|---|---|---|---|---|---|---|---|
@@ -378,7 +378,7 @@ Advanced Micro Devices (AMD) is a global semiconductor company designing CPUs (R
 
 ---
 
-## 3. Balance Sheet Strength
+#### 3. Balance Sheet Strength
 
 | Item ($M) | Q1 2025 | Q4 2025 | Q1 2026 | 5Q Δ |
 |---|---|---|---|---|
@@ -404,7 +404,7 @@ Advanced Micro Devices (AMD) is a global semiconductor company designing CPUs (R
 
 ---
 
-## 4. Cash Flow Analysis
+#### 4. Cash Flow Analysis
 
 | Quarter | Operating CF | CapEx | Free Cash Flow | Buybacks |
 |---|---|---|---|---|
@@ -424,7 +424,7 @@ Advanced Micro Devices (AMD) is a global semiconductor company designing CPUs (R
 
 ---
 
-## 5. Profitability & Returns
+#### 5. Profitability & Returns
 
 | Metric | TTM Value |
 |---|---|
@@ -440,14 +440,14 @@ ROE is still modest because the equity base is inflated by Xilinx-deal goodwill;
 
 ---
 
-## 6. Key Strengths
+#### 6. Key Strengths
 1. **AI accelerator share gains** — Instinct MI series traction visible in revenue acceleration (+38% YoY) and gross-margin expansion (50%→53%).
 2. **Net cash balance sheet** with rapidly growing cash (+69% over 5Q).
 3. **FCF inflection** — $727M → $2.57B per quarter, validating earnings quality.
 4. **EPYC server CPU share** continuing to take ground from Intel.
 5. **Capital-light fabless model** with rising R&D investment well within cash flow.
 
-## 7. Key Risks
+#### 7. Key Risks
 1. **Valuation:** TTM P/E of 172 and P/B of 13 leave little margin for execution stumbles. Forward expectations imply a 4x EPS jump.
 2. **Customer concentration / hyperscaler capex cyclicality** in AI accelerators.
 3. **Inventory build (+25%)** — needs continued demand absorption.
@@ -458,7 +458,7 @@ ROE is still modest because the equity base is inflated by Xilinx-deal goodwill;
 
 ---
 
-## 8. Summary Scorecard
+#### 8. Summary Scorecard
 
 | Dimension | Reading | Score (1–5) | Comment |
 |---|---|---|---|
@@ -478,7 +478,7 @@ ROE is still modest because the equity base is inflated by Xilinx-deal goodwill;
 
 ---
 
-## 9. Actionable Insights for Traders
+#### 9. Actionable Insights for Traders
 
 - **Bullish case (supported by fundamentals):** Revenue, GM, FCF and cash balance are all inflecting upward simultaneously — a textbook earnings-acceleration setup. If MI350/MI400 ramps deliver, the **forward P/E of ~40 with PEG ~1.2** is defensible and the stock can keep climbing toward Street EPS of ~$13.
 - **Bearish/Caution case:** With the stock near $510–$520 (50DMA $328 implies recent run-up), much of the AI optionality is already priced in. Any miss on Instinct gross margins, hyperscaler order cadence, or China export issues could trigger a sharp pullback (beta 2.4 amplifies). Inventory growing faster than revenue sequentially is a small yellow flag.
@@ -521,7 +521,7 @@ Let me cut right to the chase. The bear camp will throw valuation multiples, par
 
 ---
 
-## 1. This Isn't a Hype Rally — The Fundamentals Are Validating the Move
+#### 1. This Isn't a Hype Rally — The Fundamentals Are Validating the Move
 
 Let's start with what bears conveniently gloss over: **AMD's price action is being earned, not imagined.**
 
@@ -535,7 +535,7 @@ When a bear says "P/E of 172 is crazy," they're cherry-picking a *trailing* numb
 
 ---
 
-## 2. Refuting the Bear's Big Concerns Head-On
+#### 2. Refuting the Bear's Big Concerns Head-On
 
 **Bear: "P/E of 170+ is a dot-com flashback."**
 Wrong frame. Dot-com leaders had no earnings, no cash flow, and frequently no business model. AMD just generated **$2.57B of FCF in a single quarter**, has $12.3B in cash, and is buying back stock. Comparing this to Pets.com is intellectually lazy.
@@ -560,7 +560,7 @@ Real risks, but they hit *consumer cyclicals* hardest. AMD's growth engine is **
 
 ---
 
-## 3. The Catalysts Bears Are Ignoring
+#### 3. The Catalysts Bears Are Ignoring
 
 - **Computex Taipei — June 2, 2026** (in 48 hours). Lisa Su keynote. Expected MI400-series unveil. AMD stocks historically rally 3–7% into and through these events.
 - **$10B+ Taiwan AI infrastructure commitment** — deepens the TSMC relationship and structurally locks in supply at the most critical node in the world.
@@ -571,7 +571,7 @@ Real risks, but they hit *consumer cyclicals* hardest. AMD's growth engine is **
 
 ---
 
-## 4. Why the Bear's "Sentiment is Frothy" Take Cuts Both Ways
+#### 4. Why the Bear's "Sentiment is Frothy" Take Cuts Both Ways
 
 Bears point to euphoric StockTwits posts and Reddit "should I sell?" threads as contrarian sell signals. But notice what's actually in the data:
 - **News flow is institutional-grade bullish** — Barron's, Motley Fool, 24/7 Wall St., Mizuho.
@@ -582,7 +582,7 @@ This sentiment mix — institutional buying, retail nervously hedging — is wha
 
 ---
 
-## 5. The Bull Bottom Line
+#### 5. The Bull Bottom Line
 
 You have a company:
 - Growing revenue **38% YoY** with **margins expanding**
@@ -606,7 +606,7 @@ Let's go.
 
 ---
 
-## 1. The Forward EPS Math Isn't "Heroic" — The Bear Just Did the Math Wrong
+#### 1. The Forward EPS Math Isn't "Heroic" — The Bear Just Did the Math Wrong
 
 The bear's headline argument is that $12.96 forward EPS requires "EPS to quadruple from $0.84/quarter starting now." That's not what forward EPS estimates mean, and he knows it.
 
@@ -623,7 +623,7 @@ The bear says "any miss triggers a 25-40% drawdown." Sure — but he convenientl
 
 ---
 
-## 2. The Bear's Stress Test Quietly Concedes the Bull Case
+#### 2. The Bear's Stress Test Quietly Concedes the Bull Case
 
 Look at what he actually said: *"If forward EPS comes in at $10 instead of $12.96, the forward P/E jumps to 52x."*
 
@@ -633,7 +633,7 @@ His $6 EPS scenario requires hyperscaler capex to *halve* in 12 months. Let's st
 
 ---
 
-## 3. The Cisco-2000 Comparison Is the Tell
+#### 3. The Cisco-2000 Comparison Is the Tell
 
 This is where the bear really gives himself away. Let's actually compare:
 
@@ -653,7 +653,7 @@ The closer historical analog isn't Cisco-2000 — it's **Nvidia 2023**, which af
 
 ---
 
-## 4. The "Inventory Build = Demand Risk" Argument Falls Apart Under One Number
+#### 4. The "Inventory Build = Demand Risk" Argument Falls Apart Under One Number
 
 The bear says inventory grew $7.92B → $8.05B sequentially while revenue dipped $10.27B → $10.25B. Spooky, right?
 
@@ -663,7 +663,7 @@ Also: $130M of sequential inventory build (1.6%) on the eve of an MI350 product 
 
 ---
 
-## 5. The Q2 2025 China Charge Is Backwards Evidence
+#### 5. The Q2 2025 China Charge Is Backwards Evidence
 
 The bear says: "Q2 2025 had an operating loss from China export controls — the same risk is still active."
 
@@ -673,7 +673,7 @@ If anything, this is *reassuring*: we now have a real-world stress test of what 
 
 ---
 
-## 6. On the Technicals — The Bear Is Reading the Same Report I Am, Selectively
+#### 6. On the Technicals — The Bear Is Reading the Same Report I Am, Selectively
 
 The technical report's *own conclusion* is: **"Trend = up; entries = unfavorable; trail stops. Hold longs / no fresh chase."** Note what it does *not* say: "Sell." It says "no fresh chase," which is exactly what I said in my opening — *trim if you must on extension.*
 
@@ -683,7 +683,7 @@ And the bear's "Nvidia corrected 35% in summer 2024 despite accelerating fundame
 
 ---
 
-## 7. The "Sell-the-News Computex" Argument Cuts Both Ways
+#### 7. The "Sell-the-News Computex" Argument Cuts Both Ways
 
 Yes, expectations are high. But notice what AMD has done with high expectations recently:
 - Q3'25 earnings: stock rallied
@@ -697,7 +697,7 @@ And critically: **even if the stock dips post-Computex, that doesn't break the b
 
 ---
 
-## 8. The Bear's Sentiment Read Is Self-Contradictory
+#### 8. The Bear's Sentiment Read Is Self-Contradictory
 
 He wants it both ways:
 - "Retail is trimming = late-cycle top signal"
@@ -710,7 +710,7 @@ The actual sentiment landscape — institutional bullish, news flow constructive
 
 ---
 
-## 9. The Real Asymmetry Is the Opposite of What the Bear Claims
+#### 9. The Real Asymmetry Is the Opposite of What the Bear Claims
 
 The bear says: "30-40% downside vs 19% upside per most-bullish analyst."
 
@@ -726,7 +726,7 @@ That's a -23% / +20% / +55% distribution, not -40% / +19%. The bear collapsed th
 
 ---
 
-## 10. The Bull Bottom Line — Restated and Sharpened
+#### 10. The Bull Bottom Line — Restated and Sharpened
 
 The bear's argument boils down to: **"This stock has gone up a lot, therefore it must go down."**
 
@@ -755,7 +755,7 @@ My bear colleague delivered a long, eloquent essay. Notice what it conspicuously
 
 ---
 
-## 1. On the "Fabricated EPS Ramp" — He's Attacking the Wrong Number
+#### 1. On the "Fabricated EPS Ramp" — He's Attacking the Wrong Number
 
 The bear's centerpiece accusation is that I "fabricated" a quarterly EPS trajectory. Let me clarify what I actually did: **I described the well-known shape of a back-end-loaded product cycle ramp**, which is exactly how MI300 played out, exactly how H100 played out for Nvidia, and exactly what every sell-side model embedded in the $12.96 forward EPS figure assumes. I'll concede the specific numbers were illustrative, not sourced — fair point.
 
@@ -765,7 +765,7 @@ And on his "Q1'26 revenue was flat sequentially!" gotcha — yes, **Q1 is season
 
 ---
 
-## 2. The "Beats Are Already Priced In" Argument Refutes Itself
+#### 2. The "Beats Are Already Priced In" Argument Refutes Itself
 
 The bear says: *"AMD has beaten 6 of 7 quarters and the stock is up 322%, so beats are priced in."*
 
@@ -777,7 +777,7 @@ The reality: AMD has beaten consensus and *raised guidance* 6 of 7 quarters. The
 
 ---
 
-## 3. The "AMD ≠ Nvidia" Argument Cuts Hard the Other Way
+#### 3. The "AMD ≠ Nvidia" Argument Cuts Hard the Other Way
 
 The bear's strongest-sounding point: *"AMD doesn't deserve Nvidia's multiple — no CUDA, no 75% margins, no 80% share."*
 
@@ -789,7 +789,7 @@ The bear's "$250 fair value" requires you to reset AMD's multiple to a regime th
 
 ---
 
-## 4. The Cisco Comparison — Let's Actually Settle This
+#### 4. The Cisco Comparison — Let's Actually Settle This
 
 The bear is going to keep waving Cisco like a talisman, so let me drive the stake in:
 
@@ -801,7 +801,7 @@ The bear can keep saying "Cisco." The mechanism doesn't transfer. **The customer
 
 ---
 
-## 5. On Inventory — The Bear Is Inventing a Problem the Cash Flow Statement Forbids
+#### 5. On Inventory — The Bear Is Inventing a Problem the Cash Flow Statement Forbids
 
 The bear retreats to: *"Without seeing the full cash flow detail, declaring cash conversion is healthy is overreach."*
 
@@ -811,7 +811,7 @@ And the bear's "days inventory outstanding has risen" claim — he didn't actual
 
 ---
 
-## 6. The Hyperscaler Custom Silicon Argument — The Bear's Math Doesn't Work
+#### 6. The Hyperscaler Custom Silicon Argument — The Bear's Math Doesn't Work
 
 The bear's scariest-sounding point: *"Google has TPU, Amazon has Trainium, Meta has MTIA, Microsoft has Maia. They're building AMD's replacement."*
 
@@ -825,7 +825,7 @@ Three problems:
 
 ---
 
-## 7. On Geopolitics — The Bear Wants You to Sell on a Risk That's Always Been There
+#### 7. On Geopolitics — The Bear Wants You to Sell on a Risk That's Always Been There
 
 Taiwan concentration risk is not new. AMD has manufactured at TSMC for over a decade. Nvidia manufactures at TSMC. Apple manufactures at TSMC. Qualcomm manufactures at TSMC. **The entire $4 trillion semiconductor industry runs through Taiwan.**
 
@@ -835,7 +835,7 @@ The Q2'25 China writedown? **The bear's own framing concedes my point.** AMD too
 
 ---
 
-## 8. On the Technicals — The Bear Is Quoting the Same Report I Am
+#### 8. On the Technicals — The Bear Is Quoting the Same Report I Am
 
 I'll quote the technical report directly, exactly as written:
 
@@ -849,7 +849,7 @@ The MACD divergence? "Early warning, not yet confirmed." The 5/27 candle? "First
 
 ---
 
-## 9. On the Asymmetry — The Bear's Downside Cases Are Stacked Hypotheticals
+#### 9. On the Asymmetry — The Bear's Downside Cases Are Stacked Hypotheticals
 
 The bear's "honest" distribution: -40% / +10% / +30%, probability-weighted negative.
 
@@ -863,7 +863,7 @@ Meanwhile, his "upside ceiling" of $750 requires AMD to "double again from $840B
 
 ---
 
-## 10. The Bull Bottom Line — Sharpened by the Debate
+#### 10. The Bull Bottom Line — Sharpened by the Debate
 
 Here's what I'll concede to the bear, because honest debate requires it:
 
@@ -894,7 +894,7 @@ The bear's prescription is "wait for $370-400." Let's quantify that bet honestly
 
 ---
 
-## The Final Word
+#### The Final Word
 
 The bear's case ultimately reduces to: **"It went up a lot, therefore the next move must be down."** Dressed up in valuation multiples, technical divergences, and Cisco analogies — but at its core, that's the argument.
 
@@ -913,7 +913,7 @@ My bear colleague has built his entire closing on a creative reinterpretation of
 
 ---
 
-## 1. The "Concessions" Aren't Concessions — They're What Disciplined Bullishness Looks Like
+#### 1. The "Concessions" Aren't Concessions — They're What Disciplined Bullishness Looks Like
 
 The bear's centerpiece move: he quoted four risk-management acknowledgments and declared, "the bull conceded the trade."
 
@@ -929,7 +929,7 @@ Let me translate his logic. He's arguing that because I said:
 
 ---
 
-## 2. The Bear's "$252-$300 Fair Value" Math Falls Apart on Inspection
+#### 2. The Bear's "$252-$300 Fair Value" Math Falls Apart on Inspection
 
 This is the bear's most concrete claim, so let's actually examine it.
 
@@ -943,7 +943,7 @@ A more honest peer-relative framework: **what multiple does the market pay for 3
 
 ---
 
-## 3. The Nvidia-vs-AMD Multiple Comparison — He Got It Backwards
+#### 3. The Nvidia-vs-AMD Multiple Comparison — He Got It Backwards
 
 The bear's table is rhetorically powerful. It's also analytically broken.
 
@@ -958,7 +958,7 @@ And his "AMD will always be the price-pressured second source" claim? That's exa
 
 ---
 
-## 4. The Hyperscaler ROI Argument Cuts the Wrong Way
+#### 4. The Hyperscaler ROI Argument Cuts the Wrong Way
 
 The bear says hyperscaler AI ROI is the "modern equivalent of vendor financing risk."
 
@@ -974,7 +974,7 @@ The "Meta cancellation" rumor he keeps citing? **It's a Reddit post.** Meta's ac
 
 ---
 
-## 5. On the Custom Silicon Threat — The Math Actually Favors AMD
+#### 5. On the Custom Silicon Threat — The Math Actually Favors AMD
 
 The bear's argument: "Every percentage point of mix shift to custom is $3B of merchant GPU revenue eliminated."
 
@@ -990,7 +990,7 @@ Even if custom takes 30% of the *incremental* TAM growth, AMD captures merchant-
 
 ---
 
-## 6. On Inventory and SBC — The Bear Is Manufacturing Fragility
+#### 6. On Inventory and SBC — The Bear Is Manufacturing Fragility
 
 **Inventory at 152 days vs 100-130 historical norm**: I'll grant that's elevated. But let's contextualize. AMD's inventory grew $1.6B over 5 quarters; revenue grew $2.8B over the same period. **Inventory growth is below revenue growth on an absolute basis.** The DIO expansion reflects mix shift toward higher-value AI accelerators (which have longer build cycles), not channel saturation. **Q2 results in late July will resolve this question. If demand were softening, AMD wouldn't have raised guidance on the most recent earnings call. They did.**
 
@@ -998,7 +998,7 @@ Even if custom takes 30% of the *incremental* TAM growth, AMD captures merchant-
 
 ---
 
-## 7. On the Technicals — One More Time, Carefully
+#### 7. On the Technicals — One More Time, Carefully
 
 The bear quotes the technical report's "for new entries: chasing here is unfavorable" as definitive. Fair point — for a *fresh chase at $516 with no risk plan*, I agree. **I have agreed throughout.**
 
@@ -1012,7 +1012,7 @@ That's not "wait for $370-400." That's "wait for $476 with confirmation." The be
 
 ---
 
-## 8. The Decision Tree the Bear Built Has the Wrong Probabilities
+#### 8. The Decision Tree the Bear Built Has the Wrong Probabilities
 
 The bear's scenario tree:
 - 50% pullback to $400
@@ -1032,7 +1032,7 @@ The bear's strategy is *higher-variance, lower-expected-value* — the opposite 
 
 ---
 
-## 9. The Real Bull Case, Stripped to Essentials
+#### 9. The Real Bull Case, Stripped to Essentials
 
 Forget the rhetorical jousting. Here's what's true:
 
@@ -1052,7 +1052,7 @@ The bear's case requires you to: dismiss accelerating revenue, ignore expanding 
 
 ---
 
-## 10. The Bull Bottom Line — Final
+#### 10. The Bull Bottom Line — Final
 
 I'll close with the cleanest possible framing:
 
@@ -1083,7 +1083,7 @@ Let me dismantle his closing point by point — and then deliver the bull verdic
 
 ---
 
-## 1. The Bear's Expected-Value Math Is Rigged — Let Me Show You How
+#### 1. The Bear's Expected-Value Math Is Rigged — Let Me Show You How
 
 The bear ran my probability tree and got -1.6% expected return. **He got there by assuming the 40% "modest pullback" scenario produces a 0% return.** Watch the trick:
 
@@ -1103,7 +1103,7 @@ And that's with **conservative recovery assumptions** in every drawdown scenario
 
 ---
 
-## 2. "The Bull Conceded the Entry" — No, He Confused Risk Management With Surrender
+#### 2. "The Bull Conceded the Entry" — No, He Confused Risk Management With Surrender
 
 The bear's rhetorical victory lap: *"You said size at half-normal, wait for the 10 EMA, expect a 15% drawdown — that's the bear recommendation."*
 
@@ -1118,7 +1118,7 @@ The bear's framing that "half-size with stops = wait" is exactly the kind of def
 
 ---
 
-## 3. On the EPS Math — The Bear's Nvidia Comparison Actually Strengthens the Bull Case
+#### 3. On the EPS Math — The Bear's Nvidia Comparison Actually Strengthens the Bull Case
 
 The bear's headline-grabbing claim: *"Nvidia's biggest AI year saw EPS triple. AMD needs 4.25x. Therefore impossible."*
 
@@ -1132,7 +1132,7 @@ Could the Street be wrong? Sure. They're often wrong. **Historically in this AI 
 
 ---
 
-## 4. On Hyperscaler ROI — The Bear's "Vendor Financing 2.0" Argument Has a Fatal Flaw
+#### 4. On Hyperscaler ROI — The Bear's "Vendor Financing 2.0" Argument Has a Fatal Flaw
 
 The bear's most sophisticated-sounding argument: *"Microsoft spending $80B capex for $13B AI revenue is upside-down ROI math."*
 
@@ -1151,7 +1151,7 @@ And the Microsoft "lease walk-back" story? **That was data center *site selectio
 
 ---
 
-## 5. The Custom Silicon Argument — Let's Get Specific
+#### 5. The Custom Silicon Argument — Let's Get Specific
 
 The bear cites: "AWS Trainium will be 30-50% of AWS AI compute by 2027."
 
@@ -1163,7 +1163,7 @@ And critically: **hyperscalers are buying AMD specifically to maintain optionali
 
 ---
 
-## 6. The Bear's "Show Me the Analog" Challenge — Here It Is
+#### 6. The Bear's "Show Me the Analog" Challenge — Here It Is
 
 The bear demanded: *"Show me one analog in semis history where a company quintupled quarterly EPS from a non-trough base in three quarters."*
 
@@ -1173,7 +1173,7 @@ The bear said this analog doesn't exist. **It exists. It happened 18 months ago.
 
 ---
 
-## 7. The Bear Won't Short — That's the Whole Debate in One Line
+#### 7. The Bear Won't Short — That's the Whole Debate in One Line
 
 I want to come back to this because it's dispositive.
 
@@ -1185,7 +1185,7 @@ What he's really arguing for is **timing**, not direction. He wants to be long a
 
 ---
 
-## 8. The Bull Final Verdict — Sharpened and Final
+#### 8. The Bull Final Verdict — Sharpened and Final
 
 For existing holders sitting on +200-300% gains: **Hold the core. Trim 10-20% on extension if it helps your sleep. Trail stops to the 10 EMA or the gap base at $420.** You own the highest-quality structural compounding story in the market. The trend is up, the fundamentals are accelerating, and the catalysts are imminent. Don't let bear-case rhetoric talk you out of a position that's been right for 12+ months.
 
@@ -1195,7 +1195,7 @@ For pure bears who think AMD is a sell: **Short it.** If your conviction is real
 
 ---
 
-## 9. The Compounding Argument — Why Patience Cuts Both Ways
+#### 9. The Compounding Argument — Why Patience Cuts Both Ways
 
 The bear's closing line: *"I'll take patience over chase. Every. Single. Time."*
 
@@ -1209,7 +1209,7 @@ Patience is a virtue when valuation is divorced from fundamentals. **AMD's valua
 
 ---
 
-## 10. The Bull Bottom Line
+#### 10. The Bull Bottom Line
 
 The bear spent six rounds telling you to wait. **The market didn't wait for AMD to go from $300 to $516.** It won't wait for the bear's preferred entry either, if the catalysts deliver.
 
@@ -1231,7 +1231,7 @@ My bull colleague delivered a polished pitch. It's also riddled with selective f
 
 ---
 
-## 1. The Forward P/E Argument Is the Bull's Biggest Sleight of Hand
+#### 1. The Forward P/E Argument Is the Bull's Biggest Sleight of Hand
 
 The bull's entire valuation defense rests on one number: **Forward EPS of $12.96**. Let me show you what that actually requires.
 
@@ -1245,7 +1245,7 @@ And here's the kicker the bull glossed over: **Beta is 2.40**. When — not if �
 
 ---
 
-## 2. The "Forward P/E 39.8 Is Reasonable" Claim Falls Apart Under Scrutiny
+#### 2. The "Forward P/E 39.8 Is Reasonable" Claim Falls Apart Under Scrutiny
 
 My bull friend keeps repeating "PEG of 1.24, perfectly reasonable." Let's stress-test this.
 
@@ -1257,7 +1257,7 @@ The bull is essentially arguing: *"Don't worry about the trailing 172x P/E, beca
 
 ---
 
-## 3. The Fundamentals Are Strong — But the Bull Is Hiding the Yellow Flags
+#### 3. The Fundamentals Are Strong — But the Bull Is Hiding the Yellow Flags
 
 I'll grant the bull this: AMD's business is genuinely improving. But notice what got skipped:
 
@@ -1271,7 +1271,7 @@ I'll grant the bull this: AMD's business is genuinely improving. But notice what
 
 ---
 
-## 4. Refuting the Bull's Refutations — Point by Point
+#### 4. Refuting the Bull's Refutations — Point by Point
 
 **Bull: "Dot-com comparison is intellectually lazy."**
 I never made a Pets.com comparison. The relevant analog is **Cisco in 2000** — a real company with real earnings and real cash flow that traded at ~150x trailing earnings on indispensable infrastructure. Cisco then **lost 86% over the next two years and did not recover its 2000 high until 2019.** Strong fundamentals don't immunize you from extreme valuation; they just determine whether the stock recovers in 5 years or 20.
@@ -1296,7 +1296,7 @@ And the **median sell-side PT is materially lower.** Cherry-picking the highest 
 
 ---
 
-## 5. The Catalysts the Bull Cited Are Risks, Not Tailwinds
+#### 5. The Catalysts the Bull Cited Are Risks, Not Tailwinds
 
 **Computex on June 2** — this is **a sell-the-news event waiting to happen.** Buy-the-rumor is already priced in (the stock is up 158% in 8 weeks). Even a strong MI400 announcement has to clear a sky-high bar. Miss expectations on TFLOPS, memory bandwidth, customer commitments, or pricing — and you get a 10%+ gap down. The bull says "AMD historically rallies 3-7% into and through Computex." Sure — from depressed levels, not from +118% YTD parabolic extensions.
 
@@ -1306,7 +1306,7 @@ And the **median sell-side PT is materially lower.** Cherry-picking the highest 
 
 ---
 
-## 6. The Sentiment Read Is Worse Than the Bull Admits
+#### 6. The Sentiment Read Is Worse Than the Bull Admits
 
 The bull cherry-picked the labeled StockTwits bull/bear ratio. Let me give you the full read:
 - **Reddit is asking "should I sell?"** after 300% gains. That's late-cycle holder behavior.
@@ -1319,7 +1319,7 @@ The bull's argument that "Reddit cautious + institutional bullish = middle innin
 
 ---
 
-## 7. The Bear Bottom Line
+#### 7. The Bear Bottom Line
 
 Here's what you're actually buying at $516:
 
@@ -1347,7 +1347,7 @@ My bull colleague's "rebuttal" is a masterclass in confident-sounding misdirecti
 
 ---
 
-## 1. The Bull Just Made Up a Quarterly EPS Ramp — And It Still Doesn't Work
+#### 1. The Bull Just Made Up a Quarterly EPS Ramp — And It Still Doesn't Work
 
 Watch this sleight of hand carefully. The bull "corrected" my forward EPS math by inventing a quarterly trajectory:
 
@@ -1363,7 +1363,7 @@ The bull is asking you to believe revenue stalls sequentially in Q1'26, then EPS
 
 ---
 
-## 2. "AMD Beat 6 of 7 Quarters" — And That's Already in the Price
+#### 2. "AMD Beat 6 of 7 Quarters" — And That's Already in the Price
 
 The bull's trump card is "AMD beats consensus." Let me ask the obvious question: **if the company has beaten 6 of 7 quarters and the stock is up 322% over that period, what do you think analysts have done with their estimates?**
 
@@ -1373,7 +1373,7 @@ The bull's "4-for-4 on hyped events" framing is also misleading. AMD rallied int
 
 ---
 
-## 3. The Bull's "52x Forward Is Just Nvidia's Multiple" Argument Is Self-Defeating
+#### 3. The Bull's "52x Forward Is Just Nvidia's Multiple" Argument Is Self-Defeating
 
 The bull says: *"On a 23% miss, AMD trades at 52x forward — that's Nvidia's multiple, not a crash."*
 
@@ -1385,7 +1385,7 @@ The bull is implicitly arguing AMD deserves Nvidia's multiple. **That assumption
 
 ---
 
-## 4. The Cisco Comparison the Bull "Refuted" — Let's Look Again
+#### 4. The Cisco Comparison the Bull "Refuted" — Let's Look Again
 
 The bull's table is clever. It's also wrong on multiple cells:
 
@@ -1399,7 +1399,7 @@ The bull's "Nvidia 2023 is the better analog" argument requires you to assume AM
 
 ---
 
-## 5. On Inventory and Cash Flow — The Bull's Math Is Half-Right, Half-Convenient
+#### 5. On Inventory and Cash Flow — The Bull's Math Is Half-Right, Half-Convenient
 
 The bull correctly notes operating cash flow grew $2.60B → $2.96B. Good. But he ignores the *components* of that cash flow growth.
 
@@ -1409,7 +1409,7 @@ And here's what the bull buried: **inventory has grown 25% over five quarters wh
 
 ---
 
-## 6. The Q2 2025 China Writedown — "Demonstrated Resilience" or "Baseline Risk"?
+#### 6. The Q2 2025 China Writedown — "Demonstrated Resilience" or "Baseline Risk"?
 
 The bull pivoted brilliantly here, calling the Q2'25 $800M writedown "demonstrated resilience." Cute. Here's the actual lesson:
 
@@ -1423,7 +1423,7 @@ The bull's logic is: "It happened once and we recovered, therefore it won't matt
 
 ---
 
-## 7. Hyperscaler Capex — The Bull's Strongest Argument and His Biggest Vulnerability
+#### 7. Hyperscaler Capex — The Bull's Strongest Argument and His Biggest Vulnerability
 
 The bull says all four hyperscalers raised AI capex guidance. True — and I'll stipulate that.
 
@@ -1435,7 +1435,7 @@ And the **Marvell +141% YTD / custom ASIC trend** the bull waved away? That's hy
 
 ---
 
-## 8. The Technical Picture the Bull Glossed Over
+#### 8. The Technical Picture the Bull Glossed Over
 
 The bull selectively quoted the technical report's "trend = up" verdict and ignored the actual risk flags:
 
@@ -1448,7 +1448,7 @@ The bull says "the report didn't say sell." Correct. **It said "no fresh chase, 
 
 ---
 
-## 9. The Sentiment Self-Contradiction Charge — Backwards
+#### 9. The Sentiment Self-Contradiction Charge — Backwards
 
 The bull accused me of reading both euphoria AND profit-taking as bearish. Let me explain why **both can be bearish simultaneously, and both ARE in this case:**
 
@@ -1459,7 +1459,7 @@ The bull accused me of reading both euphoria AND profit-taking as bearish. Let m
 
 ---
 
-## 10. The Asymmetry the Bull Manufactured
+#### 10. The Asymmetry the Bull Manufactured
 
 The bull's "rebalanced" risk/reward:
 - Downside: -23% to $400
@@ -1479,7 +1479,7 @@ The honest distribution is closer to: **-40% / +10% / +30%, probability-weighted
 
 ---
 
-## 11. The Bear Bottom Line — Sharper
+#### 11. The Bear Bottom Line — Sharper
 
 I'm not arguing AMD is a bad business. The bull and I agree it's a good business. **We disagree on whether $516 is a good price for it.**
 
@@ -1521,7 +1521,7 @@ Let me drive this home one final time.
 
 ---
 
-## 1. The Bull Conceded the EPS Math Without Realizing It
+#### 1. The Bull Conceded the EPS Math Without Realizing It
 
 The bull's response to my fabricated-quarterly-ramp critique: *"I'll concede the specific numbers were illustrative, not sourced — fair point."*
 
@@ -1533,7 +1533,7 @@ And on Q1 seasonality: yes, Q1 is seasonally weak. **But Q1'25 was $7.44B and Q1
 
 ---
 
-## 2. "Pick a Lane" Goes Both Ways — And the Bull's Lane Is Incoherent
+#### 2. "Pick a Lane" Goes Both Ways — And the Bull's Lane Is Incoherent
 
 The bull accuses me of wanting beats to be both "priced in" and "uncertain." Let me clarify the actual bear position, because it's perfectly consistent:
 
@@ -1545,7 +1545,7 @@ This is not contradiction — this is how high-multiple growth stocks work. **Th
 
 ---
 
-## 3. The Nvidia Multiple Comparison Is Where the Bull's Argument Truly Breaks
+#### 3. The Nvidia Multiple Comparison Is Where the Bull's Argument Truly Breaks
 
 The bull's coup de grâce: *"AMD trades at 39.8x forward, Nvidia trades at 35-40x forward — they're at roughly the same multiple already."*
 
@@ -1565,7 +1565,7 @@ The bull says: "The 2026 AMD isn't the 2022 AMD — different business, deserves
 
 ---
 
-## 4. The Cisco "Mechanism" Argument Misses the Point
+#### 4. The Cisco "Mechanism" Argument Misses the Point
 
 The bull spent significant ink arguing Cisco fell because of vendor financing collapse, not valuation. Partly true. But here's what he ignored:
 
@@ -1577,7 +1577,7 @@ The bull says custom and merchant are "complements." That was true at small scal
 
 ---
 
-## 5. On Inventory — The Bull Computed 152 Days and Called It Normal
+#### 5. On Inventory — The Bull Computed 152 Days and Called It Normal
 
 The bull did the math I asked for: **152 days inventory outstanding**. Then declared it "in line with semis prepping for a major product launch."
 
@@ -1587,7 +1587,7 @@ And his "OCF $10.66B vs net income $5B = 2.1x conversion = healthy" framing? **A
 
 ---
 
-## 6. The Technicals — Reading Comprehension Matters
+#### 6. The Technicals — Reading Comprehension Matters
 
 The bull keeps insisting the technical report says "HOLD." Let me quote it more completely:
 
@@ -1601,7 +1601,7 @@ The bull has been quietly conflating "hold for those already long" with "buy for
 
 ---
 
-## 7. The Bull's Asymmetry Math Has a Fatal Flaw
+#### 7. The Bull's Asymmetry Math Has a Fatal Flaw
 
 The bull's final pitch:
 - "If AMD pulls back to $400, you save $116 (-22%)."
@@ -1621,7 +1621,7 @@ The bull's final pitch:
 
 ---
 
-## 8. The Honest Recommendation
+#### 8. The Honest Recommendation
 
 I won't pretend AMD is a bad business — it isn't. I won't pretend the AI cycle is fake — it isn't. I won't pretend there's no scenario where AMD goes to $700 — there is.
 
@@ -1648,7 +1648,7 @@ My bull colleague's closing was polished. It was also, in three separate places,
 
 ---
 
-## 1. The Bull Just Quietly Conceded the EPS Number Is Unverified
+#### 1. The Bull Just Quietly Conceded the EPS Number Is Unverified
 
 Re-read his rebuttal carefully:
 
@@ -1666,7 +1666,7 @@ The bull's defense reduces to: *"Trust the analysts."* The same analysts who, pe
 
 ---
 
-## 2. The "Peer Multiple" Frame Is Where the Bull's Math Quietly Breaks
+#### 2. The "Peer Multiple" Frame Is Where the Bull's Math Quietly Breaks
 
 The bull's strongest claim: *"AMD at 39.8x forward is at the low end of 40-50x for 35-40% revenue growers with expanding margins."*
 
@@ -1678,7 +1678,7 @@ Two problems.
 
 ---
 
-## 3. On the Hyperscaler ROI Argument — The Bull Cited Revenue Lines He Can't Quantify Against Capex
+#### 3. On the Hyperscaler ROI Argument — The Bull Cited Revenue Lines He Can't Quantify Against Capex
 
 The bull's response to AI ROI concerns:
 - Microsoft Azure AI: $13B run rate
@@ -1694,7 +1694,7 @@ That's exactly the "vendor financing" mechanism, just internalized. **The hypers
 
 ---
 
-## 4. The Custom Silicon Argument — His "Coexistence" Frame Doesn't Survive 2026 Math
+#### 4. The Custom Silicon Argument — His "Coexistence" Frame Doesn't Survive 2026 Math
 
 The bull's argument: *"Custom silicon has existed for 5-10 years and merchant GPUs have grown 60% YoY anyway."*
 
@@ -1704,7 +1704,7 @@ And critically: **AMD's hyperscaler customer concentration means even one hypers
 
 ---
 
-## 5. The Technical Entry Path the Bull Cited Is Actually My Argument
+#### 5. The Technical Entry Path the Bull Cited Is Actually My Argument
 
 The bull caught me on framing — he's right that the technical report's preferred entry is the 10 EMA (~$476), not $370-400. **Fair correction.** Let me restate cleanly:
 
@@ -1716,7 +1716,7 @@ Notice what that is: **it is not "buy now."** It is "buy on a different setup th
 
 ---
 
-## 6. The Decision Tree — Let's Compare Honestly
+#### 6. The Decision Tree — Let's Compare Honestly
 
 The bull's tree:
 - 40% modest pullback to $476-490 then resume up
@@ -1739,7 +1739,7 @@ Buy at $476 (10 EMA, his preferred entry) and the math flips strongly positive. 
 
 ---
 
-## 7. The Bull's Final Frame Is the Tell
+#### 7. The Bull's Final Frame Is the Tell
 
 The bull's closing line: *"For new capital… size positions at half-normal, use the technical report's recommended entry path (10 EMA pullback with reversal candle, or tight consolidation breakout on volume), and accept that a 15% drawdown is part of the deal."*
 
@@ -1752,7 +1752,7 @@ The bull's closing line: *"For new capital… size positions at half-normal, use
 
 ---
 
-## 8. The Bear Final Verdict
+#### 8. The Bear Final Verdict
 
 Let me strip everything to its irreducible core.
 
@@ -1804,7 +1804,7 @@ My bull colleague delivered his most rhetorically aggressive close yet. It's als
 
 ---
 
-## 1. "Why Won't You Short?" Is Not An Argument — It's a Dare
+#### 1. "Why Won't You Short?" Is Not An Argument — It's a Dare
 
 The bull's centerpiece rhetorical move: *"He won't short, therefore he agrees the trend is real, therefore the bear case is bogus."*
 
@@ -1814,7 +1814,7 @@ The bull is conflating "I won't take the opposite trade" with "I think your trad
 
 ---
 
-## 2. The Bull Just Rebuilt His EV Math By Inserting Numbers He Earlier Refused to Defend
+#### 2. The Bull Just Rebuilt His EV Math By Inserting Numbers He Earlier Refused to Defend
 
 Watch this carefully. In his rebuttal, the bull "corrected" my expected-value math by adding +12% to the modest pullback scenario:
 
@@ -1833,7 +1833,7 @@ Same scenarios, more honest recovery assumptions, and we're back to roughly flat
 
 ---
 
-## 3. The Nvidia FY24 EPS Analog the Bull Cited Actually Refutes Him
+#### 3. The Nvidia FY24 EPS Analog the Bull Cited Actually Refutes Him
 
 The bull triumphantly produced his counter-analog:
 
@@ -1847,7 +1847,7 @@ The bull picked an analog that proves the opposite of what he claimed. **There i
 
 ---
 
-## 4. The Q4'25 Annualized Run-Rate Claim Is Selective Sampling
+#### 4. The Q4'25 Annualized Run-Rate Claim Is Selective Sampling
 
 The bull's clever pivot: *"Q4'25 EPS was $0.92, annualized = $3.68, so the leap to $12.96 is only 3.5x not 4.25x."*
 
@@ -1857,7 +1857,7 @@ This is cherry-picking the single best quarter and pretending it's the run-rate.
 
 ---
 
-## 5. The Microsoft Lease Walk-Back — The Bull's Source Problem
+#### 5. The Microsoft Lease Walk-Back — The Bull's Source Problem
 
 The bull dismissed the Microsoft lease story: *"That was site-selection optimization, not capex reduction. Headline capex went UP."*
 
@@ -1867,7 +1867,7 @@ And the bull's Sundar Pichai quote — *"the risk of underinvesting is dramatica
 
 ---
 
-## 6. The Custom Silicon Math the Bull "Refuted" — Let's Run It Honestly
+#### 6. The Custom Silicon Math the Bull "Refuted" — Let's Run It Honestly
 
 The bull's defense: *"Even if Trainium takes 40% of AWS, AMD captures 25% of the residual = $6-7.5B at AWS alone. Total AMD hyperscaler revenue 2-3x from here."*
 
@@ -1881,7 +1881,7 @@ Three problems with this math.
 
 ---
 
-## 7. "Cash Is Not a Free Option" — The Bull's Most Misleading Line
+#### 7. "Cash Is Not a Free Option" — The Bull's Most Misleading Line
 
 The bull's emotional closer: *"Cash is not a free option. AMD has rallied through every wait-for-pullback call since $150."*
 
@@ -1891,7 +1891,7 @@ More importantly: **opportunity cost is real, but it isn't the only cost.** The 
 
 ---
 
-## 8. The Computex Catalyst Is 48 Hours Away — That's Not a Bull Argument, It's a Risk Argument
+#### 8. The Computex Catalyst Is 48 Hours Away — That's Not a Bull Argument, It's a Risk Argument
 
 The bull keeps citing Computex as a near-term tailwind. **Sell-the-news risk is real and historically observable.** Nvidia post-GTC 2024 sold off 12% in five sessions. AMD post-Advancing AI 2023 sold off 8% in three sessions. **Catalysts in stocks already up 158% in 8 weeks tend to mark local tops, not breakouts.**
 
@@ -1901,7 +1901,7 @@ Even if Computex delivers strongly, the post-event positioning unwind is well-do
 
 ---
 
-## 9. The Honest Bear Case for New Capital — Distilled
+#### 9. The Honest Bear Case for New Capital — Distilled
 
 Strip away the rhetoric. Here is what is empirically true at $516:
 
@@ -1964,7 +1964,7 @@ Strip away the rhetoric. Here is what is empirically true at $516:
 
 ---
 
-## 10. The Bear Final Verdict — Clean and Final
+#### 10. The Bear Final Verdict — Clean and Final
 
 I'll concede what's true: AMD is a high-quality business in a real growth cycle. The bull is right that the company is executing. The bull is right that hyperscaler capex tailwinds are real. The bull is right that the trend is up.
 

@@ -7,9 +7,9 @@ Generated: 2026-05-31 22:27:58
 ### Market Analyst
 I have all the data I need. Note: `get_verified_market_snapshot` is not available in this environment, so I'll rely on `get_stock_data` and `get_indicators` outputs as my source of truth.
 
-# AMZN Technical Analysis Report — As of 2026-05-31
+#### AMZN Technical Analysis Report — As of 2026-05-31
 
-## 1. Market Context & Price Narrative (Nov 2025 – May 2026)
+#### 1. Market Context & Price Narrative (Nov 2025 – May 2026)
 
 AMZN has traveled a remarkable round-trip over the past seven months, making this a particularly rich technical setup:
 
@@ -20,7 +20,7 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 - **Phase 5 — Breakout & Trend Rally (Apr 8 – May 8, 2026):** A powerful impulsive advance from ~$213 to a swing high of **$278.56 on May 5** — roughly **+30% in a month**. The Apr 30 session printed a wide-range bar (high $273.88, low $256.16, volume 100.97M), suggesting the climactic phase began here.
 - **Phase 6 — Consolidation/Distribution (May 8 – May 29):** Price has churned in a $260–$278 zone with declining momentum. The most recent close is **$270.64 on May 29**, off the highs but holding.
 
-## 2. Indicator-by-Indicator Read
+#### 2. Indicator-by-Indicator Read
 
 ### Trend Structure — 50 SMA, 200 SMA, 10 EMA
 - **Close (May 29): $270.64**
@@ -44,7 +44,7 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 - **ATR (May 29): $6.64** — elevated relative to the April baseline (~$6.50) and well above March levels. Volatility regime is **medium-high**, reflecting the recent rally and the post-breakout digestion.
 - **Risk-sizing implication:** A 1×ATR stop is ~$6.64; a 2×ATR stop is ~$13.30. For a long position from current levels, a sensible technical stop sits near **$255–$258** (just under the 10 EMA cluster and ATR-derived band).
 
-## 3. Key Levels (Tool-Verified)
+#### 3. Key Levels (Tool-Verified)
 
 | Level Type | Price | Source/Date |
 |---|---|---|
@@ -58,7 +58,7 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 | Pre-rally breakout zone | **$248–$250** | Apr 14–17 highs region |
 | Feb 13 crash low | **$198.79** | Feb 13, 2026 |
 
-## 4. Synthesis & Actionable Read
+#### 4. Synthesis & Actionable Read
 
 **Bull case (intact):** Strong primary uptrend, bullish MA stack, RSI cooled from overbought without breaking, price holding above 10 EMA, ATR-elevated but stable. A clean push back through $276–$279 would re-engage the breakout and target the upper-band breakout extension.
 
@@ -69,7 +69,7 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 - **Tactical traders:** The MACD histogram and stalled price action argue against initiating fresh longs at the upper band. Wait for either (a) a pullback to the 10 EMA / $260–$262 with momentum reset, or (b) a confirmed breakout close above $278.56 on expanding volume.
 - **Risk management:** Use ATR ($6.64) for stop placement. A 2×ATR stop from $270.64 ≈ $257.36, comfortably above the 50 SMA.
 
-## 5. Summary Table
+#### 5. Summary Table
 
 | Indicator | Latest Value (May 29) | Signal | Interpretation |
 |---|---|---|---|
@@ -88,7 +88,7 @@ AMZN has traveled a remarkable round-trip over the past seven months, making thi
 **Overall Sentiment:** **Mixed** (Score: 5.4/10)
 **Confidence:** Medium
 
-## AMZN Sentiment Report — 2026-05-24 to 2026-05-31
+#### AMZN Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1. Source-by-source breakdown
 
@@ -146,15 +146,15 @@ Sentiment lands **Mixed, leaning marginally bullish** (score 5.4). The instituti
 ### News Analyst
 I now have sufficient data to compile a comprehensive analysis. Let me write the report.
 
-# AMZN News & Macro Research Report — May 24–31, 2026
+#### AMZN News & Macro Research Report — May 24–31, 2026
 
-## Executive Summary
+#### Executive Summary
 
 Amazon.com, Inc. (NASDAQ: **AMZN**) enters the final week of May 2026 in a complex environment: bullish secular AI/cloud tailwinds and a reiterated Buy from Bank of America (PT $310) are offset by macro headwinds including an active Iran war (now entering its fourth month), elevated oil/gas prices, weakening consumer confidence, rising Treasury yields, and a notable insider/strategic exit by Berkshire Hathaway (Greg Abel). The AI infrastructure trade — to which AWS is heavily levered — is increasingly characterized as potentially "bubbly," raising the risk of mean-reversion if sentiment shifts.
 
 ---
 
-## 1. Company-Specific Developments (AMZN)
+#### 1. Company-Specific Developments (AMZN)
 
 ### Bullish Catalysts
 - **Bank of America Reiterates Buy (May 21):** Analyst Justin Post maintained a "Buy" rating with a **$310 price target**, citing healthier momentum in AWS cloud. AMZN is also being highlighted as one of the "Best Wide Moat Stocks" per Wall Street.
@@ -171,7 +171,7 @@ Amazon.com, Inc. (NASDAQ: **AMZN**) enters the final week of May 2026 in a compl
 
 ---
 
-## 2. Macroeconomic Backdrop
+#### 2. Macroeconomic Backdrop
 
 ### Geopolitics — Iran War (Month 4)
 - **Iran war entering its fourth month** (Barron's). US says deals with Iran for safe Hormuz transit are **prohibited**; Strait of Hormuz transits rising thanks to US naval support.
@@ -196,7 +196,7 @@ Amazon.com, Inc. (NASDAQ: **AMZN**) enters the final week of May 2026 in a compl
 
 ---
 
-## 3. Trading-Relevant Insights & Actionable Takeaways
+#### 3. Trading-Relevant Insights & Actionable Takeaways
 
 1. **Near-term setup is mixed-to-cautiously constructive.** AMZN benefits from the AI/data-center secular trade and has a fresh BofA $310 PT, but is weighed down by macro consumer softness, Greg Abel's sale, the AI ROI question (KiroRank shutdown), and a leadership exit in healthcare.
 2. **Watch oil prices and the Iran truce status closely** — sustained crude above prevailing levels directly compresses retail margins and consumer discretionary demand.
@@ -207,7 +207,7 @@ Amazon.com, Inc. (NASDAQ: **AMZN**) enters the final week of May 2026 in a compl
 
 ---
 
-## 4. Summary Table
+#### 4. Summary Table
 
 | Category | Item | Direction for AMZN | Importance |
 |---|---|---|---|
@@ -233,13 +233,13 @@ Amazon.com, Inc. (NASDAQ: **AMZN**) enters the final week of May 2026 in a compl
 ### Fundamentals Analyst
 I have comprehensive data. Let me now compile the fundamental analysis report.
 
-# Amazon.com, Inc. (AMZN) — Fundamental Analysis Report
+#### Amazon.com, Inc. (AMZN) — Fundamental Analysis Report
 **Analysis Date:** May 31, 2026
 **Exchange:** NMS (NASDAQ) | **Sector:** Consumer Cyclical | **Industry:** Internet Retail
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Amazon.com, Inc. operates one of the world's largest e-commerce platforms, complemented by Amazon Web Services (AWS) — the leading global cloud-infrastructure business — plus advertising, subscription services (Prime), digital media, devices, and physical retail (Whole Foods). The company is structured around three reporting segments: **North America, International, and AWS.**
 
@@ -251,7 +251,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 ---
 
-## 2. Valuation Metrics
+#### 2. Valuation Metrics
 
 | Metric | Value | Interpretation |
 |---|---|---|
@@ -267,7 +267,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 ---
 
-## 3. Income Statement Analysis (Quarterly Trend)
+#### 3. Income Statement Analysis (Quarterly Trend)
 
 ### Revenue & Profit Trajectory (in $ Billions)
 
@@ -289,7 +289,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 ---
 
-## 4. Balance Sheet Analysis (as of Q1 2026)
+#### 4. Balance Sheet Analysis (as of Q1 2026)
 
 ### Asset Base — Building the AI/Cloud Backbone
 
@@ -312,7 +312,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 ---
 
-## 5. Cash Flow Analysis
+#### 5. Cash Flow Analysis
 
 ### Operating & Free Cash Flow Trends
 
@@ -331,7 +331,7 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 ---
 
-## 6. Strategic & Fundamental Themes
+#### 6. Strategic & Fundamental Themes
 
 ### 🟢 Bullish Drivers
 1. **AWS + AI dominance:** Massive infrastructure investment positions Amazon to capture next-gen enterprise AI workloads.
@@ -350,13 +350,13 @@ Amazon.com, Inc. operates one of the world's largest e-commerce platforms, compl
 
 ---
 
-## 7. Financial History Context (5-Quarter View)
+#### 7. Financial History Context (5-Quarter View)
 
 The standout narrative is the **transformation of Amazon's balance sheet into an AI-infrastructure powerhouse**. Total assets grew $273B in just 12 months, financed by ~$77B incremental debt, $136B equity growth (largely retained earnings + SBC), and reinvested cash flow. The strategic bet is clear: spend aggressively now to entrench AWS as the AI cloud of choice, accepting near-term FCF compression for long-term competitive positioning.
 
 ---
 
-## 8. Summary Table — Key Points & Actionable Insights
+#### 8. Summary Table — Key Points & Actionable Insights
 
 | Category | Metric / Observation | Signal |
 |---|---|---|
@@ -399,7 +399,7 @@ Let me cut to the chase: AMZN is a $2.9 trillion compounder trading at a forward
 
 ---
 
-## 1. The Growth Story Is Accelerating, Not Decelerating
+#### 1. The Growth Story Is Accelerating, Not Decelerating
 
 Look at the numbers the bears want you to skim past:
 
@@ -413,7 +413,7 @@ This isn't a mature business defending its turf. It's a company *re-accelerating
 
 ---
 
-## 2. The "FCF Collapse" Bear Argument Is Backwards
+#### 2. The "FCF Collapse" Bear Argument Is Backwards
 
 The bear's headline concern — TTM FCF of just $9.8B vs. historical $50B+ — is the **most misunderstood** point in this debate. Here's why it's actually bullish:
 
@@ -426,7 +426,7 @@ The bear sees capex as a cash-flow problem. I see it as the cheapest competitive
 
 ---
 
-## 3. The Technical Setup Is a Bull's Dream — Not a Top
+#### 3. The Technical Setup Is a Bull's Dream — Not a Top
 
 The bear will point to the negative MACD histogram and say "momentum is fading." Let me reframe:
 
@@ -440,7 +440,7 @@ A confirmed close above $278.56 re-engages the breakout. The risk/reward asymmet
 
 ---
 
-## 4. Refuting the Specific Bear Concerns
+#### 4. Refuting the Specific Bear Concerns
 
 **"Greg Abel/Berkshire trimmed AMZN."**
 A small position trim by an incoming CEO repositioning the portfolio is being treated as a Magic 8-Ball prophecy. Berkshire trimmed Apple too — Apple proceeded to make new highs. Buffett-adjacent moves are *not* fundamental signals; they're portfolio housekeeping. Notice BofA, with full access to the same information, *reiterated Buy with a $310 PT* the same week.
@@ -462,7 +462,7 @@ Yes — and the MACD line is *still positive at 5.37*. The histogram going negat
 
 ---
 
-## 5. The Sentiment + Catalyst Stack Favors Bulls
+#### 5. The Sentiment + Catalyst Stack Favors Bulls
 
 - **BofA Buy, $310 PT** — 14.5% upside from current price.
 - Multiple "best AI/data-center pick" features in mainstream financial media.
@@ -472,7 +472,7 @@ Yes — and the MACD line is *still positive at 5.37*. The histogram going negat
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear case boils down to: "Capex is high, momentum has cooled for three weeks, and a Berkshire executive sold a small piece." None of that is structural.
 
@@ -487,7 +487,7 @@ The bear delivered a polished response — but read it carefully and you'll noti
 
 ---
 
-## 1. The "Debt-Funded Growth" Narrative Is Financially Illiterate
+#### 1. The "Debt-Funded Growth" Narrative Is Financially Illiterate
 
 The bear's headline accusation — "$53.4B of new debt in a single quarter" — sounds alarming until you actually do the math:
 
@@ -500,7 +500,7 @@ The bear wants you to see "$53B in new debt" and panic. The actual picture is a 
 
 ---
 
-## 2. The 2021–2022 Comparison the Bear Tried to Discredit Is Actually Devastating to Their Case
+#### 2. The 2021–2022 Comparison the Bear Tried to Discredit Is Actually Devastating to Their Case
 
 The bear built a clever-looking table to argue "this cycle is different." Let me flip that table on its head:
 
@@ -520,7 +520,7 @@ And on the "AI ROI is unproven" point — let me be precise:
 
 ---
 
-## 3. On Earnings Quality — Yes, Adjust. The Bull Case Still Wins.
+#### 3. On Earnings Quality — Yes, Adjust. The Bull Case Still Wins.
 
 The bear wants to play valuation gotcha. Fine — let's run the numbers their way:
 
@@ -535,7 +535,7 @@ On SBC: yes, $18B is real. It's also already in operating expenses. The 1.3% ann
 
 ---
 
-## 4. The Technicals — Let Me Show You What Three Weeks of Sideways *Actually* Means
+#### 4. The Technicals — Let Me Show You What Three Weeks of Sideways *Actually* Means
 
 The bear's "lower highs" sequence is almost comically cherry-picked. Let me give you the full picture:
 
@@ -548,7 +548,7 @@ And the "MACD collapsed 59%" framing? The MACD line peaked at 13.19 *because RSI
 
 ---
 
-## 5. The Macro Argument — Specifically Where the Bear Overreaches
+#### 5. The Macro Argument — Specifically Where the Bear Overreaches
 
 Let's address the bear's macro bullets directly:
 
@@ -562,7 +562,7 @@ Let's address the bear's macro bullets directly:
 
 ---
 
-## 6. Berkshire — Let's Look at What Berkshire Actually Does
+#### 6. Berkshire — Let's Look at What Berkshire Actually Does
 
 The bear claims "Berkshire has access to better fundamental research than 99% of market participants" and therefore the trim is meaningful. OK, let's apply that logic consistently:
 
@@ -576,7 +576,7 @@ On Neil Lindsay: he's stepping back from a unit (Healthcare) that contributes <2
 
 ---
 
-## 7. The Question the Bear Asked — Answered
+#### 7. The Question the Bear Asked — Answered
 
 The bear ended with: *"If AMZN is such an obvious buy, why has it failed to make a new high in 26 days?"*
 
@@ -584,7 +584,7 @@ The honest answer: **because it just rallied 30% in one month.** Stocks that ral
 
 ---
 
-## 8. The Real Asymmetry — Reframed Honestly
+#### 8. The Real Asymmetry — Reframed Honestly
 
 The bear claims the asymmetry is inverted. Let me reframe it the way an actual portfolio manager would:
 
@@ -597,7 +597,7 @@ The bear claims the asymmetry is inverted. Let me reframe it the way an actual p
 
 ---
 
-## Bottom Line: The Bear Is Right About the Volatility, Wrong About the Verdict
+#### Bottom Line: The Bear Is Right About the Volatility, Wrong About the Verdict
 
 I'll give the bear this: **AMZN is volatile, the macro is uncertain, and the entry at $270 is not a no-brainer for short-term traders.** I never claimed otherwise.
 
@@ -627,7 +627,7 @@ The bear literally wrote: *"The bull is right about one thing: AMZN the business
 
 ---
 
-## 1. The Bear's "Concession" Quotes Are a Rhetorical Trick
+#### 1. The Bear's "Concession" Quotes Are a Rhetorical Trick
 
 The bear opened by claiming I "conceded the entire case." Let me put my actual quotes back in context:
 
@@ -639,7 +639,7 @@ The bear quoted me selectively to manufacture concessions. That's a debate tacti
 
 ---
 
-## 2. The Debt Argument — The Bear Is Now Arguing Against Corporate Finance Itself
+#### 2. The Debt Argument — The Bear Is Now Arguing Against Corporate Finance Itself
 
 The bear's response to my interest coverage point was: *"$143B in cash is operational — they can't pay off debt with it."*
 
@@ -653,7 +653,7 @@ If the bear is willing to stretch this far on a basic seasonality point, what el
 
 ---
 
-## 3. The AWS "Only 17%" Argument Falls Apart Under Scrutiny
+#### 3. The AWS "Only 17%" Argument Falls Apart Under Scrutiny
 
 The bear claimed: *"Azure is 30%+, GCP is 28%+, AWS is the slowest hyperscaler."*
 
@@ -669,7 +669,7 @@ And the "where's the AI reacceleration?" question? AWS *was* growing 12% a year 
 
 ---
 
-## 4. The Volume / Distribution Argument the Bear "Delivered" Actually Helps Me
+#### 4. The Volume / Distribution Argument the Bear "Delivered" Actually Helps Me
 
 The bear's volume analysis: *"Apr 30: 100.97M shares — climactic blow-off bar."*
 
@@ -690,7 +690,7 @@ The honest read of the tape: **AMZN consolidated within $9 of all-time highs for
 
 ---
 
-## 5. The Equity Risk Premium Argument Is Actually a Bull Signal for AMZN Specifically
+#### 5. The Equity Risk Premium Argument Is Actually a Bull Signal for AMZN Specifically
 
 The bear's macro masterstroke: *"S&P earnings yield 3.8% vs. 10Y at 4.5% — equity risk premium is negative — historical setup for sideways markets at best."*
 
@@ -704,7 +704,7 @@ The bear's macro stat is real. Their conclusion — "AMZN at 1.47 beta gets hit 
 
 ---
 
-## 6. The Probability Framework Showdown — Let's Do This Honestly
+#### 6. The Probability Framework Showdown — Let's Do This Honestly
 
 The bear rebuilt the probability framework to get a -3.4% expected return. Let me audit their distribution:
 
@@ -724,7 +724,7 @@ But here's the crucial point the bear keeps missing: **the bear's "wait for $231
 
 ---
 
-## 7. The Berkshire Argument — Final Word
+#### 7. The Berkshire Argument — Final Word
 
 The bear's reframe was: *"Berkshire has been a net seller for 8 consecutive quarters and they haven't been wrong."*
 
@@ -736,7 +736,7 @@ The Berkshire framework, applied consistently, has been a **terrible** market-ti
 
 ---
 
-## 8. The Bear's "Patience Is Free" Fallacy
+#### 8. The Bear's "Patience Is Free" Fallacy
 
 The bear's closing thesis: *"Patience is the highest-EV move available."*
 
@@ -751,7 +751,7 @@ The base rate on "wait for a deep pullback after a strong AMZN rally" is **buyer
 
 ---
 
-## Bottom Line: The Bull Case Is Sturdier Than the Bear Wants to Admit
+#### Bottom Line: The Bull Case Is Sturdier Than the Bear Wants to Admit
 
 Let me close with what we've actually established in this debate:
 
@@ -787,7 +787,7 @@ The bear's final rebuttal is their most sophisticated yet — and also their mos
 
 ---
 
-## 1. The Bear's Own Recommendation Refutes Their Thesis
+#### 1. The Bear's Own Recommendation Refutes Their Thesis
 
 Read the bear's final paragraph carefully:
 
@@ -799,7 +799,7 @@ You don't "high-conviction add" a structurally compromised business at any price
 
 ---
 
-## 2. The "Cherry-Picked Counter-Examples" Cut Against the Bear
+#### 2. The "Cherry-Picked Counter-Examples" Cut Against the Bear
 
 The bear cited three counter-examples to my historical record:
 - November 2021 → June 2022: -50%
@@ -818,7 +818,7 @@ And by citing those examples, the bear made another concession: **AMZN's deep dr
 
 ---
 
-## 3. The AWS Reacceleration Math the Bear Just Got Wrong
+#### 3. The AWS Reacceleration Math the Bear Just Got Wrong
 
 The bear's most aggressive new claim: *"$151B in TTM capex is producing a 5pp reacceleration. The marginal ROI on each capex dollar is declining."*
 
@@ -834,7 +834,7 @@ The bear's "declining marginal ROI on capex" claim is a phantom — built on mis
 
 ---
 
-## 4. The "Static Snapshot" Critique Backfires on the Bear
+#### 4. The "Static Snapshot" Critique Backfires on the Bear
 
 The bear claims my interest coverage and liquidity points are "static snapshots" that don't account for trajectory. Let me return that volley with actual math:
 
@@ -852,7 +852,7 @@ The bear's "burning cash" framing requires the implicit assumption that capex gr
 
 ---
 
-## 5. The Equity Risk Premium Argument: 2000, 2007, 2021 — The Bear Picked Their Own Trap
+#### 5. The Equity Risk Premium Argument: 2000, 2007, 2021 — The Bear Picked Their Own Trap
 
 The bear's most rhetorically loaded move: *"Negative ERP arguments were deployed in 2000, 2007, and late 2021 — all preceded major drawdowns."*
 
@@ -868,7 +868,7 @@ And here's the kicker: in every one of those precedents, **the highest-quality c
 
 ---
 
-## 6. The "Berkshire Has Better Research" Argument Crumbles Under Specifics
+#### 6. The "Berkshire Has Better Research" Argument Crumbles Under Specifics
 
 The bear claims Berkshire's specific-position record is "more mixed" than I let on. Let me put numbers on this:
 
@@ -893,7 +893,7 @@ Why is Berkshire's coin-flip signal more valuable than the consensus of analysts
 
 ---
 
-## 7. The Fundamental Concessions the Bear Made That Reveal Their Hand
+#### 7. The Fundamental Concessions the Bear Made That Reveal Their Hand
 
 Let me catalogue what the bear has now explicitly conceded across this debate:
 
@@ -909,7 +909,7 @@ The structural alarms — debt explosion, FCF collapse, accounting flatter, AI b
 
 ---
 
-## 8. The Final Probability Reconciliation
+#### 8. The Final Probability Reconciliation
 
 The bear claimed my probability framework was "vibes." Let me close the gap:
 
@@ -925,7 +925,7 @@ The bear's calibration ("60% chance of 5-15% pullback") is base-rate arithmetic 
 
 ---
 
-## The Bull Case — Restated With Full Honesty
+#### The Bull Case — Restated With Full Honesty
 
 Let me be completely transparent about what I'm advocating, because the bear's "the bull just conceded" trick depends on you misreading the bull case as "buy aggressively right here."
 
@@ -941,7 +941,7 @@ The bear has spent four rounds arguing against a strawman that I'm "chasing the 
 
 ---
 
-## Bottom Line: The Debate's True Outcome
+#### Bottom Line: The Debate's True Outcome
 
 The bear wins the *short-term tactical* argument: **don't load up at $270 with size on the assumption that the breakout fires immediately.** Granted. I never argued that.
 
@@ -958,7 +958,7 @@ What the bear *did* do successfully: argue that the perfect entry might be lower
 
 ---
 
-## Final Recommendation
+#### Final Recommendation
 
 **HOLD existing AMZN positions. Maintain core exposure. Add tactically on pullbacks: half-size at $260-262, half-size at $245-250, full-conviction add at $230-235 if it ever prints.**
 
@@ -975,7 +975,7 @@ The bear's final word is a masterpiece of rhetorical reframing. They want you to
 
 ---
 
-## 1. The Bear's "We Have the Same Trade Plan" Claim Is Materially False
+#### 1. The Bear's "We Have the Same Trade Plan" Claim Is Materially False
 
 Let me put our actual recommendations side by side, in full:
 
@@ -993,7 +993,7 @@ A holder who follows the bear's advice rings the register at $270, gets stopped 
 
 ---
 
-## 2. The Structural Concerns the Bear Says Are "Unaddressed" Were Actually Resolved — They Just Didn't Like the Answers
+#### 2. The Structural Concerns the Bear Says Are "Unaddressed" Were Actually Resolved — They Just Didn't Like the Answers
 
 **On FCF:** The bear says I responded with "trust me, it'll get better." Wrong. I gave specific math: TTM OCF of $148B, growing 53% YoY in Q1, with capex following the documented hyperscaler S-curve (build → plateau → mature reinvestment). The bear's response is "but management hasn't given a hard cap." Of course they haven't — no hyperscaler ever pre-announces a capex ceiling. **The pattern is empirical, not promissory.** AWS capex inflected exactly this way in 2017-19 and 2022-23. The bear demands certainty about the future and calls its absence a refutation. That's not analysis — that's an unfalsifiable bear standard.
 
@@ -1005,7 +1005,7 @@ A holder who follows the bear's advice rings the register at $270, gets stopped 
 
 ---
 
-## 3. The Bear's "Aggregate Risk Compounding" Argument Cuts Both Ways
+#### 3. The Bear's "Aggregate Risk Compounding" Argument Cuts Both Ways
 
 The bear's clever rhetorical move: *"Stack the negative signals — Berkshire trim + Lindsay departure + KiroRank + MACD divergence + FCF compression + debt surge + macro — and the aggregate probability is high."*
 
@@ -1030,7 +1030,7 @@ OK, let's stack the *positive* signals with equal rigor:
 
 ---
 
-## 4. The Bear's "Base Rate" Argument Doesn't Survive Specification
+#### 4. The Bear's "Base Rate" Argument Doesn't Survive Specification
 
 The bear keeps invoking base rates without specifying *which* base rate:
 
@@ -1042,7 +1042,7 @@ The bear cherry-picks the base rate that supports their case ("parabolic rallies
 
 ---
 
-## 5. The "Fed Risk" Argument the Bear Is Now Inflating
+#### 5. The "Fed Risk" Argument the Bear Is Now Inflating
 
 The bear's last move was to claim I ignored the news report's mention of "June crunch point" rate-hike risk. Let me quote what I actually wrote:
 
@@ -1054,7 +1054,7 @@ And a key point the bear keeps ignoring: **AMZN at 1.47 beta has already absorbe
 
 ---
 
-## 6. What This Debate Actually Established — Honestly
+#### 6. What This Debate Actually Established — Honestly
 
 Let me be straightforward about where we landed:
 
@@ -1082,7 +1082,7 @@ Let me be straightforward about where we landed:
 
 ---
 
-## Final Bull Recommendation — Clean and Direct
+#### Final Bull Recommendation — Clean and Direct
 
 **For existing AMZN holders:** **HOLD.** Do not trim into a healthy consolidation in the strongest mega-cap secular trend in the market. The bear's "ring the register" advice has been wrong every single time it's been issued on this name over rolling 3-year horizons. Trimming a compounder at all-time highs has a 25-year track record of underperformance. Don't be the latest example.
 
@@ -1102,7 +1102,7 @@ Let me be straightforward about where we landed:
 
 ---
 
-## The True Bottom Line
+#### The True Bottom Line
 
 The bear ended with: *"Discipline is the bear's edge."*
 
@@ -1126,7 +1126,7 @@ The bull's pitch is slick — but strip away the rhetoric and what you're left w
 
 ---
 
-## 1. "Growth Is Accelerating" — No, It's Being Bought With Borrowed Money
+#### 1. "Growth Is Accelerating" — No, It's Being Bought With Borrowed Money
 
 The bull leads with "+16.6% YoY revenue growth" like it's the headline. Let's add the context they conveniently omitted:
 
@@ -1138,7 +1138,7 @@ When you finance growth with debt at rising Treasury yields, you're not compound
 
 ---
 
-## 2. The FCF Argument Isn't "Backwards" — It's the Whole Ballgame
+#### 2. The FCF Argument Isn't "Backwards" — It's the Whole Ballgame
 
 The bull says "Amazon has been here before, in 2021-2022." This comparison is **dangerously misleading**. Let me set the record straight:
 
@@ -1156,7 +1156,7 @@ And the KiroRank shutdown? The bull spins it as "cost discipline." I call it wha
 
 ---
 
-## 3. Earnings Quality Is Far Worse Than the Bull Admits
+#### 3. Earnings Quality Is Far Worse Than the Bull Admits
 
 The bull casually dismisses the $15.7B in "unusual gains" as "accounting noise." Let's do the actual math:
 
@@ -1170,7 +1170,7 @@ Add in **$18B of annual stock-based compensation** (which the bull glosses over)
 
 ---
 
-## 4. The Technical Setup Is Distribution, Not Digestion
+#### 4. The Technical Setup Is Distribution, Not Digestion
 
 The bull calls a 4% pullback from highs "calm consolidation." Let me show you what the tape is actually saying:
 
@@ -1186,7 +1186,7 @@ And let's talk about the bull's "asymmetric risk/reward" claim of "$13 downside 
 
 ---
 
-## 5. The Bull's Macro Dismissal Is Reckless
+#### 5. The Bull's Macro Dismissal Is Reckless
 
 "Macro hand-waving," the bull says. Really? Let me lay out what's actually on the table:
 
@@ -1199,7 +1199,7 @@ The "Amazon is defensive — consumers trade down" line is a tired trope. In 202
 
 ---
 
-## 6. The Berkshire Sale Is a Real Signal — Stop Hand-Waving It
+#### 6. The Berkshire Sale Is a Real Signal — Stop Hand-Waving It
 
 The bull compares the Berkshire trim to the Apple trim that "preceded new highs." Convenient memory. Berkshire's Apple trim was followed by **Apple underperforming the S&P 500 for the next 18 months**. And more importantly — **Berkshire has access to better fundamental research than 99% of market participants**. When the incoming CEO trims a position into all-time highs, that's not "portfolio housekeeping" — that's a signal you don't need a degree to read.
 
@@ -1207,7 +1207,7 @@ Combine that with the Neil Lindsay (Healthcare) departure and you've got **insid
 
 ---
 
-## 7. What the Bull Won't Say Out Loud
+#### 7. What the Bull Won't Say Out Loud
 
 Let me close with the question the bull is studiously avoiding:
 
@@ -1217,7 +1217,7 @@ The answer is that smart money is already reducing exposure. Berkshire has trimm
 
 ---
 
-## Bottom Line: The Asymmetry the Bull Sees Is Inverted
+#### Bottom Line: The Asymmetry the Bull Sees Is Inverted
 
 The bull says "$13 down vs $30 up." I say:
 - **Realistic downside:** $231 (200 SMA) = **-14.5%**, or $199 (Feb low) in a real macro break = **-26.5%**.
@@ -1244,7 +1244,7 @@ The bull just told you: the stock is volatile, the entry is not a no-brainer, th
 
 ---
 
-## 1. The "Net Debt Isn't Exploding" Argument Is Sleight of Hand
+#### 1. The "Net Debt Isn't Exploding" Argument Is Sleight of Hand
 
 The bull's defense — "they have $143B in cash, they could pay off the debt tomorrow" — is the kind of argument that sounds smart until you actually think about it.
 
@@ -1259,7 +1259,7 @@ And the working capital point — the bull claims a $24B working capital drain i
 
 ---
 
-## 2. The 2021–22 Comparison Table the Bull "Flipped" Actually Just Confirms My Case
+#### 2. The 2021–22 Comparison Table the Bull "Flipped" Actually Just Confirms My Case
 
 The bull's table is fascinating. Let me re-examine it honestly:
 
@@ -1276,7 +1276,7 @@ And on the AWS-vs-KiroRank distinction the bull tried to make: I'll grant them t
 
 ---
 
-## 3. The "Wrong Yardstick" Defense on Valuation Is the Bull's Most Telling Concession
+#### 3. The "Wrong Yardstick" Defense on Valuation Is the Bull's Most Telling Concession
 
 The bull explicitly admitted: **clean P/E is 40x.** Then they pivoted to "AMZN was 180x in 2017, 90x in 2020, so 40x is fine."
 
@@ -1292,7 +1292,7 @@ The "lowest SBC dilution among mega-cap tech" defense is also misleading. **1.3%
 
 ---
 
-## 4. The Technicals — The Bull Asked for Volume Data; Here It Is
+#### 4. The Technicals — The Bull Asked for Volume Data; Here It Is
 
 The bull demanded volume analysis, claiming "distribution comes with rising volume on down days." Fair challenge. Let me deliver:
 
@@ -1306,7 +1306,7 @@ The MACD point: the bull says "5.37 is middle-innings of healthy trends." But MA
 
 ---
 
-## 5. The Macro Dismissal Continues to Be the Bull's Weakest Link
+#### 5. The Macro Dismissal Continues to Be the Bull's Weakest Link
 
 Let me address each of the bull's macro counters specifically:
 
@@ -1320,7 +1320,7 @@ Let me address each of the bull's macro counters specifically:
 
 ---
 
-## 6. The Berkshire Comparison — The Bull's Cherry-Pick Cuts Both Ways
+#### 6. The Berkshire Comparison — The Bull's Cherry-Pick Cuts Both Ways
 
 The bull cited TSMC, airlines, and BAC as examples of Berkshire selling that was "wrong." OK, let me cite the other side:
 
@@ -1332,7 +1332,7 @@ The honest answer is that Berkshire's selling is sometimes early, sometimes pres
 
 ---
 
-## 7. The Bull's Probability Framework Is Conveniently Calibrated
+#### 7. The Bull's Probability Framework Is Conveniently Calibrated
 
 This is the most revealing part of the bull's response. They presented:
 - Bull case: 50% probability, +15-22%
@@ -1352,7 +1352,7 @@ The bull made up bullish probabilities to get a positive EV. I'll let the reader
 
 ---
 
-## 8. The "Seven Coin Flips" Misdirection
+#### 8. The "Seven Coin Flips" Misdirection
 
 The bull's closing rhetorical trick — "the bear case requires seven things to all go wrong" — is a debate tactic, not analysis. Let me reframe it correctly:
 
@@ -1369,7 +1369,7 @@ The bull's closing rhetorical trick — "the bear case requires seven things to 
 
 ---
 
-## Bottom Line: The Bull's Closing Line Is the Best Bear Argument in the Debate
+#### Bottom Line: The Bull's Closing Line Is the Best Bear Argument in the Debate
 
 The bull ended with: *"Don't be the analyst still waiting at $231 when the stock is at $400."*
 
@@ -1393,7 +1393,7 @@ The bull's closing argument is a master class in something specific: **declaring
 
 ---
 
-## 1. The Bull's Checkmark List Is a Sleight of Hand
+#### 1. The Bull's Checkmark List Is a Sleight of Hand
 
 Let me audit those "uncontested" claims the bull is so proud of:
 
@@ -1413,7 +1413,7 @@ The "uncontested" framing is a debater's trick. **I contested every single one.*
 
 ---
 
-## 2. The Seasonality Defense Is a Misdirection
+#### 2. The Seasonality Defense Is a Misdirection
 
 The bull accused me of "statistical malpractice" for citing the Q4→Q1 sequential decline. Let me clarify what I actually argued:
 
@@ -1427,7 +1427,7 @@ But fine — let's argue YoY. **Q1 2026 revenue: $181.5B, +16.6% YoY.** Now look
 
 ---
 
-## 3. The Bull's Probability Math Is Built On Vibes
+#### 3. The Bull's Probability Math Is Built On Vibes
 
 The bull rebuilt my probability framework and arrived at +1.5% expected return. Let me audit *their* distribution:
 
@@ -1447,7 +1447,7 @@ That's the *base rate*. The bull's "40% breakout, 10% real drawdown" is fantasy 
 
 ---
 
-## 4. The "Patience Is Costly" Argument Cuts Both Ways
+#### 4. The "Patience Is Costly" Argument Cuts Both Ways
 
 The bull's most compelling rhetorical move was: *"What if AMZN never touches $231? Opportunity cost is real."*
 
@@ -1468,7 +1468,7 @@ The base rate of "deep pullbacks after sharp rallies in AMZN" is far higher than
 
 ---
 
-## 5. The Equity Risk Premium Pivot Is the Bull's Most Dangerous Argument
+#### 5. The Equity Risk Premium Pivot Is the Bull's Most Dangerous Argument
 
 The bull's clever reframe: *"Negative ERP forces money into mega-cap quality like AMZN."*
 
@@ -1480,7 +1480,7 @@ The bull's "earnings yield + growth = 19% expected return" calculation is the ki
 
 ---
 
-## 6. The Berkshire Argument — One Last Time
+#### 6. The Berkshire Argument — One Last Time
 
 The bull's sleight of hand: *"S&P up 30% over 8 quarters of Berkshire selling — they've been wrong."*
 
@@ -1494,7 +1494,7 @@ The bull's framing ("S&P went up so Berkshire was wrong") is exactly the kind of
 
 ---
 
-## 7. The Bull's Final Concession They Don't Realize They Made
+#### 7. The Bull's Final Concession They Don't Realize They Made
 
 Read the bull's recommendation carefully:
 
@@ -1506,7 +1506,7 @@ Read the bull's recommendation carefully:
 
 ---
 
-## Bottom Line: The Bear Case Stands
+#### Bottom Line: The Bear Case Stands
 
 Let me close with what's actually established:
 
@@ -1525,7 +1525,7 @@ Let me close with what's actually established:
 
 ---
 
-## Final Recommendation
+#### Final Recommendation
 
 **SELL or TRIM existing positions into $270-278 strength.** Take profits on the 30% one-month rally rather than holding through what the technical and fundamental setup increasingly suggests is a topping process.
 
@@ -1544,7 +1544,7 @@ The bull's closing salvo is rhetorically impressive and substantively hollow. Th
 
 ---
 
-## 1. The Bull Just Adopted My Trade Plan and Claimed I Stole Theirs
+#### 1. The Bull Just Adopted My Trade Plan and Claimed I Stole Theirs
 
 Read the bull's final recommendation carefully:
 
@@ -1562,7 +1562,7 @@ Here's the truth the bull is trying to obscure: **strategy without entry discipl
 
 ---
 
-## 2. The Structural Risks the Bull "Refuted" Are Still Sitting There Unaddressed
+#### 2. The Structural Risks the Bull "Refuted" Are Still Sitting There Unaddressed
 
 Let me catalogue what the bull *didn't* actually refute, only re-narrated:
 
@@ -1588,7 +1588,7 @@ The bull's clever pivot was "AWS's 17% growth is monetization of 2023-2024 capex
 
 ---
 
-## 3. The Bull's Probability Math Is Still Reverse-Engineered
+#### 3. The Bull's Probability Math Is Still Reverse-Engineered
 
 The bull defended their 40% breakout probability with citations to "Minervini / O'Neil base studies" — without naming a specific study, sample size, or condition match. That's argument-by-authority, not evidence.
 
@@ -1602,7 +1602,7 @@ The bull keeps invoking "studies say uptrends continue 70% of the time." That's 
 
 ---
 
-## 4. The "Fed-Driven Drawdown" Argument the Bull Made Is Their Own Worst Enemy
+#### 4. The "Fed-Driven Drawdown" Argument the Bull Made Is Their Own Worst Enemy
 
 The bull's most confident-sounding move was: *"Every counter-example I cited was Fed-driven. Today's environment is different."*
 
@@ -1619,7 +1619,7 @@ And on "Fed pivots are more likely cuts than hikes" — that's an assertion agai
 
 ---
 
-## 5. The Berkshire Audit the Bull "Won" Actually Tied — Which Is Itself Bearish
+#### 5. The Berkshire Audit the Bull "Won" Actually Tied — Which Is Itself Bearish
 
 The bull's coup de grâce on Berkshire was a list showing roughly 50/50 hit rates on Buffett's mega-cap trims as forward bearish indicators. Let me accept their numbers and ask the obvious question:
 
@@ -1631,7 +1631,7 @@ The bull frames "coin flip" as "no signal." But a 50% probability of underperfor
 
 ---
 
-## 6. The "AMZN Is the Best AI ROI" Citation Has Been Misused for Five Rounds Running
+#### 6. The "AMZN Is the Best AI ROI" Citation Has Been Misused for Five Rounds Running
 
 Let me say this one more time, clearly:
 
@@ -1647,7 +1647,7 @@ The bull has been citing this as a *bullish* data point for four rounds. **It is
 
 ---
 
-## 7. What the Bull Cannot Explain Away
+#### 7. What the Bull Cannot Explain Away
 
 Strip the rhetoric and these facts remain:
 
@@ -1666,7 +1666,7 @@ Strip the rhetoric and these facts remain:
 
 ---
 
-## Final Bear Recommendation
+#### Final Bear Recommendation
 
 I'll close with the clearest statement of the bear case, free of rhetorical flourish:
 
@@ -1681,7 +1681,7 @@ I'll close with the clearest statement of the bear case, free of rhetorical flou
 
 ---
 
-## The Real Verdict
+#### The Real Verdict
 
 The bull spent five rounds arguing AMZN is a generational compounder. **I never disagreed.** The bull spent five rounds arguing the secular AWS thesis is intact. **I largely agree.** The bull spent five rounds arguing the long-term holder is rewarded. **History supports that.**
 
@@ -1709,7 +1709,7 @@ The bull's closing pitch is the most revealing yet. Strip away the rhetorical po
 
 ---
 
-## 1. The "Anyone Who Bought at Any ATH and Held 3+ Years Made Money" Claim Is Demonstrably False
+#### 1. The "Anyone Who Bought at Any ATH and Held 3+ Years Made Money" Claim Is Demonstrably False
 
 This is the bull's most rhetorically powerful line — and their most factually reckless. Let's check the receipts:
 
@@ -1723,7 +1723,7 @@ The bull's "without exception" claim is **factually wrong**. Anyone who bought A
 
 ---
 
-## 2. The OCF Yield Defense Is the Bull's Most Telling Tell
+#### 2. The OCF Yield Defense Is the Bull's Most Telling Tell
 
 The bull's response to my FCF concern was: *"OCF yield is precisely the right metric for a reinvestment-mode compounder. The bear is using FCF yield, the wrong tool."*
 
@@ -1739,7 +1739,7 @@ And the "interest coverage at 7x even with doubled debt" defense? **It assumes E
 
 ---
 
-## 3. The "Tailwinds Compound Too" Argument Is the Bull's Ultimate Self-Own
+#### 3. The "Tailwinds Compound Too" Argument Is the Bull's Ultimate Self-Own
 
 The bull listed 15 positive signals and declared symmetry. Let me classify what they actually listed:
 
@@ -1757,7 +1757,7 @@ The bull's "15 tailwinds" are mostly the *reasons AMZN is at $270 already*. They
 
 ---
 
-## 4. The Specific Refutations the Bull Failed to Land
+#### 4. The Specific Refutations the Bull Failed to Land
 
 **On the November 2021 analog:** The bull dismissed this as "Fed-driven, so doesn't apply." But the conditions creating that drawdown — peak capex, premium valuation, momentum exhaustion at ATHs — are **exactly the conditions today**, with the added wrinkle that current Treasury yields (4-5%) are *higher* than the 2021 starting point. The bull's "this time is different" framing is the most dangerous phrase in finance, and they've now used it explicitly.
 
@@ -1769,7 +1769,7 @@ The bull's "15 tailwinds" are mostly the *reasons AMZN is at $270 already*. They
 
 ---
 
-## 5. What This Debate Has Actually Established
+#### 5. What This Debate Has Actually Established
 
 Let me be precise about the verdict here, because the bull's "I won" framing requires you to overlook the substantive concessions in their own argument:
 
@@ -1794,7 +1794,7 @@ These are the structural points. The bull's response was rhetoric, history, and 
 
 ---
 
-## Final Bear Recommendation
+#### Final Bear Recommendation
 
 **SELL or TRIM 25-40% of existing AMZN positions into $270-278 strength.** Lock in gains from the Feb $199 → May $278 rally. This is not a thesis call — it's risk management on an outsized position after a 36% three-month move into measurable momentum exhaustion.
 
@@ -1811,7 +1811,7 @@ These are the structural points. The bull's response was rhetoric, history, and 
 
 ---
 
-## The Closing Truth
+#### The Closing Truth
 
 The bull wants you to believe this debate is about *whether AMZN is a great company.* It isn't, and never was. The bull spent seven rounds answering a question the bear never asked.
 

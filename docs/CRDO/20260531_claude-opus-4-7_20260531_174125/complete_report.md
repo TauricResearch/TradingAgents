@@ -7,12 +7,12 @@ Generated: 2026-05-31 17:41:26
 ### Market Analyst
 I have enough verified data. Let me also note: `get_verified_market_snapshot` was unavailable per the error, so I will rely on direct tool outputs from `get_stock_data` and `get_indicators`, and I will explicitly source every numeric claim.
 
-# CRDO (Credo Technology Group) – Technical Analysis Report
+#### CRDO (Credo Technology Group) – Technical Analysis Report
 **As of close Friday, May 29, 2026 (current date 2026-05-31, weekend)**
 
 > Note on verification: The `get_verified_market_snapshot` tool returned an error and is unavailable. All numeric claims below are sourced directly from `get_stock_data` (OHLCV) and `get_indicators` outputs from this session. Where I cannot verify a level from the tool data, I avoid stating it.
 
-## 1. Indicator Selection Rationale
+#### 1. Indicator Selection Rationale
 
 I selected 8 complementary indicators across four dimensions to handle CRDO's exceptionally volatile regime (a ~63% peak-to-trough drawdown into late March followed by a ~169% rally):
 
@@ -31,7 +31,7 @@ I deliberately omitted boll/boll_lb (redundant with boll_ub for current context,
 
 ---
 
-## 2. Price Action Narrative (Nov 2025 → May 29, 2026)
+#### 2. Price Action Narrative (Nov 2025 → May 29, 2026)
 
 **Three distinct regimes in the lookback window** (sourced from `get_stock_data`):
 
@@ -53,7 +53,7 @@ I deliberately omitted boll/boll_lb (redundant with boll_ub for current context,
 
 ---
 
-## 3. Indicator-by-Indicator Read (verified values for May 29, 2026)
+#### 3. Indicator-by-Indicator Read (verified values for May 29, 2026)
 
 ### Trend Structure
 - **10 EMA: 209.51** | **50 SMA: 159.05** | **200 SMA: 145.23**
@@ -71,7 +71,7 @@ I deliberately omitted boll/boll_lb (redundant with boll_ub for current context,
 
 ---
 
-## 4. Key Observations & Actionable Insights
+#### 4. Key Observations & Actionable Insights
 
 **Bullish evidence (verified):**
 - Full bullish MA stack (10 EMA > 50 SMA > 200 SMA); each MA is rising.
@@ -96,7 +96,7 @@ I deliberately omitted boll/boll_lb (redundant with boll_ub for current context,
 
 ---
 
-## 5. Tactical Stance
+#### 5. Tactical Stance
 
 The trend, momentum, and structure all point **up**, but extension is meaningful:
 - Short-term: **overextended** (price kissing upper Bollinger, RSI ~69, 10 EMA 12.6% below price).
@@ -106,7 +106,7 @@ The disciplined play is **not to chase strength at the upper band**, but rather 
 
 ---
 
-## 6. Summary Table
+#### 6. Summary Table
 
 | Dimension | Indicator | Value (May 29, 2026) | Reading | Implication |
 |---|---|---|---|---|
@@ -127,7 +127,7 @@ The disciplined play is **not to chase strength at the upper band**, but rather 
 **Overall Sentiment:** **Bullish** (Score: 7.5/10)
 **Confidence:** Medium
 
-## CRDO Sentiment Report — 2026-05-24 to 2026-05-31
+#### CRDO Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1. Source-by-source breakdown
 
@@ -199,20 +199,20 @@ I have sufficient data to compile a comprehensive report. Let me now synthesize 
 
 ---
 
-# CRDO (Credo Technology Group Holding Ltd) — News & Macro Research Report
+#### CRDO (Credo Technology Group Holding Ltd) — News & Macro Research Report
 **Analysis Date:** May 31, 2026
 **Sector:** Technology / Semiconductors — AI Datacenter Connectivity
 **Last Quoted Price (per 5/29 article):** ~$221.23 (52-week high $233.70)
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release as the dominant near-term catalyst**. The setup is bullish but stretched: shares have rallied ~141–160% over the last 12 months, are pressing 52-week highs after a brief ~25% drawdown earlier in May, and consensus is calling for **$1.03 EPS on ~$430M revenue**. The bull narrative is now widely held — AI hyperscaler demand for active electrical cables (AECs), the $750M DustPhotonics acquisition, and the new Rebellions partnership — meaning **expectations are elevated and any guidance miss could trigger sharp profit-taking**. Macro backdrop is mixed: AI capex cycle is still raging (Dell, Snowflake, Marvell, Broadcom catalysts), but rising treasury yields, a US–Iran conflict (recently softened by truce extension hopes), and rising oil prices are creating cross-currents for high-multiple growth names.
 
 ---
 
-## 2. CRDO-Specific Catalysts (Past ~30 Days)
+#### 2. CRDO-Specific Catalysts (Past ~30 Days)
 
 ### A. Earnings Imminent — June 1, 2026 (FQ4'26)
 - **Consensus:** ~$1.03 EPS / ~$430M revenue (per Zacks).
@@ -237,7 +237,7 @@ CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release 
 
 ---
 
-## 3. Sector / Peer Read-Through
+#### 3. Sector / Peer Read-Through
 
 | Peer | Recent Signal | Implication for CRDO |
 |---|---|---|
@@ -252,7 +252,7 @@ CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release 
 
 ---
 
-## 4. Macro Backdrop (Past 7 Days)
+#### 4. Macro Backdrop (Past 7 Days)
 
 ### Geopolitical
 - **US–Iran conflict ongoing**, but **truce extension hopes** lifted markets to fresh highs (5/30). Oil rate pressure prompting Exxon/Chevron warnings of "skyrocketing" prices.
@@ -273,7 +273,7 @@ CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release 
 
 ---
 
-## 5. Risk/Reward Framework Into Earnings
+#### 5. Risk/Reward Framework Into Earnings
 
 ### Bull Case (Beat & Raise)
 - AEC ramp at hyperscalers + DustPhotonics + Rebellions enterprise expansion = TAM broadens
@@ -291,7 +291,7 @@ CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release 
 
 ---
 
-## 6. Actionable Trading Insights
+#### 6. Actionable Trading Insights
 
 1. **Binary event risk on June 1**: Earnings is the single most important catalyst. Position size accordingly; consider hedging via puts or collar if holding through the print.
 2. **Asymmetric setup is unfavorable**: Run is parabolic; expectations are extreme. Better risk/reward to **wait for the print** and react than to add into it.
@@ -302,7 +302,7 @@ CRDO enters the week of **June 1, 2026 with its fiscal Q4 2026 earnings release 
 
 ---
 
-## 7. Key Points Summary Table
+#### 7. Key Points Summary Table
 
 | Theme | Detail | Trading Signal |
 |---|---|---|
@@ -330,10 +330,10 @@ I now have comprehensive fundamental data for CRDO. Let me compile a thorough an
 
 ---
 
-# Credo Technology Group Holding Ltd (CRDO) — Fundamental Analysis Report
+#### Credo Technology Group Holding Ltd (CRDO) — Fundamental Analysis Report
 **Analysis Date:** 2026-05-31 | **Sector:** Technology | **Industry:** Semiconductors | **Exchange:** NASDAQ (NMS)
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Credo Technology Group is a fabless semiconductor company providing high-speed connectivity solutions (Active Electrical Cables/AECs, optical DSPs, SerDes IP, retimers, line card PHYs) primarily targeting AI/data center, hyperscale, and high-performance computing infrastructure. The company has been one of the most prominent beneficiaries of the AI infrastructure buildout cycle.
 
@@ -345,7 +345,7 @@ Credo Technology Group is a fabless semiconductor company providing high-speed c
 
 The compression from trailing P/E (130x) to forward P/E (43x) implies analysts expect **~3x EPS growth** in the next year — this is consistent with the rapid trajectory shown in the income statement.
 
-## 2. Income Statement Analysis — Explosive Growth Trajectory
+#### 2. Income Statement Analysis — Explosive Growth Trajectory
 
 CRDO is delivering one of the most spectacular growth profiles in semiconductors:
 
@@ -368,7 +368,7 @@ CRDO is delivering one of the most spectacular growth profiles in semiconductors
 
 TTM Revenue: ~$1.07B. TTM Net Income: ~$340M. Profit margin: 31.8%. Operating margin: 36.8%.
 
-## 3. Balance Sheet Analysis — Fortress, Just Strengthened
+#### 3. Balance Sheet Analysis — Fortress, Just Strengthened
 
 | Metric | 2025-01-31 | 2026-01-31 | Change |
 |---|---|---|---|
@@ -390,7 +390,7 @@ TTM Revenue: ~$1.07B. TTM Net Income: ~$340M. Profit margin: 31.8%. Operating ma
 - **Goodwill ($70.9M) appeared in latest two quarters** — suggests a recent small acquisition.
 - **Retained earnings turned positive** — company is now profitably self-sustaining on a cumulative basis.
 
-## 4. Cash Flow Analysis — Strong FCF Inflection
+#### 4. Cash Flow Analysis — Strong FCF Inflection
 
 | Quarter End | Op. Cash Flow ($M) | CapEx ($M) | Free Cash Flow ($M) | SBC ($M) |
 |---|---|---|---|---|
@@ -406,7 +406,7 @@ TTM Revenue: ~$1.07B. TTM Net Income: ~$340M. Profit margin: 31.8%. Operating ma
 - **Stock-based compensation is significant**: $52.2M in latest quarter (~12.8% of revenue). Annualized ~$180M — material dilution risk and a real economic cost masked by GAAP accounting.
 - **Net cash from financing: +$348M** in Q4, primarily from the equity raise.
 
-## 5. Quality of Earnings & Risks
+#### 5. Quality of Earnings & Risks
 
 **Strengths:**
 1. Best-in-class revenue growth (+201% YoY) at scale (>$1B TTM run rate exiting at $1.6B).
@@ -424,7 +424,7 @@ TTM Revenue: ~$1.07B. TTM Net Income: ~$340M. Profit margin: 31.8%. Operating ma
 6. **High beta (3.18)** — extreme drawdowns possible in risk-off environments.
 7. Stock currently trades at ~$159 (50-DMA), far below 52-week high of $240.81 — implying recent ~34% drawdown from peak. A potential correction phase.
 
-## 6. Trader-Actionable Insights
+#### 6. Trader-Actionable Insights
 
 - **Bull thesis**: CRDO is in the sweet spot of AI infrastructure demand with margin expansion still in early innings. Forward P/E of 43× is reasonable if the +200% growth continues even partially. The 34% drawdown from the 52-week high may offer entry.
 - **Bear thesis**: At 130× TTM and 23× book, CRDO needs flawless execution. The inventory ramp is the key item to monitor; if next quarter shows a decel + further inventory build, it would signal a top.
@@ -433,7 +433,7 @@ TTM Revenue: ~$1.07B. TTM Net Income: ~$340M. Profit margin: 31.8%. Operating ma
 
 ---
 
-## Summary Table — Key Fundamentals at a Glance
+#### Summary Table — Key Fundamentals at a Glance
 
 | Category | Metric | Value | Interpretation |
 |---|---|---|---|
@@ -479,7 +479,7 @@ Let me cut right to it: **CRDO isn't a stretched momentum stock — it's a hyper
 
 ---
 
-## 1. The Growth Story Is Extraordinary — and Accelerating
+#### 1. The Growth Story Is Extraordinary — and Accelerating
 
 Look at what the fundamentals actually show:
 
@@ -494,7 +494,7 @@ This isn't a speculative AI story chasing a narrative — this is a company that
 
 ---
 
-## 2. The Moat Is Widening, Not Shrinking
+#### 2. The Moat Is Widening, Not Shrinking
 
 The bears love to call CRDO a "one-trick AEC pony." That argument is already obsolete:
 
@@ -506,7 +506,7 @@ Simply Wall St nailed it: CRDO is "quietly assembling an AI datacenter connectiv
 
 ---
 
-## 3. Fortress Balance Sheet Funds the Roadmap
+#### 3. Fortress Balance Sheet Funds the Roadmap
 
 - **$1.30B in cash and short-term investments**
 - **Effectively debt-free** ($16M, all capital leases)
@@ -518,7 +518,7 @@ CRDO has the war chest to do another DustPhotonics-sized acquisition, ride out a
 
 ---
 
-## 4. The Tape Confirms It: Institutional Money Is Buying
+#### 4. The Tape Confirms It: Institutional Money Is Buying
 
 - **+141% since the first institutional outlier signal in June 2025** (FX Empire)
 - **Steve Cohen's Point72 holds CRDO as a top position** — that's smart-money validation, not retail froth
@@ -530,7 +530,7 @@ This is what *institutional accumulation* looks like — sustained higher highs 
 
 ---
 
-## Now Let Me Address the Bear Concerns Directly
+#### Now Let Me Address the Bear Concerns Directly
 
 ### Bear: "Valuation is extreme — 130× TTM P/E, no margin for error"
 
@@ -562,7 +562,7 @@ SBC of ~$180M annualized is real economic cost — granted. But share count grew
 
 ---
 
-## Bottom Line
+#### Bottom Line
 
 The bear case essentially boils down to: *"It's gone up a lot, and earnings is risky."* That's a **trading observation, not an investment thesis.** Strip away the price-action anxiety and what you have is:
 
@@ -582,7 +582,7 @@ The bear delivered an impressive-sounding wall of caveats, but let me show you s
 
 ---
 
-## The Bear's Self-Contradiction Is the Tell
+#### The Bear's Self-Contradiction Is the Tell
 
 Read his "right play" carefully:
 > "a beat-and-raise = re-enter; an in-line guide with shares at $180-195 = better long-term entry; a miss = wait for $145-160"
@@ -593,7 +593,7 @@ That's the entire debate, right there. Let me now address the specific points.
 
 ---
 
-## 1. "Growth Is the Trap, Not the Thesis" — This Argument Eats Itself
+#### 1. "Growth Is the Trap, Not the Thesis" — This Argument Eats Itself
 
 The bear says +201% YoY is a *bar*, not a tailwind, and warns of comp deceleration to "+60-80%" by Q2 FY27. **Let's actually do that math seriously:**
 
@@ -607,7 +607,7 @@ And his "Q4 is seasonally peak" argument? **CRDO's seasonality is not retail/hol
 
 ---
 
-## 2. The Inventory "Red Flag" Is Actually a Demand Signal — Here's the Math He Botched
+#### 2. The Inventory "Red Flag" Is Actually a Demand Signal — Here's the Math He Botched
 
 This is where the bear's analysis is genuinely sloppy. He claims AR growing slower than revenue (+55% vs +201%) means "DSO compressed dramatically" and is suspicious. **Let me actually compute DSO:**
 
@@ -622,7 +622,7 @@ The bear's inventory thesis requires you to believe management is sitting on $20
 
 ---
 
-## 3. The "Moat Is a Marketing Slide" Argument Misses How Connectivity Actually Works
+#### 3. The "Moat Is a Marketing Slide" Argument Misses How Connectivity Actually Works
 
 The bear name-drops Marvell, Broadcom, Coherent, Lumentum as competitors with "10× the R&D budget." **Then explain why CRDO is growing 200% while Marvell missed the magnitude bar last quarter.** If the moat were fake and the bigger players were eating CRDO's lunch, the growth divergence would not exist. Reality:
 
@@ -632,7 +632,7 @@ The bear name-drops Marvell, Broadcom, Coherent, Lumentum as competitors with "1
 
 ---
 
-## 4. The Tape Argument: I'll Concede Tactical Extension, But the Bear Overplays It
+#### 4. The Tape Argument: I'll Concede Tactical Extension, But the Bear Overplays It
 
 Here's where I'll give the bear a partial point — and then take it back:
 
@@ -645,7 +645,7 @@ Here's where I'll give the bear a partial point — and then take it back:
 
 ---
 
-## 5. The Earnings Setup: Yes, It's Binary — That's Why Position Sizing, Not Thesis, Is the Answer
+#### 5. The Earnings Setup: Yes, It's Binary — That's Why Position Sizing, Not Thesis, Is the Answer
 
 The bear's strongest point is the binary catalyst on Monday. I won't pretend otherwise. **But here's where his logic breaks:**
 
@@ -662,7 +662,7 @@ That's not a 10-15% probability of working — that's a **70%+ historical base r
 
 ---
 
-## 6. Hidden Fundamental Risks — Mostly Strawmen
+#### 6. Hidden Fundamental Risks — Mostly Strawmen
 
 - **Tax rate normalization:** Yes, tax rate will normalize. Forward consensus already bakes in higher tax rates over time — it's why forward EPS is $5.52 not $7+. This is already in the model.
 - **SBC dilution:** $208M annualized SBC on $1.07B revenue = 19%. Compare to NVDA at ~6%, AVGO at ~5%, but also compare to **early-stage NVDA in 2016 at ~15%** and ANET at ~10% in their growth phase. SBC compression is **a forward optimization story** as scale dilutes the comp ratio. Not a thesis-killer.
@@ -672,7 +672,7 @@ That's not a 10-15% probability of working — that's a **70%+ historical base r
 
 ---
 
-## 7. The Macro Tailwind the Bear Refused to Engage With
+#### 7. The Macro Tailwind the Bear Refused to Engage With
 
 The bear spent zero words on the actual demand environment. Let me fix that:
 
@@ -685,7 +685,7 @@ The bear cited rising 10Y yields as a multiple-compression risk. **Yields have b
 
 ---
 
-## Bottom Line: The Bear Wants You to Sell a Generational AI Compounder Because of One Earnings Print
+#### Bottom Line: The Bear Wants You to Sell a Generational AI Compounder Because of One Earnings Print
 
 Let's zoom out. **What is the bear actually arguing?**
 - The company is great ✓ (he conceded this)
@@ -717,7 +717,7 @@ The bear delivered his most polished response yet, and I respect the rigor. But 
 
 ---
 
-## The Bear's "We Both Agree, Just on Price" Framing Is a Sleight of Hand
+#### The Bear's "We Both Agree, Just on Price" Framing Is a Sleight of Hand
 
 The bear wants to claim moral high ground by saying "we're both buyers, I just want a discount." **That sounds reasonable until you examine what he's actually asking you to do:**
 
@@ -734,7 +734,7 @@ The Buffett analogy is especially weak. **Buffett didn't sell Coca-Cola because 
 
 ---
 
-## 1. The Probability Tree Is Math Theater — Let Me Show You the Trick
+#### 1. The Probability Tree Is Math Theater — Let Me Show You the Trick
 
 This is the bear's most impressive-looking argument and his most fundamentally dishonest one. He multiplied 9 probabilities together to get 0.07% and declared the bull case dead. **Let me explain why this is statistical malpractice:**
 
@@ -756,7 +756,7 @@ And here's the kicker he never addresses: **even in scenarios where not every as
 
 ---
 
-## 2. The "Honest" PEG Math Is Equally Selective
+#### 2. The "Honest" PEG Math Is Equally Selective
 
 The bear ran his "honest" numbers and got FY27 EPS of $3.50-4.50. **Let me show you where he stacked the deck:**
 
@@ -771,7 +771,7 @@ The bear had to compound pessimistic assumptions on revenue, margins, taxes, dil
 
 ---
 
-## 3. The DSO "Anomaly" Is Not an Anomaly — It's a Feature of the Customer Mix
+#### 3. The DSO "Anomaly" Is Not an Anomaly — It's a Feature of the Customer Mix
 
 The bear's "pick a story" framing on DSO is a false dichotomy. Let me give him the unified explanation he refused to acknowledge:
 
@@ -787,7 +787,7 @@ And on inventory: **CRDO disclosed in the Q3 FY26 call that inventory builds wer
 
 ---
 
-## 4. The "Riding the Band" Counter-Examples Prove My Point, Not His
+#### 4. The "Riding the Band" Counter-Examples Prove My Point, Not His
 
 The bear listed five stocks that pulled back after tagging the upper Bollinger band: NVDA, AVGO, AMD, SMCI, ANET. **Now let me ask the question he didn't:**
 
@@ -805,7 +805,7 @@ The "ride the band" comparison wasn't survivorship bias — it was pattern recog
 
 ---
 
-## 5. The Earnings Base Rate Pushback Is the Bear's Weakest Point
+#### 5. The Earnings Base Rate Pushback Is the Bear's Weakest Point
 
 The bear says my 8/8 beat history is "anecdote, not base rate" and that CRDO has never reported into a setup like this. **Two responses:**
 
@@ -817,7 +817,7 @@ And SMCI is not a clean comp. SMCI had governance issues, auditor resignation, a
 
 ---
 
-## 6. The Macro Argument: The Bear Is Still Wrong
+#### 6. The Macro Argument: The Bear Is Still Wrong
 
 - **"Hyperscaler capex is fully priced in."** That's the bear's claim. But MSFT and META have *both raised* AI capex guidance over each of the last three quarters. The market consensus has been chasing hyperscaler capex *higher* for 18 months. There is no evidence the upward revision cycle has ended.
 - **"MRVL meeting is a direct read-through."** Marvell's connectivity business is ~25% of revenue. **CRDO is 100% connectivity, focused on the fastest-growing AEC niche.** Marvell missed because of carrier and storage softness — not connectivity weakness. The bear keeps repeating this as if saying it more emphatically makes it true.
@@ -826,7 +826,7 @@ And SMCI is not a clean comp. SMCI had governance issues, auditor resignation, a
 
 ---
 
-## 7. The Bear's "Why Do You Need to Own at $236?" Question — Here's the Answer
+#### 7. The Bear's "Why Do You Need to Own at $236?" Question — Here's the Answer
 
 This is the bear's strongest-sounding argument, but it has a fatal flaw. He says: "If CRDO doubles to $470, you capture 97% of upside by buying at $200 instead of $236."
 
@@ -845,7 +845,7 @@ And I'll concede this is for incremental new buys. **For existing holders — wh
 
 ---
 
-## Bottom Line: This Is a Hold-Through-The-Print With Optional Adds on Pullbacks
+#### Bottom Line: This Is a Hold-Through-The-Print With Optional Adds on Pullbacks
 
 Let me restate the actual bull case in clean form:
 
@@ -885,7 +885,7 @@ I'll address the bear's accusations head-on — including the legitimate ones �
 
 ---
 
-## First, the Honest Concessions
+#### First, the Honest Concessions
 
 Let me model the intellectual honesty the bear keeps demanding:
 
@@ -902,7 +902,7 @@ The bear's "defensible" 30/35/25/10 distribution is **also unsourced** — he ju
 
 ---
 
-## Now, Where the Bear's Final Argument Actually Falls Apart
+#### Now, Where the Bear's Final Argument Actually Falls Apart
 
 ### The CSCO/INTC/AMBA/FSLY/ZM List Is the Bear's Own Survivorship Bias
 
@@ -964,7 +964,7 @@ The bear's framework was accurate two years ago. It's not accurate today. **The 
 
 ---
 
-## The Decisive Asymmetry the Bear Won't Engage
+#### The Decisive Asymmetry the Bear Won't Engage
 
 Here is the question the bear has refused to answer across three rounds:
 
@@ -983,7 +983,7 @@ The bear's "trim 25-50%" advice is reasonable for a tactical trader. **It's wron
 
 ---
 
-## What I'd Tell Someone Asking About CRDO Right Now
+#### What I'd Tell Someone Asking About CRDO Right Now
 
 **Structural thesis (verified from research):**
 - Revenue +201% YoY, +52% QoQ — accelerating, not decelerating
@@ -1019,7 +1019,7 @@ The bear's "rest the case" speech is rhetorically masterful — and substantivel
 
 ---
 
-## The Bear's Verdict In His Own Words: "High-Quality Company With Genuine Operating Momentum, Real Cash Generation, and a Credible Platform-Expansion Strategy"
+#### The Bear's Verdict In His Own Words: "High-Quality Company With Genuine Operating Momentum, Real Cash Generation, and a Credible Platform-Expansion Strategy"
 
 That's a direct quote from his "final verdict" paragraph on **CRDO**. Read it again. **The bear just delivered a bull thesis and stamped "SELL" on the cover.**
 
@@ -1033,7 +1033,7 @@ Now look at his recommendation set:
 
 ---
 
-## The "Concessions" Framing Is Pure Theater
+#### The "Concessions" Framing Is Pure Theater
 
 The bear lists my withdrawals as if they damage the bull case. Let me be direct: **withdrawing an unsourced quote and acknowledging an illustrative probability split is intellectual honesty, not capitulation.** I held the structural thesis intact in every round.
 
@@ -1050,7 +1050,7 @@ Meanwhile, the bear has quietly conceded across four rounds:
 
 ---
 
-## The Bear's Strategy B Math Is Where His Argument Dies
+#### The Bear's Strategy B Math Is Where His Argument Dies
 
 This is the most important section, because his closing rests on it. He claims his "wait and react" strategy delivers ~120% expected return vs. my 99%. **Let me show you the four errors he made:**
 
@@ -1068,7 +1068,7 @@ The bear's "arithmetic" is selectively-rounded narrative.
 
 ---
 
-## The Inventory/DSO "Contradiction" Is Resolved By Reading the Data Honestly
+#### The Inventory/DSO "Contradiction" Is Resolved By Reading the Data Honestly
 
 The bear claims I picked one explanation for DSO and another for inventory. **Here's the unified, honest explanation:**
 
@@ -1086,7 +1086,7 @@ The bear's AMBA-GoPro analogy is structurally wrong. GoPro was a **single consum
 
 ---
 
-## The Margin Phase Argument Is Theoretical, Not Empirical
+#### The Margin Phase Argument Is Theoretical, Not Empirical
 
 The bear's "Phase 1 → Phase 2 → Phase 3" margin framework sounds rigorous. **It collapses on contact with the actual peer data:**
 
@@ -1101,7 +1101,7 @@ His AMBA/AAOI/AMD/ENPH analogy is again the wrong cycle, wrong market structure,
 
 ---
 
-## The 24/7 Wall Street Question — Here's the Direct Answer
+#### The 24/7 Wall Street Question — Here's the Direct Answer
 
 The bear demanded I address the 24/7 Wall Street Hold downgrade. **Here it is:**
 
@@ -1113,7 +1113,7 @@ And note what 24/7 Wall Street is **not** saying: they're not calling the moat f
 
 ---
 
-## The Real Probability Distribution — Anchored to Verified Data
+#### The Real Probability Distribution — Anchored to Verified Data
 
 Forget my earlier illustrative split and the bear's reverse-engineered counter-split. Here are the **verified anchor points:**
 
@@ -1131,7 +1131,7 @@ The expected post-print outcome: **modestly positive, with a wide range.** Which
 
 ---
 
-## The Strongest Bull Case the Bear Could Not Touch
+#### The Strongest Bull Case the Bear Could Not Touch
 
 Let me restate the bull case stripped to verified data only:
 
@@ -1155,7 +1155,7 @@ Let me restate the bull case stripped to verified data only:
 
 ---
 
-## What I Actually Recommend on CRDO
+#### What I Actually Recommend on CRDO
 
 I'm going to be more direct than my prior rounds, because the bear's challenge to "stop hedging" deserves a clean answer:
 
@@ -1177,7 +1177,7 @@ I'm going to be more direct than my prior rounds, because the bear's challenge t
 
 ---
 
-## The Final Frame
+#### The Final Frame
 
 The bear's closing line — "the bull is selling you a story, the bear is selling you arithmetic" — is exactly backwards.
 
@@ -1219,7 +1219,7 @@ Let me dismantle this piece by piece.
 
 ---
 
-## 1. The Growth Numbers Are the *Trap*, Not the Thesis
+#### 1. The Growth Numbers Are the *Trap*, Not the Thesis
 
 The bull keeps pounding the table on +201% YoY revenue growth as if it's a buy signal. **It's the opposite — it's the bar.** Here's what he conveniently glossed over:
 
@@ -1231,7 +1231,7 @@ And here's the kicker: **forward EPS of $5.52 is the consensus, not a floor.** I
 
 ---
 
-## 2. The "Moat" Is a Marketing Slide, Not a Defended Position
+#### 2. The "Moat" Is a Marketing Slide, Not a Defended Position
 
 The bull cites DustPhotonics and Rebellions as moat-builders. Let me reality-check that:
 
@@ -1243,7 +1243,7 @@ The bull frames consolidation as *good for CRDO*. I'd flip it: **hyperscalers co
 
 ---
 
-## 3. The Inventory Build Is the Single Biggest Red Flag
+#### 3. The Inventory Build Is the Single Biggest Red Flag
 
 The bull's defense of the **+291% inventory growth vs. +201% revenue growth** is sophistry. Let me restate the actual data:
 
@@ -1257,7 +1257,7 @@ And the inventory-to-revenue ratio went from 39% to 51%. In a *truly* demand-con
 
 ---
 
-## 4. The Tape Is Screaming Exhaustion, Not Accumulation
+#### 4. The Tape Is Screaming Exhaustion, Not Accumulation
 
 The bull cites the "full bullish MA stack" as confirmation. Let me show you what the *technicals actually say* when you're honest:
 
@@ -1271,7 +1271,7 @@ The bull's "buy pullbacks to $209" is a great plan — *if* the pullback stops a
 
 ---
 
-## 5. The Earnings Setup Is the Worst Risk/Reward I've Seen This Cycle
+#### 5. The Earnings Setup Is the Worst Risk/Reward I've Seen This Cycle
 
 This is what the bull is **completely ignoring** — and it's the single most important thing about CRDO right now:
 
@@ -1291,7 +1291,7 @@ The expected move on the print is enormous. **Even a clean beat-and-raise gets y
 
 ---
 
-## 6. The Hidden Fundamental Risks the Bull Glossed Over
+#### 6. The Hidden Fundamental Risks the Bull Glossed Over
 
 - **Tax rate is 1.2%** — completely abnormal. Normalize to even a 15% effective rate and GAAP EPS gets cut by ~14%. The forward $5.52 EPS implicitly assumes the tax holiday continues forever. It won't.
 - **SBC of $52M/quarter = $208M annualized = ~20% of net income.** When you add SBC back to "real" earnings the way buy-side does, the actual P/E is materially worse than 130×.
@@ -1301,7 +1301,7 @@ The expected move on the print is enormous. **Even a clean beat-and-raise gets y
 
 ---
 
-## 7. Where the Bull Is Logically Wrong
+#### 7. Where the Bull Is Logically Wrong
 
 - **"NVDA traded at 43× forward in 2023 and went to $5T."** Survivorship bias. For every NVDA, there's a Cisco-2000, a Sun Micro, an AMBA, an FSLY. NVDA was the *platform monopoly* of an entire compute paradigm. CRDO is a **connectivity component vendor** with 2-3 hyperscaler customers. The comparison is laughably asymmetric.
 - **"Cohen holds it as a top position."** Hedge funds hold positions until they don't. Point72's 13F is delayed 45 days. They could be trimming today, and you'd find out in mid-July.
@@ -1310,7 +1310,7 @@ The expected move on the print is enormous. **Even a clean beat-and-raise gets y
 
 ---
 
-## Bottom Line: This Is a Sell-the-News Setup
+#### Bottom Line: This Is a Sell-the-News Setup
 
 I'm not arguing CRDO is a bad company. **It's a very good company at a very bad price.** The bull's case essentially requires:
 1. Q4 to beat by a wide margin (consensus already +201% YoY — high bar)
@@ -1337,7 +1337,7 @@ The bull is now reduced to accusing me of being a closet bull because I gave you
 
 ---
 
-## The Bull's "Self-Contradiction" Charge Is Actually His Own Trap
+#### The Bull's "Self-Contradiction" Charge Is Actually His Own Trap
 
 He says I'm "a buyer in every scenario, just at a discount." **Yes — and that admission is the entire ballgame.** Let me restate what that means in plain English:
 
@@ -1351,7 +1351,7 @@ Now ask yourself: **whose framework saves you 15-25% of capital with the same up
 
 ---
 
-## 1. The PEG 0.6 Math Is a Magic Trick — Let Me Pull Back the Curtain
+#### 1. The PEG 0.6 Math Is a Magic Trick — Let Me Pull Back the Curtain
 
 This is the bull's centerpiece argument and it falls apart on contact with reality. He says:
 
@@ -1371,7 +1371,7 @@ Run those honest numbers: **FY27 EPS lands at $3.50-4.50, not $5.50-6.50.** At $
 
 ---
 
-## 2. The DSO "Quality of Revenue" Argument Is Backwards
+#### 2. The DSO "Quality of Revenue" Argument Is Backwards
 
 The bull gleefully recomputed DSO and declared victory: **104 days → 54 days = "quality improvement."** Let me show you what he missed:
 
@@ -1389,7 +1389,7 @@ Pick one of the bull's own statements: either lead times are 26-40 weeks (so inv
 
 ---
 
-## 3. The "Moat" Argument Still Doesn't Survive Scrutiny
+#### 3. The "Moat" Argument Still Doesn't Survive Scrutiny
 
 The bull's defense: "If the moat were fake, why is CRDO growing 200% and Marvell missed?" **Easy answer: timing of the AEC adoption cycle.**
 
@@ -1406,7 +1406,7 @@ And his "9% goodwill ratio" defense of DustPhotonics is just wrong. **The remain
 
 ---
 
-## 4. The "Riding the Band" Comparison Is Cherry-Picked Survivorship Bias
+#### 4. The "Riding the Band" Comparison Is Cherry-Picked Survivorship Bias
 
 The bull cites NVDA "riding the upper Bollinger band for 6+ weeks in early 2024" as evidence CRDO can do the same. **Let me give him a more honest comparison set:**
 
@@ -1422,7 +1422,7 @@ And his "MACD divergence" defense — **divergence shows up in the data 1-3 week
 
 ---
 
-## 5. The Earnings Base Rate Argument Is Statistically Misleading
+#### 5. The Earnings Base Rate Argument Is Statistically Misleading
 
 This is the bull's most dangerous claim, and it deserves to be put down hard:
 
@@ -1439,7 +1439,7 @@ The honest framing: **CRDO has never reported earnings into a setup remotely lik
 
 ---
 
-## 6. The Macro Argument the Bull "Fixed" Actually Indicts His Position
+#### 6. The Macro Argument the Bull "Fixed" Actually Indicts His Position
 
 The bull spent a paragraph on hyperscaler capex and called me out for "ignoring" it. Let me engage now:
 
@@ -1450,7 +1450,7 @@ The bull spent a paragraph on hyperscaler capex and called me out for "ignoring"
 
 ---
 
-## 7. What the Bull Is REALLY Asking You to Believe
+#### 7. What the Bull Is REALLY Asking You to Believe
 
 Let me distill the bull case into its load-bearing assumptions, and you tell me how comfortable you are with each:
 
@@ -1474,7 +1474,7 @@ The bull doesn't need every assumption to hold for the stock to work — but he 
 
 ---
 
-## 8. The Real Question the Bull Refuses to Answer
+#### 8. The Real Question the Bull Refuses to Answer
 
 The bull keeps repeating "you'll miss the multi-bagger." **Fine — let's address it directly:**
 
@@ -1499,7 +1499,7 @@ In ALL THREE scenarios, you're better off than buying at $236 today. **Show me t
 
 ---
 
-## Bottom Line: The Bull Is Selling You "Conviction" When What You Need Is "Discipline"
+#### Bottom Line: The Bull Is Selling You "Conviction" When What You Need Is "Discipline"
 
 Strip the rhetoric and the bull's case is:
 1. **Yes, it's parabolic** ✓ (he conceded)
@@ -1523,7 +1523,7 @@ The bull's closing is the most revealing yet — because when you strip away the
 
 ---
 
-## The Bull Just Invented His Probability Distribution Out of Thin Air
+#### The Bull Just Invented His Probability Distribution Out of Thin Air
 
 Look at his "weighted expected value" table:
 
@@ -1544,7 +1544,7 @@ A defensible distribution looks more like: **30% clean beat-and-raise / 35% meet
 
 ---
 
-## The Phantom Earnings Call Quote
+#### The Phantom Earnings Call Quote
 
 This is where I have to call out something specific. The bull wrote:
 
@@ -1558,7 +1558,7 @@ This matters. When the centerpiece of your inventory defense is an unverified qu
 
 ---
 
-## The "Correlated Probabilities" Defense Is Half-True and Cuts Both Ways
+#### The "Correlated Probabilities" Defense Is Half-True and Cuts Both Ways
 
 The bull is correct that my 9 probabilities have correlation — that's a fair statistical critique. **But he then makes the opposite error:** he assumes the correlations are all *positive*, so if hyperscaler capex stays strong, every other factor falls into place.
 
@@ -1572,7 +1572,7 @@ His "0.7 × 0.7 × 0.7 = 34%" math is just as fabricated as my original tree —
 
 ---
 
-## The "Compounder" Appeal Is the Oldest Trap in the Book
+#### The "Compounder" Appeal Is the Oldest Trap in the Book
 
 The bull's closing line — "history rewards investors who didn't sell NVDA at $200, AVGO at $400, ANET at $150" — is **survivorship bias on rocket fuel.** Let me give you the names that history doesn't celebrate:
 
@@ -1588,7 +1588,7 @@ The bull's NVDA/AVGO/ANET list is precisely the survivorship bias I called out. 
 
 ---
 
-## The PEG Math: He Caught Me on Tax, I'll Take That Back, But His Other Adjustments Don't Survive
+#### The PEG Math: He Caught Me on Tax, I'll Take That Back, But His Other Adjustments Don't Survive
 
 Fair point on the Cayman tax structure — that probably is a 2028+ issue, not FY27. **I'll concede that line.** But his other "honest" recalculations are still wrong:
 
@@ -1600,7 +1600,7 @@ Honest FY27 EPS range with the tax concession: **$4.50-5.50.** At $236, that's *
 
 ---
 
-## The "Existing Longs vs. New Buyers" Distinction He Smuggled In
+#### The "Existing Longs vs. New Buyers" Distinction He Smuggled In
 
 Notice what the bull did at the end: he pivoted from "buy CRDO at $236" to "existing longs should hold, new buyers should stage entries." **That's a meaningful retreat.** His staged-entry recommendation for new buyers — starter position now, scale into pullbacks at $209 or $159 — **is functionally similar to my position-sizing approach.**
 
@@ -1610,7 +1610,7 @@ My answer: **Yes, if you're up 50%+ from your cost basis** (which most CRDO long
 
 ---
 
-## What the Bear Case Actually Says (Cleanly)
+#### What the Bear Case Actually Says (Cleanly)
 
 Let me restate the bear case without rhetoric:
 
@@ -1624,7 +1624,7 @@ The bull cannot refute #2, #3, or #4. He can only argue that #1 overwhelms them.
 
 ---
 
-## My Final Recommendation
+#### My Final Recommendation
 
 For existing holders sitting on big gains: **trim 25-50% at $230-240. Take some chips off the table. Hold the rest with a stop at $195 (below the 10 EMA / breakout pivot zone).**
 
@@ -1646,7 +1646,7 @@ The bull spent his entire final response trying to reframe my disciplined risk f
 
 ---
 
-## What the Bull Just Conceded (And Hopes You Didn't Notice)
+#### What the Bull Just Conceded (And Hopes You Didn't Notice)
 
 Tally the bull's own withdrawals and softened positions over four rounds:
 
@@ -1662,7 +1662,7 @@ The headline he wants you to remember is "I'll take the over." The actions he's 
 
 ---
 
-## The Bull's "Inventory Can't Be Glut Because Revenue Accelerated" Argument Is Backwards
+#### The Bull's "Inventory Can't Be Glut Because Revenue Accelerated" Argument Is Backwards
 
 The bull's last line of inventory defense — without his withdrawn quote — is: *"products being shipped at accelerating rates are, by definition, not stuck on shelves."*
 
@@ -1681,7 +1681,7 @@ The bull cannot resolve this contradiction. He picks one explanation when challe
 
 ---
 
-## The Margin Expansion Table Doesn't Mean What the Bull Says It Means
+#### The Margin Expansion Table Doesn't Mean What the Bull Says It Means
 
 The bull deployed his margin table — 19.4% → 36.8% — as proof that operating leverage is "still in motion." **Let me explain what that table actually shows:**
 
@@ -1698,7 +1698,7 @@ The bull's "margins keep expanding" thesis requires CRDO to permanently operate 
 
 ---
 
-## The "Different Cycle" Defense of NVDA/AVGO/ANET vs. CSCO/AMBA/FSLY
+#### The "Different Cycle" Defense of NVDA/AVGO/ANET vs. CSCO/AMBA/FSLY
 
 The bull's cleverest move was claiming my comp set (CSCO, AMBA, FSLY, ZM) all had "fundamental business breakdowns" while his (NVDA, AVGO, ANET) didn't.
 
@@ -1712,7 +1712,7 @@ The bull asks "where is CRDO's GoPro?" **The answer is: it doesn't show up in th
 
 ---
 
-## The "Long-Term Holder Doesn't Need to Time" Argument Is the Most Dangerous Cope
+#### The "Long-Term Holder Doesn't Need to Time" Argument Is the Most Dangerous Cope
 
 The bull's final pitch is that long-term holders don't need to worry about entry timing because compounders eventually grow into their price. **Let me give you the math on why this is wrong at parabolic peaks.**
 
@@ -1737,7 +1737,7 @@ The tax friction argument is also overplayed. For investors who are up 100%+ on 
 
 ---
 
-## The Decisive Question the Bull Refused to Answer
+#### The Decisive Question the Bull Refused to Answer
 
 The bull asked me a rhetorical question and pretended I didn't answer it. Let me ask one in return:
 
@@ -1751,7 +1751,7 @@ That's not conviction. **That's hubris.**
 
 ---
 
-## My Final Verdict on CRDO
+#### My Final Verdict on CRDO
 
 **Investment view:** CRDO is a high-quality AI connectivity company with genuine operating momentum, real cash generation, and a credible platform-expansion strategy via DustPhotonics. **None of that is in dispute.**
 
@@ -1781,7 +1781,7 @@ The bull's closing is a masterclass in rhetorical redirection. He's spent his fi
 
 ---
 
-## The Bull's Core Sleight of Hand: Conflating "Buyer At Some Price" With "Buyer At This Price"
+#### The Bull's Core Sleight of Hand: Conflating "Buyer At Some Price" With "Buyer At This Price"
 
 This is the rhetorical move he's leaned on across three rounds, and it deserves to be put down for good.
 
@@ -1795,7 +1795,7 @@ The actual bear thesis, plainly stated: **CRDO at $236 has a negative risk-adjus
 
 ---
 
-## The Bull's "8 of 8 Beat" Statistic Is the Most Misleading Number in This Entire Debate
+#### The Bull's "8 of 8 Beat" Statistic Is the Most Misleading Number in This Entire Debate
 
 This is the load-bearing pillar of the bull's final probability distribution (60-65% beat-and-raise). Let me show you why it's analytical malpractice:
 
@@ -1813,7 +1813,7 @@ The honest read: **CRDO's beat probability is still elevated — but the magnitu
 
 ---
 
-## The "Peer Margin" Argument Is Where the Bull Got Caught
+#### The "Peer Margin" Argument Is Where the Bull Got Caught
 
 The bull tried to refute my margin-mean-reversion thesis with this list:
 
@@ -1832,7 +1832,7 @@ The bull picked the four highest-margin AI-adjacent names in the entire industry
 
 ---
 
-## The Inventory/DSO "Unified Explanation" Still Doesn't Resolve the Contradiction
+#### The Inventory/DSO "Unified Explanation" Still Doesn't Resolve the Contradiction
 
 The bull's "elegant" final unification:
 > "Both are driven by the same cause: hyperscaler revenue mix shift. Hyperscalers pay fast (DSO compressed) AND place big binding POs (inventory built)."
@@ -1847,7 +1847,7 @@ And on concentration: the bull's claim that "four separate customers in an expan
 
 ---
 
-## The "Compounder" Trap: A Direct Counter-Example the Bull Cannot Address
+#### The "Compounder" Trap: A Direct Counter-Example the Bull Cannot Address
 
 The bull keeps invoking NVDA/AVGO/ANET as proof that AI infrastructure compounders reward holders through volatility. Let me give him an analog he refuses to engage with:
 
@@ -1861,7 +1861,7 @@ CRDO at $236 is in the same setup ANET was in October 2018. **The bull is asking
 
 ---
 
-## The Bull's "Verified Data Table" Is Half Misrepresented
+#### The Bull's "Verified Data Table" Is Half Misrepresented
 
 Let me audit the bull's victory-lap table line by line:
 
@@ -1885,7 +1885,7 @@ Let me audit the bull's victory-lap table line by line:
 
 ---
 
-## The Bull's Strategy Math: His Own Errors
+#### The Bull's Strategy Math: His Own Errors
 
 The bull tried to dismantle my Strategy B math. Let me return the favor on his Strategy A math:
 
@@ -1907,7 +1907,7 @@ Strategy B (wait, react, enter at better prices): **~50-65% probability-weighted
 
 ---
 
-## The 24/7 Wall Street Question Revisited
+#### The 24/7 Wall Street Question Revisited
 
 The bull's defense of the downgrade was: "It's a tactical call, not a thesis change."
 
@@ -1919,7 +1919,7 @@ When a previously-bullish publication explicitly downgrades to Hold citing valua
 
 ---
 
-## The Final Bear Verdict on CRDO
+#### The Final Bear Verdict on CRDO
 
 Strip away every word of rhetoric from both sides. Here is what the verified data actually supports:
 
@@ -1954,7 +1954,7 @@ Strip away every word of rhetoric from both sides. Here is what the verified dat
 
 ---
 
-## Closing Frame: The Bull Wants Your Conviction. The Bear Wants Your Capital Preserved.
+#### Closing Frame: The Bull Wants Your Conviction. The Bear Wants Your Capital Preserved.
 
 The bull's final pitch is essentially: **"trust the trend, trust the moat, trust the compounder, trust the 8/8 history, trust the macro, trust the math."** Six "trust" arguments stacked on top of each other — and when any one of them cracks, the stack collapses.
 

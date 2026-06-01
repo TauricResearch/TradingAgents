@@ -7,10 +7,10 @@ Generated: 2026-05-31 17:40:33
 ### Market Analyst
 Note: The `get_verified_market_snapshot` tool was unavailable in this environment (returned an error). All numbers below are sourced directly from `get_stock_data` and `get_indicators`. I'll flag this transparency point and proceed.
 
-# ALAB (Astera Labs, Inc.) — Technical Trend Report
+#### ALAB (Astera Labs, Inc.) — Technical Trend Report
 **Date: 2026-05-31 (last trading session: Fri 2026-05-29)**
 
-## 1. Price Action Narrative (Nov 2025 → May 2026)
+#### 1. Price Action Narrative (Nov 2025 → May 2026)
 
 ALAB has experienced three distinct regimes over the past seven months:
 
@@ -20,7 +20,7 @@ ALAB has experienced three distinct regimes over the past seven months:
 
 The most recent two sessions (May 28–29) printed the first meaningful pullback (high $354.53 → close $342.85), suggesting near-term exhaustion.
 
-## 2. Indicator-by-Indicator Read
+#### 2. Indicator-by-Indicator Read
 
 ### Trend Structure (10 EMA / 50 SMA / 200 SMA)
 - **10 EMA (May 29): ~$300.07** — well below the close of $342.85, meaning price is extended ~14% above its fastest trend line. Healthy in a strong uptrend, but historically a mean-reversion magnet.
@@ -38,7 +38,7 @@ The most recent two sessions (May 28–29) printed the first meaningful pullback
 ### Volume Confirmation (VWMA)
 - **VWMA (May 29): ~$267.38** vs. close $342.85. Price is meaningfully above its volume-weighted average, confirming that the rally has had **real volume participation** (volumes May 13–28 ranged 4.6M–10.3M shares, well above the Feb–March base). This validates the breakout as not just thin-air drift.
 
-## 3. Synthesis & Actionable Insights
+#### 3. Synthesis & Actionable Insights
 
 **Bullish evidence:**
 - Long-term trend reversal confirmed (price > 50 SMA > 200 SMA, both rising).
@@ -65,12 +65,12 @@ The most recent two sessions (May 28–29) printed the first meaningful pullback
 
 **Net bias:** Structurally bullish, tactically overextended. The path of least resistance is sideways-to-down for a multi-day cool-off before the trend can resume. Hold/trim, do not initiate fresh exposure at these levels.
 
-## 4. Data-Integrity Note
+#### 4. Data-Integrity Note
 The `get_verified_market_snapshot` tool was not available in this environment (returned an error). All values cited above are taken directly from `get_stock_data` (OHLCV) and `get_indicators` outputs for ALAB on the dates noted. No values have been reconciled or interpolated.
 
 ---
 
-## Summary Table
+#### Summary Table
 
 | Category | Indicator | Value (2026-05-29) | Reading | Implication |
 |---|---|---|---|---|
@@ -90,7 +90,7 @@ FINAL TRANSACTION PROPOSAL: **HOLD**
 **Overall Sentiment:** **Mildly Bullish** (Score: 6.0/10)
 **Confidence:** Medium
 
-## Source-by-source breakdown
+#### Source-by-source breakdown
 
 ### News (Yahoo Finance, 2026-05-24 → 2026-05-31)
 News flow leans constructive but with notable cautionary counterweights. Positive/event-driven items dominate volume:
@@ -133,19 +133,19 @@ Engagement is **very thin** — only one post per subreddit, all dated 2026-05-2
 
 Scores/comments unavailable via RSS, so engagement weighting is impossible. The signal here is that ALAB is **on the periphery of the broader AI-infrastructure / chip-adjacent narrative** but is not itself a focal Reddit topic this week. Treat as **Neutral / weakly supportive contextual signal**.
 
-## Cross-source divergences and alignments
+#### Cross-source divergences and alignments
 - **Alignment (bullish)**: News (award, $10B TAM, analyst upgrades, 32% rally) + StockTwits bull cohort + Reddit's "next chip-adjacent winner" framing all point the same direction.
 - **Divergence**: Northland's downgrade (institutional valuation/2027 demand caution) directly conflicts with management's bullish 2027 commentary and with retail $500 targets. The StockTwits bear sub-thread (insider selling, parabolic chart) actually *aligns with* Northland's caution — a rare case where retail bears and a sell-side downgrade reinforce each other.
 - **Volume divergence**: News is heavy and largely positive; Reddit is nearly silent on ALAB specifically — so retail conviction is concentrated on StockTwits (cashtag-driven) rather than Reddit forum discussion. That suggests momentum-trader interest more than long-thesis community building.
 
-## Dominant narrative themes
+#### Dominant narrative themes
 1. **AI connectivity / data-center plumbing as the "next Nvidia-style" trade** — ALAB grouped with CRDO, MRVL, MU, AVGO, CLS.
 2. **Scorpio X-Series ramp + $10B TAM** — the company's own bull case.
 3. **Founder/management validation** — EY World Entrepreneur of the Year.
 4. **Parabolic price action** — ~32% weekly gain, $100→$350 in weeks; both celebrated and feared.
 5. **Insider selling + valuation stretch** — credible bear thesis articulated by Northland and echoed on StockTwits.
 
-## Catalysts and risks
+#### Catalysts and risks
 **Catalysts**:
 - CRDO Q4 earnings on June 1 — direct read-through to ALAB demand picture.
 - Scorpio X-Series ramp into 2H26.
@@ -157,7 +157,7 @@ Scores/comments unavailable via RSS, so engagement weighting is impossible. The 
 - Technical exhaustion: stock has run vertically; prior episode saw a full retrace from $250 to $100.
 - Low-float dynamics amplifying both directions.
 
-## Summary table
+#### Summary table
 
 | Signal | Direction | Source | Evidence |
 |---|---|---|---|
@@ -177,7 +177,7 @@ Scores/comments unavailable via RSS, so engagement weighting is impossible. The 
 ### News Analyst
 I have enough information to build a comprehensive report. Let me synthesize the findings.
 
-# Astera Labs (ALAB) — Weekly News & Macro Research Report
+#### Astera Labs (ALAB) — Weekly News & Macro Research Report
 **Analysis Date:** May 31, 2026
 **Coverage Window:** May 24 – May 31, 2026
 **Sector:** Technology / Semiconductors (AI Connectivity)
@@ -185,7 +185,7 @@ I have enough information to build a comprehensive report. Let me synthesize the
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setup: **strong fundamental momentum and product-cycle catalysts** offset by a **fresh sell-side downgrade citing valuation and 2027 hyperscaler capex risk**. The stock surged ~32% week-on-week earlier in May on bullish analyst commentary, only to face a Northland downgrade to Market Perform this week. Underneath the noise, ALAB management is publicly anchoring a **$10B AI connectivity TAM** narrative, with the Scorpio X-Series ramping into 2H26 and 2027. Macro crosswinds (US–Iran conflict, rising oil, sticky inflation, rising Treasury yields) introduce risk to growth-multiple stocks, but AI-infrastructure capex continues to defy the broader cyclical caution (Dell's blowout this week is the latest tell).
 
@@ -193,7 +193,7 @@ Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setu
 
 ---
 
-## 2. Company-Specific Catalysts (ALAB)
+#### 2. Company-Specific Catalysts (ALAB)
 
 ### 2.1 Bullish Drivers
 - **$10B AI Connectivity TAM:** At the TD Cowen TMT Conference (May 27), VP of Finance/IR Nick Aberle outlined "robust demand across the connectivity portfolio" with **Scorpio X-Series ramping into 2H26 and 2027**. Multi-product contribution narrative is intact (Aries, Taurus, Leo, Scorpio).
@@ -212,7 +212,7 @@ Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setu
 
 ---
 
-## 3. Macroeconomic Backdrop (Week of May 24–31, 2026)
+#### 3. Macroeconomic Backdrop (Week of May 24–31, 2026)
 
 ### 3.1 Geopolitical / Energy
 - **US–Iran conflict ongoing**, with a truce extension reported May 29. Oil prices remain elevated; Exxon and Chevron are warning of further crude spikes.
@@ -233,14 +233,14 @@ Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setu
 
 ---
 
-## 4. Read-Through from Peers
+#### 4. Read-Through from Peers
 - **Broadcom (AVGO) earnings imminent** — historically a strong directional indicator for ALAB. Bull case: AI guide raise. Bear case: any softening in 2027 commentary triggers ALAB selloff.
 - **Credo (CRDO) reports June 1** — Street looking for $1.03 EPS / $430M revenue. A beat-and-raise is the most direct positive read-through to ALAB; a guide-down would compound Northland's downgrade thesis.
 - **Ciena, Dell** strength supports the broader AI-networking thesis.
 
 ---
 
-## 5. Key Risks to Monitor (Next 1–2 Weeks)
+#### 5. Key Risks to Monitor (Next 1–2 Weeks)
 1. **CRDO earnings (June 1)** — direct connectivity peer.
 2. **AVGO earnings** — sets tone for AI infra capex.
 3. **2027 hyperscaler capex commentary** from any of MSFT/META/GOOG/AMZN.
@@ -250,7 +250,7 @@ Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setu
 
 ---
 
-## 6. Trading Insights & Actionable Takeaways
+#### 6. Trading Insights & Actionable Takeaways
 
 - **Tactical Setup:** ALAB just absorbed a +32% rip and a Northland downgrade in the same window — classic late-cycle tape. Risk/reward favors **waiting for CRDO/AVGO prints** before adding.
 - **Pair Trade Idea:** Long AVGO / short ALAB into Broadcom earnings if positioning skew is too extreme — captures AI infra exposure while shedding single-name 2027-capex risk.
@@ -260,7 +260,7 @@ Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setu
 
 ---
 
-## 7. Summary Table — Key Points
+#### 7. Summary Table — Key Points
 
 | Theme | Detail | Direction for ALAB |
 |---|---|---|
@@ -284,19 +284,19 @@ Astera Labs enters the final stretch of Q2 2026 with an unusually polarized setu
 ### Fundamentals Analyst
 I have comprehensive data. Let me compose the fundamental analysis report.
 
-# Astera Labs, Inc. (ALAB) — Fundamental Analysis Report
+#### Astera Labs, Inc. (ALAB) — Fundamental Analysis Report
 **Analysis Date:** May 31, 2026
 **Sector:** Technology | **Industry:** Semiconductors | **Exchange:** NMS (Nasdaq)
 
 ---
 
-## 1. Company Profile & Business Overview
+#### 1. Company Profile & Business Overview
 
 Astera Labs, Inc. (ALAB) is a fabless semiconductor company specializing in connectivity solutions for AI and cloud infrastructure. The company is a key beneficiary of the AI infrastructure buildout, providing PCIe, CXL, and Ethernet connectivity products (Aries, Taurus, Leo, and Scorpio product families) for hyperscale data centers. ALAB went public in March 2024 and has rapidly scaled with the AI capex cycle.
 
 ---
 
-## 2. Market & Valuation Snapshot
+#### 2. Market & Valuation Snapshot
 
 - **Market Cap:** ~$58.77B
 - **PE (TTM):** 233.2x — extremely elevated, signaling priced-for-perfection growth
@@ -310,7 +310,7 @@ Astera Labs, Inc. (ALAB) is a fabless semiconductor company specializing in conn
 
 ---
 
-## 3. Income Statement — Strong Acceleration
+#### 3. Income Statement — Strong Acceleration
 
 | Quarter | Revenue ($M) | YoY/QoQ Growth | Gross Profit ($M) | Gross Margin | Operating Income ($M) | Net Income ($M) | Diluted EPS |
 |---|---|---|---|---|---|---|---|
@@ -331,7 +331,7 @@ Astera Labs, Inc. (ALAB) is a fabless semiconductor company specializing in conn
 
 ---
 
-## 4. Balance Sheet — Fortress Liquidity
+#### 4. Balance Sheet — Fortress Liquidity
 
 | Metric | Q1 2025 | Q1 2026 | Change |
 |---|---|---|---|
@@ -354,7 +354,7 @@ Astera Labs, Inc. (ALAB) is a fabless semiconductor company specializing in conn
 
 ---
 
-## 5. Cash Flow — Robust & Self-Funded
+#### 5. Cash Flow — Robust & Self-Funded
 
 | Quarter | Operating CF ($M) | CapEx ($M) | Free Cash Flow ($M) | SBC ($M) |
 |---|---|---|---|---|
@@ -373,7 +373,7 @@ Astera Labs, Inc. (ALAB) is a fabless semiconductor company specializing in conn
 
 ---
 
-## 6. Profitability & Returns
+#### 6. Profitability & Returns
 
 - **Gross Margin:** ~76% (best-in-class semis)
 - **Operating Margin:** 20% TTM, trending up
@@ -385,7 +385,7 @@ These returns are strong but are biased upward by the large equity buildup post-
 
 ---
 
-## 7. Risk Considerations
+#### 7. Risk Considerations
 
 1. **Valuation Risk:** PE >230x leaves no margin for error.
 2. **Customer Concentration:** AI/hyperscaler-driven revenue typically concentrates in a few mega-customers (NVIDIA, hyperscalers). Receivables jump bears watching.
@@ -397,7 +397,7 @@ These returns are strong but are biased upward by the large equity buildup post-
 
 ---
 
-## 8. Bull Case / Bear Case
+#### 8. Bull Case / Bear Case
 
 **Bull Case:**
 - Revenue nearly doubled in 5 quarters; AI infrastructure capex cycle multi-year
@@ -415,7 +415,7 @@ These returns are strong but are biased upward by the large equity buildup post-
 
 ---
 
-## 9. Summary Key Points Table
+#### 9. Summary Key Points Table
 
 | Category | Metric / Insight | Verdict |
 |---|---|---|
@@ -441,7 +441,7 @@ These returns are strong but are biased upward by the large equity buildup post-
 
 ---
 
-## 10. Actionable Insights for Traders
+#### 10. Actionable Insights for Traders
 
 1. **Fundamental momentum is undeniably strong** — revenue, margins, and FCF all trending positively with AI tailwinds intact.
 2. **Valuation is the central battleground.** The forward PE of 81x is justifiable only if revenue can sustain >40% YoY for multiple years; current QoQ deceleration (20% → 17% → 14%) deserves close monitoring.
@@ -462,7 +462,7 @@ Let me make this clear upfront: **ALAB isn't just riding the AI wave — it's bu
 
 ---
 
-## 1. The Growth Story Is Genuinely Extraordinary
+#### 1. The Growth Story Is Genuinely Extraordinary
 
 Let's start with what isn't debatable — the numbers:
 
@@ -476,7 +476,7 @@ The bear will say "but QoQ growth decelerated from 20% to 14%." Sure — but goi
 
 ---
 
-## 2. The TAM Story Is Just Beginning
+#### 2. The TAM Story Is Just Beginning
 
 Management at the TD Cowen TMT Conference flagged a **$10B AI connectivity TAM** with the **Scorpio X-Series ramping into 2H26 and 2027.** ALAB currently does ~$1B in TTM revenue. **They have less than 10% of their addressable market.**
 
@@ -484,7 +484,7 @@ The product portfolio — Aries (PCIe), Taurus (Ethernet), Leo (CXL), Scorpio (P
 
 ---
 
-## 3. Now Let Me Address the Bear's Likely Arguments Head-On
+#### 3. Now Let Me Address the Bear's Likely Arguments Head-On
 
 ### Bear Point #1: "Northland downgraded on 2027 hyperscaler capex concerns."
 
@@ -508,7 +508,7 @@ Counterpoint: Receivables are growing alongside a major Scorpio product launch a
 
 ---
 
-## 4. The Asymmetric Setup the Bears Are Missing
+#### 4. The Asymmetric Setup the Bears Are Missing
 
 Look at the structural picture:
 
@@ -527,7 +527,7 @@ The downside case in a true AI capex pause is — what — a 30-40% multiple com
 
 ---
 
-## 5. My Bull Recommendation Framing
+#### 5. My Bull Recommendation Framing
 
 I'm not telling you to chase $342 with both hands. I'm telling you:
 
@@ -547,7 +547,7 @@ My bear colleague has delivered an impressively dramatic argument, complete with
 
 ---
 
-## 1. The "59x Sales" Headline Is Cherry-Picked Math
+#### 1. The "59x Sales" Headline Is Cherry-Picked Math
 
 The bear leads with the most shocking-sounding multiple: 59x trailing sales. Then they compare it to ASML and AVGO. **This is apples-to-oranges reasoning, and the bear knows it.**
 
@@ -561,7 +561,7 @@ And the bear's "cash-EPS adjusted forward PE of 110-120x"? Let's interrogate tha
 
 ---
 
-## 2. The "Deceleration" Argument Falls Apart Under Scrutiny
+#### 2. The "Deceleration" Argument Falls Apart Under Scrutiny
 
 The bear's centerpiece chart: 20.4% → 20.2% → 17.4% → 14.0% sequential. They call it "monotonic deceleration." Let me give you the honest read.
 
@@ -578,7 +578,7 @@ ALAB has **76% gross margins, expanding operating margins, a multi-year secular 
 
 ---
 
-## 3. The Bear Is Treating Northland as Gospel — When It's Just One Voice
+#### 3. The Bear Is Treating Northland as Gospel — When It's Just One Voice
 
 The bear builds an elaborate argument that Northland's downgrade represents "smart money" with conviction because "career risk." Let me apply the same logic in reverse:
 
@@ -597,7 +597,7 @@ The 2000-2001 telecom analogy? Telecom was overbuilt because **carriers were lay
 
 ---
 
-## 4. The Technical "Doom Loop" Cuts Both Ways
+#### 4. The Technical "Doom Loop" Cuts Both Ways
 
 The bear says: "Last time it ran parabolically, it dropped 60%." Let me complete that thought.
 
@@ -611,7 +611,7 @@ That's a **HOLD recommendation, not a SELL.** The bear has misrepresented the te
 
 ---
 
-## 5. The Insider Selling "Smoking Gun" Is Actually Pretty Mild
+#### 5. The Insider Selling "Smoking Gun" Is Actually Pretty Mild
 
 $5.78M sold by the CEO. Let me put that in context:
 
@@ -626,7 +626,7 @@ If the bear had real evidence of insider distress — coordinated dumping, 10% o
 
 ---
 
-## 6. The Receivables "Concern" Is Backwards
+#### 6. The Receivables "Concern" Is Backwards
 
 The bear says receivables grew 62% QoQ vs. 14% revenue growth — implying channel-stuffing or quality-of-revenue issues.
 
@@ -639,7 +639,7 @@ If receivables had grown 62% on flat revenue, the bear would have a point. But r
 
 ---
 
-## 7. The Competitive Threat Argument Misses the Architecture
+#### 7. The Competitive Threat Argument Misses the Architecture
 
 The bear lists Broadcom, Marvell, hyperscaler ASICs, and Credo as competitive threats. Let's be precise about who actually competes with what:
 
@@ -652,7 +652,7 @@ ALAB isn't a monopolist. **It's the leading pure-play in PCIe/CXL fabric connect
 
 ---
 
-## 8. The Bear's Risk/Reward Math Is Rigged
+#### 8. The Bear's Risk/Reward Math Is Rigged
 
 Let me show you how the bear constructed their "2:1 risk/reward to downside":
 
@@ -669,7 +669,7 @@ Honest probability-weighted math:
 
 ---
 
-## 9. The Cisco 2000 Analogy Deserves Scrutiny
+#### 9. The Cisco 2000 Analogy Deserves Scrutiny
 
 The bear closes with the most overused comparison in finance: Cisco at the 2000 peak. Let me dismantle it.
 
@@ -691,7 +691,7 @@ The bear closes with the most overused comparison in finance: Cisco at the 2000 
 
 ---
 
-## 10. The Bottom Line
+#### 10. The Bottom Line
 
 The bear has delivered a well-rhetorical case that boils down to three claims:
 1. **The valuation is rich** — true, but growth-justified
@@ -723,7 +723,7 @@ Now let me dismantle the bear's "gotcha" framework piece by piece — because wh
 
 ---
 
-## 1. The "We Both Agree" Trap Is Intellectually Dishonest
+#### 1. The "We Both Agree" Trap Is Intellectually Dishonest
 
 The bear's centerpiece move is listing things "we agree on" and using that to claim the bear case wins. Let's stress-test that:
 
@@ -737,7 +737,7 @@ The bear wants you to believe a 30-50% trim is the same as "don't chase here." *
 
 ---
 
-## 2. The Forward Revenue Math — The Bear Just Made My Case
+#### 2. The Forward Revenue Math — The Bear Just Made My Case
 
 The bear stress-tested my NTM revenue range and concluded: **"If sequential growth fades to 11%, NTM revenue is $1.42B. Forward P/S is 38-42x. Still expensive."**
 
@@ -751,7 +751,7 @@ And on SBC: yes, $200M annual is real. But the bear conveniently forgot ALAB gen
 
 ---
 
-## 3. "Show Me the 2027 Capex Guide" — The Bear Just Demanded the Bull Prove a Negative
+#### 3. "Show Me the 2027 Capex Guide" — The Bear Just Demanded the Bull Prove a Negative
 
 The bear's strongest line is: "Hyperscalers haven't given 2027 capex guidance, so Northland is filling a vacuum." Let me flip this around.
 
@@ -769,7 +769,7 @@ Northland made a *forecast*. Forecasts get tested. **One downgrade is one data p
 
 ---
 
-## 4. The Bear's "Seven Things Must Go Right" Parlay Is a Rhetorical Trick
+#### 4. The Bear's "Seven Things Must Go Right" Parlay Is a Rhetorical Trick
 
 This is the bear's closing flourish. Let me unpack it because it's misleading.
 
@@ -785,7 +785,7 @@ By the bear's "parlay" logic, **no growth stock would ever be investable.** Ever
 
 ---
 
-## 5. The Receivables "Mystery" — Let's Actually Do the Math
+#### 5. The Receivables "Mystery" — Let's Actually Do the Math
 
 The bear says DSO went from 28 to 40 days, the acquisition only explains $10-15M of the $52M jump, and the remaining $37M is unexplained. Let me give you a fourth explanation the bear conveniently skipped:
 
@@ -795,7 +795,7 @@ The bear says "we don't know — that's a yellow flag." Fine. **But "we don't kn
 
 ---
 
-## 6. The "Other Bubbles Compressed 60-90%" — Comparison Without Calibration
+#### 6. The "Other Bubbles Compressed 60-90%" — Comparison Without Calibration
 
 The bear pivoted from Cisco to Solar, Cannabis, 3D Printing, and COVID SaaS. Let me handle these honestly:
 
@@ -810,7 +810,7 @@ If the bear wants to make the "AI is overhyped" call, they should make it direct
 
 ---
 
-## 7. AVGO at 20x Sales — A Tell, Not a Counter-Argument
+#### 7. AVGO at 20x Sales — A Tell, Not a Counter-Argument
 
 The bear's closing pitch is: "Buy AVGO at 20x sales instead — same exposure, less risk."
 
@@ -825,7 +825,7 @@ And here's the thing: **AVGO is a $1.3 trillion company.** It can't 5x. ALAB is 
 
 ---
 
-## 8. The Drawdown Argument Cuts Both Ways
+#### 8. The Drawdown Argument Cuts Both Ways
 
 The bear hammers on "anyone who bought the November top watched a 51% drawdown." True. **And anyone who bought the March bottom is up 240%.** The same chart that scares the bear is the chart that has rewarded patient holders enormously.
 
@@ -835,7 +835,7 @@ The bear's response is: "But most investors don't survive the drawdown." That's 
 
 ---
 
-## 9. The Honest Risk/Reward Framework
+#### 9. The Honest Risk/Reward Framework
 
 Let me put forward the cleanest framing for the decision in front of an investor today:
 
@@ -858,7 +858,7 @@ Let me put forward the cleanest framing for the decision in front of an investor
 
 ---
 
-## 10. The Final Word
+#### 10. The Final Word
 
 The bear has done a masterful job of pattern-matching ALAB to historical losers. **What they have not done is engage with what makes ALAB structurally different:**
 
@@ -891,7 +891,7 @@ My bear colleague has delivered their closing salvo with conviction, and I respe
 
 ---
 
-## 1. The Bear Just Quoted Their Own Cemetery — And Got the Headstones Wrong
+#### 1. The Bear Just Quoted Their Own Cemetery — And Got the Headstones Wrong
 
 The bear's "Hall of Fame" gambit: *"For every Nvidia there's a Sun Microsystems. For every Amazon there's a Cisco. For every Apple there's a Nortel."*
 
@@ -911,7 +911,7 @@ And the "fewer than 10% of 50x sales stocks delivered positive 10-year returns" 
 
 ---
 
-## 2. The "Trim Is Trim" Equivalence Is Mathematically Embarrassing
+#### 2. The "Trim Is Trim" Equivalence Is Mathematically Embarrassing
 
 The bear's cleverest move: *"Your 15-20% trim is the same as my 40-50% trim, just with a smaller number."*
 
@@ -935,7 +935,7 @@ The bear wants to call this a rounding error. **It's the entire game.**
 
 ---
 
-## 3. The "59x Sales" Mantra — Repeated, Not Defended
+#### 3. The "59x Sales" Mantra — Repeated, Not Defended
 
 The bear claims I've ducked the 59x trailing P/S argument. I haven't. **I've reframed it correctly, and the bear refuses to accept the reframe because it destroys their thesis.**
 
@@ -954,7 +954,7 @@ The bear's framing — "59x trailing sales is indefensible" — is true only if 
 
 ---
 
-## 4. The 75% × 75% × 75% Probability Trick — Sounds Smart, Is Wrong
+#### 4. The 75% × 75% × 75% Probability Trick — Sounds Smart, Is Wrong
 
 The bear's killer math: *"Three independent variables at 75% probability each = 42% probability all cooperate. The bull thesis is sub-50%."*
 
@@ -976,7 +976,7 @@ The bear has constructed a **binary** ("all three must cooperate or thesis fails
 
 ---
 
-## 5. The SBC Dilution Argument — The Bear Just Invented New Math
+#### 5. The SBC Dilution Argument — The Bear Just Invented New Math
 
 This is the most analytically embarrassing part of the bear's response. Let me quote it directly: *"At $58.77B market cap, 1.7% annual dilution = $1B/year of economic cost. The honest economic FCF is negative or near-zero."*
 
@@ -994,7 +994,7 @@ Real check: ALAB has $1.18B in cash and is growing it. If economic FCF were "neg
 
 ---
 
-## 6. The Hyperscaler Capex/Revenue Ratio Argument — Backwards
+#### 6. The Hyperscaler Capex/Revenue Ratio Argument — Backwards
 
 The bear claims hyperscaler capex/revenue ratios are "at all-time highs and unsustainable."
 
@@ -1008,7 +1008,7 @@ The bear says "at some point — 2027 is reasonable — math forces digestion." 
 
 ---
 
-## 7. Where the Bear Actually Has a Point — And Where It Doesn't Matter
+#### 7. Where the Bear Actually Has a Point — And Where It Doesn't Matter
 
 Let me concede what's defensible in the bear case:
 - ✅ **Stock is technically overextended at $342.** Agreed. Don't chase.
@@ -1026,7 +1026,7 @@ What the bear has *not* established:
 
 ---
 
-## 8. The Real Question — What Are You Actually Buying?
+#### 8. The Real Question — What Are You Actually Buying?
 
 Let me bring this home with the cleanest framing of what's actually at stake.
 
@@ -1047,7 +1047,7 @@ My response: **HOLD core, TRIM 15-20% to manage parabolic risk, ADD on pullbacks
 
 ---
 
-## 9. My Final Recommendation
+#### 9. My Final Recommendation
 
 **FINAL TRANSACTION PROPOSAL: HOLD (with a tactical lean to BUY on weakness)**
 
@@ -1068,7 +1068,7 @@ For risk management:
 
 ---
 
-## 10. Closing Thought
+#### 10. Closing Thought
 
 The bear's case rests on a fundamental misunderstanding: **that the price you pay determines the outcome more than the asset you own.** That's true for some assets — bonds, mature businesses, commodity producers. **It's not true for category-defining technology platforms in early secular cycles.**
 
@@ -1095,7 +1095,7 @@ My bear colleague has delivered another rhetorically muscular argument, and I'll
 
 ---
 
-## 1. The Cisco Concession Is the Bear's Self-Inflicted Wound
+#### 1. The Cisco Concession Is the Bear's Self-Inflicted Wound
 
 The bear's marquee move: *"Cisco's revenue only fell 15% peak-to-trough but the stock fell 89% — multiple compression alone can halve a stock without a fundamental collapse."*
 
@@ -1121,7 +1121,7 @@ And here's the deeper Cisco lesson the bear missed: **Cisco compounded earnings 
 
 ---
 
-## 2. The "Realistic Symmetric Asymmetry" Math — The Bear Just Cooked the Books
+#### 2. The "Realistic Symmetric Asymmetry" Math — The Bear Just Cooked the Books
 
 The bear redid my asymmetry math with their own scenarios:
 - **Their upside:** $450 (+31%)
@@ -1146,7 +1146,7 @@ The bear's framing that "the asymmetry favors the bear in realistic scenarios" o
 
 ---
 
-## 3. The Comp Set Reframe — The Bear Confused Volatility With Permanence
+#### 3. The Comp Set Reframe — The Bear Confused Volatility With Permanence
 
 The bear's catalog of "stocks that traded at 40x+ forward sales and crashed":
 - SNOW: -65% trough, **now recovered to within 20% of all-time high**
@@ -1169,7 +1169,7 @@ The bear cherry-picked the failures. **I'm asking you to look at the entire popu
 
 ---
 
-## 4. The SBC Math — Let's Settle This Once and For All
+#### 4. The SBC Math — Let's Settle This Once and For All
 
 The bear's claim: *"SBC-adjusted FCF is $40M. Market cap / adjusted FCF = 1,470x."*
 
@@ -1192,7 +1192,7 @@ And by the way — **a 1.7% annual dilution rate is below the median for hyper-g
 
 ---
 
-## 5. The Probability Framework — The Bear Just Made My Case Again
+#### 5. The Probability Framework — The Bear Just Made My Case Again
 
 The bear's "actual base rates":
 - Semiconductor product launches hit guided ramps: 50-60%
@@ -1221,7 +1221,7 @@ This is the precise definition of bad insurance.
 
 ---
 
-## 6. The Hyperscaler Capex Inversion — The Bear Just Argued Against AI Itself
+#### 6. The Hyperscaler Capex Inversion — The Bear Just Argued Against AI Itself
 
 The bear's clearest tell: *"There is genuine risk that AI monetization underwhelms relative to capex deployment, and at that point capex throttles regardless of CEO commentary."*
 
@@ -1240,7 +1240,7 @@ AVGO: ~20% revenue growth, 60% gross margins, mature franchise with VMware integ
 
 ---
 
-## 7. What the Bear Is Now Conceding
+#### 7. What the Bear Is Now Conceding
 
 Let me catalog what the bear has explicitly conceded across this debate:
 
@@ -1261,7 +1261,7 @@ Let me catalog what the bear has explicitly conceded across this debate:
 
 ---
 
-## 8. The Survivorship Bias Accusation — Two Can Play That Game
+#### 8. The Survivorship Bias Accusation — Two Can Play That Game
 
 The bear accuses me of survivorship bias by citing Nvidia. Fair point — but they're playing the same game with their crash list. Let me apply their logic to the universe of fabless AI semis at inflection:
 
@@ -1283,7 +1283,7 @@ The answer, looking at NVDA, AVGO, ARM, CRDO, MRVL — is **all of them**. That'
 
 ---
 
-## 9. Final Recommendation: HOLD With Disciplined Risk Management
+#### 9. Final Recommendation: HOLD With Disciplined Risk Management
 
 **FINAL TRANSACTION PROPOSAL: BUY (with disciplined entry/sizing)**
 
@@ -1313,7 +1313,7 @@ Let me state this with the full conviction the analysis supports:
 
 ---
 
-## 10. The Final Word
+#### 10. The Final Word
 
 The bear's case has now been reduced to: *"The price is high after a parabolic rally, and you should sell aggressively in case mean reversion is severe."*
 
@@ -1355,7 +1355,7 @@ Let me walk through where the bull case breaks down — and why the risk/reward 
 
 ---
 
-## 1. The Math the Bull Is Quietly Glossing Over
+#### 1. The Math the Bull Is Quietly Glossing Over
 
 The bull says forward PE of 81x is "justifiable" and PEG is "under 1." Let's actually do the math instead of taking it on faith.
 
@@ -1374,7 +1374,7 @@ And the PEG-under-1 argument? That assumes consensus EPS estimates are credible.
 
 ---
 
-## 2. The Deceleration Is Real — and the Bull's Spin Doesn't Survive Scrutiny
+#### 2. The Deceleration Is Real — and the Bull's Spin Doesn't Survive Scrutiny
 
 The bull says: "14% QoQ compounds to 69% annualized — that's not deceleration."
 
@@ -1390,7 +1390,7 @@ For a stock priced at 59x sales, **deceleration from 20% to 14% sequential is no
 
 ---
 
-## 3. Northland Isn't Alone — They're Just First
+#### 3. Northland Isn't Alone — They're Just First
 
 The bull dismisses Northland as "one sell-side desk's macro guess." That's a remarkably casual wave at the **single most important institutional caution call in the entire dataset.** Let me explain why that's dangerous:
 
@@ -1402,7 +1402,7 @@ The bull's response? "Microsoft, Meta, Google, and Amazon raised capex through 2
 
 ---
 
-## 4. The Technical Setup Is a Textbook Late-Cycle Blow-Off
+#### 4. The Technical Setup Is a Textbook Late-Cycle Blow-Off
 
 The bull tries to spin the technicals as "strong-trend behavior." Let me give you the unspun read:
 
@@ -1417,7 +1417,7 @@ The technical report itself states: "Price is +80% above the 50 SMA — an extre
 
 ---
 
-## 5. The Insider Selling Excuse Doesn't Hold Up
+#### 5. The Insider Selling Excuse Doesn't Hold Up
 
 The bull characterizes the CEO's $5.78M sale as "rational diversification." Let me steelman that — sure, after a 3x move, some selling makes sense. But the bull is missing context the StockTwits bears caught:
 
@@ -1429,7 +1429,7 @@ And the bull's "EY World Entrepreneur of the Year" rebuttal? That's a **PR award
 
 ---
 
-## 6. The Hyperscaler Concentration Risk the Bull Won't Discuss
+#### 6. The Hyperscaler Concentration Risk the Bull Won't Discuss
 
 The bull touts "multi-product attach" as diversification. That's diversification *within* a customer set, not *across* customer sets. The reality:
 
@@ -1441,7 +1441,7 @@ In a fabless semiconductor company serving hyperscalers, **3-5 customers likely 
 
 ---
 
-## 7. Competitive Threats the Bull Hand-Waved
+#### 7. Competitive Threats the Bull Hand-Waved
 
 The bull claims ALAB has "minimal direct competition from hyperscaler in-housing." That's wishful thinking:
 
@@ -1454,7 +1454,7 @@ The bull's "PCIe Gen6 and CXL 3.0 require deep IP investments" defense is true b
 
 ---
 
-## 8. The Macro Backdrop Is Actively Hostile
+#### 8. The Macro Backdrop Is Actively Hostile
 
 The bull mentioned macro briefly. Let me underline what they downplayed:
 
@@ -1466,7 +1466,7 @@ The bull says "AI capex still bid" because Dell soared. But Dell trades at 18x e
 
 ---
 
-## 9. The Risk/Reward Is Inverted From What the Bull Claims
+#### 9. The Risk/Reward Is Inverted From What the Bull Claims
 
 The bull says "1:2 risk/reward to the upside." Let me re-do the math honestly:
 
@@ -1485,7 +1485,7 @@ That's not 1:2 reward/risk. That's **2:1 risk/reward to the downside.**
 
 ---
 
-## 10. The Bottom Line
+#### 10. The Bottom Line
 
 The bull's case is essentially: *"Great company, growing fast, in a great market, so any price is justifiable."* That's the same logic that worked for Cisco at $80 in March 2000 and didn't work at $80 in October 2002 when the stock was $8.
 
@@ -1508,7 +1508,7 @@ Now let me dismantle the rest of the rebuttal — because the bull's analytical 
 
 ---
 
-## 1. The "Forward Sales" Goalpost Move
+#### 1. The "Forward Sales" Goalpost Move
 
 The bull objected to my 59x trailing P/S figure and pivoted to "35-40x forward sales on NTM revenue of $1.5-1.7B." Notice what just happened: **the bull moved the goalposts from a hard, reported number to a forecast that requires the company to grow another 50-70% from here.**
 
@@ -1524,7 +1524,7 @@ And the SBC argument — "it's improving as a percent of revenue" — misses the
 
 ---
 
-## 2. The "Dollar Momentum" Sleight of Hand
+#### 2. The "Dollar Momentum" Sleight of Hand
 
 This is the most clever — and most misleading — argument in the bull's entire rebuttal: *"+$38M of net new revenue in Q1 26 is more absolute dollars than the +$33M added in Q2 25, so dollar momentum is accelerating."*
 
@@ -1534,7 +1534,7 @@ The market pays for **growth rates**, full stop. And the growth rate has gone fr
 
 ---
 
-## 3. The Bull's "Two Upgrades vs. One Downgrade" False Equivalence
+#### 3. The Bull's "Two Upgrades vs. One Downgrade" False Equivalence
 
 The bull complains I'm cherry-picking Northland while ignoring two upgraders. Let me explain why this isn't selective hearing — it's signal vs. noise filtering:
 
@@ -1547,7 +1547,7 @@ And the bull's claim that "every hyperscaler is signaling the opposite" of 2027 
 
 ---
 
-## 4. "And Then It Tripled" — The Bull's Own Words Indict Their Position
+#### 4. "And Then It Tripled" — The Bull's Own Words Indict Their Position
 
 The bull says: "Last time it dropped 60%, **and then it tripled**." This is supposed to be reassuring. Let me give you the honest read of what that actually means for someone considering the stock today.
 
@@ -1562,7 +1562,7 @@ And here's what the bull won't say out loud: **most investors don't hold through
 
 ---
 
-## 5. The Insider Selling Defense Falls Apart on Inspection
+#### 5. The Insider Selling Defense Falls Apart on Inspection
 
 The bull dismisses the CEO's $5.78M sale as "0.0098% of market cap." Let me reframe this with proper context.
 
@@ -1579,7 +1579,7 @@ The bull wants you to trust this is benign. **I'm asking you to require evidence
 
 ---
 
-## 6. The Receivables Defense Has a Hole in It
+#### 6. The Receivables Defense Has a Hole in It
 
 The bull says: "$135M AR on $308M quarterly revenue = ~40 days DSO. Normal."
 
@@ -1594,7 +1594,7 @@ The bull asserts explanation #1 confidently while the evidence is consistent wit
 
 ---
 
-## 7. The Competitive Landscape Argument Ignores Recent History
+#### 7. The Competitive Landscape Argument Ignores Recent History
 
 The bull paints ALAB as "the leading pure-play in PCIe/CXL fabric connectivity" with a defensible niche. Fine. But "pure-play in a niche" is also code for **"limited optionality if the niche disappoints."**
 
@@ -1604,7 +1604,7 @@ And the CRDO read-through? The bull frames it as binary in their favor — "if C
 
 ---
 
-## 8. The Probability Math — Let's Actually Get It Right
+#### 8. The Probability Math — Let's Actually Get It Right
 
 The bull caught a probability-weighting error in my prior post and used it to discredit my framework. Fair catch. Let me re-do it cleanly with the bull's own structure:
 
@@ -1629,7 +1629,7 @@ The difference between us isn't math — **it's prior probabilities.** The bull 
 
 ---
 
-## 9. The Cisco Analogy — A Closer Read
+#### 9. The Cisco Analogy — A Closer Read
 
 The bull dismantled my Cisco 2000 comparison with specifics. Let me concede some points and tighten the analogy.
 
@@ -1646,7 +1646,7 @@ Forget Cisco. Try **Solar (FSLR, ENPH 2021), Cannabis (TLRY, CGC 2018), 3D Print
 
 ---
 
-## 10. The Bottom Line — Where We Actually Agree (and Why That's Damning)
+#### 10. The Bottom Line — Where We Actually Agree (and Why That's Damning)
 
 Let me close by highlighting what the bull and I now agree on:
 
@@ -1682,7 +1682,7 @@ My bull colleague has delivered a rousing closing argument that hinges on three 
 
 ---
 
-## 1. The Survivorship Bias Hall of Fame
+#### 1. The Survivorship Bias Hall of Fame
 
 The bull's emotional climax: *"People who sold Nvidia at $300 missed $1,400. People who sold Amazon in 2002 missed 200x. People who sold Apple in 2008 missed 50x."*
 
@@ -1696,7 +1696,7 @@ The honest base rate: of stocks that traded above 50x sales during 1999-2000, **
 
 ---
 
-## 2. The "TRIM ≠ TRIM" Sleight of Hand
+#### 2. The "TRIM ≠ TRIM" Sleight of Hand
 
 The bull's most clever move: claiming my "TRIM 30-50%" is fundamentally different from their "TRIM 15-20%." Let me call this what it is — **a difference of degree dressed up as a difference of kind.**
 
@@ -1712,7 +1712,7 @@ When the bull says "I'm fighting a multi-year war," yet recommends taking risk o
 
 ---
 
-## 3. The Forward P/S "Comparable" Trap
+#### 3. The Forward P/S "Comparable" Trap
 
 The bull says: *"38-42x forward sales is the same neighborhood as AVGO at 20x, NVDA at 22x, ARM at 25x — and they all doubled."*
 
@@ -1729,7 +1729,7 @@ The bull's comp set is **higher quality businesses at lower multiples that subse
 
 ---
 
-## 4. The 2027 Capex Argument — The Bull Is Fighting a Forecast With Hope
+#### 4. The 2027 Capex Argument — The Bull Is Fighting a Forecast With Hope
 
 The bull lists Microsoft's $80B FY26 capex, Meta's $60-65B, and OpenAI's compute demand as evidence that 2027 will be fine. **None of those numbers are 2027 numbers.** The bull is doing exactly what they accused me of: filling a forecast vacuum, just with bullish guesses instead of bearish ones.
 
@@ -1741,7 +1741,7 @@ Northland's call isn't a "guess." It's the **first** institutional voice to say 
 
 ---
 
-## 5. The "Correlated Risks" Defense Misses the Point
+#### 5. The "Correlated Risks" Defense Misses the Point
 
 The bull's clever response to my seven-factor risk list: "These are correlated, so collapse them to 3-4 independent variables."
 
@@ -1757,7 +1757,7 @@ And the bull's response — "no growth stock would ever be investable by this lo
 
 ---
 
-## 6. The FCF Defense Conveniently Forgets the Source
+#### 6. The FCF Defense Conveniently Forgets the Source
 
 The bull says: "ALAB generates $240M FCF — that's net of SBC's cash impact, so I'm double-counting."
 
@@ -1767,7 +1767,7 @@ The honest economic FCF, accounting for the dilutive cost of equity-based compen
 
 ---
 
-## 7. The Bull Won't Defend the Single Most Damning Number
+#### 7. The Bull Won't Defend the Single Most Damning Number
 
 I've raised this three times now and the bull has yet to engage substantively: **price-to-sales of 59x trailing.**
 
@@ -1779,7 +1779,7 @@ The bull is betting on (1). The bear case — and the historical base rate — f
 
 ---
 
-## 8. My Final Recommendation: SELL/TRIM Aggressively
+#### 8. My Final Recommendation: SELL/TRIM Aggressively
 
 Let me be unambiguous about my call, because the bull has spent too much energy trying to muddy it:
 
@@ -1801,7 +1801,7 @@ Let me be unambiguous about my call, because the bull has spent too much energy 
 
 ---
 
-## 9. The Question to Ask Yourself
+#### 9. The Question to Ask Yourself
 
 The bull closed with: *"Did you own the franchise?"*
 
@@ -1815,7 +1815,7 @@ The bull is selling you the company. **I'm asking you to think about the price.*
 
 ---
 
-## 10. The Final Word
+#### 10. The Final Word
 
 The bull's argument boils down to: *"It's a great company in a great cycle, so the price doesn't matter much."*
 
@@ -1838,7 +1838,7 @@ Let me dismantle this one final time — because the bull's response contains sp
 
 ---
 
-## 1. The "Customer Bankruptcy" Defense Is Historical Revisionism
+#### 1. The "Customer Bankruptcy" Defense Is Historical Revisionism
 
 The bull's central rebuttal to my Cisco/Sun/Nortel analogy: *"Those companies failed because their customers went bankrupt. ALAB's customers won't."*
 
@@ -1854,7 +1854,7 @@ The bull is defending against the wrong failure mode. **Customer bankruptcy is t
 
 ---
 
-## 2. The "Asymmetry Math" Is Rigged With a Thumb on the Scale
+#### 2. The "Asymmetry Math" Is Rigged With a Thumb on the Scale
 
 The bull's clever calculation: *"15% trim vs. 50% trim = 35 points of foregone upside vs. 14 points of drawdown protection. Bull math wins 2.5:1."*
 
@@ -1877,7 +1877,7 @@ Now run the same exercise:
 
 ---
 
-## 3. The "Run-Rate Sales" Trick — Watch the Hand
+#### 3. The "Run-Rate Sales" Trick — Watch the Hand
 
 The bull pivoted from 59x trailing P/S to "48x run-rate" (annualizing one quarter) and finally to "33-41x forward." Let me catalog this for you, because the migration tells the story:
 
@@ -1896,7 +1896,7 @@ What the bull doesn't tell you:
 
 ---
 
-## 4. The SBC "Math Error" Accusation — Actually, the Bull Made the Error
+#### 4. The SBC "Math Error" Accusation — Actually, the Bull Made the Error
 
 The bull claims I "double-counted" SBC by treating it as both a non-cash expense and a dilutive cost. This is the most analytically aggressive — and wrong — claim in their entire response.
 
@@ -1917,7 +1917,7 @@ The bull says cash is growing, so my math must be wrong. **Cash is growing becau
 
 ---
 
-## 5. The Probability Framework — The Bull's Numbers Are Pulled From Thin Air
+#### 5. The Probability Framework — The Bull's Numbers Are Pulled From Thin Air
 
 The bull rebuilt the probability tree with their own inputs:
 - 85% probability Scorpio ramps on schedule
@@ -1937,7 +1937,7 @@ The bull then shifts the goalposts: *"The bull case wins on partial cooperation,
 
 ---
 
-## 6. The Hyperscaler Capex Defense Inverts Causation
+#### 6. The Hyperscaler Capex Defense Inverts Causation
 
 The bull's argument: *"Capex/revenue ratios are high because AI revenue is still ramping. As revenue scales, ratios normalize naturally."*
 
@@ -1951,7 +1951,7 @@ The bull says "Cisco's customers ran high capex/revenue 1996-2001 (5 years)." **
 
 ---
 
-## 7. What the Bull Conceded — Let's Make It Explicit
+#### 7. What the Bull Conceded — Let's Make It Explicit
 
 In Section 7, the bull explicitly conceded:
 - ✅ Stock is technically overextended
@@ -1967,7 +1967,7 @@ The bull keeps fighting a thesis-destruction argument I'm not making. **My argum
 
 ---
 
-## 8. The Nvidia Anchor — One Last Time
+#### 8. The Nvidia Anchor — One Last Time
 
 The bull closes with Nvidia. Of course they do. Every momentum bull at every top closes with Nvidia.
 
@@ -1987,7 +1987,7 @@ The bull picks Nvidia. The honest survey of stocks at ALAB's multiple shows the 
 
 ---
 
-## 9. Final Recommendation: SELL/TRIM Aggressively
+#### 9. Final Recommendation: SELL/TRIM Aggressively
 
 **FINAL TRANSACTION PROPOSAL: SELL**
 
@@ -2011,7 +2011,7 @@ Let me put my recommendation in unambiguous terms:
 
 ---
 
-## 10. The Honest Closing
+#### 10. The Honest Closing
 
 The bull says: *"Own the franchise."*
 
@@ -2059,7 +2059,7 @@ Now let me dismantle the rest of the substance.
 
 ---
 
-## 1. The "Comp Set" Defense Is Where the Bull's Argument Truly Breaks
+#### 1. The "Comp Set" Defense Is Where the Bull's Argument Truly Breaks
 
 The bull's strongest move: *"The right comp set is fabless AI semis — NVDA, AVGO, ARM, CRDO, MRVL — and they all delivered positive returns from 35-45x forward sales."*
 
@@ -2081,7 +2081,7 @@ The honest comp data: **fabless semis trading at 38-41x forward sales have a mea
 
 ---
 
-## 2. The Probability Math — The Bull Just Proved My Case With Their Own Numbers
+#### 2. The Probability Math — The Bull Just Proved My Case With Their Own Numbers
 
 This is the most damaging self-own in the bull's response. Let me quote them directly: *"Probability-weighted return: -13.5%."*
 
@@ -2095,7 +2095,7 @@ And the stop-loss argument? **Stop losses don't work on parabolic mean reversion
 
 ---
 
-## 3. The "Cisco Compounded 8x Over 20 Years" Move Is Embarrassing
+#### 3. The "Cisco Compounded 8x Over 20 Years" Move Is Embarrassing
 
 This is the bull's deepest reach: *"Cisco compounded earnings 8x over 20 years; sellers locked in losses."*
 
@@ -2107,7 +2107,7 @@ And here's what the bull won't say: **the median investor doesn't have 20 years.
 
 ---
 
-## 4. The SBC "Reconciliation" Misses the Point Entirely
+#### 4. The SBC "Reconciliation" Misses the Point Entirely
 
 The bull spent 400 words arguing I'm double-counting SBC. Fine — let me restate the point cleanly so it can't be evaded:
 
@@ -2125,7 +2125,7 @@ At $40M of true owner earnings, the **price-to-owner-earnings ratio is 1,470x.**
 
 ---
 
-## 5. The Hyperscaler Capex Defense Just Walked Into the Trap
+#### 5. The Hyperscaler Capex Defense Just Walked Into the Trap
 
 The bull tried to invert my AI monetization concern: *"If AI underwhelms, AVGO/MRVL/SMH all fall too — so the bear is really anti-AI, not anti-ALAB."*
 
@@ -2137,7 +2137,7 @@ And on the "ALAB premium to AVGO is justified by 2.5x growth" defense: **growth 
 
 ---
 
-## 6. The Survivorship Bias Counter — Bull Doubled Down Instead of Engaging
+#### 6. The Survivorship Bias Counter — Bull Doubled Down Instead of Engaging
 
 I cataloged seven specific stocks that traded at 35x+ forward sales and crashed 60-95%. The bull's response was to:
 1. Note that some recovered (SNOW, NET) — true, but **after 2-3 years and from much lower troughs**
@@ -2150,7 +2150,7 @@ I cataloged seven specific stocks that traded at 35x+ forward sales and crashed 
 
 ---
 
-## 7. The Recommendation Asymmetry the Bull Won't Acknowledge
+#### 7. The Recommendation Asymmetry the Bull Won't Acknowledge
 
 Let me put both recommendations side by side one final time:
 
@@ -2170,7 +2170,7 @@ If both bull and bear agree fresh capital should not deploy at $342, **the asymm
 
 ---
 
-## 8. The Macro the Bull Continues to Underweight
+#### 8. The Macro the Bull Continues to Underweight
 
 One final point the bull never properly addressed: **rising Treasury yields** were explicitly flagged in the macro report as the key risk to growth-multiple stocks. ALAB has a beta of 3.36 — it will move 3.36x the market on macro days.
 
@@ -2180,7 +2180,7 @@ The bull says "Fed is cutting." True for the policy rate. **Long rates are decou
 
 ---
 
-## 9. Final Recommendation: SELL/TRIM Aggressively
+#### 9. Final Recommendation: SELL/TRIM Aggressively
 
 **FINAL TRANSACTION PROPOSAL: SELL**
 
@@ -2205,7 +2205,7 @@ I'll keep this clean and operational:
 
 ---
 
-## 10. The Honest Closing
+#### 10. The Honest Closing
 
 The bull spent four rounds invoking Nvidia, Amazon, and Apple. **None of those are ALAB.** ALAB is a $58.77B fabless semiconductor with $1B in trailing revenue, trading at 59x sales after a 165% seven-week rally, with insider selling, a sell-side downgrade, decelerating sequential growth, a receivables anomaly, and a hostile macro tape.
 

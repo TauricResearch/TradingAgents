@@ -11,10 +11,10 @@ Note on data: A 10:1 stock split occurred on 2025-11-17 (visible in the raw data
 
 ---
 
-# NFLX (Netflix, Inc.) — Technical Analysis Report
+#### NFLX (Netflix, Inc.) — Technical Analysis Report
 **As of close 2026-05-29 (latest trading day; 2026-05-30/31 are weekend)**
 
-## 1. Price Action Overview (Nov 2025 → May 2026)
+#### 1. Price Action Overview (Nov 2025 → May 2026)
 
 NFLX has experienced a textbook three-phase cycle over the past seven months:
 
@@ -22,7 +22,7 @@ NFLX has experienced a textbook three-phase cycle over the past seven months:
 - **Phase 2 — Sharp V-Reversal (Feb 25 – mid-April 2026):** A capitulation low followed by an explosive recovery. The pivotal day was **2026-02-27**, which gapped higher with **200.8M shares** (the highest volume in the dataset) and closed at $96.24 from the prior $84.59 — a single-day +13.8% gap-and-go. Price ran to a swing high close of **$107.79 on 2026-04-16**.
 - **Phase 3 — Renewed Downtrend (Apr 17 – present):** A second high-volume breakdown on **2026-04-17** (volume 125.96M, close fell from $107.79 to $97.31, a -9.7% drop) reignited a bearish leg. Price has since drifted lower to **$86.02 on 2026-05-29**, down ~20.2% from the April peak in just six weeks.
 
-## 2. Trend Structure (Moving Averages)
+#### 2. Trend Structure (Moving Averages)
 
 | Date | Close | 10 EMA | 50 SMA | 200 SMA | VWMA |
 |---|---|---|---|---|---|
@@ -36,7 +36,7 @@ NFLX has experienced a textbook three-phase cycle over the past seven months:
 - The **50 SMA itself is now rolling over** — it peaked at ~95.54 on 2026-05-08 and has declined every session since to 93.04 (2026-05-29), reinforcing fresh negative medium-term momentum.
 - VWMA (87.64) sitting essentially on top of the 10 EMA (87.58) but well below the 50 SMA tells us that **volume is not supporting any rally attempt**; the sellers are dominant on heavier days (note the 125.9M-share 2026-04-17 gap-down).
 
-## 3. Momentum (MACD & RSI)
+#### 3. Momentum (MACD & RSI)
 
 **MACD line history (2026-04-16 to 2026-05-29):**
 - Peak bullish reading: **+3.93 on 2026-04-16**
@@ -51,7 +51,7 @@ NFLX has experienced a textbook three-phase cycle over the past seven months:
 - April 16 peak RSI was **79.09** (overbought) — almost a perfect mirror of the current readings.
 - The fact that RSI has been making **lower highs** (79 → 45 → 41 → 37) while price has made lower highs and lower lows is a clean bearish confirmation; no bullish RSI divergence yet at the latest low.
 
-## 4. Volatility (Bollinger Bands & ATR)
+#### 4. Volatility (Bollinger Bands & ATR)
 
 **Bollinger Bands (20-period):**
 | Date | Close | Lower | Upper | Width |
@@ -66,11 +66,11 @@ The bands have **compressed dramatically** — from a width of ~24.8 in early Ma
 - Has steadily contracted to **2.28 on 2026-05-29** — a ~35% volatility decline.
 - For risk management at $86.02, a 1.5×ATR stop = ~$3.42, suggesting a stop placement near $82.60 for a long trade or $89.45 for a short.
 
-## 5. Volume-Weighted Confirmation (VWMA)
+#### 5. Volume-Weighted Confirmation (VWMA)
 
 VWMA at **$87.64** vs simple 10-EMA at **$87.58** — virtually identical. This convergence indicates the recent down-move is happening on **proportional, not exhaustive, volume** — neither a panic bottom nor a low-volume drift. The most recent high-volume sessions were red (e.g., 2026-05-05 volume 51.96M close $87.89 down from $91.02), reinforcing distribution.
 
-## 6. Synthesis — Where Are We?
+#### 6. Synthesis — Where Are We?
 
 NFLX is in a **confirmed downtrend** (full bearish MA stack, RSI sub-50, MACD below zero) but is **short-term oversold-stretched** with a **Bollinger squeeze** and **bullish histogram divergence** suggesting a bounce setup. However, none of the classic bottoming signals have triggered:
 - No RSI reading <30 with a higher-low divergence on price.
@@ -92,7 +92,7 @@ NFLX is in a **confirmed downtrend** (full bearish MA stack, RSI sub-50, MACD be
 
 ---
 
-## Summary Table
+#### Summary Table
 
 | Category | Indicator | Latest Value (2026-05-29) | Reading | Bias |
 |---|---|---|---|---|
@@ -120,7 +120,7 @@ NFLX is in a **confirmed downtrend** (full bearish MA stack, RSI sub-50, MACD be
 **Overall Sentiment:** **Mildly Bullish** (Score: 6.0/10)
 **Confidence:** Medium
 
-## NFLX Sentiment Report — 2026-05-24 to 2026-05-31
+#### NFLX Sentiment Report — 2026-05-24 to 2026-05-31
 
 ### 1) Source-by-source breakdown
 
@@ -173,13 +173,13 @@ NFLX is in a **confirmed downtrend** (full bearish MA stack, RSI sub-50, MACD be
 ### News Analyst
 I have sufficient information to compile a comprehensive report.
 
-# NFLX (Netflix, Inc.) — News & Macro Research Report
+#### NFLX (Netflix, Inc.) — News & Macro Research Report
 **Date: 2026-05-31 | Lookback: 7 days (with relevant context from May 2026)**
 **Exchange: NMS | Sector: Communication Services / Entertainment**
 
 ---
 
-## 1. Executive Summary
+#### 1. Executive Summary
 
 Netflix is in a notable transitional moment. The stock has dropped sharply over the past year (down ~25–28%), trading near $88.60 vs. a 52-week high of $134.12. However, multiple catalysts are now converging: (1) a terminated Warner Bros. acquisition (with a $2.8B break fee paid), (2) raised full-year free cash flow guidance to $12.5B, (3) an advertising business on pace to do ~$3B in 2026, and (4) a strategic AI acquisition (InterPositive from Ben Affleck for $600M) that could remove up to $3.5B/year in production costs. Sentiment is split — bears point to underperformance vs. peers and macro headwinds; bulls cite a compressed multiple with multi-bagger upside (24/7 Wall St. PT of $318 implying ~259% upside; TD Cowen Buy with $112 PT).
 
@@ -187,7 +187,7 @@ The macro backdrop is notably tense: an active US–Iran war, oil price spikes, 
 
 ---
 
-## 2. Company-Specific Catalysts (Past Week)
+#### 2. Company-Specific Catalysts (Past Week)
 
 ### 2.1 Warner Bros. Acquisition Terminated
 Netflix walked away from the Warner Bros. acquisition, paying a **$2.8B termination fee**. Meanwhile, **Paramount Skydance** stretched into a **$110B takeover bid for Warner Bros. Discovery**. Implications:
@@ -228,7 +228,7 @@ Netflix publicly criticized Germany's plan to require streamers to **reinvest a 
 
 ---
 
-## 3. Macroeconomic Backdrop (Relevant to NFLX)
+#### 3. Macroeconomic Backdrop (Relevant to NFLX)
 
 ### 3.1 Geopolitical — US–Iran War
 - Active conflict, with US troops injured in Kuwait
@@ -255,7 +255,7 @@ Netflix publicly criticized Germany's plan to require streamers to **reinvest a 
 
 ---
 
-## 4. Trading Implications & Actionable Insights
+#### 4. Trading Implications & Actionable Insights
 
 **Bullish setup elements:**
 1. Multiple has compressed meaningfully; risk/reward asymmetric.
@@ -277,7 +277,7 @@ Netflix publicly criticized Germany's plan to require streamers to **reinvest a 
 
 ---
 
-## 5. Summary Table of Key Points
+#### 5. Summary Table of Key Points
 
 | Category | Key Datapoint / Event | Direction | Trading Implication |
 |---|---|---|---|
@@ -300,12 +300,12 @@ Netflix publicly criticized Germany's plan to require streamers to **reinvest a 
 *This report is a news/macro research input and not a final transaction recommendation. Final BUY/HOLD/SELL determination should incorporate fundamentals, technicals, and risk modeling from peer analysts in this workflow.*
 
 ### Fundamentals Analyst
-# Netflix, Inc. (NFLX) — Comprehensive Fundamental Analysis Report
+#### Netflix, Inc. (NFLX) — Comprehensive Fundamental Analysis Report
 **Analysis Date:** 2026-05-31 | **Exchange:** NMS | **Sector:** Communication Services / Entertainment
 
 ---
 
-## 1. Company Profile & Market Snapshot
+#### 1. Company Profile & Market Snapshot
 
 Netflix, Inc. is the world's leading subscription-based streaming entertainment service. As of the analysis date, the company has the following market profile:
 
@@ -317,7 +317,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 
 ---
 
-## 2. Valuation Metrics
+#### 2. Valuation Metrics
 
 | Metric | Value | Interpretation |
 |---|---|---|
@@ -333,7 +333,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 
 ---
 
-## 3. Income Statement — Quarterly Trend (Last 5 Quarters)
+#### 3. Income Statement — Quarterly Trend (Last 5 Quarters)
 
 | Quarter | Revenue ($B) | Gross Profit ($B) | Op. Income ($B) | Net Income ($B) | Diluted EPS | Op. Margin |
 |---|---|---|---|---|---|---|
@@ -354,7 +354,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 
 ---
 
-## 4. Balance Sheet — Health & Capital Structure
+#### 4. Balance Sheet — Health & Capital Structure
 
 **As of Q1 2026 (March 31, 2026):**
 
@@ -382,7 +382,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 
 ---
 
-## 5. Cash Flow Analysis
+#### 5. Cash Flow Analysis
 
 | Metric ($B) | Q1'25 | Q2'25 | Q3'25 | Q4'25 | Q1'26 |
 |---|---|---|---|---|---|
@@ -402,7 +402,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 
 ---
 
-## 6. Profitability & Returns
+#### 6. Profitability & Returns
 
 | Metric | Value |
 |---|---|
@@ -418,7 +418,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 
 ---
 
-## 7. Key Risks & Concerns
+#### 7. Key Risks & Concerns
 
 1. **Q1'26 earnings boost from non-recurring interest income (~$2.85B)** — traders should normalize this when assessing run-rate earnings.
 2. **Stock trading near 52-week lows** despite strong fundamentals — suggests market concerns over: subscriber growth saturation in mature markets, content cost inflation, ad-tier monetization pace, or competitive pressure.
@@ -426,7 +426,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 4. **Beta of 1.55** — higher volatility than market.
 5. **Forward P/E of 22x** still requires execution on growth.
 
-## 8. Bullish Catalysts
+#### 8. Bullish Catalysts
 
 1. **Accelerating revenue growth** (+16% YoY in Q1'26).
 2. **Improving operating leverage** — operating margins expanding.
@@ -437,7 +437,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 
 ---
 
-## 9. Summary Table — Key Fundamental Snapshot
+#### 9. Summary Table — Key Fundamental Snapshot
 
 | Category | Metric | Value | Signal |
 |---|---|---|---|
@@ -463,7 +463,7 @@ Netflix, Inc. is the world's leading subscription-based streaming entertainment 
 
 ---
 
-## Trader-Actionable Insights
+#### Trader-Actionable Insights
 
 - **Bull case:** Strong fundamentals + recent share-price weakness create a potentially attractive entry. Revenue acceleration, expanding margins, robust FCF, and aggressive buybacks all support upside. De-leveraging is impressive.
 - **Bear case:** Stock has technically broken down (well below 200-day MA), suggesting institutional concerns not yet visible in financials — possibly subscriber metrics or guidance worries. Q1'26 headline EPS is inflated by non-recurring items.
@@ -480,7 +480,7 @@ Let me cut right to it: the bear case on Netflix mistakes a **price chart for a 
 
 ---
 
-## 1. Growth Is *Accelerating*, Not Decelerating
+#### 1. Growth Is *Accelerating*, Not Decelerating
 
 The bear narrative implies a maturing, saturating business. The numbers say the opposite:
 
@@ -493,7 +493,7 @@ This isn't a Blockbuster-in-decline story. This is a company hitting a second gr
 
 ---
 
-## 2. The Ad Business Is the Hidden Compounder
+#### 2. The Ad Business Is the Hidden Compounder
 
 Here's what I think the market is missing entirely:
 
@@ -506,13 +506,13 @@ The ad business carries structurally higher incremental margins than subscriptio
 
 ---
 
-## 3. The InterPositive AI Acquisition — A Margin Earthquake
+#### 3. The InterPositive AI Acquisition — A Margin Earthquake
 
 A $600M acquisition with potential **$3.5B/year in production cost savings** (50% VFX, 70% background actors per the patent disclosure). Even if you haircut that by 70% for execution risk, you're talking ~$1B/year in margin expansion on a base of ~$14B EBITDA. That's a **7%+ EBITDA uplift** from a single deal that the market hasn't priced in because it doesn't show up on a chart.
 
 ---
 
-## 4. Balance Sheet and Capital Returns Are Pristine
+#### 4. Balance Sheet and Capital Returns Are Pristine
 
 - **Net debt collapsed 73% YoY** to $2.1B — Netflix is essentially net-debt-neutral.
 - **Cash up to $12.26B** (+$3.23B in a single quarter).
@@ -524,7 +524,7 @@ Management is *literally* telling you they think the stock is mispriced by buyin
 
 ---
 
-## 5. The Competitive Moat Just Got Wider
+#### 5. The Competitive Moat Just Got Wider
 
 This is where I'd push back hardest on the bear:
 
@@ -537,7 +537,7 @@ Netflix's competitors are weakening, not strengthening. That's the opposite of w
 
 ---
 
-## Now Let Me Address the Bear Concerns Directly
+#### Now Let Me Address the Bear Concerns Directly
 
 **Bear: "The technicals are broken — full bearish MA stack, death cross, price below all moving averages."**
 
@@ -561,7 +561,7 @@ Streaming is historically **recession-resilient** (Netflix actually *gained* sub
 
 ---
 
-## The Bottom Line
+#### The Bottom Line
 
 You have a business with:
 - 16% revenue growth, accelerating
@@ -586,7 +586,7 @@ I'll give the bear credit — that was a polished takedown. But polish isn't pro
 
 ---
 
-## 1. The "Decelerating QoQ Growth" Argument Is Statistically Illiterate
+#### 1. The "Decelerating QoQ Growth" Argument Is Statistically Illiterate
 
 The bear's QoQ table is the cleverest sleight of hand in the entire rebuttal — and it's wrong.
 
@@ -603,7 +603,7 @@ And the operating margin "compression"? Q4'25's 24.5% wasn't structural — Q4 c
 
 ---
 
-## 2. On Q1 FCF — The Bear Conflated Two Different Numbers
+#### 2. On Q1 FCF — The Bear Conflated Two Different Numbers
 
 Let me be precise here, because the bear was not.
 
@@ -615,7 +615,7 @@ Even if I concede a $1B haircut for working capital noise, **normalized Q1 FCF i
 
 ---
 
-## 3. The Ad Business Math Is Stronger Than the Bear Lets On
+#### 3. The Ad Business Math Is Stronger Than the Bear Lets On
 
 The bear says "$3B is only 6% of revenue." Cute framing. Let's flip it:
 
@@ -630,7 +630,7 @@ The bear demands "show me the disclosure" on ad-tier margins. Fine — the $12.5
 
 ---
 
-## 4. InterPositive — The Bear's Strawman Was Built To Be Knocked Down
+#### 4. InterPositive — The Bear's Strawman Was Built To Be Knocked Down
 
 I never claimed $3.5B/year in realized savings. I explicitly haircut it 70% to $1B. The bear then haircut it *further* to $200-400M and called it a "press release."
 
@@ -640,7 +640,7 @@ And on SAG-AFTRA — the bear's own concern proves my point. **Netflix isn't rep
 
 ---
 
-## 5. The Technical Picture: The Bear Is Reading a Map of Yesterday
+#### 5. The Technical Picture: The Bear Is Reading a Map of Yesterday
 
 The bear quoted the report's "weight of evidence favors downside resolution" line — but conveniently omitted the *next* paragraph. Let me read it back:
 
@@ -655,7 +655,7 @@ The bear's "institutional distribution" claim deserves scrutiny. **126M shares o
 
 ---
 
-## 6. Competitive Moat — The Bear Argued Both Sides
+#### 6. Competitive Moat — The Bear Argued Both Sides
 
 The bear simultaneously argued:
 - Paramount-WBD will be a "distracted, leveraged mess for 2-3 years" (their own words)
@@ -673,7 +673,7 @@ Disney+ profitability? Marginal — and their subscriber growth has stalled. Ama
 
 ---
 
-## 7. Buybacks — The Bear Got the Math Backwards
+#### 7. Buybacks — The Bear Got the Math Backwards
 
 The bear claims management slowed buybacks because they're not confident. Let's look at the actual data:
 
@@ -686,7 +686,7 @@ Also worth noting: $1.27B in Q1'26 = roughly **1.5M shares per month at current 
 
 ---
 
-## 8. Macro — The Bear Is Reaching
+#### 8. Macro — The Bear Is Reaching
 
 The bear says "subscription fatigue" makes Netflix vulnerable. The data says the opposite:
 - **Netflix is the #1 most-retained streaming service** in every churn study I've seen
@@ -699,7 +699,7 @@ Rising rates and 22x forward P/E? **The de-rating already happened.** Netflix tr
 
 ---
 
-## The Bear's "Eight Things Need to Go Right" Is Inverted
+#### The Bear's "Eight Things Need to Go Right" Is Inverted
 
 The bear claims I need 8 things to break right. I'd argue the *bear* needs 8 things to break wrong:
 
@@ -716,7 +716,7 @@ The bear claims I need 8 things to break right. I'd argue the *bear* needs 8 thi
 
 ---
 
-## The Bottom Line, Restated
+#### The Bottom Line, Restated
 
 The bear's most telling concession came in the closing line: **"a hard avoid until... Q2 earnings clear the one-time-item air."** Translation: even the bear acknowledges the next earnings print likely resolves the debate. With:
 - $12.5B FCF guide already established
@@ -736,7 +736,7 @@ The bear's latest broadside is impressive in volume but revealing in substance. 
 
 ---
 
-## 1. The Seasonality Math — The Bear's Own Numbers Prove My Point
+#### 1. The Seasonality Math — The Bear's Own Numbers Prove My Point
 
 The bear thinks they caught me by comparing two sequential transitions:
 - Q1'25 → Q2'25: +5.1% (a Q1-to-Q2 transition)
@@ -752,7 +752,7 @@ And on margins: the bear demands "where does the next 300bps come from?" I liter
 
 ---
 
-## 2. The FCF Argument — The Bear Just Made an Accounting Error On Live TV
+#### 2. The FCF Argument — The Bear Just Made an Accounting Error On Live TV
 
 The bear claims interest income flows directly into OCF and inflates it. **This is technically true but quantitatively trivial — and the bear botched the magnitude.**
 
@@ -764,7 +764,7 @@ And on "trust the CFO" — the bear pointed to 2021 when management guided to su
 
 ---
 
-## 3. Ad Business — The Bear Keeps Moving Goalposts
+#### 3. Ad Business — The Bear Keeps Moving Goalposts
 
 The bear demands a source for $8B by 2028. Fine: **$3B in 2026 growing 40% YoY (the current advertiser-count growth rate is +70% YoY, so 40% revenue growth is a haircut) → $4.2B in 2027 → $5.9B in 2028.** That's not $8B — closer to $6B. I'll take the friendly amendment. **Even at $6B, on a 30% incremental margin, that's ~$1.8B of incremental operating income** — about **13% uplift to current operating income from a single product line**. Still a thesis-driver.
 
@@ -774,7 +774,7 @@ On cannibalization: the bear quoted Greg Peters as saying "primarily incremental
 
 ---
 
-## 4. InterPositive — The Bear Mischaracterized My "Concession"
+#### 4. InterPositive — The Bear Mischaracterized My "Concession"
 
 The bear claims I "retracted 95%" by accepting $300M as a base case. **Read what I actually wrote:**
 
@@ -786,7 +786,7 @@ And on SAG-AFTRA: **VFX work isn't covered by SAG-AFTRA at all** — it's covere
 
 ---
 
-## 5. Technicals — The Bear's "70% of Squeezes Resolve With Trend" Stat Is Made Up
+#### 5. Technicals — The Bear's "70% of Squeezes Resolve With Trend" Stat Is Made Up
 
 I'd love to see the citation for "squeezes resolve in the direction of the prevailing trend ~70% of the time." There isn't one — that's not an established technical statistic. **Bollinger himself documented squeezes as direction-agnostic until confirmed by volume and price expansion.** The bear is fabricating statistical authority.
 
@@ -802,7 +802,7 @@ And on the conviction ratings: **the report rates trend-short as Medium-High and
 
 ---
 
-## 6. Competitive Argument — The Bear's Math Is Charitable to Paramount-WBD
+#### 6. Competitive Argument — The Bear's Math Is Charitable to Paramount-WBD
 
 Combine the libraries: HBO + Discovery + Paramount + WBD. Total streaming subscribers across Max + Paramount+ + Discovery+ = roughly **160M globally**. Netflix has **300M+** (yes, Netflix stopped disclosing in Q1'25 — but the last disclosed number was 301M, and revenue has grown 30%+ since with stable-to-rising ARPU, so the count is at minimum maintained).
 
@@ -816,7 +816,7 @@ On YouTube ad share: **Netflix doesn't compete with YouTube for the same ad doll
 
 ---
 
-## 7. Buybacks — The Bear's "64% Slowdown" Story Has a Glaring Hole
+#### 7. Buybacks — The Bear's "64% Slowdown" Story Has a Glaring Hole
 
 The bear cited Q1'25 buybacks of $3.54B vs. Q1'26 of $1.27B as evidence of waning confidence. **Look at the full sequence the fundamentals report shows:**
 
@@ -832,7 +832,7 @@ Also: the WBD bid was active through Q1'26. They preserved capital for that stra
 
 ---
 
-## 8. The Macro Framing — The Bear Created a False Dichotomy
+#### 8. The Macro Framing — The Bear Created a False Dichotomy
 
 The bear says: "If consumers are surviving Netflix, they're not trading down. If they're trading down, ARPU dies. Pick one."
 
@@ -847,7 +847,7 @@ On the multiple: the bear says "S&P at 22x has 8-10% growth and 18% ROE." Correc
 
 ---
 
-## On "What the Bull Won't Say" — A Point-by-Point Correction
+#### On "What the Bull Won't Say" — A Point-by-Point Correction
 
 The bear listed 8 alleged concessions. Let me set the record straight:
 
@@ -864,7 +864,7 @@ The bear listed 8 alleged concessions. Let me set the record straight:
 
 ---
 
-## The Real Asymmetry — Reframed With Honest Numbers
+#### The Real Asymmetry — Reframed With Honest Numbers
 
 The bear pegged the trade as 1.5:1 reward/risk:
 - Upside: $110-115 (+25-30%)
@@ -882,7 +882,7 @@ And the bear's "wait for confirmation" advice has a hidden cost: **confirmation 
 
 ---
 
-## Closing — The Bull Position Stands
+#### Closing — The Bull Position Stands
 
 Strip away two rounds of debate, and the **factual record** shows:
 
@@ -911,7 +911,7 @@ The bear's closing was a masterclass in one thing: **building a sophisticated fr
 
 ---
 
-## 1. The Bear's "Honest Probabilities" Are Just Their Probabilities
+#### 1. The Bear's "Honest Probabilities" Are Just Their Probabilities
 
 The bear accused me of fabricating 60/30/10 probabilities, then **fabricated their own 40/45/15 distribution** and called it "honest." Let's check who has more support:
 
@@ -932,7 +932,7 @@ The bear's probability framework cherry-picks the wrong base rates. **At minimum
 
 ---
 
-## 2. The "Wait for Confirmation" Math Is Where the Bear Fatally Errs
+#### 2. The "Wait for Confirmation" Math Is Where the Bear Fatally Errs
 
 This is the bear's centerpiece argument, and it has a **gaping hole**.
 
@@ -964,7 +964,7 @@ So the bear's framework gives waiting ~+15% vs. acting at +7.6%. **Sounds like w
 
 ---
 
-## 3. The FCF Math the Bear Just Botched
+#### 3. The FCF Math the Bear Just Botched
 
 The bear's "self-defeating" attack actually reveals **their own logical error.**
 
@@ -982,7 +982,7 @@ The bear claims this requires "acceleration that hasn't been demonstrated." But 
 
 ---
 
-## 4. The Ad Business "27 bps of Equity Value" Calculation Is Comically Wrong
+#### 4. The Ad Business "27 bps of Equity Value" Calculation Is Comically Wrong
 
 The bear did a DCF on the *incremental operating income* from ads in 2028 and concluded it's worth "27 bps of equity value." Let me show you the modeling error:
 
@@ -999,7 +999,7 @@ And on UCAN ARPU: the bear cited a 0.9% Q-over-Q sequential increase as evidence
 
 ---
 
-## 5. InterPositive — The Bear Keeps Misquoting Me
+#### 5. InterPositive — The Bear Keeps Misquoting Me
 
 I'll say this one more time, slowly: **my base case has always been ~$1B/year of realized savings.** The $300M was explicitly labeled a *floor*. The bear keeps treating "I provided a range" as "I retracted the high end." That's not retraction — that's **range-based modeling**, which is what every serious analyst does.
 
@@ -1007,7 +1007,7 @@ And on labor: yes, IATSE has AI protections. Yes, grievances are being filed. **
 
 ---
 
-## 6. Technicals — The Bear Conveniently Forgot the Catalysts
+#### 6. Technicals — The Bear Conveniently Forgot the Catalysts
 
 The bear quoted the technical report's "long conviction: None yet" as if technicals operate in a vacuum. **They don't.** The report explicitly notes:
 
@@ -1025,7 +1025,7 @@ The bear's framing — "trust the chart" — assumes technicals are predictive o
 
 ---
 
-## 7. Competitive — The Bear's "Content Arsenal" Argument Has Been Tried Before
+#### 7. Competitive — The Bear's "Content Arsenal" Argument Has Been Tried Before
 
 The bear listed Paramount-WBD's content: HBO, DC, Harry Potter, NFL, Star Trek, Mission Impossible, Top Gun. Impressive list. **And yet:**
 
@@ -1039,7 +1039,7 @@ On YouTube CTV: yes, advertisers compare them in upfronts. **But Netflix's ad in
 
 ---
 
-## 8. Buybacks — The Bear's Trend Analysis Is Cherry-Picked
+#### 8. Buybacks — The Bear's Trend Analysis Is Cherry-Picked
 
 The bear claims Q2-Q4'25 was an "upward trajectory" ($1.65B → $1.86B → $2.08B) "broken" by Q1'26's $1.27B. **Three data points isn't a trajectory — it's noise.** And the bear conveniently ignores that:
 
@@ -1051,7 +1051,7 @@ The bear claims Q2-Q4'25 was an "upward trajectory" ($1.65B → $1.86B → $2.08
 
 ---
 
-## The Real Bottom Line
+#### The Real Bottom Line
 
 The bear's entire closing rests on a simple syllogism:
 1. The chart is bearish.
@@ -1081,7 +1081,7 @@ With:
 
 ---
 
-## Final Bull Recommendation
+#### Final Bull Recommendation
 
 **NFLX is a BUY at current levels, with structured risk management.**
 
@@ -1102,7 +1102,7 @@ The bear's "final counter" is a clinic in something specific: **the intellectual
 
 ---
 
-## 1. The "Conceded the Math" Claim Is Selective Quotation
+#### 1. The "Conceded the Math" Claim Is Selective Quotation
 
 The bear's headline accusation is that I conceded waiting beats acting. **I did no such thing — I disassembled the bear's own math.**
 
@@ -1125,7 +1125,7 @@ That is **lower than acting now at +7.65%**, even using the bear's own probabili
 
 ---
 
-## 2. The Probability "Pivot" Was a Sensitivity Analysis, Not a Retreat
+#### 2. The Probability "Pivot" Was a Sensitivity Analysis, Not a Retreat
 
 The bear claims I "lowered upside probability by 17 percentage points" and called it a tell. **It was the opposite of a tell — it was robustness testing.**
 
@@ -1143,7 +1143,7 @@ That's **above the risk-free rate over a 6-week window** (~46bps), and **above t
 
 ---
 
-## 3. The FCF Reconciliation — The Bear Did the Bull's Work
+#### 3. The FCF Reconciliation — The Bear Did the Bull's Work
 
 The bear claims my FCF math "made the bear's case." Let's actually walk through it.
 
@@ -1162,7 +1162,7 @@ The bear is treating "no individual prior quarter hit $3B" as proof that no futu
 
 ---
 
-## 4. The Ad Valuation — The Bear Just Conceded "4.5% of Market Cap"
+#### 4. The Ad Valuation — The Bear Just Conceded "4.5% of Market Cap"
 
 The bear "demolished" my 15x multiple by applying 8-9x and arriving at **$16.2B = 4.5% of market cap from the ad business alone**.
 
@@ -1176,7 +1176,7 @@ On Disney/Comcast multiples: those businesses aren't growing 40%+ YoY with **+70
 
 ---
 
-## 5. UCAN ARPU — The Bear Just Cited Stale Data
+#### 5. UCAN ARPU — The Bear Just Cited Stale Data
 
 The bear cited Q1'25 UCAN ARPU of $17.30 vs Q1'24 of $17.26 (+0.2%). **I'll accept that the YoY at *that* point was modest.** But here's what the bear missed:
 
@@ -1190,7 +1190,7 @@ The bear's "could be 100% sub growth" alternative is implausible: **Netflix rais
 
 ---
 
-## 6. The Technical Argument — The Bear Misreads "Direction Unconfirmed"
+#### 6. The Technical Argument — The Bear Misreads "Direction Unconfirmed"
 
 The bear quotes the technical report's "Trend Short = Medium-High; Long-term Buy = None Yet" as if this settles the matter.
 
@@ -1210,7 +1210,7 @@ On "the market sold the Q1 print": that's true, and it's because of the one-time
 
 ---
 
-## 7. Buybacks — The Bear's "Break Fee" Argument Is Backwards
+#### 7. Buybacks — The Bear's "Break Fee" Argument Is Backwards
 
 The bear claims the $2.8B break fee "reduced capital available for buybacks."
 
@@ -1225,7 +1225,7 @@ And on "no public disclosure of accelerated repurchases in May-June": **buybacks
 
 ---
 
-## 8. The "Knife at $84" — The Bear Misread Their Own Citation
+#### 8. The "Knife at $84" — The Bear Misread Their Own Citation
 
 The bear says price is "pinned at the lower band" and lows are "grinding lower" — citing $85.10 (May 11) and $85.59 (May 28).
 
@@ -1237,7 +1237,7 @@ And on Bollinger Band continuation theory: lower-band touches in a downtrend **w
 
 ---
 
-## The Real Trade Setup, Honestly Stated
+#### The Real Trade Setup, Honestly Stated
 
 Let me close by stating what this trade actually is, without rhetoric from either side:
 
@@ -1268,7 +1268,7 @@ Let me close by stating what this trade actually is, without rhetoric from eithe
 
 ---
 
-## Final Bull Recommendation
+#### Final Bull Recommendation
 
 **NFLX is a BUY at current levels.** I am not asking anyone to be a hero. I am asking them to **act on confluence**:
 
@@ -1309,7 +1309,7 @@ Let me start by complimenting the bull on a beautifully constructed narrative �
 
 ---
 
-## 1. The "Accelerating Growth" Story Falls Apart Under Scrutiny
+#### 1. The "Accelerating Growth" Story Falls Apart Under Scrutiny
 
 The bull cites Q1'26 revenue of +16.2% YoY as "acceleration." Let's look at the **full sequence** the fundamentals report actually shows:
 
@@ -1327,7 +1327,7 @@ And operating income? **Q4'25 op margin: 24.5%. That's a 700bps margin compressi
 
 ---
 
-## 2. The "Q1'26 FCF of $5.09B" Number Is Garbage — and the Bull Knows It
+#### 2. The "Q1'26 FCF of $5.09B" Number Is Garbage — and the Bull Knows It
 
 The bull touts $5.09B FCF in Q1'26 as evidence of a step-change. But the fundamentals report **explicitly flags** that Q1'26 net income was inflated by a **~$2.85B non-recurring interest income line** (vs. ~$45M historically). 
 
@@ -1337,7 +1337,7 @@ The bull conceded the EPS inflation in passing, then immediately used the inflat
 
 ---
 
-## 3. The Ad Business Is Smaller Than the Bull Wants You to Believe
+#### 3. The Ad Business Is Smaller Than the Bull Wants You to Believe
 
 $3B in 2026 ad revenue. Sounds big. Let's contextualize:
 - **NFLX TTM revenue: ~$47B**
@@ -1351,7 +1351,7 @@ And TD Cowen's $112 PT? That's **~30% upside** — fine, but the **24/7 Wall St 
 
 ---
 
-## 4. The InterPositive "$3.5B Margin Earthquake" Is Marketing Material, Not Reality
+#### 4. The InterPositive "$3.5B Margin Earthquake" Is Marketing Material, Not Reality
 
 A $600M acquisition with a **patent disclosure claiming** up to $3.5B/year in savings from "50% VFX cost reduction and 70% background actor reduction." Let me translate that for you:
 
@@ -1365,7 +1365,7 @@ The bull "haircut" the figure by 70% to $1B and called it conservative. I'd argu
 
 ---
 
-## 5. The Technical Picture Is Screaming, and the Bull Is Plugging Their Ears
+#### 5. The Technical Picture Is Screaming, and the Bull Is Plugging Their Ears
 
 The bull dismissed technicals as "lagging." Let me re-state what the technical report *actually* shows, because it's not subtle:
 
@@ -1383,7 +1383,7 @@ And the "NFLX at $50 in 2022 ran to $134" comparison? **Different macro regime, 
 
 ---
 
-## 6. The "Weakening Competitors" Argument Is Backwards
+#### 6. The "Weakening Competitors" Argument Is Backwards
 
 The bull frames Paramount-WBD as a distracted, leveraged mess. I'd flip it:
 
@@ -1397,7 +1397,7 @@ The competitive moat is **narrowing**, not widening. And Apple Services dismissa
 
 ---
 
-## 7. The "Buybacks Mean Management Is Confident" Argument Is Naive
+#### 7. The "Buybacks Mean Management Is Confident" Argument Is Naive
 
 $10.4B in buybacks over 5 quarters. Yes. Now consider:
 - **Netflix's average buyback price during this period was substantially higher than $86.** They bought back $3.54B in Q1'25 when the stock was over $100 (split-adjusted equivalent). They've been **buying high**.
@@ -1408,7 +1408,7 @@ Management's **slowing** buyback pace is a yellow flag the bull conveniently omi
 
 ---
 
-## 8. The Macro Picture Is Materially Worse Than the Bull Acknowledges
+#### 8. The Macro Picture Is Materially Worse Than the Bull Acknowledges
 
 - **Active US-Iran war.** Truce extensions are not peace.
 - **Oil price spike risk** from Strait of Hormuz disruption.
@@ -1419,7 +1419,7 @@ The bull's "Netflix gained subs in 2008-09" reference is **a 17-year-old data po
 
 ---
 
-## The Real Bottom Line
+#### The Real Bottom Line
 
 The bull's case requires **all of the following to go right**:
 1. Ad business hits $3B+ on time, with margins as assumed
@@ -1452,7 +1452,7 @@ The bull called my argument "polished takedown" and then spent 2,000 words provi
 
 ---
 
-## 1. "Seasonality" Is the Bull's Magic Word — And It Doesn't Save Them
+#### 1. "Seasonality" Is the Bull's Magic Word — And It Doesn't Save Them
 
 The bull accused me of being "statistically illiterate" for showing QoQ deceleration, then claimed Q1 is "seasonally weak." Let's test that claim against the **actual data the fundamentals report provides**:
 
@@ -1467,7 +1467,7 @@ On margins: the bull says "full-year operating margin tracking ~30%, up from ~27
 
 ---
 
-## 2. The FCF Defense Is the Bull's Weakest Moment
+#### 2. The FCF Defense Is the Bull's Weakest Moment
 
 The bull tried to separate net income from cash flow and lecture me about how "cash flow statements work." Let me return the favor.
 
@@ -1479,7 +1479,7 @@ And the bull's punchline — "I'll trust the CFO over the bear's spreadsheet" �
 
 ---
 
-## 3. The Ad Business Math Is Hand-Waving Dressed as Modeling
+#### 3. The Ad Business Math Is Hand-Waving Dressed as Modeling
 
 Watch this sleight of hand the bull just performed:
 
@@ -1493,7 +1493,7 @@ The "ARPU expansion" claim is unfalsifiable because **Netflix stopped disclosing
 
 ---
 
-## 4. InterPositive — The Bull Just Conceded the Maximum Case Was Fiction
+#### 4. InterPositive — The Bull Just Conceded the Maximum Case Was Fiction
 
 Look at what just happened. The bull's original framing: **"$3.5B/year potential cost savings... 7%+ EBITDA uplift from a single deal."** My response: realistic is $200-400M. The bull's rebuttal: **"Even at $300M/year, that's a 2% EBITDA tailwind."**
 
@@ -1505,7 +1505,7 @@ Even at the bull's revised $300M/year, this is a rounding error against $14B EBI
 
 ---
 
-## 5. The Technical Picture: The Bull Cherry-Picked One Sentence
+#### 5. The Technical Picture: The Bull Cherry-Picked One Sentence
 
 The bull accused me of omitting context. Let me read the technical report's **actual conclusion**, which the bull buried:
 
@@ -1525,7 +1525,7 @@ The bull's "coiled spring" framing assumes the spring releases upward. **Squeeze
 
 ---
 
-## 6. The Competitive Argument — The Bull Doesn't Understand Distribution
+#### 6. The Competitive Argument — The Bull Doesn't Understand Distribution
 
 The bull says: "HBO, Discovery, Paramount have been losing money in streaming. Adding libraries doesn't fix that."
 
@@ -1539,7 +1539,7 @@ And the bull's claim that competitors are years away from threat is contradicted
 
 ---
 
-## 7. Buybacks — The Bull Just Admitted the Pace Slowed 64%
+#### 7. Buybacks — The Bull Just Admitted the Pace Slowed 64%
 
 The bull's defense: "Buybacks fluctuate quarter to quarter based on cash flow timing and 10b5-1 plans." Translation: **the bull cannot explain the slowdown**, so they're attributing it to noise.
 
@@ -1555,7 +1555,7 @@ The bull's "expect Q2-Q4 buyback intensity to increase" is **prediction, not dat
 
 ---
 
-## 8. The Macro Framing Is Doing Olympic-Level Gymnastics
+#### 8. The Macro Framing Is Doing Olympic-Level Gymnastics
 
 The bull says "Netflix is the survivor, not the victim" of subscription fatigue. Then says "trade-down economics favor Netflix." **Pick one.** If consumers are surviving Netflix, they're not trading down. If they're trading down, they're picking the cheaper tier — which destroys ARPU.
 
@@ -1565,7 +1565,7 @@ On the multiple: the bull says 22x forward is "a steal" because S&P trades at 22
 
 ---
 
-## The Real Asymmetry
+#### The Real Asymmetry
 
 The bull keeps insisting the asymmetry is upward. Let me reframe what the bull is actually buying:
 
@@ -1579,7 +1579,7 @@ The bull's own closing argument said: **"By the time the bear's 'all clear' sign
 
 ---
 
-## What the Bull Won't Say Out Loud
+#### What the Bull Won't Say Out Loud
 
 Strip away the rhetoric, and here's what the bull actually conceded over two rounds:
 
@@ -1596,7 +1596,7 @@ Strip away the rhetoric, and here's what the bull actually conceded over two rou
 
 ---
 
-## The Bear Position, Sharpened
+#### The Bear Position, Sharpened
 
 I'm not arguing Netflix is a bad company. **It's a high-quality business at a high-uncertainty inflection.** The right trade is **not to be a hero** before:
 - Q2 earnings clears the one-time-item ambiguity
@@ -1619,7 +1619,7 @@ The bull's "final rebuttal" deserves a real autopsy, because what looks like con
 
 ---
 
-## 1. The 60/30/10 Probability Math Is the Bull's Tell
+#### 1. The 60/30/10 Probability Math Is the Bull's Tell
 
 This is the most revealing moment of the entire debate. The bull, having lost the technical argument, lost the EPS-quality argument, and conceded points on competition and macro, **invented a probability distribution** to manufacture positive expected value:
 
@@ -1639,7 +1639,7 @@ That's *less* than the risk-free rate at current Treasury yields. **The bull's "
 
 ---
 
-## 2. The FCF Math the Bull Just Did Is Self-Defeating
+#### 2. The FCF Math the Bull Just Did Is Self-Defeating
 
 Read what the bull just wrote carefully:
 
@@ -1657,7 +1657,7 @@ And on management's track record: the bull cited "called password crackdown bott
 
 ---
 
-## 3. The Ad Business Math Got Worse, Not Better
+#### 3. The Ad Business Math Got Worse, Not Better
 
 Watch what just happened: the bull retreated from $8B by 2028 to $5.9B. **That's a 26% downward revision in a single round of debate.** And they're calling it a "friendly amendment." This is exactly what I said before — **the forward numbers are spitballs, not models**.
 
@@ -1676,7 +1676,7 @@ On UCAN ARPU: **the bull asserted "UCAN ARPU has been rising every quarter" with
 
 ---
 
-## 4. InterPositive — The Bull Quietly Walked Back the Headline
+#### 4. InterPositive — The Bull Quietly Walked Back the Headline
 
 Original bull framing: **"$3.5B/year cost savings... margin earthquake... 7%+ EBITDA uplift."**
 
@@ -1688,7 +1688,7 @@ The bull's "VFX isn't covered by SAG-AFTRA, it's covered by IATSE" actually **st
 
 ---
 
-## 5. The Technicals — The Bull Conceded the Setup
+#### 5. The Technicals — The Bull Conceded the Setup
 
 The bull called my "70% trend continuation" stat fabricated. Fine — I'll concede I can't pin a precise percentage. **But the bull then immediately fabricated their own counter-claim**: "Bollinger himself documented squeezes as direction-agnostic." Show me that citation. **It doesn't exist.** Bollinger's actual writing notes that squeezes resolve in the direction of the **subsequent volume expansion**, and historically squeezes following declines tend to extend declines absent a positive fundamental catalyst that reverses the trend.
 
@@ -1702,7 +1702,7 @@ The three distribution days are not "already priced in." **Distribution is a reg
 
 ---
 
-## 6. The Competitive Math Strawman
+#### 6. The Competitive Math Strawman
 
 The bull cited 300M Netflix subs vs 160M for Paramount-WBD. Let me address the actual issue: **subscriber count is not the right metric for competitive threat — it's incremental subscriber acquisition cost and content economics**.
 
@@ -1719,7 +1719,7 @@ And on the YouTube ad share argument: the bull says "different inventory, differ
 
 ---
 
-## 7. Buybacks — The Bull's Own Sequence Proves Slowing
+#### 7. Buybacks — The Bull's Own Sequence Proves Slowing
 
 The bull listed the sequence: $3.54B → $1.65B → $1.86B → $2.08B → $1.27B.
 
@@ -1729,7 +1729,7 @@ That's a deceleration **even on the bull's own framing**. And the "WBD distracti
 
 ---
 
-## 8. The "False Dichotomy" Defense Doesn't Hold
+#### 8. The "False Dichotomy" Defense Doesn't Hold
 
 The bull's response to my survivor/trade-down dichotomy was:
 - Survivor in the streaming portfolio
@@ -1746,7 +1746,7 @@ The bull keeps appealing to "16% revenue growth on stable subs = ARPU expansion,
 
 ---
 
-## 9. The Real Conclusion the Bull Avoided
+#### 9. The Real Conclusion the Bull Avoided
 
 Here's what the bull never engaged with from my prior round:
 
@@ -1763,7 +1763,7 @@ The bull's expected-value math (+11.2%) assumes you must be positioned now. **Th
 
 ---
 
-## Final Position — The Bear Case Sharpened to Its Core
+#### Final Position — The Bear Case Sharpened to Its Core
 
 Strip away seven rounds of rhetoric and here is what we know with certainty:
 
@@ -1784,7 +1784,7 @@ The bull's final argument boiled down to **"trust management, weight the probabi
 
 ---
 
-## Bear Recommendation — Final
+#### Bear Recommendation — Final
 
 **NFLX is a SELL** at current levels, or at minimum a **hard avoid until Q2 earnings clears the air**.
 
@@ -1802,7 +1802,7 @@ The bull's "final word" is a fascinating document. Strip the rhetoric and you'll
 
 ---
 
-## 1. The Bull Just Mathematically Conceded the Bear Case
+#### 1. The Bull Just Mathematically Conceded the Bear Case
 
 Read this carefully, because it's the single most important sentence in the entire debate. The bull wrote:
 
@@ -1827,7 +1827,7 @@ Then they tried to rescue the position with three claims:
 
 ---
 
-## 2. The Probability Framework — The Bull Pivoted Twice
+#### 2. The Probability Framework — The Bull Pivoted Twice
 
 Watch the goalpost migration:
 - **Round 1:** 60/30/10 (favoring upside heavily)
@@ -1847,7 +1847,7 @@ Apply realistic numbers — 40% upside (to median PT, +14%) / 40% downside (to $
 
 ---
 
-## 3. The FCF Reconciliation — The Bull Just Made the Bear's Case
+#### 3. The FCF Reconciliation — The Bull Just Made the Bear's Case
 
 Look at what the bull just provided:
 - TTM FCF before Q1'26: ~$9.5B
@@ -1867,7 +1867,7 @@ So the bull is asking us to believe:
 
 ---
 
-## 4. The Ad Valuation — The Bull Just Used a 15x Multiple to Save Their Thesis
+#### 4. The Ad Valuation — The Bull Just Used a 15x Multiple to Save Their Thesis
 
 The bull's response to my DCF was to slap a **15x multiple on $1.8B of operating income** and call it a $27B equity value contribution. Let's check that:
 
@@ -1887,7 +1887,7 @@ The bull's math depends on:
 
 ---
 
-## 5. UCAN ARPU — The Bull Just Made Up "3-4% YoY"
+#### 5. UCAN ARPU — The Bull Just Made Up "3-4% YoY"
 
 The bull asserted UCAN ARPU was "up 3-4% YoY" without citation. **Netflix's actual disclosed Q1'25 vs Q1'24 UCAN ARPU comparison: $17.30 vs $17.26 — that's 0.2%, not 3-4%.** I'm willing to be corrected with a primary source, but the bull provided none.
 
@@ -1897,7 +1897,7 @@ This matters because **the entire ad-tier thesis rests on net-positive ARPU dyna
 
 ---
 
-## 6. The Technical Argument Has Now Fully Collapsed
+#### 6. The Technical Argument Has Now Fully Collapsed
 
 The bull's final position on technicals reduces to: **"Direction unconfirmed, fundamentals will drive the resolution upward."** That's two unsupported claims:
 
@@ -1909,7 +1909,7 @@ If the fundamentals were the wind at the bull's back, the stock would already be
 
 ---
 
-## 7. The Bull's Buyback Defense Doesn't Add Up
+#### 7. The Bull's Buyback Defense Doesn't Add Up
 
 The bull's argument: Q1'26 buybacks were low because of WBD bid; now that WBD is off the table, buybacks will accelerate.
 
@@ -1921,7 +1921,7 @@ The bull frames this as bullish. It's actually a **wash at best**, and arguably 
 
 ---
 
-## 8. The "Knife Landed at $84" Claim Is Already Failing
+#### 8. The "Knife Landed at $84" Claim Is Already Failing
 
 The bull's signature line: **"The knife landed two weeks ago at $84. Price has been holding $85-87 for weeks."**
 
@@ -1933,7 +1933,7 @@ If $84 fails — and the technical report explicitly identifies $84.91 as the ac
 
 ---
 
-## The Final Bear Position
+#### The Final Bear Position
 
 I want to be direct about what this trade actually is, stripped of all the rhetoric from both sides:
 
@@ -1959,7 +1959,7 @@ I want to be direct about what this trade actually is, stripped of all the rheto
 
 ---
 
-## Final Bear Recommendation
+#### Final Bear Recommendation
 
 **NFLX is a SELL or AVOID at $86.** 
 
@@ -1977,7 +1977,7 @@ I want to be direct about what this trade actually is, stripped of all the rheto
 
 ---
 
-## Closing Word
+#### Closing Word
 
 The bull keeps invoking "conviction beats indecision." I'd correct the framing: **discipline beats conviction when the evidence is mixed**. And the evidence here is not mixed in the bull's favor — it's mixed at best, bearish at worst.
 
@@ -2009,7 +2009,7 @@ The bull's final response is genuinely impressive — and that's the problem. **
 
 ---
 
-## 1. The Bull Just Cooked the Books on Their Own EV Math
+#### 1. The Bull Just Cooked the Books on Their Own EV Math
 
 This is the moment of the entire debate. Watch carefully.
 
@@ -2048,7 +2048,7 @@ And critically: **the bull's "60% upside probability" is itself the contested in
 
 ---
 
-## 2. The "Stop at $83.50" Is the Bull's Quietest Concession
+#### 2. The "Stop at $83.50" Is the Bull's Quietest Concession
 
 The bull's playbook says: "Stop on daily close below $83.50."
 
@@ -2060,7 +2060,7 @@ If the bull truly believed in 60% upside probability and "ten of ten elements al
 
 ---
 
-## 3. The FCF Math — The Bull Is Now Adjusting Adjustments
+#### 3. The FCF Math — The Bull Is Now Adjusting Adjustments
 
 The bull's revised FCF reconciliation:
 > "Q4'25 FCF was depressed by $1.11B in marketing expense. Strip that to a normalized $750M and Q4 FCF would have been ~$2.2B. The trailing pattern is closer to $2.5B/quarter normalized."
@@ -2077,7 +2077,7 @@ Here's what the data actually says: **the trailing four quarters of GAAP FCF ave
 
 ---
 
-## 4. The Ad Valuation — The Bull Smuggled In a Multiple Expansion Argument
+#### 4. The Ad Valuation — The Bull Smuggled In a Multiple Expansion Argument
 
 The bull says: "If even half of the bear's $16.2B valuation gets recognized over the next 12 months, that's +2.3% to fair value."
 
@@ -2089,7 +2089,7 @@ A reasonable multiple for an unproven, dependent ad business inside a streaming 
 
 ---
 
-## 5. UCAN ARPU — The Bull Replaced Data With Storytelling
+#### 5. UCAN ARPU — The Bull Replaced Data With Storytelling
 
 The bull's response to the stale-ARPU criticism: **"By Q1'26, both price hikes are in the comparable base."**
 
@@ -2103,7 +2103,7 @@ And on price hikes: yes, Netflix raised prices. **And what happens when you rais
 
 ---
 
-## 6. The Technical Argument — The Bull Misread Their Own Citation (For Real This Time)
+#### 6. The Technical Argument — The Bull Misread Their Own Citation (For Real This Time)
 
 The bull says I claimed "lows are grinding lower" with $85.10 (May 11) → $85.59 (May 28) — and "corrects" me by noting that's a higher low.
 
@@ -2125,7 +2125,7 @@ The bull keeps quoting the report selectively. **The report's overall verdict is
 
 ---
 
-## 7. The "Ten of Ten Confluence" Is Five-of-Ten With Padding
+#### 7. The "Ten of Ten Confluence" Is Five-of-Ten With Padding
 
 Let me audit the bull's "ten of ten":
 
@@ -2144,7 +2144,7 @@ Let me audit the bull's "ten of ten":
 
 ---
 
-## 8. What The Bull Cannot Refute
+#### 8. What The Bull Cannot Refute
 
 Here's the structural list the bull keeps dancing around:
 
@@ -2166,7 +2166,7 @@ Here's the structural list the bull keeps dancing around:
 
 ---
 
-## The Real Final Asymmetry
+#### The Real Final Asymmetry
 
 The bull's framing: "Six months from now, you'll either be at $86 looking at $105, or reading Q2 at $96 wishing you'd bought."
 
@@ -2183,7 +2183,7 @@ Over 100 trades structured like this one, **acting before binary catalysts produ
 
 ---
 
-## Final Bear Recommendation — The Disciplined Path
+#### Final Bear Recommendation — The Disciplined Path
 
 **NFLX is a SELL or HARD AVOID at $86 until evidence — not narrative — confirms the turn.**
 
@@ -2201,7 +2201,7 @@ Over 100 trades structured like this one, **acting before binary catalysts produ
 
 ---
 
-## Closing Word
+#### Closing Word
 
 The bull keeps invoking confluence, conviction, and the cost of waiting. Strip away the rhetoric and you're left with a thesis built on:
 
