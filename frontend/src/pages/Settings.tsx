@@ -20,17 +20,111 @@ interface Settings {
   selected_analysts: string[]
 }
 
+interface ModelOption { label: string; value: string }
+type Catalog = Record<string, { quick: ModelOption[]; deep: ModelOption[] }>
+
 const ANALYSTS = ['market', 'news', 'fundamentals', 'social', 'macro', 'options', 'quant', 'earnings', 'review']
 const ANALYST_LABELS: Record<string, string> = {
   market: 'Piyasa', news: 'Haber', fundamentals: 'Temel', social: 'Duygu',
   macro: 'Makro', options: 'Opsiyon', quant: 'Kantitatif', earnings: 'Kazanç', review: 'İnceleme',
 }
 
+// Human-readable provider names
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic (Claude)',
+  google: 'Google (Gemini)',
+  xai: 'xAI (Grok)',
+  deepseek: 'DeepSeek',
+  qwen: 'Qwen (Global)',
+  'qwen-cn': 'Qwen (China)',
+  glm: 'GLM / Z.AI (Global)',
+  'glm-cn': 'GLM / BigModel (China)',
+  minimax: 'MiniMax (Global)',
+  'minimax-cn': 'MiniMax (China)',
+  ollama: 'Ollama (Local)',
+  nvidia: 'NVIDIA NIM',
+  litellm: 'LiteLLM Proxy',
+  azure: 'Azure OpenAI',
+}
+
+function ModelSelect({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: ModelOption[]
+  value: string
+  onChange: (v: string) => void
+}) {
+  const isCustom = !options.some(o => o.value === value) || value === 'custom'
+  const [showCustom, setShowCustom] = useState(isCustom)
+  const [customVal, setCustomVal] = useState(isCustom ? value : '')
+
+  useEffect(() => {
+    const custom = !options.some(o => o.value === value) || value === 'custom'
+    setShowCustom(custom)
+    if (custom) setCustomVal(value === 'custom' ? '' : value)
+  }, [value, options])
+
+  const handleSelect = (v: string) => {
+    if (v === 'custom') {
+      setShowCustom(true)
+      setCustomVal('')
+    } else {
+      setShowCustom(false)
+      onChange(v)
+    }
+  }
+
+  return (
+    <Row label={label}>
+      <div className="space-y-1">
+        <select
+          className={Input}
+          value={showCustom ? 'custom' : value}
+          onChange={e => handleSelect(e.target.value)}
+        >
+          {options.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+          {/* Ensure "Custom" option is present even if catalog already has it */}
+          {!options.some(o => o.value === 'custom') && (
+            <option value="custom">Özel model ID</option>
+          )}
+        </select>
+        {showCustom && (
+          <input
+            className={Input}
+            placeholder="Model ID girin..."
+            value={customVal}
+            onChange={e => {
+              setCustomVal(e.target.value)
+              onChange(e.target.value)
+            }}
+          />
+        )}
+      </div>
+    </Row>
+  )
+}
+
 export default function Settings() {
   const [s, setS] = useState<Settings | null>(null)
+  const [catalog, setCatalog] = useState<Catalog>({})
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { axios.get('/api/settings').then(r => setS(r.data)) }, [])
+  useEffect(() => {
+    Promise.all([
+      axios.get('/api/settings').then(r => r.data),
+      axios.get('/api/settings/llm-catalog').then(r => r.data),
+    ]).then(([settings, cat]) => {
+      setS(settings)
+      setCatalog(cat)
+    })
+  }, [])
 
   const save = async () => {
     await axios.put('/api/settings', s)
@@ -41,6 +135,27 @@ export default function Settings() {
   if (!s) return <div className="p-8 text-slate-400">Yükleniyor...</div>
 
   const update = (k: keyof Settings, v: any) => setS(prev => prev ? { ...prev, [k]: v } : prev)
+
+  const providerList = Object.keys(catalog)
+  const currentProviderModels = catalog[s.llm_provider]
+
+  const handleProviderChange = (provider: string) => {
+    update('llm_provider', provider)
+    // Reset models to first option of new provider when switching
+    const modes = catalog[provider]
+    if (modes) {
+      const firstDeep = modes.deep?.[0]?.value
+      const firstQuick = modes.quick?.[0]?.value
+      setS(prev => prev ? {
+        ...prev,
+        llm_provider: provider,
+        deep_think_llm: firstDeep || prev.deep_think_llm,
+        quick_think_llm: firstQuick || prev.quick_think_llm,
+      } : prev)
+    } else {
+      update('llm_provider', provider)
+    }
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
@@ -80,18 +195,57 @@ export default function Settings() {
 
       <Section title="LLM Ayarları">
         <Row label="Provider">
-          <select className={Input} value={s.llm_provider} onChange={e => update('llm_provider', e.target.value)}>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="google">Google</option>
+          <select
+            className={Input}
+            value={s.llm_provider}
+            onChange={e => handleProviderChange(e.target.value)}
+          >
+            {providerList.length > 0
+              ? providerList.map(p => (
+                  <option key={p} value={p}>{PROVIDER_LABELS[p] || p}</option>
+                ))
+              : (
+                // Fallback if catalog not loaded
+                <>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="google">Google (Gemini)</option>
+                  <option value="xai">xAI (Grok)</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="ollama">Ollama (Local)</option>
+                </>
+              )
+            }
           </select>
         </Row>
-        <Row label="Derin Düşünce Modeli">
-          <input className={Input} value={s.deep_think_llm} onChange={e => update('deep_think_llm', e.target.value)} />
-        </Row>
-        <Row label="Hızlı Düşünce Modeli">
-          <input className={Input} value={s.quick_think_llm} onChange={e => update('quick_think_llm', e.target.value)} />
-        </Row>
+
+        {currentProviderModels ? (
+          <>
+            <ModelSelect
+              label="Derin Düşünce Modeli"
+              options={currentProviderModels.deep || []}
+              value={s.deep_think_llm}
+              onChange={v => update('deep_think_llm', v)}
+            />
+            <ModelSelect
+              label="Hızlı Düşünce Modeli"
+              options={currentProviderModels.quick || []}
+              value={s.quick_think_llm}
+              onChange={v => update('quick_think_llm', v)}
+            />
+          </>
+        ) : (
+          // Providers like azure/openrouter not in catalog: free text
+          <>
+            <Row label="Derin Düşünce Modeli">
+              <input className={Input} value={s.deep_think_llm} onChange={e => update('deep_think_llm', e.target.value)} placeholder="Model ID" />
+            </Row>
+            <Row label="Hızlı Düşünce Modeli">
+              <input className={Input} value={s.quick_think_llm} onChange={e => update('quick_think_llm', e.target.value)} placeholder="Model ID" />
+            </Row>
+          </>
+        )}
+
         <Row label="Tartışma Turları">
           <input type="number" min="1" max="10" className={Input} value={s.max_debate_rounds} onChange={e => update('max_debate_rounds', parseInt(e.target.value))} />
         </Row>
@@ -150,8 +304,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-slate-400 whitespace-nowrap">{label}</span>
+    <div className="flex items-start justify-between gap-4">
+      <span className="text-sm text-slate-400 whitespace-nowrap pt-2">{label}</span>
       <div className="flex-1 max-w-xs">{children}</div>
     </div>
   )

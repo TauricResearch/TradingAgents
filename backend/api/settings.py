@@ -12,6 +12,19 @@ from backend.api.deps import get_current_user
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
+@router.get("/llm-catalog")
+async def get_llm_catalog(_: User = Depends(get_current_user)):
+    """Return all providers and their available models from the model catalog."""
+    from backend.trading_agents.llm_clients.model_catalog import MODEL_OPTIONS
+    catalog = {}
+    for provider, modes in MODEL_OPTIONS.items():
+        catalog[provider] = {
+            mode: [{"label": label, "value": value} for label, value in opts]
+            for mode, opts in modes.items()
+        }
+    return catalog
+
+
 async def _get_or_create_settings(db: AsyncSession) -> AppSettings:
     result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
     settings = result.scalar_one_or_none()
