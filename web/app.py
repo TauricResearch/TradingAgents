@@ -17,7 +17,6 @@ import uvicorn
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.model_catalog import get_model_options, get_known_models
-from tradingagents.llm_clients.capabilities import get_model_capabilities
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
