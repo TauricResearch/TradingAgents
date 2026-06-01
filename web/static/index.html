@@ -312,7 +312,7 @@
             background: var(--bg-light);
             border-radius: 4px;
             padding: 15px;
-            max-height: 400px;
+            max-height: 600px;
             overflow-y: auto;
             margin-bottom: 20px;
             font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
@@ -346,6 +346,29 @@
         .message.warning {
             background: #fff3e0;
             color: #ff9800;
+        }
+
+        .message.agent {
+            background: #f3eafd;
+            color: #4a2c70;
+            border-left: 3px solid #764ba2;
+            display: block;
+        }
+
+        .message.tool {
+            background: #eef6f0;
+            color: #2f6f4f;
+            border-left: 3px solid #28a745;
+            display: block;
+        }
+
+        .message.agent .message-text,
+        .message.tool .message-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 0.92em;
+            line-height: 1.45;
         }
 
         .message-icon {
@@ -870,6 +893,8 @@
                 success: "✓",
                 error: "✕",
                 warning: "⚠",
+                agent: "🧠",
+                tool: "🔧",
             };
 
             div.innerHTML = `

@@ -132,19 +132,51 @@ def _make_progress_callback(analysis_id: str):
     from langchain_core.callbacks import BaseCallbackHandler
 
     class ProgressCallbackHandler(BaseCallbackHandler):
-        """Pushes real-time LLM/tool events into the analysis message feed."""
+        """Pushes real-time LLM/tool events into the analysis message feed.
+
+        Captures the actual agent reasoning/report text and tool calls/results
+        so the web UI mirrors what the framework prints to the server log.
+        """
 
         def on_chat_model_start(self, serialized, messages, **kwargs):
-            add_message(analysis_id, "info", "Agent reasoning...")
             _bump_progress(analysis_id)
 
         def on_llm_start(self, serialized, prompts, **kwargs):
             _bump_progress(analysis_id)
 
+        def on_llm_end(self, response, **kwargs):
+            # Surface the model's generated text (analyst reports, debate turns,
+            # the final decision, etc.) into the GUI feed.
+            _bump_progress(analysis_id)
+            try:
+                for gen_list in response.generations:
+                    for gen in gen_list:
+                        text = (getattr(gen, "text", "") or "").strip()
+                        if not text:
+                            msg = getattr(gen, "message", None)
+                            content = getattr(msg, "content", "") if msg else ""
+                            text = content.strip() if isinstance(content, str) else ""
+                        if text:
+                            add_message(analysis_id, "agent", text)
+            except Exception as e:
+                logger.debug(f"on_llm_end parse error: {e}")
+
         def on_tool_start(self, serialized, input_str, **kwargs):
             name = (serialized or {}).get("name", "tool")
-            add_message(analysis_id, "info", f"Fetching data via {name}")
+            args = (input_str or "").strip()
+            if len(args) > 200:
+                args = args[:200] + "…"
+            label = f"🔧 {name}({args})" if args else f"🔧 {name}"
+            add_message(analysis_id, "tool", label)
             _bump_progress(analysis_id)
+
+        def on_tool_end(self, output, **kwargs):
+            text = str(getattr(output, "content", output) or "").strip()
+            if not text:
+                return
+            if len(text) > 1200:
+                text = text[:1200] + "\n… (truncated)"
+            add_message(analysis_id, "tool", text)
 
         def on_tool_error(self, error, **kwargs):
             add_message(analysis_id, "warning", f"Tool error: {error}")
