@@ -28,6 +28,18 @@ def _supports_effort(model: str) -> bool:
     return model_lc in _EFFORT_EXACT or bool(_EFFORT_PATTERN.match(model_lc))
 
 
+def _supports_temperature(model: str) -> bool:
+    """Whether Anthropic accepts the ``temperature`` parameter for this model.
+
+    Extended-thinking / reasoning models (the same Opus/Sonnet line that take
+    ``effort``) deprecate ``temperature`` and 400 with
+    ``"`temperature` is deprecated for this model."``. Non-reasoning models
+    (e.g. Haiku) still honor it. Gate by effort support so the forward-compat
+    pattern stays in one place.
+    """
+    return not _supports_effort(model)
+
+
 class NormalizedChatAnthropic(ChatAnthropic):
     """ChatAnthropic with normalized content output.
 
@@ -58,6 +70,8 @@ class AnthropicClient(BaseLLMClient):
             if key not in self.kwargs:
                 continue
             if key == "effort" and not _supports_effort(self.model):
+                continue
+            if key == "temperature" and not _supports_temperature(self.model):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 
