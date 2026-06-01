@@ -16,7 +16,7 @@ import uvicorn
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.llm_clients.model_catalog import MODEL_CATALOG
+from tradingagents.llm_clients.model_catalog import get_model_options, get_known_models
 from tradingagents.llm_clients.capabilities import get_model_capabilities
 
 # Configure logging
@@ -60,7 +60,10 @@ app.add_middleware(
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """Serve the main web app."""
-    return open("web/static/index.html").read()
+    import os
+    html_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    with open(html_path) as f:
+        return f.read()
 
 
 @app.get("/api/config")
@@ -87,14 +90,15 @@ async def get_config():
     models_by_provider = {}
     for provider in providers.keys():
         try:
-            models = [m for m in MODEL_CATALOG if m.get("provider") == provider]
+            # Get quick and deep thinking models for the provider
+            quick_models = get_model_options(provider, "quick")
+            deep_models = get_model_options(provider, "deep")
+
+            # Combine and deduplicate
+            all_models = list(set([m[1] for m in quick_models + deep_models]))[:10]
             models_by_provider[provider] = [
-                {
-                    "id": m["model_id"],
-                    "name": m.get("display_name", m["model_id"]),
-                    "context_window": m.get("context_window", "unknown"),
-                }
-                for m in models[:10]  # Limit to 10 per provider
+                {"id": model_id, "name": model_id}
+                for model_id in all_models
             ]
         except Exception as e:
             logger.warning(f"Error loading models for {provider}: {e}")
