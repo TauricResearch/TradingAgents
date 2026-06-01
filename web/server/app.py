@@ -24,11 +24,40 @@ log = logging.getLogger(__name__)
 # Per-run subscriber lists. _subs[run_id] = set of asyncio.Queue.
 _subs: dict[int, set[asyncio.Queue]] = {}
 
+# Set of currently-open WebSocket objects. Tracked so the lifespan teardown
+# can force-close them; otherwise a handler stuck in `ws.receive()` will keep
+# the ASGI portal from closing cleanly.
+_active_ws: set[WebSocket] = set()
+
+# Stash the FastAPI event loop here at startup so `_broadcast` (called from
+# worker threads) can schedule puts via `loop.call_soon_threadsafe`.
+# `asyncio.Queue.put_nowait` is not thread-safe across event loops and does
+# not wake the loop, so direct calls from other threads silently lose events.
+_broadcast_loop: Optional[asyncio.AbstractEventLoop] = None
+
 
 def _broadcast(run_id: int, evt: dict) -> None:
+    loop = _broadcast_loop
+    if loop is None:
+        return
     for q in list(_subs.get(run_id, ())):
         try:
-            q.put_nowait(evt)
+            loop.call_soon_threadsafe(q.put_nowait, evt)
+        except Exception:
+            pass
+
+
+async def _close_all_ws() -> None:
+    """Close every active WebSocket. Called from the lifespan finally block.
+
+    This unblocks any client stuck in `receive_json()` (the receive will
+    raise on the close frame) and lets the WS handler exit, so the ASGI
+    portal can shut down cleanly. Each close is awaited so the close
+    frame is actually flushed before the loop tears down.
+    """
+    for ws in list(_active_ws):
+        try:
+            await asyncio.wait_for(ws.close(code=1001, reason="server shutdown"), timeout=1.0)
         except Exception:
             pass
 
@@ -52,6 +81,7 @@ class RunIn(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _broadcast_loop
     settings = get_settings()
     logging.basicConfig(level=settings.log_level)
     db.init_db()
@@ -68,9 +98,17 @@ async def lifespan(app: FastAPI):
     feed.start(broadcast=_broadcast)
     app.state.price_feed = feed
     app.state.price_state = state
+    # Stash the running loop so `_broadcast` (called from worker threads)
+    # can schedule puts via `call_soon_threadsafe`.
+    _broadcast_loop = asyncio.get_running_loop()
     try:
         yield
     finally:
+        _broadcast_loop = None
+        # Force-close any open WebSockets so handlers exit and the portal
+        # can shut down (clients blocked in receive_json() get a clean
+        # disconnect and unblock their threads).
+        await _close_all_ws()
         await feed.stop()
         await runner.stop()
 
@@ -143,6 +181,7 @@ def create_app() -> FastAPI:
     @app.websocket("/ws/runs/{run_id}")
     async def ws_run(ws: WebSocket, run_id: int, since: int = 0):
         await ws.accept()
+        _active_ws.add(ws)
         # Replay persisted events since `since`
         for e in db.events_for_run(run_id, since_id=since):
             await ws.send_json({
@@ -156,14 +195,50 @@ def create_app() -> FastAPI:
         # Subscribe to live
         q: asyncio.Queue = asyncio.Queue(maxsize=1024)
         _subs.setdefault(run_id, set()).add(q)
+
+        # Background task: calls ws.receive() so we actually see the
+        # ASGI `websocket.disconnect` message and flip client_state.
+        # (Polling `ws.client_state` alone never detects a closed socket
+        # because starlette only updates that state inside `receive()`.)
+        disconnect = asyncio.Event()
+
+        async def _watch_close():
+            try:
+                while True:
+                    msg = await ws.receive()
+                    if msg.get("type") == "websocket.disconnect":
+                        break
+            except WebSocketDisconnect:
+                pass
+            except Exception:
+                pass
+            finally:
+                disconnect.set()
+
+        watcher = asyncio.create_task(_watch_close())
         try:
             while True:
-                evt = await q.get()
+                try:
+                    evt = await asyncio.wait_for(q.get(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    # No event in 0.5s. Check (a) client disconnect and
+                    # (b) server shutdown.
+                    if disconnect.is_set() or _broadcast_loop is None:
+                        break
+                    continue
                 await ws.send_json(evt)
         except WebSocketDisconnect:
             pass
         finally:
             _subs.get(run_id, set()).discard(q)
+            if not _subs.get(run_id):
+                _subs.pop(run_id, None)
+            _active_ws.discard(ws)
+            watcher.cancel()
+            try:
+                await watcher
+            except BaseException:
+                pass
 
     # static mount (only if build dir exists)
     settings = get_settings()
