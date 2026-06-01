@@ -1,8 +1,3 @@
----
-title: "2026-05-31 22:26:37 &middot; claude-opus-4-7"
-parent: ASML
-layout: default
----
 # Trading Analysis Report: ASML
 
 Generated: 2026-05-31 22:26:38

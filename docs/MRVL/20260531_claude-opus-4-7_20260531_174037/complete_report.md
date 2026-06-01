@@ -1,8 +1,3 @@
----
-title: "2026-05-31 17:40:37 &middot; claude-opus-4-7"
-parent: MRVL
-layout: default
----
 # Trading Analysis Report: MRVL
 
 Generated: 2026-05-31 17:40:38

@@ -1,8 +1,3 @@
----
-title: "2026-05-31 17:40:55 &middot; claude-opus-4-7"
-parent: AVGO
-layout: default
----
 # Trading Analysis Report: AVGO
 
 Generated: 2026-05-31 17:40:55

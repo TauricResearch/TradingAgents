@@ -1,4 +1,4 @@
-name: Deploy Jekyll site to Pages
+name: Deploy MkDocs site to Pages
 
 on:
   push:
@@ -17,34 +17,31 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: docs
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          ruby-version: "3.2"
-          bundler-cache: true
-          working-directory: docs
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install ".[docs]"
 
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Build with Jekyll
-        env:
-          JEKYLL_ENV: production
-          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-        run: bundle exec jekyll build --baseurl "$PAGES_BASE_PATH"
+      - name: Build with MkDocs
+        run: mkdocs build --strict --site-dir _site
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/_site
+          path: _site
 
   deploy:
     needs: build

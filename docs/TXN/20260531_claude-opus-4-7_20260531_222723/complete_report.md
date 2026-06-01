@@ -1,8 +1,3 @@
----
-title: "2026-05-31 22:27:23 &middot; claude-opus-4-7"
-parent: TXN
-layout: default
----
 # Trading Analysis Report: TXN
 
 Generated: 2026-05-31 22:27:23

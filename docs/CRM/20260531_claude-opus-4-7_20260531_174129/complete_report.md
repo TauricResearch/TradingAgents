@@ -1,8 +1,3 @@
----
-title: "2026-05-31 17:41:29 &middot; claude-opus-4-7"
-parent: CRM
-layout: default
----
 # Trading Analysis Report: CRM
 
 Generated: 2026-05-31 17:41:29

@@ -1,8 +1,3 @@
----
-title: "2026-05-31 17:41:14 &middot; claude-opus-4-7"
-parent: MSFT
-layout: default
----
 # Trading Analysis Report: MSFT
 
 Generated: 2026-05-31 17:41:15

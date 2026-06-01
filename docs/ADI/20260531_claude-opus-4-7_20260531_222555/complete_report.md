@@ -1,8 +1,3 @@
----
-title: "2026-05-31 22:25:55 &middot; claude-opus-4-7"
-parent: ADI
-layout: default
----
 # Trading Analysis Report: ADI
 
 Generated: 2026-05-31 22:25:56

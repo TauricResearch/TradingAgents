@@ -1,8 +1,3 @@
----
-title: "2026-05-31 22:27:36 &middot; claude-opus-4-7"
-parent: ANET
-layout: default
----
 # Trading Analysis Report: ANET
 
 Generated: 2026-05-31 22:27:36

@@ -1,8 +1,3 @@
----
-title: "2026-05-31 17:41:11 &middot; claude-opus-4-7"
-parent: INTC
-layout: default
----
 # Trading Analysis Report: INTC
 
 Generated: 2026-05-31 17:41:11

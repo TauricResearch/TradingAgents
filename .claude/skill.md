@@ -12,6 +12,6 @@ uv run python -m cli.main run \
     --analysts market,social,news,fundamentals \
     --depth 10 --language English \
     --provider anthropic \
-    --deep-model claude-opus-4-8 --quick-model claude-haiku-4-8 \
+    --deep-model claude-opus-4-7 --quick-model claude-sonnet-4-7 \
     --checkpoint --clear-checkpoints
 ```

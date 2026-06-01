@@ -1,8 +1,3 @@
----
-title: "2026-05-31 17:41:35 &middot; claude-opus-4-7"
-parent: BABA
-layout: default
----
 # Trading Analysis Report: BABA
 
 Generated: 2026-05-31 17:41:35

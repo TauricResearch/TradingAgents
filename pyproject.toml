@@ -33,6 +33,13 @@ dependencies = [
     "yfinance>=1.4.1",
 ]
 
+[project.optional-dependencies]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "pymdown-extensions>=10.0",
+]
+
 [project.scripts]
 tradingagents = "cli.main:app"
 

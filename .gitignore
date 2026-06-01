@@ -222,10 +222,13 @@ __marimo__/
 # Cache
 **/data_cache/
 
-# docs/ holds the run folders + rendered HTML and is the GitHub Pages
-# source (Settings → Pages → Source: main + /docs). Add new runs with
-# `git add docs/<run>` after the CLI saves them, then rerun
-# `python scripts/build_reports_site.py` to refresh the HTML.
+# docs/ holds the run folders + Markdown reports. The MkDocs Material
+# site is built from docs/ by .github/workflows/pages.yml. Add new runs
+# with `git add docs/<run>` after the CLI saves them, then rerun
+# `python scripts/build_reports_site.py` to refresh index/hub pages.
 
 # Enterprise env file (secrets)
 .env.enterprise
+
+# MkDocs build output
+_site/

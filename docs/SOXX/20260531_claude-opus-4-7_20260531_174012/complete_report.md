@@ -1,8 +1,3 @@
----
-title: "2026-05-31 17:40:12 &middot; claude-opus-4-7"
-parent: SOXX
-layout: default
----
 # Trading Analysis Report: SOXX
 
 Generated: 2026-05-31 17:40:13
