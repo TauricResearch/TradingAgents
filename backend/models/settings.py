@@ -39,6 +39,16 @@ class AppSettings(Base):
     llm_provider: Mapped[str] = mapped_column(String(50), default="openai")
     deep_think_llm: Mapped[str] = mapped_column(String(100), default="gpt-4o")
     quick_think_llm: Mapped[str] = mapped_column(String(100), default="gpt-4o-mini")
+    backend_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Provider-specific thinking/reasoning settings
+    openai_reasoning_effort: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    anthropic_effort: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    google_thinking_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # Output & graph behaviour
+    output_language: Mapped[str] = mapped_column(String(50), default="English")
+    analyst_concurrency_limit: Mapped[int] = mapped_column(Integer, default=1)
 
     # Debate rounds
     max_debate_rounds: Mapped[int] = mapped_column(Integer, default=1)

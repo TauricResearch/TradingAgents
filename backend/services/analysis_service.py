@@ -36,12 +36,14 @@ _REPORT_FIELDS = (
 
 def _build_config(settings: AppSettings) -> dict:
     """Convert AppSettings → TradingAgentsGraph-compatible config dict."""
-    return {
+    cfg: dict = {
         "llm_provider": settings.llm_provider,
         "deep_think_llm": settings.deep_think_llm,
         "quick_think_llm": settings.quick_think_llm,
         "max_debate_rounds": settings.max_debate_rounds,
         "max_risk_discuss_rounds": settings.max_risk_rounds,
+        "output_language": getattr(settings, "output_language", "English") or "English",
+        "analyst_concurrency_limit": getattr(settings, "analyst_concurrency_limit", 1) or 1,
         "data_vendors": {
             "core_stock_apis": settings.active_data_vendor,
             "technical_indicators": settings.active_data_vendor,
@@ -49,6 +51,17 @@ def _build_config(settings: AppSettings) -> dict:
             "news_data": settings.active_data_vendor,
         },
     }
+    # Optional: custom API base URL (for Ollama, LiteLLM, etc.)
+    if getattr(settings, "backend_url", None):
+        cfg["backend_url"] = settings.backend_url
+    # Provider-specific reasoning effort/thinking level
+    if getattr(settings, "openai_reasoning_effort", None):
+        cfg["openai_reasoning_effort"] = settings.openai_reasoning_effort
+    if getattr(settings, "anthropic_effort", None):
+        cfg["anthropic_effort"] = settings.anthropic_effort
+    if getattr(settings, "google_thinking_level", None):
+        cfg["google_thinking_level"] = settings.google_thinking_level
+    return cfg
 
 
 def _extract_stats(callbacks: list) -> dict:

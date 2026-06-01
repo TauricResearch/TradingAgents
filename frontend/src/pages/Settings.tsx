@@ -12,6 +12,12 @@ interface Settings {
   llm_provider: string
   deep_think_llm: string
   quick_think_llm: string
+  backend_url: string | null
+  openai_reasoning_effort: string | null
+  anthropic_effort: string | null
+  google_thinking_level: string | null
+  output_language: string
+  analyst_concurrency_limit: number
   max_debate_rounds: number
   max_risk_rounds: number
   max_position_size_pct: number
@@ -246,11 +252,72 @@ export default function Settings() {
           </>
         )}
 
+        {/* Backend URL — show for Ollama, LiteLLM, Azure, custom endpoints */}
+        {['ollama', 'litellm', 'azure', 'nvidia'].includes(s.llm_provider) && (
+          <Row label="API Base URL">
+            <input
+              className={Input}
+              value={s.backend_url || ''}
+              onChange={e => update('backend_url', e.target.value || null)}
+              placeholder="http://localhost:11434"
+            />
+          </Row>
+        )}
+
+        {/* Provider-specific reasoning settings */}
+        {s.llm_provider === 'openai' && (
+          <Row label="Reasoning Effort">
+            <select className={Input} value={s.openai_reasoning_effort || ''} onChange={e => update('openai_reasoning_effort', e.target.value || null)}>
+              <option value="">Varsayılan</option>
+              <option value="low">Low — Hızlı, ucuz</option>
+              <option value="medium">Medium — Dengeli</option>
+              <option value="high">High — En derin düşünce</option>
+            </select>
+          </Row>
+        )}
+        {s.llm_provider === 'anthropic' && (
+          <Row label="Thinking Effort">
+            <select className={Input} value={s.anthropic_effort || ''} onChange={e => update('anthropic_effort', e.target.value || null)}>
+              <option value="">Varsayılan</option>
+              <option value="low">Low — Hızlı</option>
+              <option value="medium">Medium — Dengeli</option>
+              <option value="high">High — Extended thinking</option>
+            </select>
+          </Row>
+        )}
+        {s.llm_provider === 'google' && (
+          <Row label="Thinking Level">
+            <select className={Input} value={s.google_thinking_level || ''} onChange={e => update('google_thinking_level', e.target.value || null)}>
+              <option value="">Varsayılan</option>
+              <option value="minimal">Minimal — En hızlı</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High — En derin</option>
+            </select>
+          </Row>
+        )}
+
+        <Row label="Çıktı Dili">
+          <select className={Input} value={s.output_language} onChange={e => update('output_language', e.target.value)}>
+            <option value="English">English</option>
+            <option value="Turkish">Türkçe</option>
+            <option value="German">Deutsch</option>
+            <option value="French">Français</option>
+            <option value="Spanish">Español</option>
+            <option value="Chinese">中文</option>
+            <option value="Japanese">日本語</option>
+            <option value="Arabic">العربية</option>
+          </select>
+        </Row>
+
         <Row label="Tartışma Turları">
           <input type="number" min="1" max="10" className={Input} value={s.max_debate_rounds} onChange={e => update('max_debate_rounds', parseInt(e.target.value))} />
         </Row>
         <Row label="Risk Turları">
           <input type="number" min="1" max="10" className={Input} value={s.max_risk_rounds} onChange={e => update('max_risk_rounds', parseInt(e.target.value))} />
+        </Row>
+        <Row label="Paralel Analist Sayısı">
+          <input type="number" min="1" max="16" className={Input} value={s.analyst_concurrency_limit} onChange={e => update('analyst_concurrency_limit', parseInt(e.target.value))} />
         </Row>
       </Section>
 
