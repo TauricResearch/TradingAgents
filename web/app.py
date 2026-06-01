@@ -208,20 +208,21 @@ async def get_config():
         "azure": "Azure OpenAI",
     }
 
-    # Get models for each provider
+    # Get models for each provider. Some providers (e.g. openrouter, azure)
+    # are not in the static catalog and resolve via "Custom model ID" instead;
+    # an empty list for them is expected, so don't log it as an error.
     models_by_provider = {}
     for provider in providers.keys():
         try:
-            # Get quick and deep thinking models for the provider
             quick_models = get_model_options(provider, "quick")
             deep_models = get_model_options(provider, "deep")
-
-            # Combine and deduplicate
             all_models = list(set([m[1] for m in quick_models + deep_models]))[:10]
             models_by_provider[provider] = [
-                {"id": model_id, "name": model_id}
-                for model_id in all_models
+                {"id": model_id, "name": model_id} for model_id in all_models
             ]
+        except KeyError:
+            # Provider has no catalog entry — fine, UI falls back to ENV/custom.
+            models_by_provider[provider] = []
         except Exception as e:
             logger.warning(f"Error loading models for {provider}: {e}")
             models_by_provider[provider] = []
@@ -376,21 +377,22 @@ async def websocket_analyze(websocket: WebSocket, analysis_id: str):
         return
 
     await websocket.accept()
-
-    # Send initial state
     analysis = active_analyses[analysis_id]
-    await websocket.send_json({
-        "type": "status",
-        "data": {
-            "id": analysis["id"],
-            "ticker": analysis["ticker"],
-            "date": analysis["date"],
-            "status": analysis["status"],
-        },
-    })
 
-    # Keep connection open and send updates
+    # All sends live inside the try so a client that disconnects immediately
+    # after accept (even before the first frame) is handled gracefully.
     try:
+        # Send initial state
+        await websocket.send_json({
+            "type": "status",
+            "data": {
+                "id": analysis["id"],
+                "ticker": analysis["ticker"],
+                "date": analysis["date"],
+                "status": analysis["status"],
+            },
+        })
+
         last_message_count = 0
         while analysis["status"] not in ["completed", "failed"]:
             current_message_count = len(analysis["messages"])
@@ -505,8 +507,31 @@ def run_analysis_task(
     except Exception as e:
         logger.error(f"Analysis error: {e}", exc_info=True)
         analysis["status"] = "failed"
-        analysis["error"] = str(e)
-        add_message(analysis_id, "error", f"Analysis failed: {str(e)}")
+        friendly = _humanize_error(e)
+        analysis["error"] = friendly
+        add_message(analysis_id, "error", f"Analysis failed: {friendly}")
+
+
+def _humanize_error(error: Exception) -> str:
+    """Turn opaque SDK errors into actionable guidance for the UI."""
+    text = str(error)
+    lowered = text.lower()
+
+    if "429" in text or "rate_limit" in lowered or "rate limit" in lowered:
+        return (
+            "Rate limit hit on your LLM provider. The multi-agent analysis "
+            "makes many large-prompt calls, which can exceed low per-minute "
+            "token limits (e.g. Anthropic Tier-1 is 10,000 input tokens/min). "
+            "Try: (1) select fewer analysts and 1 debate round, (2) switch to "
+            "a provider/key with a higher limit, or (3) raise your provider's "
+            "rate limit / usage tier, then re-run."
+        )
+    if "authentication" in lowered or "401" in text or "api key" in lowered:
+        return (
+            "Authentication failed for the LLM provider. Verify the API key "
+            "environment variable is set correctly in Railway and redeploy."
+        )
+    return text
 
 
 def add_message(analysis_id: str, level: str, content: str):
