@@ -225,6 +225,23 @@ curl https://your-app.up.railway.app/health
 | `TRADINGAGENTS_RESULTS_DIR` | ~/.tradingagents/logs | Results directory |
 | `TRADINGAGENTS_MEMORY_LOG_PATH` | ~/.tradingagents/memory/trading_memory.md | Decision log |
 
+### Autotrading (Alpaca) — optional
+
+Set these to enable confirmed order execution from the web UI. After an
+analysis completes with a Buy/Overweight (→ buy) or Sell/Underweight (→ sell)
+rating, the UI shows a proposed order that **you must approve** before it is
+sent to Alpaca.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ALPACA_API_KEY` | - | Alpaca API key id (enables the trade panel) |
+| `ALPACA_SECRET_KEY` | - | Alpaca API secret |
+| `ALPACA_PAPER` | false | `true` routes to the paper endpoint; otherwise LIVE. Keys must match the endpoint. |
+
+⚠️ With `ALPACA_PAPER` unset/false the app places **real-money** orders on
+your live Alpaca account (still only after you click approve). Use paper keys
++ `ALPACA_PAPER=true` to validate first.
+
 ## Advanced Configuration
 
 ### Custom Backend URL

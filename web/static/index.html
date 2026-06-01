@@ -933,7 +933,7 @@
             fill.className = "progress-fill " + fillClass;
         }
 
-        function displayResults(result, error) {
+        function displayResults(result, error, proposedOrder, orderResult) {
             const resultsSection = document.getElementById("resultsSection");
             const resultsContainer = document.getElementById("resultsContainer");
             resultsContainer.innerHTML = "";
@@ -946,18 +946,121 @@
                     </div>
                 `;
             } else if (result) {
+                const rating = result.rating || result.decision || "—";
                 resultsContainer.innerHTML = `
                     <div class="result-card success">
                         <h3>✓ Trading Decision</h3>
                         <p><strong>Ticker:</strong> ${escapeHtml(result.ticker)}</p>
                         <p><strong>Date:</strong> ${escapeHtml(result.date)}</p>
-                        <p><strong>Decision:</strong></p>
-                        <p>${escapeHtml(JSON.stringify(result.decision, null, 2))}</p>
+                        <p><strong>Rating:</strong> ${escapeHtml(String(rating))}</p>
                     </div>
                 `;
+                renderExecutionPanel(resultsContainer, result, proposedOrder, orderResult);
             }
 
             resultsSection.classList.remove("hidden");
+        }
+
+        function renderExecutionPanel(container, result, proposedOrder, orderResult) {
+            // Already executed for this analysis.
+            if (orderResult) {
+                const div = document.createElement("div");
+                div.className = "result-card success";
+                div.innerHTML = `
+                    <h3>✅ Order Placed</h3>
+                    <p><strong>${escapeHtml(orderResult.side.toUpperCase())} ${escapeHtml(orderResult.symbol)}</strong>
+                       — status: ${escapeHtml(String(orderResult.status))}</p>
+                    <p>Order ID: ${escapeHtml(String(orderResult.id))}</p>
+                `;
+                container.appendChild(div);
+                return;
+            }
+
+            // Hold (or no broker configured) → nothing to execute.
+            if (!proposedOrder) {
+                const action = (result.action || "hold").toLowerCase();
+                if (action === "hold") {
+                    const div = document.createElement("div");
+                    div.className = "result-card";
+                    div.innerHTML = `<h3>No Trade</h3><p>The decision is Hold — no order proposed.</p>`;
+                    container.appendChild(div);
+                }
+                // If directional but broker not configured, stay quiet here;
+                // the activity log already notes the proposal status.
+                return;
+            }
+
+            const side = proposedOrder.side.toUpperCase();
+            const mode = proposedOrder.mode || "live";
+            const div = document.createElement("div");
+            div.className = "result-card";
+            div.style.borderLeftColor = side === "BUY" ? "#28a745" : "#dc3545";
+            div.innerHTML = `
+                <h3>${side === "BUY" ? "🟢" : "🔴"} Proposed Order — confirmation required</h3>
+                <p><strong>${side} ${escapeHtml(proposedOrder.symbol)}</strong>
+                   (rating: ${escapeHtml(proposedOrder.rating)})
+                   <span style="padding:2px 8px;border-radius:4px;background:${mode === 'live' ? '#ffe6e6' : '#e7f3ff'};
+                   color:${mode === 'live' ? '#dc3545' : '#0066cc'};font-weight:600;font-size:0.85em;">
+                   ${mode.toUpperCase()}</span></p>
+                <div class="form-group" style="max-width:260px;margin-top:12px;">
+                    <label for="orderNotional">Order amount (USD)</label>
+                    <input type="number" id="orderNotional" min="1" step="1" value="100">
+                </div>
+                <button class="button button-primary" id="executeBtn" style="max-width:260px;">
+                    <span class="spinner" style="display:none;" id="executeSpinner"></span>
+                    <span id="executeBtnText">Approve &amp; place ${side} order</span>
+                </button>
+                <p style="font-size:0.8em;color:var(--text-light);margin-top:10px;">
+                    ${mode === 'live'
+                        ? '⚠️ This places a REAL order with real money on your Alpaca account.'
+                        : 'Paper account — no real money at risk.'}
+                </p>
+                <div id="executeResult" style="margin-top:10px;"></div>
+            `;
+            container.appendChild(div);
+
+            document.getElementById("executeBtn").addEventListener("click", () => executeOrder(side));
+        }
+
+        async function executeOrder(side) {
+            const btn = document.getElementById("executeBtn");
+            const spinner = document.getElementById("executeSpinner");
+            const resultEl = document.getElementById("executeResult");
+            const notional = parseFloat(document.getElementById("orderNotional").value);
+
+            if (!notional || notional <= 0) {
+                resultEl.innerHTML = `<span style="color:var(--error-color);">Enter a valid USD amount.</span>`;
+                return;
+            }
+            if (side === "BUY" || side === "SELL") {
+                if (!confirm(`Confirm: place a ${side} order for $${notional}? This is a real-money action.`)) {
+                    return;
+                }
+            }
+
+            btn.disabled = true;
+            spinner.style.display = "inline-block";
+            try {
+                const resp = await fetch(`/api/analyze/${appState.currentAnalysisId}/execute`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notional }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.detail || "Order failed");
+                }
+                resultEl.innerHTML = `<span style="color:var(--success-color);font-weight:600;">
+                    ✅ Order ${escapeHtml(String(data.order.status))} —
+                    ${escapeHtml(data.order.side.toUpperCase())} ${escapeHtml(data.order.symbol)}
+                    (id ${escapeHtml(String(data.order.id))})</span>`;
+                addMessage("success", `Order placed: ${data.order.side.toUpperCase()} ${data.order.symbol}`);
+                btn.style.display = "none";
+            } catch (e) {
+                resultEl.innerHTML = `<span style="color:var(--error-color);">❌ ${escapeHtml(e.message)}</span>`;
+                btn.disabled = false;
+                spinner.style.display = "none";
+            }
         }
 
         // ====================================================================
@@ -999,7 +1102,12 @@
                             data.data.status === "completed" ? 100 : 0,
                             data.data.status
                         );
-                        displayResults(data.data.result, data.data.error);
+                        displayResults(
+                            data.data.result,
+                            data.data.error,
+                            data.data.proposed_order,
+                            data.data.order_result
+                        );
                         break;
                 }
             };

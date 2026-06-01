@@ -16,6 +16,7 @@ import uvicorn
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.model_catalog import get_model_options, get_known_models
 from tradingagents.llm_clients.api_key_env import get_api_key_env, PROVIDER_API_KEY_ENV
+from web.broker import AlpacaBroker, rating_to_side
 
 # Heavy imports (trading_graph imports yfinance, etc.) will be done lazily in background tasks
 
@@ -356,6 +357,8 @@ async def start_analysis(background_tasks: BackgroundTasks, request_data: Dict[s
             "result": None,
             "error": None,
             "started_at": datetime.now().isoformat(),
+            "proposed_order": None,
+            "order_result": None,
         }
 
         # Run analysis in background
@@ -385,6 +388,8 @@ async def get_analysis_status(analysis_id: str):
         "result": analysis["result"],
         "error": analysis["error"],
         "started_at": analysis["started_at"],
+        "proposed_order": analysis.get("proposed_order"),
+        "order_result": analysis.get("order_result"),
     }
 
 
@@ -454,6 +459,8 @@ async def websocket_analyze(websocket: WebSocket, analysis_id: str):
                 "status": analysis["status"],
                 "result": analysis["result"],
                 "error": analysis["error"],
+                "proposed_order": analysis.get("proposed_order"),
+                "order_result": analysis.get("order_result"),
             },
         })
 
@@ -525,12 +532,32 @@ def run_analysis_task(
         analysis["progress"] = 90
 
         # Store result - ensure JSON serializable
+        rating = str(decision) if decision else None
+        side = rating_to_side(rating) if rating else None
         analysis["result"] = {
             "ticker": ticker,
             "date": date,
-            "decision": str(decision) if decision else None,
+            "decision": rating,
+            "rating": rating,
+            "action": side or "hold",
             "summary": "Analysis completed successfully",
         }
+        # Propose an order only when the rating is directional and a broker
+        # is configured. Execution still requires explicit user confirmation.
+        broker = AlpacaBroker()
+        if side and broker.is_configured():
+            analysis["proposed_order"] = {
+                "symbol": ticker,
+                "side": side,
+                "rating": rating,
+                "mode": broker.mode,
+            }
+            add_message(
+                analysis_id,
+                "info",
+                f"Proposed order: {side.upper()} {ticker} ({rating}) — "
+                f"awaiting your confirmation [{broker.mode}].",
+            )
         analysis["progress"] = 100
         analysis["status"] = "completed"
 
@@ -580,6 +607,78 @@ def add_message(analysis_id: str, level: str, content: str):
 # ============================================================================
 # Static Files & Health Check
 # ============================================================================
+
+
+# ============================================================================
+# Broker (Alpaca) — confirmed order execution
+# ============================================================================
+
+
+@app.get("/api/broker/status")
+async def broker_status():
+    """Report whether Alpaca is configured and, if so, the account snapshot."""
+    broker = AlpacaBroker()
+    if not broker.is_configured():
+        return {"configured": False, "mode": None, "account": None}
+    try:
+        account = await asyncio.to_thread(broker.get_account)
+        return {"configured": True, "mode": broker.mode, "account": account}
+    except Exception as e:
+        logger.warning(f"Broker status error: {e}")
+        return {"configured": True, "mode": broker.mode, "account": None, "error": str(e)}
+
+
+@app.post("/api/analyze/{analysis_id}/execute")
+async def execute_trade(analysis_id: str, body: Dict[str, Any]):
+    """Place the proposed order for a completed analysis (user-confirmed).
+
+    Body: {"notional": <usd>} or {"qty": <shares>} — exactly one.
+    """
+    if analysis_id not in active_analyses:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    analysis = active_analyses[analysis_id]
+    proposed = analysis.get("proposed_order")
+    if not proposed:
+        raise HTTPException(
+            status_code=400,
+            detail="No proposed order for this analysis (Hold, or broker not configured).",
+        )
+    if analysis.get("order_result"):
+        raise HTTPException(status_code=409, detail="Order already executed for this analysis.")
+
+    broker = AlpacaBroker()
+    if not broker.is_configured():
+        raise HTTPException(status_code=400, detail="Alpaca is not configured on the server.")
+
+    notional = body.get("notional")
+    qty = body.get("qty")
+    if not notional and not qty:
+        notional = 100.0  # sensible default dollar amount
+    if notional and qty:
+        raise HTTPException(status_code=400, detail="Provide only one of notional or qty.")
+
+    try:
+        order = await asyncio.to_thread(
+            broker.place_order,
+            proposed["symbol"],
+            proposed["side"],
+            float(notional) if notional else None,
+            float(qty) if qty else None,
+        )
+    except Exception as e:
+        logger.error(f"Order execution failed: {e}")
+        add_message(analysis_id, "error", f"Order failed: {e}")
+        raise HTTPException(status_code=502, detail=str(e))
+
+    analysis["order_result"] = order
+    add_message(
+        analysis_id,
+        "success",
+        f"Order placed [{broker.mode}]: {order['side'].upper()} {order['symbol']} "
+        f"(status: {order['status']}, id: {order['id']}).",
+    )
+    return {"mode": broker.mode, "order": order}
 
 
 @app.get("/health")
