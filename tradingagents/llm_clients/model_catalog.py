@@ -146,7 +146,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Mistral Small 4 - Powerful small hybrid model", "mistral-small-2603"),
         ],
         "deep": [
-            ("Mistral Large 3 - latest large general-purpose multimodal model", "mistral-large-2512"),
+            ("Mistral Large 3 - Large general-purpose multimodal model", "mistral-large-2512"),
         ],
     },
     # Qwen: same model IDs across global (dashscope-intl) and China
