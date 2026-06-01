@@ -259,6 +259,10 @@ We welcome contributions from the community! Whether it's fixing a bug, improvin
 
 Past contributions, including code, design feedback, and bug reports, are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
 
+## Indian Market Support
+
+TradingAgents can be used to analyze Indian stocks listed on NSE and BSE exchanges using their respective ticker symbols (e.g., RELIANCE.NS for NSE and RELIANCE.BO for BSE).
+
 ## Citation
 
 Please reference our work if you find *TradingAgents* provides you with some help :)
@@ -274,6 +278,3 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
-## Indian Market Support
-
-TradingAgents can be used to analyze Indian stocks listed on NSE and BSE exchanges using their respective ticker symbols (e.g., RELIANCE.NS, TCS.NS).
