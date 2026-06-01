@@ -18,6 +18,10 @@ from tradingagents.llm_clients import create_llm_client
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.experiments.postmortem import StrategyRuleStore
+from tradingagents.experiments.semantic_memory import SemanticMemory
+from tradingagents.experiments.visual_analyst import VisualChartAnalyst
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.agents.utils.agent_states import (
     AgentState,
@@ -102,6 +106,14 @@ class TradingAgentsGraph:
         self.quick_thinking_llm = quick_client.get_llm()
         
         self.memory_log = TradingMemoryLog(self.config)
+        semantic_path = self.config.get("semantic_memory_path")
+        self.semantic_memory = SemanticMemory(semantic_path) if semantic_path else None
+        self.strategy_rule_store = StrategyRuleStore(self.config["strategy_rules_path"]) if self.config.get("strategy_rules_path") else None
+        self.visual_analyst = (
+            VisualChartAnalyst(self.quick_thinking_llm, Path(self.config["data_cache_dir"]) / "charts")
+            if self.config.get("visual_analysis_enabled")
+            else None
+        )
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -163,6 +175,18 @@ class TradingAgentsGraph:
             kwargs["temperature"] = float(temperature)
 
         return kwargs
+
+    def _semantic_store(self) -> Optional[SemanticMemory]:
+        store = getattr(self, "semantic_memory", None)
+        return store if isinstance(store, SemanticMemory) else None
+
+    def _rule_store(self) -> Optional[StrategyRuleStore]:
+        store = getattr(self, "strategy_rule_store", None)
+        return store if isinstance(store, StrategyRuleStore) else None
+
+    def _visual_chart_analyst(self) -> Optional[VisualChartAnalyst]:
+        analyst = getattr(self, "visual_analyst", None)
+        return analyst if isinstance(analyst, VisualChartAnalyst) else None
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
@@ -297,6 +321,11 @@ class TradingAgentsGraph:
                 "holding_days": days,
                 "reflection": reflection,
             })
+            semantic_store = TradingAgentsGraph._semantic_store(self)
+            if semantic_store:
+                semantic_store.resolve_outcome(
+                    ticker, entry["date"], raw, alpha, reflection
+                )
 
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
@@ -359,6 +388,18 @@ class TradingAgentsGraph:
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents.
         past_context = self.memory_log.get_past_context(company_name)
+        situation = f"{company_name} on {trade_date}. {past_context[-1200:]}"
+        semantic_store = TradingAgentsGraph._semantic_store(self)
+        if semantic_store:
+            similar = semantic_store.format_matches(
+                semantic_store.find_similar(company_name, situation)
+            )
+            if similar:
+                past_context = "\n\n".join(part for part in [past_context, similar] if part)
+        rule_store = TradingAgentsGraph._rule_store(self)
+        visual_analyst = TradingAgentsGraph._visual_chart_analyst(self)
+        strategy_rules = rule_store.as_prompt() if rule_store else ""
+        visual_report = visual_analyst.analyze(company_name, str(trade_date)) if visual_analyst else ""
         instrument_context = self.resolve_instrument_context(company_name, asset_type)
         init_agent_state = self.propagator.create_initial_state(
             company_name,
@@ -366,6 +407,8 @@ class TradingAgentsGraph:
             asset_type=asset_type,
             past_context=past_context,
             instrument_context=instrument_context,
+            visual_report=visual_report,
+            strategy_rules=strategy_rules,
         )
         args = self.propagator.get_graph_args()
 
@@ -402,6 +445,17 @@ class TradingAgentsGraph:
             trade_date=trade_date,
             final_trade_decision=final_state["final_trade_decision"],
         )
+        if semantic_store:
+            semantic_store.store_decision(
+                company_name,
+                str(trade_date),
+                parse_rating(final_state["final_trade_decision"]),
+                (
+                    f"{company_name} on {trade_date}. "
+                    f"Market: {final_state.get('market_report', '')[-1200:]} "
+                    f"News: {final_state.get('news_report', '')[-600:]}"
+                ),
+            )
 
         # Clear checkpoint on successful completion to avoid stale state.
         if self.config.get("checkpoint_enabled"):

@@ -177,11 +177,11 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "nvidia": {
         "quick": [
-            ("Kimi K2.6 (MoonshotAI)", "moonshotai/kimi-k2.6"),
+            ("nemotron-3-nano-omni-30b-a3b-reasoning", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("Kimi K2.6 (MoonshotAI)", "moonshotai/kimi-k2.6"),
+            ("nemotron-3-super-120b-a12b", "nvidia/nemotron-3-super-120b-a12b"),
             ("Custom model ID", "custom"),
         ],
     },

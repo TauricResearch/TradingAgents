@@ -239,6 +239,23 @@ See `tradingagents/default_config.py` for all configuration options.
 
 TradingAgents persists two kinds of state across runs.
 
+## Research Experiments
+
+Optional experiment scripts build on the same single-ticker graph:
+
+```bash
+python scripts/run_backtest.py NVDA 2026-01-01 2026-04-01
+python scripts/run_portfolio.py 2026-04-01 NVDA AAPL MSFT AMZN GOOGL
+python scripts/run_postmortem.py
+```
+
+Backtests execute rating-based target weights and report return, Sharpe ratio,
+and max drawdown. Portfolio runs add correlation-aware risk-parity weights.
+Resolved decisions are also stored in lightweight SQLite semantic memory, so
+future runs can retrieve similar historical situations. Set
+`visual_analysis_enabled = True` in your config to add an optional chart-image
+analysis before the bull/bear debate. Chart rendering requires `matplotlib`.
+
 ### Decision log
 
 The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.

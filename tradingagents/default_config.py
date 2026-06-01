@@ -47,6 +47,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
     "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md")),
+    "semantic_memory_path": os.getenv("TRADINGAGENTS_SEMANTIC_MEMORY_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "semantic_memory.db")),
+    "strategy_rules_path": os.getenv("TRADINGAGENTS_STRATEGY_RULES_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "strategy_rules.json")),
+    "visual_analysis_enabled": False,
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
