@@ -1,35 +1,46 @@
 services:
-  tradingagents:
-    build: .
-    env_file:
-      - .env
-    volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
-    tty: true
-    stdin_open: true
-
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/root/.ollama
-    profiles:
-      - ollama
-
-  tradingagents-ollama:
-    build: .
-    env_file:
-      - .env
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      - LLM_PROVIDER=ollama
+      POSTGRES_DB: tradingagents
+      POSTGRES_USER: tradingagents
+      POSTGRES_PASSWORD: tradingagents
     volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradingagents"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: tradingagents_web/Dockerfile.backend
+    restart: unless-stopped
     depends_on:
-      - ollama
-    tty: true
-    stdin_open: true
-    profiles:
-      - ollama
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://tradingagents:tradingagents@postgres:5432/tradingagents
+      CORS_ORIGINS: '["http://localhost:5173","http://localhost:80"]'
+    ports:
+      - "8000:8000"
+    volumes:
+      - tradingagents_data:/root/.tradingagents
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
 
 volumes:
+  pgdata:
   tradingagents_data:
-  ollama_data:

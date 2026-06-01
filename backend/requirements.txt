@@ -1,0 +1,52 @@
+# FastAPI & Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+httpx>=0.28.0
+websockets>=14.0
+python-multipart>=0.0.20
+
+# Database & ORM
+sqlalchemy[asyncio]>=2.0.0
+asyncpg>=0.30.0
+alembic>=1.14.0
+
+# Authentication & Security
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+cryptography>=44.0.0
+
+# Configuration & Environment
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.1
+
+# Scheduling
+apscheduler>=3.10.0
+
+# LangChain & LLM Integration (from CLI)
+langchain-core>=0.3.81
+langchain-anthropic>=0.3.15
+langchain-experimental>=0.3.4
+langchain-google-genai>=4.0.0
+langchain-openai>=0.3.23
+langgraph>=0.4.8
+langgraph-checkpoint-sqlite>=2.0.0
+
+# Trading & Data Analysis
+backtrader>=1.9.78.123
+pandas>=2.3.0
+yfinance>=0.2.63
+stockstats>=0.6.5
+
+# Utilities
+requests>=2.32.4
+pytz>=2025.2
+tqdm>=4.67.1
+python-dateutil>=2.8.2
+parsel>=1.10.0
+setuptools>=80.9.0
+typing-extensions>=4.14.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
