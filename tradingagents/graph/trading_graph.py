@@ -4,12 +4,17 @@ import logging
 import os
 from pathlib import Path
 import json
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Tuple, List, Optional
 
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 from langgraph.prebuilt import ToolNode
 
@@ -313,7 +318,14 @@ class TradingAgentsGraph:
         identity = resolve_instrument_identity(ticker)
         return build_instrument_context(ticker, asset_type, identity)
 
-    def propagate(self, company_name, trade_date, asset_type: str = "stock"):
+    def propagate(
+        self,
+        company_name,
+        trade_date,
+        asset_type: str = "stock",
+        *,
+        event_callback: Callable[[str, dict], None] | None = None,
+    ):
         """Run the trading agents graph for a company on a specific date.
 
         ``asset_type`` selects between the stock pipeline (default) and the
@@ -322,6 +334,13 @@ class TradingAgentsGraph:
         ``checkpoint_enabled`` is set in config, the graph is recompiled with
         a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
+
+        ``event_callback`` (keyword-only, optional) is invoked with
+        ``(event_name, payload)`` tuples as the graph streams through its
+        nodes. Currently fires ``"node_entered"`` with ``{"node": <name>,
+        "ts": <iso8601-utc>}`` immediately before each per-node state delta
+        is merged. Exceptions raised by the callback are logged and swallowed
+        so they never break the run.
         """
         self.ticker = company_name
 
@@ -347,14 +366,22 @@ class TradingAgentsGraph:
                 logger.info("Starting fresh for %s on %s", company_name, trade_date)
 
         try:
-            return self._run_graph(company_name, trade_date, asset_type=asset_type)
+            return self._run_graph(
+                company_name, trade_date, asset_type=asset_type, event_callback=event_callback
+            )
         finally:
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
 
-    def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
+    def _run_graph(
+        self,
+        company_name,
+        trade_date,
+        asset_type: str = "stock",
+        event_callback: Callable[[str, dict], None] | None = None,
+    ):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents.
@@ -386,6 +413,14 @@ class TradingAgentsGraph:
             # state matches what graph.invoke() yields in the non-debug path.
             final_state = {}
             for chunk in trace:
+                if event_callback is not None:
+                    try:
+                        event_callback(
+                            "node_entered",
+                            {"node": next(iter(chunk)), "ts": _now_iso()},
+                        )
+                    except Exception:  # callbacks must never break the run
+                        logger.exception("event_callback raised; continuing")
                 final_state.update(chunk)
         else:
             final_state = self.graph.invoke(init_agent_state, **args)
