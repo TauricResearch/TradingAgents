@@ -73,6 +73,31 @@ _MINIMAX_MODELS: Dict[str, List[ModelOption]] = {
 }
 
 
+
+# NVIDIA NIM exposes an OpenAI-compatible endpoint at
+# https://integrate.api.nvidia.com/v1. These are the suggested model IDs
+# from the provider request, while "Custom model ID" keeps the flow usable
+# for any other NIM-hosted model.
+_NVIDIA_NIM_MODELS: Dict[str, List[ModelOption]] = {
+    "quick": [
+        ("DeepSeek V4 Flash Free", "z-ai/deepseek-v4-flash-free"),
+        ("Kimi K2.6", "z-ai/kimi-k2.6"),
+        ("MiniMax M2.7", "z-ai/minimax-m2.7"),
+        ("Qwen 3.6 Plus", "z-ai/qwen3.6-plus"),
+        ("Nemotron 3 Super Free", "z-ai/nemotron-3-super-free"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("DeepSeek V4 Flash Free", "z-ai/deepseek-v4-flash-free"),
+        ("Kimi K2.6", "z-ai/kimi-k2.6"),
+        ("MiniMax M2.7", "z-ai/minimax-m2.7"),
+        ("Qwen 3.6 Plus", "z-ai/qwen3.6-plus"),
+        ("Nemotron 3 Super Free", "z-ai/nemotron-3-super-free"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
+
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
@@ -153,6 +178,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # so the two provider keys share one model list.
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
+    "nvidia_nim": _NVIDIA_NIM_MODELS,
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     # Ollama display labels intentionally omit a "local" marker — the
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
