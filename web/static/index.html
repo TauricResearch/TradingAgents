@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradingAgents - Multi-Agent Financial Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #0066cc;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --bg-dark: #1a1a1a;
+            --bg-light: #f5f5f5;
+            --text-dark: #333;
+            --text-light: #999;
+            --border-color: #ddd;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        /* Main Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .sidebar h2 {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        /* Form Groups */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-dark);
+            font-size: 0.95em;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.95em;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+
+        .form-group input[type="date"] {
+            cursor: pointer;
+        }
+
+        /* Analyst Selection */
+        .analyst-group {
+            margin: 20px 0;
+        }
+
+        .analyst-group h3 {
+            font-size: 0.95em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-dark);
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background-color: var(--bg-light);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .checkbox-description {
+            font-size: 0.85em;
+            color: var(--text-light);
+            margin-left: 28px;
+            margin-top: -2px;
+        }
+
+        /* Advanced Options */
+        .advanced-toggle {
+            background: var(--bg-light);
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            font-weight: 600;
+            user-select: none;
+        }
+
+        .advanced-toggle:hover {
+            background: #e9e9e9;
+        }
+
+        .advanced-options {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .advanced-options.show {
+            display: block;
+        }
+
+        /* Buttons */
+        .button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .button-primary {
+            background: var(--primary-color);
+            color: white;
+            width: 100%;
+        }
+
+        .button-primary:hover {
+            background: #0052a3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+
+        .button-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-secondary {
+            background: var(--bg-light);
+            color: var(--text-dark);
+            border: 1px solid var(--border-color);
+        }
+
+        .button-secondary:hover {
+            background: #f0f0f0;
+        }
+
+        /* Main Content */
+        .content {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content.hidden {
+            display: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-light);
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h2 {
+            font-size: 1.5em;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+        }
+
+        /* Progress */
+        .progress-container {
+            margin-bottom: 25px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .progress-header h3 {
+            font-weight: 600;
+        }
+
+        .progress-status {
+            font-size: 0.9em;
+            color: var(--text-light);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-light);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), #667eea);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.success {
+            background: linear-gradient(90deg, var(--success-color), #20c997);
+        }
+
+        .progress-fill.error {
+            background: linear-gradient(90deg, var(--error-color), #fd7e14);
+        }
+
+        /* Messages */
+        .messages-container {
+            background: var(--bg-light);
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 0.9em;
+        }
+
+        .message {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 3px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .message.info {
+            background: #e7f3ff;
+            color: #0066cc;
+        }
+
+        .message.success {
+            background: #e6f9ed;
+            color: #28a745;
+        }
+
+        .message.error {
+            background: #ffe6e6;
+            color: #dc3545;
+        }
+
+        .message.warning {
+            background: #fff3e0;
+            color: #ff9800;
+        }
+
+        .message-icon {
+            font-weight: bold;
+            min-width: 20px;
+        }
+
+        .message-text {
+            flex: 1;
+        }
+
+        .message-time {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+
+        /* Results */
+        .results-section {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 2px solid var(--border-color);
+        }
+
+        .results-section h2 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        .result-card {
+            background: var(--bg-light);
+            border-left: 4px solid var(--primary-color);
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .result-card.success {
+            border-left-color: var(--success-color);
+        }
+
+        .result-card.error {
+            border-left-color: var(--error-color);
+        }
+
+        .result-card h3 {
+            margin-bottom: 10px;
+            color: var(--text-dark);
+        }
+
+        .result-card p {
+            color: var(--text-light);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Loader */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: relative;
+                top: auto;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .sidebar {
+                padding: 15px;
+            }
+
+            .content {
+                padding: 15px;
+            }
+
+            .button {
+                padding: 10px 16px;
+                font-size: 0.95em;
+            }
+        }
+
+        /* Scrollbar */
+        .messages-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb {
+            background: #999;
+            border-radius: 4px;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 TradingAgents</h1>
+            <p>Multi-Agent LLM Financial Analysis Framework</p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <h2>Analysis Configuration</h2>
+
+                <form id="analysisForm">
+                    <!-- Ticker Input -->
+                    <div class="form-group">
+                        <label for="ticker">Stock Ticker *</label>
+                        <input
+                            type="text"
+                            id="ticker"
+                            placeholder="e.g., AAPL, NVDA, 0700.HK"
+                            required
+                        >
+                    </div>
+
+                    <!-- Date Input -->
+                    <div class="form-group">
+                        <label for="analysisDate">Analysis Date *</label>
+                        <input
+                            type="date"
+                            id="analysisDate"
+                            required
+                        >
+                    </div>
+
+                    <!-- LLM Provider -->
+                    <div class="form-group">
+                        <label for="llmProvider">LLM Provider</label>
+                        <select id="llmProvider">
+                            <option value="">Auto (from ENV)</option>
+                        </select>
+                    </div>
+
+                    <!-- Deep Thinking Model -->
+                    <div class="form-group">
+                        <label for="deepThinkModel">Deep Thinking Model</label>
+                        <select id="deepThinkModel">
+                            <option value="">Auto (from ENV)</option>
+                        </select>
+                    </div>
+
+                    <!-- Analyst Selection -->
+                    <div class="analyst-group">
+                        <h3>Select Analysts</h3>
+                        <div id="analystsList"></div>
+                    </div>
+
+                    <!-- Advanced Options -->
+                    <div class="advanced-toggle" onclick="toggleAdvanced()">
+                        <span>Advanced Options</span>
+                        <span id="advancedToggleIcon">▶</span>
+                    </div>
+
+                    <div class="advanced-options" id="advancedOptions">
+                        <!-- Temperature -->
+                        <div class="form-group">
+                            <label for="temperature">Temperature (0.0 - 1.0)</label>
+                            <input
+                                type="range"
+                                id="temperature"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value="0.7"
+                            >
+                            <div style="font-size: 0.85em; color: var(--text-light); margin-top: 4px;">
+                                Value: <span id="tempValue">0.7</span>
+                            </div>
+                        </div>
+
+                        <!-- Debate Rounds -->
+                        <div class="form-group">
+                            <label for="debateRounds">Debate Rounds</label>
+                            <input
+                                type="number"
+                                id="debateRounds"
+                                min="1"
+                                max="5"
+                                value="2"
+                            >
+                        </div>
+
+                        <!-- Checkpoint Resume -->
+                        <div class="checkbox-item" style="padding: 8px 0;">
+                            <input
+                                type="checkbox"
+                                id="checkpointEnabled"
+                            >
+                            <label for="checkpointEnabled">Enable Checkpoint Resume</label>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="button button-primary" id="submitBtn">
+                        <span class="spinner" style="display: none;" id="spinner"></span>
+                        <span id="submitText">Start Analysis</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Main Content -->
+            <div class="content" id="emptyState">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h2>Ready to Analyze</h2>
+                    <p>
+                        Configure your analysis on the left and click "Start Analysis"<br>
+                        Real-time updates will appear here as agents work.
+                    </p>
+                </div>
+            </div>
+
+            <div class="content hidden" id="analysisContent">
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <h3>
+                            <span id="progressTitle">Analysis Progress</span>
+                        </h3>
+                        <div class="progress-status">
+                            <span id="progressPercent">0%</span>
+                            <span id="progressStatus" style="margin-left: 10px; color: var(--primary-color); font-weight: 600;"></span>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 style="margin-bottom: 10px; color: var(--text-dark);">Agent Activity</h3>
+                    <div class="messages-container" id="messagesContainer"></div>
+                </div>
+
+                <div class="results-section hidden" id="resultsSection">
+                    <h2>Analysis Results</h2>
+                    <div id="resultsContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ====================================================================
+        // State Management
+        // ====================================================================
+
+        let appState = {
+            config: null,
+            currentAnalysisId: null,
+            ws: null,
+            messageCount: 0,
+        };
+
+        // ====================================================================
+        // Initialization
+        // ====================================================================
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Set today's date as default
+            const today = new Date().toISOString().split("T")[0];
+            document.getElementById("analysisDate").value = today;
+
+            // Load configuration
+            await loadConfig();
+
+            // Setup event listeners
+            document.getElementById("analysisForm").addEventListener("submit", handleSubmit);
+            document.getElementById("temperature").addEventListener("input", (e) => {
+                document.getElementById("tempValue").textContent = e.target.value;
+            });
+        });
+
+        // ====================================================================
+        // Configuration Loading
+        // ====================================================================
+
+        async function loadConfig() {
+            try {
+                const response = await fetch("/api/config");
+                const data = await response.json();
+                appState.config = data;
+
+                // Populate providers
+                const providerSelect = document.getElementById("llmProvider");
+                Object.entries(data.providers).forEach(([key, name]) => {
+                    const option = document.createElement("option");
+                    option.value = key;
+                    option.textContent = name;
+                    providerSelect.appendChild(option);
+                });
+
+                // Populate analysts
+                const analystsList = document.getElementById("analystsList");
+                data.analysts.forEach((analyst) => {
+                    const div = document.createElement("div");
+                    div.className = "checkbox-item";
+                    div.innerHTML = `
+                        <input
+                            type="checkbox"
+                            id="analyst_${analyst.id}"
+                            name="analysts"
+                            value="${analyst.id}"
+                            checked
+                        >
+                        <label for="analyst_${analyst.id}">${analyst.name}</label>
+                        <div class="checkbox-description">${analyst.description}</div>
+                    `;
+                    analystsList.appendChild(div);
+                });
+
+                // Setup provider change listener
+                providerSelect.addEventListener("change", updateModelsForProvider);
+                updateModelsForProvider();
+
+                // Set defaults
+                if (data.default_config) {
+                    document.getElementById("llmProvider").value = data.default_config.llm_provider || "";
+                    document.getElementById("temperature").value = data.default_config.temperature || 0.7;
+                    document.getElementById("debateRounds").value = data.default_config.max_debate_rounds || 2;
+                    document.getElementById("tempValue").textContent = data.default_config.temperature || 0.7;
+                }
+            } catch (error) {
+                console.error("Failed to load config:", error);
+            }
+        }
+
+        function updateModelsForProvider() {
+            const provider = document.getElementById("llmProvider").value;
+            const models = appState.config.models_by_provider[provider] || [];
+
+            const deepModelSelect = document.getElementById("deepThinkModel");
+            const currentValue = deepModelSelect.value;
+
+            deepModelSelect.innerHTML = '<option value="">Auto (from ENV)</option>';
+            models.forEach((model) => {
+                const option = document.createElement("option");
+                option.value = model.id;
+                option.textContent = `${model.name} (${model.context_window})`;
+                deepModelSelect.appendChild(option);
+            });
+
+            // Restore previous value if possible
+            if (currentValue && models.some((m) => m.id === currentValue)) {
+                deepModelSelect.value = currentValue;
+            }
+        }
+
+        // ====================================================================
+        // Form Handling
+        // ====================================================================
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+
+            const ticker = document.getElementById("ticker").value.trim().toUpperCase();
+            const date = document.getElementById("analysisDate").value;
+            const llmProvider = document.getElementById("llmProvider").value;
+            const deepThinkModel = document.getElementById("deepThinkModel").value;
+            const temperature = parseFloat(document.getElementById("temperature").value);
+            const debateRounds = parseInt(document.getElementById("debateRounds").value);
+            const checkpointEnabled = document.getElementById("checkpointEnabled").checked;
+
+            const analysts = Array.from(document.querySelectorAll('input[name="analysts"]:checked')).map(
+                (el) => el.value
+            );
+
+            if (!ticker || !date) {
+                alert("Please fill in all required fields");
+                return;
+            }
+
+            if (analysts.length === 0) {
+                alert("Please select at least one analyst");
+                return;
+            }
+
+            // Build config
+            const config = {};
+            if (llmProvider) config.llm_provider = llmProvider;
+            if (deepThinkModel) config.deep_think_llm = deepThinkModel;
+            config.temperature = temperature;
+            config.max_debate_rounds = debateRounds;
+            config.checkpoint_enabled = checkpointEnabled;
+
+            // Disable submit button
+            const submitBtn = document.getElementById("submitBtn");
+            submitBtn.disabled = true;
+            document.getElementById("spinner").style.display = "inline-block";
+
+            try {
+                // Start analysis
+                const response = await fetch("/api/analyze/start", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        ticker,
+                        date,
+                        config,
+                        analysts,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const result = await response.json();
+                appState.currentAnalysisId = result.analysis_id;
+
+                // Switch to analysis view
+                showAnalysisView(ticker, date);
+
+                // Connect WebSocket
+                connectWebSocket();
+            } catch (error) {
+                alert(`Error starting analysis: ${error.message}`);
+                submitBtn.disabled = false;
+                document.getElementById("spinner").style.display = "none";
+            }
+        }
+
+        function toggleAdvanced() {
+            const options = document.getElementById("advancedOptions");
+            const icon = document.getElementById("advancedToggleIcon");
+
+            options.classList.toggle("show");
+            icon.textContent = options.classList.contains("show") ? "▼" : "▶";
+        }
+
+        // ====================================================================
+        // UI Management
+        // ====================================================================
+
+        function showAnalysisView(ticker, date) {
+            document.getElementById("emptyState").classList.add("hidden");
+            document.getElementById("analysisContent").classList.remove("hidden");
+            document.getElementById("progressTitle").textContent = `${ticker} - ${date}`;
+            document.getElementById("messagesContainer").innerHTML = "";
+            appState.messageCount = 0;
+        }
+
+        function addMessage(level, content) {
+            const container = document.getElementById("messagesContainer");
+            const div = document.createElement("div");
+            div.className = `message ${level}`;
+
+            const time = new Date().toLocaleTimeString();
+            const icons = {
+                info: "ℹ️",
+                success: "✓",
+                error: "✕",
+                warning: "⚠",
+            };
+
+            div.innerHTML = `
+                <span class="message-icon">${icons[level] || "•"}</span>
+                <span class="message-text">${escapeHtml(content)}</span>
+                <span class="message-time">${time}</span>
+            `;
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            appState.messageCount++;
+        }
+
+        function updateProgress(progress, status) {
+            const fill = document.getElementById("progressFill");
+            fill.style.width = progress + "%";
+            document.getElementById("progressPercent").textContent = progress + "%";
+
+            let statusText = "";
+            let fillClass = "";
+
+            if (status === "completed") {
+                statusText = "✓ Completed";
+                fillClass = "success";
+            } else if (status === "failed") {
+                statusText = "✕ Failed";
+                fillClass = "error";
+            } else if (status === "running") {
+                statusText = "⟳ Running";
+            }
+
+            if (statusText) {
+                document.getElementById("progressStatus").textContent = statusText;
+            }
+
+            fill.className = "progress-fill " + fillClass;
+        }
+
+        function displayResults(result, error) {
+            const resultsSection = document.getElementById("resultsSection");
+            const resultsContainer = document.getElementById("resultsContainer");
+            resultsContainer.innerHTML = "";
+
+            if (error) {
+                resultsContainer.innerHTML = `
+                    <div class="result-card error">
+                        <h3>❌ Analysis Failed</h3>
+                        <p>${escapeHtml(error)}</p>
+                    </div>
+                `;
+            } else if (result) {
+                resultsContainer.innerHTML = `
+                    <div class="result-card success">
+                        <h3>✓ Trading Decision</h3>
+                        <p><strong>Ticker:</strong> ${escapeHtml(result.ticker)}</p>
+                        <p><strong>Date:</strong> ${escapeHtml(result.date)}</p>
+                        <p><strong>Decision:</strong></p>
+                        <p>${escapeHtml(JSON.stringify(result.decision, null, 2))}</p>
+                    </div>
+                `;
+            }
+
+            resultsSection.classList.remove("hidden");
+        }
+
+        // ====================================================================
+        // WebSocket Connection
+        // ====================================================================
+
+        function connectWebSocket() {
+            if (!appState.currentAnalysisId) return;
+
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${protocol}//${window.location.host}/ws/analyze/${appState.currentAnalysisId}`;
+
+            appState.ws = new WebSocket(wsUrl);
+
+            appState.ws.onopen = () => {
+                console.log("WebSocket connected");
+            };
+
+            appState.ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                switch (data.type) {
+                    case "status":
+                        updateProgress(10, "running");
+                        addMessage("info", `Starting analysis for ${data.data.ticker}...`);
+                        break;
+
+                    case "message":
+                        addMessage(data.data.level, data.data.content);
+                        break;
+
+                    case "progress":
+                        updateProgress(data.data.progress, data.data.status);
+                        break;
+
+                    case "complete":
+                        appState.ws.close();
+                        updateProgress(
+                            data.data.status === "completed" ? 100 : 0,
+                            data.data.status
+                        );
+                        displayResults(data.data.result, data.data.error);
+                        break;
+                }
+            };
+
+            appState.ws.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                addMessage("error", "Connection error - refresh page to retry");
+            };
+
+            appState.ws.onclose = () => {
+                console.log("WebSocket closed");
+            };
+        }
+
+        // ====================================================================
+        // Utilities
+        // ====================================================================
+
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
