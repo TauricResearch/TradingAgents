@@ -16,6 +16,7 @@ import uvicorn
 # Import lightweight config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.model_catalog import get_model_options, get_known_models
+from tradingagents.llm_clients.api_key_env import get_api_key_env, PROVIDER_API_KEY_ENV
 
 # Heavy imports (trading_graph imports yfinance, etc.) will be done lazily in background tasks
 
@@ -25,6 +26,64 @@ logger = logging.getLogger(__name__)
 
 # Global state for active analysis
 active_analyses: Dict[str, Dict[str, Any]] = {}
+
+# Sensible default models per provider, used when the chosen provider does
+# not match the configured models (e.g. provider=anthropic but the default
+# config still points deep_think_llm at an OpenAI "gpt-5.5"). Keeps the
+# provider and model in sync so the right SDK/key is exercised.
+PROVIDER_DEFAULT_MODELS: Dict[str, Dict[str, str]] = {
+    "openai":     {"deep": "gpt-5.5",            "quick": "gpt-5.4-mini"},
+    "anthropic":  {"deep": "claude-opus-4-8",    "quick": "claude-haiku-4-5"},
+    "google":     {"deep": "gemini-3.1-pro",     "quick": "gemini-3.1-flash"},
+    "xai":        {"deep": "grok-4",             "quick": "grok-4-mini"},
+    "deepseek":   {"deep": "deepseek-reasoner",  "quick": "deepseek-chat"},
+    "qwen":       {"deep": "qwen3.7-max",        "quick": "qwen3.6-flash"},
+    "qwen-cn":    {"deep": "qwen3.7-max",        "quick": "qwen3.6-flash"},
+    "glm":        {"deep": "glm-5.1",            "quick": "glm-5-turbo"},
+    "glm-cn":     {"deep": "glm-5.1",            "quick": "glm-5-turbo"},
+}
+
+
+def _first_configured_provider() -> Optional[str]:
+    """Return the first provider (in preference order) that has an API key set."""
+    preference = [
+        "openai", "anthropic", "google", "xai", "deepseek",
+        "qwen", "qwen-cn", "glm", "glm-cn", "minimax", "minimax-cn",
+        "openrouter",
+    ]
+    for provider in preference:
+        env_var = get_api_key_env(provider)
+        if env_var and os.environ.get(env_var):
+            return provider
+    return None
+
+
+def _resolve_provider_models(provider: str, config: Dict[str, Any]) -> None:
+    """Ensure config's models match the chosen provider, in-place.
+
+    If the user left the model as the default (or it belongs to a different
+    provider family), substitute that provider's recommended models so the
+    correct client and API key are used.
+    """
+    defaults = PROVIDER_DEFAULT_MODELS.get(provider)
+    if not defaults:
+        return
+
+    deep = config.get("deep_think_llm") or DEFAULT_CONFIG.get("deep_think_llm", "")
+    quick = config.get("quick_think_llm") or DEFAULT_CONFIG.get("quick_think_llm", "")
+
+    # Detect a provider/model family mismatch via known model-name prefixes.
+    family_prefixes = {
+        "openai": "gpt", "anthropic": "claude", "google": "gemini",
+        "xai": "grok", "deepseek": "deepseek", "qwen": "qwen", "qwen-cn": "qwen",
+        "glm": "glm", "glm-cn": "glm",
+    }
+    prefix = family_prefixes.get(provider, "")
+
+    if not deep or (prefix and not deep.lower().startswith(prefix)):
+        config["deep_think_llm"] = defaults["deep"]
+    if not quick or (prefix and not quick.lower().startswith(prefix)):
+        config["quick_think_llm"] = defaults["quick"]
 
 
 @asynccontextmanager
@@ -103,9 +162,24 @@ async def get_config():
             logger.warning(f"Error loading models for {provider}: {e}")
             models_by_provider[provider] = []
 
+    # Detect which providers have their API key configured in the environment
+    provider_key_status = {}
+    for provider in providers.keys():
+        env_var = get_api_key_env(provider)
+        if env_var is None:
+            # Local runtimes (ollama) need no key
+            provider_key_status[provider] = {"required": False, "configured": True, "env_var": None}
+        else:
+            provider_key_status[provider] = {
+                "required": True,
+                "configured": bool(os.environ.get(env_var)),
+                "env_var": env_var,
+            }
+
     return {
         "providers": providers,
         "models_by_provider": models_by_provider,
+        "provider_key_status": provider_key_status,
         "default_config": {
             "llm_provider": DEFAULT_CONFIG.get("llm_provider", "openai"),
             "deep_think_llm": DEFAULT_CONFIG.get("deep_think_llm", "gpt-5.5"),
@@ -139,6 +213,34 @@ async def start_analysis(background_tasks: BackgroundTasks, request_data: Dict[s
             raise HTTPException(status_code=400, detail="Ticker is required")
         if not date:
             raise HTTPException(status_code=400, detail="Date is required")
+
+        # Resolve provider: use the requested one, else the configured default,
+        # else auto-pick the first provider that has an API key configured.
+        provider = config.get("llm_provider") or DEFAULT_CONFIG.get("llm_provider", "openai")
+        env_var = get_api_key_env(provider)
+        if env_var is not None and not os.environ.get(env_var):
+            # The requested provider has no key. Try to auto-select one that does.
+            available = _first_configured_provider()
+            if available:
+                logger.info(
+                    f"Provider '{provider}' has no key; auto-selecting '{available}'"
+                )
+                provider = available
+                env_var = get_api_key_env(provider)
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"No API key configured for provider '{provider}'. "
+                        f"Set the {env_var} environment variable in your Railway "
+                        f"service (Variables tab) and redeploy. No other provider "
+                        f"has a key configured either."
+                    ),
+                )
+
+        # Lock in the resolved provider and keep its models in sync.
+        config["llm_provider"] = provider
+        _resolve_provider_models(provider, config)
 
         # Create analysis ID
         analysis_id = f"{ticker}_{int(datetime.now().timestamp())}"
@@ -288,6 +390,13 @@ def run_analysis_task(
 
         # Log start
         add_message(analysis_id, "info", f"Starting analysis for {ticker} on {date}")
+        add_message(
+            analysis_id,
+            "info",
+            f"Provider: {merged_config.get('llm_provider')} | "
+            f"deep: {merged_config.get('deep_think_llm')} | "
+            f"quick: {merged_config.get('quick_think_llm')}",
+        )
         analysis["progress"] = 20
 
         # Initialize graph

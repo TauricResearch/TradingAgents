@@ -669,12 +669,19 @@
                 const data = await response.json();
                 appState.config = data;
 
-                // Populate providers
+                // Populate providers, marking which have an API key configured
                 const providerSelect = document.getElementById("llmProvider");
+                const keyStatus = data.provider_key_status || {};
                 Object.entries(data.providers).forEach(([key, name]) => {
                     const option = document.createElement("option");
                     option.value = key;
-                    option.textContent = name;
+                    const status = keyStatus[key];
+                    let badge = "";
+                    if (status) {
+                        if (!status.required) badge = " — no key needed";
+                        else badge = status.configured ? " ✓ key set" : " ✗ no key";
+                    }
+                    option.textContent = name + badge;
                     providerSelect.appendChild(option);
                 });
 
@@ -703,11 +710,27 @@
 
                 // Set defaults
                 if (data.default_config) {
-                    document.getElementById("llmProvider").value = data.default_config.llm_provider || "";
                     document.getElementById("temperature").value = data.default_config.temperature || 0.7;
                     document.getElementById("debateRounds").value = data.default_config.max_debate_rounds || 2;
                     document.getElementById("tempValue").textContent = data.default_config.temperature || 0.7;
                 }
+
+                // Auto-select a provider that actually has an API key configured.
+                // Prefer the configured default if it has a key; otherwise pick
+                // the first provider with a key so the user isn't stuck on a
+                // provider that will fail authentication.
+                const defaultProvider = (data.default_config || {}).llm_provider || "";
+                const defaultHasKey = keyStatus[defaultProvider] &&
+                    (keyStatus[defaultProvider].configured || !keyStatus[defaultProvider].required);
+                if (defaultProvider && defaultHasKey) {
+                    providerSelect.value = defaultProvider;
+                } else {
+                    const firstConfigured = Object.keys(keyStatus).find(
+                        (p) => keyStatus[p].configured || !keyStatus[p].required
+                    );
+                    providerSelect.value = firstConfigured || defaultProvider || "";
+                }
+                updateModelsForProvider();
             } catch (error) {
                 console.error("Failed to load config:", error);
             }
@@ -724,7 +747,7 @@
             models.forEach((model) => {
                 const option = document.createElement("option");
                 option.value = model.id;
-                option.textContent = `${model.name} (${model.context_window})`;
+                option.textContent = model.name;
                 deepModelSelect.appendChild(option);
             });
 
