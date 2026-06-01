@@ -33,7 +33,7 @@ class TradingAgentsConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="TRADINGAGENTS_",
-        env_file=".env",
+        env_file=str(Path(__file__).parent.parent.parent / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",             # unknown env vars are silently ignored
         populate_by_name=True,      # allow both field name and alias

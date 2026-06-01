@@ -1,10 +1,14 @@
 from functools import lru_cache
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from cryptography.fernet import Fernet
 
+# Always resolve .env from the project root, regardless of CWD
+_ROOT_ENV = Path(__file__).parent.parent.parent / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_ROOT_ENV), env_file_encoding="utf-8", extra="ignore")
 
     # Auth
     SECRET_KEY: str = "change-me-in-production-use-a-long-random-string"
