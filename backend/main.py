@@ -21,6 +21,7 @@ from backend.api.portfolio import router as portfolio_router
 from backend.api.settings import router as settings_router
 from backend.api.logs import router as logs_router
 from backend.api.cron import router as cron_router
+from backend.api.trading import router as trading_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 _logger = logging.getLogger(__name__)
@@ -104,6 +105,7 @@ app.include_router(portfolio_router)
 app.include_router(settings_router)
 app.include_router(logs_router)
 app.include_router(cron_router)
+app.include_router(trading_router)
 
 
 @app.websocket("/ws/analysis/{task_id}")
