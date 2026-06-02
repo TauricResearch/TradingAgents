@@ -219,6 +219,10 @@ __marimo__/
 # Cache
 **/data_cache/
 
+# Local scratch dirs for ad-hoc smoke / wiring scripts and dev logs
+.tmp_wiring_cache/
+.superpowers/
+
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
 reports/
