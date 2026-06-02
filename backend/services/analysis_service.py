@@ -157,6 +157,32 @@ async def cancel_analysis(task_id: str) -> bool:
     return False
 
 
+async def _extract_and_save_annotations(
+    analysis_id: int,
+    market_report: str,
+    final_decision: str,
+    quick_llm,
+) -> None:
+    """Background task: extract chart annotations and persist to DB."""
+    import json as _json
+    from backend.core.database import AsyncSessionLocal
+    from backend.services.annotation_service import extract_chart_annotations
+    from sqlalchemy import select
+
+    try:
+        annotations = await extract_chart_annotations(market_report, final_decision, quick_llm)
+        if not annotations:
+            return
+        async with AsyncSessionLocal() as s:
+            result = await s.execute(select(AnalysisResult).where(AnalysisResult.id == analysis_id))
+            row = result.scalar_one_or_none()
+            if row:
+                row.chart_annotations = _json.dumps(annotations, ensure_ascii=False)
+                await s.commit()
+    except Exception as exc:
+        _logger.debug("Annotation save failed (non-fatal): %s", exc)
+
+
 async def run_analysis(
     ticker: str,
     trade_date: str,
@@ -301,6 +327,11 @@ async def run_analysis(
         )
         db.add(row)
         await db.flush()
+
+        # Extract chart annotations in the background — doesn't block WS response
+        asyncio.create_task(_extract_and_save_annotations(
+            row.id, result.market_report, result.final_decision, ta.quick_thinking_llm
+        ))
 
         await ws_manager.send(task_id, {
             "type": "decision",

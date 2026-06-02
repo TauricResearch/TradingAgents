@@ -61,6 +61,8 @@ async def _migrate_add_columns(conn):
         ("analysis_results", "investment_debate_history",   "TEXT DEFAULT ''"),
         ("analysis_results", "risk_debate_history",         "TEXT DEFAULT ''"),
         ("analysis_results", "judge_decision",              "TEXT DEFAULT ''"),
+        # Grafik annotasyonları (JSON)
+        ("analysis_results", "chart_annotations",           "TEXT DEFAULT ''"),
         # Eskiye dönük analiz seçeneği
         ("app_settings", "include_historical_analyses",     "BOOLEAN DEFAULT FALSE"),
     ]

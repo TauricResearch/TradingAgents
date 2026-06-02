@@ -10,6 +10,7 @@ import Settings from './pages/Settings'
 import Logs from './pages/Logs'
 import MockTrading from './pages/MockTrading'
 import Portfolio from './pages/Portfolio'
+import Chart from './pages/Chart'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -30,6 +31,7 @@ function AppRoutes() {
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/analysis" element={<Analysis />} />
+                <Route path="/chart" element={<Chart />} />
                 <Route path="/watchlist" element={<Watchlist />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/trading" element={<MockTrading />} />

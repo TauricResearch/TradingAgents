@@ -83,6 +83,7 @@ from backend.api.cron import router as cron_router
 from backend.api.trading import router as trading_router
 from backend.api.meta import router as meta_router
 from backend.api.update import router as update_router
+from backend.api.market import router as market_router
 
 # Ensure all models are registered with SQLAlchemy metadata before create_all_tables
 import backend.models.portfolio_analysis  # noqa: F401
@@ -184,6 +185,7 @@ app.include_router(cron_router)
 app.include_router(trading_router)
 app.include_router(meta_router)
 app.include_router(update_router)
+app.include_router(market_router)
 
 
 @app.websocket("/ws/analysis/{task_id}")

@@ -38,6 +38,7 @@ class AnalysisResultRead(BaseModel):
     investment_debate_history: str = ""
     risk_debate_history: str = ""
     judge_decision: str = ""
+    chart_annotations: str = ""
     llm_calls: int
     tool_calls: int
     tokens_in: int
@@ -59,6 +60,7 @@ class AnalysisListItem(BaseModel):
     duration_seconds: float
     triggered_by: str
     created_at: datetime
+    chart_annotations: str = ""
 
     class Config:
         from_attributes = True

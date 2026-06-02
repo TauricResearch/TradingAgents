@@ -16,6 +16,7 @@ interface RunningTask { ticker: string; taskId: string; startedAt: string }
 const NAV = [
   { to: '/dashboard',  label: 'Dashboard',       icon: LayoutDashboard },
   { to: '/analysis',   label: 'Analiz',           icon: Search },
+  { to: '/chart',      label: 'Grafik',           icon: TrendingUp },
   { to: '/trading',    label: 'Simülasyon',        icon: FlaskConical },
   { to: '/portfolio',  label: 'Portföy',           icon: PieChart },
   { to: '/watchlist',  label: 'İzleme Listesi',    icon: BookMarked },

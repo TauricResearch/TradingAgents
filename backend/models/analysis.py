@@ -36,6 +36,7 @@ class AnalysisResult(Base):
     investment_debate_history: Mapped[str] = mapped_column(Text, default="")
     risk_debate_history: Mapped[str] = mapped_column(Text, default="")
     judge_decision: Mapped[str] = mapped_column(Text, default="")
+    chart_annotations: Mapped[str] = mapped_column(Text, default="")
 
     # Metrics
     llm_calls: Mapped[int] = mapped_column(Integer, default=0)
