@@ -11,6 +11,7 @@ from .y_finance import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .google_news import get_news_google, get_global_news_google
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -62,6 +63,7 @@ TOOLS_CATEGORIES = {
 
 VENDOR_LIST = [
     "yfinance",
+    "google_news",
     "alpha_vantage",
 ]
 
@@ -96,11 +98,13 @@ VENDOR_METHODS = {
     },
     # news_data
     "get_news": {
-        "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "google_news": get_news_google,
+        "alpha_vantage": get_alpha_vantage_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
+        "google_news": get_global_news_google,
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {

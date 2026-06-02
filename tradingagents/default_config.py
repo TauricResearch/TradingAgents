@@ -88,6 +88,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "geopolitical risk trade war sanctions",
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
+        "Malaysia economy GDP trade ringgit",
+        "Bursa Malaysia KLSE index stocks",
+        "Bank Negara Malaysia interest rate OPR policy",
+        "ASEAN Southeast Asia economic outlook trade",
     ],
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
@@ -95,7 +99,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "news_data": "google_news",           # Options: yfinance, google_news, alpha_vantage
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
@@ -113,6 +117,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".BO":  "^BSESN",   # BSE India (Sensex)
         ".T":   "^N225",    # Tokyo (Nikkei 225)
         ".HK":  "^HSI",     # Hong Kong (Hang Seng)
+        ".KL":  "^KLSE",    # Malaysia (FTSE Bursa Malaysia KLCI)
         ".L":   "^FTSE",    # London (FTSE 100)
         ".TO":  "^GSPTSE",  # Toronto (TSX Composite)
         ".AX":  "^AXJO",    # Australia (ASX 200)

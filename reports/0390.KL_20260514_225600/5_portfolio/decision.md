@@ -1,0 +1,9 @@
+**Rating**: Hold
+
+**Executive Summary**: Maintain current position in 0390.KL (ISF Group Berhad) at RM0.60. For existing holders, lock in ~40% of the current 15% gain by taking partial profits; let the remaining 60% run with a trailing stop at RM0.53. For new entrants, do not chase. Set a limit order at RM0.54 with a 1.5% portfolio size and a stop at RM0.49. This captures a pullback discount while limiting max loss to ~0.12% of portfolio. The 2-3% position sizing cap from the research plan remains binding.
+
+**Investment Thesis**: The debate across all three analysts confirms a genuinely balanced picture that warrants a Hold — not a directional bet. The Bull's strongest evidence: 59% revenue CAGR (RM21.6M→RM98.5M TTM), net margins expanded from 4.3% to 25.7%, net cash of RM56M post-raise, forward PE of ~17.3x on 60%+ earnings growth, and MACD at its highest level with institutional-grade volume (22.5M shares on the breakout day vs 4-6M normal). The Bear's strongest evidence: operating cash flow declined 60% (RM9.2M→RM3.7M) while revenue tripled, equity diluted from RM14.7M to RM74.3M (a 5x increase), and the stock is technically overextended at 34% above its 50-day SMA with RSI at 69 and price above the upper Bollinger Band. The Neutral analyst's expected-value calculation — 45% probability of 8-17% upside vs 40% probability of 8-13% downside, yielding ~1.4% edge — underscores that this is a slight positive edge, not an asymmetric opportunity. Critically, the Aggressive analyst's own bullish entry zone (RM0.52-0.55, the 10 EMA pullback) acknowledges that chasing at RM0.60 is suboptimal, while the Conservative analyst's demand to wait for RSI 
+
+**Price Target**: 0.65
+
+**Time Horizon**: 3-6 months, awaiting Q1 FY2026 earnings and data centre contract catalysts
