@@ -1,0 +1,9 @@
+**Action**: Hold
+
+**Reasoning**: The research plan presents a genuinely balanced thesis for BABA. On the bull side, gross margin expansion (36.7% → 39.8%) during an intense competitive war, ¥186B EBITDA, revenue growth to ¥1,024B, and a deeply discounted 13.59x forward P/E with a PEG near 0.44 confirm that substantial pessimism is already baked into the price — making an outright sell near oversold levels a poor risk/reward proposition. On the bear side, near-term earnings quality is materially impaired: ¥87.5B in potentially non-recurring interest income (~64% of net income), a -¥50.7B free cash flow print, a 53% OCF collapse, and no visible evidence of SG&A relief as PDD, JD, and ByteDance Commerce continue aggressive spending. The confirmed Death Cross, MACD accelerating negative, and price below all major moving averages reinforce that the downtrend has not yet reversed. Accordingly, the position is maintained at current weight — no new capital is added into an unconfirmed technical setup, but no shares are liquidated into a cheap multiple ahead of the Q1 FY2027 earnings print (~August), which is the designated decision gate for resolving the interest-income normalization and SG&A trajectory questions that will determine the next directional move.
+
+**Stop Loss**: 117.93
+
+**Position Sizing**: Maintain existing position at current weight; cap total BABA exposure within single-name emerging-market ADR risk limits (modest percentage of book). No new capital to be added until Q1 FY2027 earnings catalyst resolves key unknowns. If price breaks decisively below ~$117.93 (April low) on volume, trim 25–33% of the position.
+
+FINAL TRANSACTION PROPOSAL: **HOLD**

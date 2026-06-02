@@ -10,10 +10,14 @@ URL uses the provider's canonical endpoint.
 uv run python -m cli.main run \
   --ticker {ticker} --date {analysis-date} \
     --analysts market,social,news,fundamentals \
-    --depth 10 --language English \
+    --depth 5 --language English \
     --provider anthropic \
-    --deep-model claude-opus-4-7 --quick-model claude-sonnet-4-7 \
+    --deep-model claude-opus-4-8 --quick-model claude-sonnet-4-6 \
     --checkpoint --clear-checkpoints
+```
+
+```shell
+uv run tradingagents analyze
 ```
 
 ## docs site (MkDocs)
@@ -43,4 +47,9 @@ uv run mkdocs build --strict
 
 # backfill: prune headings across every existing report
 uv run python scripts/prune_report_headings.py
+
+# backfill: rebuild complete_report.md for runs interrupted before
+# consolidation (stage files present, no consolidated report). Run before
+# build_reports_site.py so the index never links a missing report.
+uv run python scripts/reassemble_complete_reports.py
 ```
