@@ -131,6 +131,71 @@ function RunTab() {
     }
   }
 
+  // ── Shared WS attachment (used by handleRun AND auto-reconnect) ─────────────
+  const attachWs = useCallback((taskId: string, isReconnect = false) => {
+    taskIdRef.current = taskId
+    const token = getAccessToken()
+    const ws = new WebSocket(`/ws/analysis/${taskId}?token=${token}`)
+    wsRef.current = ws
+    let finished = false
+
+    ws.onmessage = (e) => {
+      const ev: WsEvent = JSON.parse(e.data)
+      if (ev.type === 'status') {
+        setLog(l => [...l, `${ev.agent}`])
+      } else if (ev.type === 'report' && ev.section && ev.content) {
+        setReports(r => ({ ...r, [ev.section!]: ev.content! }))
+        setActiveSection(ev.section)
+        setLog(l => [...l, `✓ ${SECTION_LABELS[ev.section!] || ev.section}`])
+      } else if (ev.type === 'decision') {
+        setSignal(ev.signal || null)
+      } else if (ev.type === 'complete') {
+        finished = true
+        setRunStatus('done')
+        setRunning_(false)
+        setLog(l => [...l, `— Tamamlandı ${ev.duration_seconds}s / ${ev.llm_calls} LLM çağrısı`])
+      } else if (ev.type === 'error') {
+        finished = true
+        setRunStatus('error')
+        setRunning_(false)
+        setLog(l => [...l, `✗ HATA: ${ev.message}`])
+      }
+    }
+    ws.onerror = () => {
+      if (!finished) { setRunStatus('error'); setRunning_(false); setLog(l => [...l, '✗ Bağlantı hatası.']) }
+    }
+    ws.onclose = () => {
+      if (!finished) {
+        if (isReconnect) {
+          // Task likely completed while page was refreshed
+          setRunStatus('idle')
+          setRunning_(false)
+          setLog(l => [...l, '— Analiz tamamlanmış veya bağlantı kesildi. Geçmiş sekmesini kontrol et.'])
+        } else {
+          setRunStatus('error')
+          setRunning_(false)
+          setLog(l => [...l, '✗ Bağlantı kapandı — backend hatası veya LLM API anahtarı eksik olabilir.'])
+        }
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto-reconnect on page refresh if task was running ──────────────────────
+  useEffect(() => {
+    const raw = localStorage.getItem(TASK_KEY)
+    if (!raw) return
+    try {
+      const { taskId, ticker: runTicker } = JSON.parse(raw)
+      if (!taskId) return
+      // Restore running state and reconnect WS
+      setRunning(true)
+      setRunStatus('running')
+      if (runTicker) setTicker(runTicker)
+      setLog(l => [...l, '— Sayfa yenilendi, analiz devam ediyor...'])
+      attachWs(taskId, true)
+    } catch { localStorage.removeItem(TASK_KEY) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Stop: close WS + cancel backend task
   const handleStop = async () => {
     const tid = taskIdRef.current
@@ -158,49 +223,8 @@ function RunTab() {
         ticker: ticker.toUpperCase(), trade_date: date, asset_type: assetType,
       })
       const taskId = data.task_id
-      taskIdRef.current = taskId
       localStorage.setItem(TASK_KEY, JSON.stringify({ ticker: ticker.toUpperCase(), taskId, startedAt: new Date().toISOString() }))
-
-      const token = getAccessToken()
-      const ws = new WebSocket(`/ws/analysis/${taskId}?token=${token}`)
-      wsRef.current = ws
-
-      // Track whether we received a terminal event (complete/error)
-      let finished = false
-
-      ws.onmessage = (e) => {
-        const ev: WsEvent = JSON.parse(e.data)
-        if (ev.type === 'status') {
-          setLog(l => [...l, `${ev.agent}`])
-        } else if (ev.type === 'report' && ev.section && ev.content) {
-          setReports(r => ({ ...r, [ev.section!]: ev.content! }))
-          setActiveSection(ev.section)
-          setLog(l => [...l, `✓ ${SECTION_LABELS[ev.section!] || ev.section}`])
-        } else if (ev.type === 'decision') {
-          setSignal(ev.signal || null)
-        } else if (ev.type === 'complete') {
-          finished = true
-          setRunStatus('done')
-          setRunning_(false)
-          setLog(l => [...l, `— Tamamlandı ${ev.duration_seconds}s / ${ev.llm_calls} LLM çağrısı`])
-        } else if (ev.type === 'error') {
-          finished = true
-          setRunStatus('error')
-          setRunning_(false)
-          setLog(l => [...l, `✗ HATA: ${ev.message}`])
-        }
-      }
-      ws.onerror = () => {
-        if (!finished) { setRunStatus('error'); setRunning_(false); setLog(l => [...l, '✗ Bağlantı hatası.']) }
-      }
-      // If WS closes without a terminal event → backend crashed or API key missing
-      ws.onclose = () => {
-        if (!finished) {
-          setRunStatus('error')
-          setRunning_(false)
-          setLog(l => [...l, '✗ Bağlantı kapandı — backend hatası veya LLM API anahtarı eksik olabilir.'])
-        }
-      }
+      attachWs(taskId, false)
     } catch (err: any) {
       setRunStatus('error')
       setRunning_(false)
