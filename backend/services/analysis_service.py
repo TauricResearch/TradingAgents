@@ -46,6 +46,38 @@ _REPORT_FIELDS = (
 )
 
 
+async def _get_historical_analyses_context(
+    ticker: str, trade_date: str, db: AsyncSession, limit: int = 5
+) -> str:
+    """Önceki DB analizlerini past_context için markdown formatında döndürür."""
+    from sqlalchemy import select, desc as _desc
+
+    result = await db.execute(
+        select(AnalysisResult)
+        .where(AnalysisResult.ticker == ticker)
+        .where(AnalysisResult.trade_date < trade_date)
+        .order_by(_desc(AnalysisResult.created_at))
+        .limit(limit)
+    )
+    rows = result.scalars().all()
+    if not rows:
+        return ""
+
+    parts = [f"=== {ticker} GEÇMİŞ ANALİZ RAPORLARI ===\n"]
+    for row in reversed(rows):  # kronolojik sıra
+        parts.append(f"--- Tarih: {row.trade_date} | Sinyal: {row.signal or 'N/A'} ---")
+        for label, field in [
+            ("Piyasa Raporu", row.market_report),
+            ("Haber Raporu", row.news_report),
+            ("Temel Analiz", row.fundamentals_report),
+            ("Son Karar", row.final_decision),
+        ]:
+            if field and field.strip():
+                parts.append(f"{label}:\n{field[:400].strip()}...")
+        parts.append("")
+    return "\n".join(parts)
+
+
 def _build_config(settings: AppSettings) -> dict:
     """Convert AppSettings → TradingAgentsGraph-compatible config dict."""
     from tradingagents.graph.trading_graph import DEFAULT_CONFIG
@@ -182,6 +214,10 @@ async def run_analysis(
         # (missing API key, bad config, import error) reaches the WS error handler.
         await ws_manager.send(task_id, {"type": "status", "status": "starting", "agent": "LLM istemcisi hazırlanıyor..."})
         config = _build_config(settings)
+        if getattr(settings, "include_historical_analyses", False):
+            hist_ctx = await _get_historical_analyses_context(ticker, trade_date, db)
+            if hist_ctx:
+                config["historical_context"] = hist_ctx
         ta = TradingAgentsGraph(
             selected_analysts=settings.selected_analysts,
             debug=False,

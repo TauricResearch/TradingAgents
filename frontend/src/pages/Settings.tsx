@@ -34,6 +34,7 @@ interface Settings {
   max_risk_rounds: number
   max_position_size_pct: number
   max_risk_per_trade_pct: number
+  include_historical_analyses: boolean
   watchlist: string[]
   selected_analysts: string[]
 }
@@ -383,6 +384,17 @@ export default function Settings() {
       <Section title="Gelişmiş Ayarlar">
         <Row label="Checkpoint (Devam Etme)">
           <input type="checkbox" checked={s.checkpoint_enabled} onChange={e => update('checkpoint_enabled', e.target.checked)} className="w-5 h-5 accent-indigo-600" />
+        </Row>
+        <Row label="Eskiye Dönük Analizler">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={s.include_historical_analyses}
+              onChange={e => update('include_historical_analyses', e.target.checked)}
+              className="w-5 h-5 accent-indigo-600"
+            />
+            <span className="text-xs text-gray-500">Önceki raporları AI'ya dahil et (son 5 analiz)</span>
+          </div>
         </Row>
         <Row label="Haber Sayısı (Ticker)">
           <input type="number" min="1" max="100" className={Input} value={s.news_article_limit} onChange={e => update('news_article_limit', parseInt(e.target.value))} />

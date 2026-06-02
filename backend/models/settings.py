@@ -77,6 +77,9 @@ class AppSettings(Base):
     max_position_size_pct: Mapped[float] = mapped_column(Float, default=10.0)
     max_risk_per_trade_pct: Mapped[float] = mapped_column(Float, default=2.0)
 
+    # Eskiye dönük analizleri dahil et: önceki DB raporlarını past_context'e ekler
+    include_historical_analyses: Mapped[bool] = mapped_column(Boolean, default=False)
+
     # Encrypted broker credentials (JSON string of {api_key, api_secret})
     broker_credentials_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
 

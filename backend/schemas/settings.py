@@ -35,6 +35,7 @@ class SettingsRead(BaseModel):
     max_risk_rounds: int
     max_position_size_pct: float
     max_risk_per_trade_pct: float
+    include_historical_analyses: bool = False
     updated_at: datetime | None = None
 
     class Config:
@@ -74,3 +75,4 @@ class SettingsUpdate(BaseModel):
     max_risk_rounds: int | None = Field(default=None, ge=1, le=10)
     max_position_size_pct: float | None = Field(default=None, ge=1, le=100)
     max_risk_per_trade_pct: float | None = Field(default=None, ge=0.1, le=50)
+    include_historical_analyses: bool | None = None

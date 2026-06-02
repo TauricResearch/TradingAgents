@@ -326,6 +326,9 @@ class TradingAgentsGraph:
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM.
         past_context = self.memory_log.get_past_context(company_name)
+        historical_context = self.config.get("historical_context", "")
+        if historical_context:
+            past_context = f"{past_context}\n\n{historical_context}" if past_context else historical_context
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date, asset_type=asset_type, past_context=past_context
         )
@@ -482,6 +485,9 @@ class TradingAgentsGraph:
         import asyncio
 
         past_context = self.memory_log.get_past_context(company_name)
+        historical_context = self.config.get("historical_context", "")
+        if historical_context:
+            past_context = f"{past_context}\n\n{historical_context}" if past_context else historical_context
         init_state = self.propagator.create_initial_state(
             company_name, trade_date, asset_type=asset_type, past_context=past_context
         )
