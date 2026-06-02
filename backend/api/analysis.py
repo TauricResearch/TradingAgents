@@ -20,7 +20,7 @@ from backend.schemas.portfolio_analysis import (
 from backend.models.portfolio_analysis import MultiTickerAnalysis
 from backend.api.deps import get_current_user
 from backend.api.settings import _get_or_create_settings
-from tradingagents.dataflows.utils import safe_ticker_component
+from backend.core.utils import safe_ticker_component
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 _logger = logging.getLogger(__name__)

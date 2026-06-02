@@ -7,7 +7,7 @@ from backend.models.settings import AppSettings
 from backend.models.user import User
 from backend.api.deps import get_current_user
 from backend.api.settings import _get_or_create_settings
-from tradingagents.dataflows.utils import safe_ticker_component
+from backend.core.utils import safe_ticker_component
 
 router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
