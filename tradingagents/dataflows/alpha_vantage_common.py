@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import pandas as pd
 import json
@@ -6,6 +7,9 @@ from datetime import datetime
 from io import StringIO
 
 API_BASE_URL = "https://www.alphavantage.co/query"
+AV_REQUEST_TIMEOUT = 15
+AV_MAX_RETRIES = 3
+AV_BACKOFF_BASE = 1.5
 
 
 class AlphaVantageNotConfiguredError(ValueError):
@@ -52,6 +56,24 @@ class AlphaVantageRateLimitError(Exception):
     """Exception raised when Alpha Vantage API rate limit is exceeded."""
     pass
 
+def _get_with_retry(params: dict) -> requests.Response:
+    last_exc: Exception | None = None
+    for attempt in range(AV_MAX_RETRIES):
+        try:
+            response = requests.get(
+                API_BASE_URL,
+                params=params,
+                timeout=AV_REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+            return response
+        except (requests.Timeout, requests.ConnectionError, requests.HTTPError) as exc:
+            last_exc = exc
+            if attempt < AV_MAX_RETRIES - 1:
+                time.sleep(AV_BACKOFF_BASE * (2**attempt))
+    assert last_exc is not None
+    raise last_exc
+
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
     
@@ -76,8 +98,7 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
     
-    response = requests.get(API_BASE_URL, params=api_params)
-    response.raise_for_status()
+    response = _get_with_retry(api_params)
 
     response_text = response.text
     
