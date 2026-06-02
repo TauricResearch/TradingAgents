@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash .claude/run_missing_today.sh*)",
+      "Bash(CONCURRENCY=* bash .claude/run_missing_today.sh*)",
+      "Bash(TA_BUILD_SITE=* bash .claude/run_missing_today.sh*)",
+      "Bash(TRADINGAGENTS_DATE=* bash .claude/run_missing_today.sh*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{ cd /Users/bichengwang/my-code/other/TradingAgents && mkdir -p /tmp/ta_runlogs && mkdir /tmp/ta_autorun_$(date +%F).lock 2>/dev/null && nohup bash .claude/run_missing_today.sh > /tmp/ta_runlogs/autorun_$(date +%F).log 2>&1 ; } & exit 0",
+            "statusMessage": "Topping up today's TradingAgents reports (background)"
+          }
+        ]
+      }
+    ]
+  }
+}

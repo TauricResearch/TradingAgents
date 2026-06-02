@@ -1,8 +1,9 @@
 # ARM
 
-_1 run(s)._
+_2 run(s)._
 
 | Analysis date | Model | Run started | Report |
 | --- | --- | --- | --- |
+| 2026-06-01 | `claude-opus-4-8` | 2026-06-01 20:49:33 | [Open](./20260601_claude-opus-4-8_20260601_204933/complete_report.md) |
 | 2026-05-31 | `claude-opus-4-7` | 2026-05-31 17:40:18 | [Open](./20260531_claude-opus-4-7_20260531_174018/complete_report.md) |
 
