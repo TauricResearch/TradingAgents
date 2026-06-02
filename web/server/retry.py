@@ -131,3 +131,25 @@ def _clamp_or_none(seconds: float) -> Optional[float]:
     if 0 < seconds <= _MAX_RETRY_AFTER_S:
         return seconds
     return None
+
+
+def compute_backoff(
+    attempt: int,
+    exc: BaseException,
+    *,
+    max_s: float = 60.0,
+) -> float:
+    """Seconds to sleep before retrying.
+
+    Prefers ``parse_retry_after(exc)`` when present and within ``max_s``;
+    otherwise falls back to ``min(max_s, 2 ** attempt) + uniform(0, 25%)``
+    jitter, also capped at ``max_s``.
+
+    ``attempt`` is 0-indexed (0 = first retry, 1 = second, ...).
+    """
+    hint = parse_retry_after(exc)
+    if hint is not None and 0 < hint <= max_s:
+        return hint
+    base = min(max_s, 2 ** attempt)
+    jitter = random.uniform(0, base * 0.25)
+    return min(max_s, base + jitter)

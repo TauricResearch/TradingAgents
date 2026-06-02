@@ -1,11 +1,12 @@
 """Unit tests for web.server.retry — pure-function helpers."""
 from __future__ import annotations
 
+import random
 from datetime import datetime, timezone
 
 import pytest
 
-from web.server.retry import detect_rate_limit, parse_retry_after
+from web.server.retry import compute_backoff, detect_rate_limit, parse_retry_after
 
 
 class TestDetectRateLimit:
@@ -111,3 +112,46 @@ class TestParseRetryAfter:
         # caller can fall back to exponential backoff.
         exc = Exception("'retryDelay': '100000s'")
         assert parse_retry_after(exc) is None
+
+
+class TestComputeBackoff:
+    def test_returns_hint_when_within_cap(self):
+        exc = Exception("'retryDelay': '5s'")
+        assert compute_backoff(0, exc) == 5.0
+
+    def test_returns_hint_at_cap(self):
+        exc = Exception("'retryDelay': '60s'")
+        assert compute_backoff(0, exc) == 60.0
+
+    def test_hint_above_cap_falls_back_to_exponential(self):
+        # 100s hint exceeds default cap of 60 → falls back.
+        # With random.seed(0) on attempt=0, the exponential+jitter is 1.0..1.25.
+        exc = Exception("'retryDelay': '100s'")
+        random.seed(0)
+        result = compute_backoff(0, exc)
+        assert 1.0 <= result <= 1.25
+
+    def test_no_hint_returns_exponential_with_jitter(self):
+        # attempt=0: base=1, jitter 0..0.25
+        random.seed(0)
+        assert 1.0 <= compute_backoff(0, Exception("x")) <= 1.25
+        # attempt=1: base=2, jitter 0..0.5
+        assert 2.0 <= compute_backoff(1, Exception("x")) <= 2.5
+        # attempt=2: base=4, jitter 0..1.0
+        assert 4.0 <= compute_backoff(2, Exception("x")) <= 5.0
+        # attempt=3: base=8, jitter 0..2.0
+        assert 8.0 <= compute_backoff(3, Exception("x")) <= 10.0
+
+    def test_caps_at_max_s_for_high_attempt(self):
+        # attempt=20 would be 2**20 = 1M, must be capped.
+        result = compute_backoff(20, Exception("x"))
+        assert 0 < result <= 60.0
+
+    def test_custom_max_s(self):
+        # Hint within custom cap → returned as-is.
+        exc = Exception("'retryDelay': '5s'")
+        assert compute_backoff(0, exc, max_s=10.0) == 5.0
+        # Hint above custom cap → fallback.
+        random.seed(0)
+        result = compute_backoff(0, exc, max_s=2.0)
+        assert 0 < result <= 2.0
