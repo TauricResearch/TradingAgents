@@ -58,58 +58,42 @@ def evaluate(
 
     rows = list(conn.execute(
         "SELECT b.brief_id, b.generated_ts, b.trigger_event_id, b.scope, "
-        "       e.ingested_ts, q.cost_usd, q.state "
-        "FROM briefs b "
-        "JOIN events e ON e.event_id = b.trigger_event_id "
-        "LEFT JOIN queue_jobs q ON q.brief_id = b.brief_id "
-        "WHERE b.mode = 'event_alert' "
+        "       e.ingested_ts "
+        "FROM briefs b JOIN events e ON e.event_id = b.trigger_event_id "
+        "WHERE b.mode = 'event_alert_light' "
         "  AND b.generated_ts BETWEEN ? AND ?",
         (since.isoformat(), until.isoformat()),
     ))
 
-    per_brief = []
-    latencies = []
-    total_cost = 0.0
-    for r in rows:
-        lat = _latency_seconds(r["ingested_ts"], r["generated_ts"])
-        latencies.append(lat)
-        cost = float(r["cost_usd"] or 0.0)
-        total_cost += cost
-        per_brief.append({
-            "brief_id": r["brief_id"],
-            "ticker": r["scope"],
-            "event_id": r["trigger_event_id"],
-            "ingested_ts": r["ingested_ts"],
-            "brief_ts": r["generated_ts"],
-            "latency_min": lat / 60.0,
-            "cost_usd": cost,
-        })
-
-    n = len(per_brief)
+    latencies = [_latency_seconds(r["ingested_ts"], r["generated_ts"]) for r in rows]
+    n = len(latencies)
+    SLA_S = 5 * 60
     if n >= 3:
-        p95 = _percentile(latencies, 0.95)
-        sla_pass = p95 <= 15 * 60
-        sla_rule = "p95"
+        metric = _percentile(latencies, 0.95); rule = "p95"
+        sla_pass = metric <= SLA_S
     elif n >= 1:
-        max_lat = max(latencies)
-        sla_pass = max_lat <= 15 * 60
-        sla_rule = "max"
+        metric = max(latencies); rule = "max"
+        sla_pass = metric <= SLA_S
     else:
-        sla_pass = None
-        sla_rule = "none"
+        metric = 0.0; rule = "none"; sla_pass = None
+
+    # Approval plumbing: at least one light alert produced a full brief.
+    approved = conn.execute(
+        "SELECT COUNT(*) FROM briefs WHERE mode='event_alert' "
+        "AND parent_brief_id IS NOT NULL "
+        "AND generated_ts BETWEEN ? AND ?",
+        (since.isoformat(), until.isoformat()),
+    ).fetchone()[0]
 
     return {
         "since": since.isoformat(),
         "until": until.isoformat(),
-        "brief_count": n,
-        "per_brief": per_brief,
-        "latencies_s": latencies,
-        "latency_p50_s": _percentile(latencies, 0.50) if n else 0.0,
-        "latency_p95_s": _percentile(latencies, 0.95) if n else 0.0,
-        "latency_p99_s": _percentile(latencies, 0.99) if n else 0.0,
-        "total_cost_usd": total_cost,
+        "alert_count": n,
+        "alert_latency_p50_s": _percentile(latencies, 0.50) if n else 0.0,
+        "alert_latency_p95_s": _percentile(latencies, 0.95) if n else 0.0,
         "sla_pass": sla_pass,
-        "sla_rule_applied": sla_rule,
+        "sla_rule_applied": rule,
+        "approved_full_briefs": approved,
         "promoter_nrestarts": _systemctl_nrestarts("iic-promoter"),
         "worker_nrestarts": _systemctl_nrestarts("iic-worker"),
     }
@@ -118,56 +102,37 @@ def evaluate(
 def render_md(result: Dict[str, Any]) -> str:
     out: List[str] = []
     today = datetime.now(timezone.utc).date().isoformat()
-    out.append(f"# F4 exit-gate report — {today}")
+    out.append(f"# F4 exit-gate report (approval gate) — {today}")
     out.append("")
     out.append(f"**Window:** `{result['since']}` → `{result['until']}`")
     out.append("")
     out.append("## Summary")
     out.append("")
-    out.append(f"- briefs produced: **{result['brief_count']}**")
-    out.append(f"- total cost: **${result['total_cost_usd']:.4f}**")
-    out.append(f"- latency p50 / p95 / p99: "
-               f"{result['latency_p50_s']/60:.2f} / "
-               f"{result['latency_p95_s']/60:.2f} / "
-               f"{result['latency_p99_s']/60:.2f} min")
+    out.append(f"- light alerts produced: **{result['alert_count']}**")
+    out.append(f"- alert latency p50 / p95: "
+               f"{result['alert_latency_p50_s']/60:.2f} / "
+               f"{result['alert_latency_p95_s']/60:.2f} min")
+    out.append(f"- approved full briefs: **{result['approved_full_briefs']}**")
     out.append("")
     out.append("## Restart audit")
     out.append("")
-    out.append(f"- iic-promoter NRestarts: `{result['promoter_nrestarts']}` "
-               f"(must be 0; -1 = host check unavailable)")
-    out.append(f"- iic-worker NRestarts:   `{result['worker_nrestarts']}` "
-               f"(must be 0)")
+    out.append(f"- iic-promoter NRestarts: `{result['promoter_nrestarts']}` (must be 0)")
+    out.append(f"- iic-worker NRestarts:   `{result['worker_nrestarts']}` (must be 0)")
     out.append("")
-    out.append("## Per-brief table")
+    out.append("## SLA verdict (alert latency ≤ 5 min)")
     out.append("")
-    out.append("| brief_id | ticker | event_id | ingested | brief | latency (min) | cost |")
-    out.append("|---|---|---|---|---|---|---|")
-    for b in result["per_brief"]:
-        out.append(
-            f"| `{b['brief_id'][:8]}` | {b['ticker']} | `{b['event_id'][:8]}` "
-            f"| {b['ingested_ts'][:19]} | {b['brief_ts'][:19]} "
-            f"| {b['latency_min']:.2f} | ${b['cost_usd']:.4f} |"
-        )
-    out.append("")
-    out.append("## SLA verdict")
-    out.append("")
-    sla_pass = result["sla_pass"]
-    rule = result["sla_rule_applied"]
-    if sla_pass is None:
-        out.append("- **inconclusive** — 0 briefs landed in window. Re-run during a more active period.")
-    elif sla_pass:
-        out.append(f"- **PASS** (rule: {rule}, ≤ 15 min)")
+    sla = result["sla_pass"]; rule = result["sla_rule_applied"]
+    if sla is None:
+        out.append("- **inconclusive** — 0 light alerts landed in window.")
+    elif sla:
+        out.append(f"- **PASS** (rule: {rule}, ≤ 5 min)")
     else:
-        out.append(f"- **FAIL** (rule: {rule}, > 15 min)")
-    out.append("")
-    out.append("## Synthetic-smoke result")
-    out.append("")
-    out.append("- `tests/smoke/test_f4_exit_gate.py` on commit `<COMMIT>`: __PASS__ / __FAIL__ (fill manually)")
+        out.append(f"- **FAIL** (rule: {rule}, > 5 min)")
     out.append("")
     out.append("## Operator sign-off")
     out.append("")
-    out.append("- [ ] Operator confirms restart audit and SLA verdict above.")
-    out.append("- Notes: ____________________________________________________________")
+    out.append("- [ ] Operator confirms restart audit, alert-latency SLA, and "
+               "that ≥1 approved study produced a full brief.")
     return "\n".join(out)
 
 
