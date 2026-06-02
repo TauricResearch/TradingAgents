@@ -177,7 +177,7 @@ def _resolve_provider_base_url(provider: str) -> Optional[str]:
     import behave correctly.
     """
     if provider == "ollama":
-        env_url = os.environ.get("OLLAMA_BASE_URL")
+        env_url = os.environ.get("TRADINGAGENTS_OLLAMA_BASE_URL") or os.environ.get("OLLAMA_BASE_URL")
         if env_url:
             return env_url
     return _PROVIDER_BASE_URL.get(provider)
