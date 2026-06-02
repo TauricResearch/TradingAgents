@@ -24,6 +24,13 @@ class TickerSymbolHandlingTests(unittest.TestCase):
         import cli.utils
         self.assertIs(cli.main.get_ticker, cli.utils.get_ticker)
 
+    def test_single_get_analysis_date_no_shadow(self):
+        # Regression: cli/main.py also shadowed cli.utils.get_analysis_date,
+        # causing date validation and prompt UX to diverge.
+        import cli.main
+        import cli.utils
+        self.assertIs(cli.main.get_analysis_date, cli.utils.get_analysis_date)
+
 
 if __name__ == "__main__":
     unittest.main()
