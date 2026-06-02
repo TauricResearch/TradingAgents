@@ -57,9 +57,22 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
                     snap.price = float(values[-1])
                     snap.sparkline = [float(v) for v in values]
                     snap.stale = False
+            # change_pct is the percent move from the previous trading
+            # session's close. fast_info is a lightweight single-field
+            # lookup; the CLI uses it for the same purpose elsewhere.
+            # Guard against zero to avoid div-by-zero on newly-listed
+            # tickers and on stale prices.
+            prev_close = float(
+                yf.Ticker(ticker).fast_info.get("previousClose", 0) or 0
+            )
+            if prev_close > 0 and snap.price > 0 and not snap.stale:
+                snap.change_pct = (snap.price - prev_close) / prev_close * 100.0
+            else:
+                snap.change_pct = 0.0
         except Exception:
             log.exception("price lookup failed for %s; marking stale", ticker)
             snap.stale = True
+            snap.change_pct = 0.0
         state.snapshots[ticker] = snap
 
         if broadcast is not None:
