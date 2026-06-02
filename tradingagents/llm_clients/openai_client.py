@@ -238,10 +238,11 @@ class OpenAIClient(BaseLLMClient):
             if key not in self.kwargs:
                 continue
             if key == "temperature" and not caps.supports_temperature:
-                logger.warning(
-                    "Model %s rejects user temperature; dropping configured value.",
-                    self.model,
-                )
+                if self.kwargs.get("temperature") is not None:
+                    logger.warning(
+                        "Model %s rejects user temperature; dropping configured value.",
+                        self.model,
+                    )
                 continue
             llm_kwargs[key] = self.kwargs[key]
 

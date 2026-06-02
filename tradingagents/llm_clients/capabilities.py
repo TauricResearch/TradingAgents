@@ -59,6 +59,7 @@ _DEEPSEEK_THINKING = ModelCapabilities(
     supports_json_schema=False,
     preferred_structured_method="function_calling",
     requires_reasoning_content_roundtrip=True,
+    supports_temperature=False,
 )
 
 _DEEPSEEK_CHAT = ModelCapabilities(
