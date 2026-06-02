@@ -35,7 +35,7 @@ async def _migrate_add_columns(conn):
     # run `alembic revision --autogenerate` to keep migration history in sync.
     _ALLOWED = {
         "app_settings", "analysis_results", "portfolios", "orders",
-        "holdings", "multi_ticker_analyses",
+        "holdings", "multi_ticker_analyses", "config_presets", "price_alerts",
     }
     new_columns = [
         ("app_settings", "backend_url",                "VARCHAR(500)"),
@@ -63,8 +63,16 @@ async def _migrate_add_columns(conn):
         ("analysis_results", "judge_decision",              "TEXT DEFAULT ''"),
         # Grafik annotasyonları (JSON)
         ("analysis_results", "chart_annotations",           "TEXT DEFAULT ''"),
+        # Performans takibi
+        ("analysis_results", "raw_return",                  "FLOAT"),
+        ("analysis_results", "alpha_return",                "FLOAT"),
+        ("analysis_results", "holding_days",                "INTEGER"),
         # Eskiye dönük analiz seçeneği
         ("app_settings", "include_historical_analyses",     "BOOLEAN DEFAULT FALSE"),
+        # Webhook bildirimleri
+        ("app_settings", "webhook_url",                     "VARCHAR(500)"),
+        ("app_settings", "webhook_enabled",                 "BOOLEAN DEFAULT FALSE"),
+        ("app_settings", "webhook_events",                  "TEXT DEFAULT '[\"analysis_complete\"]'"),
     ]
     from sqlalchemy import text
     for table, column, col_type in new_columns:

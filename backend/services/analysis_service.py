@@ -157,6 +157,14 @@ async def cancel_analysis(task_id: str) -> bool:
     return False
 
 
+async def _send_analysis_webhook(ticker, trade_date, signal, final_decision, settings):
+    try:
+        from backend.services.notification_service import notify_analysis_complete
+        await notify_analysis_complete(ticker, signal, trade_date, final_decision, settings)
+    except Exception as exc:
+        _logger.debug("Webhook notify failed (non-fatal): %s", exc)
+
+
 async def _extract_and_save_annotations(
     analysis_id: int,
     market_report: str,
@@ -328,9 +336,12 @@ async def run_analysis(
         db.add(row)
         await db.flush()
 
-        # Extract chart annotations in the background — doesn't block WS response
+        # Background tasks: chart annotations + webhook notification
         asyncio.create_task(_extract_and_save_annotations(
             row.id, result.market_report, result.final_decision, ta.quick_thinking_llm
+        ))
+        asyncio.create_task(_send_analysis_webhook(
+            ticker, trade_date, signal, result.final_decision, settings
         ))
 
         await ws_manager.send(task_id, {

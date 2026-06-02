@@ -46,6 +46,9 @@ class AnalysisResultRead(BaseModel):
     duration_seconds: float
     triggered_by: str
     created_at: datetime
+    raw_return: float | None = None
+    alpha_return: float | None = None
+    holding_days: int | None = None
 
     class Config:
         from_attributes = True

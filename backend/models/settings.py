@@ -80,6 +80,11 @@ class AppSettings(Base):
     # Eskiye dönük analizleri dahil et: önceki DB raporlarını past_context'e ekler
     include_historical_analyses: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Webhook bildirimleri
+    webhook_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    webhook_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    webhook_events: Mapped[str] = mapped_column(Text, default='["analysis_complete"]')
+
     # Encrypted broker credentials (JSON string of {api_key, api_secret})
     broker_credentials_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
 

@@ -20,6 +20,7 @@ from backend.schemas.portfolio_analysis import (
 from backend.models.portfolio_analysis import MultiTickerAnalysis
 from backend.api.deps import get_current_user
 from backend.api.settings import _get_or_create_settings
+import json as _json
 from backend.core.utils import safe_ticker_component
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
@@ -139,6 +140,93 @@ async def get_analysis(
     if row is None:
         raise HTTPException(status_code=404, detail="Analysis not found")
     return row
+
+
+# ── Performance & cost endpoints ─────────────────────────────────────────────
+
+_TOKEN_PER_ANALYST = 8_000   # rough average tokens consumed per analyst
+_COST_PER_1K: dict[str, float] = {
+    "gpt-4o": 0.005, "gpt-4o-mini": 0.00015, "gpt-4.1": 0.008,
+    "claude-opus": 0.015, "claude-sonnet": 0.003, "gemini-1.5-pro": 0.007,
+}
+
+
+@router.get("/cost-estimate")
+async def cost_estimate(
+    analysts: str = Query(default="market,news,fundamentals,social"),
+    debate_rounds: int = Query(default=1, ge=1, le=10),
+    model: str = Query(default="gpt-4o"),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    analyst_list = [a.strip() for a in analysts.split(",") if a.strip()]
+    n = len(analyst_list)
+    tokens = n * _TOKEN_PER_ANALYST * debate_rounds + 5_000  # base overhead
+    rate = next((v for k, v in _COST_PER_1K.items() if k in model.lower()), 0.005)
+    cost = tokens / 1000 * rate
+    return {
+        "analyst_count": n,
+        "estimated_tokens": tokens,
+        "estimated_cost_usd": round(cost, 4),
+        "estimated_duration_min": round(n * 0.8 * debate_rounds + 1, 1),
+    }
+
+
+@router.get("/performance")
+async def get_performance(
+    ticker: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Win rate and return statistics for past signals."""
+    from sqlalchemy import func
+    q = select(AnalysisResult).where(AnalysisResult.raw_return.isnot(None))
+    if ticker:
+        q = q.where(AnalysisResult.ticker == ticker.upper())
+    result = await db.execute(q)
+    rows = result.scalars().all()
+
+    if not rows:
+        return {"total": 0, "win_rate": None, "avg_raw_return": None, "avg_alpha_return": None, "by_signal": {}}
+
+    buy_signals = {"Buy", "Overweight"}
+    sell_signals = {"Sell", "Underweight"}
+
+    wins = 0
+    total_raw = 0.0
+    total_alpha = 0.0
+    by_signal: dict[str, dict] = {}
+
+    for r in rows:
+        sig = r.signal or "Unknown"
+        raw = r.raw_return or 0.0
+        alpha = r.alpha_return or 0.0
+        total_raw += raw
+        total_alpha += alpha
+
+        is_correct = (sig in buy_signals and raw > 0) or (sig in sell_signals and raw < 0)
+        if is_correct:
+            wins += 1
+
+        if sig not in by_signal:
+            by_signal[sig] = {"count": 0, "wins": 0, "avg_return": 0.0}
+        by_signal[sig]["count"] += 1
+        by_signal[sig]["avg_return"] += raw
+        if is_correct:
+            by_signal[sig]["wins"] += 1
+
+    n = len(rows)
+    for v in by_signal.values():
+        v["avg_return"] = round(v["avg_return"] / v["count"] * 100, 2)
+        v["win_rate"] = round(v["wins"] / v["count"] * 100, 1)
+
+    return {
+        "total": n,
+        "win_rate": round(wins / n * 100, 1),
+        "avg_raw_return": round(total_raw / n * 100, 2),
+        "avg_alpha_return": round(total_alpha / n * 100, 2),
+        "by_signal": by_signal,
+    }
 
 
 # ── Multi-ticker (portfolio) analysis ────────────────────────────────────────

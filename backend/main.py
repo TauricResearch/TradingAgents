@@ -84,9 +84,14 @@ from backend.api.trading import router as trading_router
 from backend.api.meta import router as meta_router
 from backend.api.update import router as update_router
 from backend.api.market import router as market_router
+from backend.api.preset import router as preset_router
+from backend.api.alerts import router as alerts_router
+from backend.api.news import router as news_router
 
 # Ensure all models are registered with SQLAlchemy metadata before create_all_tables
 import backend.models.portfolio_analysis  # noqa: F401
+import backend.models.preset  # noqa: F401
+import backend.models.alert  # noqa: F401
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 _logger = logging.getLogger(__name__)
@@ -186,6 +191,9 @@ app.include_router(trading_router)
 app.include_router(meta_router)
 app.include_router(update_router)
 app.include_router(market_router)
+app.include_router(preset_router)
+app.include_router(alerts_router)
+app.include_router(news_router)
 
 
 @app.websocket("/ws/analysis/{task_id}")

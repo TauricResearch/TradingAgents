@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Save } from 'lucide-react'
+import { Save, BookmarkPlus, Trash2, Play, Bell } from 'lucide-react'
 import { useMeta } from '../hooks/useMeta'
+import { requestBrowserNotifyPermission, setBrowserNotifyPref, isBrowserNotifyEnabled } from '../utils/browserNotify'
 
 interface Settings {
   trading_mode: string
@@ -35,9 +36,14 @@ interface Settings {
   max_position_size_pct: number
   max_risk_per_trade_pct: number
   include_historical_analyses: boolean
+  webhook_url: string | null
+  webhook_enabled: boolean
+  webhook_events: string
   watchlist: string[]
   selected_analysts: string[]
 }
+
+interface Preset { id: number; name: string; description: string | null; created_at: string }
 
 interface ModelOption { label: string; value: string }
 type Catalog = Record<string, { quick: ModelOption[]; deep: ModelOption[] }>
@@ -129,17 +135,67 @@ export default function Settings() {
   const [catalog, setCatalog] = useState<Catalog>({})
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [presets, setPresets] = useState<Preset[]>([])
+  const [presetName, setPresetName] = useState('')
+  const [presetSaving, setPresetSaving] = useState(false)
+  const [browserNotify, setBrowserNotify] = useState(isBrowserNotifyEnabled())
+  const [webhookTesting, setWebhookTesting] = useState(false)
+  const [webhookTestResult, setWebhookTestResult] = useState<string | null>(null)
   const meta = useMeta()
 
   useEffect(() => {
     Promise.all([
       axios.get('/api/settings').then(r => r.data),
       axios.get('/api/settings/llm-catalog').then(r => r.data),
-    ]).then(([settings, cat]) => {
+      axios.get('/api/presets').then(r => r.data),
+    ]).then(([settings, cat, presetList]) => {
       setS(settings)
       setCatalog(cat)
+      setPresets(presetList)
     })
   }, [])
+
+  const loadPresets = () => axios.get('/api/presets').then(r => setPresets(r.data))
+
+  const savePreset = async () => {
+    if (!presetName.trim() || !s) return
+    setPresetSaving(true)
+    try {
+      await axios.post('/api/presets', { name: presetName.trim(), settings_json: JSON.stringify(s) })
+      setPresetName('')
+      await loadPresets()
+    } finally { setPresetSaving(false) }
+  }
+
+  const applyPreset = async (id: number) => {
+    const r = await axios.post(`/api/presets/${id}/apply`)
+    setS(r.data)
+  }
+
+  const deletePreset = async (id: number) => {
+    await axios.delete(`/api/presets/${id}`)
+    setPresets(prev => prev.filter(p => p.id !== id))
+  }
+
+  const testWebhook = async () => {
+    if (!s?.webhook_url) return
+    setWebhookTesting(true); setWebhookTestResult(null)
+    try {
+      await axios.post('/api/settings/test-webhook', { url: s.webhook_url })
+      setWebhookTestResult('✓ Başarılı')
+    } catch { setWebhookTestResult('✗ Başarısız') }
+    finally { setWebhookTesting(false) }
+  }
+
+  const toggleBrowserNotify = async () => {
+    if (!browserNotify) {
+      const granted = await requestBrowserNotifyPermission()
+      setBrowserNotify(granted)
+    } else {
+      setBrowserNotifyPref(false)
+      setBrowserNotify(false)
+    }
+  }
 
   const save = async () => {
     setSaveError(null)
@@ -416,6 +472,116 @@ export default function Settings() {
             <input className={Input} value={s.azure_deployment || ''} onChange={e => update('azure_deployment', e.target.value || null)} placeholder="gpt-4o" />
           </Row>
         )}
+      </Section>
+
+      {/* Preset Management (MOD2) */}
+      <Section title="Ayar Şablonları">
+        <div className="flex gap-2">
+          <input
+            className={Input}
+            placeholder="Şablon adı..."
+            value={presetName}
+            onChange={e => setPresetName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && savePreset()}
+          />
+          <button
+            onClick={savePreset}
+            disabled={presetSaving || !presetName.trim()}
+            className="flex items-center gap-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm px-3 py-1.5 rounded-xl transition whitespace-nowrap"
+          >
+            <BookmarkPlus size={14} /> Kaydet
+          </button>
+        </div>
+        {presets.length === 0 ? (
+          <p className="text-gray-600 text-xs">Henüz şablon yok.</p>
+        ) : (
+          <div className="space-y-1.5 pt-1">
+            {presets.map(p => (
+              <div key={p.id} className="flex items-center justify-between bg-gray-800 rounded-xl px-3 py-2">
+                <span className="text-sm text-gray-300">{p.name}</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => applyPreset(p.id)} className="text-violet-400 hover:text-violet-300 transition-colors" title="Uygula">
+                    <Play size={13} />
+                  </button>
+                  <button onClick={() => deletePreset(p.id)} className="text-gray-600 hover:text-red-400 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Notifications (MOD4) */}
+      <Section title="Bildirimler">
+        <Row label="Webhook URL">
+          <input
+            className={Input}
+            placeholder="https://hooks.slack.com/..."
+            value={s.webhook_url || ''}
+            onChange={e => update('webhook_url', e.target.value || null)}
+          />
+        </Row>
+        <Row label="Webhook Aktif">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={s.webhook_enabled}
+              onChange={e => update('webhook_enabled', e.target.checked)}
+              className="w-5 h-5 accent-indigo-600"
+            />
+            {s.webhook_url && (
+              <button
+                onClick={testWebhook}
+                disabled={webhookTesting}
+                className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded-lg transition"
+              >
+                {webhookTesting ? '...' : 'Test Et'}
+              </button>
+            )}
+            {webhookTestResult && (
+              <span className={`text-xs ${webhookTestResult.startsWith('✓') ? 'text-emerald-400' : 'text-red-400'}`}>
+                {webhookTestResult}
+              </span>
+            )}
+          </div>
+        </Row>
+        <Row label="Bildirim Olayları">
+          <div className="flex flex-col gap-1.5">
+            {[
+              ['analysis_complete', 'Analiz tamamlandı'],
+              ['trade_executed', 'İşlem gerçekleşti'],
+              ['alert_triggered', 'Fiyat alarmı tetiklendi'],
+            ].map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="accent-indigo-600"
+                  checked={s.webhook_events.includes(key)}
+                  onChange={e => {
+                    const events = s.webhook_events ? s.webhook_events.split(',').filter(Boolean) : []
+                    const next = e.target.checked ? [...events, key] : events.filter(x => x !== key)
+                    update('webhook_events', next.join(','))
+                  }}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </Row>
+        <Row label="Tarayıcı Bildirimleri">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleBrowserNotify}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${browserNotify ? 'bg-violet-600' : 'bg-gray-700'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${browserNotify ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+            <Bell size={14} className={browserNotify ? 'text-violet-400' : 'text-gray-600'} />
+            <span className="text-xs text-gray-500">{browserNotify ? 'Açık' : 'Kapalı'}</span>
+          </div>
+        </Row>
       </Section>
 
       <div className="flex items-center gap-3">

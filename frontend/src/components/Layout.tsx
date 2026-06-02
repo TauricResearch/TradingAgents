@@ -5,6 +5,7 @@ import {
   Settings, ScrollText, TrendingUp, LogOut, Clock,
   FlaskConical, PieChart, Loader2, ChevronRight,
   AlertCircle, AlertTriangle, CheckCircle, Info, X,
+  BarChart2, Bell,
 } from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
@@ -21,6 +22,8 @@ const NAV = [
   { to: '/portfolio',  label: 'Portföy',           icon: PieChart },
   { to: '/watchlist',  label: 'İzleme Listesi',    icon: BookMarked },
   { to: '/orders',     label: 'Emirler',           icon: Briefcase },
+  { to: '/performance', label: 'Performans',         icon: BarChart2 },
+  { to: '/alerts',     label: 'Alarmlar',           icon: Bell },
   { to: '/settings',   label: 'Ayarlar',           icon: Settings },
   { to: '/logs',       label: 'Loglar',            icon: ScrollText },
 ]

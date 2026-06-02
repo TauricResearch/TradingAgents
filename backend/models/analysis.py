@@ -46,6 +46,11 @@ class AnalysisResult(Base):
     duration_seconds: Mapped[float] = mapped_column(Float, default=0.0)
 
     triggered_by: Mapped[str] = mapped_column(String(20), default="manual")  # manual | cron
+
+    # Post-analysis return tracking (filled async after holding_days have passed)
+    raw_return: Mapped[float | None] = mapped_column(Float, nullable=True)
+    alpha_return: Mapped[float | None] = mapped_column(Float, nullable=True)
+    holding_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )

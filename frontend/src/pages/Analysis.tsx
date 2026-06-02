@@ -3,9 +3,12 @@ import axios from 'axios'
 import { getAccessToken } from '../hooks/useAuth'
 import { useMeta } from '../hooks/useMeta'
 import { notify } from '../utils/notify'
+import { exportMarkdown, exportPDF } from '../utils/exportReport'
+import { sendBrowserNotification } from '../utils/browserNotify'
 import {
   Loader2, CheckCircle, AlertCircle, History,
   X, BarChart2, Terminal, FileText, Zap, Square,
+  Download, FileDown,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -133,13 +136,19 @@ function RunTab() {
   const [log, setLog] = useState<string[]>(saved.log)
   const [activeSection, setActiveSection] = useState<string | null>(saved.activeSection)
   const wsRef = useRef<WebSocket | null>(null)
-  const taskIdRef = useRef<string | null>(null)  // current running task id
+  const taskIdRef = useRef<string | null>(null)
   const preRefreshLogRef = useRef<string[] | null>(null)
 
   const meta = useMeta()
   const sectionLabels = meta?.section_labels ?? SECTION_LABELS
   const assetTypes = meta?.asset_types ?? [{ value: 'stock', label: 'Hisse' }, { value: 'crypto', label: 'Kripto' }]
   const [currentStep, setCurrentStep] = useState<{ label: string; stage: string } | null>(null)
+
+  // Cost estimate (MOD8)
+  const [costEstimate, setCostEstimate] = useState<{ min_usd: number; max_usd: number } | null>(null)
+  // Re-analysis warning (MOD8)
+  const [existingId, setExistingId] = useState<number | null>(null)
+  const [showRerunModal, setShowRerunModal] = useState(false)
 
   // Persist state to localStorage on every change
   useEffect(() => {
@@ -196,6 +205,7 @@ function RunTab() {
         setRunning_(false)
         setCurrentStep(null)
         appendLog(`— Tamamlandı ${ev.duration_seconds}s / ${ev.llm_calls} LLM çağrısı`)
+        sendBrowserNotification(`${ticker.toUpperCase()} analizi tamamlandı`, `Sinyal: ${ev.signal ?? 'N/A'} • ${ev.duration_seconds?.toFixed(0)}s`)
       } else if (ev.type === 'error') {
         finished = true
         setRunStatus('error')
@@ -237,15 +247,38 @@ function RunTab() {
     try {
       const { taskId, ticker: runTicker } = JSON.parse(raw)
       if (!taskId) return
-      // Set the pre-refresh log for deduplication
       preRefreshLogRef.current = [...log]
-      // Restore running state and reconnect WS
       setRunning(true)
       setRunStatus('running')
       if (runTicker) setTicker(runTicker)
       attachWs(taskId, true)
     } catch { localStorage.removeItem(TASK_KEY) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Cost estimate (debounced) ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!ticker.trim() || running) return
+    const tid = setTimeout(async () => {
+      try {
+        const { data } = await axios.get('/api/analysis/cost-estimate', { params: { ticker: ticker.toUpperCase(), trade_date: date } })
+        setCostEstimate(data)
+      } catch { setCostEstimate(null) }
+    }, 600)
+    return () => clearTimeout(tid)
+  }, [ticker, date, running])
+
+  // ── Re-analysis check ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!ticker.trim()) { setExistingId(null); return }
+    const tid = setTimeout(async () => {
+      try {
+        const { data } = await axios.get('/api/analysis/history', { params: { limit: 5 } })
+        const match = data.find((x: HistoryItem) => x.ticker === ticker.toUpperCase() && x.trade_date === date)
+        setExistingId(match?.id ?? null)
+      } catch { setExistingId(null) }
+    }, 400)
+    return () => clearTimeout(tid)
+  }, [ticker, date])
 
   // Stop: close WS + cancel backend task
   const handleStop = async () => {
@@ -260,8 +293,8 @@ function RunTab() {
     }
   }
 
-  const handleRun = async () => {
-    if (!ticker.trim()) return
+  const doRun = async () => {
+    setShowRerunModal(false)
     setRunning(true)
     setRunStatus('running')
     setSignal(null)
@@ -283,6 +316,12 @@ function RunTab() {
       setRunning_(false)
       setLog(l => [...l, `✗ ${err.response?.data?.detail || 'Başlatılamadı'}`])
     }
+  }
+
+  const handleRun = () => {
+    if (!ticker.trim()) return
+    if (existingId) { setShowRerunModal(true); return }
+    doRun()
   }
 
   const handleClear = () => {
@@ -355,7 +394,34 @@ function RunTab() {
           {runStatus === 'error' && <AlertCircle size={18} className="text-red-400" />}
           {signal && <SignalBadge signal={signal} large />}
         </div>
+        {/* Cost estimate + existing analysis hint */}
+        {!running && (
+          <div className="flex items-center gap-4 mt-2">
+            {costEstimate && (
+              <span className="text-xs text-gray-600">
+                Tahmini maliyet: ~${costEstimate.min_usd.toFixed(3)}–${costEstimate.max_usd.toFixed(3)}
+              </span>
+            )}
+            {existingId && (
+              <span className="text-xs text-yellow-500">⚠ Bu tarih için kayıtlı analiz var — yeniden çalıştıracaksınız</span>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Re-run warning modal */}
+      {showRerunModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-sm w-full space-y-4">
+            <h3 className="text-white font-semibold">Mevcut Analiz Var</h3>
+            <p className="text-gray-400 text-sm">{ticker.toUpperCase()} için {date} tarihli bir analiz zaten mevcut. Yeni analiz daha fazla API kredisi harcayacak.</p>
+            <div className="flex gap-3">
+              <button onClick={doRun} className="flex-1 bg-violet-600 hover:bg-violet-500 text-white text-sm py-2 rounded-xl transition">Yeniden Çalıştır</button>
+              <button onClick={() => setShowRerunModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm py-2 rounded-xl transition">İptal</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Running status banner */}
       {running && (
@@ -622,7 +688,15 @@ function HistoryTab() {
                     </div>
                     <p className="text-gray-500 text-xs">{detail.trade_date} • {detail.duration_seconds.toFixed(1)}s • {detail.llm_calls} LLM • {(detail.tokens_in + detail.tokens_out).toLocaleString()} token</p>
                   </div>
-                  <button onClick={() => setDetail(null)} className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800 ml-4"><X size={18} /></button>
+                  <div className="flex items-center gap-2 ml-4">
+                    <button onClick={() => exportMarkdown(detail)} className="flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg transition" title="Markdown İndir">
+                      <Download size={12} /> MD
+                    </button>
+                    <button onClick={() => exportPDF(detail)} className="flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg transition" title="PDF İndir">
+                      <FileDown size={12} /> PDF
+                    </button>
+                    <button onClick={() => setDetail(null)} className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"><X size={18} /></button>
+                  </div>
                 </div>
                 <div className="space-y-1.5 max-h-[65vh] overflow-y-auto pr-1">
                   {([
