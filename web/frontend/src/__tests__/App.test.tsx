@@ -12,7 +12,8 @@ function wrap() {
 beforeEach(() => {
   useUi.setState({
     focusedTicker: null,
-    connectedRunId: null,
+    lastRunIdByTicker: {},
+    activeRunIdByTicker: {},
     eventBuffer: [],
   });
   (globalThis as any).fetch = vi.fn((url) => {
