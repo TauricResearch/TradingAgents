@@ -1,4 +1,23 @@
 """TradingAgents Web — FastAPI application entry point."""
+# ── MUST be before ANY tradingagents import ─────────────────────────────────
+# analysis.py and watchlist.py import from tradingagents at module level, so
+# this block must run before those imports (i.e. at the top of main.py).
+import os as _os, sys as _sys, tempfile as _tf, types as _types
+
+_TMP = _tf.gettempdir()
+_os.environ.setdefault("TRADINGAGENTS_LOG_DIR",         _TMP)
+_os.environ.setdefault("TRADINGAGENTS_DATA_CACHE_DIR",  _os.path.join(_TMP, "ta_cache"))
+_os.environ.setdefault("TRADINGAGENTS_RESULTS_DIR",     _os.path.join(_TMP, "ta_results"))
+_os.environ.setdefault("TRADINGAGENTS_MEMORY_LOG_PATH", _os.path.join(_TMP, "ta_memory.md"))
+
+# site-packages tradingagents v0.2.5 hardcodes ~/.tradingagents/ in
+# logging_config.py — inject a stub module so that __init__.py's
+# setup_unified_logging() becomes a no-op. FastAPI/uvicorn handle logging.
+_lc_stub = _types.ModuleType("tradingagents.agents.utils.logging_config")
+_lc_stub.setup_unified_logging = lambda: None  # type: ignore[attr-defined]
+_sys.modules.setdefault("tradingagents.agents.utils.logging_config", _lc_stub)
+# ─────────────────────────────────────────────────────────────────────────────
+
 import logging
 from contextlib import asynccontextmanager
 

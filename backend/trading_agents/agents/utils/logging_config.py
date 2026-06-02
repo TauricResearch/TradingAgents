@@ -11,7 +11,12 @@ def setup_unified_logging():
     Filters console logs to WARNING by default, unless TRADINGAGENTS_CONSOLE_LOG_LEVEL or DEBUG env var is set.
     Captures uncaught exceptions via sys.excepthook to log all tracebacks before exit.
     """
-    tradingagents_home = os.path.join(os.path.expanduser("~"), ".tradingagents")
+    # Respect TRADINGAGENTS_LOG_DIR env var so web deployments can redirect
+    # all logging to a temp directory instead of the user's home dir.
+    tradingagents_home = os.environ.get(
+        "TRADINGAGENTS_LOG_DIR",
+        os.path.join(os.path.expanduser("~"), ".tradingagents"),
+    )
     os.makedirs(tradingagents_home, exist_ok=True)
     log_file_path = os.path.join(tradingagents_home, "tradingagents.log")
 

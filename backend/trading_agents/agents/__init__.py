@@ -11,7 +11,7 @@ from .analysts.earnings_analyst import create_earnings_analyst
 from .analysts.review_analyst import create_review_analyst
 from .analysts.sentiment_analyst import (
     create_sentiment_analyst,
-    create_social_media_analyst,  # deprecated alias kept for back-compat
+    create_social_media_analyst,  # deprecated alias — kept in sentiment_analyst.py for compat
 )
 
 from .researchers.bear_researcher import create_bear_researcher
@@ -42,7 +42,7 @@ __all__ = [
     "create_portfolio_manager",
     "create_conservative_debator",
     "create_sentiment_analyst",
-    "create_social_media_analyst",  # deprecated; will be removed in a future version
+    "create_social_media_analyst",  # deprecated alias in sentiment_analyst.py
     "create_trader",
     "create_macro_analyst",
     "create_options_analyst",

@@ -1,5 +1,6 @@
 """SQLite database schema and operations for mock trading system."""
 
+import os
 import sqlite3
 from pathlib import Path
 from datetime import datetime
@@ -19,7 +20,13 @@ class TradingDatabase:
             db_path: Path to SQLite database file. Defaults to ~/.tradingagents/mock_trading.db
         """
         if db_path is None:
-            db_path = Path.home() / ".tradingagents" / "mock_trading.db"
+            # Respect TRADINGAGENTS_DATA_CACHE_DIR so web deployments don't
+            # create SQLite files under ~/.tradingagents/
+            _base = os.environ.get(
+                "TRADINGAGENTS_DATA_CACHE_DIR",
+                str(Path.home() / ".tradingagents"),
+            )
+            db_path = Path(_base) / "mock_trading.db"
         else:
             db_path = Path(db_path)
         

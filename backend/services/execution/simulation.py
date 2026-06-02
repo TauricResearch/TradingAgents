@@ -30,7 +30,16 @@ class SimulationTrader(BaseTraderInterface):
         from tradingagents.mock_trading.engine import MockTradingEngine
         from tradingagents.mock_trading.database import TradingDatabase
 
-        self._db = db or TradingDatabase()
+        if db is None:
+            import tempfile
+            _cache = os.environ.get(
+                "TRADINGAGENTS_DATA_CACHE_DIR",
+                tempfile.gettempdir(),
+            )
+            import pathlib
+            pathlib.Path(_cache).mkdir(parents=True, exist_ok=True)
+            db = TradingDatabase(db_path=str(pathlib.Path(_cache) / "mock_trading.db"))
+        self._db = db
         self._engine = MockTradingEngine(
             portfolio_id=portfolio_id,
             initial_capital=initial_capital,

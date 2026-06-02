@@ -31,6 +31,7 @@ _TMP = _tf.gettempdir()
 os.environ.setdefault("TRADINGAGENTS_RESULTS_DIR",      os.path.join(_TMP, "ta_results"))
 os.environ.setdefault("TRADINGAGENTS_DATA_CACHE_DIR",   os.path.join(_TMP, "ta_cache"))
 os.environ.setdefault("TRADINGAGENTS_MEMORY_LOG_PATH",  os.path.join(_TMP, "ta_memory.md"))
+os.environ.setdefault("TRADINGAGENTS_LOG_DIR",          _TMP)  # covers logging_config.py
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Running task registry — used for cancellation
@@ -65,6 +66,7 @@ def _build_config(settings: AppSettings) -> dict:
         "max_risk_discuss_rounds": settings.max_risk_rounds,
         "output_language": settings.output_language or "English",
         "analyst_concurrency_limit": settings.analyst_concurrency_limit or 1,
+        "skip_disk_log": True,   # DB is source of truth; skip redundant JSON writes
         "checkpoint_enabled": getattr(settings, "checkpoint_enabled", False),
         "max_recur_limit": getattr(settings, "max_recur_limit", 1000) or 1000,
         # News fetching
@@ -163,12 +165,8 @@ async def run_analysis(
     # Collect WS events produced during propagation
     events: list[dict] = []
 
-    callbacks = []
-    try:
-        from cli.stats_handler import StatsCallbackHandler
-        callbacks = [StatsCallbackHandler()]
-    except ImportError:
-        pass
+    # cli.stats_handler doesn't exist in the web deployment; stats always 0
+    callbacks: list = []
 
     config = _build_config(settings)
     ta = TradingAgentsGraph(
@@ -320,18 +318,11 @@ async def run_portfolio_analysis(
     super_report = ""
     if ticker_reports:
         try:
-            callbacks = []
-            try:
-                from cli.stats_handler import StatsCallbackHandler
-                callbacks = [StatsCallbackHandler()]
-            except ImportError:
-                pass
-
             ta = TradingAgentsGraph(
                 selected_analysts=settings.selected_analysts,
                 debug=False,
                 config=config,
-                callbacks=callbacks,
+                callbacks=[],
             )
             from tradingagents.agents.managers.super_portfolio_manager import create_super_portfolio_manager
             spm_node = create_super_portfolio_manager(ta.deep_client)

@@ -1,9 +1,12 @@
+import logging
 import os
 import re
 import json
 import pandas as pd
 from datetime import date, timedelta, datetime
 from typing import Annotated
+
+_logger = logging.getLogger(__name__)
 
 SavePathType = Annotated[str, "File path to save data. If None, data is not saved."]
 
@@ -44,7 +47,7 @@ def safe_ticker_component(value: str, *, max_len: int = 32) -> str:
 def save_output(data: pd.DataFrame, tag: str, save_path: SavePathType = None) -> None:
     if save_path:
         data.to_csv(save_path, encoding="utf-8")
-        print(f"{tag} saved to {save_path}")
+        _logger.debug("%s saved to %s", tag, save_path)
 
 
 def get_current_date():

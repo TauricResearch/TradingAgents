@@ -374,7 +374,8 @@ class TradingAgentsGraph:
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
     def _log_state(self, trade_date, final_state):
-        """Log the final state to a JSON file."""
+        """Log the final state. JSON file write is skipped when skip_disk_log=True
+        (web context — DB is the source of truth; file write is redundant I/O)."""
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -409,6 +410,9 @@ class TradingAgentsGraph:
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
         }
+
+        if self.config.get("skip_disk_log"):
+            return  # web context: state already captured in DB, skip file I/O
 
         # Save to file. Reject ticker values that would escape the
         # results directory when joined as a path component.
