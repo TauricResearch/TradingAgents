@@ -1,0 +1,23 @@
+**Recommendation**: Hold
+
+**Rationale**: This was an unusually high-quality, seven-round debate, and I want to be honest about where it actually landed rather than just picking the louder voice. Both sides agree on the central fact: Eli Lilly is an exceptional business. $19.8B in Q1 2026 revenue, ~49% operating margins, 170% YoY EPS growth, a complete three-PBM coverage sweep for Zepbound and Foundayo, an 83% recurrence reduction in the Retevmo Phase 3 lung cancer trial, and a $1.26B Hanmi pipeline deal. None of that is in dispute. The disagreement is entirely about price and timing at $1,082 / ~$952B market cap.
+
+The bull's strongest contributions: the debt is fine in EBITDA terms (~1.2x), FCF is inflecting positively, the forward 24x PE on triple-digit growth is reasonable, the tirzepatide biologic exclusivity timeline pushes IRA risk on the core franchise out many years, the manufacturing buildout is a genuine multi-year moat on volume, and the Pfizer-COVID analogy correctly fails because obesity/diabetes demand is secular, not a pandemic windfall. The bull also fairly exposed the Novo Nordisk pivot as internally inconsistent.
+
+But here's what tipped me away from endorsing a Buy or Overweight at current levels: the bull's own math undercuts his entry case. His rebuilt, self-favorable probability table produced an expected value of ~$1,037 — roughly 4% BELOW the $1,082 price. He then conceded the upside to $1,300 effectively depends on the Viking Q3 oral GLP-1 readout being negative/mixed, which he himself characterized as a coin flip. When you model that binary symmetrically using his own downside numbers ($760-$836 on a positive Viking outcome), the single most important near-term catalyst carries roughly neutral-to-negative expected value. Layer on the technical research — which the bull's own side commissioned — explicitly flagging "avoid chasing at $1,082, risk/reward asymmetric to the downside near-term," and the case for committing fresh capital right here is weak.
+
+The bear over-reached in places (the 139% D/E lead, the catastrophic 18x multiple scenario, the CMS reclassification theory, and the throwaway NVO suggestion), and his absolute SELL is too strong for a business compounding this powerfully with a defined downside stop available. But his core point survived seven rounds intact: at $1,082, you are paying full price ahead of a dateable 90-day binary, with the bull's own expected value below the current quote.
+
+Where both sides actually converged is instructive: the bull repeatedly said don't chase at $1,082 and wait for $1,021-$1,060; the bear said reduce to a half position and revisit aggressively below $1,000. That overlap — wait for a pullback, manage size into the Viking catalyst — is the honest synthesis. That is a Hold: keep core exposure to a best-in-class franchise, don't add at the top of the range into a coin-flip event, and be ready to build on weakness. The evidence is genuinely balanced at this specific price point, even though the long-term business quality clearly favors the bull.
+
+**Strategic Actions**: 1) MAINTAIN existing LLY core positions; do not exit a best-in-class franchise over a 90-day trading catalyst. Hold the core at current weight.
+
+2) DO NOT add new capital at $1,082. Both sides effectively agreed entry here is unattractive. Stage limit orders to accumulate into the $1,000-$1,060 pullback zone, scaling: ~1/3 of intended add at $1,060, ~1/3 at $1,030, ~1/3 at $1,000 or below.
+
+3) MANAGE the Viking Q3 binary by size, not by all-or-nothing. If currently overweight or recently added near highs, trim back toward a core/half-sized position ahead of the readout to preserve dry powder. Target net exposure that lets you add meaningfully if a positive Viking outcome drives LLY toward $950-$1,000.
+
+4) RISK CONTROLS: Use a protective stop near $1,016 (≈2x ATR) on tactical/trading tranches only — keep the long-term core unstopped given the secular thesis. Account for the elevated $33 ATR by sizing positions smaller than a low-volatility name.
+
+5) CATALYST WATCH that flips this to Overweight/Buy: (a) Viking Phase 3 negative or clearly differentiated-in-LLY's-favor; (b) Q2 2026 revenue confirming Foundayo ramp post-PBM coverage; (c) forward EPS holding/rising toward $44+. CATALYST WATCH that flips to Underweight/Sell: (a) positive Viking data with comparable tolerability; (b) forward EPS revisions below ~$38; (c) Q2 revenue meaningfully below ~$20B; (d) any accelerated IRA classification development on tirzepatide.
+
+6) Net stance: patient, opportunistic accumulation on weakness around a maintained core. Buy the pullback, not the breakout.

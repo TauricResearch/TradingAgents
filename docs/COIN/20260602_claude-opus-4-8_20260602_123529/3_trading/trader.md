@@ -1,0 +1,11 @@
+**Action**: Hold
+
+**Reasoning**: The research plan reflects a genuinely balanced scorecard for COIN at current levels. On the bull side, Coinbase's ~85% gross margins, $9.48 FY2024 EPS, ~$3.1B operating cash flow, and the landmark CFTC perpetual futures approval via Deribit represent durable competitive advantages and a fresh, material revenue catalyst — perps account for ~80% of global crypto volume, a market previously inaccessible to U.S.-regulated platforms. On the bear side, total debt nearly doubled to ~$7.96B, interest coverage sits at a thin ~1.8–2x on trough cash flows, two consecutive net-loss quarters totaled ~$1B, and every key technical indicator (MACD, RSI, Bollinger Bands) remains bearishly aligned with no confirmed divergence. The forward multiple of ~34.7x on ~$4.99 EPS is not cheap, and that EPS estimate itself embeds a ~60–65% probable Bitcoin recovery bet. With Bitcoin actively testing support and Robinhood/Kalshi competing for the same perps opportunity, the asymmetry does not yet favor adding. However, exiting a structurally improving franchise with a live regulatory catalyst into a potential cyclical trough carries meaningful opportunity cost — as the $141→$222 February bounce illustrated. The disciplined posture is to hold existing exposure at a volatility-budgeted weight (sized to survive a 40–50% drawdown), defend the $172–175 technical support zone as a trim trigger on a structural break, and wait for at least one confirmation signal — Bitcoin reclaiming $70K with volume, a MACD zero-line recrossing with RSI basing above 50, or one quarter of visible Deribit/perps revenue — before scaling toward Overweight.
+
+**Entry Price**: 182.0
+
+**Stop Loss**: 172.0
+
+**Position Sizing**: Maintain current weight; cap position so a 40–50% drawdown remains within portfolio risk limits. Do not add new capital until at least one confirmation trigger is met. Stage any future adds in tranches (e.g., thirds) given the 6.7% daily ATR.
+
+FINAL TRANSACTION PROPOSAL: **HOLD**
