@@ -71,8 +71,9 @@ def _get_with_retry(params: dict) -> requests.Response:
             last_exc = exc
             if attempt < AV_MAX_RETRIES - 1:
                 time.sleep(AV_BACKOFF_BASE * (2**attempt))
-    assert last_exc is not None
-    raise last_exc
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("Request failed without an exception")
 
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
