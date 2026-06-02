@@ -33,6 +33,35 @@ def _expires_at(hours: int) -> str:
     return (datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat()
 
 
+def _apply_run_full_study(conn: sqlite3.Connection, *, brief_id: str, arg: str) -> None:
+    """Transition run_full_study actions for a light brief.
+
+    arg is a ticker (accept that one), '__all__' (accept all pending), or
+    '__dismiss__' (decline all pending). Only pending rows are touched, so a
+    repeated click is a no-op (idempotent). Sentinels are matched BEFORE any
+    ticker comparison so a literal ticker can never collide with them."""
+    import json as _j
+    rows = conn.execute(
+        "SELECT action_id, action_params FROM brief_actions "
+        "WHERE brief_id = ? AND action_type = 'run_full_study' AND state = 'pending'",
+        (brief_id,),
+    ).fetchall()
+    now = _utc_now_iso()
+    for r in rows:
+        ticker = _j.loads(r["action_params"]).get("ticker")
+        if arg == "__all__":
+            new_state = "accepted"
+        elif arg == "__dismiss__":
+            new_state = "declined"
+        elif arg == ticker:
+            new_state = "accepted"
+        else:
+            continue
+        store.update_action_state(
+            conn, action_id=r["action_id"], state=new_state, responded_at=now,
+        )
+
+
 def handle_callback(*, update: Any, conn: sqlite3.Connection) -> None:
     """Inline button click → brief_actions row."""
     data = update.callback_query.data or ""
@@ -50,24 +79,24 @@ def handle_callback(*, update: Any, conn: sqlite3.Connection) -> None:
     if resolved != brief_id:
         return
 
-    state = "accepted" if answer == "yes" else "declined"
-    # Prefer transitioning the pending action created at delivery time (S-8),
-    # so a click does NOT create a duplicate row. Fall back to insert only when
-    # no pending action exists (edge case: legacy brief delivered pre-S-8).
-    pending = store.get_pending_action_by_brief(
-        conn, brief_id=brief_id, action_type=action_type,
-    )
-    if pending is not None:
-        aid = pending["action_id"]
+    if action_type == "run_full_study":
+        _apply_run_full_study(conn, brief_id=brief_id, arg=answer)
     else:
-        expires = _expires_at(24)
-        aid = store.insert_brief_action(
+        state = "accepted" if answer == "yes" else "declined"
+        pending = store.get_pending_action_by_brief(
             conn, brief_id=brief_id, action_type=action_type,
-            action_params={}, expires_at=expires,
         )
-    store.update_action_state(
-        conn, action_id=aid, state=state, responded_at=_utc_now_iso(),
-    )
+        if pending is not None:
+            aid = pending["action_id"]
+        else:
+            expires = _expires_at(24)
+            aid = store.insert_brief_action(
+                conn, brief_id=brief_id, action_type=action_type,
+                action_params={}, expires_at=expires,
+            )
+        store.update_action_state(
+            conn, action_id=aid, state=state, responded_at=_utc_now_iso(),
+        )
 
     try:
         loop = asyncio.get_event_loop()

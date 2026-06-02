@@ -32,3 +32,70 @@ def test_light_alert_keyboard_odd_ticker_count_layout():
         "act:lb1:run_full_study:__all__",
         "act:lb1:run_full_study:__dismiss__",
     ]
+
+
+from unittest.mock import AsyncMock, MagicMock
+from tradingagents.persistence.db import connect
+from tradingagents.persistence import store
+
+
+def _seed_light_with_delivery(conn, brief_id="lb1", channel_ref="12345:678"):
+    store.insert_event(conn, event_id="ev1", source="test",
+                       ingested_ts="2026-06-01T00:00:00+00:00",
+                       salience=None, raw_path=None, status="processed",
+                       deduped_of=None)
+    store.insert_brief(conn, brief_id=brief_id, mode="event_alert_light",
+                       scope='["NVDA", "PANW"]',
+                       generated_ts="2026-06-01T00:00:00+00:00",
+                       content_path=f"briefs/{brief_id}.md", run_ids=[],
+                       trigger_event_id="ev1")
+    store.insert_delivery(conn, brief_id=brief_id, channel="telegram",
+                          status="sent", sent_ts="2026-06-01T00:00:01+00:00",
+                          channel_ref=channel_ref, skip_reason=None)
+    for t in ("NVDA", "PANW"):
+        store.insert_brief_action(conn, brief_id=brief_id,
+                                  action_type="run_full_study",
+                                  action_params={"ticker": t},
+                                  expires_at="2099-01-01T00:00:00+00:00")
+
+
+def _callback(data):
+    u = MagicMock()
+    u.callback_query.data = data
+    u.callback_query.message.chat.id = 12345
+    u.callback_query.message.message_id = 678
+    u.callback_query.answer = AsyncMock()
+    return u
+
+
+@pytest.mark.unit
+def test_callback_accepts_single_ticker(tmp_path):
+    from tradingagents.delivery.telegram_bot import handle_callback
+    conn = connect(str(tmp_path / "iic.db"))
+    _seed_light_with_delivery(conn)
+    handle_callback(update=_callback("act:lb1:run_full_study:NVDA"), conn=conn)
+    states = dict(conn.execute(
+        "SELECT json_extract(action_params,'$.ticker'), state "
+        "FROM brief_actions").fetchall())
+    assert states["NVDA"] == "accepted"
+    assert states["PANW"] == "pending"
+
+
+@pytest.mark.unit
+def test_callback_study_all_accepts_every_pending(tmp_path):
+    from tradingagents.delivery.telegram_bot import handle_callback
+    conn = connect(str(tmp_path / "iic.db"))
+    _seed_light_with_delivery(conn)
+    handle_callback(update=_callback("act:lb1:run_full_study:__all__"), conn=conn)
+    states = [r[0] for r in conn.execute("SELECT state FROM brief_actions")]
+    assert states == ["accepted", "accepted"]
+
+
+@pytest.mark.unit
+def test_callback_dismiss_all_declines_every_pending(tmp_path):
+    from tradingagents.delivery.telegram_bot import handle_callback
+    conn = connect(str(tmp_path / "iic.db"))
+    _seed_light_with_delivery(conn)
+    handle_callback(update=_callback("act:lb1:run_full_study:__dismiss__"), conn=conn)
+    states = [r[0] for r in conn.execute("SELECT state FROM brief_actions")]
+    assert states == ["declined", "declined"]
