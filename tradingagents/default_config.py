@@ -18,6 +18,18 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    # LLM response cache. When enabled (default), repeated analyst /
+    # researcher / risk-debater prompts return the cached AIMessage
+    # instead of hitting the upstream API. Crucial for OpenRouter
+    # free-tier rate limits during development.
+    "TRADINGAGENTS_LLM_CACHE_ENABLED":    "llm_cache_enabled",
+    "TRADINGAGENTS_LLM_CACHE_TTL":        "llm_cache_ttl_seconds",
+    # Retry-with-backoff policy. ``max_retries`` is the *additional*
+    # attempts after the first; 5 is the default and absorbs a 1-2
+    # minute upstream hiccup without aborting a 16-call graph run.
+    "TRADINGAGENTS_LLM_RETRY_MAX":        "llm_retry_max_retries",
+    "TRADINGAGENTS_LLM_RETRY_BASE":       "llm_retry_base_delay_seconds",
+    "TRADINGAGENTS_LLM_RETRY_MAX_DELAY":  "llm_retry_max_delay_seconds",
 }
 
 
@@ -70,6 +82,19 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # variation on models that honor it; reasoning models largely ignore it
     # and no setting makes LLM output bit-identical across runs (see README).
     "temperature": None,
+    # LLM response cache (see ``tradingagents.llm_clients.cache``). Default
+    # ON — turning it off is the right move only when you need a guaranteed
+    # live response (e.g. live trading). TTL None = never expire; entries
+    # are evicted only when the user clears the cache directory.
+    "llm_cache_enabled": True,
+    "llm_cache_ttl_seconds": None,
+    # Retry-with-backoff policy (see ``tradingagents.llm_clients.retry``).
+    # Five retries with exponential backoff and Retry-After honoring is
+    # the difference between "one 429 fails the whole run" and "the
+    # 16-call graph absorbs a brief rate-limit window".
+    "llm_retry_max_retries": 5,
+    "llm_retry_base_delay_seconds": 1.0,
+    "llm_retry_max_delay_seconds": 60.0,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

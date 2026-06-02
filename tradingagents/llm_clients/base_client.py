@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 import warnings
+
+from .cache import LLMResponseCache, make_cache_key
+from .retry import RetryPolicy, invoke_with_retry
 
 
 def normalize_content(response):
@@ -19,6 +22,75 @@ def normalize_content(response):
             for item in content
         ]
         response.content = "\n".join(t for t in texts if t)
+    return response
+
+
+def invoke_with_cache_and_retry(
+    base_invoke: Callable[..., Any],
+    chat: Any,
+    input: Any,
+    config: Any,
+    kwargs: dict,
+    *,
+    cache: Optional[LLMResponseCache] = None,
+    retry_policy: Optional[RetryPolicy] = None,
+) -> Any:
+    """Wrap a base chat ``invoke`` call with cache lookup and retry-with-backoff.
+
+    ``base_invoke`` MUST be the langchain chat's actual API-calling
+    ``invoke`` (e.g. ``ChatOpenAI.invoke``), not the wrapping
+    ``NormalizedChatOpenAI.invoke`` override — otherwise the override
+    re-enters itself and the call recurses until the interpreter
+    aborts. Callers in the override pass
+    ``lambda *a, **kw: super().invoke(*a, **kw)`` or, more directly,
+    the bound method obtained via ``ChatOpenAI.invoke.__get__(self)``.
+
+    Resolution order on a call:
+
+    1. Compute the cache key from ``(model, messages, tools, tool_choice, ...)``.
+    2. If a cache is configured and the key hits, return the cached
+       ``AIMessage`` without making a network call.
+    3. Otherwise call ``base_invoke(input, config, **kwargs)`` through
+       ``invoke_with_retry`` so 429/5xx are absorbed.
+    4. On success, write the response to the cache (best-effort) and
+       return it.
+
+    Both the cache and the policy are optional; passing neither yields
+    a plain ``base_invoke`` call, matching the pre-feature behavior.
+    """
+    if cache is None and (retry_policy is None or retry_policy.max_retries == 0):
+        return base_invoke(input, config, **kwargs)
+
+    model_name = getattr(chat, "model_name", None) or getattr(chat, "model", "")
+
+    # Build the cache key from the rendered request. We pass the same
+    # kwargs that ``invoke`` will see so the key reflects the full
+    # request shape, not just the message list.
+    tools = kwargs.get("tools")
+    tool_choice = kwargs.get("tool_choice")
+    key = None
+    if cache is not None and cache.enabled:
+        key = make_cache_key(
+            model_name,
+            input,
+            tools=tools,
+            tool_choice=tool_choice,
+            **{k: v for k, v in kwargs.items() if k not in ("tools", "tool_choice")},
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+
+    if retry_policy is not None and retry_policy.max_retries > 0:
+        response = invoke_with_retry(
+            base_invoke, input, config, policy=retry_policy, **kwargs,
+        )
+    else:
+        response = base_invoke(input, config, **kwargs)
+
+    if cache is not None and cache.enabled and key is not None:
+        cache.put(key, response)
+
     return response
 
 
@@ -58,5 +130,5 @@ class BaseLLMClient(ABC):
 
     @abstractmethod
     def validate_model(self) -> bool:
-        """Validate that the model is supported by this client."""
+        """Validate that this model is supported by this client."""
         pass
