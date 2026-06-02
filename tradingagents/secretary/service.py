@@ -254,7 +254,7 @@ class Secretary:
         self,
         *,
         event_id: str,
-        tickers: list,
+        tickers: List[str],
         ttl_hours: int = 24,
         deliver: bool = True,
     ) -> str:
@@ -304,11 +304,21 @@ class Secretary:
             trigger_event_id=event_id,
         )
 
+        # NOTE: insert_brief + the per-ticker actions/suppressions are written
+        # via store.* helpers that each commit individually, so this is not one
+        # atomic unit. A mid-loop crash can leave some tickers without an action
+        # /suppression. Acceptable for V1 (brief_id is only returned on full
+        # success; partial state is a UX nuisance, not corruption). A truly
+        # atomic version would need non-committing store variants.
         expires_at = (now + timedelta(hours=ttl_hours)).isoformat()
-        # End of local day: suppress each ticker until tomorrow 00:00 local.
-        tomorrow = (datetime.now() + timedelta(days=1)).replace(
+        # Same-day dedup: suppress each ticker until the next LOCAL midnight.
+        # Use the machine's local tz explicitly (astimezone() with no arg binds
+        # the naive 'now' to local time) so this is unambiguous on UTC servers
+        # and TZ-offset dev boxes alike.
+        local_now = datetime.now().astimezone()
+        next_local_midnight = (local_now + timedelta(days=1)).replace(
             hour=0, minute=0, second=0, microsecond=0)
-        until_ts = tomorrow.astimezone(timezone.utc).isoformat()
+        until_ts = next_local_midnight.astimezone(timezone.utc).isoformat()
         for t in tickers:
             store.insert_brief_action(
                 self._conn, brief_id=brief_id, action_type="run_full_study",
@@ -317,7 +327,7 @@ class Secretary:
             store.upsert_suppression(
                 self._conn, key=f"event_alert:{t}", until_ts=until_ts,
                 reason=f"light_alert_same_day event_id={event_id}",
-                created_by="promoter",
+                created_by="secretary",
             )
 
         if deliver:

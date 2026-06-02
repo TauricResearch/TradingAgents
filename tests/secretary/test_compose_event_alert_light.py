@@ -41,3 +41,25 @@ def test_compose_light_creates_brief_actions_and_suppression(tmp_path):
         assert sup is not None
     # exactly one quick LLM call (the summary)
     assert llm.invoke.call_count == 1
+
+
+@pytest.mark.unit
+def test_compose_light_delivers_to_channels_when_enabled(tmp_path, monkeypatch):
+    from tradingagents.secretary import service as svc
+    from tradingagents.secretary.service import Secretary
+    conn = connect(str(tmp_path / "iic.db"))
+    _seed_event(conn)
+    llm = MagicMock()
+    llm.invoke.return_value = MagicMock(content="summary")
+    sec = Secretary(conn=conn, data_dir=str(tmp_path / "data"), llm=llm)
+
+    sent = []
+    fake_channel = MagicMock()
+    fake_channel.send.side_effect = lambda **kw: sent.append(kw["mode"]) or 1
+    monkeypatch.setattr(svc, "_build_channel",
+                        lambda name, conn, config: fake_channel)
+
+    sec.compose_event_alert_light(event_id="ev1", tickers=["NVDA"],
+                                  ttl_hours=24, deliver=True)
+    # at least one channel.send happened, in event_alert_light mode
+    assert "event_alert_light" in sent
