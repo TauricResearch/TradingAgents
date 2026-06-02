@@ -37,6 +37,12 @@ import {
   type MarketState,
   type StateConfig,
 } from "./state.js"
+import {
+  findStationaryDistribution,
+  stationaryFromCounts,
+  testStationary,
+  type StationaryDistribution,
+} from "./stationary.js"
 
 // Re-export all public API
 export {
@@ -47,6 +53,7 @@ export {
   computeCumulativeReturns,
   computeSignal,
   type DailyState,
+  findStationaryDistribution,
   generateStateStream,
   getCurrentState,
   getLatestRegimeMatrix,
@@ -65,6 +72,9 @@ export {
   type StateConfig,
   signalToPositionSize,
   smokeTest,
+  type StationaryDistribution,
+  stationaryFromCounts,
+  testStationary,
   type TransitionMatrix,
   updateRegimeData,
   upsertRegimeState,

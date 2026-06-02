@@ -20,6 +20,7 @@ import { cfg } from "../../lib/settings.ts"
 import {
   buildRegimeSignal,
   buildTransitionMatrix,
+  findStationaryDistribution,
   generateStateStream,
   getPersistence,
   nDayProbabilities,
@@ -122,6 +123,7 @@ interface RenderData {
   }
   persistence: { bull: number; sideways: number; bear: number }
   forecast?: { days: number; bull: number; sideways: number; bear: number; signal: number }
+  stationary?: { bull: number; sideways: number; bear: number }
   persisted: boolean
 }
 
@@ -222,6 +224,20 @@ function renderGum(data: RenderData): string {
     lines.push("")
   }
 
+  // ── Stationary Distribution ──
+  if (data.stationary) {
+    const s = data.stationary
+    lines.push("")
+    lines.push(gumStyle("Stationary Distribution (long-run)", { bold: true }))
+    lines.push(
+      [
+        `  ${green("Bull")} ${bar(s.bull, 16)} ${(s.bull * 100).toFixed(1)}%`,
+        `  ${yellow("Side")} ${bar(s.sideways, 16)} ${(s.sideways * 100).toFixed(1)}%`,
+        `  ${red("Bear")} ${bar(s.bear, 16)} ${(s.bear * 100).toFixed(1)}%`,
+      ].join("\n"),
+    )
+  }
+
   // ── Footer ──
   if (data.persisted) {
     lines.push(gumStyle("✓ persisted to DB", { foreground: "#00ff00", bold: true }))
@@ -305,6 +321,21 @@ function renderPlain(data: RenderData): string {
   )
   lines.push("")
 
+  if (data.stationary) {
+    const s = data.stationary
+    lines.push("Stationary Distribution (long-run π = πP):")
+    lines.push(
+      `  ${green("Bull")} ${bar(s.bull, 16)} ${(s.bull * 100).toFixed(1)}%`,
+    )
+    lines.push(
+      `  ${yellow("Side")} ${bar(s.sideways, 16)} ${(s.sideways * 100).toFixed(1)}%`,
+    )
+    lines.push(
+      `  ${red("Bear")} ${bar(s.bear, 16)} ${(s.bear * 100).toFixed(1)}%`,
+    )
+    lines.push("")
+  }
+
   if (data.persisted) {
     lines.push(green("✓ persisted to DB"))
   } else {
@@ -343,6 +374,10 @@ export const regimeCommand = defineCommand({
     "--plain": {
       type: "boolean",
       description: "Skip gum styling, use plain ANSI output",
+    },
+    "--stationary": {
+      type: "boolean",
+      description: "Show long-run stationary distribution (π = πP)",
     },
   },
   run: async (ctx) => {
@@ -391,6 +426,8 @@ export const regimeCommand = defineCommand({
       const ndays = forecastDays
       const fcast = ndays > 0 ? nDayProbabilities(matrix, currentState, ndays) : null
       const pers = getPersistence(matrix)
+      const showStationary = (ctx.args.stationary as boolean) ?? false
+      const station = showStationary ? findStationaryDistribution(matrix) : null
 
       // ── Output ──────────────────────────────────────────────────────────
 
@@ -410,6 +447,9 @@ export const regimeCommand = defineCommand({
             pBear: signal.pBear,
           },
           persistence: pers,
+        }
+        if (station) {
+          output.stationary = station
         }
         if (fcast) {
           output.forecast = {
@@ -438,6 +478,7 @@ export const regimeCommand = defineCommand({
         pBear: signal.pBear,
         matrix,
         persistence: pers,
+        stationary: station ?? undefined,
         persisted: !!ctx.args.store,
       }
 
