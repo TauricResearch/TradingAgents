@@ -43,6 +43,12 @@ import {
   testStationary,
   type StationaryDistribution,
 } from "./stationary.js"
+import {
+  testWalkForward,
+  walkForwardBacktest,
+  type WalkForwardConfig,
+  type WalkForwardResult,
+} from "./backtest.js"
 
 // Re-export all public API
 export {
@@ -75,10 +81,14 @@ export {
   type StationaryDistribution,
   stationaryFromCounts,
   testStationary,
+  testWalkForward,
   type TransitionMatrix,
   updateRegimeData,
   upsertRegimeState,
   validateMatrix,
+  walkForwardBacktest,
+  type WalkForwardConfig,
+  type WalkForwardResult,
 }
 
 /**

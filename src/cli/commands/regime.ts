@@ -26,6 +26,8 @@ import {
   nDayProbabilities,
   signalToPositionSize,
   updateRegimeData,
+  walkForwardBacktest,
+  type WalkForwardResult,
 } from "../../server/lib/markov/index.ts"
 import { boxTable, gumStyle, isGumAvailable } from "../lib/gum-utils.ts"
 
@@ -379,6 +381,10 @@ export const regimeCommand = defineCommand({
       type: "boolean",
       description: "Show long-run stationary distribution (π = πP)",
     },
+    "--backtest": {
+      type: "boolean",
+      description: "Run walk-forward backtest (no data leakage)",
+    },
   },
   run: async (ctx) => {
     const ticker = ctx.args.ticker as string
@@ -392,6 +398,50 @@ export const regimeCommand = defineCommand({
     try {
       // Step 1: Read price history
       const { prices, dates } = getPriceHistory(ticker)
+
+      // ── Backtest mode ─────────────────────────────────────────────────
+      if (ctx.args.backtest) {
+        const result = walkForwardBacktest(prices, dates, { verbose: false })
+
+        if (asJson) {
+          console.log(JSON.stringify({
+            ticker,
+            ...result,
+            regimeDistribution: result.regimeDistribution,
+          }, null, 2))
+          return
+        }
+
+        const lines: string[] = []
+        lines.push(cyan(`\n=== Walk-Forward Backtest: ${ticker} ===\n`))
+        lines.push(`${"Period:".padEnd(20)} ${result.startDate} → ${result.endDate} (${result.totalDays} days)`)
+        lines.push(`${"Sharpe:".padEnd(20)} ${result.sharpe >= 0 ? green : red}${result.sharpe.toFixed(4)}`)
+        lines.push(`${"Ann Return:".padEnd(20)} ${(result.annualReturn * 100).toFixed(2)}%`)
+        lines.push(`${"Buy & Hold:".padEnd(20)} ${(result.buyAndHoldReturn * 100).toFixed(2)}%`)
+        lines.push(`${"Max Drawdown:".padEnd(20)} ${red((result.maxDrawdown * 100).toFixed(2) + "%")}`)
+        lines.push(`${"Win Rate:".padEnd(20)} ${(result.winRate * 100).toFixed(1)}% (${result.tradeCount} trades)`)
+        lines.push("")
+        lines.push("Regime Distribution:")
+        lines.push(`  ${green("Bull")} ${bar(result.regimeDistribution.bull, 16)} ${(result.regimeDistribution.bull * 100).toFixed(1)}%`)
+        lines.push(`  ${yellow("Side")} ${bar(result.regimeDistribution.sideways, 16)} ${(result.regimeDistribution.sideways * 100).toFixed(1)}%`)
+        lines.push(`  ${red("Bear")} ${bar(result.regimeDistribution.bear, 16)} ${(result.regimeDistribution.bear * 100).toFixed(1)}%`)
+
+        // Comparison summary
+        const outperformance = result.annualReturn - result.buyAndHoldReturn
+        if (outperformance > 0) {
+          lines.push(green(`\n  Strategy outperformed buy-and-hold by ${(outperformance * 100).toFixed(2)}%`))
+        } else {
+          lines.push(red(`\n  Strategy underperformed buy-and-hold by ${(Math.abs(outperformance) * 100).toFixed(2)}%`))
+        }
+        lines.push("")
+
+        if (useGum) {
+          console.log(gumStyle(lines.join("\n"), { padding: "1 2" }))
+        } else {
+          console.log(lines.join("\n"))
+        }
+        return
+      }
 
       // Step 2: Classify states from returns
       const stateStream = generateStateStream(ticker, prices, dates)
