@@ -23,6 +23,8 @@ from typing import Any, Callable, Optional, TypeVar
 
 from pydantic import BaseModel
 
+from tradingagents.llm_clients.base_client import normalize_content
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
@@ -65,9 +67,9 @@ def invoke_structured_or_freetext(
             return render(result)
         except Exception as exc:
             logger.warning(
-                "%s: structured-output invocation failed (%s); retrying once as free text",
+                "%s: structured-output invocation failed (%s); falling back to free-text generation",
                 agent_name, exc,
             )
 
-    response = plain_llm.invoke(prompt)
+    response = normalize_content(plain_llm.invoke(prompt))
     return response.content

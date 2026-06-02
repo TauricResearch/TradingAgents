@@ -1,4 +1,3 @@
-import getpass
 import requests
 from rich.console import Console
 from rich.panel import Panel
@@ -46,6 +45,6 @@ def display_announcements(console: Console, data: dict) -> None:
     console.print(panel)
 
     if require_attention:
-        getpass.getpass("Press Enter to continue...")
+        input("Press Enter to continue...")
     else:
         console.print()

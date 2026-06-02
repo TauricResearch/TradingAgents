@@ -1,4 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from tradingagents.llm_clients.base_client import normalize_content
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_indicators,
@@ -79,12 +80,11 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        result = normalize_content(chain.invoke(state["messages"]))
 
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
+        # Preserve provider text even when the model also emits tool calls;
+        # some APIs return useful partial reasoning/content alongside calls.
+        report = result.content or ""
 
         return {
             "messages": [result],

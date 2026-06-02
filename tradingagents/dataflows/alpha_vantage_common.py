@@ -1,11 +1,16 @@
-import os
-import requests
-import pandas as pd
 import json
+import os
+import time
 from datetime import datetime
 from io import StringIO
 
+import pandas as pd
+import requests
+
 API_BASE_URL = "https://www.alphavantage.co/query"
+AV_REQUEST_TIMEOUT = 15
+AV_MAX_RETRIES = 3
+AV_BACKOFF_BASE = 1.5
 
 
 class AlphaVantageNotConfiguredError(ValueError):
@@ -15,6 +20,19 @@ class AlphaVantageNotConfiguredError(ValueError):
     already catch ValueError, while letting the routing layer distinguish a
     "vendor unavailable" condition from a genuine data error.
     """
+
+    pass
+
+
+class AlphaVantageRateLimitError(Exception):
+    """Raised when Alpha Vantage API rate limit is exceeded."""
+
+    pass
+
+
+class AlphaVantageAuthError(ValueError):
+    """Raised when Alpha Vantage rejects the configured API key."""
+
     pass
 
 
@@ -27,11 +45,12 @@ def get_api_key() -> str:
         )
     return api_key
 
+
 def format_datetime_for_api(date_input) -> str:
-    """Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage API."""
+    """Convert various date formats to YYYYMMDDTHHMM required by Alpha Vantage."""
     if isinstance(date_input, str):
         # If already in correct format, return as-is
-        if len(date_input) == 13 and 'T' in date_input:
+        if len(date_input) == 13 and "T" in date_input:
             return date_input
         # Try to parse common date formats
         try:
@@ -43,58 +62,80 @@ def format_datetime_for_api(date_input) -> str:
                 return dt.strftime("%Y%m%dT%H%M")
             except ValueError:
                 raise ValueError(f"Unsupported date format: {date_input}")
-    elif isinstance(date_input, datetime):
+    if isinstance(date_input, datetime):
         return date_input.strftime("%Y%m%dT%H%M")
-    else:
-        raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
+    raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
-class AlphaVantageRateLimitError(Exception):
-    """Exception raised when Alpha Vantage API rate limit is exceeded."""
-    pass
+
+def _get_with_retry(params: dict) -> requests.Response:
+    last_exc: Exception | None = None
+    for attempt in range(AV_MAX_RETRIES):
+        try:
+            response = requests.get(
+                API_BASE_URL,
+                params=params,
+                timeout=AV_REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+            return response
+        except (requests.Timeout, requests.ConnectionError, requests.HTTPError) as exc:
+            last_exc = exc
+            if attempt < AV_MAX_RETRIES - 1:
+                time.sleep(AV_BACKOFF_BASE * (2**attempt))
+    assert last_exc is not None
+    raise last_exc
+
+
+def _classify_information_message(info_message: str) -> None:
+    msg = info_message.lower()
+    if "rate limit" in msg or "frequency" in msg or "call frequency" in msg:
+        raise AlphaVantageRateLimitError(
+            f"Alpha Vantage rate limit exceeded: {info_message}"
+        )
+    if "api key" in msg or "apikey" in msg or "invalid key" in msg:
+        raise AlphaVantageAuthError(f"Alpha Vantage API key rejected: {info_message}")
+
 
 def _make_api_request(function_name: str, params: dict) -> dict | str:
-    """Helper function to make API requests and handle responses.
-    
+    """Make an Alpha Vantage request with timeout, retry, and error typing.
+
     Raises:
-        AlphaVantageRateLimitError: When API rate limit is exceeded
+        AlphaVantageRateLimitError: when vendor quota/frequency limit is hit.
+        AlphaVantageAuthError: when the configured API key is invalid/rejected.
+        requests.RequestException: when transport fails after bounded retries.
     """
     # Create a copy of params to avoid modifying the original
     api_params = params.copy()
-    api_params.update({
-        "function": function_name,
-        "apikey": get_api_key(),
-        "source": "trading_agents",
-    })
-    
-    # Handle entitlement parameter if present in params or global variable
-    current_entitlement = globals().get('_current_entitlement')
-    entitlement = api_params.get("entitlement") or current_entitlement
-    
-    if entitlement:
-        api_params["entitlement"] = entitlement
-    elif "entitlement" in api_params:
-        # Remove entitlement if it's None or empty
-        api_params.pop("entitlement", None)
-    
-    response = requests.get(API_BASE_URL, params=api_params)
-    response.raise_for_status()
+    api_params.update(
+        {
+            "function": function_name,
+            "apikey": get_api_key(),
+            "source": "trading_agents",
+        }
+    )
 
+    # Keep entitlement explicit: callers may pass params["entitlement"], but
+    # there is no hidden global entitlement side channel.
+    if not api_params.get("entitlement"):
+        api_params.pop("entitlement", None)
+
+    response = _get_with_retry(api_params)
     response_text = response.text
-    
+
     # Check if response is JSON (error responses are typically JSON)
     try:
         response_json = json.loads(response_text)
-        # Check for rate limit error
         if "Information" in response_json:
-            info_message = response_json["Information"]
-            if "rate limit" in info_message.lower() or "api key" in info_message.lower():
-                raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {info_message}")
+            _classify_information_message(response_json["Information"])
+        if "Error Message" in response_json:
+            message = response_json["Error Message"]
+            if "api key" in message.lower() or "apikey" in message.lower():
+                raise AlphaVantageAuthError(f"Alpha Vantage API key rejected: {message}")
     except json.JSONDecodeError:
         # Response is not JSON (likely CSV data), which is normal
         pass
 
     return response_text
-
 
 
 def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> str:

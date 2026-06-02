@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Optional
 
@@ -8,6 +9,8 @@ from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
 from .validators import validate_model
+
+logger = logging.getLogger(__name__)
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -177,7 +180,7 @@ def _resolve_provider_base_url(provider: str) -> Optional[str]:
     import behave correctly.
     """
     if provider == "ollama":
-        env_url = os.environ.get("OLLAMA_BASE_URL")
+        env_url = os.environ.get("TRADINGAGENTS_OLLAMA_BASE_URL") or os.environ.get("OLLAMA_BASE_URL")
         if env_url:
             return env_url
     return _PROVIDER_BASE_URL.get(provider)
@@ -228,10 +231,19 @@ class OpenAIClient(BaseLLMClient):
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
-        # Forward user-provided kwargs
+        # Forward user-provided kwargs, but gate options rejected by the
+        # selected model family before LangChain/OpenAI sends the request.
+        caps = get_capabilities(self.model)
         for key in _PASSTHROUGH_KWARGS:
-            if key in self.kwargs:
-                llm_kwargs[key] = self.kwargs[key]
+            if key not in self.kwargs:
+                continue
+            if key == "temperature" and not caps.supports_temperature:
+                logger.warning(
+                    "Model %s rejects user temperature; dropping configured value.",
+                    self.model,
+                )
+                continue
+            llm_kwargs[key] = self.kwargs[key]
 
         # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.

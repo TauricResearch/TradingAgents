@@ -10,10 +10,9 @@ from tradingagents.graph.analyst_execution import (
 
 class AnalystExecutionPlanTests(unittest.TestCase):
     def test_build_plan_preserves_selected_order(self):
-        plan = build_analyst_execution_plan(["news", "market"], concurrency_limit=2)
+        plan = build_analyst_execution_plan(["news", "market"])
 
         self.assertEqual([spec.key for spec in plan.specs], ["news", "market"])
-        self.assertEqual(plan.concurrency_limit, 2)
         self.assertEqual(plan.specs[0].agent_node, "News Analyst")
         self.assertEqual(plan.specs[0].tool_node, "tools_news")
         self.assertEqual(plan.specs[0].clear_node, "Msg Clear News")
@@ -22,9 +21,11 @@ class AnalystExecutionPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_analyst_execution_plan(["market", "macro"])
 
-    def test_requires_positive_concurrency_limit(self):
-        with self.assertRaises(ValueError):
-            build_analyst_execution_plan(["market"], concurrency_limit=0)
+    def test_concurrency_knob_removed_until_parallel_graph_is_safe(self):
+        import inspect
+
+        signature = inspect.signature(build_analyst_execution_plan)
+        self.assertNotIn("concurrency_limit", signature.parameters)
 
     def test_get_initial_analyst_node_uses_plan_metadata(self):
         plan = build_analyst_execution_plan(["fundamentals", "news"])

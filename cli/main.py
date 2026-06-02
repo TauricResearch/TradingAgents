@@ -594,7 +594,7 @@ def get_user_selections():
         elif selected_llm_provider == "glm":
             selected_llm_provider, backend_url = ask_glm_region()
 
-        # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
+        # For Ollama, surface the resolved endpoint (TRADINGAGENTS_OLLAMA_BASE_URL / OLLAMA_BASE_URL vs default)
         # before model selection so it's obvious where we're connecting.
         if selected_llm_provider == "ollama":
             confirm_ollama_endpoint(backend_url)
@@ -674,25 +674,6 @@ def get_user_selections():
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
     }
-
-
-def get_analysis_date():
-    """Get the analysis date from user input."""
-    while True:
-        date_str = typer.prompt(
-            "", default=datetime.datetime.now().strftime("%Y-%m-%d")
-        )
-        try:
-            # Validate date format and ensure it's not in the future
-            analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-            if analysis_date.date() > datetime.datetime.now().date():
-                console.print("[red]Error: Analysis date cannot be in the future[/red]")
-                continue
-            return date_str
-        except ValueError:
-            console.print(
-                "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
-            )
 
 
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
@@ -1013,10 +994,7 @@ def run_analysis(checkpoint: bool = False):
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
     selected_set = {analyst.value for analyst in selections["analysts"]}
     selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
-    analyst_execution_plan = build_analyst_execution_plan(
-        selected_analyst_keys,
-        concurrency_limit=config["analyst_concurrency_limit"],
-    )
+    analyst_execution_plan = build_analyst_execution_plan(selected_analyst_keys)
     analyst_wall_time_tracker = AnalystWallTimeTracker(analyst_execution_plan)
 
     # Initialize the graph with callbacks bound to LLMs
@@ -1113,26 +1091,10 @@ def run_analysis(checkpoint: bool = False):
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-        # Initialize state and get graph args with callbacks.
-        # Resolve the instrument identity once here so all agents anchor to
-        # the real company (#814); the CLI builds state directly rather than
-        # going through propagate(), so this must happen on the CLI path too.
-        instrument_context = graph.resolve_instrument_context(
-            selections["ticker"], selections["asset_type"]
-        )
-        init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"],
-            selections["analysis_date"],
-            asset_type=selections["asset_type"],
-            instrument_context=instrument_context,
-        )
-        # Pass callbacks to graph config for tool execution tracking
-        # (LLM tracking is handled separately via LLM constructor)
-        args = graph.propagator.get_graph_args(callbacks=[stats_handler])
-
-        # Stream the analysis
-        trace = []
-        for chunk in graph.graph.stream(init_agent_state, **args):
+        # Stream through propagate() so checkpoint/resume and memory/reflection
+        # stay on the same path as programmatic callers. The on_chunk hook keeps
+        # the TUI render loop and stats callbacks intact.
+        def render_chunk(chunk):
             # Process all messages in chunk, deduplicating by message ID
             for message in chunk.get("messages", []):
                 msg_id = getattr(message, "id", None)
@@ -1233,14 +1195,12 @@ def run_analysis(checkpoint: bool = False):
             # Update the display
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-            trace.append(chunk)
-
-        # Streamed chunks are per-node deltas, not full state. Merge them
-        # so every report field populated across the run is present.
-        final_state = {}
-        for chunk in trace:
-            final_state.update(chunk)
-        decision = graph.process_signal(final_state["final_trade_decision"])
+        final_state, decision = graph.propagate(
+            selections["ticker"],
+            selections["analysis_date"],
+            asset_type=selections["asset_type"],
+            on_chunk=render_chunk,
+        )
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
