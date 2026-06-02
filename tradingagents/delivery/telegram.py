@@ -44,6 +44,30 @@ def _make_event_alert_keyboard(brief_id: str):
     ]])
 
 
+def _make_light_alert_keyboard(brief_id: str, tickers: list[str]):
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    rows = []
+    # One [Study <T>] button per affected ticker, two per row.
+    cur: list = []
+    for t in tickers:
+        cur.append(InlineKeyboardButton(
+            f"Study {t}",
+            callback_data=f"act:{brief_id}:run_full_study:{t}",
+        ))
+        if len(cur) == 2:
+            rows.append(cur)
+            cur = []
+    if cur:
+        rows.append(cur)
+    rows.append([
+        InlineKeyboardButton(
+            "✅ Study all", callback_data=f"act:{brief_id}:run_full_study:__all__"),
+        InlineKeyboardButton(
+            "✖ Dismiss all", callback_data=f"act:{brief_id}:run_full_study:__dismiss__"),
+    ])
+    return InlineKeyboardMarkup(rows)
+
+
 class TelegramOutbound(DeliveryChannel):
     channel_name = "telegram"
 
@@ -71,7 +95,13 @@ class TelegramOutbound(DeliveryChannel):
         chat_id = allowed[0]
         bot = _get_bot(token)
 
-        keyboard = _make_event_alert_keyboard(brief["brief_id"]) if mode == "event_alert" else None
+        if mode == "event_alert":
+            keyboard = _make_event_alert_keyboard(brief["brief_id"])
+        elif mode == "event_alert_light":
+            keyboard = _make_light_alert_keyboard(
+                brief["brief_id"], brief.get("tickers", []))
+        else:
+            keyboard = None
 
         coro = bot.send_message(
             chat_id=chat_id,
