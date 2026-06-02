@@ -1,4 +1,4 @@
-"""Shared model catalog for CLI selections and validation."""
+"""Shared model catalog for the settings UI model dropdowns and validation."""
 
 from __future__ import annotations
 
@@ -155,10 +155,8 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "minimax-cn": _MINIMAX_MODELS,
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     # Ollama display labels intentionally omit a "local" marker — the
-    # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
-    # apply whether the user runs ollama-serve on localhost or against a
-    # remote host. The actual resolved endpoint is surfaced separately by
-    # cli.utils.confirm_ollama_endpoint() right after provider selection.
+    # endpoint is configurable via the backend_url setting, so the same labels
+    # apply whether ollama-serve runs on localhost or a remote host.
     # "Custom model ID" lets users pick any model they have pulled via
     # `ollama pull` beyond the three suggested defaults.
     "ollama": {

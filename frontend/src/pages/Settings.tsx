@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Save } from 'lucide-react'
+import { useMeta } from '../hooks/useMeta'
 
 interface Settings {
   trading_mode: string
@@ -40,13 +41,7 @@ interface Settings {
 interface ModelOption { label: string; value: string }
 type Catalog = Record<string, { quick: ModelOption[]; deep: ModelOption[] }>
 
-const ANALYSTS = ['market', 'news', 'fundamentals', 'social', 'macro', 'options', 'quant', 'earnings', 'review']
-const ANALYST_LABELS: Record<string, string> = {
-  market: 'Piyasa', news: 'Haber', fundamentals: 'Temel', social: 'Duygu',
-  macro: 'Makro', options: 'Opsiyon', quant: 'Kantitatif', earnings: 'Kazanç', review: 'İnceleme',
-}
-
-// Human-readable provider names
+// Fallback provider names — used only until /api/meta loads (provider_labels).
 const PROVIDER_LABELS: Record<string, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic (Claude)',
@@ -133,6 +128,7 @@ export default function Settings() {
   const [catalog, setCatalog] = useState<Catalog>({})
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const meta = useMeta()
 
   useEffect(() => {
     Promise.all([
@@ -162,6 +158,14 @@ export default function Settings() {
   const providerList = Object.keys(catalog)
   const currentProviderModels = catalog[s.llm_provider]
 
+  // Backend-driven choice lists (fall back to minimal defaults until meta loads)
+  const providerLabels = meta?.provider_labels ?? PROVIDER_LABELS
+  const tradingModes = meta?.trading_modes ?? [{ value: 'simulation', label: 'Simülasyon (Paper Trading)' }, { value: 'live', label: 'Canlı (Live)' }]
+  const brokers = meta?.brokers ?? [{ value: 'simulation', label: 'Simülasyon' }]
+  const dataVendors = meta?.data_vendors ?? [{ value: 'yfinance', label: 'yFinance' }, { value: 'alpha_vantage', label: 'Alpha Vantage' }]
+  const languages = meta?.languages ?? [{ value: 'English', label: 'English' }, { value: 'Turkish', label: 'Türkçe' }]
+  const analysts = meta?.analysts ?? []
+
   // Single setS call to avoid double render (bug fix)
   const handleProviderChange = (provider: string) => {
     const modes = catalog[provider]
@@ -183,19 +187,17 @@ export default function Settings() {
       <Section title="Çalışma Modu">
         <Row label="Mod">
           <select className={Input} value={s.trading_mode} onChange={e => update('trading_mode', e.target.value)}>
-            <option value="simulation">Simülasyon (Paper Trading)</option>
-            <option value="live">Canlı (Live)</option>
+            {tradingModes.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </Row>
         <Row label="Aktif Broker">
           <select className={Input} value={s.active_broker} onChange={e => update('active_broker', e.target.value)}>
-            <option value="simulation">Simülasyon</option>
+            {brokers.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </Row>
         <Row label="Veri Kaynağı">
           <select className={Input} value={s.active_data_vendor} onChange={e => update('active_data_vendor', e.target.value)}>
-            <option value="yfinance">yFinance</option>
-            <option value="alpha_vantage">Alpha Vantage</option>
+            {dataVendors.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </Row>
       </Section>
@@ -221,7 +223,7 @@ export default function Settings() {
           >
             {providerList.length > 0
               ? providerList.map(p => (
-                  <option key={p} value={p}>{PROVIDER_LABELS[p] || p}</option>
+                  <option key={p} value={p}>{providerLabels[p] || p}</option>
                 ))
               : (
                 // Fallback if catalog not loaded
@@ -312,14 +314,7 @@ export default function Settings() {
 
         <Row label="Çıktı Dili">
           <select className={Input} value={s.output_language} onChange={e => update('output_language', e.target.value)}>
-            <option value="English">English</option>
-            <option value="Turkish">Türkçe</option>
-            <option value="German">Deutsch</option>
-            <option value="French">Français</option>
-            <option value="Spanish">Español</option>
-            <option value="Chinese">中文</option>
-            <option value="Japanese">日本語</option>
-            <option value="Arabic">العربية</option>
+            {languages.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </Row>
 
@@ -344,24 +339,28 @@ export default function Settings() {
       </Section>
 
       <Section title="Aktif Analistler">
-        <div className="grid grid-cols-3 gap-2 pt-1">
-          {ANALYSTS.map(a => (
-            <label key={a} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                className="accent-indigo-600"
-                checked={s.selected_analysts.includes(a)}
-                onChange={e => {
-                  const next = e.target.checked
-                    ? [...s.selected_analysts, a]
-                    : s.selected_analysts.filter(x => x !== a)
-                  update('selected_analysts', next)
-                }}
-              />
-              <span className="text-slate-300">{ANALYST_LABELS[a]}</span>
-            </label>
-          ))}
-        </div>
+        {analysts.length === 0 ? (
+          <p className="text-gray-600 text-sm">Yükleniyor...</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            {analysts.map(a => (
+              <label key={a.key} title={a.description} className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="accent-indigo-600"
+                  checked={s.selected_analysts.includes(a.key)}
+                  onChange={e => {
+                    const next = e.target.checked
+                      ? [...s.selected_analysts, a.key]
+                      : s.selected_analysts.filter(x => x !== a.key)
+                    update('selected_analysts', next)
+                  }}
+                />
+                <span className="text-slate-300">{a.label}</span>
+              </label>
+            ))}
+          </div>
+        )}
       </Section>
 
       <Section title="Veri Kaynakları (Kategori Bazlı)">
@@ -375,8 +374,7 @@ export default function Settings() {
         ).map(([field, label]) => (
           <Row key={field} label={label}>
             <select className={Input} value={s[field] as string} onChange={e => update(field, e.target.value)}>
-              <option value="yfinance">yFinance</option>
-              <option value="alpha_vantage">Alpha Vantage</option>
+              {dataVendors.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </Row>
         ))}

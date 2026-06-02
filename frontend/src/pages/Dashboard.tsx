@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { TrendingUp, TrendingDown, DollarSign, Activity, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useMeta } from '../hooks/useMeta'
 
 interface Portfolio {
   id: number; mode: string; broker: string
@@ -10,21 +11,27 @@ interface Portfolio {
   holdings: { ticker: string; quantity: number; current_price: number; unrealized_pnl: number }[]
 }
 
-const SIGNAL_META: Record<string, { text: string; dot: string }> = {
-  Buy:         { text: 'text-emerald-400', dot: 'bg-emerald-400' },
-  Overweight:  { text: 'text-green-400',   dot: 'bg-green-400' },
-  Hold:        { text: 'text-yellow-400',  dot: 'bg-yellow-400' },
-  Underweight: { text: 'text-orange-400',  dot: 'bg-orange-400' },
-  Sell:        { text: 'text-red-400',     dot: 'bg-red-400' },
+// tone → presentation (the semantic tone + Turkish label come from /api/meta).
+const TONE_META: Record<string, { text: string; dot: string }> = {
+  positive: { text: 'text-emerald-400', dot: 'bg-emerald-400' },
+  neutral:  { text: 'text-yellow-400',  dot: 'bg-yellow-400' },
+  negative: { text: 'text-red-400',     dot: 'bg-red-400' },
+}
+const FALLBACK_TONE: Record<string, string> = {
+  Buy: 'positive', Overweight: 'positive', Hold: 'neutral', Underweight: 'negative', Sell: 'negative',
 }
 
 function SignalBadge({ signal }: { signal: string | null }) {
+  const meta = useMeta()
   if (!signal) return <span className="text-gray-600 text-xs">—</span>
-  const m = SIGNAL_META[signal]
+  const sig = meta?.signals.find(s => s.value === signal)
+  const tone = sig?.tone ?? FALLBACK_TONE[signal]
+  const m = tone ? TONE_META[tone] : undefined
+  const label = sig?.label ?? signal
   return (
     <span className={`flex items-center gap-1.5 text-xs font-semibold ${m?.text || 'text-gray-400'}`}>
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${m?.dot || 'bg-gray-400'}`} />
-      {signal}
+      {label}
     </span>
   )
 }

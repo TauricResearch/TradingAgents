@@ -41,6 +41,9 @@ class DatabaseLogHandler(logging.Handler):
     def __init__(self):
         super().__init__()
         self.addFilter(_BackendFilter())
+        # Scrub API keys / secrets before anything is written to the DB.
+        from backend.core.log_redaction import redaction_filter
+        self.addFilter(redaction_filter)
         self._queue: asyncio.Queue | None = None
         self._task: asyncio.Task | None = None
         self._started = False
@@ -79,6 +82,10 @@ class DatabaseLogHandler(logging.Handler):
 
     @staticmethod
     def _exc_text(record: logging.LogRecord) -> str | None:
+        # The redaction filter renders + scrubs the traceback into exc_text and
+        # clears exc_info, so prefer exc_text; fall back to formatting raw.
+        if record.exc_text:
+            return record.exc_text
         if record.exc_info:
             import traceback
             return "".join(traceback.format_exception(*record.exc_info))

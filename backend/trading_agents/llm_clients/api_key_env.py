@@ -1,12 +1,12 @@
 """Canonical provider -> API-key env-var mapping.
 
 A single source of truth for which environment variable holds the API
-key for each supported LLM provider. Used by the CLI's interactive key
-prompt (cli/utils.ensure_api_key) and by anything else that needs to
-ask "does this provider require a key, and which env var is it?".
+key for each supported LLM provider. Used by the LLM client factory and
+anything else that needs to ask "does this provider require a key, and
+which env var is it?".
 
-When adding a new provider, register its env var here so the CLI flow
-prompts for it automatically instead of failing on first API call.
+When adding a new provider, register its env var here so key resolution
+works automatically instead of failing on first API call.
 """
 
 from __future__ import annotations

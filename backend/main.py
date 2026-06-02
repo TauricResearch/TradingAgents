@@ -10,12 +10,52 @@ _os.environ.setdefault("TRADINGAGENTS_DATA_CACHE_DIR",  _os.path.join(_TMP, "ta_
 _os.environ.setdefault("TRADINGAGENTS_RESULTS_DIR",     _os.path.join(_TMP, "ta_results"))
 _os.environ.setdefault("TRADINGAGENTS_MEMORY_LOG_PATH", _os.path.join(_TMP, "ta_memory.md"))
 
-# site-packages tradingagents v0.2.5 hardcodes ~/.tradingagents/ in
-# logging_config.py — inject a stub module so that __init__.py's
-# setup_unified_logging() becomes a no-op. FastAPI/uvicorn handle logging.
+# The vendored, web-adapted agent package lives at backend/trading_agents but
+# imports itself as top-level `tradingagents`. Inject a stub for its
+# logging_config so __init__.py's setup_unified_logging() becomes a no-op
+# (it calls root_logger.handlers.clear(), which would wipe our console + DB log
+# handlers). FastAPI/uvicorn own logging here.
 _lc_stub = _types.ModuleType("tradingagents.agents.utils.logging_config")
 _lc_stub.setup_unified_logging = lambda: None  # type: ignore[attr-defined]
 _sys.modules.setdefault("tradingagents.agents.utils.logging_config", _lc_stub)
+
+# ── Make backend/trading_agents authoritative as `tradingagents` ─────────────
+# The package directory is `trading_agents` (underscore) but every import — both
+# the web layer and the package's own internals — uses the name `tradingagents`.
+# This meta-path finder maps the `tradingagents` import name onto the local
+# directory and is inserted at the FRONT of sys.meta_path so the local copy wins
+# over any pip-installed `tradingagents`. The stub above still takes precedence
+# for logging_config (sys.modules is consulted before any finder).
+import importlib.abc as _ilab, importlib.util as _ilu
+
+
+class _LocalTradingAgentsFinder(_ilab.MetaPathFinder):
+    _root = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "trading_agents")
+
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname != "tradingagents" and not fullname.startswith("tradingagents."):
+            return None
+        base = _os.path.join(self._root, *fullname.split(".")[1:])
+        if _os.path.isdir(base):
+            init = _os.path.join(base, "__init__.py")
+            if _os.path.isfile(init):
+                return _ilu.spec_from_file_location(
+                    fullname, init, submodule_search_locations=[base],
+                )
+            # PEP 420 namespace package (no __init__.py) — the package ships
+            # some dirs this way, e.g. tradingagents.agents.utils.
+            import importlib.machinery as _ilm
+            spec = _ilm.ModuleSpec(fullname, loader=None, is_package=True)
+            spec.submodule_search_locations = [base]
+            return spec
+        pyfile = base + ".py"
+        if _os.path.isfile(pyfile):
+            return _ilu.spec_from_file_location(fullname, pyfile)
+        return None
+
+
+if not any(isinstance(_f, _LocalTradingAgentsFinder) for _f in _sys.meta_path):
+    _sys.meta_path.insert(0, _LocalTradingAgentsFinder())
 # ─────────────────────────────────────────────────────────────────────────────
 
 import logging
@@ -41,6 +81,7 @@ from backend.api.settings import router as settings_router
 from backend.api.logs import router as logs_router
 from backend.api.cron import router as cron_router
 from backend.api.trading import router as trading_router
+from backend.api.meta import router as meta_router
 
 # Ensure all models are registered with SQLAlchemy metadata before create_all_tables
 import backend.models.portfolio_analysis  # noqa: F401
@@ -51,6 +92,11 @@ settings = get_settings()
 
 # Import after basicConfig so the handler attaches to the root logger correctly
 from backend.core.log_handler import db_log_handler  # noqa: E402
+from backend.core.log_redaction import install_redaction  # noqa: E402
+
+# Scrub secrets from every root handler (console + async DB handler) so API
+# keys can never reach the terminal or the system_logs table.
+install_redaction(*logging.getLogger().handlers)
 
 
 @asynccontextmanager
@@ -135,6 +181,7 @@ app.include_router(settings_router)
 app.include_router(logs_router)
 app.include_router(cron_router)
 app.include_router(trading_router)
+app.include_router(meta_router)
 
 
 @app.websocket("/ws/analysis/{task_id}")

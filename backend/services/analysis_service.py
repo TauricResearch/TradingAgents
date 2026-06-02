@@ -108,16 +108,12 @@ def _history_json_from(value) -> str:
     return str(value)
 
 
-def _extract_stats(callbacks: list) -> dict:
-    """Pull token / call counts from StatsCallbackHandler."""
+def _extract_stats(handler) -> dict:
+    """Return token / call counts from a StatsCallbackHandler instance."""
     try:
-        from cli.stats_handler import StatsCallbackHandler
-        for cb in callbacks:
-            if isinstance(cb, StatsCallbackHandler):
-                return cb.get_stats()
+        return handler.get_stats()
     except Exception:
-        pass
-    return {"llm_calls": 0, "tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
+        return {"llm_calls": 0, "tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
 
 
 async def cancel_analysis(task_id: str) -> bool:
@@ -162,8 +158,23 @@ async def run_analysis(
 
     await ws_manager.send(task_id, {"type": "status", "status": "starting", "agent": "Initializing"})
 
-    # Collect WS events produced during propagation
-    events: list[dict] = []
+    # Backend-local imports (kept out of module top so the tradingagents env
+    # redirect above always runs before anything pulls in the package).
+    from backend.services.stats_handler import StatsCallbackHandler
+    from backend.core.catalog import node_progress
+
+    # The graph runs in a worker thread (asyncio.to_thread). Capture the loop
+    # now so that thread can push live progress/report events back over the WS.
+    loop = asyncio.get_running_loop()
+
+    def _emit(event: dict) -> None:
+        """Thread-safe, fire-and-forget WS send from the graph worker thread."""
+        try:
+            asyncio.run_coroutine_threadsafe(ws_manager.send(task_id, event), loop)
+        except Exception:
+            pass
+
+    stats_handler = StatsCallbackHandler()
 
     start = time.time()
     try:
@@ -175,36 +186,44 @@ async def run_analysis(
             selected_analysts=settings.selected_analysts,
             debug=False,
             config=config,
-            callbacks=[],
         )
 
-        # Patch graph.invoke to capture streaming report events for WS broadcast.
-        # async_propagate calls invoke(state, **args) where args may contain
-        # config=... as a keyword. We must NOT also pass it positionally or
-        # Pregel.stream() raises "multiple values for argument 'config'".
+        # Patch graph.invoke so we can (a) stream live progress, (b) stream
+        # report sections as they are produced, and (c) attach the stats handler
+        # to the run config. Streaming with both modes gives us "updates" (which
+        # node just ran → progress label) and "values" (full cumulative state →
+        # report sections + the final state to persist).
         def _patched_invoke(state, config_arg=None, **kwargs):
-            # If config came in positionally (config_arg), merge into kwargs
-            # so stream() always receives it as a single keyword argument.
             if config_arg is not None and "config" not in kwargs:
                 kwargs["config"] = config_arg
+            kwargs.pop("stream_mode", None)  # we set the modes explicitly below
+            cfg = dict(kwargs.pop("config", None) or {})
+            # Run-config callbacks propagate to every nested LLM + tool call, so
+            # one handler captures the whole run without double counting.
+            cfg["callbacks"] = list(cfg.get("callbacks") or []) + [stats_handler]
+
             prev_state: dict = {}
             final: dict = {}
-            for chunk in ta.graph.stream(state, **kwargs):
-                for key, value in chunk.items():
-                    if key in _REPORT_FIELDS and value and value != prev_state.get(key):
-                        events.append({"type": "report", "section": key, "content": value})
-                        prev_state[key] = value
-                final.update(chunk)
+            for mode, chunk in ta.graph.stream(
+                state, stream_mode=["updates", "values"], config=cfg, **kwargs
+            ):
+                if mode == "updates":
+                    for node_name in (chunk or {}):
+                        prog = node_progress(node_name)
+                        if prog:
+                            _emit(prog)
+                else:  # "values": full cumulative state
+                    for key, value in chunk.items():
+                        if key in _REPORT_FIELDS and value and value != prev_state.get(key):
+                            _emit({"type": "report", "section": key, "content": value})
+                            prev_state[key] = value
+                    final = chunk
             return final
 
         ta.graph.invoke = _patched_invoke
 
         final_state, signal = await ta.async_propagate(ticker, trade_date, asset_type)
-        stats = _extract_stats(callbacks)
-
-        # Broadcast captured report events
-        for event in events:
-            await ws_manager.send(task_id, event)
+        stats = _extract_stats(stats_handler)
 
         duration = time.time() - start
 
@@ -288,6 +307,7 @@ async def run_portfolio_analysis(
     """
     from tradingagents.graph.trading_graph import TradingAgentsGraph
     from backend.models.portfolio_analysis import MultiTickerAnalysis
+    from backend.core.database import AsyncSessionLocal
 
     config = _build_config(settings)
     concurrency = settings.analyst_concurrency_limit or 1
@@ -298,8 +318,20 @@ async def run_portfolio_analysis(
     async def _run_one(ticker: str):
         async with semaphore:
             _logger.info("Portfolio analysis: running %s", ticker)
-            _, row = await run_analysis(ticker, trade_date, asset_type, settings, db, triggered_by)
-            return ticker, row
+            # Each concurrent ticker gets its OWN session: an AsyncSession is
+            # not safe for use by multiple coroutines at once, and the previous
+            # shared-session version raced under concurrency_limit > 1.
+            async with AsyncSessionLocal() as t_db:
+                _, row = await run_analysis(ticker, trade_date, asset_type, settings, t_db, triggered_by)
+                # Capture primitives before commit so nothing depends on the
+                # session/ORM identity once this coroutine returns.
+                data = {
+                    "id": row.id,
+                    "trader_plan": row.trader_plan,
+                    "portfolio_decision": row.final_decision,
+                }
+                await t_db.commit()
+            return ticker, data
 
     results = await asyncio.gather(*[_run_one(t.upper()) for t in tickers], return_exceptions=True)
 
@@ -309,11 +341,11 @@ async def run_portfolio_analysis(
         if isinstance(res, Exception):
             _logger.warning("Portfolio ticker run failed: %s", res)
             continue
-        ticker, row = res
-        analysis_ids.append(row.id)
+        ticker, data = res
+        analysis_ids.append(data["id"])
         ticker_reports[ticker] = {
-            "trader_plan": row.trader_plan,
-            "portfolio_decision": row.final_decision,
+            "trader_plan": data["trader_plan"],
+            "portfolio_decision": data["portfolio_decision"],
         }
 
     # Build SuperPortfolioManager node from a fresh graph instance
@@ -324,11 +356,12 @@ async def run_portfolio_analysis(
                 selected_analysts=settings.selected_analysts,
                 debug=False,
                 config=config,
-                callbacks=[],
             )
             from tradingagents.agents.managers.super_portfolio_manager import create_super_portfolio_manager
-            spm_node = create_super_portfolio_manager(ta.deep_client)
-            state_out = spm_node({"ticker_reports": ticker_reports})
+            # The graph stores the deep-think LLM as deep_thinking_llm (there is
+            # no deep_client attribute). Run the (blocking) LLM call off-loop.
+            spm_node = create_super_portfolio_manager(ta.deep_thinking_llm)
+            state_out = await asyncio.to_thread(spm_node, {"ticker_reports": ticker_reports})
             super_report = state_out.get("super_portfolio_report", "")
         except Exception as e:
             _logger.error("SuperPortfolioManager failed: %s", e, exc_info=True)
