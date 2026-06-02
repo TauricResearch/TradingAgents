@@ -379,7 +379,7 @@ class TradingAgentsGraph:
             tid = thread_id(company_name, str(trade_date))
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
 
-        if self.debug:
+        if self.debug or on_chunk is not None:
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
                 if on_chunk is not None:
