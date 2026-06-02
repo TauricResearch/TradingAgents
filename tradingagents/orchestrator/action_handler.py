@@ -75,18 +75,31 @@ def _dispatch_one(
         ticker = params.get("ticker")
         light = store.load_brief(conn, row["brief_id"])
         event_id = (light or {}).get("trigger_event_id")
-        import json as _j2
+        if not event_id or not ticker:
+            # Missing linkage (brief deleted / no trigger_event_id / no ticker):
+            # do NOT enqueue a malformed job, and do NOT mark the action done —
+            # leave it accepted-undispatched so the failure is visible and
+            # recoverable rather than silently sunk into a guaranteed-fail job.
+            log.error("run_full_study action %s missing event_id/ticker "
+                      "(event_id=%r ticker=%r); skipping enqueue",
+                      row["action_id"], event_id, ticker)
+            return
         with conn:
             conn.execute(
                 "INSERT INTO queue_jobs (job_type, payload, state, "
                 "enqueued_ts, trigger_event_id) VALUES (?, ?, 'queued', "
                 "datetime('now'), ?)",
                 ("event_alert",
-                 _j2.dumps({"event_id": event_id, "ticker": ticker}),
+                 _j.dumps({"event_id": event_id, "ticker": ticker}),
                  event_id),
             )
-        # Mark done by linking back to the light brief so the row is not
-        # re-dispatched.
+        # Sentinel: set result_brief_id to the PARENT light brief so this
+        # accepted action is filtered out of fetch_accepted_undispatched and
+        # never re-enqueues. NOTE (audit-trail caveat): unlike refine_brief —
+        # where result_brief_id points at the produced CHILD brief — here it
+        # points at the parent light brief (the full brief does not exist yet
+        # at enqueue time). A dedicated dispatched_ts/result_job_id column would
+        # be cleaner; tracked as a follow-up for F4+F5 audit work.
         store.mark_action_done(conn, action_id=row["action_id"],
                                result_brief_id=row["brief_id"])
     else:

@@ -55,3 +55,23 @@ def test_run_full_study_is_idempotent(tmp_path):
     tick(conn=conn, secretary=MagicMock(), dispatch_backtest=MagicMock())
     tick(conn=conn, secretary=MagicMock(), dispatch_backtest=MagicMock())
     assert conn.execute("SELECT COUNT(*) FROM queue_jobs").fetchone()[0] == 1
+
+
+@pytest.mark.unit
+def test_run_full_study_missing_ticker_does_not_enqueue_or_mark_done(tmp_path):
+    from tradingagents.orchestrator.action_handler import tick
+    conn = connect(str(tmp_path / "iic.db"))
+    _seed_light(conn)
+    # action_params with no "ticker" key
+    aid = store.insert_brief_action(conn, brief_id="lb1",
+                                    action_type="run_full_study",
+                                    action_params={},
+                                    expires_at="2099-01-01T00:00:00+00:00")
+    store.update_action_state(conn, action_id=aid, state="accepted",
+                              responded_at="2026-06-01T01:00:00+00:00")
+    tick(conn=conn, secretary=MagicMock(), dispatch_backtest=MagicMock())
+    # no job enqueued, action NOT marked done (still recoverable)
+    assert conn.execute("SELECT COUNT(*) FROM queue_jobs").fetchone()[0] == 0
+    row = conn.execute("SELECT result_brief_id FROM brief_actions "
+                       "WHERE action_id=?", (aid,)).fetchone()
+    assert row[0] is None
