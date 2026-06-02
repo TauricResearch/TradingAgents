@@ -54,16 +54,28 @@ def run_once(
             conn, salience_threshold=salience_threshold,
             ticker_conf_threshold=ticker_conf_threshold, limit=batch_size,
         )
+        # Intra-batch dedup: the candidate query reflects the suppression table
+        # as it was when the fetch ran, but each compose writes new same-day
+        # suppressions mid-loop that the already-fetched batch can't see. Without
+        # an in-pass guard, several events naming the same ticker in one batch
+        # each spawn a light alert before suppression takes hold (cross-cycle
+        # dedup works; intra-batch did not). Track tickers alerted THIS pass and
+        # strip them from later events so a ticker fires at most once per pass.
+        seen_tickers: set = set()
         composed = 0
         for g in groups:
+            fresh = [t for t in g["tickers"] if t not in seen_tickers]
+            if not fresh:
+                continue
             try:
                 secretary.compose_event_alert_light(
-                    event_id=g["event_id"], tickers=g["tickers"],
+                    event_id=g["event_id"], tickers=fresh,
                     ttl_hours=pending_ttl_hours, deliver=True,
                 )
+                seen_tickers.update(fresh)
                 composed += 1
                 log.info("light alert composed event_id=%s tickers=%s",
-                         g["event_id"], g["tickers"])
+                         g["event_id"], fresh)
             except Exception:
                 log.exception("light alert failed event_id=%s; continuing",
                               g["event_id"])

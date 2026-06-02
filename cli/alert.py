@@ -27,6 +27,36 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _resolve_brief_id(conn, brief_id: str) -> str:
+    """Resolve a (possibly abbreviated) brief_id to the full id.
+
+    `alert list` prints the 8-char prefix, so operators naturally paste that
+    back. Accept any unambiguous prefix (and the full id). Returns the input
+    unchanged if it already matches a full id exactly; raises typer.BadParameter
+    on no-match or an ambiguous prefix so the caller fails loudly."""
+    exact = conn.execute(
+        "SELECT 1 FROM brief_actions WHERE brief_id = ? "
+        "AND action_type = 'run_full_study' LIMIT 1",
+        (brief_id,),
+    ).fetchone()
+    if exact:
+        return brief_id
+    matches = [
+        r[0] for r in conn.execute(
+            "SELECT DISTINCT brief_id FROM brief_actions "
+            "WHERE action_type = 'run_full_study' AND brief_id LIKE ?",
+            (brief_id + "%",),
+        ).fetchall()
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        raise typer.BadParameter(f"no light alert matches brief id {brief_id!r}")
+    raise typer.BadParameter(
+        f"ambiguous brief id {brief_id!r} matches {len(matches)} alerts; "
+        f"use more characters")
+
+
 def _transition(conn, brief_id: str, ticker, state: str) -> int:
     rows = conn.execute(
         "SELECT action_id, action_params FROM brief_actions "
@@ -63,13 +93,16 @@ def alert_approve(
     brief_id: str,
     ticker: str = typer.Option(None, "--ticker", help="Approve one ticker; omit for all"),
 ) -> None:
-    """Approve a full study for one or all tickers on a light alert."""
+    """Approve a full study for one or all tickers on a light alert.
+
+    BRIEF_ID may be the 8-char prefix shown by `forge alert list` or the full id."""
     conn = _conn()
-    n = _transition(conn, brief_id, ticker, "accepted")
+    full_id = _resolve_brief_id(conn, brief_id)
+    n = _transition(conn, full_id, ticker, "accepted")
     if n == 0:
-        console.print(f"[yellow]no pending tickers matched[/yellow] on {brief_id[:8]}")
+        console.print(f"[yellow]no pending tickers matched[/yellow] on {full_id[:8]}")
     else:
-        console.print(f"[green]approved[/green] {n} ticker(s) on {brief_id[:8]}")
+        console.print(f"[green]approved[/green] {n} ticker(s) on {full_id[:8]}")
 
 
 @alert_app.command("dismiss")
@@ -77,10 +110,13 @@ def alert_dismiss(
     brief_id: str,
     ticker: str = typer.Option(None, "--ticker", help="Dismiss one ticker; omit for all"),
 ) -> None:
-    """Dismiss (decline) one or all tickers on a light alert."""
+    """Dismiss (decline) one or all tickers on a light alert.
+
+    BRIEF_ID may be the 8-char prefix shown by `forge alert list` or the full id."""
     conn = _conn()
-    n = _transition(conn, brief_id, ticker, "declined")
+    full_id = _resolve_brief_id(conn, brief_id)
+    n = _transition(conn, full_id, ticker, "declined")
     if n == 0:
-        console.print(f"[yellow]no pending tickers matched[/yellow] on {brief_id[:8]}")
+        console.print(f"[yellow]no pending tickers matched[/yellow] on {full_id[:8]}")
     else:
-        console.print(f"[green]dismissed[/green] {n} ticker(s) on {brief_id[:8]}")
+        console.print(f"[green]dismissed[/green] {n} ticker(s) on {full_id[:8]}")
