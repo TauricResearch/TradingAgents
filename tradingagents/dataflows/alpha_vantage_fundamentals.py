@@ -28,12 +28,22 @@ def get_fundamentals(ticker: str, curr_date: str = None) -> str:
     prefixed with an explicit caveat so historical backtests do not treat
     the latest valuation metrics as if they existed on that date.
     """
+    import json
     params = {
         "symbol": ticker,
     }
 
     payload = _make_api_request("OVERVIEW", params)
-    return historical_snapshot_caveat(curr_date) + str(payload)
+    caveat = historical_snapshot_caveat(curr_date)
+    if caveat:
+        try:
+            data = json.loads(payload)
+            if isinstance(data, dict):
+                data["_lookahead_caveat"] = caveat.strip()
+                return json.dumps(data)
+        except Exception:
+            pass
+    return payload
 
 
 def get_balance_sheet(ticker: str, freq: str = "quarterly", curr_date: str = None):
