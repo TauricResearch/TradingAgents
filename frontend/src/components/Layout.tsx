@@ -5,6 +5,7 @@ import {
   Settings, ScrollText, TrendingUp, LogOut, Clock,
   FlaskConical, PieChart, Loader2, ChevronRight,
   AlertCircle, AlertTriangle, CheckCircle, Info, X,
+  BarChart2, Bell, Menu,
 } from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
@@ -16,10 +17,13 @@ interface RunningTask { ticker: string; taskId: string; startedAt: string }
 const NAV = [
   { to: '/dashboard',  label: 'Dashboard',       icon: LayoutDashboard },
   { to: '/analysis',   label: 'Analiz',           icon: Search },
+  { to: '/chart',      label: 'Grafik',           icon: TrendingUp },
   { to: '/trading',    label: 'Simülasyon',        icon: FlaskConical },
   { to: '/portfolio',  label: 'Portföy',           icon: PieChart },
   { to: '/watchlist',  label: 'İzleme Listesi',    icon: BookMarked },
   { to: '/orders',     label: 'Emirler',           icon: Briefcase },
+  { to: '/performance', label: 'Performans',       icon: BarChart2 },
+  { to: '/alerts',     label: 'Alarmlar',          icon: Bell },
   { to: '/settings',   label: 'Ayarlar',           icon: Settings },
   { to: '/logs',       label: 'Loglar',            icon: ScrollText },
 ]
@@ -27,6 +31,7 @@ const NAV = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [cronStatus, setCronStatus] = useState<{ next_run_time: string | null }>({ next_run_time: null })
   const [runningTask, setRunningTask] = useState<RunningTask | null>(() => {
     try { return JSON.parse(localStorage.getItem('ta_task_running') || 'null') } catch { return null }
@@ -49,7 +54,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }
     }
     window.addEventListener('storage', onStorage)
-    // Also poll localStorage directly (same-tab changes don't fire storage event)
     const id = setInterval(() => {
       try {
         const raw = localStorage.getItem('ta_task_running')
@@ -76,8 +80,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handler = (e: Event) => {
       const n = (e as CustomEvent<Notification>).detail
-      setToasts(prev => [...prev.slice(-4), n]) // keep max 5
-      // Auto-dismiss after 6s (errors) or 4s (others)
+      setToasts(prev => [...prev.slice(-4), n])
       const ms = n.type === 'error' ? 6000 : 4000
       setTimeout(() => dismiss(n.id), ms)
     }
@@ -88,11 +91,50 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-gray-950">
+
+      {/* ── Mobile top header ── */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-30 h-14 bg-gray-900 border-b border-gray-800 flex items-center px-4 gap-3 shrink-0">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+        >
+          <Menu size={20} />
+        </button>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <TrendingUp size={13} className="text-white" strokeWidth={2.5} />
+          </div>
+          <p className="text-white font-bold text-sm tracking-tight">TradingAgents</p>
+        </div>
+        {runningTask && (
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-emerald-400 text-xs font-mono">{runningTask.ticker}</span>
+          </div>
+        )}
+      </header>
+
+      {/* ── Mobile sidebar overlay ── */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="w-60 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 border-r border-gray-800 flex flex-col
+        transition-transform duration-200 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:w-60 md:translate-x-0 md:shrink-0
+      `}>
 
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-gray-800">
+        <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
               <TrendingUp size={15} className="text-white" strokeWidth={2.5} />
@@ -102,6 +144,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <p className="text-gray-500 text-xs mt-0.5">AI Portfolio</p>
             </div>
           </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+          >
+            <X size={16} />
+          </button>
         </div>
 
         {/* Nav */}
@@ -110,6 +158,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <NavLink
               key={to}
               to={to}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group ` +
                 (isActive
@@ -174,14 +223,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main ── */}
-      <main className="flex-1 overflow-y-auto min-h-screen bg-gray-950">
+      <main className="flex-1 overflow-y-auto min-h-screen bg-gray-950 pt-14 md:pt-0">
         <UpdateBanner />
         {children}
       </main>
 
       {/* ── Toast notifications ── */}
       {toasts.length > 0 && (
-        <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 w-96 max-w-[calc(100vw-2rem)]">
+        <div className="fixed bottom-5 right-3 z-50 flex flex-col gap-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 sm:right-5 sm:max-w-none">
           {toasts.map(t => <Toast key={t.id} n={t} onDismiss={dismiss} />)}
         </div>
       )}

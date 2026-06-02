@@ -3,9 +3,12 @@ import axios from 'axios'
 import { getAccessToken } from '../hooks/useAuth'
 import { useMeta } from '../hooks/useMeta'
 import { notify } from '../utils/notify'
+import { exportMarkdown, exportPDF } from '../utils/exportReport'
+import { sendBrowserNotification } from '../utils/browserNotify'
 import {
   Loader2, CheckCircle, AlertCircle, History,
   X, BarChart2, Terminal, FileText, Zap, Square,
+  Download, FileDown,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -133,13 +136,19 @@ function RunTab() {
   const [log, setLog] = useState<string[]>(saved.log)
   const [activeSection, setActiveSection] = useState<string | null>(saved.activeSection)
   const wsRef = useRef<WebSocket | null>(null)
-  const taskIdRef = useRef<string | null>(null)  // current running task id
+  const taskIdRef = useRef<string | null>(null)
   const preRefreshLogRef = useRef<string[] | null>(null)
 
   const meta = useMeta()
   const sectionLabels = meta?.section_labels ?? SECTION_LABELS
   const assetTypes = meta?.asset_types ?? [{ value: 'stock', label: 'Hisse' }, { value: 'crypto', label: 'Kripto' }]
   const [currentStep, setCurrentStep] = useState<{ label: string; stage: string } | null>(null)
+
+  // Cost estimate (MOD8)
+  const [costEstimate, setCostEstimate] = useState<{ min_usd: number; max_usd: number } | null>(null)
+  // Re-analysis warning (MOD8)
+  const [existingId, setExistingId] = useState<number | null>(null)
+  const [showRerunModal, setShowRerunModal] = useState(false)
 
   // Persist state to localStorage on every change
   useEffect(() => {
@@ -196,6 +205,7 @@ function RunTab() {
         setRunning_(false)
         setCurrentStep(null)
         appendLog(`— Tamamlandı ${ev.duration_seconds}s / ${ev.llm_calls} LLM çağrısı`)
+        sendBrowserNotification(`${ticker.toUpperCase()} analizi tamamlandı`, `Sinyal: ${ev.signal ?? 'N/A'} • ${ev.duration_seconds?.toFixed(0)}s`)
       } else if (ev.type === 'error') {
         finished = true
         setRunStatus('error')
@@ -237,15 +247,38 @@ function RunTab() {
     try {
       const { taskId, ticker: runTicker } = JSON.parse(raw)
       if (!taskId) return
-      // Set the pre-refresh log for deduplication
       preRefreshLogRef.current = [...log]
-      // Restore running state and reconnect WS
       setRunning(true)
       setRunStatus('running')
       if (runTicker) setTicker(runTicker)
       attachWs(taskId, true)
     } catch { localStorage.removeItem(TASK_KEY) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Cost estimate (debounced) ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!ticker.trim() || running) return
+    const tid = setTimeout(async () => {
+      try {
+        const { data } = await axios.get('/api/analysis/cost-estimate', { params: { ticker: ticker.toUpperCase(), trade_date: date } })
+        setCostEstimate(data)
+      } catch { setCostEstimate(null) }
+    }, 600)
+    return () => clearTimeout(tid)
+  }, [ticker, date, running])
+
+  // ── Re-analysis check ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!ticker.trim()) { setExistingId(null); return }
+    const tid = setTimeout(async () => {
+      try {
+        const { data } = await axios.get('/api/analysis/history', { params: { limit: 5 } })
+        const match = data.find((x: HistoryItem) => x.ticker === ticker.toUpperCase() && x.trade_date === date)
+        setExistingId(match?.id ?? null)
+      } catch { setExistingId(null) }
+    }, 400)
+    return () => clearTimeout(tid)
+  }, [ticker, date])
 
   // Stop: close WS + cancel backend task
   const handleStop = async () => {
@@ -260,8 +293,8 @@ function RunTab() {
     }
   }
 
-  const handleRun = async () => {
-    if (!ticker.trim()) return
+  const doRun = async () => {
+    setShowRerunModal(false)
     setRunning(true)
     setRunStatus('running')
     setSignal(null)
@@ -285,6 +318,12 @@ function RunTab() {
     }
   }
 
+  const handleRun = () => {
+    if (!ticker.trim()) return
+    if (existingId) { setShowRerunModal(true); return }
+    doRun()
+  }
+
   const handleClear = () => {
     setRunStatus('idle'); setSignal(null); setReports({}); setLog([]); setActiveSection(null); setCurrentStep(null)
   }
@@ -294,7 +333,7 @@ function RunTab() {
   return (
     <div className="space-y-4">
       {/* Form card */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5">
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1.5 block uppercase tracking-wider">Sembol</label>
@@ -355,7 +394,34 @@ function RunTab() {
           {runStatus === 'error' && <AlertCircle size={18} className="text-red-400" />}
           {signal && <SignalBadge signal={signal} large />}
         </div>
+        {/* Cost estimate + existing analysis hint */}
+        {!running && (
+          <div className="flex items-center gap-4 mt-2">
+            {costEstimate && (
+              <span className="text-xs text-gray-600">
+                Tahmini maliyet: ~${costEstimate.min_usd.toFixed(3)}–${costEstimate.max_usd.toFixed(3)}
+              </span>
+            )}
+            {existingId && (
+              <span className="text-xs text-yellow-500">⚠ Bu tarih için kayıtlı analiz var — yeniden çalıştıracaksınız</span>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Re-run warning modal */}
+      {showRerunModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-sm w-full space-y-4">
+            <h3 className="text-white font-semibold">Mevcut Analiz Var</h3>
+            <p className="text-gray-400 text-sm">{ticker.toUpperCase()} için {date} tarihli bir analiz zaten mevcut. Yeni analiz daha fazla API kredisi harcayacak.</p>
+            <div className="flex gap-3">
+              <button onClick={doRun} className="flex-1 bg-violet-600 hover:bg-violet-500 text-white text-sm py-2 rounded-xl transition">Yeniden Çalıştır</button>
+              <button onClick={() => setShowRerunModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm py-2 rounded-xl transition">İptal</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Running status banner */}
       {running && (
@@ -384,7 +450,7 @@ function RunTab() {
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Canlı Log</span>
               <span className="ml-auto text-xs text-gray-600">{log.length} satır</span>
             </div>
-            <div className="px-4 py-3 space-y-1 max-h-80 overflow-y-auto">
+            <div className="px-4 py-3 space-y-1 max-h-48 md:max-h-80 overflow-y-auto">
               {log.map((line, i) => (
                 <p key={i} className={`text-xs font-mono leading-relaxed ${
                   line.startsWith('✗') ? 'text-red-400' :
@@ -405,7 +471,7 @@ function RunTab() {
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Raporlar</span>
               <span className="ml-auto text-xs text-gray-600">{reportEntries.length} bölüm</span>
             </div>
-            <div className="p-4 space-y-1.5 max-h-80 overflow-y-auto">
+            <div className="p-4 space-y-1.5 max-h-64 md:max-h-80 overflow-y-auto">
               {reportEntries.length === 0 && (
                 <p className="text-gray-600 text-sm text-center py-8">Raporlar analiz sırasında burada görünecek.</p>
               )}
@@ -579,37 +645,39 @@ function HistoryTab() {
         {items.length === 0 ? (
           <p className="p-6 text-gray-600 text-sm">Henüz analiz geçmişi yok.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-600 text-xs uppercase tracking-wider border-b border-gray-800 bg-gray-800/30">
-                <th className="px-5 py-3 text-left">Sembol</th>
-                <th className="px-5 py-3 text-left">Tarih</th>
-                <th className="px-5 py-3 text-left">Sinyal</th>
-                <th className="px-5 py-3 text-left">Süre</th>
-                <th className="px-5 py-3 text-left">Kaynak</th>
-                <th className="px-5 py-3 text-left">Zaman</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={item.id} onClick={() => openDetail(item.id)}
-                  className="border-t border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors">
-                  <td className="px-5 py-3 font-mono font-bold text-white">{item.ticker}</td>
-                  <td className="px-5 py-3 text-gray-400">{item.trade_date}</td>
-                  <td className="px-5 py-3"><SignalBadge signal={item.signal} /></td>
-                  <td className="px-5 py-3 text-gray-500">{item.duration_seconds.toFixed(1)}s</td>
-                  <td className="px-5 py-3 text-gray-600 text-xs">{item.triggered_by}</td>
-                  <td className="px-5 py-3 text-gray-600 text-xs">{new Date(item.created_at).toLocaleString('tr-TR')}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
+              <thead>
+                <tr className="text-gray-600 text-xs uppercase tracking-wider border-b border-gray-800 bg-gray-800/30">
+                  <th className="px-4 py-3 text-left">Sembol</th>
+                  <th className="px-4 py-3 text-left">Tarih</th>
+                  <th className="px-4 py-3 text-left">Sinyal</th>
+                  <th className="px-4 py-3 text-left">Süre</th>
+                  <th className="px-4 py-3 text-left hidden sm:table-cell">Kaynak</th>
+                  <th className="px-4 py-3 text-left hidden md:table-cell">Zaman</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id} onClick={() => openDetail(item.id)}
+                    className="border-t border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors">
+                    <td className="px-4 py-3 font-mono font-bold text-white">{item.ticker}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">{item.trade_date}</td>
+                    <td className="px-4 py-3"><SignalBadge signal={item.signal} /></td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{item.duration_seconds.toFixed(1)}s</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs hidden sm:table-cell">{item.triggered_by}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs hidden md:table-cell">{new Date(item.created_at).toLocaleString('tr-TR')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {(detail || detailLoading) && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center p-4 overflow-y-auto backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-4xl my-8 space-y-4">
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center p-3 md:p-4 overflow-y-auto backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 w-full max-w-4xl my-4 md:my-8 space-y-4">
             {detailLoading ? (
               <div className="flex items-center gap-2 text-gray-400"><Loader2 className="animate-spin" size={16} /> Yükleniyor...</div>
             ) : detail ? (
@@ -622,9 +690,17 @@ function HistoryTab() {
                     </div>
                     <p className="text-gray-500 text-xs">{detail.trade_date} • {detail.duration_seconds.toFixed(1)}s • {detail.llm_calls} LLM • {(detail.tokens_in + detail.tokens_out).toLocaleString()} token</p>
                   </div>
-                  <button onClick={() => setDetail(null)} className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800 ml-4"><X size={18} /></button>
+                  <div className="flex items-center gap-2 ml-4">
+                    <button onClick={() => exportMarkdown(detail)} className="flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg transition" title="Markdown İndir">
+                      <Download size={12} /> MD
+                    </button>
+                    <button onClick={() => exportPDF(detail)} className="flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg transition" title="PDF İndir">
+                      <FileDown size={12} /> PDF
+                    </button>
+                    <button onClick={() => setDetail(null)} className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"><X size={18} /></button>
+                  </div>
                 </div>
-                <div className="space-y-1.5 max-h-[65vh] overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-[60vh] md:max-h-[65vh] overflow-y-auto pr-1">
                   {([
                     ['market_report', detail.market_report], ['sentiment_report', detail.sentiment_report],
                     ['news_report', detail.news_report], ['fundamentals_report', detail.fundamentals_report],
@@ -658,20 +734,20 @@ export default function Analysis() {
   ]
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white tracking-tight">Analiz</h2>
+        <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Analiz</h2>
       </div>
 
       {/* Tab bar */}
       <div className="flex gap-1 p-1 bg-gray-900 border border-gray-800 rounded-2xl w-fit">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               tab === t.id ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'text-gray-500 hover:text-white'
             }`}
           >
-            {t.icon} {t.label}
+            {t.icon} <span className="hidden sm:inline">{t.label}</span>
           </button>
         ))}
       </div>

@@ -20,6 +20,16 @@ class CronService:
         if not self._running:
             self.scheduler.start()
             self._running = True
+            # Alert price checker — every 15 minutes
+            self.scheduler.add_job(
+                _run_alert_checker, "interval", minutes=15,
+                id="alert_checker", replace_existing=True, misfire_grace_time=120,
+            )
+            # Performance backfill — every 6 hours
+            self.scheduler.add_job(
+                _run_performance_backfill, "interval", hours=6,
+                id="perf_backfill", replace_existing=True, misfire_grace_time=3600,
+            )
             _logger.info("CronService started")
 
     def stop(self):
@@ -140,6 +150,24 @@ async def _maybe_execute(ticker: str, row, settings, trader, db):
     db.add(order_row)
     await db.flush()
     _logger.info("Order placed: %s %s %s → %s", action, qty, ticker, result.status)
+
+
+async def _run_alert_checker():
+    from backend.services.alert_service import check_price_alerts
+    try:
+        await check_price_alerts()
+    except Exception as exc:
+        _logger.error("Alert checker error: %s", exc)
+
+
+async def _run_performance_backfill():
+    from backend.core.database import AsyncSessionLocal
+    from backend.services.performance_service import backfill_returns
+    try:
+        async with AsyncSessionLocal() as db:
+            await backfill_returns(db)
+    except Exception as exc:
+        _logger.error("Performance backfill error: %s", exc)
 
 
 def init_cron_service() -> CronService:

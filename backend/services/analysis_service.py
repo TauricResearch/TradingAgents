@@ -46,6 +46,38 @@ _REPORT_FIELDS = (
 )
 
 
+async def _get_historical_analyses_context(
+    ticker: str, trade_date: str, db: AsyncSession, limit: int = 5
+) -> str:
+    """Önceki DB analizlerini past_context için markdown formatında döndürür."""
+    from sqlalchemy import select, desc as _desc
+
+    result = await db.execute(
+        select(AnalysisResult)
+        .where(AnalysisResult.ticker == ticker)
+        .where(AnalysisResult.trade_date < trade_date)
+        .order_by(_desc(AnalysisResult.created_at))
+        .limit(limit)
+    )
+    rows = result.scalars().all()
+    if not rows:
+        return ""
+
+    parts = [f"=== {ticker} GEÇMİŞ ANALİZ RAPORLARI ===\n"]
+    for row in reversed(rows):  # kronolojik sıra
+        parts.append(f"--- Tarih: {row.trade_date} | Sinyal: {row.signal or 'N/A'} ---")
+        for label, field in [
+            ("Piyasa Raporu", row.market_report),
+            ("Haber Raporu", row.news_report),
+            ("Temel Analiz", row.fundamentals_report),
+            ("Son Karar", row.final_decision),
+        ]:
+            if field and field.strip():
+                parts.append(f"{label}:\n{field[:400].strip()}...")
+        parts.append("")
+    return "\n".join(parts)
+
+
 def _build_config(settings: AppSettings) -> dict:
     """Convert AppSettings → TradingAgentsGraph-compatible config dict."""
     from tradingagents.graph.trading_graph import DEFAULT_CONFIG
@@ -125,6 +157,40 @@ async def cancel_analysis(task_id: str) -> bool:
     return False
 
 
+async def _send_analysis_webhook(ticker, trade_date, signal, final_decision, settings):
+    try:
+        from backend.services.notification_service import notify_analysis_complete
+        await notify_analysis_complete(ticker, signal, trade_date, final_decision, settings)
+    except Exception as exc:
+        _logger.debug("Webhook notify failed (non-fatal): %s", exc)
+
+
+async def _extract_and_save_annotations(
+    analysis_id: int,
+    market_report: str,
+    final_decision: str,
+    quick_llm,
+) -> None:
+    """Background task: extract chart annotations and persist to DB."""
+    import json as _json
+    from backend.core.database import AsyncSessionLocal
+    from backend.services.annotation_service import extract_chart_annotations
+    from sqlalchemy import select
+
+    try:
+        annotations = await extract_chart_annotations(market_report, final_decision, quick_llm)
+        if not annotations:
+            return
+        async with AsyncSessionLocal() as s:
+            result = await s.execute(select(AnalysisResult).where(AnalysisResult.id == analysis_id))
+            row = result.scalar_one_or_none()
+            if row:
+                row.chart_annotations = _json.dumps(annotations, ensure_ascii=False)
+                await s.commit()
+    except Exception as exc:
+        _logger.debug("Annotation save failed (non-fatal): %s", exc)
+
+
 async def run_analysis(
     ticker: str,
     trade_date: str,
@@ -182,6 +248,10 @@ async def run_analysis(
         # (missing API key, bad config, import error) reaches the WS error handler.
         await ws_manager.send(task_id, {"type": "status", "status": "starting", "agent": "LLM istemcisi hazırlanıyor..."})
         config = _build_config(settings)
+        if getattr(settings, "include_historical_analyses", False):
+            hist_ctx = await _get_historical_analyses_context(ticker, trade_date, db)
+            if hist_ctx:
+                config["historical_context"] = hist_ctx
         ta = TradingAgentsGraph(
             selected_analysts=settings.selected_analysts,
             debug=False,
@@ -265,6 +335,14 @@ async def run_analysis(
         )
         db.add(row)
         await db.flush()
+
+        # Background tasks: chart annotations + webhook notification
+        asyncio.create_task(_extract_and_save_annotations(
+            row.id, result.market_report, result.final_decision, ta.quick_thinking_llm
+        ))
+        asyncio.create_task(_send_analysis_webhook(
+            ticker, trade_date, signal, result.final_decision, settings
+        ))
 
         await ws_manager.send(task_id, {
             "type": "decision",

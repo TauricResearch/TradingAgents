@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -74,6 +75,10 @@ async def get_settings(
         max_risk_rounds=settings.max_risk_rounds,
         max_position_size_pct=settings.max_position_size_pct,
         max_risk_per_trade_pct=settings.max_risk_per_trade_pct,
+        include_historical_analyses=getattr(settings, "include_historical_analyses", False) or False,
+        webhook_url=getattr(settings, "webhook_url", None),
+        webhook_enabled=getattr(settings, "webhook_enabled", False) or False,
+        webhook_events=getattr(settings, "webhook_events", None) or "analysis_complete",
         updated_at=settings.updated_at,
     )
 
@@ -103,3 +108,22 @@ async def update_settings(
         await cron.apply_settings(settings)
 
     return await get_settings(db=db, _=_)
+
+
+class WebhookTestRequest(BaseModel):
+    url: str
+
+
+@router.post("/test-webhook")
+async def test_webhook(body: WebhookTestRequest, _: User = Depends(get_current_user)):
+    """Send a test notification to the given webhook URL."""
+    import httpx
+    payload = {"text": "TradingAgents webhook testi başarılı! ✓", "content": "TradingAgents webhook testi başarılı! ✓"}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(body.url, json=payload)
+            if r.status_code >= 400:
+                raise HTTPException(status_code=400, detail=f"Webhook yanıtı: {r.status_code}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
