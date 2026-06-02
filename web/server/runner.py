@@ -4,9 +4,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import random
 import threading
 import time
+import traceback
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -14,11 +14,21 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 from web.server import db, events
+from web.server.retry import compute_backoff, detect_rate_limit
 
 
 log = logging.getLogger(__name__)
 
 MAX_CONCURRENT = int(os.environ.get("TRADINGAGENTS_DASHBOARD_MAX_CONCURRENT", "3"))
+
+# Retry policy. See docs/superpowers/specs/2026-06-02-rate-aware-retry-design.md
+MAX_ATTEMPTS = 4
+MAX_BACKOFF_S = 60.0
+
+
+def _format_traceback(exc: BaseException) -> str:
+    """Render a compact, JSON-safe traceback string for inclusion in event payloads."""
+    return "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
 
 
 def build_graph(config=None):
@@ -113,14 +123,13 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
             events.emit(rid, type_, {"node": payload.get("node", node_name), **payload})
 
         loop = asyncio.get_event_loop()
-        retries = 3
         last_err = None
         trade_date = datetime.now(timezone.utc).date().isoformat()
 
         def _do_propagate():
             return graph.propagate(run.ticker, trade_date, event_callback=cb)
 
-        for attempt in range(retries + 1):
+        for attempt in range(MAX_ATTEMPTS):
             try:
                 final = await loop.run_in_executor(None, _do_propagate)
                 break
@@ -134,17 +143,33 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
                 return
             except Exception as e:
                 last_err = e
-                if "429" in str(e) and attempt < retries:
-                    await asyncio.sleep(0.1 * (2 ** attempt) + random.random() * 0.1)
-                    events.emit(rid, "tool_call_warning", {"message": f"retrying after {type(e).__name__}"})
+                if detect_rate_limit(e) and attempt < MAX_ATTEMPTS - 1:
+                    wait_s = compute_backoff(attempt, e, max_s=MAX_BACKOFF_S)
+                    events.emit(rid, "tool_call_warning", {
+                        "message": f"rate limited; sleeping {wait_s:.1f}s before retry {attempt+1}/{MAX_ATTEMPTS-1}",
+                        "retry_after_s": wait_s,
+                        "exception_class": type(e).__name__,
+                    })
+                    log.warning(
+                        "rate limit rid=%s attempt=%d sleep_s=%.2f exc=%s",
+                        rid, attempt, wait_s, type(e).__name__,
+                    )
+                    await asyncio.sleep(wait_s)
                     continue
+                # Non-rate-limit error, or final attempt on a rate limit: fail the run.
+                is_rate_limit = detect_rate_limit(e)
+                log.exception(
+                    "run failed rid=%s ticker=%s attempt=%d rate_limit=%s",
+                    rid, run.ticker, attempt, is_rate_limit,
+                )
                 db.mark_run_failed(rid, f"{type(e).__name__}: {e}")
-                events.emit(rid, "run_failed", {"reason": "exception", "exception_class": type(e).__name__, "message": str(e)})
+                events.emit(rid, "run_failed", {
+                    "reason": "rate_limited" if is_rate_limit else "exception",
+                    "exception_class": type(e).__name__,
+                    "message": str(e),
+                    "traceback": _format_traceback(e),
+                })
                 return
-        else:
-            db.mark_run_failed(rid, f"exhausted retries: {last_err}")
-            events.emit(rid, "run_failed", {"reason": "exhausted_retries"})
-            return
 
         if db.get_run(rid).cancel_requested:
             db.mark_run_failed(rid, "cancelled")
