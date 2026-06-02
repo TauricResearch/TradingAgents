@@ -5,7 +5,7 @@ import { AddTickerCommand } from "./AddTickerCommand";
 
 type RunStatus = "idle" | "queued" | "running" | "done" | "errored";
 
-function statusForTicker(ticker: string, lastDecision: string | null, events: any[]): RunStatus {
+function statusForTicker(_ticker: string, lastDecision: string | null, events: any[]): RunStatus {
   if (!lastDecision) return "idle";
   const last = events.filter((e) => e.type === "run_started" || e.type === "run_finished" || e.type === "run_failed").pop();
   if (!last) return "idle";
