@@ -1112,7 +1112,13 @@ def run_analysis(checkpoint: bool = False):
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    # screen=True renders the dashboard on the terminal's alternate buffer so
+    # every refresh repaints in place. Without it, a layout taller than the
+    # window (e.g. a long Current Report) can't be overwritten and each refresh
+    # stacks another frame, tiling the header banner down the screen. The full
+    # report is printed to the normal screen after this block, so clipping the
+    # live view to the window is fine.
+    with Live(layout, refresh_per_second=4, screen=True) as live:
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
