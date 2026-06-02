@@ -11,6 +11,7 @@ from .y_finance import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .eastmoney_news import get_news_eastmoney, is_ashare
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -64,6 +65,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "eastmoney",  # Chinese A-share news only (get_news)
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -99,6 +101,7 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "eastmoney": get_news_eastmoney,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
@@ -140,6 +143,23 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
+
+    # Market-aware routing: the English-centric vendors return little or no
+    # news for Chinese A-shares (and yfinance returns an empty-but-successful
+    # string, so it would shadow any fallback). Prefer East Money for per-stock
+    # news on Shanghai/Shenzhen tickers, matching the framework's "resolve
+    # automatically per market" behaviour. Honoured only when not already
+    # overridden by an explicit vendor config.
+    if (
+        method == "get_news"
+        and args
+        and isinstance(args[0], str)
+        and is_ashare(args[0])
+        and vendor_config in ("default", "yfinance")
+    ):
+        primary_vendors = ["eastmoney"] + [
+            v for v in primary_vendors if v != "eastmoney"
+        ]
 
     # Build fallback chain: primary vendors first, then remaining available vendors
     all_available_vendors = list(VENDOR_METHODS[method].keys())
