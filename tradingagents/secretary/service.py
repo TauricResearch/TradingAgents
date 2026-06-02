@@ -11,7 +11,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -150,6 +150,7 @@ class Secretary:
         event_id: str,
         ticker: str,
         job_id: int,
+        parent_brief_id: Optional[str] = None,
     ) -> str:
         """Produce an event-alert brief for a single triaged event.
 
@@ -245,7 +246,7 @@ class Secretary:
             generated_ts=datetime.now(timezone.utc).isoformat(),
             content_path=rel_path,
             run_ids=[r["run_id"] for r in persona_runs],
-            parent_brief_id=None,
+            parent_brief_id=parent_brief_id,
             trigger_event_id=event_id,
         )
         return brief_id
