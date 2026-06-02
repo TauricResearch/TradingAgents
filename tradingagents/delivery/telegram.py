@@ -1,8 +1,8 @@
 """Telegram outbound channel — send_message via the Bot API.
 
 Reads bot token from env IIC_TELEGRAM_BOT_TOKEN. allowed_chat_ids[0] is the
-destination. Inline keyboard ([Run Backtest] [Dismiss]) is attached only
-for mode='event_alert'.
+destination. Inline keyboards: [Run Backtest]/[Dismiss] for mode='event_alert';
+per-ticker [Study <T>] + [Study all]/[Dismiss all] for mode='event_alert_light'.
 
 The polling loop for incoming updates is a separate process (Task 13).
 """
