@@ -1,4 +1,7 @@
 import pytest
+from unittest.mock import AsyncMock, MagicMock
+from tradingagents.persistence.db import connect
+from tradingagents.persistence import store
 
 
 @pytest.mark.unit
@@ -32,11 +35,6 @@ def test_light_alert_keyboard_odd_ticker_count_layout():
         "act:lb1:run_full_study:__all__",
         "act:lb1:run_full_study:__dismiss__",
     ]
-
-
-from unittest.mock import AsyncMock, MagicMock
-from tradingagents.persistence.db import connect
-from tradingagents.persistence import store
 
 
 def _seed_light_with_delivery(conn, brief_id="lb1", channel_ref="12345:678"):
@@ -88,7 +86,8 @@ def test_callback_study_all_accepts_every_pending(tmp_path):
     _seed_light_with_delivery(conn)
     handle_callback(update=_callback("act:lb1:run_full_study:__all__"), conn=conn)
     states = [r[0] for r in conn.execute("SELECT state FROM brief_actions")]
-    assert states == ["accepted", "accepted"]
+    assert set(states) == {"accepted"}
+    assert len(states) == 2
 
 
 @pytest.mark.unit
@@ -98,4 +97,30 @@ def test_callback_dismiss_all_declines_every_pending(tmp_path):
     _seed_light_with_delivery(conn)
     handle_callback(update=_callback("act:lb1:run_full_study:__dismiss__"), conn=conn)
     states = [r[0] for r in conn.execute("SELECT state FROM brief_actions")]
-    assert states == ["declined", "declined"]
+    assert set(states) == {"declined"}
+    assert len(states) == 2
+
+
+@pytest.mark.unit
+def test_callback_single_ticker_is_idempotent(tmp_path):
+    from tradingagents.delivery.telegram_bot import handle_callback
+    conn = connect(str(tmp_path / "iic.db"))
+    _seed_light_with_delivery(conn)
+    # two clicks on the same ticker
+    handle_callback(update=_callback("act:lb1:run_full_study:NVDA"), conn=conn)
+    handle_callback(update=_callback("act:lb1:run_full_study:NVDA"), conn=conn)
+    states = dict(conn.execute(
+        "SELECT json_extract(action_params,'$.ticker'), state "
+        "FROM brief_actions").fetchall())
+    assert states["NVDA"] == "accepted"
+    assert states["PANW"] == "pending"
+
+
+@pytest.mark.unit
+def test_callback_unmatched_ticker_is_noop(tmp_path):
+    from tradingagents.delivery.telegram_bot import handle_callback
+    conn = connect(str(tmp_path / "iic.db"))
+    _seed_light_with_delivery(conn)
+    handle_callback(update=_callback("act:lb1:run_full_study:AAPL"), conn=conn)
+    states = [r[0] for r in conn.execute("SELECT state FROM brief_actions")]
+    assert set(states) == {"pending"}

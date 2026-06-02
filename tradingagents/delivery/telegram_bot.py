@@ -40,7 +40,6 @@ def _apply_run_full_study(conn: sqlite3.Connection, *, brief_id: str, arg: str) 
     '__dismiss__' (decline all pending). Only pending rows are touched, so a
     repeated click is a no-op (idempotent). Sentinels are matched BEFORE any
     ticker comparison so a literal ticker can never collide with them."""
-    import json as _j
     rows = conn.execute(
         "SELECT action_id, action_params FROM brief_actions "
         "WHERE brief_id = ? AND action_type = 'run_full_study' AND state = 'pending'",
@@ -48,7 +47,7 @@ def _apply_run_full_study(conn: sqlite3.Connection, *, brief_id: str, arg: str) 
     ).fetchall()
     now = _utc_now_iso()
     for r in rows:
-        ticker = _j.loads(r["action_params"]).get("ticker")
+        ticker = json.loads(r["action_params"]).get("ticker")
         if arg == "__all__":
             new_state = "accepted"
         elif arg == "__dismiss__":
