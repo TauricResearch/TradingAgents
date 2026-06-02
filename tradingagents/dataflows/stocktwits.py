@@ -40,7 +40,11 @@ def fetch_stocktwits_messages(ticker: str, limit: int = 30, timeout: float = 10.
     try:
         with urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read())
-    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
+    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError, UnicodeError) as exc:
+        # UnicodeError covers the UnicodeEncodeError raised by http.client when
+        # a non-ASCII ticker (e.g. a Chinese company name passed instead of the
+        # exchange-suffixed symbol) reaches the ASCII-only request line. Degrade
+        # gracefully like every other failure rather than crashing the run.
         logger.warning("StockTwits fetch failed for %s: %s", ticker, exc)
         return f"<stocktwits unavailable: {type(exc).__name__}>"
 
