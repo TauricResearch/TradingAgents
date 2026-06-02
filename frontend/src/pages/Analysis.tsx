@@ -110,8 +110,14 @@ const EMPTY_RUN = {
 function loadRunState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
+    const hasRunningTask = !!localStorage.getItem(TASK_KEY)
     if (!raw) return EMPTY_RUN
-    return { ...EMPTY_RUN, ...JSON.parse(raw) }
+    const parsed = JSON.parse(raw)
+    if (hasRunningTask) {
+      return { ...EMPTY_RUN, ...parsed, runStatus: 'running' }
+    }
+    const status = parsed.runStatus === 'running' ? 'idle' : parsed.runStatus
+    return { ...EMPTY_RUN, ...parsed, runStatus: status }
   } catch { return EMPTY_RUN }
 }
 
@@ -120,14 +126,15 @@ function RunTab() {
   const [ticker, setTicker] = useState(saved.ticker)
   const [date, setDate] = useState(saved.date)
   const [assetType, setAssetType] = useState(saved.assetType)
-  const [running, setRunning] = useState(false)
-  const [runStatus, setRunStatus] = useState<'idle' | 'running' | 'done' | 'error'>(saved.runStatus === 'running' ? 'idle' : saved.runStatus)
+  const [running, setRunning] = useState(saved.runStatus === 'running')
+  const [runStatus, setRunStatus] = useState<'idle' | 'running' | 'done' | 'error'>(saved.runStatus)
   const [signal, setSignal] = useState<string | null>(saved.signal)
   const [reports, setReports] = useState<Record<string, string>>(saved.reports)
   const [log, setLog] = useState<string[]>(saved.log)
   const [activeSection, setActiveSection] = useState<string | null>(saved.activeSection)
   const wsRef = useRef<WebSocket | null>(null)
   const taskIdRef = useRef<string | null>(null)  // current running task id
+  const preRefreshLogRef = useRef<string[] | null>(null)
 
   const meta = useMeta()
   const sectionLabels = meta?.section_labels ?? SECTION_LABELS
@@ -155,18 +162,32 @@ function RunTab() {
     wsRef.current = ws
     let finished = false
 
+    const appendLog = (line: string) => {
+      if (preRefreshLogRef.current && preRefreshLogRef.current.length > 0) {
+        const expected = preRefreshLogRef.current[0]
+        if (expected === line) {
+          preRefreshLogRef.current.shift()
+          return
+        } else {
+          // Clear deduplication if mismatch or sequence completed/diverged
+          preRefreshLogRef.current = []
+        }
+      }
+      setLog(l => [...l, line])
+    }
+
     ws.onmessage = (e) => {
       const ev: WsEvent = JSON.parse(e.data)
       if (ev.type === 'status') {
-        setLog(l => [...l, `${ev.agent}`])
+        appendLog(`${ev.agent}`)
       } else if (ev.type === 'progress') {
         // Live "which agent is running now" feedback.
         setCurrentStep({ label: ev.label || '', stage: ev.stage || '' })
-        setLog(l => [...l, `▸ ${ev.label}`])
+        appendLog(`▸ ${ev.label}`)
       } else if (ev.type === 'report' && ev.section && ev.content) {
         setReports(r => ({ ...r, [ev.section!]: ev.content! }))
         setActiveSection(ev.section)
-        setLog(l => [...l, `✓ ${SECTION_LABELS[ev.section!] || ev.section}`])
+        appendLog(`✓ ${SECTION_LABELS[ev.section!] || ev.section}`)
       } else if (ev.type === 'decision') {
         setSignal(ev.signal || null)
       } else if (ev.type === 'complete') {
@@ -174,13 +195,13 @@ function RunTab() {
         setRunStatus('done')
         setRunning_(false)
         setCurrentStep(null)
-        setLog(l => [...l, `— Tamamlandı ${ev.duration_seconds}s / ${ev.llm_calls} LLM çağrısı`])
+        appendLog(`— Tamamlandı ${ev.duration_seconds}s / ${ev.llm_calls} LLM çağrısı`)
       } else if (ev.type === 'error') {
         finished = true
         setRunStatus('error')
         setRunning_(false)
         setCurrentStep(null)
-        setLog(l => [...l, `✗ HATA: ${ev.message}`])
+        appendLog(`✗ HATA: ${ev.message}`)
         notify('error', ev.message ?? 'Analiz başarısız.', 'Analiz Hatası')
       }
     }
@@ -216,11 +237,12 @@ function RunTab() {
     try {
       const { taskId, ticker: runTicker } = JSON.parse(raw)
       if (!taskId) return
+      // Set the pre-refresh log for deduplication
+      preRefreshLogRef.current = [...log]
       // Restore running state and reconnect WS
       setRunning(true)
       setRunStatus('running')
       if (runTicker) setTicker(runTicker)
-      setLog(l => [...l, '— Sayfa yenilendi, analiz devam ediyor...'])
       attachWs(taskId, true)
     } catch { localStorage.removeItem(TASK_KEY) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -247,6 +269,7 @@ function RunTab() {
     setLog([])
     setActiveSection(null)
     setCurrentStep(null)
+    preRefreshLogRef.current = null
 
     try {
       const { data } = await axios.post('/api/analysis/run', {
