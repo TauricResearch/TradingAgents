@@ -42,5 +42,36 @@ def test_run_once_gate_composes_one_light_alert_no_queue_job(conn):
     _, kwargs = sec.compose_event_alert_light.call_args
     assert kwargs["event_id"] == "ev1"
     assert sorted(kwargs["tickers"]) == ["NVDA", "PANW"]
+    assert kwargs["deliver"] is True
+    assert kwargs["ttl_hours"] == 24
     # No heavy study enqueued at this stage.
     assert conn.execute("SELECT COUNT(*) FROM queue_jobs").fetchone()[0] == 0
+
+
+@pytest.mark.unit
+def test_run_once_gate_requires_secretary(conn):
+    from tradingagents.orchestrator.promoter import run_once
+    _seed_event(conn)
+    with pytest.raises(ValueError):
+        run_once(conn, salience_threshold=0.85, ticker_conf_threshold=0.9,
+                 batch_size=50, cooldown_min=60, secretary=None,
+                 approval_gate_enabled=True, pending_ttl_hours=24)
+
+
+@pytest.mark.unit
+def test_run_once_gate_composes_one_alert_per_event(conn):
+    from tradingagents.orchestrator.promoter import run_once
+    _seed_event(conn)  # ev1: NVDA, PANW
+    store.insert_event(conn, event_id="ev2", source="rss", ingested_ts=_now(),
+                       salience=0.9, raw_path=None, status="triaged",
+                       deduped_of=None)
+    store.insert_event_ticker(conn, event_id="ev2", ticker="NVDA", confidence=1.0)
+    sec = MagicMock()
+    sec.compose_event_alert_light.return_value = "lb"
+    n = run_once(conn, salience_threshold=0.85, ticker_conf_threshold=0.9,
+                 batch_size=50, cooldown_min=60, secretary=sec,
+                 approval_gate_enabled=True, pending_ttl_hours=24)
+    assert n == 2
+    assert sec.compose_event_alert_light.call_count == 2
+    event_ids = sorted(c.kwargs["event_id"] for c in sec.compose_event_alert_light.call_args_list)
+    assert event_ids == ["ev1", "ev2"]
