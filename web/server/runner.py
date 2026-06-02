@@ -23,7 +23,12 @@ MAX_CONCURRENT = int(os.environ.get("TRADINGAGENTS_DASHBOARD_MAX_CONCURRENT", "3
 
 def build_graph(config=None):
     """Build a TradingAgentsGraph. Tests monkeypatch this."""
-    return TradingAgentsGraph(config or DEFAULT_CONFIG)
+    # NOTE: TradingAgentsGraph.__init__'s first positional arg is
+    # ``selected_analysts`` (a list of strings). Passing the config dict
+    # positionally makes it iterate dict.keys() looking for analyst names
+    # and crash on the first non-analyst key (e.g. ``"project_dir"``).
+    # Always pass the config as the keyword argument.
+    return TradingAgentsGraph(config=config or DEFAULT_CONFIG)
 
 
 _queue: asyncio.Queue = None  # type: ignore

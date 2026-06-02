@@ -42,7 +42,11 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
     for ticker in tickers:
         snap = state.snapshots.get(ticker) or PriceSnapshot()
         try:
-            series = df[ticker]["Close"] if len(tickers) > 1 else df["Close"]
+            # With ``group_by="ticker"`` yfinance returns a MultiIndex where
+            # the OUTER level is the field (Close/Open/...) and the INNER
+            # level is the ticker — even for a single-ticker list. So
+            # ``df[ticker]["Close"]`` works for both single and multi.
+            series = df[ticker]["Close"]
             if hasattr(series, "empty") and series.empty:
                 snap.stale = True
             else:
