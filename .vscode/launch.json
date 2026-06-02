@@ -1,0 +1,206 @@
+{
+  // VS Code launch configurations for the TradingAgents web app.
+  //
+  //   Frontend: Vite + React + TypeScript (web/frontend, port 5173)
+  //   Backend:  FastAPI / uvicorn (web/server/app.py:app, port 8000)
+  //
+  // The Vite dev server proxies /api and /ws to http://localhost:8000,
+  // so you normally want both processes running. Use "Full Stack" for
+  // the typical debug loop, or the individual configs when you only
+  // need one side.
+
+  "version": "0.2.0",
+
+  "compounds": [
+    {
+      "name": "Full Stack (Backend + Frontend)",
+      "configurations": ["Backend (FastAPI)", "Frontend (Vite)"],
+      "stopAll": true,
+      "presentation": {
+        "order": 1,
+        "group": "fullstack"
+      }
+    }
+  ],
+
+  "configurations": [
+    {
+      "name": "Backend (FastAPI)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "web.server.app:create_app",
+        "--factory",
+        "--host", "127.0.0.1",
+        "--port", "8000",
+        "--reload"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        // Match the defaults in web/server/settings.py so reload + WS
+        // behave consistently. Add TRADINGAGENTS_* overrides here if
+        // you need to swap LLM providers / endpoints for this session.
+        "TRADINGAGENTS_DASHBOARD_HOST": "127.0.0.1",
+        "TRADINGAGENTS_DASHBOARD_PORT": "8000"
+      },
+      "presentation": {
+        "group": "backend",
+        "order": 1
+      }
+    },
+
+    {
+      "name": "Backend (FastAPI, no reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "web.server.app:create_app",
+        "--factory",
+        "--host", "127.0.0.1",
+        "--port", "8000"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "presentation": {
+        "group": "backend",
+        "order": 2
+      }
+    },
+
+    {
+      "name": "Frontend (Vite)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/web/frontend",
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "Local:\\s+http://localhost:\\d+",
+        "uriFormat": "%s://%s:%d",
+        "action": "openExternally"
+      },
+      "presentation": {
+        "group": "frontend",
+        "order": 1
+      }
+    },
+
+    {
+      "name": "Frontend (Vite via web wrapper)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/web",
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "Local:\\s+http://localhost:\\d+",
+        "uriFormat": "%s://%s:%d",
+        "action": "openExternally"
+      },
+      "presentation": {
+        "group": "frontend",
+        "order": 2
+      }
+    },
+
+    {
+      "name": "Frontend: Attach to Chrome",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9222,
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/web/frontend/src",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "/@fs/*": "${workspaceFolder}/*"
+      },
+      "presentation": {
+        "group": "frontend",
+        "order": 3
+      },
+      "notes": "Start Chrome with --remote-debugging-port=9222 (or use the 'JavaScript Debug Terminal' in VS Code) before launching this."
+    },
+
+    {
+      "name": "Backend Tests (pytest)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-vv",
+        "tests",
+        "web/server/tests"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "presentation": {
+        "group": "tests",
+        "order": 1
+      }
+    },
+
+    {
+      "name": "Frontend Tests (Vitest)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": ["run", "test", "--", "--reporter=verbose"],
+      "cwd": "${workspaceFolder}/web",
+      "console": "integratedTerminal",
+      "presentation": {
+        "group": "tests",
+        "order": 2
+      }
+    },
+
+    {
+      "name": "Frontend Tests (Vitest watch)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx.cmd",
+      "runtimeArgs": ["vitest"],
+      "cwd": "${workspaceFolder}/web/frontend",
+      "console": "integratedTerminal",
+      "presentation": {
+        "group": "tests",
+        "order": 3
+      }
+    },
+
+    {
+      "name": "E2E Tests (Playwright)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": ["run", "test:e2e"],
+      "cwd": "${workspaceFolder}/web",
+      "console": "integratedTerminal",
+      "presentation": {
+        "group": "tests",
+        "order": 4
+      }
+    },
+
+    {
+      "name": "Main Script (main.py)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "presentation": {
+        "group": "misc",
+        "order": 1
+      }
+    }
+  ]
+}
