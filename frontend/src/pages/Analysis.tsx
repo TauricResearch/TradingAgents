@@ -3,7 +3,7 @@ import axios from 'axios'
 import { getAccessToken } from '../hooks/useAuth'
 import {
   Play, Loader2, CheckCircle, AlertCircle, History,
-  X, BarChart2, Terminal, FileText, Zap,
+  X, BarChart2, Terminal, FileText, Zap, Square,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -116,6 +116,7 @@ function RunTab() {
   const [log, setLog] = useState<string[]>(saved.log)
   const [activeSection, setActiveSection] = useState<string | null>(saved.activeSection)
   const wsRef = useRef<WebSocket | null>(null)
+  const taskIdRef = useRef<string | null>(null)  // current running task id
 
   // Persist state to localStorage on every change
   useEffect(() => {
@@ -124,7 +125,23 @@ function RunTab() {
 
   const setRunning_ = (v: boolean) => {
     setRunning(v)
-    if (!v) localStorage.removeItem(TASK_KEY)
+    if (!v) {
+      localStorage.removeItem(TASK_KEY)
+      taskIdRef.current = null
+    }
+  }
+
+  // Stop: close WS + cancel backend task
+  const handleStop = async () => {
+    const tid = taskIdRef.current
+    wsRef.current?.close()
+    wsRef.current = null
+    setRunStatus('idle')
+    setRunning_(false)
+    setLog(l => [...l, '— Analiz durduruldu.'])
+    if (tid) {
+      try { await axios.post(`/api/analysis/${tid}/cancel`) } catch { /* ignore */ }
+    }
   }
 
   const handleRun = async () => {
@@ -141,11 +158,15 @@ function RunTab() {
         ticker: ticker.toUpperCase(), trade_date: date, asset_type: assetType,
       })
       const taskId = data.task_id
+      taskIdRef.current = taskId
       localStorage.setItem(TASK_KEY, JSON.stringify({ ticker: ticker.toUpperCase(), taskId, startedAt: new Date().toISOString() }))
 
       const token = getAccessToken()
       const ws = new WebSocket(`/ws/analysis/${taskId}?token=${token}`)
       wsRef.current = ws
+
+      // Track whether we received a terminal event (complete/error)
+      let finished = false
 
       ws.onmessage = (e) => {
         const ev: WsEvent = JSON.parse(e.data)
@@ -158,16 +179,28 @@ function RunTab() {
         } else if (ev.type === 'decision') {
           setSignal(ev.signal || null)
         } else if (ev.type === 'complete') {
+          finished = true
           setRunStatus('done')
           setRunning_(false)
           setLog(l => [...l, `— Tamamlandı ${ev.duration_seconds}s / ${ev.llm_calls} LLM çağrısı`])
         } else if (ev.type === 'error') {
+          finished = true
           setRunStatus('error')
           setRunning_(false)
           setLog(l => [...l, `✗ HATA: ${ev.message}`])
         }
       }
-      ws.onerror = () => { setRunStatus('error'); setRunning_(false) }
+      ws.onerror = () => {
+        if (!finished) { setRunStatus('error'); setRunning_(false); setLog(l => [...l, '✗ Bağlantı hatası.']) }
+      }
+      // If WS closes without a terminal event → backend crashed or API key missing
+      ws.onclose = () => {
+        if (!finished) {
+          setRunStatus('error')
+          setRunning_(false)
+          setLog(l => [...l, '✗ Bağlantı kapandı — backend hatası veya LLM API anahtarı eksik olabilir.'])
+        }
+      }
     } catch (err: any) {
       setRunStatus('error')
       setRunning_(false)
@@ -219,14 +252,22 @@ function RunTab() {
             </select>
           </div>
 
-          <button
-            onClick={handleRun}
-            disabled={running || !ticker.trim()}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-violet-500/20 transition-all"
-          >
-            {running ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
-            {running ? 'Analiz Ediliyor...' : 'Analiz Başlat'}
-          </button>
+          {!running ? (
+            <button
+              onClick={handleRun}
+              disabled={!ticker.trim()}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-violet-500/20 transition-all"
+            >
+              <Zap size={15} /> Analiz Başlat
+            </button>
+          ) : (
+            <button
+              onClick={handleStop}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white bg-red-600/80 hover:bg-red-600 border border-red-500/40 shadow-lg shadow-red-500/20 transition-all"
+            >
+              <Square size={13} fill="currentColor" /> Durdur
+            </button>
+          )}
 
           {runStatus !== 'idle' && !running && (
             <button onClick={handleClear} className="text-gray-600 hover:text-gray-400 transition-colors p-2 rounded-lg hover:bg-gray-800">

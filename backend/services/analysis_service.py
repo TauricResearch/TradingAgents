@@ -25,6 +25,17 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
+# ── Redirect ALL trading_agents file I/O to temp BEFORE first import ──────────
+import tempfile as _tf
+_TMP = _tf.gettempdir()
+os.environ.setdefault("TRADINGAGENTS_RESULTS_DIR",      os.path.join(_TMP, "ta_results"))
+os.environ.setdefault("TRADINGAGENTS_DATA_CACHE_DIR",   os.path.join(_TMP, "ta_cache"))
+os.environ.setdefault("TRADINGAGENTS_MEMORY_LOG_PATH",  os.path.join(_TMP, "ta_memory.md"))
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Running task registry — used for cancellation
+_RUNNING_TASKS: dict[str, asyncio.Task] = {}
+
 # Report fields that are streamed to the browser via WebSocket.
 # Use StateKeys once the package import is resolved at call time.
 _REPORT_FIELDS = (
@@ -107,6 +118,15 @@ def _extract_stats(callbacks: list) -> dict:
     return {"llm_calls": 0, "tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
 
 
+async def cancel_analysis(task_id: str) -> bool:
+    """Cancel a running analysis task. Returns True if found and cancelled."""
+    task = _RUNNING_TASKS.pop(task_id, None)
+    if task and not task.done():
+        task.cancel()
+        return True
+    return False
+
+
 async def run_analysis(
     ticker: str,
     trade_date: str,
@@ -114,12 +134,12 @@ async def run_analysis(
     settings: AppSettings,
     db: AsyncSession,
     triggered_by: str = "manual",
+    task_id: str | None = None,
 ) -> tuple[str, AnalysisResult]:
     """Run a full TradingAgents analysis and stream progress via WebSocket.
 
-    Uses ``async_propagate()`` so the event loop is free during LLM / tool calls.
-    WS events are emitted in real time by patching ``graph.stream`` — the same
-    approach as before, but now inside an async context without a thread wrapper.
+    ``task_id`` should be passed from the API handler so the WS channel matches
+    what the client connected to. If omitted a new UUID is generated (e.g. cron).
 
     Returns
     -------
@@ -128,7 +148,14 @@ async def run_analysis(
     """
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
-    task_id = str(uuid.uuid4())
+    if task_id is None:
+        task_id = str(uuid.uuid4())
+
+    # Register this asyncio Task so it can be cancelled externally
+    current = asyncio.current_task()
+    if current:
+        _RUNNING_TASKS[task_id] = current
+
     _logger.info("Starting analysis task=%s ticker=%s date=%s", task_id, ticker, trade_date)
 
     await ws_manager.send(task_id, {"type": "status", "status": "starting", "agent": "Initializing"})
@@ -234,11 +261,16 @@ async def run_analysis(
 
         return task_id, row
 
+    except asyncio.CancelledError:
+        _logger.info("Analysis cancelled task=%s", task_id)
+        await ws_manager.send(task_id, {"type": "error", "message": "Analiz iptal edildi."})
+        raise
     except Exception as exc:
         _logger.error("Analysis failed task=%s: %s", task_id, exc, exc_info=True)
         await ws_manager.send(task_id, {"type": "error", "message": str(exc)})
         raise
     finally:
+        _RUNNING_TASKS.pop(task_id, None)
         await ws_manager.close_task(task_id)
 
 

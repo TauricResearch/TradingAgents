@@ -51,7 +51,8 @@ async def run_analysis(
                 from backend.services.analysis_service import run_analysis as _run
                 from backend.services.execution.factory import get_trader
                 task_id_out, row = await _run(
-                    body.ticker, body.trade_date, body.asset_type, settings, bg_db, "manual"
+                    body.ticker, body.trade_date, body.asset_type, settings, bg_db, "manual",
+                    task_id=task_id,   # ← same id client's WS is connected to
                 )
                 await bg_db.commit()
 
@@ -105,6 +106,17 @@ async def list_analysis(
         q = q.where(AnalysisResult.ticker == ticker.upper())
     result = await db.execute(q)
     return result.scalars().all()
+
+
+@router.post("/{task_id}/cancel")
+async def cancel_analysis(
+    task_id: str,
+    _: User = Depends(get_current_user),
+):
+    """Cancel a running analysis task."""
+    from backend.services.analysis_service import cancel_analysis as _cancel
+    cancelled = await _cancel(task_id)
+    return {"cancelled": cancelled, "task_id": task_id}
 
 
 @router.get("/{analysis_id}", response_model=AnalysisResultRead)
