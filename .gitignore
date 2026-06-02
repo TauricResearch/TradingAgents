@@ -217,3 +217,7 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# TradingAgents — self-update runtime state
+.update.json
+.update.log

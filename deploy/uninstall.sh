@@ -9,6 +9,10 @@ set -euo pipefail
 
 SERVICE_NAME="${SERVICE_NAME:-tradingagents}"
 UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+UPDATE_UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}-update.service"
+SUDOERS_FILE="/etc/sudoers.d/${SERVICE_NAME}-update"
+UPDATER_BIN="/usr/local/sbin/tradingagents-update"
+UPDATE_CONF="/etc/tradingagents/update.env"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$PROJECT_ROOT/.env"
 VENV="$PROJECT_ROOT/.venv"
@@ -25,8 +29,12 @@ info "Servis durduruluyor..."
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 systemctl disable "$SERVICE_NAME" 2>/dev/null || true
 rm -f "$UNIT_FILE"
+# Otomatik güncelleme bileşenleri
+rm -f "$UPDATE_UNIT_FILE" "$SUDOERS_FILE" "$UPDATER_BIN" "$UPDATE_CONF"
+rmdir /etc/tradingagents 2>/dev/null || true
+rm -f "$PROJECT_ROOT/.update.json" "$PROJECT_ROOT/.update.log"
 systemctl daemon-reload
-ok "Servis kaldırıldı: $SERVICE_NAME"
+ok "Servis ve güncelleme bileşenleri kaldırıldı: $SERVICE_NAME"
 
 if [ "$PURGE" = 1 ]; then
     warn "--purge: veritabanı, venv ve .env siliniyor..."

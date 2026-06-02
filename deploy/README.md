@@ -56,6 +56,28 @@ sudo nano .env                       # OPENAI_API_KEY / ANTHROPIC_API_KEY / ...
 sudo systemctl restart tradingagents
 ```
 
+## Otomatik güncelleme (uygulama içi "Güncelle" butonu)
+
+Kurulum, uygulamaya **kendi kendini güncelleme** yeteneği ekler:
+
+- Backend periyodik olarak git remote'unu kontrol eder (`origin/main`).
+- Yeni commit geldiğinde **tüm giriş yapmış kullanıcılar** arayüzün üstünde bir
+  bildirim çubuğu görür ("Yeni sürüm mevcut — **Güncelle**").
+- **Güncelle**'ye tıklayınca: `git pull` → `pip install` → frontend build →
+  servisi yeniden başlatır. Sayfa, güncelleme bitince otomatik yenilenir.
+
+**Nasıl çalışır (güvenlik):** Güncelleme ayrı bir `tradingagents-update.service`
+(oneshot) içinde çalışır; ana servisi yeniden başlatmak bu süreci öldürmez.
+Backend kullanıcısı yalnızca **bu tek servisi başlatma** yetkisine sahiptir
+(`/etc/sudoers.d/...` ile, başka hiçbir komut değil). `git pull` ve build adımları
+ayrıcalıksız `RUN_USER` olarak çalışır; yalnızca servis restart'ı root'tur — yani
+çekilen kod root yetkisi kazanmaz.
+
+> Gereksinim: checkout `RUN_USER`'a ait olmalı (kurulum bunu otomatik yapar) ve
+> repo **public** olmalı ya da `RUN_USER` için git kimlik bilgisi tanımlı olmalı.
+
+Manuel güncelleme (UI olmadan): `sudo bash deploy/update.sh`
+
 ## Yönetim
 
 ```bash

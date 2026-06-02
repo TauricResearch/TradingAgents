@@ -9,6 +9,7 @@ import {
 import { useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
 import type { Notification } from '../utils/notify'
+import UpdateBanner from './UpdateBanner'
 
 interface RunningTask { ticker: string; taskId: string; startedAt: string }
 
@@ -174,6 +175,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Main ── */}
       <main className="flex-1 overflow-y-auto min-h-screen bg-gray-950">
+        <UpdateBanner />
         {children}
       </main>
 

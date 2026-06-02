@@ -38,6 +38,13 @@ VENV="$PROJECT_ROOT/.venv"
 ENV_FILE="$PROJECT_ROOT/.env"
 UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
+# Uygulama içi otomatik güncelleme bileşenleri
+UPDATE_UNIT="${SERVICE_NAME}-update"
+UPDATE_UNIT_FILE="/etc/systemd/system/${UPDATE_UNIT}.service"
+UPDATER_BIN="/usr/local/sbin/tradingagents-update"
+UPDATE_CONF="/etc/tradingagents/update.env"
+SUDOERS_FILE="/etc/sudoers.d/${SERVICE_NAME}-update"
+
 # Servisi çalıştıracak kullanıcı: belirtilmemişse sudo'yu çağıran kişi.
 RUN_USER="${SERVICE_USER:-${SUDO_USER:-root}}"
 
@@ -53,6 +60,7 @@ die()  { err "$*"; exit 1; }
 [ -f "$PROJECT_ROOT/backend/requirements.txt" ] || die "backend/requirements.txt bulunamadı — proje kökünden çalıştırın."
 [ -d "$PROJECT_ROOT/frontend" ] || die "frontend/ bulunamadı — proje yapısı beklenenden farklı."
 command -v systemctl >/dev/null || die "systemd (systemctl) bulunamadı — bu script systemd tabanlı dağıtımlar içindir."
+SYSTEMCTL_BIN="$(command -v systemctl)"
 
 id "$RUN_USER" &>/dev/null || {
     info "Servis kullanıcısı '$RUN_USER' oluşturuluyor..."
@@ -78,10 +86,10 @@ pm_install() {
 info "Sistem paketleri kuruluyor..."
 if [ "$PM" = apt ]; then
     apt-get update -y
-    pm_install python3 python3-venv python3-dev build-essential libpq-dev git curl ca-certificates
+    pm_install python3 python3-venv python3-dev build-essential libpq-dev git curl ca-certificates sudo
     [ "$SKIP_DB" = 1 ] || pm_install postgresql postgresql-contrib
 else
-    pm_install python3 python3-devel gcc gcc-c++ make git curl
+    pm_install python3 python3-devel gcc gcc-c++ make git curl sudo
     [ "$SKIP_DB" = 1 ] || pm_install postgresql-server postgresql-contrib || true
 fi
 ok "Sistem paketleri hazır."
@@ -214,10 +222,10 @@ else
 fi
 
 # ── Dosya sahipliği ─────────────────────────────────────────────────────────────
+# Tüm proje RUN_USER'a ait olmalı: uygulama içi güncelleme (git pull + build) bu
+# kullanıcı olarak çalışır, dolayısıyla checkout'a yazabilmesi gerekir.
 info "Dosya sahipliği '$RUN_USER' kullanıcısına veriliyor..."
-chown -R "$RUN_USER":"$RUN_USER" "$VENV" 2>/dev/null || true
-chown "$RUN_USER":"$RUN_USER" "$ENV_FILE" 2>/dev/null || true
-[ -d "$PROJECT_ROOT/frontend/dist" ] && chown -R "$RUN_USER":"$RUN_USER" "$PROJECT_ROOT/frontend/dist" 2>/dev/null || true
+chown -R "$RUN_USER":"$RUN_USER" "$PROJECT_ROOT" 2>/dev/null || true
 
 # ── 7. systemd servisi ──────────────────────────────────────────────────────────
 info "systemd servisi yazılıyor: $UNIT_FILE"
@@ -233,6 +241,8 @@ User=$RUN_USER
 WorkingDirectory=$PROJECT_ROOT
 Environment=PYTHONPATH=$PROJECT_ROOT
 Environment=PYTHONUNBUFFERED=1
+Environment=TRADINGAGENTS_UPDATE_UNIT=${UPDATE_UNIT}.service
+Environment=TRADINGAGENTS_SYSTEMCTL=$SYSTEMCTL_BIN
 EnvironmentFile=$ENV_FILE
 # TEK PROCESS ZORUNLU: in-memory WebSocket yöneticisi + APScheduler cron birden
 # çok worker ile çoğaltılır (çift analiz / bozuk WS). --workers EKLEMEYİN.
@@ -247,6 +257,45 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 EOF
+
+# ── Uygulama içi otomatik güncelleme ("Güncelle" butonu) ────────────────────────
+# Ayrı bir oneshot updater servisi: ana servisi restart edince kendisi ölmez
+# (farklı cgroup). Backend (RUN_USER) yalnızca bu tek servisi başlatma yetkisine
+# sahiptir (sudoers ile). git pull + build RUN_USER olarak yapılır; yalnızca
+# restart root'tur — bu yüzden çekilen kod root ayrıcalığı kazanmaz.
+info "Otomatik güncelleme bileşenleri kuruluyor..."
+mkdir -p "$(dirname "$UPDATE_CONF")" "$(dirname "$UPDATER_BIN")"
+cat > "$UPDATE_CONF" <<EOF
+PROJECT_ROOT=$PROJECT_ROOT
+SERVICE_NAME=$SERVICE_NAME
+RUN_USER=$RUN_USER
+VENV=$VENV
+EOF
+chmod 644 "$UPDATE_CONF"
+
+install -m 0755 -o root -g root "$PROJECT_ROOT/deploy/update.sh" "$UPDATER_BIN"
+
+cat > "$UPDATE_UNIT_FILE" <<EOF
+[Unit]
+Description=TradingAgents in-place updater (oneshot)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$UPDATER_BIN
+EOF
+
+# Backend kullanıcısı SADECE bu tek komutu parolasız çalıştırabilir (başka hiçbir şey)
+cat > "$SUDOERS_FILE" <<EOF
+$RUN_USER ALL=(root) NOPASSWD: $SYSTEMCTL_BIN start --no-block ${UPDATE_UNIT}.service
+EOF
+chmod 440 "$SUDOERS_FILE"
+if visudo -cf "$SUDOERS_FILE" >/dev/null 2>&1; then
+    ok "Uygulama içi güncelleme hazır."
+else
+    rm -f "$SUDOERS_FILE"
+    warn "sudoers doğrulaması başarısız — uygulama içi güncelleme kapalı (manuel: sudo bash deploy/update.sh)."
+fi
 
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
@@ -284,6 +333,9 @@ if [ "$HEALTHY" = 1 ]; then
     fi
     echo
     echo "  ⚠  LLM anahtarı ekleyin:  nano $ENV_FILE   sonra: systemctl restart $SERVICE_NAME"
+    echo
+    echo "  🔄 Güncelleme: yeni commit gelince arayüzün üstünde 'Güncelle' butonu çıkar"
+    echo "                (otomatik git pull + build + restart). Manuel: sudo bash deploy/update.sh"
     echo
     echo "  Yönetim:"
     echo "    journalctl -u $SERVICE_NAME -f      # canlı log"
