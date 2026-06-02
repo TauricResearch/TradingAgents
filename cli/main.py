@@ -594,7 +594,7 @@ def get_user_selections():
         elif selected_llm_provider == "glm":
             selected_llm_provider, backend_url = ask_glm_region()
 
-        # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
+        # For Ollama, surface the resolved endpoint (TRADINGAGENTS_OLLAMA_BASE_URL / OLLAMA_BASE_URL vs default)
         # before model selection so it's obvious where we're connecting.
         if selected_llm_provider == "ollama":
             confirm_ollama_endpoint(backend_url)
