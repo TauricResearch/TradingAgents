@@ -18,6 +18,21 @@
 {"file":"2026-05-20-brief-markov-regime.md","date":"2026-05-20","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-20-brief-twelvedata-integration.md","date":"2026-05-20","status":"done","summary":"Twelve Data API integration: US equity pricing via free tier, batch endpoint, yfinance fallback","meta":{"prs":["#26"]}}
 {"file":"2026-05-23-brief-google-design-md.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-27-brief-tree-view-experiment.md","date":"2026-05-29","status":"active","summary":"Tree-based navigation architecture: Repo Explorer + Workflow Navigator. SSR via @pierre/trees + HTMX/SSE.","meta":{"epic":"TREE-001"}}
+{"file":"2026-05-29-brief-bumblebee-inventory-investigation.md","date":"2026-05-29","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-29-brief-nuclear-power.md","date":"2026-05-29","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-30-brief-markov-phase2.md","date":"2026-05-30","status":"active","summary":"Markov Phase 2: stationary distribution, walk-forward backtest, Hidden Markov Model via Python bridge, Bayesian Dirichlet-Multinomial transition estimation. Four executable phases (A-D) with time estimates, schema additions, and CLI extensions. Complementary notes: Legendre LP extraction (Phase 3+), Fractional Kelly sizing (Phase 4), development philosophy.","meta":{"source":"Pham The Anh — The Quant Secret Weapon (Medium, May 2026)","phase1":"briefs/2026-05-20-brief-markov-regime.md"}}
+{"file":"2026-05-31-brief-create-skill-package.md","date":"2026-05-31","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-31-brief-css-refactor-to-mvp.md","date":"2026-05-31","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-31-brief-evel-for-substrates.md","date":"2026-05-31","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-31-brief-nasdaq-buy-opportunities.md","date":"2026-05-31","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-31-brief-nasdaq-rule-change.md","date":"2026-05-31","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-31-brief-silo-skil-creationl-01.md","date":"2026-05-31","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-31-brief-silo-skil-creationl-02.md","date":"2026-05-31","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-06-01-brief-more-watchlist-01.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-06-01-brief-more-watchlist-02.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-06-01-brief-more-watchlist-03.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-06-01-brief-sakura-css-evaluation.md","date":"2026-06-02","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"alerts-phase2.md","date":"2026-05-11","status":"done","summary":"ALERTS-PHASE2: SQLite alerts table, CRUD CLI, matching engine, Telegram dispatch, dashboard route","meta":{"epic":"td-cbb2e9"}}
 {"file":"archive/2026-06-01-brief-bifrost-installation.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-barnacle-removal.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
@@ -42,6 +57,7 @@
 {"file":"brief-remove-agent-ceremony-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Replace the 5-file, 678-line agent coordination system with a minimal alternative","meta":{"epic":"architecture-hardening"}}
 {"file":"brief-static-assets-2026-05-05.md","date":"2026-05-05","status":"done","summary":"Static client-side scripts for dashboard: external JS files, HTMX partials","meta":{"epic":null}}
 {"file":"brief-stock-card-view-2026-05-21.md","date":"2026-05-21","status":"open","summary":"Stock card component: price + sparkline + indicator strip + scan signal + actions. Replaces table-based positions view with card grid.","meta":{"td":"td-904dd7","depends_on":"SCAN-001"}}
+{"file":"brief-strategy-intake-pipeline.md","date":"2026-05-30","status":"active","summary":"Strategy intake & evaluation pipeline: capture, extract, backtest, and monitor trading strategies from external sources as a complement to per-ticker LLM analysis","meta":{"source":"Ayrat Murtazin Medium article"}}
 {"file":"brief-trading-benchmark.md","date":"2026-05-08","status":"done","summary":"Trading Benchmark Command: compare portfolio returns vs passive benchmark index via `trading benchmark`","meta":{"epic":null}}
 {"file":"brief-trim-justfile-2026-05-14.md","date":"2026-05-14","status":"superseded","summary":"Reduce the justfile from 812 lines to ~400 by removing thin aliases and redundant recipes","meta":{"epic":"architecture-hardening"}}
 {"file":"datatype-sparklines.md","date":"2026-05-02","status":"done","summary":"DataType variable font integration for dashboard inline charts (sparklines, bars, pies)","meta":{"epic":null}}
@@ -53,6 +69,7 @@
 {"file":"epic-demo-execution-pipeline.md","date":"2026-05-10","status":"done","summary":"DEMO-EXEC-001: Wire analysis pipeline to IG demo execution — --yes, --dry-run, plan stop loss, analysis linkage, analyze --execute (all 5 stories closed)","meta":{"epic":"DEMO-EXEC-001","stories":["S01","S02","S03","S04","S05"]}}
 {"file":"epic-ig-api-validation.md","date":"2026-05-07","status":"done","summary":"IG API validation: test real order placement, connectivity config, instrument data","meta":{"epic":null}}
 {"file":"epic-script-migration.md","date":"2026-05-12","status":"done","summary":"Migrate trade-calculator.ts from scripts/ to src/lib/ — business logic belongs in the project, not the operational layer","meta":{"epic":"SCRIPTS-001"}}
+{"file":"epic-strategy-intake-phase1.md","date":"2026-05-30","status":"active","summary":"STRAT-001 Phase 1: strategies table + strategy add/list/show/extract CLI commands. Five stories: schema, add, list/show, AI extraction, CLI registration.","meta":{"epic":"STRAT-001","brief":"brief-strategy-intake-pipeline.md","stories":"STRAT-001-S01..S05"}}
 {"file":"epic-technical-indicators-scan.md","date":"2026-05-21","status":"open","summary":"SCAN-001: momentum mean-reversion scan engine — indicator library, CLI, DB layer. 6 entry gates + 3 exit triggers.","meta":{"epic":"SCAN-001","td":"td-e7284c"}}
 {"file":"epic-trade-calculator.md","date":"2026-05-07","status":"done","summary":"Strategic trade calculator: ATR-14, Fibonacci targets, position sizing, bracket orders","meta":{"epic":null}}
 {"file":"epic-unified-cli.md","date":"2026-05-07","status":"done","summary":"Unified Trading CLI with citty framework: plan command, platform config, IG integration","meta":{"epic":"td-d19b7c"}}
@@ -61,4 +78,3 @@
 {"file":"task-at-a-time-implementation.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
-{"file":"2026-05-27-brief-tree-view-experiment.md","date":"2026-05-29","status":"active","summary":"Tree-based navigation architecture: Repo Explorer + Workflow Navigator. SSR via @pierre/trees + HTMX/SSE.","meta":{"epic":"TREE-001"}}

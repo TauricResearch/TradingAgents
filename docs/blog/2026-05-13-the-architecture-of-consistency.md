@@ -41,7 +41,7 @@ The agent runs a script to get up to date with the Lexicon, the current Briefs (
 
 ### The "Induced Requirement" & The Barnacle Scraper
 
-In a traditional SDLC, requirements come from managers. Here, we use **Induced Requirements**. If the system becomes inconsistent, the friction *induces* a task.
+In a traditional SDLC, requirements come from managers. Here, we also use **Induced Requirements**. If the system becomes inconsistent, the friction *induces* a task.
 
 **Before and After: The Barnacle Scraper**
 

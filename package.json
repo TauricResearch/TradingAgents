@@ -18,8 +18,10 @@
   "dependencies": {
     "@hono/node-server": "^2.0.2",
     "@kreuzberg/node": "^4.9.8",
+    "@pierre/trees": "^1.0.0-beta.4",
     "citty": "^0.2.2",
     "dotenv": "^17.4.2",
+    "highlight.js": "^11.11.1",
     "hono": "^4.9.8",
     "js-yaml": "^4.1.1",
     "marked": "^16.3.0",

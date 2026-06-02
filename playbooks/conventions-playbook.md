@@ -201,3 +201,23 @@ When a script moves (e.g. `scripts/` → `scripts/py/`), update ALL references i
 
 ### No test coverage for views
 `pytest -m smoke` only covers Python. TypeScript views have no automated test. Until route-level tests exist, the only guard is: `tsc` + `just lint` + manual browser verification.
+
+## Semantic Rendering Standard (CSS-less Architecture)
+
+To maintain data integrity and prevent agentic layout hallucinations, we follow a
+strict semantic-first rendering rule. Agents are responsible for *structure*,
+not *decoration*.
+
+1. **No Inline Styling**: Agents are strictly forbidden from writing CSS or 
+   inline `style="..."` attributes[cite: 6].
+2. **Semantic Hierarchy**: Use native HTML5 elements (`<article>`, `<nav>`, 
+   `<aside>`, `<table>`, `<dl>`) to convey data relationships[cite: 6]. 
+3. **Data-Driven Reactivity**: Use `data-` attributes to represent the 
+   state of the Silo; keep the logic for rendering those states in an 
+   external, CSS/JS file that the agent never touches.
+4. **Accessibility First**: Use `aria-labels` and `aria-roles` where necessary 
+   to ensure the Silo’s data is machine-readable and accessible by default[cite: 6].
+
+**Why**: An ugly, perfectly organized document is infinitely more useful 
+to an agent than a beautiful one where the structure is obscured by CSS soup 
+[cite: 9, 10].

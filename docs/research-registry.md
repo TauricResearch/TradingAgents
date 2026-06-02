@@ -6,7 +6,7 @@ Canonical index of all investment research documents. Each entry links to watchl
 
 | ID | Document | Date | Sector | Tickers | Status |
 |----|----------|------|--------|---------|--------|
-| `hormuz-2026-05-14` | [Hormuz Bottleneck Recovery Stock Analysis](Hormuz%20Bottleneck_%20Recovery%20Stock%20Analysis.md) | 2026-05-14 | Energy (Upstream E&P, Integrated), Industrial Gas (Helium), Fertilizer, Defense | COP, FANG, LIN, APD, CF, MOS, LMT, RTX, GD, SHEL, CVX, BP | active |
+| `hormuz-2026-05-14` | [Hormuz Bottleneck Recovery Stock Analysis](prospects/hormuz-recovery-2026-05-14.md) | 2026-05-14 | Energy (Upstream E&P, Integrated), Industrial Gas (Helium), Fertilizer, Defense | COP, FANG, LIN, APD, CF, MOS, LMT, RTX, GD, SHEL, CVX, BP | active |
 
 ---
 
@@ -34,4 +34,4 @@ To refresh: re-run the analysis or update `last_research_update` in the watchlis
 
 | Research Doc | Source |
 |--------------|--------|
-| hormuz-2026-05-14 | `docs/Hormuz Bottleneck_ Recovery Stock Analysis.md` |
+| hormuz-2026-05-14 | `docs/prospects/hormuz-recovery-2026-05-14.md` |

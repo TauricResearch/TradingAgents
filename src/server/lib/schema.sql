@@ -276,3 +276,44 @@ CREATE TABLE IF NOT EXISTS regime_matrices (
 
 CREATE INDEX IF NOT EXISTS idx_regime_matrices_ticker ON regime_matrices(ticker);
 CREATE INDEX IF NOT EXISTS idx_regime_matrices_date ON regime_matrices(as_of_date);
+
+-- Technical indicator readings per ticker per date (SCAN-001)
+-- Wide format: one row per ticker-date, all indicator values as columns
+-- Produced by computeSnapshot() from src/server/lib/indicators.ts
+CREATE TABLE IF NOT EXISTS indicator_readings (
+    ticker         TEXT NOT NULL,
+    date           TEXT NOT NULL,          -- YYYY-MM-DD
+    price          REAL NOT NULL,
+    rsi_14         REAL,
+    bb_lower       REAL,
+    bb_middle      REAL,
+    bb_upper       REAL,
+    ma_20          REAL,
+    ma_150         REAL,
+    adx_14         REAL,
+    macd_line      REAL,
+    macd_signal    REAL,
+    macd_histogram REAL,
+    volume         INTEGER,
+    volume_20avg   REAL,
+    created_at     TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (ticker, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_indicator_readings_ticker ON indicator_readings(ticker);
+
+-- Scan history per ticker (SCAN-001)
+-- Records result of each scan run per ticker
+CREATE TABLE IF NOT EXISTS scan_history (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker        TEXT NOT NULL,
+    date          TEXT NOT NULL,          -- YYYY-MM-DD
+    gates_passed  INTEGER NOT NULL,
+    gates_total   INTEGER NOT NULL,
+    signal        TEXT NOT NULL CHECK(signal IN ('buy','no_buy','sell')),
+    exit_trigger  TEXT,
+    created_at    TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_scan_history_date ON scan_history(date);
+CREATE INDEX IF NOT EXISTS idx_scan_history_ticker ON scan_history(ticker);

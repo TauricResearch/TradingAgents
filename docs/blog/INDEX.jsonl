@@ -10,3 +10,4 @@
 {"file":"agentic-design/edinburgh-protocol-playbook.md","date":"2026-05-17","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"agentic-design/edinburgh-protocol.md","date":"2026-05-17","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"blog-playbook.md","date":"2026-05-17","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file": "agentic-design/three-bad-ideas-before-breakfast.md", "date": "2026-06-02", "status": "active", "summary": "Three plausible-but-wrong proposals caught by a principled agent before any code was written. Argues that alignment-through-stance outperforms alignment-through-fences on today's substrates.", "meta": {"type": "blog-post", "topic": "agent-alignment", "tags": ["edinburgh-protocol", "alignment", "agent-architecture", "methodology", "skepticism", "guard-rails"], "author": "petersmith"}}

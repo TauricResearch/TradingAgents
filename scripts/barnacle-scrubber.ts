@@ -28,7 +28,7 @@
  * Index:   decisions/drydock/INDEX.jsonl
  */
 
-import { execSync } from "node:child_process"
+import { execSync, spawnSync } from "node:child_process"
 import {
   existsSync,
   mkdirSync,
@@ -41,6 +41,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { dirname, extname, join, relative, resolve } from "node:path"
+import { llm } from "./lib/llm.ts"
 
 // ── Dependencies ──────────────────────────────────────────────────────────────
 
@@ -71,7 +72,16 @@ interface Barnacle {
   justification: string // why this is a barnacle
   suggestedFix: string | null // null = drydock (remove), string = replacement text
   loadBearing: boolean // @load-bearing annotation → skip on future runs
+  llmDetected?: boolean // detected by LLM scan (not mechanical)
+  anomalyType?: AnomalyType // set if escalated for user decision
 }
+
+type AnomalyType =
+  | "context_conflict"
+  | "ambiguous_instruction"
+  | "stale_metadata"
+  | "logic_paradox"
+  | "chestertons_fence"
 
 interface DrydockEntry {
   id: string
@@ -100,6 +110,22 @@ interface ScanResult {
   file: string
   barnacles: Barnacle[]
   patchedContent: string
+}
+
+interface LlmBarnacle {
+  lineStart: number
+  lineEnd: number
+  type: BarnacleType
+  severity: Severity
+  justification: string
+  snippet: string
+  anomalyType?: AnomalyType
+}
+
+interface SlimResult {
+  originalLines: string[]
+  condensedLines: string[]
+  removals: Array<{ lineStart: number; lineEnd: number; text: string }>
 }
 
 // ── Mechanical Rules ──────────────────────────────────────────────────────────
@@ -455,34 +481,315 @@ function generateReport(results: ScanResult[]): void {
   }
 }
 
+// ── LLM Semantic Scan ─────────────────────────────────────────────────────────
+
+const LLM_SCAN_SYSTEM_PROMPT = `You are a Senior Systems Editor specializing in Operational Brevity.
+Analyze the provided document for "semantic barnacles" — content that is not structurally wrong
+but is semantically obsolete, contradictory, or load-bearing in non-obvious ways.
+
+Return a JSON array of findings. Each finding must have:
+- lineStart (number): approximate starting line number
+- lineEnd (number): approximate ending line number
+- type: "cross_doc_conflict" | "chestertons_fence" | "stale_metadata" | "verbose_prose"
+- severity: "high" | "medium" | "low"
+- justification: one-sentence explanation
+- snippet: the problematic text (max 200 chars)
+- anomalyType (optional): "context_conflict" | "ambiguous_instruction" | "stale_metadata" | "logic_paradox" | "chestertons_fence"
+
+CHESTERTON'S FENCE: text that looks useless but likely has a hidden reason for existing.
+Flag as chestertons_fence anomalyType if unsure.
+
+Only return REAL problems. If the document is clean, return [].`
+
+const LLM_SLIM_SYSTEM_PROMPT = `You are a Senior Systems Editor. Condense the provided text while preserving
+ALL operational meaning, code references, file paths, and numbers.
+
+Rules:
+1. Remove filler: "I have updated", "Please note", "It is worth mentioning"
+2. Merge redundant adjacent paragraphs
+3. Convert passive explanations to active instructions
+4. Keep all code blocks, table structure, and file paths intact
+5. Remove meta-commentary about the document itself
+6. Do NOT remove any @load-bearing annotations
+
+Return the condensed text only. No explanations.`
+
+async function llmScanFile(file: string, content: string): Promise<Barnacle[]> {
+  const lines = splitLines(content)
+  // Only scan files with enough content to matter
+  if (lines.length < 20) return []
+
+  // Chunk: scan in 300-line windows with 50-line overlap to avoid missing
+  // barnacles at chunk boundaries. Long files get scanned in full.
+  const CHUNK_SIZE = 300
+  const OVERLAP = 50
+  const allFindings: LlmBarnacle[] = []
+
+  for (let start = 0; start < lines.length; start += CHUNK_SIZE - OVERLAP) {
+    const end = Math.min(start + CHUNK_SIZE, lines.length)
+    const chunk = lines.slice(start, end).join("\n")
+    const lineOffset = start // add to the LLM's line numbers so they're global
+
+    try {
+      const response = await llm(
+        [
+          { role: "system", content: LLM_SCAN_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `File: ${file}\nLines ${start + 1}-${end} of ${lines.length}\n\n${chunk}`,
+          },
+        ],
+        {
+          temperature: 0.1,
+          maxTokens: 2000,
+          title: "barnacle-scrubber-llm-scan",
+        },
+      )
+
+      // Parse JSON from response (may be wrapped in markdown code fences)
+      const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/) ?? [null, response]
+      const findings: LlmBarnacle[] = JSON.parse(jsonMatch[1]?.trim() ?? "[]")
+
+      if (Array.isArray(findings)) {
+        for (const f of findings) {
+          // Offset line numbers from chunk-relative to file-global
+          allFindings.push({
+            ...f,
+            lineStart: (f.lineStart ?? 1) + lineOffset,
+            lineEnd: (f.lineEnd ?? (f.lineStart ?? 1)) + lineOffset,
+          })
+        }
+      }
+    } catch (err) {
+      console.warn(`  ⚠ LLM scan chunk ${start + 1}-${end} of ${file} failed: ${(err as Error).message?.slice(0, 80)}`)
+      // Continue with next chunk
+    }
+
+    if (end >= lines.length) break
+  }
+
+  if (allFindings.length === 0) return []
+
+  // Deduplicate: findings within OVERLAP lines of each other are likely duplicates
+  const deduped: LlmBarnacle[] = []
+  for (const f of allFindings) {
+    const isDup = deduped.some(
+      (d) => Math.abs(d.lineStart - f.lineStart) <= OVERLAP && d.type === f.type,
+    )
+    if (!isDup) deduped.push(f)
+  }
+
+  return deduped.map((f, i) => ({
+      id: `LLM-${file.replace(/\//g, "-").replace(/\.md$/, "")}-${i + 1}`,
+      file,
+      lineStart: f.lineStart ?? 1,
+      lineEnd: f.lineEnd ?? f.lineStart ?? 1,
+      type: ["cross_doc_conflict", "chestertons_fence", "stale_metadata", "verbose_prose"].includes(
+        f.type,
+      )
+        ? (f.type as BarnacleType)
+        : "chestertons_fence",
+      severity: f.severity ?? "medium",
+      text: f.snippet?.slice(0, 200) ?? "",
+      justification: f.justification ?? "LLM-detected semantic barnacle",
+      suggestedFix: null, // semantic barnacles default to drydock
+      loadBearing: false, // LLM findings are NOT load-bearing — anomalyType drives escalation, not silent skip
+      llmDetected: true,
+      anomalyType: f.anomalyType,
+    }))
+}
+
+// ── Slim Phase ────────────────────────────────────────────────────────────────
+
+async function slimContent(file: string, content: string): Promise<SlimResult | null> {
+  const lines = splitLines(content)
+  if (lines.length < 30) return null // too short to slim
+
+  try {
+    const condensed = await llm(
+      [
+        { role: "system", content: LLM_SLIM_SYSTEM_PROMPT },
+        { role: "user", content },
+      ],
+      {
+        temperature: 0.1,
+        maxTokens: Math.ceil(lines.length * 1.5), // allow expansion
+        title: "barnacle-scrubber-slim",
+      },
+    )
+
+    const slimLines = splitLines(condensed)
+
+    // Detect what was removed (simple line-based diff)
+    const removals: SlimResult["removals"] = []
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim()
+      if (trimmed.length > 20 && !slimLines.some((s) => s.trim() === trimmed)) {
+        // Check if this line's content is preserved elsewhere
+        const key = trimmed.slice(0, 30).toLowerCase()
+        if (!slimLines.some((s) => s.toLowerCase().includes(key))) {
+          removals.push({ lineStart: i + 1, lineEnd: i + 1, text: trimmed })
+        }
+      }
+    }
+
+    return { originalLines: lines, condensedLines: slimLines, removals }
+  } catch (err) {
+    console.warn(`  ⚠ Slim failed for ${file}: ${(err as Error).message?.slice(0, 80)}`)
+    return null
+  }
+}
+
+// ── Anomaly Escalation ────────────────────────────────────────────────────────
+
+const ANOMALY_PROMPTS: Record<AnomalyType, string> = {
+  context_conflict:
+    "Found a reference to a potential decommissioned service or entity. It is not in the current manifest, but the text suggests it handles a critical edge case. Move to drydock or preserve?",
+  ambiguous_instruction:
+    "Manual step described that may be automated. An automated runbook exists but the text mentions a special-case override. Barnacle or valid manual exception?",
+  stale_metadata:
+    "Attribution or metadata references an entity/team no longer in the directory. Reassign or drydock?",
+  logic_paradox:
+    "Comment or description contradicts the actual logic. Slim to match code, or does the code need correction?",
+  chestertons_fence:
+    "This text appears useless but may be load-bearing — it might hold the ship together for reasons no longer understood. Move to drydock (auditable) or preserve in place?",
+}
+
+async function escalateAnomaly(barnacle: Barnacle): Promise<"drydock" | "preserve" | "skip"> {
+  const anomalyType = barnacle.anomalyType ?? "chestertons_fence"
+  const prompt = ANOMALY_PROMPTS[anomalyType]
+
+  // Try gum for interactive prompt
+  const hasGum = (() => {
+    try {
+      execSync("which gum", { shell: "/bin/bash" })
+      return true
+    } catch {
+      return false
+    }
+  })()
+
+  if (hasGum) {
+    const proc = spawnSync(
+      "gum",
+      [
+        "choose",
+        "drydock",
+        "preserve",
+        "skip",
+        "--header",
+        `⚠ ANOMALY [${anomalyType}]: ${barnacle.id}`,
+        "--header.foreground",
+        "208",
+        "--cursor",
+        "> ",
+      ],
+      {
+        input: `${prompt}\n\nFile: ${barnacle.file}:${barnacle.lineStart}\nText: ${barnacle.text.slice(0, 200)}`,
+        encoding: "utf-8",
+      },
+    )
+    if (proc.status !== 0) return "skip"
+    const choice = proc.stdout.trim().toLowerCase()
+    if (choice === "drydock" || choice === "preserve" || choice === "skip") {
+      return choice
+    }
+  }
+
+  // Fallback: console prompt (non-interactive — requires gum for real prompts)
+  console.log(`\n⚠ ANOMALY [${anomalyType}]: ${barnacle.id}`)
+  console.log(`   ${prompt}`)
+  console.log(`   File: ${barnacle.file}:${barnacle.lineStart}`)
+  console.log(`   Text: ${barnacle.text.slice(0, 200)}`)
+  console.log(`   → Auto-skipping (gum not available — re-run with gum for interactive choice)`)
+
+  return "skip" // default to skip without user input
+}
+
 // ── Restore ───────────────────────────────────────────────────────────────────
 
-async function restoreBlock(restorePath: string): Promise<void> {
+async function restoreBlock(restorePath: string, options: { auto: boolean }): Promise<void> {
   if (!existsSync(restorePath)) {
     console.error(`❌ Drydock path not found: ${restorePath}`)
     process.exit(1)
   }
 
+  // Read the block
   const blockContent = readFileSync(restorePath, "utf-8")
-  const relPath = relative(join(DRYDOCK_ROOT, "YYYY-MM-DD"), restorePath)
-  // Restore path format: decisions/drydock/YYYY-MM-DD/{source}/{block-id}/block.md
-  // We need to figure out the original source file
+  const blockDir = dirname(restorePath)
+  const blockId = restorePath.split("/").slice(-2)[0] ?? "unknown"
 
-  // Try to find source from the block path structure
-  const parts = restorePath.split("/")
-  const blockDir = parts[parts.length - 2] // block-id
-  // The source file path is the middle portion
+  // Parse INDEX.jsonl to find source info
+  let sourceFile = ""
+  let sourceLine = 0
 
-  console.log("Restored content:")
+  if (existsSync(INDEX_FILE)) {
+    const indexLines = readFileSync(INDEX_FILE, "utf-8").trim().split("\n")
+    for (const line of indexLines) {
+      try {
+        const entry = JSON.parse(line)
+        if (entry.drydockPath && entry.drydockPath.includes(blockId)) {
+          sourceFile = entry.sourceFile ?? ""
+          sourceLine = entry.sourceLine ?? 0
+          break
+        }
+      } catch {
+        // skip malformed index entries
+      }
+    }
+  }
+
+  if (!sourceFile) {
+    console.error(`❌ Could not determine source file for block ${blockId}. Check INDEX.jsonl.`)
+    process.exit(1)
+  }
+
+  if (!existsSync(sourceFile)) {
+    console.error(`❌ Source file not found: ${sourceFile}`)
+    process.exit(1)
+  }
+
+  const sourceContent = readFileSync(sourceFile, "utf-8")
+  const sourceLines = splitLines(sourceContent)
+
+  // Replace the pointer comment with the original content
+  if (sourceLine > 0 && sourceLine <= sourceLines.length) {
+    const pointerLine = sourceLines[sourceLine - 1]
+    const isPointer =
+      pointerLine.includes("<!-- BARNACLE:") || pointerLine.includes("<!-- BARNACLE")
+    if (isPointer) {
+      sourceLines[sourceLine - 1] = blockContent
+    } else {
+      // Insert at the line position
+      sourceLines.splice(sourceLine - 1, 0, blockContent)
+    }
+  } else {
+    // Append with annotation
+    sourceLines.push("")
+    sourceLines.push(`<!-- RESTORED from drydock/${blockId} -->`)
+    sourceLines.push(blockContent)
+  }
+
+  const restoredContent = sourceLines.join("\n")
+
+  console.log(`\n📄 Source: ${sourceFile}`)
+  console.log(`   Block: ${blockId}`)
+  console.log(`   Restored content:`)
   console.log("─".repeat(60))
   console.log(blockContent)
   console.log("─".repeat(60))
-  console.log(`\n✅ Restore preview complete. Apply manually or use --auto to write directly.`)
+
+  if (options.auto) {
+    writeFileSync(sourceFile, restoredContent, "utf-8")
+    console.log(`✅ Restored ${blockId} to ${sourceFile}`)
+  } else {
+    console.log(`✅ Restore preview complete. Use --auto to apply, or apply manually.`)
+  }
 }
 
 // ── Main Scan ─────────────────────────────────────────────────────────────────
 
-function runScan(targets: string[], options: ScrubberOptions): ScanResult[] {
+async function runScan(targets: string[], options: ScrubberOptions): Promise<ScanResult[]> {
   const files = discoverFiles(targets.length > 0 ? targets : ["playbooks", "docs", "AGENTS.md"])
   const results: ScanResult[] = []
 
@@ -493,7 +800,55 @@ function runScan(targets: string[], options: ScrubberOptions): ScanResult[] {
     }
 
     const content = readFileSync(file, "utf-8")
-    const barnacles = mechanicalScan(file, content)
+
+    // Phase 1: Mechanical scan (always runs)
+    const mechanical = mechanicalScan(file, content)
+    let barnacles = [...mechanical]
+
+    // Phase 2: LLM semantic scan (--llm flag)
+    if (options.llm) {
+      console.log(`  🔍 LLM scanning: ${file}`)
+      const llmBarnacles = await llmScanFile(file, content)
+      // Merge: deduplicate by approximate line overlap
+      for (const lb of llmBarnacles) {
+        const overlaps = barnacles.some(
+          (b) => Math.abs(b.lineStart - lb.lineStart) <= 2 && b.type === lb.type,
+        )
+        if (!overlaps) barnacles.push(lb)
+      }
+    }
+
+    // Phase 3: Slim (--slim flag, requires --llm for LLM access)
+    if (options.slim && options.llm) {
+      // Slim the original content so removal line numbers reference the real file.
+      // The LLM produces condensed prose that naturally subsumes mechanical fixes.
+      // Mechanical barnacles still appear in the dry-run report but are not separately
+      // applied — the condensed output replaces the file wholesale.
+      console.log(`  ✂ Slimming: ${file}`)
+      const slimResult = await slimContent(file, content)
+      if (slimResult && slimResult.removals.length > 0) {
+        for (const r of slimResult.removals) {
+          barnacles.push({
+            id: `SLIM-${file.replace(/\//g, "-").replace(/\.md$/, "")}-L${r.lineStart}`,
+            file,
+            lineStart: r.lineStart,
+            lineEnd: r.lineEnd,
+            type: "verbose_prose",
+            severity: "low",
+            text: r.text.slice(0, 200),
+            justification: "Verbose prose condensed via LLM slim",
+            suggestedFix: null,
+            loadBearing: false,
+          })
+        }
+
+        // Replace content with condensed version (this is the final patched result)
+        const patched = slimResult.condensedLines.join("\n")
+        results.push({ file, barnacles, patchedContent: patched })
+        continue
+      }
+    }
+
     const patched = applyPatches(content, barnacles)
 
     if (barnacles.length > 0) {
@@ -506,13 +861,22 @@ function runScan(targets: string[], options: ScrubberOptions): ScanResult[] {
 
 // ── Apply ─────────────────────────────────────────────────────────────────────
 
-function applyResults(results: ScanResult[], options: ScrubberOptions): void {
+async function applyResults(results: ScanResult[], options: ScrubberOptions): Promise<void> {
   ensureDrydock(TODAY)
 
   for (const result of results) {
-    // Drydock the barnacles first
+    // Handle anomaly escalations first
+    const appliedBarnacles: Barnacle[] = []
     for (const b of result.barnacles) {
       if (b.loadBearing) continue
+
+      if (b.anomalyType) {
+        const choice = await escalateAnomaly(b)
+        if (choice === "preserve") continue
+        if (choice === "skip") continue
+        // choice === "drydock" — fall through
+      }
+
       const path = drydockBlock(b, result.patchedContent)
       appendIndex({
         id: b.id,
@@ -525,11 +889,17 @@ function applyResults(results: ScanResult[], options: ScrubberOptions): void {
         restored: false,
       })
       appendLog(b)
+      appliedBarnacles.push(b)
+    }
+
+    if (appliedBarnacles.length === 0) {
+      console.log(`  ⏭ Skipped: ${result.file} (all barnacles load-bearing or preserved)`)
+      continue
     }
 
     // Write patched file
     writeFileSync(result.file, result.patchedContent, "utf-8")
-    console.log(`  ✅ Patched: ${result.file} (${result.barnacles.length} barnacle(s))`)
+    console.log(`  ✅ Patched: ${result.file} (${appliedBarnacles.length} barnacle(s))`)
   }
 }
 
@@ -559,12 +929,15 @@ async function main() {
 
   // Handle restore mode
   if (options.restore) {
-    await restoreBlock(options.restore)
+    await restoreBlock(options.restore, options)
     return
   }
 
   // Run scan
-  const results = runScan(options.targets, options)
+  console.log(
+    `🔍 Scanning ${options.targets.length > 0 ? options.targets.join(", ") : "playbooks, docs, AGENTS.md"}...`,
+  )
+  const results = await runScan(options.targets, options)
 
   if (results.length === 0) {
     console.log("✅ No barnacles found.")
@@ -583,12 +956,16 @@ async function main() {
     for (const result of results) {
       console.log(`\n  📄 ${result.file} (${result.barnacles.length} barnacle(s))`)
       for (const b of result.barnacles) {
+        const llmTag = b.llmDetected ? " [LLM]" : ""
+        const anomalyTag = b.anomalyType ? ` [anomaly:${b.anomalyType}]` : ""
         const fix = b.suggestedFix
           ? b.suggestedFix.startsWith("Use:")
             ? b.suggestedFix
             : `→ "${b.suggestedFix.trim().slice(0, 60)}"`
           : `→ drydock (remove)`
-        console.log(`    L${b.lineStart} [${b.type}] ${b.justification} ${fix}`)
+        console.log(
+          `    L${b.lineStart} [${b.type}]${llmTag}${anomalyTag} ${b.justification} ${fix}`,
+        )
       }
     }
     return
@@ -603,14 +980,10 @@ async function main() {
   }
 
   // Apply
-  if (options.auto || options.dryRun) {
-    // Skip confirm in auto/dry-run (already filtered)
-  }
-
   console.log(
     `\n🚀 Applying ${confirmed.reduce((s, r) => s + r.barnacles.length, 0)} barnacle fix(es)...`,
   )
-  applyResults(confirmed, options)
+  await applyResults(confirmed, options)
   console.log("\n✅ Scrub complete.")
   console.log(`   Drydock: decisions/drydock/${TODAY}/`)
   console.log(`   Log: decisions/drydock/DELETION_LOG.md`)

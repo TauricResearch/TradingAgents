@@ -1,0 +1,337 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-05-31",
+  "description": "Consolidated stock prospect lists from all source documents. Primary input for the tradingagents analysis pipeline.",
+  "sources": [
+    {
+      "id": "hormuz-2026-05-14",
+      "name": "Hormuz Recovery",
+      "date": "2026-05-14",
+      "document": "hormuz-recovery-2026-05-14.md",
+      "theme": "Hormuz chokepoint beneficiaries (energy, industrial gas, fertilizer, defense) "
+    },
+    {
+      "id": "felix-prehn-2026-05-15",
+      "name": "Felix Prehn Picks",
+      "date": "2026-05-15",
+      "document": "felix-prehn-picks-2026-05-15.md",
+      "theme": "Multi-sector quality/growth framework (gold, uranium, copper, energy, chips, infra, defense) "
+    },
+    {
+      "id": "great-rotation-2026-05-14",
+      "name": "Great Rotation Report",
+      "date": "2026-05-14",
+      "document": "great-rotation-2026-05-14.md",
+      "theme": "Goat Academy quality stocks (9 names, overlaps with Felix Prehn) "
+    },
+    {
+      "id": "nuclear-2026-05-29",
+      "name": "Nuclear Power",
+      "date": "2026-05-29",
+      "document": "nuclear-power-2026-05-29.md",
+      "theme": "Small modular reactors, power conversion, infrastructure "
+    }
+  ],
+  "tickers": [
+    {
+      "ticker": "COP",
+      "source": "hormuz-2026-05-14",
+      "sector": "energy",
+      "subsector": "upstream-e-p",
+      "exchange": "US",
+      "name": "ConocoPhillips",
+      "thesis": "Premier recovery play, oil-weighted inventory, balance sheet flexibility, no Gulf tail risk",
+      "priority": "high"
+    },
+    {
+      "ticker": "FANG",
+      "source": "hormuz-2026-05-14",
+      "sector": "energy",
+      "subsector": "upstream-e-p",
+      "exchange": "US",
+      "name": "Diamondback Energy",
+      "thesis": "Pure-play Permian operator, high beta to energy prices, operational reliability",
+      "priority": "high"
+    },
+    {
+      "ticker": "DVN",
+      "source": "hormuz-2026-05-14",
+      "sector": "energy",
+      "subsector": "upstream-e-p",
+      "exchange": "US",
+      "name": "Devon Energy",
+      "thesis": "Delaware sub-basin focus, production doubled since 2019, Hormuz-free crude supplier",
+      "priority": "medium"
+    },
+    {
+      "ticker": "LIN",
+      "source": "hormuz-2026-05-14",
+      "sector": "industrial-gas",
+      "subsector": "helium",
+      "exchange": "US",
+      "name": "Linde plc",
+      "thesis": "World's largest industrial gas company, leading helium distributor, pricing power in semiconductor supply chain",
+      "priority": "high"
+    },
+    {
+      "ticker": "APD",
+      "source": "hormuz-2026-05-14",
+      "sector": "industrial-gas",
+      "subsector": "helium",
+      "exchange": "US",
+      "name": "Air Products and Chemicals",
+      "thesis": "First-mover helium extraction technology, 15-25yr take-or-pay contracts, stable cash flows",
+      "priority": "high"
+    },
+    {
+      "ticker": "CF",
+      "source": "hormuz-2026-05-14",
+      "sector": "fertilizer",
+      "subsector": "nitrogen",
+      "exchange": "US",
+      "name": "CF Industries",
+      "thesis": "33.5% operating margin, 19.3% revenue growth, primary beneficiary of Gulf fertilizer interdiction",
+      "priority": "high"
+    },
+    {
+      "ticker": "MOS",
+      "source": "hormuz-2026-05-14",
+      "sector": "fertilizer",
+      "subsector": "potash-phosphate",
+      "exchange": "US",
+      "name": "The Mosaic Company",
+      "thesis": "North America's largest potash/phosphate producer, 12%/10% global output, soybean demand shift beneficiary",
+      "priority": "medium"
+    },
+    {
+      "ticker": "LMT",
+      "source": "hormuz-2026-05-14",
+      "sector": "defense",
+      "subsector": "aerospace",
+      "exchange": "US",
+      "name": "Lockheed Martin",
+      "thesis": "$194B backlog, F-35 production doubling in 2027, defense-industry bellwether",
+      "priority": "high"
+    },
+    {
+      "ticker": "RTX",
+      "source": "hormuz-2026-05-14",
+      "sector": "defense",
+      "subsector": "aerospace",
+      "exchange": "US",
+      "name": "RTX Corporation",
+      "thesis": "Patriot air defense unprecedented demand, dual commercial/defense exposure, also in Felix Prehn picks",
+      "priority": "high"
+    },
+    {
+      "ticker": "GD",
+      "source": "hormuz-2026-05-14",
+      "sector": "defense",
+      "subsector": "naval",
+      "exchange": "US",
+      "name": "General Dynamics",
+      "thesis": "$118B backlog, nuclear submarines, Navy 16 support ships contract (~$65.8B)",
+      "priority": "medium"
+    },
+    {
+      "ticker": "CVX",
+      "source": "hormuz-2026-05-14",
+      "sector": "energy",
+      "subsector": "integrated",
+      "exchange": "US",
+      "name": "Chevron",
+      "thesis": "3.9% yield, decades of dividend growth, massive US footprint hedges Gulf instability",
+      "priority": "medium"
+    },
+    {
+      "ticker": "SHEL",
+      "source": "hormuz-2026-05-14",
+      "sector": "energy",
+      "subsector": "integrated",
+      "exchange": "US",
+      "name": "Shell plc",
+      "thesis": "Global LNG leader, 70+ country operations, diversified supply routing, 8.64 forward P/E",
+      "priority": "medium"
+    },
+    {
+      "ticker": "BP",
+      "source": "hormuz-2026-05-14",
+      "sector": "energy",
+      "subsector": "integrated",
+      "exchange": "US",
+      "name": "BP plc",
+      "thesis": "High recovery potential, 8.77 forward P/E, 75% proj EPS growth",
+      "priority": "medium"
+    },
+    {
+      "ticker": "NEM",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "gold",
+      "subsector": "mining",
+      "exchange": "US",
+      "name": "Newmont Corporation",
+      "thesis": "Gold miner outperforming metal price, Felix Prehn quality framework, also in Great Rotation",
+      "priority": "high"
+    },
+    {
+      "ticker": "CCJ",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "uranium",
+      "subsector": "mining",
+      "exchange": "US",
+      "name": "Cameco Corporation",
+      "thesis": "Largest Western uranium producer, nuclear renaissance + AI data center demand, also in Great Rotation",
+      "priority": "high"
+    },
+    {
+      "ticker": "FCX",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "copper",
+      "subsector": "mining",
+      "exchange": "US",
+      "name": "Freeport-McMoRan",
+      "thesis": "Copper demand from energy transition and AI infrastructure, also in Great Rotation",
+      "priority": "high"
+    },
+    {
+      "ticker": "SCCO",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "copper",
+      "subsector": "mining",
+      "exchange": "US",
+      "name": "Southern Copper",
+      "thesis": "Copper exposure with large reserve base, secondary to FCX in Felix Prehn copper thesis",
+      "priority": "medium"
+    },
+    {
+      "ticker": "TTE",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "energy",
+      "subsector": "integrated",
+      "exchange": "US",
+      "name": "TotalEnergies",
+      "thesis": "Money flowing into energy sector, quality/growth framework, also in Great Rotation",
+      "priority": "high"
+    },
+    {
+      "ticker": "AVGO",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "technology",
+      "subsector": "semiconductors",
+      "exchange": "US",
+      "name": "Broadcom Inc",
+      "thesis": "AI chip infrastructure, quality/growth framework, also in Great Rotation",
+      "priority": "high"
+    },
+    {
+      "ticker": "FIX",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "infrastructure",
+      "subsector": "comfort-systems",
+      "exchange": "US",
+      "name": "Comfort Systems USA",
+      "thesis": "HVAC/infrastructure services, quality/growth framework, also in Great Rotation",
+      "priority": "medium"
+    },
+    {
+      "ticker": "STX",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "infrastructure",
+      "subsector": "storage",
+      "exchange": "US",
+      "name": "Seagate Technology",
+      "thesis": "Data infrastructure, quality/growth framework, also in Great Rotation",
+      "priority": "medium"
+    },
+    {
+      "ticker": "CLS",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "infrastructure",
+      "subsector": "electronics",
+      "exchange": "US",
+      "name": "Celestica Inc",
+      "thesis": "Electronics manufacturing/infrastructure, quality/growth framework",
+      "priority": "medium"
+    },
+    {
+      "ticker": "RKLB",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "defense",
+      "subsector": "aerospace",
+      "exchange": "US",
+      "name": "Rocket Lab",
+      "thesis": "Space infrastructure, defense thesis, also in Great Rotation",
+      "priority": "medium"
+    },
+    {
+      "ticker": "MTZ",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "engineering",
+      "subsector": "construction",
+      "exchange": "US",
+      "name": "Mastec Inc",
+      "thesis": "Infrastructure construction, quality/growth framework",
+      "priority": "medium"
+    },
+    {
+      "ticker": "PWR",
+      "source": "felix-prehn-2026-05-15",
+      "sector": "engineering",
+      "subsector": "services",
+      "exchange": "US",
+      "name": "Quanta Services",
+      "thesis": "Infrastructure services, quality/growth framework, also in Great Rotation",
+      "priority": "medium"
+    },
+    {
+      "ticker": "NNE",
+      "source": "nuclear-2026-05-29",
+      "sector": "nuclear",
+      "subsector": "smr",
+      "exchange": "US",
+      "name": "Nano Nuclear Energy",
+      "thesis": "Small modular reactor design, nuclear renaissance play",
+      "priority": "medium"
+    },
+    {
+      "ticker": "OKLO",
+      "source": "nuclear-2026-05-29",
+      "sector": "nuclear",
+      "subsector": "smr",
+      "exchange": "US",
+      "name": "Oklo Inc",
+      "thesis": "Advanced nuclear reactor design, fast fission technology",
+      "priority": "medium"
+    },
+    {
+      "ticker": "SMR",
+      "source": "nuclear-2026-05-29",
+      "sector": "nuclear",
+      "subsector": "smr",
+      "exchange": "US",
+      "name": "NuScale Power",
+      "thesis": "Licensed first SMR user, regulatory first-mover advantage",
+      "priority": "medium"
+    },
+    {
+      "ticker": "VIGR",
+      "source": "nuclear-2026-05-29",
+      "sector": "power",
+      "subsector": "conversion",
+      "exchange": "US",
+      "name": "Vicor Corporation",
+      "thesis": "Power conversion for data centers and nuclear facilities",
+      "priority": "medium"
+    },
+    {
+      "ticker": "VRT",
+      "source": "nuclear-2026-05-29",
+      "sector": "infrastructure",
+      "subsector": "thermal-management",
+      "exchange": "US",
+      "name": "Vertiv Holdings",
+      "thesis": "Data center infrastructure, thermal management for nuclear-powered computing",
+      "priority": "medium"
+    }
+  ]
+}

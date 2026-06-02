@@ -62,6 +62,8 @@ import { portfolioBalanceRouter } from "./routes/portfolio-balance.ts";
 import { tradePlanRouter } from "./routes/trade-plan.tsx";
 import labCurrencyRouter from "./routes/lab-currency.tsx";
 import { alertsRouter } from "./routes/alerts.tsx";
+import { explorer } from "./routes/explorer.tsx"
+import { stocks } from "./routes/stocks.tsx"
 import { screeningsRouter } from "./routes/screenings.tsx";
 import { AlertsView } from "./views/alerts-view.tsx";
 import { Layout } from "./views/layout.tsx";
@@ -79,6 +81,7 @@ import { AboutView } from "./views/about.tsx";
 import { WorkflowView } from "./views/workflow.tsx";
 import { ScreeningsView } from "./views/screenings-view.tsx";
 import { IntelligenceView } from "./views/intelligence.tsx";
+
 import { DatatypeTestView } from "./views/datatype-test.tsx"
 
 const app = new Hono();
@@ -201,6 +204,8 @@ app.get("/alerts", (c) => pageOrPartial(c, <AlertsView />));
 app.get("/about", (c) => pageOrPartial(c, <AboutView />));
 app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 app.get("/screenings", (c) => pageOrPartial(c, <ScreeningsView />));
+app.route("/explorer", explorer);
+app.route("/stocks", stocks);
 app.route("/lab/currency", labCurrencyRouter);
 
 // ── Static (serve only from static/ directory, not source files) ──

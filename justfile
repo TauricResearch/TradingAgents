@@ -58,7 +58,10 @@ alias hl-prices := hledger::hl-prices
 alias hl-register := hledger::hl-register
 alias hl-net-worth := hledger::hl-net-worth
 
-# Type-check + lint + custom gates
+# Bundle client-side scripts (tree explorer, etc.)
+[group("bun")]
+build-client:
+    bun build --target=browser --format=esm --outfile=src/server/static/scripts/explorer-tree.bundle.js src/server/static/scripts/explorer-tree.ts# Type-check + lint + custom gates
 [group("bun")]
 check:
     just --unstable --fmt --check
@@ -552,6 +555,35 @@ regen-diagrams:
     @echo ""
     @echo "Done. All diagrams regenerated in docs/diagrams/"
 
+# ── Prospect lists ──────────────────────────────────────────
+# docs/prospects/ — canonical source for all stock prospect lists.
+# Combined JSON feeds the Python tradingagents analysis pipeline.
+
+# Build combined-prospects.json from source documents
+[group("prospects")]
+prospects-build:
+    bun run scripts/prospects-build.ts
+
+# Validate prospect documents without writing output
+[group("prospects")]
+prospects-check:
+    bun run scripts/prospects-build.ts --check
+
+# Show prospect summary with jq
+[group("prospects")]
+prospects-list:
+    @echo "=== All Tickers ==="
+    jq -r '.tickers[] | "\(.ticker) \(.source) \(.sector) \(.priority)"' docs/prospects/combined-prospects.json
+    @echo ""
+    @echo "=== Unique Tickers ==="
+    jq -r '[.tickers[].ticker] | unique | .[]' docs/prospects/combined-prospects.json
+    @echo ""
+    @echo "=== By Sector ==="
+    jq -r '.tickers | group_by(.sector) | .[] | "\(.[0].sector): \(length)"' docs/prospects/combined-prospects.json
+    @echo ""
+    @echo "=== High Priority ==="
+    jq -r '.tickers[] | select(.priority=="high") | "  \(.ticker) — \(.name) — \(.thesis)"' docs/prospects/combined-prospects.json
+
 # ── PR review cache ─────────────────────────────────────────
 # Persist PR reviews as markdown in debriefs/reviews/ for offline review.
 # Run `just prs` to list open PRs, `just pr-fetch N` to save one,
@@ -710,3 +742,68 @@ install-hooks:
 [group("hooks")]
 push:
     bun scripts/push-with-diagrams.ts
+
+# ── Barnacle Scrubber ──────────────────────────────────────────────────────
+#   Barnacle removal: mechanical + LLM semantic scan, drydock quarantine,
+#   slim condensation, anomaly escalation, and restore.
+#   See: playbooks/conventions-playbook.md (barnacle section)
+
+# Mechanical scan only (no LLM), print report, no writes
+[group("barnacle")]
+bs-scan:
+    bun scripts/barnacle-scrubber.ts --report
+
+# Show what would change, no file modifications
+[group("barnacle")]
+bs-dry-run:
+    bun scripts/barnacle-scrubber.ts --dry-run
+
+# Interactive: confirm each action before applying (mechanical only)
+[group("barnacle")]
+bs-scrub:
+    bun scripts/barnacle-scrubber.ts
+
+# Non-interactive: apply all mechanical fixes without prompting
+[group("barnacle")]
+bs-auto:
+    bun scripts/barnacle-scrubber.ts --auto
+
+# LLM semantic scan + mechanical, dry-run (requires OPENROUTER_API_KEY)
+[group("barnacle")]
+bs-llm-dry-run:
+    bun scripts/barnacle-scrubber.ts --llm --dry-run
+
+# LLM semantic scan + mechanical, interactive apply
+[group("barnacle")]
+bs-llm-scrub:
+    bun scripts/barnacle-scrubber.ts --llm
+
+# Full scrub: mechanical + LLM scan + slim, interactive
+[group("barnacle")]
+bs-full-dry-run:
+    bun scripts/barnacle-scrubber.ts --llm --slim --dry-run
+
+# Full scrub: mechanical + LLM scan + slim, auto-apply
+[group("barnacle")]
+bs-full:
+    bun scripts/barnacle-scrubber.ts --llm --slim --auto
+
+# Restore a barnacle from drydock (interactive)
+# Usage: just bs-restore decisions/drydock/2026-05-24/playbooks/foo.md/BR-001/block.md
+[group("barnacle")]
+bs-restore PATH:
+    bun scripts/barnacle-scrubber.ts --restore "{{ PATH }}"
+
+# Auto-restore a barnacle from drydock
+[group("barnacle")]
+bs-restore-auto PATH:
+    bun scripts/barnacle-scrubber.ts --restore "{{ PATH }}" --auto
+
+# Show deletion log
+[group("barnacle")]
+bs-log:
+    @if [ -f decisions/drydock/DELETION_LOG.md ]; then \
+        cat decisions/drydock/DELETION_LOG.md; \
+    else \
+        echo "No deletion log found at decisions/drydock/DELETION_LOG.md"; \
+    fi

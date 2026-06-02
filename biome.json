@@ -8,7 +8,7 @@
   "files": {
     "ignoreUnknown": true,
     "includes": ["**/*.ts", "**/*.mts", "**/*.cts", "**/*.mjs", "**/*.cjs", "**/*.json"],
-    "experimentalScannerIgnores": ["blueprint/**"]
+    "experimentalScannerIgnores": ["blueprint/**", "scripts/prospects-build.ts"]
   },
   "formatter": {
     "enabled": true,

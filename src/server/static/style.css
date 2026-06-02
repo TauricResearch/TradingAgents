@@ -1,14 +1,17 @@
 :root {
-  --bg: oklch(17.833% 0.01281 270.6); /* #0f1117 */
-  --surface: oklch(23.23% 0.01988 271.76); /* #1a1d27 */
-  --border: oklch(29.984% 0.02394 274.71); /* #2a2d3a */
-  --text: oklch(91.973% 0.00403 286.32); /* #e4e4e7 */
-  --text-dim: oklch(55.166% 0.01381 285.94); /* #71717a */
-  --green: oklch(72.275% 0.19201 149.58); /* #22c55e */
-  --red: oklch(63.683% 0.20785 25.331); /* #ef4444 */
-  --yellow: oklch(79.524% 0.16167 86.047); /* #eab308 */
-  --blue: oklch(62.308% 0.18801 259.81); /* #3b82f6 */
-
+  --bg: #0f1117;
+  --bg-raised: #14171f;
+  --bg-hover: #1a1d27;
+  --surface: #1a1d27;
+  --border: #2a2d3a;
+  --text: #e4e4e7;
+  --text-dim: #71717a;
+  --text-muted: #71717a;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+  --blue: #3b82f6;
+  --purple: #a855f7;
 }
 
 @font-face {
@@ -749,3 +752,327 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 
 .btn { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-raised); color: var(--text); text-decoration: none; font-size: 0.85em; cursor: pointer; }
 .btn:hover { background: var(--bg-hover); }
+
+/* File Explorer — standalone full-viewport layout */
+.explorer-layout {
+  display: flex !important;
+  min-height: 100vh !important;
+  gap: 0 !important;
+  background: #00ff00 !important;
+  height: 100vh !important;
+}
+
+.explorer-tree-panel {
+  width: 320px !important;
+  min-width: 240px !important;
+  border-right: 1px solid var(--border) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #ff0000 !important;
+  overflow: hidden !important;
+}
+
+/* Nav tree section — fixed height so virtualized rows compute correctly */
+.explorer-nav-tree {
+  flex: 0 0 300px !important;
+  min-height: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: #ff0000 !important;
+}
+
+.explorer-nav-header {
+  flex: 0 0 auto;
+  padding: 8px 16px 4px;
+}
+
+.explorer-nav-header h2 {
+  margin: 0;
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+#explorer-nav-root {
+  overflow: hidden;
+}
+
+/* Divider between nav tree and file tree */
+.explorer-tree-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* File tree section fills remaining space */
+.explorer-file-tree {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+.explorer-tree-header {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.explorer-tree-header h2 {
+  margin: 0;
+  font-size: 1em;
+  color: var(--text);
+}
+
+/* File tree root — must fill the flex parent */
+#explorer-tree-root {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+}
+
+/* FileTree host needs an explicit height so virtualized rows compute correctly */
+#explorer-tree {
+  height: 100%;
+  display: block;
+}
+
+#explorer-nav-root {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#nav-tree {
+  height: 100%;
+  display: block;
+}
+
+/* File tree section fills all remaining vertical space */
+.explorer-file-tree {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.explorer-content-panel {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+  background: #0000ff !important;
+  min-width: 0 !important;
+}
+
+.explorer-content-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: 0.9em;
+}
+
+.explorer-file-view {
+  padding: 0;
+}
+
+.explorer-file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.explorer-file-path {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8em;
+  color: var(--text-dim);
+}
+
+.explorer-file-copy {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-size: 0.75em;
+  cursor: pointer;
+}
+
+.explorer-file-copy:hover {
+  background: var(--bg-hover);
+}
+
+.explorer-file-content {
+  padding: 16px 24px;
+}
+
+.file-content-pre {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.file-content-pre code {
+  font-family: var(--font-mono, monospace);
+}
+
+.explorer-error {
+  padding: 16px;
+  color: var(--red);
+}
+
+/* Image file viewer */
+.explorer-image-view {
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.explorer-image-view img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Context menu (custom, not from @pierre/trees) */
+.explorer-context-menu {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  min-width: 120px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.explorer-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.85em;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.explorer-context-menu button:hover {
+  background: var(--bg-hover);
+}
+
+/* Markdown body (for rendered .md files) */
+.markdown-body {
+  color: var(--text);
+  line-height: 1.6;
+  max-width: 780px;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  color: var(--text);
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.markdown-body h1 { font-size: 1.6em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.35em; border-bottom: 1px solid var(--border); padding-bottom: 0.25em; }
+.markdown-body h3 { font-size: 1.15em; }
+
+.markdown-body p {
+  margin: 0.75em 0;
+}
+
+.markdown-body code {
+  background: var(--bg-raised);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+}
+
+.markdown-body pre {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--bg-raised);
+  font-weight: 600;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 0.75em 0;
+  padding: 0.5em 1em;
+  color: var(--text-dim);
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.5em;
+}
+
+.markdown-body li {
+  margin: 0.25em 0;
+}
+
+.markdown-body a {
+  color: var(--blue);
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+.markdown-body img {
+  max-width: 100%;
+}

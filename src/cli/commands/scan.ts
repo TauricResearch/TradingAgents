@@ -303,6 +303,10 @@ export const scanCommand = defineCommand({
       type: "boolean",
       description: "Suppress gum, use plain ANSI",
     },
+    "--no-store": {
+      type: "boolean",
+      description: "Skip DB writes (indicator_readings, scan_history)",
+    },
   },
   run: async (ctx) => {
     // Parse tickers
@@ -345,9 +349,12 @@ export const scanCommand = defineCommand({
     }
 
     const asJson = (ctx.args.json as boolean) ?? false
+    const noStore = (ctx.args["no-store"] as boolean) ?? false
 
-    // Connect to DB
-    DatabaseFactory.connect(cfg.portfolio.db)
+    // Connect to DB (only if storing)
+    if (!noStore) {
+      DatabaseFactory.connect(cfg.portfolio.db)
+    }
 
     // Scan each ticker
     if (asJson) {
@@ -357,6 +364,7 @@ export const scanCommand = defineCommand({
         if ("error" in result) {
           results.push({ ticker, ...result })
         } else {
+          if (!noStore) storeResult(result)
           results.push({
             ticker: result.ticker,
             date: result.date,
@@ -388,6 +396,7 @@ export const scanCommand = defineCommand({
           outputError(ticker, result)
           hasErrors = true
         } else {
+          if (!noStore) storeResult(result)
           outputPlain(ticker, result)
         }
       }
@@ -398,3 +407,67 @@ export const scanCommand = defineCommand({
     }
   },
 })
+
+// ── DB write helpers ─────────────────────────────────────────────────────────
+
+function storeResult(result: ScanResult): void {
+  if (!result.snapshot) return
+
+  const snap = result.snapshot
+  const db = DatabaseFactory.get()
+
+  // Upsert indicator_readings (one row per ticker-date)
+  db.execute(
+    `INSERT INTO indicator_readings
+       (ticker, date, price, rsi_14, bb_lower, bb_middle, bb_upper,
+        ma_20, ma_150, adx_14, macd_line, macd_signal, macd_histogram,
+        volume, volume_20avg, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(ticker, date) DO UPDATE SET
+       price = excluded.price,
+       rsi_14 = excluded.rsi_14,
+       bb_lower = excluded.bb_lower,
+       bb_middle = excluded.bb_middle,
+       bb_upper = excluded.bb_upper,
+       ma_20 = excluded.ma_20,
+       ma_150 = excluded.ma_150,
+       adx_14 = excluded.adx_14,
+       macd_line = excluded.macd_line,
+       macd_signal = excluded.macd_signal,
+       macd_histogram = excluded.macd_histogram,
+       volume = excluded.volume,
+       volume_20avg = excluded.volume_20avg,
+       created_at = datetime('now')`,
+    [
+      snap.ticker,
+      snap.date,
+      snap.price,
+      snap.rsi_14,
+      snap.bb_lower,
+      snap.bb_middle,
+      snap.bb_upper,
+      snap.ma_20,
+      snap.ma_150,
+      snap.adx_14,
+      snap.macd_line,
+      snap.macd_signal,
+      snap.macd_histogram,
+      snap.volume,
+      snap.volume_20avg,
+    ],
+  )
+
+  // Append scan_history (one row per scan result)
+  db.execute(
+    `INSERT INTO scan_history (ticker, date, gates_passed, gates_total, signal, exit_trigger)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      result.ticker,
+      result.date,
+      result.gatesPassed,
+      result.gatesTotal,
+      result.signal,
+      result.exitTriggers[0] ?? null,
+    ],
+  )
+}

@@ -4,6 +4,7 @@
 {"file":"ci-cd-playbook.md","date":"2026-05-08","status":"project","summary":"CI/CD pipeline: pre-push hooks, diagram auto-generation, just check gate","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"cli-design-playbook.md","date":"2026-05-08","status":"project","summary":"CLI design patterns: citty framework, argument definitions, output formatting","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"conventions-playbook.md","date":"2026-05-08","status":"project","summary":"Active conventions, barnacle concept and detection, PR size discipline, inspection prompt","meta":{"source":null,"mining_candidate":true,"mining_note":"Barnacle concept (detecting and removing stale conventions) is highly portable","last_mined":"2026-05-09"}}
+{"file":"css-and-semantic-policy-playbook.md","date":"2026-05-31","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"database-lifecycle-playbook.md","date":"2026-05-08","status":"project","summary":"Database lifecycle: backup/restore, TEST vs LIVE mode switching, schema migration","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"datatype-playbook.md","date":"2026-05-08","status":"project","summary":"Datatype variable font: inline chart ligatures (sparklines, bars, pies), CSS configuration","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"debriefs-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
@@ -30,8 +31,8 @@
 {"file":"td-playbook.md","date":"2026-05-11","status":"project","summary":"Multi-agent coordination protocol: claim-before-touch, session startup, handoff, TD labels convention","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"TEMPLATE.md","date":"2025-05-02","status":"project","summary":"Playbook template with frontmatter schema (file, date, status, summary, meta)","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"trade-calculator-testing-playbook.md","date":"2026-05-08","status":"project","summary":"Trade calculator testing: unit tests, integration tests, IG instrument validation","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"tree-view-playbook.md","date":"2026-05-29","status":"active","summary":"SSR tree navigation with @pierre/trees — vanilla runtime, HTMX + SSE reactivity, Repo Explorer vs Workflow Navigator","meta":{"source":"briefs/2026-05-27-brief-tree-view-experiment.md"}}
 {"file":"tsconfig-tiered-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"typescript-hono-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"ui-design-playbook.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"unified-registry-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
-{"file":"tree-view-playbook.md","date":"2026-05-29","status":"active","summary":"SSR tree navigation with @pierre/trees — vanilla runtime, HTMX + SSE reactivity, Repo Explorer vs Workflow Navigator","meta":{"source":"briefs/2026-05-27-brief-tree-view-experiment.md"}}

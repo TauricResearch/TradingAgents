@@ -18,6 +18,7 @@ export function Layout(props: LayoutProps) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>TradingAgents Dashboard</title>
         <link rel="stylesheet" href="/static/style.css" />
+        <link rel="stylesheet" href="/static/hljs.css" />
         <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
         <script src="https://unpkg.com/htmx.org@2.0.4" />
       </head>
@@ -147,12 +148,28 @@ export function Layout(props: LayoutProps) {
               Alerts
             </button>
             <button
+              hx-get="/stocks"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Stocks
+            </button>
+            <button
               hx-get="/about"
               hx-target="#content"
               hx-push-url="true"
               class="tab"
             >
               About
+            </button>
+            <button
+              hx-get="/explorer"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Explorer
             </button>
           </nav>
         </header>
