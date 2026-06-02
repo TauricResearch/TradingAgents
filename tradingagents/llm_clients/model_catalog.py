@@ -54,20 +54,18 @@ _QWEN_MODELS: Dict[str, List[ModelOption]] = {
 
 # Shared model list for MiniMax's global and CN endpoints (same IDs).
 # Full official lineup per platform.minimax.io/docs/api-reference/text-openai-api.
-# All M2.x models share a 204,800-token context window.
+# M3: 512K context, 128K max output, image input support. M2.7 retains a
+# 204K context window; both endpoints share the same model IDs.
 _MINIMAX_MODELS: Dict[str, List[ModelOption]] = {
     "quick": [
+        ("MiniMax-M3 - Latest flagship, 512K ctx, image input (default)", "MiniMax-M3"),
         ("MiniMax-M2.7-highspeed - Faster M2.7, 204K ctx, ~100 TPS", "MiniMax-M2.7-highspeed"),
-        ("MiniMax-M2.5-highspeed - Previous-gen highspeed, 204K ctx", "MiniMax-M2.5-highspeed"),
-        ("MiniMax-M2.1-highspeed - M2.1 highspeed, 204K ctx", "MiniMax-M2.1-highspeed"),
         ("Custom model ID", "custom"),
     ],
     "deep": [
-        ("MiniMax-M2.7 - Flagship, SOTA on coding/agent benchmarks, 204K ctx", "MiniMax-M2.7"),
+        ("MiniMax-M3 - Latest flagship, 512K ctx, image input (default)", "MiniMax-M3"),
+        ("MiniMax-M2.7 - Previous-gen flagship, 204K ctx", "MiniMax-M2.7"),
         ("MiniMax-M2.7-highspeed - Same quality as M2.7, ~100 TPS", "MiniMax-M2.7-highspeed"),
-        ("MiniMax-M2.5 - Previous-gen flagship, 204K ctx", "MiniMax-M2.5"),
-        ("MiniMax-M2.1 - Earlier M2 line, 204K ctx", "MiniMax-M2.1"),
-        ("MiniMax-M2 - Base M2, 204K ctx", "MiniMax-M2"),
         ("Custom model ID", "custom"),
     ],
 }

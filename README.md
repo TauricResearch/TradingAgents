@@ -147,8 +147,8 @@ export DASHSCOPE_API_KEY=...       # Qwen — International (dashscope-intl.aliy
 export DASHSCOPE_CN_API_KEY=...    # Qwen — China (dashscope.aliyuncs.com)
 export ZHIPU_API_KEY=...           # GLM via Z.AI (international)
 export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
-export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io, M2.x, 204K ctx)
-export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com, M2.x, 204K ctx)
+export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io, M3 default, 512K ctx)
+export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com, M3 default, 512K ctx)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```

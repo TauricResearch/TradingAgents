@@ -1,7 +1,7 @@
 """Tests for MinimaxChatOpenAI quirks.
 
 Verifies the subclass injects ``reasoning_split=True`` into outgoing
-requests so M2.x reasoning models put their <think> block into
+requests so M2.x / M3 reasoning models put their <think> block into
 ``reasoning_details`` instead of polluting ``message.content``.
 """
 
@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from tradingagents.llm_clients.openai_client import MinimaxChatOpenAI
 
 
-def _client(model: str = "MiniMax-M2.7"):
+def _client(model: str = "MiniMax-M3"):
     os.environ.setdefault("MINIMAX_API_KEY", "placeholder")
     return MinimaxChatOpenAI(
         model=model,
@@ -33,7 +33,7 @@ class TestMinimaxReasoningSplit:
         assert "reasoning_split" not in payload  # never top-level
 
     def test_non_reasoning_minimax_does_not_inject_reasoning_split(self):
-        """Coding Plan / MiniMax-Text-01 / any non-M2-prefixed model must NOT
+        """Coding Plan / MiniMax-Text-01 / any non-M-prefixed model must NOT
         receive reasoning_split at all (top-level or extra_body) (#826)."""
         for model in ("minimax-text-01", "MiniMax-Coding-Plan"):
             payload = _client(model)._get_request_payload(
@@ -45,8 +45,8 @@ class TestMinimaxReasoningSplit:
 
 @pytest.mark.unit
 class TestMinimaxStructuredOutputDispatch:
-    """M2.x models route through the capability table — tool_choice is
-    suppressed but the schema is still bound as a tool."""
+    """M2.x and M3 models route through the capability table — tool_choice
+    is suppressed but the schema is still bound as a tool."""
 
     class _Pick(BaseModel):
         action: str
@@ -54,6 +54,11 @@ class TestMinimaxStructuredOutputDispatch:
     def _bound_kwargs(self, runnable):
         first = runnable.steps[0] if hasattr(runnable, "steps") else runnable
         return getattr(first, "kwargs", {})
+
+    def test_m3_suppresses_tool_choice(self):
+        bound = _client("MiniMax-M3").with_structured_output(self._Pick)
+        kwargs = self._bound_kwargs(bound)
+        assert kwargs.get("tool_choice") is None or "tool_choice" not in kwargs
 
     def test_m2_7_suppresses_tool_choice(self):
         bound = _client("MiniMax-M2.7").with_structured_output(self._Pick)
@@ -66,7 +71,7 @@ class TestMinimaxStructuredOutputDispatch:
         assert kwargs.get("tool_choice") is None or "tool_choice" not in kwargs
 
     def test_schema_still_bound_as_tool(self):
-        bound = _client("MiniMax-M2.7").with_structured_output(self._Pick)
+        bound = _client("MiniMax-M3").with_structured_output(self._Pick)
         tools = self._bound_kwargs(bound).get("tools", [])
         assert any(
             t.get("function", {}).get("name") == "_Pick" for t in tools
