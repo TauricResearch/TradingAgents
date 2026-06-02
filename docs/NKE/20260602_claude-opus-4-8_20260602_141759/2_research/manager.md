@@ -1,0 +1,23 @@
+**Recommendation**: Hold
+
+**Rationale**: Let me walk you through how I'm reading this one, because both sides argued well and I don't want to pretend the call is cleaner than it is.
+
+The bull's strongest, most durable points: the brand moat is real and the bear effectively conceded it (95% affinity, no rival above 60%), the damage was self-inflicted via the DTC over-pivot rather than consumer rejection, there's an $8.06B cash cushion against only ~$1.37B net debt, and Q1 FY2026 demonstrated the cost structure can produce a 42.2% gross margin. The technical setup (double-bottom at ~$41.33, MACD positive crossover, RSI recovery from oversold) plus a defined ~$44 stop genuinely does create a favorable near-term risk/reward IF the catalysts break right. The bull is also correct in principle that markets pay you for buying ahead of confirmation, not after.
+
+But here's where the bear lands the more decisive blows for me. Every forward-looking fundamental indicator is currently pointing the wrong way on a year-over-year basis: revenue flat (zero growth), gross margin down 130bps YoY, operating margin compressed to 4.9% from 7.0%, and FCF covering only ~0.45–0.57x of the dividend. The bear's seasonal-adjustment counter to the bull's 42.2% argument was sharp — if summer is always the peak, then Q1 FY2026 was roughly flat vs the prior-year summer peak, which undercuts the "recovery already happened" framing. The Q1 FY2026 FCF of just $15M is a legitimate red flag even if working-capital timing explains part of it.
+
+The deciding factor is the binary event structure. There's a Q4 FY2026 earnings print roughly 28 days out AND a live, escalating third Vietnam tariff investigation covering ~50% of footwear sourcing. The bear correctly dismantled the bull's "Vietnam affects both sides equally" claim — a flat position takes zero damage from a tariff gap-down and retains optionality, while a long position gaps through its stop. With two unresolved binary catalysts converging, appropriate position sizing shrinks any position so much that the bull's headline 3.4:1 risk/reward becomes a rounding error in the portfolio while still carrying real gap risk.
+
+So neither extreme is warranted. The bull's permanent-bear-market thesis is overstated given the brand and balance sheet; the bull's "back up the truck now" thesis is premature given that not a single key YoY fundamental has turned and there are two loaded catalysts in the next month. That genuinely balanced setup — strong long-term franchise, deteriorating-but-stabilizing fundamentals, and acute near-term binary risk — is exactly what Hold is for. The honest move is to maintain existing exposure, not chase, and let the June 30 print and Vietnam ruling resolve the open questions before committing fresh capital in size.
+
+**Strategic Actions**: Maintain current NKE exposure; do not initiate or materially add ahead of the Q4 FY2026 earnings print (~June 30) and the pending Vietnam tariff ruling — both are binary catalysts that should be allowed to resolve before sizing up.
+
+Position sizing: Hold the existing position at current weight. If currently overweight, trim toward a neutral/benchmark weight to reduce single-name binary-event exposure into the catalyst cluster. Do not establish a new full position at $45.93 in front of two unresolved catalysts.
+
+Risk management on the held position: Maintain a mental/soft stop near $44.00, but recognize that an earnings or tariff gap-down can blow through it — therefore keep the position size small enough that a 12–17% overnight gap is tolerable. The failed-double-bottom downside target is $33–$35 if $41.33 breaks on volume.
+
+Conditions to UPGRADE toward Overweight/Buy (add on confirmation, accepting a modestly higher entry): (1) Q4 FY2026 gross margin prints above 42%, (2) revenue turns positive year-over-year, (3) Vietnam tariff risk is quantified or de-escalates, and (4) price confirms the double-bottom by clearing the ~$46.95 neckline on volume. Buying $48–$52 on validated recovery is preferable to buying $45.93 on hope.
+
+Conditions to DOWNGRADE toward Underweight/Sell (reduce or exit): A Vietnam tariff formally imposed at 20%+ with no mitigation guidance, gross margin compressing below 40%, a year-over-year revenue decline, or a confirmed break below the $41.33 double-bottom on volume.
+
+Income note: The ~3.57% dividend provides some carry while waiting, but flag that FCF coverage is sub-1x (~0.45–0.57x) — treat the dividend as a watch item, not a guaranteed backstop, until FCF coverage recovers toward 0.85x+.

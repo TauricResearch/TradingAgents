@@ -108,15 +108,47 @@ def read_text(path: Path) -> str:
 
 def field(text: str, name: str) -> str:
     m = re.search(rf"^\*\*{re.escape(name)}\*\*:\s*(.+)$", text, flags=re.M)
-    return m.group(1).strip() if m else ""
+    if m:
+        return clean_field_value(m.group(1))
+    m = re.search(
+        rf"^\|\s*\*{{0,2}}{re.escape(name)}\*{{0,2}}\s*\|\s*(.+?)\s*\|",
+        text,
+        flags=re.I | re.M,
+    )
+    return clean_field_value(m.group(1)) if m else ""
+
+
+def clean_field_value(value: str) -> str:
+    return value.strip().strip("*").strip()
 
 
 def parse_money(value: str) -> float | None:
     value = value.strip().replace(",", "")
+    m = re.search(r"\$?\s*([0-9]+(?:\.\d+)?)", value)
+    if m:
+        value = m.group(1)
     try:
         return float(value)
     except ValueError:
         return None
+
+
+def extract_price_target(decision_text: str) -> float | None:
+    for name in ("Price Target", "Near-term target", "Medium-term target"):
+        value = field(decision_text, name)
+        if value:
+            return parse_money(value)
+    return None
+
+
+def extract_time_horizon(decision_text: str) -> str:
+    horizon = field(decision_text, "Time Horizon")
+    if horizon:
+        return horizon
+    m = re.search(r"within\s+~?(\d+)\s+days", decision_text, flags=re.I)
+    if m:
+        return f"{m.group(1)}d"
+    return ""
 
 
 def normalize_analysis_date(value: str | None) -> str | None:
@@ -136,6 +168,7 @@ CURRENT_PRICE_PATTERNS = [
     r"Latest close[^$\n]*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"Latest trading day[^\n$]*(?:Last close|close)\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"last trading day[^\n$]*close\s+\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"\*\*Last Close\s*\([^)]*\):\*\*\s*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"\*\*Last Close:\*\*\s*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"Last Close\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"\*\*Last close:\*\*\s*\$([0-9][0-9,]*(?:\.\d+)?)",
@@ -145,6 +178,7 @@ CURRENT_PRICE_PATTERNS = [
     r"ending\s+the\s+week\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
     r"(?:close|closing)\s+of\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
     r"closed\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
+    r"closing\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
     r"closed\s+May\s+29\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"May\s+29\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"to\s+\$([0-9][0-9,]*(?:\.\d+)?)\s+close\s+on\s+\d{4}-\d{2}-\d{2}",
@@ -209,15 +243,39 @@ def horizon_months(horizon: str) -> float | None:
     m = re.search(r"(\d+)\s*-\s*(\d+)\s*days?", h)
     if m:
         return ((float(m.group(1)) + float(m.group(2))) / 2.0) / 30.4375
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*d\b", h)
+    if m:
+        return ((float(m.group(1)) + float(m.group(2))) / 2.0) / 30.4375
+    m = re.search(r"(\d+)\s*d\b", h)
+    if m:
+        return float(m.group(1)) / 30.4375
     m = re.search(r"(\d+)\s*-\s*(\d+)\s*weeks?", h)
     if m:
         return ((float(m.group(1)) + float(m.group(2))) / 2.0) * 12.0 / 52.0
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*w\b", h)
+    if m:
+        return ((float(m.group(1)) + float(m.group(2))) / 2.0) * 12.0 / 52.0
+    m = re.search(r"(\d+)\s*w\b", h)
+    if m:
+        return float(m.group(1)) * 12.0 / 52.0
     m = re.search(r"(\d+)\s*-\s*(\d+)\s*months?", h)
     if m:
         return (float(m.group(1)) + float(m.group(2))) / 2.0
     m = re.search(r"(\d+)\s*months?", h)
     if m:
         return float(m.group(1))
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*m\b", h)
+    if m:
+        return (float(m.group(1)) + float(m.group(2))) / 2.0
+    m = re.search(r"(\d+)\s*m\b", h)
+    if m:
+        return float(m.group(1))
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*years?", h)
+    if m:
+        return ((float(m.group(1)) + float(m.group(2))) / 2.0) * 12.0
+    m = re.search(r"(\d+)\s*years?", h)
+    if m:
+        return float(m.group(1)) * 12.0
     return None
 
 
@@ -228,12 +286,13 @@ def build_summary_row(run: Run) -> SummaryRow:
     report_text = read_text(run_dir / "complete_report.md")
 
     current = extract_current_price(report_text, decision_text, trader_text)
-    target = parse_money(field(decision_text, "Price Target"))
+    target = extract_price_target(decision_text)
+    horizon = extract_time_horizon(decision_text)
     target_uplift = None
     annualized_uplift = None
     if current and target:
         target_uplift = target / current - 1.0
-        months = horizon_months(field(decision_text, "Time Horizon"))
+        months = horizon_months(horizon)
         if months and months > 0 and 1.0 + target_uplift > 0:
             annualized_uplift = math.pow(1.0 + target_uplift, 12.0 / months) - 1.0
 
@@ -247,7 +306,7 @@ def build_summary_row(run: Run) -> SummaryRow:
         target_uplift=target_uplift,
         annualized_uplift=annualized_uplift,
         confidence=extract_confidence(report_text),
-        horizon=field(decision_text, "Time Horizon") or "n/a",
+        horizon=horizon or "n/a",
     )
 
 
@@ -350,7 +409,7 @@ def build_regeneration_skill() -> list[str]:
         "2. Run `python scripts/build_reports_site.py` from the repository root.",
         "3. For a fixed-date homepage summary, run `python scripts/build_reports_site.py --summary-analysis-date YYYYMMDD --summary-only`.",
         "4. Review `docs/index.md` and the affected `docs/<TICKER>/index.md` files in `git diff`.",
-        "5. If a row shows `n/a`, check that the new report includes `**Rating**`, `**Price Target**`, `**Time Horizon**`, `**Action**`, and a latest close/current price line in the market report.",
+        "5. If a row has a missing value, check that the new report includes `**Rating**`, `**Price Target**`, `**Time Horizon**`, `**Action**`, and a latest close/current price line in the market report.",
         "",
         "The generator always chooses the newest run per ticker by analysis date and run-start timestamp.",
         "",

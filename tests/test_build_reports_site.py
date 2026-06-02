@@ -68,3 +68,44 @@ def test_replace_decision_summary_leaves_other_homepage_sections():
     assert "new table" in out
     assert "## Regeneration Skill\n\nregen text" in out
     assert "## Tickers\n\n- [AAPL](AAPL/index.md) &middot; 3 runs" in out
+
+
+@pytest.mark.unit
+def test_horizon_months_handles_year_ranges():
+    builder = load_builder()
+
+    assert builder.horizon_months("3-5 years") == 48.0
+    assert builder.horizon_months("60d") == 60.0 / 30.4375
+
+
+@pytest.mark.unit
+def test_current_price_parser_handles_remaining_report_phrasings():
+    builder = load_builder()
+
+    assert builder.extract_current_price(
+        "The stock has since declined sharply again, closing at **$124.22 on May 29**.",
+        "",
+        "",
+    ) == 124.22
+    assert builder.extract_current_price(
+        "**Last Close (May 29):** $84.44\n",
+        "",
+        "",
+    ) == 84.44
+
+
+@pytest.mark.unit
+def test_decision_parser_handles_table_style_final_plan():
+    builder = load_builder()
+    decision = (
+        "| Parameter | Decision |\n"
+        "|---|---|\n"
+        "| **Rating** | **Overweight** |\n"
+        "| **Near-term target** | **$487** (January high) |\n"
+        "\n"
+        "- 200-SMA reclaim fails on a two-session basis within ~60 days\n"
+    )
+
+    assert builder.field(decision, "Rating") == "Overweight"
+    assert builder.extract_price_target(decision) == 487.0
+    assert builder.extract_time_horizon(decision) == "60d"
