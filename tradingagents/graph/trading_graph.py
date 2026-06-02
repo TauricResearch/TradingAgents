@@ -238,8 +238,9 @@ class TradingAgentsGraph:
             end_str = end.strftime("%Y-%m-%d")
 
             yahoo_symbol = normalize_symbol(ticker)
+            yahoo_bench = normalize_symbol(benchmark)
             stock = yf.Ticker(yahoo_symbol).history(start=trade_date, end=end_str)
-            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
+            bench = yf.Ticker(yahoo_bench).history(start=trade_date, end=end_str)
 
             if len(stock) < 2 or len(bench) < 2:
                 return None, None, None
