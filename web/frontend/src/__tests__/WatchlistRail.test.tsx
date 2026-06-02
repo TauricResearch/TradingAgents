@@ -11,7 +11,7 @@ function wrap(ui: React.ReactNode) {
 
 beforeEach(() => {
   useUi.setState({ focusedTicker: null });
-  global.fetch = vi.fn((url) => {
+  (globalThis as any).fetch = vi.fn((url) => {
     if (String(url).endsWith("/api/watchlist")) {
       return Promise.resolve(new Response(JSON.stringify([
         { ticker: "NVDA", company_name: "NVIDIA", exchange: "NASDAQ", added_at: null, last_decision: null, last_decision_at: null },
