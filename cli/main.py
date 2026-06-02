@@ -1,6 +1,7 @@
 from typing import Optional
 import os
 import datetime
+import logging
 import typer
 import questionary
 from pathlib import Path
@@ -988,7 +989,34 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
+def _configure_file_logging() -> None:
+    """Route library logging to a file instead of stderr.
+
+    The CLI renders progress with a Rich ``Live`` display that owns the
+    terminal. Library ``logger.warning`` calls (e.g. StockTwits 404 / Reddit
+    403 for non-US tickers) would otherwise hit Python's lastResort handler,
+    write straight to stderr, and tear the Live layout — the repeated banner /
+    border artefact. Attaching a file handler to the root logger both captures
+    those messages for debugging and stops lastResort from touching stderr.
+    """
+    root = logging.getLogger()
+    if any(getattr(h, "_ta_cli_file", False) for h in root.handlers):
+        return  # already configured this process
+    log_dir = Path(DEFAULT_CONFIG["results_dir"])
+    log_dir.mkdir(parents=True, exist_ok=True)
+    handler = logging.FileHandler(log_dir / "tradingagents.log", encoding="utf-8")
+    handler._ta_cli_file = True
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    )
+    root.addHandler(handler)
+    root.setLevel(logging.WARNING)
+
+
 def run_analysis(checkpoint: bool = False):
+    # Send library logs to a file so they don't corrupt the Rich Live display.
+    _configure_file_logging()
+
     # First get all user selections
     selections = get_user_selections()
 
