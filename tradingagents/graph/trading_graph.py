@@ -19,6 +19,8 @@ def _now_iso() -> str:
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.llm_clients.cache import LLMResponseCache
+from tradingagents.llm_clients.retry import RetryPolicy
 
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -89,6 +91,19 @@ class TradingAgentsGraph:
         # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
+
+        # Build the response cache (default ON; under ``data_cache_dir/llm_cache``)
+        # and retry policy from config. The cache + policy are forwarded to
+        # the chat client via ``create_llm_client(..., llm_cache=..., retry_policy=...)``;
+        # the chat class attaches them post-init so its ``invoke`` override
+        # routes through the cache + retry wrappers. See
+        # ``tradingagents.llm_clients.cache`` and ``...retry`` for details.
+        llm_cache = self._build_llm_cache()
+        if llm_cache is not None:
+            llm_kwargs["llm_cache"] = llm_cache
+        llm_retry = self._build_retry_policy()
+        if llm_retry is not None:
+            llm_kwargs["retry_policy"] = llm_retry
 
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
@@ -168,6 +183,56 @@ class TradingAgentsGraph:
             kwargs["temperature"] = float(temperature)
 
         return kwargs
+
+    def _build_llm_cache(self) -> Optional[LLMResponseCache]:
+        """Build the LLM response cache from config, or return None when disabled.
+
+        ``None`` is the contract for "no caching" — the chat-class
+        ``invoke`` override treats it identically to ``disabled``.
+        """
+        if not self.config.get("llm_cache_enabled", True):
+            return None
+        # ``llm_cache_ttl_seconds`` defaults to None, so the env-var
+        # coercion keeps it as a string ("3600") when the user sets
+        # TRADINGAGENTS_LLM_CACHE_TTL. Coerce to int here so the cache
+        # constructor sees a real number. (The same coercion happens
+        # implicitly for ``temperature`` etc. via float() in
+        # ``_get_provider_kwargs`` — this is the pattern for "type at
+        # the consumer".)
+        ttl_raw = self.config.get("llm_cache_ttl_seconds")
+        if ttl_raw in (None, ""):
+            ttl: Optional[int] = None
+        else:
+            try:
+                ttl = int(ttl_raw)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "llm_cache: invalid ttl_seconds=%r; treating as no expiry",
+                    ttl_raw,
+                )
+                ttl = None
+        return LLMResponseCache(
+            cache_dir=os.path.join(self.config["data_cache_dir"], "llm_cache"),
+            ttl_seconds=ttl,
+            enabled=True,
+        )
+
+    def _build_retry_policy(self) -> Optional[RetryPolicy]:
+        """Build the retry-with-backoff policy from config, or None when disabled.
+
+        ``max_retries=0`` is the explicit escape hatch — useful for
+        tests and for the rare "fail fast, don't hide upstream issues"
+        production case. We still build a ``RetryPolicy`` instance so the
+        call site only has to check for ``None``.
+        """
+        max_retries = int(self.config.get("llm_retry_max_retries", 5))
+        if max_retries < 0:
+            return None
+        return RetryPolicy(
+            max_retries=max_retries,
+            base_delay_seconds=float(self.config.get("llm_retry_base_delay_seconds", 1.0)),
+            max_delay_seconds=float(self.config.get("llm_retry_max_delay_seconds", 60.0)),
+        )
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
