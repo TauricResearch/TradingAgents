@@ -82,8 +82,9 @@ def _get_with_retry(params: dict) -> requests.Response:
             last_exc = exc
             if attempt < AV_MAX_RETRIES - 1:
                 time.sleep(AV_BACKOFF_BASE * (2**attempt))
-    assert last_exc is not None
-    raise last_exc
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("Request failed without an exception")
 
 
 def _classify_information_message(info_message: str) -> None:
@@ -94,7 +95,6 @@ def _classify_information_message(info_message: str) -> None:
         )
     if "api key" in msg or "apikey" in msg or "invalid key" in msg:
         raise AlphaVantageAuthError(f"Alpha Vantage API key rejected: {info_message}")
-
 
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Make an Alpha Vantage request with timeout, retry, and error typing.
