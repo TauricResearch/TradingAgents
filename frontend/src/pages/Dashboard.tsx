@@ -74,10 +74,10 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         <div className="h-8 w-32 bg-gray-800 rounded-lg animate-pulse" />
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-800 rounded-2xl animate-pulse" />)}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-20 md:h-24 bg-gray-800 rounded-2xl animate-pulse" />)}
         </div>
       </div>
     )
@@ -89,9 +89,9 @@ export default function Dashboard() {
   const totalUnrealized = sim?.holdings.reduce((s, h) => s + h.unrealized_pnl, 0) ?? 0
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white tracking-tight">Dashboard</h2>
+        <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Dashboard</h2>
         <button
           onClick={() => navigate('/analysis')}
           className="flex items-center gap-1.5 text-sm text-violet-400 hover:text-violet-300 transition-colors"
@@ -101,7 +101,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <KpiCard
           icon={<DollarSign size={18} />}
           label="Portföy Değeri"
@@ -141,10 +141,10 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Recent analyses */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-gray-800">
             <h3 className="text-sm font-semibold text-gray-300">Son Analizler</h3>
             <button onClick={() => navigate('/analysis')} className="text-xs text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1">
               Tümü <ArrowRight size={11} />
@@ -153,34 +153,36 @@ export default function Dashboard() {
           {recentAnalysis.length === 0 ? (
             <p className="px-5 py-8 text-gray-600 text-sm text-center">Henüz analiz yapılmadı.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
-                  <th className="px-5 py-2.5 text-left">Sembol</th>
-                  <th className="px-5 py-2.5 text-left">Tarih</th>
-                  <th className="px-5 py-2.5 text-left">Sinyal</th>
-                  <th className="px-5 py-2.5 text-right">Süre</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentAnalysis.map(a => (
-                  <tr key={a.id}
-                    onClick={() => navigate('/analysis')}
-                    className="border-t border-gray-800/60 hover:bg-gray-800/40 cursor-pointer transition-colors">
-                    <td className="px-5 py-3 font-mono font-bold text-white text-sm">{a.ticker}</td>
-                    <td className="px-5 py-3 text-gray-500 text-xs">{a.trade_date}</td>
-                    <td className="px-5 py-3"><SignalBadge signal={a.signal} /></td>
-                    <td className="px-5 py-3 text-gray-600 text-xs text-right">{a.duration_seconds?.toFixed(1)}s</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[360px]">
+                <thead>
+                  <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
+                    <th className="px-4 py-2.5 text-left">Sembol</th>
+                    <th className="px-4 py-2.5 text-left">Tarih</th>
+                    <th className="px-4 py-2.5 text-left">Sinyal</th>
+                    <th className="px-4 py-2.5 text-right">Süre</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentAnalysis.map(a => (
+                    <tr key={a.id}
+                      onClick={() => navigate('/analysis')}
+                      className="border-t border-gray-800/60 hover:bg-gray-800/40 cursor-pointer transition-colors">
+                      <td className="px-4 py-2.5 font-mono font-bold text-white text-sm">{a.ticker}</td>
+                      <td className="px-4 py-2.5 text-gray-500 text-xs">{a.trade_date}</td>
+                      <td className="px-4 py-2.5"><SignalBadge signal={a.signal} /></td>
+                      <td className="px-4 py-2.5 text-gray-600 text-xs text-right">{a.duration_seconds?.toFixed(1)}s</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
         {/* Holdings */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-gray-800">
             <h3 className="text-sm font-semibold text-gray-300">Açık Pozisyonlar</h3>
             <button onClick={() => navigate('/portfolio')} className="text-xs text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1">
               Portföy <ArrowRight size={11} />
@@ -189,28 +191,30 @@ export default function Dashboard() {
           {!sim?.holdings?.length ? (
             <p className="px-5 py-8 text-gray-600 text-sm text-center">Açık pozisyon yok.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
-                  <th className="px-5 py-2.5 text-left">Sembol</th>
-                  <th className="px-5 py-2.5 text-right">Miktar</th>
-                  <th className="px-5 py-2.5 text-right">Fiyat</th>
-                  <th className="px-5 py-2.5 text-right">K/Z</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sim.holdings.map(h => (
-                  <tr key={h.ticker} className="border-t border-gray-800/60 hover:bg-gray-800/40 transition-colors">
-                    <td className="px-5 py-3 font-mono font-bold text-white text-sm">{h.ticker}</td>
-                    <td className="px-5 py-3 text-gray-400 text-right text-xs">{h.quantity.toFixed(4)}</td>
-                    <td className="px-5 py-3 text-gray-400 text-right text-xs">${h.current_price?.toFixed(2) ?? '—'}</td>
-                    <td className={`px-5 py-3 text-right text-xs font-semibold ${h.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {h.unrealized_pnl >= 0 ? '+' : ''}${h.unrealized_pnl.toFixed(2)}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[320px]">
+                <thead>
+                  <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
+                    <th className="px-4 py-2.5 text-left">Sembol</th>
+                    <th className="px-4 py-2.5 text-right">Miktar</th>
+                    <th className="px-4 py-2.5 text-right">Fiyat</th>
+                    <th className="px-4 py-2.5 text-right">K/Z</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sim.holdings.map(h => (
+                    <tr key={h.ticker} className="border-t border-gray-800/60 hover:bg-gray-800/40 transition-colors">
+                      <td className="px-4 py-2.5 font-mono font-bold text-white text-sm">{h.ticker}</td>
+                      <td className="px-4 py-2.5 text-gray-400 text-right text-xs">{h.quantity.toFixed(4)}</td>
+                      <td className="px-4 py-2.5 text-gray-400 text-right text-xs">${h.current_price?.toFixed(2) ?? '—'}</td>
+                      <td className={`px-4 py-2.5 text-right text-xs font-semibold ${h.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {h.unrealized_pnl >= 0 ? '+' : ''}${h.unrealized_pnl.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
@@ -218,12 +222,12 @@ export default function Dashboard() {
       {/* Live news feed (MOD6) */}
       {news.length > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-800">
+          <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-800">
             <h3 className="text-sm font-semibold text-gray-300">İzleme Listesi Haberleri</h3>
           </div>
           <div className="divide-y divide-gray-800">
             {news.map((item, i) => (
-              <div key={i} className="px-5 py-3 hover:bg-gray-800/40 transition-colors">
+              <div key={i} className="px-4 md:px-5 py-3 hover:bg-gray-800/40 transition-colors">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -250,12 +254,12 @@ function KpiCard({ icon, label, value, sub, color = 'text-white', accent = 'from
   icon: React.ReactNode; label: string; value: string; sub?: string; color?: string; accent?: string
 }) {
   return (
-    <div className={`bg-gradient-to-br ${accent} to-gray-900 border border-gray-800 rounded-2xl p-5`}>
-      <div className="flex items-start gap-3">
-        <div className="p-2 rounded-xl bg-gray-800 text-violet-400 shrink-0">{icon}</div>
-        <div>
-          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">{label}</p>
-          <p className={`text-xl font-bold ${color} leading-none`}>{value}</p>
+    <div className={`bg-gradient-to-br ${accent} to-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5`}>
+      <div className="flex items-start gap-2.5 md:gap-3">
+        <div className="p-1.5 md:p-2 rounded-xl bg-gray-800 text-violet-400 shrink-0">{icon}</div>
+        <div className="min-w-0">
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1 leading-tight">{label}</p>
+          <p className={`text-lg md:text-xl font-bold ${color} leading-none`}>{value}</p>
           {sub && <p className={`text-xs mt-1 ${color} opacity-70`}>{sub}</p>}
         </div>
       </div>

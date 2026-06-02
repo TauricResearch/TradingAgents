@@ -51,9 +51,9 @@ export default function Performance() {
   })) : []
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white tracking-tight">Sinyal Performansı</h2>
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-6xl">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Sinyal Performansı</h2>
         <div className="flex items-center gap-2">
           <input className="bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-1.5 text-sm w-24 uppercase font-mono outline-none focus:ring-2 focus:ring-violet-500"
             placeholder="AAPL" value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && handleFilter()} />
@@ -63,11 +63,11 @@ export default function Performance() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-800 rounded-2xl animate-pulse" />)}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{[...Array(4)].map((_, i) => <div key={i} className="h-20 md:h-24 bg-gray-800 rounded-2xl animate-pulse" />)}</div>
       ) : perf && perf.total > 0 ? (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             <StatCard icon={<BarChart2 size={18} />} label="Toplam Analiz" value={String(perf.total)} />
             <StatCard icon={<Target size={18} />} label="Kazanma Oranı"
               value={perf.win_rate !== null ? `${perf.win_rate}%` : '—'}
@@ -82,12 +82,12 @@ export default function Performance() {
 
           {/* Charts */}
           {bySignalData.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5">
                 <h3 className="text-sm font-semibold text-gray-300 mb-4">Sinyal Bazında Win Rate (%)</h3>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={bySignalData}>
-                    <XAxis dataKey="signal" stroke="#6b7280" tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="signal" stroke="#6b7280" tick={{ fontSize: 11 }} />
                     <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} domain={[0, 100]} />
                     <Tooltip contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }} labelStyle={{ color: '#fff' }} />
                     <Bar dataKey="win_rate" radius={[4, 4, 0, 0]}>
@@ -98,11 +98,11 @@ export default function Performance() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5">
                 <h3 className="text-sm font-semibold text-gray-300 mb-4">Sinyal Bazında Ort. Getiri (%)</h3>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={bySignalData}>
-                    <XAxis dataKey="signal" stroke="#6b7280" tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="signal" stroke="#6b7280" tick={{ fontSize: 11 }} />
                     <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
                     <Tooltip contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }} labelStyle={{ color: '#fff' }} />
                     <Bar dataKey="avg_return" radius={[4, 4, 0, 0]}>
@@ -119,43 +119,45 @@ export default function Performance() {
           {/* History table with returns */}
           {history.length > 0 && (
             <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-800">
+              <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-800">
                 <h3 className="text-sm font-semibold text-gray-300">Geçmiş Sinyaller ve Gerçekleşen Getiriler</h3>
               </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
-                    <th className="px-5 py-3 text-left">Sembol</th>
-                    <th className="px-5 py-3 text-left">Tarih</th>
-                    <th className="px-5 py-3 text-left">Sinyal</th>
-                    <th className="px-5 py-3 text-right">Ham Getiri</th>
-                    <th className="px-5 py-3 text-right">Alpha</th>
-                    <th className="px-5 py-3 text-right">Gün</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.slice(0, 50).map(item => (
-                    <tr key={item.id} className="border-t border-gray-800 hover:bg-gray-800/40 transition-colors">
-                      <td className="px-5 py-3 font-mono font-bold text-white">{item.ticker}</td>
-                      <td className="px-5 py-3 text-gray-400 text-xs">{item.trade_date}</td>
-                      <td className="px-5 py-3">
-                        <span className={`text-xs font-semibold ${
-                          ['Buy','Overweight'].includes(item.signal||'') ? 'text-emerald-400' :
-                          ['Sell','Underweight'].includes(item.signal||'') ? 'text-red-400' : 'text-yellow-400'
-                        }`}>{item.signal ?? '—'}</span>
-                      </td>
-                      <td className="px-5 py-3 text-right"><ReturnCell value={item.raw_return} /></td>
-                      <td className="px-5 py-3 text-right"><ReturnCell value={item.alpha_return} /></td>
-                      <td className="px-5 py-3 text-right text-gray-500 text-xs">{item.holding_days ?? '—'}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[400px]">
+                  <thead>
+                    <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
+                      <th className="px-4 py-3 text-left">Sembol</th>
+                      <th className="px-4 py-3 text-left">Tarih</th>
+                      <th className="px-4 py-3 text-left">Sinyal</th>
+                      <th className="px-4 py-3 text-right">Ham Getiri</th>
+                      <th className="px-4 py-3 text-right hidden sm:table-cell">Alpha</th>
+                      <th className="px-4 py-3 text-right hidden sm:table-cell">Gün</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {history.slice(0, 50).map(item => (
+                      <tr key={item.id} className="border-t border-gray-800 hover:bg-gray-800/40 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-white">{item.ticker}</td>
+                        <td className="px-4 py-3 text-gray-400 text-xs">{item.trade_date}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-semibold ${
+                            ['Buy','Overweight'].includes(item.signal||'') ? 'text-emerald-400' :
+                            ['Sell','Underweight'].includes(item.signal||'') ? 'text-red-400' : 'text-yellow-400'
+                          }`}>{item.signal ?? '—'}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right"><ReturnCell value={item.raw_return} /></td>
+                        <td className="px-4 py-3 text-right hidden sm:table-cell"><ReturnCell value={item.alpha_return} /></td>
+                        <td className="px-4 py-3 text-right text-gray-500 text-xs hidden sm:table-cell">{item.holding_days ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-12 text-center">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 md:p-12 text-center">
           <BarChart2 size={36} className="mx-auto text-gray-700 mb-3" />
           <p className="text-gray-500 text-sm">Henüz gerçekleşen getiri verisi yok.</p>
           <p className="text-gray-600 text-xs mt-1">Analizler sinyal tarihinden 5 iş günü sonra otomatik güncellenir.</p>
@@ -167,11 +169,11 @@ export default function Performance() {
 
 function StatCard({ icon, label, value, color = 'text-white' }: { icon: React.ReactNode; label: string; value: string; color?: string }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex items-start gap-3">
-      <div className="p-2 rounded-xl bg-gray-800 text-violet-400 shrink-0">{icon}</div>
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 flex items-start gap-2.5 md:gap-3">
+      <div className="p-1.5 md:p-2 rounded-xl bg-gray-800 text-violet-400 shrink-0">{icon}</div>
       <div>
         <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">{label}</p>
-        <p className={`text-xl font-bold ${color} leading-none`}>{value}</p>
+        <p className={`text-lg md:text-xl font-bold ${color} leading-none`}>{value}</p>
       </div>
     </div>
   )

@@ -238,7 +238,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-6 space-y-5 max-w-2xl">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5 max-w-2xl">
       <h2 className="text-xl font-bold text-white tracking-tight">Ayarlar</h2>
 
       <Section title="Çalışma Modu">
@@ -399,7 +399,7 @@ export default function Settings() {
         {analysts.length === 0 ? (
           <p className="text-gray-600 text-sm">Yükleniyor...</p>
         ) : (
-          <div className="grid grid-cols-3 gap-2 pt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
             {analysts.map(a => (
               <label key={a.key} title={a.description} className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
@@ -598,7 +598,7 @@ const Input = "bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 space-y-3">
       <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wider mb-1">{title}</h3>
       {children}
     </div>
@@ -607,9 +607,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="text-sm text-gray-400 whitespace-nowrap pt-2 min-w-0">{label}</span>
-      <div className="flex-1 max-w-xs">{children}</div>
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1.5 sm:gap-4">
+      <span className="text-sm text-gray-400 whitespace-nowrap sm:pt-2 min-w-0 shrink-0">{label}</span>
+      <div className="flex-1 sm:max-w-xs">{children}</div>
     </div>
   )
 }

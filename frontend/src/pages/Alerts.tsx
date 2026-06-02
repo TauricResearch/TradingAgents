@@ -54,13 +54,13 @@ export default function Alerts() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
-      <h2 className="text-xl font-bold text-white tracking-tight">Fiyat Alarmları</h2>
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-3xl">
+      <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Fiyat Alarmları</h2>
 
       {/* Create form */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5 space-y-4">
         <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wider">Yeni Alarm</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider">Sembol</label>
             <input className={Input} placeholder="AAPL" value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} />
@@ -76,7 +76,7 @@ export default function Alerts() {
             <label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider">Hedef Fiyat ($)</label>
             <input className={Input} type="number" step="0.01" placeholder="150.00" value={targetPrice} onChange={e => setTargetPrice(e.target.value)} />
           </div>
-          <div className="flex flex-col justify-end">
+          <div className="flex flex-col justify-end pb-1">
             <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
               <input type="checkbox" checked={autoAnalyze} onChange={e => setAutoAnalyze(e.target.checked)} className="w-4 h-4 accent-violet-600" />
               Otomatik analiz başlat
@@ -92,35 +92,36 @@ export default function Alerts() {
 
       {/* Alert list */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-800">
+        <div className="px-4 md:px-5 py-3 md:py-4 border-b border-gray-800">
           <h3 className="text-sm font-semibold text-gray-300">Aktif Alarmlar ({alerts.filter(a => a.enabled && !a.triggered_at).length})</h3>
         </div>
         {loading ? <div className="p-8 text-gray-500 text-sm text-center">Yükleniyor...</div>
           : alerts.length === 0 ? <div className="p-8 text-gray-600 text-sm text-center">Henüz alarm yok.</div>
           : (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
               <thead>
                 <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
-                  <th className="px-5 py-3 text-left">Sembol</th>
-                  <th className="px-5 py-3 text-left">Koşul</th>
-                  <th className="px-5 py-3 text-right">Hedef</th>
-                  <th className="px-5 py-3 text-center">Otom. Analiz</th>
-                  <th className="px-5 py-3 text-center">Durum</th>
-                  <th className="px-5 py-3 text-center">İşlem</th>
+                  <th className="px-4 py-3 text-left">Sembol</th>
+                  <th className="px-4 py-3 text-left hidden sm:table-cell">Koşul</th>
+                  <th className="px-4 py-3 text-right">Hedef</th>
+                  <th className="px-4 py-3 text-center hidden sm:table-cell">Otom.</th>
+                  <th className="px-4 py-3 text-center">Durum</th>
+                  <th className="px-4 py-3 text-center">İşlem</th>
                 </tr>
               </thead>
               <tbody>
                 {alerts.map(a => (
                   <tr key={a.id} className={`border-t border-gray-800 transition-colors ${a.triggered_at ? 'opacity-50' : ''}`}>
-                    <td className="px-5 py-3 font-mono font-bold text-white">{a.ticker}</td>
-                    <td className="px-5 py-3 text-gray-400 text-xs">
+                    <td className="px-4 py-3 font-mono font-bold text-white">{a.ticker}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs hidden sm:table-cell">
                       {a.condition === 'above' ? '↑ Üstüne çıkınca' : '↓ Altına inince'}
                     </td>
-                    <td className="px-5 py-3 text-right text-white font-mono">${a.target_price.toFixed(2)}</td>
-                    <td className="px-5 py-3 text-center text-xs">
-                      {a.auto_analyze ? <span className="text-violet-400">✓ Evet</span> : <span className="text-gray-600">—</span>}
+                    <td className="px-4 py-3 text-right text-white font-mono text-xs">${a.target_price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-center text-xs hidden sm:table-cell">
+                      {a.auto_analyze ? <span className="text-violet-400">✓</span> : <span className="text-gray-600">—</span>}
                     </td>
-                    <td className="px-5 py-3 text-center">
+                    <td className="px-4 py-3 text-center">
                       {a.triggered_at
                         ? <span className="text-xs text-yellow-500">Tetiklendi</span>
                         : a.enabled
@@ -128,7 +129,7 @@ export default function Alerts() {
                           : <span className="text-xs text-gray-600">Pasif</span>
                       }
                     </td>
-                    <td className="px-5 py-3 text-center">
+                    <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => toggleEnabled(a)} className="text-gray-500 hover:text-white transition-colors" title={a.enabled ? 'Pasifleştir' : 'Aktifleştir'}>
                           {a.enabled ? <Bell size={14} /> : <BellOff size={14} />}
@@ -142,6 +143,7 @@ export default function Alerts() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
       </div>
     </div>

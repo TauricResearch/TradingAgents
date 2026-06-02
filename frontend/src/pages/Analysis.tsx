@@ -333,7 +333,7 @@ function RunTab() {
   return (
     <div className="space-y-4">
       {/* Form card */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-5">
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1.5 block uppercase tracking-wider">Sembol</label>
@@ -450,7 +450,7 @@ function RunTab() {
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Canlı Log</span>
               <span className="ml-auto text-xs text-gray-600">{log.length} satır</span>
             </div>
-            <div className="px-4 py-3 space-y-1 max-h-80 overflow-y-auto">
+            <div className="px-4 py-3 space-y-1 max-h-48 md:max-h-80 overflow-y-auto">
               {log.map((line, i) => (
                 <p key={i} className={`text-xs font-mono leading-relaxed ${
                   line.startsWith('✗') ? 'text-red-400' :
@@ -471,7 +471,7 @@ function RunTab() {
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Raporlar</span>
               <span className="ml-auto text-xs text-gray-600">{reportEntries.length} bölüm</span>
             </div>
-            <div className="p-4 space-y-1.5 max-h-80 overflow-y-auto">
+            <div className="p-4 space-y-1.5 max-h-64 md:max-h-80 overflow-y-auto">
               {reportEntries.length === 0 && (
                 <p className="text-gray-600 text-sm text-center py-8">Raporlar analiz sırasında burada görünecek.</p>
               )}
@@ -645,37 +645,39 @@ function HistoryTab() {
         {items.length === 0 ? (
           <p className="p-6 text-gray-600 text-sm">Henüz analiz geçmişi yok.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-600 text-xs uppercase tracking-wider border-b border-gray-800 bg-gray-800/30">
-                <th className="px-5 py-3 text-left">Sembol</th>
-                <th className="px-5 py-3 text-left">Tarih</th>
-                <th className="px-5 py-3 text-left">Sinyal</th>
-                <th className="px-5 py-3 text-left">Süre</th>
-                <th className="px-5 py-3 text-left">Kaynak</th>
-                <th className="px-5 py-3 text-left">Zaman</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={item.id} onClick={() => openDetail(item.id)}
-                  className="border-t border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors">
-                  <td className="px-5 py-3 font-mono font-bold text-white">{item.ticker}</td>
-                  <td className="px-5 py-3 text-gray-400">{item.trade_date}</td>
-                  <td className="px-5 py-3"><SignalBadge signal={item.signal} /></td>
-                  <td className="px-5 py-3 text-gray-500">{item.duration_seconds.toFixed(1)}s</td>
-                  <td className="px-5 py-3 text-gray-600 text-xs">{item.triggered_by}</td>
-                  <td className="px-5 py-3 text-gray-600 text-xs">{new Date(item.created_at).toLocaleString('tr-TR')}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
+              <thead>
+                <tr className="text-gray-600 text-xs uppercase tracking-wider border-b border-gray-800 bg-gray-800/30">
+                  <th className="px-4 py-3 text-left">Sembol</th>
+                  <th className="px-4 py-3 text-left">Tarih</th>
+                  <th className="px-4 py-3 text-left">Sinyal</th>
+                  <th className="px-4 py-3 text-left">Süre</th>
+                  <th className="px-4 py-3 text-left hidden sm:table-cell">Kaynak</th>
+                  <th className="px-4 py-3 text-left hidden md:table-cell">Zaman</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id} onClick={() => openDetail(item.id)}
+                    className="border-t border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors">
+                    <td className="px-4 py-3 font-mono font-bold text-white">{item.ticker}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">{item.trade_date}</td>
+                    <td className="px-4 py-3"><SignalBadge signal={item.signal} /></td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{item.duration_seconds.toFixed(1)}s</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs hidden sm:table-cell">{item.triggered_by}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs hidden md:table-cell">{new Date(item.created_at).toLocaleString('tr-TR')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {(detail || detailLoading) && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center p-4 overflow-y-auto backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-4xl my-8 space-y-4">
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center p-3 md:p-4 overflow-y-auto backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 w-full max-w-4xl my-4 md:my-8 space-y-4">
             {detailLoading ? (
               <div className="flex items-center gap-2 text-gray-400"><Loader2 className="animate-spin" size={16} /> Yükleniyor...</div>
             ) : detail ? (
@@ -698,7 +700,7 @@ function HistoryTab() {
                     <button onClick={() => setDetail(null)} className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800"><X size={18} /></button>
                   </div>
                 </div>
-                <div className="space-y-1.5 max-h-[65vh] overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-[60vh] md:max-h-[65vh] overflow-y-auto pr-1">
                   {([
                     ['market_report', detail.market_report], ['sentiment_report', detail.sentiment_report],
                     ['news_report', detail.news_report], ['fundamentals_report', detail.fundamentals_report],
@@ -732,20 +734,20 @@ export default function Analysis() {
   ]
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white tracking-tight">Analiz</h2>
+        <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Analiz</h2>
       </div>
 
       {/* Tab bar */}
       <div className="flex gap-1 p-1 bg-gray-900 border border-gray-800 rounded-2xl w-fit">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               tab === t.id ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'text-gray-500 hover:text-white'
             }`}
           >
-            {t.icon} {t.label}
+            {t.icon} <span className="hidden sm:inline">{t.label}</span>
           </button>
         ))}
       </div>
