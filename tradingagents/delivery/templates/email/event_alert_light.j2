@@ -1,0 +1,6 @@
+<h2>⚡ Event alert — {{ event_headline }}</h2>
+<p>{{ summary }}</p>
+<p>Affected watchlist tickers:</p>
+<ul>
+{% for t in tickers %}<li>{{ t }}</li>
+{% endfor %}</ul>

@@ -1,0 +1,7 @@
+⚡ Event alert — {{ event_headline }}
+
+{{ summary }}
+
+Affected watchlist tickers (approve a full study with `forge alert approve {{ brief_id }} --ticker <T>`):
+{% for t in tickers %}- {{ t }}
+{% endfor %}
