@@ -177,8 +177,8 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl">
-      <h2 className="text-2xl font-bold text-white">Ayarlar</h2>
+    <div className="p-6 space-y-5 max-w-2xl">
+      <h2 className="text-xl font-bold text-white tracking-tight">Ayarlar</h2>
 
       <Section title="Çalışma Modu">
         <Row label="Mod">
@@ -409,8 +409,8 @@ export default function Settings() {
       </Section>
 
       <div className="flex items-center gap-3">
-        <button onClick={save} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-5 py-2 font-semibold">
-          <Save size={16} /> {saved ? 'Kaydedildi ✓' : 'Kaydet'}
+        <button onClick={save} className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl px-5 py-2.5 text-sm font-semibold shadow-lg shadow-violet-500/20 transition-all">
+          <Save size={15} /> {saved ? 'Kaydedildi ✓' : 'Kaydet'}
         </button>
         {saveError && <span className="text-red-400 text-sm">{saveError}</span>}
       </div>
@@ -418,12 +418,12 @@ export default function Settings() {
   )
 }
 
-const Input = "bg-slate-700 text-white rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm w-full"
+const Input = "bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none text-sm w-full transition"
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-slate-800 rounded-xl p-5 space-y-3">
-      <h3 className="text-base font-semibold text-indigo-300 mb-3">{title}</h3>
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
+      <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wider mb-1">{title}</h3>
       {children}
     </div>
   )
@@ -432,7 +432,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <span className="text-sm text-slate-400 whitespace-nowrap pt-2">{label}</span>
+      <span className="text-sm text-gray-400 whitespace-nowrap pt-2 min-w-0">{label}</span>
       <div className="flex-1 max-w-xs">{children}</div>
     </div>
   )

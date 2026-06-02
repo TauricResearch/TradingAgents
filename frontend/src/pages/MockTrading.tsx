@@ -51,13 +51,15 @@ function StatCard({
 }) {
   const valueColor =
     positive === undefined ? 'text-white' : positive ? 'text-emerald-400' : 'text-red-400'
+  const accent =
+    positive === undefined ? 'from-violet-500/5' : positive ? 'from-emerald-500/10' : 'from-red-500/10'
   return (
-    <div className="bg-slate-800 rounded-xl p-4 flex items-start gap-3">
-      <div className="text-indigo-400 mt-0.5">{icon}</div>
+    <div className={`bg-gradient-to-br ${accent} to-gray-900 border border-gray-800 rounded-2xl p-4 flex items-start gap-3`}>
+      <div className="p-2 rounded-xl bg-gray-800 text-violet-400 shrink-0">{icon}</div>
       <div>
-        <p className="text-slate-400 text-xs">{label}</p>
-        <p className={`text-lg font-bold ${valueColor}`}>{value}</p>
-        {sub && <p className="text-slate-500 text-xs mt-0.5">{sub}</p>}
+        <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">{label}</p>
+        <p className={`text-xl font-bold leading-none ${valueColor}`}>{value}</p>
+        {sub && <p className={`text-xs mt-1 ${valueColor} opacity-70`}>{sub}</p>}
       </div>
     </div>
   )
@@ -149,8 +151,8 @@ export default function MockTrading() {
   if (fetchError || !portfolio) {
     return (
       <div className="p-6 space-y-4">
-        <h2 className="text-2xl font-bold text-white">Simülasyon Trading</h2>
-        <div className="bg-slate-800 rounded-xl p-6 flex flex-col items-center gap-3 text-center">
+        <h2 className="text-xl font-bold text-white tracking-tight">Simülasyon Trading</h2>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col items-center gap-3 text-center">
           <AlertCircle size={32} className="text-red-400" />
           <p className="text-slate-300">Portföy yüklenemedi. Sunucu bağlantısını kontrol edin.</p>
           <button
@@ -172,12 +174,12 @@ export default function MockTrading() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Simülasyon Trading</h2>
+        <h2 className="text-xl font-bold text-white tracking-tight">Simülasyon Trading</h2>
         <div className="flex gap-2">
           <button
             onClick={() => fetchPortfolio(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm transition disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 text-sm transition disabled:opacity-50"
           >
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             Güncelle
@@ -231,20 +233,20 @@ export default function MockTrading() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Order Form */}
-        <div className="bg-slate-800 rounded-xl p-5">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <ShoppingCart size={18} className="text-indigo-400" /> Emir Ver
           </h3>
           <form onSubmit={handleOrder} className="space-y-3">
             {/* Action tabs */}
-            <div className="flex rounded-lg overflow-hidden border border-slate-600">
+            <div className="flex rounded-xl overflow-hidden border border-gray-700">
               <button
                 type="button"
                 onClick={() => setAction('BUY')}
                 className={`flex-1 py-2 text-sm font-medium transition ${
                   action === 'BUY'
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-700 text-slate-400 hover:text-white'
+                    : 'bg-gray-800 text-gray-400 hover:text-white'
                 }`}
               >
                 Al
@@ -255,7 +257,7 @@ export default function MockTrading() {
                 className={`flex-1 py-2 text-sm font-medium transition ${
                   action === 'SELL'
                     ? 'bg-red-600 text-white'
-                    : 'bg-slate-700 text-slate-400 hover:text-white'
+                    : 'bg-gray-800 text-gray-400 hover:text-white'
                 }`}
               >
                 Sat
@@ -267,7 +269,7 @@ export default function MockTrading() {
               placeholder="Sembol (örn. AAPL)"
               value={ticker}
               onChange={e => setTicker(e.target.value.toUpperCase())}
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
               required
             />
             <input
@@ -277,15 +279,15 @@ export default function MockTrading() {
               onChange={e => setQuantity(e.target.value)}
               min="0.0001"
               step="any"
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
               required
             />
 
             <button
               type="submit"
               disabled={submitting}
-              className={`w-full py-2 rounded-lg text-white text-sm font-medium transition disabled:opacity-50 flex items-center justify-center gap-2 ${
-                action === 'BUY' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-red-600 hover:bg-red-500'
+              className={`w-full py-2.5 rounded-xl text-white text-sm font-semibold transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg ${
+                action === 'BUY' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20' : 'bg-red-600 hover:bg-red-500 shadow-red-500/20'
               }`}
             >
               {submitting ? (
@@ -313,7 +315,7 @@ export default function MockTrading() {
         </div>
 
         {/* Holdings */}
-        <div className="lg:col-span-2 bg-slate-800 rounded-xl p-5">
+        <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-5">
           <h3 className="text-lg font-semibold text-white mb-4">Açık Pozisyonlar</h3>
           {p.holdings.length === 0 ? (
             <p className="text-slate-500 text-sm">Henüz pozisyon yok.</p>
@@ -333,7 +335,7 @@ export default function MockTrading() {
                 </thead>
                 <tbody>
                   {p.holdings.map(h => (
-                    <tr key={h.ticker} className="border-t border-slate-700">
+                    <tr key={h.ticker} className="border-t border-gray-800">
                       <td className="py-2 font-mono font-bold text-white">{h.ticker}</td>
                       <td className="py-2 text-right text-slate-300">{h.quantity.toFixed(4)}</td>
                       <td className="py-2 text-right text-slate-300">${h.avg_buy_price.toFixed(2)}</td>

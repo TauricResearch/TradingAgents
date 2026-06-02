@@ -1,149 +1,196 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, Activity, ArrowRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface Portfolio {
-  id: number
-  mode: string
-  broker: string
-  initial_capital: number
-  current_balance: number
-  cash_available: number
+  id: number; mode: string; broker: string
+  initial_capital: number; current_balance: number; cash_available: number
   status: string
   holdings: { ticker: string; quantity: number; current_price: number; unrealized_pnl: number }[]
 }
 
-const COLORS: Record<string, string> = {
-  Buy: 'text-emerald-400',
-  Overweight: 'text-green-400',
-  Hold: 'text-yellow-400',
-  Underweight: 'text-orange-400',
-  Sell: 'text-red-400',
+const SIGNAL_META: Record<string, { text: string; dot: string }> = {
+  Buy:         { text: 'text-emerald-400', dot: 'bg-emerald-400' },
+  Overweight:  { text: 'text-green-400',   dot: 'bg-green-400' },
+  Hold:        { text: 'text-yellow-400',  dot: 'bg-yellow-400' },
+  Underweight: { text: 'text-orange-400',  dot: 'bg-orange-400' },
+  Sell:        { text: 'text-red-400',     dot: 'bg-red-400' },
 }
 
 function SignalBadge({ signal }: { signal: string | null }) {
-  if (!signal) return <span className="text-slate-500">—</span>
-  return <span className={`font-semibold ${COLORS[signal] || 'text-slate-300'}`}>{signal}</span>
+  if (!signal) return <span className="text-gray-600 text-xs">—</span>
+  const m = SIGNAL_META[signal]
+  return (
+    <span className={`flex items-center gap-1.5 text-xs font-semibold ${m?.text || 'text-gray-400'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${m?.dot || 'bg-gray-400'}`} />
+      {signal}
+    </span>
+  )
 }
 
 export default function Dashboard() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([])
   const [recentAnalysis, setRecentAnalysis] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     Promise.all([
       axios.get('/api/portfolio').then(r => r.data),
-      axios.get('/api/analysis/history?limit=10').then(r => r.data),
-    ]).then(([p, a]) => {
-      setPortfolios(p)
-      setRecentAnalysis(a)
-    }).finally(() => setLoading(false))
+      axios.get('/api/analysis/history?limit=8').then(r => r.data),
+    ]).then(([p, a]) => { setPortfolios(p); setRecentAnalysis(a) })
+      .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="p-8 text-slate-400">Yükleniyor...</div>
+  if (loading) {
+    return (
+      <div className="p-6 space-y-4">
+        <div className="h-8 w-32 bg-gray-800 rounded-lg animate-pulse" />
+        <div className="grid grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-800 rounded-2xl animate-pulse" />)}
+        </div>
+      </div>
+    )
+  }
 
-  const simPortfolio = portfolios.find(p => p.mode === 'simulation') || portfolios[0]
-
-  const pnlPct = simPortfolio
-    ? ((simPortfolio.current_balance - simPortfolio.initial_capital) / simPortfolio.initial_capital * 100).toFixed(2)
-    : '0.00'
-
-  const pnlPositive = parseFloat(pnlPct) >= 0
-  const totalUnrealized = simPortfolio?.holdings.reduce((s, h) => s + h.unrealized_pnl, 0) || 0
+  const sim = portfolios.find(p => p.mode === 'simulation') || portfolios[0]
+  const pnl = sim ? sim.current_balance - sim.initial_capital : 0
+  const pnlPct = sim?.initial_capital ? (pnl / sim.initial_capital * 100) : 0
+  const totalUnrealized = sim?.holdings.reduce((s, h) => s + h.unrealized_pnl, 0) ?? 0
 
   return (
     <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white tracking-tight">Dashboard</h2>
+        <button
+          onClick={() => navigate('/analysis')}
+          className="flex items-center gap-1.5 text-sm text-violet-400 hover:text-violet-300 transition-colors"
+        >
+          Yeni Analiz <ArrowRight size={14} />
+        </button>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card icon={<DollarSign size={20} />} label="Portföy Değeri" value={`$${simPortfolio?.current_balance.toLocaleString() || '—'}`} />
-        <Card
-          icon={pnlPositive ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-          label="Toplam Getiri"
-          value={`${pnlPositive ? '+' : ''}${pnlPct}%`}
-          color={pnlPositive ? 'text-emerald-400' : 'text-red-400'}
+        <KpiCard
+          icon={<DollarSign size={18} />}
+          label="Portföy Değeri"
+          value={sim ? `$${sim.current_balance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}` : '—'}
+          color="text-white"
         />
-        <Card icon={<DollarSign size={20} />} label="Nakit" value={`$${simPortfolio?.cash_available.toLocaleString() || '—'}`} />
-        <Card
-          icon={<Activity size={20} />}
+        <KpiCard
+          icon={pnl >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+          label="Toplam Getiri"
+          value={`${pnl >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%`}
+          sub={`${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`}
+          color={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}
+          accent={pnl >= 0 ? 'from-emerald-500/10' : 'from-red-500/10'}
+        />
+        <KpiCard
+          icon={<DollarSign size={18} />}
+          label="Nakit"
+          value={sim ? `$${sim.cash_available.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}` : '—'}
+          color="text-white"
+        />
+        <KpiCard
+          icon={<Activity size={18} />}
           label="Gerçekleşmemiş K/Z"
           value={`${totalUnrealized >= 0 ? '+' : ''}$${totalUnrealized.toFixed(2)}`}
           color={totalUnrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}
+          accent={totalUnrealized >= 0 ? 'from-emerald-500/10' : 'from-red-500/10'}
         />
       </div>
 
-      {/* Recent Analysis */}
-      <div className="bg-slate-800 rounded-xl p-5">
-        <h3 className="text-lg font-semibold text-white mb-4">Son Analizler</h3>
-        {recentAnalysis.length === 0 ? (
-          <p className="text-slate-400 text-sm">Henüz analiz yapılmadı.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-slate-400 text-left">
-                <th className="pb-2">Sembol</th>
-                <th className="pb-2">Tarih</th>
-                <th className="pb-2">Sinyal</th>
-                <th className="pb-2">Süre</th>
-                <th className="pb-2">Kaynak</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentAnalysis.map(a => (
-                <tr key={a.id} className="border-t border-slate-700">
-                  <td className="py-2 font-mono font-semibold text-white">{a.ticker}</td>
-                  <td className="py-2 text-slate-300">{a.trade_date}</td>
-                  <td className="py-2"><SignalBadge signal={a.signal} /></td>
-                  <td className="py-2 text-slate-400">{a.duration_seconds?.toFixed(1)}s</td>
-                  <td className="py-2 text-slate-500">{a.triggered_by}</td>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent analyses */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+            <h3 className="text-sm font-semibold text-gray-300">Son Analizler</h3>
+            <button onClick={() => navigate('/analysis')} className="text-xs text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1">
+              Tümü <ArrowRight size={11} />
+            </button>
+          </div>
+          {recentAnalysis.length === 0 ? (
+            <p className="px-5 py-8 text-gray-600 text-sm text-center">Henüz analiz yapılmadı.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
+                  <th className="px-5 py-2.5 text-left">Sembol</th>
+                  <th className="px-5 py-2.5 text-left">Tarih</th>
+                  <th className="px-5 py-2.5 text-left">Sinyal</th>
+                  <th className="px-5 py-2.5 text-right">Süre</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Holdings */}
-      {simPortfolio?.holdings.length > 0 && (
-        <div className="bg-slate-800 rounded-xl p-5">
-          <h3 className="text-lg font-semibold text-white mb-4">Açık Pozisyonlar</h3>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-slate-400 text-left">
-                <th className="pb-2">Sembol</th>
-                <th className="pb-2">Miktar</th>
-                <th className="pb-2">Güncel Fiyat</th>
-                <th className="pb-2">Ger. K/Z</th>
-              </tr>
-            </thead>
-            <tbody>
-              {simPortfolio.holdings.map(h => (
-                <tr key={h.ticker} className="border-t border-slate-700">
-                  <td className="py-2 font-mono font-semibold text-white">{h.ticker}</td>
-                  <td className="py-2 text-slate-300">{h.quantity.toFixed(4)}</td>
-                  <td className="py-2 text-slate-300">${h.current_price.toFixed(2)}</td>
-                  <td className={`py-2 font-semibold ${h.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {h.unrealized_pnl >= 0 ? '+' : ''}${h.unrealized_pnl.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentAnalysis.map(a => (
+                  <tr key={a.id}
+                    onClick={() => navigate('/analysis')}
+                    className="border-t border-gray-800/60 hover:bg-gray-800/40 cursor-pointer transition-colors">
+                    <td className="px-5 py-3 font-mono font-bold text-white text-sm">{a.ticker}</td>
+                    <td className="px-5 py-3 text-gray-500 text-xs">{a.trade_date}</td>
+                    <td className="px-5 py-3"><SignalBadge signal={a.signal} /></td>
+                    <td className="px-5 py-3 text-gray-600 text-xs text-right">{a.duration_seconds?.toFixed(1)}s</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-      )}
+
+        {/* Holdings */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+            <h3 className="text-sm font-semibold text-gray-300">Açık Pozisyonlar</h3>
+            <button onClick={() => navigate('/portfolio')} className="text-xs text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1">
+              Portföy <ArrowRight size={11} />
+            </button>
+          </div>
+          {!sim?.holdings?.length ? (
+            <p className="px-5 py-8 text-gray-600 text-sm text-center">Açık pozisyon yok.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-600 text-xs uppercase tracking-wider bg-gray-800/30">
+                  <th className="px-5 py-2.5 text-left">Sembol</th>
+                  <th className="px-5 py-2.5 text-right">Miktar</th>
+                  <th className="px-5 py-2.5 text-right">Fiyat</th>
+                  <th className="px-5 py-2.5 text-right">K/Z</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sim.holdings.map(h => (
+                  <tr key={h.ticker} className="border-t border-gray-800/60 hover:bg-gray-800/40 transition-colors">
+                    <td className="px-5 py-3 font-mono font-bold text-white text-sm">{h.ticker}</td>
+                    <td className="px-5 py-3 text-gray-400 text-right text-xs">{h.quantity.toFixed(4)}</td>
+                    <td className="px-5 py-3 text-gray-400 text-right text-xs">${h.current_price?.toFixed(2) ?? '—'}</td>
+                    <td className={`px-5 py-3 text-right text-xs font-semibold ${h.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {h.unrealized_pnl >= 0 ? '+' : ''}${h.unrealized_pnl.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
 
-function Card({ icon, label, value, color = 'text-white' }: { icon: React.ReactNode; label: string; value: string; color?: string }) {
+function KpiCard({ icon, label, value, sub, color = 'text-white', accent = 'from-violet-500/5' }: {
+  icon: React.ReactNode; label: string; value: string; sub?: string; color?: string; accent?: string
+}) {
   return (
-    <div className="bg-slate-800 rounded-xl p-4 flex items-start gap-3">
-      <div className="text-indigo-400 mt-0.5">{icon}</div>
-      <div>
-        <p className="text-slate-400 text-xs">{label}</p>
-        <p className={`text-lg font-bold ${color}`}>{value}</p>
+    <div className={`bg-gradient-to-br ${accent} to-gray-900 border border-gray-800 rounded-2xl p-5`}>
+      <div className="flex items-start gap-3">
+        <div className="p-2 rounded-xl bg-gray-800 text-violet-400 shrink-0">{icon}</div>
+        <div>
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">{label}</p>
+          <p className={`text-xl font-bold ${color} leading-none`}>{value}</p>
+          {sub && <p className={`text-xs mt-1 ${color} opacity-70`}>{sub}</p>}
+        </div>
       </div>
     </div>
   )

@@ -2,83 +2,158 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import {
   LayoutDashboard, Search, BookMarked, Briefcase,
-  Settings, ScrollText, TrendingUp, LogOut, Clock, FlaskConical, PieChart
+  Settings, ScrollText, TrendingUp, LogOut, Clock,
+  FlaskConical, PieChart, Loader2, ChevronRight,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 
+interface RunningTask { ticker: string; taskId: string; startedAt: string }
+
 const NAV = [
-  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-  { to: '/analysis', label: 'Analiz', icon: <Search size={18} /> },
-  { to: '/trading', label: 'Simülasyon', icon: <FlaskConical size={18} /> },
-  { to: '/portfolio', label: 'Portföy', icon: <PieChart size={18} /> },
-  { to: '/watchlist', label: 'İzleme Listesi', icon: <BookMarked size={18} /> },
-  { to: '/orders', label: 'Emirler', icon: <Briefcase size={18} /> },
-  { to: '/settings', label: 'Ayarlar', icon: <Settings size={18} /> },
-  { to: '/logs', label: 'Loglar', icon: <ScrollText size={18} /> },
+  { to: '/dashboard',  label: 'Dashboard',       icon: LayoutDashboard },
+  { to: '/analysis',   label: 'Analiz',           icon: Search },
+  { to: '/trading',    label: 'Simülasyon',        icon: FlaskConical },
+  { to: '/portfolio',  label: 'Portföy',           icon: PieChart },
+  { to: '/watchlist',  label: 'İzleme Listesi',    icon: BookMarked },
+  { to: '/orders',     label: 'Emirler',           icon: Briefcase },
+  { to: '/settings',   label: 'Ayarlar',           icon: Settings },
+  { to: '/logs',       label: 'Loglar',            icon: ScrollText },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [cronStatus, setCronStatus] = useState<{ running: boolean; next_run_time: string | null }>({ running: false, next_run_time: null })
+  const [cronStatus, setCronStatus] = useState<{ next_run_time: string | null }>({ next_run_time: null })
+  const [runningTask, setRunningTask] = useState<RunningTask | null>(() => {
+    try { return JSON.parse(localStorage.getItem('ta_task_running') || 'null') } catch { return null }
+  })
 
+  // Poll cron status
   useEffect(() => {
-    axios.get('/api/cron/status').then(r => setCronStatus(r.data)).catch(() => {})
-    const interval = setInterval(() => {
-      axios.get('/api/cron/status').then(r => setCronStatus(r.data)).catch(() => {})
-    }, 30_000)
-    return () => clearInterval(interval)
+    const fetch = () => axios.get('/api/cron/status').then(r => setCronStatus(r.data)).catch(() => {})
+    fetch()
+    const id = setInterval(fetch, 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Listen for analysis start/stop events from Analysis.tsx
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'ta_task_running') {
+        try { setRunningTask(e.newValue ? JSON.parse(e.newValue) : null) }
+        catch { setRunningTask(null) }
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    // Also poll localStorage directly (same-tab changes don't fire storage event)
+    const id = setInterval(() => {
+      try {
+        const raw = localStorage.getItem('ta_task_running')
+        const val: RunningTask | null = raw ? JSON.parse(raw) : null
+        setRunningTask(prev => {
+          const prevJson = JSON.stringify(prev)
+          const nextJson = JSON.stringify(val)
+          return prevJson === nextJson ? prev : val
+        })
+      } catch { /* ignore */ }
+    }, 1000)
+    return () => { window.removeEventListener('storage', onStorage); clearInterval(id) }
   }, [])
 
   const handleLogout = () => { logout(); navigate('/login') }
 
   return (
-    <div className="flex min-h-screen bg-slate-900">
-      {/* Sidebar */}
-      <aside className="w-56 bg-slate-800 border-r border-slate-700 flex flex-col">
-        <div className="flex items-center gap-2 px-4 py-5 border-b border-slate-700">
-          <TrendingUp className="text-indigo-400" size={22} />
-          <span className="text-white font-bold text-lg">TradingAgents</span>
+    <div className="flex min-h-screen bg-gray-950">
+      {/* ── Sidebar ── */}
+      <aside className="w-60 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
+
+        {/* Logo */}
+        <div className="px-5 py-5 border-b border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+              <TrendingUp size={15} className="text-white" strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-white font-bold text-sm tracking-tight leading-none">TradingAgents</p>
+              <p className="text-gray-500 text-xs mt-0.5">AI Portfolio</p>
+            </div>
+          </div>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          {NAV.map(n => (
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+          {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink
-              key={n.to}
-              to={n.to}
+              key={to}
+              to={to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition font-medium ` +
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group ` +
                 (isActive
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-400 hover:bg-slate-700 hover:text-white')
+                  ? 'bg-violet-500/10 text-violet-300 border border-violet-500/20 shadow-sm'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800')
               }
             >
-              {n.icon} {n.label}
+              {({ isActive }) => (
+                <>
+                  <Icon size={16} className={isActive ? 'text-violet-400' : 'text-gray-500 group-hover:text-gray-300'} />
+                  <span className="flex-1">{label}</span>
+                  {isActive && <ChevronRight size={12} className="text-violet-500 opacity-60" />}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
 
-        {/* Cron status pill */}
-        <div className="px-4 py-2 border-t border-slate-700">
-          <div className={`flex items-center gap-2 text-xs ${cronStatus.next_run_time ? 'text-emerald-400' : 'text-slate-500'}`}>
-            <Clock size={12} />
-            {cronStatus.next_run_time
-              ? `Sonraki: ${new Date(cronStatus.next_run_time).toLocaleTimeString('tr-TR')}`
-              : 'Cron devre dışı'}
+        {/* Running analysis indicator */}
+        {runningTask && (
+          <div className="mx-3 mb-2 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <Loader2 size={12} className="text-emerald-400 animate-spin" />
+              <div className="flex-1 min-w-0">
+                <p className="text-emerald-300 text-xs font-semibold truncate">{runningTask.ticker} analiz ediliyor</p>
+                <p className="text-emerald-600 text-xs">Arka planda çalışıyor...</p>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="px-4 py-3 border-t border-slate-700 flex items-center justify-between">
-          <span className="text-slate-400 text-xs">{user}</span>
-          <button onClick={handleLogout} className="text-slate-500 hover:text-red-400" title="Çıkış">
-            <LogOut size={16} />
-          </button>
+        {/* Cron status */}
+        {cronStatus.next_run_time && (
+          <div className="mx-3 mb-2 px-3 py-2 rounded-xl bg-gray-800/50">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <Clock size={11} />
+              <span>Sonraki: {new Date(cronStatus.next_run_time).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          </div>
+        )}
+
+        {/* User */}
+        <div className="px-3 py-3 border-t border-gray-800">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-colors group cursor-default">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {user?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <span className="text-gray-300 text-sm font-medium flex-1 truncate">{user}</span>
+            <button
+              onClick={handleLogout}
+              className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+              title="Çıkış"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      {/* ── Main ── */}
+      <main className="flex-1 overflow-y-auto min-h-screen bg-gray-950">
+        {children}
+      </main>
     </div>
   )
 }

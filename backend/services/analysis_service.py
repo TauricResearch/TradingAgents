@@ -38,10 +38,13 @@ def _build_config(settings: AppSettings) -> dict:
     """Convert AppSettings → TradingAgentsGraph-compatible config dict."""
     from tradingagents.graph.trading_graph import DEFAULT_CONFIG
 
+    import tempfile, os as _os
+    _tmp = tempfile.gettempdir()
     cfg: dict = {
-        # Inherit path defaults from the library so the graph never KeyErrors
-        "data_cache_dir": DEFAULT_CONFIG.get("data_cache_dir"),
-        "results_dir": DEFAULT_CONFIG.get("results_dir"),
+        # Redirect all file I/O to temp — DB is the source of truth
+        "data_cache_dir": _os.path.join(_tmp, "ta_cache"),
+        "results_dir":    _os.path.join(_tmp, "ta_results"),
+        "memory_log_path": _os.path.join(_tmp, "ta_memory.md"),
         # LLM
         "llm_provider": settings.llm_provider,
         "deep_think_llm": settings.deep_think_llm,
