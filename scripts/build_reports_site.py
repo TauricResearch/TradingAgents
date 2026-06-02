@@ -19,9 +19,9 @@ Run locally:
 Idempotent: rewrites ``docs/index.md``, ``docs/<TICKER>/index.md``, and
 strips Jekyll front matter from each ``complete_report.md`` in place.
 """
-
 from __future__ import annotations
 
+import argparse
 import math
 import re
 import sys
@@ -117,6 +117,17 @@ def parse_money(value: str) -> float | None:
         return float(value)
     except ValueError:
         return None
+
+
+def normalize_analysis_date(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = value.strip()
+    if re.fullmatch(r"\d{8}", value):
+        return f"{value[:4]}-{value[4:6]}-{value[6:8]}"
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return value
+    raise ValueError("analysis date must use YYYYMMDD or YYYY-MM-DD")
 
 
 CURRENT_PRICE_PATTERNS = [
@@ -240,9 +251,16 @@ def build_summary_row(run: Run) -> SummaryRow:
     )
 
 
-def latest_runs(by_ticker: dict[str, list[Run]]) -> list[Run]:
+def latest_runs(
+    by_ticker: dict[str, list[Run]], analysis_date: str | None = None
+) -> list[Run]:
+    analysis_date = normalize_analysis_date(analysis_date)
     runs = []
     for ticker_runs in by_ticker.values():
+        if analysis_date:
+            ticker_runs = [r for r in ticker_runs if r.analysis_date == analysis_date]
+        if not ticker_runs:
+            continue
         runs.append(
             sorted(
                 ticker_runs,
@@ -288,11 +306,24 @@ def short_horizon(horizon: str) -> str:
     )
 
 
-def build_decision_summary(rows: list[SummaryRow]) -> list[str]:
+def build_decision_summary(
+    rows: list[SummaryRow], analysis_date: str | None = None
+) -> list[str]:
+    analysis_date = normalize_analysis_date(analysis_date)
+    heading = (
+        f"## {analysis_date} Decision Summary"
+        if analysis_date
+        else "## Latest Decision Summary"
+    )
+    note = (
+        f"_Uses the latest {analysis_date} run folder for each ticker. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
+        if analysis_date
+        else "_Uses the latest run folder for each ticker. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
+    )
     lines = [
-        "## Latest Decision Summary",
+        heading,
         "",
-        "_Uses the latest run folder for each ticker. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._",
+        note,
         "",
         "| Ticker | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |",
         "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |",
@@ -317,8 +348,9 @@ def build_regeneration_skill() -> list[str]:
         "",
         "1. Add each completed run under `docs/<TICKER>/<YYYYMMDD>_<MODEL>_<YYYYMMDD>_<HHMMSS>/` with `complete_report.md`, `3_trading/trader.md`, and `5_portfolio/decision.md` present.",
         "2. Run `python scripts/build_reports_site.py` from the repository root.",
-        "3. Review `docs/index.md` and the affected `docs/<TICKER>/index.md` files in `git diff`.",
-        "4. If a row shows `n/a`, check that the new report includes `**Rating**`, `**Price Target**`, `**Time Horizon**`, `**Action**`, and a latest close/current price line in the market report.",
+        "3. For a fixed-date homepage summary, run `python scripts/build_reports_site.py --summary-analysis-date YYYYMMDD --summary-only`.",
+        "4. Review `docs/index.md` and the affected `docs/<TICKER>/index.md` files in `git diff`.",
+        "5. If a row shows `n/a`, check that the new report includes `**Rating**`, `**Price Target**`, `**Time Horizon**`, `**Action**`, and a latest close/current price line in the market report.",
         "",
         "The generator always chooses the newest run per ticker by analysis date and run-start timestamp.",
         "",
@@ -326,7 +358,10 @@ def build_regeneration_skill() -> list[str]:
 
 
 def build_home(
-    by_ticker: dict[str, list[Run]], total_runs: int, summary_rows: list[SummaryRow]
+    by_ticker: dict[str, list[Run]],
+    total_runs: int,
+    summary_rows: list[SummaryRow],
+    summary_analysis_date: str | None = None,
 ) -> str:
     tickers = sorted(by_ticker)
     lines = [
@@ -336,7 +371,7 @@ def build_home(
         "",
         DISCLAIMER,
         "",
-        *build_decision_summary(summary_rows),
+        *build_decision_summary(summary_rows, summary_analysis_date),
         *build_regeneration_skill(),
         "## Tickers",
         "",
@@ -347,6 +382,18 @@ def build_home(
         lines.append(f"- [{ticker}]({ticker}/index.md) &middot; {n} {suffix}")
     lines.append("")
     return "\n".join(lines) + "\n"
+
+
+def replace_decision_summary(home_text: str, summary_lines: list[str]) -> str:
+    new_summary = "\n".join(summary_lines).rstrip() + "\n\n"
+    pattern = re.compile(
+        r"^## .+Decision Summary\n.*?(?=^## Regeneration Skill\n)",
+        flags=re.M | re.S,
+    )
+    new_text, replacements = pattern.subn(new_summary, home_text, count=1)
+    if replacements != 1:
+        raise ValueError("Could not find decision summary block in docs/index.md")
+    return new_text
 
 
 def build_ticker_hub(ticker: str, runs: list[Run]) -> str:
@@ -386,7 +433,27 @@ def strip_legacy_front_matter(run: Run) -> bool:
     return True
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--summary-analysis-date",
+        help="Use only this analysis date for the homepage decision summary.",
+    )
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="Rewrite only the decision-summary block in docs/index.md.",
+    )
+    args = parser.parse_args(argv)
+    try:
+        args.summary_analysis_date = normalize_analysis_date(args.summary_analysis_date)
+    except ValueError as exc:
+        parser.error(str(exc))
+    return args
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     if not DOCS_DIR.is_dir():
         print(f"docs/ not found at {DOCS_DIR}", file=sys.stderr)
         return 1
@@ -413,10 +480,46 @@ def main() -> int:
     for r in runs:
         by_ticker[r.ticker].append(r)
 
-    summary_rows = [build_summary_row(r) for r in latest_runs(by_ticker)]
+    summary_runs = latest_runs(by_ticker, args.summary_analysis_date)
+    if not summary_runs:
+        if args.summary_analysis_date:
+            print(
+                f"No run folders found for analysis date {args.summary_analysis_date}.",
+                file=sys.stderr,
+            )
+        else:
+            print("No runs available for homepage summary.", file=sys.stderr)
+        return 1
+
+    summary_rows = [build_summary_row(r) for r in summary_runs]
+
+    if args.summary_only:
+        index_path = DOCS_DIR / "index.md"
+        try:
+            index_path.write_text(
+                replace_decision_summary(
+                    read_text(index_path),
+                    build_decision_summary(
+                        summary_rows,
+                        args.summary_analysis_date,
+                    ),
+                ),
+                encoding="utf-8",
+            )
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        source = args.summary_analysis_date or "latest"
+        print(f"Wrote docs/index.md decision summary from {source} runs.")
+        return 0
 
     (DOCS_DIR / "index.md").write_text(
-        build_home(by_ticker, total_runs=len(runs), summary_rows=summary_rows),
+        build_home(
+            by_ticker,
+            total_runs=len(runs),
+            summary_rows=summary_rows,
+            summary_analysis_date=args.summary_analysis_date,
+        ),
         encoding="utf-8",
     )
 
