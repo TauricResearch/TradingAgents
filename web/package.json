@@ -1,0 +1,11 @@
+{
+  "name": "tradingagents-web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "test": "cd frontend && npx vitest run",
+    "test:e2e": "cd frontend && npx playwright test"
+  }
+}
