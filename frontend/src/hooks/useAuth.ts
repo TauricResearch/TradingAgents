@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import axios from 'axios'
+import { notify } from '../utils/notify'
 
 const TOKEN_KEY = 'ta_access'
 const REFRESH_KEY = 'ta_refresh'
@@ -48,7 +49,15 @@ axios.interceptors.response.use(
   res => res,
   async err => {
     const original = err.config
-    if (err.response?.status !== 401 || original._retried) {
+    const status: number | undefined = err.response?.status
+
+    // Show toast for 5xx server errors (skip 401 — handled by refresh logic below)
+    if (status && status >= 500) {
+      const detail = err.response?.data?.detail || err.message || 'Sunucu hatası'
+      notify('error', detail, `HTTP ${status}`)
+    }
+
+    if (status !== 401 || original._retried) {
       return Promise.reject(err)
     }
     original._retried = true

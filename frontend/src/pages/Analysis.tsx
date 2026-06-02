@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { getAccessToken } from '../hooks/useAuth'
+import { notify } from '../utils/notify'
 import {
   Play, Loader2, CheckCircle, AlertCircle, History,
   X, BarChart2, Terminal, FileText, Zap, Square,
@@ -159,10 +160,15 @@ function RunTab() {
         setRunStatus('error')
         setRunning_(false)
         setLog(l => [...l, `✗ HATA: ${ev.message}`])
+        notify('error', ev.message ?? 'Analiz başarısız.', 'Analiz Hatası')
       }
     }
     ws.onerror = () => {
-      if (!finished) { setRunStatus('error'); setRunning_(false); setLog(l => [...l, '✗ Bağlantı hatası.']) }
+      if (!finished) {
+        setRunStatus('error'); setRunning_(false)
+        setLog(l => [...l, '✗ Bağlantı hatası.'])
+        notify('error', 'WebSocket bağlantısı kesildi.', 'Analiz Hatası')
+      }
     }
     ws.onclose = () => {
       if (!finished) {
@@ -174,7 +180,9 @@ function RunTab() {
         } else {
           setRunStatus('error')
           setRunning_(false)
-          setLog(l => [...l, '✗ Bağlantı kapandı — backend hatası veya LLM API anahtarı eksik olabilir.'])
+          const msg = 'Bağlantı kapandı — backend hatası veya LLM API anahtarı eksik olabilir.'
+          setLog(l => [...l, `✗ ${msg}`])
+          notify('error', msg, 'Analiz Kesildi')
         }
       }
     }

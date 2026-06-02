@@ -4,9 +4,11 @@ import {
   LayoutDashboard, Search, BookMarked, Briefcase,
   Settings, ScrollText, TrendingUp, LogOut, Clock,
   FlaskConical, PieChart, Loader2, ChevronRight,
+  AlertCircle, AlertTriangle, CheckCircle, Info, X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
+import type { Notification } from '../utils/notify'
 
 interface RunningTask { ticker: string; taskId: string; startedAt: string }
 
@@ -62,6 +64,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, [])
 
   const handleLogout = () => { logout(); navigate('/login') }
+
+  // ── Global notification toast stack ────────────────────────────────────────
+  const [toasts, setToasts] = useState<Notification[]>([])
+
+  const dismiss = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const n = (e as CustomEvent<Notification>).detail
+      setToasts(prev => [...prev.slice(-4), n]) // keep max 5
+      // Auto-dismiss after 6s (errors) or 4s (others)
+      const ms = n.type === 'error' ? 6000 : 4000
+      setTimeout(() => dismiss(n.id), ms)
+    }
+    window.addEventListener('ta-notify', handler)
+    return () => window.removeEventListener('ta-notify', handler)
+  }, [dismiss])
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex min-h-screen bg-gray-950">
@@ -154,6 +176,45 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto min-h-screen bg-gray-950">
         {children}
       </main>
+
+      {/* ── Toast notifications ── */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 w-96 max-w-[calc(100vw-2rem)]">
+          {toasts.map(t => <Toast key={t.id} n={t} onDismiss={dismiss} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Toast component ───────────────────────────────────────────────────────────
+const TOAST_STYLES = {
+  error:   { bar: 'bg-red-500',    bg: 'bg-gray-900 border-red-500/30',    icon: AlertCircle,   text: 'text-red-400'    },
+  warning: { bar: 'bg-yellow-500', bg: 'bg-gray-900 border-yellow-500/30', icon: AlertTriangle, text: 'text-yellow-400' },
+  success: { bar: 'bg-emerald-500',bg: 'bg-gray-900 border-emerald-500/30',icon: CheckCircle,   text: 'text-emerald-400'},
+  info:    { bar: 'bg-blue-500',   bg: 'bg-gray-900 border-blue-500/30',   icon: Info,          text: 'text-blue-400'   },
+}
+
+function Toast({ n, onDismiss }: { n: Notification; onDismiss: (id: string) => void }) {
+  const s = TOAST_STYLES[n.type]
+  const Icon = s.icon
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border shadow-xl shadow-black/40 ${s.bg} animate-in slide-in-from-right-4 duration-300`}>
+      {/* Coloured left bar */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${s.bar}`} />
+      <div className="flex items-start gap-3 px-4 py-3 pl-5">
+        <Icon size={17} className={`${s.text} shrink-0 mt-0.5`} />
+        <div className="flex-1 min-w-0">
+          {n.title && <p className={`text-xs font-semibold mb-0.5 ${s.text}`}>{n.title}</p>}
+          <p className="text-gray-300 text-sm leading-snug break-words">{n.message}</p>
+        </div>
+        <button
+          onClick={() => onDismiss(n.id)}
+          className="text-gray-600 hover:text-gray-400 transition-colors shrink-0 mt-0.5"
+        >
+          <X size={14} />
+        </button>
+      </div>
     </div>
   )
 }
