@@ -3,11 +3,11 @@
 {"file":"003-hledger-as-ssot.md","date":"2026-05-02","status":"Accepted","summary":"hLedger as single source of truth for positions and cash; SQLite for AI artefacts only","meta":{"supersedes":null,"superseded_by":null}}
 {"file":"004-database-factory-singleton.md","date":"2026-05-06","status":"Accepted","summary":"DatabaseFactory singleton enforcing WAL mode, busy timeout, foreign keys; no raw Database() calls","meta":{"supersedes":null,"superseded_by":null}}
 {"file":"005-subprocess-bridge.md","date":"2026-05-02","status":"Accepted","summary":"Subprocess bridge (analyze_stream.py) for Python core; never fork tradingagents/ package","meta":{"supersedes":null,"superseded_by":null}}
-{"file":"006-bifrost-local-ai-router.md","date":"2026-05-13","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"006-bifrost-local-ai-router.md","date":"2026-05-13","status":"Superseded","summary":"Adopt BiFrost as local AI routing layer — superseded by 013","meta":{"superseded_by":"decisions/013-decommission-bifrost.md"}}
 {"file":"006-jsonl-over-sqlite-knowledge.md","date":"2026-05-08","status":"Accepted","summary":"JSONL indexes for knowledge management; SQLite reserved for operational data only","meta":{"supersedes":null,"superseded_by":null}}
 {"file":"007-barnacle-drydock-location.md","date":"2026-05-11","status":"Accepted","summary":"Drydock as barnacle archive: decisions/ for persistent records, traceability over new directories","meta":{"supersedes":null,"superseded_by":null}}
 {"file":"008-defuddle-web-content.md","date":"2026-05-11","status":"Accepted","summary":"defuddle for all web content extraction; no Browserbase or headless browser integration","meta":{"supersedes":null,"superseded_by":null}}
-{"file":"009-defer-bifrost-integration.md","date":"2026-05-24","status":"Accepted","summary":"Defer BiFrost local AI router integration indefinitely; env-var multi-provider approach is sufficient","meta":{"supersedes":"decisions/006-bifrost-local-ai-router.md","superseded_by":null}}
+{"file":"009-defer-bifrost-integration.md","date":"2026-05-24","status":"Superseded","summary":"Defer BiFrost local AI router integration indefinitely — superseded by 013","meta":{"supersedes":"decisions/006-bifrost-local-ai-router.md","superseded_by":"decisions/013-decommission-bifrost.md"}}
 {"file":"009-typescript-indicator-library.md","date":"2026-05-21","status":"Proposed","summary":"TypeScript-only indicator library (indicators.ts) — no Python, no external libs, pure math functions","meta":{"epic":"SCAN-001","supersedes":null,"superseded_by":null}}
 {"file":"010-configurable-gate-relaxation.md","date":"2026-05-21","status":"Proposed","summary":"Configurable entry gates via --relax=GATE flags — each gate independently toggleable, MA150 always enforced","meta":{"epic":"SCAN-001","supersedes":null,"superseded_by":null}}
 {"file":"011-resilience-index-weighting.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
@@ -18,3 +18,5 @@
 {"file":"drydock/DELETION_LOG.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"opinion-blog-substrate-voice.md","date":"2026-05-13","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"TEMPLATE.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"013-decommission-bifrost.md","date":"2026-06-02","status":"Accepted","summary":"Decommission Bifrost permanently — API is UI-first, underspecified for programmatic use; rely on pi native multi-provider config and direct provider APIs","meta":{"supersedes":"decisions/006-bifrost-local-ai-router.md, decisions/009-defer-bifrost-integration.md"}}
+{"file":"2026-06-cli-first-architecture.md","date":"2026-06-02","type":"decision","summary":"CLI-first architecture adopted, MCP deprecated. Prefer CLI+RTK over MCP protocol.","meta":{"status":"adopted"}}

@@ -48,3 +48,4 @@
 {"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
 {"file":"time-benchmark-takeaways.md","date":"2026-05-15","status":"active","summary":"TIME benchmark key takeaways: TSFM rankings, pattern-level evaluation methodology (STL features), actionable for WATCH-001 screening enrichment","meta":{"topic":"tsfm","tags":["time-series","forecasting","benchmark","WATCH-001"]}}
 {"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}
+{"file":"PI-SETUP.md","date":"2026-06-02","type":"doc","summary":"Pi coding agent setup: extensions (defuddle, herdr, silo-sandbox), packages, playbooks, RTK, tools","meta":{}}
