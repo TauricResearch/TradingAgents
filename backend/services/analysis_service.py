@@ -179,11 +179,17 @@ async def run_analysis(
         )
 
         # Patch graph.invoke to capture streaming report events for WS broadcast.
-        # _patched_invoke uses graph.stream internally and collects state deltas.
+        # async_propagate calls invoke(state, **args) where args may contain
+        # config=... as a keyword. We must NOT also pass it positionally or
+        # Pregel.stream() raises "multiple values for argument 'config'".
         def _patched_invoke(state, config_arg=None, **kwargs):
+            # If config came in positionally (config_arg), merge into kwargs
+            # so stream() always receives it as a single keyword argument.
+            if config_arg is not None and "config" not in kwargs:
+                kwargs["config"] = config_arg
             prev_state: dict = {}
             final: dict = {}
-            for chunk in ta.graph.stream(state, config_arg or {}, **kwargs):
+            for chunk in ta.graph.stream(state, **kwargs):
                 for key, value in chunk.items():
                     if key in _REPORT_FIELDS and value and value != prev_state.get(key):
                         events.append({"type": "report", "section": key, "content": value})
