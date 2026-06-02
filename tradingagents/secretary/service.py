@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -56,6 +56,19 @@ def render_event_alert(
         synthesis=synthesis,
         persona_runs=persona_runs,
     )
+
+
+def _build_channel(name, conn, config):
+    if name == "cli":
+        from tradingagents.delivery.cli import CLIOutbound
+        return CLIOutbound(conn=conn, config=config)
+    if name == "email":
+        from tradingagents.delivery.email import EmailOutbound
+        return EmailOutbound(conn=conn, config=config)
+    if name == "telegram":
+        from tradingagents.delivery.telegram import TelegramOutbound
+        return TelegramOutbound(conn=conn, config=config)
+    return None
 
 
 class RefinementDepthExceeded(Exception):
@@ -236,6 +249,105 @@ class Secretary:
             trigger_event_id=event_id,
         )
         return brief_id
+
+    def compose_event_alert_light(
+        self,
+        *,
+        event_id: str,
+        tickers: list,
+        ttl_hours: int = 24,
+        deliver: bool = True,
+    ) -> str:
+        """Light alert (IIC-FORGE-09): one quick summary + an event-scoped
+        brief + one pending run_full_study action per ticker + per-ticker
+        same-day suppression. NO persona study runs here — the heavy study is
+        enqueued later, only on approval. Returns the light brief_id."""
+        ev = store.get_event(self._conn, event_id=event_id)
+        if ev is None:
+            raise ValueError(f"compose_event_alert_light: event {event_id} not found")
+
+        raw_text = ""
+        if ev["raw_path"]:
+            p = Path(ev["raw_path"])
+            if p.exists():
+                try:
+                    raw_text = (json.loads(p.read_text(encoding="utf-8"))
+                                .get("text", "") or "")
+                except Exception:
+                    raw_text = p.read_text(encoding="utf-8")[:4000]
+
+        prompt = (
+            "You are an equity-desk assistant. In 2-3 sentences, summarize why "
+            "the following event might matter for the affected tickers "
+            f"({', '.join(tickers)}). Be terse and factual.\n\n"
+            f"EVENT:\n{raw_text[:4000]}"
+        )
+        resp = self._llm.invoke(prompt)
+        summary = getattr(resp, "content", str(resp))
+
+        brief_id = uuid.uuid4().hex
+        now = datetime.now(timezone.utc)
+        rel_path = f"briefs/{brief_id}.md"
+        body = f"# Event alert (light)\n\n{summary}\n\nAffected: {', '.join(tickers)}\n"
+        (self._data_dir / "briefs").mkdir(parents=True, exist_ok=True)
+        (self._data_dir / rel_path).write_text(body, encoding="utf-8")
+
+        store.insert_brief(
+            self._conn,
+            brief_id=brief_id,
+            mode="event_alert_light",
+            scope=json.dumps(list(tickers)),
+            generated_ts=now.isoformat(),
+            content_path=rel_path,
+            run_ids=[],
+            parent_brief_id=None,
+            trigger_event_id=event_id,
+        )
+
+        expires_at = (now + timedelta(hours=ttl_hours)).isoformat()
+        # End of local day: suppress each ticker until tomorrow 00:00 local.
+        tomorrow = (datetime.now() + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0)
+        until_ts = tomorrow.astimezone(timezone.utc).isoformat()
+        for t in tickers:
+            store.insert_brief_action(
+                self._conn, brief_id=brief_id, action_type="run_full_study",
+                action_params={"ticker": t}, expires_at=expires_at,
+            )
+            store.upsert_suppression(
+                self._conn, key=f"event_alert:{t}", until_ts=until_ts,
+                reason=f"light_alert_same_day event_id={event_id}",
+                created_by="promoter",
+            )
+
+        if deliver:
+            self._deliver_light_alert(brief_id, tickers, summary, ev)
+        return brief_id
+
+    def _deliver_light_alert(self, brief_id, tickers, summary, ev) -> None:
+        """Best-effort fan-out to enabled channels. Delivery failures are
+        recorded as deliveries rows by each channel; never raise here."""
+        from tradingagents.default_config import DEFAULT_CONFIG
+        from tradingagents.delivery.render import render_for_channel
+        config = dict(DEFAULT_CONFIG)
+        brief = {
+            "brief_id": brief_id, "mode": "event_alert_light",
+            "summary": summary, "tickers": list(tickers),
+            "event_headline": (ev["source"] or "event"),
+        }
+        names = list(config["delivery"]["enabled_channels"])
+        if config["telegram_bot"]["enabled"] and "telegram" not in names:
+            names.append("telegram")
+        for name in names:
+            try:
+                ch = _build_channel(name, self._conn, config)
+                if ch is None:
+                    continue
+                body = render_for_channel(
+                    channel=name, mode="event_alert_light", brief=brief)
+                ch.send(brief=brief, mode="event_alert_light", body=body)
+            except Exception:  # noqa: BLE001
+                pass
 
     # ----- F5: morning digest -----
     def compose_morning_digest(
