@@ -8,7 +8,7 @@ import {
   HistogramSeries,
   createSeriesMarkers,
 } from 'lightweight-charts'
-import type { IChartApi, ISeriesApi, SeriesType } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi } from 'lightweight-charts'
 import { Search, TrendingUp, TrendingDown, Minus, RefreshCw, ExternalLink } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
