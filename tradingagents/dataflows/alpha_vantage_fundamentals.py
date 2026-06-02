@@ -33,10 +33,19 @@ def get_fundamentals(ticker: str, curr_date: str = None) -> str:
     prefixed with an explicit caveat so historical backtests do not treat
     the latest valuation metrics as if they existed on that date.
     """
-
     def fetch() -> str:
+        import json
         payload = _make_api_request("OVERVIEW", {"symbol": ticker})
-        return historical_snapshot_caveat(curr_date) + str(payload)
+        caveat = historical_snapshot_caveat(curr_date)
+        if caveat:
+            try:
+                data = json.loads(payload)
+                if isinstance(data, dict):
+                    data["_lookahead_caveat"] = caveat.strip()
+                    return json.dumps(data)
+            except Exception:
+                pass
+        return payload
 
     return cache_text(
         "alpha_vantage_fundamentals",
