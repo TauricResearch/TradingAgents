@@ -6,6 +6,7 @@ import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
 from .symbol_utils import normalize_symbol, NoMarketDataError
+from .point_in_time import historical_snapshot_caveat
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -311,7 +312,8 @@ def get_fundamentals(
         if not lines:
             raise NoMarketDataError(ticker, canonical, "no fundamental fields returned")
 
-        header = f"# Company Fundamentals for {canonical}\n"
+        header = historical_snapshot_caveat(curr_date)
+        header += f"# Company Fundamentals for {canonical}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
         return header + "\n".join(lines)
