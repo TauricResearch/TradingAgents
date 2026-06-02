@@ -78,3 +78,20 @@ class TestProviderKwargsTemperature:
 
     def test_empty_string_omitted(self):
         assert "temperature" not in self._kwargs_for("")
+
+
+@pytest.mark.unit
+class TestReasoningTemperatureGate:
+    def test_reasoning_model_drops_temperature(self):
+        from tradingagents.llm_clients.openai_client import OpenAIClient
+
+        llm = OpenAIClient("gpt-5.5", provider="openai", temperature=0.0, api_key="placeholder").get_llm()
+
+        assert getattr(llm, "temperature", None) in (None, 1)
+
+    def test_non_reasoning_model_keeps_temperature(self):
+        from tradingagents.llm_clients.openai_client import OpenAIClient
+
+        llm = OpenAIClient("gpt-4.1", provider="openai", temperature=0.3, api_key="placeholder").get_llm()
+
+        assert llm.temperature == 0.3
