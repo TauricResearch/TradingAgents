@@ -6,27 +6,36 @@ interface Props { ticker: string; price?: number; changePct?: number; }
 
 export function TickerHeader({ ticker, price, changePct }: Props) {
   const qc = useQueryClient();
-  const connectedRunId = useUi((s) => s.connectedRunId);
-  const setConnectedRunId = useUi((s) => s.setConnectedRunId);
+  const activeRunId = useUi((s) => s.activeRunIdByTicker[ticker] ?? null);
+  const setActiveRunIdForTicker = useUi((s) => s.setActiveRunIdForTicker);
+  const setLastRunIdForTicker = useUi((s) => s.setLastRunIdForTicker);
+  const clearActiveRunForTicker = useUi((s) => s.clearActiveRunForTicker);
   const clearBuffer = useUi((s) => s.clearBuffer);
 
   const start = useMutation({
     mutationFn: () => startRun(ticker),
     onSuccess: ({ run_id }) => {
       clearBuffer();
-      setConnectedRunId(run_id);
+      // Mark this run as the active stream for the ticker AND as the
+      // sticky "last run" so the buffer/decision panel can resolve to
+      // it after the stream closes.
+      setActiveRunIdForTicker(ticker, run_id);
+      setLastRunIdForTicker(ticker, run_id);
       qc.invalidateQueries({ queryKey: ["runs", "list"] });
     },
   });
 
   const cancel = useMutation({
-    mutationFn: () => cancelRun(connectedRunId!),
+    mutationFn: () => cancelRun(activeRunId!),
     onSuccess: () => {
-      // runner emits run_failed with reason=cancelled; buffer will pick it up
+      // Optimistic clear: the server's run_failed will arrive over the
+      // WS and is handled by useRunStream, but we don't want to leave
+      // the UI showing "running" while that propagates.
+      clearActiveRunForTicker(ticker);
     },
   });
 
-  const isRunning = !!connectedRunId;
+  const isRunning = !!activeRunId;
 
   return (
     <div className="flex items-center justify-between mb-4">

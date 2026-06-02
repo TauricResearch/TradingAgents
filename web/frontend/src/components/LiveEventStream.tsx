@@ -16,6 +16,40 @@ const colorForType: Record<string, string> = {
   server_notice: "bg-slate-100 text-slate-700",
 };
 
+type EventData = Record<string, unknown>;
+type Formatter = (data: EventData) => string;
+
+function formatRunFailed(data: EventData): string {
+  // Combinations of (reason), (exception_class), (message) — keep the
+  // output stable across all four shapes so the test "shows exception
+  // class and message on run_failed" stays green AND the partial-shape
+  // case (e.g. just `{"reason": "cancelled"}` from a cancel) doesn't
+  // emit a stray parenthesis.
+  const reason = String(data.reason ?? "unknown");
+  const cls = data.exception_class ? String(data.exception_class) : null;
+  const msg = data.message ? String(data.message) : null;
+  if (cls && msg) return `failed: ${reason} (${cls}: ${msg})`;
+  if (cls) return `failed: ${reason} (${cls})`;
+  if (msg) return `failed: ${reason}: ${msg}`;
+  return `failed: ${reason}`;
+}
+
+const formatBubble: Record<string, Formatter> = {
+  analyst_started: (d) =>
+    `analyst_started: ${d.node ?? d.stage ?? "(unknown node)"}`,
+  analyst_thinking: (d) => String(d.node ?? d.stage ?? "thinking"),
+  analyst_completed: (d) =>
+    `analyst_completed: ${d.stage ?? d.node ?? "(unknown stage)"}` +
+    (d.summary ? ` — ${String(d.summary)}` : ""),
+  debate_message: (d) => `${d.side}: ${d.text}`,
+  risk_message: (d) => `${d.side}: ${d.text}`,
+  decision: (d) => `DECISION: ${d.action} @ ${d.target}`,
+  tool_call: (d) => `tool: ${d.tool}`,
+  tool_result: (d) => `result: ${String(d.summary ?? "").slice(0, 60)}`,
+  tool_call_warning: (d) => `warning: ${d.message ?? "(no message)"}`,
+  run_failed: formatRunFailed,
+};
+
 export function LiveEventStream() {
   const events = useUi((s) => s.eventBuffer);
   const ref = useRef<HTMLDivElement>(null);
@@ -35,15 +69,9 @@ export function LiveEventStream() {
 }
 
 function Bubble({ event }: { event: WsEvent }) {
-  const data = event.data as Record<string, unknown>;
-  const text =
-    event.type === "analyst_thinking" ? String(data.node ?? data.stage ?? "thinking") :
-    event.type === "debate_message" ? `${data.side}: ${data.text}` :
-    event.type === "decision" ? `DECISION: ${data.action} @ ${data.target}` :
-    event.type === "tool_call" ? `tool: ${data.tool}` :
-    event.type === "tool_result" ? `result: ${String(data.summary ?? "").slice(0, 60)}` :
-    event.type === "run_failed" ? `failed: ${data.reason}` :
-    event.type;
+  const data = event.data as EventData;
+  const formatter = formatBubble[event.type];
+  const text = formatter ? formatter(data) : event.type;
   return (
     <div
       data-testid={`event-${event.id ?? ""}`}

@@ -13,7 +13,11 @@ import { RunHistoryDrawer } from "./components/RunHistoryDrawer";
 export default function App() {
   const focused = useUi((s) => s.focusedTicker);
   const setFocused = useUi((s) => s.setFocusedTicker);
-  const runId = useUi((s) => s.connectedRunId);
+  // The new store keys active runs by ticker (multiple tickers can be
+  // streaming concurrently in the global buffer). Subscribe to the
+  // active run for the *focused* ticker only; the WS hook is short-lived
+  // and re-opens when focus or the underlying run id changes.
+  const runId = useUi((s) => (focused ? s.activeRunIdByTicker[focused] ?? null : null));
   const events = useUi((s) => s.eventBuffer);
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery({
     queryKey: ["watchlist"],
