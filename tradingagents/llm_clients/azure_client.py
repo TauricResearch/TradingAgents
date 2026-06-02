@@ -39,6 +39,7 @@ class AzureOpenAIClient(BaseLLMClient):
         llm_kwargs = {
             "model": self.model,
             "azure_deployment": os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", self.model),
+            "max_retries": 0,
         }
 
         for key in _PASSTHROUGH_KWARGS:
