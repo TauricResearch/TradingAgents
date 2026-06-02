@@ -61,3 +61,4 @@
 {"file":"task-at-a-time-implementation.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
+{"file":"2026-05-27-brief-tree-view-experiment.md","date":"2026-05-29","status":"active","summary":"Tree-based navigation architecture: Repo Explorer + Workflow Navigator. SSR via @pierre/trees + HTMX/SSE.","meta":{"epic":"TREE-001"}}

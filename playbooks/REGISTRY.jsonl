@@ -34,3 +34,4 @@
 {"file":"typescript-hono-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"ui-design-playbook.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"unified-registry-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"tree-view-playbook.md","date":"2026-05-29","status":"active","summary":"SSR tree navigation with @pierre/trees — vanilla runtime, HTMX + SSE reactivity, Repo Explorer vs Workflow Navigator","meta":{"source":"briefs/2026-05-27-brief-tree-view-experiment.md"}}

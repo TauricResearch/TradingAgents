@@ -271,3 +271,9 @@ decisions/drydock/
 
 # macOS folder metadata (should never be committed)
 .DS_Store
+
+# Client bundle artifacts (built via `just build-client`)
+src/server/static/scripts/explorer-tree.bundle.js
+
+# prospects-build — one-off script, pre-existing formatting issues block biome check
+scripts/prospects-build.ts
