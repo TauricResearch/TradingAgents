@@ -71,5 +71,23 @@ def _dispatch_one(
         )
         store.mark_action_done(conn, action_id=row["action_id"],
                                result_brief_id=new_brief_id)
+    elif row["action_type"] == "run_full_study":
+        ticker = params.get("ticker")
+        light = store.load_brief(conn, row["brief_id"])
+        event_id = (light or {}).get("trigger_event_id")
+        import json as _j2
+        with conn:
+            conn.execute(
+                "INSERT INTO queue_jobs (job_type, payload, state, "
+                "enqueued_ts, trigger_event_id) VALUES (?, ?, 'queued', "
+                "datetime('now'), ?)",
+                ("event_alert",
+                 _j2.dumps({"event_id": event_id, "ticker": ticker}),
+                 event_id),
+            )
+        # Mark done by linking back to the light brief so the row is not
+        # re-dispatched.
+        store.mark_action_done(conn, action_id=row["action_id"],
+                               result_brief_id=row["brief_id"])
     else:
         log.warning("action_handler: unknown action_type %r", row["action_type"])
