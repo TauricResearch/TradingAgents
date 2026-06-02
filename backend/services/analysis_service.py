@@ -165,38 +165,34 @@ async def run_analysis(
     # Collect WS events produced during propagation
     events: list[dict] = []
 
-    # cli.stats_handler doesn't exist in the web deployment; stats always 0
-    callbacks: list = []
-
-    config = _build_config(settings)
-    ta = TradingAgentsGraph(
-        selected_analysts=settings.selected_analysts,
-        debug=False,
-        config=config,
-        callbacks=callbacks,
-    )
-
-    # Patch graph.stream so intermediate state updates are captured as WS events.
-    # This runs inside asyncio.to_thread (inside async_propagate), so appending
-    # to a list is safe — no cross-thread mutation of shared state.
-    original_invoke = ta.graph.invoke
-
-    def _patched_invoke(state, config_arg=None, **kwargs):
-        # We still need streaming for WS events; run stream internally
-        prev_state: dict = {}
-        final: dict = {}
-        for chunk in ta.graph.stream(state, config_arg or {}, **kwargs):
-            for key, value in chunk.items():
-                if key in _REPORT_FIELDS and value and value != prev_state.get(key):
-                    events.append({"type": "report", "section": key, "content": value})
-                    prev_state[key] = value
-            final.update(chunk)
-        return final
-
-    ta.graph.invoke = _patched_invoke
-
     start = time.time()
     try:
+        # Build config and construct graph INSIDE the try so any failure
+        # (missing API key, bad config, import error) reaches the WS error handler.
+        await ws_manager.send(task_id, {"type": "status", "status": "starting", "agent": "LLM istemcisi hazırlanıyor..."})
+        config = _build_config(settings)
+        ta = TradingAgentsGraph(
+            selected_analysts=settings.selected_analysts,
+            debug=False,
+            config=config,
+            callbacks=[],
+        )
+
+        # Patch graph.invoke to capture streaming report events for WS broadcast.
+        # _patched_invoke uses graph.stream internally and collects state deltas.
+        def _patched_invoke(state, config_arg=None, **kwargs):
+            prev_state: dict = {}
+            final: dict = {}
+            for chunk in ta.graph.stream(state, config_arg or {}, **kwargs):
+                for key, value in chunk.items():
+                    if key in _REPORT_FIELDS and value and value != prev_state.get(key):
+                        events.append({"type": "report", "section": key, "content": value})
+                        prev_state[key] = value
+                final.update(chunk)
+            return final
+
+        ta.graph.invoke = _patched_invoke
+
         final_state, signal = await ta.async_propagate(ticker, trade_date, asset_type)
         stats = _extract_stats(callbacks)
 

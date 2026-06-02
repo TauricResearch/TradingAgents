@@ -85,7 +85,16 @@ async def run_analysis(
                     except Exception as e:
                         _logger.warning("Order execution skipped: %s", e)
             except Exception as exc:
+                # run_analysis already sends WS error + closes task for errors
+                # inside its own try block. This catch handles any unexpected
+                # failures that slip through (e.g. DB commit error after analysis).
                 _logger.error("Background analysis failed: %s", exc, exc_info=True)
+                try:
+                    from backend.core.websocket import ws_manager as _wm
+                    await _wm.send(task_id, {"type": "error", "message": f"Analiz hatası: {exc}"})
+                    await _wm.close_task(task_id)
+                except Exception:
+                    pass
                 await bg_db.rollback()
 
     background_tasks.add_task(_bg)
