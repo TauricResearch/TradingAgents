@@ -49,6 +49,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 _logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Import after basicConfig so the handler attaches to the root logger correctly
+from backend.core.log_handler import db_log_handler  # noqa: E402
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -56,6 +59,9 @@ async def lifespan(app: FastAPI):
     _logger.info("Starting TradingAgents Web API...")
     await create_all_tables()
     await _seed_admin_user()
+
+    # Start async DB log handler (writes Python logs → system_logs table)
+    await db_log_handler.start()
 
     cron = init_cron_service()
     await _load_cron_settings(cron)
@@ -67,6 +73,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     cron.stop()
     _logger.info("Application stopped.")
+    db_log_handler.stop()   # drain remaining buffered logs to DB
 
 
 async def _seed_admin_user():
