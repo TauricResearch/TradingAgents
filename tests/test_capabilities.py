@@ -121,3 +121,13 @@ def test_capabilities_dataclass_is_frozen():
     caps = get_capabilities("deepseek-chat")
     with pytest.raises(Exception):
         caps.supports_tool_choice = False  # type: ignore[misc]
+
+
+@pytest.mark.unit
+class TestOpenAIReasoningCapabilities:
+    def test_gpt5_family_rejects_temperature(self):
+        assert get_capabilities("gpt-5.5").supports_temperature is False
+        assert get_capabilities("gpt-5.9-future").supports_temperature is False
+
+    def test_gpt41_keeps_temperature(self):
+        assert get_capabilities("gpt-4.1").supports_temperature is True

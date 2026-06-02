@@ -1,1 +1,1 @@
-.
+# Editable install of this project; use: pip install -e .

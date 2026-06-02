@@ -111,13 +111,14 @@ cd TradingAgents
 
 Create a virtual environment in any of your favorite environment managers:
 ```bash
-conda create -n tradingagents python=3.13
+conda create -n tradingagents python=3.12
+# Python 3.11–3.13 are supported; Docker currently builds on Python 3.12.
 conda activate tradingagents
 ```
 
 Install the package and its dependencies:
 ```bash
-pip install .
+pip install -e .
 ```
 
 ### Docker
@@ -153,9 +154,9 @@ export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
-For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
+For enterprise providers, Azure OpenAI is currently supported. Copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials. AWS Bedrock is planned only and is not wired as a runtime client yet.
 
-For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
+For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `TRADINGAGENTS_OLLAMA_BASE_URL` (or `OLLAMA_BASE_URL`) to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash

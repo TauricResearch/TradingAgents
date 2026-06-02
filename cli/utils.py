@@ -78,23 +78,27 @@ def filter_analysts_for_asset_type(
 
 
 def get_analysis_date() -> str:
-    """Prompt the user to enter a date in YYYY-MM-DD format."""
+    """Prompt for an analysis date and reject invalid or future dates."""
     import re
     from datetime import datetime
 
-    def validate_date(date_str: str) -> bool:
+    today = datetime.now().date()
+
+    def validate_date(date_str: str) -> bool | str:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
-            return False
+            return "Please enter a valid date in YYYY-MM-DD format."
         try:
-            datetime.strptime(date_str, "%Y-%m-%d")
-            return True
+            parsed = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            return False
+            return "Please enter a valid date in YYYY-MM-DD format."
+        if parsed > today:
+            return "Analysis date cannot be in the future."
+        return True
 
     date = questionary.text(
         "Enter the analysis date (YYYY-MM-DD):",
-        validate=lambda x: validate_date(x.strip())
-        or "Please enter a valid date in YYYY-MM-DD format.",
+        default=today.strftime("%Y-%m-%d"),
+        validate=lambda x: validate_date(x.strip()),
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -273,11 +277,16 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
 
     Shared by the interactive picker and by env-driven configuration so an
     env-set provider resolves to the same default endpoint the menu uses.
-    Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
-    (convention from the broader Ollama ecosystem); falls back to the
-    localhost default when unset.
+    Ollama users can point at a remote ollama-serve via
+    TRADINGAGENTS_OLLAMA_BASE_URL (preferred for this app) or OLLAMA_BASE_URL
+    (compatibility with broader Ollama tooling); falls back to the localhost
+    default when unset.
     """
-    ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
+    ollama_url = (
+        os.environ.get("TRADINGAGENTS_OLLAMA_BASE_URL")
+        or os.environ.get("OLLAMA_BASE_URL")
+        or "http://localhost:11434/v1"
+    )
     return [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
@@ -475,13 +484,19 @@ def confirm_ollama_endpoint(url: str) -> None:
 
     Surfaces three things the user benefits from seeing before model
     selection: which URL we'll actually hit, where it came from
-    (\`OLLAMA_BASE_URL\` vs default), and a soft warning if the URL is
+    (`TRADINGAGENTS_OLLAMA_BASE_URL` / `OLLAMA_BASE_URL` vs default), and a soft warning if the URL is
     missing the scheme/port that ollama-serve expects. The warning is
     advisory only — we don't reject malformed input, since the user may
     be doing something deliberately unusual (e.g. a reverse-proxy path).
     """
-    from_env = os.environ.get("OLLAMA_BASE_URL")
-    origin = " (from OLLAMA_BASE_URL)" if from_env and from_env == url else ""
+    preferred_env = os.environ.get("TRADINGAGENTS_OLLAMA_BASE_URL")
+    legacy_env = os.environ.get("OLLAMA_BASE_URL")
+    if preferred_env and preferred_env == url:
+        origin = " (from TRADINGAGENTS_OLLAMA_BASE_URL)"
+    elif legacy_env and legacy_env == url:
+        origin = " (from OLLAMA_BASE_URL)"
+    else:
+        origin = ""
     console.print(f"[green]✓ Using Ollama at {url}{origin}[/green]")
 
     if not url.startswith(("http://", "https://")):

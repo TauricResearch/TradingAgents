@@ -28,6 +28,16 @@ from tradingagents.agents.schemas import (
 from tradingagents.agents.trader.trader import create_trader
 
 
+@pytest.fixture(autouse=True)
+def _stub_sentiment_prefetchers(monkeypatch):
+    """Keep structured-agent unit tests offline and deterministic."""
+    import tradingagents.agents.analysts.sentiment_analyst as mod
+
+    monkeypatch.setattr(mod.get_news, "func", lambda ticker, start, end: "News fixture")
+    monkeypatch.setattr(mod, "fetch_stocktwits_messages", lambda ticker, limit=30: "StockTwits fixture")
+    monkeypatch.setattr(mod, "fetch_reddit_posts", lambda ticker: "Reddit fixture")
+
+
 # ---------------------------------------------------------------------------
 # Render functions
 # ---------------------------------------------------------------------------

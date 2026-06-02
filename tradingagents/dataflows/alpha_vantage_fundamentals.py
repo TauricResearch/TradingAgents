@@ -1,4 +1,10 @@
+"""Alpha Vantage fundamental-data fetchers."""
+
+from __future__ import annotations
+
 from .alpha_vantage_common import _make_api_request
+from .cache_utils import cache_text
+from .point_in_time import historical_snapshot_caveat
 
 
 def _filter_reports_by_date(result, curr_date: str):
@@ -20,20 +26,32 @@ def _filter_reports_by_date(result, curr_date: str):
 
 def get_fundamentals(ticker: str, curr_date: str = None) -> str:
     """
-    Retrieve comprehensive fundamental data for a given ticker symbol using Alpha Vantage.
+    Retrieve Alpha Vantage company overview data.
 
-    Args:
-        ticker (str): Ticker symbol of the company
-        curr_date (str): Current date you are trading at, yyyy-mm-dd (not used for Alpha Vantage)
-
-    Returns:
-        str: Company overview data including financial ratios and key metrics
+    The OVERVIEW endpoint is a latest snapshot, not a point-in-time
+    historical source. When ``curr_date`` is in the past, the response is
+    prefixed with an explicit caveat so historical backtests do not treat
+    the latest valuation metrics as if they existed on that date.
     """
-    params = {
-        "symbol": ticker,
-    }
+    def fetch() -> str:
+        import json
+        payload = _make_api_request("OVERVIEW", {"symbol": ticker})
+        caveat = historical_snapshot_caveat(curr_date)
+        if caveat:
+            try:
+                data = json.loads(payload)
+                if isinstance(data, dict):
+                    data["_lookahead_caveat"] = caveat.strip()
+                    return json.dumps(data)
+            except Exception:
+                pass
+        return payload
 
-    return _make_api_request("OVERVIEW", params)
+    return cache_text(
+        "alpha_vantage_fundamentals",
+        (str(ticker), str(curr_date or "latest")),
+        fetch,
+    )
 
 
 def get_balance_sheet(ticker: str, freq: str = "quarterly", curr_date: str = None):
@@ -52,4 +70,3 @@ def get_income_statement(ticker: str, freq: str = "quarterly", curr_date: str = 
     """Retrieve income statement data for a given ticker symbol using Alpha Vantage."""
     result = _make_api_request("INCOME_STATEMENT", {"symbol": ticker})
     return _filter_reports_by_date(result, curr_date)
-

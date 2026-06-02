@@ -20,7 +20,9 @@ services:
     env_file:
       - .env
     environment:
-      - LLM_PROVIDER=ollama
+      - TRADINGAGENTS_LLM_PROVIDER=ollama
+      - TRADINGAGENTS_OLLAMA_BASE_URL=http://ollama:11434/v1
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
     volumes:
       - tradingagents_data:/home/appuser/.tradingagents
     depends_on:

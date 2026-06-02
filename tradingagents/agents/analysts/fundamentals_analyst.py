@@ -1,4 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from tradingagents.llm_clients.base_client import normalize_content
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_balance_sheet,
@@ -14,6 +15,8 @@ from tradingagents.dataflows.config import get_config
 def create_fundamentals_analyst(llm):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
+        asset_type = state.get("asset_type", "stock")
+        subject_label = "company" if asset_type == "stock" else "asset or protocol"
         instrument_context = get_instrument_context_from_state(state)
 
         tools = [
@@ -24,7 +27,7 @@ def create_fundamentals_analyst(llm):
         ]
 
         system_message = (
-            "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            f"You are a researcher tasked with analyzing fundamental information over the past week about a {subject_label}. Please write a comprehensive report of the {subject_label}'s fundamental information such as financial documents, profile, basic financials or network metrics, and history to gain a full view of the {subject_label}'s fundamentals to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
             + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
             + get_language_instruction(),
@@ -54,12 +57,11 @@ def create_fundamentals_analyst(llm):
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        result = normalize_content(chain.invoke(state["messages"]))
 
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
+        # Preserve provider text even when the model also emits tool calls;
+        # some APIs return useful partial reasoning/content alongside calls.
+        report = result.content or ""
 
         return {
             "messages": [result],
