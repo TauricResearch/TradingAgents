@@ -82,19 +82,21 @@ def get_analysis_date() -> str:
     import re
     from datetime import datetime
 
-    def validate_date(date_str: str) -> bool:
+    def validate_date(date_str: str) -> bool | str:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
-            return False
+            return "Please enter a valid date in YYYY-MM-DD format."
         try:
-            datetime.strptime(date_str, "%Y-%m-%d")
+            analysis_date = datetime.strptime(date_str, "%Y-%m-%d")
+            if analysis_date.date() > datetime.today().date():
+                return "Analysis date cannot be in the future."
             return True
         except ValueError:
-            return False
+            return "Please enter a valid date in YYYY-MM-DD format."
 
     date = questionary.text(
         "Enter the analysis date (YYYY-MM-DD):",
-        validate=lambda x: validate_date(x.strip())
-        or "Please enter a valid date in YYYY-MM-DD format.",
+        default=datetime.today().strftime("%Y-%m-%d"),
+        validate=lambda x: validate_date(x.strip()),
         style=questionary.Style(
             [
                 ("text", "fg:green"),
