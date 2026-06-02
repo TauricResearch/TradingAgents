@@ -124,3 +124,16 @@ def test_callback_unmatched_ticker_is_noop(tmp_path):
     handle_callback(update=_callback("act:lb1:run_full_study:AAPL"), conn=conn)
     states = [r[0] for r in conn.execute("SELECT state FROM brief_actions")]
     assert set(states) == {"pending"}
+
+
+@pytest.mark.unit
+def test_callback_accepts_lowercase_ticker(tmp_path):
+    from tradingagents.delivery.telegram_bot import handle_callback
+    conn = connect(str(tmp_path / "iic.db"))
+    _seed_light_with_delivery(conn)
+    handle_callback(update=_callback("act:lb1:run_full_study:nvda"), conn=conn)
+    states = dict(conn.execute(
+        "SELECT json_extract(action_params,'$.ticker'), state "
+        "FROM brief_actions").fetchall())
+    assert states["NVDA"] == "accepted"
+    assert states["PANW"] == "pending"

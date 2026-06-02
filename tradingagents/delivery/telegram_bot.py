@@ -52,7 +52,7 @@ def _apply_run_full_study(conn: sqlite3.Connection, *, brief_id: str, arg: str) 
             new_state = "accepted"
         elif arg == "__dismiss__":
             new_state = "declined"
-        elif arg == ticker:
+        elif ticker is not None and arg.upper() == ticker.upper():
             new_state = "accepted"
         else:
             continue

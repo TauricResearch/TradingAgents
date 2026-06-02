@@ -66,7 +66,10 @@ def alert_approve(
     """Approve a full study for one or all tickers on a light alert."""
     conn = _conn()
     n = _transition(conn, brief_id, ticker, "accepted")
-    console.print(f"[green]approved[/green] {n} ticker(s) on {brief_id[:8]}")
+    if n == 0:
+        console.print(f"[yellow]no pending tickers matched[/yellow] on {brief_id[:8]}")
+    else:
+        console.print(f"[green]approved[/green] {n} ticker(s) on {brief_id[:8]}")
 
 
 @alert_app.command("dismiss")
@@ -77,4 +80,7 @@ def alert_dismiss(
     """Dismiss (decline) one or all tickers on a light alert."""
     conn = _conn()
     n = _transition(conn, brief_id, ticker, "declined")
-    console.print(f"[yellow]dismissed[/yellow] {n} ticker(s) on {brief_id[:8]}")
+    if n == 0:
+        console.print(f"[yellow]no pending tickers matched[/yellow] on {brief_id[:8]}")
+    else:
+        console.print(f"[green]dismissed[/green] {n} ticker(s) on {brief_id[:8]}")
