@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Optional
-
 from sqlmodel import select, desc
 
-from web.server.db import get_session, LlmCall
+from web.server.db import get_session, LlmCall, Run
 
 
 def save_llm_call(
@@ -57,9 +55,22 @@ def llm_calls_for_run(run_id: int) -> list[LlmCall]:
         )
 
 
+def _run_to_dict(r: Run) -> dict:
+    return {
+        "id": r.id,
+        "ticker": r.ticker,
+        "started_at": r.started_at.isoformat() if r.started_at else None,
+        "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+        "status": r.status,
+        "decision_action": r.decision_action,
+        "decision_target": r.decision_target,
+        "decision_rationale": r.decision_rationale,
+        "decision_confidence": r.decision_confidence,
+    }
+
+
 def list_runs_for_ticker(ticker: str, limit: int = 50) -> list[dict]:
     """Return runs for a ticker as lightweight dicts (no events/llm_calls)."""
-    from web.server.db import Run, get_session
     with get_session() as s:
         rows = s.exec(
             select(Run)
@@ -67,17 +78,4 @@ def list_runs_for_ticker(ticker: str, limit: int = 50) -> list[dict]:
             .order_by(desc(Run.started_at))
             .limit(limit)
         )
-        return [
-            {
-                "id": r.id,
-                "ticker": r.ticker,
-                "started_at": r.started_at.isoformat() if r.started_at else None,
-                "finished_at": r.finished_at.isoformat() if r.finished_at else None,
-                "status": r.status,
-                "decision_action": r.decision_action,
-                "decision_target": r.decision_target,
-                "decision_rationale": r.decision_rationale,
-                "decision_confidence": r.decision_confidence,
-            }
-            for r in rows
-        ]
+        return [_run_to_dict(r) for r in rows]

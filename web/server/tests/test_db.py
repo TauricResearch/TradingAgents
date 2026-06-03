@@ -2,6 +2,7 @@ from sqlmodel import select
 
 from web.server import db
 from web.server.db import Watchlist, Run, Event, LlmCall
+from web.server.llm_calls import save_llm_call, llm_calls_for_run, list_runs_for_ticker
 
 
 def test_init_db_creates_tables(temp_db):
@@ -78,8 +79,6 @@ from datetime import datetime, timezone
 
 
 def test_llm_call_crud(temp_db):
-    from web.server.llm_calls import save_llm_call, llm_calls_for_run, list_runs_for_ticker
-
     rid = db.create_run(ticker="NVDA", idempotency_key="NVDA:2026-06-01")
 
     save_llm_call(
@@ -110,3 +109,28 @@ def test_llm_call_crud(temp_db):
     rows = list_runs_for_ticker("NVDA")
     assert len(rows) >= 1
     assert rows[0]["ticker"] == "NVDA"
+
+
+def test_llm_calls_empty(temp_db):
+    assert llm_calls_for_run(9999) == []
+
+
+def test_list_runs_empty(temp_db):
+    assert list_runs_for_ticker("NONEXISTENT") == []
+
+
+def test_llm_calls_ordered(temp_db):
+    rid = db.create_run(ticker="NVDA", idempotency_key="NVDA:2026-06-03")
+    from datetime import timedelta
+    save_llm_call(
+        run_id=rid, ticker="NVDA", node_name="A",
+        started_at=datetime.now(timezone.utc) - timedelta(seconds=10),
+        model="gpt-4", prompt_text="first", response_text="",
+    )
+    save_llm_call(
+        run_id=rid, ticker="NVDA", node_name="B",
+        started_at=datetime.now(timezone.utc) - timedelta(seconds=5),
+        model="gpt-4", prompt_text="second", response_text="",
+    )
+    calls = llm_calls_for_run(rid)
+    assert [c.node_name for c in calls] == ["A", "B"]
