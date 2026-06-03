@@ -6,6 +6,7 @@ interface Props {
   ticker: string;
   price?: number;
   changePct?: number;
+  stale?: boolean;
 }
 
 function formatStartedAt(iso: string | null): string {
@@ -20,7 +21,7 @@ function runLabel(r: RunRow): string {
   return `${when}${action}`;
 }
 
-export function TickerHeader({ ticker, price, changePct }: Props) {
+export function TickerHeader({ ticker, price, changePct, stale }: Props) {
   const qc = useQueryClient();
   const activeRunId = useUi((s) => s.activeRunIdByTicker[ticker] ?? null);
   const lastRunId = useUi((s) => s.lastRunIdByTicker[ticker] ?? null);
@@ -100,11 +101,19 @@ export function TickerHeader({ ticker, price, changePct }: Props) {
       <div>
         <h2 className="text-2xl font-semibold">{ticker}</h2>
         <p className="text-sm text-slate-500">
-          {price != null ? `$${price.toFixed(2)}` : "—"}
-          {changePct != null && (
-            <span className={changePct >= 0 ? "text-emerald-600 ml-2" : "text-rose-600 ml-2"}>
-              {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
+          {stale ? (
+            <span data-testid="ticker-header-unavailable" className="text-amber-700 font-medium">
+              Price data unavailable
             </span>
+          ) : (
+            <>
+              {price != null ? `$${price.toFixed(2)}` : "—"}
+              {changePct != null && (
+                <span className={changePct >= 0 ? "text-emerald-600 ml-2" : "text-rose-600 ml-2"}>
+                  {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
+                </span>
+              )}
+            </>
           )}
         </p>
       </div>

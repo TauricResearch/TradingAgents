@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "../App";
 import { useUi } from "../store/ui";
@@ -76,5 +76,59 @@ describe("App", () => {
 
     qc.invalidateQueries({ queryKey: ["watchlist"] });
     await waitFor(() => expect(useUi.getState().focusedTicker).toBeNull());
+  });
+
+  it("shows a stale-ticker banner with a Remove action when the price feed flags the symbol as unavailable", async () => {
+    useUi.setState({ focusedTicker: "BADX" });
+    (globalThis as any).fetch = vi.fn((url) => {
+      if (String(url).endsWith("/api/watchlist")) {
+        return Promise.resolve(new Response(JSON.stringify([
+          { ticker: "BADX", company_name: "", exchange: "", added_at: null, last_decision: null, last_decision_at: null },
+        ])));
+      }
+      if (String(url).endsWith("/api/prices")) {
+        // Server flagged the ticker as stale (delisted / yfinance unreachable).
+        return Promise.resolve(new Response(JSON.stringify({
+          BADX: { price: 0, change_pct: 0, sparkline: [], stale: true },
+        })));
+      }
+      // /api/runs, /api/tickers/.../runs, /api/runs/... — return empty
+      return Promise.resolve(new Response("[]", { status: 200 }));
+    }) as any;
+
+    wrap();
+    // TickerHeader shows "Price data unavailable"
+    await waitFor(() =>
+      expect(screen.getByTestId("ticker-header-unavailable")).toBeInTheDocument(),
+    );
+    // Stale banner is visible with a Remove button
+    const banner = screen.getByTestId("stale-ticker-banner");
+    expect(banner).toBeInTheDocument();
+    expect(banner.textContent).toMatch(/BADX.*not available/i);
+    expect(screen.getByTestId("stale-ticker-remove")).toBeInTheDocument();
+  });
+
+  it("dismissing the stale banner hides it for the current ticker", async () => {
+    useUi.setState({ focusedTicker: "BADX" });
+    (globalThis as any).fetch = vi.fn((url) => {
+      if (String(url).endsWith("/api/watchlist")) {
+        return Promise.resolve(new Response(JSON.stringify([
+          { ticker: "BADX", company_name: "", exchange: "", added_at: null, last_decision: null, last_decision_at: null },
+        ])));
+      }
+      if (String(url).endsWith("/api/prices")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          BADX: { price: 0, change_pct: 0, sparkline: [], stale: true },
+        })));
+      }
+      return Promise.resolve(new Response("[]", { status: 200 }));
+    }) as any;
+
+    wrap();
+    await waitFor(() => expect(screen.getByTestId("stale-ticker-banner")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+    await waitFor(() =>
+      expect(screen.queryByTestId("stale-ticker-banner")).not.toBeInTheDocument(),
+    );
   });
 });

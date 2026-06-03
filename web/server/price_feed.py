@@ -22,6 +22,35 @@ log = logging.getLogger(__name__)
 _bad_symbol_warned: set[str] = set()
 
 
+class TickerNotFound(Exception):
+    """Raised by ``validate_ticker_exists`` for delisted/invalid symbols."""
+
+    def __init__(self, ticker: str, reason: str = ""):
+        super().__init__(f"{ticker}: {reason}" if reason else ticker)
+        self.ticker = ticker
+        self.reason = reason
+
+
+def validate_ticker_exists(ticker: str) -> None:
+    """Probe yfinance for ``ticker`` and raise :class:`TickerNotFound` if
+    the symbol is delisted, invalid, or has no positive lastPrice.
+
+    Used at the watchlist-add boundary so the user gets immediate
+    feedback (HTTP 400) instead of a silent 'stale' state in the price
+    feed forever after.
+
+    Mirrors the same fast_info path the poll loop uses — anything that
+    would mark the snapshot stale on the next poll also fails this probe.
+    """
+    try:
+        info = yf.Ticker(ticker).fast_info
+        price = info.get("lastPrice") or info.get("last_price")
+    except Exception as e:
+        raise TickerNotFound(ticker, reason=type(e).__name__) from e
+    if price is None or float(price) <= 0:
+        raise TickerNotFound(ticker, reason="no_price_data")
+
+
 @dataclass
 class PriceSnapshot:
     price: float = 0.0

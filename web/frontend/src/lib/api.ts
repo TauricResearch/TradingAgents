@@ -1,5 +1,30 @@
 const base = "";
 
+/**
+ * Thrown by the api helpers on non-2xx responses. ``body`` is the parsed
+ * JSON error payload (typically ``{ detail: { error, ... } }`` from
+ * FastAPI) so callers can render a specific message instead of a
+ * generic status code.
+ */
+export class ApiError extends Error {
+  status: number;
+  body: unknown;
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+async function readJsonOrNull(r: Response): Promise<unknown> {
+  try {
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
 export interface WatchlistRow {
   ticker: string;
   company_name: string;
@@ -55,17 +80,23 @@ export async function addToWatchlist(ticker: string, company_name: string, excha
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ticker, company_name, exchange }),
   });
-  if (!r.ok && r.status !== 201) throw new Error(`add ${r.status}`);
+  if (!r.ok && r.status !== 201) {
+    throw new ApiError(`add ${r.status}`, r.status, await readJsonOrNull(r));
+  }
 }
 
 export async function removeFromWatchlist(ticker: string): Promise<void> {
   const r = await fetch(`${base}/api/watchlist/${encodeURIComponent(ticker)}`, { method: "DELETE" });
-  if (!r.ok) throw new Error(`remove ${r.status}`);
+  if (!r.ok) {
+    throw new ApiError(`remove ${r.status}`, r.status, await readJsonOrNull(r));
+  }
 }
 
 export async function fetchPrices(): Promise<Record<string, unknown>> {
   const r = await fetch(`${base}/api/prices`);
-  if (!r.ok) throw new Error(`prices ${r.status}`);
+  if (!r.ok) {
+    throw new ApiError(`prices ${r.status}`, r.status, await readJsonOrNull(r));
+  }
   return r.json();
 }
 
@@ -75,23 +106,31 @@ export async function startRun(ticker: string, force: boolean = false): Promise<
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ticker, force }),
   });
-  if (!r.ok) throw new Error(`start ${r.status}`);
+  if (!r.ok) {
+    throw new ApiError(`start ${r.status}`, r.status, await readJsonOrNull(r));
+  }
   return r.json();
 }
 
 export async function cancelRun(runId: number): Promise<void> {
   const r = await fetch(`${base}/api/runs/${runId}/cancel`, { method: "POST" });
-  if (!r.ok) throw new Error(`cancel ${r.status}`);
+  if (!r.ok) {
+    throw new ApiError(`cancel ${r.status}`, r.status, await readJsonOrNull(r));
+  }
 }
 
 export async function fetchRunDetail(runId: number): Promise<RunDetail> {
   const r = await fetch(`${base}/api/runs/${runId}`);
-  if (!r.ok) throw new Error(`run ${r.status}`);
+  if (!r.ok) {
+    throw new ApiError(`run ${r.status}`, r.status, await readJsonOrNull(r));
+  }
   return r.json();
 }
 
 export async function fetchTickerRuns(ticker: string): Promise<RunRow[]> {
   const r = await fetch(`${base}/api/tickers/${encodeURIComponent(ticker)}/runs`);
-  if (!r.ok) throw new Error(`ticker-runs ${r.status}`);
+  if (!r.ok) {
+    throw new ApiError(`ticker-runs ${r.status}`, r.status, await readJsonOrNull(r));
+  }
   return r.json();
 }

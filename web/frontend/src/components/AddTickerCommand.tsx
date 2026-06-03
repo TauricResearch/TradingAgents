@@ -1,6 +1,20 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { addToWatchlist } from "../lib/api";
+import { addToWatchlist, ApiError } from "../lib/api";
+
+function describeAddError(e: unknown, ticker: string): string {
+  if (e instanceof ApiError) {
+    // FastAPI wraps HTTPException detail under "detail".
+    const detail = (e.body as { detail?: { error?: string } } | null)?.detail;
+    if (e.status === 400 && detail?.error === "ticker_not_found") {
+      return `Ticker "${ticker}" was not found on Yahoo Finance. Check the symbol and try again.`;
+    }
+    if (e.status === 409) {
+      return `"${ticker}" is already in your watchlist.`;
+    }
+  }
+  return `Could not add "${ticker}". Please try again.`;
+}
 
 export function AddTickerCommand() {
   const [open, setOpen] = useState(false);
@@ -10,14 +24,15 @@ export function AddTickerCommand() {
 
   async function submit() {
     if (!value) return;
+    const ticker = value.toUpperCase();
     try {
-      await addToWatchlist(value.toUpperCase(), "", "");
+      await addToWatchlist(ticker, "", "");
       setValue("");
       setOpen(false);
       setError(null);
       qc.invalidateQueries({ queryKey: ["watchlist"] });
     } catch (e) {
-      setError("Could not add (maybe already in watchlist?)");
+      setError(describeAddError(e, ticker));
     }
   }
 
