@@ -1,4 +1,4 @@
-"""Refresh local report docs and compile the MkDocs site.
+"""Refresh local report docs.
 
 This is the repo-local orchestration entrypoint for report refreshes. It
 coordinates the existing report scripts rather than duplicating their parsing
@@ -12,7 +12,6 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 from collections import defaultdict
@@ -20,8 +19,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
-MKDOCS_ROOT = ROOT
-SITE_DIR: str | Path = "_site"
 
 # Make repo-local modules importable when run as ``python scripts/...``.
 sys.path.insert(0, str(ROOT))
@@ -292,18 +289,6 @@ def validate_homepage(
         )
 
 
-def mkdocs_command(site_dir: str | Path = "_site") -> list[str]:
-    local_mkdocs = ROOT / ".venv" / "bin" / "mkdocs"
-    executable = str(local_mkdocs) if local_mkdocs.is_file() else "mkdocs"
-    return [executable, "build", "--strict", "--site-dir", str(site_dir)]
-
-
-def run_mkdocs_build() -> None:
-    result = subprocess.run(mkdocs_command(SITE_DIR), cwd=MKDOCS_ROOT)
-    if result.returncode != 0:
-        raise WorkflowError("mkdocs build --strict --site-dir _site failed")
-
-
 def run_workflow(analysis_date: str | None = None) -> None:
     runs_by_ticker = discover_runs(DOCS)
     target_date = normalize_analysis_date(analysis_date) if analysis_date else latest_analysis_date(runs_by_ticker)
@@ -315,15 +300,14 @@ def run_workflow(analysis_date: str | None = None) -> None:
     process_selected_runs(selected)
     build_reports_site(target_date)
     validate_homepage(target_date, selected)
-    run_mkdocs_build()
     print(
         f"Refreshed {len(selected)} report(s) for {target_date}; "
-        "compiled _site/index.html."
+        "pre-commit compiles _site."
     )
 
 
 def run_dry_run(analysis_date: str | None = None) -> None:
-    global DOCS, MKDOCS_ROOT, SITE_DIR
+    global DOCS
 
     with tempfile.TemporaryDirectory(prefix="report-workflow-") as tmp:
         tmp_root = Path(tmp)
@@ -332,17 +316,11 @@ def run_dry_run(analysis_date: str | None = None) -> None:
         shutil.copy2(ROOT / "mkdocs.yml", tmp_root / "mkdocs.yml")
 
         old_docs = DOCS
-        old_mkdocs_root = MKDOCS_ROOT
-        old_site_dir = SITE_DIR
         DOCS = tmp_docs
-        MKDOCS_ROOT = tmp_root
-        SITE_DIR = "_site"
         try:
             run_workflow(analysis_date)
         finally:
             DOCS = old_docs
-            MKDOCS_ROOT = old_mkdocs_root
-            SITE_DIR = old_site_dir
 
     print("Dry run complete; no repo files were changed by the workflow.")
 

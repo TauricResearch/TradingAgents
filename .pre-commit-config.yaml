@@ -1,1 +1,9 @@
-repos: []
+repos:
+  - repo: local
+    hooks:
+      - id: compile-reports-site
+        name: Compile MkDocs reports site
+        entry: bash -c 'if [ -x .venv/bin/mkdocs ]; then .venv/bin/mkdocs build --strict --site-dir _site; else mkdocs build --strict --site-dir _site; fi'
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -219,7 +219,7 @@ def test_homepage_validation_rejects_bad_rows(
 
 
 @pytest.mark.unit
-def test_workflow_command_order_is_process_build_validate_mkdocs(monkeypatch):
+def test_workflow_command_order_is_process_build_validate(monkeypatch):
     workflow = load_workflow()
     run = workflow.site.Run(
         "AAPL",
@@ -235,11 +235,10 @@ def test_workflow_command_order_is_process_build_validate_mkdocs(monkeypatch):
     monkeypatch.setattr(workflow, "process_selected_runs", lambda selected: calls.append("process"))
     monkeypatch.setattr(workflow, "build_reports_site", lambda date: calls.append("build_reports_site"))
     monkeypatch.setattr(workflow, "validate_homepage", lambda date, selected: calls.append("validate_homepage"))
-    monkeypatch.setattr(workflow, "run_mkdocs_build", lambda: calls.append("mkdocs"))
 
     workflow.run_workflow(analysis_date="20260602")
 
-    assert calls == ["process", "build_reports_site", "validate_homepage", "mkdocs"]
+    assert calls == ["process", "build_reports_site", "validate_homepage"]
 
 
 @pytest.mark.unit
@@ -247,16 +246,12 @@ def test_dry_run_uses_copied_docs_and_restores_repo_paths(tmp_path, monkeypatch)
     workflow = load_workflow()
     docs = tmp_path / "docs"
     make_run(docs, "AAPL", "20260602_opus_20260602_101010")
-    original_mkdocs_root = workflow.MKDOCS_ROOT
-    original_site_dir = workflow.SITE_DIR
     observed: dict[str, Path | str] = {}
     monkeypatch.setattr(workflow, "DOCS", docs)
 
     def fake_run_workflow(analysis_date):
         observed["analysis_date"] = analysis_date
         observed["docs"] = workflow.DOCS
-        observed["mkdocs_root"] = workflow.MKDOCS_ROOT
-        observed["site_dir"] = Path(workflow.SITE_DIR)
         assert workflow.DOCS != docs
         assert (workflow.DOCS / "AAPL" / "20260602_opus_20260602_101010").is_dir()
         (workflow.DOCS / "dry-run-marker").write_text("temp only", encoding="utf-8")
@@ -266,9 +261,5 @@ def test_dry_run_uses_copied_docs_and_restores_repo_paths(tmp_path, monkeypatch)
     workflow.run_dry_run("20260602")
 
     assert observed["analysis_date"] == "20260602"
-    assert observed["mkdocs_root"] != workflow.ROOT
-    assert observed["site_dir"] == Path("_site")
     assert not (docs / "dry-run-marker").exists()
     assert workflow.DOCS == docs
-    assert workflow.MKDOCS_ROOT == original_mkdocs_root
-    assert workflow.SITE_DIR == original_site_dir
