@@ -60,6 +60,49 @@ describe("ui store — per-ticker cache", () => {
     useUi.getState().appendEvent(evt(2, 99, "analyst_thinking"));
     expect(useUi.getState().eventBuffer.map((e) => e.run_id)).toEqual([42, 99]);
   });
+
+  describe("restoreEvents", () => {
+    it("replaces existing events for the same runId", () => {
+      useUi.setState({ eventBuffer: [evt(1, 42, "analyst_started"), evt(2, 42, "analyst_started")] });
+      useUi.getState().restoreEvents(42, [evt(10, 42, "analyst_thinking"), evt(11, 42, "analyst_thinking"), evt(12, 42, "analyst_thinking")]);
+      const buf = useUi.getState().eventBuffer;
+      expect(buf).toHaveLength(3);
+      expect(buf.every((e) => e.run_id === 42)).toBe(true);
+    });
+
+    it("preserves events from other runs", () => {
+      useUi.setState({ eventBuffer: [evt(1, 1, "analyst_started"), evt(2, 2, "analyst_started")] });
+      useUi.getState().restoreEvents(1, [evt(10, 1, "analyst_thinking")]);
+      const buf = useUi.getState().eventBuffer;
+      expect(buf).toHaveLength(2);
+      expect(buf.find((e) => e.run_id === 1)?.id).toBe(10);
+      expect(buf.find((e) => e.run_id === 2)?.id).toBe(2);
+    });
+
+    it("respects the 1000-event cap", () => {
+      const seed = Array.from({ length: 998 }, (_, i) => evt(i, 99, "analyst_started"));
+      useUi.setState({ eventBuffer: seed });
+      const restored = Array.from({ length: 500 }, (_, i) => evt(1000 + i, 7, "analyst_started"));
+      useUi.getState().restoreEvents(7, restored);
+      const buf = useUi.getState().eventBuffer;
+      expect(buf).toHaveLength(1000);
+      expect(buf.filter((e) => e.run_id === 7)).toHaveLength(500);
+    });
+  });
+
+  describe("clearLastRunIdForTicker", () => {
+    it("drops only the named key", () => {
+      useUi.setState({ lastRunIdByTicker: { AAPL: 42, NVDA: 99 } });
+      useUi.getState().clearLastRunIdForTicker("AAPL");
+      expect(useUi.getState().lastRunIdByTicker).toEqual({ NVDA: 99 });
+    });
+
+    it("is a no-op when the key is absent", () => {
+      useUi.setState({ lastRunIdByTicker: { NVDA: 99 } });
+      useUi.getState().clearLastRunIdForTicker("AAPL");
+      expect(useUi.getState().lastRunIdByTicker).toEqual({ NVDA: 99 });
+    });
+  });
 });
 
 describe("ui store — persistence", () => {

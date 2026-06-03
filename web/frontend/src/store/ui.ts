@@ -24,6 +24,8 @@ interface UiState {
   setActiveRunIdForTicker: (ticker: string, runId: number | null) => void;
   clearActiveRunForTicker: (ticker: string) => void;
   appendEvent: (e: WsEvent) => void;
+  restoreEvents: (runId: number, events: WsEvent[]) => void;
+  clearLastRunIdForTicker: (ticker: string) => void;
   clearBuffer: () => void;
 }
 
@@ -42,6 +44,16 @@ export const useUi = create<UiState>()(
       clearActiveRunForTicker: (ticker) =>
         set((s) => ({ activeRunIdByTicker: { ...s.activeRunIdByTicker, [ticker]: null } })),
       appendEvent: (e) => set((s) => ({ eventBuffer: [...s.eventBuffer, e].slice(-1000) })),
+      restoreEvents: (runId, events) => set((s) => {
+        const others = s.eventBuffer.filter((e) => e.run_id !== runId);
+        const restored = events.map((e) => ({ ...e, run_id: runId }));
+        return { eventBuffer: [...others, ...restored].slice(-1000) };
+      }),
+      clearLastRunIdForTicker: (ticker) => set((s) => {
+        const next = { ...s.lastRunIdByTicker };
+        delete next[ticker];
+        return { lastRunIdByTicker: next };
+      }),
       clearBuffer: () => set({ eventBuffer: [] }),
     }),
     {
