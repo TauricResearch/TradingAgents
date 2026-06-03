@@ -45,16 +45,19 @@ _STAGE_MAP = {
 
 
 def _stage_summary_for_node(node_name: str, delta: dict):
-    """Return (stage_key, summary, excerpt) for analyst_completed, or (None,...) to skip."""
+    """Return (stage_key, summary, excerpt, full_text) for analyst_completed,
+    or (None, None, None, None) to skip."""
     if node_name not in _STAGE_MAP:
-        return (None, None, None)
+        return (None, None, None, None)
     stage, report_field = _STAGE_MAP[node_name]
+    full_text = None
     excerpt = None
     if report_field:
-        excerpt = (delta or {}).get(report_field, "")
+        full_text = (delta or {}).get(report_field, "") or None
+        excerpt = full_text
         if excerpt and len(excerpt) > 200:
             excerpt = excerpt[:200] + "\u2026"
-    return (stage, "completed", excerpt)
+    return (stage, "completed", excerpt, full_text)
 
 
 def _format_traceback(exc: BaseException) -> str:
@@ -163,14 +166,16 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
             if node_name == "node_entered":
                 events.emit(rid, "analyst_started", {"node": payload.get("node", node_name), **payload})
             elif node_name == "node_exited":
-                stage, summary, excerpt = _stage_summary_for_node(
+                stage, summary, excerpt, full_text = _stage_summary_for_node(
                     payload.get("node", ""), payload.get("delta", {})
                 )
                 if stage is None:
                     return  # tool/clear/portfolio_manager — no completion event
-                data = {"stage": stage, "summary": summary}
+                data: dict = {"stage": stage, "summary": summary}
                 if excerpt:
                     data["report_excerpt"] = excerpt
+                if full_text:
+                    data["report_text"] = full_text
                 events.emit(rid, "analyst_completed", data)
             else:
                 events.emit(rid, node_name, payload)
