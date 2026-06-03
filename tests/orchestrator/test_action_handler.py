@@ -129,3 +129,43 @@ def test_tick_handles_depth_exceeded_gracefully(tmp_path):
         tick(conn=conn, secretary=fake_secretary, dispatch_backtest=MagicMock())
 
     assert True  # No exception leaked
+
+
+@pytest.mark.unit
+def test_tick_rejects_backtest_actions_on_light_alerts(tmp_path):
+    from tradingagents.orchestrator.action_handler import tick
+
+    conn = iic_connect(str(tmp_path / "iic.db"))
+    store.insert_brief(
+        conn,
+        brief_id="light1",
+        mode="event_alert_light",
+        scope='["AAPL"]',
+        generated_ts="2026-05-27T12:00:00+00:00",
+        content_path="briefs/light1.md",
+        run_ids=[],
+    )
+    aid = store.insert_brief_action(
+        conn,
+        brief_id="light1",
+        action_type="run_backtest",
+        action_params={},
+        expires_at="2099-01-01T00:00:00+00:00",
+    )
+    store.update_action_state(
+        conn,
+        action_id=aid,
+        state="accepted",
+        responded_at="2026-05-27T12:30:00+00:00",
+    )
+
+    fake_dispatch = MagicMock(return_value=99)
+    tick(conn=conn, secretary=MagicMock(), dispatch_backtest=fake_dispatch)
+
+    fake_dispatch.assert_not_called()
+    row = conn.execute(
+        "SELECT error, result_backtest_id FROM brief_actions WHERE action_id = ?",
+        (aid,),
+    ).fetchone()
+    assert "full event_alert brief" in row["error"]
+    assert row["result_backtest_id"] is None
