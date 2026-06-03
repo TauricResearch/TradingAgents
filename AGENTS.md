@@ -78,6 +78,7 @@ Two systems, one codebase:
 - **Commit cadence.** One logical change per commit. If checks fail: revert first, diagnose second.
 - **30-file PR cap.** If diff exceeds 30 files, split. Stack branches, don't bundle.
 - **Pre-PR gates:** `just check` green → semantic review → docs check.
+- **Induced requirements — document immediately.** When a design choice creates a second-order dependency (e.g., a JSON column that a later phase must parse), capture it as a decision record with `type: induced-requirement` *the moment it emerges*. Do not defer. Induced requirements accrue interest — the longer they sit undocumented, the more data must be retroactively reformatted, and the more likely they become a blocking bug instead of a known constraint. See `decisions/013-strategy-rule-schema.md` for the template.
 - **GitHub PR Integration:** Push features to remote branch, create PR, wait for server-side reviews and CI checks, and merge via GitHub PR only. Never merge locally and push to remote \`main\`. See [git-workflow-playbook.md](file:///Users/petersmith/dev/github/tradingagents/playbooks/git-workflow-playbook.md).
 
 Detailed conventions: `playbooks/conventions-playbook.md`
