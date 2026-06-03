@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -150,7 +150,9 @@ def create_app() -> FastAPI:
     @app.delete("/api/watchlist/{ticker}", status_code=204)
     def del_watch(ticker: str):
         db.remove_watchlist(ticker.upper())
-        return JSONResponse(status_code=204, content=None)
+        # Plain Response with 204 — JSONResponse(content=None) serializes
+        # to b"null" which exceeds the 204 implied Content-Length: 0.
+        return Response(status_code=204)
 
     @app.get("/api/prices")
     def prices():

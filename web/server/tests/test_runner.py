@@ -53,7 +53,7 @@ async def test_semaphore_limits_concurrency(monkeypatch, temp_db):
             def propagate(self_inner, ticker, trade_date, *, event_callback=None):
                 started.append(ticker)
                 release.wait()
-                return {"decision": {"action": "HOLD"}}
+                return {"decision": {"action": "HOLD"}}, {"action": "HOLD"}
         return Slow()
 
     monkeypatch.setattr(runner, "build_graph", slow_graph)
@@ -96,7 +96,7 @@ async def test_cancellation_emits_run_failed(monkeypatch, temp_db):
                     if event_callback is not None:
                         event_callback("node_entered", {"node": "blocking"})
                     time.sleep(0.05)
-                return {}
+                return {}, {"action": "HOLD"}
         return Blocking()
 
     monkeypatch.setattr(runner, "build_graph", blocking_graph)
@@ -183,7 +183,7 @@ async def test_rate_limit_recovered_after_two_attempts(monkeypatch, temp_db):
                 counter["calls"] += 1
                 if counter["calls"] <= 2:
                     raise _RateLimitError("'retryDelay': '0.01s'")
-                return {"decision": {"action": "HOLD"}}
+                return {"decision": {"action": "HOLD"}}, {"action": "HOLD"}
         return _Flaky()
 
     monkeypatch.setattr(runner, "build_graph", flaky_graph)
