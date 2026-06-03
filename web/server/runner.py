@@ -86,10 +86,10 @@ _idle = threading.Event()
 _idle.set()
 
 
-def enqueue(ticker: str, *, idempotency_key: str) -> int:
+def enqueue(ticker: str, *, idempotency_key: str, force: bool = False) -> int:
     if _queue is None:
         raise RuntimeError("runner.start() must be called before enqueue()")
-    rid = db.create_run(ticker=ticker, idempotency_key=idempotency_key)
+    rid = db.create_run(ticker=ticker, idempotency_key=idempotency_key, force=force)
     _queue.put_nowait(rid)
     return rid
 
