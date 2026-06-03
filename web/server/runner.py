@@ -26,6 +26,37 @@ MAX_ATTEMPTS = 4
 MAX_BACKOFF_S = 60.0
 
 
+# Stage map: LangGraph node name -> (stage_key, report_field).
+# The runner is the only place that knows how to interpret the
+# per-node report; the graph just emits the raw delta.
+_STAGE_MAP = {
+    "Market Analyst": ("market", "market_report"),
+    "Sentiment Analyst": ("sentiment", "sentiment_report"),
+    "News Analyst": ("news", "news_report"),
+    "Fundamentals Analyst": ("fundamentals", "fundamentals_report"),
+    "Bull Researcher": ("research", None),
+    "Bear Researcher": ("research", None),
+    "Research Manager": ("research", "investment_plan"),
+    "Trader": ("trader", "trader_investment_plan"),
+    "Aggressive Analyst": ("risk", None),
+    "Conservative Analyst": ("risk", None),
+    "Neutral Analyst": ("risk", None),
+}
+
+
+def _stage_summary_for_node(node_name: str, delta: dict):
+    """Return (stage_key, summary, excerpt) for analyst_completed, or (None,...) to skip."""
+    if node_name not in _STAGE_MAP:
+        return (None, None, None)
+    stage, report_field = _STAGE_MAP[node_name]
+    excerpt = None
+    if report_field:
+        excerpt = (delta or {}).get(report_field, "")
+        if excerpt and len(excerpt) > 200:
+            excerpt = excerpt[:200] + "\u2026"
+    return (stage, "completed", excerpt)
+
+
 def _format_traceback(exc: BaseException) -> str:
     """Render a compact, JSON-safe traceback string for inclusion in event payloads."""
     return "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
@@ -116,38 +147,15 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
 
         events.emit(rid, "run_started", {"ticker": run.ticker})
 
-        # Stage map: LangGraph node name -> (stage_key, report_field).
-        # The runner is the only place that knows how to interpret the
-        # per-node report; the graph just emits the raw delta.
-        _STAGE_MAP = {
-            "Market Analyst": ("market", "market_report"),
-            "Sentiment Analyst": ("sentiment", "sentiment_report"),
-            "News Analyst": ("news", "news_report"),
-            "Fundamentals Analyst": ("fundamentals", "fundamentals_report"),
-            "Bull Researcher": ("research", None),
-            "Bear Researcher": ("research", None),
-            "Research Manager": ("research", "investment_plan"),
-            "Trader": ("trader", "trader_investment_plan"),
-            "Aggressive Analyst": ("risk", None),
-            "Conservative Analyst": ("risk", None),
-            "Neutral Analyst": ("risk", None),
-        }
+        # Stage map is defined at module level; the local reference
+        # keeps it accessible from the nested ``cb`` closure.
 
         from web.server.callbacks import StreamingCallbackHandler
         handler = StreamingCallbackHandler(run_id=rid)
         graph = build_graph(callbacks=[handler])
 
-        def _stage_summary_for_node(node_name: str, delta: dict):
-            """Return (stage_key, summary, excerpt) for analyst_completed, or (None,...) to skip."""
-            if node_name not in _STAGE_MAP:
-                return (None, None, None)
-            stage, report_field = _STAGE_MAP[node_name]
-            excerpt = None
-            if report_field:
-                excerpt = (delta or {}).get(report_field, "")
-                if excerpt and len(excerpt) > 200:
-                    excerpt = excerpt[:200] + "\u2026"
-            return (stage, "completed", excerpt)
+        # _stage_summary_for_node is a module-level pure function used
+        # by the callback; module-level avoids rebuilding the closure.
 
         def cb(node_name: str, payload: dict) -> None:
             if db.get_run(rid).cancel_requested:
@@ -168,15 +176,15 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
                 events.emit(rid, node_name, payload)
 
         loop = asyncio.get_event_loop()
-        last_err = None
         trade_date = datetime.now(timezone.utc).date().isoformat()
 
         def _do_propagate():
             return graph.propagate(run.ticker, trade_date, event_callback=cb)
 
+        final_state = None
         for attempt in range(MAX_ATTEMPTS):
             try:
-                final = await loop.run_in_executor(None, _do_propagate)
+                final_state, final_signal = await loop.run_in_executor(None, _do_propagate)
                 break
             except _CancelSentinel:
                 db.mark_run_failed(rid, "cancelled")
@@ -187,7 +195,6 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
                 events.emit(rid, "run_failed", {"reason": "cancelled"})
                 return
             except Exception as e:
-                last_err = e
                 if detect_rate_limit(e) and attempt < MAX_ATTEMPTS - 1:
                     wait_s = compute_backoff(attempt, e, max_s=MAX_BACKOFF_S)
                     events.emit(rid, "tool_call_warning", {
@@ -222,7 +229,7 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
 
         # Emit the decision event before run_finished so the UI sees
         # them in chronological order.
-        decision = (final or {}).get("decision") or {}
+        decision = (final_state or {}).get("decision") or {}
         action = decision.get("action")
         target = decision.get("target")
         rationale = decision.get("rationale", "")
@@ -248,14 +255,14 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
         # Real duration + per-stage summary.
         duration_s = round(time.monotonic() - t_start, 2)
         summary_by_stage = {}
-        if final:
+        if final_state:
             for stage_key, field in (
                 ("market", "market_report"),
                 ("sentiment", "sentiment_report"),
                 ("news", "news_report"),
                 ("fundamentals", "fundamentals_report"),
             ):
-                excerpt = final.get(field) or ""
+                excerpt = final_state.get(field) or ""
                 if excerpt:
                     summary_by_stage[stage_key] = excerpt[:200]
         events.emit(rid, "run_finished", {

@@ -30,7 +30,6 @@ class FakeGraph:
 
     def propagate(self, ticker: str, trade_date: str, *, event_callback: Optional[Callable] = None):
         from web.server import events
-        from web.server.runner import _to_run_id
         # ScriptedRun uses sentinel run_id 0; the runner overrides
         raise NotImplementedError("Use FakeTradingAgents wrapper")
 
@@ -53,7 +52,7 @@ class FakeTradingAgents:
                 raise RateLimitError("simulated 429")
             if self._script.fail_after == node.name:
                 raise RuntimeError(f"simulated failure at {node.name}")
-        return self._script.final_state
+        return self._script.final_state, {"action": "HOLD"}
 
 
 def happy_path(ticker: str) -> ScriptedRun:
