@@ -6,6 +6,8 @@ import { useUi } from "../store/ui";
 describe("LiveEventStream", () => {
   it("renders bubbles in order, colors decision green/red", () => {
     useUi.setState({
+      focusedTicker: "T",
+      lastRunIdByTicker: { T: 1 },
       eventBuffer: [
         { v: 1, type: "analyst_thinking", ts: "t1", run_id: 1, data: { node: "Market Analyst" }, id: 1 },
         { v: 1, type: "decision", ts: "t2", run_id: 1, data: { action: "BUY", target: 260 }, id: 2 },
@@ -19,6 +21,8 @@ describe("LiveEventStream", () => {
 
   it("shows exception class and message on run_failed", () => {
     useUi.setState({
+      focusedTicker: "T",
+      lastRunIdByTicker: { T: 1 },
       eventBuffer: [
         {
           v: 1,
@@ -42,6 +46,8 @@ describe("LiveEventStream", () => {
 
   it("falls back to reason-only when exception class/message absent", () => {
     useUi.setState({
+      focusedTicker: "T",
+      lastRunIdByTicker: { T: 1 },
       eventBuffer: [
         {
           v: 1,
@@ -59,6 +65,8 @@ describe("LiveEventStream", () => {
 
   it("shows message on tool_call_warning", () => {
     useUi.setState({
+      focusedTicker: "T",
+      lastRunIdByTicker: { T: 1 },
       eventBuffer: [
         {
           v: 1,
@@ -78,6 +86,8 @@ describe("LiveEventStream", () => {
 
   it("shows node name on analyst_started", () => {
     useUi.setState({
+      focusedTicker: "T",
+      lastRunIdByTicker: { T: 1 },
       eventBuffer: [
         {
           v: 1,
@@ -104,6 +114,8 @@ describe("LiveEventStream", () => {
 
   it("falls back to stage on analyst_completed and appends summary", () => {
     useUi.setState({
+      focusedTicker: "T",
+      lastRunIdByTicker: { T: 1 },
       eventBuffer: [
         {
           v: 1,
@@ -119,5 +131,19 @@ describe("LiveEventStream", () => {
     expect(screen.getByTestId("event-40")).toHaveTextContent(
       /analyst_completed: market — bullish/
     );
+  });
+
+  it("renders only the focused run's events", () => {
+    useUi.setState({
+      focusedTicker: "NVDA",
+      lastRunIdByTicker: { NVDA: 1 },
+      eventBuffer: [
+        { v: 1, type: "analyst_thinking", ts: "t1", run_id: 1, data: { node: "NVDA fragment" }, id: 1 },
+        { v: 1, type: "analyst_thinking", ts: "t2", run_id: 2, data: { node: "AAPL fragment" }, id: 2 },
+      ],
+    });
+    render(<LiveEventStream />);
+    expect(screen.getByText(/NVDA fragment/)).toBeInTheDocument();
+    expect(screen.queryByText(/AAPL fragment/)).not.toBeInTheDocument();
   });
 });

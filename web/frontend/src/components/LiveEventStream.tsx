@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useUi } from "../store/ui";
+import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
 import type { WsEvent } from "../lib/events";
 
 const colorForType: Record<string, string> = {
@@ -51,7 +51,7 @@ const formatBubble: Record<string, Formatter> = {
 };
 
 export function LiveEventStream() {
-  const events = useUi((s) => s.eventBuffer);
+  const events = useFocusedRunEvents();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
