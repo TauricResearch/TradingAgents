@@ -170,3 +170,210 @@ def clear_ticker_data(ticker: str) -> None:
     cp = cache_dir() / "checkpoints" / f"{safe}.db"
     if cp.exists():
         cp.unlink()
+
+
+# ---- run directory helpers ----
+
+
+def run_id_for(ticker: str, started_at: datetime) -> str:
+    """Stable per-run identifier: ``TICKER:UTC_ISO_TIMESTAMP``."""
+    return f"{safe_ticker_component(ticker).upper()}:{utc_iso(started_at)}"
+
+
+def today_utc_iso() -> str:
+    """Today as a UTC ISO date (the framework's ``trade_date`` value)."""
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def create_run_dir(ticker: str, started_at: Optional[datetime] = None) -> dict:
+    """Create a fresh run dir + write initial run.json. Return the dir info.
+
+    The returned dict has keys: ``run_dir`` (Path), ``run_id`` (str),
+    ``slug`` (str), ``started_at_iso`` (str).
+    """
+    if started_at is None:
+        started_at = now_utc()
+    slug = slug_for_now(started_at)
+    td = ticker_dir(ticker)
+    run_dir = td / slug
+    # Race-avoidance: if a dir with this slug already exists (unlikely at
+    # second resolution but possible in tests), append a counter.
+    n = 1
+    while run_dir.exists():
+        run_dir = td / f"{slug}__{n}"
+        n += 1
+    run_dir.mkdir(parents=True)
+    (run_dir / "stages").mkdir()
+    run_id = run_id_for(ticker, started_at)
+    run_json = {
+        "id": run_id,
+        "ticker": safe_ticker_component(ticker).upper(),
+        "slug": run_dir.name,
+        "started_at": utc_iso(started_at),
+        "finished_at": None,
+        "status": "running",
+        "cancel_requested": False,
+        "decision_action": None,
+        "decision_target": None,
+        "decision_rationale": None,
+        "decision_confidence": None,
+        "idempotency_key": f"{ticker.upper()}:{started_at.date().isoformat()}",
+        "completed_stages": [],
+    }
+    write_json_atomic(run_dir / "run.json", run_json)
+    return {
+        "run_dir": run_dir,
+        "run_id": run_id,
+        "slug": run_dir.name,
+        "started_at_iso": run_json["started_at"],
+    }
+
+
+def read_run(run_id: str) -> Optional[dict]:
+    """Find and parse run.json for ``run_id``.
+
+    Walks all ticker dirs to locate the dir whose run.json's id matches.
+    Returns ``None`` if not found.
+    """
+    for td in data_dir().iterdir():
+        if not td.is_dir():
+            continue
+        for sd in td.iterdir():
+            if not sd.is_dir():
+                continue
+            rj = read_json(sd / "run.json")
+            if rj and rj.get("id") == run_id:
+                return rj
+    return None
+
+
+def read_run_dir(run_id: str) -> Optional[Path]:
+    """Return the directory Path for ``run_id`` (cheap; no JSON parse)."""
+    for td in data_dir().iterdir():
+        if not td.is_dir():
+            continue
+        for sd in td.iterdir():
+            if not sd.is_dir():
+                continue
+            rj = read_json(sd / "run.json")
+            if rj and rj.get("id") == run_id:
+                return sd
+    return None
+
+
+def list_ticker_runs(ticker: str, limit: int = 50) -> list[dict]:
+    """Return runs for a ticker, newest first (by started_at)."""
+    td = data_dir() / safe_ticker_component(ticker).upper()
+    if not td.exists():
+        return []
+    rows: list[dict] = []
+    for sd in td.iterdir():
+        if not sd.is_dir():
+            continue
+        rj = read_json(sd / "run.json")
+        if rj:
+            rows.append(rj)
+    rows.sort(key=lambda r: r.get("started_at") or "", reverse=True)
+    return rows[:limit]
+
+
+def find_resumable_run(ticker: str, today_iso: str) -> Optional[dict]:
+    """Return the partial run dir info for ``ticker`` started today (UTC).
+
+    "Partial" means ``status == "running"`` AND ``started_at``'s date is
+    ``today_iso``. Returns ``None`` if no such run exists.
+    """
+    td = data_dir() / safe_ticker_component(ticker).upper()
+    if not td.exists():
+        return None
+    for sd in td.iterdir():
+        if not sd.is_dir():
+            continue
+        rj = read_json(sd / "run.json")
+        if not rj:
+            continue
+        if rj.get("status") != "running":
+            continue
+        started_iso = rj.get("started_at") or ""
+        if not started_iso.startswith(today_iso):
+            continue
+        return {
+            "run_dir": sd,
+            "run_id": rj["id"],
+            "slug": sd.name,
+            "started_at_iso": started_iso,
+            "run_json": rj,
+        }
+    return None
+
+
+def mark_run_status(run_id: str, **fields) -> None:
+    """Update fields on run.json in place. Raises if the run is missing."""
+    rd = read_run_dir(run_id)
+    if rd is None:
+        raise KeyError(f"run not found: {run_id}")
+    rj = read_json(rd / "run.json") or {}
+    rj.update(fields)
+    write_json_atomic(rd / "run.json", rj)
+
+
+def mark_run_superseded(run_id: str) -> None:
+    """Used by force=true to retire today's partial before starting fresh."""
+    mark_run_status(run_id, status="superseded")
+
+
+def list_run_events(run_id: str) -> list[dict]:
+    rd = read_run_dir(run_id)
+    if rd is None:
+        return []
+    return read_jsonl(rd / "events.jsonl")
+
+
+def list_run_llm_calls(run_id: str) -> list[dict]:
+    rd = read_run_dir(run_id)
+    if rd is None:
+        return []
+    return read_jsonl(rd / "llm_calls.jsonl")
+
+
+def append_run_event(run_id: str, event_obj: dict) -> None:
+    rd = read_run_dir(run_id)
+    if rd is None:
+        raise KeyError(f"run not found: {run_id}")
+    append_jsonl(rd / "events.jsonl", event_obj)
+
+
+def append_run_llm_call(run_id: str, call_obj: dict) -> None:
+    rd = read_run_dir(run_id)
+    if rd is None:
+        raise KeyError(f"run not found: {run_id}")
+    append_jsonl(rd / "llm_calls.jsonl", call_obj)
+
+
+def write_stage(run_id: str, stage: str, stage_payload: dict) -> None:
+    """Write a single ``stages/{stage}.json`` atomically.
+
+    Also updates ``run.json.completed_stages`` to keep the denormalized
+    cache in sync (so a reader can list progress without walking
+    stages/).
+    """
+    rd = read_run_dir(run_id)
+    if rd is None:
+        raise KeyError(f"run not found: {run_id}")
+    write_json_atomic(rd / "stages" / f"{stage}.json", stage_payload)
+    rj = read_json(rd / "run.json") or {}
+    completed = list(rj.get("completed_stages") or [])
+    if stage not in completed:
+        completed.append(stage)
+        rj["completed_stages"] = completed
+        write_json_atomic(rd / "run.json", rj)
+
+
+def walk_data_dir() -> Iterable[Path]:
+    """Yield every ticker subdir under data/. Used by startup cleanup."""
+    dd = data_dir()
+    if not dd.exists():
+        return
+    for td in dd.iterdir():
+        if td.is_dir():
+            yield td
