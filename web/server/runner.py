@@ -153,9 +153,10 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
         # Stage map is defined at module level; the local reference
         # keeps it accessible from the nested ``cb`` closure.
 
-        from web.server.callbacks import StreamingCallbackHandler
-        handler = StreamingCallbackHandler(run_id=rid)
-        graph = build_graph(callbacks=[handler])
+        from web.server.callbacks import CaptureCallbackHandler, StreamingCallbackHandler
+        stream_handler = StreamingCallbackHandler(run_id=rid)
+        capture_handler = CaptureCallbackHandler(run_id=rid, ticker=run.ticker)
+        graph = build_graph(callbacks=[stream_handler, capture_handler])
 
         # _stage_summary_for_node is a module-level pure function used
         # by the callback; module-level avoids rebuilding the closure.
@@ -164,6 +165,7 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
             if db.get_run(rid).cancel_requested:
                 raise _CancelSentinel()
             if node_name == "node_entered":
+                capture_handler.current_node = payload.get("node", node_name)
                 events.emit(rid, "analyst_started", {"node": payload.get("node", node_name), **payload})
             elif node_name == "node_exited":
                 stage, summary, excerpt, full_text = _stage_summary_for_node(
