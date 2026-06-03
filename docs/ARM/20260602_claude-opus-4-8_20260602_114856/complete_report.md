@@ -978,7 +978,7 @@ My colleague makes the China risk sound like a ticking time bomb. Let me add the
 
 Let me be direct: the SoftBank "motivated seller" argument is the weakest point in my colleague's case, and I want to explain why.
 
-**SoftBank is not a passive financial investor looking for the exit.** SoftBank is ARM's strategic parent. Masa Son has publicly and repeatedly described ARM as central to his "300-year vision" for SoftBank's role in the AI revolution. He has specifically said that ARM is *not for sale* and that he regrets having sold it to Nvidia (which regulators blocked). 
+**SoftBank is not a passive financial investor looking for the exit.** SoftBank is ARM's strategic parent. Masa Son has publicly and repeatedly described ARM as central to his "300-year vision" for SoftBank's role in the AI revolution. He has specifically said that ARM is *not for sale* and that he regrets having sold it to Nvidia (which regulators blocked).
 
 SoftBank's incentive at $408 is not to sell ARM and collect a 13x gain. Their incentive is to **watch ARM become the foundational infrastructure layer of AI computing and grow to a trillion-dollar company**, at which point their stake is worth far more. Selling ARM at $433B market cap when you believe it's worth $1T+ is not rational profit-taking. It's leaving the winning trade early.
 
@@ -1012,13 +1012,13 @@ My colleague says Microsoft peaked at 40-60x forward earnings during its OS mono
 
 This is actually the most instructive part of the debate, because it reveals a critical historical blind spot.
 
-**What was Microsoft's growth rate at peak OS dominance?** Revenue was growing 15-20% annually. **ARM is growing at 22-24% annually and accelerating.** 
+**What was Microsoft's growth rate at peak OS dominance?** Revenue was growing 15-20% annually. **ARM is growing at 22-24% annually and accelerating.**
 
 **What was Microsoft's gross margin?** Around 70-75% for the software business. **ARM's gross margin is 97.5%.**
 
 **What was the total addressable market for Microsoft's OS?** PC shipments — a market that was already largely penetrated. **ARM's TAM is expanding into data center, automotive, AI acceleration, and IoT — markets that are early in their ARM penetration cycles.**
 
-So if Microsoft deserved 40-60x forward PE with slower growth, lower margins, and a more mature TAM — why is it unreasonable for ARM to command 2-3x that multiple with faster growth, higher margins, and an expanding TAM? 
+So if Microsoft deserved 40-60x forward PE with slower growth, lower margins, and a more mature TAM — why is it unreasonable for ARM to command 2-3x that multiple with faster growth, higher margins, and an expanding TAM?
 
 **The premium is not irrational. The premium is the market correctly identifying that ARM's current opportunity set is larger and more durable than Microsoft's was at its PC OS peak.**
 
@@ -1060,7 +1060,7 @@ Bull Analyst: # 🐂 Bull Final Argument — ARM Holdings (ARM) | Round 4
 
 ---
 
-Well. After three rounds of genuinely excellent sparring, my colleague has refined the bear case down to its sharpest edge. I respect the craftsmanship. But here's what I've noticed across every single round: **the bear keeps moving the goalposts**. 
+Well. After three rounds of genuinely excellent sparring, my colleague has refined the bear case down to its sharpest edge. I respect the craftsmanship. But here's what I've noticed across every single round: **the bear keeps moving the goalposts**.
 
 Round 1: "The valuation is absurd."
 Round 2: "The Nvidia catalyst is overstated."
@@ -1106,7 +1106,7 @@ Fair question. Here is the complete answer the bear didn't wait for.
 
 **ARM grew R&D 34% in FY2026 specifically because it is entering the data center and automotive markets at scale for the first time.** These are new platform investments — not maintenance spending on existing platforms. Neoverse V-series for AI inference, CSS for automotive, new Armv9 core families — these are *one-time platform creation costs* that, once completed, become the IP that generates royalties for 7-10 years.
 
-The bear's framing says: "R&D grew 34%, therefore it will keep growing." But that's not how technology platform investment cycles work. **Every major semiconductor IP development cycle shows the same pattern**: heavy upfront investment during platform creation, followed by relatively flat R&D as the platform matures and royalties compound. 
+The bear's framing says: "R&D grew 34%, therefore it will keep growing." But that's not how technology platform investment cycles work. **Every major semiconductor IP development cycle shows the same pattern**: heavy upfront investment during platform creation, followed by relatively flat R&D as the platform matures and royalties compound.
 
 Look at Qualcomm's R&D trajectory when it was building out the Snapdragon platform in the 2008-2012 period. Heavy investment. Then the platform matured, R&D growth slowed, and margins expanded dramatically as royalties scaled. **That is the template ARM is following — and my colleague is treating the investment phase as though it's a permanent steady state.**
 
@@ -1120,7 +1120,7 @@ My colleague made a clever argument: Vera is just a CPU companion to Nvidia GPUs
 
 **This argument is correct in the narrow and wrong in the important.**
 
-Yes, Vera is paired with Nvidia GPUs. But here's what the bear missed: **the AI data center IS the data center now.** The fastest-growing workload category in hyperscale infrastructure is AI training and inference. By 2028, AI workloads are projected to represent the majority of new data center compute deployments. 
+Yes, Vera is paired with Nvidia GPUs. But here's what the bear missed: **the AI data center IS the data center now.** The fastest-growing workload category in hyperscale infrastructure is AI training and inference. By 2028, AI workloads are projected to represent the majority of new data center compute deployments.
 
 When Nvidia builds its AI server CPU on ARM, ARM isn't just winning a niche. **ARM is winning the dominant architecture choice for the fastest-growing segment of data center capital expenditure on the planet.** The "companion CPU" framing understates this because it implies a secondary role. Vera's CPU role in AI racks is not secondary — it is the management, I/O, and general compute layer that makes the GPU cluster function.
 
@@ -1138,7 +1138,7 @@ Let me be surgical about where my colleague went wrong on China.
 
 **On ByteDance regulatory risk:** Here is the key distinction the bear glosses over. U.S. export controls on Huawei targeted physical chips (manufactured goods) and EDA software (American-origin technology). ARM's CPU architecture licensing is **British-origin IP** — ARM is headquartered in Cambridge, UK, and the IP is developed there. U.S. export control jurisdiction over British IP is a complex legal question that cuts directly against the bear's "EDA precedent proves it" argument. The Huawei EDA restrictions worked because EDA tools (Synopsys, Cadence) are American-origin. ARM's ISA is not.
 
-**On the incremental revenue risk:** My colleague argues that ByteDance and AI CPU growth are concentrated in the highest-risk category. But consider what would actually happen if U.S. restrictions did target ARM architecture licensing to China: **Chinese companies would have to switch to RISC-V**. This would take 3-5 years of painful software ecosystem migration. During that period, ARM revenues from China would decline gradually, not collapse. And the rest of ARM's royalty base — US, European, and non-China Asian markets — would be entirely unaffected and growing faster than ever. 
+**On the incremental revenue risk:** My colleague argues that ByteDance and AI CPU growth are concentrated in the highest-risk category. But consider what would actually happen if U.S. restrictions did target ARM architecture licensing to China: **Chinese companies would have to switch to RISC-V**. This would take 3-5 years of painful software ecosystem migration. During that period, ARM revenues from China would decline gradually, not collapse. And the rest of ARM's royalty base — US, European, and non-China Asian markets — would be entirely unaffected and growing faster than ever.
 
 The bear paints China risk as an existential threat. The actual scenario, even in the downside case, is a gradual revenue headwind in one geography while other geographies accelerate. **That's a manageable risk, not a thesis-killer.**
 
@@ -1152,7 +1152,7 @@ My colleague cited SoftBank's history of selling Alibaba, T-Mobile, and Uber. Th
 
 **The current situation is fundamentally different.** Vision Fund 2 is performing significantly better. SoftBank's balance sheet pressure has moderated substantially. And Masa Son has explicitly articulated — repeatedly, in shareholder letters and public statements — that ARM is the *cornerstone* of his AI superintelligence thesis. This isn't marketing language. SoftBank has been *acquiring* AI assets to cluster around ARM, not positioning for an exit.
 
-Moreover, the bear's concern requires SoftBank to sell enough stock to materially impact a $433B company. **At $408 per share, selling $5B worth of ARM stock represents roughly 12 million shares — less than 1.2% of total shares outstanding.** On typical daily volume of 4-6 million shares (and 20+ million on high-volume days), that block would be absorbed without disruption over a few weeks of routine secondary market activity. 
+Moreover, the bear's concern requires SoftBank to sell enough stock to materially impact a $433B company. **At $408 per share, selling $5B worth of ARM stock represents roughly 12 million shares — less than 1.2% of total shares outstanding.** On typical daily volume of 4-6 million shares (and 20+ million on high-volume days), that block would be absorbed without disruption over a few weeks of routine secondary market activity.
 
 The supply overhang argument requires SoftBank to make a strategic error — selling the crown jewel asset at the beginning of the AI royalty cycle — while simultaneously experiencing none of the balance sheet distress that drove previous asset sales. The probability of that scenario is low.
 
@@ -1270,7 +1270,7 @@ My colleague invoked Buffett on SBC. Fair citation. Buffett is right that SBC is
 Let's use real numbers. ARM's diluted share count over the past three fiscal years:
 
 - FY2024: ~1.036 billion diluted shares
-- FY2025: ~1.046 billion diluted shares  
+- FY2025: ~1.046 billion diluted shares
 - FY2026: ~1.053 billion diluted shares
 
 That is **0.8% annual dilution** — not the alarming figure the bear implies when they say "SBC exceeds net income." Yes, the *dollar value* of SBC ($1.052B) is large. But the *dilution impact* on a per-share basis is less than 1% annually because ARM's stock price has risen dramatically, making each new share granted worth more dollars even though fewer shares are being granted.
@@ -1563,7 +1563,7 @@ Here is what "size appropriately for a 3.41 beta stock" actually means as a port
 
 **If ARM is 3% of your portfolio (sized at 1/beta relative to a 10% normal position), a 50% drawdown in ARM reduces your portfolio by 1.5%.** That is a manageable single-position loss in a diversified portfolio. It is not "portfolio-destroying." It is the cost of maintaining exposure to a structural winner through the volatile period.
 
-**And here's the asymmetry the bear refuses to engage with:** if ARM doubles from $408 to $816 over 24 months — which is entirely within the range of possibilities given the compounding trajectory — your 3% portfolio position becomes 6%, delivering 3 percentage points of absolute portfolio outperformance. 
+**And here's the asymmetry the bear refuses to engage with:** if ARM doubles from $408 to $816 over 24 months — which is entirely within the range of possibilities given the compounding trajectory — your 3% portfolio position becomes 6%, delivering 3 percentage points of absolute portfolio outperformance.
 
 The bear frames "small position size = low conviction." But appropriate position sizing for a high-beta name is not a signal of doubt — it is the correct application of Kelly Criterion to a high-variance, positive-expected-value bet. **The expected value calculation is what matters. Not the position size in isolation.**
 
@@ -1607,7 +1607,7 @@ Let me give you the most honest version of both cases I can construct.
 
 **The honest resolution:** Both cases contain truth. The stock is extended near-term. The fundamental thesis is intact and strengthening. The right answer for most investors is **not a binary BUY or SELL** — it's a position-sized HOLD for current holders and a scaled-entry strategy for new buyers, with the most aggressive buying reserved for pullbacks to $315 (10 EMA) or $258 (Bollinger Middle Band).
 
-But here's what I refuse to accept: that a business growing revenue at 22%+ with 97.5% gross margins, a near-monopoly on CPU architecture, five independent hyperscaler validations, a CEO pulling forward revenue targets, $3.14B in net cash, and $1.524B in operating cash flow should be **sold** because the TTM PE is high and the chart is overextended. 
+But here's what I refuse to accept: that a business growing revenue at 22%+ with 97.5% gross margins, a near-monopoly on CPU architecture, five independent hyperscaler validations, a CEO pulling forward revenue targets, $3.14B in net cash, and $1.524B in operating cash flow should be **sold** because the TTM PE is high and the chart is overextended.
 
 **That is not investing. That is letting short-term price behavior override long-term business analysis.**
 
@@ -1730,7 +1730,7 @@ Secondary offerings and block sales at these price levels would create **enormou
 
 Let me put ARM's current valuation in the starkest possible terms.
 
-ARM's market cap is **$433 billion**. 
+ARM's market cap is **$433 billion**.
 
 For context:
 - ARM generated **$4.92 billion in revenue** in FY2026
@@ -1748,7 +1748,7 @@ To justify this valuation on a DCF basis with a reasonable discount rate, you'd 
 
 #### ⚡ High Beta Is Not Your Friend at These Levels
 
-The bull framing talks about ARM's beta of 3.41 as though it's a feature — evidence of exciting upside. Let me reframe that: **a beta of 3.41 means that if the Nasdaq corrects 20%, ARM corrects approximately 68%.** 
+The bull framing talks about ARM's beta of 3.41 as though it's a feature — evidence of exciting upside. Let me reframe that: **a beta of 3.41 means that if the Nasdaq corrects 20%, ARM corrects approximately 68%.**
 
 In a world with:
 - Iran War-driven inflation maintaining pressure on the Fed
@@ -1778,7 +1778,7 @@ If ARM is Microsoft, it's Microsoft being priced as though it had already won th
 
 Look, I'm not saying ARM is a bad company. The business is genuinely extraordinary. The IP model is exceptional. The long-term thesis has real merit.
 
-**But there is a massive difference between a great company and a great stock at a given price.** 
+**But there is a massive difference between a great company and a great stock at a given price.**
 
 At $408, with a 471x TTM PE, 132x forward PE (built on heroic earnings assumptions), SBC exceeding net income, operating margin compression, a stock that doubled in 20 trading days, RSI at 82, price breaching Bollinger Bands, and a beta of 3.41 — **ARM is one of the most dangerous risk/reward propositions in the current market.**
 
@@ -1812,7 +1812,7 @@ My colleague's most seductive move was invoking Nvidia's 2023 parabolic run as p
 
 **What was Nvidia's PE ratio when technicians were calling it overbought in mid-2023?** It was trading around 60-80x forward earnings. Elevated, yes. But Nvidia was also generating actual earnings acceleration in real time — data center revenue was doubling quarter-over-quarter as hyperscalers rushed to buy H100s.
 
-**What is ARM's forward PE right now?** 132x. On forward EPS estimates that require a 256% earnings expansion. 
+**What is ARM's forward PE right now?** 132x. On forward EPS estimates that require a 256% earnings expansion.
 
 The comparison the bull is drawing requires us to believe these situations are equivalent. They are not. Nvidia in 2023 was expensive but earnings were *already* exploding. ARM in 2026 is more expensive, on a *projected* earnings explosion that has not yet materialized in the net income line. Nvidia was a momentum trade with current-period earnings validation. ARM is a momentum trade on *future* earnings that require a cost structure transformation that has not yet begun.
 
@@ -1836,7 +1836,7 @@ If R&D grows at even half of FY2026's pace for two more years, you're at $4.5B+ 
 
 **Problem Two: SBC Doesn't Disappear From the Math.**
 
-My colleague generously conceded the SBC issue while pivoting to operating cash flow. But here's the thing: SBC of $1.052B annually is not a static figure. It grows with headcount, it grows with revenue targets, and it grows with stock price (because options are repriced and new grants are issued at higher strike prices). 
+My colleague generously conceded the SBC issue while pivoting to operating cash flow. But here's the thing: SBC of $1.052B annually is not a static figure. It grows with headcount, it grows with revenue targets, and it grows with stock price (because options are repriced and new grants are issued at higher strike prices).
 
 At a $408 stock price, ARM's new equity grants are larger in dollar terms per option than they were at $200. The SBC burden, if anything, *increases* as the stock price increases. This is a compounding dilution mechanism, not a one-time charge.
 
@@ -1986,7 +1986,7 @@ My colleague claims that adjusting for SBC when calculating economic cash flow c
 
 **Diluted share count reflects *existing* dilution at a moment in time — shares currently outstanding plus in-the-money options and restricted units.** It does not reflect the *ongoing future dilution* from new grants being made every year. SBC of $1.052 billion annually means ARM is granting new equity — new options, new RSUs — every single year. Some of those grants aren't yet in-the-money and don't show up in diluted share count today. But they will. They represent a future claim on ARM's equity that diluted EPS today doesn't fully capture.
 
-**The correct treatment, which Warren Buffett has articulated for decades, is to treat SBC as a real economic cost.** Berkshire's letters are explicit: "If options aren't a form of compensation, what are they? If compensation isn't an expense, what is it? And if expenses shouldn't go into the calculation of earnings, where in the world should they go?" 
+**The correct treatment, which Warren Buffett has articulated for decades, is to treat SBC as a real economic cost.** Berkshire's letters are explicit: "If options aren't a form of compensation, what are they? If compensation isn't an expense, what is it? And if expenses shouldn't go into the calculation of earnings, where in the world should they go?"
 
 When SBC exceeds net income — as it does at ARM ($1.052B SBC vs. $904M net income) — what you have is a company that is, on an economic basis, *paying its employees more than it earns*. The gap is plugged by issuing equity to shareholders at an ongoing dilutive cost. This is not theoretical. This is why ARM's stockholders' equity grows more slowly than retained earnings alone would suggest.
 
@@ -2014,7 +2014,7 @@ My colleague invoked Qualcomm's 2008-2012 R&D cycle as a template: heavy investm
 
 **Let's look at what actually happened to Qualcomm's margins after the Snapdragon platform matured.** R&D as a percentage of revenue *stayed elevated* throughout Qualcomm's high-growth phase because — surprise — once you build Snapdragon, you have to build the next Snapdragon, and the one after that. The competitive cadence of the semiconductor industry requires continuous investment cycles. There is no "build once, harvest forever" in advanced CPU design.
 
-ARM is entering **three new markets simultaneously** — data center, automotive, and AI edge — each requiring distinct engineering teams, distinct IP development, and distinct certification/safety processes (especially automotive). The bull is arguing that all three of these platform investments will complete simultaneously and R&D will plateau to $3.5B. 
+ARM is entering **three new markets simultaneously** — data center, automotive, and AI edge — each requiring distinct engineering teams, distinct IP development, and distinct certification/safety processes (especially automotive). The bull is arguing that all three of these platform investments will complete simultaneously and R&D will plateau to $3.5B.
 
 **The Qualcomm analogy actually illustrates the opposite: platform companies in competitive markets don't plateau their R&D. They redirect it from one generation to the next.** The only way ARM's R&D plateaus is if ARM stops innovating — which would be exactly the kind of strategic vulnerability that makes RISC-V and x86 alternatives viable.
 
@@ -2173,7 +2173,7 @@ My colleague's most sophisticated defensive move was showing SBC declining as a 
 
 **The percentage is declining because the stock price is rising dramatically.** Here's the mechanism: SBC grants are denominated in shares, not dollars. When ARM was at $100-150, each RSU granted was worth $100-150. When ARM is at $408, each RSU granted is worth $408. **ARM doesn't need to grant more shares to maintain the same dollar-value compensation package.** So yes, the share dilution rate (0.8% annually) looks modest — because the stock has tripled and each share is worth three times as much.
 
-But here's the problem with this being celebratory: **it means ARM's SBC dollar burden tracks the stock price.** When the stock is at $408, new grants to retain top AI engineers are being issued at $408 strike prices. If the stock corrects to $258 — the bull's own DCF target — those options are underwater. ARM then faces a talent retention crisis and must issue *more* shares (at lower prices) to maintain competitive compensation. 
+But here's the problem with this being celebratory: **it means ARM's SBC dollar burden tracks the stock price.** When the stock is at $408, new grants to retain top AI engineers are being issued at $408 strike prices. If the stock corrects to $258 — the bull's own DCF target — those options are underwater. ARM then faces a talent retention crisis and must issue *more* shares (at lower prices) to maintain competitive compensation.
 
 **SBC as a percentage of revenue is a misleading metric precisely when a stock has just parabolicly doubled.** The real metric is SBC as a percentage of economic earnings — and that ratio has gotten *worse*, not better, because economic earnings (operating cash flow minus SBC) has improved at a slower rate than the dollar value of equity grants.
 
@@ -2201,7 +2201,7 @@ I have one question. **If the teams are built and the platforms are complete, wh
 
 ARM has not issued guidance suggesting R&D growth will slow meaningfully in FY2027. Management has not communicated a plateau. The Q4 FY2026 earnings call did not include a commitment to R&D cost discipline. In fact, with automotive compute requiring ISO 26262 functional safety certification (a multi-year, expensive validation process), with data center Neoverse requiring continuous competitive updates against Intel and AMD's roadmaps, and with the Armv10 architecture already in development — **the R&D pipeline is full, not winding down.**
 
-The bull's "harvest phase" narrative is a future projection with no supporting management commentary, no precedent in ARM's history, and no structural logic given the competitive environment ARM is entering. It is a story about what *should* happen in an idealized world where ARM stops having to compete to maintain its position. 
+The bull's "harvest phase" narrative is a future projection with no supporting management commentary, no precedent in ARM's history, and no structural logic given the competitive environment ARM is entering. It is a story about what *should* happen in an idealized world where ARM stops having to compete to maintain its position.
 
 **ARM's moat doesn't maintain itself for free. Every dollar of royalty advantage has to be defended with R&D dollars. The bull wants operating leverage without the cost structure discipline that creates it.**
 
@@ -2213,7 +2213,7 @@ My colleague generously stress-tested the China downside scenario in Round 6 and
 
 Let me apply this logic with the correct mathematical framework.
 
-A 40% correction from $408 is **$163 per share of value destruction**. On an investment of $408, you are permanently losing 40% of your capital even in the "survivable" scenario — before the stock recovers. 
+A 40% correction from $408 is **$163 per share of value destruction**. On an investment of $408, you are permanently losing 40% of your capital even in the "survivable" scenario — before the stock recovers.
 
 But here's what the bull misses: **the recovery is not guaranteed to happen at current multiples.** If China restrictions materialize and impair earnings by 50% for 2 years, the market doesn't simply wait patiently at $245 for the earnings to recover. It re-rates the multiple. A company that just had 50% of its earnings impaired by geopolitical action is no longer deserving of 132x forward PE. The market reprices it at 80-100x forward PE *on the impaired earnings base*. That's not a $245 stock. That's a $150-180 stock.
 
@@ -2317,7 +2317,7 @@ Let me read it back to you one more time, because it deserves to be the opening 
 
 > *"Total Enterprise Value: ~$140-142B"*
 
-That's the bull's own 10-year DCF. Their own growth assumptions. Their own margin assumptions. Their own discount rate. **$140-142 billion enterprise value against a $433 billion market cap.** 
+That's the bull's own 10-year DCF. Their own growth assumptions. Their own margin assumptions. Their own discount rate. **$140-142 billion enterprise value against a $433 billion market cap.**
 
 The stock is trading at **3x the bull's own 10-year DCF.**
 
@@ -2386,7 +2386,7 @@ My colleague aggressively attacked my Graviton royalty estimate as "deliberately
 
 ARM does not publicly disclose per-chip royalty rates. The bull's "$2-10 per chip" range is self-constructed. But ARM's own 20-F filings disclose that **average royalty rate per chip industry-wide was approximately $0.10-$0.12 for the broader shipment mix in FY2026**. Premium chips — yes — command more. But here's the math problem: ARM shipped approximately **30 billion chips annually** in its reporting base. At $4.92B total revenue (including licensing fees, not just royalties), and with licensing fees representing roughly 40% of revenue (~$2B), royalties were approximately **$2.9B on ~15B royalty-bearing chip shipments** — implying an average royalty of approximately **$0.19 per chip**.
 
-Even if server chips command 20-30x the average royalty — call it $4-6 per chip — and there are genuinely 60 million Graviton units annually, that's $240-360M from AWS Graviton. Add Microsoft and Google, total data center is plausibly **$400-600M annually**. 
+Even if server chips command 20-30x the average royalty — call it $4-6 per chip — and there are genuinely 60 million Graviton units annually, that's $240-360M from AWS Graviton. Add Microsoft and Google, total data center is plausibly **$400-600M annually**.
 
 I'll concede: my earlier $80-150M estimate was too conservative. The $400-600M range may be accurate for the current data center royalty base. **But here's what the bull does with that concession that you need to catch:** they present $400-600M as transformative for a $4.92B revenue business. It's approximately 10% of revenue. It's growing at 40%. In three years at 40% growth, it's $800M-$1.2B — roughly 15-18% of projected $8B revenue. Meaningful, yes. **A paradigm shift that justifies tripling the stock? No.**
 
@@ -2418,7 +2418,7 @@ The structural lag is already in the stock. **The bull is using a real analytica
 
 My colleague introduced a genuinely novel argument: ARM's IP is British-origin and may fall outside U.S. export control jurisdiction. In Round 9, I want to bury this argument with a specific fact that renders it moot.
 
-**Nvidia is an American company.** When Nvidia builds Vera on ARM architecture, and Vera is used in servers shipped to Chinese companies, the U.S. government has full jurisdiction over Nvidia's end-product. The export control doesn't need to target ARM's British IP licensing. It targets **Nvidia's chip exports** — which are definitively American-origin goods. 
+**Nvidia is an American company.** When Nvidia builds Vera on ARM architecture, and Vera is used in servers shipped to Chinese companies, the U.S. government has full jurisdiction over Nvidia's end-product. The export control doesn't need to target ARM's British IP licensing. It targets **Nvidia's chip exports** — which are definitively American-origin goods.
 
 The same applies to TSMC-manufactured ARM-licensed chips: if the manufacturing involves any U.S. equipment or software (which virtually all advanced chip manufacturing does — ASML EUV scanners use U.S. components, Synopsys EDA tools are American), the U.S. Foreign Direct Product Rule applies. **ARM's British incorporation is irrelevant when every chip using ARM architecture is manufactured with American tools on American-adjacent process technology.**
 
@@ -2464,7 +2464,7 @@ Where:
 
 Kelly fraction = (2.0 × 0.60 - 0.40) / 2.0 = (1.20 - 0.40) / 2.0 = **0.80 / 2.0 = 0.40 = 40%**
 
-A 40% Kelly fraction means investing 40% of your portfolio in ARM. But wait — the bull recommends 3% position size (1/beta). **There is a 37-percentage-point gap between what Kelly says to do and what the bull actually recommends.** 
+A 40% Kelly fraction means investing 40% of your portfolio in ARM. But wait — the bull recommends 3% position size (1/beta). **There is a 37-percentage-point gap between what Kelly says to do and what the bull actually recommends.**
 
 Half-Kelly (a common conservative adjustment) gives 20%. The bull recommends 3%. The practical recommendation is 15-17 percentage points below even half-Kelly. **The bull's own position sizing recommendation implies a probability of success far lower than their rhetoric suggests.** If you only size at 3%, Kelly implies you actually believe the win probability is quite low — consistent with the bear's assessment, not the bull's stated confidence.
 

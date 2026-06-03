@@ -468,7 +468,7 @@ The distinction matters enormously. The bull has spent this entire debate confla
 
 LRCX at $317 is asking you to pay:
 - **63x trailing earnings** in a cyclical business
-- **77x free cash flow** with FCF declining for three consecutive quarters  
+- **77x free cash flow** with FCF declining for three consecutive quarters
 - **A $418 billion market cap** for a company whose largest market has a structural regulatory threat
 - **A 19.5% premium to the 50-day SMA** after a parabolic 8-week sprint
 - **In a macro environment** featuring geopolitical conflict, potential rate hikes, and AI capex cycle maturation
@@ -496,7 +496,7 @@ Bear Analyst: # 🐻 LRCX Bear Closing Strike: The Bull Just Built You a Beautif
 
 ---
 
-Alright. I've listened carefully to every word of that bull rebuttal, and I have to say — it was impressive. The exit conditions were a genuine improvement. The AMEC/NAURA engineering response was substantive. The Cisco vs. Amazon framework was intellectually honest. My colleague is a formidable bull. 
+Alright. I've listened carefully to every word of that bull rebuttal, and I have to say — it was impressive. The exit conditions were a genuine improvement. The AMEC/NAURA engineering response was substantive. The Cisco vs. Amazon framework was intellectually honest. My colleague is a formidable bull.
 
 But here's what I noticed: **the bull's most polished arguments are precisely where the most dangerous assumptions are buried.** And in this final round, I'm going to dig them out — one by one — because the investors reading this debate deserve to see what's underneath the sophistication.
 
@@ -550,7 +550,7 @@ The bull's engineering argument about AMEC and NAURA was genuinely strong. Leadi
 
 But here's what the bull's argument misses: **the question isn't whether AMEC can replace LRCX at TSMC's N2 node today. The question is whether Chinese domestic fabs — not TSMC — can progressively reduce their LRCX dependence over a 3-5 year horizon.**
 
-TSMC's decisions are irrelevant to China revenue risk. TSMC is in Taiwan and faces no export control constraints on Lam equipment. **The China revenue that's at risk is CXMT, YMTC, SMIC, and Hua Hong** — Chinese domestic chipmakers who are under active restriction pressure and who have strong nationalist policy incentives to adopt domestic equipment alternatives even if they sacrifice some performance. 
+TSMC's decisions are irrelevant to China revenue risk. TSMC is in Taiwan and faces no export control constraints on Lam equipment. **The China revenue that's at risk is CXMT, YMTC, SMIC, and Hua Hong** — Chinese domestic chipmakers who are under active restriction pressure and who have strong nationalist policy incentives to adopt domestic equipment alternatives even if they sacrifice some performance.
 
 CXMT just brought DRAM production online. YMTC has been building out NAND capacity using permitted tools. **These companies are not choosing between LRCX and AMEC based purely on technical merit — they're choosing under government pressure to localize the supply chain.** The performance gap between AMEC and LRCX at mature nodes has been closing, not widening. And for applications where 90% of the technical performance is sufficient — which covers most of China's accessible market — **"close enough" wins when the alternative is geopolitical exposure.**
 
@@ -624,7 +624,7 @@ I'll accept this completely. **And here's why symmetric correlation analysis at 
 
 At a trough — when LRCX was at $199 in March or $81.95 at its 52-week low — correlated positive catalysts were underpriced. Every incremental piece of good news pulled the correlated chain upward: HBM shortage → Micron capex → fab equipment orders → LRCX bookings. The correlation was *working in your favor* from an undervalued starting point.
 
-At current prices — after the correlated positive catalyst chain has fully fired and driven a 278% gain — **the symmetric principle implies that the correlated downside risks are now the underpriced side of the distribution.** The positive catalysts are already reflected in the $317 price. The correlated negative risks — export controls, hyperscaler moderation, earnings miss — are not yet reflected because none of them have materialized. 
+At current prices — after the correlated positive catalyst chain has fully fired and driven a 278% gain — **the symmetric principle implies that the correlated downside risks are now the underpriced side of the distribution.** The positive catalysts are already reflected in the $317 price. The correlated negative risks — export controls, hyperscaler moderation, earnings miss — are not yet reflected because none of them have materialized.
 
 Symmetric correlation analysis at a peak says: the direction of the asymmetric risk has flipped. **You benefit from correlated upside at troughs. You're exposed to correlated downside at peaks.** The bull's "it works both ways" argument actually validates selling at current prices if you accept the principle seriously.
 
@@ -720,7 +720,7 @@ Let me go through this precisely, because we are in the final round and every wo
 
 ## 🎯 Fault Line 1: The Exit Conditions — The Bull's Symmetric Argument Proves My Case
 
-The bull's response to my exit condition critique was clever: *"If my exit conditions can't execute cleanly because the stock gaps, then your re-entry target has the same problem."* 
+The bull's response to my exit condition critique was clever: *"If my exit conditions can't execute cleanly because the stock gaps, then your re-entry target has the same problem."*
 
 I'll accept that symmetry completely. **And here's why it favors selling today rather than holding.**
 

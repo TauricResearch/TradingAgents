@@ -451,7 +451,7 @@ The bear ran a calculation I want to examine very carefully: *"At $317 stock pri
 
 **It requires that the next trough produces EPS of $3.50 — essentially reverting to FY2024 levels.** But here's the structural question the bear never asked: *why did FY2024 trough at $2.90?*
 
-The FY2024 trough was driven by **NAND memory overcorrection** — a supply glut from consumer electronics demand that collapsed post-pandemic. NAND capex went from record highs to near-zero almost overnight because Samsung and Micron had massively overbuilt for a consumer demand wave that didn't materialize. That's what drove the $2.90 EPS. 
+The FY2024 trough was driven by **NAND memory overcorrection** — a supply glut from consumer electronics demand that collapsed post-pandemic. NAND capex went from record highs to near-zero almost overnight because Samsung and Micron had massively overbuilt for a consumer demand wave that didn't materialize. That's what drove the $2.90 EPS.
 
 Now ask: **What's driving the current cycle?** It's not consumer NAND. It's HBM and advanced logic for AI accelerators — funded by hyperscaler multi-year capital commitments. If the next cycle correction is more moderate than FY2024 — because the customer base is structurally different and the demand floor is higher — then trough EPS might be $4.00-$4.50, not $3.50. At $317 and $4.25 trough EPS, you're at 74x trough earnings. Still elevated, yes. But the bear's 90x trough calculation relies on a trough as deep as FY2024, which required a once-in-a-decade NAND supply catastrophe to create. **The bear is using a historically anomalous trough to define the forward distribution. That's not conservative analysis — it's selecting the worst historical data point as the base case.**
 
@@ -463,7 +463,7 @@ The bear made a specific and sophisticated point: Chinese domestic equipment man
 
 I want to engage with this seriously, because it's the bear's strongest new argument in this final round.
 
-AMEC and NAURA are real companies making real progress. But here's what the bear's substitution thesis glosses over. **Plasma etch at leading-edge nodes isn't a single technology — it's a stack of interdependent precision systems** involving plasma chemistry, RF power delivery, chamber materials, process recipe libraries, and application-specific customization developed through thousands of customer fab trials. AMEC's ICP etch tools work at mature nodes. They have not demonstrated competitive performance at sub-5nm logic or HBM stack processes where etch depth uniformity must be controlled at the atomic layer. 
+AMEC and NAURA are real companies making real progress. But here's what the bear's substitution thesis glosses over. **Plasma etch at leading-edge nodes isn't a single technology — it's a stack of interdependent precision systems** involving plasma chemistry, RF power delivery, chamber materials, process recipe libraries, and application-specific customization developed through thousands of customer fab trials. AMEC's ICP etch tools work at mature nodes. They have not demonstrated competitive performance at sub-5nm logic or HBM stack processes where etch depth uniformity must be controlled at the atomic layer.
 
 How do I know this? Because TSMC, Samsung, and SK Hynix — companies with unlimited capital and strong incentives to diversify their supply chains — are **still buying Lam Research tools for their most advanced nodes.** These are not unsophisticated customers. If AMEC or NAURA could credibly replace LRCX at leading-edge, they would have already. The fact that they haven't — despite years of geopolitical motivation to find alternatives — is the most powerful data point about LRCX's actual moat. **The customers themselves are the proof. The bear's substitution risk requires TSMC to adopt tools it has so far declined to adopt.**
 
@@ -489,7 +489,7 @@ If the bear genuinely believes the next trough brings EPS to $3.50, their re-ent
 
 Let me close the FCF debate with one clean observation.
 
-The bear's Q3 FCF argument — that $810 million versus $1.59 billion in Q1 represents "declining FCF trajectory" — would be devastating if it were structural. But look at the driver: **a $875 million working capital drawdown in a single quarter.** That's inventory and receivables building simultaneously because LRCX is ramping to meet surging orders. 
+The bear's Q3 FCF argument — that $810 million versus $1.59 billion in Q1 represents "declining FCF trajectory" — would be devastating if it were structural. But look at the driver: **a $875 million working capital drawdown in a single quarter.** That's inventory and receivables building simultaneously because LRCX is ramping to meet surging orders.
 
 You know what companies look like when they're NOT ramping to meet demand? Their inventory is declining and their receivables are shrinking. **That's what LRCX looked like in FY2024 — the bear's own preferred trough scenario.** Working capital expansion is the opposite of a trough signal. It's a ramp signal. The bear has read a demand-surge indicator as a distress indicator. The data tells the opposite story from the bear's interpretation.
 
@@ -511,7 +511,7 @@ And on the bear's "distribution fingerprint" technical argument — the MACD his
 
 The bear offered an alternative interpretation of OTM put selling — institutional distribution at elevated prices. They called it "ambiguous." I want to add one specific piece of evidence that resolves some of that ambiguity.
 
-If sophisticated institutions were using covered put-selling as an exit strategy — monetizing longs they intended to reduce — you would expect to see **increasing short interest alongside the unusual put activity.** Short interest increases as institutions reduce exposure and potentially initiate short positions. Our research data shows **zero bearish signals on StockTwits, no institutional put-buying alerts, and no visible short-selling pressure indicators.** 
+If sophisticated institutions were using covered put-selling as an exit strategy — monetizing longs they intended to reduce — you would expect to see **increasing short interest alongside the unusual put activity.** Short interest increases as institutions reduce exposure and potentially initiate short positions. Our research data shows **zero bearish signals on StockTwits, no institutional put-buying alerts, and no visible short-selling pressure indicators.**
 
 The absence of short interest building alongside the put-selling activity is inconsistent with the distribution interpretation. Institutions planning a gradual exit from a 2-million-share long position don't just sell puts for a few hundred thousand dollars of premium income. They also start reducing their long position — which would show up in short interest data and borrow rates. **The bear's distribution narrative requires visible evidence of exit positioning that simply isn't present in the data.**
 

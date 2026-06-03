@@ -28,7 +28,7 @@ My colleague keeps pointing to the PEG ratio of 1.36x like it's a safety blanket
 
 **The Forward P/E of 69.4x is built on a house of cards.** Here's why:
 
-Intel's Forward EPS of $1.55 represents an enormous leap from TTM EPS of **-$0.60**. That's not a recovery — that's a *projection.* And Intel has a demonstrated recent history of catastrophically missing its own projections. Remember, this is the same company that just posted **-$3.73B net loss in Q1 2026 alone**, including $4.03B in write-offs. 
+Intel's Forward EPS of $1.55 represents an enormous leap from TTM EPS of **-$0.60**. That's not a recovery — that's a *projection.* And Intel has a demonstrated recent history of catastrophically missing its own projections. Remember, this is the same company that just posted **-$3.73B net loss in Q1 2026 alone**, including $4.03B in write-offs.
 
 The bull says "strip out the non-cash charges." Fine — even normalized, Q1 2026 shows approximately **-$589M in underlying losses.** To get from -$589M quarterly normalized losses to $1.55 EPS annually requires Intel to swing roughly **$8-9 billion in annual earnings** over the next three quarters. That's not a recovery trajectory. That's a fantasy projection that the market is currently pricing as gospel.
 
@@ -41,12 +41,12 @@ And if Intel misses that $1.55 target — even partially — at a 69.4x forward 
 I'll give the bull this: three consecutive quarters of positive operating income is a real data point. I'm not going to pretend it isn't. But let's put those numbers in context:
 
 - Q3 2025: $858M operating income
-- Q4 2025: $550M operating income  
+- Q4 2025: $550M operating income
 - Q1 2026: $934M operating income
 
 **Total revenue across these three quarters: ~$40.9 billion.**
 
-That's a collective operating margin of roughly **5.7%** on one of the most capital-intensive businesses in the world. For comparison, Nvidia's operating margin is running north of **60%.** AMD is generating operating margins around **20-25%.** 
+That's a collective operating margin of roughly **5.7%** on one of the most capital-intensive businesses in the world. For comparison, Nvidia's operating margin is running north of **60%.** AMD is generating operating margins around **20-25%.**
 
 Intel is celebrating a 5-6% operating margin like it's a triumph. And technically, versus the -$18.8B net loss disaster of 2024, it *is* an improvement. But it's improvement from catastrophic to merely poor. **You're not buying a thriving business — you're buying a business that has stopped actively destroying itself.**
 
@@ -56,7 +56,7 @@ And notice what the bull glosses over entirely: **Q4 2025's operating income DEC
 
 ## 🩸 Free Cash Flow: The Business Is Still Hemorrhaging Cash
 
-Let me be blunt about something the bull dances around: **Intel burned -$2.54B in free cash flow in just Q1 2026 alone.** 
+Let me be blunt about something the bull dances around: **Intel burned -$2.54B in free cash flow in just Q1 2026 alone.**
 
 The annual improvement story from -$15.7B to -$4.9B is real — but look at what happened in Q1 2026: CapEx re-accelerated to **$3.636B** and operating cash flow cratered to just **$1.096B**. We're back to burning $2.5B per quarter.
 
@@ -86,11 +86,11 @@ Intel is not competing for AI market share from a position of strength. **They'r
 
 The bull dismisses Nvidia's RTX Spark PC entry as a "watch item." I think that fundamentally misunderstands how platform transitions work.
 
-Intel's **Client Computing Group (CCG) has been the company's profit engine for decades.** Even today, as the data center business struggles, PC chips provide the recurring, high-margin revenue that funds Intel's R&D. 
+Intel's **Client Computing Group (CCG) has been the company's profit engine for decades.** Even today, as the data center business struggles, PC chips provide the recurring, high-margin revenue that funds Intel's R&D.
 
 Now consider what Nvidia bringing the RTX Spark to PCs actually means:
 - Nvidia has the **best brand in gaming and AI acceleration**
-- Nvidia has the **best driver software ecosystem** 
+- Nvidia has the **best driver software ecosystem**
 - Nvidia's RTX architecture has **hardware AI acceleration features** (Tensor cores) that are already in millions of enthusiast PCs
 - OEMs are already salivating at "AI PC" differentiation they can market
 
@@ -143,7 +143,7 @@ Intel's IDM 2.0 transformation requires *continuous* massive capital expenditure
 Even the social sentiment data — which the bull would characterize as supportive — shows troubling signals when you look closely:
 
 - Active put buyers on StockTwits: *"load up on puts!!!"*, *"trying to ADD SHORT"*
-- Explicit downside price target: *"below $100 closing"* 
+- Explicit downside price target: *"below $100 closing"*
 - INTC used as a **cautionary tale**: *"don't let this be another $INTC $MU"* — retail traders are using Intel as an example of a stock they missed and don't expect to repeat
 - The $109 level is cited as a critical support by multiple users — **we're sitting exactly at that level right now**
 
@@ -466,7 +466,7 @@ The argument: *"Intel doesn't need new design wins. The entire Fortune 500 Xeon 
 Let me tell you what's actually happening in those Fortune 500 data centers. **IT buyers are not passively waiting for Intel to offer them an AI software stack on existing Xeon hardware.** They're being aggressively courted by:
 
 - **Nvidia** with the DGX Cloud and dedicated inference platforms
-- **AMD** with EPYC + Instinct MI300X integrated server solutions  
+- **AMD** with EPYC + Instinct MI300X integrated server solutions
 - **Arm-based hyperscaler custom silicon** that ByteDance and Oracle are already deploying
 - **AWS Trainium/Inferentia**, **Google TPUs**, **Microsoft Azure Maia** — all of which are hyperscaler-internal silicon that don't need Intel at all
 
@@ -577,7 +577,7 @@ The case for INTC at $109.33 has been made by both sides of this debate. And whe
 
 **INTC: Strong Bear. SELL at $109.33.**
 - **Near-term target: $100.10** (Bollinger Lower Band — the bull analyst's own stop loss zone)
-- **Base case downside: $83.71** (50 SMA)  
+- **Base case downside: $83.71** (50 SMA)
 - **Thesis invalidation: IFS anchor customer + two consecutive quarters of GAAP net profitability + operating income exceeding $1.2B**
 
 Until those three boxes are checked simultaneously, **the emperor has no clothes — and now even the bull can see it.** 🐻
@@ -874,7 +874,7 @@ My colleague argues Intel's Panther Lake and Nova Lake architectures with enhanc
 
 Let me be specific about why this misses the competitive dynamic.
 
-Nvidia's RTX Spark brings **dedicated GPU tensor cores** to the PC — hardware designed from the ground up for matrix multiplication, the mathematical foundation of neural network inference. Intel's NPU integration in Lunar Lake and Arrow Lake can handle *light AI tasks* — background blur, noise cancellation, basic image enhancement. 
+Nvidia's RTX Spark brings **dedicated GPU tensor cores** to the PC — hardware designed from the ground up for matrix multiplication, the mathematical foundation of neural network inference. Intel's NPU integration in Lunar Lake and Arrow Lake can handle *light AI tasks* — background blur, noise cancellation, basic image enhancement.
 
 **For the AI workloads that actually matter** — running local LLM inference, video generation, real-time AI-enhanced gaming, content creation with AI tools — **NPUs are not competitive with GPU tensor cores.** It's not a question of architectural philosophy. It's a question of compute density. A GPU has thousands of shader cores that can be parallelized for AI inference. An NPU has a fraction of that parallelism.
 

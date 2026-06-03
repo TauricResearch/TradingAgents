@@ -107,7 +107,7 @@ Alright, let's get into it. My colleague just delivered a well-structured argume
 
 ## 🔥 On the "Leadership Crisis" — You're Extrapolating a Pattern From a Single Data Point
 
-The bear keeps saying "string of senior departures" — but notice something curious: **they never actually name them.** BofA said it. The bear repeated it. But where's the list? Who left, when, and what were their roles? 
+The bear keeps saying "string of senior departures" — but notice something curious: **they never actually name them.** BofA said it. The bear repeated it. But where's the list? Who left, when, and what were their roles?
 
 Because here's what we *do* know concretely: **one CFO is leaving, with an organized transition to Special Advisor, and a highly credentialed replacement has already been named.** That's it. That's the documented fact. Everything else — the "organizational signal," the speculation about what Lago "really" knows, the insinuation that institutional holders are privy to dark secrets — is narrative extrapolation dressed up as analysis.
 
@@ -212,7 +212,7 @@ And remember: **the institutional sell in February was at $14.98-16.53 levels.**
 Let me bring this home with clarity:
 
 ✅ **Cash flow argument is defeated** — annual FCF of $3.16B growing 42% YoY; quarterly volatility is tax timing and loan book growth, both explainable
-✅ **Credit quality argument is inverted** — higher provisioning ratios reflect new loan seasoning and conservative management, not deterioration; NII +63.7% YoY proves loans are performing  
+✅ **Credit quality argument is inverted** — higher provisioning ratios reflect new loan seasoning and conservative management, not deterioration; NII +63.7% YoY proves loans are performing
 ✅ **Leadership transition is manageable** — strategic hire, orderly process, Lago remaining as advisor; the "string of departures" is BofA assertion without specific supporting evidence
 ✅ **Technical setup is at an inflection point** — RSI 24.91 capitulation low, MACD histogram positive, Bollinger coil forming; every confirmed oversold bounce in quality companies follows this setup
 ✅ **Macro headwinds already priced in** — a 34.9% drawdown from the high has discounted BRL risk, credit cycle risk, and macro uncertainty into a 10.26x forward P/E
@@ -285,11 +285,11 @@ The bear's own test is fair: watch the Q2 2026 allowance ratio. I'll accept that
 
 The bear's technical argument in Round 4 is more precise than before, and I want to engage with the specific catalyst question he raised: *"Why would the market re-rate NU to 15x forward earnings when every major moving average is declining?"*
 
-That is exactly the right question. And the answer is: **earnings catalysts force multiple re-ratings regardless of where the moving averages are.** 
+That is exactly the right question. And the answer is: **earnings catalysts force multiple re-ratings regardless of where the moving averages are.**
 
 Q2 2026 earnings will be reported in approximately 6-8 weeks. If NU delivers:
 - Revenue of $3.7-3.8B (consistent with recent trajectory)
-- Net income of $900M+ 
+- Net income of $900M+
 - Stable or improving provision ratios
 - Any positive commentary on Mexico expansion
 
@@ -438,9 +438,9 @@ My colleague was genuinely clever in framing three distinct pathways to EPS degr
 
 The bear's argument: provision acceleration will reduce forward EPS by ~$0.21, from $1.16 to ~$0.95.
 
-Here's the math the bear is using: "a 20% increase in provisioning expense would reduce net income by approximately $800M annually." 
+Here's the math the bear is using: "a 20% increase in provisioning expense would reduce net income by approximately $800M annually."
 
-Let me check that against the actual numbers. **Total provision expense in 2025 was approximately $4.0B** (implied from balance sheet allowance movements). A 20% increase is $800M. Net income of $2.87B in 2025 minus $800M is $2.07B, or roughly $0.425/share. That doesn't produce $1.16 forward EPS, but it also doesn't produce $0.95 — it produces something closer to $0.75-0.80. 
+Let me check that against the actual numbers. **Total provision expense in 2025 was approximately $4.0B** (implied from balance sheet allowance movements). A 20% increase is $800M. Net income of $2.87B in 2025 minus $800M is $2.07B, or roughly $0.425/share. That doesn't produce $1.16 forward EPS, but it also doesn't produce $0.95 — it produces something closer to $0.75-0.80.
 
 Wait — the bear's own arithmetic is *more bearish than his stated target.* Which means either his 20% provision increase assumption is too aggressive, or his $0.95 EPS estimate is inconsistent with his own model. **Let me help him: a 10% provision increase — which is a more realistic sensitivity — reduces net income by $400M, producing approximately $0.95-1.00 EPS.** At $10-11, that's still 10-11x forward earnings. For a company that delivered 56.5% net income growth YoY in Q1 2026, even a stress-scenario EPS of $1.00 doesn't justify $10.
 
@@ -627,7 +627,7 @@ The bear's $0.64 EPS is not a corrected model. It's a model that assumes 57% YoY
 
 My colleague assigned probabilities to four risk factors and then combined them to produce a "joint downside probability exceeding 80%." This sounds rigorous. It isn't.
 
-Here's the methodological problem: **the four factors he cited are not independent — they're all downstream of the same single variable: Brazilian macroeconomic deterioration.** 
+Here's the methodological problem: **the four factors he cited are not independent — they're all downstream of the same single variable: Brazilian macroeconomic deterioration.**
 
 - Credit cycle stress in EM? Driven by Brazil/Mexico macro.
 - Technical structure bearish? Driven by the same macro concerns.
@@ -724,7 +724,7 @@ After eight rounds of sustained debate, here's what I know with confidence about
 
 **What is documented, verified, and not in dispute:**
 - Q1 2026 net income: $872M ✅
-- NII growth YoY: +63.7% ✅  
+- NII growth YoY: +63.7% ✅
 - Revenue growth YoY: +57% ✅
 - ROE: 30.1% ✅
 - Forward P/E: 10.26x ✅

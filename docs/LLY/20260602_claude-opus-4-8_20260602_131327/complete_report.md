@@ -9,27 +9,27 @@ I now have all the data needed to compile a comprehensive report. Let me write t
 
 ---
 
-# 🔬 Eli Lilly and Company (LLY) — Comprehensive Technical Analysis Report
+#### 🔬 Eli Lilly and Company (LLY) — Comprehensive Technical Analysis Report
 **Date: June 2, 2026 (Monday — Non-Trading Day) | Last Trading Day: June 1, 2026**
 **Exchange: NYSE | Sector: Healthcare / Drug Manufacturers - General**
 
 ---
 
-## 📌 Executive Summary
+#### 📌 Executive Summary
 
 LLY has undergone a dramatic multi-phase journey in 2026 — a sharp deterioration from ~$1,076 in early January to a cycle low of ~$849.75 on April 29, followed by a powerful **recovery and breakout rally** that has carried the stock back above $1,082 as of June 1, 2026. The stock has now **recaptured all of its 2026 losses** and sits near year-to-date highs. Multiple indicators confirm bullish momentum, though short-term overbought signals caution against chasing at current levels.
 
 ---
 
-## 1. 📈 Price Action & Trend Overview
+#### 1. 📈 Price Action & Trend Overview
 
-### Phase 1 – Distribution & Decline (Jan 2 → Apr 29)
+#### Phase 1 – Distribution & Decline (Jan 2 → Apr 29)
 LLY opened 2026 near **$1,076.71** (Jan 2) but quickly began eroding. Sporadic rallies to ~$1,113 (Jan 7) were rejected, and a sustained downtrend emerged from mid-January. Key acceleration points included:
 - Jan 28: Break below $1,020
 - Mar 17–20: Steep drop from ~$987 to ~$905 in 3 sessions
 - Apr 24–29: A capitulation leg taking LLY from $882 → **$849.75** (the YTD low on Apr 29)
 
-### Phase 2 – Recovery & Re-Acceleration (Apr 30 → Jun 1)
+#### Phase 2 – Recovery & Re-Acceleration (Apr 30 → Jun 1)
 The reversal was swift and powerful:
 - **Apr 30**: Explosive +9.8% single-day move ($849.75 → $932.99) on 8.2M shares (highest volume of the period), marking the reversal point
 - **May 28**: A second breakout surge carried LLY to **$1,126.80** (intraday high: $1,149.10) on 4.6M volume
@@ -39,9 +39,9 @@ The stock has recovered over **27% from its April 29 low** in just ~25 trading d
 
 ---
 
-## 2. 📊 Indicator-by-Indicator Analysis
+#### 2. 📊 Indicator-by-Indicator Analysis
 
-### 🔹 RSI (Momentum)
+#### 🔹 RSI (Momentum)
 | Date | RSI |
 |------|-----|
 | May 28 | **75.83** — Overbought |
@@ -54,7 +54,7 @@ The RSI surged from deeply oversold territory (~33 on Apr 29) to an overbought r
 
 ---
 
-### 🔹 MACD & MACD Histogram (Momentum/Trend Confirmation)
+#### 🔹 MACD & MACD Histogram (Momentum/Trend Confirmation)
 
 The MACD crossed from **deeply negative (-20.64 on Apr 29)** to strongly positive (**+41.67 on May 29**) over 4 weeks — one of the sharpest MACD recoveries in the dataset. As of **June 1: MACD = +41.02**, confirming the uptrend remains firmly intact.
 
@@ -64,7 +64,7 @@ The MACD Histogram peaked at **+12.10 on May 28**, coinciding with the price pea
 
 ---
 
-### 🔹 Bollinger Bands (Volatility Context)
+#### 🔹 Bollinger Bands (Volatility Context)
 
 As of **June 1, 2026**:
 | Band | Value |
@@ -83,7 +83,7 @@ As of **June 1, 2026**:
 
 ---
 
-### 🔹 50-Day SMA (Medium-Term Trend)
+#### 🔹 50-Day SMA (Medium-Term Trend)
 
 | Date | 50 SMA |
 |------|--------|
@@ -97,7 +97,7 @@ The 50-day SMA has been in a slow decline since March as the price correction dr
 
 ---
 
-### 🔹 ATR (Volatility / Risk Management)
+#### 🔹 ATR (Volatility / Risk Management)
 
 | Date | ATR |
 |------|-----|
@@ -113,9 +113,9 @@ The ATR has risen from ~$26.60 at the April low to **$33.04** as of June 1. This
 
 ---
 
-## 3. 🧠 Multi-Indicator Confluence Analysis
+#### 3. 🧠 Multi-Indicator Confluence Analysis
 
-### ✅ Bullish Signals
+#### ✅ Bullish Signals
 1. **RSI at 63.72** — Momentum positive, overbought condition has eased from 75.83
 2. **MACD at +41.02, rising from -20.64** — One of the strongest trend reversals in the data
 3. **MACD Histogram positive and constructive** — No reversal signals
@@ -123,7 +123,7 @@ The ATR has risen from ~$26.60 at the April low to **$33.04** as of June 1. This
 5. **Price +13% above 50 SMA** — Dominant uptrend phase
 6. **V-shaped recovery from $849 → $1,082** — Structural trend flip confirmed
 
-### ⚠️ Caution / Risk Signals
+#### ⚠️ Caution / Risk Signals
 1. **RSI recently peaked at 75.83 (overbought)** — Short-term exhaustion risk
 2. **MACD Histogram declining** from 12.10 → 8.57 — Momentum softening at the margin
 3. **Bollinger Upper Band breach on May 28** — May invite further near-term consolidation
@@ -133,27 +133,27 @@ The ATR has risen from ~$26.60 at the April low to **$33.04** as of June 1. This
 
 ---
 
-## 4. 🎯 Actionable Trading Insights
+#### 4. 🎯 Actionable Trading Insights
 
-### 🟢 For Long-Biased / Swing Traders:
+#### 🟢 For Long-Biased / Swing Traders:
 - **Ideal entry zone**: A pullback toward the **Bollinger Middle (~$1,021) or 50-SMA (~$956)** would offer a more favorable risk/reward for new longs
 - **Near-term resistance**: $1,105–$1,126 (May 28–29 highs); **$1,149.10** (intraday high) is the key breakout level to watch
 - **Support**: $1,060 (Jun 1 low area), then $1,021 (Bollinger Middle), then $956 (50 SMA)
 - **Stop-loss guidance**: Below $1,016 (2× ATR from current close) for medium-term holds
 
-### 🔴 For Short-Term / Tactical Traders:
+#### 🔴 For Short-Term / Tactical Traders:
 - **Avoid chasing** at $1,082 after a 27% rally in 25 days — risk/reward is asymmetric to the downside near-term
 - Monitor for RSI reclaiming 70+ before selling strength, or MACD histogram turning negative as a trigger to reduce exposure
 - The **$1,100–$1,150 zone acts as a resistance cluster**; a decisive close above $1,149.10 on high volume would validate further upside
 
-### 📋 Watch for:
+#### 📋 Watch for:
 - Q2 earnings data / pipeline catalysts (GLP-1 drug updates remain the key fundamental catalyst for LLY)
 - Broader market risk-off moves could amplify downside given elevated ATR
 - Volume on breakout attempts above $1,130 — institutional conviction needed
 
 ---
 
-## 📊 Key Indicators Summary Table
+#### 📊 Key Indicators Summary Table
 
 | Indicator | Latest Value (Jun 1, 2026) | Signal | Interpretation |
 |---|---|---|---|
@@ -183,11 +183,11 @@ FINAL TRANSACTION PROPOSAL: **HOLD**
 **Confidence:** Medium
 
 
-## LLY Sentiment Report — 2026-05-26 to 2026-06-02
+#### LLY Sentiment Report — 2026-05-26 to 2026-06-02
 
 ---
 
-### 1. Source-by-Source Breakdown
+#### 1. Source-by-Source Breakdown
 
 ---
 
@@ -256,7 +256,7 @@ The news flow for LLY over the past seven days is overwhelmingly positive, spann
 
 ---
 
-### 2. Cross-Source Divergences and Alignments
+#### 2. Cross-Source Divergences and Alignments
 
 | Dimension | News | StockTwits | Reddit |
 |---|---|---|---|
@@ -273,7 +273,7 @@ The news flow for LLY over the past seven days is overwhelmingly positive, spann
 
 ---
 
-### 3. Dominant Narrative Themes
+#### 3. Dominant Narrative Themes
 
 1. **PBM Clean Sweep for Obesity Portfolio** — The dominant, highest-conviction bullish theme across sources. All major PBMs now covering Zepbound + Foundayo is a structural access win.
 2. **Foundayo (Oral GLP-1) as Differentiated Product** — Framed favorably vs. Novo's oral semaglutide on tolerability grounds (retail), with institutional coverage confirming commercial momentum (CEO commentary).
@@ -284,7 +284,7 @@ The news flow for LLY over the past seven days is overwhelmingly positive, spann
 
 ---
 
-### 4. Catalysts and Risks
+#### 4. Catalysts and Risks
 
 **Catalysts (Bullish):**
 - ✅ Foundayo commercial launch with full PBM coverage (near-term revenue visibility)
@@ -304,7 +304,7 @@ The news flow for LLY over the past seven days is overwhelmingly positive, spann
 
 ---
 
-### 5. Summary Table of Key Sentiment Signals
+#### 5. Summary Table of Key Sentiment Signals
 
 | Signal | Direction | Source | Supporting Evidence |
 |---|---|---|---|
@@ -329,84 +329,84 @@ Excellent! I now have comprehensive data to build a thorough research report. Le
 
 ---
 
-# 📊 LLY (Eli Lilly and Company) — Comprehensive Trading & Macroeconomic Research Report
+#### 📊 LLY (Eli Lilly and Company) — Comprehensive Trading & Macroeconomic Research Report
 **Analysis Date: June 2, 2026 | Exchange: NYSE | Sector: Healthcare / Drug Manufacturers – General**
 
 ---
 
-## 1. 🏢 Executive Summary
+#### 1. 🏢 Executive Summary
 
 Eli Lilly and Company (`LLY`) has emerged as one of the most compelling large-cap growth stories in the healthcare sector heading into June 2026. The stock surged approximately **18% in May alone** and roughly **15% over the past month**, with a staggering **~49% total shareholder return over the past year**. Multiple simultaneous catalysts — PBM coverage sweeps, blockbuster pipeline readouts, new licensing deals, and CEO-level bullish signaling — have converged to create a powerful momentum setup. Meanwhile, the broader macroeconomic backdrop introduces both tailwinds (M&A activity, sector rotation away from AI mega-caps) and headwinds (inflation concerns, oil/Iran geopolitical tensions).
 
 ---
 
-## 2. 🔑 Key Company-Specific Developments
+#### 2. 🔑 Key Company-Specific Developments
 
-### 2.1 🏆 Complete PBM Coverage — A Historic Milestone
+#### 2.1 🏆 Complete PBM Coverage — A Historic Milestone
 The most significant near-term catalyst for LLY is the **complete sweep of all three major U.S. Pharmacy Benefit Managers (PBMs)**. CVS Caremark announced it will cover Lilly's **full obesity medicine portfolio** starting this summer, joining the other two largest PBMs. This includes:
 - **Zepbound** (injectable GLP-1/GIP dual agonist for obesity)
 - **Foundayo** (newly approved **oral** obesity therapy — a major first-to-market oral GLP-1 product)
 
 This is described by TheStreet as "a first" and a "major pharma milestone." All-PBM coverage dramatically expands the addressable patient population, reduces out-of-pocket barriers for millions of Americans, improves pricing negotiation leverage, and solidifies Lilly's dominant position in the obesity drug market. The commercial implications are enormous and represent a **structural, long-term revenue accelerator** rather than a one-time event.
 
-### 2.2 💊 Foundayo — Oral Obesity Drug Changes the Game
+#### 2.2 💊 Foundayo — Oral Obesity Drug Changes the Game
 The recent approval and PBM coverage of **Foundayo**, Lilly's oral obesity therapy, is a transformational development. Injectable therapies like Zepbound and Novo Nordisk's Ozempic/Wegovy have faced patient compliance challenges tied to needle aversion. An oral weight-loss drug has long been seen as the "holy grail" of the obesity category. Foundayo's entry:
 - Opens access to a **significantly larger patient pool** (oral-preferring patients)
 - Potentially shifts competitive dynamics away from Novo Nordisk
 - Gives Lilly a **two-product obesity moat** (oral + injectable)
 
-### 2.3 🫁 Retevmo Scores Landmark Phase 3 Win in Lung Cancer
+#### 2.3 🫁 Retevmo Scores Landmark Phase 3 Win in Lung Cancer
 Eli Lilly announced **highly statistically significant positive results** from the **Phase 3 LIBRETTO-432 trial** of **Retevmo (selpercatinib)** as adjuvant therapy in early-stage **RET fusion-positive non-small cell lung cancer (NSCLC)**. Key result: **83% reduction in the risk of disease recurrence or death** vs. placebo. This is a clinically extraordinary result that:
 - Supports a **label expansion** application for Retevmo into the adjuvant setting
 - Broadens the addressable market substantially (adjuvant = post-surgery patients, much larger pool than advanced disease)
 - Diversifies Lilly's oncology revenue base beyond obesity
 
-### 2.4 🤝 Lilly-Hanmi Licensing Deal ($1.26 Billion)
+#### 2.4 🤝 Lilly-Hanmi Licensing Deal ($1.26 Billion)
 Lilly signed a **$1.26 billion licensing deal** with Korea's Hanmi Pharmaceutical for **sonefpeglutide**, a next-generation obesity/metabolic drug candidate. Hanmi receives **$75 million upfront** plus up to **$1.185 billion in milestone payments**. This signals Lilly is proactively building out its obesity pipeline to maintain leadership even beyond Zepbound and Foundayo, hedging against competitive entrants (including Viking Therapeutics — see risks).
 
-### 2.5 📢 CEO David Ricks' Bullish Commentary
+#### 2.5 📢 CEO David Ricks' Bullish Commentary
 A Motley Fool report highlights that **8 specific words from CEO David Ricks** about Foundayo have turned Wall Street bullish on LLY. CEO-level conviction on a new product launch, combined with all-PBM coverage, is a strong signal of management confidence in near-term revenue execution.
 
-### 2.6 🔬 GLP-1 Drugs & Oncology — A Massive New Frontier
+#### 2.6 🔬 GLP-1 Drugs & Oncology — A Massive New Frontier
 Ahead of the **2026 American Society of Clinical Oncology (ASCO) meeting**, Citi Research highlighted new evidence that GLP-1 drugs may have a **role in cancer prevention and treatment**. This could unlock an entirely new therapeutic indication for Zepbound and future Lilly GLP-1 assets, potentially adding a multi-billion-dollar addressable market that the market has not yet fully priced in.
 
-### 2.7 💉 Vaccine Strategy — Shingles/Neurology Signal
+#### 2.7 💉 Vaccine Strategy — Shingles/Neurology Signal
 LLY is reportedly making a "strong statement" on its vaccine strategy, with new research linking shingles (varicella-zoster) to elevated stroke and dementia risk. This hints at Lilly potentially developing or promoting therapeutics in the **neurology/vaccine-adjacent space**, consistent with its broader CNS portfolio strategy (including Alzheimer's drug donanemab).
 
 ---
 
-## 3. 🌍 Macroeconomic & Sector Context
+#### 3. 🌍 Macroeconomic & Sector Context
 
-### 3.1 📈 Sector Rotation into Healthcare
+#### 3.1 📈 Sector Rotation into Healthcare
 Barron's highlights a **"historic market disconnect"** where Big Tech and AI have dominated gains, leaving healthcare, financials, and utilities relatively undervalued. This sets up **a rotation trade** where institutional money could flow into healthcare names like LLY. With LLY already showing strong momentum, it sits at the intersection of both the momentum trade AND the value rotation thesis.
 
-### 3.2 💰 M&A Boom — $2.5 Trillion in Deals YTD
+#### 3.2 💰 M&A Boom — $2.5 Trillion in Deals YTD
 M&A activity has totaled **$2.5 trillion year-to-date**, with biotechs explicitly cited as a target-rich sector for upcoming deals. While LLY is more likely an acquirer (as evidenced by the Hanmi deal), the overall M&A backdrop drives:
 - Higher biotech valuations (benefits Lilly's partnership/licensing economics)
 - Strategic optionality for bolt-on acquisitions
 - Heightened investor interest in healthcare stocks broadly
 
-### 3.3 ⚠️ Geopolitical Risk — Iran/Oil Prices
+#### 3.3 ⚠️ Geopolitical Risk — Iran/Oil Prices
 Global news highlights significant **Iran-related geopolitical tension**, with Trump reportedly stiffening Iran deal terms. Rising oil prices create:
 - **Indirect cost pressures** (energy, logistics, manufacturing)
 - **Consumer spending constraints** (could limit discretionary pharma spend, though obesity drugs are increasingly insurance-covered)
 - **Market volatility risk** — though LLY has historically demonstrated defensive characteristics during geopolitical stress
 
-### 3.4 💵 Inflation & Rate Concerns
+#### 3.4 💵 Inflation & Rate Concerns
 Reports of shoe price increases and general consumer goods inflation, combined with **NFP and rate hike fears** appearing in gold market coverage, suggest the macroeconomic environment remains **elevated-inflation / potential-rate-rise**. For LLY:
 - Rising rates modestly **compress high-multiple growth stock valuations** (LLY trades at a premium)
 - However, healthcare/pharma is **relatively defensive** vs. pure-growth sectors
 - Insurance coverage expansion (PBM deals) partially offsets consumer pricing sensitivity
 
-### 3.5 🤖 AI-Driven Stock Screening Validates LLY
+#### 3.5 🤖 AI-Driven Stock Screening Validates LLY
 Multiple AI-powered stock screening systems rank LLY as a **top-4 stock to buy** currently, alongside Nvidia and Google. This reflects the compound of strong fundamentals, momentum, pipeline, and market positioning.
 
-### 3.6 ⚠️ Viking Therapeutics — Competitive Risk
+#### 3.6 ⚠️ Viking Therapeutics — Competitive Risk
 A key risk flag: Viking Therapeutics has a **major Q3 2026 catalyst** (clinical trial readout) for an oral GLP-1 drug that could **directly compete with Foundayo**. If Viking's data is positive, it could disrupt Lilly's first-mover advantage in the oral obesity space. This is a **defined, time-stamped risk** to monitor in Q3 2026.
 
 ---
 
-## 4. 📉 Risk Assessment
+#### 4. 📉 Risk Assessment
 
 | Risk | Level | Notes |
 |---|---|---|
@@ -419,13 +419,13 @@ A key risk flag: Viking Therapeutics has a **major Q3 2026 catalyst** (clinical 
 
 ---
 
-## 5. 📊 Valuation Context
+#### 5. 📊 Valuation Context
 
 LLY has delivered ~**14.7% in 30 days**, ~**10% in 3 months**, and ~**49% over 12 months** — an **Nvidia-like trajectory** as described by Motley Fool. A Simply Wall St. analysis notes this performance comes alongside **strong revenue and net income results**, suggesting the move is fundamentally supported rather than purely speculative. However, the rapid multiple expansion warrants monitoring for potential near-term consolidation.
 
 ---
 
-## 6. 🎯 Actionable Insights for Traders
+#### 6. 🎯 Actionable Insights for Traders
 
 1. **The PBM coverage sweep is a durable commercial catalyst** — not a one-time event. Full coverage means recurring, compounding revenue growth in obesity.
 2. **Foundayo oral drug** differentiates LLY from Novo Nordisk (Ozempic remains injectable) and is the most important near-term revenue driver to track.
@@ -437,7 +437,7 @@ LLY has delivered ~**14.7% in 30 days**, ~**10% in 3 months**, and ~**49% over 1
 
 ---
 
-## 7. 📋 Summary Table
+#### 7. 📋 Summary Table
 
 | Category | Detail | Sentiment | Impact |
 |---|---|---|---|
@@ -460,7 +460,7 @@ LLY has delivered ~**14.7% in 30 days**, ~**10% in 3 months**, and ~**49% over 1
 
 ---
 
-## 8. 🏁 Conclusion
+#### 8. 🏁 Conclusion
 
 **LLY presents a strongly bullish fundamental picture** as of June 2, 2026, underpinned by rare simultaneous catalysts: a historic PBM coverage sweep for its obesity portfolio, the commercial launch of the first oral GLP-1 (Foundayo), a landmark Phase 3 oncology win (Retevmo), a $1.26B pipeline-building deal, and a potential new frontier in GLP-1 oncology. The primary risk is the **Viking Therapeutics Q3 data readout**, which traders should monitor closely as a potential near-term headwind. The macroeconomic backdrop introduces modest valuation and rate risks, but LLY's defensive-growth profile and broad insurance access expansion provide meaningful buffers. Sector rotation and AI-driven stock selection flows provide additional tailwinds. Overall, the weight of evidence is **firmly positive** for LLY into the second half of 2026.
 
@@ -472,18 +472,18 @@ I now have all the data needed to compile a comprehensive fundamental analysis r
 
 ---
 
-# 📊 Eli Lilly and Company (LLY) — Comprehensive Fundamental Analysis Report
+#### 📊 Eli Lilly and Company (LLY) — Comprehensive Fundamental Analysis Report
 **Analysis Date:** June 2, 2026 | **Exchange:** NYSE | **Sector:** Healthcare | **Industry:** Drug Manufacturers – General
 
 ---
 
-## 1. Company Profile
+#### 1. Company Profile
 
 **Eli Lilly and Company (LLY)** is one of the world's largest pharmaceutical companies, headquartered in Indianapolis, Indiana. Lilly discovers, develops, manufactures, and markets medicines spanning endocrinology (diabetes/obesity), oncology, immunology, and neuroscience. The company has become the most commercially significant player in the GLP-1 receptor agonist market with blockbuster drugs **Mounjaro** (tirzepatide for diabetes) and **Zepbound** (tirzepatide for obesity), as well as **Verzenio** (abemaciclib for breast cancer) and **Taltz** (ixekizumab for autoimmune diseases). Lilly's market capitalization as of June 2, 2026 stands at approximately **$952.5 billion**, making it one of the largest companies in the world by market value.
 
 ---
 
-## 2. Market & Valuation Metrics
+#### 2. Market & Valuation Metrics
 
 | Metric | Value |
 |---|---|
@@ -506,9 +506,9 @@ I now have all the data needed to compile a comprehensive fundamental analysis r
 
 ---
 
-## 3. Income Statement Analysis
+#### 3. Income Statement Analysis
 
-### Annual Revenue Trajectory (FY2022–FY2025)
+#### Annual Revenue Trajectory (FY2022–FY2025)
 
 | Fiscal Year | Total Revenue | Gross Profit | Operating Income | Net Income | Diluted EPS |
 |---|---|---|---|---|---|
@@ -535,7 +535,7 @@ Gross margins are expanding year-over-year as high-value GLP-1 products (Mounjar
 
 Massive operating leverage is being demonstrated as revenue scales rapidly against a growing but relatively less proportional cost base.
 
-### Most Recent Quarterly Performance (Q1 2026 vs. Prior Quarters)
+#### Most Recent Quarterly Performance (Q1 2026 vs. Prior Quarters)
 
 | Quarter | Revenue | Gross Profit | Operating Income | Net Income | Diluted EPS |
 |---|---|---|---|---|---|
@@ -557,9 +557,9 @@ Massive operating leverage is being demonstrated as revenue scales rapidly again
 
 ---
 
-## 4. Balance Sheet Analysis
+#### 4. Balance Sheet Analysis
 
-### Asset Growth (Annual)
+#### Asset Growth (Annual)
 
 | Year | Total Assets | Total Equity | Total Debt | Net Debt |
 |---|---|---|---|---|
@@ -574,13 +574,13 @@ Massive operating leverage is being demonstrated as revenue scales rapidly again
 - Stockholders' equity has more than doubled since FY2024 ($14.27B → $31.20B), driven primarily by retained earnings from surging profitability.
 - Retained earnings grew from **$13.55B (FY2025)** to **$29.51B (Q1 2026)** — reflecting quarter-over-quarter net income accumulation.
 
-### Debt Profile
+#### Debt Profile
 - **Total Debt (Q1 2026):** $43.37B ($4.0B current, $39.37B long-term)
 - **Debt-to-Equity Ratio:** 139.0 — relatively high, reflecting strategic leveraging to finance manufacturing infrastructure and pipeline acquisitions. However, cash generation at current levels greatly reduces solvency risk.
 - **Current Ratio:** 1.497 — adequate near-term liquidity
 - **Net Debt:** $38.09B — significant but serviceable given EBITDA of ~$36B+ TTM
 
-### Key Balance Sheet Items (Q1 2026)
+#### Key Balance Sheet Items (Q1 2026)
 - **Inventory: $14.53B** (up from $7.59B at FY2024) — massive build-up reflecting supply chain preparation for continued demand ramp of GLP-1 therapies.
 - **Net PPE: $26.54B** — reflecting enormous ongoing manufacturing facility buildout (construction-in-progress alone: $13.01B)
 - **Goodwill & Intangibles: $13.50B** — moderate for a pharmaceutical company of this size
@@ -588,9 +588,9 @@ Massive operating leverage is being demonstrated as revenue scales rapidly again
 
 ---
 
-## 5. Cash Flow Analysis
+#### 5. Cash Flow Analysis
 
-### Annual Free Cash Flow
+#### Annual Free Cash Flow
 
 | Year | Operating Cash Flow | CapEx | Free Cash Flow | Dividends Paid |
 |---|---|---|---|---|
@@ -599,7 +599,7 @@ Massive operating leverage is being demonstrated as revenue scales rapidly again
 | FY2024 | $8.82B | -$8.40B | $0.41B | -$4.68B |
 | FY2025 | $16.81B | -$10.85B | $5.96B | -$5.38B |
 
-### Quarterly Free Cash Flow (Most Recent)
+#### Quarterly Free Cash Flow (Most Recent)
 
 | Quarter | Operating CF | CapEx | Free Cash Flow |
 |---|---|---|---|
@@ -620,7 +620,7 @@ Massive operating leverage is being demonstrated as revenue scales rapidly again
 
 ---
 
-## 6. Profitability Metrics
+#### 6. Profitability Metrics
 
 | Metric | Value |
 |---|---|
@@ -638,7 +638,7 @@ Massive operating leverage is being demonstrated as revenue scales rapidly again
 
 ---
 
-## 7. R&D Investment & Pipeline Investment
+#### 7. R&D Investment & Pipeline Investment
 
 | Year | R&D Expense | % of Revenue |
 |---|---|---|
@@ -652,7 +652,7 @@ Lilly continues to be one of the highest absolute-dollar R&D spenders in pharma.
 
 ---
 
-## 8. Shareholder Returns
+#### 8. Shareholder Returns
 
 | Metric | Value/Details |
 |---|---|
@@ -667,7 +667,7 @@ The combination of dividends and buybacks totaling ~$9.5B in FY2025 demonstrates
 
 ---
 
-## 9. Key Risks
+#### 9. Key Risks
 
 1. **Pricing Pressure / IRA Impact:** The Inflation Reduction Act (IRA) enables Medicare drug price negotiations. Mounjaro and potentially Zepbound could face future price negotiations impacting long-term revenues.
 2. **Competition Risk:** Novo Nordisk (semaglutide/Ozempic/Wegovy) and an emerging field of GLP-1 competitors (orals, next-gen peptides from various pharma players) could erode Lilly's market share over time.
@@ -679,7 +679,7 @@ The combination of dividends and buybacks totaling ~$9.5B in FY2025 demonstrates
 
 ---
 
-## 10. Key Strengths & Catalysts
+#### 10. Key Strengths & Catalysts
 
 1. **GLP-1 Dominance:** Mounjaro/Zepbound are among the fastest-growing pharmaceutical products in history. The obesity/diabetes market is estimated in the hundreds of billions globally.
 2. **Revenue Acceleration:** TTM revenue of $72.25B vs $45.0B in FY2024 — ~60% growth within 12 months at this scale is extraordinary.
@@ -691,7 +691,7 @@ The combination of dividends and buybacks totaling ~$9.5B in FY2025 demonstrates
 
 ---
 
-## 11. Summary Table of Key Financial Metrics
+#### 11. Summary Table of Key Financial Metrics
 
 | Category | Metric | Q1 2026 / TTM | FY2025 | FY2024 | FY2023 |
 |---|---|---|---|---|---|
@@ -725,7 +725,7 @@ The combination of dividends and buybacks totaling ~$9.5B in FY2025 demonstrates
 
 ---
 
-## 12. Actionable Investment Insights for Traders
+#### 12. Actionable Investment Insights for Traders
 
 1. **Fundamental Momentum is Exceptional:** Revenue, earnings, and margins are all advancing simultaneously at an extraordinary pace. The Q1 2026 report shows no sign of deceleration — revenue of $19.8B is a new quarterly record.
 2. **Forward Earnings Power is the Key Driver:** With Forward EPS of $44.47 and a forward PE of ~24x, the market is pricing in continued strong earnings growth. If achieved, this would imply substantial upside at current price levels (~$1,068 implied by market cap and shares).
@@ -745,13 +745,13 @@ Bull Analyst: # 🐂 Bull Case for LLY (Eli Lilly and Company) — Opening Argum
 
 ---
 
-## "This Isn't a Bubble. This Is a Business Transformation."
+#### "This Isn't a Bubble. This Is a Business Transformation."
 
 Let me be direct with you: the bear case on Eli Lilly essentially amounts to "the stock went up a lot, therefore it might go down." That's not an investment thesis — that's price anxiety dressed up as analysis. Let me show you what's actually happening here.
 
 ---
 
-## 🚀 The Revenue Story Is Unprecedented at This Scale
+#### 🚀 The Revenue Story Is Unprecedented at This Scale
 
 Let's start with the numbers that should stop every bear in their tracks. Eli Lilly generated **$19.8 billion in revenue in a single quarter** — Q1 2026 — representing **55.6% year-over-year growth**. For context, this is a company that did $28.5 billion for the *entire year* of 2022. They're now doing that in roughly two quarters.
 
@@ -761,7 +761,7 @@ The bears want to call this overvalued at a forward PE of 24x? A company growing
 
 ---
 
-## 🏆 The PBM Coverage Sweep Changes the Commercial Equation Forever
+#### 🏆 The PBM Coverage Sweep Changes the Commercial Equation Forever
 
 This week's news cycle handed LLY bulls the single most important commercial development of 2026: **all three major U.S. pharmacy benefit managers now cover Zepbound AND Foundayo**. CVS Caremark was the final piece of the puzzle. This is described — accurately — as a **"first in major pharma milestone."**
 
@@ -775,17 +775,17 @@ This is a *durable* catalyst, not a one-day headline. Every quarter going forwar
 
 ---
 
-## 💊 Foundayo Is the Oral Drug Bears Told You Would Never Arrive
+#### 💊 Foundayo Is the Oral Drug Bears Told You Would Never Arrive
 
 Remember when the bear argument was that Novo Nordisk's injectable semaglutide moat was unassailable? Then the bears said an oral GLP-1 was too far away to matter? **Foundayo is here. It's approved. All three major PBMs cover it.**
 
-And here's the detail that should really concern bears about their competitive narrative: Novo Nordisk's oral semaglutide has been hammered by tolerability issues — **~50% nausea rates, ~30% vomiting rates** in real-world use. Foundayo doesn't carry that same tolerability profile. Lilly just gave the needle-averse population — which is enormous — a *better oral option* than the competitor's. 
+And here's the detail that should really concern bears about their competitive narrative: Novo Nordisk's oral semaglutide has been hammered by tolerability issues — **~50% nausea rates, ~30% vomiting rates** in real-world use. Foundayo doesn't carry that same tolerability profile. Lilly just gave the needle-averse population — which is enormous — a *better oral option* than the competitor's.
 
 This isn't matching Novo Nordisk. This is **leapfrogging** them.
 
 ---
 
-## 🫁 Lilly Is Not a One-Drug Story — And Bears Keep Ignoring This
+#### 🫁 Lilly Is Not a One-Drug Story — And Bears Keep Ignoring This
 
 The bear narrative loves to frame LLY as a GLP-1 story that lives and dies by tirzepatide. But look at what happened *this week alone*:
 
@@ -799,9 +799,9 @@ The bear narrative loves to frame LLY as a GLP-1 story that lives and dies by ti
 
 ---
 
-## 📊 The Technical Picture Confirms Fundamental Strength
+#### 📊 The Technical Picture Confirms Fundamental Strength
 
-Let me give the bears some credit — the stock *did* sell off hard, dropping from $1,076 to $849 by late April. But here's what that selloff actually created: a **massive buying opportunity** that the market instantly recognized. 
+Let me give the bears some credit — the stock *did* sell off hard, dropping from $1,076 to $849 by late April. But here's what that selloff actually created: a **massive buying opportunity** that the market instantly recognized.
 
 The April 30th reversal — a **9.8% single-day gain on 8.2 million shares**, the highest volume of the entire period — wasn't retail FOMO. That was institutional accumulation at scale. Smart money recognized the fundamentals were unchanged while the price had become disconnected from reality.
 
@@ -809,7 +809,7 @@ The subsequent **27% recovery in 25 trading days**, with MACD moving from -20.64
 
 ---
 
-## 🌍 The Macro Wind Is at Lilly's Back, Not in Its Face
+#### 🌍 The Macro Wind Is at Lilly's Back, Not in Its Face
 
 Bears will point to macro risks — inflation, rates, geopolitics. But let me flip that narrative:
 
@@ -821,7 +821,7 @@ Bears will point to macro risks — inflation, rates, geopolitics. But let me fl
 
 ---
 
-## 🎯 Addressing the Bears' Best Arguments Directly
+#### 🎯 Addressing the Bears' Best Arguments Directly
 
 **"The valuation is stretched at 37x trailing PE."**
 Trailing PE is looking in the rearview mirror. The *forward* PE is **24x**, and the forward EPS estimate of $44.47 assumes continued — but not accelerating — growth. If Lilly executes anywhere near Q1 2026 levels, those estimates are conservative. When your trailing PE is high because you're growing earnings 170% year-over-year, that's not overvaluation — that's a metric catching up to reality.
@@ -834,7 +834,7 @@ In a normal business environment, yes, that would warrant caution. But Lilly's 5
 
 ---
 
-## 📋 The Bottom Line
+#### 📋 The Bottom Line
 
 Eli Lilly is delivering a business transformation that happens perhaps once per decade in large-cap pharmaceuticals. Revenue growing at 31% CAGR since 2022. Operating margins approaching 50%. A complete PBM coverage sweep this week. An oral obesity drug that outperforms the competition. A landmark Phase 3 oncology win. A $1.26 billion pipeline bet on the next generation of metabolic drugs. A potential GLP-1 oncology frontier that's barely been priced in.
 
@@ -854,7 +854,7 @@ My colleague just gave you a masterclass in something I'd call **the pessimist's
 
 ---
 
-## 🔥 On the Debt "Elephant" — You're Reading the Balance Sheet Upside Down
+#### 🔥 On the Debt "Elephant" — You're Reading the Balance Sheet Upside Down
 
 Let's start here because the bear opened with this and it's the most egregious misrepresentation in his entire argument.
 
@@ -865,7 +865,7 @@ Lilly's TTM EBITDA stands at approximately **$36+ billion**. That gives a debt-t
 But let me go further, because the bear's free cash flow math is where the argument really falls apart. He cited FY2023's negative FCF of -$3.15 billion as if it's a warning sign. But look at the *trajectory*:
 
 - FY2023: **-$3.15B FCF**
-- FY2024: **+$0.41B FCF**  
+- FY2024: **+$0.41B FCF**
 - FY2025: **+$5.96B FCF**
 - Q1 2026 alone: **+$2.80B FCF**
 
@@ -875,7 +875,7 @@ And on the "borrowing to return capital" critique — I'll say this plainly: **t
 
 ---
 
-## 🔥 On Valuation — The Bear Is Using Static Math to Analyze a Dynamic Business
+#### 🔥 On Valuation — The Bear Is Using Static Math to Analyze a Dynamic Business
 
 The bear's valuation critique rests on one central argument: "Everything has to go right." But notice what he *didn't* do — he didn't tell you what "going partially right" actually looks like for LLY's stock price.
 
@@ -889,7 +889,7 @@ Now let's talk about the 30.59x price-to-book multiple that my colleague flagged
 
 ---
 
-## 🔥 On Viking Therapeutics — The Bear Built His Whole Argument on a Clinical Trial He Doesn't Own
+#### 🔥 On Viking Therapeutics — The Bear Built His Whole Argument on a Clinical Trial He Doesn't Own
 
 This is the bear's most dramatic flourish and his weakest actual argument. Let me explain why.
 
@@ -907,7 +907,7 @@ Finally, the obesity market TAM is estimated at **hundreds of billions of dollar
 
 ---
 
-## 🔥 On the IRA — The Bear Omitted the Most Important Context
+#### 🔥 On the IRA — The Bear Omitted the Most Important Context
 
 Yes, the Inflation Reduction Act creates drug pricing negotiation risk. I won't minimize that. But here's what the bear left out of his entire IRA argument:
 
@@ -919,7 +919,7 @@ And critically: **Mounjaro generates revenue from both Medicare AND commercial i
 
 ---
 
-## 🔥 On CapEx — You're Calling the Best Investment Decision of the Decade a "Trap"
+#### 🔥 On CapEx — You're Calling the Best Investment Decision of the Decade a "Trap"
 
 Let me reframe the CapEx argument entirely, because the bear has it precisely backwards.
 
@@ -933,7 +933,7 @@ On the inventory buildup — $14.53 billion is not a write-down risk if you have
 
 ---
 
-## 🔥 On Technical Analysis — Let Me Read the Full Chart, Not the Cherry-Picked Portion
+#### 🔥 On Technical Analysis — Let Me Read the Full Chart, Not the Cherry-Picked Portion
 
 The bear made four technical arguments. Let me address each directly:
 
@@ -955,7 +955,7 @@ The 50-SMA is still catching up to a fundamentally re-rated business. In high-mo
 
 ---
 
-## 🔥 On the Bear's "Summary Risk Table" — A Response to Each Line
+#### 🔥 On the Bear's "Summary Risk Table" — A Response to Each Line
 
 The bear ended with a table he described as what "bulls hoped you wouldn't read carefully." Let me read it *very* carefully:
 
@@ -972,7 +972,7 @@ The bear ended with a table he described as what "bulls hoped you wouldn't read 
 
 ---
 
-## 🎯 The Core Question Bears Can't Answer
+#### 🎯 The Core Question Bears Can't Answer
 
 Here's the question I'll put directly to my colleague: **Name a pharmaceutical franchise in modern history that has generated $19.8 billion in quarterly revenue with 50% operating margins, complete PBM coverage for its flagship products, a just-approved oral formulation, and a pipeline containing potential oncology applications for its core drug class — that did *not* continue to create substantial shareholder value over a 12-24 month horizon.**
 
@@ -982,7 +982,7 @@ Because the answer is that no such franchise exists. The bear has constructed a 
 
 ---
 
-## 📋 The Final Scorecard
+#### 📋 The Final Scorecard
 
 | Category | Bear's Argument | Bull's Reality |
 |---|---|---|
@@ -996,7 +996,7 @@ Because the answer is that no such franchise exists. The bear has constructed a 
 
 ---
 
-## 🏁 My Conclusion: This Is a Business in Ascent, Not at Peak
+#### 🏁 My Conclusion: This Is a Business in Ascent, Not at Peak
 
 The bear's entire argument rests on a logical fallacy: **he assumes that because risks exist, they will materialize, and that they will materialize simultaneously**. But investing isn't about finding companies with zero risks — it's about finding companies where the *reward structure overwhelmingly exceeds the risk structure*.
 
@@ -1018,7 +1018,7 @@ Let me show you exactly what I mean — and then dismantle his three final chall
 
 ---
 
-## 🔥 The Bear's Own Table Demolishes His "Sell" Recommendation
+#### 🔥 The Bear's Own Table Demolishes His "Sell" Recommendation
 
 Here is the table my colleague presented, verbatim:
 
@@ -1052,13 +1052,13 @@ Let me rebuild the table with honest assumptions:
 
 ---
 
-## 🔥 Answering the Bear's Three "Unanswered Questions" — Watch Carefully
+#### 🔥 Answering the Bear's Three "Unanswered Questions" — Watch Carefully
 
 My colleague's triumphant close was three questions he claimed I never answered. Let me answer all three directly, with numbers.
 
 ---
 
-### Question 1: "What is the 2027 revenue scenario if Viking data is positive AND IRA negotiations tighten AND manufacturing delay occurs?"
+#### Question 1: "What is the 2027 revenue scenario if Viking data is positive AND IRA negotiations tighten AND manufacturing delay occurs?"
 
 My colleague demanded a number. Here it is.
 
@@ -1078,7 +1078,7 @@ My colleague's $468 price target requires assuming Lilly loses its medical moat,
 
 ---
 
-### Question 2: "Why was the stock at $849 six weeks ago if the fundamentals were always this good?"
+#### Question 2: "Why was the stock at $849 six weeks ago if the fundamentals were always this good?"
 
 This is the most rhetorically powerful question the bear asked, and I want to give it a genuinely substantive answer rather than a dismissive one.
 
@@ -1096,7 +1096,7 @@ To answer the bear's question directly: **institutional money let the stock fall
 
 ---
 
-### Question 3: "What is the margin of safety at $1,082?"
+#### Question 3: "What is the margin of safety at $1,082?"
 
 My colleague framed this as a trick question — as if the only valid answer is "zero." Let me reframe the concept properly.
 
@@ -1112,7 +1112,7 @@ The margin of safety in LLY is the **gap between Q1 2026's already-achieved run 
 
 ---
 
-## 🔥 The Pfizer Analogy Is the Bear's Biggest Intellectual Mistake
+#### 🔥 The Pfizer Analogy Is the Bear's Biggest Intellectual Mistake
 
 I want to spend a full section on this because it's the most rhetorically effective argument the bear made — and the most analytically misleading.
 
@@ -1128,7 +1128,7 @@ The bear's Pfizer analogy picks the worst possible comparison class. He's compar
 
 ---
 
-## 🔥 On the Viking Pre-Announcement Overhang — The Bear Is Confusing Near-Term Noise With Long-Term Signal
+#### 🔥 On the Viking Pre-Announcement Overhang — The Bear Is Confusing Near-Term Noise With Long-Term Signal
 
 My colleague made one genuinely sophisticated point: that the *fear* of Viking's data creates a 90-day selling overhang independent of whether the data is actually positive. He's right about the near-term psychology. And I've said throughout this debate that new entrants should wait for the $1,021–$1,060 pullback rather than chase at $1,082. **That pullback window is exactly the overhang he's describing.**
 
@@ -1142,7 +1142,7 @@ The bear's SELL recommendation assumes you can time the Viking announcement, exi
 
 ---
 
-## 🔥 On the Capital Allocation "Razor's Edge" — Let Me Fix the Math
+#### 🔥 On the Capital Allocation "Razor's Edge" — Let Me Fix the Math
 
 The bear presented a capital obligations analysis suggesting Lilly is on a "razor-thin margin." Let me correct the arithmetic.
 
@@ -1162,7 +1162,7 @@ The bear built his capital obligations model on the assumption that CapEx stays 
 
 ---
 
-## 🔥 The Question the Bear Never Answered
+#### 🔥 The Question the Bear Never Answered
 
 I've answered his three questions. Let me close with mine.
 
@@ -1183,7 +1183,7 @@ The bear is telling you to sell the best horse in the race because the jockey's 
 
 ---
 
-## 📋 The Final Scorecard After Four Rounds
+#### 📋 The Final Scorecard After Four Rounds
 
 | Issue | Bear's Final Position | Bull's Definitive Answer |
 |---|---|---|
@@ -1197,7 +1197,7 @@ The bear is telling you to sell the best horse in the race because the jockey's 
 
 ---
 
-## 🏁 My Closing Statement
+#### 🏁 My Closing Statement
 
 Four rounds of debate. The bear brought legitimate concerns — Viking, IRA, debt, valuation — and I've taken each one seriously. But after four rounds, here is what has not changed:
 
@@ -1235,7 +1235,7 @@ Let me close this debate by addressing every substantive point he made — and t
 
 ---
 
-## 🔥 The "Expected Value 4% Below Current Price = BUY" Problem He Can't Escape
+#### 🔥 The "Expected Value 4% Below Current Price = BUY" Problem He Can't Escape
 
 My colleague opened his final round by pointing out that my own probability table produced an expected value of $1,037 — 4% below $1,082 — and saying this proves the stock is overpriced. Then he triumphantly declared: "His conclusion? BUY. That is the intellectual contortion at the heart of the entire bull thesis."
 
@@ -1251,7 +1251,7 @@ But I'll go further: **my expected value was $1,037 because I used *his* pessimi
 
 ---
 
-## 🔥 On the Probability Table Asymmetry — He Made an Error He Doesn't Want You to Notice
+#### 🔥 On the Probability Table Asymmetry — He Made an Error He Doesn't Want You to Notice
 
 My colleague quoted my table and said: "Upside +20%, moderate downside -23-27%, severe downside -51%. The risk/reward is negatively asymmetric by his own math."
 
@@ -1271,7 +1271,7 @@ Every rational expected utility calculation says yes — especially when the alt
 
 ---
 
-## 🔥 On the "Three Temporarily Dormant Risks" — He Moved the Goalposts and Hoped You Wouldn't Notice
+#### 🔥 On the "Three Temporarily Dormant Risks" — He Moved the Goalposts and Hoped You Wouldn't Notice
 
 My colleague's most sophisticated rhetorical move was to accept my explanations for the January-April decline and then reframe them as "temporarily dormant" rather than "resolved." Let me address each one precisely.
 
@@ -1287,7 +1287,7 @@ The bear pivoted from "too little inventory creates supply risk" to "too much in
 
 ---
 
-## 🔥 On the Pfizer Analogy Reframing — He Acknowledged I Won the Primary Argument Then Tried to Win a Secondary One
+#### 🔥 On the Pfizer Analogy Reframing — He Acknowledged I Won the Primary Argument Then Tried to Win a Secondary One
 
 My colleague made a genuine concession: "He correctly identified that COVID revenue was temporary while obesity/diabetes demand is secular." He then attempted to salvage the analogy by arguing it was really about "velocity of multiple compression when perfection-priced stocks show their first crack."
 
@@ -1303,7 +1303,7 @@ The bear proposed the correct analogy and then used it incorrectly. The Lipitor 
 
 ---
 
-## 🔥 On the Novo Nordisk Alternative — This Is Where the Bear Lost the Debate
+#### 🔥 On the Novo Nordisk Alternative — This Is Where the Bear Lost the Debate
 
 Let me spend real time on the bear's Novo Nordisk suggestion, because it is the most revealing moment in the entire five-round debate.
 
@@ -1323,7 +1323,7 @@ The bear recommended selling the *winner* of the GLP-1 competitive battle to buy
 
 ---
 
-## 🔥 On "Institutional Accumulation Becoming Supply Overhang" — The Timeline Is Wrong
+#### 🔥 On "Institutional Accumulation Becoming Supply Overhang" — The Timeline Is Wrong
 
 My colleague made a clever point: institutional investors who accumulated at $849 are now sitting on 27% gains and will systematically reduce. Therefore, institutional money is now supply, not demand.
 
@@ -1337,7 +1337,7 @@ The institutional flow picture is more balanced than the bear's "smart money cas
 
 ---
 
-## 🔥 The IRA Circular Argument — And Why It Actually Reinforces the Bull Case
+#### 🔥 The IRA Circular Argument — And Why It Actually Reinforces the Bull Case
 
 This is the bear's cleverest final-round argument, and I want to address it with the seriousness it deserves.
 
@@ -1355,7 +1355,7 @@ And he's right that broader PBM coverage increases Medicare utilization, which i
 
 ---
 
-## 🔥 On "At What Price Is LLY Not a Buy?" — The Question He Claims I Never Answered
+#### 🔥 On "At What Price Is LLY Not a Buy?" — The Question He Claims I Never Answered
 
 The bear asked this question multiple times and accused me of always finding a lower buy price. He framed it as evidence that I'm an uncritical bull who would buy LLY at any price.
 
@@ -1375,7 +1375,7 @@ The bear asked what price makes LLY a sell. I gave him four conditions and one p
 
 ---
 
-## 📊 The Five-Round Scorecard — Who Advanced Their Argument?
+#### 📊 The Five-Round Scorecard — Who Advanced Their Argument?
 
 Let me give you an honest accounting of how the debate evolved:
 
@@ -1393,7 +1393,7 @@ That's not a bull ignoring risk. That's a bull who has read the research, quanti
 
 ---
 
-## 🏁 My Absolute Final Word
+#### 🏁 My Absolute Final Word
 
 The bear's closing line was: "Don't confuse discipline and courage."
 
@@ -1442,7 +1442,7 @@ That is not a rounding error. That is the market's definitive verdict on the bea
 
 ---
 
-## 🔥 On the IRA Classification Argument — The Bear Finally Found a Technical Footnote and Decided It Was a Thesis
+#### 🔥 On the IRA Classification Argument — The Bear Finally Found a Technical Footnote and Decided It Was a Thesis
 
 Let me be precise about what happened in the bear's latest round. After five rounds of arguing that IRA pricing risk is a known, material, near-term headwind, my colleague discovered — in Round 6 — that tirzepatide's biologic classification is "actively contested."
 
@@ -1462,7 +1462,7 @@ And on the "market prices in IRA risk 5-7 years before it materializes" point: t
 
 ---
 
-## 🔥 On the "SELL Conditions" Critique — He Misread the Logic and Then Called It Terrifying
+#### 🔥 On the "SELL Conditions" Critique — He Misread the Logic and Then Called It Terrifying
 
 The bear argued that my SELL conditions — specifically the EPS below $38 trigger — produce a $760 stock rather than the $912 I implied. He said this "gap is where retail investors get destroyed."
 
@@ -1480,7 +1480,7 @@ More importantly: he has never told you what happens if the Viking data is *nega
 
 ---
 
-## 🔥 On the "$849.75 Number That Ends the Debate" — Let Me Actually End It
+#### 🔥 On the "$849.75 Number That Ends the Debate" — Let Me Actually End It
 
 My colleague concluded with a flourish: why is the stock at $1,082 rather than $1,300 if all the risks are resolved?
 
@@ -1492,13 +1492,13 @@ This is not a mystery. This is exactly how equity markets price known binary eve
 
 This is actually the bull case in its most precise form. The market is not ignoring the risks. It is **appropriately pricing them.** The gap between $1,082 and my $1,300 target represents the expected value *uplift* that occurs when the Viking binary resolves favorably and the Q2/Q3 earnings acceleration confirms the commercial ramp.
 
-The bear looked at the same gap and said: "the market knows something you don't." I'm saying: **the market knows exactly what both of us know, and it's telling you the expected value including risks is $1,082 — which is above the $1,037 even the bear's own probability framework produces.** The market has already done the bear's probability-weighted math and arrived at a price that the bear is calling overvalued. 
+The bear looked at the same gap and said: "the market knows something you don't." I'm saying: **the market knows exactly what both of us know, and it's telling you the expected value including risks is $1,082 — which is above the $1,037 even the bear's own probability framework produces.** The market has already done the bear's probability-weighted math and arrived at a price that the bear is calling overvalued.
 
 That should tell you something about how the market is weighting the risks versus the opportunities.
 
 ---
 
-## 🔥 On the Behavioral Finance "Risk Cluster" Argument — The Most Sophisticated Bear Point That Still Misses the Key Variable
+#### 🔥 On the Behavioral Finance "Risk Cluster" Argument — The Most Sophisticated Bear Point That Still Misses the Key Variable
 
 I want to give genuine credit here: the Q3 2026 convergence risk — Viking data, first full Foundayo quarter, revenue deceleration visibility, macro backdrop — is the most analytically coherent argument the bear has made in six rounds. He's right that institutional risk managers reduce exposure before binary events. He's right that risk premiums exceed the sum of individual risks when uncertainties cluster.
 
@@ -1512,7 +1512,7 @@ One strategy requires two correct decisions. The other requires one. Which one e
 
 ---
 
-## 🔥 On the Scorecard — One Final Honest Assessment
+#### 🔥 On the Scorecard — One Final Honest Assessment
 
 The bear graded our debate 2-bull, 1.5-bear, 1.5-draw. I'll accept that accounting. But I want to point out what those numbers actually mean for the investment decision.
 
@@ -1526,7 +1526,7 @@ The scorecard on the actual investment decision — not the debate points — is
 
 ---
 
-## 🔥 The Question the Bear Asked That He Never Expected Me to Turn Back on Him
+#### 🔥 The Question the Bear Asked That He Never Expected Me to Turn Back on Him
 
 "Don't confuse a great company with a great investment at every price."
 
@@ -1542,7 +1542,7 @@ That is not discipline. **That is trading against the fundamentals because of a 
 
 ---
 
-## 📊 The Final Summary Every Reader Deserves
+#### 📊 The Final Summary Every Reader Deserves
 
 Let me give you the cleanest possible summary of where this debate actually landed after six rounds:
 
@@ -1572,11 +1572,11 @@ The bear said the lights are off and nobody is checking the math. I just checked
 
 ---
 
-## 🏁 My Absolute Final Word
+#### 🏁 My Absolute Final Word
 
 Six rounds. One company. One question: **is Eli Lilly at $1,082 a position worth holding through a 90-day binary event for a 20% upside and a well-defined downside stop?**
 
-My answer hasn't changed from Round 1. 
+My answer hasn't changed from Round 1.
 
 Yes.
 
@@ -1605,15 +1605,15 @@ Bear Analyst: # 🐻 Bear Case for LLY (Eli Lilly and Company) — Rebuttal & Co
 
 ---
 
-## "Extraordinary Growth Priced to Perfection Is Just Ordinary Disappointment Waiting to Happen."
+#### "Extraordinary Growth Priced to Perfection Is Just Ordinary Disappointment Waiting to Happen."
 
 My colleague across the table has delivered an impressive presentation. Truly. But let me tell you what he actually did: he took every positive data point available, strung them together in the most optimistic sequence possible, and called it an investment thesis. What he *didn't* do is explain what happens when even *one* of those assumptions breaks down. And at a $952 billion market capitalization, you cannot afford even one surprise. Let me show you why.
 
 ---
 
-## 💣 Problem #1: The Debt Elephant in the Room That Bulls Keep Ignoring
+#### 💣 Problem #1: The Debt Elephant in the Room That Bulls Keep Ignoring
 
-Let's start with something my colleague conveniently glossed over with a single sentence. Eli Lilly is carrying **$43.4 billion in total debt** against **$31.2 billion in stockholders' equity**. That's a **debt-to-equity ratio of 139%**. 
+Let's start with something my colleague conveniently glossed over with a single sentence. Eli Lilly is carrying **$43.4 billion in total debt** against **$31.2 billion in stockholders' equity**. That's a **debt-to-equity ratio of 139%**.
 
 In FY2023, Lilly generated **negative free cash flow of -$3.15 billion**. In FY2024, free cash flow was a meager **$410 million** — on $45 billion in revenue. Even in FY2025, with the explosive earnings growth my colleague is celebrating, free cash flow was only **$5.96 billion** against $42.5 billion in debt. They issued **$13.17 billion in new long-term debt in FY2025 alone** to fund manufacturing expansion.
 
@@ -1623,7 +1623,7 @@ If rates stay elevated or rise further — and the macro reports explicitly flag
 
 ---
 
-## 💣 Problem #2: The Valuation Math Only Works If Everything Goes Right
+#### 💣 Problem #2: The Valuation Math Only Works If Everything Goes Right
 
 My colleague wants to celebrate the forward PE of 24x as "cheap." Let me give that number the scrutiny it deserves.
 
@@ -1637,7 +1637,7 @@ And remember: this is a stock that went from **$1,076 to $849 in four months** �
 
 ---
 
-## 💣 Problem #3: The Viking Risk Is Not "Proportionate" — It's Existential for the Foundayo Narrative
+#### 💣 Problem #3: The Viking Risk Is Not "Proportionate" — It's Existential for the Foundayo Narrative
 
 My colleague spent two paragraphs trying to minimize Viking Therapeutics. Let me tell you why that's dangerous thinking.
 
@@ -1651,7 +1651,7 @@ This isn't a remote tail risk. **It is a defined, scheduled, 90-day binary event
 
 ---
 
-## 💣 Problem #4: The IRA Pricing Time Bomb
+#### 💣 Problem #4: The IRA Pricing Time Bomb
 
 Here's the risk that barely gets a mention in the bull case, buried as item #1 in the "Key Risks" section of the fundamental report with no dollar quantification: **The Inflation Reduction Act**.
 
@@ -1663,7 +1663,7 @@ The $44.47 forward EPS estimate doesn't fully account for this. When the market 
 
 ---
 
-## 💣 Problem #5: The CapEx Trap and Supply Chain Complexity
+#### 💣 Problem #5: The CapEx Trap and Supply Chain Complexity
 
 My colleague celebrates Lilly's **$10.85 billion in CapEx in FY2025** as evidence of manufacturing investment. Let me translate that into risk language: **Eli Lilly is running one of the largest pharmaceutical construction programs in history, simultaneously, across multiple global sites, while trying to manage product launches for multiple new drugs.**
 
@@ -1678,7 +1678,7 @@ The inventory build-up tells the same story: **$14.53 billion in inventory** as 
 
 ---
 
-## 💣 Problem #6: The Technical Picture Is More Cautionary Than Bulls Admit
+#### 💣 Problem #6: The Technical Picture Is More Cautionary Than Bulls Admit
 
 Let me engage with the technical analysis directly, because my colleague cherry-picked the bullish signals. Here's what the same data actually shows from a risk perspective:
 
@@ -1692,7 +1692,7 @@ Let me engage with the technical analysis directly, because my colleague cherry-
 
 ---
 
-## 🔄 Directly Countering the Bull's Best Points
+#### 🔄 Directly Countering the Bull's Best Points
 
 **On "trailing PE is looking in the rearview mirror, forward PE is 24x":**
 
@@ -1712,7 +1712,7 @@ Bears don't talk about it because the Alzheimer's market has been a graveyard fo
 
 ---
 
-## 📊 The Summary Risk Table Bulls Hoped You Wouldn't Read Carefully
+#### 📊 The Summary Risk Table Bulls Hoped You Wouldn't Read Carefully
 
 | Risk Factor | Bull Dismissal | Reality Check |
 |---|---|---|
@@ -1727,7 +1727,7 @@ Bears don't talk about it because the Alzheimer's market has been a graveyard fo
 
 ---
 
-## 🏁 The Bottom Line
+#### 🏁 The Bottom Line
 
 Look, I'm not saying Eli Lilly is a bad company. It's a phenomenal company. The GLP-1 franchise is genuinely transformative. But phenomenal companies at the wrong price are terrible investments.
 
@@ -1760,7 +1760,7 @@ When every risk has a pre-packaged answer, when every concern gets dismissed wit
 
 ---
 
-## 🔥 The "Already Priced In" Defense Is the Last Refuge of the Fully Valued
+#### 🔥 The "Already Priced In" Defense Is the Last Refuge of the Fully Valued
 
 My colleague's most-used phrase across both rebuttals was some variation of "already modeled," "already priced in," or "known risk absorbed into valuation." He used it on IRA pricing. He used it on debt. He used it on competitive dynamics.
 
@@ -1774,7 +1774,7 @@ The bull answered my "downside is unconstrained" argument by defining the floor 
 
 ---
 
-## 🔥 On Debt — My Colleague Corrected My Framing and Then Used the Wrong Framing Himself
+#### 🔥 On Debt — My Colleague Corrected My Framing and Then Used the Wrong Framing Himself
 
 Credit where it's due: the 1.2x debt-to-EBITDA correction is fair and I'll accept it. Debt-to-equity was the wrong ratio to lead with for a company with Lilly's earnings power.
 
@@ -1790,7 +1790,7 @@ Lilly is running on a **razor-thin margin** between cash generation and capital 
 
 ---
 
-## 🔥 On Viking — The Bull's "12-18 Month Lag" Argument Misunderstands How Markets Price Risk
+#### 🔥 On Viking — The Bull's "12-18 Month Lag" Argument Misunderstands How Markets Price Risk
 
 This is the argument I want to spend the most time on, because the bull's response reveals a fundamental misunderstanding of how markets work.
 
@@ -1808,7 +1808,7 @@ And let me add something the bull completely ignored: **the stock market doesn't
 
 ---
 
-## 🔥 On the IRA — Let Me Challenge the "Trump Softening Implementation" Claim
+#### 🔥 On the IRA — Let Me Challenge the "Trump Softening Implementation" Claim
 
 My colleague invoked the current political environment as a reason to discount IRA pricing risk. I want to be very precise about why this argument is dangerous.
 
@@ -1823,7 +1823,7 @@ Furthermore, the "already modeled in consensus estimates" defense deserves direc
 
 ---
 
-## 🔥 On Manufacturing CapEx — The Bull Turned a Risk Into a Moat. Let Me Turn It Back.
+#### 🔥 On Manufacturing CapEx — The Bull Turned a Risk Into a Moat. Let Me Turn It Back.
 
 The reframing of $13 billion in construction-in-progress as a "competitive moat" is the most creative argument in the bull's toolkit. And I want to give it a genuinely fair hearing before I dismantle it.
 
@@ -1837,7 +1837,7 @@ This is not speculation. It is the standard trajectory of pharmaceutical manufac
 
 ---
 
-## 🔥 On the Technical Picture — Let Me Make the Bear Case the Bull Refused To
+#### 🔥 On the Technical Picture — Let Me Make the Bear Case the Bull Refused To
 
 My colleague reframed all four technical risk signals as bullish. Let me restate the actual position:
 
@@ -1851,7 +1851,7 @@ I'm not the one calling this stock overextended in the short term. **The technic
 
 ---
 
-## 🔥 On the Bull's "Core Question" — Let Me Actually Answer It
+#### 🔥 On the Bull's "Core Question" — Let Me Actually Answer It
 
 The bull issued a challenge: "Name a pharmaceutical franchise that generated $19.8B in quarterly revenue with 50% operating margins and complete PBM coverage that did *not* continue to create substantial shareholder value."
 
@@ -1865,7 +1865,7 @@ I'm not saying Lilly is Pfizer. I'm saying **the question of whether extraordina
 
 ---
 
-## 🔥 The Three Arguments the Bull Never Answered
+#### 🔥 The Three Arguments the Bull Never Answered
 
 After two rounds of debate, here are the three questions my colleague has not substantively addressed:
 
@@ -1883,7 +1883,7 @@ Not the upside case. Not the 12-month target. The **margin of safety** — the g
 
 ---
 
-## 📊 The Final Risk/Reward Assessment I Want You to Walk Away With
+#### 📊 The Final Risk/Reward Assessment I Want You to Walk Away With
 
 | Scenario | Probability | EPS | Multiple | Price | Return from $1,082 |
 |---|---|---|---|---|---|
@@ -1898,7 +1898,7 @@ The bull is selling you on the 20% upside scenario. I'm showing you the probabil
 
 ---
 
-## 🏁 My Final Word
+#### 🏁 My Final Word
 
 Look, I'll say it plainly: Eli Lilly may be the best-run large pharmaceutical company in the world right now. The GLP-1 franchise is genuinely transformative. The management team is executing at an elite level. The pipeline is deep and diversified.
 
@@ -1926,7 +1926,7 @@ Let me make my final case.
 
 ---
 
-## 🔥 The Probability Table Debate Reveals Exactly What I Warned You About
+#### 🔥 The Probability Table Debate Reveals Exactly What I Warned You About
 
 My colleague spent considerable energy attacking my scenario table. He called my multiples "punitive beyond reason" and my probability weights "backwards." Then he helpfully rebuilt the table with his own assumptions and declared an expected value of $1,037 — just 4% below current price — as evidence you should hold or buy.
 
@@ -1938,11 +1938,11 @@ That is the intellectual contortion at the heart of the entire bull thesis. When
 
 But let me go further and challenge his specific assumptions, because this is where the debate gets genuinely interesting.
 
-**His "strong execution" probability of 30% at $52 EPS requires what, exactly?** It requires Foundayo to ramp without Viking disruption, IRA to remain benign, manufacturing to execute flawlessly, GLP-1 oncology optionality to get priced in, AND macro to cooperate. He assigns 30% probability to all of those going right simultaneously. Yet when I assign 15% probability to multiple risks materializing simultaneously, he calls it "catastrophizing." 
+**His "strong execution" probability of 30% at $52 EPS requires what, exactly?** It requires Foundayo to ramp without Viking disruption, IRA to remain benign, manufacturing to execute flawlessly, GLP-1 oncology optionality to get priced in, AND macro to cooperate. He assigns 30% probability to all of those going right simultaneously. Yet when I assign 15% probability to multiple risks materializing simultaneously, he calls it "catastrophizing."
 
 The asymmetry in his own framework is breathtaking: optimistic scenarios are "realistic execution," pessimistic scenarios are "stacking catastrophes." That's not analysis. That's motivated reasoning.
 
-**And here's the number he never addressed:** His "moderate headwinds" scenario — a $836 stock — represents a **23% drawdown** from current levels. He assigned that a 20% probability. His "severe disruption" scenario — a $532 stock — represents a **51% drawdown**. He assigned that 10% probability. 
+**And here's the number he never addressed:** His "moderate headwinds" scenario — a $836 stock — represents a **23% drawdown** from current levels. He assigned that a 20% probability. His "severe disruption" scenario — a $532 stock — represents a **51% drawdown**. He assigned that 10% probability.
 
 A 30% probability-weighted chance of losing more than 20%. That is the bull's own risk disclosure, buried in his own table, that he's asking you to ignore because the expected value math technically comes out marginally positive.
 
@@ -1950,11 +1950,11 @@ A 30% probability-weighted chance of losing more than 20%. That is the bull's ow
 
 ---
 
-## 🔥 On the "Three Questions" — He Answered Them, But Not the Way He Claims
+#### 🔥 On the "Three Questions" — He Answered Them, But Not the Way He Claims
 
 Credit where it's due: my colleague provided numbers this time. But let me examine what those numbers actually reveal.
 
-### His Answer to Question 1 — The Combined Stress Scenario
+#### His Answer to Question 1 — The Combined Stress Scenario
 
 He walked through Viking impact ($2-4B revenue), IRA impact ($3.6-4.5B annually on Mounjaro), and manufacturing delay (incremental only). He concluded: "combined worst case $6-8 billion revenue impact, $36-38 EPS at 22x = $792-836."
 
@@ -1966,11 +1966,11 @@ And his argument for why you should still own the stock is that this represents 
 
 His own numbers show: upside +20%, moderate downside -23-27%, severe downside -51%. The risk/reward is negatively asymmetric by his own math. The bull case requires more things to go right than the bear case requires to go wrong, and the payoffs are roughly symmetric in absolute dollar terms but skewed toward the downside in probability-weighted terms.
 
-When I presented this exact asymmetry in my first argument, the bull called it "price anxiety dressed up as analysis." Now that I've forced him to quantify it, he's calling it "manageable." 
+When I presented this exact asymmetry in my first argument, the bull called it "price anxiety dressed up as analysis." Now that I've forced him to quantify it, he's calling it "manageable."
 
 The number hasn't changed. Only the framing has.
 
-### His Answer to Question 2 — Why $849 Six Weeks Ago
+#### His Answer to Question 2 — Why $849 Six Weeks Ago
 
 He identified three catalysts for the January-April decline: supply concerns, macro rotation, and tariff uncertainty. He argued all three have "partially or fully resolved."
 
@@ -1986,7 +1986,7 @@ The three "resolved" catalysts are better described as three **temporarily dorma
 
 ---
 
-## 🔥 On the Pfizer Analogy — He Won the Framing Battle and Lost the Analytical War
+#### 🔥 On the Pfizer Analogy — He Won the Framing Battle and Lost the Analytical War
 
 My colleague's rebuttal of the Pfizer analogy was his strongest moment in this entire debate. He correctly identified that COVID revenue was temporary while obesity/diabetes demand is secular. He correctly proposed the Lipitor analogy as a better frame. He made a genuine analytical distinction that I'll acknowledge as valid.
 
@@ -1996,7 +1996,7 @@ But here's what he missed — and it's the most important point I'll make in thi
 
 Pfizer shareholders in December 2021 could make every argument the bull is making today:
 - "This is the best-executed pharmaceutical launch in history." ✓ True
-- "The revenue is real, audited, and growing." ✓ True  
+- "The revenue is real, audited, and growing." ✓ True
 - "The forward multiple is reasonable given the growth trajectory." ✓ True (at the time)
 - "The underlying disease burden is enormous." ✓ True
 
@@ -2008,13 +2008,13 @@ The bull replaced "pandemic windfall" with "secular growth" and declared the ana
 
 ---
 
-## 🔥 The Question He Asked That I'm Going to Answer — And Turn Against Him
+#### 🔥 The Question He Asked That I'm Going to Answer — And Turn Against Him
 
 "If you sell LLY at $1,082 today, what do you buy instead?"
 
 This is the bull's rhetorical trump card, and I've been waiting to address it properly because the answer demolishes his framing entirely.
 
-**The answer is: you don't have to buy anything.** 
+**The answer is: you don't have to buy anything.**
 
 The implicit assumption in "what do you buy instead?" is that capital must always be fully deployed. It doesn't. In a market environment where:
 
@@ -2023,13 +2023,13 @@ The implicit assumption in "what do you buy instead?" is that capital must alway
 - The technical research on the very stock we're discussing says "avoid chasing at $1,082 after a 27% rally in 25 days — risk/reward is asymmetric to the downside near-term"
 - A scheduled binary risk event is 90 days away
 
-...the answer "raise cash and wait" is not only valid, it's prudent. 
+...the answer "raise cash and wait" is not only valid, it's prudent.
 
-But let me go further and give him a genuine alternative. **Novo Nordisk.** 
+But let me go further and give him a genuine alternative. **Novo Nordisk.**
 
 The bull spent considerable time in this debate emphasizing that LLY has competitive advantages over Novo Nordisk's oral semaglutide on tolerability grounds. The StockTwits data shows retail investors piling into LLY specifically because Novo's oral pill has nausea/vomiting issues. All of that may be true.
 
-But here's the valuation comparison he never made: **Novo Nordisk trades at a significant discount to LLY on virtually every forward multiple**. They operate in the same secular growth market, with similar pipeline depth, similar manufacturing scale, and similar GLP-1 franchise economics. If the obesity/diabetes secular growth story is as powerful as the bull claims, Novo Nordisk at a lower multiple on the same macro tailwind offers **better risk-adjusted exposure to the same thesis**. 
+But here's the valuation comparison he never made: **Novo Nordisk trades at a significant discount to LLY on virtually every forward multiple**. They operate in the same secular growth market, with similar pipeline depth, similar manufacturing scale, and similar GLP-1 franchise economics. If the obesity/diabetes secular growth story is as powerful as the bull claims, Novo Nordisk at a lower multiple on the same macro tailwind offers **better risk-adjusted exposure to the same thesis**.
 
 The bull can't simultaneously argue that LLY is uniquely positioned versus Novo AND that the secular growth story is so powerful it justifies LLY's premium. If the growth is secular and structural, the discount at NVO is a relative value opportunity. If LLY's premium is justified by competitive differentiation, then you're making a product horse-race bet on Foundayo versus Wegovy that the Viking Q3 data could immediately complicate.
 
@@ -2037,7 +2037,7 @@ He asked what you buy instead. I gave him the answer his own competitive analysi
 
 ---
 
-## 🔥 The Three Things the Bull Said That Should Actually Concern You
+#### 🔥 The Three Things the Bull Said That Should Actually Concern You
 
 Let me give you the three moments from the bull's argument that, upon reflection, are the most revealing of the risk being taken at current prices.
 
@@ -2055,7 +2055,7 @@ But here's what "peak CapEx" actually means for the medium-term story: **Lilly's
 
 ---
 
-## 🔥 The IRA Argument He Buried — And Why It Matters More Than He Admitted
+#### 🔥 The IRA Argument He Buried — And Why It Matters More Than He Admitted
 
 My colleague's IRA response was his most sophisticated dismissal. He argued: Trump administration is softer on pharma; already modeled in consensus; commercial diversification reduces Medicare concentration.
 
@@ -2069,7 +2069,7 @@ The consensus estimate of $44.47 forward EPS does not fully model an aggressive 
 
 ---
 
-## 📊 What the Research Data Tells You That the Bull Won't
+#### 📊 What the Research Data Tells You That the Bull Won't
 
 Let me go back to the actual research documents that both of us have been drawing from and highlight what the bull consistently minimized:
 
@@ -2083,7 +2083,7 @@ The research doesn't support a clean BUY recommendation at current levels. The r
 
 ---
 
-## 🏁 My Absolute Final Word
+#### 🏁 My Absolute Final Word
 
 Here is the simplest version of the bear case, stripped of all the debates about debt ratios, probability tables, and Pfizer analogies:
 
@@ -2121,7 +2121,7 @@ I'm going to check it right now. And when we're done, I want you to ask yourself
 
 ---
 
-## 🔥 The IRA Timeline Argument Is His Most Dangerous Sleight of Hand
+#### 🔥 The IRA Timeline Argument Is His Most Dangerous Sleight of Hand
 
 This is the moment in the debate where my colleague felt most confident, and I want to spend real time here because the audience deserves the complete picture.
 
@@ -2139,7 +2139,7 @@ The bull told you this is a 2034 problem. What he didn't tell you is that the ma
 
 ---
 
-## 🔥 On His "SELL Conditions" — He Finally Answered My Question, and the Answer Is Terrifying
+#### 🔥 On His "SELL Conditions" — He Finally Answered My Question, and the Answer Is Terrifying
 
 Credit where it's genuinely due: my colleague listed four specific conditions under which he would no longer be a buyer. Let me quote them directly:
 
@@ -2152,11 +2152,11 @@ And he said LLY is not a buy at **$1,250-$1,350**, where forward PE expands to 2
 
 I want you to sit with the logic embedded in that answer.
 
-**He is telling you that the stock needs to rise another 15-25% before it becomes a SELL.** At $1,082, he's a buyer. At $1,350, he's a seller. That means the range of prices at which he considers LLY appropriately valued spans **from approximately $850 to $1,350** — a $500 range on a $1,082 stock. 
+**He is telling you that the stock needs to rise another 15-25% before it becomes a SELL.** At $1,082, he's a buyer. At $1,350, he's a seller. That means the range of prices at which he considers LLY appropriately valued spans **from approximately $850 to $1,350** — a $500 range on a $1,082 stock.
 
 That is not a valuation discipline. That is a momentum-following framework dressed up as fundamental analysis. When your buy zone and sell zone cover 63% of the stock's value, you don't have a price target — you have a hope.
 
-But let me focus on his SELL condition #1: **forward EPS below $38.** 
+But let me focus on his SELL condition #1: **forward EPS below $38.**
 
 The current forward EPS estimate is $44.47. For EPS to fall to $38, you need approximately a **14.5% downward revision to consensus**. In the history of high-multiple pharmaceutical stocks facing competitive disruption, a 14.5% EPS revision doesn't happen in isolation. It arrives with multiple compression simultaneously. If Foundayo disappoints AND Viking data is positive AND the sell-side begins cutting numbers — the stock doesn't fall from $1,082 to the equivalent of 24x $38 earnings. It falls to 20x $38 earnings. That's **$760**.
 
@@ -2164,7 +2164,7 @@ He told you his SELL condition triggers a price of $912 ($38 × 24x). The actual
 
 ---
 
-## 🔥 The Five-Round Scorecard He Graded Himself — Let Me Grade It Honestly
+#### 🔥 The Five-Round Scorecard He Graded Himself — Let Me Grade It Honestly
 
 My colleague produced a five-round scorecard awarding himself victories in four of five rounds. Since he wrote the scorecard, that's not entirely surprising. Let me offer a more objective accounting:
 
@@ -2180,7 +2180,7 @@ Honest scorecard: **2 bull, 1.5 bear, 1.5 draw**. Not the 4-1 sweep my colleague
 
 ---
 
-## 🔥 On the Novo Nordisk "White Flag" — He Missed the Point I Was Actually Making
+#### 🔥 On the Novo Nordisk "White Flag" — He Missed the Point I Was Actually Making
 
 My colleague spent an entire section celebrating that I suggested Novo Nordisk and calling it "buying a damaged horse." He listed four ways the NVO suggestion contradicts my earlier arguments. It was his best rhetorical moment of the entire debate.
 
@@ -2192,7 +2192,7 @@ It does not. And the fact that the bull spent 400 words on a secondary aside rat
 
 ---
 
-## 🔥 The Argument He Has Never Touched — Let Me Make It One Final Time
+#### 🔥 The Argument He Has Never Touched — Let Me Make It One Final Time
 
 Across six rounds of debate, there is one argument I have raised repeatedly and my colleague has addressed only tangentially: **the behavioral finance reality of what happens to $952 billion market cap stocks when growth deceleration becomes visible.**
 
@@ -2211,7 +2211,7 @@ The technical research he and I are both drawing from says this explicitly: **"t
 
 ---
 
-## 🔥 The Question He Finally Answered — And What It Reveals
+#### 🔥 The Question He Finally Answered — And What It Reveals
 
 He told us he would sell LLY at $1,250-$1,350, when forward PE reaches 28-30x.
 
@@ -2230,7 +2230,7 @@ That is not risk management. That is the setup for the trade he's been warning y
 
 ---
 
-## 📊 The Number That Ends the Debate
+#### 📊 The Number That Ends the Debate
 
 One number. I want to leave you with one number that cuts through every probability table, every IRA timeline, every Pfizer analogy, and every scorecard.
 
@@ -2250,7 +2250,7 @@ Selling at $1,082 is not fear. **It is the correct read of what the price is act
 
 ---
 
-## 🏁 My True Final Word
+#### 🏁 My True Final Word
 
 Six rounds. One question that has never changed.
 
@@ -2268,7 +2268,7 @@ My colleague is a skilled debater and an optimistic analyst. He believes in this
 
 But **"may be right" is not good enough at $952 billion in market cap with zero margin of safety.**
 
-The bull's final advice was: don't confuse discipline and courage. 
+The bull's final advice was: don't confuse discipline and courage.
 
 My final advice is simpler: **don't confuse a great company with a great investment at every price.**
 
@@ -2296,7 +2296,7 @@ Let me finish it for him.
 
 ---
 
-## 🔥 The Market Isn't Validating the Bull Case. It's Discounting It.
+#### 🔥 The Market Isn't Validating the Bull Case. It's Discounting It.
 
 Here is the precise statement my colleague made: *"The market has already done the bear's probability-weighted math and arrived at a price that the bear is calling overvalued."*
 
@@ -2314,7 +2314,7 @@ These two statements are mutually contradictory. If the market is efficient enou
 
 ---
 
-## 🔥 On "He Was Wrong at $849" — The Bull's Most Dishonest Argument
+#### 🔥 On "He Was Wrong at $849" — The Bull's Most Dishonest Argument
 
 Let me address this directly because it's been the emotional centerpiece of the bull's closing rounds, and it deserves the scrutiny it's been avoiding.
 
@@ -2334,7 +2334,7 @@ The bull is using the right answer to the wrong question to avoid answering the 
 
 ---
 
-## 🔥 On IRA — He Pivoted to Politics and Hoped You'd Follow
+#### 🔥 On IRA — He Pivoted to Politics and Hoped You'd Follow
 
 My colleague's IRA rebuttal in the final round rested on three claims. Let me address each with the precision they deserve.
 
@@ -2354,7 +2354,7 @@ That's not immaterial. That's one line item in a portfolio that the bull declare
 
 ---
 
-## 🔥 On the Probability Table — He Rebuilt It and Got $1,037. I Want to Talk About the Error Bars.
+#### 🔥 On the Probability Table — He Rebuilt It and Got $1,037. I Want to Talk About the Error Bars.
 
 My colleague's rebuilt probability table produced an expected value of $1,037 — 4% below current price. He called this a "HOLD, not a SELL."
 
@@ -2370,13 +2370,13 @@ This is the analytical bias embedded in every bull probability table: **low prob
 
 ---
 
-## 🔥 On the Viking "Coin Flip" — He Just Told You His Thesis Rests on a 50/50 Bet
+#### 🔥 On the Viking "Coin Flip" — He Just Told You His Thesis Rests on a 50/50 Bet
 
 This is the moment that should end the debate for every rational investor in the room.
 
 My colleague said, and I quote: *"Viking negative data — a roughly equal probability outcome — produces a $1,300+ stock on cleared overhang."*
 
-He is telling you that his **$1,300 price target depends on a coin flip going in his favor.** 
+He is telling you that his **$1,300 price target depends on a coin flip going in his favor.**
 
 Let me restate what this means for the investment decision:
 
@@ -2396,7 +2396,7 @@ This is not a situation where holding through binary uncertainty is neutral. **T
 
 ---
 
-## 🔥 On the CapEx "Moat" — The Bull's Best Reframe That Still Contains a Hidden Assumption
+#### 🔥 On the CapEx "Moat" — The Bull's Best Reframe That Still Contains a Hidden Assumption
 
 I've acknowledged throughout this debate that manufacturing scale is a genuine competitive barrier. The bull wins that argument. But let me introduce the specific risk embedded in his "moat" framing that has gone unaddressed for seven rounds.
 
@@ -2414,7 +2414,7 @@ The bull has never addressed this specific technological risk. He has addressed 
 
 ---
 
-## 🔥 The Capital Allocation Math He Kept Recalculating Without Fixing the Core Problem
+#### 🔥 The Capital Allocation Math He Kept Recalculating Without Fixing the Core Problem
 
 Seven rounds in, my colleague has provided multiple versions of the FCF calculation. Let me do it one final time with complete honesty.
 
@@ -2439,7 +2439,7 @@ The bull called this "optimal capital structure theory." I call it **a company t
 
 ---
 
-## 🔥 On "What Do Institutional Managers Do the Day After Viking Data?" — He Asked the Wrong Question
+#### 🔥 On "What Do Institutional Managers Do the Day After Viking Data?" — He Asked the Wrong Question
 
 My colleague's behavioral finance argument was: if Viking data is negative, institutional managers add aggressively, and investors who sold can't re-enter at good prices.
 
@@ -2460,7 +2460,7 @@ The bull is presenting this as a binary: either you hold fully and risk the down
 
 ---
 
-## 🔥 The Three Numbers That Define This Debate
+#### 🔥 The Three Numbers That Define This Debate
 
 Let me close with three numbers. Just three. No probability tables, no biologic classification arguments, no Lipitor analogies.
 
@@ -2480,7 +2480,7 @@ What will be gone is the uncertainty — and with it, the overhang that has kept
 
 ---
 
-## 🏁 My Absolute Final Word
+#### 🏁 My Absolute Final Word
 
 Seven rounds. One company. One fundamental question that has never changed: **does the risk/reward at $1,082 favor new capital, given everything both of us know?**
 

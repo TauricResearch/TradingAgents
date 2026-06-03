@@ -29,7 +29,7 @@ Morgan Stanley — not some retail Reddit account, but Morgan Stanley — just a
 
 ## 🔧 The Nvidia RTX Spark Partnership Opens a Second Growth Leg
 
-Bears focus entirely on the server narrative. But here's what they're missing: Dell was just named as a **primary launch partner for Nvidia's RTX Spark chip** — described as "the most efficient PC chip ever built." 
+Bears focus entirely on the server narrative. But here's what they're missing: Dell was just named as a **primary launch partner for Nvidia's RTX Spark chip** — described as "the most efficient PC chip ever built."
 
 Apple? **Excluded.**
 
@@ -170,11 +170,11 @@ The bear's valuation anchor is that "traditional hardware companies trade at 0.5
 
 But **Dell is not a traditional hardware company anymore.** At 2.5x sales, Dell trades at a fraction of:
 - Nvidia: ~25x sales
-- Palo Alto Networks: ~15x sales  
+- Palo Alto Networks: ~15x sales
 - Salesforce: ~8x sales
 - Even HPE post-earnings surge: likely 2-3x sales
 
-The bear is applying 2019 valuation multiples to a 2026 AI infrastructure company. **Dell's revenue mix has fundamentally shifted.** ISG — servers, storage, AI infrastructure — now dominates the business. The AI infrastructure segment commands structurally higher multiples than the PC hardware business of five years ago. 
+The bear is applying 2019 valuation multiples to a 2026 AI infrastructure company. **Dell's revenue mix has fundamentally shifted.** ISG — servers, storage, AI infrastructure — now dominates the business. The AI infrastructure segment commands structurally higher multiples than the PC hardware business of five years ago.
 
 And the forward P/E comparison? At 22.1x forward earnings, Dell trades at a **discount to the S&P 500's long-run average** of approximately 16-18x for a market growing at 3-5% annually. You're getting a business growing revenue at 19%+ and EPS at 39% CAGR for *below the market multiple* on a forward basis. The bear somehow frames this as "priced for perfection."
 
@@ -262,7 +262,7 @@ When my bear colleague says "single-quarter extrapolation is the last refuge of 
 
 Q4 FY2026 revenue wasn't a one-quarter anomaly appearing from nowhere. Look at the sequential trajectory:
 - Q1 FY2026: $23.4B
-- Q2 FY2026: $29.8B  
+- Q2 FY2026: $29.8B
 - Q3 FY2026: $27.0B
 - Q4 FY2026: $33.4B
 
@@ -420,7 +420,7 @@ The fundamental observations about the business are:
 - Dell was named Nvidia's launch partner for the next generation of AI PCs ✅
 - The company returned $7.86 billion to shareholders while growing cash by $7.9 billion ✅
 
-The bear cannot point to a single one of these fundamentals and say it's wrong. What he can say — and does say, repeatedly — is that the stock price has moved ahead of these fundamentals. 
+The bear cannot point to a single one of these fundamentals and say it's wrong. What he can say — and does say, repeatedly — is that the stock price has moved ahead of these fundamentals.
 
 **But the stock price has moved because the fundamentals moved first.** That's not a bubble. That's price discovery catching up to reality.
 
@@ -749,7 +749,7 @@ DELL at $465 is not an obvious buy. DELL at $380-$420 — which is the RSI norma
 My colleague's most powerful rhetorical tool has been historical analogies — Cisco 2000, Intel 2021, Netflix 2021, Meta 2021. Each chosen for its emotional resonance. Each chosen because it ended badly. **He has not cited a single example of a company that:**
 
 - Grew revenue 18.8% on a $113 billion base
-- Grew FCF 357% in a single year  
+- Grew FCF 357% in a single year
 - Maintained a 39% EPS CAGR over three years
 - Received simultaneous confirmation from a direct peer's blowout earnings
 - Was named as a primary launch partner for the next generation of AI computing

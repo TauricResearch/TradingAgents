@@ -128,11 +128,11 @@ My colleague just delivered a polished, well-structured argument. I'll give cred
 
 ## ⚔️ "Forward EPS Requires Further Acceleration" — Actually, It Doesn't
 
-The bear's most dramatic claim is that hitting $105.28 in forward EPS requires "more than doubling the current quarterly run rate" to $26+ per quarter. He calculated this by annualizing Q2 FY26's $12.07 EPS and declaring it insufficient. 
+The bear's most dramatic claim is that hitting $105.28 in forward EPS requires "more than doubling the current quarterly run rate" to $26+ per quarter. He calculated this by annualizing Q2 FY26's $12.07 EPS and declaring it insufficient.
 
 Let me correct the math and the framing simultaneously.
 
-**First, the math.** The bear is comparing a *trailing* quarterly EPS figure to a *forward* consensus estimate that typically reflects the next four quarters from the point of analyst coverage. The forward EPS of $105.28 is not simply "annualized Q2 FY26 times four." It incorporates analyst models that account for the Q3 FY26 earnings report — which, based on the trajectory and Susquehanna's channel checks showing Q2 DRAM ASPs *beating* already elevated estimates — is almost certainly going to show further sequential EPS expansion. 
+**First, the math.** The bear is comparing a *trailing* quarterly EPS figure to a *forward* consensus estimate that typically reflects the next four quarters from the point of analyst coverage. The forward EPS of $105.28 is not simply "annualized Q2 FY26 times four." It incorporates analyst models that account for the Q3 FY26 earnings report — which, based on the trajectory and Susquehanna's channel checks showing Q2 DRAM ASPs *beating* already elevated estimates — is almost certainly going to show further sequential EPS expansion.
 
 **Second, look at the trajectory again, but this time don't stop where the bear stopped:**
 
@@ -178,7 +178,7 @@ This is **historically accurate but forward-looking misleading**. Here's the cur
 
 Micron has been actively qualifying HBM3E with Nvidia and has publicly stated it is in volume production for AI customers. The critical word is *trajectory*. Micron was behind in HBM2 and early HBM3. But the company has invested heavily to close the gap, and multiple industry reports indicate Micron's HBM3E is now competitive on both performance and yield. The Virginia 1α DRAM fab announcement isn't just a geopolitical story — it's a capacity story. Micron is building the domestic infrastructure to *grow* its HBM market share, not maintain a distant third-place position.
 
-Moreover — and this is the bear's deepest conceptual error on this point — **you don't need to be first-place to profit enormously from an HBM supercycle.** The total addressable market for HBM is growing so fast that even a third-place supplier with expanding capacity and improving yields captures enormous absolute revenue. The question isn't "is Micron winning the HBM market share battle?" The question is "is there enough HBM demand to make Micron enormously profitable even at its current share?" 
+Moreover — and this is the bear's deepest conceptual error on this point — **you don't need to be first-place to profit enormously from an HBM supercycle.** The total addressable market for HBM is growing so fast that even a third-place supplier with expanding capacity and improving yields captures enormous absolute revenue. The question isn't "is Micron winning the HBM market share battle?" The question is "is there enough HBM demand to make Micron enormously profitable even at its current share?"
 
 The answer, given a shortage that analysts say persists until 2030, is an unambiguous **yes**.
 
@@ -204,7 +204,7 @@ The AR jump is proportional to a massive revenue surge in a business that sells 
 
 The bear wants you to see $6.39B in quarterly CapEx as a ticking time bomb. I want you to see it for what it actually is: **the construction of a multi-decade competitive moat.**
 
-Here's the reframe: Micron currently has $14.59B in cash, is generating $11.9B in operating cash flow per quarter, and has *already* reduced total debt from $15.28B to $10.80B in two quarters. The company is simultaneously investing $6.4B in capacity, paying down $1.7B in debt, buying back $350M in stock, and paying dividends — **and still generating $5.52B in free cash flow.** 
+Here's the reframe: Micron currently has $14.59B in cash, is generating $11.9B in operating cash flow per quarter, and has *already* reduced total debt from $15.28B to $10.80B in two quarters. The company is simultaneously investing $6.4B in capacity, paying down $1.7B in debt, buying back $350M in stock, and paying dividends — **and still generating $5.52B in free cash flow.**
 
 That's not a ticking clock. That's a cash machine funding its own future growth while returning capital to shareholders and deleveraging.
 
@@ -258,7 +258,7 @@ I promised to engage the macro risks honestly, so let me.
 
 The bear's entire argument structure is built around a single implicit assumption: **that the current price is "priced for perfection."**
 
-But here's what "priced for perfection" actually looks like: a stock trading at 40x, 50x, or 80x forward earnings where any miss triggers catastrophic re-rating. 
+But here's what "priced for perfection" actually looks like: a stock trading at 40x, 50x, or 80x forward earnings where any miss triggers catastrophic re-rating.
 
 **MU trades at 10x forward earnings.** That is not priced for perfection. That's priced for profound skepticism — skepticism about whether the AI memory supercycle is real, whether HBM demand is structural, whether Micron's earnings trajectory can continue. And every single data point we have — the quarterly earnings, the ASP checks, the Susquehanna upgrade, the SK Hynix capacity timeline, the Nvidia roadmap — is answering that skepticism in Micron's favor.
 
@@ -266,7 +266,7 @@ The bear case requires you to believe that the market is right to be deeply skep
 
 **A 196% year-over-year revenue increase. 74% gross margins. $13.79B net income in a single quarter. $5.52B quarterly free cash flow. A structural HBM shortage lasting potentially until 2030. A Susquehanna price target 69% above current price. A forward P/E of 10x.**
 
-The bear says the monument to Micron's earnings recovery is "already priced in." 
+The bear says the monument to Micron's earnings recovery is "already priced in."
 
 At 10x forward earnings, I say the monument hasn't even broken ground yet.
 
@@ -316,7 +316,7 @@ Compelling. Except — **what academic research?** He never cited it. And more i
 Here's what the actual data shows about where we are in the Micron earnings cycle. Look at the sequential EPS growth rate:
 
 - Q3 FY25 to Q4 FY25: +68% sequential growth
-- Q4 FY25 to Q1 FY26: +63% sequential growth  
+- Q4 FY25 to Q1 FY26: +63% sequential growth
 - Q1 FY26 to Q2 FY26: +162% sequential growth
 
 **That last acceleration is not a cycle peak signature.** Cycle peaks show *decelerating* sequential growth as the easy comps run out and capacity comes online. What we're seeing in Q2 FY26 is an *acceleration* — the opposite of what you observe at the top of a semiconductor cycle. The bear's "peak cycle" framing is an assertion masquerading as evidence.
@@ -814,7 +814,7 @@ At $1,035, with forward P/E of 10.11x and PEG of 0.36:
 
 Every one of these questions has an unambiguous, data-supported answer that points in the same direction.
 
-**The bear is asking you to sell a magnificently positioned business at 10x forward earnings because history suggests bad things can happen to memory companies.** 
+**The bear is asking you to sell a magnificently positioned business at 10x forward earnings because history suggests bad things can happen to memory companies.**
 
 I'm asking you to own it — with appropriate stops, appropriate sizing, and appropriate time horizon — because the probability-weighted expected value, even using the bear's own framework with defensible probability adjustments, supports ownership.
 

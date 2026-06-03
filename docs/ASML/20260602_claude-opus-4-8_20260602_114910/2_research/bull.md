@@ -205,7 +205,7 @@ Bull Analyst: # 🐂 ASML Bull Final Response: The Bear Counts Risks. I Count Co
 
 ---
 
-Let me be direct about what just happened. My bear colleague delivered a technically polished, emotionally compelling argument that essentially boils down to: **"Great company, scary price, wait for a dip."** 
+Let me be direct about what just happened. My bear colleague delivered a technically polished, emotionally compelling argument that essentially boils down to: **"Great company, scary price, wait for a dip."**
 
 That sounds prudent. It sounds disciplined. And it is, in fact, the single most expensive mistake long-term investors consistently make with generational compounders.
 
@@ -379,7 +379,7 @@ The bear's advice — "the toll booth isn't going anywhere, wait for a better pr
 
 Let me give you the most honest, complete picture of what you're actually deciding.
 
-**On one side:** A company with a physics-limited monopoly on the only technology capable of manufacturing chips at leading-edge nodes. Record revenue of $32.67 billion growing at 15.5% CAGR. Record FCF of $11 billion. Expanding gross margins at 53%. 52.2% return on equity. €36 billion backlog. $16 billion in customer pre-payments sitting as deferred revenue. UBS Buy with €1,900 target implying 37% upside. Q1 2026 EPS up 19.2% year-over-year. Every major technical indicator aligned bullish. India expansion opening a new greenfield market. High-NA EUV already in customer fabs at €350 million+ ASP. 
+**On one side:** A company with a physics-limited monopoly on the only technology capable of manufacturing chips at leading-edge nodes. Record revenue of $32.67 billion growing at 15.5% CAGR. Record FCF of $11 billion. Expanding gross margins at 53%. 52.2% return on equity. €36 billion backlog. $16 billion in customer pre-payments sitting as deferred revenue. UBS Buy with €1,900 target implying 37% upside. Q1 2026 EPS up 19.2% year-over-year. Every major technical indicator aligned bullish. India expansion opening a new greenfield market. High-NA EUV already in customer fabs at €350 million+ ASP.
 
 **On the other side:** A timing argument. The bear says: "Great company, wait for a 10-27% pullback that may or may not materialize, miss potential 30%+ upside in the meantime, because the PEG ratio is above 2.0 and the MACD histogram has declined for six days."
 
@@ -620,7 +620,7 @@ Here's the bear's concrete ask: wait for the 50-SMA at $1,459 or the 200-SMA at 
 
 **Scenario B: The pullback doesn't come.** ASML reaches $1,900 before revisiting $1,459. You waited. You missed $272 in upside (16.7% from today's price) while earning 4.3% in T-bills. Net opportunity cost: **-12.4 percentage points** versus buying today.
 
-Now here's the critical question the bear never honestly answers: **what probability does he assign to Scenario A versus Scenario B?** 
+Now here's the critical question the bear never honestly answers: **what probability does he assign to Scenario A versus Scenario B?**
 
 His own bear case says the stock is "more likely to go toward $1,459 before $2,050." But he doesn't put a number on it. Let's say he means 60% probability the pullback comes first. Then:
 

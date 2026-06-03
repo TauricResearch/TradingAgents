@@ -37,7 +37,7 @@ This is a *durable* catalyst, not a one-day headline. Every quarter going forwar
 
 Remember when the bear argument was that Novo Nordisk's injectable semaglutide moat was unassailable? Then the bears said an oral GLP-1 was too far away to matter? **Foundayo is here. It's approved. All three major PBMs cover it.**
 
-And here's the detail that should really concern bears about their competitive narrative: Novo Nordisk's oral semaglutide has been hammered by tolerability issues — **~50% nausea rates, ~30% vomiting rates** in real-world use. Foundayo doesn't carry that same tolerability profile. Lilly just gave the needle-averse population — which is enormous — a *better oral option* than the competitor's. 
+And here's the detail that should really concern bears about their competitive narrative: Novo Nordisk's oral semaglutide has been hammered by tolerability issues — **~50% nausea rates, ~30% vomiting rates** in real-world use. Foundayo doesn't carry that same tolerability profile. Lilly just gave the needle-averse population — which is enormous — a *better oral option* than the competitor's.
 
 This isn't matching Novo Nordisk. This is **leapfrogging** them.
 
@@ -59,7 +59,7 @@ The bear narrative loves to frame LLY as a GLP-1 story that lives and dies by ti
 
 ## 📊 The Technical Picture Confirms Fundamental Strength
 
-Let me give the bears some credit — the stock *did* sell off hard, dropping from $1,076 to $849 by late April. But here's what that selloff actually created: a **massive buying opportunity** that the market instantly recognized. 
+Let me give the bears some credit — the stock *did* sell off hard, dropping from $1,076 to $849 by late April. But here's what that selloff actually created: a **massive buying opportunity** that the market instantly recognized.
 
 The April 30th reversal — a **9.8% single-day gain on 8.2 million shares**, the highest volume of the entire period — wasn't retail FOMO. That was institutional accumulation at scale. Smart money recognized the fundamentals were unchanged while the price had become disconnected from reality.
 
@@ -123,7 +123,7 @@ Lilly's TTM EBITDA stands at approximately **$36+ billion**. That gives a debt-t
 But let me go further, because the bear's free cash flow math is where the argument really falls apart. He cited FY2023's negative FCF of -$3.15 billion as if it's a warning sign. But look at the *trajectory*:
 
 - FY2023: **-$3.15B FCF**
-- FY2024: **+$0.41B FCF**  
+- FY2024: **+$0.41B FCF**
 - FY2025: **+$5.96B FCF**
 - Q1 2026 alone: **+$2.80B FCF**
 
@@ -750,7 +750,7 @@ This is not a mystery. This is exactly how equity markets price known binary eve
 
 This is actually the bull case in its most precise form. The market is not ignoring the risks. It is **appropriately pricing them.** The gap between $1,082 and my $1,300 target represents the expected value *uplift* that occurs when the Viking binary resolves favorably and the Q2/Q3 earnings acceleration confirms the commercial ramp.
 
-The bear looked at the same gap and said: "the market knows something you don't." I'm saying: **the market knows exactly what both of us know, and it's telling you the expected value including risks is $1,082 — which is above the $1,037 even the bear's own probability framework produces.** The market has already done the bear's probability-weighted math and arrived at a price that the bear is calling overvalued. 
+The bear looked at the same gap and said: "the market knows something you don't." I'm saying: **the market knows exactly what both of us know, and it's telling you the expected value including risks is $1,082 — which is above the $1,037 even the bear's own probability framework produces.** The market has already done the bear's probability-weighted math and arrived at a price that the bear is calling overvalued.
 
 That should tell you something about how the market is weighting the risks versus the opportunities.
 
@@ -834,7 +834,7 @@ The bear said the lights are off and nobody is checking the math. I just checked
 
 Six rounds. One company. One question: **is Eli Lilly at $1,082 a position worth holding through a 90-day binary event for a 20% upside and a well-defined downside stop?**
 
-My answer hasn't changed from Round 1. 
+My answer hasn't changed from Round 1.
 
 Yes.
 

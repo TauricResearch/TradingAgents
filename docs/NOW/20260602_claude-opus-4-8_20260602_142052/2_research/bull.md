@@ -28,7 +28,7 @@ The **deferred revenue balance of $8.1 billion**, growing at **18.6% year-over-y
 
 ## 🤖 The AI Opportunity Is Real, Defensible, and Just Getting Started
 
-Here's where the bull case becomes genuinely exciting. ServiceNow isn't just an AI *beneficiary* — it's positioning itself as the **central orchestration layer for enterprise AI deployment**. 
+Here's where the bull case becomes genuinely exciting. ServiceNow isn't just an AI *beneficiary* — it's positioning itself as the **central orchestration layer for enterprise AI deployment**.
 
 Think about what Jensen Huang said just last week: *"This is an incredible time to be a software company."* He's the man who arguably knows the AI infrastructure buildout better than anyone alive. And he's saying software companies — companies like ServiceNow — are about to enter their golden age.
 
@@ -196,7 +196,7 @@ Let me re-anchor on what we actually know after this full exchange:
 
 ## 🎯 My Final Word
 
-The bear has made an argument that sounds sophisticated but ultimately reduces to: *"the stock went up too fast, so sell it."* 
+The bear has made an argument that sounds sophisticated but ultimately reduces to: *"the stock went up too fast, so sell it."*
 
 That's not a thesis. That's market timing dressed up in fundamental language.
 
@@ -223,7 +223,7 @@ Let me answer his five unanswered questions directly — because unlike him, I'm
 
 This is actually the bear's most intellectually interesting point, and it deserves a real answer rather than dismissal.
 
-Here's what the data actually shows: ServiceNow grew at 23.8% in 2023, 22.4% in 2024, and 22.1% in Q1 2026. The bear calls this "deceleration." I call it **remarkable rate maintenance at scale**. 
+Here's what the data actually shows: ServiceNow grew at 23.8% in 2023, 22.4% in 2024, and 22.1% in Q1 2026. The bear calls this "deceleration." I call it **remarkable rate maintenance at scale**.
 
 Think about the mathematics here. In 2023, ServiceNow grew from a ~$7.2B base. In Q1 2026, it's growing 22.1% off a **$13.9B annual base** — nearly double the revenue denominator. Maintaining identical percentage growth rates as your revenue base doubles is extraordinarily difficult. The companies that manage it are the ones that dominate their categories for decades.
 
@@ -273,7 +273,7 @@ And consider the context: the acquisition closed in Q1 2026, simultaneous with a
 
 Now we're getting to the real heart of the disagreement — and this is where I think the bear's argument is most intellectually seductive and most practically dangerous.
 
-The bear's logic is: *"Why buy at $135 when you might get it at $110?"* It sounds disciplined. It sounds patient. It sounds like sophisticated investing. 
+The bear's logic is: *"Why buy at $135 when you might get it at $110?"* It sounds disciplined. It sounds patient. It sounds like sophisticated investing.
 
 Here's what it actually is: **picking a specific price target in a momentum-driven, AI-inflected market and assuming the market will deliver it to you.**
 
@@ -344,7 +344,7 @@ The bear has made you afraid. That's his job, and he's done it skillfully. But f
 
 Here is the bull case in its simplest form:
 
-**ServiceNow is the enterprise AI orchestration layer for the global economy's digital transformation. It generates $5 billion in annual free cash flow, grows revenue at 22% annually, has $8 billion in pre-contracted future revenue, and trades at 25x forward earnings with a PEG of 1.21 — 36% below its prior all-time high.** 
+**ServiceNow is the enterprise AI orchestration layer for the global economy's digital transformation. It generates $5 billion in annual free cash flow, grows revenue at 22% annually, has $8 billion in pre-contracted future revenue, and trades at 25x forward earnings with a PEG of 1.21 — 36% below its prior all-time high.**
 
 The bear's answer to all of that is: "But it went up 56% in seven weeks."
 
@@ -407,7 +407,7 @@ I said the $2.225B single-quarter pace is extraordinary and not repeatable every
 
 Look at the trajectory:
 - FY2023 buybacks: $538M
-- FY2024 buybacks: $696M  
+- FY2024 buybacks: $696M
 - FY2025 buybacks: $1.84B
 - Q1 2026 alone: $2.225B
 
@@ -521,7 +521,7 @@ Let me leave you with the five numbers that close this argument:
 
 ## 🎯 My Closing Statement — To Every Investor Watching This Debate
 
-The bear has given you his best argument: *"it's a great business but the price is wrong right now."* 
+The bear has given you his best argument: *"it's a great business but the price is wrong right now."*
 
 My response: **the price is wrong in your favor.**
 
@@ -570,7 +570,7 @@ Now let me recalculate with MY weights:
 
 **Probability-weighted expected value: ~$161.40**
 
-That's **18.8% upside from $135.86.** For a high-quality enterprise software company with best-in-class FCF margins and an AI supercycle tailwind, **18.8% probability-weighted upside over 18-24 months is a compelling risk/reward.** 
+That's **18.8% upside from $135.86.** For a high-quality enterprise software company with best-in-class FCF margins and an AI supercycle tailwind, **18.8% probability-weighted upside over 18-24 months is a compelling risk/reward.**
 
 The bear's 5.6% and my 18.8% both come from the same four scenarios. The *only* difference is the probability weights — and the bear's weights are constructed to produce his desired conclusion. He didn't derive them from base rates or historical data. He invented them. **Calling invented probabilities "math" doesn't make them math.**
 

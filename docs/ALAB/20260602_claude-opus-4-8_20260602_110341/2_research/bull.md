@@ -75,7 +75,7 @@ And let's not overlook what **Gavin Baker's Atreides Fund** shows us. At **9% co
 
 I want to be clear: I'm not dismissing the technical picture. RSI at 70.3, MACD histogram contracting, a 64.7% premium to the 50 SMA — these are real signals that **the parabolic phase is cooling.** The research is right to flag them.
 
-But here's the distinction: **momentum deceleration is not thesis invalidation.** 
+But here's the distinction: **momentum deceleration is not thesis invalidation.**
 
 The VWMA at $274.63 and the 50 SMA at $194.30 aren't danger zones — they're **buying opportunities on pullbacks for those who missed the initial move.** The underlying bull trend is confirmed by a rising 50 SMA, a strongly positive MACD line at 40.80, and volume-weighted price support marching higher.
 
@@ -173,7 +173,7 @@ And on the 2027 capex concern specifically: **we are in June 2026.** Hyperscaler
 
 The bear highlights the A/R surge — 62% QoQ growth vs. 14% revenue growth — as a potential "channel stuffing" or collection risk. This is the most technically sophisticated point in the bear argument. Let me give it the serious treatment it deserves.
 
-**First, the arithmetic context.** Q4 2025 revenue was $270.6M. Q1 2026 revenue was $308.4M. A/R went from $83.2M to $134.8M. 
+**First, the arithmetic context.** Q4 2025 revenue was $270.6M. Q1 2026 revenue was $308.4M. A/R went from $83.2M to $134.8M.
 
 Here's what the bear missed: **Q4 2025 A/R of $83.2M was itself unusually low relative to revenue.** $83.2M in A/R on $270.6M in quarterly revenue implies a days-sales-outstanding (DSO) of approximately 28 days — remarkably fast for a semiconductor company selling to enterprise hyperscalers. Industry standard DSO for semiconductor companies is typically 45-60 days.
 
@@ -625,7 +625,7 @@ I need to press on this claim specifically because it's doing enormous structura
 
 **What studies? What sample? What definition of "high-beta growth stocks"? What time periods?**
 
-This is a cited statistic without a citation — and in a debate about whether to commit capital to a $59 billion company, the precision of your statistical backing matters enormously. The bear is asking you to assign a 30-35% probability to the bullish scenario in part because an unnamed "historical study" suggests RSI exits from overbought territory produce negative returns 60-65% of the time. 
+This is a cited statistic without a citation — and in a debate about whether to commit capital to a $59 billion company, the precision of your statistical backing matters enormously. The bear is asking you to assign a 30-35% probability to the bullish scenario in part because an unnamed "historical study" suggests RSI exits from overbought territory produce negative returns 60-65% of the time.
 
 But here's what we actually know from the data in front of us: ALAB's RSI went from deeply oversold territory in March — when the stock was at $97 — to 83.8 at the May 28 peak. **The RSI signal that mattered most in 2026 was the March oversold reading that preceded a 257% rally.** Why does the bear give full weight to the RSI exit from overbought as a negative signal but zero weight to the prior RSI recovery from oversold as a positive signal? **Because one supports their thesis and one doesn't.** That's selective evidence application, not balanced analysis.
 
@@ -657,7 +657,7 @@ I said earlier that sequential deceleration is the bear's strongest substantive 
 
 The bear points to: 20.4% → 20.1% → 17.3% → 13.9% sequential growth as a deteriorating trend. I've acknowledged this is real. Now let me show you why the conclusion the bear draws — that this portends multiple compression — is contradicted by the most important forward-looking data point in the entire report.
 
-**Management at the TD Cowen TMT Conference on May 27 — five days before this analysis — explicitly guided for multiple product lines contributing to growth through H2 2026 and into 2027.** 
+**Management at the TD Cowen TMT Conference on May 27 — five days before this analysis — explicitly guided for multiple product lines contributing to growth through H2 2026 and into 2027.**
 
 This guidance was not given in Q3 2025 when the sequential growth trend was still at 20%. It was given after four consecutive quarters of deceleration, in Q2 2026, with full visibility into what the order book looks like. **If the sequential deceleration trend were threatening to continue at an accelerating pace, a VP of Finance with fiduciary responsibility and legal liability for forward guidance would not stand up at a tier-1 institutional conference and guide confidently through 2027 with product-line specificity.**
 
@@ -724,7 +724,7 @@ And I want to respond to this with the most important observation in this entire
 
 **We've established the core disagreement:** does the forward growth trajectory justify the current multiple? The bear says the four-quarter sequential deceleration trend, combined with technical exhaustion and valuation extension, means the answer is no. The bull says the Scorpio X-Series ramp, management's explicit forward guidance, peer sector validation, and the institutional conviction of sophisticated investors who have full information access say the answer is yes.
 
-Here's my final synthesis on this: **the data that is forward-looking — management guidance, Scorpio X-Series ramp status, Credo's blowout quarter, Broadcom near all-time highs, Baker's continued holding — all points toward the bull thesis.** The data that is backward-looking — trailing P/E, sequential deceleration trend, RSI exit from overbought, MACD histogram contraction — all supports the bear thesis. 
+Here's my final synthesis on this: **the data that is forward-looking — management guidance, Scorpio X-Series ramp status, Credo's blowout quarter, Broadcom near all-time highs, Baker's continued holding — all points toward the bull thesis.** The data that is backward-looking — trailing P/E, sequential deceleration trend, RSI exit from overbought, MACD histogram contraction — all supports the bear thesis.
 
 **You are not investing in ALAB's past. You are investing in ALAB's future.** And every forward-looking signal in this dataset points in the same direction.
 

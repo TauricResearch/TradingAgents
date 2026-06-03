@@ -87,7 +87,7 @@ I now have all the data needed to compile a comprehensive fundamental analysis r
 
 ### 🚨 Critical Balance Sheet Alert — Q1 FY2027:
 
-The most striking development in the **April 2026** quarter is the **massive increase in total debt** from $17.18B (January 2026) to **$41.88B** — an increase of ~$24.7B. Simultaneously, the **issuance of long-term debt** of **$24.84B** in Q1 FY2027 is visible in the cash flow statement, alongside a **record share repurchase of $27.25B**. 
+The most striking development in the **April 2026** quarter is the **massive increase in total debt** from $17.18B (January 2026) to **$41.88B** — an increase of ~$24.7B. Simultaneously, the **issuance of long-term debt** of **$24.84B** in Q1 FY2027 is visible in the cash flow statement, alongside a **record share repurchase of $27.25B**.
 
 - **Long-term debt** surged from $10.44B to $39.28B
 - **Stockholders' equity** collapsed from $59.14B to **$34.24B**

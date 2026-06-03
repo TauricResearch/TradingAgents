@@ -31,7 +31,7 @@ The bull's centerpiece argument is the Amazon/AWS comparison: *"Amazon had negat
 
 ## ⚠️ The Cash Burn Is Far More Alarming Than the Bull Admits
 
-Let me show you a number the bull conveniently glossed over. Alibaba's cash and short-term investments have gone from **¥571 billion in FY2024 to ¥316.9 billion in FY2026** — that's a **¥254 billion, or 44%, decline in just two years.** 
+Let me show you a number the bull conveniently glossed over. Alibaba's cash and short-term investments have gone from **¥571 billion in FY2024 to ¥316.9 billion in FY2026** — that's a **¥254 billion, or 44%, decline in just two years.**
 
 At the current burn rate, with CapEx at ¥126.9B, operating cash flow at ¥76.2B, dividends at ¥33.7B, and debt servicing requirements growing — this cash cushion is eroding rapidly. The bull says "zero solvency risk." I agree there's no *immediate* solvency risk. But what happens to the investment thesis when BABA has to choose between **cutting the AI buildout, cutting dividends, or taking on significantly more debt** — potentially in a higher-rate environment? Total debt has already grown from ¥195.6B to ¥281.7B in three years. Working capital collapsed by **¥104 billion in a single year.** These aren't rounding errors — they're warning lights on the dashboard that the bull is actively ignoring.
 
@@ -56,7 +56,7 @@ The bull's "home field advantage" is actually a **home field where the referee h
 
 The bull triumphantly cited BABA crossing ¥1 trillion in annual revenue. But let me give you the actual growth rate: **+2.7% YoY in FY2026.** Two point seven percent. For a company trading at 20x trailing earnings, operating in a sector the market is supposedly paying a premium for because of AI/cloud growth, **2.7% revenue growth is not a feature — it's a serious problem.**
 
-The bull's counter will be "but cloud is accelerating!" And yes, cloud and international segments are growing faster than the consolidated number. But the consolidated number is what matters for enterprise value. If your fastest-growing segments are being dragged down by a decelerating core e-commerce business, that's not a transformation story — it's a **rotation of value within the company, not creation of new value.** 
+The bull's counter will be "but cloud is accelerating!" And yes, cloud and international segments are growing faster than the consolidated number. But the consolidated number is what matters for enterprise value. If your fastest-growing segments are being dragged down by a decelerating core e-commerce business, that's not a transformation story — it's a **rotation of value within the company, not creation of new value.**
 
 Meanwhile, SG&A expenses exploded from **¥188.3B in FY2025 to ¥278.1B in FY2026** — a ¥90 billion increase in a single year. Selling and marketing alone went from ¥144B to ¥245B. That's a **70% increase in marketing spend to generate 2.7% revenue growth.** That is, by any measure, a catastrophically poor return on spending. The bull wants to call this "investment." I call it evidence that Alibaba is **paying increasingly more to grow increasingly less.**
 
@@ -124,7 +124,7 @@ BABA at $125 is not a compressed spring. It is a company caught between:
 
 The technical picture — bearish MACD, declining RSI approaching 39.76, price below both 50 SMA and 200 SMA — is not chart noise. It is the market's real-time verdict on whether the fundamental improvement the bull promises is actually arriving. And right now, that verdict is clear: **it hasn't arrived yet.**
 
-**My recommendation: SELL BABA.** 
+**My recommendation: SELL BABA.**
 
 The path of least resistance is toward the April lows of **$117.93**, with the lower Bollinger band at **$122** as the first downside target. Until BABA demonstrates a sustained return to positive free cash flow, operating income above zero without financial engineering, and a MACD bullish crossover above the 50 SMA — this stock is a value trap, not a value opportunity.
 
@@ -223,7 +223,7 @@ The bull spent considerable time arguing that BABA's cash decline from ¥571B to
 
 ## 🌐 The "Captive Domestic Market" Moat Argument Has a Fatal Flaw
 
-My colleague's response to the AI competitiveness critique was: "China's AI development is explicitly protected from U.S. competition. Alibaba's AI tools operate in a captive domestic market." 
+My colleague's response to the AI competitiveness critique was: "China's AI development is explicitly protected from U.S. competition. Alibaba's AI tools operate in a captive domestic market."
 
 This sounds compelling until you flip the logic: **the same regulatory protection that keeps U.S. AI companies out of China also keeps Alibaba's AI tools out of the most lucrative global markets.** Alibaba's "Happy Horse" generative AI model can run a contest with Picsart, but it cannot meaningfully penetrate U.S. enterprise, European enterprise, or even most Southeast Asian enterprise markets where U.S. cloud providers dominate. The captive market is also a **captive ceiling.**
 
@@ -537,8 +537,8 @@ The bull says "confirmation arrives in the form of a stock price already at $150
 
 Let me strip the bull's entire thesis to its core, because after many rounds of debate, the bull case rests on exactly three forward-looking assumptions:
 
-**Assumption 1: SG&A will normalize.** 
-Evidence for: None specific. Management "intent" and "board pressure." 
+**Assumption 1: SG&A will normalize.**
+Evidence for: None specific. Management "intent" and "board pressure."
 Evidence against: Four consecutive years of acceleration; competitive dynamics from Pinduoduo, ByteDance e-commerce, and JD.com create structural floor.
 **Verdict: Unproven. Probability: Below 50% in the 12-month horizon the bull is citing.**
 
@@ -677,7 +677,7 @@ My colleague invoked Warren Buffett's Japan trade: a persistent 30-year structur
 
 **Japan's structural discount existed because Japanese companies were structurally overcapitalized** — they held massive cross-shareholding structures, low ROE businesses, and excess cash. The discount was a governance and capital allocation problem. Buffett's catalyst was the Japanese government's explicit push to improve corporate governance, requiring companies to return capital to shareholders and optimize balance sheets. The discount closed because the *underlying structural cause* was directly addressed by policy.
 
-**BABA's structural discount exists because of binary political risk, VIE legal structure uncertainty, and the demonstrated willingness of the Chinese government to intervene in private sector outcomes.** These are not the same type of structural discount. Japan's discount closed when corporate governance improved. BABA's discount would close if the Chinese political risk premium disappeared — which would require either U.S.-China political normalization (currently moving in the *opposite* direction) or a fundamental change in China's political economy (not happening). 
+**BABA's structural discount exists because of binary political risk, VIE legal structure uncertainty, and the demonstrated willingness of the Chinese government to intervene in private sector outcomes.** These are not the same type of structural discount. Japan's discount closed when corporate governance improved. BABA's discount would close if the Chinese political risk premium disappeared — which would require either U.S.-China political normalization (currently moving in the *opposite* direction) or a fundamental change in China's political economy (not happening).
 
 Buffett identified the *catalyst* before he bought Japan. The bull has not identified a specific catalyst for the China risk premium to compress. "The regulatory trajectory has been constructive" is not a catalyst — it's a description of the absence of bad news. Absence of bad news is not the same as presence of good news sufficient to close a 30% discount.
 

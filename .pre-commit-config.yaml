@@ -1,16 +1,1 @@
-repos:
-  - repo: local
-    hooks:
-      - id: build-reports-site
-        name: Rebuild docs/ index, ticker hubs, and report front matter
-        entry: python scripts/build_reports_site.py
-        language: system
-        # Only run when something under docs/ changes (new run folder, new
-        # complete_report.md, or a hand-edit). The script is idempotent, so
-        # re-running on no-op changes is harmless.
-        files: ^docs/.*\.md$
-        pass_filenames: false
-        # The script writes docs/index.md, docs/<ticker>.md, and updates
-        # front matter on every complete_report.md. Tell pre-commit to
-        # re-stage those modifications so the commit includes them.
-        stages: [pre-commit]
+repos: []

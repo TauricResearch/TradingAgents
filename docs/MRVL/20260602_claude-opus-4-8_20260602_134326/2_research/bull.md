@@ -279,7 +279,7 @@ But here's the crucial distinction the bear refuses to make: **acknowledging ris
 
 MRVL's growth runway:
 - **42% FY2026 revenue growth** — confirmed, reported, audited
-- **$638M quarterly operating cash flow** — confirmed, reported, audited  
+- **$638M quarterly operating cash flow** — confirmed, reported, audited
 - **127% FCF growth year-over-year** — confirmed, reported, audited
 - **Alphabet's $80 billion AI capex commitment** — publicly announced
 - **HPE's 30% earnings beat validating AI server demand** — confirmed
@@ -544,7 +544,7 @@ Here's what this entire debate comes down to, stripped of all the rhetoric:
 
 **The bear is asking you to sell a company that:**
 - Grew revenue 42% in FY2026 ✓
-- Is generating $638M in operating cash flow per quarter ✓  
+- Is generating $638M in operating cash flow per quarter ✓
 - Has FCF growing at 127% year-over-year ✓
 - Has the CEO of the world's most valuable company calling it "the next trillion-dollar company" ✓
 - Is expanding gross margins from 50% to 52%+ ✓
@@ -637,7 +637,7 @@ The bear calculated sequential quarterly growth rates:
 - Q3→Q4 FY2026: +6.9%
 - Q4→Q1 FY2027: **+9.0%**
 
-And then said: "I'll grant the bull has a point on the most recent quarter." And immediately pivoted to "but it might be pull-forward demand." 
+And then said: "I'll grant the bull has a point on the most recent quarter." And immediately pivoted to "but it might be pull-forward demand."
 
 **Let me press on this concession, because it's more significant than the bear acknowledged.**
 
@@ -655,7 +655,7 @@ The bear's upgraded hyperscaler argument: "Google's in-house team is 9 years old
 
 Let me show you why this argument, followed to its logical conclusion, proves too much.
 
-If the threat "compounds annually" and the competitive gap narrows each year, then there should be a point where the gap closes enough that Marvell loses a major design win. Let's ask: when does that happen? Google has been building in-house for 9 years. Marvell's revenue grew **42% in FY2026**. The threat is compounding. The revenue is also compounding. 
+If the threat "compounds annually" and the competitive gap narrows each year, then there should be a point where the gap closes enough that Marvell loses a major design win. Let's ask: when does that happen? Google has been building in-house for 9 years. Marvell's revenue grew **42% in FY2026**. The threat is compounding. The revenue is also compounding.
 
 **The compounding threat has been compounding for 9 years and Marvell keeps growing.** At some point, you have to ask whether the threat is actually "compounding" in the bear's sense or whether the technical complexity is *also* compounding — meaning the gap between what Marvell can do and what Google can do in-house stays constant or widens, because Marvell is also investing heavily ($652M/quarter in R&D) to stay ahead.
 
@@ -681,7 +681,7 @@ The bear wants to use management's capital raise as evidence of doubt. But the s
 
 ## 🌡️ The r/investing "Math-Doers" Argument: Let Me Show You the Real History
 
-The bear's most entertaining reframe: r/investing's silence means "the math-doers looked and passed." 
+The bear's most entertaining reframe: r/investing's silence means "the math-doers looked and passed."
 
 Let me give you the actual history of r/investing and major AI infrastructure stocks during their breakout phases:
 
@@ -735,7 +735,7 @@ Let me give you the honest framing that cuts through everything — no rhetoric,
 **At $219 per share, you are buying:**
 
 - A company generating **$638M in operating cash flow per quarter** — up 91.9% year-over-year
-- A company generating **$482M in quarterly free cash flow** — up 127% year-over-year  
+- A company generating **$482M in quarterly free cash flow** — up 127% year-over-year
 - A company with **revenue accelerating in absolute dollar terms** — adding $200M sequentially in the most recent quarter, the largest quarter-over-quarter addition in the series
 - A company with **gross margins expanding from 50.2% to 52.1%** over four consecutive quarters
 - A company with **net debt collapsed from $3.35B to $1.12B** in under 12 months
@@ -803,7 +803,7 @@ These are not the same argument. A stock can be expensive AND continue appreciat
 
 Let me make this concrete. The bear's most dramatic number: MRVL trades at 47.6x forward earnings versus Nvidia's "peak" of 35-40x. Therefore MRVL is overvalued relative to Nvidia.
 
-But here's what they're not telling you: **Nvidia at 35-40x forward was generating approximately $60 billion in annual revenue growing at 80-100% year-over-year.** MRVL at 47.6x forward is generating approximately $9.7 billion in annual revenue growing at 27%. 
+But here's what they're not telling you: **Nvidia at 35-40x forward was generating approximately $60 billion in annual revenue growing at 80-100% year-over-year.** MRVL at 47.6x forward is generating approximately $9.7 billion in annual revenue growing at 27%.
 
 So why does MRVL deserve a *higher* forward multiple than Nvidia? **Because Marvell is earlier in its growth curve.** Earlier-stage hypergrowth companies command premium multiples precisely because the earnings compounding runway is longer. A company at $9.7B revenue growing toward $18B+ has more percentage upside in earnings than a company at $60B revenue. The bear's "MRVL is more expensive than peak Nvidia" argument proves the opposite of what they intend — it shows MRVL is being priced as an earlier-stage version of the same AI infrastructure story, which is exactly right.
 
@@ -877,7 +877,7 @@ But here's the question the bear refuses to answer in return: **what does MRVL's
 
 By May 2027 — twelve months from now — on the current trajectory:
 - Revenue run rate: approximately $11-12 billion annually
-- Quarterly FCF: approximately $600-700 million  
+- Quarterly FCF: approximately $600-700 million
 - Forward EPS consensus: likely revised to $8-9 (on current trajectory)
 - Net debt: potentially eliminated entirely
 
@@ -958,7 +958,7 @@ If it's secular, the bull is right. The current multiple is the first chapter of
 
 **Here is the evidence on that question:**
 - Alphabet: $80 billion AI infrastructure commitment, publicly announced ✓
-- Amazon AWS: Record capex levels, accelerating ✓  
+- Amazon AWS: Record capex levels, accelerating ✓
 - HPE: Q2 beat, stock +30%, AI server demand validation ✓
 - Broadcom: Record close, +13% over 4 sessions, AI chip complex strength ✓
 - Anthropic IPO filing: VC and enterprise AI confidence ✓
@@ -978,7 +978,7 @@ My bear colleague is a rigorous analyst. Their five numbers are real. Their conc
 But here's the truth about those five numbers:
 
 - **$34.5M GAAP net income** — distorted by $580M+ in non-cash charges; $482M FCF tells the real story
-- **$258.4M SBC** — real dilution, but net of FCF, still creates $1.24B/year in shareholder value  
+- **$258.4M SBC** — real dilution, but net of FCF, still creates $1.24B/year in shareholder value
 - **Beta 2.25** — yes, risk is elevated; this is why you size the position correctly and use the $183 stop
 - **Zero binding Huang commitments** — true, but the co-staged Computex appearance and integrated supply chain relationship speak louder than any contract
 - **36%→27.6% YoY deceleration** — true on percentages; false on absolute dollars, where the trend is accelerating

@@ -90,7 +90,7 @@ Here's what I'll grant the bull: HPE has genuinely improved. Juniper was a smart
 
 But that "if" is doing enormous heavy lifting right now.
 
-Forward EPS of $4.04 requires HPE to deliver **roughly 4x its TTM EPS of $1.07**. That means flawless Juniper integration with no further impairments. It means AI server margin holding up against ferocious competition from Dell and SMCI. It means no supply chain disruptions delaying backlog conversion. It means interest rates cooperating with a highly leveraged balance sheet. It means the AI capex cycle doesn't pause or rotate to hyperscaler-owned custom silicon. 
+Forward EPS of $4.04 requires HPE to deliver **roughly 4x its TTM EPS of $1.07**. That means flawless Juniper integration with no further impairments. It means AI server margin holding up against ferocious competition from Dell and SMCI. It means no supply chain disruptions delaying backlog conversion. It means interest rates cooperating with a highly leveraged balance sheet. It means the AI capex cycle doesn't pause or rotate to hyperscaler-owned custom silicon.
 
 Every single one of those assumptions has to hold simultaneously. Any one of them breaks, and that "attractive" forward P/E evaporates instantly — and so does the bull thesis.
 
@@ -267,7 +267,7 @@ Bear Analyst: # 🐻 Bear Final Rebuttal: The Bull Just Told You Everything You 
 
 Let me start with something the bull said that I want you to sit with for a moment.
 
-In their closing argument, the bull — defending a stock at $47 after a 136% rally — told you that new buyers should "scale in on any pullback toward the 10 EMA at $38-39." 
+In their closing argument, the bull — defending a stock at $47 after a 136% rally — told you that new buyers should "scale in on any pullback toward the 10 EMA at $38-39."
 
 Read that again. **The bull's own entry recommendation is 17% below the current price.** They're telling you to wait for a pullback to buy. And then they're calling me bearish for saying the same thing. That's not a bull case. That's a hold case with bullish wrapping paper on it. And the difference between "wait for $38-39" and my "wait for $35-38" is precisely... nothing. We agree on the setup. We disagree on whether you should overpay for it today.
 
@@ -359,7 +359,7 @@ Yes, if HPE executes perfectly for four straight quarters, the stock probably tr
 
 Let me give you the precise opposite example: **Super Micro Computer in early 2024.** In February 2024, SMCI was at $900. The bull case was identical in structure to today's HPE bull case: blowout earnings, AI infrastructure demand, institutional accumulation, elevated RSI confirming strength not weakness, guidance raises, all-time highs. The "what if $900 never comes again" crowd bought at $800, $700, $600 as the stock declined. SMCI bottomed near $200 — a 78% drawdown from the peak — before recovering. The people who "waited for a pullback that never came" at $900 got their pullback. It just came with 9 months of opportunity cost and severe capital impairment first.
 
-I am not predicting an SMCI-style collapse for HPE. The businesses are different and I've already acknowledged that. But the *structure of the argument* — "don't wait for a pullback that might not come" — is emotionally compelling precisely because it exploits loss aversion. It's asking you to buy at RSI 86.6, above the Bollinger Upper Band, at 136% above January lows, to avoid the "opportunity cost" of waiting. 
+I am not predicting an SMCI-style collapse for HPE. The businesses are different and I've already acknowledged that. But the *structure of the argument* — "don't wait for a pullback that might not come" — is emotionally compelling precisely because it exploits loss aversion. It's asking you to buy at RSI 86.6, above the Bollinger Upper Band, at 136% above January lows, to avoid the "opportunity cost" of waiting.
 
 **The opportunity cost the bull doesn't mention: the opportunity cost of buying at the wrong price and spending 18 months recovering your principal while the market moves on.**
 

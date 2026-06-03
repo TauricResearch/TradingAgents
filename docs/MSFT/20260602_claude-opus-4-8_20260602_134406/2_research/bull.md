@@ -123,7 +123,7 @@ The bear also makes this alarming claim: "one bad quarter and Microsoft would be
 
 ## 📉 On Valuation: The Bear Is Building a Circular Argument
 
-The bear's valuation argument is clever but ultimately circular. Here's the structure: "The 15% EPS growth estimate is only valid if CapEx generates ROI, and we can't trust CapEx ROI, therefore the multiple is unsupported." 
+The bear's valuation argument is clever but ultimately circular. Here's the structure: "The 15% EPS growth estimate is only valid if CapEx generates ROI, and we can't trust CapEx ROI, therefore the multiple is unsupported."
 
 But notice what this argument *requires*: you have to simultaneously believe that (a) Microsoft's revenue is growing at 18% year-over-year on a $318 billion TTM revenue base, AND (b) that this growth is somehow disconnected from the CapEx driving it. You can't have it both ways. **18.3% YoY revenue growth on a $3.3 trillion business doesn't happen by accident.** It's happening because enterprises are consuming Azure, Copilot, and AI services at accelerating rates — and that consumption is directly enabled by the infrastructure Microsoft is building.
 
@@ -173,7 +173,7 @@ On index concentration — the bear argues that MSFT's ubiquity in passive portf
 
 ## 🎯 Closing: The Bear Wants Perfect Conditions. Markets Don't Wait.
 
-Let me summarize the bear's actual recommendation: wait until MSFT holds above the 200-day SMA "with conviction," wait until FCF recovers to $25 billion quarterly, wait until the CapEx ROI is "demonstrated." 
+Let me summarize the bear's actual recommendation: wait until MSFT holds above the 200-day SMA "with conviction," wait until FCF recovers to $25 billion quarterly, wait until the CapEx ROI is "demonstrated."
 
 That is a description of waiting until MSFT is trading at $500–$520, at which point the bear will tell you the stock is "fully priced" and the easy money has been made.
 
@@ -226,7 +226,7 @@ The bear asked a clever question: if you tripled CapEx and only accelerated reve
 
 Here's what's wrong with that framing — and it's not subtle. **Revenue growth rate in the current period is a lagging indicator of infrastructure deployed two to three years ago, not infrastructure deployed last quarter.** The data centers Microsoft is building today with $30.9 billion per quarter in CapEx will generate their peak revenue contribution in 2028, 2029, and 2030 — not in FY2026.
 
-Think about what this means for the bear's analysis. When Microsoft's revenue was growing at 16% in FY2024, it was monetizing infrastructure built in FY2022–2023 on roughly $44 billion in CapEx. When revenue is growing at 18.3% today, it is monetizing infrastructure built through FY2024–2025. The revenue acceleration from the *current* CapEx surge — the $120 billion annualized commitment — has not yet hit the income statement in any meaningful way. 
+Think about what this means for the bear's analysis. When Microsoft's revenue was growing at 16% in FY2024, it was monetizing infrastructure built in FY2022–2023 on roughly $44 billion in CapEx. When revenue is growing at 18.3% today, it is monetizing infrastructure built through FY2024–2025. The revenue acceleration from the *current* CapEx surge — the $120 billion annualized commitment — has not yet hit the income statement in any meaningful way.
 
 **The bear is measuring the return on 2024–2026 CapEx against 2026 revenue — a timing mismatch that makes the investment look unproductive when it hasn't had time to be productive yet.** This is not a subtle analytical point. It is the central reason why infrastructure-building phases always look bad in real-time and always look prescient in retrospect.
 
@@ -260,7 +260,7 @@ First — **the bear's upside target is wrong.** I have never argued that $481�
 
 Second — **the bear's VWMA argument contains a logical error.** The bear says that participants who drove the 79.6 million and 53.6 million share volume days are "on average underwater or breakeven" with a $35 VWMA gap. But VWMA is a *lagging* calculation that weights all volume over the calculation period — it is not the average cost basis of the most recent buyers. The buyers on the explosive May 28–June 1 sessions who drove the surge from $413 to $460 are sitting on 5–11% gains. Those are not people looking for exits. Those are momentum players looking for continuation. The bear's VWMA interpretation misattributes the directional pressure.
 
-Third — and this is the bear's most important concession, buried in the "What Would Change My Mind" section — the bear explicitly says they'd become bullish if the 200-day SMA holds after a pullback test and RSI cools to 50–60. **That is precisely the entry scenario I recommended.** I said: accumulate on pullbacks to $446–$456, using the 200-SMA retest as confirmation. The bear and I actually agree on the optimal entry mechanism. The disagreement is whether to wait for that entry or AVOID entirely. 
+Third — and this is the bear's most important concession, buried in the "What Would Change My Mind" section — the bear explicitly says they'd become bullish if the 200-day SMA holds after a pullback test and RSI cools to 50–60. **That is precisely the entry scenario I recommended.** I said: accumulate on pullbacks to $446–$456, using the 200-SMA retest as confirmation. The bear and I actually agree on the optimal entry mechanism. The disagreement is whether to wait for that entry or AVOID entirely.
 
 And here is the critical point: if MSFT pulls back to $446–$456 and holds the 200-day SMA — which is the bear's own stated threshold — that would represent **3–4% additional risk** from the current price of $460 for investors building positions now versus waiting. Against a 20%+ upside target, that 3–4% incremental risk of buying now versus waiting for confirmation is a trade-off that favors action, not patience.
 
@@ -545,7 +545,7 @@ The bear's final technical argument was that I only priced the shallow pullback 
 
 Fair. Let me price all three explicitly, with probability weights:
 
-**Scenario 1: Shallow pullback to $446-$456 (200-SMA retest, holds), then continuation higher.** 
+**Scenario 1: Shallow pullback to $446-$456 (200-SMA retest, holds), then continuation higher.**
 - Probability: 55-60%
 - Outcome for buyers at $460: 3-4% drawdown, then recovery to $487+ and beyond
 - Expected value: Strongly positive over 3-5 years

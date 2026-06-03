@@ -21,7 +21,7 @@ Let me give you the number the bull conveniently glossed over: **NFLX has delive
 
 The bull's entire valuation argument rests on the claim that NFLX trades at a "7.4% FCF yield on $26 billion TTM FCF." That number is the cornerstone of his thesis, and I'm going to take a sledgehammer to it.
 
-**Q1 2026 reported interest income: $2.85 billion.** In every prior quarter? $36–51 million. That's not a rounding error — that's a **5,500% anomaly in a single line item.** The bull acknowledged this and then immediately said, "but even if you strip it out, operating cash flow was still record-high." 
+**Q1 2026 reported interest income: $2.85 billion.** In every prior quarter? $36–51 million. That's not a rounding error — that's a **5,500% anomaly in a single line item.** The bull acknowledged this and then immediately said, "but even if you strip it out, operating cash flow was still record-high."
 
 Here's the problem with that dismissal: **you can't build a 7.4% FCF yield argument on numbers that include a $2.85 billion unexplained one-time item and then casually wave it away.** If we normalize Q1 2026 FCF to remove that anomaly — and we should, because the fundamental research report itself flags it as requiring "further investigation" — then TTM FCF drops from ~$26B to something closer to **$23B or less.** Your FCF yield argument shrinks materially. Your "4x normalized FCF" multiple expands. And suddenly that "extraordinary discount to intrinsic value" looks a lot more ordinary.
 
@@ -211,7 +211,7 @@ The bull argues that because the stock bounced from $85 to $89.65 in May when RS
 
 **The May 11 bounce from $85 to $89.65 has now been entirely erased.** We're back at $85.85. The "support zone" the bull celebrates produced a 5.5% gain that lasted less than three weeks before completely reversing. In technical analysis, when a support level is tested repeatedly and each bounce is weaker and shorter-lived than the last, **that's not support being established — that's support being worn down.**
 
-The pattern we're seeing in NFLX right now is a textbook **distribution pattern**: 
+The pattern we're seeing in NFLX right now is a textbook **distribution pattern**:
 - Stock approaches support (~$85)
 - Weak bounce to $87-$89 (below the Bollinger Middle at $87.79)
 - Fails to reclaim the 50 SMA (~$92.92)
@@ -238,7 +238,7 @@ Here's what the bull got right: $23B in normalized FCF is a reasonable baseline.
 
 Let's use comparables:
 - **Disney** (another content/entertainment giant): trades at roughly 12-14x FCF
-- **Comcast**: ~9-10x FCF  
+- **Comcast**: ~9-10x FCF
 - **Warner Bros. Discovery**: trades at a distressed ~6-8x FCF
 - **Amazon** (with Prime Video plus AWS): ~20-25x FCF — but that premium reflects AWS, not Prime Video
 
@@ -312,7 +312,7 @@ The bull's cleverest move in this final round was arguing that the Forward P/E o
 
 **The bull is correct that sell-side analysts strip one-time items from forward estimates.** I'll concede the point cleanly. But here's what that concession reveals about the bull's *own* thesis, and they somehow missed it entirely.
 
-If the Forward P/E of 21.68x is clean, and Forward EPS is $3.84, then the market's consensus expectation for normalized earnings going forward is $3.84 per share. That's not exceptional for a stock that reported $1.23 in *just one quarter* — Q1 2026. Do the math: **four quarters of $1.23 would be $4.92 annualized EPS.** But analysts are only projecting $3.84 forward. 
+If the Forward P/E of 21.68x is clean, and Forward EPS is $3.84, then the market's consensus expectation for normalized earnings going forward is $3.84 per share. That's not exceptional for a stock that reported $1.23 in *just one quarter* — Q1 2026. Do the math: **four quarters of $1.23 would be $4.92 annualized EPS.** But analysts are only projecting $3.84 forward.
 
 That gap — between Q1 2026's reported $1.23 and the ~$0.96/quarter implied by forward estimates — is the market's own acknowledgment that **the Q1 2026 earnings rate is not sustainable.** The sell-side already built in a significant deceleration from Q1's elevated levels. So when the bull triumphantly says "forward estimates are already normalized," he's inadvertently confirming that normalized earnings are materially *below* the headline Q1 numbers he's been celebrating. The "record FCF quarter" and "record earnings" he cited throughout this debate are *not the forward run rate.* The forward run rate is lower. That's not my argument — **that's the consensus analyst community's argument, embedded in the very Forward P/E the bull is defending.**
 
@@ -324,7 +324,7 @@ The bull's most confident move was rejecting Disney, Comcast, and WBD as peers i
 
 **Let me ask a simple operational question**: What does Netflix need to maintain its subscriber count and revenue trajectory?
 
-**Netflix's answer**: Approximately **$17 billion annually in content spending.** 
+**Netflix's answer**: Approximately **$17 billion annually in content spending.**
 
 **Now ask the same question of the bull's proposed peers:**
 
@@ -554,7 +554,7 @@ And here's the franchise IP argument's fatal weakness that the bull didn't addre
 
 The bull's most detailed response was to the YouTube advertising comparison. They made several legitimate points — different ad load, different content format, premium vs. mass market positioning. I'll concede those distinctions are real and meaningful.
 
-But notice what the bull's own defense revealed: **Netflix's advertising model is deliberately constrained.** 
+But notice what the bull's own defense revealed: **Netflix's advertising model is deliberately constrained.**
 
 - Limited ad load (4-5 minutes/hour vs. YouTube's 8-12)
 - Only ad-tier subscribers see ads (not the full 325M base)
@@ -603,9 +603,9 @@ I credit the bull for actually answering the unfalsifiable conviction challenge.
 
 These are reasonable conditions. But let me show you what they actually mean for risk management.
 
-**The bull's conditions are all Q2 2026 earnings outcomes** — events that are weeks away. They're asking you to buy the stock today, hold through Q2 earnings with full downside exposure, and *only then* reassess if the numbers disappoint. 
+**The bull's conditions are all Q2 2026 earnings outcomes** — events that are weeks away. They're asking you to buy the stock today, hold through Q2 earnings with full downside exposure, and *only then* reassess if the numbers disappoint.
 
-And Q2 2026 earnings carry a specific, concrete risk that the bull has consistently underweighted: **the Q2 2026 quarter occurs during the FIFA World Cup, simultaneously competing with House of the Dragon, The Bear, and Apple's Cape Fear.** If engagement metrics, subscriber additions, or guidance softens even modestly due to content competition from events that are happening right now, the Q2 earnings print won't look like Q1. 
+And Q2 2026 earnings carry a specific, concrete risk that the bull has consistently underweighted: **the Q2 2026 quarter occurs during the FIFA World Cup, simultaneously competing with House of the Dragon, The Bear, and Apple's Cape Fear.** If engagement metrics, subscriber additions, or guidance softens even modestly due to content competition from events that are happening right now, the Q2 earnings print won't look like Q1.
 
 **The bull is asking you to take on full 1.548 beta exposure through a binary earnings event, in a confirmed downtrend, with no technical confirmation, because the business has historically been good.** That's not asymmetric risk/reward. That's an undifferentiated bet that the next earnings report won't disappoint — and the specific competitive dynamics of Q2 2026 create elevated risk that it might.
 
@@ -673,7 +673,7 @@ The Soros quote the bull tried to redirect: *"It's not whether you're right or w
 
 **The probability-weighted math does not favor the bull.** The number of ways the downside materializes is greater than the number of ways the upside materializes. The confirmation premium the bear requires is real but small relative to the risk of being wrong before the trend reverses.
 
-**SELL / AVOID $NFLX at $85.85.** 
+**SELL / AVOID $NFLX at $85.85.**
 
 Wait for the 50 SMA reclaim. Wait for the MACD to cross positive. Wait for Q2 earnings that demonstrate normalized FCF trajectory without the $2.8B termination fee. Wait for one quarter of advertising revenue disclosure that validates the bull's growth projections. The stock will still be there. The opportunity will still exist. **And you'll be buying with evidence instead of hope.**
 
@@ -736,7 +736,7 @@ I defined disruption more broadly: management distraction at WBD and Paramount d
 - 20% bull case → $120-$130 (40-51% upside)
 - 20% bear case → $70-$75 (-13 to -18% downside)
 
-Where did **these** numbers come from? The bull says they're more realistic than mine. But a 60% base case where NFLX executes flawlessly, 20% bull case where advertising accelerates beyond consensus, and **only 20% bear case for a stock in a confirmed downtrend with no reversal signal** — these aren't derived from any market data either. They're the bull's intuitions, exactly as my numbers were my intuitions. 
+Where did **these** numbers come from? The bull says they're more realistic than mine. But a 60% base case where NFLX executes flawlessly, 20% bull case where advertising accelerates beyond consensus, and **only 20% bear case for a stock in a confirmed downtrend with no reversal signal** — these aren't derived from any market data either. They're the bull's intuitions, exactly as my numbers were my intuitions.
 
 The difference? **My intuitions were calibrated to the observed price action.** A stock that has delivered -29.6% TSR in 12 months, currently in a 24-session downtrend, trading below both its 50-day and 200-day moving averages, approaching the lower Bollinger Band — that stock's price is itself a probability statement. The market is telling you the base case is not a smooth 22% recovery. **The price action assigns a higher probability to the bear scenario than the bull's 20% allows, and the bull needs to explain why they know better than the price.**
 

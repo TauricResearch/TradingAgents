@@ -27,7 +27,7 @@ The "V-shaped recovery" the bull is celebrating? It took the stock right back in
 
 Let's talk about the 60x P/E more seriously than the bull did, because this is where the real risk lives.
 
-The bull pivots immediately to forward P/E of 39.2x and says "that's more reasonable." But **forward P/E is only reasonable if the forward earnings actually materialize.** And what's baked into that 39.2x? The assumption that EPS grows from roughly $2.90 TTM to **$4.45 forward — a 53% jump.** 
+The bull pivots immediately to forward P/E of 39.2x and says "that's more reasonable." But **forward P/E is only reasonable if the forward earnings actually materialize.** And what's baked into that 39.2x? The assumption that EPS grows from roughly $2.90 TTM to **$4.45 forward — a 53% jump.**
 
 That is an enormous number to have to deliver. And here's the uncomfortable reality: **at a 60x trailing P/E on a beta-1.67 stock, you have essentially zero margin for error.** The moment Arista reports a quarter that merely meets estimates — not misses, just *meets* — the multiple compression alone can wipe out months of fundamental progress.
 
@@ -43,7 +43,7 @@ The bull's Cisco rebuttal was clever, but I think it actually undersold the thre
 
 The 24/7 Wall Street headline — *"Cisco Soars 32% in a Month, Arista Falls 10% — The AI Networking Trade Has a Clear Winner"* — isn't just a narrative headwind. It reflects something real happening in how institutional investors are allocating within the AI networking space. **Capital has rotated out of ANET and into CSCO by a 42 percentage point performance spread in a single month.** That's not a blip.
 
-The bull says "Cisco is doing cybersecurity and campus, Arista is doing GPU clusters — different markets." Fine, partially true. But here's what that argument misses: **Cisco is enormous, has infinite distribution, and is actively claiming the AI networking narrative.** When Cisco CEO Chuck Robbins gets on stage at Cisco Live and tells the world that Cisco is the AI networking company, institutional portfolio managers who need exposure to "AI infrastructure" don't do a deep technical analysis of EOS vs. IOS-XR. They buy the name they recognize. 
+The bull says "Cisco is doing cybersecurity and campus, Arista is doing GPU clusters — different markets." Fine, partially true. But here's what that argument misses: **Cisco is enormous, has infinite distribution, and is actively claiming the AI networking narrative.** When Cisco CEO Chuck Robbins gets on stage at Cisco Live and tells the world that Cisco is the AI networking company, institutional portfolio managers who need exposure to "AI infrastructure" don't do a deep technical analysis of EOS vs. IOS-XR. They buy the name they recognize.
 
 And the relative performance data tells you exactly what's happening: **money is leaving ANET for CSCO.** The bull says "rising tide lifts all boats." But the boats aren't rising equally, and the tide isn't lifting ANET as fast as it's lifting competitors. That matters for total return, especially at a 60x multiple where relative momentum drives institutional flows.
 
@@ -128,7 +128,7 @@ Let me be clear about something. **Arista Networks is a genuinely great business
 
 The bull's answer to every one of these concerns is essentially: "trust the AI supercycle." And maybe they're right in a multi-year sense. But **the question isn't whether ANET is a good company — it's whether ANET at $170.68 is a good investment today, with this risk profile, at this entry point.**
 
-I think the answer is clearly **no**. 
+I think the answer is clearly **no**.
 
 The next 10–15% move on ANET from here is more likely to be *down* than up — toward the 10-EMA at $155–158 at minimum, and potentially retesting $149 support if any of the risks I've outlined crystallize. That's 7–12% downside versus the bull's 5–6% upside to the YTD high. **Asymmetric risk to the downside, not the upside.**
 
@@ -152,7 +152,7 @@ The next 10–15% move on ANET from here is more likely to be *down* than up —
 
 ## 🏁 My Recommendation: **AVOID / SELL ANET at Current Levels**
 
-Wait for the pullback the bull himself is describing. He admits $155–$158 is the better entry. So why buy now? **Don't buy ANET at $170 with the upper Bollinger Band as a ceiling, gross margins compressing, supply chain warnings fresh off the last earnings call, and Cisco stealing the narrative.** 
+Wait for the pullback the bull himself is describing. He admits $155–$158 is the better entry. So why buy now? **Don't buy ANET at $170 with the upper Bollinger Band as a ceiling, gross margins compressing, supply chain warnings fresh off the last earnings call, and Cisco stealing the narrative.**
 
 Let the stock prove it can break $173 cleanly, hold it, and show you gross margins stabilizing in Q2 2026. Then revisit. Until then, the risk/reward at current levels is skewed against you.
 
@@ -447,7 +447,7 @@ The bull's closing argument was essentially: *"The bear's strategy only works if
 
 This is where I want to be most direct, because it's actually the most important practical question in this entire debate.
 
-**My recommendation is not "wait for $155 and then buy." My recommendation is "don't buy here at all."** There's a difference. If ANET breaks above $173 cleanly on volume and I'm wrong about the overhead resistance, that's an acceptable outcome. A great company that I chose not to own at a high-risk entry point went higher. I can live with that. What I cannot live with — and what every risk-aware investor should be thinking about — is being long a beta-1.67 stock at $170 when the Q2 2026 earnings call features the CEO discussing continued supply chain headwinds and gross margin pressure. 
+**My recommendation is not "wait for $155 and then buy." My recommendation is "don't buy here at all."** There's a difference. If ANET breaks above $173 cleanly on volume and I'm wrong about the overhead resistance, that's an acceptable outcome. A great company that I chose not to own at a high-risk entry point went higher. I can live with that. What I cannot live with — and what every risk-aware investor should be thinking about — is being long a beta-1.67 stock at $170 when the Q2 2026 earnings call features the CEO discussing continued supply chain headwinds and gross margin pressure.
 
 We've already seen that movie. It ends with a 21% drawdown in five sessions. **The bear's "discipline" isn't about missing upside. It's about not playing a game where the house has a structural edge against you at this specific entry point.**
 
@@ -515,7 +515,7 @@ And if the breakout above $173 happens before you get that entry? **You'll find 
 
 ---
 
-**Final Recommendation: AVOID / SELL ANET at $170.68.** 
+**Final Recommendation: AVOID / SELL ANET at $170.68.**
 
 *The right company. The wrong price. The wrong time.* 🐻
 
@@ -685,7 +685,7 @@ They can't, because it doesn't.
 
 ---
 
-**Final Recommendation: AVOID / SELL ANET at $170.68.** 
+**Final Recommendation: AVOID / SELL ANET at $170.68.**
 
 *Wait for $155–$158. Let Q2 2026 gross margins resolve. Let the Cisco narrative rotation clarify. Then buy one of the best businesses in technology at a price that actually rewards the risk you're taking.*
 
@@ -743,7 +743,7 @@ And then immediately added: *"Wait — that would imply ANET is dramatically ove
 
 **The bull just accidentally calculated that ANET's terminal value alone — the value of all future cash flows beyond the high-growth period — is approximately $75.7 billion.** At a $219.7 billion market cap, that means the market is paying **$219.7B - $75.7B = $144 billion** for ANET's near-term growth period cash flows alone.
 
-That $144 billion in "growth value" embedded in ANET's market cap requires extraordinarily sustained high growth to justify. **Any deceleration in the growth rate doesn't just reduce earnings — it destroys the portion of market cap that is entirely dependent on the growth premium being maintained.** 
+That $144 billion in "growth value" embedded in ANET's market cap requires extraordinarily sustained high growth to justify. **Any deceleration in the growth rate doesn't just reduce earnings — it destroys the portion of market cap that is entirely dependent on the growth premium being maintained.**
 
 The bull's own Gordon Growth Model calculation reveals that roughly **two-thirds of ANET's market cap is growth premium**, not fundamental terminal value. And growth premiums are the most volatile, sentiment-dependent, and quickly-destroyed component of any stock's valuation. This is precisely why ANET dropped 21% on a single earnings call — the growth premium doesn't tolerate uncertainty.
 
@@ -830,7 +830,7 @@ But more importantly: **I'm not recommending waiting for $155 as an arbitrary pr
 
 Throughout this entire debate — across every rebuttal, every scorecard, every rhetorical flourish — the bull has never addressed what I consider the most important risk for ANET investors.
 
-**The May selloff was a beat-and-raise quarter.** 
+**The May selloff was a beat-and-raise quarter.**
 
 Not a miss. Not a warning. A beat on revenue, a beat on earnings, a raise on full-year guidance — and still a 21% decline in five sessions.
 
@@ -838,7 +838,7 @@ Not a miss. Not a warning. A beat on revenue, a beat on earnings, a raise on ful
 
 It tells you that the market requires not just excellent results — it requires *extraordinary, above-consensus* results to maintain the multiple. "Good" isn't good enough. "Great" isn't good enough. Only "exceptional in a way that surprises the market" maintains the premium.
 
-Now look at what the bull's bull case actually requires for the next quarter: **continued 35%+ revenue growth, gross margin recovery to 63%+, sustained FCF at $1.6B+, maintained operating margins at 42%+, and supply chain confirmation that concerns have abated.** 
+Now look at what the bull's bull case actually requires for the next quarter: **continued 35%+ revenue growth, gross margin recovery to 63%+, sustained FCF at $1.6B+, maintained operating margins at 42%+, and supply chain confirmation that concerns have abated.**
 
 If all of those happen simultaneously? Maybe flat to slightly up. **Because most of that is already in the price.**
 
@@ -854,13 +854,13 @@ That asymmetry — between the mild upside from meeting elevated expectations an
 
 After exhaustive rounds of analysis, here is what we know with genuine certainty:
 
-✅ **Both sides agree:** Arista is an exceptional business  
-✅ **Both sides agree:** The AI infrastructure supercycle is real and benefiting ANET  
-✅ **Both sides agree:** $155–$158 is a better entry point than $170.68  
-✅ **Both sides agree:** Gross margins dipped in Q1 2026 and supply chain concerns exist  
-✅ **Both sides agree:** Cisco's 32% surge represents a real near-term narrative headwind  
-✅ **Both sides agree:** Beta of 1.67 means outsized moves in both directions  
-✅ **Both sides agree:** A beat-and-raise quarter triggered a 21% decline — the expectations bar is extremely high  
+✅ **Both sides agree:** Arista is an exceptional business
+✅ **Both sides agree:** The AI infrastructure supercycle is real and benefiting ANET
+✅ **Both sides agree:** $155–$158 is a better entry point than $170.68
+✅ **Both sides agree:** Gross margins dipped in Q1 2026 and supply chain concerns exist
+✅ **Both sides agree:** Cisco's 32% surge represents a real near-term narrative headwind
+✅ **Both sides agree:** Beta of 1.67 means outsized moves in both directions
+✅ **Both sides agree:** A beat-and-raise quarter triggered a 21% decline — the expectations bar is extremely high
 
 The only remaining dispute: **whether 7.9% of potential upside foregone justifies the risk asymmetry at current levels.**
 
@@ -874,12 +874,12 @@ That is a **1:2.4 risk/reward ratio in the wrong direction.** Professional trade
 
 ## 🏁 My Absolute Final Recommendation on ANET
 
-**Ticker: ANET**  
-**Current Price: $170.68**  
+**Ticker: ANET**
+**Current Price: $170.68**
 **Recommendation: AVOID / SELL** 🔴
 
-Not because Arista is a bad company. It isn't.  
-Not because AI infrastructure is fake. It's real.  
+Not because Arista is a bad company. It isn't.
+Not because AI infrastructure is fake. It's real.
 Not because the fundamentals are deteriorating. They're strong.
 
 **Because at $170.68, the risk/reward is unfavorable:**

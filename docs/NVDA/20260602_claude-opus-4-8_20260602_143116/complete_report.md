@@ -9,12 +9,12 @@ I now have all the data needed. Let me compile a comprehensive, nuanced report.
 
 ---
 
-# 📊 NVDA (NVIDIA Corporation) — In-Depth Technical Analysis Report
+#### 📊 NVDA (NVIDIA Corporation) — In-Depth Technical Analysis Report
 **Analysis Date:** June 2, 2026 | **Exchange:** NASDAQ (NMS) | **Sector:** Technology / Semiconductors
 
 ---
 
-## 1. 🔍 Indicator Selection Rationale
+#### 1. 🔍 Indicator Selection Rationale
 
 For NVDA's current market context — a high-beta semiconductor stock that has experienced a multi-week rally off deep lows and is now showing signs of momentum deceleration — the following 8 indicators were selected:
 
@@ -31,37 +31,37 @@ For NVDA's current market context — a high-beta semiconductor stock that has e
 
 ---
 
-## 2. 📈 Price Action Overview
+#### 2. 📈 Price Action Overview
 
 NVDA has experienced three distinct phases in 2026:
 
-### Phase 1: Sideways Chop + Decline (Jan–Mar 2026)
+#### Phase 1: Sideways Chop + Decline (Jan–Mar 2026)
 The stock opened the year around **$188–$192** but underwent progressive deterioration. After peaking near **$197.62 on Feb 25**, aggressive selling swept the stock to a YTD low of **$164.27 on Mar 30** — a drawdown of approximately **~17%** from peak.
 
-### Phase 2: Structural Recovery (Early April–Early May)
+#### Phase 2: Structural Recovery (Early April–Early May)
 NVDA staged a sharp V-shaped recovery, rallying from the ~$165 low through the **$200 psychological level** by mid-April, touching a high of **$216.83 on April 27**. This phase was powered by strong volume and conviction buying.
 
-### Phase 3: Breakout & Consolidation (Mid-May – June 1)
+#### Phase 3: Breakout & Consolidation (Mid-May – June 1)
 NVDA surged to a 2026 peak of **$236.54 on May 14**, before entering a consolidation/pullback phase in the $211–$225 range. The most recent session (June 1) closed at **$224.36**, up sharply from the prior close of $211.14, signaling renewed buying interest.
 
 ---
 
-## 3. 📉 Moving Averages Analysis
+#### 3. 📉 Moving Averages Analysis
 
-### 200-Day SMA: **$187.86** (June 1)
+#### 200-Day SMA: **$187.86** (June 1)
 NVDA's price at $224.36 is trading approximately **~19.4% above the 200 SMA**, a classic **bullish long-term regime indicator**. The 200 SMA itself is rising gradually (from ~$184 in early May to $187.86 on June 1), confirming a long-term uptrend has reasserted itself.
 
-### 50-Day SMA: **$200.26** (June 1)
+#### 50-Day SMA: **$200.26** (June 1)
 Price is trading approximately **~12% above the 50 SMA**, with the 50 SMA in a clear upward trajectory, rising from ~$187.3 to $200.26 over the past month. This confirms the medium-term trend is constructively bullish. The 50 SMA has crossed well above the 200 SMA (a **Golden Cross** formation), reinforcing the bullish structural backdrop.
 
-### 10-Day EMA: **$217.38** (June 1)
+#### 10-Day EMA: **$217.38** (June 1)
 The 10 EMA is currently at $217.38, slightly below the closing price of $224.36. Notably, the 10 EMA peaked around **$220.42 on May 20** and then dipped to $215.83 on May 29 before recovering. The June 1 close above the 10 EMA ($224.36 > $217.38) is a **short-term bullish signal**, suggesting the dip has been absorbed and momentum is re-asserting upward.
 
 **Key Observation:** All three moving averages are stacked bullishly: Price > 10 EMA > Bollinger Middle > 50 SMA > 200 SMA. This is a textbook bullish alignment.
 
 ---
 
-## 4. ⚡ Momentum: RSI Analysis
+#### 4. ⚡ Momentum: RSI Analysis
 
 | Date | RSI |
 |---|---|
@@ -76,7 +76,7 @@ The 10 EMA is currently at $217.38, slightly below the closing price of $224.36.
 
 ---
 
-## 5. 📊 Momentum: MACD Analysis
+#### 5. 📊 Momentum: MACD Analysis
 
 | Date | MACD | Signal | Histogram (implied) |
 |---|---|---|---|
@@ -91,7 +91,7 @@ The 10 EMA is currently at $217.38, slightly below the closing price of $224.36.
 
 ---
 
-## 6. 📏 Bollinger Bands Analysis (June 1)
+#### 6. 📏 Bollinger Bands Analysis (June 1)
 
 | Band | Value |
 |---|---|
@@ -110,7 +110,7 @@ The 10 EMA is currently at $217.38, slightly below the closing price of $224.36.
 
 ---
 
-## 7. 📉 Volatility: ATR Analysis
+#### 7. 📉 Volatility: ATR Analysis
 
 | Date | ATR |
 |---|---|
@@ -128,7 +128,7 @@ Traders should size positions conservatively given elevated ATR, as intraday swi
 
 ---
 
-## 8. 📦 Volume-Weighted Moving Average (VWMA)
+#### 8. 📦 Volume-Weighted Moving Average (VWMA)
 
 | Date | VWMA | Close | Spread |
 |---|---|---|---|
@@ -141,9 +141,9 @@ Traders should size positions conservatively given elevated ATR, as intraday swi
 
 ---
 
-## 9. 🎯 Synthesis & Actionable Insights
+#### 9. 🎯 Synthesis & Actionable Insights
 
-### Bullish Signals:
+#### Bullish Signals:
 1. ✅ **Price reclaimed above 10 EMA, Bollinger Middle, VWMA** on June 1 — structural support confirmed.
 2. ✅ **Golden Cross (50 SMA > 200 SMA)** remains firmly in place, bullish long-term bias.
 3. ✅ **RSI reset from overbought (76.7) to neutral (49.4)** without breaking down, now re-accelerating to 60.4.
@@ -151,13 +151,13 @@ Traders should size positions conservatively given elevated ATR, as intraday swi
 5. ✅ **Volume surge on June 1 (212.85M)** supports price recovery — conviction buying.
 6. ✅ **VWMA reclaimed** — institutional participation re-confirmed.
 
-### Caution Signals:
+#### Caution Signals:
 1. ⚠️ **MACD still below its Signal Line** — bearish cross not fully reversed yet.
 2. ⚠️ **ATR elevated at $7.61** — high volatility environment demands careful position sizing.
 3. ⚠️ **First resistance zone** at Bollinger Upper Band ~$235.17, which capped the prior rally.
 4. ⚠️ **May 14 peak ($235.74) represents overhead supply** — a second test may face selling pressure.
 
-### Key Levels to Watch:
+#### Key Levels to Watch:
 - **Support:** $216.75 (Bollinger Middle / 20 SMA), $214.86 (recent low May 26), $200.26 (50 SMA)
 - **Resistance:** $224.87 (June 1 high), $235.17 (Bollinger Upper Band), $236.54 (May 14 YTD high)
 
@@ -169,7 +169,7 @@ FINAL TRANSACTION PROPOSAL: **BUY**
 
 ---
 
-## 📋 Summary Table
+#### 📋 Summary Table
 
 | Indicator | Current Value (June 1) | Signal | Interpretation |
 |---|---|---|---|
@@ -195,11 +195,11 @@ FINAL TRANSACTION PROPOSAL: **BUY**
 **Confidence:** Medium
 
 
-## NVDA Sentiment Report — 2026-05-26 to 2026-06-02
+#### NVDA Sentiment Report — 2026-05-26 to 2026-06-02
 
 ---
 
-### 1. Source-by-Source Breakdown
+#### 1. Source-by-Source Breakdown
 
 #### 📰 News Headlines (Yahoo Finance / Institutional Framing)
 The news flow for the period is **predominantly bullish**, anchored by Jensen Huang's high-profile keynote at **NVIDIA GTC Taipei / Computex 2026**. Key institutional signals:
@@ -261,7 +261,7 @@ Reddit engagement metrics (scores/comments) are **unavailable**, reducing confid
 
 ---
 
-### 2. Cross-Source Divergences and Alignments
+#### 2. Cross-Source Divergences and Alignments
 
 | Source | Directional Signal | Key Nuance |
 |---|---|---|
@@ -277,7 +277,7 @@ Reddit engagement metrics (scores/comments) are **unavailable**, reducing confid
 
 ---
 
-### 3. Dominant Narrative Themes
+#### 3. Dominant Narrative Themes
 
 1. **Jensen Huang / Computex 2026 as a super-catalyst**: The keynote dominated every data source. New products (Vera CPU, Rubin GPU, RTX Spark), ecosystem endorsements (MRVL, Coherent, Flex, Fluence), and agentic AI framing drove widespread bullish re-rating.
 2. **AI infrastructure super-cycle in full swing**: NVDA positioned as the irreplaceable backbone of AI capex — "the shovel seller" in every version of the AI gold rush narrative.
@@ -287,7 +287,7 @@ Reddit engagement metrics (scores/comments) are **unavailable**, reducing confid
 
 ---
 
-### 4. Catalysts and Risks
+#### 4. Catalysts and Risks
 
 **Catalysts:**
 - **Computex / GTC Taipei 2026**: Already partially priced in; further follow-through possible as analyst notes and institutional reactions filter through.
@@ -305,7 +305,7 @@ Reddit engagement metrics (scores/comments) are **unavailable**, reducing confid
 
 ---
 
-### 5. Key Sentiment Signals Summary Table
+#### 5. Key Sentiment Signals Summary Table
 
 | Signal | Direction | Source | Supporting Evidence |
 |---|---|---|---|
@@ -332,14 +332,14 @@ Excellent! I have comprehensive data from both sources. Let me now compile the f
 
 ---
 
-# 📊 NVDA (NVIDIA Corporation) — Comprehensive Trading & Macro Analysis Report
+#### 📊 NVDA (NVIDIA Corporation) — Comprehensive Trading & Macro Analysis Report
 **Analysis Date:** June 2, 2026 | **Analyst:** AI News Research Engine | **Exchange:** NMS (NASDAQ)
 
 ---
 
-## 1. 🔬 NVIDIA (NVDA) — Company-Specific News & Developments
+#### 1. 🔬 NVIDIA (NVDA) — Company-Specific News & Developments
 
-### 🖥️ Computex Taipei 2026: Jensen Huang in the Spotlight
+#### 🖥️ Computex Taipei 2026: Jensen Huang in the Spotlight
 The dominant story of the week surrounding NVDA is CEO **Jensen Huang's commanding presence at Computex Taipei 2026**. Huang delivered a series of high-profile announcements and endorsements that reverberated across the entire semiconductor and AI ecosystem:
 
 - **Marvell Technology (MRVL) Endorsement:** Huang publicly declared MRVL to be *"the next trillion-dollar company,"* triggering a **32% single-day surge** in Marvell's stock — its biggest gain on record. This endorsement is significant not just for MRVL, but as a testament to NVIDIA's gravitational influence in the AI chip supply chain. When NVIDIA's CEO speaks, markets listen.
@@ -352,46 +352,46 @@ The dominant story of the week surrounding NVDA is CEO **Jensen Huang's commandi
 
 - **Flex (FLEX) AI Power Solutions:** Manufacturing solutions company Flex jumped ~5.8% after announcing new AI infrastructure power solutions at COMPUTEX 2026 alongside NVDA. Further evidence that NVDA's ecosystem effect is broad and continues generating value for partners.
 
-### 📉 NVDA Stock Action on June 2, 2026
+#### 📉 NVDA Stock Action on June 2, 2026
 Despite the overwhelming positive narrative from Computex, **NVDA's own share price dipped slightly on June 2** while the broader market (Dow +0.4%, Nasdaq +0.1% to ~27,093) was in record territory. The headline from Investor's Business Daily read: *"Dow, S&P 500 Extend Win Streaks; Apple Rises, Nvidia Sinks."* This is a notable divergence — NVDA was the catalyst for broader market excitement (through MRVL's rally and AI optimism), yet NVDA shares themselves underperformed on the day. This may reflect **profit-taking at elevated levels**, rotation into AI beneficiaries perceived as "cheaper" (like MRVL), or a **buy-the-rumor, sell-the-news** dynamic following heavy Computex buzz.
 
-### 🌐 Broader AI Investment Thesis Intact
+#### 🌐 Broader AI Investment Thesis Intact
 - Multiple outlets (24/7 Wall St., Motley Fool, IBD) continue to frame NVDA as the **irreplaceable infrastructure backbone of the AI boom**, with "hidden beneficiary" narratives proliferating about its downstream supplier chain.
 - US equity markets extended their rally **to record levels on AI momentum** and positive jobs data, with the AI trade cited as the primary driver. NVDA remains the nucleus of this narrative.
 
 ---
 
-## 2. 🌍 Global Macroeconomic Context
+#### 2. 🌍 Global Macroeconomic Context
 
-### 📈 Equity Markets at Record Highs
+#### 📈 Equity Markets at Record Highs
 US equity indexes closed at **all-time highs** on June 2, 2026, with the Dow, S&P 500, and Nasdaq all extending win streaks on the back of **AI momentum and stronger-than-expected jobs data.** The Nasdaq sits at approximately **27,093**, a level suggesting remarkable post-correction strength. Broad risk-on sentiment is supportive for NVDA.
 
-### 🕊️ US–Iran Geopolitical Tensions
+#### 🕊️ US–Iran Geopolitical Tensions
 A key macro overhang is **ongoing US-Iran peace/nuclear negotiations**, with conflicting reports causing intraday market swings. An "Iran War" context is mentioned in consumer goods inflation stories, suggesting active conflict or severe sanctions pressure remain in play. This creates:
 - **Oil price volatility** (referenced in multiple footwear/retail inflation articles)
 - Risk premium in energy costs that affects data center power consumption economics
 - Potential supply chain disruptions if tensions escalate
 
-### ⛽ Inflation & Energy Costs
+#### ⛽ Inflation & Energy Costs
 Multiple sources reference rising energy/oil prices tied to the Iran situation, with downstream effects on consumer goods (footwear, fashion retail). For NVDA, higher energy costs have a **dual impact**: (1) increasing operating costs for hyperscaler data centers (NVDA's core customers), and (2) raising the cost of manufacturing its chips. However, the massive capex commitments from hyperscalers (Microsoft, Google, Meta, Amazon) appear undeterred.
 
-### 💰 Jobs Data & Fed Positioning
+#### 💰 Jobs Data & Fed Positioning
 Strong **Non-Farm Payroll (NFP)** data is referenced, with *"rate hike fears"* looming according to gold market reporting. This suggests the macro narrative has flipped slightly — markets are processing whether the Fed might stay higher for longer or even tighten again, given resilient labor markets. A rate hike scenario would be a headwind for high-multiple tech stocks like NVDA, though AI capex demand appears structural rather than rate-sensitive.
 
-### ₿ Bitcoin & Digital Assets
+#### ₿ Bitcoin & Digital Assets
 BTC slipped to ~$67K, with bearish technical commentary from prominent commentators. No direct NVDA connection, but the crypto/blockchain mining sector remains a marginal GPU demand driver. Weak crypto sentiment is a minor negative for NVDA's non-data-center GPU demand.
 
-### ⚛️ Quantum Computing Momentum
+#### ⚛️ Quantum Computing Momentum
 D-Wave and Rigetti are gaining on **$100M in US federal quantum R&D funding** news. While not a near-term NVDA threat, quantum computing represents a long-term competitive consideration for the GPU-accelerated compute landscape. Near-term, federal tech investment signals positive government alignment with cutting-edge compute infrastructure.
 
-### 🥇 Commodities: Copper, Gold, Silver
+#### 🥇 Commodities: Copper, Gold, Silver
 The Zacks article *"Copper vs. Gold & Silver: Which Metal Wins the AI Boom?"* highlights that **copper demand is surging due to AI data center build-outs** — directly tied to NVDA's chip demand driving infrastructure construction. Gold is seesawing on ceasefire headlines and NFP data. Precious metals volatility reflects macro uncertainty but underscores the real-economy demand AI is generating.
 
 ---
 
-## 3. ⚖️ Risk/Opportunity Assessment for NVDA
+#### 3. ⚖️ Risk/Opportunity Assessment for NVDA
 
-### ✅ Bullish Catalysts
+#### ✅ Bullish Catalysts
 1. **Computex 2026 dominance** — NVDA set the agenda for the entire AI hardware industry
 2. **RTX Spark PC entry** — New addressable market; strategic threat to Intel
 3. **Ecosystem kingmaker role** — MRVL's 32% surge on Huang's words = unparalleled market influence
@@ -400,7 +400,7 @@ The Zacks article *"Copper vs. Gold & Silver: Which Metal Wins the AI Boom?"* hi
 6. **Partner AI data center collaborations** (Siemens, Fluence, Flex) — Deep integration into next-gen infrastructure blueprints
 7. **Strong jobs data** — Healthy economy supports enterprise AI capex spending
 
-### ⚠️ Bearish/Risk Factors
+#### ⚠️ Bearish/Risk Factors
 1. **NVDA stock dipped on record market day** — Short-term price divergence / possible exhaustion signal
 2. **Buy-the-rumor, sell-the-news** risk after Computex euphoria
 3. **Geopolitical uncertainty (US-Iran)** — Energy price volatility, potential supply disruptions
@@ -410,7 +410,7 @@ The Zacks article *"Copper vs. Gold & Silver: Which Metal Wins the AI Boom?"* hi
 
 ---
 
-## 4. 📋 Summary Table
+#### 4. 📋 Summary Table
 
 | Category | Item | Detail | Signal |
 |---|---|---|---|
@@ -437,7 +437,7 @@ The Zacks article *"Copper vs. Gold & Silver: Which Metal Wins the AI Boom?"* hi
 
 ---
 
-## 5. 🏁 Conclusion & Trading Insight
+#### 5. 🏁 Conclusion & Trading Insight
 
 **NVIDIA (NVDA)** enters June 2026 from a position of extraordinary strategic strength. The Computex Taipei 2026 event confirmed that Huang and NVIDIA are not merely chip suppliers but **architects of the global AI infrastructure economy** — a kingmaker role few companies in history have occupied. The RTX Spark PC push, robotics signaling, and deep partner ecosystem integrations all point to **durable, multi-year revenue growth vectors**.
 
@@ -453,12 +453,12 @@ I now have all the data needed to compile a comprehensive fundamental analysis r
 
 ---
 
-# 🟢 NVIDIA Corporation (NVDA) — Comprehensive Fundamental Analysis Report
+#### 🟢 NVIDIA Corporation (NVDA) — Comprehensive Fundamental Analysis Report
 **Analysis Date:** June 2, 2026 | **Exchange:** NASDAQ (NMS) | **Sector:** Technology | **Industry:** Semiconductors
 
 ---
 
-## 1. 🏢 Company Profile
+#### 1. 🏢 Company Profile
 
 NVIDIA Corporation is the world's leading designer of graphics processing units (GPUs) and system-on-chip technologies. Originally focused on gaming graphics, NVIDIA has transformed into the dominant provider of AI accelerator hardware, data center computing platforms, and networking interconnects. Its CUDA software ecosystem creates powerful moats, locking in data science, deep learning, and HPC workloads. Key product lines include the Hopper and Blackwell GPU architectures, NVLink, InfiniBand networking (via Mellanox), and the NVIDIA AI Enterprise software stack.
 
@@ -470,9 +470,9 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 
 ---
 
-## 2. 📊 Income Statement Analysis
+#### 2. 📊 Income Statement Analysis
 
-### Quarterly Revenue Trajectory (Most Recent 5 Quarters)
+#### Quarterly Revenue Trajectory (Most Recent 5 Quarters)
 | Quarter | Total Revenue | Gross Profit | Operating Income | Net Income |
 |---|---|---|---|---|
 | Q1 FY2027 (Apr-26) | $81.62B | $61.16B | $53.54B | $58.32B* |
@@ -489,7 +489,7 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 - **Operating Margin** reached ~65.6% in the most recent quarter — extraordinarily high for a hardware company.
 - **Diluted EPS** surged from $0.76 (Q1 FY2026) to **$2.39** (Q1 FY2027), up 214% YoY.
 
-### Annual Revenue Trajectory
+#### Annual Revenue Trajectory
 | Fiscal Year | Revenue | Gross Profit | Operating Income | Net Income | Diluted EPS |
 |---|---|---|---|---|---|
 | FY2026 (Jan-26) | $215.94B | $153.46B | $130.39B | $120.07B | $4.90 |
@@ -503,9 +503,9 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 
 ---
 
-## 3. 🏦 Balance Sheet Analysis
+#### 3. 🏦 Balance Sheet Analysis
 
-### Highlights as of April 30, 2026 (Most Recent Quarter)
+#### Highlights as of April 30, 2026 (Most Recent Quarter)
 - **Total Assets:** $259.5B (up from $206.8B at Jan-26 and $111.6B just one year ago)
 - **Total Stockholders' Equity:** $195.5B (up from $157.3B at Jan-26)
 - **Retained Earnings:** $185.0B — a massive accumulation of profits on the balance sheet
@@ -514,7 +514,7 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 - **Working Capital:** $107.1B — exceptional liquidity buffer
 - **Current Ratio:** 3.44x — very healthy
 
-### Asset Growth Quarter-over-Quarter
+#### Asset Growth Quarter-over-Quarter
 | Date | Total Assets | Stockholders' Equity | Cash+ST Investments | Inventories |
 |---|---|---|---|---|
 | Apr-26 | $259.5B | $195.5B | $80.6B | $25.8B |
@@ -532,9 +532,9 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 
 ---
 
-## 4. 💵 Cash Flow Statement Analysis
+#### 4. 💵 Cash Flow Statement Analysis
 
-### Operating Cash Flow (Quarterly)
+#### Operating Cash Flow (Quarterly)
 | Quarter | Operating CF | CapEx | Free Cash Flow |
 |---|---|---|---|
 | Q1 FY2027 (Apr-26) | $50.34B | -$1.76B | $48.59B |
@@ -543,7 +543,7 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 | Q2 FY2026 (Jul-25) | $15.37B | -$1.90B | $13.47B |
 | Q1 FY2026 (Apr-25) | $27.41B | -$1.23B | $26.19B |
 
-### Annual Cash Flow
+#### Annual Cash Flow
 | Fiscal Year | Operating CF | CapEx | Free Cash Flow | Buybacks | Dividends |
 |---|---|---|---|---|---|
 | FY2026 (Jan-26) | $102.72B | -$6.04B | $96.68B | -$40.09B | -$0.97B |
@@ -561,7 +561,7 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 
 ---
 
-## 5. 📈 Valuation & Key Ratios
+#### 5. 📈 Valuation & Key Ratios
 
 | Metric | Value | Commentary |
 |---|---|---|
@@ -584,7 +584,7 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 
 ---
 
-## 6. ⚠️ Risk Factors to Monitor
+#### 6. ⚠️ Risk Factors to Monitor
 
 1. **Inventory Accumulation:** Inventory has surged from $5.3B (FY2024) to $25.8B (Q1 FY2027). If demand softens or a product transition stalls, write-downs could materially impact earnings.
 2. **Geopolitical / Export Controls:** U.S. restrictions on GPU exports to China remain a headwind. Any tightening could reduce addressable demand.
@@ -596,7 +596,7 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 
 ---
 
-## 7. 💡 Actionable Insights for Traders
+#### 7. 💡 Actionable Insights for Traders
 
 1. **Momentum & Earnings Beat Pattern:** NVDA has consistently beaten consensus estimates each quarter. The Q1 FY2027 result ($81.6B revenue, $2.39 EPS) far exceeded expectations, with Q2 FY2027 guidance likely to continue this trend.
 2. **Sub-1 PEG Ratio is Unusual for a $5T Company:** A PEG of 0.69 suggests the market may be underpricing forward earnings growth; this is a bullish signal.
@@ -607,7 +607,7 @@ NVIDIA Corporation is the world's leading designer of graphics processing units 
 
 ---
 
-## 📋 Summary Key Metrics Table
+#### 📋 Summary Key Metrics Table
 
 | Category | Metric | Latest Value | Trend |
 |---|---|---|---|
@@ -659,7 +659,7 @@ Let me be direct: the bear case on NVIDIA right now is a masterclass in missing 
 
 ---
 
-## 💰 The Numbers Don't Lie — This Is a Generational Compounding Machine
+#### 💰 The Numbers Don't Lie — This Is a Generational Compounding Machine
 
 Let's start with the fundamentals, because they're genuinely extraordinary.
 
@@ -671,7 +671,7 @@ The forward P/E of **17.6x** with **~94% expected EPS growth** gives a **PEG rat
 
 ---
 
-## 🛡️ The Moat Is Deeper Than Anyone Appreciates
+#### 🛡️ The Moat Is Deeper Than Anyone Appreciates
 
 Bears will point to AMD, Google TPUs, Amazon Trainium. Let me be very clear about something: **CUDA is not a chip. It's a 20-year software ecosystem that has captured the minds of every AI researcher, data scientist, and ML engineer on the planet.**
 
@@ -681,9 +681,9 @@ And Jensen Huang just proved at **Computex Taipei 2026** that NVIDIA isn't resti
 
 ---
 
-## 📊 The Technical Setup Is Textbook Bullish
+#### 📊 The Technical Setup Is Textbook Bullish
 
-Look at what happened on June 1st. After a healthy two-week consolidation that **unwound RSI from overbought 76.7 all the way to neutral 49.4** — without breaking a single major support level — NVDA ripped **+6.26% on 212 million shares of volume**. 
+Look at what happened on June 1st. After a healthy two-week consolidation that **unwound RSI from overbought 76.7 all the way to neutral 49.4** — without breaking a single major support level — NVDA ripped **+6.26% on 212 million shares of volume**.
 
 That's not noise. That's institutional accumulation following a momentum reset.
 
@@ -696,7 +696,7 @@ The resistance target is clear: **$235–$236**, a re-test of the YTD high. With
 
 ---
 
-## 🚀 The Sentiment Is Constructive — Not Frothy
+#### 🚀 The Sentiment Is Constructive — Not Frothy
 
 Here's something bears get wrong about the sentiment picture: they see **16:1 bull/bear on StockTwits and think "euphoria."** But look at *what* the bulls are saying. They're not saying "to the moon." They're citing PEG ratios. They're comparing NVDA's 34x P/E favorably to AMD's 171x. They're building discounted cash flow theses around $12.66 forward EPS. **This is informed, fundamental bulls sentiment — not speculative mania.**
 
@@ -704,7 +704,7 @@ And the WSB crowd? They're *selling calls* against their positions to lock in ga
 
 ---
 
-## 💵 The Capital Return Story Is Massively Underappreciated
+#### 💵 The Capital Return Story Is Massively Underappreciated
 
 NVDA generated **$96.68 billion in free cash flow in FY2026** and returned **$40.1 billion in buybacks** alone. In just Q1 FY2027, they bought back **$19.3 billion of their own stock**. With $80.6 billion in cash and short-term investments against only $12.35 billion in debt, the balance sheet is a fortress.
 
@@ -712,7 +712,7 @@ The StockTwits community is right to watch the buyback cadence. An active buybac
 
 ---
 
-## 🔑 Addressing the Bears Head-On
+#### 🔑 Addressing the Bears Head-On
 
 **"Inventory is piling up to $25.8 billion — demand risk!"**
 
@@ -728,12 +728,12 @@ AMD has been "closing the gap" for three years. NVDA's market share in AI traini
 
 ---
 
-## 🎯 The Bottom Line
+#### 🎯 The Bottom Line
 
 NVDA at $224.36 offers:
 - ✅ **Best-in-class fundamentals** with 85% revenue growth and 75% gross margins
 - ✅ **Unassailable competitive moat** via CUDA ecosystem and product leadership
-- ✅ **Constructive technicals** with bullish MA stack and momentum reset complete  
+- ✅ **Constructive technicals** with bullish MA stack and momentum reset complete
 - ✅ **Expanding TAM** across data center, PC, robotics, and sovereign AI
 - ✅ **Sub-1 PEG ratio** suggesting the market is *underpricing* forward growth
 - ✅ **$96 billion annual FCF** funding aggressive buybacks and a fortress balance sheet
@@ -753,7 +753,7 @@ Let me get into it.
 
 ---
 
-## 🏔️ "The $5.4 Trillion Problem" — You're Using the Wrong Denominator
+#### 🏔️ "The $5.4 Trillion Problem" — You're Using the Wrong Denominator
 
 My colleague leads with market cap as though size itself is a bear argument. Let's stress-test that logic.
 
@@ -767,7 +767,7 @@ The 1929 valuation comparison from r/stocks? That's macro commentary about the *
 
 ---
 
-## 📦 The Inventory Argument Is Analytically Backwards — And Here's Why
+#### 📦 The Inventory Argument Is Analytically Backwards — And Here's Why
 
 This is where the bear's argument is most vulnerable, because it's applying 2022 semiconductor cycle logic to a structurally different situation.
 
@@ -781,7 +781,7 @@ Furthermore, the bear completely ignores what the accounts receivable build *act
 
 ---
 
-## 🧲 On Hyperscaler Concentration — The Bear Is Describing Yesterday's Risk
+#### 🧲 On Hyperscaler Concentration — The Bear Is Describing Yesterday's Risk
 
 Yes, four hyperscalers represent a significant portion of NVDA's data center revenue. The bear treats this as a static, permanent vulnerability. But let me show you why the concentration risk is *actually declining* even as total revenues grow.
 
@@ -793,7 +793,7 @@ Yes, four hyperscalers represent a significant portion of NVDA's data center rev
 
 ---
 
-## ⚠️ The CUDA Moat — My Colleague Just Proved My Point Without Realizing It
+#### ⚠️ The CUDA Moat — My Colleague Just Proved My Point Without Realizing It
 
 This is the most interesting part of the bear's argument, and I want to engage with it directly.
 
@@ -811,7 +811,7 @@ On the inference market shift: yes, inference is more price-competitive than tra
 
 ---
 
-## 📉 Let's Have a Real Conversation About the Technicals
+#### 📉 Let's Have a Real Conversation About the Technicals
 
 The bear made three technical points. Let me address each one.
 
@@ -825,7 +825,7 @@ And the one-day MACD uptick? Look at what it corresponded with: **212.85 million
 
 ---
 
-## 🎭 Computex "Sell the News" — Or Consolidation Before the Next Leg?
+#### 🎭 Computex "Sell the News" — Or Consolidation Before the Next Leg?
 
 The bear frames the post-Computex dip as a sell-the-news failure. Let me reframe it with historical context.
 
@@ -837,7 +837,7 @@ The bear calls this "two months away." I call it **two months of accumulation op
 
 ---
 
-## 🌍 On the Macro Risks — Context Matters Enormously
+#### 🌍 On the Macro Risks — Context Matters Enormously
 
 **Fed rate hike fears:** Yes, strong NFP data creates "higher for longer" concern. But let's be precise: the market is discussing *potential* rate hikes, not actual ones. And critically — **NVDA's revenue and earnings are not rate-sensitive in the way traditional growth stocks are.** When a company generates $96 billion in annual free cash flow, rising rates affect the discount rate applied to future cash flows in a DCF model, but they don't affect the actual cash being generated. NVDA isn't burning cash while waiting for profitability to arrive. It's *already* one of the most profitable companies on earth, with $80.6 billion in cash and short-term investments that actually *benefits* from higher rates through enhanced investment income.
 
@@ -847,7 +847,7 @@ The bear calls this "two months away." I call it **two months of accumulation op
 
 ---
 
-## 💬 On Sentiment — Informed Bulls Are Not the Same as Euphoric Speculators
+#### 💬 On Sentiment — Informed Bulls Are Not the Same as Euphoric Speculators
 
 The bear conflates "16:1 bullish ratio" with "maximum crowding." But look at *how* these bulls are positioned. The WSB traders are **selling calls against their NVDA positions** — meaning they're structurally short gamma, hedged, and prepared for consolidation. That's not a crowded long that panics on a 5% dip. That's a disciplined position with embedded protection.
 
@@ -857,7 +857,7 @@ The most dangerous crowded trades are ones where participants are emotionally po
 
 ---
 
-## 🎯 The Bull's Final Synthesis — Why the Risk/Reward Remains Compelling
+#### 🎯 The Bull's Final Synthesis — Why the Risk/Reward Remains Compelling
 
 Let me directly address my colleague's central thesis: "They don't need every risk to materialize. Just one."
 
@@ -875,7 +875,7 @@ The bear's downside target of $185-195 requires multiple simultaneous adverse ev
 
 ---
 
-## 🔑 Bottom Line
+#### 🔑 Bottom Line
 
 The bear case is intellectually sophisticated but ultimately describes a company that *should* be expensive, that *should* attract maximum consensus positioning, and that *should* face ongoing scrutiny — because it has earned all of those things through extraordinary execution.
 
@@ -900,7 +900,7 @@ Let's go.
 
 ---
 
-## 🔑 Answering the Bear's Three Direct Questions — Head On
+#### 🔑 Answering the Bear's Three Direct Questions — Head On
 
 **Question 1: "Why is inventory growing faster than revenue in a supply-constrained environment?"**
 
@@ -920,7 +920,7 @@ This is the most important question, and here is my specific, falsifiable answer
 
 ---
 
-## 🏔️ The Law of Large Numbers — The Bear's Strongest Argument, and Still Wrong
+#### 🏔️ The Law of Large Numbers — The Bear's Strongest Argument, and Still Wrong
 
 My colleague makes his most intellectually honest point here, and I want to engage with the math directly rather than dismiss it.
 
@@ -936,7 +936,7 @@ And here's the part of the law of large numbers that the bear's framework omits:
 
 ---
 
-## 📦 The Inventory Argument: I'll Raise the Bear's Own Challenge
+#### 📦 The Inventory Argument: I'll Raise the Bear's Own Challenge
 
 My colleague made a clever logical argument — if demand truly exceeds supply, every unit should ship immediately and inventory should be flat. This sounds airtight. It isn't, and here's the precise reason why.
 
@@ -948,7 +948,7 @@ But let me turn the bear's own logic back on him. He says hyperscaler capex comm
 
 ---
 
-## 🧲 Enterprise AI Through Hyperscalers — The Bear Created a Bear Trap for Himself
+#### 🧲 Enterprise AI Through Hyperscalers — The Bear Created a Bear Trap for Himself
 
 This is the part of my colleague's argument I find most intellectually revealing, because it's a case where he built an elegant structure that collapses under its own weight.
 
@@ -962,13 +962,13 @@ On in-house silicon: my colleague asks what happens when Amazon can offer Traini
 
 ---
 
-## ⚠️ The CUDA Moat: My Colleague's "Customer Segmentation Problem" Is Actually a Pricing Architecture
+#### ⚠️ The CUDA Moat: My Colleague's "Customer Segmentation Problem" Is Actually a Pricing Architecture
 
 Let me be very precise here, because the bear made a sophisticated point that deserves a sophisticated response.
 
 He argues: CUDA traps price-insensitive customers (can't leave) while sophisticated hyperscalers route around it (can negotiate). Therefore, over time, as enterprise AI matures, more customers move from the "can't leave" bucket to the "can optimize" bucket, and the moat erodes from the top down.
 
-This is a genuinely interesting model. It's also missing a critical variable: **the CUDA ecosystem isn't just about lock-in. It's about capability.** The reason hyperscalers build custom silicon for *specific workloads* while still buying NVDA GPUs for *general-purpose AI development* is that general-purpose programmability — the thing CUDA enables — has enormous value for workloads that don't yet have optimized custom silicon. 
+This is a genuinely interesting model. It's also missing a critical variable: **the CUDA ecosystem isn't just about lock-in. It's about capability.** The reason hyperscalers build custom silicon for *specific workloads* while still buying NVDA GPUs for *general-purpose AI development* is that general-purpose programmability — the thing CUDA enables — has enormous value for workloads that don't yet have optimized custom silicon.
 
 Here's the data point that makes this concrete: **Google, despite having TPUs for years, continues to be one of NVDA's largest GPU customers.** Why? Because TPUs are optimized for Google's production workloads. But Google also runs research, experimentation, model development, and non-standard inference workloads that require programmable flexibility. **The hyperscalers don't choose between CUDA and custom silicon. They use both.** NVIDIA's addressable market isn't "everything except what custom silicon captures." It's "everything that requires programmable flexibility," which is a permanently growing category.
 
@@ -976,7 +976,7 @@ On inference efficiency improving faster than training efficiency — my colleag
 
 ---
 
-## 📉 The Technical Debate: Let Me End This With One Decisive Data Point
+#### 📉 The Technical Debate: Let Me End This With One Decisive Data Point
 
 The bear and I have gone back and forth on technicals. Let me make one argument that I believe is decisive, and I'll keep it simple.
 
@@ -993,7 +993,7 @@ My colleague's probability reweighting — 30-35% bear, 40-45% base, 20-25% bull
 
 ---
 
-## 🌍 On Rate Risk: The Bear's Math Is Right. His Conclusion Is Wrong.
+#### 🌍 On Rate Risk: The Bear's Math Is Right. His Conclusion Is Wrong.
 
 My colleague correctly identifies that a 100 basis point rate rise mechanically compresses present values of long-duration cash flows. I accept the math.
 
@@ -1003,7 +1003,7 @@ Furthermore, and this is critical: **if rate hikes come because the economy is s
 
 ---
 
-## 💬 On Sentiment: The Bear Misidentified the Signal in Covered Call Writing
+#### 💬 On Sentiment: The Bear Misidentified the Signal in Covered Call Writing
 
 This is a small point, but it matters because the bear built an argument on a misread.
 
@@ -1013,7 +1013,7 @@ He says WSB traders selling covered calls against NVDA positions signals "capped
 
 ---
 
-## 🎯 The Final Synthesis: Why I Win This Debate
+#### 🎯 The Final Synthesis: Why I Win This Debate
 
 My colleague closes with a lyrical line: *"The best time to be a bear isn't when a company is failing. It's when a great company is priced as though failure is impossible."*
 
@@ -1033,7 +1033,7 @@ The bear has given you a downside target of $185-195 — and no pathway back to 
 
 ---
 
-## 🏁 Final Position
+#### 🏁 Final Position
 
 NVIDIA Corporation at $224.36 offers:
 
@@ -1076,7 +1076,7 @@ Let me show you exactly why.
 
 ---
 
-## 🔬 The Inventory "Logic Trap" — He Sprung It On Himself
+#### 🔬 The Inventory "Logic Trap" — He Sprung It On Himself
 
 I want to spend real time here because the bear is most proud of this point. He said: "If configuration cycles are 60-90 days, inventory should represent 60-90 days of revenue. Q1 FY2027 revenue was $81.6 billion. Sixty to ninety days equals $40-60 billion. Current inventory is only $25.8 billion — *below* what my own model predicts."
 
@@ -1088,7 +1088,7 @@ The bear then retreats to "product is building faster than it's shipping." But h
 
 ---
 
-## 🧲 On Jevons Paradox — The Bear's Rebuttal Proves Too Much
+#### 🧲 On Jevons Paradox — The Bear's Rebuttal Proves Too Much
 
 My colleague's counter to Jevons was actually sophisticated: hyperscalers won't exhibit Jevons behavior because they'll capture efficiency gains as margin, not volume. And enterprises accessing AI through cloud won't generate direct NVDA demand.
 
@@ -1102,7 +1102,7 @@ The bear built a box around "concentration risk" and then accidentally showed th
 
 ---
 
-## 🏔️ The Second Derivative Argument — Real, But Already Discounted
+#### 🏔️ The Second Derivative Argument — Real, But Already Discounted
 
 The bear's most sophisticated valuation point: markets price the second derivative — the *rate of change of the growth rate* — and when 200% growth decelerates to 20%, multiple compression is "violent and rapid."
 
@@ -1119,7 +1119,7 @@ Furthermore, the bear's scenario requires estimating the *timing* of deceleratio
 
 ---
 
-## 📉 The Technical Points — Let Me Be More Direct This Time
+#### 📉 The Technical Points — Let Me Be More Direct This Time
 
 The bear made three technical arguments in his final rebuttal. I want to address each with precision.
 
@@ -1137,7 +1137,7 @@ The rate of change is what matters for trading decisions. **The trough is in.** 
 
 ---
 
-## ⚠️ The CUDA Market Share Argument — The Bear Moved the Goalposts
+#### ⚠️ The CUDA Market Share Argument — The Bear Moved the Goalposts
 
 Early in this debate, the bear argued CUDA was being "routed around" by hyperscalers. When I demonstrated that hyperscalers still buy enormous quantities of NVDA GPUs despite having in-house silicon, he shifted to: "market share is flat, not growing."
 
@@ -1151,7 +1151,7 @@ Here is the definitional test: **if CUDA's moat were eroding meaningfully, we wo
 
 ---
 
-## 💬 The Covered Call Interpretation — Final Word
+#### 💬 The Covered Call Interpretation — Final Word
 
 The bear conceded my narrow point on strike selection, then argued that "tradeable premium at $235 means the market thinks it's a ceiling."
 
@@ -1161,7 +1161,7 @@ The correct interpretation remains mine: a trader selling the $235 call is expre
 
 ---
 
-## 🌍 The Rate Risk Argument — The Bear Is Precise About the Mechanism and Wrong About the Magnitude
+#### 🌍 The Rate Risk Argument — The Bear Is Precise About the Mechanism and Wrong About the Magnitude
 
 I want to be intellectually honest here: the bear is correct that a 50 basis point Treasury yield increase mechanically reduces DCF present values. This is not disputable.
 
@@ -1173,7 +1173,7 @@ The bear's rate sensitivity analysis is correct for a *weak economy* rate rise (
 
 ---
 
-## 🎯 The Probability Framework — A Direct Challenge
+#### 🎯 The Probability Framework — A Direct Challenge
 
 My colleague offered his falsifiable conditions for turning bullish. Let me engage with each one, because this is where I believe the debate is ultimately decided.
 
@@ -1193,7 +1193,7 @@ My colleague offered his falsifiable conditions for turning bullish. Let me enga
 
 ---
 
-## 🏁 The Final Case — What This Debate Actually Established
+#### 🏁 The Final Case — What This Debate Actually Established
 
 Let me tell you what I believe this entire debate actually proved, as objectively as I can:
 
@@ -1209,7 +1209,7 @@ The wrong price for a great company is when you're paying 80x forward earnings f
 
 ---
 
-## 📊 The Definitive Final Scorecard — With Honest Probability Weights
+#### 📊 The Definitive Final Scorecard — With Honest Probability Weights
 
 | Factor | Bull Assessment | Bear Assessment | Honest Verdict |
 |---|---|---|---|
@@ -1228,7 +1228,7 @@ The wrong price for a great company is when you're paying 80x forward earnings f
 
 ---
 
-## 🎯 Final Recommendation
+#### 🎯 Final Recommendation
 
 **STRONG BUY — NVDA**
 
@@ -1272,7 +1272,7 @@ But let me go further, because the bear's final argument contains several critic
 
 ---
 
-## 🔬 The Inventory Resolution — The Bear's Own Math Proves the Bull
+#### 🔬 The Inventory Resolution — The Bear's Own Math Proves the Bull
 
 Here's the moment I want every reader to understand clearly, because this is the most important analytical exchange in this entire debate.
 
@@ -1280,7 +1280,7 @@ The bear said: "The configuration cycle argument applies only to inventory *in a
 
 **He's right about that distinction. And it completely destroys his original argument.**
 
-Here's why. If we decompose NVDA's $25.8 billion inventory into its components — raw materials, work-in-process, and finished goods — the bear's concern about "inventory growing faster than revenue" becomes a question about *which component* is growing. If finished goods are growing faster than raw materials and WIP, that signals demand softness. If raw materials and WIP are growing faster than finished goods, that signals **production ramping to meet incoming demand.** 
+Here's why. If we decompose NVDA's $25.8 billion inventory into its components — raw materials, work-in-process, and finished goods — the bear's concern about "inventory growing faster than revenue" becomes a question about *which component* is growing. If finished goods are growing faster than raw materials and WIP, that signals demand softness. If raw materials and WIP are growing faster than finished goods, that signals **production ramping to meet incoming demand.**
 
 NVIDIA's 10-Q filings consistently show that the inventory growth is disproportionately concentrated in *purchased components and work-in-process* — the pre-production stages. This is the fingerprint of a company ramping production ahead of recognized revenue, not a company sitting on unsold finished goods. The bear's own logical refinement — distinguishing configuration inventory from total inventory — actually *supports* the supply-ramp narrative rather than undermining it.
 
@@ -1288,13 +1288,13 @@ And his "unanswerable question" — *why isn't NVDA building inventory faster if
 
 ---
 
-## 🏔️ Sequential Growth Math — The Bear Accidentally Made the Bull Case Again
+#### 🏔️ Sequential Growth Math — The Bear Accidentally Made the Bull Case Again
 
 I want to sit with the bear's sequential growth analysis, because it's the kind of argument that sounds devastating until you run the numbers forward.
 
 He said: maintaining 19-20% sequential growth produces $140 billion in quarterly revenue by Q4 FY2027 — roughly $560 billion annualized — representing nearly 3% of US GDP. The implication: this is obviously unsustainable, therefore deceleration is certain and imminent.
 
-But here's what the bear's framework reveals when applied honestly: **NVDA doesn't need to maintain 19-20% sequential growth to justify its current valuation.** The forward P/E of 17.6x is based on consensus EPS of $12.66. That consensus embeds significant growth deceleration *already.* Analysts aren't assuming $560 billion in FY2027 revenue. They're assuming something closer to $175-185 billion — a *deceleration* from current sequential trajectory to roughly 15-18% annual growth. 
+But here's what the bear's framework reveals when applied honestly: **NVDA doesn't need to maintain 19-20% sequential growth to justify its current valuation.** The forward P/E of 17.6x is based on consensus EPS of $12.66. That consensus embeds significant growth deceleration *already.* Analysts aren't assuming $560 billion in FY2027 revenue. They're assuming something closer to $175-185 billion — a *deceleration* from current sequential trajectory to roughly 15-18% annual growth.
 
 The bear built a straw man. He extrapolated the current sequential growth rate into a physically implausible number, then argued that the implausibility proves deceleration. But **deceleration to the consensus estimate that already underlies the 17.6x forward P/E is not a bear case. It's the base case the bulls are already pricing.** To justify the bear's downside target of $185-195, you don't need "deceleration." You need a *miss* relative to already-decelerated consensus estimates. That's a much narrower and more specific set of circumstances.
 
@@ -1302,7 +1302,7 @@ The Cisco comparison deserves a direct response. Cisco peaked at approximately 1
 
 ---
 
-## 🧲 The Restaurant Analogy — And Why It Proves the Opposite of What the Bear Claims
+#### 🧲 The Restaurant Analogy — And Why It Proves the Opposite of What the Bear Claims
 
 My colleague used a restaurant analogy: "If 80% of my revenue comes from four corporate accounts, I have concentration risk regardless of how many customers those accounts serve."
 
@@ -1314,7 +1314,7 @@ This is exactly what hyperscaler AI dynamics look like. If Microsoft slows its N
 
 ---
 
-## ⚠️ Temporal vs. Structural Margins — The Bear's Most Sophisticated Point, and Where It Fails
+#### ⚠️ Temporal vs. Structural Margins — The Bear's Most Sophisticated Point, and Where It Fails
 
 I'll give my colleague genuine credit here. The "temporal architectural premium vs. structural moat" distinction is the most intellectually serious argument he made in this entire debate. And it deserves a complete answer.
 
@@ -1328,7 +1328,7 @@ Why? Because NVDA's moat isn't just in the silicon. It's in the systems-level in
 
 ---
 
-## 📉 June 2nd — A Direct Challenge on Volume
+#### 📉 June 2nd — A Direct Challenge on Volume
 
 My colleague made an interesting meta-argument: I claimed June 2nd showed "low-volume consolidation" but didn't cite the actual volume number, therefore I was asserting an unproven fact.
 
@@ -1339,7 +1339,7 @@ The data report we're both working from provides June 1st volume (212.85 million
 But more importantly — the bear is making a mountain out of one session. Let's zoom out to what the data actually shows across the complete picture:
 
 - Price is **19.4% above the 200 SMA** — long-term bull regime
-- Price is **12% above the 50 SMA** — medium-term bull regime  
+- Price is **12% above the 50 SMA** — medium-term bull regime
 - **Golden Cross firmly in place**
 - RSI reset from 76.7 to 49.4 without violating any major support level
 - VWMA reclaimed on June 1st on massive volume
@@ -1349,7 +1349,7 @@ One session of underperformance on a day when Jensen Huang literally endorsed a 
 
 ---
 
-## 💬 The EV Calculation — He Proved the Bulls Right
+#### 💬 The EV Calculation — He Proved the Bulls Right
 
 I want to return to the bear's expected value calculation one final time, because it's the most important number in this entire debate.
 
@@ -1357,7 +1357,7 @@ I want to return to the bear's expected value calculation one final time, becaus
 
 My colleague presented this as "barely positive, therefore not worth deploying." But let me reframe what this actually means.
 
-At his most pessimistic probability weights, with an active MACD bearish cross, with June 2nd underperformance baked in, with all of his concentration risk and inventory concerns fully priced in — **the expected value of the trade is still positive.** 
+At his most pessimistic probability weights, with an active MACD bearish cross, with June 2nd underperformance baked in, with all of his concentration risk and inventory concerns fully priced in — **the expected value of the trade is still positive.**
 
 Now let's ask: what happens to that expected value as we add back the factors the bear systematically discounts? The seven consecutive earnings beats that create a 70%+ probability of Q2 exceeding consensus. The Golden Cross that historically correlates with continued upward momentum. The RSI reset that creates fresh fuel for continuation. The AVGO earnings catalyst pending on June 3rd. **Every one of these factors moves the probability distribution in the bull's direction.** The bear's +$1.25 EV is the *floor* under the bull's probability-adjusted expected return — not the ceiling.
 
@@ -1365,7 +1365,7 @@ A trade with positive expected value, defined downside, defined upside target, a
 
 ---
 
-## 🎯 The Definitive Bull Closing — What This Debate Established
+#### 🎯 The Definitive Bull Closing — What This Debate Established
 
 Let me be completely honest about what each side proved in this debate.
 
@@ -1377,7 +1377,7 @@ Let me be completely honest about what each side proved in this debate.
 
 ---
 
-## 🏁 Final Recommendation — NVDA
+#### 🏁 Final Recommendation — NVDA
 
 Let me close with the simplest possible version of the bull case, stripped of all complexity:
 
@@ -1439,7 +1439,7 @@ Let me walk through this carefully.
 
 ---
 
-## 🏔️ The $5.4 Trillion Problem Nobody Wants to Talk About
+#### 🏔️ The $5.4 Trillion Problem Nobody Wants to Talk About
 
 Let's start where the bull conveniently didn't linger: **the market capitalization.**
 
@@ -1451,11 +1451,11 @@ The r/stocks community on Reddit said something that didn't get nearly enough at
 
 ---
 
-## 📦 The Inventory Build Is a Red Flag, Not a Green Light
+#### 📦 The Inventory Build Is a Red Flag, Not a Green Light
 
 My colleague wants you to believe that $25.8 billion in inventory is a bullish indicator — "demand so strong they're building ahead of it!" Let me offer you an alternative interpretation: **this is the classic late-cycle inventory accumulation pattern.**
 
-Inventory has grown from $5.3 billion in FY2024 to $11.3 billion a year ago to **$25.8 billion today** — nearly a **5x increase in two years**. Simultaneously, accounts receivable has ballooned to **$40.7 billion**. Together, that's over $66 billion tied up in inventory and receivables. 
+Inventory has grown from $5.3 billion in FY2024 to $11.3 billion a year ago to **$25.8 billion today** — nearly a **5x increase in two years**. Simultaneously, accounts receivable has ballooned to **$40.7 billion**. Together, that's over $66 billion tied up in inventory and receivables.
 
 Now ask yourself: in what scenario does this resolve badly? Simple. If **even one or two hyperscalers blink** on their 2026 AI capex commitments — which are, by definition, forward-looking promises, not contractual obligations — NVDA faces a wave of order deferrals against a production line already running at full tilt. The resulting inventory write-down and revenue miss wouldn't be minor. We saw this exact dynamic in semiconductors in 2022-2023. The cycle always turns.
 
@@ -1463,7 +1463,7 @@ And my colleague's reassurance that "this inventory has customer names on it" �
 
 ---
 
-## 🧲 The Hyperscaler Dependency Is an Existential Concentration Risk
+#### 🧲 The Hyperscaler Dependency Is an Existential Concentration Risk
 
 The bull celebrated hyperscaler capex commitments of "$300+ billion combined in 2026." Let me contextualize that differently: **NVDA's revenue is now so large that it requires the sustained, uninterrupted, multi-hundred-billion-dollar capex programs of literally four customers to justify its valuation.**
 
@@ -1481,7 +1481,7 @@ My colleague dismisses in-house silicon as "captive" and "internal workloads." B
 
 ---
 
-## ⚠️ The "Unassailable CUDA Moat" Is More Assailable Than You Think
+#### ⚠️ The "Unassailable CUDA Moat" Is More Assailable Than You Think
 
 I have deep respect for the CUDA ecosystem argument. It's the strongest thing in the bull's arsenal. But let me introduce some nuance that the bull glossed over.
 
@@ -1493,7 +1493,7 @@ I have deep respect for the CUDA ecosystem argument. It's the strongest thing in
 
 ---
 
-## 📉 The Technical Picture Has a Bearish Underbelly
+#### 📉 The Technical Picture Has a Bearish Underbelly
 
 My colleague presented the technicals as "textbook bullish." Let me show you the other side of that same data.
 
@@ -1505,9 +1505,9 @@ My colleague presented the technicals as "textbook bullish." Let me show you the
 
 ---
 
-## 🎭 The Computex Euphoria Is a Classic "Sell the News" Setup
+#### 🎭 The Computex Euphoria Is a Classic "Sell the News" Setup
 
-The bull built much of the near-term catalysts case around Jensen Huang's Computex Taipei keynote. And yes, it was impressive. But notice what happened: **MRVL surged 32% on Huang's endorsement. NVDA itself went down.** 
+The bull built much of the near-term catalysts case around Jensen Huang's Computex Taipei keynote. And yes, it was impressive. But notice what happened: **MRVL surged 32% on Huang's endorsement. NVDA itself went down.**
 
 That tells you something important about where we are in the narrative cycle. Huang's keynote *generated more wealth in other stocks than it did in NVDA itself.* The capital is rotating *away from* NVDA toward the ecosystem plays that are "cheaper." This is exactly what happens at the top of a hype cycle — the original beneficiary starts to look expensive relative to the derivative plays, and capital rotates accordingly.
 
@@ -1515,7 +1515,7 @@ The "buy the rumor, sell the news" dynamic is explicitly flagged in the sentimen
 
 ---
 
-## 🌍 Macro Risks Are Asymmetric and Underpriced
+#### 🌍 Macro Risks Are Asymmetric and Underpriced
 
 The bull mentioned macro risks briefly, then moved on. I want to park here for a moment, because these risks are **asymmetric for NVDA specifically.**
 
@@ -1527,7 +1527,7 @@ The bull mentioned macro risks briefly, then moved on. I want to park here for a
 
 ---
 
-## 💬 The Sentiment Picture Is More Dangerous Than It Appears
+#### 💬 The Sentiment Picture Is More Dangerous Than It Appears
 
 My colleague read the 16:1 bull/bear StockTwits ratio as "informed, fundamental bulls." I read it as **crowded positioning with nowhere to hide.**
 
@@ -1537,7 +1537,7 @@ The one user who questioned whether Huang's conference appearances are "pumping 
 
 ---
 
-## 🎯 The Bear Bottom Line
+#### 🎯 The Bear Bottom Line
 
 Let me be precise about what I'm arguing — and what I'm not.
 
@@ -1547,9 +1547,9 @@ I am **not** arguing the AI trend is fake. It's real, it's structural, and it's 
 
 What I *am* arguing is this: **at $5.4 trillion, $224.36 per share, with a MACD bearish cross still active, NVDA underperforming the market on June 2, $66+ billion in inventory and receivables building, hyperscaler in-sourcing accelerating, and the Fed flirting with further tightening — the risk/reward is substantially worse than the bull wants you to believe.**
 
-The bull says: "The bears need every single risk to materialize simultaneously." 
+The bull says: "The bears need every single risk to materialize simultaneously."
 
-I say: **They don't.** 
+I say: **They don't.**
 
 They just need **one earnings guidance cut.** One hyperscaler capex deferral. One Fed meeting that surprises hawkishly. One inventory write-down. Any single one of these events, against a stock priced for perfection at $5.4 trillion, produces a correction that makes the January-March 2026 17% drawdown look like a rounding error.
 
@@ -1572,7 +1572,7 @@ Let me take this apart piece by piece.
 
 ---
 
-## 🏔️ The "Wrong Denominator" Argument Is Circular Reasoning
+#### 🏔️ The "Wrong Denominator" Argument Is Circular Reasoning
 
 My colleague invokes Amazon at $1 trillion and Apple at $2 trillion as evidence that size doesn't matter. Let's examine that logic carefully, because it's doing a lot of heavy lifting in the bull case.
 
@@ -1584,7 +1584,7 @@ The bull says "the market is underpricing forward growth." I say: **at what poin
 
 ---
 
-## 📦 The Inventory Defense Has a Fatal Logical Flaw
+#### 📦 The Inventory Defense Has a Fatal Logical Flaw
 
 Let me give my colleague credit — the "supply-constrained backlog" argument is clever. But it contains a critical internal contradiction that he's hoping you won't notice.
 
@@ -1596,7 +1596,7 @@ And let me be direct about the "customer names on it" argument. The bull points 
 
 ---
 
-## 🧲 My Colleague Fundamentally Misread My Hyperscaler Argument
+#### 🧲 My Colleague Fundamentally Misread My Hyperscaler Argument
 
 The bull says I'm "describing yesterday's risk" on hyperscaler concentration. He argues diversification is coming through sovereign AI and enterprise deployment. I agree with the direction. **I disagree profoundly with the timeline.**
 
@@ -1608,7 +1608,7 @@ Here's the scenario the bull hasn't addressed: what happens when the hyperscaler
 
 ---
 
-## ⚠️ The CUDA Moat Argument Proves Too Much
+#### ⚠️ The CUDA Moat Argument Proves Too Much
 
 My colleague made a genuinely interesting point — that the people most locked into CUDA are enterprises with the least pricing power over NVDA, while the hyperscalers with the most pricing power are actively routing around it. Then he concluded this is bullish.
 
@@ -1622,7 +1622,7 @@ My colleague's evidence that margins expanded *during* hyperscaler in-sourcing? 
 
 ---
 
-## 📉 The Technical Picture: Let Me Show You What The Bull Glossed Over
+#### 📉 The Technical Picture: Let Me Show You What The Bull Glossed Over
 
 My colleague made three technical counterpoints. Allow me to directly engage with each one with precision.
 
@@ -1634,7 +1634,7 @@ My colleague made three technical counterpoints. Allow me to directly engage wit
 
 ---
 
-## 🎭 The Computex Pattern Argument — History Doesn't Repeat That Cleanly
+#### 🎭 The Computex Pattern Argument — History Doesn't Repeat That Cleanly
 
 My colleague invokes Computex 2023 and GTC 2024 as historical precedents for "consolidate, then re-rate." I want to challenge the pattern recognition here.
 
@@ -1646,7 +1646,7 @@ The August earnings catalyst the bull cites? Let me tell you what happens if NVD
 
 ---
 
-## 🌍 The Macro Argument: My Colleague Is Playing Rope-A-Dope on Rate Risk
+#### 🌍 The Macro Argument: My Colleague Is Playing Rope-A-Dope on Rate Risk
 
 The bull says NVDA's FCF makes it rate-insensitive. This is superficially clever and fundamentally wrong. Let me explain precisely why.
 
@@ -1658,7 +1658,7 @@ And the energy cost argument deserves a harder look. My colleague says higher en
 
 ---
 
-## 💬 On Sentiment: Let Me Tell You What "Informed Bulls" Actually Look Like at a Top
+#### 💬 On Sentiment: Let Me Tell You What "Informed Bulls" Actually Look Like at a Top
 
 My colleague distinguishes between "informed fundamentals-driven bulls" and "speculative mania." I agree the distinction exists. But I want to make a different observation about *timing*.
 
@@ -1670,7 +1670,7 @@ And let me address something my colleague celebrated: the WSB traders "selling c
 
 ---
 
-## 🎯 The Probability Distribution — Let Me Rebuild This From Scratch
+#### 🎯 The Probability Distribution — Let Me Rebuild This From Scratch
 
 My colleague presented three scenarios: bear, base, bull. Allow me to present the same framework with more honest probability weights.
 
@@ -1684,9 +1684,9 @@ Do the math: **the probability-weighted expected return from current levels is s
 
 ---
 
-## 🔑 What the Bull Cannot Answer
+#### 🔑 What the Bull Cannot Answer
 
-My colleague asks: "If not NVDA, then what?" 
+My colleague asks: "If not NVDA, then what?"
 
 It's a rhetorical flourish designed to make the bear case seem like an argument against AI itself. It's not. **The question isn't whether NVDA is a great company. The question is whether NVDA at $224.36 offers attractive risk-adjusted returns for new capital today.**
 
@@ -1702,7 +1702,7 @@ The third question is the most important. A thesis with no falsifiable condition
 
 ---
 
-## 🏁 The Bear's Final Position
+#### 🏁 The Bear's Final Position
 
 I've said it before and I'll say it one more time, precisely:
 
@@ -1737,7 +1737,7 @@ Let me take apart his closing argument the way it deserves.
 
 ---
 
-## 🔑 He "Answered" My Three Questions. Let's Grade Those Answers Honestly.
+#### 🔑 He "Answered" My Three Questions. Let's Grade Those Answers Honestly.
 
 I asked three questions designed to expose the structural weaknesses in the bull case. My colleague answered all three. But let's look at *what he actually said* versus what a complete answer requires.
 
@@ -1765,7 +1765,7 @@ Fair challenge. I'll answer it directly, since he asked. **I would be constructi
 
 ---
 
-## 🏔️ The "Wrong Conclusion From Right Math" Argument Is Sleight of Hand
+#### 🏔️ The "Wrong Conclusion From Right Math" Argument Is Sleight of Hand
 
 My colleague accepted my law-of-large-numbers math — NVDA needs roughly $216 billion in net income to justify $5.4 trillion in five years — and then argued it's "just a doubling" from today's $120 billion.
 
@@ -1777,7 +1777,7 @@ And here's the data point he keeps skating around: **in Q1 FY2026, NVDA grew rev
 
 ---
 
-## 📦 The Inventory Logic Trap I Set — And He Walked Into It
+#### 📦 The Inventory Logic Trap I Set — And He Walked Into It
 
 My colleague's explanation for inventory growing faster than revenue in a supply-constrained environment was the "configuration pipeline" argument. I predicted he'd make this argument. Now let me show you why it fails on its own internal logic.
 
@@ -1789,7 +1789,7 @@ What's the most parsimonious explanation for inventory growing at 387% while rev
 
 ---
 
-## 🧲 The Jevons Paradox Gambit — Clever, But Context-Dependent
+#### 🧲 The Jevons Paradox Gambit — Clever, But Context-Dependent
 
 My colleague deployed Jevons Paradox to handle the in-house silicon argument: "Cheaper inference means more inference workloads, which means more NVDA GPUs." This is genuinely clever and historically has worked in technology markets.
 
@@ -1803,7 +1803,7 @@ And there's a second layer the bull ignores entirely. The customers who *would* 
 
 ---
 
-## ⚠️ The CUDA Argument: Google Buying GPUs Proves Nothing He Claims
+#### ⚠️ The CUDA Argument: Google Buying GPUs Proves Nothing He Claims
 
 My colleague's most confident point in the closing argument: "Google continues to be one of NVDA's largest GPU customers despite having TPUs." Therefore the moat is intact.
 
@@ -1817,7 +1817,7 @@ The meaningful question isn't "does Google still buy some NVDA GPUs?" It's "in f
 
 ---
 
-## 📉 The Technical Scorecard — He Gave Himself the Win on Structure While Conceding My Actual Point
+#### 📉 The Technical Scorecard — He Gave Himself the Win on Structure While Conceding My Actual Point
 
 Look at his own summary table. Under Technicals, he wrote: **"Bull wins on structure, Bear wins on short-term signals."**
 
@@ -1833,7 +1833,7 @@ Here's an alternative interpretation: **212 million shares of volume on a +6.26%
 
 ---
 
-## 🌍 The Rate Risk Dismissal Reveals the Bull's Core Vulnerability
+#### 🌍 The Rate Risk Dismissal Reveals the Bull's Core Vulnerability
 
 My colleague says: "The Fed isn't going to raise 100 basis points. One NFP print doesn't reverse the rate path."
 
@@ -1845,7 +1845,7 @@ The bull says: "NVDA's 17.6x forward P/E is less rate-sensitive than a 50x P/E s
 
 ---
 
-## 💬 The Covered Call Reading — I'll Concede the Narrow Point, Then Take the Bigger One
+#### 💬 The Covered Call Reading — I'll Concede the Narrow Point, Then Take the Bigger One
 
 My colleague correctly identified that selling a $235 strike call signals the trader believes $235 is a realistic near-term target. I'll concede that narrow point — he's technically right about the strike interpretation.
 
@@ -1855,7 +1855,7 @@ Furthermore — and this is the part the bull genuinely cannot explain — if re
 
 ---
 
-## 🎯 The Probability Framework — Let Me Give You My Honest Falsifiable Conditions
+#### 🎯 The Probability Framework — Let Me Give You My Honest Falsifiable Conditions
 
 My colleague accused me of having no conditions under which I'd turn bullish. I answered that directly above — $185-195 at the 200 SMA makes the risk/reward compelling. But let me go further, because the bull deserves a complete answer.
 
@@ -1871,7 +1871,7 @@ My colleague accused me of having no conditions under which I'd turn bullish. I 
 
 ---
 
-## 🏁 The Bear's Definitive Closing Position
+#### 🏁 The Bear's Definitive Closing Position
 
 Here is what this debate has established with clarity:
 
@@ -1927,7 +1927,7 @@ I've been making the bear case across this entire debate. The bull has thrown ev
 
 ---
 
-## 🔬 The Inventory Math "Trap" — He Reversed His Own Logic and Called It a Victory
+#### 🔬 The Inventory Math "Trap" — He Reversed His Own Logic and Called It a Victory
 
 I need to address this directly because my colleague seemed genuinely proud of this moment. He said: "Bear's own 60-90 day pipeline math shows inventory *should* be $40-60 billion. It's only $25.8 billion. Therefore inventory is *lean*."
 
@@ -1941,7 +1941,7 @@ And here's the question the bull cannot answer with his pipeline math: **if inve
 
 ---
 
-## 🏔️ The "Already Discounted Deceleration" Argument Has a Fatal Flaw
+#### 🏔️ The "Already Discounted Deceleration" Argument Has a Fatal Flaw
 
 My colleague pointed to Q1 FY2027's 85% YoY growth as *re-acceleration* — evidence that deceleration hasn't happened. This is the most dangerous kind of data cherry-picking, and here's why.
 
@@ -1950,7 +1950,7 @@ My colleague pointed to Q1 FY2027's 85% YoY growth as *re-acceleration* — evid
 - Q3 FY2026 to Q4 FY2026: Revenue grew from $57.01B to $68.13B — **+19.5% QoQ**
 - Q4 FY2026 to Q1 FY2027: Revenue grew from $68.13B to $81.62B — **+19.8% QoQ**
 
-Fine. Stable sequential growth. But look at what the bull is defending: a company that needs to continue growing from $81.6 billion *quarterly* at this trajectory to justify $5.4 trillion. By Q4 FY2027, maintaining 19-20% sequential growth produces roughly **$140 billion in quarterly revenue — $560 billion annualized.** That would represent nearly **3% of US GDP from a single company's semiconductor sales.** 
+Fine. Stable sequential growth. But look at what the bull is defending: a company that needs to continue growing from $81.6 billion *quarterly* at this trajectory to justify $5.4 trillion. By Q4 FY2027, maintaining 19-20% sequential growth produces roughly **$140 billion in quarterly revenue — $560 billion annualized.** That would represent nearly **3% of US GDP from a single company's semiconductor sales.**
 
 At what point does the bull acknowledge that sequential growth rates must decelerate? His entire "deceleration is already priced in" argument assumes the market has correctly anticipated the slowdown. But the forward P/E of 17.6x is built on consensus estimates of $12.66 EPS. **Those estimates already embed an assumption about the growth trajectory.** If the actual deceleration is steeper than consensus models — which is the historical pattern for every hypergrowth semiconductor company without exception — the consensus estimates are wrong, and 17.6x becomes 22x or 25x on the actual EPS, not the projected EPS.
 
@@ -1958,11 +1958,11 @@ The bull says: "Cisco was going to decelerate in 1998. Shorting it two years ear
 
 ---
 
-## 🧲 The Enterprise-Through-Hyperscaler Concession — I Made It Deliberately
+#### 🧲 The Enterprise-Through-Hyperscaler Concession — I Made It Deliberately
 
 My colleague celebrated my acknowledgment that enterprise AI flows through hyperscalers as "accidentally proving his point." Let me be explicit about what I actually argued and why.
 
-I said enterprise AI flowing through hyperscalers doesn't reduce concentration risk — it *reinforces* it. The bull heard "enterprise AI sustains hyperscaler demand" and called it a structural floor. 
+I said enterprise AI flowing through hyperscalers doesn't reduce concentration risk — it *reinforces* it. The bull heard "enterprise AI sustains hyperscaler demand" and called it a structural floor.
 
 **Here's what he missed:** A structural floor that runs through four companies is still a concentration risk. If I own a restaurant and 80% of my revenue comes from four corporate accounts, it doesn't matter whether those four accounts are themselves serving a thousand individual customers. *I* still have four customers. If one of those four accounts cuts their lunch budget by 20%, I lose 20% of my concentrated revenue stream — regardless of what's happening to their underlying clients.
 
@@ -1970,7 +1970,7 @@ The bull's argument that enterprise AI acceleration "sustains and amplifies hype
 
 ---
 
-## ⚠️ The CUDA Margin Defense — Temporal vs. Structural
+#### ⚠️ The CUDA Margin Defense — Temporal vs. Structural
 
 The bull's definitive test: "If the CUDA moat were eroding, we'd see it in gross margins. Margins went from 60% to 75% *during* in-sourcing acceleration. Therefore the moat is intact."
 
@@ -1984,7 +1984,7 @@ Furthermore — and this is the point the bull consistently avoids — **margins
 
 ---
 
-## 📉 June 2nd — The Bull's "Low Volume Digestion" Defense Doesn't Hold
+#### 📉 June 2nd — The Bull's "Low Volume Digestion" Defense Doesn't Hold
 
 My colleague argues June 2nd showed "modest, low-volume consolidation" — a digestion signal, not distribution.
 
@@ -1996,7 +1996,7 @@ And the broader point: even accepting the "low volume" assumption, **what the bu
 
 ---
 
-## 💬 The Covered Call Final Word — He Gave Away More Than He Realized
+#### 💬 The Covered Call Final Word — He Gave Away More Than He Realized
 
 The bull's options theory response: "Premium exists at any strike within 2-3 ATR due to volatility, not directionality. My $215 put symmetry argument destroys yours."
 
@@ -2008,7 +2008,7 @@ And consider what the bull's options theory actually implies about his own trade
 
 ---
 
-## 🌍 The Discount Rate / Terminal Growth Offset — The Most Sophisticated Bull Argument and Why It Fails Specifically for NVDA
+#### 🌍 The Discount Rate / Terminal Growth Offset — The Most Sophisticated Bull Argument and Why It Fails Specifically for NVDA
 
 The bull's rate argument was genuinely clever: in a strong-economy rate rise, terminal growth rates rise too, so the spread stays roughly constant, and DCF compression is overstated.
 
@@ -2024,7 +2024,7 @@ In a scenario where the Fed raises rates 50 basis points because NFP is strong, 
 
 ---
 
-## 🎯 The Probability Framework — Let Me Address His Challenge Directly
+#### 🎯 The Probability Framework — Let Me Address His Challenge Directly
 
 The bull attacked my falsifiable conditions by arguing I'll "miss the move" while waiting for confirmation. He's right that confirmation signals lag. That's true of every confirmation-based entry. It is also **by design.**
 
@@ -2041,7 +2041,7 @@ Even at my more conservative probability estimates, the expected value is *sligh
 
 ---
 
-## 🏁 What I've Actually Established Across This Entire Debate
+#### 🏁 What I've Actually Established Across This Entire Debate
 
 Let me do something the bull didn't do in his scorecard: **score myself honestly**.
 
@@ -2066,7 +2066,7 @@ And the answer to that specific question — the only question that matters for 
 
 ---
 
-## 📋 The Final Bear Recommendation
+#### 📋 The Final Bear Recommendation
 
 **SELL / AVOID — NVDA**
 
@@ -2112,7 +2112,7 @@ But let me go further, because the bull made several arguments in his final resp
 
 ---
 
-## 🔬 The Inventory "Resolution" — He Solved the Wrong Problem
+#### 🔬 The Inventory "Resolution" — He Solved the Wrong Problem
 
 My colleague was genuinely proud of this moment. He said NVIDIA's 10-Q filings show inventory growth concentrated in "purchased components and work-in-process" — therefore it's production ramping, not demand softness.
 
@@ -2124,7 +2124,7 @@ And his TSMC explanation — "inventory is lean because TSMC constrains producti
 
 ---
 
-## 🏔️ The Sequential Growth Straw Man — He Burned It Down and Claimed Victory
+#### 🏔️ The Sequential Growth Straw Man — He Burned It Down and Claimed Victory
 
 The bull called my sequential growth math a "straw man" because consensus already embeds deceleration to $175-185 billion annual revenue. He's right that I extrapolated at a constant rate to illustrate the impossibility of continuation. That was deliberate.
 
@@ -2138,13 +2138,13 @@ The bull says: "To justify my downside target of $185-195, you need a miss relat
 
 ---
 
-## 🧲 The Restaurant Analogy — His "Patented Seasoning" Defense Exposes the Exact Risk I'm Warning About
+#### 🧲 The Restaurant Analogy — His "Patented Seasoning" Defense Exposes the Exact Risk I'm Warning About
 
 My colleague reframed my restaurant analogy brilliantly: NVDA is a restaurant with a patented seasoning that its corporate accounts *must* use to compete with each other. Therefore none of them will stop buying simultaneously.
 
 This is a genuinely clever reframe. Now let me show you why it's the bear case in disguise.
 
-**If all four hyperscalers are in a zero-sum race to buy the most NVDA GPUs, then the competitive dynamic creates a floor on demand.** He's right about that. But it also creates a ceiling on NVDA's *pricing power*. When four trillion-dollar companies are all desperate to buy the same product, they also have enormous incentive to *collectively or individually reduce their dependency* on that product. 
+**If all four hyperscalers are in a zero-sum race to buy the most NVDA GPUs, then the competitive dynamic creates a floor on demand.** He's right about that. But it also creates a ceiling on NVDA's *pricing power*. When four trillion-dollar companies are all desperate to buy the same product, they also have enormous incentive to *collectively or individually reduce their dependency* on that product.
 
 The patented seasoning analogy has a critical missing element: **in the real world, when four major restaurant chains discover they all depend on a single seasoning patent holder, they immediately begin funding R&D into alternative seasonings.** Not because the current seasoning is bad — it's excellent. But because single-supplier dependency at this scale is a strategic risk they cannot accept. This is precisely what Microsoft (Maia), Google (TPU), Amazon (Trainium), and Meta (MTIA) are doing. Not because CUDA is failing. Because the competitive imperative to reduce single-vendor dependency at $300+ billion in annual spend is overwhelming.
 
@@ -2152,7 +2152,7 @@ The bull's "patented seasoning" framing tells you exactly how strong NVDA's curr
 
 ---
 
-## ⚠️ The Margin Escalator Argument — Where the Data Ends and the Assumption Begins
+#### ⚠️ The Margin Escalator Argument — Where the Data Ends and the Assumption Begins
 
 The bull's most impressive factual claim: each NVDA architecture generation's settled margin floor is higher than the prior generation's peak. Pascal ~62%, Turing ~65%, Ampere ~67%, Hopper ~74% settled. Therefore Rubin's floor will be higher than Blackwell's current peak.
 
@@ -2166,7 +2166,7 @@ I'm not claiming margins collapse. I'm claiming the generational escalation rate
 
 ---
 
-## 📉 The Volume Argument — Absence of Evidence Is Not Evidence of Absence
+#### 📉 The Volume Argument — Absence of Evidence Is Not Evidence of Absence
 
 My colleague argued that June 2nd's volume wasn't flagged in the data report as unusual — therefore it was unremarkable — therefore it was low-volume consolidation.
 
@@ -2176,7 +2176,7 @@ Here's what we do know: the IBD headline on June 2nd explicitly said "Nvidia Sin
 
 ---
 
-## 💬 The +$1.25 EV — Let Me Explain Why This Number Destroys the Bull Case
+#### 💬 The +$1.25 EV — Let Me Explain Why This Number Destroys the Bull Case
 
 The bull celebrated my expected value calculation showing +$1.25 per share. I want to be very precise about why this number is devastating for the bull position, not supportive of it.
 
@@ -2195,7 +2195,7 @@ Why would a disciplined investor accept market-equivalent risk-adjusted returns 
 
 ---
 
-## 🎯 What This Debate Actually Decided — An Honest Accounting
+#### 🎯 What This Debate Actually Decided — An Honest Accounting
 
 I want to be direct about something the bull keeps avoiding: **this debate was never about whether NVDA is a great company.** Both of us agree it is. This debate was about whether $224.36 is an attractive entry point for new capital, given the complete risk/reward picture as of June 2, 2026.
 
@@ -2215,7 +2215,7 @@ The bull proved the following:
 
 ---
 
-## 🏁 The Bear's Final Position — Stated With Precision
+#### 🏁 The Bear's Final Position — Stated With Precision
 
 I want to close with complete clarity about what I'm actually recommending and why.
 

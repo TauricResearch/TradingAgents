@@ -44,7 +44,7 @@ The bull mentioned the allowance for doubtful accounts almost in passing. I want
 - **2022:** Allowance of $1.03B against $9.0B gross receivables — 11.4% coverage ratio
 - **Q1 2026:** Allowance of $4.17B against $24.35B gross receivables — **17.1% coverage ratio**
 
-The allowance-to-loan ratio has expanded by **50% in four years.** The bull will say this is "prudent provisioning in line with loan book growth." But wait — if the credit quality of NU's borrowers was stable, provisioning should scale *proportionally*, not accelerate above it. The fact that the coverage ratio is rising tells you that NU's underwriting team believes **the quality of new loans being originated is deteriorating.** 
+The allowance-to-loan ratio has expanded by **50% in four years.** The bull will say this is "prudent provisioning in line with loan book growth." But wait — if the credit quality of NU's borrowers was stable, provisioning should scale *proportionally*, not accelerate above it. The fact that the coverage ratio is rising tells you that NU's underwriting team believes **the quality of new loans being originated is deteriorating.**
 
 And who are NU's borrowers? Primarily lower and middle-income Brazilian consumers — exactly the demographic most exposed to inflation, job insecurity, and rising cost of living. Brazil's SELIC rate has been historically elevated. The Iran War is spiking energy prices globally. Consumer confidence data is weakening. If NU's credit cycle turns, that $4.17B allowance won't be a fortress — it'll be a first line of defense against a wave of charge-offs that could crater those beautiful net income numbers the bull is celebrating.
 
@@ -76,7 +76,7 @@ That Bollinger Band contraction the bull calls a "coil setting up for a breakout
 
 ## 🌍 The Macro Environment Is Actively Hostile to This Thesis
 
-Here's something the bull glossed over entirely: **NU is an emerging market company reporting in USD.** Every single dollar of those beautiful revenue and profit numbers gets filtered through the BRL/USD exchange rate. 
+Here's something the bull glossed over entirely: **NU is an emerging market company reporting in USD.** Every single dollar of those beautiful revenue and profit numbers gets filtered through the BRL/USD exchange rate.
 
 The macro backdrop right now:
 - **Iran War driving oil price spikes** — inflationary for energy-importing emerging markets like Brazil
@@ -142,11 +142,11 @@ Let me be clear about what I'm actually saying about **NU**:
 🔴 **U.S. expansion is expensive, risky, and years from contributing** — it's a cost center, not an asset
 🔴 **Retail dip-buying enthusiasm is a contrarian warning, not a bullish signal**
 
-The bull is asking you to look past leadership uncertainty, negative cash flow, rising credit provisions, hostile macro conditions, and a fully bearish technical structure because the *historical* revenue numbers are impressive. 
+The bull is asking you to look past leadership uncertainty, negative cash flow, rising credit provisions, hostile macro conditions, and a fully bearish technical structure because the *historical* revenue numbers are impressive.
 
 I'm asking you to look at where the stock is actually going — and every leading indicator, from institutional selling to BofA's price target to the management exodus, is pointing in the same direction.
 
-**My recommendation: NU is a SELL at current levels, with a 6-month downside target of $10-11 — representing 15-23% additional downside from today's $12.99 close.** 
+**My recommendation: NU is a SELL at current levels, with a 6-month downside target of $10-11 — representing 15-23% additional downside from today's $12.99 close.**
 
 The gift isn't the discount. **The gift is the exit ramp while retail is still buying.**
 
@@ -221,7 +221,7 @@ Here's the test I'd offer: watch the Q2 2026 earnings report. If the allowance-t
 
 The bull accused me of acknowledging bullish technical signals and then calling them bearish. That's a fair challenge that deserves precision.
 
-I never said RSI at 24.91 is a sell signal. What I said — and maintain — is that **extreme oversold readings in stocks with genuine fundamental headwinds frequently mark the end of the first leg down, not the final bottom.** 
+I never said RSI at 24.91 is a sell signal. What I said — and maintain — is that **extreme oversold readings in stocks with genuine fundamental headwinds frequently mark the end of the first leg down, not the final bottom.**
 
 Look at the actual technical data:
 - RSI bounced from 24.91 on May 15 to... 42.60 on June 1. Still below 50. **Bearish.**
@@ -256,7 +256,7 @@ The bull's response to my U.S. expansion skepticism was: "NU has $19.37B in cash
 
 Wait. Let me make sure I understand the argument. **The bull is telling me that NU's ability to burn through its $19B cash reserve on a competitive, highly uncertain U.S. market entry is a positive for the investment thesis?**
 
-That $19B cash is currently generating returns inside NU's Brazilian balance sheet — it's the funding base for the deposit model that generates that extraordinary NII. **Every dollar redirected to U.S. regulatory capital requirements, U.S. customer acquisition costs, and U.S. infrastructure buildout is a dollar not compounding at 30.1% ROE in LatAm.** 
+That $19B cash is currently generating returns inside NU's Brazilian balance sheet — it's the funding base for the deposit model that generates that extraordinary NII. **Every dollar redirected to U.S. regulatory capital requirements, U.S. customer acquisition costs, and U.S. infrastructure buildout is a dollar not compounding at 30.1% ROE in LatAm.**
 
 The bull's competitors comparison — "Chime is unprofitable, Revolut has been trying for years" — actually proves my point. These companies have been grinding at this for years and remain subscale. NU would be entering a market where even well-funded, purpose-built U.S. neobanks haven't cracked profitability at scale. What exactly is NU's sustainable competitive advantage in a market where it has no brand recognition, no regulatory track record, and faces Chime, SoFi, Revolut, and the biggest banks on earth?
 
@@ -388,7 +388,7 @@ But this misses the point entirely. The bear case on leadership isn't about whet
 
 Here's what we know with certainty: BofA published an institutional downgrade citing a *pattern* of senior departures — not a single event. That downgrade carries legal and professional liability, as the bull himself noted. BofA's analysts have dedicated coverage on NU with access to management, industry contacts, and non-public pattern recognition that neither I nor the bull has access to in this debate. **When an analyst with that level of access writes "harder to ignore," they're not making things up.**
 
-The bull's response is: "we can't independently verify it, so it doesn't count." But that framing inverts the appropriate epistemic standard. **When a credible institutional analyst with dedicated coverage makes a specific, liability-attached claim about governance deterioration, the burden of proof is on the bull to disprove it — not on the bear to independently rediscover it.** 
+The bull's response is: "we can't independently verify it, so it doesn't count." But that framing inverts the appropriate epistemic standard. **When a credible institutional analyst with dedicated coverage makes a specific, liability-attached claim about governance deterioration, the burden of proof is on the bull to disprove it — not on the bear to independently rediscover it.**
 
 And the "Lago is staying as Special Advisor" framing? That's the corporate equivalent of "we're staying friends after the divorce." It's the language companies use to manage optics during a transition they didn't choose the timing of.
 
@@ -493,7 +493,7 @@ My colleague told you the bear's downside target of $10-11 is "within $1.55 of t
 
 Let me explain precisely why this reasoning is wrong — not rhetorically wrong, but *structurally* wrong in a way that should concern every investor in this room.
 
-**The 52-week low of $11.44 was established BEFORE the BofA downgrade.** Before the CFO departure became public. Before the string of leadership departures entered the institutional narrative. Before the Q1 2026 negative cash flow data was available to the market. **The floor you're being reassured by was priced on less information than exists today.** 
+**The 52-week low of $11.44 was established BEFORE the BofA downgrade.** Before the CFO departure became public. Before the string of leadership departures entered the institutional narrative. Before the Q1 2026 negative cash flow data was available to the market. **The floor you're being reassured by was priced on less information than exists today.**
 
 If anything, the $11.44 low underestimates the current risk profile — not because NU's business has necessarily deteriorated, but because the *risk information available to the market* has materially expanded on the downside since that low was set. The bull is using a pre-information floor as a post-information safety net. Those are not the same thing.
 
@@ -626,7 +626,7 @@ Companies that receive formal institutional downgrades citing governance concern
 **Factor 4: Macro Correlation**
 LatAm fintech stocks in environments of concurrent BRL weakness, rising oil prices, and Fed rate hike fears have historically underperformed U.S. equity indices by 15-20% over 6-month periods approximately **65%** of the time.
 
-These aren't independent probabilities — they're correlated risk factors pointing in the same direction. When four correlated risk factors each independently suggest 55-65% downside probability over 6 months, **the joint probability of at least one materializing is north of 80%.** 
+These aren't independent probabilities — they're correlated risk factors pointing in the same direction. When four correlated risk factors each independently suggest 55-65% downside probability over 6 months, **the joint probability of at least one materializing is north of 80%.**
 
 That gives the bear scenario probability well above the 65% threshold the bull said was required to make selling rational.
 
@@ -707,7 +707,7 @@ At the midpoint — $3.8B annual provision expense — and applying a 20% stress
 - Stressed net income: $2.93B
 - EPS on 4.86B shares: **$0.603**
 
-**At $0.60 stressed EPS, even a 12x multiple produces a $7.20 stock.** At 10x, you're at $6.00. 
+**At $0.60 stressed EPS, even a 12x multiple produces a $7.20 stock.** At 10x, you're at $6.00.
 
 The bull handed me a more bearish model than I built myself — and called it a rebuttal.
 
@@ -737,7 +737,7 @@ My colleague celebrated the stable 17.1% allowance-to-loan ratio as evidence of 
 
 Here's the credit cycle dynamic he's missing:
 
-A **stable coverage ratio during rapid origination growth** means the bank is provisioning for *expected* losses on new loans based on current default rate models. But those models are calibrated to the recent macroeconomic environment. When the macro environment deteriorates — when Brazilian consumers face rising energy costs, when Mexican first-time borrowers encounter their first credit stress — the actual default rates come in *above model.* 
+A **stable coverage ratio during rapid origination growth** means the bank is provisioning for *expected* losses on new loans based on current default rate models. But those models are calibrated to the recent macroeconomic environment. When the macro environment deteriorates — when Brazilian consumers face rising energy costs, when Mexican first-time borrowers encounter their first credit stress — the actual default rates come in *above model.*
 
 The coverage ratio then does one of two things:
 1. **It rises** — because the bank increases provisions to cover the unexpected losses, hitting net income

@@ -35,7 +35,7 @@ The 10 EMA surged from ~$175 on May 15 to **~$185.37 on June 1**, confirming str
 ## 3. ⚡ Momentum Analysis (RSI & MACD)
 
 ### RSI: 70.63 (Overbought Territory)
-The RSI on June 1 registered at **70.63**, just barely crossing the overbought threshold of 70. This is the highest RSI reading in the 30-day window. Context matters: the RSI spent a significant portion of May between 36–50, signaling oversold/neutral conditions. The rapid move from ~37 (May 13–14) to 70.6 (June 1) reflects the sheer velocity of the rebound. 
+The RSI on June 1 registered at **70.63**, just barely crossing the overbought threshold of 70. This is the highest RSI reading in the 30-day window. Context matters: the RSI spent a significant portion of May between 36–50, signaling oversold/neutral conditions. The rapid move from ~37 (May 13–14) to 70.6 (June 1) reflects the sheer velocity of the rebound.
 
 - **Key signal:** RSI entering overbought territory after a powerful move from deeply neutral/oversold levels is a **bullish momentum confirmation**, not necessarily a sell signal. However, it does indicate that **a short-term cooling is likely** in the near term before the next leg higher.
 

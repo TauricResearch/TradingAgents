@@ -551,7 +551,7 @@ My colleague made what he called an observation I "ignored entirely" — that th
 
 This is rhetorically clever. It is analytically incomplete. Let me explain why.
 
-**The concern was never about Micron's warehouse inventory.** The concern is about **customer warehouse inventory.** When Micron delivers $15.39B worth of HBM and DRAM to hyperscalers and records it as accounts receivable, those products are sitting in *Nvidia's, Microsoft's, and Google's* warehouses — not Micron's. 
+**The concern was never about Micron's warehouse inventory.** The concern is about **customer warehouse inventory.** When Micron delivers $15.39B worth of HBM and DRAM to hyperscalers and records it as accounts receivable, those products are sitting in *Nvidia's, Microsoft's, and Google's* warehouses — not Micron's.
 
 The inventory build risk I described — where hyperscalers stop placing new orders while burning through existing stockpiles — is precisely the scenario where Micron's AR has been fully collected (customers paid their bills), but new order flow dries up because customers have sufficient inventory. **A fully collected AR balance and a customer inventory overhang are not mutually exclusive.** They're sequential steps in the same demand softening process.
 
@@ -711,7 +711,7 @@ My colleague corrected my "EPS trajectory math" by showing how $105 in forward E
 
 He called this "approaching consensus from a reasonable sequential trajectory."
 
-**He just projected $74-92 in annual EPS and called it support for a $105 consensus estimate.** His own "reasonable" scenario misses consensus by 12-30%. And then — in the very same paragraph — he said that if earnings plateau at $12-14 quarterly ($48-56 annualized), MU is worth $576-728 at 12-13x earnings. 
+**He just projected $74-92 in annual EPS and called it support for a $105 consensus estimate.** His own "reasonable" scenario misses consensus by 12-30%. And then — in the very same paragraph — he said that if earnings plateau at $12-14 quarterly ($48-56 annualized), MU is worth $576-728 at 12-13x earnings.
 
 That's a **-30% to -44% drawdown from $1,035** in what the bull calls a non-catastrophic plateau scenario. He spent an entire rebuttal correcting my math and accidentally confirmed that his own numbers produce a deeply unfavorable risk/reward at current prices. I want to thank him for the intellectual honesty, even if the framing was designed to obscure it.
 
@@ -727,7 +727,7 @@ An 11% expected return on a position with **Beta of 1.92**, **ATR of $57** (5.5%
 
 Here's the math he won't do: the equity risk premium for U.S. equities is approximately 4-5% annually. To justify owning a stock with Beta of 1.92, you need a minimum expected return of approximately **9-10% above the risk-free rate** — call it 13-14% total return — just to compensate for systematic risk. An 11% expected return falls **below the required hurdle rate for the volatility you're absorbing.**
 
-And that's using my probability assignments. Then he adjusted my probabilities by 5 percentage points in each direction — without deriving those adjustments from any data — and declared the expected value is now +21%. 
+And that's using my probability assignments. Then he adjusted my probabilities by 5 percentage points in each direction — without deriving those adjustments from any data — and declared the expected value is now +21%.
 
 **He just demonstrated that a 5-percentage-point probability shift changes the expected value by $103.** That means my framework is exquisitely sensitive to probability assumptions. And who has the actual data on those probabilities? The market, which has priced this stock at $1,035 — embedding its own probability assessment that produces, by revealed preference, an expected return insufficient to justify the risk. If the market agreed with the bull's adjusted probabilities, the stock would already be at $1,252.
 

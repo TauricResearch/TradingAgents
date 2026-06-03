@@ -260,7 +260,7 @@ Correct. And **catastrophically, fatally correct for the bear case in the wrong 
 
 You just described **tail risk correlation.** When risks are positively correlated in the favorable direction, they are *equally* positively correlated in the unfavorable direction. If the Fed turns hawkish, it doesn't just affect AVGO's multiple — it simultaneously increases the probability that hyperscaler capex slows, that the EPS ramp disappoints, that the debt burden feels heavier, and that the VMware transition faces more customer resistance as enterprise IT budgets tighten.
 
-Correlated risks don't make the bull case safer. They make the **tail scenarios more extreme in both directions.** A positively correlated risk structure means the distribution of outcomes has **fat tails** — the really good outcomes are better than independent-risk models suggest, *and the really bad outcomes are worse.* 
+Correlated risks don't make the bull case safer. They make the **tail scenarios more extreme in both directions.** A positively correlated risk structure means the distribution of outcomes has **fat tails** — the really good outcomes are better than independent-risk models suggest, *and the really bad outcomes are worse.*
 
 At $2.24 trillion market cap, with the stock already up 57% in two months, which tail are you closer to? The left tail of a bad outcome, or the right tail of a good outcome that's *already mostly priced in?* The asymmetry of position matters. You're not buying AVGO at the beginning of its re-rating. **You're buying it near the end of a completed re-rating cycle, right before a binary event.**
 
@@ -389,7 +389,7 @@ Let me do the math he won't:
 - Annual interest expense: **~$3.2B**
 - Annual SBC: **$8.7B** *(non-cash, but real economic obligation)*
 
-That's **$55.3 billion in committed annual capital outflows** against **$32 billion in annual FCF.** 
+That's **$55.3 billion in committed annual capital outflows** against **$32 billion in annual FCF.**
 
 The bull is spending more on capital commitments than he generates in free cash flow — and financing the gap by adding net debt or drawing down the cash balance. **That is not a fortress. That is a machine that requires continuous refinancing to maintain its capital return program.** And the bull calls this "financial strength."
 
@@ -439,7 +439,7 @@ Throughout this entire debate, the bull has anchored on two numbers: **17x Price
 
 $32B annualized FCF divided by $2.24T market cap. Sounds reasonable. Except:
 
-The $32B FCF figure uses Q1 FY2026 as its annualization base — **a single quarter that benefited from the AI capex surge, favorable revenue mix, and peak operating leverage.** What happens if AI capex growth *decelerates* from 30% annually to 15%? Suddenly quarterly FCF goes from $8B to $6.5B, annualizing to $26B. Your 17x multiple becomes 21x. Still manageable, the bull says. 
+The $32B FCF figure uses Q1 FY2026 as its annualization base — **a single quarter that benefited from the AI capex surge, favorable revenue mix, and peak operating leverage.** What happens if AI capex growth *decelerates* from 30% annually to 15%? Suddenly quarterly FCF goes from $8B to $6.5B, annualizing to $26B. Your 17x multiple becomes 21x. Still manageable, the bull says.
 
 What if it decelerates to 10%? $5.5B quarterly, $22B annual, **26x multiple** on a company with $66B in debt and $8.7B in annual SBC obligations. Now we're having a different conversation entirely — and the stock has probably already re-rated 25-30% lower before you've had time to act.
 
@@ -447,7 +447,7 @@ The 17x number is not a floor. It's a snapshot of peak conditions, presented as 
 
 **The 25.5x forward PE:**
 
-This relies entirely on the $18.55 forward EPS estimate. The bull successfully defended this as "amortization math, not growth prayer." Fair. But here's what he's still not addressing: **the $18.55 EPS estimate requires the amortization schedule to decline AND AI revenue to ramp AND VMware margins to hold AND operating leverage to continue expanding — all simultaneously.** 
+This relies entirely on the $18.55 forward EPS estimate. The bull successfully defended this as "amortization math, not growth prayer." Fair. But here's what he's still not addressing: **the $18.55 EPS estimate requires the amortization schedule to decline AND AI revenue to ramp AND VMware margins to hold AND operating leverage to continue expanding — all simultaneously.**
 
 Miss on any single component, and the forward EPS gets revised. Analysts cut from $18.55 to $16. The "compelling 25.5x" becomes a less compelling 30x. The stock re-rates. And at a beta of 1.44, the re-rating happens faster and harder than in any of the bulls' tidy scenarios.
 
@@ -567,7 +567,7 @@ And when do buybacks get cut? They get cut when the business faces pressure — 
 
 ## 🔴 The Microsoft Analogy: The Bull Switched Comparisons Mid-Argument — And Neither Version Helps Him
 
-The bull's response to my Microsoft 2000 analogy was clever: "That's the wrong Microsoft. The right analogy is Microsoft 2014." 
+The bull's response to my Microsoft 2000 analogy was clever: "That's the wrong Microsoft. The right analogy is Microsoft 2014."
 
 Let me engage with both, because his 2014 analogy actually proves my point rather than his.
 

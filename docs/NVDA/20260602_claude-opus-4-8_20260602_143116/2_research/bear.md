@@ -27,7 +27,7 @@ The r/stocks community on Reddit said something that didn't get nearly enough at
 
 My colleague wants you to believe that $25.8 billion in inventory is a bullish indicator — "demand so strong they're building ahead of it!" Let me offer you an alternative interpretation: **this is the classic late-cycle inventory accumulation pattern.**
 
-Inventory has grown from $5.3 billion in FY2024 to $11.3 billion a year ago to **$25.8 billion today** — nearly a **5x increase in two years**. Simultaneously, accounts receivable has ballooned to **$40.7 billion**. Together, that's over $66 billion tied up in inventory and receivables. 
+Inventory has grown from $5.3 billion in FY2024 to $11.3 billion a year ago to **$25.8 billion today** — nearly a **5x increase in two years**. Simultaneously, accounts receivable has ballooned to **$40.7 billion**. Together, that's over $66 billion tied up in inventory and receivables.
 
 Now ask yourself: in what scenario does this resolve badly? Simple. If **even one or two hyperscalers blink** on their 2026 AI capex commitments — which are, by definition, forward-looking promises, not contractual obligations — NVDA faces a wave of order deferrals against a production line already running at full tilt. The resulting inventory write-down and revenue miss wouldn't be minor. We saw this exact dynamic in semiconductors in 2022-2023. The cycle always turns.
 
@@ -79,7 +79,7 @@ My colleague presented the technicals as "textbook bullish." Let me show you the
 
 ## 🎭 The Computex Euphoria Is a Classic "Sell the News" Setup
 
-The bull built much of the near-term catalysts case around Jensen Huang's Computex Taipei keynote. And yes, it was impressive. But notice what happened: **MRVL surged 32% on Huang's endorsement. NVDA itself went down.** 
+The bull built much of the near-term catalysts case around Jensen Huang's Computex Taipei keynote. And yes, it was impressive. But notice what happened: **MRVL surged 32% on Huang's endorsement. NVDA itself went down.**
 
 That tells you something important about where we are in the narrative cycle. Huang's keynote *generated more wealth in other stocks than it did in NVDA itself.* The capital is rotating *away from* NVDA toward the ecosystem plays that are "cheaper." This is exactly what happens at the top of a hype cycle — the original beneficiary starts to look expensive relative to the derivative plays, and capital rotates accordingly.
 
@@ -119,9 +119,9 @@ I am **not** arguing the AI trend is fake. It's real, it's structural, and it's 
 
 What I *am* arguing is this: **at $5.4 trillion, $224.36 per share, with a MACD bearish cross still active, NVDA underperforming the market on June 2, $66+ billion in inventory and receivables building, hyperscaler in-sourcing accelerating, and the Fed flirting with further tightening — the risk/reward is substantially worse than the bull wants you to believe.**
 
-The bull says: "The bears need every single risk to materialize simultaneously." 
+The bull says: "The bears need every single risk to materialize simultaneously."
 
-I say: **They don't.** 
+I say: **They don't.**
 
 They just need **one earnings guidance cut.** One hyperscaler capex deferral. One Fed meeting that surprises hawkishly. One inventory write-down. Any single one of these events, against a stock priced for perfection at $5.4 trillion, produces a correction that makes the January-March 2026 17% drawdown look like a rounding error.
 
@@ -258,7 +258,7 @@ Do the math: **the probability-weighted expected return from current levels is s
 
 ## 🔑 What the Bull Cannot Answer
 
-My colleague asks: "If not NVDA, then what?" 
+My colleague asks: "If not NVDA, then what?"
 
 It's a rhetorical flourish designed to make the bear case seem like an argument against AI itself. It's not. **The question isn't whether NVDA is a great company. The question is whether NVDA at $224.36 offers attractive risk-adjusted returns for new capital today.**
 
@@ -522,7 +522,7 @@ My colleague pointed to Q1 FY2027's 85% YoY growth as *re-acceleration* — evid
 - Q3 FY2026 to Q4 FY2026: Revenue grew from $57.01B to $68.13B — **+19.5% QoQ**
 - Q4 FY2026 to Q1 FY2027: Revenue grew from $68.13B to $81.62B — **+19.8% QoQ**
 
-Fine. Stable sequential growth. But look at what the bull is defending: a company that needs to continue growing from $81.6 billion *quarterly* at this trajectory to justify $5.4 trillion. By Q4 FY2027, maintaining 19-20% sequential growth produces roughly **$140 billion in quarterly revenue — $560 billion annualized.** That would represent nearly **3% of US GDP from a single company's semiconductor sales.** 
+Fine. Stable sequential growth. But look at what the bull is defending: a company that needs to continue growing from $81.6 billion *quarterly* at this trajectory to justify $5.4 trillion. By Q4 FY2027, maintaining 19-20% sequential growth produces roughly **$140 billion in quarterly revenue — $560 billion annualized.** That would represent nearly **3% of US GDP from a single company's semiconductor sales.**
 
 At what point does the bull acknowledge that sequential growth rates must decelerate? His entire "deceleration is already priced in" argument assumes the market has correctly anticipated the slowdown. But the forward P/E of 17.6x is built on consensus estimates of $12.66 EPS. **Those estimates already embed an assumption about the growth trajectory.** If the actual deceleration is steeper than consensus models — which is the historical pattern for every hypergrowth semiconductor company without exception — the consensus estimates are wrong, and 17.6x becomes 22x or 25x on the actual EPS, not the projected EPS.
 
@@ -534,7 +534,7 @@ The bull says: "Cisco was going to decelerate in 1998. Shorting it two years ear
 
 My colleague celebrated my acknowledgment that enterprise AI flows through hyperscalers as "accidentally proving his point." Let me be explicit about what I actually argued and why.
 
-I said enterprise AI flowing through hyperscalers doesn't reduce concentration risk — it *reinforces* it. The bull heard "enterprise AI sustains hyperscaler demand" and called it a structural floor. 
+I said enterprise AI flowing through hyperscalers doesn't reduce concentration risk — it *reinforces* it. The bull heard "enterprise AI sustains hyperscaler demand" and called it a structural floor.
 
 **Here's what he missed:** A structural floor that runs through four companies is still a concentration risk. If I own a restaurant and 80% of my revenue comes from four corporate accounts, it doesn't matter whether those four accounts are themselves serving a thousand individual customers. *I* still have four customers. If one of those four accounts cuts their lunch budget by 20%, I lose 20% of my concentrated revenue stream — regardless of what's happening to their underlying clients.
 
@@ -716,7 +716,7 @@ My colleague reframed my restaurant analogy brilliantly: NVDA is a restaurant wi
 
 This is a genuinely clever reframe. Now let me show you why it's the bear case in disguise.
 
-**If all four hyperscalers are in a zero-sum race to buy the most NVDA GPUs, then the competitive dynamic creates a floor on demand.** He's right about that. But it also creates a ceiling on NVDA's *pricing power*. When four trillion-dollar companies are all desperate to buy the same product, they also have enormous incentive to *collectively or individually reduce their dependency* on that product. 
+**If all four hyperscalers are in a zero-sum race to buy the most NVDA GPUs, then the competitive dynamic creates a floor on demand.** He's right about that. But it also creates a ceiling on NVDA's *pricing power*. When four trillion-dollar companies are all desperate to buy the same product, they also have enormous incentive to *collectively or individually reduce their dependency* on that product.
 
 The patented seasoning analogy has a critical missing element: **in the real world, when four major restaurant chains discover they all depend on a single seasoning patent holder, they immediately begin funding R&D into alternative seasonings.** Not because the current seasoning is bad — it's excellent. But because single-supplier dependency at this scale is a strategic risk they cannot accept. This is precisely what Microsoft (Maia), Google (TPU), Amazon (Trainium), and Meta (MTIA) are doing. Not because CUDA is failing. Because the competitive imperative to reduce single-vendor dependency at $300+ billion in annual spend is overwhelming.
 

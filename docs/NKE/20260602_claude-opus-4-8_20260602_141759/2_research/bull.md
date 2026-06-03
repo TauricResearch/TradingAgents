@@ -108,7 +108,7 @@ Let me take each of their arguments head-on.
 
 ## 1. 🎯 "Brand Affinity Doesn't Pay Dividends" — You're Missing the Entire Point of the Metric
 
-My colleague asked: "If 95% of consumers love Nike, why are they buying $5 billion less of it?" 
+My colleague asked: "If 95% of consumers love Nike, why are they buying $5 billion less of it?"
 
 That's actually a *great* question — and the answer is extraordinarily bullish.
 
@@ -254,7 +254,7 @@ My colleague spent considerable energy attacking the Apple 1997 analogy by argui
 
 I never argued Nike was going to invent a new product category. The Apple analogy wasn't about innovation magnitude. It was about a **singular, specific structural point**: that a company with extraordinary brand equity can suffer catastrophic financial deterioration from *strategic execution errors* while the underlying brand asset remains intact — and that the distinction between "broken business model" and "wrong strategic decisions" is the most important variable in evaluating recovery potential.
 
-The bear actually *conceded this point* in their own argument. They said: "I accept the first part" — meaning they accept the wound was self-inflicted. They just dispute whether it's recoverable. But here's what that concession means: **they agree the brand is intact.** They agree the damage came from strategy, not from consumers rejecting Nike. 
+The bear actually *conceded this point* in their own argument. They said: "I accept the first part" — meaning they accept the wound was self-inflicted. They just dispute whether it's recoverable. But here's what that concession means: **they agree the brand is intact.** They agree the damage came from strategy, not from consumers rejecting Nike.
 
 And that concession is fatal to their core thesis. Because if the brand is intact and the damage was strategic, then the question is simply: **can management execute a better strategy?** And we have evidence — imperfect, early-stage, but real evidence — that they're already doing it. Q1 FY2026 operating income of $927M versus Q4 FY2025's trough of $321M. That's not coincidence. That's the "Win Now" reset beginning to flow through the P&L.
 
@@ -284,7 +284,7 @@ Bear's estimate: $600M–$1.2B COGS headwind from 15% Vietnam tariffs. Represent
 
 Now let me ask a question the bear never asked: **what does Nike's stock price imply about Vietnam tariff expectations?**
 
-NKE is trading at $45.93 — **45% below its 52-week high of $80.17.** The market has already priced in a *massive* deterioration scenario. If we were to take Nike's FY2024 operating income of $6.31B and apply the bear's worst-case tariff shock of $1.2B with no mitigation, we'd get approximately $5.1B in operating income — still nearly double the current run rate. 
+NKE is trading at $45.93 — **45% below its 52-week high of $80.17.** The market has already priced in a *massive* deterioration scenario. If we were to take Nike's FY2024 operating income of $6.31B and apply the bear's worst-case tariff shock of $1.2B with no mitigation, we'd get approximately $5.1B in operating income — still nearly double the current run rate.
 
 The market isn't pricing in "tariff shock on top of current performance." The market is pricing in "tariff shock on top of already-deteriorated performance with no recovery." That's the double-discount the bears are ignoring. **The Vietnam risk is priced into a stock that has already collapsed 45%.** For the stock to fall further from here, the tariff impact would need to be *worse than the market's already-catastrophic expectations* — not merely as bad.
 
@@ -338,7 +338,7 @@ That characterization is so reductive it's almost comical — and it reveals the
 
 No, I'm not arguing that a single goal changes a DCF model. I'm arguing something more important: **the World Cup is the single largest global marketing event that exists, and Nike is its dominant commercial presence.** The event runs for approximately a month. It generates billions of media impressions. It puts Nike's product — boots, kits, performance footwear — at the center of every athletic conversation on the planet.
 
-Here's what actually matters for the re-rating thesis: institutional investors who have been underweighting NKE are looking for a *permission structure* to add exposure. They need a moment where the narrative shifts from "broken brand in structural decline" to "iconic brand with global visibility and a turnaround in progress." The World Cup — combined with a Q4 earnings beat — provides exactly that permission structure. 
+Here's what actually matters for the re-rating thesis: institutional investors who have been underweighting NKE are looking for a *permission structure* to add exposure. They need a moment where the narrative shifts from "broken brand in structural decline" to "iconic brand with global visibility and a turnaround in progress." The World Cup — combined with a Q4 earnings beat — provides exactly that permission structure.
 
 The bear is demanding I prove institutional investors will change their models based on a soccer game. I'm saying they were already *looking for a reason* to reduce their underweight, and the World Cup provides the context in which good execution becomes visible. **You don't change a thesis because of one game. You change a thesis because the game provides the backdrop against which a fundamentally improving business becomes impossible to ignore.**
 

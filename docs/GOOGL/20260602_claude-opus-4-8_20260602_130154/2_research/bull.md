@@ -242,7 +242,7 @@ And on concentration risk in AI stocks: the bear warns that "the most crowded tr
 
 Here's the most telling line in the entire bear case: **"`GOOGL` is not a short — it's a wait."**
 
-Read that again. The bear, after cataloguing every risk, every technical concern, every structural headwind — concluded that you should **not short this stock.** 
+Read that again. The bear, after cataloguing every risk, every technical concern, every structural headwind — concluded that you should **not short this stock.**
 
 That is a stunning concession dressed up as caution. If the bear's case were truly compelling — if the MACD breakdown signaled a real trend reversal, if the CapEx was genuinely destroying value, if the equity raise was a genuine red flag — then the bear would be recommending a short. Instead, he's saying: this is a great business, the risks are real but manageable, and you might want to buy it at $350 instead of $376.
 
@@ -672,7 +672,7 @@ Here's what we know with certainty:
 
 ✅ **Bollinger Lower Band at $376** — technical mean-reversion support at exactly current prices
 
-And here's what the bear has shown us with six rounds of argument: he cannot bring himself to say this stock should be *short.* He can only argue about the entry point within a 7% band. 
+And here's what the bear has shown us with six rounds of argument: he cannot bring himself to say this stock should be *short.* He can only argue about the entry point within a 7% band.
 
 **That is the most powerful bull signal in this entire debate.**
 
@@ -873,7 +873,7 @@ Let me synthesize everything across this entire debate into the clearest possibl
 
 It is trading at:
 - **27.77x TTM earnings** — reasonable
-- **25.1x forward earnings** — attractive for this growth profile  
+- **25.1x forward earnings** — attractive for this growth profile
 - **1.50x PEG** — the single most compelling valuation metric for quality compounders
 - **38.9% ROE** — best-in-class among any mega-cap globally
 - **Bollinger Lower Band** — technical mean-reversion support

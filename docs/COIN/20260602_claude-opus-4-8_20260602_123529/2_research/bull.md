@@ -153,7 +153,7 @@ My opponent asks: "Why does Coinbase hold a portfolio of crypto assets large eno
 
 But here's what the bear's framing obscures: **these are unrealized, mark-to-market losses — not cash outflows.** When Bitcoin recovers — and it has recovered from *every* previous drawdown in its history — those losses reverse. The $470.7M markdown in Q1 2026 doesn't represent cash leaving the building. It represents an accounting entry on assets that still exist on the balance sheet at lower marks.
 
-The bear calls this a "fundamental design flaw in risk management." I call it **aligned incentives.** Coinbase is long crypto because its business thrives when crypto thrives. Management's financial interests are aligned with users' financial interests. When the cycle recovers, the operating revenues recover AND the investment portfolio recovers simultaneously. That's not a double-whammy on the downside — it's **a double-accelerator on the upside.** 
+The bear calls this a "fundamental design flaw in risk management." I call it **aligned incentives.** Coinbase is long crypto because its business thrives when crypto thrives. Management's financial interests are aligned with users' financial interests. When the cycle recovers, the operating revenues recover AND the investment portfolio recovers simultaneously. That's not a double-whammy on the downside — it's **a double-accelerator on the upside.**
 
 And crucially: **operating income of $13.7M on $1.41B in revenue during the worst quarter in two years is not "casino closed."** It's a business that maintained operational breakeven through a brutal trough. The 2022 comparison is instructive — COIN lost $1.59B in *operating* cash flow in FY2022. In Q1 2026, operating cash flow was **positive $182.7M** despite the headline net loss. The underlying business is structurally more resilient than it was in the last crypto winter.
 
@@ -203,7 +203,7 @@ The bear laid out four "assumptions" that the bull allegedly makes without evide
 
 I want to be direct: I am not asking anyone to ignore the technicals. The bearish crossover is real. The MACD signal is real. The RSI decline is real. But here is the crucial distinction: **technical indicators tell you what *has* happened, not what *will* happen.** They're lagging, not leading.
 
-The bear says "orderly sell-offs persist, exhausted sell-offs bottom quickly." That's a valid technical principle. But here's what the bear omits: **orderly sell-offs that occur against a backdrop of improving fundamental catalysts — regulatory approvals, new product launches, institutional partnerships — are precisely the setup that produces the most violent mean-reversion bounces.** The stock doesn't need every technical indicator to flip green before the fundamental thesis asserts itself. 
+The bear says "orderly sell-offs persist, exhausted sell-offs bottom quickly." That's a valid technical principle. But here's what the bear omits: **orderly sell-offs that occur against a backdrop of improving fundamental catalysts — regulatory approvals, new product launches, institutional partnerships — are precisely the setup that produces the most violent mean-reversion bounces.** The stock doesn't need every technical indicator to flip green before the fundamental thesis asserts itself.
 
 Look at the MACD histogram — which the bear's own report acknowledges: it moved from -2.13 to -1.93. Momentum divergence — prices declining while rate-of-decline slows — is the early warning signal of a bottom, not confirmation of continuation. And RSI at 45.35 with room to 30? COIN bounced from $141 to $222 last time. That's a 57% recovery from RSI levels that were *more* oversold than today. **The next oversold RSI reading could be the best entry this year.**
 
@@ -237,7 +237,7 @@ The bear's most detailed argument is the forward EPS math: Q1 2026 delivered -$1
 
 Let me give you the data-driven case:
 
-**Q3 2025 delivered $1.50 EPS. Q4 2025 delivered -$2.49 EPS** (driven by the same mark-to-market dynamics). These quarters bracket the current environment. The business demonstrated it can generate $1.50 in EPS in a single quarter when conditions are modestly supportive. 
+**Q3 2025 delivered $1.50 EPS. Q4 2025 delivered -$2.49 EPS** (driven by the same mark-to-market dynamics). These quarters bracket the current environment. The business demonstrated it can generate $1.50 in EPS in a single quarter when conditions are modestly supportive.
 
 Here's the honest path to $4.99 full-year:
 - Q2 2026: Crypto stabilizes post-BTC pullback. Perps revenue begins ramping. $1.00-1.50 EPS. Plausible.
@@ -594,7 +594,7 @@ The business is structurally **more capable** than it was in FY2024:
 - Subscription/services revenue that has grown substantially since FY2024 ✅
 - $1.06B in buybacks reducing share count vs. FY2024 ✅
 
-**The business is better. The price is 59% lower. Bitcoin is at the same level.** The bear's case requires you to believe this situation is rational — that the market has correctly identified a structural deterioration that justifies a 59% discount to a period when COIN was generating $9.48 in EPS. 
+**The business is better. The price is 59% lower. Bitcoin is at the same level.** The bear's case requires you to believe this situation is rational — that the market has correctly identified a structural deterioration that justifies a 59% discount to a period when COIN was generating $9.48 in EPS.
 
 I believe the market has overreacted to cyclical trough conditions in a business with durable franchise value, operating leverage, and a newly activated derivatives revenue stream. That's the bet. It's not a reckless bet. It's a bet supported by the fundamental data, the institutional infrastructure, the management confidence signal, and the PEG ratio.
 

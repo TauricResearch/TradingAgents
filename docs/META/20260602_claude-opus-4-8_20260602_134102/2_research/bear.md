@@ -286,7 +286,7 @@ Bear Analyst: # 🐻 Bear Final Rebuttal: The Bull's "World-Class Business" Argu
 
 ---
 
-My colleague just delivered what I'll candidly call the most emotionally compelling bull argument I've heard in this entire debate. Phrases like "generational wealth," "world-class business," "one of the three or four most powerful businesses ever assembled by human ingenuity" — it's stirring stuff. And you know what? I don't entirely disagree with the characterization of the *business*. I disagree with the characterization of the *stock at this price, at this moment, in this environment.* 
+My colleague just delivered what I'll candidly call the most emotionally compelling bull argument I've heard in this entire debate. Phrases like "generational wealth," "world-class business," "one of the three or four most powerful businesses ever assembled by human ingenuity" — it's stirring stuff. And you know what? I don't entirely disagree with the characterization of the *business*. I disagree with the characterization of the *stock at this price, at this moment, in this environment.*
 
 Those are three completely different questions. And conflating them is exactly how investors lose money in great companies.
 
@@ -368,7 +368,7 @@ This is the bull's most rhetorically effective closing point, so I want to engag
 
 The bull argues that waiting for a 200-day SMA reclaim at $665 means missing 10.7% of upside and buying "at the top of the first recovery leg." They cite the March-April $520-$688 rally as proof that technicals-based investors missed the move.
 
-Here's what the bull is *actually* describing: **a 32% rally that was entirely given back within six weeks.** 
+Here's what the bull is *actually* describing: **a 32% rally that was entirely given back within six weeks.**
 
 Investors who bought at $520 in late March and waited for the 200-day SMA reclaim — which would have occurred somewhere around $660-$665 — would have sold right at the April 17 peak of $688. That's a **30%+ gain in three weeks with a clean, rule-based exit.** Meanwhile, investors who "bought with conviction" at $600 during that same period are currently sitting at breakeven *at best*, watching the stock test the Bollinger lower band at $591.
 

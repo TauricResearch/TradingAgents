@@ -9,27 +9,27 @@ Now I have everything needed to compile a comprehensive report. Here it is:
 
 ---
 
-# 📊 MRVL (Marvell Technology, Inc.) — Technical Analysis Report
+#### 📊 MRVL (Marvell Technology, Inc.) — Technical Analysis Report
 **Date:** June 2, 2026 (Weekend — Last trading day: June 1, 2026)
 **Sector:** Technology / Semiconductors | **Exchange:** NASDAQ (NMS)
 
 ---
 
-## 🔍 Executive Summary
+#### 🔍 Executive Summary
 
 MRVL has undergone one of the most dramatic recoveries in its 2026 trading history. After bottoming out near $70–$73 in early February, the stock has rallied explosively — from ~$75 to **$219.43** as of June 1, 2026. This represents a gain of over **190%** from the February lows in roughly four months. Multiple indicators confirm a powerful bullish trend, though overbought signals and rising volatility suggest that caution is warranted for new entries.
 
 ---
 
-## 1. 📈 Price Action & Trend Overview
+#### 1. 📈 Price Action & Trend Overview
 
-### Phase 1 — Downtrend & Bottom (Jan–Feb 2026)
+#### Phase 1 — Downtrend & Bottom (Jan–Feb 2026)
 MRVL began 2026 at ~$89, quickly falling sharply and reaching a multi-month low of **$70.65** on February 5. The stock consolidated in the $73–$83 range throughout much of February and early March.
 
-### Phase 2 — Catalyst-Driven Surge (March 6, 2026)
+#### Phase 2 — Catalyst-Driven Surge (March 6, 2026)
 A pivotal inflection occurred on **March 6**, when volume spiked to **90 million shares** (vs. the typical 10–25M range) and the stock leapt from ~$75.64 to **$89.53** — a single-day gain of ~18%. This high-volume breakout appears to be a fundamental catalyst event (likely earnings-related or a major business announcement), confirming strong institutional participation.
 
-### Phase 3 — Sustained Bull Run (March–June 2026)
+#### Phase 3 — Sustained Bull Run (March–June 2026)
 Post-breakout, the stock sustained upward momentum through consecutive higher highs:
 - March 25: ~$98.40
 - April 1: ~$106.66
@@ -41,7 +41,7 @@ Post-breakout, the stock sustained upward momentum through consecutive higher hi
 
 ---
 
-## 2. 📉 RSI — Momentum & Overbought Warning
+#### 2. 📉 RSI — Momentum & Overbought Warning
 
 | Date | RSI |
 |---|---|
@@ -53,7 +53,7 @@ The RSI has persistently hovered **above 70** since early May — a classic over
 
 ---
 
-## 3. 📊 MACD — Trend Momentum Confirmed
+#### 3. 📊 MACD — Trend Momentum Confirmed
 
 | Date | MACD | Signal | Histogram |
 |---|---|---|---|
@@ -68,7 +68,7 @@ The MACD line (**16.89**) is **above the Signal line (15.12)**, with an expandin
 
 ---
 
-## 4. 📉 Bollinger Bands — Price at the Upper Band
+#### 4. 📉 Bollinger Bands — Price at the Upper Band
 
 | Date | Close | Lower Band | Middle (20 SMA) | Upper Band |
 |---|---|---|---|---|
@@ -86,7 +86,7 @@ The bands are also widening rapidly (upper: $217.50 vs. lower: $148.77 — a ran
 
 ---
 
-## 5. 📐 50 SMA — Strong Structural Bull Trend
+#### 5. 📐 50 SMA — Strong Structural Bull Trend
 
 | Date | Close | 50 SMA | Price vs. 50 SMA |
 |---|---|---|---|
@@ -98,7 +98,7 @@ The 50 SMA has been **rising steeply** throughout this period (from $111.49 on M
 
 ---
 
-## 6. ⚡ 10 EMA — Near-Term Momentum Gauge
+#### 6. ⚡ 10 EMA — Near-Term Momentum Gauge
 
 | Date | Close | 10 EMA |
 |---|---|---|
@@ -111,7 +111,7 @@ The 10 EMA ($198.37) is tracking price closely and **accelerating upward** — a
 
 ---
 
-## 7. 📐 ATR — Volatility Surging
+#### 7. 📐 ATR — Volatility Surging
 
 | Date | ATR |
 |---|---|
@@ -128,7 +128,7 @@ ATR has nearly **doubled** from $7.57 in early May to $13.53 by June 1. This mea
 
 ---
 
-## 8. ⚠️ Key Risks & Considerations
+#### 8. ⚠️ Key Risks & Considerations
 
 1. **Overbought on Multiple Timeframes:** RSI (74.22) + price above Bollinger Upper Band = multiple overbought readings simultaneously.
 2. **Gap Risk:** June 1 saw an intraday high of $225.14 but close at $219.43, and large volume events can trigger sharp reversals on lack of follow-through.
@@ -138,7 +138,7 @@ ATR has nearly **doubled** from $7.57 in early May to $13.53 by June 1. This mea
 
 ---
 
-## 9. 🎯 Actionable Insights
+#### 9. 🎯 Actionable Insights
 
 - **Bulls (Trend Followers):** Price is in a confirmed uptrend. The MACD crossover is bullish, and the breakout above the Bollinger Upper Band with expanding momentum is a continuation signal. Consider using the **10 EMA (~$198)** as a trailing stop reference, and **20 SMA/Bollinger Middle (~$183)** as the key swing support.
 - **Cautious New Entries:** With RSI at 74 and price above the Bollinger Upper Band, chasing the rally at current levels carries elevated risk. A pullback to the **$195–$200 zone** (near the 10 EMA) would offer a better risk/reward entry.
@@ -146,7 +146,7 @@ ATR has nearly **doubled** from $7.57 in early May to $13.53 by June 1. This mea
 
 ---
 
-## 📋 Summary Table
+#### 📋 Summary Table
 
 | Indicator | Current Value (June 1, 2026) | Signal | Interpretation |
 |---|---|---|---|
@@ -177,13 +177,13 @@ FINAL TRANSACTION PROPOSAL: **BUY**
 **Confidence:** High
 
 
-# MRVL Sentiment Report — 2026-05-26 to 2026-06-02
+#### MRVL Sentiment Report — 2026-05-26 to 2026-06-02
 
 ---
 
-## 1. Source-by-Source Breakdown
+#### 1. Source-by-Source Breakdown
 
-### 📰 News Headlines (Yahoo Finance / Barron's / WSJ / Motley Fool / GuruFocus)
+#### 📰 News Headlines (Yahoo Finance / Barron's / WSJ / Motley Fool / GuruFocus)
 
 The news flow is **unambiguously and powerfully bullish**, centred on a single, high-impact catalyst: **Nvidia CEO Jensen Huang publicly endorsed Marvell Technology at Computex Taipei 2026**, calling it "the next trillion-dollar company" and implying a potential ~5× appreciation from current levels. This is an extraordinary external endorsement from the world's most influential semiconductor executive.
 
@@ -202,7 +202,7 @@ Key headline evidence:
 
 ---
 
-### 💬 StockTwits (30 messages: 18 Bullish / 2 Bearish / 10 Unlabeled)
+#### 💬 StockTwits (30 messages: 18 Bullish / 2 Bearish / 10 Unlabeled)
 
 Bullish/Bearish ratio among labeled messages: **90% Bullish / 10% Bearish** — a reading at the top of the moderately bullish range, approaching over-extension territory per standard analytical heuristics. The sample of 30 messages is adequate for a directional read.
 
@@ -225,7 +225,7 @@ Bullish/Bearish ratio among labeled messages: **90% Bullish / 10% Bearish** — 
 
 ---
 
-### 🗂️ Reddit (r/wallstreetbets: 5 posts; r/stocks: 2 posts; r/investing: 0 posts)
+#### 🗂️ Reddit (r/wallstreetbets: 5 posts; r/stocks: 2 posts; r/investing: 0 posts)
 
 **r/wallstreetbets (5 posts):**
 - *"Jensen just introduced Marvell as 'the next trillion dollar company' at Computex. MRVL up 16% overnight."* — framed as highly bullish, "Bigger signal than Trump saying 'buy a Dell' imo. Still a 5x from here." This is speculative but directionally very bullish.
@@ -246,7 +246,7 @@ Note: Reddit scores/comment counts were unavailable for this period (RSS feed li
 
 ---
 
-## 2. Cross-Source Divergences and Alignments
+#### 2. Cross-Source Divergences and Alignments
 
 | Comparison | Finding |
 |---|---|
@@ -259,7 +259,7 @@ Note: Reddit scores/comment counts were unavailable for this period (RSS feed li
 
 ---
 
-## 3. Dominant Narrative Themes
+#### 3. Dominant Narrative Themes
 
 1. **Jensen Huang / Nvidia CEO Endorsement** — The single most dominant theme across all sources. Huang's designation of MRVL as "the next trillion-dollar company" at Computex Taipei 2026 is the proximate and almost exclusive driver of the ~25-29% single-day gain.
 
@@ -275,9 +275,9 @@ Note: Reddit scores/comment counts were unavailable for this period (RSS feed li
 
 ---
 
-## 4. Catalysts and Risks
+#### 4. Catalysts and Risks
 
-### ✅ Catalysts
+#### ✅ Catalysts
 - **Huang's Computex endorsement** (immediate, confirmed): The primary catalyst in the period. High credibility source, public forum, widely covered.
 - **Computex 2026 AI Chip Announcements**: Broader AI hardware ecosystem enthusiasm lifting the entire supply chain.
 - **HPE Strong Q2 Beat**: Adjacent AI server name surging 30%+, reinforcing AI infrastructure spend thesis and keeping sentiment elevated across the complex.
@@ -285,7 +285,7 @@ Note: Reddit scores/comment counts were unavailable for this period (RSS feed li
 - **Upcoming MRVL Earnings**: Not yet in the reporting window per this data, but strong execution could validate the Huang thesis with hard numbers.
 - **Optical Networking Halo**: Huang's remarks on optics vs. copper positioning MRVL (a key optical/networking ASIC supplier) favorably in the interconnect hierarchy.
 
-### ⚠️ Risks
+#### ⚠️ Risks
 - **Single-Comment Catalyst Fragility**: The ~29% gain is almost entirely attributable to one verbal statement at a trade show. No new financial disclosures, earnings, or product launches. High reversal risk if context is misinterpreted or Huang walks back specifics.
 - **Valuation Stretch**: MRVL up 265% in 1 year; current $249B market cap. Reaching $1T implies ~4×. Motley Fool's headline ("Do Shares Have More Room to Run?") implicitly acknowledges this tension.
 - **All Price Targets Exceeded**: StockTwits user notes "every analyst is wrong now" — no anchoring price targets remaining; potential for wide bid/ask spreads and increased volatility.
@@ -296,7 +296,7 @@ Note: Reddit scores/comment counts were unavailable for this period (RSS feed li
 
 ---
 
-## 5. Key Sentiment Signals Summary Table
+#### 5. Key Sentiment Signals Summary Table
 
 | Signal | Direction | Source | Supporting Evidence |
 |---|---|---|---|
@@ -322,62 +322,62 @@ Excellent! I now have comprehensive data to write a thorough analysis report. Le
 
 ---
 
-# 📊 MRVL (Marvell Technology, Inc.) — Comprehensive News & Trading Analysis Report
+#### 📊 MRVL (Marvell Technology, Inc.) — Comprehensive News & Trading Analysis Report
 **Analysis Date: June 2, 2026 | Exchange: NMS | Sector: Technology / Semiconductors**
 
 ---
 
-## 🔥 Executive Summary
+#### 🔥 Executive Summary
 
 Marvell Technology (MRVL) is at the center of one of the most explosive AI-driven semiconductor rallies of 2026. The single most impactful catalyst this week is an extraordinary public endorsement from **Nvidia CEO Jensen Huang** at the **Computex Taipei 2026** conference, where he declared Marvell "the next trillion-dollar company" and projected MRVL shares could rise **fivefold** from current levels. The stock has surged **~29% intraday** and is on track for a **record closing high**. With shares already up **265% over the past year**, this week's events have dramatically reshaped the MRVL investment thesis.
 
 ---
 
-## 🧠 1. The Jensen Huang / Computex Catalyst — The Core Driver
+#### 🧠 1. The Jensen Huang / Computex Catalyst — The Core Driver
 
-### What Happened:
+#### What Happened:
 At Computex Taipei 2026, Nvidia CEO **Jensen Huang appeared alongside Marvell CEO Matt Murphy** and publicly designated Marvell as *"the next trillion-dollar company."* Huang explicitly suggested MRVL shares could rise fivefold from their current market cap of approximately **$249 billion**, implying a potential valuation target of **~$1.25 trillion**.
 
-### Market Reaction:
+#### Market Reaction:
 - **MRVL stock surged 29%** on the day, heading for a record closing high.
 - **Broadcom (AVGO)** also gained ~4% and reached record closes, partly boosted by the Marvell halo effect on the broader custom AI chip ecosystem.
 - **Coherent, Lumentum, and Corning** also surged as Huang's comments on **optical networking** (the copper-to-optics transition) lifted the entire networking infrastructure complex.
 
-### Why This Matters:
+#### Why This Matters:
 - Jensen Huang's endorsements carry enormous weight. His directional calls on AI infrastructure have repeatedly proven prescient.
 - Marvell is a **custom ASIC (application-specific integrated circuit) designer** for hyperscalers including Google and Amazon — placing it at the core of the AI silicon supply chain.
 - The "trillion-dollar" framing changes analyst price target frameworks and could trigger a wave of **institutional reweighting** into MRVL.
 
 ---
 
-## 💡 2. Marvell's AI Business Fundamentals — Supporting the Bull Case
+#### 💡 2. Marvell's AI Business Fundamentals — Supporting the Bull Case
 
-### Custom AI Silicon (XPU) Franchise:
+#### Custom AI Silicon (XPU) Franchise:
 Marvell is a leading supplier of **custom AI accelerator chips (XPUs)** and **networking silicon** to the largest cloud hyperscalers. Its core AI customers include **Google (TPU supply chain)** and **Amazon (Trainium/Inferentia adjacent custom silicon)**. This positions Marvell as an AI infrastructure "picks-and-shovels" play.
 
-### Networking & Interconnects:
+#### Networking & Interconnects:
 Huang's copper-vs-optics commentary directly benefits Marvell's **PAM4 DSP and optical interconnect silicon portfolio**. As data centers scale beyond copper's capacity limits, Marvell's optical networking chips become increasingly critical. This narrative is multi-year in duration.
 
-### Growth Trajectory:
+#### Growth Trajectory:
 - MRVL stock is up **265% over the past 12 months** heading into this week's event.
 - Multiple analysts and Motley Fool coverage ask "Do shares have more room to run?" — now with a $1 trillion target in view, the answer from the market appears to be a resounding **yes**.
 
 ---
 
-## 🌐 3. Broader AI & Semiconductor Ecosystem Context
+#### 🌐 3. Broader AI & Semiconductor Ecosystem Context
 
-### Computex 2026 as a Sector Catalyst:
+#### Computex 2026 as a Sector Catalyst:
 Computex Taipei 2026 served as a **major AI infrastructure showcase**. Key announcements include:
 - **Nvidia's new Vera CPU** and associated liquid-cooling architecture partnerships with **nVent and Siemens** for 100-megawatt AI data center blueprints.
 - Broad AI investment acceleration signaled by **Alphabet's announcement to raise $80 billion** in fresh capital for AI infrastructure — a massive demand signal for AI chip companies, even as GOOGL stock fell ~3.2% on dilution concerns.
 - **Anthropic's IPO filing** adds another layer of AI investment momentum and signals continued VC/enterprise AI spending.
 
-### Analyst Recognition:
+#### Analyst Recognition:
 Multiple analyst notes flagged **Nvidia, Intel, and Marvell as major AI winners from Computex**. The broader narrative is that the AI chip trade — led by Nvidia — is creating powerful secondary beneficiaries, with Marvell being the most directly and explicitly identified.
 
 ---
 
-## 📰 4. Other Stocks in the Spotlight
+#### 📰 4. Other Stocks in the Spotlight
 
 | Company | Event | Impact on MRVL |
 |---|---|---|
@@ -388,29 +388,29 @@ Multiple analyst notes flagged **Nvidia, Intel, and Marvell as major AI winners 
 
 ---
 
-## 🌍 5. Macroeconomic & Geopolitical Context
+#### 🌍 5. Macroeconomic & Geopolitical Context
 
-### Labor Market Watch:
+#### Labor Market Watch:
 - Fresh **labor market data** was in focus this week, with equities mostly rising intraday as data was parsed. No significant labor shocks evident.
 - The AI sector's impact on the **labor market** is an emerging macroeconomic theme being actively tracked by investors.
 
-### Geopolitical Risk:
+#### Geopolitical Risk:
 - **US-Iran nuclear peace talks** are ongoing but status is conflicted/confusing, creating intermittent market uncertainty. **Strait of Hormuz shipping risk** is keeping oil prices elevated.
 - **Israel-Hezbollah ceasefire** discussions are ongoing with Trump pushing for a deal.
 - These geopolitical factors are capping broader equity gains but have a **limited direct impact on MRVL** given its primarily domestic and Taiwan-based supply chain.
 
-### Inflation & Commodities:
+#### Inflation & Commodities:
 - **Oil prices moving higher** amid Iran uncertainty — a modest headwind for broad markets via energy/inflation transmission.
 - **Gold seesawing** on ceasefire headlines; **NFP data and rate hike fears** are in focus.
 - **Copper vs. optics debate** (directly referenced by Huang) is an AI infrastructure allocation story, not just a commodity play.
 - **Bitcoin slipping to ~$67K** suggests some risk-off undertones in speculative assets.
 
-### Quantum Computing:
+#### Quantum Computing:
 - **$100 million in US federal quantum R&D funding** being directed to D-Wave and Rigetti — a long-term AI adjacent theme, minimal near-term MRVL impact.
 
 ---
 
-## ⚠️ 6. Key Risks to Monitor
+#### ⚠️ 6. Key Risks to Monitor
 
 1. **Valuation Stretch**: MRVL is up 265% YoY and now surging another 29% in a single session. Profit-taking and mean reversion risk is elevated.
 2. **Concentration Risk**: Heavy reliance on a small number of hyperscaler customers (Google, Amazon). Customer capex cycles can reverse quickly.
@@ -421,7 +421,7 @@ Multiple analyst notes flagged **Nvidia, Intel, and Marvell as major AI winners 
 
 ---
 
-## 📈 7. Technical & Sentiment Indicators
+#### 📈 7. Technical & Sentiment Indicators
 
 - **Record closing high** in progress as of June 2, 2026.
 - **+29% single-session move** on massive institutional and retail volume.
@@ -430,7 +430,7 @@ Multiple analyst notes flagged **Nvidia, Intel, and Marvell as major AI winners 
 
 ---
 
-## ✅ Summary & Actionable Insights
+#### ✅ Summary & Actionable Insights
 
 | # | Insight | Actionability |
 |---|---|---|
@@ -444,7 +444,7 @@ Multiple analyst notes flagged **Nvidia, Intel, and Marvell as major AI winners 
 
 ---
 
-## 📋 Key Data Points Summary Table
+#### 📋 Key Data Points Summary Table
 
 | Category | Detail | Relevance to MRVL |
 |---|---|---|
@@ -476,12 +476,12 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-# 🔬 Marvell Technology, Inc. (MRVL) — Comprehensive Fundamental Analysis Report
+#### 🔬 Marvell Technology, Inc. (MRVL) — Comprehensive Fundamental Analysis Report
 **Date of Analysis:** June 2, 2026 | **Exchange:** NASDAQ (NMS) | **Sector:** Technology / Semiconductors
 
 ---
 
-## 1. Company Overview & Profile
+#### 1. Company Overview & Profile
 
 **Marvell Technology, Inc. (MRVL)** is a leading semiconductor designer specializing in data infrastructure solutions. The company provides silicon solutions, including custom compute (ASICs/XPUs), networking, optical interconnects, and storage products, serving hyperscaler cloud giants, enterprise OEMs, and telecommunications providers. Headquartered in Santa Clara, CA, Marvell has emerged as one of the most strategically important "picks and shovels" beneficiaries of the AI infrastructure buildout, competing directly with Broadcom and custom silicon for the AI accelerator market.
 
@@ -493,7 +493,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 2. Valuation Metrics
+#### 2. Valuation Metrics
 
 | Metric | Value |
 |---|---|
@@ -512,9 +512,9 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 3. Revenue & Growth Analysis
+#### 3. Revenue & Growth Analysis
 
-### Quarterly Revenue Trend (Most Recent → Oldest)
+#### Quarterly Revenue Trend (Most Recent → Oldest)
 
 | Quarter | Revenue | QoQ Growth |
 |---|---|---|
@@ -526,7 +526,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 **Sequential growth has been consistent and accelerating**, rising from ~$1.9B to ~$2.4B in the span of four quarters (+27.5% over four quarters). This reflects surging demand for AI accelerator chips, custom silicon (XPU/ASIC), and optical interconnects from hyperscaler cloud customers.
 
-### Annual Revenue Trend
+#### Annual Revenue Trend
 
 | Fiscal Year | Revenue | YoY Growth |
 |---|---|---|
@@ -539,9 +539,9 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 4. Profitability & Income Statement Analysis
+#### 4. Profitability & Income Statement Analysis
 
-### Quarterly Gross Profit & Margins
+#### Quarterly Gross Profit & Margins
 
 | Quarter | Revenue | Gross Profit | Gross Margin | Operating Income | Net Income |
 |---|---|---|---|---|---|
@@ -558,7 +558,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 - **Operating income is growing steadily**, rising from $258.3M to $350.1M (+35.5% YoY).
 - **Q1 FY2027 net income** of only $34.5M is deceptively low due to the absence of the prior large one-time interest income and elevated interest expense from the recent debt issuance.
 
-### Annual Profitability Turnaround
+#### Annual Profitability Turnaround
 
 | Fiscal Year | Revenue | Gross Profit | Net Income | EPS (Diluted) |
 |---|---|---|---|---|
@@ -571,7 +571,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 5. R&D Investment & Operating Expenses
+#### 5. R&D Investment & Operating Expenses
 
 | Quarter | R&D Expense | SG&A | Total OpEx | R&D as % of Revenue |
 |---|---|---|---|---|
@@ -587,9 +587,9 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 6. Balance Sheet Analysis
+#### 6. Balance Sheet Analysis
 
-### Assets (Most Recent Quarter: Apr 30, 2026)
+#### Assets (Most Recent Quarter: Apr 30, 2026)
 
 | Asset Category | Q1 FY2027 (Apr 30, 2026) | Q4 FY2026 (Jan 31, 2026) | YoY Change |
 |---|---|---|---|
@@ -603,7 +603,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 **Note:** The large jump in goodwill (+$2.8B) and total assets in Q1 FY2027 reflects a significant acquisition (~$1.27B cash consideration for a business purchase). Goodwill of $13.9B and intangibles of $2.8B together constitute **~62% of total assets**, typical for an IP-intensive fabless semiconductor business.
 
-### Liabilities & Equity
+#### Liabilities & Equity
 
 | Liability Category | Q1 FY2027 (Apr 30, 2026) | Q4 FY2026 (Jan 31, 2026) |
 |---|---|---|
@@ -620,9 +620,9 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 7. Cash Flow Analysis
+#### 7. Cash Flow Analysis
 
-### Quarterly Cash Flow Trend
+#### Quarterly Cash Flow Trend
 
 | Quarter | Operating CF | CapEx | Free Cash Flow | Net Debt Change |
 |---|---|---|---|---|
@@ -634,7 +634,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 **Operating cash flow trajectory is clearly improving**, growing from $332.9M in Q1 FY2026 to $638.8M in Q1 FY2027 — a +91.9% YoY improvement. Free cash flow also grew from $213.0M to $482.6M (+126.6% YoY).
 
-### Annual Cash Flow
+#### Annual Cash Flow
 
 | Fiscal Year | Operating CF | CapEx | Free Cash Flow |
 |---|---|---|---|
@@ -645,14 +645,14 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 **FCF is expanding:** MRVL consistently generates strong and growing free cash flow ($1.0B–$1.4B annual range) despite heavy R&D investment. CapEx is rising modestly as the company invests in advanced semiconductor design infrastructure.
 
-### Shareholder Returns
+#### Shareholder Returns
 - **Dividends Paid (Q1 FY2027):** $53.8M (~$0.06/share/quarter)
 - **Share Buybacks:** MRVL has been active in repurchasing shares — $200M in Q1 FY2027, $200.1M in Q4 FY2026, and a massive $1.3B in Q3 FY2026. Total FY2026 buybacks: ~$2.04B.
 - **New Capital Raise:** $2.0B preferred stock issuance in Q1 FY2027, likely funding the ~$1.27B acquisition.
 
 ---
 
-## 8. Key Financial Ratios & Health Indicators
+#### 8. Key Financial Ratios & Health Indicators
 
 | Metric | Value | Assessment |
 |---|---|---|
@@ -668,7 +668,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 9. 52-Week Price Performance & Market Context
+#### 9. 52-Week Price Performance & Market Context
 
 | Metric | Value |
 |---|---|
@@ -681,9 +681,9 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 10. Strategic & Fundamental Insights for Traders
+#### 10. Strategic & Fundamental Insights for Traders
 
-### 🟢 Bullish Catalysts
+#### 🟢 Bullish Catalysts
 1. **AI Custom Silicon (XPU) Tailwind:** MRVL is a primary beneficiary of hyperscaler custom AI chip demand. Major cloud partners (reportedly Amazon AWS, Google) rely on Marvell for custom ASIC/XPU design and optical interconnect solutions.
 2. **Accelerating Revenue Growth:** Revenue grew 42.1% in FY2026 with quarterly run-rate already exceeding $2.4B. The forward revenue trajectory appears intact.
 3. **Gross Margin Expansion:** Steady improvement from ~50% to 52%+ reflects favorable product mix toward AI/cloud vs. legacy telecom.
@@ -693,7 +693,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 7. **R&D Surge Signals Future Products:** The $652M Q1 FY2027 R&D investment positions MRVL well for next-gen AI semiconductor leadership.
 8. **PEG Ratio of 1.17x:** Relatively attractive for a high-growth AI semiconductor company if growth forecasts are met.
 
-### 🔴 Risk Factors
+#### 🔴 Risk Factors
 1. **Very High Valuation (TTM PE ~100x):** Significant downside risk if AI spending decelerates or hyperscaler capex slows.
 2. **Goodwill Concentration (~$13.9B / 52% of assets):** Any impairment could dramatically affect book value and earnings.
 3. **High Beta (2.25):** Extreme volatility — stock can fall as sharply as it rises with macro/sentiment shifts.
@@ -705,7 +705,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 11. Summary Scorecard Table
+#### 11. Summary Scorecard Table
 
 | Category | Assessment | Score (1–5) |
 |---|---|---|
@@ -722,7 +722,7 @@ Excellent! I now have comprehensive data to compile a thorough fundamental analy
 
 ---
 
-## 12. Master Summary Table
+#### 12. Master Summary Table
 
 | Metric | Value / Status |
 |---|---|
@@ -777,7 +777,7 @@ Alright, let's get into it. I've heard the bear concerns — the valuation is st
 
 ---
 
-## 🚀 The Core Thesis: Marvell Is a Picks-and-Shovels AI Infrastructure Company at an Inflection Point
+#### 🚀 The Core Thesis: Marvell Is a Picks-and-Shovels AI Infrastructure Company at an Inflection Point
 
 Let's start with the big picture. We're not talking about some speculative startup that caught a celebrity tweet. We're talking about a company that just delivered **42.1% revenue growth in FY2026**, is generating **$638.8 million in operating cash flow per quarter** — up 91.9% year-over-year — and is being publicly endorsed by the single most credible voice in semiconductors: **Jensen Huang of Nvidia**.
 
@@ -789,7 +789,7 @@ The bull case for MRVL rests on three pillars:
 
 ---
 
-## 💡 "It Was Just One Comment" — Let Me Stop You Right There
+#### 💡 "It Was Just One Comment" — Let Me Stop You Right There
 
 This is the most common pushback I hear, and honestly, it reveals a misunderstanding of *what Jensen Huang said and why it matters*.
 
@@ -801,7 +801,7 @@ Bears can call it "one comment." I call it the most informed price target ever d
 
 ---
 
-## 📊 The Fundamentals Are Not Stretched — They're *Growing Into* the Valuation
+#### 📊 The Fundamentals Are Not Stretched — They're *Growing Into* the Valuation
 
 I know the headline TTM PE of ~99.6x looks scary. But let's be intellectually honest about what that number represents and where it's going.
 
@@ -816,7 +816,7 @@ The bears want to anchor to TTM earnings. I'm asking you to look where the earni
 
 ---
 
-## 🔬 The Custom Silicon Moat: This Is Not a Commodity Business
+#### 🔬 The Custom Silicon Moat: This Is Not a Commodity Business
 
 Here's what separates Marvell from a generic chip company: **custom silicon design for hyperscalers is one of the highest-barrier-to-entry businesses in the semiconductor industry.**
 
@@ -826,7 +826,7 @@ When Google or Amazon contracts Marvell to design a custom XPU or AI accelerator
 
 ---
 
-## 🔗 Optical Networking: The Next Leg Nobody Is Talking About Enough
+#### 🔗 Optical Networking: The Next Leg Nobody Is Talking About Enough
 
 Let me paint you a picture of the next two years in data center infrastructure. The AI workloads being run by hyperscalers today are pushing the limits of copper interconnects. The industry is actively transitioning to **optical networking**, and Huang himself called this out at Computex — specifically highlighting the copper-to-optics transition as a structural shift in AI data center architecture.
 
@@ -838,7 +838,7 @@ We're not talking about one growth driver here. We're talking about **two concur
 
 ---
 
-## 💰 The Balance Sheet Story Is Getting Better, Not Worse
+#### 💰 The Balance Sheet Story Is Getting Better, Not Worse
 
 Bears love to point to the thin $34.5 million net income in Q1 FY2027. Let me contextualize that:
 
@@ -855,7 +855,7 @@ The current ratio of **3.28x** means MRVL has more than three times the current 
 
 ---
 
-## 📈 The Technical Picture Confirms the Fundamental Story
+#### 📈 The Technical Picture Confirms the Fundamental Story
 
 I want to address the "overbought" concern head-on. Yes, the RSI is at 74. Yes, price has breached the Bollinger Upper Band. But here's the context that matters:
 
@@ -869,7 +869,7 @@ For anyone worried about chasing, the **technical framework is clear**: wait for
 
 ---
 
-## 🌍 The Macro Tailwinds Are With Us, Not Against Us
+#### 🌍 The Macro Tailwinds Are With Us, Not Against Us
 
 Bears point to US-Iran tensions, rising oil prices, and Bitcoin weakness as headwinds. Let me be direct: **none of these are MRVL-specific risks.**
 
@@ -879,7 +879,7 @@ The macro environment for AI infrastructure spending has **never been stronger**
 
 ---
 
-## 🎯 The Path to $1 Trillion: Is It Crazy?
+#### 🎯 The Path to $1 Trillion: Is It Crazy?
 
 Jensen Huang implied a roughly 4–5x from current market cap levels. Ambitious? Yes. Impossible? Let's think about this rationally.
 
@@ -889,7 +889,7 @@ Apply even a **moderate 30–35x PE** to that — lower than today's forward mul
 
 ---
 
-## 🏆 Final Word: Why the Bull Case Wins
+#### 🏆 Final Word: Why the Bull Case Wins
 
 Let me summarize why I believe MRVL represents one of the most compelling risk/reward opportunities in the semiconductor sector today:
 
@@ -922,7 +922,7 @@ Alright, I genuinely respect the craftsmanship of that bear argument. It's well-
 
 ---
 
-## 🎯 On Jensen Huang: You're Attacking the Messenger to Avoid the Message
+#### 🎯 On Jensen Huang: You're Attacking the Messenger to Avoid the Message
 
 The bear's entire opening gambit is to discredit the Computex catalyst by questioning Huang's incentives. "He has no fiduciary obligation to MRVL shareholders." "He's managing ecosystem perception." These are clever rhetorical moves. They're also irrelevant to the investment thesis.
 
@@ -934,7 +934,7 @@ But more importantly: **let's step back from the Computex comment entirely.** Th
 
 ---
 
-## 💸 On Valuation: The Bear Is Doing Something Intellectually Dishonest
+#### 💸 On Valuation: The Bear Is Doing Something Intellectually Dishonest
 
 Let me call this out directly. The bear says the forward PE of 47.6x is "based on aggressive growth assumptions that are already baked in" and that "the PEG ratio you're citing is already stale."
 
@@ -952,7 +952,7 @@ And on the "stale PEG" argument — yes, post a 29% single-day move, estimates w
 
 ---
 
-## 🔬 On R&D and Net Income: The Bear Has This Completely Backwards
+#### 🔬 On R&D and Net Income: The Bear Has This Completely Backwards
 
 This is where I genuinely want to push back hardest, because the bear's framing of the R&D surge as "the business model under stress" is the opposite of how sophisticated semiconductor investors think about this.
 
@@ -968,7 +968,7 @@ The bear calls the $34.5M Q1 FY2027 net income a "warning." But **operating cash
 
 ---
 
-## 🏦 On the Balance Sheet: The Bear Cherry-Picks the Scary Numbers
+#### 🏦 On the Balance Sheet: The Bear Cherry-Picks the Scary Numbers
 
 The bear points to $5.28B in total debt and calls it a risk. Let me show you what they're choosing not to tell you:
 
@@ -981,7 +981,7 @@ The bear's interest rate sensitivity calculation — "$53M per 100 basis points 
 
 ---
 
-## ⚠️ On Goodwill: The Bear Is Confusing Accounting Risk With Business Risk
+#### ⚠️ On Goodwill: The Bear Is Confusing Accounting Risk With Business Risk
 
 The $16.7 billion goodwill and intangibles number is real, and I won't dismiss it. But the bear's characterization as a "time bomb" requires the AI capex cycle to not just slow but *reverse significantly enough to impair the acquisition premiums Marvell paid.*
 
@@ -997,7 +997,7 @@ And here's the key point the bear glosses over: **Marvell's goodwill grew by $2.
 
 ---
 
-## 🎯 On the Hyperscaler In-House Chip Risk: The Bear Misunderstands the Business Model
+#### 🎯 On the Hyperscaler In-House Chip Risk: The Bear Misunderstands the Business Model
 
 This is arguably the bear's most substantive argument, and it still doesn't hold up under scrutiny.
 
@@ -1011,7 +1011,7 @@ The switching costs argument the bear calls "a double-edged sword" is actually j
 
 ---
 
-## 📉 On the Technical Picture: Overbought Is Not the Same as Broken
+#### 📉 On the Technical Picture: Overbought Is Not the Same as Broken
 
 The bear makes a rhetorical move I want to highlight: they say the bull "can't have it both ways" on the Bollinger Band breach — either it's a continuation breakout or it's an overbought warning. But in technical analysis, these are not mutually exclusive. **Every major breakout stock breaches the Bollinger Upper Band.** That's what breakouts look like. The question is whether it's sustained.
 
@@ -1021,7 +1021,7 @@ On the 47% above 50 SMA point — yes, this is historically extended. But here's
 
 ---
 
-## 🌡️ On Sentiment: The Bear Uses Retail Noise to Dismiss Institutional Reality
+#### 🌡️ On Sentiment: The Bear Uses Retail Noise to Dismiss Institutional Reality
 
 The bear spends significant time on retail StockTwits comments — "$500 price targets," "YOLO" posts, "r/investing silence." This is a sleight of hand. Retail traders on StockTwits don't move a $254 billion market cap stock. **The 32.9 million shares traded on June 1 — at an average price near $200 — represents approximately $6.5 billion in single-day institutional volume.** That's not retail YOLO traders. That's pension funds, hedge funds, and sovereign wealth vehicles repricing MRVL on Jensen Huang's public endorsement.
 
@@ -1029,7 +1029,7 @@ The "r/investing silence" the bear uses as a contrarian signal is actually the *
 
 ---
 
-## 🔮 On the Path to $1 Trillion: The Bear's Math Has a Fatal Flaw
+#### 🔮 On the Path to $1 Trillion: The Bear's Math Has a Fatal Flaw
 
 The bear audits the $1 trillion scenario and raises a legitimate point about R&D scaling. But they make a critical error: they assume R&D stays at 27% of revenue as revenue scales to $18 billion.
 
@@ -1041,7 +1041,7 @@ And on the multiple compression concern: yes, if MRVL grows into a $500+ stock w
 
 ---
 
-## 🏆 The Final Rebuttal: Risk Is Real, But the Bear's Conclusion Is Wrong
+#### 🏆 The Final Rebuttal: Risk Is Real, But the Bear's Conclusion Is Wrong
 
 Let me be completely honest: **the bear is not wrong about the risks.** Goodwill is real. Customer concentration is real. R&D intensity is real. Valuation is elevated. These are legitimate considerations for position sizing and risk management.
 
@@ -1049,7 +1049,7 @@ But here's the crucial distinction the bear refuses to make: **acknowledging ris
 
 MRVL's growth runway:
 - **42% FY2026 revenue growth** — confirmed, reported, audited
-- **$638M quarterly operating cash flow** — confirmed, reported, audited  
+- **$638M quarterly operating cash flow** — confirmed, reported, audited
 - **127% FCF growth year-over-year** — confirmed, reported, audited
 - **Alphabet's $80 billion AI capex commitment** — publicly announced
 - **HPE's 30% earnings beat validating AI server demand** — confirmed
@@ -1060,7 +1060,7 @@ The bear is asking you to sell a company with 127% FCF growth, expanding gross m
 
 ---
 
-## 📋 The Debate Scorecard
+#### 📋 The Debate Scorecard
 
 | Bear Argument | Bull Rebuttal | Verdict |
 |---|---|---|
@@ -1091,7 +1091,7 @@ Let me go through this systematically, because the bear made several arguments t
 
 ---
 
-## 🎭 The SEC Disclosure Gambit: Clever, But Completely Backwards
+#### 🎭 The SEC Disclosure Gambit: Clever, But Completely Backwards
 
 This is the bear's most rhetorically sophisticated move, and I want to dismantle it carefully because it's genuinely misleading.
 
@@ -1109,7 +1109,7 @@ The bear's SEC argument is sophisticated misdirection. I'm not buying it, and ne
 
 ---
 
-## 💸 The "Peak Growth Rate" Argument: Let Me Show You What the Bear Is Actually Claiming
+#### 💸 The "Peak Growth Rate" Argument: Let Me Show You What the Bear Is Actually Claiming
 
 The bear's most statistically careful argument is the revenue growth deceleration: 36.1% → 28.8% → 27.6%. They call this "sequential deceleration" and say it signals a multiple compression event is imminent.
 
@@ -1130,7 +1130,7 @@ The bear's "peak growth rate" thesis requires the absolute dollar additions to a
 
 ---
 
-## 🔬 The R&D Argument: The Bear Built a Trap and Fell Into It Themselves
+#### 🔬 The R&D Argument: The Bear Built a Trap and Fell Into It Themselves
 
 I need to give the bear credit here — their point about custom silicon versus merchant silicon is their strongest technical argument. Custom XPU design does require continuous R&D engagement, and the Nvidia operating leverage analogy isn't perfect.
 
@@ -1162,7 +1162,7 @@ At FY2029 scale with 55% gross margins and stable non-cash charges, the non-GAAP
 
 ---
 
-## 🏦 On FCF vs. Capital Deployment: The Bear Misunderstands Growth Company Finance
+#### 🏦 On FCF vs. Capital Deployment: The Bear Misunderstands Growth Company Finance
 
 The bear's most pointed balance sheet argument: "You cannot simultaneously be generating $482M per quarter in FCF AND need to issue $2B in preferred equity AND take on $990M in new long-term debt."
 
@@ -1184,7 +1184,7 @@ If the bear's logic were correct, every Fortune 500 company that has ever used d
 
 ---
 
-## ⚠️ Goodwill and the "Cycle-Peak Acquisition" Warning: Reasonable But Overstated
+#### ⚠️ Goodwill and the "Cycle-Peak Acquisition" Warning: Reasonable But Overstated
 
 I'm going to be genuinely fair here: the bear's goodwill argument is their best one, and I won't dismiss it entirely. Cycle-peak acquisitions do carry higher impairment risk. The $2.8B goodwill addition in Q1 FY2027 was made at elevated valuations. These are real considerations.
 
@@ -1200,7 +1200,7 @@ The bear needs four or five things to go wrong simultaneously for the goodwill r
 
 ---
 
-## 🎯 The Hyperscaler In-House Threat: The Bear's Most Sophisticated Argument and Its Fatal Flaw
+#### 🎯 The Hyperscaler In-House Threat: The Bear's Most Sophisticated Argument and Its Fatal Flaw
 
 I genuinely respect this argument. The Kodak analogy is clever. The timeline framework is thoughtful. But it has one fatal flaw that the bear never addresses:
 
@@ -1218,7 +1218,7 @@ And there's one more thing the bear is ignoring: **Marvell is winning new design
 
 ---
 
-## 📉 The June 1 Candlestick: Let's Be Precise About What a Shooting Star Actually Means
+#### 📉 The June 1 Candlestick: Let's Be Precise About What a Shooting Star Actually Means
 
 The bear introduces the long upper shadow on June 1 as their ace technical card. Let me address this with actual candlestick analysis rather than the simplified version the bear presented.
 
@@ -1240,7 +1240,7 @@ The June 1 candle is ambiguous, not definitively bearish. The bear is cherry-pic
 
 ---
 
-## 🌡️ On Sentiment and the "Distribution Phase" Theory: Follow the Money, Not the Story
+#### 🌡️ On Sentiment and the "Distribution Phase" Theory: Follow the Money, Not the Story
 
 The bear's distribution hypothesis — that smart money was selling into retail euphoria on June 1 — is elegant and theoretically coherent. It's also entirely speculative.
 
@@ -1256,7 +1256,7 @@ These are not the technical signatures of successful distribution. Successful di
 
 ---
 
-## 🔮 The Risk/Reward Final Assessment: The Bear's Math Has a Selection Bias Problem
+#### 🔮 The Risk/Reward Final Assessment: The Bear's Math Has a Selection Bias Problem
 
 The bear's most memorable closing argument: "174% upside requiring perfection vs. 40-60% downside requiring only one or two things to go moderately wrong."
 
@@ -1287,7 +1287,7 @@ The asymmetry the bear describes exists. But it doesn't point as firmly toward "
 
 ---
 
-## 🏆 The Final Scorecard — This Time With Honest Accounting
+#### 🏆 The Final Scorecard — This Time With Honest Accounting
 
 | Argument | The Real Assessment |
 |---|---|
@@ -1308,13 +1308,13 @@ And unlike the self-graded version the bear accused me of earlier — I gave the
 
 ---
 
-## 🎯 The Bottom Line That Cuts Through Everything
+#### 🎯 The Bottom Line That Cuts Through Everything
 
 Here's what this entire debate comes down to, stripped of all the rhetoric:
 
 **The bear is asking you to sell a company that:**
 - Grew revenue 42% in FY2026 ✓
-- Is generating $638M in operating cash flow per quarter ✓  
+- Is generating $638M in operating cash flow per quarter ✓
 - Has FCF growing at 127% year-over-year ✓
 - Has the CEO of the world's most valuable company calling it "the next trillion-dollar company" ✓
 - Is expanding gross margins from 50% to 52%+ ✓
@@ -1346,7 +1346,7 @@ Let's go through this carefully, because the details here are the entire ballgam
 
 ---
 
-## 🔬 The GAAP Net Income Trap: The Bear's Most Misleading Argument
+#### 🔬 The GAAP Net Income Trap: The Bear's Most Misleading Argument
 
 The bear's most rhetorically powerful closing move is this: "You're paying 7,362x trailing GAAP net income." They repeat the $34.5 million Q1 FY2027 net income figure like a drumbeat. It sounds devastating. It is deliberately misleading, and here's exactly why.
 
@@ -1362,7 +1362,7 @@ But first: strip out *just the intangible amortization* — which is universally
 
 ---
 
-## 💼 The SBC Argument: Where the Bear Has a Real Point — And Where They Overreach
+#### 💼 The SBC Argument: Where the Bear Has a Real Point — And Where They Overreach
 
 I want to be genuinely honest here, because intellectual honesty is what separates good analysis from advocacy.
 
@@ -1395,7 +1395,7 @@ The bear's $2.67-$2.73 non-GAAP model is not "running the bull's assumptions thr
 
 ---
 
-## 📊 Revenue Growth "Deceleration": The Bear's Cherry-Picked Trend Line
+#### 📊 Revenue Growth "Deceleration": The Bear's Cherry-Picked Trend Line
 
 The bear's growth deceleration argument: 36.1% → 28.8% → 27.6% → "four straight quarters of deceleration."
 
@@ -1407,7 +1407,7 @@ The bear calculated sequential quarterly growth rates:
 - Q3→Q4 FY2026: +6.9%
 - Q4→Q1 FY2027: **+9.0%**
 
-And then said: "I'll grant the bull has a point on the most recent quarter." And immediately pivoted to "but it might be pull-forward demand." 
+And then said: "I'll grant the bull has a point on the most recent quarter." And immediately pivoted to "but it might be pull-forward demand."
 
 **Let me press on this concession, because it's more significant than the bear acknowledged.**
 
@@ -1419,13 +1419,13 @@ And here's the data point that flatly contradicts the pull-forward thesis: **Alp
 
 ---
 
-## 🎯 The Hyperscaler "Compounding Threat": The Bear's Argument Proves Too Much
+#### 🎯 The Hyperscaler "Compounding Threat": The Bear's Argument Proves Too Much
 
 The bear's upgraded hyperscaler argument: "Google's in-house team is 9 years old now, up from 6 when the last contracts were signed. The threat compounds annually."
 
 Let me show you why this argument, followed to its logical conclusion, proves too much.
 
-If the threat "compounds annually" and the competitive gap narrows each year, then there should be a point where the gap closes enough that Marvell loses a major design win. Let's ask: when does that happen? Google has been building in-house for 9 years. Marvell's revenue grew **42% in FY2026**. The threat is compounding. The revenue is also compounding. 
+If the threat "compounds annually" and the competitive gap narrows each year, then there should be a point where the gap closes enough that Marvell loses a major design win. Let's ask: when does that happen? Google has been building in-house for 9 years. Marvell's revenue grew **42% in FY2026**. The threat is compounding. The revenue is also compounding.
 
 **The compounding threat has been compounding for 9 years and Marvell keeps growing.** At some point, you have to ask whether the threat is actually "compounding" in the bear's sense or whether the technical complexity is *also* compounding — meaning the gap between what Marvell can do and what Google can do in-house stays constant or widens, because Marvell is also investing heavily ($652M/quarter in R&D) to stay ahead.
 
@@ -1435,7 +1435,7 @@ The bear's model treats "hyperscaler in-house capability" as a single monolithic
 
 ---
 
-## 💰 The Balance Sheet "Hedge" Theory: Creative, But Backwards
+#### 💰 The Balance Sheet "Hedge" Theory: Creative, But Backwards
 
 The bear's most creative new argument: management raised $2.99B for a $1.27B acquisition because they're "hedging" against an uncertain H2 FY2027. Management is less confident than they're letting on.
 
@@ -1449,9 +1449,9 @@ The bear wants to use management's capital raise as evidence of doubt. But the s
 
 ---
 
-## 🌡️ The r/investing "Math-Doers" Argument: Let Me Show You the Real History
+#### 🌡️ The r/investing "Math-Doers" Argument: Let Me Show You the Real History
 
-The bear's most entertaining reframe: r/investing's silence means "the math-doers looked and passed." 
+The bear's most entertaining reframe: r/investing's silence means "the math-doers looked and passed."
 
 Let me give you the actual history of r/investing and major AI infrastructure stocks during their breakout phases:
 
@@ -1463,7 +1463,7 @@ More fundamentally: the bear is treating r/investing as a community of rigorous 
 
 ---
 
-## 📉 The June 1 Candle: The Bear's "Distribution Process" Theory Has One Fatal Problem
+#### 📉 The June 1 Candle: The Bear's "Distribution Process" Theory Has One Fatal Problem
 
 The bear's final technical argument: distribution "began" on June 1 even if it wasn't completed, because smart sellers were "calibrating" how much supply the market can absorb. The $225 to $195 intraday move was the calibration.
 
@@ -1477,7 +1477,7 @@ And here's the technical data the bear still hasn't addressed: the **50 SMA is a
 
 ---
 
-## 🏆 The Real Final Scorecard — With Honest Accounting on Both Sides
+#### 🏆 The Real Final Scorecard — With Honest Accounting on Both Sides
 
 Let me do what neither of us has fully done: acknowledge where the bear is genuinely right, and show why even those concessions don't change the conclusion.
 
@@ -1498,14 +1498,14 @@ Let me do what neither of us has fully done: acknowledge where the bear is genui
 
 ---
 
-## 🎯 The Final Answer: What You're Actually Buying at $219
+#### 🎯 The Final Answer: What You're Actually Buying at $219
 
 Let me give you the honest framing that cuts through everything — no rhetoric, no metaphors about smoke or fuel or matches.
 
 **At $219 per share, you are buying:**
 
 - A company generating **$638M in operating cash flow per quarter** — up 91.9% year-over-year
-- A company generating **$482M in quarterly free cash flow** — up 127% year-over-year  
+- A company generating **$482M in quarterly free cash flow** — up 127% year-over-year
 - A company with **revenue accelerating in absolute dollar terms** — adding $200M sequentially in the most recent quarter, the largest quarter-over-quarter addition in the series
 - A company with **gross margins expanding from 50.2% to 52.1%** over four consecutive quarters
 - A company with **net debt collapsed from $3.35B to $1.12B** in under 12 months
@@ -1519,7 +1519,7 @@ That is not rigorous analysis. That is **selecting the worst-looking number from
 
 ---
 
-## The Bottom Line That Cannot Be Debated Away
+#### The Bottom Line That Cannot Be Debated Away
 
 Here's what I'll leave you with — not a metaphor, not a scorecard, just data:
 
@@ -1563,7 +1563,7 @@ I'm going to do something different in this final round. Instead of trading mode
 
 ---
 
-## 🎯 The One Analytical Error That Runs Through Every Bear Argument
+#### 🎯 The One Analytical Error That Runs Through Every Bear Argument
 
 Before I address the specific points, I need to call out the foundational error that undermines the bear's entire case, because once you see it, you can't unsee it.
 
@@ -1573,13 +1573,13 @@ These are not the same argument. A stock can be expensive AND continue appreciat
 
 Let me make this concrete. The bear's most dramatic number: MRVL trades at 47.6x forward earnings versus Nvidia's "peak" of 35-40x. Therefore MRVL is overvalued relative to Nvidia.
 
-But here's what they're not telling you: **Nvidia at 35-40x forward was generating approximately $60 billion in annual revenue growing at 80-100% year-over-year.** MRVL at 47.6x forward is generating approximately $9.7 billion in annual revenue growing at 27%. 
+But here's what they're not telling you: **Nvidia at 35-40x forward was generating approximately $60 billion in annual revenue growing at 80-100% year-over-year.** MRVL at 47.6x forward is generating approximately $9.7 billion in annual revenue growing at 27%.
 
 So why does MRVL deserve a *higher* forward multiple than Nvidia? **Because Marvell is earlier in its growth curve.** Earlier-stage hypergrowth companies command premium multiples precisely because the earnings compounding runway is longer. A company at $9.7B revenue growing toward $18B+ has more percentage upside in earnings than a company at $60B revenue. The bear's "MRVL is more expensive than peak Nvidia" argument proves the opposite of what they intend — it shows MRVL is being priced as an earlier-stage version of the same AI infrastructure story, which is exactly right.
 
 ---
 
-## 🔬 The GAAP vs. Reality Debate: Let Me End This Once and For All
+#### 🔬 The GAAP vs. Reality Debate: Let Me End This Once and For All
 
 The bear's most repeated argument across every round is the $34.5M GAAP net income number. They call it the "one that kills you." Let me show you why this number, used the way the bear uses it, is analytically indefensible.
 
@@ -1603,7 +1603,7 @@ Even after accounting for every dollar of SBC dilution, Marvell is creating $1.2
 
 ---
 
-## 📊 The Consensus EPS Argument: The Bear Called This a "Gambit" — Let Me Defend It Properly
+#### 📊 The Consensus EPS Argument: The Bear Called This a "Gambit" — Let Me Defend It Properly
 
 The bear says I "abandoned my model and outsourced the valuation argument to Wall Street consensus." That's a fair criticism of how I presented it, but the underlying point is sound — let me make it more rigorously.
 
@@ -1637,7 +1637,7 @@ That's still below $6.11 consensus, but it's close enough to validate the range 
 
 ---
 
-## 🎭 The Question the Bear Has Never Answered: Computex 2027
+#### 🎭 The Question the Bear Has Never Answered: Computex 2027
 
 I'll give the bear this: they've been relentlessly consistent about asking what happens if Huang doesn't endorse MRVL at Computex 2027. It's a fair question that deserves a direct answer rather than a pivot.
 
@@ -1647,7 +1647,7 @@ But here's the question the bear refuses to answer in return: **what does MRVL's
 
 By May 2027 — twelve months from now — on the current trajectory:
 - Revenue run rate: approximately $11-12 billion annually
-- Quarterly FCF: approximately $600-700 million  
+- Quarterly FCF: approximately $600-700 million
 - Forward EPS consensus: likely revised to $8-9 (on current trajectory)
 - Net debt: potentially eliminated entirely
 
@@ -1659,7 +1659,7 @@ For the bear's catastrophic downside to materialize, you don't just need the Hua
 
 ---
 
-## 🔴 Three Structural Arguments the Bear Has Never Answered
+#### 🔴 Three Structural Arguments the Bear Has Never Answered
 
 Let me highlight three arguments I've made repeatedly that the bear has deflected around but never directly refuted:
 
@@ -1693,7 +1693,7 @@ You don't need multiple expansion for MRVL to deliver extraordinary returns from
 
 ---
 
-## 🏆 The Scorecard That Actually Counts: Answers vs. Deflections
+#### 🏆 The Scorecard That Actually Counts: Answers vs. Deflections
 
 Let me give you the most honest accounting of this entire debate:
 
@@ -1716,7 +1716,7 @@ Let me give you the most honest accounting of this entire debate:
 
 ---
 
-## 🎯 The Only Question That Matters at $219
+#### 🎯 The Only Question That Matters at $219
 
 Let me strip away everything and give you the single question this decision comes down to:
 
@@ -1728,7 +1728,7 @@ If it's secular, the bull is right. The current multiple is the first chapter of
 
 **Here is the evidence on that question:**
 - Alphabet: $80 billion AI infrastructure commitment, publicly announced ✓
-- Amazon AWS: Record capex levels, accelerating ✓  
+- Amazon AWS: Record capex levels, accelerating ✓
 - HPE: Q2 beat, stock +30%, AI server demand validation ✓
 - Broadcom: Record close, +13% over 4 sessions, AI chip complex strength ✓
 - Anthropic IPO filing: VC and enterprise AI confidence ✓
@@ -1741,14 +1741,14 @@ That is a lot of simultaneous coincidences to ask me to believe.
 
 ---
 
-## 🏁 Final Word: The Debate Is Over. The Trend Continues.
+#### 🏁 Final Word: The Debate Is Over. The Trend Continues.
 
 My bear colleague is a rigorous analyst. Their five numbers are real. Their concerns about SBC, R&D trajectory, and goodwill deserve monitoring. I've said so, repeatedly, throughout this debate.
 
 But here's the truth about those five numbers:
 
 - **$34.5M GAAP net income** — distorted by $580M+ in non-cash charges; $482M FCF tells the real story
-- **$258.4M SBC** — real dilution, but net of FCF, still creates $1.24B/year in shareholder value  
+- **$258.4M SBC** — real dilution, but net of FCF, still creates $1.24B/year in shareholder value
 - **Beta 2.25** — yes, risk is elevated; this is why you size the position correctly and use the $183 stop
 - **Zero binding Huang commitments** — true, but the co-staged Computex appearance and integrated supply chain relationship speak louder than any contract
 - **36%→27.6% YoY deceleration** — true on percentages; false on absolute dollars, where the trend is accelerating
@@ -1787,7 +1787,7 @@ Let me take apart this bull case piece by piece, because the details matter enor
 
 ---
 
-## 🎭 Let's Start With the Elephant in the Room: The "Most Informed Price Target in History"
+#### 🎭 Let's Start With the Elephant in the Room: The "Most Informed Price Target in History"
 
 My colleague wants to frame Jensen Huang's Computex comments as some kind of oracle pronouncement — the "most informed price target ever delivered at a technology conference." I'm sorry, but this is precisely the kind of hyperbole that gets investors killed.
 
@@ -1795,17 +1795,17 @@ Let me be brutally direct about what actually happened: **a semiconductor CEO st
 
 And here's what the smart money on StockTwits — not usually the most skeptical crowd — actually noticed: *"this was just from 1 comment LOL"* and *"this is not even an ER, this was just from 1 comment."* When even the retail euphoria crowd is acknowledging the fragility of the catalyst, that should tell you something.
 
-But let's dig deeper into the bull's logic here, because it's circular in a dangerous way. The argument is essentially: "Jensen Huang knows the AI supply chain better than anyone, so when he endorses Marvell, it reflects deep insider knowledge." 
+But let's dig deeper into the bull's logic here, because it's circular in a dangerous way. The argument is essentially: "Jensen Huang knows the AI supply chain better than anyone, so when he endorses Marvell, it reflects deep insider knowledge."
 
 **Fine. But ask yourself: what are Jensen Huang's incentives?**
 
-Nvidia is a direct competitor to Marvell in networking silicon. Nvidia's Spectrum-X Ethernet platform competes with Marvell's networking products. Yet simultaneously, they're positioned as partners. Huang elevating Marvell at Computex could just as easily be about **managing perception of the AI ecosystem** — showing that AI infrastructure is a rising tide for everyone — as it is about genuine conviction that MRVL stock will 5x. 
+Nvidia is a direct competitor to Marvell in networking silicon. Nvidia's Spectrum-X Ethernet platform competes with Marvell's networking products. Yet simultaneously, they're positioned as partners. Huang elevating Marvell at Computex could just as easily be about **managing perception of the AI ecosystem** — showing that AI infrastructure is a rising tide for everyone — as it is about genuine conviction that MRVL stock will 5x.
 
 And critically: **Jensen Huang has no fiduciary obligation to MRVL shareholders.** He made a qualitative comment at a trade show. He did not publish a research note, provide financial projections, or stake any personal capital on that call. The fact that this single comment is the foundational pillar of the bull case should genuinely alarm you.
 
 ---
 
-## 💸 Let's Talk About What You're Actually Paying For
+#### 💸 Let's Talk About What You're Actually Paying For
 
 The bull case pivots quickly from the TTM PE of 99.6x to the forward PE of 47.6x, calling it "reasonable." I want to stress-test that reasoning, because the assumptions embedded in that forward PE are doing an enormous amount of work.
 
@@ -1824,7 +1824,7 @@ And here's the thing about the PEG ratio argument: **a PEG of 1.17x is only "rea
 
 ---
 
-## 🔴 Q1 FY2027 Net Income: This Is Not "Noise," This Is a Warning
+#### 🔴 Q1 FY2027 Net Income: This Is Not "Noise," This Is a Warning
 
 The bull dismisses the $34.5 million net income in Q1 FY2027 as "distorted by R&D surge." I want to push back hard on this characterization, because **what you're calling distortion, I'm calling a structural challenge that's going to persist.**
 
@@ -1836,17 +1836,17 @@ The custom AI silicon business is intensely competitive. To maintain design wins
 
 ---
 
-## 🏦 The Balance Sheet: $5.28 Billion in Debt in a Rising Rate Environment
+#### 🏦 The Balance Sheet: $5.28 Billion in Debt in a Rising Rate Environment
 
 The bull celebrates the net debt decline from $3.35 billion to $1.12 billion. What they don't adequately address is that **total debt sits at $5.28 billion** and long-term debt actually *increased* from $3.97 billion to $4.96 billion between January and April 2026. That's not deleveraging — that's refinancing at potentially higher rates.
 
-With a beta of 2.25 and a stock that just surged 29% on a trade show comment, MRVL is living in a world where the Fed's rate path matters enormously. The ongoing US-Iran tensions are pushing oil prices higher, which is inflationary, which keeps the rate environment more restrictive for longer. 
+With a beta of 2.25 and a stock that just surged 29% on a trade show comment, MRVL is living in a world where the Fed's rate path matters enormously. The ongoing US-Iran tensions are pushing oil prices higher, which is inflationary, which keeps the rate environment more restrictive for longer.
 
 **Every 100 basis points on $5.28 billion in debt is roughly $53 million in additional annual interest expense.** At Q1 FY2027's net income run rate of $34.5 million per quarter ($138 million annualized), a modest rate environment shift could wipe out MRVL's net profitability entirely. The bull is not pricing this risk at all.
 
 ---
 
-## ⚠️ The Goodwill Problem Is Not "Standard" — It's a Time Bomb
+#### ⚠️ The Goodwill Problem Is Not "Standard" — It's a Time Bomb
 
 Let me address the goodwill dismissal directly. The bull says $13.9 billion in goodwill (plus $2.8 billion in intangibles = $16.7 billion total, or **62% of total assets**) is "standard for fabless semiconductor IP companies" and "not a near-term impairment risk."
 
@@ -1860,7 +1860,7 @@ This is not a theoretical risk. This is exactly what happened to semiconductor c
 
 ---
 
-## 🎯 The Hyperscaler Customer Concentration Risk Is Actually Worse Than You Think
+#### 🎯 The Hyperscaler Customer Concentration Risk Is Actually Worse Than You Think
 
 The bull calls customer concentration a non-issue because "these are Google and Amazon — the two most durable capex spenders on the planet." This is precisely the wrong way to think about this risk.
 
@@ -1874,7 +1874,7 @@ The bull's "switching costs" argument — that 2–3 year design cycles create s
 
 ---
 
-## 📉 The Technical Picture: When "Overbought in a Strong Trend" Becomes "Blow-Off Top"
+#### 📉 The Technical Picture: When "Overbought in a Strong Trend" Becomes "Blow-Off Top"
 
 The bull says RSI at 74 with MACD expanding is a "continuation signal in a strong trend." Technically accurate — in a trend. But let me show you what the technical picture actually looks like from a risk perspective:
 
@@ -1886,21 +1886,21 @@ And here's the most telling technical signal of all: **Nvidia's stock went DOWN 
 
 ---
 
-## 🌡️ The Sentiment Picture Is a Contrarian's Dream
+#### 🌡️ The Sentiment Picture Is a Contrarian's Dream
 
 I want to spend a moment on what the sentiment data is actually telling us, because the bull glossed over it completely.
 
-**The StockTwits labeled ratio is 90% bullish / 10% bearish.** The report notes this is "at the upper bound before contrarian risk activates." And the price targets being thrown around? "$300 on deck," "$350 EOW," "$500 🎯." 
+**The StockTwits labeled ratio is 90% bullish / 10% bearish.** The report notes this is "at the upper bound before contrarian risk activates." And the price targets being thrown around? "$300 on deck," "$350 EOW," "$500 🎯."
 
 When retail traders start screaming $500 price targets on a stock that was at $70 four months ago, that is not a sign of healthy, broad-based conviction. That is **euphoric blow-off behavior.** This is the same pattern we saw in meme stocks, in speculative crypto assets, in the SPAC bubble. The language changes but the dynamics don't.
 
-And critically — **r/investing, the long-term fundamental investor community, has zero engagement with this story.** Zero posts. The people who do careful, patient fundamental analysis of businesses haven't touched this. The people throwing their savings into MRVL calls are WSB traders making YOLO bets based on a trade show speech. 
+And critically — **r/investing, the long-term fundamental investor community, has zero engagement with this story.** Zero posts. The people who do careful, patient fundamental analysis of businesses haven't touched this. The people throwing their savings into MRVL calls are WSB traders making YOLO bets based on a trade show speech.
 
 When the smart money is silent and the YOLO crowd is screaming, history tells us one thing: **the distribution phase is underway.**
 
 ---
 
-## 🔮 The Path to $1 Trillion: Let Me Show You the Math More Carefully
+#### 🔮 The Path to $1 Trillion: Let Me Show You the Math More Carefully
 
 The bull lays out a scenario for MRVL reaching $1 trillion. Let me audit it properly.
 
@@ -1925,7 +1925,7 @@ And the bull says "apply a moderate 30–35x PE." But today's forward PE is 47.6
 
 ---
 
-## 🎯 The Bear Summary: What You're Really Buying at $219
+#### 🎯 The Bear Summary: What You're Really Buying at $219
 
 Let me be completely transparent about what the risk/reward looks like right now:
 
@@ -1946,7 +1946,7 @@ Let me be completely transparent about what the risk/reward looks like right now
 
 ---
 
-## 🏁 Final Word: The Bear Case Wins on Risk Management
+#### 🏁 Final Word: The Bear Case Wins on Risk Management
 
 The bull tells you "the trend is your friend, the fundamentals are your foundation." But let me offer you a different framing:
 
@@ -1977,7 +1977,7 @@ Let me be the external auditor.
 
 ---
 
-## 🎭 The "Co-Staged" Argument Is the Bull's Weakest Move Yet
+#### 🎭 The "Co-Staged" Argument Is the Bull's Weakest Move Yet
 
 The bull's most dramatic escalation from the previous round is this: "Huang didn't appear on stage alone — this was co-staged with CEO Matt Murphy, requiring weeks of legal sign-off and strategic alignment."
 
@@ -1989,7 +1989,7 @@ The bull is simultaneously arguing that this was the most carefully prepared, le
 
 ---
 
-## 💸 "Already Happening" Is the Most Dangerous Phrase in Investing
+#### 💸 "Already Happening" Is the Most Dangerous Phrase in Investing
 
 The bull's valuation defense boils down to this: the growth is "already happening," not an assumption. Revenue at 27.6% growth. Gross margins at 52.1% and expanding. Hyperscaler capex committed.
 
@@ -2007,7 +2007,7 @@ The bull says "it's already happening" as if current momentum is a guarantee of 
 
 ---
 
-## 🔬 The R&D Debate: The Bull's "Peak Spending" Argument Has No Evidence
+#### 🔬 The R&D Debate: The Bull's "Peak Spending" Argument Has No Evidence
 
 Here's the bull's most aggressive claim: "The $652M Q1 FY2027 R&D quarter is almost certainly near peak spending for the current generation of designs."
 
@@ -2029,7 +2029,7 @@ The Nvidia analogy doesn't apply. The bull knows this business model — they de
 
 ---
 
-## 🏦 On the Balance Sheet: I Raised a Specific Risk the Bull Didn't Answer
+#### 🏦 On the Balance Sheet: I Raised a Specific Risk the Bull Didn't Answer
 
 The bull responded to my interest rate argument by saying Marvell's debt was "largely issued at fixed rates." Let me address this directly, because this is a critical factual point.
 
@@ -2043,9 +2043,9 @@ Here's the bottom line: **The bull's FCF story and the bull's balance sheet stor
 
 ---
 
-## ⚠️ Goodwill: The Bull's Defense Proves Too Much
+#### ⚠️ Goodwill: The Bull's Defense Proves Too Much
 
-The bull's goodwill rebuttal: "Impairment requires AI capex to not just slow but reverse significantly." 
+The bull's goodwill rebuttal: "Impairment requires AI capex to not just slow but reverse significantly."
 
 I'll accept that framing. Now let me show you why the bar for "significant reversal" is lower than the bull is implying.
 
@@ -2055,7 +2055,7 @@ And here's the bear's key point: I don't need the AI capex cycle to *reverse.* I
 
 ---
 
-## 🎯 The Hyperscaler Argument: Revenue Growth ≠ Absence of Threat
+#### 🎯 The Hyperscaler Argument: Revenue Growth ≠ Absence of Threat
 
 The bull's most rhetorically powerful move: "Marvell's revenue grew 42% while hyperscalers were building in-house. The premise is invalidated by the data."
 
@@ -2074,7 +2074,7 @@ And here's a datapoint the bull cannot explain away: the bull's own description 
 
 ---
 
-## 📉 Technical: Let Me Introduce One Chart Pattern the Bull Completely Ignored
+#### 📉 Technical: Let Me Introduce One Chart Pattern the Bull Completely Ignored
 
 The bull correctly notes there's no MACD divergence yet. Fair point. But there's a technical signal in the data that neither of us has discussed until now, and it's significant.
 
@@ -2091,7 +2091,7 @@ The bull says "institutional volume confirms accumulation." But institutional vo
 
 ---
 
-## 🌡️ On Sentiment: The Bull's "Institutional Volume" Argument Is Circular
+#### 🌡️ On Sentiment: The Bull's "Institutional Volume" Argument Is Circular
 
 The bull's most compelling sentiment rebuttal: "32.9 million shares at ~$200 average = $6.5 billion in institutional volume. That's not retail."
 
@@ -2107,7 +2107,7 @@ The textbook distribution pattern is: **smart money creates events or waits for 
 
 ---
 
-## 🔮 The $1 Trillion Scenario: Let Me Give the Bull's Own Math Back to Them
+#### 🔮 The $1 Trillion Scenario: Let Me Give the Bull's Own Math Back to Them
 
 The bull's "fatal flaw" argument is that R&D won't stay at 27% of revenue. I said it would, they said it won't. But here's the thing — even accepting the bull's *best case* operating leverage scenario, the math doesn't get you to $1 trillion without extraordinary multiple expansion that defies gravity.
 
@@ -2132,7 +2132,7 @@ And what happens in the downside scenario? The bull gives you $230+ as the near-
 
 ---
 
-## 🏁 Final Statement: The Bull Won the Narrative. The Bear Wins the Math.
+#### 🏁 Final Statement: The Bull Won the Narrative. The Bear Wins the Math.
 
 My colleague is a gifted storyteller. The MRVL bull case *sounds* compelling because it's built on real fundamentals, genuine AI infrastructure spending, and an extraordinary endorsement from Jensen Huang. I've never disputed that Marvell is a good company doing impressive things.
 
@@ -2165,7 +2165,7 @@ These are not the same thing.
 
 The business is real. The AI tailwind is real. The FCF is real. **And none of that justifies buying a beta 2.25, 99x TTM PE, 47% above its 50 SMA stock whose growth rate is already decelerating, whose primary near-term catalyst was a trade show speech, and whose June 1 candle showed $30 of intraday selling pressure on its single most bullish news day of the year.**
 
-Wait for $149. Wait for confirmed earnings acceleration, not deceleration. Wait for a quarter where the net income number doesn't require six paragraphs of explanation to make acceptable. 
+Wait for $149. Wait for confirmed earnings acceleration, not deceleration. Wait for a quarter where the net income number doesn't require six paragraphs of explanation to make acceptable.
 
 The bull bought the fuel at $75. **At $219, you're being handed the match and told it's the same trade.**
 
@@ -2186,7 +2186,7 @@ Let me be the cold shower this debate desperately needs.
 
 ---
 
-## 🎭 The SEC Argument: The Bull Corrected Me on the Law and Missed the Point Entirely
+#### 🎭 The SEC Argument: The Bull Corrected Me on the Law and Missed the Point Entirely
 
 Fine. I'll accept the technical legal correction. Jensen Huang isn't an MRVL insider, so no 8-K obligation attaches to his remarks. The bull wins the securities law seminar.
 
@@ -2202,7 +2202,7 @@ That's the point. The bull spent 400 words on securities law and zero words answ
 
 ---
 
-## 💸 Absolute Dollar Growth: The Bull's Most Seductive Sleight of Hand
+#### 💸 Absolute Dollar Growth: The Bull's Most Seductive Sleight of Hand
 
 This is genuinely impressive framing, and I want to give it the attention it deserves — because it's also genuinely misleading.
 
@@ -2223,7 +2223,7 @@ The bull is pointing at the strongest quarterly data point in the series and cal
 
 ---
 
-## 🔬 The GAAP vs. Non-GAAP Shell Game: The Bull Just Accidentally Made My Case
+#### 🔬 The GAAP vs. Non-GAAP Shell Game: The Bull Just Accidentally Made My Case
 
 This is where I need to slow down, because the bull made a revealing admission in their R&D section that they didn't fully process.
 
@@ -2244,7 +2244,7 @@ The forward EPS of $6.11 that the bull's entire 47.6x forward PE argument rests 
 
 ---
 
-## 🏦 On the Balance Sheet: The Bull's "Standard Corporate Finance" Defense Has a Contradiction
+#### 🏦 On the Balance Sheet: The Bull's "Standard Corporate Finance" Defense Has a Contradiction
 
 I'm going to make a narrow but precise point here, because the bull's balance sheet rebuttal contains an internal contradiction they haven't acknowledged.
 
@@ -2262,7 +2262,7 @@ That's not "competent treasury management." That's a hedge. And management hedgi
 
 ---
 
-## ⚠️ The Non-GAAP EPS Math: Let Me Run the Numbers the Bull Refused to Finish
+#### ⚠️ The Non-GAAP EPS Math: Let Me Run the Numbers the Bull Refused to Finish
 
 The bull started a DCF-style calculation, got a result they didn't like ($2.91 GAAP EPS), declared it wrong, and pivoted to non-GAAP without actually completing the non-GAAP model. Let me finish it for them.
 
@@ -2291,7 +2291,7 @@ The bull's model works only if you use assumptions beyond what they've explicitl
 
 ---
 
-## 🎯 The Hyperscaler Argument: The Bull's "Already Won" Logic Has a Time Horizon Problem
+#### 🎯 The Hyperscaler Argument: The Bull's "Already Won" Logic Has a Time Horizon Problem
 
 The bull says: "Google's in-house TPU team was already 4-6 years mature when MRVL's most recent contracts were signed. Marvell still won. Therefore the threat is overstated."
 
@@ -2307,7 +2307,7 @@ The bull says Jensen Huang's endorsement implies Marvell is winning new design c
 
 ---
 
-## 📉 On the June 1 Candlestick: The Bull Won the Footnote, Not the Argument
+#### 📉 On the June 1 Candlestick: The Bull Won the Footnote, Not the Argument
 
 The bull makes a technically correct point: a shooting star requires confirmation on the following session. Fair. We don't have June 2 data.
 
@@ -2321,7 +2321,7 @@ The bull says "you can't have both distribution AND a new multi-month high close
 
 ---
 
-## 🌡️ The Sentiment Picture: The Bull's "r/investing Silence = Early Innings" Inversion Is Backwards
+#### 🌡️ The Sentiment Picture: The Bull's "r/investing Silence = Early Innings" Inversion Is Backwards
 
 This is the bull's most creative reframe, and I have to address it directly because it's genuinely wrong.
 
@@ -2337,7 +2337,7 @@ When the math-doers are silent and the YOLO crowd is loud, that is not "early in
 
 ---
 
-## 🔮 The Risk/Reward: The Bull's "Symmetric Comparison" Has a Fatal Flaw
+#### 🔮 The Risk/Reward: The Bull's "Symmetric Comparison" Has a Fatal Flaw
 
 The bull's most technically sophisticated rebuttal was their "symmetric" risk/reward comparison, which showed that even the bear's base case produces upside. Let me audit this carefully.
 
@@ -2361,7 +2361,7 @@ Marvell currently trades at 47.6x forward because it's growing at 27%+. If growt
 
 ---
 
-## 🏁 The Final Statement: The Numbers the Bull Couldn't Answer
+#### 🏁 The Final Statement: The Numbers the Bull Couldn't Answer
 
 Let me close with five specific numbers from this debate that the bull never adequately addressed:
 
@@ -2382,7 +2382,7 @@ That was February 5, 2026 — **four months ago.** A stock that went from $61 to
 
 ---
 
-## The Scorecard the Bull Doesn't Want You to See
+#### The Scorecard the Bull Doesn't Want You to See
 
 | Question | Honest Answer |
 |---|---|
@@ -2399,7 +2399,7 @@ That was February 5, 2026 — **four months ago.** A stock that went from $61 to
 
 ---
 
-## Final Word: The Bull Won the Debate Points. The Bear Wins Your Portfolio.
+#### Final Word: The Bull Won the Debate Points. The Bear Wins Your Portfolio.
 
 Here's the honest truth: my bull colleague is a better debater than I am. They reframe effectively. They pivot smoothly. They give away the draws strategically to look credible on the wins. That's good debate craft.
 
@@ -2417,7 +2417,7 @@ I say: **At $61, the trend was your friend. At $219, the trend is priced, the ri
 
 Wait for the fundamentals to catch the narrative. Wait for a GAAP net income number that doesn't require an explanatory footnote longer than the income statement. Wait for the growth rate to stabilize rather than decelerate. Wait for the goodwill to be tested by a full earnings cycle.
 
-The bull bought the fuel. The bull bought the match. 
+The bull bought the fuel. The bull bought the match.
 
 **At $219, you're being sold the smoke.**
 
@@ -2440,7 +2440,7 @@ Let me show you why.
 
 ---
 
-## 🔬 The Sell-Side Consensus Gambit: The Bull's Most Dangerous Concession
+#### 🔬 The Sell-Side Consensus Gambit: The Bull's Most Dangerous Concession
 
 Here is the most revealing moment in the bull's entire final argument. After I ran the numbers using their own stated assumptions and got non-GAAP EPS of approximately $2.67-$3.31 by FY2029 — not the $15-20 they originally projected — the bull's response was:
 
@@ -2460,7 +2460,7 @@ That is not "reasonable." That is the market pricing perfection and then some.
 
 ---
 
-## 💸 The Non-GAAP Shell Game: Let Me Finish What the Bull Started
+#### 💸 The Non-GAAP Shell Game: Let Me Finish What the Bull Started
 
 The bull graciously redid my FY2029 model with "corrected" SBC assumptions and got to non-GAAP EPS of $3.31. Then they said: "Still not $15-20. But the sell-side consensus says $6.11, so trust that."
 
@@ -2474,7 +2474,7 @@ The bull knows this, which is why they abandoned the model and ran to sell-side 
 
 ---
 
-## 🎭 The Jensen Huang Question I Keep Asking That the Bull Keeps Not Answering
+#### 🎭 The Jensen Huang Question I Keep Asking That the Bull Keeps Not Answering
 
 Through every round of this debate, I have asked one specific question that the bull has addressed tangentially but never directly:
 
@@ -2492,7 +2492,7 @@ The bull says the fundamentals are the foundation. But fundamentals alone — 27
 
 ---
 
-## 📉 Sequential Growth: The Bull Conceded More Than They Realized
+#### 📉 Sequential Growth: The Bull Conceded More Than They Realized
 
 The bull made a point I want to acknowledge as genuinely correct: Q4→Q1 sequential growth of 9.0% was the strongest in the series. I conceded this mid-debate. I stand by that concession.
 
@@ -2506,7 +2506,7 @@ But here's the thing about Alphabet's $80 billion: **it's a commitment, not a pu
 
 ---
 
-## ⚠️ The Goodwill Risk: One Number the Bull Never Addressed
+#### ⚠️ The Goodwill Risk: One Number the Bull Never Addressed
 
 Throughout this debate, the bull has responded to every goodwill argument by saying the risk requires "simultaneous failures" or "catastrophe." Let me give you a scenario that requires neither — just arithmetic.
 
@@ -2520,7 +2520,7 @@ The bull says "it deserves quarterly scrutiny." Great. But at $219 per share, yo
 
 ---
 
-## 🎯 The Hyperscaler Argument: The Bull's "Different Engineering Disciplines" Defense Has a Leak
+#### 🎯 The Hyperscaler Argument: The Bull's "Different Engineering Disciplines" Defense Has a Leak
 
 The bull's strongest structural argument in this final round: Google's TPU team doesn't compete with Marvell's PAM4 DSP expertise for optical interconnects. These are different engineering disciplines.
 
@@ -2536,7 +2536,7 @@ That's not a catastrophe. It's a gradual erosion of the premium multiple. And at
 
 ---
 
-## 🔴 Five Numbers That Transcend the Debate
+#### 🔴 Five Numbers That Transcend the Debate
 
 Let me close not with a scorecard — the bull rightfully criticized my self-graded version — but with five numbers that are objective, audited, and cannot be explained away by either of us:
 
@@ -2552,7 +2552,7 @@ Let me close not with a scorecard — the bull rightfully criticized my self-gra
 
 ---
 
-## 🏁 The Bear's Final Position: Not Anxiety. Not Rhetoric. Reality.
+#### 🏁 The Bear's Final Position: Not Anxiety. Not Rhetoric. Reality.
 
 My bull colleague wants to frame this debate as "the bear wins the anxiety, the data wins the investment." It's a great line. It's also a false dichotomy.
 
@@ -2583,7 +2583,7 @@ Not because the business is bad. Not because the AI tailwind is fake. Not becaus
 
 **Because at $219, you are paying for a story, not a business. And stories told at trade shows don't come with warranties.**
 
-The bull bought the fuel at $75. The bull lit the match at Computex. 
+The bull bought the fuel at $75. The bull lit the match at Computex.
 
 **At $219, you are standing in the fire, being told it's a campfire.**
 
@@ -2604,7 +2604,7 @@ That single concession is the most important number in this entire debate. Let m
 
 ---
 
-## 🎯 The Bull Just Handed Me the Closing Argument
+#### 🎯 The Bull Just Handed Me the Closing Argument
 
 Round one of this debate: the bull projected $15-20 non-GAAP EPS by FY2029 to justify a path to $1 trillion.
 
@@ -2618,7 +2618,7 @@ The bull's rocket is pointed at a landing pad 29% below where you bought it.
 
 ---
 
-## 💸 "Earlier in the Growth Curve Than Nvidia" — The Most Dangerous Argument in This Debate
+#### 💸 "Earlier in the Growth Curve Than Nvidia" — The Most Dangerous Argument in This Debate
 
 The bull's new framing: MRVL deserves a *higher* forward multiple than peak Nvidia because it's "earlier in its growth curve" with more percentage compounding ahead.
 
@@ -2634,7 +2634,7 @@ The bull says MRVL is "earlier in its growth curve" and therefore deserves a pre
 
 ---
 
-## 🔬 The FCF Math: The Bull's "Net Value Creation" Argument Has a Fatal Flaw
+#### 🔬 The FCF Math: The Bull's "Net Value Creation" Argument Has a Fatal Flaw
 
 The bull's most emotionally resonant argument: even after $1.03B in annual SBC dilution, MRVL still creates $1.24B in annual net value for shareholders ($2.27B FCF minus $1.03B SBC).
 
@@ -2661,7 +2661,7 @@ The bull's "Amazon comparison" doesn't save them here. Amazon in 2012 had a nasc
 
 ---
 
-## 🏦 Three Questions the Bull Has Never Answered
+#### 🏦 Three Questions the Bull Has Never Answered
 
 Across this entire debate, I've asked three specific questions that the bull has consistently pivoted around. Let me state them one final time.
 
@@ -2679,7 +2679,7 @@ The bull's stop-loss is $183 — the Bollinger Middle Band. But in a beta 2.25 s
 
 ---
 
-## 📊 The "Secular vs. Cyclical" Framing: The Bull's Most Convenient False Binary
+#### 📊 The "Secular vs. Cyclical" Framing: The Bull's Most Convenient False Binary
 
 The bull's closing frame: "Is AI infrastructure secular or cyclical? Every external data point says secular."
 
@@ -2695,13 +2695,13 @@ The secular vs. cyclical framing allows the bull to anchor to the most favorable
 
 ---
 
-## 🎯 The Integrated Architecture Argument: The Bull's Answer Creates a New Problem
+#### 🎯 The Integrated Architecture Argument: The Bull's Answer Creates a New Problem
 
 The bull's strongest new argument this round: Marvell's custom XPU value proposition is an integrated solution — compute silicon + co-packaged optics + networking interconnects. The optical expertise makes the custom XPU defensible.
 
 I'll grant the logic is sound. But follow it to its conclusion.
 
-**If Marvell's competitive advantage is the *integration* of compute + optical + networking in a single custom design, then Marvell's revenue is entirely dependent on winning the integrated design contract — not just the optical piece, not just the networking piece, but the whole package.** 
+**If Marvell's competitive advantage is the *integration* of compute + optical + networking in a single custom design, then Marvell's revenue is entirely dependent on winning the integrated design contract — not just the optical piece, not just the networking piece, but the whole package.**
 
 This means customer concentration risk is even higher than I originally stated. If Google decides to source the compute die in-house and maintain Marvell for optical/networking as separate contracts, Marvell doesn't just lose one revenue stream — they lose the *integration premium* that justifies their entire value proposition. The custom XPU design win is all-or-nothing, not modular.
 
@@ -2711,7 +2711,7 @@ The bull's "integrated moat" argument is a double-edged sword. Integration creat
 
 ---
 
-## 📉 The June 1 Candle Revisited: One Final Technical Observation
+#### 📉 The June 1 Candle Revisited: One Final Technical Observation
 
 The bull says the June 1 candle's lower wick recovery to $219 from $195 is bullish — buyers overwhelmed sellers. Let me add one data point they haven't mentioned.
 
@@ -2719,17 +2719,17 @@ The bull says the June 1 candle's lower wick recovery to $219 from $195 is bulli
 
 **But here's what they're not telling you:** Bollinger Band breaches with an ATR of $13.53 have a specific statistical property. The standard deviation bands are calculated on recent price history. When a stock breaches the upper band and then fails to sustain the breach — closing back below the band in subsequent sessions — it generates a statistically reliable mean-reversion signal toward the Bollinger Middle Band ($183).
 
-With ATR at $13.53 and RSI at 74, the mean reversion target of $183 is not a catastrophic bear scenario. It's the **most likely technical outcome** in the next 4-6 weeks — a normal, healthy consolidation that the bull's own technical analysis report acknowledges as the "key swing support." 
+With ATR at $13.53 and RSI at 74, the mean reversion target of $183 is not a catastrophic bear scenario. It's the **most likely technical outcome** in the next 4-6 weeks — a normal, healthy consolidation that the bull's own technical analysis report acknowledges as the "key swing support."
 
 At $183, you've lost 16.5% from the $219 entry. On a beta 2.25 stock that just moved $30 intraday on its best catalyst day, that move can happen in three sessions. The bull says "use $183 as your stop." I'm saying: **why buy at $219 when you can wait and buy at $190 after the mean reversion the bull's own technical report predicts?**
 
 ---
 
-## 🏁 The Final Argument: Five Words That Win the Bear Case
+#### 🏁 The Final Argument: Five Words That Win the Bear Case
 
 The bull closed with: "The fire the bear warned you about? It's the light from a rocket on the launchpad."
 
-Beautiful line. Genuinely. 
+Beautiful line. Genuinely.
 
 Here's my response in five words: **Rockets require perfect trajectory calculations.**
 
@@ -2748,7 +2748,7 @@ And here's what we know about MRVL's trajectory calculation:
 
 ---
 
-## 📋 The Definitive Bear Scorecard
+#### 📋 The Definitive Bear Scorecard
 
 | What the Bull Claimed | What the Data Actually Shows |
 |---|---|

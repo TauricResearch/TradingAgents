@@ -1,0 +1,9 @@
+**Action**: Hold
+
+**Reasoning**: PDD presents a genuinely bifurcated setup: the long-term valuation thesis is compelling — ~¥105B in annual free cash flow, ~$60B net cash (~half of market cap), 25% ROE, zero financial debt, and a ~7x forward earnings multiple that materially over-discounts franchise quality on a 12–18 month horizon — arguing firmly against an outright Sell. However, the near-term picture remains unfavorable: PDD is trading below all three major moving averages in a broken technical structure, the earnings-revision cycle is incomplete with Q1 2026 already showing net income down ~15% YoY and gross profit growing slower than revenue, the de minimis exemption elimination is a genuine structural headwind to Temu's U.S. cost advantage (confirming the multi-year capex program is largely defensive), and VIE legal-structure risks remain unrebutted beyond a "priced in" assertion. The two strongest theses — long-term deep value vs. near-term momentum deterioration and earnings contraction — point in opposite time directions, making this a textbook Hold. Maintain current PDD exposure at neutral weight with a soft stop reference below ~$81 (decisive break below May 28 intraday low on volume warrants a trim to Underweight), and re-engage the Buy/Sell decision with Q2 2026 earnings data in hand.
+
+**Stop Loss**: 81.0
+
+**Position Sizing**: Maintain current weight; trim to neutral if oversized relative to normal book weight given elevated ATR (~$3.90). Do NOT initiate new long exposure. Consider a low-cost protective put or collar to hedge binary Q2 2026 earnings catalyst risk without altering share count.
+
+FINAL TRANSACTION PROPOSAL: **HOLD**

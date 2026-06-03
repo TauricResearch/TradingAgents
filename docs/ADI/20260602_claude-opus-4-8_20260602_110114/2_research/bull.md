@@ -55,7 +55,7 @@ Now, I know what the bear is going to say. "ADI trades at 62x trailing earnings 
 
 **Forward PE: 28.2x** — perfectly reasonable for a semiconductor leader in a multi-year upcycle.
 
-But here's the number that really matters: **PEG ratio of 0.91**. Below 1.0. For a company with a **5-year EPS CAGR forecast of 29.65%**. 
+But here's the number that really matters: **PEG ratio of 0.91**. Below 1.0. For a company with a **5-year EPS CAGR forecast of 29.65%**.
 
 A PEG below 1 on a business with 30% earnings growth rates, 67% gross margins, and $4+ billion in annual free cash flow is not expensive. It's *cheap relative to growth*. The TTM PE of 62x is a distortion of where the earnings cycle was — not where it's going. Forward EPS of **$14.77 versus TTM EPS of $6.72** represents a ~120% earnings acceleration. The denominator is about to get a lot bigger.
 
@@ -131,7 +131,7 @@ The company has:
 
 The bear case requires you to believe that the AI buildout stalls, industrial automation reverses, five major analyst firms are wrong, and ADI's best quarter in recent history was a fluke. I don't think the evidence supports any of those conclusions.
 
-**ADI at $402 is not a top. It's a pit stop on the way to $474.** 
+**ADI at $402 is not a top. It's a pit stop on the way to $474.**
 
 The bull case isn't just intact — it's accelerating. And I'd rather own this pullback than explain to my portfolio why I sat out one of the decade's premier analog semiconductor growth stories.
 
@@ -246,7 +246,7 @@ Let me be completely transparent about what the bull and bear cases are each rea
 
 **The bull is arguing:** "This business is structurally better today than it was at any prior point, the earnings acceleration is real and defensible, the AI tailwind is in early innings, and the consolidation from $435 to $402 is a normal pullback within a structural uptrend — not a distribution top."
 
-Here's the decisive data point that the bear never directly addresses: **Q3 FY2026 guidance of $3.9 billion.** Management raised guidance. Not maintained. *Raised.* To $3.9 billion — which would represent a further acceleration above Q2's already exceptional $3.62 billion. 
+Here's the decisive data point that the bear never directly addresses: **Q3 FY2026 guidance of $3.9 billion.** Management raised guidance. Not maintained. *Raised.* To $3.9 billion — which would represent a further acceleration above Q2's already exceptional $3.62 billion.
 
 Management teams don't raise guidance into deteriorating conditions. They don't raise guidance when they're seeing AR quality deterioration. They don't raise guidance when inventory is worrying them. **The people with the best information about ADI's business — its own executives — are telling you the business is getting better, not worse.** The bear is asking you to trust their hypothetical cycle concerns over management's explicit, public, legally-binding forward guidance.
 
@@ -340,7 +340,7 @@ Let me stress-test each assumption:
 
 **First, the $3.7B Q3 revenue assumption.** Management guided $3.9B. The bear assumes a $200M miss — a 5.1% revenue shortfall. ADI has beaten quarterly revenue estimates in 7 of the last 8 quarters. A miss of this magnitude would be an outlier, not the base case. But fine — let's grant it for scenario purposes.
 
-**Second, the 30x forward multiple.** This is where the bear's model falls apart. The bear is applying a 30x multiple to ADI — a company with 67% gross margins, $4+ billion in annual FCF, a 5-year EPS CAGR of 29.65%, sector leadership, and multiple strategic AI partnerships — in a scenario where it merely grows earnings 30-40% YoY instead of 120%. 
+**Second, the 30x forward multiple.** This is where the bear's model falls apart. The bear is applying a 30x multiple to ADI — a company with 67% gross margins, $4+ billion in annual FCF, a 5-year EPS CAGR of 29.65%, sector leadership, and multiple strategic AI partnerships — in a scenario where it merely grows earnings 30-40% YoY instead of 120%.
 
 **30x is not "generous for a cyclical semiconductor." It's the multiple you apply at the *bottom* of the cycle, when investors are pricing in maximum pessimism.** Texas Instruments, often cited as the analog semiconductor multiple benchmark, trades at 35-40x forward earnings in a normalized environment. ADI, with structurally superior growth prospects and AI optionality, deserves a premium to that. A more realistic multiple even in a modest miss scenario is **38-42x** — not 30x.
 
@@ -404,7 +404,7 @@ The bear closed with what they presented as an irrefutable logical construct: "T
 
 This sounds devastating. It isn't. Here's why it's a logical sleight of hand.
 
-**Every investment thesis can be framed this way.** The bear on Apple in 2013 said: "The bull case requires iPhone dominance, Services growth, AND China expansion. The bear case requires just one to fail." The bear on Amazon in 2015 said: "The bull case requires AWS, retail margin improvement, AND global expansion. The bear case requires just one." 
+**Every investment thesis can be framed this way.** The bear on Apple in 2013 said: "The bull case requires iPhone dominance, Services growth, AND China expansion. The bear case requires just one to fail." The bear on Amazon in 2015 said: "The bull case requires AWS, retail margin improvement, AND global expansion. The bear case requires just one."
 
 The bear framing always sounds compelling because it maps the multiple conditions for success against the single trigger for failure. But it obscures the crucial question: **what is the probability of each outcome?**
 
@@ -472,7 +472,7 @@ Here's the most extraordinary moment in the bear's final argument, and I want to
 
 Let me explain why this is the bear accidentally destroying their own thesis.
 
-The $10.50 EPS × 40x scenario I described was explicitly a **mild miss scenario** — a downside stress test, not the base case. In the base case, where ADI executes on its $3.9B Q3 guidance (which management has a documented track record of meeting), forward EPS moves toward **$14.77** — the number the entire analyst community is modeling. Apply a 30x multiple to $14.77 — the bear's own "appropriate" multiple — and you get **$443**. Apply 35x and you get **$517**. 
+The $10.50 EPS × 40x scenario I described was explicitly a **mild miss scenario** — a downside stress test, not the base case. In the base case, where ADI executes on its $3.9B Q3 guidance (which management has a documented track record of meeting), forward EPS moves toward **$14.77** — the number the entire analyst community is modeling. Apply a 30x multiple to $14.77 — the bear's own "appropriate" multiple — and you get **$443**. Apply 35x and you get **$517**.
 
 The bear's own multiple range, applied to the bull's base case EPS, gives you a price range of **$443–$517** against a current price of $402. That's **10–29% upside using the bear's own framework.**
 
@@ -556,7 +556,7 @@ Every one of these data points is consistent with post-catalyst consolidation, n
 
 The bear made their most aggressive goodwill argument: "56% of total assets is not the same tail risk as 'Apple could lose iPhone.'" Fair. It's a larger percentage. But let me give you the countervailing context.
 
-**ADI's annual EBITDA is approximately $7.6 billion.** If we assume the goodwill-bearing assets (primarily the Maxim acquisition) generate a proportional share of that EBITDA, the implied value of those assets at even a conservative 10x EBITDA multiple is **$43+ billion** — dramatically above the $26.97B carrying value. Goodwill impairment requires the *market* to believe the acquired assets are worth less than their carrying value. 
+**ADI's annual EBITDA is approximately $7.6 billion.** If we assume the goodwill-bearing assets (primarily the Maxim acquisition) generate a proportional share of that EBITDA, the implied value of those assets at even a conservative 10x EBITDA multiple is **$43+ billion** — dramatically above the $26.97B carrying value. Goodwill impairment requires the *market* to believe the acquired assets are worth less than their carrying value.
 
 At current ADI revenue and margin trajectory — including the AI and industrial segments that Maxim's technology enabled — what's the probability the market concludes the Maxim assets are worth less than $27 billion? With EBITDA at $7.6B and growing? **The impairment math doesn't work unless you model a catastrophic revenue and multiple collapse simultaneously.** Which is exactly the scenario the bear has to invoke every time their more moderate arguments don't generate sufficient downside.
 
@@ -588,15 +588,15 @@ Here's what actually happens in practice: investors sell ADI at $402 because the
 
 The case for ADI is not complicated. It's a best-in-class precision analog semiconductor business executing at the highest level in its recent history, in the early innings of two independently powerful secular growth cycles — AI infrastructure and industrial automation — with:
 
-✅ **Q3 FY2026 guidance of $3.9B** from management with a 7-of-8 beat track record  
-✅ **PEG ratio of 0.91** — below 1.0, indicating the market is underpricing the growth  
-✅ **5-year EPS CAGR of 29.65%** — structurally supported by AI buildout and industrial recovery  
-✅ **67.3% gross margins** — expanding, not contracting  
-✅ **$4B+ annual FCF** tracking toward $5B+ — with CapEx remaining disciplined  
-✅ **Five tier-one analyst targets at $460–$500** from independent, rigorous models  
-✅ **50 SMA at $375 — structurally intact, rising, and never violated** during this pullback  
-✅ **MACD histogram improving** — bearish momentum decelerating, not accelerating  
-✅ **Nvidia 800V partnership** embedded in next-generation infrastructure architecture  
+✅ **Q3 FY2026 guidance of $3.9B** from management with a 7-of-8 beat track record
+✅ **PEG ratio of 0.91** — below 1.0, indicating the market is underpricing the growth
+✅ **5-year EPS CAGR of 29.65%** — structurally supported by AI buildout and industrial recovery
+✅ **67.3% gross margins** — expanding, not contracting
+✅ **$4B+ annual FCF** tracking toward $5B+ — with CapEx remaining disciplined
+✅ **Five tier-one analyst targets at $460–$500** from independent, rigorous models
+✅ **50 SMA at $375 — structurally intact, rising, and never violated** during this pullback
+✅ **MACD histogram improving** — bearish momentum decelerating, not accelerating
+✅ **Nvidia 800V partnership** embedded in next-generation infrastructure architecture
 ✅ **PEG below 1.0** using bear's own 30x multiple and base case EPS above $14
 
 The bear wants you to exit this position because of what *might* happen. I'm asking you to hold and add because of what *is* happening — right now, in the most recent data available.
@@ -688,7 +688,7 @@ The bear wants you to sell at $402 because the stock priced in too much at $435.
 
 ## 💵 On the "18% Upside on Perfection" Framing — The Bear Is Understating the Bull Case
 
-The bear's core risk/reward argument: "18% upside on perfection versus 8-25% downside on normal cyclicality." 
+The bear's core risk/reward argument: "18% upside on perfection versus 8-25% downside on normal cyclicality."
 
 Let me challenge both sides of that equation directly.
 
@@ -720,7 +720,7 @@ The bear closed with five "data-grounded" reasons to sell. Let me give each one 
 
 ## 📋 The Final Argument That Settles This Debate
 
-The bear's best rhetorical move throughout has been the Cisco/Intel/Qualcomm analogy — "great companies can be bad investments at peak prices." 
+The bear's best rhetorical move throughout has been the Cisco/Intel/Qualcomm analogy — "great companies can be bad investments at peak prices."
 
 It's a powerful framing. And it's the wrong analogy. Here's why.
 
@@ -764,7 +764,7 @@ I've been consistent throughout this debate: **ADI is not just a great company �
 
 Don't let the bear's analytical sophistication obscure a simple truth: **when a great business with accelerating earnings, expanding margins, and rising guidance is consolidating above structural support with five major analysts targeting 18-24% upside, you buy it.** You don't sell it and wait for a $355 entry that requires the thesis to break before you're willing to engage.
 
-**Final Transaction Recommendation: BUY `ADI` at $402.** 
+**Final Transaction Recommendation: BUY `ADI` at $402.**
 
 The path to $474 runs through the consolidation you're watching right now. The bears will be waiting at $360. I'll already be there. 🐂
 

@@ -17,11 +17,11 @@ Let me be brutally direct about what actually happened: **a semiconductor CEO st
 
 And here's what the smart money on StockTwits — not usually the most skeptical crowd — actually noticed: *"this was just from 1 comment LOL"* and *"this is not even an ER, this was just from 1 comment."* When even the retail euphoria crowd is acknowledging the fragility of the catalyst, that should tell you something.
 
-But let's dig deeper into the bull's logic here, because it's circular in a dangerous way. The argument is essentially: "Jensen Huang knows the AI supply chain better than anyone, so when he endorses Marvell, it reflects deep insider knowledge." 
+But let's dig deeper into the bull's logic here, because it's circular in a dangerous way. The argument is essentially: "Jensen Huang knows the AI supply chain better than anyone, so when he endorses Marvell, it reflects deep insider knowledge."
 
 **Fine. But ask yourself: what are Jensen Huang's incentives?**
 
-Nvidia is a direct competitor to Marvell in networking silicon. Nvidia's Spectrum-X Ethernet platform competes with Marvell's networking products. Yet simultaneously, they're positioned as partners. Huang elevating Marvell at Computex could just as easily be about **managing perception of the AI ecosystem** — showing that AI infrastructure is a rising tide for everyone — as it is about genuine conviction that MRVL stock will 5x. 
+Nvidia is a direct competitor to Marvell in networking silicon. Nvidia's Spectrum-X Ethernet platform competes with Marvell's networking products. Yet simultaneously, they're positioned as partners. Huang elevating Marvell at Computex could just as easily be about **managing perception of the AI ecosystem** — showing that AI infrastructure is a rising tide for everyone — as it is about genuine conviction that MRVL stock will 5x.
 
 And critically: **Jensen Huang has no fiduciary obligation to MRVL shareholders.** He made a qualitative comment at a trade show. He did not publish a research note, provide financial projections, or stake any personal capital on that call. The fact that this single comment is the foundational pillar of the bull case should genuinely alarm you.
 
@@ -62,7 +62,7 @@ The custom AI silicon business is intensely competitive. To maintain design wins
 
 The bull celebrates the net debt decline from $3.35 billion to $1.12 billion. What they don't adequately address is that **total debt sits at $5.28 billion** and long-term debt actually *increased* from $3.97 billion to $4.96 billion between January and April 2026. That's not deleveraging — that's refinancing at potentially higher rates.
 
-With a beta of 2.25 and a stock that just surged 29% on a trade show comment, MRVL is living in a world where the Fed's rate path matters enormously. The ongoing US-Iran tensions are pushing oil prices higher, which is inflationary, which keeps the rate environment more restrictive for longer. 
+With a beta of 2.25 and a stock that just surged 29% on a trade show comment, MRVL is living in a world where the Fed's rate path matters enormously. The ongoing US-Iran tensions are pushing oil prices higher, which is inflationary, which keeps the rate environment more restrictive for longer.
 
 **Every 100 basis points on $5.28 billion in debt is roughly $53 million in additional annual interest expense.** At Q1 FY2027's net income run rate of $34.5 million per quarter ($138 million annualized), a modest rate environment shift could wipe out MRVL's net profitability entirely. The bull is not pricing this risk at all.
 
@@ -112,11 +112,11 @@ And here's the most telling technical signal of all: **Nvidia's stock went DOWN 
 
 I want to spend a moment on what the sentiment data is actually telling us, because the bull glossed over it completely.
 
-**The StockTwits labeled ratio is 90% bullish / 10% bearish.** The report notes this is "at the upper bound before contrarian risk activates." And the price targets being thrown around? "$300 on deck," "$350 EOW," "$500 🎯." 
+**The StockTwits labeled ratio is 90% bullish / 10% bearish.** The report notes this is "at the upper bound before contrarian risk activates." And the price targets being thrown around? "$300 on deck," "$350 EOW," "$500 🎯."
 
 When retail traders start screaming $500 price targets on a stock that was at $70 four months ago, that is not a sign of healthy, broad-based conviction. That is **euphoric blow-off behavior.** This is the same pattern we saw in meme stocks, in speculative crypto assets, in the SPAC bubble. The language changes but the dynamics don't.
 
-And critically — **r/investing, the long-term fundamental investor community, has zero engagement with this story.** Zero posts. The people who do careful, patient fundamental analysis of businesses haven't touched this. The people throwing their savings into MRVL calls are WSB traders making YOLO bets based on a trade show speech. 
+And critically — **r/investing, the long-term fundamental investor community, has zero engagement with this story.** Zero posts. The people who do careful, patient fundamental analysis of businesses haven't touched this. The people throwing their savings into MRVL calls are WSB traders making YOLO bets based on a trade show speech.
 
 When the smart money is silent and the YOLO crowd is screaming, history tells us one thing: **the distribution phase is underway.**
 
@@ -267,7 +267,7 @@ Here's the bottom line: **The bull's FCF story and the bull's balance sheet stor
 
 ## ⚠️ Goodwill: The Bull's Defense Proves Too Much
 
-The bull's goodwill rebuttal: "Impairment requires AI capex to not just slow but reverse significantly." 
+The bull's goodwill rebuttal: "Impairment requires AI capex to not just slow but reverse significantly."
 
 I'll accept that framing. Now let me show you why the bar for "significant reversal" is lower than the bull is implying.
 
@@ -387,7 +387,7 @@ These are not the same thing.
 
 The business is real. The AI tailwind is real. The FCF is real. **And none of that justifies buying a beta 2.25, 99x TTM PE, 47% above its 50 SMA stock whose growth rate is already decelerating, whose primary near-term catalyst was a trade show speech, and whose June 1 candle showed $30 of intraday selling pressure on its single most bullish news day of the year.**
 
-Wait for $149. Wait for confirmed earnings acceleration, not deceleration. Wait for a quarter where the net income number doesn't require six paragraphs of explanation to make acceptable. 
+Wait for $149. Wait for confirmed earnings acceleration, not deceleration. Wait for a quarter where the net income number doesn't require six paragraphs of explanation to make acceptable.
 
 The bull bought the fuel at $75. **At $219, you're being handed the match and told it's the same trade.**
 
@@ -639,7 +639,7 @@ I say: **At $61, the trend was your friend. At $219, the trend is priced, the ri
 
 Wait for the fundamentals to catch the narrative. Wait for a GAAP net income number that doesn't require an explanatory footnote longer than the income statement. Wait for the growth rate to stabilize rather than decelerate. Wait for the goodwill to be tested by a full earnings cycle.
 
-The bull bought the fuel. The bull bought the match. 
+The bull bought the fuel. The bull bought the match.
 
 **At $219, you're being sold the smoke.**
 
@@ -805,7 +805,7 @@ Not because the business is bad. Not because the AI tailwind is fake. Not becaus
 
 **Because at $219, you are paying for a story, not a business. And stories told at trade shows don't come with warranties.**
 
-The bull bought the fuel at $75. The bull lit the match at Computex. 
+The bull bought the fuel at $75. The bull lit the match at Computex.
 
 **At $219, you are standing in the fire, being told it's a campfire.**
 
@@ -923,7 +923,7 @@ The bull's strongest new argument this round: Marvell's custom XPU value proposi
 
 I'll grant the logic is sound. But follow it to its conclusion.
 
-**If Marvell's competitive advantage is the *integration* of compute + optical + networking in a single custom design, then Marvell's revenue is entirely dependent on winning the integrated design contract — not just the optical piece, not just the networking piece, but the whole package.** 
+**If Marvell's competitive advantage is the *integration* of compute + optical + networking in a single custom design, then Marvell's revenue is entirely dependent on winning the integrated design contract — not just the optical piece, not just the networking piece, but the whole package.**
 
 This means customer concentration risk is even higher than I originally stated. If Google decides to source the compute die in-house and maintain Marvell for optical/networking as separate contracts, Marvell doesn't just lose one revenue stream — they lose the *integration premium* that justifies their entire value proposition. The custom XPU design win is all-or-nothing, not modular.
 
@@ -941,7 +941,7 @@ The bull says the June 1 candle's lower wick recovery to $219 from $195 is bulli
 
 **But here's what they're not telling you:** Bollinger Band breaches with an ATR of $13.53 have a specific statistical property. The standard deviation bands are calculated on recent price history. When a stock breaches the upper band and then fails to sustain the breach — closing back below the band in subsequent sessions — it generates a statistically reliable mean-reversion signal toward the Bollinger Middle Band ($183).
 
-With ATR at $13.53 and RSI at 74, the mean reversion target of $183 is not a catastrophic bear scenario. It's the **most likely technical outcome** in the next 4-6 weeks — a normal, healthy consolidation that the bull's own technical analysis report acknowledges as the "key swing support." 
+With ATR at $13.53 and RSI at 74, the mean reversion target of $183 is not a catastrophic bear scenario. It's the **most likely technical outcome** in the next 4-6 weeks — a normal, healthy consolidation that the bull's own technical analysis report acknowledges as the "key swing support."
 
 At $183, you've lost 16.5% from the $219 entry. On a beta 2.25 stock that just moved $30 intraday on its best catalyst day, that move can happen in three sessions. The bull says "use $183 as your stop." I'm saying: **why buy at $219 when you can wait and buy at $190 after the mean reversion the bull's own technical report predicts?**
 
@@ -951,7 +951,7 @@ At $183, you've lost 16.5% from the $219 entry. On a beta 2.25 stock that just m
 
 The bull closed with: "The fire the bear warned you about? It's the light from a rocket on the launchpad."
 
-Beautiful line. Genuinely. 
+Beautiful line. Genuinely.
 
 Here's my response in five words: **Rockets require perfect trajectory calculations.**
 

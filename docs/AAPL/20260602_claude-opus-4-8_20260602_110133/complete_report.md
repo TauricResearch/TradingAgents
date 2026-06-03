@@ -753,7 +753,7 @@ I say: **That's not stripping out financial engineering — that's stripping out
 
 Here's the thing the bear doesn't want you to think too hard about. When Apple buys back 8% of its shares over 3.5 years, **those shares are gone**. The remaining shareholders own a proportionally *larger* piece of a *larger* business. That's not manufacturing EPS — that's *mathematically* increasing per-share value. Warren Buffett has written about this repeatedly. Share repurchases at below-intrinsic-value prices are among the highest-returning capital allocation decisions a company can make.
 
-But here's the bear's fatal contradiction: **they simultaneously complain that Apple is "running out of better uses for its cash"** while operating in an environment where Alphabet just *destroyed $208 billion in market cap* by announcing $80 billion in AI capex spending that the market clearly doesn't trust. 
+But here's the bear's fatal contradiction: **they simultaneously complain that Apple is "running out of better uses for its cash"** while operating in an environment where Alphabet just *destroyed $208 billion in market cap* by announcing $80 billion in AI capex spending that the market clearly doesn't trust.
 
 So which is it? Should Apple spend $80 billion on AI infrastructure the market is skeptical about — or is Apple reckless for returning capital to shareholders at industry-leading FCF yields? You can't have both arguments at once. Apple is doing *exactly* what disciplined capital allocators should do when organic reinvestment opportunities don't meet the return hurdle.
 
@@ -774,7 +774,7 @@ The bear keeps returning to "38x P/E" like it's a self-evident indictment. It is
 - **~8% annual share count reduction** that mechanically grows EPS even in a flat revenue year
 - **$68.5 billion in liquid assets** available for opportunistic deployment
 
-Now let me ask the bear a direct question: **What multiple should that business trade at?** 
+Now let me ask the bear a direct question: **What multiple should that business trade at?**
 
 The S&P 500 average of ~25x is for *average* businesses. Apple is not average. The premium is justified by the quality differential — and the forward P/E of **32.75x against 16% EPS growth** is a more honest number than the trailing 38x the bear keeps citing. The market is already reflecting the deceleration the bear is warning about in the forward multiple. There's no revelation here — it's already priced.
 
@@ -861,7 +861,7 @@ The bear's own logic here is problematic: they're using short-term technical cau
 
 **Where the bear fundamentally fails:**
 
-The bear built a case for *avoiding AAPL as a trade* and dressed it up as a case for *selling AAPL as a business*. Those are completely different arguments. **No serious investor is selling Apple's equity because of a MACD crossover.** 
+The bear built a case for *avoiding AAPL as a trade* and dressed it up as a case for *selling AAPL as a business*. Those are completely different arguments. **No serious investor is selling Apple's equity because of a MACD crossover.**
 
 The business is generating $101 billion in free cash flow annually, growing revenue at 16.6%, expanding margins to records, entering a $200 billion smart glasses market, and sitting on a 2-billion-device installed base that competitors cannot replicate.
 
@@ -1030,7 +1030,7 @@ Let me tell you what this three-round debate has actually established:
 
 **The bear proved:** AAPL is not cheap by traditional metrics. The 38x P/E leaves limited margin of safety. Short-term technical signals suggest caution. Regulatory, competitive, and macro risks are real.
 
-**The bull proved:** 
+**The bull proved:**
 - Q2 FY2026 revenue growth of +16.6% and EPS growth of +21.8% show fundamental reacceleration, not stagnation
 - Gross margins hit a record 49.3% — and are still expanding
 - $101 billion in annual free cash flow funds buybacks, dividends, R&D, and still compounds the balance sheet

@@ -31,7 +31,7 @@ And Jensen Huang just proved at **Computex Taipei 2026** that NVIDIA isn't resti
 
 ## 📊 The Technical Setup Is Textbook Bullish
 
-Look at what happened on June 1st. After a healthy two-week consolidation that **unwound RSI from overbought 76.7 all the way to neutral 49.4** — without breaking a single major support level — NVDA ripped **+6.26% on 212 million shares of volume**. 
+Look at what happened on June 1st. After a healthy two-week consolidation that **unwound RSI from overbought 76.7 all the way to neutral 49.4** — without breaking a single major support level — NVDA ripped **+6.26% on 212 million shares of volume**.
 
 That's not noise. That's institutional accumulation following a momentum reset.
 
@@ -81,7 +81,7 @@ AMD has been "closing the gap" for three years. NVDA's market share in AI traini
 NVDA at $224.36 offers:
 - ✅ **Best-in-class fundamentals** with 85% revenue growth and 75% gross margins
 - ✅ **Unassailable competitive moat** via CUDA ecosystem and product leadership
-- ✅ **Constructive technicals** with bullish MA stack and momentum reset complete  
+- ✅ **Constructive technicals** with bullish MA stack and momentum reset complete
 - ✅ **Expanding TAM** across data center, PC, robotics, and sovereign AI
 - ✅ **Sub-1 PEG ratio** suggesting the market is *underpricing* forward growth
 - ✅ **$96 billion annual FCF** funding aggressive buybacks and a fortress balance sheet
@@ -316,7 +316,7 @@ Let me be very precise here, because the bear made a sophisticated point that de
 
 He argues: CUDA traps price-insensitive customers (can't leave) while sophisticated hyperscalers route around it (can negotiate). Therefore, over time, as enterprise AI matures, more customers move from the "can't leave" bucket to the "can optimize" bucket, and the moat erodes from the top down.
 
-This is a genuinely interesting model. It's also missing a critical variable: **the CUDA ecosystem isn't just about lock-in. It's about capability.** The reason hyperscalers build custom silicon for *specific workloads* while still buying NVDA GPUs for *general-purpose AI development* is that general-purpose programmability — the thing CUDA enables — has enormous value for workloads that don't yet have optimized custom silicon. 
+This is a genuinely interesting model. It's also missing a critical variable: **the CUDA ecosystem isn't just about lock-in. It's about capability.** The reason hyperscalers build custom silicon for *specific workloads* while still buying NVDA GPUs for *general-purpose AI development* is that general-purpose programmability — the thing CUDA enables — has enormous value for workloads that don't yet have optimized custom silicon.
 
 Here's the data point that makes this concrete: **Google, despite having TPUs for years, continues to be one of NVDA's largest GPU customers.** Why? Because TPUs are optimized for Google's production workloads. But Google also runs research, experimentation, model development, and non-standard inference workloads that require programmable flexibility. **The hyperscalers don't choose between CUDA and custom silicon. They use both.** NVIDIA's addressable market isn't "everything except what custom silicon captures." It's "everything that requires programmable flexibility," which is a permanently growing category.
 
@@ -628,7 +628,7 @@ The bear said: "The configuration cycle argument applies only to inventory *in a
 
 **He's right about that distinction. And it completely destroys his original argument.**
 
-Here's why. If we decompose NVDA's $25.8 billion inventory into its components — raw materials, work-in-process, and finished goods — the bear's concern about "inventory growing faster than revenue" becomes a question about *which component* is growing. If finished goods are growing faster than raw materials and WIP, that signals demand softness. If raw materials and WIP are growing faster than finished goods, that signals **production ramping to meet incoming demand.** 
+Here's why. If we decompose NVDA's $25.8 billion inventory into its components — raw materials, work-in-process, and finished goods — the bear's concern about "inventory growing faster than revenue" becomes a question about *which component* is growing. If finished goods are growing faster than raw materials and WIP, that signals demand softness. If raw materials and WIP are growing faster than finished goods, that signals **production ramping to meet incoming demand.**
 
 NVIDIA's 10-Q filings consistently show that the inventory growth is disproportionately concentrated in *purchased components and work-in-process* — the pre-production stages. This is the fingerprint of a company ramping production ahead of recognized revenue, not a company sitting on unsold finished goods. The bear's own logical refinement — distinguishing configuration inventory from total inventory — actually *supports* the supply-ramp narrative rather than undermining it.
 
@@ -642,7 +642,7 @@ I want to sit with the bear's sequential growth analysis, because it's the kind 
 
 He said: maintaining 19-20% sequential growth produces $140 billion in quarterly revenue by Q4 FY2027 — roughly $560 billion annualized — representing nearly 3% of US GDP. The implication: this is obviously unsustainable, therefore deceleration is certain and imminent.
 
-But here's what the bear's framework reveals when applied honestly: **NVDA doesn't need to maintain 19-20% sequential growth to justify its current valuation.** The forward P/E of 17.6x is based on consensus EPS of $12.66. That consensus embeds significant growth deceleration *already.* Analysts aren't assuming $560 billion in FY2027 revenue. They're assuming something closer to $175-185 billion — a *deceleration* from current sequential trajectory to roughly 15-18% annual growth. 
+But here's what the bear's framework reveals when applied honestly: **NVDA doesn't need to maintain 19-20% sequential growth to justify its current valuation.** The forward P/E of 17.6x is based on consensus EPS of $12.66. That consensus embeds significant growth deceleration *already.* Analysts aren't assuming $560 billion in FY2027 revenue. They're assuming something closer to $175-185 billion — a *deceleration* from current sequential trajectory to roughly 15-18% annual growth.
 
 The bear built a straw man. He extrapolated the current sequential growth rate into a physically implausible number, then argued that the implausibility proves deceleration. But **deceleration to the consensus estimate that already underlies the 17.6x forward P/E is not a bear case. It's the base case the bulls are already pricing.** To justify the bear's downside target of $185-195, you don't need "deceleration." You need a *miss* relative to already-decelerated consensus estimates. That's a much narrower and more specific set of circumstances.
 
@@ -687,7 +687,7 @@ The data report we're both working from provides June 1st volume (212.85 million
 But more importantly — the bear is making a mountain out of one session. Let's zoom out to what the data actually shows across the complete picture:
 
 - Price is **19.4% above the 200 SMA** — long-term bull regime
-- Price is **12% above the 50 SMA** — medium-term bull regime  
+- Price is **12% above the 50 SMA** — medium-term bull regime
 - **Golden Cross firmly in place**
 - RSI reset from 76.7 to 49.4 without violating any major support level
 - VWMA reclaimed on June 1st on massive volume
@@ -705,7 +705,7 @@ I want to return to the bear's expected value calculation one final time, becaus
 
 My colleague presented this as "barely positive, therefore not worth deploying." But let me reframe what this actually means.
 
-At his most pessimistic probability weights, with an active MACD bearish cross, with June 2nd underperformance baked in, with all of his concentration risk and inventory concerns fully priced in — **the expected value of the trade is still positive.** 
+At his most pessimistic probability weights, with an active MACD bearish cross, with June 2nd underperformance baked in, with all of his concentration risk and inventory concerns fully priced in — **the expected value of the trade is still positive.**
 
 Now let's ask: what happens to that expected value as we add back the factors the bear systematically discounts? The seven consecutive earnings beats that create a 70%+ probability of Q2 exceeding consensus. The Golden Cross that historically correlates with continued upward momentum. The RSI reset that creates fresh fuel for continuation. The AVGO earnings catalyst pending on June 3rd. **Every one of these factors moves the probability distribution in the bull's direction.** The bear's +$1.25 EV is the *floor* under the bull's probability-adjusted expected return — not the ceiling.
 

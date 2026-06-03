@@ -463,7 +463,7 @@ Bull Analyst: # 🐂 CRDO Bull: Final Stand — Why the Bear's "Gravity" Argumen
 
 ---
 
-Let me be direct about what just happened in this debate. The bear analyst delivered a technically polished closing argument that, at its core, makes one central claim dressed in many different outfits: *the stock has run too far, too fast, and the forward estimates are too ambitious.* 
+Let me be direct about what just happened in this debate. The bear analyst delivered a technically polished closing argument that, at its core, makes one central claim dressed in many different outfits: *the stock has run too far, too fast, and the forward estimates are too ambitious.*
 
 That's a legitimate concern about any high-momentum stock. But let me show you precisely why, when you stress-test each pillar of that argument against the actual data, the bear case on CRDO at $226 is weaker than it appears — and why the bull thesis remains intact.
 

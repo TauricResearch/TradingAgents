@@ -55,7 +55,7 @@ And now? The market is waking up. From the May 13 low to June 1's close, CRM has
 
 ## 5. 💰 The Buyback Is Extraordinarily EPS-Accretive
 
-The bear community will try to use the $27.25 billion Q1 FY2027 share repurchase as a negative — "look at all that debt!" But let's think clearly about what actually happened here. Salesforce reduced its share count by approximately **110 million shares — roughly 12% of float — in a single quarter**. 
+The bear community will try to use the $27.25 billion Q1 FY2027 share repurchase as a negative — "look at all that debt!" But let's think clearly about what actually happened here. Salesforce reduced its share count by approximately **110 million shares — roughly 12% of float — in a single quarter**.
 
 That reduction in share count is a *permanent* tailwind to earnings per share. Every quarter going forward, the same dollar of net income gets divided among ~110 million fewer shares. With TTM FCF of $16.55 billion easily covering the ~$317 million quarterly interest expense on the new debt *more than 13 times over*, the leverage is entirely serviceable. Salesforce isn't a levered buyout — it's a cash machine that made an opportunistic, disciplined capital allocation decision to repurchase deeply discounted shares at what management clearly believed was an attractive price. They were right.
 
@@ -331,7 +331,7 @@ Bull Analyst: # 🐂 CRM Bull — Final Response: The Bear Conceded More Than Th
 
 ## "Seven Draws and One Bear Win Is Not a Sell Thesis. It's an Admission That the Bull Case Is Substantially Intact."
 
-Let me start with the most revealing moment in the bear's entire closing argument — the scorecard they were so proud of. **"1 Bear win, 7 Draws, 0 Bull wins."** Read that again. The bear spent four rounds trying to convince you that CRM is a trap, a gamble, a high-wire act — and their own honest accounting concedes that **on seven out of eight major arguments, the evidence is at minimum split.** 
+Let me start with the most revealing moment in the bear's entire closing argument — the scorecard they were so proud of. **"1 Bear win, 7 Draws, 0 Bull wins."** Read that again. The bear spent four rounds trying to convince you that CRM is a trap, a gamble, a high-wire act — and their own honest accounting concedes that **on seven out of eight major arguments, the evidence is at minimum split.**
 
 In what universe does a 7-draw, 1-bear-win scorecard lead to a SELL recommendation? If you're genuinely uncertain on seven dimensions and clearly wrong on zero, the rational conclusion is not "sell everything." It's "the bull case hasn't been defeated." And that matters enormously when you're talking about a $16.5 billion free-cash-flow machine trading at a meaningful discount to intrinsic value. Let me now close the remaining gaps.
 
@@ -351,7 +351,7 @@ On strategic M&A optionality — the bear's strongest sub-point — here's the c
 
 I need to sit with the bear's Microsoft argument for a moment, because they made an important point that cuts directly against themselves.
 
-The bear describes enterprise buyers asking: *"Do we still need to pay for Agentforce on top of Microsoft Copilot for Sales?"* And they present this as Salesforce losing the AI upsell. But think about what that question actually reveals. The enterprise buyer is **still running Salesforce.** They're still paying for Sales Cloud licenses. They're still dependent on Salesforce as their system of record. Microsoft Copilot for Sales works *because* the data lives in Salesforce. 
+The bear describes enterprise buyers asking: *"Do we still need to pay for Agentforce on top of Microsoft Copilot for Sales?"* And they present this as Salesforce losing the AI upsell. But think about what that question actually reveals. The enterprise buyer is **still running Salesforce.** They're still paying for Sales Cloud licenses. They're still dependent on Salesforce as their system of record. Microsoft Copilot for Sales works *because* the data lives in Salesforce.
 
 The bear has just described a scenario where **Salesforce's core $40+ billion revenue base is completely unthreatened** — the debate is only about who captures the AI incremental layer. That's not a bear case for CRM. That's a moderate bull case with a caveat about upsell competition. And even on the upsell competition: if enterprises are choosing between Agentforce and Copilot for Sales, Salesforce wins on **depth of CRM-native context** every time. Copilot for Sales pulling data from Salesforce via API gets structured records. Agentforce running natively inside Salesforce with access to every workflow, every automation, every custom field — that's not comparable. One is a telescope pointed at Salesforce's data. The other is **living inside it.**
 
@@ -406,7 +406,7 @@ The bear's closing argument contained a remarkable concession buried in its own 
 The disagreement is purely about **price and timing**. And on price, the objective facts remain:
 
 - Forward P/E of 12.8x non-GAAP, 18.4x GAAP — **below the S&P 500 average** for a superior growth business
-- PEG ratio below 1.0 — **mathematically undervalued relative to growth**  
+- PEG ratio below 1.0 — **mathematically undervalued relative to growth**
 - FCF yield approaching 10% — **exceptional for enterprise software**
 - $5 billion Anthropic position approaching liquidity event
 - 12% share count reduction creating **permanent per-share earnings accretion**
@@ -428,7 +428,7 @@ The bear's closing recommendation is to "wait" — for overbought conditions to 
 | **Technical Trend** | Reversed on institutional volume | ✅ Price > 10 EMA > 50 SMA; MACD crossover |
 | **Bear's Best Case** | "Wait for $185" — an 11% bet against momentum | ❌ Market has already voted otherwise |
 
-The bear gave you seven draws and one win on a genuinely excellent business trading below the market's average multiple with $16 billion in annual free cash flow and a near-term IPO catalyst that could add $20+ billion to the balance sheet. 
+The bear gave you seven draws and one win on a genuinely excellent business trading below the market's average multiple with $16 billion in annual free cash flow and a near-term IPO catalyst that could add $20+ billion to the balance sheet.
 
 That's not a sell. That's not even a hold.
 

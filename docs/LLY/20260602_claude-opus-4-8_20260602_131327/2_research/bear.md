@@ -11,7 +11,7 @@ My colleague across the table has delivered an impressive presentation. Truly. B
 
 ## 💣 Problem #1: The Debt Elephant in the Room That Bulls Keep Ignoring
 
-Let's start with something my colleague conveniently glossed over with a single sentence. Eli Lilly is carrying **$43.4 billion in total debt** against **$31.2 billion in stockholders' equity**. That's a **debt-to-equity ratio of 139%**. 
+Let's start with something my colleague conveniently glossed over with a single sentence. Eli Lilly is carrying **$43.4 billion in total debt** against **$31.2 billion in stockholders' equity**. That's a **debt-to-equity ratio of 139%**.
 
 In FY2023, Lilly generated **negative free cash flow of -$3.15 billion**. In FY2024, free cash flow was a meager **$410 million** — on $45 billion in revenue. Even in FY2025, with the explosive earnings growth my colleague is celebrating, free cash flow was only **$5.96 billion** against $42.5 billion in debt. They issued **$13.17 billion in new long-term debt in FY2025 alone** to fund manufacturing expansion.
 
@@ -336,11 +336,11 @@ That is the intellectual contortion at the heart of the entire bull thesis. When
 
 But let me go further and challenge his specific assumptions, because this is where the debate gets genuinely interesting.
 
-**His "strong execution" probability of 30% at $52 EPS requires what, exactly?** It requires Foundayo to ramp without Viking disruption, IRA to remain benign, manufacturing to execute flawlessly, GLP-1 oncology optionality to get priced in, AND macro to cooperate. He assigns 30% probability to all of those going right simultaneously. Yet when I assign 15% probability to multiple risks materializing simultaneously, he calls it "catastrophizing." 
+**His "strong execution" probability of 30% at $52 EPS requires what, exactly?** It requires Foundayo to ramp without Viking disruption, IRA to remain benign, manufacturing to execute flawlessly, GLP-1 oncology optionality to get priced in, AND macro to cooperate. He assigns 30% probability to all of those going right simultaneously. Yet when I assign 15% probability to multiple risks materializing simultaneously, he calls it "catastrophizing."
 
 The asymmetry in his own framework is breathtaking: optimistic scenarios are "realistic execution," pessimistic scenarios are "stacking catastrophes." That's not analysis. That's motivated reasoning.
 
-**And here's the number he never addressed:** His "moderate headwinds" scenario — a $836 stock — represents a **23% drawdown** from current levels. He assigned that a 20% probability. His "severe disruption" scenario — a $532 stock — represents a **51% drawdown**. He assigned that 10% probability. 
+**And here's the number he never addressed:** His "moderate headwinds" scenario — a $836 stock — represents a **23% drawdown** from current levels. He assigned that a 20% probability. His "severe disruption" scenario — a $532 stock — represents a **51% drawdown**. He assigned that 10% probability.
 
 A 30% probability-weighted chance of losing more than 20%. That is the bull's own risk disclosure, buried in his own table, that he's asking you to ignore because the expected value math technically comes out marginally positive.
 
@@ -364,7 +364,7 @@ And his argument for why you should still own the stock is that this represents 
 
 His own numbers show: upside +20%, moderate downside -23-27%, severe downside -51%. The risk/reward is negatively asymmetric by his own math. The bull case requires more things to go right than the bear case requires to go wrong, and the payoffs are roughly symmetric in absolute dollar terms but skewed toward the downside in probability-weighted terms.
 
-When I presented this exact asymmetry in my first argument, the bull called it "price anxiety dressed up as analysis." Now that I've forced him to quantify it, he's calling it "manageable." 
+When I presented this exact asymmetry in my first argument, the bull called it "price anxiety dressed up as analysis." Now that I've forced him to quantify it, he's calling it "manageable."
 
 The number hasn't changed. Only the framing has.
 
@@ -394,7 +394,7 @@ But here's what he missed — and it's the most important point I'll make in thi
 
 Pfizer shareholders in December 2021 could make every argument the bull is making today:
 - "This is the best-executed pharmaceutical launch in history." ✓ True
-- "The revenue is real, audited, and growing." ✓ True  
+- "The revenue is real, audited, and growing." ✓ True
 - "The forward multiple is reasonable given the growth trajectory." ✓ True (at the time)
 - "The underlying disease burden is enormous." ✓ True
 
@@ -412,7 +412,7 @@ The bull replaced "pandemic windfall" with "secular growth" and declared the ana
 
 This is the bull's rhetorical trump card, and I've been waiting to address it properly because the answer demolishes his framing entirely.
 
-**The answer is: you don't have to buy anything.** 
+**The answer is: you don't have to buy anything.**
 
 The implicit assumption in "what do you buy instead?" is that capital must always be fully deployed. It doesn't. In a market environment where:
 
@@ -421,13 +421,13 @@ The implicit assumption in "what do you buy instead?" is that capital must alway
 - The technical research on the very stock we're discussing says "avoid chasing at $1,082 after a 27% rally in 25 days — risk/reward is asymmetric to the downside near-term"
 - A scheduled binary risk event is 90 days away
 
-...the answer "raise cash and wait" is not only valid, it's prudent. 
+...the answer "raise cash and wait" is not only valid, it's prudent.
 
-But let me go further and give him a genuine alternative. **Novo Nordisk.** 
+But let me go further and give him a genuine alternative. **Novo Nordisk.**
 
 The bull spent considerable time in this debate emphasizing that LLY has competitive advantages over Novo Nordisk's oral semaglutide on tolerability grounds. The StockTwits data shows retail investors piling into LLY specifically because Novo's oral pill has nausea/vomiting issues. All of that may be true.
 
-But here's the valuation comparison he never made: **Novo Nordisk trades at a significant discount to LLY on virtually every forward multiple**. They operate in the same secular growth market, with similar pipeline depth, similar manufacturing scale, and similar GLP-1 franchise economics. If the obesity/diabetes secular growth story is as powerful as the bull claims, Novo Nordisk at a lower multiple on the same macro tailwind offers **better risk-adjusted exposure to the same thesis**. 
+But here's the valuation comparison he never made: **Novo Nordisk trades at a significant discount to LLY on virtually every forward multiple**. They operate in the same secular growth market, with similar pipeline depth, similar manufacturing scale, and similar GLP-1 franchise economics. If the obesity/diabetes secular growth story is as powerful as the bull claims, Novo Nordisk at a lower multiple on the same macro tailwind offers **better risk-adjusted exposure to the same thesis**.
 
 The bull can't simultaneously argue that LLY is uniquely positioned versus Novo AND that the secular growth story is so powerful it justifies LLY's premium. If the growth is secular and structural, the discount at NVO is a relative value opportunity. If LLY's premium is justified by competitive differentiation, then you're making a product horse-race bet on Foundayo versus Wegovy that the Viking Q3 data could immediately complicate.
 
@@ -550,11 +550,11 @@ And he said LLY is not a buy at **$1,250-$1,350**, where forward PE expands to 2
 
 I want you to sit with the logic embedded in that answer.
 
-**He is telling you that the stock needs to rise another 15-25% before it becomes a SELL.** At $1,082, he's a buyer. At $1,350, he's a seller. That means the range of prices at which he considers LLY appropriately valued spans **from approximately $850 to $1,350** — a $500 range on a $1,082 stock. 
+**He is telling you that the stock needs to rise another 15-25% before it becomes a SELL.** At $1,082, he's a buyer. At $1,350, he's a seller. That means the range of prices at which he considers LLY appropriately valued spans **from approximately $850 to $1,350** — a $500 range on a $1,082 stock.
 
 That is not a valuation discipline. That is a momentum-following framework dressed up as fundamental analysis. When your buy zone and sell zone cover 63% of the stock's value, you don't have a price target — you have a hope.
 
-But let me focus on his SELL condition #1: **forward EPS below $38.** 
+But let me focus on his SELL condition #1: **forward EPS below $38.**
 
 The current forward EPS estimate is $44.47. For EPS to fall to $38, you need approximately a **14.5% downward revision to consensus**. In the history of high-multiple pharmaceutical stocks facing competitive disruption, a 14.5% EPS revision doesn't happen in isolation. It arrives with multiple compression simultaneously. If Foundayo disappoints AND Viking data is positive AND the sell-side begins cutting numbers — the stock doesn't fall from $1,082 to the equivalent of 24x $38 earnings. It falls to 20x $38 earnings. That's **$760**.
 
@@ -666,7 +666,7 @@ My colleague is a skilled debater and an optimistic analyst. He believes in this
 
 But **"may be right" is not good enough at $952 billion in market cap with zero margin of safety.**
 
-The bull's final advice was: don't confuse discipline and courage. 
+The bull's final advice was: don't confuse discipline and courage.
 
 My final advice is simpler: **don't confuse a great company with a great investment at every price.**
 
@@ -774,7 +774,7 @@ This is the moment that should end the debate for every rational investor in the
 
 My colleague said, and I quote: *"Viking negative data — a roughly equal probability outcome — produces a $1,300+ stock on cleared overhang."*
 
-He is telling you that his **$1,300 price target depends on a coin flip going in his favor.** 
+He is telling you that his **$1,300 price target depends on a coin flip going in his favor.**
 
 Let me restate what this means for the investment decision:
 

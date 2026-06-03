@@ -588,7 +588,7 @@ The bear has given you a sophisticated, well-constructed case for caution. And c
 At **$600.47**, META offers:
 
 - 📊 **62% EPS growth** on the most recent reported quarter — the business is in full acceleration
-- 💰 **16.5x forward P/E** with a **PEG of 0.91** — textbook GARP valuation on a world-class franchise  
+- 💰 **16.5x forward P/E** with a **PEG of 0.91** — textbook GARP valuation on a world-class franchise
 - 🏦 **$81.2 billion in cash** and **$115.8 billion in operating cash flow** — a fortress that survives any macro scenario the bear can construct
 - 🤖 **AI monetization already working** — not hypothetical, not future, *right now in the reported numbers*
 - 🛡️ **Active regulatory management** — teen safety controls, government relations depth, and legal infrastructure built for exactly this environment

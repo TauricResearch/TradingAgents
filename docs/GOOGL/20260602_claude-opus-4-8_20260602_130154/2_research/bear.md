@@ -25,7 +25,7 @@ And here's why this matters for valuation: if the market is pricing `GOOGL` at 2
 
 My colleague reframed the $80 billion equity raise as a bold, confident move. "The opportunity is so large," he said, "that even $126 billion in cash isn't enough." That sounds inspiring. Let me translate it into financial reality.
 
-**Alphabet had $126.8 billion in cash and generated $164.7 billion in operating cash flow in FY2025. And they still needed to raise $80 billion in equity.** 
+**Alphabet had $126.8 billion in cash and generated $164.7 billion in operating cash flow in FY2025. And they still needed to raise $80 billion in equity.**
 
 Here's the uncomfortable question that Reddit's r/investing was already asking — and the bull glossed right over: **why equity and not debt?** Alphabet's last bond offering was at 6.4%. If they truly believe in the returns on this AI investment, why dilute shareholders rather than issue debt at a known cost? Why give away ownership of this "generational compounder" instead of borrowing against it?
 
@@ -140,7 +140,7 @@ At $376.37, you are buying:
 - An AI disruption risk to the core Search advertising business that one analyst's near-term data cannot definitively close
 - A 6.5% preferred dividend obligation that represents perpetual dilution of economic value to common holders
 
-The bull's closing argument was: "This is a generational compounder at a reasonable price." 
+The bull's closing argument was: "This is a generational compounder at a reasonable price."
 
 My closing argument is simpler: **the risks are real, the headwinds are simultaneous, and the current price does not adequately compensate you for the uncertainty embedded in this specific moment in `GOOGL`'s corporate evolution.**
 
@@ -333,9 +333,9 @@ Bear Analyst: # 🐻 BEAR CLOSING ARGUMENT: GOOGL — The Bull's Probability Mat
 
 ---
 
-Let me tell you what my colleague just did in that final rebuttal. He built an elaborate expected value framework, assigned probability weights to ten assumptions, calculated a "0.15% expected return" from current levels — and then declared victory. 
+Let me tell you what my colleague just did in that final rebuttal. He built an elaborate expected value framework, assigned probability weights to ten assumptions, calculated a "0.15% expected return" from current levels — and then declared victory.
 
-Read that number again. **Zero point one five percent.** 
+Read that number again. **Zero point one five percent.**
 
 That is the bull's own math telling you that buying `GOOGL` at $376 today has essentially **no positive expected value on a risk-adjusted basis.** And yet he's asking you to act immediately, with conviction, without waiting for the risks to resolve. I want you to hold that tension in your mind as I make my final case, because it's the most revealing thing said in this entire debate.
 
@@ -906,9 +906,9 @@ I want to accept this framing completely — and then show you why it proves the
 
 If we agree the business is great, and we agree $349 is structural support, and we agree $376 has a stop at $349 — then the question becomes purely: **is the expected value of buying $376 with a $349 stop positive enough to justify the trade over waiting?**
 
-The bull's own probability model says the expected return from $376 to the nearest technical targets is +0.15%. 
+The bull's own probability model says the expected return from $376 to the nearest technical targets is +0.15%.
 
-Against a 5% annual risk-free rate (approximately 0.4% per month), a 4-6 week holding period to the nearest technical targets generates approximately **0.8% in T-bill return.** 
+Against a 5% annual risk-free rate (approximately 0.4% per month), a 4-6 week holding period to the nearest technical targets generates approximately **0.8% in T-bill return.**
 
 **The risk-adjusted expected return from buying `GOOGL` at $376 — using the bull's own probability model against the current risk-free rate — is negative.** You are taking beta-1.267 equity risk to earn a potential 0.15% when T-bills offer 0.4% for the same holding period with zero risk.
 

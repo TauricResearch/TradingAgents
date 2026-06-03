@@ -71,11 +71,40 @@ def test_replace_decision_summary_leaves_other_homepage_sections():
 
 
 @pytest.mark.unit
+def test_generated_pages_do_not_end_with_extra_blank_line():
+    builder = load_builder()
+    run = builder.Run("AAPL", "2026-06-02", "opus", "2026-06-02 10:10:10", "run")
+    row = builder.SummaryRow(
+        ticker="AAPL",
+        report_link="./AAPL/run/complete_report.md",
+        rating="Overweight",
+        action="Buy",
+        current_price=10.0,
+        price_target=12.0,
+        target_uplift=0.2,
+        annualized_uplift=0.4,
+        confidence="High",
+        horizon="6m",
+    )
+
+    home = builder.build_home({"AAPL": [run]}, 1, [row], "20260602")
+    hub = builder.build_ticker_hub("AAPL", [run])
+
+    assert home.endswith("\n")
+    assert not home.endswith("\n\n")
+    assert hub.endswith("\n")
+    assert not hub.endswith("\n\n")
+
+
+@pytest.mark.unit
 def test_horizon_months_handles_year_ranges():
     builder = load_builder()
 
     assert builder.horizon_months("3-5 years") == 48.0
     assert builder.horizon_months("60d") == 60.0 / 30.4375
+    assert builder.horizon_months("12+m") == 12.0
+    assert builder.horizon_months("1-2 quarters (Q2 earnings is the decision gate)") == 4.5
+    assert builder.horizon_months("Through Q2 2026 earnings") == 3.0
 
 
 @pytest.mark.unit
@@ -92,6 +121,16 @@ def test_current_price_parser_handles_remaining_report_phrasings():
         "",
         "",
     ) == 84.44
+    assert builder.extract_current_price(
+        "Last Close: **$87.24** (June 1, 2026)\n",
+        "",
+        "",
+    ) == 87.24
+    assert builder.extract_current_price(
+        "| **Close Price** | $46.88 | Caution |\n",
+        "",
+        "",
+    ) == 46.88
 
 
 @pytest.mark.unit

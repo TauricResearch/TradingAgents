@@ -53,7 +53,7 @@ The bears are looking at a business in the middle of building a railroad and com
 
 ## 🛒 Prime Day + Consumer Trade-Down = Near-Term Catalyst Combination
 
-Let me bring this back to the near term as well, because I think the bears are dismissing the **June Prime Day** far too casually. This is Amazon's first June Prime Day since 2021 — deliberately positioned as a "four-day event focused on deals for budget-conscious shoppers." 
+Let me bring this back to the near term as well, because I think the bears are dismissing the **June Prime Day** far too casually. This is Amazon's first June Prime Day since 2021 — deliberately positioned as a "four-day event focused on deals for budget-conscious shoppers."
 
 The macro backdrop actually *reinforces* this catalyst. With oil prices elevated from Iran tensions, job concerns mounting, and consumer confidence softening, where do price-sensitive consumers go? They go to Amazon. The trade-down effect is real — we're already seeing it in retail data with value-oriented retailers outperforming. Amazon's Prime ecosystem is positioned directly in the path of that capital flow.
 
@@ -252,7 +252,7 @@ Bull Analyst: # 🐂 AMZN Bull Final Argument: The Bear Has Confused a Speed Bum
 
 Let me tell you what just happened in this debate. My colleague delivered four increasingly sophisticated arguments, each one more rhetorically polished than the last — and each one, when examined carefully, reveals the same fundamental error: **he's treating uncertainty about timing as certainty about outcome.** That's not bear analysis. That's risk aversion dressed up as insight.
 
-I've genuinely enjoyed this exchange. The bear made me sharpen my arguments, and I respect that. But we've now reached the point where I need to call out something that's been building across every rebuttal: **the bear case has quietly shifted its own goalposts four times.** It started as "Amazon is failing." It evolved to "Amazon succeeds too slowly." It's now landed on "just wait for a better entry." 
+I've genuinely enjoyed this exchange. The bear made me sharpen my arguments, and I respect that. But we've now reached the point where I need to call out something that's been building across every rebuttal: **the bear case has quietly shifted its own goalposts four times.** It started as "Amazon is failing." It evolved to "Amazon succeeds too slowly." It's now landed on "just wait for a better entry."
 
 That's not a bear thesis. That's a timing preference. And timing preferences don't justify AVOID recommendations on generational businesses.
 
@@ -262,7 +262,7 @@ Let me close this debate the way it deserves to be closed — directly, specific
 
 ## 🔴 The Forward EPS "Prayer" Argument — Let Me Show You the Math He Didn't Run
 
-My colleague asks, dramatically: *"On what trajectory does Amazon get from normalized ~$1.69 EPS in Q1 2026 to $9.86 in forward EPS?"* He calls it "a prayer dressed in a financial model." 
+My colleague asks, dramatically: *"On what trajectory does Amazon get from normalized ~$1.69 EPS in Q1 2026 to $9.86 in forward EPS?"* He calls it "a prayer dressed in a financial model."
 
 Let me actually answer that question, because the bear conspicuously didn't.
 
@@ -278,7 +278,7 @@ This isn't a prayer. It's arithmetic that the bear chose not to run because it w
 
 My colleague's sharpest rebuttal was the EBITDA-vs-FCF distinction. He correctly notes that EBITDA adds back D&A, and that CapEx at $44.2 billion per quarter means the underlying cash economics are more challenging than the EBITDA multiple suggests. I've acknowledged this throughout the debate. But here's where the bear's argument collapses under its own logic.
 
-**If you're going to use FCF as your primary valuation metric for Amazon right now, you need to apply it consistently — which means you would have called Amazon uninvestable in 2019, 2020, and 2021 as well.** FCF turned deeply negative during every major Amazon infrastructure investment cycle. In FY2022, FCF was **-$16.89 billion** — and the bears at that time made the same arguments: unsustainable CapEx, record debt relative to history, no FCF visibility. 
+**If you're going to use FCF as your primary valuation metric for Amazon right now, you need to apply it consistently — which means you would have called Amazon uninvestable in 2019, 2020, and 2021 as well.** FCF turned deeply negative during every major Amazon infrastructure investment cycle. In FY2022, FCF was **-$16.89 billion** — and the bears at that time made the same arguments: unsustainable CapEx, record debt relative to history, no FCF visibility.
 
 What happened? Amazon generated **$32.22 billion in FCF in FY2023** and **$32.88 billion in FY2024.** The investment cycles *resolve*. They always have at Amazon. The bear is implying this cycle is structurally different — that AI CapEx will never convert to FCF the way logistics CapEx did. But he provides no specific mechanism for why AI compute demand is less durable than e-commerce package demand. AWS revenue is growing at 17% annually with **enterprise contracts** underpinning the demand, not speculative consumer behavior. Those contracts have committed spending. The bear's "empty data centers with no workloads" scenario requires enterprise customers to collectively cancel their cloud AI strategies. That's not happening.
 
@@ -302,16 +302,16 @@ More importantly: the bear introduced the EU argument as a potential "existentia
 
 The bear's best technical argument is the asymmetry calculation:
 - Upside to YTD high: **+6.7%**
-- Downside to 50 SMA: **-5.2%**  
+- Downside to 50 SMA: **-5.2%**
 - Downside to February lows: **-24.3%**
 
 This is actually a useful framework. Let me extend it honestly.
 
-The bear anchors his downside scenario to the **February 12 low of $197.56** — described as a "massive flush" that "could be retested." But he omits the context: that flush happened during a specific macro shock event (earnings/guidance surprise plus broad risk-off). It represented an approximately **30% discount to where the stock is today** — a discount that required a genuine negative surprise to generate. 
+The bear anchors his downside scenario to the **February 12 low of $197.56** — described as a "massive flush" that "could be retested." But he omits the context: that flush happened during a specific macro shock event (earnings/guidance surprise plus broad risk-off). It represented an approximately **30% discount to where the stock is today** — a discount that required a genuine negative surprise to generate.
 
 For AMZN to return to $197.56 from $261.26, you need either: (a) a catastrophic earnings miss, (b) a broad AI sentiment collapse of 2022 magnitude, or (c) a specific Amazon-negative shock (major regulatory action, CEO departure, AWS outage). None of these are the base case. The bear is using a tail-risk scenario as if it's the central tendency.
 
-More importantly — the bear's asymmetry calculation ignores **time.** The +6.7% to YTD highs can happen in days on a catalyst. The -24.3% to February lows would require months of sustained selling through multiple technical support levels ($259.70 Bollinger lower, $247.72 50 SMA, $231.70 200 SMA). At each of those levels, buyers emerge, fundamentals-based investors add, and the probability of reaching $197 declines. 
+More importantly — the bear's asymmetry calculation ignores **time.** The +6.7% to YTD highs can happen in days on a catalyst. The -24.3% to February lows would require months of sustained selling through multiple technical support levels ($259.70 Bollinger lower, $247.72 50 SMA, $231.70 200 SMA). At each of those levels, buyers emerge, fundamentals-based investors add, and the probability of reaching $197 declines.
 
 The true asymmetry for a 12-18 month investor isn't "$261 to $279 vs. $261 to $197." It's **"$261 to $320+ as AI capex monetizes vs. $261 to $248 (50 SMA) as a possible interim dip."** The bear collapsed a multi-year investment horizon into a short-term price chart comparison and called it risk analysis.
 
@@ -349,7 +349,7 @@ Let me step back and say what I think is actually at stake in this final exchang
 
 The bear's closing argument is fundamentally: **"Wait for a better entry point."** Wait for FCF to turn positive. Wait for EU clarity. Wait for technical confirmation. Wait for Prime Day results. Wait for the AI silicon revenue line to be disclosed.
 
-Here's the problem with that framework when applied to AMZN specifically: **every one of those "wait" conditions, when it resolves positively, will be a catalyst that moves the stock higher before you can act on it.** FCF inflection gets reflected in the stock before the quarter is reported. EU regulatory clarity gets priced in when legislation passes, not when you read about it. Technical confirmation happens as the stock moves above $268 — which means you're buying at $268, not $261. 
+Here's the problem with that framework when applied to AMZN specifically: **every one of those "wait" conditions, when it resolves positively, will be a catalyst that moves the stock higher before you can act on it.** FCF inflection gets reflected in the stock before the quarter is reported. EU regulatory clarity gets priced in when legislation passes, not when you read about it. Technical confirmation happens as the stock moves above $268 — which means you're buying at $268, not $261.
 
 The bear is describing a world where you buy AMZN after all the uncertainties resolve, at a stock price that has already moved 10-15% higher to reflect those resolutions. He says "the stock will be there, probably cheaper." That is the most empirically testable claim in this entire debate — and it has been consistently wrong about Amazon at every major investment cycle inflection point in the company's history.
 
@@ -553,7 +553,7 @@ Let me close with the one argument that I think supersedes every technical indic
 
 **Amazon is one of four or five businesses in human history that has demonstrated the ability to build dominant market positions in multiple trillion-dollar industries simultaneously and compound that dominance over decades.** E-commerce. Cloud. Advertising. AI infrastructure. Logistics. Prime ecosystem. Each one of those would be, standalone, a Fortune 100 business. Together, they create a compounding engine that generates more value each year than the year before — not because everything goes right, but because the *portfolio* effect means no single failure can stop the compounding.
 
-The bear's thesis requires you to believe that the accumulation of risks — EU regulations, CapEx intensity, debt, technical deterioration, momentum rotation — collectively overrides that compounding engine. But notice: he never once argues that *any specific segment will shrink.* AWS won't shrink. Advertising won't shrink. Retail won't shrink. The bear's entire case is that the *rate of growth will be slower than required to justify the multiple.* 
+The bear's thesis requires you to believe that the accumulation of risks — EU regulations, CapEx intensity, debt, technical deterioration, momentum rotation — collectively overrides that compounding engine. But notice: he never once argues that *any specific segment will shrink.* AWS won't shrink. Advertising won't shrink. Retail won't shrink. The bear's entire case is that the *rate of growth will be slower than required to justify the multiple.*
 
 And my response to that is: **the market has been consistently wrong about Amazon's growth rate in the bearish direction for 25 years.** Every time the bears have said "growth will slow more than the multiple implies," Amazon has found the next compounding engine — logistics, then AWS, then advertising, then AI silicon — and the multiple has expanded rather than compressed.
 

@@ -219,7 +219,7 @@ You saved the SBC argument for last, clearly because you thought it was your kno
 
 Except you've made a critical analytical error that undermines the entire calculation.
 
-**Broadcom is aggressively buying back $7.85 billion in stock per quarter.** That's $31.4 billion annualized in buybacks. You cannot simultaneously argue that SBC dilution is destroying shareholder value AND ignore the fact that buybacks are retiring shares faster than SBC is issuing them. The net dilution effect is essentially zero — or actually *negative*, meaning the share count is *declining*. 
+**Broadcom is aggressively buying back $7.85 billion in stock per quarter.** That's $31.4 billion annualized in buybacks. You cannot simultaneously argue that SBC dilution is destroying shareholder value AND ignore the fact that buybacks are retiring shares faster than SBC is issuing them. The net dilution effect is essentially zero — or actually *negative*, meaning the share count is *declining*.
 
 When you buy back $31.4 billion in shares annually against $8.7 billion in SBC issuance, you're not a dilution victim. **You're a beneficiary of net share count reduction.** The "96x owner earnings" number only makes sense if you count the SBC cost but ignore the buyback benefit that more than offsets it. That's not accounting — that's selective arithmetic designed to produce a scary number.
 
@@ -508,7 +508,7 @@ The bear's most emotionally resonant argument was the Microsoft 2000–2013 anal
 
 Microsoft in 2000 traded at **approximately 75x earnings** on a business growing at 15-20% annually. The P/E-to-growth ratio was roughly 4-5x. The price *genuinely* exceeded any realistic discounted cash flow valuation by a wide margin.
 
-Broadcom today trades at **25.5x forward earnings** on a business growing revenue at **30% annually** with a **PEG ratio of 0.97.** 
+Broadcom today trades at **25.5x forward earnings** on a business growing revenue at **30% annually** with a **PEG ratio of 0.97.**
 
 The bear's Microsoft analogy requires you to believe that 25.5x forward PE with a sub-1.0 PEG on 30% revenue growth is the same kind of overvaluation as 75x PE on 15% growth. **It is not.** Not even close. The mathematics of the two situations are categorically different. The bear has selected a historical analogy that superficially sounds applicable and is fundamentally inapplicable in every quantitative dimension that matters.
 
@@ -538,7 +538,7 @@ The bear needs the white-box equivalent to emerge *from outside* the existing cu
 
 The bear's probability framework for the earnings event went like this:
 1. Guidance in-line with expectations → modest upside, already partially priced
-2. Guidance exceeds expectations → meaningful upside  
+2. Guidance exceeds expectations → meaningful upside
 3. Guidance disappoints → severe downside
 
 "Two of three scenarios favor the bear," he concluded.

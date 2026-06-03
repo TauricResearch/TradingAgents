@@ -9,13 +9,13 @@ All data is now in hand. Here is the comprehensive analysis report for **META** 
 
 ---
 
-# 📊 META (Meta Platforms, Inc.) — Comprehensive Technical Analysis Report
+#### 📊 META (Meta Platforms, Inc.) — Comprehensive Technical Analysis Report
 **Analysis Date:** June 2, 2026 | **Last Trading Close:** June 1, 2026 — **$600.47**
 **Exchange:** NASDAQ | **Sector:** Communication Services / Internet Content & Information
 
 ---
 
-## 1. 📈 Price Action Overview
+#### 1. 📈 Price Action Overview
 
 META entered 2026 trading near **$650**, peaked at a post-earnings spike to **$737.68 on Jan 29** (a likely earnings catalyst), and has since been in a prolonged declining channel. After a severe sell-off in late March — where the stock crashed from ~$595 to a **cycle low of $520.26 on March 27** — it staged a strong recovery rally from early April through late April, surging back to **$688.55 (April 17)**.
 
@@ -30,22 +30,22 @@ However, that rally failed to sustain momentum. Beginning in late April (notably
 
 ---
 
-## 2. 🔵 Moving Averages Analysis
+#### 2. 🔵 Moving Averages Analysis
 
-### 50-Day SMA: **$618.41** (Jun 1)
+#### 50-Day SMA: **$618.41** (Jun 1)
 The 50 SMA has been in a steady declining trend — it fell from ~$637 in early April to ~$618 by June 1. The current close of **$600.47 is comfortably below the 50 SMA**, confirming near/medium-term bearish dominance. The 50 SMA is now acting as overhead resistance, and META has not been able to reclaim this level since the April 30 sell-off.
 
-### 200-Day SMA: **$664.94** (Jun 1)
+#### 200-Day SMA: **$664.94** (Jun 1)
 This is the most concerning longer-term signal. META is trading **~$64.50 (approximately 9.7%) below the 200 SMA**. The 200 SMA itself is in a gradual decline (from ~$683 in early April to ~$665 now), confirming that long-term institutional trend support is deteriorating. META is clearly in a long-term bearish regime as long as price remains below this critical level.
 
-### 10-Day EMA: **$617.70** (Jun 1)
+#### 10-Day EMA: **$617.70** (Jun 1)
 The 10 EMA rocketed from ~$575 in early April to ~$665 by late April, confirming the recovery rally. But it has since rolled over sharply, dropping to **$617.70 by June 1** — now below the 50 SMA. A June 1 close at $600.47 means price is **below the 10 EMA**, signaling that even short-term momentum has turned negative. The gap between the 10 EMA ($617.70) and the close ($600.47) indicates recent acceleration of selling pressure.
 
 **Moving Average Summary:** All three major averages are stacked in a bearish configuration (Price < 10 EMA < 50 SMA < 200 SMA), a classically bearish alignment.
 
 ---
 
-## 3. ⚡ MACD Analysis
+#### 3. ⚡ MACD Analysis
 
 | Date | MACD | Signal | Interpretation |
 |------|------|--------|----------------|
@@ -60,7 +60,7 @@ The MACD turned bearish around **May 11-12**, as the MACD line crossed below the
 
 ---
 
-## 4. 📉 RSI (Relative Strength Index)
+#### 4. 📉 RSI (Relative Strength Index)
 
 | Date | RSI | Zone |
 |------|-----|------|
@@ -78,7 +78,7 @@ This pattern of RSI failing to sustain above 50 is a hallmark of a downtrend. Th
 
 ---
 
-## 5. 📊 Bollinger Bands Analysis
+#### 5. 📊 Bollinger Bands Analysis
 
 As of June 1, 2026:
 - **Bollinger Upper Band (boll_ub):** $634.36
@@ -96,7 +96,7 @@ The fact that the Bollinger bands are actively **contracting and rotating lower*
 
 ---
 
-## 6. 🌡️ ATR (Average True Range) — Volatility
+#### 6. 🌡️ ATR (Average True Range) — Volatility
 
 | Date | ATR |
 |------|-----|
@@ -113,7 +113,7 @@ For risk management: position stops should account for at least **1–1.5× ATR 
 
 ---
 
-## 7. 📦 VWMA (Volume-Weighted Moving Average)
+#### 7. 📦 VWMA (Volume-Weighted Moving Average)
 
 | Date | VWMA | Close |
 |------|------|-------|
@@ -131,9 +131,9 @@ The May 27 spike (23.1M shares, close: $635.26) briefly lifted price above VWMA,
 
 ---
 
-## 8. 🔍 Key Insights & Actionable Takeaways
+#### 8. 🔍 Key Insights & Actionable Takeaways
 
-### 🔴 Bearish Factors (Dominant)
+#### 🔴 Bearish Factors (Dominant)
 1. **Price below ALL major moving averages** (10 EMA, 50 SMA, 200 SMA) — full bearish MA stack
 2. **MACD remains negative** — even with a slight crossover signal, both lines are below zero
 3. **RSI at 41.62** — stuck in bearish territory, unable to sustain above 50
@@ -142,13 +142,13 @@ The May 27 spike (23.1M shares, close: $635.26) briefly lifted price above VWMA,
 6. **June 1 high-volume selloff** (29.1M shares) — institutional selling conviction
 7. **200 SMA overhead resistance at $665** — massive gap to reclaim long-term bullish bias
 
-### 🟡 Nuanced / Watch Points
+#### 🟡 Nuanced / Watch Points
 1. **MACD micro-crossover possible** — MACD (-2.63) above Signal (-3.95) for the first time in weeks; if this persists, it could signal exhaustion of the downtrend
 2. **Bollinger Lower Band proximity** — $591 area may offer a short-term bounce point
 3. **RSI not yet oversold** — room to fall further before a technical snap-back is warranted
 4. **ATR expanding slightly** — increased volatility could signal a directional move; watch for volume-confirmed bounces above $612–$618 as initial recovery signals
 
-### 🟢 Bull Case Requirements
+#### 🟢 Bull Case Requirements
 For META to turn technically constructive, traders would need to see:
 - Reclaim of **$612–$618** (10 EMA and Bollinger midline zone)
 - RSI back above **50**
@@ -157,7 +157,7 @@ For META to turn technically constructive, traders would need to see:
 
 ---
 
-## 📋 Summary Table
+#### 📋 Summary Table
 
 | Indicator | Current Value (Jun 1) | Signal | Interpretation |
 |---|---|---|---|
@@ -191,11 +191,11 @@ FINAL TRANSACTION PROPOSAL: **SELL**
 **Confidence:** Medium
 
 
-## META Sentiment Report — 2026-05-26 to 2026-06-02
+#### META Sentiment Report — 2026-05-26 to 2026-06-02
 
 ---
 
-### 1. Source-by-Source Breakdown
+#### 1. Source-by-Source Breakdown
 
 #### 📰 News Headlines (Yahoo Finance / Institutional Press)
 
@@ -246,7 +246,7 @@ Reddit data shows **12 total posts** across three subreddits, with no upvote/com
 
 ---
 
-### 2. Cross-Source Divergences and Alignments
+#### 2. Cross-Source Divergences and Alignments
 
 | Dynamic | Detail |
 |---|---|
@@ -257,7 +257,7 @@ Reddit data shows **12 total posts** across three subreddits, with no upvote/com
 
 ---
 
-### 3. Dominant Narrative Themes
+#### 3. Dominant Narrative Themes
 
 1. **CapEx Overhang / Shareholder Dilution Anxiety**: The single most prominent cross-source theme. META's ~$600B+ AI infrastructure spend is seen by retail as burning shareholder capital ("ATM for Zuck"), by macro commentators as an existential capex arms race, and by r/stocks users as a reason to prefer chip stocks.
 2. **Intraday Price Collapse on June 2**: The StockTwits data is entirely dominated by a real-time reaction to a sharp drop from ~640 to sub-597, generating intense retail frustration. This is a short-term volatility event driving the most negative sentiment.
@@ -268,7 +268,7 @@ Reddit data shows **12 total posts** across three subreddits, with no upvote/com
 
 ---
 
-### 4. Catalysts and Risks Surfaced by the Data
+#### 4. Catalysts and Risks Surfaced by the Data
 
 **Catalysts (Upside):**
 - Wall Street analyst upgrade (unnamed bank, week of June 2)
@@ -287,7 +287,7 @@ Reddit data shows **12 total posts** across three subreddits, with no upvote/com
 
 ---
 
-### 5. Key Sentiment Signals — Summary Table
+#### 5. Key Sentiment Signals — Summary Table
 
 | Signal | Direction | Source | Supporting Evidence |
 |---|---|---|---|
@@ -307,7 +307,7 @@ Reddit data shows **12 total posts** across three subreddits, with no upvote/com
 
 ---
 
-### Overall Assessment
+#### Overall Assessment
 
 META sentiment for the period 2026-05-26 to 2026-06-02 is best described as **Mixed**, with a slight lean toward near-term bearishness driven by a sharp intraday price drop on June 2, retail panic, and capex anxiety — offset by genuine institutional positives (analyst upgrade, regulatory progress, long-term growth narrative, contrarian dip-buy thesis). The fundamental bull case is intact in institutional eyes, but near-term price action and retail sentiment are clearly negative. The divergence between institutional framing (mildly bullish) and retail real-time sentiment (bearish/panicked) is the defining feature of this period.
 
@@ -319,65 +319,65 @@ I now have sufficient data to compile a comprehensive analysis. Let me construct
 
 ---
 
-# 📊 META Platforms, Inc. (META) — Comprehensive Trading & Macroeconomic Research Report
+#### 📊 META Platforms, Inc. (META) — Comprehensive Trading & Macroeconomic Research Report
 **Analysis Date: June 2, 2026 | Exchange: NMS | Sector: Communication Services / Internet Content & Information**
 
 ---
 
-## 1. EXECUTIVE SUMMARY
+#### 1. EXECUTIVE SUMMARY
 
 Meta Platforms, Inc. (META) enters June 2026 with a confluent set of powerful tailwinds: a fresh Wall Street analyst **upgrade**, strong institutional narrative as a core AI enabler, expanding teen-safety regulatory compliance reducing policy risk, and sustained investor conviction about its decade-long growth profile. At the same time, the macro environment is mixed — an Iran-war-driven inflationary surge, rate-hike fears around NFP data, and a contested Fed Chair dynamic create broader market headwinds. On balance, META's fundamental picture appears **constructive**, supported by sector momentum, positive analyst action, and the AI capex supercycle in which Meta is a key participant and beneficiary.
 
 ---
 
-## 2. COMPANY-SPECIFIC NEWS & DEVELOPMENTS
+#### 2. COMPANY-SPECIFIC NEWS & DEVELOPMENTS
 
-### 2.1 ✅ Wall Street Upgrade — Bullish Signal
+#### 2.1 ✅ Wall Street Upgrade — Bullish Signal
 One of the most actionable developments this week is a **Wall Street analyst upgrade for META**, reported by The Fly (via Yahoo Finance). While the source does not specify the upgrading bank or the price target, an upgrade at current market levels — when Meta appears to be competing in a valuation bracket with Micron's recently crossed $1.16 trillion market cap — signals that institutional sentiment remains firmly in the bull camp. Upgrades in this environment, especially amid broader AI enthusiasm, typically translate into near-term price momentum and increased institutional inflows.
 
-### 2.2 🛡️ Teen Safety Expansion — Regulatory Risk Mitigation
+#### 2.2 🛡️ Teen Safety Expansion — Regulatory Risk Mitigation
 META is proactively rolling out **stricter global teen safety controls and a new Instagram Feed tool** (Stocktwits, GuruFocus). This is strategically significant for several reasons:
 - **Regulatory Shield:** Governments in the EU, UK, and the US have intensified scrutiny of social media platforms' impact on youth. By getting ahead of mandated protections, META reduces the probability of punitive fines or forced product changes.
 - **Advertiser Confidence:** Brands increasingly require brand-safe environments. Demonstrable safety improvements for teen users makes META's platform more attractive to family-oriented advertisers.
 - **Stock Reaction:** The article headline itself references a **stock gain** accompanying the announcement, confirming market approval of this strategic move.
 
-### 2.3 🤖 AI Employee Data Collection — Strategic but Sensitive
+#### 2.3 🤖 AI Employee Data Collection — Strategic but Sensitive
 Reuters (reported by Insider Monkey) revealed that META's plans to **collect detailed records of U.S. employee computer usage** to train its AI models are more extensive than previously disclosed. This is a double-edged development:
 - **Positive:** Demonstrates META's aggressive commitment to building proprietary AI models using rich, real-world behavioral data — a competitive moat.
 - **Risk:** Could invite labor disputes, employee relations issues, or privacy-related regulatory scrutiny under evolving data protection legislation.
 - **Net View:** The AI training data advantage likely outweighs short-term reputational noise for institutional investors focused on long-term AI competitiveness.
 
-### 2.4 📈 Long-Term Growth Thesis Intact
+#### 2.4 📈 Long-Term Growth Thesis Intact
 Motley Fool identifies META as one of **"2 Growth Stocks to Buy and Hold for a Decade"**, citing outperformance vs. the S&P 500 over the prior 10 years. This kind of endorsement anchors retail and institutional conviction, particularly in a momentum-driven market where AI-adjacent names command premium valuations.
 
-### 2.5 💰 AI Capex Context — META Among the Hyperscalers
+#### 2.5 💰 AI Capex Context — META Among the Hyperscalers
 TheStreet cites research from macro guru Raoul Pal noting that **the five biggest U.S. hyperscalers — Amazon, Alphabet, Meta, Microsoft, and Oracle — are expected to spend roughly $720 billion on AI infrastructure in 2026.** This confirms:
 - META is in elite company in the AI buildout race
 - Its capex commitment signals long-term strategic confidence even if it pressures near-term free cash flow
 - The scale of spending is itself a competitive moat — smaller players simply cannot match this infrastructure investment
 
-### 2.6 🏆 Valuation Positioning — Competitive with Micron's $1.19T Cap
+#### 2.6 🏆 Valuation Positioning — Competitive with Micron's $1.19T Cap
 An article from 24/7 Wall St. notes Micron Technology crossing a **$1.16 trillion market cap ($1.19T at publication)** and speculates about when it might "top META." This implies META's current market capitalization is in approximately the same range (~$1.2–1.5T), affirming it remains one of the world's most valuable companies — a status that brings index-level inflows, passive fund buying pressure, and macro relevance.
 
 ---
 
-## 3. AI SECTOR & TECHNOLOGY MACRO CONTEXT
+#### 3. AI SECTOR & TECHNOLOGY MACRO CONTEXT
 
-### 3.1 AI is Carrying the S&P 500 Rally
+#### 3.1 AI is Carrying the S&P 500 Rally
 A Yahoo Finance Chart of the Day analysis reveals that the **S&P 500 rebound is heavily concentrated in AI-enabling companies**. Strip out AI enablers, and the rally looks dramatically thinner. This is both a strength and a risk for META:
 - **Strength:** META is embedded in the AI rally — it benefits from the same narrative momentum that's lifting Nvidia, Microsoft, and Broadcom.
 - **Risk:** If the AI narrative faces a catalyst shock (earnings miss from a peer, Fed tightening, geopolitical disruption), META could experience sharper drawdowns as a high-beta AI name.
 
-### 3.2 Alphabet's $80 Billion Equity Plan — Industry Capex Signal
+#### 3.2 Alphabet's $80 Billion Equity Plan — Industry Capex Signal
 Alphabet (GOOGL) is raising **$80 billion through equity sales** to fund 2026–2027 AI capital expenditures (Barrons). This is a landmark development signaling:
 - The AI buildout is so capital-intensive that even the world's richest companies are going beyond debt financing
 - META's own AI investments are fully consistent with peer behavior
 - Bond markets are "feeling the strain" — a warning signal that fixed income may price in higher-for-longer interest rates, creating a headwind for growth-equity valuations broadly
 
-### 3.3 Fed Chair Risk — Kevin Warsh as the "Only Man Who Can Kill the AI Boom"
+#### 3.3 Fed Chair Risk — Kevin Warsh as the "Only Man Who Can Kill the AI Boom"
 24/7 Wall St. publishes a notable piece naming **Fed Chair Kevin Warsh as the singular existential threat to the AI equity rally**. The thesis: AI momentum has survived geopolitics, China competition, export restrictions, and recession fears — but a Fed tightening cycle could compress multiples across the entire growth/AI complex. META, trading at a growth premium, is not immune to this risk. NFP data and rate hike fears are already creating **gold market volatility** (OilPrice.com), a canary in the coal mine for broader risk-off sentiment.
 
-### 3.4 Upcoming AI IPOs — SpaceX, OpenAI, Anthropic
+#### 3.4 Upcoming AI IPOs — SpaceX, OpenAI, Anthropic
 The anticipated IPOs of **SpaceX, OpenAI, and Anthropic** are generating substantial investor interest (Yahoo Finance). These events could:
 - **Drain capital** from established AI plays like META as retail and institutional investors rotate into new high-growth names
 - **Validate** the AI sector's overall valuation framework, which benefits META by association
@@ -385,31 +385,31 @@ The anticipated IPOs of **SpaceX, OpenAI, and Anthropic** are generating substan
 
 ---
 
-## 4. MACROECONOMIC ENVIRONMENT
+#### 4. MACROECONOMIC ENVIRONMENT
 
-### 4.1 Inflationary Pressures — Iran War Impact
+#### 4.1 Inflationary Pressures — Iran War Impact
 Multiple sources (Footwear News, WWD) document **rising consumer prices driven by the Iran conflict**, which has elevated oil prices and consequently driven up costs across consumer goods from footwear to fashion retail. Macro implications for META:
 - Higher inflation → reduced consumer discretionary spending → potential pressure on digital advertising budgets from consumer-facing brands
 - Gas/oil prices feeding into broader CPI → sustained inflationary pressure → Fed rate hike risk (↑)
 - Consumer confidence deterioration (noted in "Shaky Consumer" headline) could reduce e-commerce activity, reducing the ROI advertisers see from META's platforms
 
-### 4.2 NFP & Rate Hike Fears
+#### 4.2 NFP & Rate Hike Fears
 Gold markets are "seesawing on ceasefire headlines as NFP, rate hike fears loom" (OilPrice.com). An upcoming Non-Farm Payrolls (NFP) print that comes in hotter-than-expected would intensify market fears of Fed tightening — a direct negative for high-multiple growth stocks like META. This is a near-term binary event risk that traders must monitor closely around the current date.
 
-### 4.3 Consumer Stress Signals
+#### 4.3 Consumer Stress Signals
 Dollar General's "solid" Q1 (Truist via MT Newswires) and questions about "How Low Can Home Depot Stock Go?" paint a picture of **bifurcated consumer health** — discount retailers holding up while home improvement softens. For META's advertising revenue:
 - Pressure on mid-to-lower income consumers could shift ad spend mix toward performance/direct response (historically META's strength)
 - Weaker housing market = less home improvement advertising spend, but META is less exposed to this vertical than search
 
-### 4.4 Bitcoin at $67K — Risk Appetite Barometer
+#### 4.4 Bitcoin at $67K — Risk Appetite Barometer
 BTC slipping to ~$67K (Stocktwits) after likely highs is a mild risk-off signal for speculative assets broadly, though META's correlation to crypto is indirect. More relevant: it suggests **institutional risk appetite is not at maximum greed levels**, tempering expectations for continued vertical moves in growth equities.
 
-### 4.5 Commodities & AI Infrastructure
+#### 4.5 Commodities & AI Infrastructure
 The Zacks piece "Copper vs. Gold & Silver: Which Metal Wins the AI Boom?" highlights that data center buildouts (in which META is a massive participant at ~$720B collective spend) are driving **industrial metals demand** — particularly copper for electrical infrastructure. This reinforces the structural, multi-year nature of the AI capex cycle that META is deeply embedded in.
 
 ---
 
-## 5. COMPETITIVE LANDSCAPE
+#### 5. COMPETITIVE LANDSCAPE
 
 | Competitor/Peer | Key Development | Impact on META |
 |---|---|---|
@@ -421,16 +421,16 @@ The Zacks piece "Copper vs. Gold & Silver: Which Metal Wins the AI Boom?" highli
 
 ---
 
-## 6. RISK ASSESSMENT
+#### 6. RISK ASSESSMENT
 
-### Upside Risks (Catalysts for Higher Prices)
+#### Upside Risks (Catalysts for Higher Prices)
 1. **Analyst Upgrade Follow-through:** Multiple upgrades could cluster, driving institutional buying
 2. **AI Monetization Acceleration:** Meta AI assistant, Llama models, and AI-powered ads could significantly boost revenue
 3. **Regulatory Clarity:** Teen safety controls position META favorably ahead of potential EU/US regulatory frameworks
 4. **Earnings Beat:** If AI-driven ad revenue growth exceeds consensus estimates in upcoming quarter
 5. **Share Buybacks:** META's history of aggressive buybacks provides a floor under the stock
 
-### Downside Risks (Catalysts for Lower Prices)
+#### Downside Risks (Catalysts for Lower Prices)
 1. **Fed Tightening:** Rate hikes would compress META's growth multiple significantly
 2. **Hot NFP Print:** Near-term binary event risk triggering risk-off rotation
 3. **Iran War Escalation:** Geopolitical escalation → oil spike → inflationary pressure → ad spend contraction
@@ -440,7 +440,7 @@ The Zacks piece "Copper vs. Gold & Silver: Which Metal Wins the AI Boom?" highli
 
 ---
 
-## 7. TRADING OUTLOOK & ACTIONABLE INSIGHTS
+#### 7. TRADING OUTLOOK & ACTIONABLE INSIGHTS
 
 **Overall Stance: CONSTRUCTIVE (Bullish Bias)**
 
@@ -455,7 +455,7 @@ The convergence of a fresh analyst **upgrade**, proactive regulatory positioning
 
 ---
 
-## 8. SUMMARY TABLE — KEY FACTORS FOR META (NMS)
+#### 8. SUMMARY TABLE — KEY FACTORS FOR META (NMS)
 
 | Category | Factor | Signal | Strength | Directional Impact |
 |---|---|---|---|---|
@@ -487,12 +487,12 @@ I now have comprehensive data to compile a detailed fundamental analysis report 
 
 ---
 
-# 📊 Meta Platforms, Inc. (META) — Comprehensive Fundamental Analysis Report
+#### 📊 Meta Platforms, Inc. (META) — Comprehensive Fundamental Analysis Report
 **Analysis Date:** June 2, 2026 | **Exchange:** NASDAQ (NMS) | **Sector:** Communication Services | **Industry:** Internet Content & Information
 
 ---
 
-## 1. 🏢 Company Profile
+#### 1. 🏢 Company Profile
 
 Meta Platforms, Inc. (formerly Facebook, Inc.) is the world's dominant social networking and digital advertising enterprise. Its product portfolio encompasses **Facebook, Instagram, WhatsApp, and Messenger**, collectively forming the largest social media ecosystem on the planet with billions of daily active users. Meta is also aggressively investing in **Reality Labs** (AR/VR hardware and software), **AI infrastructure**, and next-generation computing platforms, positioning itself for long-term technological leadership beyond digital advertising.
 
@@ -505,9 +505,9 @@ Meta Platforms, Inc. (formerly Facebook, Inc.) is the world's dominant social ne
 
 ---
 
-## 2. 📈 Income Statement Analysis
+#### 2. 📈 Income Statement Analysis
 
-### Annual Revenue & Profitability Trend
+#### Annual Revenue & Profitability Trend
 META has demonstrated exceptional and accelerating revenue growth over the past four fiscal years:
 
 | Fiscal Year | Total Revenue | Gross Profit | Operating Income | Net Income |
@@ -521,7 +521,7 @@ META has demonstrated exceptional and accelerating revenue growth over the past 
 - Revenue grew **+22.2% YoY** from FY2024 to FY2025.
 - The compound annual growth rate (CAGR) from FY2022–FY2025 is approximately **20% per annum**.
 
-### Q1 2026 Quarterly Performance (Most Recent Quarter: Q1 2026 ended March 31, 2026)
+#### Q1 2026 Quarterly Performance (Most Recent Quarter: Q1 2026 ended March 31, 2026)
 - **Total Revenue:** $56.3B (+33.1% YoY vs. Q1 2025's $42.3B) — an exceptional acceleration.
 - **Gross Profit:** $46.1B (Gross Margin: **81.9%**) — extremely high-quality earnings.
 - **Operating Income:** $22.9B (Operating Margin: **40.6%**)
@@ -530,7 +530,7 @@ META has demonstrated exceptional and accelerating revenue growth over the past 
 
 > ⚠️ **Anomaly Note:** Q3 2025 net income was unusually low at $2.7B due to an outsized deferred tax provision of ~$19.9B (a non-cash item), which distorted that single quarter. Underlying normalized operations remained robust.
 
-### TTM (Trailing Twelve Months) Metrics
+#### TTM (Trailing Twelve Months) Metrics
 - **Revenue (TTM):** ~$215.0B
 - **Gross Profit (TTM):** ~$176.1B
 - **Net Income (TTM):** ~$70.6B
@@ -538,7 +538,7 @@ META has demonstrated exceptional and accelerating revenue growth over the past 
 - **Operating Margin (TTM):** **40.6%**
 - **EBITDA (TTM):** ~$109.3B
 
-### Cost Structure & R&D Investment
+#### Cost Structure & R&D Investment
 META's commitment to AI and metaverse R&D is clearly visible:
 - **R&D (Q1 2026):** $17.7B (31.4% of revenue) — representing a +45.7% YoY surge from Q1 2025's $12.15B.
 - **Annual R&D (FY2025):** $57.4B vs. $43.9B in FY2024 (+30.8% YoY), signaling enormous long-term bets on AI infrastructure and next-gen computing.
@@ -546,9 +546,9 @@ META's commitment to AI and metaverse R&D is clearly visible:
 
 ---
 
-## 3. 💰 Balance Sheet Analysis
+#### 3. 💰 Balance Sheet Analysis
 
-### Asset Base Expansion
+#### Asset Base Expansion
 META's asset base has grown dramatically, driven by capital-intensive AI and data center investment:
 
 | Date | Total Assets | Net PPE | Cash & Equiv. | Total Debt |
@@ -565,28 +565,28 @@ META's asset base has grown dramatically, driven by capital-intensive AI and dat
 - **Cash, Cash Equivalents & Short-Term Investments:** $81.2B, providing a formidable liquidity buffer.
 - **Available-for-Sale Securities (Non-Current):** $28.4B, adding to the overall investment portfolio.
 
-### Debt & Leverage
+#### Debt & Leverage
 - **Total Debt:** $86.8B as of Q1 2026 vs. $49.1B at FY2024-end — debt roughly doubled in ~15 months due to infrastructure financing.
 - **Long-Term Debt (excluding leases):** $58.7B.
 - **Capital Lease Obligations:** $28.0B (reflecting massive data center operating commitments).
 - **Net Debt:** $35.3B (total debt minus cash/investments).
 - **Debt-to-Equity:** 35.6 (when including all obligations; however, this needs to be read in context of META's enormous equity base of $243.7B).
 
-### Shareholder Equity
+#### Shareholder Equity
 - **Common Stock Equity (Q1 2026):** $243.7B, up from $217.2B at FY2025-end and $182.6B at FY2024-end.
 - **Book Value Per Share:** $96.01
 - **Price-to-Book:** 6.22x — a premium reflecting META's dominant franchise value.
 - **Retained Earnings:** $144.6B as of Q1 2026, growing strongly.
 
-### Liquidity Position
+#### Liquidity Position
 - **Current Ratio:** 2.35x — healthy, well above the 1.0x safety threshold.
 - **Working Capital:** $63.0B (Q1 2026).
 
 ---
 
-## 4. 💸 Cash Flow Analysis
+#### 4. 💸 Cash Flow Analysis
 
-### Operating Cash Flow — Exceptional Strength
+#### Operating Cash Flow — Exceptional Strength
 
 | Period | Operating CF | CapEx | Free Cash Flow |
 |---|---|---|---|
@@ -601,7 +601,7 @@ META's asset base has grown dramatically, driven by capital-intensive AI and dat
 - **Q1 2026 FCF:** $13.2B — annualizing to ~$53B, consistent with TTM FCF of ~$25.6B (note: TTM FCF from fundamentals data reflects different trailing window).
 - The deliberate acceleration in CapEx has slightly compressed FCF margins but is a strategic investment decision, not a cash generation problem.
 
-### Capital Allocation
+#### Capital Allocation
 - **Share Buybacks:** META repurchased $26.2B in FY2025 and $30.1B in FY2024 — extremely aggressive, demonstrating high management confidence.
 - **Dividends:** $5.3B paid in FY2025 (new dividend policy initiated), $5.1B in FY2024, and $0 prior to that.
 - **Debt Issuance (FY2025):** $29.9B — primarily to finance the massive CapEx program without depleting cash reserves.
@@ -609,7 +609,7 @@ META's asset base has grown dramatically, driven by capital-intensive AI and dat
 
 ---
 
-## 5. 📐 Valuation Analysis
+#### 5. 📐 Valuation Analysis
 
 | Metric | Value |
 |---|---|
@@ -628,7 +628,7 @@ META's asset base has grown dramatically, driven by capital-intensive AI and dat
 
 ---
 
-## 6. 📊 Key Financial Ratios
+#### 6. 📊 Key Financial Ratios
 
 | Ratio | Value | Assessment |
 |---|---|---|
@@ -642,7 +642,7 @@ META's asset base has grown dramatically, driven by capital-intensive AI and dat
 
 ---
 
-## 7. ⚠️ Key Risks
+#### 7. ⚠️ Key Risks
 
 1. **CapEx Escalation Risk:** FY2025 CapEx nearly doubled YoY to $69.7B. Q1 2026 annualizes to ~$76B. If AI monetization lags infrastructure spend, FCF could come under pressure.
 2. **Regulatory & Antitrust Exposure:** META faces ongoing regulatory scrutiny globally (EU AI Act, US FTC/antitrust cases), which could impose operational constraints or fines.
@@ -654,7 +654,7 @@ META's asset base has grown dramatically, driven by capital-intensive AI and dat
 
 ---
 
-## 8. 🌟 Key Competitive Strengths
+#### 8. 🌟 Key Competitive Strengths
 
 1. **Network Effects:** 3B+ daily active users across the Family of Apps — effectively an insurmountable moat.
 2. **Advertising Technology:** Best-in-class ad targeting, re-accentuated by AI-driven Advantage+ tools and Reels monetization.
@@ -665,24 +665,24 @@ META's asset base has grown dramatically, driven by capital-intensive AI and dat
 
 ---
 
-## 9. 📉 Recent Trends & Actionable Insights
+#### 9. 📉 Recent Trends & Actionable Insights
 
-### Revenue Acceleration Confirmed
+#### Revenue Acceleration Confirmed
 - Q1 2026 revenue of $56.3B was +33.1% YoY — the strongest growth rate seen in recent quarters, suggesting AI-powered ad tools are materially lifting revenue per impression.
 
-### Margin Resilience
+#### Margin Resilience
 - Despite heavy R&D and CapEx, operating margins remain above **40%**, demonstrating the extraordinary operating leverage in META's core ad business.
 
-### Earnings Quality
+#### Earnings Quality
 - Underlying EPS growth remains extraordinary. Q1 2026 diluted EPS of $10.44 (+62% YoY) is a landmark print.
 - Forward EPS of $36.16 points to the stock being meaningfully undervalued on an earnings basis at a 16.5x forward multiple.
 
-### CapEx as a Long-Term Catalyst, Not a Concern
+#### CapEx as a Long-Term Catalyst, Not a Concern
 - The surge in CapEx ($69.7B in FY2025, $19B in Q1 2026 alone) is predominantly AI data center buildout. This infrastructure is expected to drive sustained advertising efficiency gains and new AI-native products, creating a powerful long-term earnings runway.
 
 ---
 
-## 10. 📋 Summary Key Metrics Table
+#### 10. 📋 Summary Key Metrics Table
 
 | Category | Metric | Value | Trend |
 |---|---|---|---|
@@ -722,7 +722,7 @@ META's asset base has grown dramatically, driven by capital-intensive AI and dat
 
 ---
 
-## 11. 🔑 Actionable Insights for Traders
+#### 11. 🔑 Actionable Insights for Traders
 
 1. **Bullish Case (Strong):** A forward P/E of 16.5x combined with a PEG of 0.91 and >30% EPS growth is a rare combination in mega-cap tech. Earnings acceleration (Q1 2026 EPS +62% YoY) provides a strong fundamental tailwind.
 2. **Revenue Acceleration:** Q1 2026's +33.1% revenue growth signals that AI-powered advertising tools are converting investment into top-line results sooner than expected.
@@ -748,7 +748,7 @@ So let's have that conversation properly.
 
 ---
 
-## 💰 The Numbers Don't Lie — And They're Extraordinary
+#### 💰 The Numbers Don't Lie — And They're Extraordinary
 
 Let me start with what I consider the single most important fact in this entire debate: **META just reported Q1 2026 EPS of $10.44, up 62% year-over-year.** Not 6%. Not 16%. *Sixty-two percent.* On a company with a $1.5 trillion market cap.
 
@@ -763,7 +763,7 @@ The bear narrative implicitly assumes META is a broken company in decline. The i
 
 ---
 
-## 📊 The Valuation Case: This Is Genuinely Cheap
+#### 📊 The Valuation Case: This Is Genuinely Cheap
 
 Here's where I want to really push back on the bear perspective, because the valuation argument is where the bull case is *strongest*.
 
@@ -780,7 +780,7 @@ Wall Street's own analysts see this too — that's why we just got a **fresh ana
 
 ---
 
-## 🤖 The AI Monetization Story Is Already Working
+#### 🤖 The AI Monetization Story Is Already Working
 
 The bear case on capex is probably the most sophisticated concern raised, so let me address it head-on because it deserves a real answer.
 
@@ -794,7 +794,7 @@ META's $81.2 billion cash fortress and $115.8 billion in operating cash flow mea
 
 ---
 
-## 🏰 The Competitive Moat Is Essentially Unassailable
+#### 🏰 The Competitive Moat Is Essentially Unassailable
 
 Let me ask the bears a simple question: name me a realistic competitor to Meta's Family of Apps.
 
@@ -804,7 +804,7 @@ This isn't a company with one product facing disruption. It's a diversified soci
 
 ---
 
-## 🛡️ Regulatory Risk Is Being *Managed*, Not Ignored
+#### 🛡️ Regulatory Risk Is Being *Managed*, Not Ignored
 
 The teen safety controls expansion is more important than the market is giving it credit for. For years, regulatory overhang has been a persistent drag on META's multiple — governments threatening forced restructuring, advertising restrictions, data privacy crackdowns. By proactively rolling out global teen safety controls and Instagram feed tools, META is doing something rare: **getting ahead of the regulatory curve.**
 
@@ -812,7 +812,7 @@ This reduces the risk premium embedded in the stock. The market isn't fully pric
 
 ---
 
-## 📉 The Technical Picture: Temporary, Not Terminal
+#### 📉 The Technical Picture: Temporary, Not Terminal
 
 Now let me directly address the bear's primary ammunition — the technical analysis.
 
@@ -828,7 +828,7 @@ The WSB poster who said "Meta is the cheapest Mag 7, so we're being responsible 
 
 ---
 
-## 🎯 The Bull Target and What It Takes
+#### 🎯 The Bull Target and What It Takes
 
 For META to fully re-rate, you need:
 1. **CapEx guidance to moderate** — any signal that the $70B+ annual spend is peaking sends FCF sharply higher
@@ -841,7 +841,7 @@ The 52-week high is $796. From $600, that's a **33% return** just to get back to
 
 ---
 
-## 🐂 Bottom Line
+#### 🐂 Bottom Line
 
 The bear case for META is a chart. The bull case is a business.
 
@@ -860,7 +860,7 @@ Let me take each pillar of the bear case and show you where it bends under scrut
 
 ---
 
-## 🔴 "The Market Is Voting Against It" — Let's Talk About What the Market Actually Knows
+#### 🔴 "The Market Is Voting Against It" — Let's Talk About What the Market Actually Knows
 
 The bear's opening gambit is essentially: *"If the fundamentals are so great, why is the stock down from $743?"* This sounds compelling until you interrogate it seriously.
 
@@ -872,7 +872,7 @@ And here's the critical question the bear doesn't answer: **if smart institution
 
 ---
 
-## 💸 The CapEx Math: The Bear Is Reading the Income Statement — I'm Reading the Future
+#### 💸 The CapEx Math: The Bear Is Reading the Income Statement — I'm Reading the Future
 
 Now, this is where the debate gets genuinely interesting, because the bear made what sounds like a devastating point about free cash flow. Let me reproduce their argument precisely: FCF fell from $54.1B in FY2024 to $46.1B in FY2025. Revenue up 22%. FCF down 15%. Sounds terrible.
 
@@ -894,7 +894,7 @@ The bear is essentially arguing: *"Don't invest in a business that's building it
 
 ---
 
-## 📉 On Technicals: I Respect the Chart, But I Won't Worship It
+#### 📉 On Technicals: I Respect the Chart, But I Won't Worship It
 
 My bear colleague pushed back on my characterization of technicals as "just a chart." Fair enough — I'll meet them halfway. Technical analysis reflects the *aggregate opinion of market participants*. It's meaningful. But it's backward-looking, and it has a particular blind spot: **it cannot distinguish between a stock declining because the business is broken versus a stock declining because of temporary macro and sentiment factors that are completely orthogonal to business quality.**
 
@@ -908,7 +908,7 @@ What I'd point to instead: **the $520 level held twice**. That's your structural
 
 ---
 
-## 🤖 "AI Monetization Has a Fatal Flaw" — Let Me Show You What's Actually Happening
+#### 🤖 "AI Monetization Has a Fatal Flaw" — Let Me Show You What's Actually Happening
 
 The bear argues that if AI were really working, the stock would be at new highs rather than gapping down on earnings. I already addressed the "sell the news after a 32% pre-earnings rally" mechanics above. But let me go deeper on the AI point because this is genuinely the crux of the bull case.
 
@@ -928,7 +928,7 @@ On OpenAI and Anthropic IPOs creating capital rotation pressure: this is a real 
 
 ---
 
-## 💼 "Cheap Is Relative" — But 16.5x Forward P/E on 33% Growth Isn't Relative, It's Absolute Value
+#### 💼 "Cheap Is Relative" — But 16.5x Forward P/E on 33% Growth Isn't Relative, It's Absolute Value
 
 The bear's most nuanced argument is that the forward P/E of 16.5x only looks cheap *if* the $36.16 EPS estimate materializes, and then lists conditions that could prevent it. Let me work through those conditions honestly.
 
@@ -942,7 +942,7 @@ And even if we apply meaningful multiple compression — say a 20% reduction to 
 
 ---
 
-## 🛡️ On Regulatory Risk: I'll Give You the Escalation, But the Direction Is Still Right
+#### 🛡️ On Regulatory Risk: I'll Give You the Escalation, But the Direction Is Still Right
 
 The bear is correct that the data privacy revelations add complexity. I won't spin that. But there's an important distinction the bear blurs: **regulatory complexity and regulatory existential risk are not the same thing**.
 
@@ -952,7 +952,7 @@ The teen safety expansion isn't "a gesture." It's a $200B+ enterprise proactivel
 
 ---
 
-## 🌡️ On Sentiment: Who Was Right — Retail at $600 or the Analyst Who Just Upgraded?
+#### 🌡️ On Sentiment: Who Was Right — Retail at $600 or the Analyst Who Just Upgraded?
 
 The bear reframes the StockTwits panic as "retail was right" because the stock closed at $600 instead of bouncing immediately. But that's a very short time horizon for evaluating a contrarian indicator.
 
@@ -962,7 +962,7 @@ The divergence between retail panic and institutional upgrade isn't evidence tha
 
 ---
 
-## 🎯 Let Me Address the Path to $796 Directly
+#### 🎯 Let Me Address the Path to $796 Directly
 
 The bear says my path to $796 requires "a daisy chain of favorable resolutions." My response: it doesn't require all conditions simultaneously. It requires **one catalyst at a time**, sequentially.
 
@@ -976,7 +976,7 @@ None of these require heroic assumptions. They require a business that's current
 
 ---
 
-## 🐂 My Final Response to the Bear's Bottom Line
+#### 🐂 My Final Response to the Bear's Bottom Line
 
 The bear concluded: *"Great businesses can be terrible investments at the wrong price, in the wrong macro environment, at the wrong point in a capex cycle."*
 
@@ -990,7 +990,7 @@ I agree completely. But every single word of that sentence cuts the other way fo
 
 ---
 
-## 🏁 Bull Conclusion: Buy META at $600 — The Fundamentals Demand It
+#### 🏁 Bull Conclusion: Buy META at $600 — The Fundamentals Demand It
 
 The bear has made an eloquent case for technical weakness and macro uncertainty. But they haven't made a case that META's business is structurally impaired. They haven't identified a competitor who is taking share from its 3 billion daily active users. They haven't shown that AI monetization is failing — the numbers show it's succeeding. They haven't demonstrated that the capex bet is wrong — only that it's expensive right now.
 
@@ -1020,7 +1020,7 @@ Let me be direct: my bear colleague just delivered their most sophisticated argu
 
 ---
 
-## 🔴 "Listen to the Market" — Let's Actually Do That, Completely
+#### 🔴 "Listen to the Market" — Let's Actually Do That, Completely
 
 The bear closes with a powerful line: "The bull is selling you the future. The market is telling you about the present."
 
@@ -1038,7 +1038,7 @@ META in 2026? **$115.8 billion in operating cash flow. 40.6% operating margins. 
 
 ---
 
-## 💸 The $1.37 Capex-Per-Revenue-Dollar Argument: Sounds Devastating, Is Actually Backwards
+#### 💸 The $1.37 Capex-Per-Revenue-Dollar Argument: Sounds Devastating, Is Actually Backwards
 
 The bear introduced what they called a "fatal flaw" — META spent $1.37 in capex for every $1.00 of incremental revenue in Q1 2026. This is their strongest specific data point, so let me address it with equal specificity.
 
@@ -1050,7 +1050,7 @@ And on the $61 billion in construction-in-progress generating "zero revenue": **
 
 ---
 
-## 📉 Volume Analysis: The Bear Cherry-Picked the Heaviest Down Days — Here's the Full Picture
+#### 📉 Volume Analysis: The Bear Cherry-Picked the Heaviest Down Days — Here's the Full Picture
 
 The bear's volume argument is the most technically sophisticated point they've made, and I want to engage with it honestly. They're right that heavy volume on down days is bearish. April 30's 52.7 million shares on a down day — that's real institutional selling pressure. June 1's 29.1 million shares — real.
 
@@ -1062,7 +1062,7 @@ It occurred between $688 and $600. That means institutional sellers who "distrib
 
 ---
 
-## 🤖 "Where Is Llama Monetization in the Financials?" — The Bear Asked the Right Question, Just Got the Wrong Answer
+#### 🤖 "Where Is Llama Monetization in the Financials?" — The Bear Asked the Right Question, Just Got the Wrong Answer
 
 I want to give genuine credit here: the bear asked a sharp question. Where is Llama ecosystem monetization showing up? They argue the 33% revenue growth is "almost entirely from Advantage+ tools — a product that existed before the $69.7 billion capex surge."
 
@@ -1076,7 +1076,7 @@ And on "potential" doing heavy lifting in the Llama monetization argument: yes, 
 
 ---
 
-## 💼 On Rate Sensitivity and Duration — The Bear Made a Sophisticated Error
+#### 💼 On Rate Sensitivity and Duration — The Bear Made a Sophisticated Error
 
 The bear deployed a genuinely clever argument: META's long-duration AI investment thesis makes it *more* rate-sensitive, not less, regardless of the current-year P/E. The theoretical framework is correct. But it has a practical problem that undermines the conclusion entirely.
 
@@ -1088,7 +1088,7 @@ Meanwhile, if the macro cooperates — and ceasefire negotiations producing an a
 
 ---
 
-## 🛡️ The Employee Surveillance Argument: Clever Framing, Weak Evidence
+#### 🛡️ The Employee Surveillance Argument: Clever Framing, Weak Evidence
 
 The bear's employee data surveillance point is creative, but let me interrogate whether the actual risk matches the rhetorical framing.
 
@@ -1104,7 +1104,7 @@ The bear is asking you to price in a risk that has no current evidence of materi
 
 ---
 
-## 🌡️ On the Analyst Upgrade — The Bear's Most Revealing Concession
+#### 🌡️ On the Analyst Upgrade — The Bear's Most Revealing Concession
 
 The bear attacks the analyst upgrade by noting it's unnamed and that the analyst may be "catching down to where the stock already is." This criticism is remarkably revealing.
 
@@ -1114,7 +1114,7 @@ And on the timing criticism: the bear says this analyst "should have upgraded at
 
 ---
 
-## 🎯 The "Wait for Better Entry" Argument — The Most Expensive Advice in Investing
+#### 🎯 The "Wait for Better Entry" Argument — The Most Expensive Advice in Investing
 
 The bear's closing recommendation is genuinely seductive: "There will be a better entry. Wait for the 200-day SMA reclaim, wait for capex guidance moderation, wait for macro clearing."
 
@@ -1128,7 +1128,7 @@ The March to April rally — from $520 to $688 — happened in **three weeks**. 
 
 ---
 
-## 🏁 Bull Closing: This Is What Conviction at the Right Time Looks Like
+#### 🏁 Bull Closing: This Is What Conviction at the Right Time Looks Like
 
 The bear has made a consistent, well-reasoned case that amounts to: *"META is a great business, but too many things need to go right for it to work short-term."*
 
@@ -1171,7 +1171,7 @@ Let me start with an honest acknowledgment: my bear colleague has fought this de
 
 ---
 
-## 🔴 On the "Fabricated" Risk-Reward: The Bear Just Proved My Point By Accident
+#### 🔴 On the "Fabricated" Risk-Reward: The Bear Just Proved My Point By Accident
 
 The bear's opening salvo in this final round was to attack my 3-to-1 risk-reward framing as manufactured. They recalculated it as 1.5-to-1 using their $475 multi-condition stress scenario as the downside.
 
@@ -1190,7 +1190,7 @@ The bear tried to make me defend the entire $430-$475 tail. I'm happy to: **even
 
 ---
 
-## 💸 The Capex Debate: The Bear Asked the Right Question and Then Avoided the Answer That Was Already in the Data
+#### 💸 The Capex Debate: The Bear Asked the Right Question and Then Avoided the Answer That Was Already in the Data
 
 The bear pressed hard on capex ROIC: "Where's the evidence that these data centers will generate returns?" And they made a fair distinction — Amazon's fulfillment center demand was *observable and linear*, while META's AI inference demand is *speculative and non-linear*.
 
@@ -1206,7 +1206,7 @@ The bear's diminishing returns assumption is wrong in the specific domain where 
 
 ---
 
-## 📉 On Volume: I'll Raise the Bear's Own Evidence
+#### 📉 On Volume: I'll Raise the Bear's Own Evidence
 
 The bear's volume analysis is their most technically defensible argument, so I want to engage it completely. They say:
 - April 30: 52.7M shares down — institutional distribution
@@ -1223,7 +1223,7 @@ And on the April-to-June cycle: the bear calls the April rally "entirely given b
 
 ---
 
-## 🤖 The Llama Revenue Mechanism Question — Let Me Give The Specific Answer The Bear Demanded
+#### 🤖 The Llama Revenue Mechanism Question — Let Me Give The Specific Answer The Bear Demanded
 
 The bear asked with confidence: "Name a single revenue mechanism by which Llama ecosystem monetization actually occurs. How does a Singapore startup running Llama generate META advertising revenue?"
 
@@ -1239,7 +1239,7 @@ The bear's framing — that Llama monetization is "three steps removed" from rev
 
 ---
 
-## 💼 The 200-Day SMA "Wait" — The Bear's Own Historical Example Demolishes Their Argument
+#### 💼 The 200-Day SMA "Wait" — The Bear's Own Historical Example Demolishes Their Argument
 
 This is where I want to be most direct, because the bear made a specific historical claim that I think actually proves the opposite of what they intended.
 
@@ -1257,7 +1257,7 @@ And here's the follow-on point: if you agree that $520 was the right place to bu
 
 ---
 
-## 🛡️ On the EU AI Act — The Bear's Most Substantive New Argument
+#### 🛡️ On the EU AI Act — The Bear's Most Substantive New Argument
 
 I want to give the bear genuine credit: the EU AI Act argument is their strongest regulatory point, and it's qualitatively different from prior regulatory challenges. They're right that Article 10 training data governance requirements create a new layer of compliance complexity.
 
@@ -1271,7 +1271,7 @@ The bear says regulatory risk "isn't priced in." At 16.5x forward P/E — *below
 
 ---
 
-## 🌡️ On the Analyst Upgrade — The Bear's Most Revealing Concession
+#### 🌡️ On the Analyst Upgrade — The Bear's Most Revealing Concession
 
 I want to end the analyst upgrade debate with a specific observation about the bear's argument that "when an upgrade is significant, the bank wants credit for it."
 
@@ -1283,7 +1283,7 @@ The bear is treating a reporting artifact as analytical evidence. That's a categ
 
 ---
 
-## 🎯 The Definitive Framing: Timing vs. Direction
+#### 🎯 The Definitive Framing: Timing vs. Direction
 
 Let me give the bear the most honest possible acknowledgment: they are not wrong that *timing* creates risk. If you buy META today and the NFP print comes in hot and triggers a 5-7% selloff across the AI complex, you'll be temporarily down. That's real. I'm not dismissing it.
 
@@ -1300,7 +1300,7 @@ Meanwhile, every day you wait, META's quarterly earnings machine keeps running: 
 
 ---
 
-## 🏁 The Final Summary: What Both Sides Actually Agree On
+#### 🏁 The Final Summary: What Both Sides Actually Agree On
 
 Here's something remarkable about this debate: **the bear has never actually disputed any of META's fundamental facts.** Let me list what they've agreed with, explicitly or implicitly, throughout this entire exchange:
 
@@ -1320,14 +1320,14 @@ Here's the key question: **if you believe, as the bear explicitly states, that y
 
 ---
 
-## 🐂 My Absolute Final Call on META
+#### 🐂 My Absolute Final Call on META
 
 The bear has given you a sophisticated, well-constructed case for caution. And caution in a volatile macro environment isn't always wrong. But what they've built is not a SELL thesis — it's a "wait 30-60 days" thesis wrapped in bearish language. And the cost of that wait, on a business generating $10+ per share in quarterly earnings with 33% revenue growth, is real and measurable.
 
 At **$600.47**, META offers:
 
 - 📊 **62% EPS growth** on the most recent reported quarter — the business is in full acceleration
-- 💰 **16.5x forward P/E** with a **PEG of 0.91** — textbook GARP valuation on a world-class franchise  
+- 💰 **16.5x forward P/E** with a **PEG of 0.91** — textbook GARP valuation on a world-class franchise
 - 🏦 **$81.2 billion in cash** and **$115.8 billion in operating cash flow** — a fortress that survives any macro scenario the bear can construct
 - 🤖 **AI monetization already working** — not hypothetical, not future, *right now in the reported numbers*
 - 🛡️ **Active regulatory management** — teen safety controls, government relations depth, and legal infrastructure built for exactly this environment
@@ -1360,7 +1360,7 @@ Let that sink in for a moment. Because everything that follows in my rebuttal fl
 
 ---
 
-## 🔴 The FCF Argument: The Bear's Star Witness Just Confessed Against Them
+#### 🔴 The FCF Argument: The Bear's Star Witness Just Confessed Against Them
 
 The bear concluded with their FCF chart as their most powerful data point: FCF declining from $54.1B to $46.1B in FY2025 despite 22% revenue growth. They called this "the one number the bull keeps burying."
 
@@ -1380,7 +1380,7 @@ And on the bear's "23x declining FCF" valuation: this is their most misleading m
 
 ---
 
-## 💸 The "200-Day SMA as Institutional Mandate Trigger" — The Bear's Most Sophisticated Point, With a Specific Flaw
+#### 💸 The "200-Day SMA as Institutional Mandate Trigger" — The Bear's Most Sophisticated Point, With a Specific Flaw
 
 I want to give genuine credit here: the bear's argument that the 200-day SMA represents an "institutional mandate trigger" for systematic trend-following funds is probably their most technically sound point. Many quant funds and risk parity strategies do have rules that trigger selling below the 200-day SMA.
 
@@ -1396,7 +1396,7 @@ The bear's own logic about institutional mandates tells you: the best risk-rewar
 
 ---
 
-## 📉 The Lower Highs Argument — Let Me Show You What the Pattern Actually Requires
+#### 📉 The Lower Highs Argument — Let Me Show You What the Pattern Actually Requires
 
 The bear made a technically specific argument about lower highs: $743, then $688, then $600 as "three successive highs" pointing to a new downleg targeting below $520.
 
@@ -1412,7 +1412,7 @@ And here's the critical data point: **the March low of $520 is already a "higher
 
 ---
 
-## 🤖 On the EU and Regulatory Risk — Let Me Introduce the Evidence the Bear Ignored
+#### 🤖 On the EU and Regulatory Risk — Let Me Introduce the Evidence the Bear Ignored
 
 The bear cited the €1.2 billion GDPR fine and the €390 million personalized ads fine as proof that META's regulatory leverage is illusory. Strong historical examples. But here's what the bear's regulatory argument completely ignores: **the outcome of those fines on META's stock price.**
 
@@ -1426,7 +1426,7 @@ On the EU AI Act specifically: the bear argues Article 10 training data governan
 
 ---
 
-## 💼 The "Wait for Confirmation" Strategy's Hidden Cost: Consensus Risk
+#### 💼 The "Wait for Confirmation" Strategy's Hidden Cost: Consensus Risk
 
 The bear's closing recommendation is patient, disciplined, and sounds eminently reasonable: wait for the 200-day SMA reclaim at $665 before buying. Let me introduce one final dimension of this argument that neither of us has addressed directly.
 
@@ -1445,7 +1445,7 @@ Warren Buffett famously said: "Be fearful when others are greedy, and greedy whe
 
 ---
 
-## 🛡️ On the Capex Trajectory — One Final Specific Data Point the Bear Missed
+#### 🛡️ On the Capex Trajectory — One Final Specific Data Point the Bear Missed
 
 The bear's most sustained attack has been on capex acceleration: $31.2B → $27.0B → $37.3B → $69.7B → $76B+ annualized in Q1 2026.
 
@@ -1457,7 +1457,7 @@ That is — in the actual reported numbers, not in the narrative — **the first
 
 ---
 
-## 🌡️ On the Risk-Reward — My Honest, Complete Version
+#### 🌡️ On the Risk-Reward — My Honest, Complete Version
 
 The bear called my 3-to-1 ratio "intellectually dishonest" for using different time horizons. Fair criticism — let me give them the honest version, explicitly, with matching timeframes.
 
@@ -1478,7 +1478,7 @@ And if you're a 12-month investor — the appropriate horizon for a fundamental 
 
 ---
 
-## 🏁 The Actual Final Word: When Bear Analysts Become Accidental Bull Analysts
+#### 🏁 The Actual Final Word: When Bear Analysts Become Accidental Bull Analysts
 
 Here is the synthesis that I think captures this entire debate:
 
@@ -1518,7 +1518,7 @@ Let me dismantle this case piece by piece.
 
 ---
 
-## 🔴 "The Numbers Don't Lie" — But They Do Mislead
+#### 🔴 "The Numbers Don't Lie" — But They Do Mislead
 
 The bull opens with Q1 2026 EPS of $10.44, up 62% year-over-year, and presents it like a slam dunk. Let me ask a simple question: **if the numbers are that extraordinary, why is the stock down roughly $143 from its January high?**
 
@@ -1535,7 +1535,7 @@ The bull says the earnings are extraordinary. I say the *cost* of those earnings
 
 ---
 
-## 💸 The CapEx Trap: When "Strategic Investment" Becomes a Value Destroyer
+#### 💸 The CapEx Trap: When "Strategic Investment" Becomes a Value Destroyer
 
 Let me take the bull's strongest point head-on, because the capex argument deserves a real answer.
 
@@ -1555,7 +1555,7 @@ The bull calls this a "cash-generative machine making strategic long-term bets i
 
 ---
 
-## 📉 The Technical Picture Isn't "Temporary" — It's a Message
+#### 📉 The Technical Picture Isn't "Temporary" — It's a Message
 
 The bull waves off the technical analysis as "a chart" versus "a business." I understand the rhetorical appeal of that framing. But I'd push back sharply: **price and volume are the market's aggregate opinion of the business, discounting all known information forward.** When every major technical indicator is aligned bearishly, that's not noise — that's signal.
 
@@ -1571,7 +1571,7 @@ The bull points to the MACD micro-crossover as a hopeful sign. I'll note that MA
 
 ---
 
-## 🤖 The "AI Is Already Working" Argument Has a Fatal Flaw
+#### 🤖 The "AI Is Already Working" Argument Has a Fatal Flaw
 
 Here's where I want to really challenge the bull, because the AI monetization story is the *entire* thesis underpinning the forward P/E of 16.5x and the PEG of 0.91.
 
@@ -1585,7 +1585,7 @@ The r/stocks Reddit data said it plainly: investors are already holding META as 
 
 ---
 
-## 💼 The Valuation Argument: "Cheap" Is Relative, And Relative Isn't Good Enough
+#### 💼 The Valuation Argument: "Cheap" Is Relative, And Relative Isn't Good Enough
 
 The bull's valuation case hinges on the forward P/E of 16.5x and PEG of 0.91. These look attractive in isolation. But let me introduce some critical context the bull conveniently omits.
 
@@ -1603,7 +1603,7 @@ The bull compares META to Microsoft-2013 as a valuation analogy. Here's the prob
 
 ---
 
-## 🛡️ On Regulatory Risk: "Managed" ≠ "Resolved"
+#### 🛡️ On Regulatory Risk: "Managed" ≠ "Resolved"
 
 The bull argues that teen safety controls reduce regulatory risk. I'd call this **reframing a liability as an asset**, and I'm skeptical.
 
@@ -1613,7 +1613,7 @@ Teen safety controls are a gesture. They reduce one specific litigation risk in 
 
 ---
 
-## 🌡️ Retail Sentiment: That's Not "Peak Capitulation" — That's a Warning
+#### 🌡️ Retail Sentiment: That's Not "Peak Capitulation" — That's a Warning
 
 The bull looks at StockTwits users saying "oh fuck" and "shit stock" and calls it peak retail capitulation — a contrarian buy signal. I want to offer a different read: **retail was right.**
 
@@ -1623,7 +1623,7 @@ And the @MountCapital post calling for "$400 in 2026"? I'm not endorsing that ta
 
 ---
 
-## 🎯 The Path to $796 Is Built on Assumptions, Not Evidence
+#### 🎯 The Path to $796 Is Built on Assumptions, Not Evidence
 
 The bull says META can get back to $796 — a 33% return from here. Let me walk through what that actually requires:
 
@@ -1636,7 +1636,7 @@ Every single one of those preconditions is uncertain to uncertain-to-negative ri
 
 ---
 
-## 🐻 Bottom Line
+#### 🐻 Bottom Line
 
 The bull is right that META is a great business. I won't argue otherwise. But **great businesses can be terrible investments at the wrong price, in the wrong macro environment, at the wrong point in a capex cycle.** And that's exactly where we are with META.
 
@@ -1657,7 +1657,7 @@ My colleague just delivered a polished, confident rebuttal. And I'll be candid �
 
 ---
 
-## 🔴 "The Market Is Always Wrong" — The Most Dangerous Assumption in This Debate
+#### 🔴 "The Market Is Always Wrong" — The Most Dangerous Assumption in This Debate
 
 The bull's entire framing rests on a single rhetorical move: *dismiss price action as noise, elevate the spreadsheet as truth.* They invoke Amazon 2014 and Apple 2013 as proof that markets misprice great businesses. It's a beautiful argument. It's also a selection bias trap.
 
@@ -1669,7 +1669,7 @@ The bull says 29.1 million shares sold on June 1 were matched by 29.1 million sh
 
 ---
 
-## 💸 The CapEx "Pre-Purchasing Future Cash Flow" Argument Has a Specific and Fatal Problem
+#### 💸 The CapEx "Pre-Purchasing Future Cash Flow" Argument Has a Specific and Fatal Problem
 
 I want to give the bull genuine credit here — the operating cash flow trajectory argument is real. $50.5B to $115.8B in three years is extraordinary. I acknowledged that in my initial case. But the bull's rebuttal introduces an argument I need to address head-on because it's doing a lot of heavy lifting: **"CapEx is just pre-purchasing future free cash flow."**
 
@@ -1686,7 +1686,7 @@ And here's the critical asymmetry the bull glosses over: **if capex peaks and AI
 
 ---
 
-## 📉 The "Basing Pattern" vs. "Distribution Pattern" Debate — Let Me Introduce the Tiebreaker
+#### 📉 The "Basing Pattern" vs. "Distribution Pattern" Debate — Let Me Introduce the Tiebreaker
 
 The bull says the chart could be read as a "basing pattern" rather than a distribution top. This is a fair technical debate. So let me introduce the tiebreaker that resolves it: **volume.**
 
@@ -1701,7 +1701,7 @@ That is the volume signature of **institutional distribution**, not accumulation
 
 ---
 
-## 🤖 On AI Monetization — The Bull's Best Evidence Has a Timing Problem
+#### 🤖 On AI Monetization — The Bull's Best Evidence Has a Timing Problem
 
 The bull's most compelling point is the revenue acceleration: Q1 2026 at +33.1% YoY, operating margins at 40.6%, EPS at +62%. These are real. I'm not disputing them.
 
@@ -1716,7 +1716,7 @@ The Llama open-source strategy point is clever, but let me push on it directly. 
 
 ---
 
-## 💼 The "Rate-Hike Buffer" Argument Sounds Clever But Gets The Direction Wrong
+#### 💼 The "Rate-Hike Buffer" Argument Sounds Clever But Gets The Direction Wrong
 
 The bull argues META at 16.5x forward P/E is "less sensitive to rate increases" than peers at 28-35x. This sounds logical, but it misapplies how rate sensitivity actually works for growth stocks.
 
@@ -1728,7 +1728,7 @@ And on the bull's "floor case" of $475 with 20% multiple compression: thank you 
 
 ---
 
-## 🛡️ Regulatory Complexity IS Existential Risk When It Threatens the Business Model
+#### 🛡️ Regulatory Complexity IS Existential Risk When It Threatens the Business Model
 
 The bull draws a distinction between "regulatory complexity" and "regulatory existential risk" and argues META has navigated regulation successfully for years. That history is real. But the Reuters revelation about employee data collection isn't just another GDPR fine. Let me explain why it's qualitatively different.
 
@@ -1738,7 +1738,7 @@ Why does this matter financially? Because META's ability to hire and retain the 
 
 ---
 
-## 🌡️ The Analyst Upgrade: One Unnamed Analyst vs. The Entire Market
+#### 🌡️ The Analyst Upgrade: One Unnamed Analyst vs. The Entire Market
 
 The bull keeps returning to the analyst upgrade as definitive evidence of institutional conviction. Let me put this in perspective.
 
@@ -1750,7 +1750,7 @@ Third, and most importantly: **upgrades don't override price action in real time
 
 ---
 
-## 🎯 The Path to $796 Requires Simultaneous Resolution of Everything That's Currently Wrong
+#### 🎯 The Path to $796 Requires Simultaneous Resolution of Everything That's Currently Wrong
 
 The bull laid out a sequential catalyst path: macro stabilization → Q2 earnings beat → capex peak acknowledgment. Let me be specific about why each step faces a higher bar than the bull acknowledges.
 
@@ -1762,7 +1762,7 @@ The bull laid out a sequential catalyst path: macro stabilization → Q2 earning
 
 ---
 
-## 🏁 The Bear's Closing Argument: Respect the Message, Not Just the Messenger
+#### 🏁 The Bear's Closing Argument: Respect the Message, Not Just the Messenger
 
 My colleague ends with a powerful rhetorical flourish: "The chart is temporary. The business is permanent."
 
@@ -1795,7 +1795,7 @@ Bear Analyst: # 🐻 Bear Final Rebuttal: The Bull's "World-Class Business" Argu
 
 ---
 
-My colleague just delivered what I'll candidly call the most emotionally compelling bull argument I've heard in this entire debate. Phrases like "generational wealth," "world-class business," "one of the three or four most powerful businesses ever assembled by human ingenuity" — it's stirring stuff. And you know what? I don't entirely disagree with the characterization of the *business*. I disagree with the characterization of the *stock at this price, at this moment, in this environment.* 
+My colleague just delivered what I'll candidly call the most emotionally compelling bull argument I've heard in this entire debate. Phrases like "generational wealth," "world-class business," "one of the three or four most powerful businesses ever assembled by human ingenuity" — it's stirring stuff. And you know what? I don't entirely disagree with the characterization of the *business*. I disagree with the characterization of the *stock at this price, at this moment, in this environment.*
 
 Those are three completely different questions. And conflating them is exactly how investors lose money in great companies.
 
@@ -1803,7 +1803,7 @@ Let me be surgical about where the bull's final stand actually falls apart.
 
 ---
 
-## 🔴 The "3-to-1 Risk Reward" Math Is Built on a Fabrication
+#### 🔴 The "3-to-1 Risk Reward" Math Is Built on a Fabrication
 
 Let me start here because the bull ended with this number so confidently that I want to pull it apart thread by thread.
 
@@ -1824,7 +1824,7 @@ That's roughly **1.5-to-1**, not 3-to-1. And that assumes things go reasonably w
 
 ---
 
-## 💸 The Capex ROIC Argument Is Elegant But Unproven — And That's The Problem
+#### 💸 The Capex ROIC Argument Is Elegant But Unproven — And That's The Problem
 
 The bull's most intellectually sophisticated move was to reframe the $1.37 capex per $1.00 of incremental revenue as "pre-purchasing future free cash flow." The Amazon fulfillment center analogy is clever. But here's where it breaks down in a way the bull never addressed:
 
@@ -1838,7 +1838,7 @@ The $61 billion in construction-in-progress isn't serving today's 33% revenue gr
 
 ---
 
-## 📉 On Volume: The Bull's "Re-Accumulation" Theory Has One Fatal Problem
+#### 📉 On Volume: The Bull's "Re-Accumulation" Theory Has One Fatal Problem
 
 The bull argues that institutional sellers distributed between $688 and $600, and are now positioned to re-accumulate. Elegant theory. Here's the problem: **it's unfalsifiable, and the observable evidence contradicts it.**
 
@@ -1855,7 +1855,7 @@ The "re-accumulation" narrative requires institutions who sold at $640-$688 to n
 
 ---
 
-## 🤖 The Llama "Ecosystem Lock-In" Is META's Most Overrated Competitive Advantage
+#### 🤖 The Llama "Ecosystem Lock-In" Is META's Most Overrated Competitive Advantage
 
 I want to take one more run at the AI monetization argument because the bull made their strongest version of it, and I think it contains a specific logical error that matters enormously.
 
@@ -1871,13 +1871,13 @@ The bull said the OpenAI IPO would "validate the AI valuation framework that ben
 
 ---
 
-## 💼 Let Me Address the "Wait for 200 SMA = Miss the Move" Argument Directly
+#### 💼 Let Me Address the "Wait for 200 SMA = Miss the Move" Argument Directly
 
 This is the bull's most rhetorically effective closing point, so I want to engage with it precisely and completely.
 
 The bull argues that waiting for a 200-day SMA reclaim at $665 means missing 10.7% of upside and buying "at the top of the first recovery leg." They cite the March-April $520-$688 rally as proof that technicals-based investors missed the move.
 
-Here's what the bull is *actually* describing: **a 32% rally that was entirely given back within six weeks.** 
+Here's what the bull is *actually* describing: **a 32% rally that was entirely given back within six weeks.**
 
 Investors who bought at $520 in late March and waited for the 200-day SMA reclaim — which would have occurred somewhere around $660-$665 — would have sold right at the April 17 peak of $688. That's a **30%+ gain in three weeks with a clean, rule-based exit.** Meanwhile, investors who "bought with conviction" at $600 during that same period are currently sitting at breakeven *at best*, watching the stock test the Bollinger lower band at $591.
 
@@ -1887,7 +1887,7 @@ And there's a second point here that the bull completely missed: **I'm not sayin
 
 ---
 
-## 🛡️ The Regulatory "Track Record" Argument Ignores How Regulatory Risk Works
+#### 🛡️ The Regulatory "Track Record" Argument Ignores How Regulatory Risk Works
 
 The bull's most confident dismissal of regulatory risk rests on: "META has navigated regulation successfully since 2018 — GDPR, Cambridge Analytica, FTC antitrust — they paid and moved on."
 
@@ -1901,7 +1901,7 @@ The bull dismisses this as "regulatory complexity vs. existential risk." I'd arg
 
 ---
 
-## 🌡️ The Analyst Upgrade: Let Me Finally Settle This Point
+#### 🌡️ The Analyst Upgrade: Let Me Finally Settle This Point
 
 The bull has returned to the analyst upgrade in every single rebuttal. It's clearly their most important supporting data point, so let me address it once and for all with actual analytical rigor.
 
@@ -1920,7 +1920,7 @@ I'm not saying the upgrade is meaningless. I'm saying the bull has built a signi
 
 ---
 
-## 🎯 The Fundamental vs. Price Debate — Let Me End This Once and For All
+#### 🎯 The Fundamental vs. Price Debate — Let Me End This Once and For All
 
 The bull has repeatedly framed this debate as "the chart vs. the business." I want to offer a fundamentally different framing that I think captures the actual disagreement:
 
@@ -1938,7 +1938,7 @@ The forward P/E of 16.5x is only "cheap" if those four conditions hold simultane
 
 ---
 
-## 🏁 My Closing Argument: The Question Is Not "Great Business?" — It's "Great Investment Right Now?"
+#### 🏁 My Closing Argument: The Question Is Not "Great Business?" — It's "Great Investment Right Now?"
 
 Here is the most honest, unvarnished version of my bear case:
 
@@ -1988,7 +1988,7 @@ Let me tear apart every pillar of that bull closing — specifically, precisely,
 
 ---
 
-## 🔴 The "3-to-1 Risk Reward" That Doesn't Exist
+#### 🔴 The "3-to-1 Risk Reward" That Doesn't Exist
 
 My colleague ended with what they called a definitive risk-reward calculation: 3% downside to $575-583 versus 20-25% upside to $720-750. Let me explain precisely why this framing is intellectually dishonest.
 
@@ -2002,7 +2002,7 @@ The bull manufactured a favorable ratio by using different time horizons for ris
 
 ---
 
-## 💸 The "Self-Defeating Distribution" Argument Is the Bull's Most Dangerous Idea
+#### 💸 The "Self-Defeating Distribution" Argument Is the Bull's Most Dangerous Idea
 
 The bull's most creative recent addition was this: sellers who distributed between $650-$688 can't keep selling at $600 without "realizing losses." Therefore, selling pressure must be exhausting.
 
@@ -2016,7 +2016,7 @@ This is exactly why I keep returning to the 200-day SMA as the line that matters
 
 ---
 
-## 📉 The "Higher Low" Argument Deserves a Brutal Honesty Moment
+#### 📉 The "Higher Low" Argument Deserves a Brutal Honesty Moment
 
 The bull pointed to $600 being "$80 above the March $520 low" and called it a "higher low formation — the first structural requirement of a trend reversal."
 
@@ -2033,7 +2033,7 @@ What was META's last recovery peak? $688 in April. We are currently at $600, whi
 
 ---
 
-## 🤖 The Llama Monetization Mechanisms — The Bull Finally Answered, But Read What They Actually Said
+#### 🤖 The Llama Monetization Mechanisms — The Bull Finally Answered, But Read What They Actually Said
 
 My colleague gave three specific Llama monetization mechanisms in response to my direct question. I want to read them back carefully, because the most important word in their answer was conspicuously absent from their framing.
 
@@ -2053,7 +2053,7 @@ Again, real — but Advantage+ existed before the $69.7B capex surge and was alr
 
 ---
 
-## 💼 The 200-Day SMA Historical Example — The Bull Misread Their Own Evidence
+#### 💼 The 200-Day SMA Historical Example — The Bull Misread Their Own Evidence
 
 My colleague turned my historical example — buy at $520, sell at $665 on the 200-day reclaim — and called it "proof that buying during bearish setups works." Let me explain precisely what they got wrong.
 
@@ -2067,7 +2067,7 @@ The prior low is $520. Current price is $600. **There is $80 of downside to the 
 
 ---
 
-## 🛡️ The "META Has Leverage With the EU" Argument Deserves Direct Scrutiny
+#### 🛡️ The "META Has Leverage With the EU" Argument Deserves Direct Scrutiny
 
 The bull argued that META has "significant leverage" with EU regulators because WhatsApp is critical infrastructure for European citizens and Llama is the most widely deployed open-source model on the continent.
 
@@ -2083,7 +2083,7 @@ At 16.5x forward P/E, that regulatory risk premium is not adequately reflected. 
 
 ---
 
-## 🌡️ The "Wait 30-60 Days = Timing Failure" Argument Misrepresents Risk Management
+#### 🌡️ The "Wait 30-60 Days = Timing Failure" Argument Misrepresents Risk Management
 
 The bull made their most rhetorically powerful argument: my recommendation to wait for 200-day SMA confirmation requires "three-step market timing," and market timing is notoriously unreliable.
 
@@ -2101,7 +2101,7 @@ The bull says every day you wait, you're missing $10.44/quarter in earnings accu
 
 ---
 
-## 🎯 The FCF Reality — The One Number The Bull Keeps Burying
+#### 🎯 The FCF Reality — The One Number The Bull Keeps Burying
 
 Throughout this entire debate, the bull has returned repeatedly to operating cash flow ($115.8B), revenue growth (33.1%), and EPS growth (62%). These are all real numbers. But there is one number they've consistently soft-pedaled, and I want to make sure it lands clearly before we conclude:
 
@@ -2122,7 +2122,7 @@ Every single year, the "temporary" investment gets larger, not smaller. The bull
 
 ---
 
-## 🏁 My Absolute Final Word: The Business Is Great — The Stock Is a SELL Today
+#### 🏁 My Absolute Final Word: The Business Is Great — The Stock Is a SELL Today
 
 The bull ended with: "The bear will wait for $665. I'll take the $65 discount, thank you very much."
 
@@ -2184,7 +2184,7 @@ Four point five five percent. On a stock with a beta of 1.243. In a macro enviro
 
 ---
 
-## 🔴 "The Bear Believes META Goes to $750" — The Most Dishonest Framing in This Entire Debate
+#### 🔴 "The Bear Believes META Goes to $750" — The Most Dishonest Framing in This Entire Debate
 
 The bull has now repeated this rhetorical move three times, and I want to bury it permanently because it fundamentally misrepresents what I said.
 
@@ -2200,7 +2200,7 @@ The bull's argument requires META to reach $750 within 12 months. My position re
 
 ---
 
-## 💸 The Landlord Analogy — Let Me Show You Where It Breaks Down Completely
+#### 💸 The Landlord Analogy — Let Me Show You Where It Breaks Down Completely
 
 My colleague's most emotionally resonant argument was the landlord analogy: a real estate investor who reduces FCF while building a second property is creating value, not destroying it. Beautiful illustration. Here is where it fails for META specifically, and I want to be surgical about this.
 
@@ -2214,7 +2214,7 @@ The bull says "these assets generate returns over 15-20 years." **Then show me t
 
 ---
 
-## 📉 The "Sequential Capex Deceleration" Argument — The Bull's Most Misleading New Claim
+#### 📉 The "Sequential Capex Deceleration" Argument — The Bull's Most Misleading New Claim
 
 My colleague introduced what they called a "specific data point the bear missed": Q1 2026 capex of $19 billion is lower than the implied Q4 2025 run rate of $21-22 billion per quarter. Therefore, sequential capex deceleration has begun.
 
@@ -2228,7 +2228,7 @@ The bull just used seasonal variation to manufacture a "deceleration" narrative 
 
 ---
 
-## 🤖 The "Quant Mandate Reversal" Argument — Let Me Show You the Timing Problem
+#### 🤖 The "Quant Mandate Reversal" Argument — Let Me Show You the Timing Problem
 
 My colleague made an intellectually interesting point about institutional mandate mechanics: the same quant funds that sell below the 200-day SMA will buy when it's reclaimed. Therefore, buying just before the reclaim captures the front-running value.
 
@@ -2242,7 +2242,7 @@ The bull's "front-run the institutional mandate reversal" strategy requires pred
 
 ---
 
-## 💼 The "Consensus Risk" Argument — The Bull's Cleverest Point, and Why It Proves the Opposite
+#### 💼 The "Consensus Risk" Argument — The Bull's Cleverest Point, and Why It Proves the Opposite
 
 My colleague argued that buying at the 200-day SMA reclaim means buying into "maximum consensus bullishness" — the most crowded entry point. Therefore, buy now at $600 to avoid the crowd.
 
@@ -2261,7 +2261,7 @@ And here's the irony: **if the bull is right that buying at $600 is contrarian a
 
 ---
 
-## 🛡️ On the Regulatory Track Record — The Bull's Historical Evidence Has a Recency Bias Problem
+#### 🛡️ On the Regulatory Track Record — The Bull's Historical Evidence Has a Recency Bias Problem
 
 My colleague pointed out that META's stock has 2.5x'd since the €1.2 billion GDPR fine in May 2023. Therefore, regulatory fines are manageable and the market has consistently repriced past each one.
 
@@ -2275,7 +2275,7 @@ And here's the specific timeline pressure the bull never addresses: **EU AI Act 
 
 ---
 
-## 🌡️ The Probability-Weighted Math — Let Me Complete What the Bull Started
+#### 🌡️ The Probability-Weighted Math — Let Me Complete What the Bull Started
 
 My colleague presented a probability-weighted return calculation and got +4.55% for six months. Let me do what they didn't: show you what happens when you stress-test those probabilities honestly.
 
@@ -2299,7 +2299,7 @@ Let me offer a more calibrated probability distribution:
 
 ---
 
-## 🎯 The Final Question the Bull Cannot Answer
+#### 🎯 The Final Question the Bull Cannot Answer
 
 Throughout this entire debate — across every rebuttal, every counter-rebuttal, every "absolute final word" — there is one specific question that the bull has danced around without ever fully answering.
 
@@ -2316,7 +2316,7 @@ That is the market delivering a verdict. And the verdict is: **the near-term ris
 
 ---
 
-## 🏁 Bear's Final Recommendation: The Discipline to Wait Is the Edge
+#### 🏁 Bear's Final Recommendation: The Discipline to Wait Is the Edge
 
 I want to end this debate by acknowledging what the bull has right, because intellectual honesty demands it.
 
@@ -2365,7 +2365,7 @@ The honest synthesis: this is a constructive, accumulate-on-weakness situation, 
 
 2) RISK CONTROLS: Set a hard stop on the initiated portion at $570 (below the March base structure). A decisive break below $570 on heavy volume would invalidate the "base holding above March lows" thesis and warrant trimming back to benchmark weight. Honor the bear's warning: do not chase or add aggressively into a hot NFP print or a hawkish Fed surprise.
 
-3) THESIS VALIDATION CHECKPOINTS: 
+3) THESIS VALIDATION CHECKPOINTS:
    - Q2 2026 earnings is the primary validation — confirm revenue growth ≥25% YoY and operating margins holding near 40%.
    - Watch for the first concrete capex guidance moderation; that is the catalyst the bull argues unlocks FCF re-acceleration. Treat it as a signal to complete the build and lift toward the top of the Overweight range.
    - Monitor EU AI Act enforcement developments and any escalation of the data-governance issues — a credible structural-remedy or major enforcement action is the key risk that would force a downgrade to Hold.

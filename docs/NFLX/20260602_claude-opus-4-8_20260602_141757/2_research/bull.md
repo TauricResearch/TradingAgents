@@ -114,9 +114,9 @@ Alright, I have to hand it to the bear — that was a sharp, well-organized rebu
 
 The bear hammered the Q1 2026 interest income figure of $2.85B as if it's a smoking gun that invalidates my entire FCF argument. "5,500% anomaly!" they said. Very dramatic. But let me walk you through why this attack actually *strengthens* my bull case rather than weakening it.
 
-**Here's what the bear conveniently omitted:** In Q1 2026, Netflix received a **$2.8 billion termination fee from PSKY on behalf of Warner Bros. Discovery** — this was cited directly in the StockTwits research by @SilverTrader47 referencing a Reuters article. That's not a mysterious accounting artifact. That's **a competitor paying Netflix $2.8 billion in cash** because a deal fell through. This money is sitting in Netflix's bank account right now, contributing to that $12.29B cash balance. 
+**Here's what the bear conveniently omitted:** In Q1 2026, Netflix received a **$2.8 billion termination fee from PSKY on behalf of Warner Bros. Discovery** — this was cited directly in the StockTwits research by @SilverTrader47 referencing a Reuters article. That's not a mysterious accounting artifact. That's **a competitor paying Netflix $2.8 billion in cash** because a deal fell through. This money is sitting in Netflix's bank account right now, contributing to that $12.29B cash balance.
 
-Now, is it recurring? No, of course not — and I never claimed it was. But here's the critical point the bear glosses over: **even after you strip out every penny of that termination fee, Q1 2026 operating cash flow was $5.29 billion.** Not $2.44 billion like Q4 2025. Not $2.83 billion like Q3 2025. **$5.29 billion** — the strongest operating quarter in the company's history on a clean, normalized basis. 
+Now, is it recurring? No, of course not — and I never claimed it was. But here's the critical point the bear glosses over: **even after you strip out every penny of that termination fee, Q1 2026 operating cash flow was $5.29 billion.** Not $2.44 billion like Q4 2025. Not $2.83 billion like Q3 2025. **$5.29 billion** — the strongest operating quarter in the company's history on a clean, normalized basis.
 
 The bear's adjustment to "~$23B normalized FCF" actually proves my point. At a $350.9B market cap, $23B in normalized TTM FCF still represents a **6.6% FCF yield** on a dominant global platform. The bear said "your argument shrinks materially" — from 7.4% to 6.6%. That's not a dismantling. That's a rounding error on a thesis that remains fundamentally intact. I'll happily take a 6.6% FCF yield on Netflix all day long.
 
@@ -466,7 +466,7 @@ I want to address this directly because the math is misleading.
 
 **The bear's framing**: 27% upside vs. 18% downside = roughly symmetric, therefore not worth the risk.
 
-**The actual asymmetry**: 
+**The actual asymmetry**:
 
 First, the bear's downside scenario to $70 requires a **beta-amplified macro shock** — a Fed tightening cycle that hits 1.548 beta stocks disproportionately. That's a specific, conditional scenario. The bull's upside scenario to $110-$120 requires only that Netflix executes on its existing business trajectory — which it has been doing consistently for the past three years. **You're comparing a conditional catastrophe scenario to a base-case execution scenario.** Those aren't symmetric inputs.
 
@@ -544,7 +544,7 @@ Bull Analyst: # 🐂 Bull's Closing Rebuttal: The Bear's "Precision" Is a Beauti
 
 ---
 
-Let me tell you what the bear just did, and give them full credit for it: they delivered the most technically polished argument of this entire debate. The probability weighting, the content cost sustainability analysis, the YouTube structural ceiling argument — these are genuinely sophisticated points that deserve real engagement. 
+Let me tell you what the bear just did, and give them full credit for it: they delivered the most technically polished argument of this entire debate. The probability weighting, the content cost sustainability analysis, the YouTube structural ceiling argument — these are genuinely sophisticated points that deserve real engagement.
 
 But here's what I've noticed after six rounds: **the bear keeps raising the evidentiary bar just high enough that no evidence currently available can clear it.** Wait for the 50 SMA. Wait for MACD to cross. Wait for advertising disclosure. Wait for normalized Q2 FCF. By the time every one of those conditions is met, the stock will be at $105 — and the bear will have manufactured a framework that protected them from a 20%+ return while congratulating themselves on their discipline.
 

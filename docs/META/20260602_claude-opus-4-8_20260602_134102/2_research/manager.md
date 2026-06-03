@@ -21,7 +21,7 @@ The honest synthesis: this is a constructive, accumulate-on-weakness situation, 
 
 2) RISK CONTROLS: Set a hard stop on the initiated portion at $570 (below the March base structure). A decisive break below $570 on heavy volume would invalidate the "base holding above March lows" thesis and warrant trimming back to benchmark weight. Honor the bear's warning: do not chase or add aggressively into a hot NFP print or a hawkish Fed surprise.
 
-3) THESIS VALIDATION CHECKPOINTS: 
+3) THESIS VALIDATION CHECKPOINTS:
    - Q2 2026 earnings is the primary validation — confirm revenue growth ≥25% YoY and operating margins holding near 40%.
    - Watch for the first concrete capex guidance moderation; that is the catalyst the bull argues unlocks FCF re-acceleration. Treat it as a signal to complete the build and lift toward the top of the Overweight range.
    - Monitor EU AI Act enforcement developments and any escalation of the data-governance issues — a credible structural-remedy or major enforcement action is the key risk that would force a downgrade to Hold.

@@ -170,9 +170,11 @@ CURRENT_PRICE_PATTERNS = [
     r"last trading day[^\n$]*close\s+\$([0-9][0-9,]*(?:\.\d+)?)",
     r"\*\*Last Close\s*\([^)]*\):\*\*\s*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"\*\*Last Close:\*\*\s*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"Last Close\s*:?\s*\*+\$([0-9][0-9,]*(?:\.\d+)?)\*+",
     r"Last Close\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"\*\*Last close:\*\*\s*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"Last close\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"\|\s*\*{0,2}Close Price\*{0,2}\s*\|\s*\*{0,2}\$([0-9][0-9,]*(?:\.\d+)?)",
     r"Current close\s*\([^)]*\)\*{0,2}\s*:?\s*\*{0,2}\$([0-9][0-9,]*(?:\.\d+)?)",
     r"Close\s*\(5/29\)\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
     r"ending\s+the\s+week\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
@@ -240,6 +242,11 @@ def horizon_months(horizon: str) -> float | None:
     h = horizon.lower()
     if "4 quarters" in h:
         return 12.0
+    if re.search(r"\bthrough\s+q[1-4]\s+\d{4}\s+earnings\b", h):
+        return 3.0
+    m = re.search(r"(\d+)\s*\+\s*(?:m\b|months?\b)", h)
+    if m:
+        return float(m.group(1))
     m = re.search(r"(\d+)\s*-\s*(\d+)\s*days?", h)
     if m:
         return ((float(m.group(1)) + float(m.group(2))) / 2.0) / 30.4375
@@ -258,6 +265,12 @@ def horizon_months(horizon: str) -> float | None:
     m = re.search(r"(\d+)\s*w\b", h)
     if m:
         return float(m.group(1)) * 12.0 / 52.0
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*quarters?", h)
+    if m:
+        return ((float(m.group(1)) + float(m.group(2))) / 2.0) * 3.0
+    m = re.search(r"(\d+)\s*quarters?", h)
+    if m:
+        return float(m.group(1)) * 3.0
     m = re.search(r"(\d+)\s*-\s*(\d+)\s*months?", h)
     if m:
         return (float(m.group(1)) + float(m.group(2))) / 2.0
@@ -440,7 +453,7 @@ def build_home(
         suffix = "run" if n == 1 else "runs"
         lines.append(f"- [{ticker}]({ticker}/index.md) &middot; {n} {suffix}")
     lines.append("")
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def replace_decision_summary(home_text: str, summary_lines: list[str]) -> str:
@@ -476,7 +489,7 @@ def build_ticker_hub(ticker: str, runs: list[Run]) -> str:
             f"[Open]({link}) |"
         )
     lines.append("")
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def strip_legacy_front_matter(run: Run) -> bool:

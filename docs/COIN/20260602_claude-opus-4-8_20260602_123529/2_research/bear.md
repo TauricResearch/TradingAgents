@@ -185,7 +185,7 @@ My colleague keeps reaching for the Amazon/Apple analogy to frame COIN's trough 
 
 Amazon in Q4 2022: AWS revenue grew **20% year-over-year.** Advertising revenue grew **19%.** The core cloud business that justified the stock's valuation was expanding *through* the market downturn. The revenue decline was in the legacy retail segment facing cost inflation — not the growth engine.
 
-Coinbase in Q1 2026: Transaction revenue — the *core business* — declined **30.5% year-over-year.** Normalized EBITDA collapsed **87% year-over-year.** There is no AWS growing in the background. There is no advertising business expanding. **The entire business is the thing that's declining.** 
+Coinbase in Q1 2026: Transaction revenue — the *core business* — declined **30.5% year-over-year.** Normalized EBITDA collapsed **87% year-over-year.** There is no AWS growing in the background. There is no advertising business expanding. **The entire business is the thing that's declining.**
 
 The bull's Amazon analogy doesn't rescue COIN — it *indicts* it. Amazon had a diversified, resilient growth engine underneath the surface noise. COIN's surface noise *is* the business.
 
@@ -197,7 +197,7 @@ I want to spend real time on this because the bull just made one of the most sed
 
 He says: "Coinbase holding crypto assets isn't a design flaw — it's *aligned incentives.* When the cycle recovers, operating revenues recover AND the investment portfolio recovers simultaneously. That's a double-accelerator on the upside."
 
-Let me translate what that actually means as an investment proposition: **he's asking you to buy a leveraged long on Bitcoin, with operating revenue leverage on top, financed with $7.96B in debt.** 
+Let me translate what that actually means as an investment proposition: **he's asking you to buy a leveraged long on Bitcoin, with operating revenue leverage on top, financed with $7.96B in debt.**
 
 Think about the risk structure here. When Bitcoin goes *down*:
 - Trading volumes collapse → revenues fall
@@ -627,7 +627,7 @@ His answer: "Bitcoin at $80-95K by Q3-Q4 2026, 60-65% probability." Grade: **B-*
 
 This is the most honest answer the bull gave, and I respect it. He put a number on the probability and a price on the requirement. Let me engage with it directly.
 
-**A 35-40% probability that the earnings recovery doesn't materialize, in a beta-3.38 stock currently in a technical downtrend, with $7.96B in debt and two consecutive quarters of losses — that is not an acceptable risk/reward at the current price.** If the 35-40% downside scenario plays out, Bitcoin goes to $50-60K, COIN goes to $100-130, and you've lost 30-45% from current levels. If the 60-65% upside scenario plays out, Bitcoin goes to $90K, COIN goes to $250-300, and you've gained 35-65%. 
+**A 35-40% probability that the earnings recovery doesn't materialize, in a beta-3.38 stock currently in a technical downtrend, with $7.96B in debt and two consecutive quarters of losses — that is not an acceptable risk/reward at the current price.** If the 35-40% downside scenario plays out, Bitcoin goes to $50-60K, COIN goes to $100-130, and you've lost 30-45% from current levels. If the 60-65% upside scenario plays out, Bitcoin goes to $90K, COIN goes to $250-300, and you've gained 35-65%.
 
 That's approximately: (65% × 50% upside) - (35% × 37% downside) = 32.5% expected return minus 13% expected loss = **~20% expected return before fees and carry cost.** In a beta-3.38 stock with 6.7% daily ATR. **Is a 20% expected return adequate compensation for the risk profile of this specific security?** Many risk-adjusted investors would say no.
 
@@ -675,7 +675,7 @@ Two data points from our research that the bull has conspicuously failed to enga
 
 The bull dismissed this as "411 BTC — 0.2% of Strategy's holdings." But institutional investors don't sell for pure portfolio management reasons when they're the world's most vocal Bitcoin bull. **Saylor's sale is a signal about his assessment of near-term conditions, not a routine rebalancing.** And the signal is not bullish for Bitcoin holders.
 
-**The CONY/CONL Destruction:** The YieldMax CONY ETF — which sells covered calls against COIN to generate income — has declined 37% despite advertising a 100% annualized yield. The GraniteShares 2x CONL has lost most of its value. The bull says the ATR of 6.7% per day is "the feature, not the bug." But these products, designed specifically to give retail investors managed exposure to COIN, have destroyed **37-50%+ of capital through nothing but holding the position and managing the options overlay.** 
+**The CONY/CONL Destruction:** The YieldMax CONY ETF — which sells covered calls against COIN to generate income — has declined 37% despite advertising a 100% annualized yield. The GraniteShares 2x CONL has lost most of its value. The bull says the ATR of 6.7% per day is "the feature, not the bug." But these products, designed specifically to give retail investors managed exposure to COIN, have destroyed **37-50%+ of capital through nothing but holding the position and managing the options overlay.**
 
 If the *managed* version of COIN ownership has destroyed 37-50% of capital, what does that tell you about the **unmanaged** version — simply buying and holding the stock? The answer is in the price: down 59% from the 52-week high. The bull celebrates volatility as opportunity. The financial products explicitly designed to harvest that volatility as yield have failed catastrophically. **The volatility is not a feature — it is the primary mechanism of wealth destruction for COIN investors who are not professional traders with tight risk management.**
 
@@ -725,7 +725,7 @@ I want to end differently, because I think investors deserve honesty over confid
 
 **The data says this: there is a genuine bull case for COIN in the medium term.** The CFTC approval is real. The gross margins are exceptional. The platform has franchise value. Bitcoin will likely make new highs eventually. These are not fabrications — they are real.
 
-**The data also says: at $182.61, with every technical indicator bearish, two consecutive quarters of losses, $7.96B in debt, a trough revenue environment, and Bitcoin actively declining — you are not being adequately compensated for the risk you are taking.** 
+**The data also says: at $182.61, with every technical indicator bearish, two consecutive quarters of losses, $7.96B in debt, a trough revenue environment, and Bitcoin actively declining — you are not being adequately compensated for the risk you are taking.**
 
 Patience is not cowardice. Waiting for evidence is not missing the trade. **The investors who made the most money in crypto equities over the last five years were not the ones who bought every dip with maximum conviction. They were the ones who bought the confirmed bottoms with appropriate position sizing and clear-eyed risk management.**
 

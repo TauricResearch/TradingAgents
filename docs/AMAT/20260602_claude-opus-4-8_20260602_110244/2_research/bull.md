@@ -39,7 +39,7 @@ And that order book? Stretching **past 2027**. This isn't speculative demand —
 
 *"But a 45x P/E is stretched!"* I hear the bears saying this, and I want to engage with it seriously because it deserves a real answer.
 
-Yes, the trailing P/E is 45x. But here's what the bears conveniently omit: **the forward P/E is 29.7x**, and forward EPS estimates stand at **$16.17** versus TTM EPS of $10.63. That's projected EPS growth of **52% in the forward period**. 
+Yes, the trailing P/E is 45x. But here's what the bears conveniently omit: **the forward P/E is 29.7x**, and forward EPS estimates stand at **$16.17** versus TTM EPS of $10.63. That's projected EPS growth of **52% in the forward period**.
 
 A PEG ratio of **1.55** for the world's dominant semiconductor equipment manufacturer, in the middle of a multi-year AI capex supercycle, with 50% gross margins and a near-net-cash balance sheet? That's not overvalued — that's a reasonable growth premium for an exceptional business.
 
@@ -148,7 +148,7 @@ The stock didn't rally 180% on vibes. It rallied because the earnings power of t
 
 ## 💰 The FCF "Red Flag" — Let's Apply Some Intellectual Honesty
 
-I want to address the bear's most aggressive rhetorical move directly: the insinuation of **channel stuffing.** My colleague floated the possibility that AMAT's $1.4 billion receivables increase might represent "aggressive revenue recognition." 
+I want to address the bear's most aggressive rhetorical move directly: the insinuation of **channel stuffing.** My colleague floated the possibility that AMAT's $1.4 billion receivables increase might represent "aggressive revenue recognition."
 
 Let's be precise. This is a serious allegation that requires evidence. The bear offered none. They offered a rhetorical question — "why did receivables surge?" — and then let the implication hang in the air. That's not analysis. That's innuendo.
 
@@ -235,7 +235,7 @@ And the 86% bullish StockTwits ratio? Context matters. A semiconductor equipment
 
 Let me close with the most revealing aspect of the bear case — the recommendation to wait for AMAT to pull back to **$350-$380** before buying.
 
-Think about what that requires. From $458, that's a **22-31% decline.** For that to happen, you need either a genuine cycle downturn (not supported by current backlog data), a China revenue catastrophe (not supported by current export control trajectory), or a massive macro deterioration (not supported by current AI capex commitments from hyperscalers). 
+Think about what that requires. From $458, that's a **22-31% decline.** For that to happen, you need either a genuine cycle downturn (not supported by current backlog data), a China revenue catastrophe (not supported by current export control trajectory), or a massive macro deterioration (not supported by current AI capex commitments from hyperscalers).
 
 Meanwhile, you're sitting on the sidelines while the stock potentially continues to $500-$540 on the path that analyst consensus suggests. The bear's "wait for $350" strategy has a name: **paralysis by analysis.** You wait for the perfect entry, the stock never gives it to you, and you watch from the sideline as the multi-year AI infrastructure supercycle plays out without you.
 
@@ -539,7 +539,7 @@ The difference between a due diligence item and a sell signal is this: a sell si
 
 ## 🎯 My Final Recommendation
 
-**BUY AMAT.** 
+**BUY AMAT.**
 
 - **Optimal entry:** Pullback toward $431-$442 (10 EMA / Bollinger midline)
 - **Stop-loss:** $430 (1.5x ATR below current price)
@@ -663,7 +663,7 @@ The bear makes their "correlated conditions" argument and then says: *"Correlate
 
 I want to accept this entirely — and show you why it strengthens the bull case.
 
-If AMAT's conditions are highly correlated to the AI semiconductor capex cycle, then the **upside conditions are equally correlated.** When AI capex continues — as current guidance, backlog data, and hyperscaler financial results all indicate — the six conditions for AMAT's success don't succeed independently at low probabilities. They succeed simultaneously and powerfully. 
+If AMAT's conditions are highly correlated to the AI semiconductor capex cycle, then the **upside conditions are equally correlated.** When AI capex continues — as current guidance, backlog data, and hyperscaler financial results all indicate — the six conditions for AMAT's success don't succeed independently at low probabilities. They succeed simultaneously and powerfully.
 
 Correlation cuts both ways. The bear is applying it only to the downside scenario. If correlated risks "fail simultaneously and violently," correlated successes **compound simultaneously and powerfully.** The same mechanism that makes AMAT's downside scenario severe also makes the upside scenario exceptional. And right now, the data points — record revenue, record EPS, backlog past 2027, forward EPS of $16.17, Mizuho at $540 — are all pointing in the same direction: **up.**
 
@@ -723,7 +723,7 @@ The bear has given you twelve months of anxiety. The fundamentals have given you
 **BUY AMAT.** Ticker: **AMAT**.
 
 - **Optimal entry:** Pullback toward **$431–$442** (10 EMA / Bollinger midline)
-- **Stop-loss:** **$430** (1.5x ATR below current price)  
+- **Stop-loss:** **$430** (1.5x ATR below current price)
 - **Near-term target:** **$467–$500**
 - **Medium-term target:** **$540** (Mizuho institutional consensus)
 - **Long-term thesis:** AI semiconductor supercycle, GAA architecture transition, advanced packaging leadership, contracted backlog past 2027

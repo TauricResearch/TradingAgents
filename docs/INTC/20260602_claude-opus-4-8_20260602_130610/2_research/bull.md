@@ -186,7 +186,7 @@ This is one of the most intellectually unfair moves in the entire bear argument.
 
 **Of course Nvidia has 60% operating margins.** Nvidia is fabless, has zero manufacturing CapEx, sells the most in-demand product in semiconductor history at monopoly pricing, and has spent 15 years building an unassailable software moat in CUDA. That comparison has nothing to do with Intel's investment thesis.
 
-The relevant comparison is: **Where was Intel a year ago versus today?** 
+The relevant comparison is: **Where was Intel a year ago versus today?**
 
 Operating income went from **negative in 2024** to three consecutive positive quarters. Gross margins went from **27.5% at the nadir to 39.4% today.** The direction of these metrics is *unambiguous.* The bear wants you to be discouraged that we're at 39.4% rather than 55%. I want you to recognize that **the distance already traveled from 27.5% to 39.4% is evidence of execution capability** — and the remaining distance to 55% is the upside still embedded in the stock.
 
@@ -407,7 +407,7 @@ On an apples-to-apples annual basis, Intel's interest coverage is approximately 
 
 ## 🖥️ On RTX Spark: I'll Take the "18-Month Countdown" Framing and Flip It
 
-The bear says: "18 months = markets price it NOW." 
+The bear says: "18 months = markets price it NOW."
 
 Yes. They do. **And they already have.**
 
@@ -532,9 +532,9 @@ My colleague asks repeatedly: "Where are the Crescent Island design wins? Where 
 
 I'm going to answer this with something the bear mentioned themselves and then inexplicably didn't follow through on: **Intel's DCAI segment revenue.**
 
-The bear said: *"Intel hasn't broken out AI inference revenue, which itself is revealing."* 
+The bear said: *"Intel hasn't broken out AI inference revenue, which itself is revealing."*
 
-Let me flip this argument entirely. Intel's total DCAI (Data Center and AI) revenue is embedded in their quarterly numbers. But here's what the bear never told you: **Intel's quarterly revenue has stabilized at $13.5-13.7B despite losing server market share to AMD over the prior three years.** If Intel were losing AI inference opportunity to Nvidia and losing CPU opportunity to AMD simultaneously, you would expect *continued revenue decline.* Instead, you see *stabilization.* 
+Let me flip this argument entirely. Intel's total DCAI (Data Center and AI) revenue is embedded in their quarterly numbers. But here's what the bear never told you: **Intel's quarterly revenue has stabilized at $13.5-13.7B despite losing server market share to AMD over the prior three years.** If Intel were losing AI inference opportunity to Nvidia and losing CPU opportunity to AMD simultaneously, you would expect *continued revenue decline.* Instead, you see *stabilization.*
 
 The stabilization itself is evidence that Intel is capturing *some* AI workload revenue — not transformational yet, but real. The bear needs revenue to *decline* for their thesis to work. It isn't declining. That is evidence, even if it's not the splashy design win announcement my colleague demands.
 
@@ -633,7 +633,7 @@ The bear's 7-0 scorecard requires some editorial choices I want to expose:
 
 I want to address something directly that I should have confronted more forcefully earlier in this debate: **my scenario table was a mistake in framing, not in analysis.**
 
-When I built that table to be "honest" about near-term EPS-based valuations, I handed the bear a weapon they've used for two rounds. But the table contained a structural error: **I used current-period multiples for a company in a transitional phase.** 
+When I built that table to be "honest" about near-term EPS-based valuations, I handed the bear a weapon they've used for two rounds. But the table contained a structural error: **I used current-period multiples for a company in a transitional phase.**
 
 The correct analytical framework for a turnaround story isn't "what does this quarter's earnings times a mature company multiple give you?" It's: **"What is the present value of the earnings stream that this operational trajectory is pointing toward?"**
 
@@ -651,7 +651,7 @@ The bear's SELL recommendation implies the market will fully abandon the strateg
 
 **My position:** INTC at $109.33 is not a perfect entry point on pure EPS math. But it is a HOLD for existing investors with a 12-18 month horizon, and an ACCUMULATE on any weakness toward the $100-$105 zone for new investors. The turnaround is real. The assets are real. The strategic value is real.
 
-**The bear has won a debate on a spreadsheet. The bull has a business that's actually getting better.** 
+**The bear has won a debate on a spreadsheet. The bull has a business that's actually getting better.**
 
 At the end of the day, I'll take the improving business over the perfect spreadsheet every time.
 
@@ -714,9 +714,9 @@ The bear compares Intel's flat $52-54B revenue to Nvidia's explosion from $27B t
 
 **Nvidia and AMD are fabless semiconductor companies.** Their "revenue growth" during the AI boom represents *net new demand* for AI silicon — demand that previously didn't exist and that their existing infrastructure could serve with minimal incremental cost. Their revenue grew because they were selling into a new market.
 
-**Intel is an IDM with an incumbent position in CPU markets.** Their revenue picture looks completely different because they were simultaneously: losing CPU share to AMD in servers (structural headwind), experiencing the PC market correction post-COVID (cyclical headwind), divesting business units to improve focus (voluntary revenue reduction), and *not yet generating revenue from AI GPU products* (product timing gap). 
+**Intel is an IDM with an incumbent position in CPU markets.** Their revenue picture looks completely different because they were simultaneously: losing CPU share to AMD in servers (structural headwind), experiencing the PC market correction post-COVID (cyclical headwind), divesting business units to improve focus (voluntary revenue reduction), and *not yet generating revenue from AI GPU products* (product timing gap).
 
-The fact that Intel maintained $52-54B in revenue *during all of those simultaneous headwinds* while competitors with favorable tailwinds grew rapidly is not "running to stand still." It's **structural resilience under extraordinary pressure.** 
+The fact that Intel maintained $52-54B in revenue *during all of those simultaneous headwinds* while competitors with favorable tailwinds grew rapidly is not "running to stand still." It's **structural resilience under extraordinary pressure.**
 
 And now — with those headwinds stabilizing and AI product launches beginning — the revenue trajectory has nowhere to go but up. The bear needs to explain why a business that held $52-54B during its worst period in decades doesn't grow from that stabilized base as: (1) AI inference products generate incremental revenue, (2) IFS eventually attracts external customers, (3) PC AI refresh cycles materialize, and (4) Xeon 6+ captures enterprise AI workload growth. **Their argument requires all four of those tailwinds to produce zero revenue growth — which strains credibility.**
 

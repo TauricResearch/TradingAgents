@@ -1,0 +1,25 @@
+**Recommendation**: Hold
+
+**Rationale**: Alright, here's my honest read after sitting through both sides hammering each other on VST.
+
+The bull made a genuinely strong structural case: Q1 2026 was a real inflection ($2.87 EPS, $5.64B record revenue, $2.17B EBITDA), the Energy Harbor nuclear fleet is an irreplaceable moat that both sides ultimately agreed is real, the AI/data-center power demand tailwind is structural rather than cyclical, management put $372M into buybacks at depressed prices, 102 hedge funds hold it, and the headline forward P/E of 14.42x with a PEG of 0.48 looks optically cheap. The technical setup is also constructive in the near term — V-shape recovery off $132.66 on heavy volume, MACD positive, RSI reset to neutral, 50-SMA and VWMA reclaimed.
+
+But the bear landed several clean, hard-to-refute punches that I can't dismiss. The most important one is the valuation math the bull himself accidentally validated. When you run the bear's more conservative (and frankly more realistic) Q2-Q4 estimates — built on the fact that those are the *non-winter* quarters and that 2025's comparable quarters averaged ~$405M — you get roughly $9.03 EPS, about 18% below the $10.96 consensus. At a defensible 14-15x multiple for a leveraged, cyclical IPP, that's a fair value of $126-$135 — *below* today's $154.76. The bull only got to upside by quietly switching to a 20x "market multiple," which a $19.3B-net-debt commodity-exposed power producer does not earn, and which the market itself rejected when it took the stock down 29% from $219 even as fundamentals improved.
+
+That last point is the crux: the AI/nuclear thesis is genuinely real, but it's also genuinely well-known and largely priced. At 14x the consensus $10.96, today's price essentially already embeds the bull case. So you're not buying a hidden gem — you're paying full freight for a thesis that requires near-flawless seasonal execution, a normal-to-hot ERCOT summer, no extended nuclear outages, and continued PPA progress, all simultaneously, against a 4.45% risk-free rate and a 1.447 beta.
+
+Where the bull clearly won: debt serviceability (interest coverage from operating cash flow is fine; the bear's FCF-minus-interest framing did double-count), the irrelevance of the bond-proxy/dividend-yield framework, and the fact that the near-term technical structure is constructive, not broken. Where the bear clearly won: the earnings-annualization trap on a seasonally strong winter quarter, the absence of a margin of safety on conservative numbers, the crowded-ownership-as-overhang risk, and the asymmetry that a consensus miss gaps the stock well below the proposed $147 stop.
+
+Net-net, the evidence is genuinely balanced and I'm not going to manufacture conviction I don't have. The downside-if-wrong (consensus miss → $108-$130) is meaningfully larger in magnitude than the upside-if-right (~9% to the $169 ceiling that has rejected every 2026 rally), but the structural moat and improving trajectory make an outright Underweight too aggressive given a real, acknowledged secular tailwind. The deciding factor for me is the near-term catalyst calendar: Q2 earnings and summer ERCOT pricing will validate or kill the non-winter earnings thesis within weeks. That's exactly the situation where you hold what you have, don't chase, and let the numbers prove themselves before adding.
+
+**Strategic Actions**: Maintain current VST exposure — do not add new long capital at $154.76, and do not exit. This is a Hold pending near-term fundamental confirmation.
+
+Position sizing: Keep VST at or below its existing/benchmark weight. If the position is currently oversized relative to its risk profile (1.447 beta, $19.3B net debt, cyclical earnings), trim opportunistically into any strength toward the $164-$169 resistance band that has rejected every 2026 rally, taking the position back to a neutral weight.
+
+Risk management on the existing position: Set a mental/hard review level at $147 (below Bollinger mid-band, ~1.5x ATR). Recognize this stop offers limited protection against an earnings-gap scenario — if Q2 disappoints, the stock can gap through it toward $126-$130, so size the position so that a 20-30% adverse move is survivable rather than relying solely on the stop.
+
+Catalysts to convert Hold into a directional call:
+- UPGRADE TO OVERWEIGHT/BUY if: Q2 2026 earnings demonstrate non-winter quarterly net income materially above the ~$405M 2025 comparable run-rate (i.e., the integration-margin thesis is proven), AND the stock sustainably reclaims $169+ on volume, AND/OR a named hyperscaler PPA with disclosed contracted volume/price is announced. Add on a confirmed break and hold above the 200-SMA ($172.66) once that average flattens/turns up.
+- DOWNGRADE TO UNDERWEIGHT/SELL if: Q2/Q3 earnings track toward the conservative ~$9 EPS path (consensus miss), the stock loses $147 on volume, or evidence of forced institutional deleveraging / continued insider selling at current levels emerges.
+
+Use the wait productively: the 10-year at 4.45% pays you to be patient. No urgency to chase a thesis that is already largely priced at 14x consensus.
