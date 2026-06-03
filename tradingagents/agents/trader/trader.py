@@ -26,6 +26,12 @@ def create_trader(llm, persona=None):
         asset_type = state.get("asset_type", "stock")
         instrument_context = build_instrument_context(company_name, asset_type)
         investment_plan = state["investment_plan"]
+        prior_pack = state.get("prior_analysis_pack_context", "")
+        prior_pack_block = (
+            f"\n\nReusable prior analysis pack:\n{prior_pack}\n"
+            if prior_pack
+            else ""
+        )
         system_prompt = apply_fragment(
             (
                 "You are a trading agent analyzing market data to make investment decisions. "
@@ -50,6 +56,7 @@ def create_trader(llm, persona=None):
                     f"social media sentiment. Use this plan as a foundation for evaluating your next "
                     f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"
                     f"Leverage these insights to make an informed and strategic decision."
+                    f"{prior_pack_block}"
                 ),
             },
         ]

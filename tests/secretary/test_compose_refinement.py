@@ -40,7 +40,7 @@ def test_compose_refinement_writes_child_brief_with_parent_link(tmp_path):
     overrides = {"personas": ["macro"], "risk_tilt": "more_conservative",
                  "horizon": None, "analysts": None,
                  "interpretation": "Macro-only, conservative."}
-    with patch("tradingagents.secretary.morning.run_one_ticker", side_effect=fake_run_ticker):
+    with patch("tradingagents.secretary.service.run_one_ticker", side_effect=fake_run_ticker):
         sec = Secretary(conn=conn, data_dir=str(data_dir), llm=MagicMock())
         new_id = sec.compose_refinement(
             parent_brief_id="b1", overrides=overrides,
@@ -97,7 +97,7 @@ def test_compose_refinement_does_not_modify_persona_yaml(tmp_path):
                            status="ok", decision="HOLD", confidence=0.5)
         return ["rc"], {"consensus": "", "divergence": "", "recommendation": "HOLD", "raw": ""}
 
-    with patch("tradingagents.secretary.morning.run_one_ticker", side_effect=fake_run):
+    with patch("tradingagents.secretary.service.run_one_ticker", side_effect=fake_run):
         sec = Secretary(conn=conn, data_dir=str(tmp_path / "data"), llm=MagicMock())
         sec.compose_refinement(
             parent_brief_id="b1",

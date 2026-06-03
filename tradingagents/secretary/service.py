@@ -20,6 +20,7 @@ from tradingagents.secretary.analysis_runner import (
     run_committee_analysis,
     run_default_analysis,
 )
+from tradingagents.secretary.morning import run_one_ticker
 from tradingagents.secretary.synthesis import synthesize_brief
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -479,7 +480,6 @@ class Secretary:
         self, *, parent_brief_id: str, overrides: dict, reply_text: str,
     ) -> str:
         from tradingagents.default_config import DEFAULT_CONFIG
-        from tradingagents.secretary.morning import run_one_ticker
 
         parent = store.load_brief(self._conn, parent_brief_id)
         if parent is None:
@@ -503,6 +503,13 @@ class Secretary:
             config["_horizon"] = overrides["horizon"]
         if overrides.get("analysts"):
             config["_analysts_override"] = overrides["analysts"]
+        if parent.get("analysis_pack_id"):
+            from tradingagents.analysis_pack.store import load_analysis_pack
+            config["prior_analysis_pack"] = load_analysis_pack(
+                conn=self._conn,
+                data_dir=self._data_dir,
+                pack_id=parent["analysis_pack_id"],
+            )
 
         ts = datetime.now(timezone.utc).isoformat()
         run_ids, synthesis = run_one_ticker(

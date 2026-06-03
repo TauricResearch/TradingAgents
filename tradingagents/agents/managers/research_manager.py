@@ -20,6 +20,12 @@ def create_research_manager(llm, persona=None):
     def research_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
         history = state["investment_debate_state"].get("history", "")
+        prior_pack = state.get("prior_analysis_pack_context", "")
+        prior_pack_block = (
+            f"\n\n**Reusable prior analysis pack:**\n{prior_pack}\n"
+            if prior_pack
+            else ""
+        )
 
         investment_debate_state = state["investment_debate_state"]
 
@@ -42,7 +48,7 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
 ---
 
 **Debate History:**
-{history}"""
+{history}{prior_pack_block}"""
 
         messages = [
             {"role": "system", "content": system_prompt},

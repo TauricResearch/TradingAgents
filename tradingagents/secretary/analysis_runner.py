@@ -45,6 +45,8 @@ def _overlay_for_persona(
         overlay["event_context"] = event_context
     if queue_job_id is not None:
         overlay["queue_job_id"] = queue_job_id
+    if config.get("prior_analysis_pack"):
+        overlay["prior_analysis_pack"] = config["prior_analysis_pack"]
     return overlay
 
 

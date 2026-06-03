@@ -33,6 +33,12 @@ def create_portfolio_manager(llm, persona=None):
         history = format_weighted_risk_debate(risk_debate_state, persona)
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
+        prior_pack = state.get("prior_analysis_pack_context", "")
+        prior_pack_block = (
+            f"\n\n- Reusable prior analysis pack:\n{prior_pack}\n"
+            if prior_pack
+            else ""
+        )
 
         past_context = state.get("past_context", "")
         lessons_line = (
@@ -61,6 +67,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
 {lessons_line}
+{prior_pack_block}
 **Risk Analysts Debate History:**
 {history}"""
 

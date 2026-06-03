@@ -397,6 +397,11 @@ class TradingAgentsGraph:
         # IIC-FORGE F4: event-context injection — seed event text into state.
         # Empty string when not in event_alert mode (deep-dive path unchanged).
         init_agent_state["event_context_text"] = self.config.get("event_context", "") or ""
+        if self.config.get("prior_analysis_pack"):
+            from tradingagents.analysis_pack.prompting import render_pack_for_followup
+            init_agent_state["prior_analysis_pack_context"] = render_pack_for_followup(
+                self.config["prior_analysis_pack"]
+            )
         args = self.propagator.get_graph_args()
 
         from datetime import datetime, timezone
