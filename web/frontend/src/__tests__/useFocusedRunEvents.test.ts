@@ -14,6 +14,7 @@ describe("useFocusedRunEvents", () => {
       eventBuffer: [],
       lastRunIdByTicker: {},
       activeRunIdByTicker: {},
+      historicalRunIdByTicker: {},
       focusedTicker: null,
     });
   });
@@ -59,5 +60,35 @@ describe("useFocusedRunEvents", () => {
     useUi.setState({ focusedTicker: "AAPL" });
     rerender();
     expect(result.current[0].run_id).toBe(2);
+  });
+
+  it("prefers historicalRunIdByTicker over lastRunIdByTicker", () => {
+    // The user picked an older run from the dropdown; the events must
+    // come from that run, not the latest one.
+    useUi.setState({
+      focusedTicker: "NVDA",
+      lastRunIdByTicker: { NVDA: 99 },
+      historicalRunIdByTicker: { NVDA: 5 },
+      eventBuffer: [
+        evt(99, "analyst_started", 1),
+        evt(5, "analyst_started", 2),
+        evt(5, "decision", 3),
+      ],
+    });
+    const { result } = renderHook(() => useFocusedRunEvents());
+    expect(result.current).toHaveLength(2);
+    expect(result.current.every((e) => e.run_id === 5)).toBe(true);
+  });
+
+  it("falls back to lastRunIdByTicker when historical is not set", () => {
+    useUi.setState({
+      focusedTicker: "NVDA",
+      lastRunIdByTicker: { NVDA: 7 },
+      historicalRunIdByTicker: {},
+      eventBuffer: [evt(7, "analyst_started", 1)],
+    });
+    const { result } = renderHook(() => useFocusedRunEvents());
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0].run_id).toBe(7);
   });
 });

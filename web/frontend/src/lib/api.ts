@@ -21,9 +21,26 @@ export interface RunRow {
   decision_confidence: number | null;
 }
 
+export interface LlmCallRow {
+  id: number;
+  run_id: number;
+  ticker: string;
+  node_name: string;
+  started_at: string | null;
+  model: string;
+  prompt_text: string;
+  response_text: string;
+  tool_calls: unknown[];
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  duration_ms: number;
+}
+
 export interface RunDetail {
   run: RunRow;
   events: Array<{ id: number; type: string; ts: string | null; data: unknown }>;
+  llm_calls: LlmCallRow[];
 }
 
 export async function fetchWatchlist(): Promise<WatchlistRow[]> {
@@ -52,11 +69,11 @@ export async function fetchPrices(): Promise<Record<string, unknown>> {
   return r.json();
 }
 
-export async function startRun(ticker: string): Promise<{ run_id: number }> {
+export async function startRun(ticker: string, force: boolean = false): Promise<{ run_id: number }> {
   const r = await fetch(`${base}/api/runs`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ ticker }),
+    body: JSON.stringify({ ticker, force }),
   });
   if (!r.ok) throw new Error(`start ${r.status}`);
   return r.json();
@@ -70,5 +87,11 @@ export async function cancelRun(runId: number): Promise<void> {
 export async function fetchRunDetail(runId: number): Promise<RunDetail> {
   const r = await fetch(`${base}/api/runs/${runId}`);
   if (!r.ok) throw new Error(`run ${r.status}`);
+  return r.json();
+}
+
+export async function fetchTickerRuns(ticker: string): Promise<RunRow[]> {
+  const r = await fetch(`${base}/api/tickers/${encodeURIComponent(ticker)}/runs`);
+  if (!r.ok) throw new Error(`ticker-runs ${r.status}`);
   return r.json();
 }
