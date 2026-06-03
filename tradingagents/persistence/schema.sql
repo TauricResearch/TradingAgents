@@ -234,6 +234,18 @@ CREATE INDEX IF NOT EXISTS idx_queue_jobs_trigger_event
 CREATE INDEX IF NOT EXISTS idx_queue_jobs_state_enqueued
     ON queue_jobs(state, enqueued_ts);
 
+CREATE TABLE IF NOT EXISTS alert_evaluations (
+    evaluation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id      TEXT NOT NULL REFERENCES events(event_id) ON DELETE CASCADE,
+    tickers       TEXT NOT NULL,
+    decision      TEXT NOT NULL,
+    score         REAL NOT NULL,
+    payload       TEXT NOT NULL,
+    created_ts    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_alert_evaluations_event
+    ON alert_evaluations(event_id);
+
 -- ============================================================
 -- F5 delivery + operations append-only columns (added by IIC-FORGE-08)
 -- ============================================================

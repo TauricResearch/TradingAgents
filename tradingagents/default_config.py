@@ -119,6 +119,7 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     "alert_approval_gate_enabled": True,
     # How long a pending run_full_study approval stays valid (1 day per spec §4).
     "alert_pending_ttl_hours": 24,
+    "alert_quality_threshold": 0.80,
     "worker_poll_interval_s": 2,
     "worker_job_timeout_min": 20,
     "max_concurrent_jobs": 1,

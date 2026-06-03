@@ -276,6 +276,33 @@ def insert_event_embedding(
     conn.commit()
 
 
+def insert_alert_evaluation(
+    conn: sqlite3.Connection,
+    *,
+    event_id: str,
+    tickers: list[str],
+    decision: str,
+    score: float,
+    payload: dict,
+    created_ts: str,
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO alert_evaluations "
+        "(event_id, tickers, decision, score, payload, created_ts) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            event_id,
+            json.dumps(tickers),
+            decision,
+            score,
+            json.dumps(payload),
+            created_ts,
+        ),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
 # --------------------------------------------------------------------
 # F4 helpers — events lookup / suppression / briefs lookup
 # --------------------------------------------------------------------
