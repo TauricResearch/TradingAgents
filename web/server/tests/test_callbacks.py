@@ -107,3 +107,82 @@ class TestOnTool:
         assert len(events) == 1
         assert events[0]["data"]["error"] == "bad arg"
         assert events[0]["data"]["summary"] == "bad arg"
+
+
+from datetime import datetime, timezone
+from web.server.callbacks import CaptureCallbackHandler
+
+
+@pytest.mark.unit
+class TestCaptureCallbackHandler:
+    def test_captures_full_prompt_and_response(self):
+        calls = []
+        handler = CaptureCallbackHandler(run_id=42, ticker="NVDA", save_call=calls.append)
+
+        from uuid import uuid4
+        rid = uuid4()
+        handler.on_chat_model_start(
+            {"name": "ChatOpenAI"},
+            [[HumanMessage(content="What's the price?")]],
+            run_id=rid,
+        )
+        # Simulate on_llm_end with a proper LLMResult
+        from unittest.mock import MagicMock
+        gen = MagicMock()
+        chat = MagicMock()
+        chat.message = AIMessage(content="The price is 900.", tool_calls=[])
+        gen.__iter__ = lambda self: iter([chat])
+        result = MagicMock()
+        result.generations = [gen]
+        result.llm_output = {"model_name": "gpt-4", "token_usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8}}
+
+        handler.on_llm_end(result, run_id=rid)
+
+        assert len(calls) == 1
+        call = calls[0]
+        assert call["run_id"] == 42
+        assert call["ticker"] == "NVDA"
+        assert "What's the price?" in call["prompt_text"]
+        assert call["response_text"] == "The price is 900."
+        assert call["total_tokens"] == 8
+        assert call["input_tokens"] == 5
+        assert call["output_tokens"] == 3
+
+    def test_multiple_llm_calls_tracked_independently(self):
+        calls = []
+        handler = CaptureCallbackHandler(run_id=42, ticker="NVDA", save_call=calls.append)
+        from uuid import uuid4
+        rid1, rid2 = uuid4(), uuid4()
+
+        handler.on_chat_model_start({"name": "ChatOpenAI"}, [[HumanMessage(content="first call")]], run_id=rid1)
+        handler.on_chat_model_start({"name": "ChatOpenAI"}, [[HumanMessage(content="second call")]], run_id=rid2)
+        gen = MagicMock(); chat = MagicMock()
+        chat.message = AIMessage(content="first response")
+        gen.__iter__ = lambda self: iter([chat])
+        r1 = MagicMock(); r1.generations = [gen]; r1.llm_output = {"token_usage": {"total_tokens": 1}}
+        handler.on_llm_end(r1, run_id=rid1)
+
+        chat2 = MagicMock()
+        chat2.message = AIMessage(content="second response")
+        gen2 = MagicMock()
+        gen2.__iter__ = lambda self: iter([chat2])
+        r2 = MagicMock(); r2.generations = [gen2]; r2.llm_output = {"token_usage": {"total_tokens": 2}}
+        handler.on_llm_end(r2, run_id=rid2)
+
+        assert len(calls) == 2
+        assert calls[0]["response_text"] == "first response"
+        assert calls[1]["response_text"] == "second response"
+
+    def test_handles_tool_calls_in_response(self):
+        calls = []
+        handler = CaptureCallbackHandler(run_id=42, ticker="NVDA", save_call=calls.append)
+        from uuid import uuid4
+        rid = uuid4()
+        handler.on_chat_model_start({"name": "ChatOpenAI"}, [[HumanMessage(content="check price")]], run_id=rid)
+        gen = MagicMock(); chat = MagicMock()
+        chat.message = AIMessage(content="", tool_calls=[{"name": "get_price", "args": {}, "id": "call_1"}])
+        gen.__iter__ = lambda self: iter([chat])
+        r = MagicMock(); r.generations = [gen]; r.llm_output = {}
+        handler.on_llm_end(r, run_id=rid)
+        assert len(calls) == 1
+        assert '"get_price"' in calls[0]["tool_calls_json"]

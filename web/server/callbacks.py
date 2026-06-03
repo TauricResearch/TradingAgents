@@ -75,6 +75,120 @@ class StreamingCallbackHandler(BaseCallbackHandler):
         self._emit("tool_result", {"tool": "unknown", "error": text, "summary": text[:200]})
 
 
+import json
+import uuid
+from datetime import datetime, timezone
+
+
+def _save_llm_call_default(**kw: Any) -> None:
+    """Production default: persist via the llm_calls module."""
+    from web.server.llm_calls import save_llm_call
+    save_llm_call(**kw)
+
+
+class CaptureCallbackHandler(BaseCallbackHandler):
+    """Accumulates full LLM prompt->response pairs and persists them.
+
+    Attach alongside StreamingCallbackHandler in the graph's callbacks
+    list. Uses ``run_id`` (LangChain's per-call UUID) to correlate
+    ``on_chat_model_start`` with ``on_llm_end``.
+
+    The handler does NOT emit dashboard events — it writes directly to
+    the ``llm_call`` table via the injected ``save_call`` callable.
+    """
+
+    def __init__(
+        self,
+        *,
+        run_id: int,
+        ticker: str,
+        save_call: Optional[Callable[[dict], None]] = None,
+    ) -> None:
+        self.run_id = run_id
+        self.ticker = ticker
+        self._save_call = save_call or _save_llm_call_default
+        # LangChain per-call run_id -> pending data
+        self._pending: dict[uuid.UUID, dict[str, Any]] = {}
+        # Set by the runner's event_callback before each node executes
+        self.current_node: Optional[str] = None
+
+    def on_chat_model_start(
+        self,
+        serialized: dict,
+        messages: list,
+        *,
+        run_id: uuid.UUID,
+        **kw: Any,
+    ) -> None:
+        prompt_parts: list[str] = []
+        for batch in messages or []:
+            for msg in batch or []:
+                role = str(getattr(msg, "type", "unknown"))
+                content = str(getattr(msg, "content", "") or "")
+                prompt_parts.append(f"{role}: {content}")
+        prompt_text = "\n\n".join(prompt_parts)
+
+        self._pending[run_id] = {
+            "model": serialized.get("name", "unknown"),
+            "prompt_text": prompt_text,
+            "started_at": datetime.now(timezone.utc),
+        }
+
+    def on_llm_end(self, response: Any, *, run_id: uuid.UUID, **kw: Any) -> None:
+        pending = self._pending.pop(run_id, None)
+        if pending is None:
+            return
+
+        # Extract response text + tool calls
+        response_text = ""
+        tool_calls: list = []
+        try:
+            for gen in response.generations:
+                for chat in gen:
+                    msg = getattr(chat, "message", None)
+                    if msg is None:
+                        text = str(getattr(chat, "text", "") or "")
+                        response_text += text
+                        continue
+                    content = str(getattr(msg, "content", "") or "")
+                    response_text += content
+                    tool_calls.extend(getattr(msg, "tool_calls", None) or [])
+        except Exception:
+            pass
+
+        # Extract token usage (handle both older and newer LLM result shapes)
+        input_tokens = output_tokens = total_tokens = 0
+        model = pending["model"]
+        try:
+            llm_output = getattr(response, "llm_output", None) or {}
+            model = llm_output.get("model_name", model)
+            usage = llm_output.get("token_usage", None) or {}
+            input_tokens = usage.get("prompt_tokens", usage.get("input_tokens", 0))
+            output_tokens = usage.get("completion_tokens", usage.get("output_tokens", 0))
+            total_tokens = usage.get("total_tokens", 0)
+        except Exception:
+            pass
+
+        started_at: datetime = pending["started_at"]
+        duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
+
+        self._save_call({
+            "run_id": self.run_id,
+            "ticker": self.ticker,
+            "node_name": self.current_node or "",
+            "started_at": started_at,
+            "model": model,
+            "prompt_text": pending["prompt_text"],
+            "response_text": response_text,
+            "tool_calls": tool_calls,
+            "tool_calls_json": json.dumps(tool_calls),
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "duration_ms": duration_ms,
+        })
+
+
 def _extract_last_user_text(messages: list) -> Optional[str]:
     """Best-effort extraction of the most recent user message text.
 
