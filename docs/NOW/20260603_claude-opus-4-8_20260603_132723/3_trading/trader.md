@@ -1,0 +1,11 @@
+**Action**: Hold
+
+**Reasoning**: The investment plan unambiguously supports a Hold on NOW (ServiceNow, Inc.) at the current price of $127.65. The bull case is substantively strong — 22% sustained revenue growth, $5.1B TTM FCF, $8.13B deferred revenue backlog, 120%+ net revenue retention, and defensible AI-orchestration moat with AWS/Nvidia integrations — but these merits are already priced into a stretched valuation that depends on simultaneous normalization of the tax rate (~30% → ~18-20%), margin recovery (gross margin declining 380bps YoY to 75.1%), and M&A cost roll-off, none of which are yet confirmed in reported numbers. Compounding the valuation fragility, the technical setup is overextended following a 56% three-week parabolic run, RSI off 78, a Bollinger Band rejection, and a -6% session on a green-market day — consistent with institutional distribution rather than a healthy consolidation. Critically, a binary Q2 2026 earnings catalyst is only ~6-8 weeks away and will directly adjudicate the three open swing questions (gross margin trajectory, tax-rate normalization, deferred-revenue/bookings momentum), making fresh capital commitment at current levels asymmetrically unattractive: the bull's base case clusters near break-even while realistic downside on a disappointing print opens to $95–105 (-25% to -30%). The correct posture is to maintain existing core exposure — the business quality and contracted backlog do not warrant exiting — while parking dry powder for post-catalyst confirmation or a technical pullback toward the 10-EMA (~$113–115).
+
+**Entry Price**: 113.0
+
+**Stop Loss**: 95.0
+
+**Position Sizing**: Existing holders: maintain core; trim 10–15% only if overweight vs. target to harvest post-56%-run gains. New/underweight investors: no more than ~1/3 of intended position size, initiated only on a pullback to ~$113–115 (10-EMA). Full sizing reserved for post-Q2 bullish confirmation (gross margin ≥76%, tax rate 18–20%, stable deferred revenue growth).
+
+FINAL TRANSACTION PROPOSAL: **HOLD**
