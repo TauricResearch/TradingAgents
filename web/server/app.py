@@ -106,6 +106,10 @@ async def lifespan(app: FastAPI):
         snapshots={},
         tickers=lambda: [w.ticker for w in db.list_watchlist()],
     )
+    # yfinance logs at ERROR for delisted/foreign symbols (e.g. "TA125:
+    # possibly delisted"). Those are downstream of a single bad-ticker
+    # decision the user has already made; suppress the noise.
+    logging.getLogger("yfinance").setLevel(logging.CRITICAL)
     feed = price_feed.PriceFeed(state, poll_s=settings.price_poll_s)
 
     # start runner

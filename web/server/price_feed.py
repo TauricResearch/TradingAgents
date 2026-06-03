@@ -14,6 +14,14 @@ from web.server import events
 log = logging.getLogger(__name__)
 
 
+# Symbols whose yfinance fetch has raised a non-transient error (most
+# commonly delisted/foreign indices where yfinance's ``last_price``
+# property crashes inside ``format_history_metadata`` with
+# ``KeyError: 'exchangeTimezoneName'``). We log a single warn per symbol
+# rather than re-logging the traceback every 2s; cleared on recovery.
+_bad_symbol_warned: set[str] = set()
+
+
 @dataclass
 class PriceSnapshot:
     price: float = 0.0
@@ -82,9 +90,22 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
                 snap.stale = False
             else:
                 snap.stale = True
-        except Exception:
-            log.exception("fast_info failed for %s; marking stale", ticker)
+        except Exception as e:
+            # Don't dump the traceback at ERROR level every 2s for a bad
+            # symbol (e.g. yfinance crashing inside format_history_metadata
+            # for delisted/foreign tickers). Log once at warn, then quiet.
+            if ticker not in _bad_symbol_warned:
+                log.warning(
+                    "fast_info failed for %s; marking stale (will not re-log): %s: %s",
+                    ticker, type(e).__name__, e,
+                )
+                _bad_symbol_warned.add(ticker)
             snap.stale = True
+
+        # If data recovered for a previously-bad symbol, let future failures
+        # log again (so the user sees the recovery cycle if it happens).
+        if not snap.stale and ticker in _bad_symbol_warned:
+            _bad_symbol_warned.discard(ticker)
 
         state.snapshots[ticker] = snap
 

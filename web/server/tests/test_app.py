@@ -1,4 +1,5 @@
 import pytest
+import logging
 from fastapi.testclient import TestClient
 
 from web.server.app import create_app
@@ -19,6 +20,14 @@ def test_health(client):
     body = r.json()
     assert body["status"] == "ok"
     assert "watchlist_size" in body
+
+
+def test_lifespan_silences_yfinance_logger(client):
+    """The lifespan suppresses yfinance's own ERROR-level noise for
+    delisted/foreign symbols (e.g. "TA125: possibly delisted"). Without
+    this, the dashboard log fills with yfinance-internal tracebacks
+    every poll for every bad ticker in the watchlist."""
+    assert logging.getLogger("yfinance").level >= logging.WARNING
 
 
 def test_watchlist_crud(client):
