@@ -15,9 +15,11 @@ from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from tradingagents.personas.loader import load_all_personas
 from tradingagents.persistence import store
-from tradingagents.secretary.persona_runner import run_personas_parallel
+from tradingagents.secretary.analysis_runner import (
+    run_committee_analysis,
+    run_default_analysis,
+)
 from tradingagents.secretary.synthesis import synthesize_brief
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -177,26 +179,27 @@ class Secretary:
             ev["ingested_ts"].replace("Z", "+00:00")
         ).date().isoformat()
 
-        # Load personas + run them in parallel with event_context threaded in.
-        personas_dir = (
-            Path(__file__).resolve().parent.parent / "personas"
-        )
-        personas = load_all_personas(str(personas_dir))
-        if not personas:
-            raise RuntimeError("compose_event_alert: no personas configured")
-
         from tradingagents.default_config import DEFAULT_CONFIG
         config = dict(DEFAULT_CONFIG)
 
-        run_ids = run_personas_parallel(
-            personas=personas,
-            ticker=ticker,
-            trade_date=trade_date,
-            config=config,
-            parallel=True,
-            event_context=raw_text,
-            queue_job_id=job_id,
-        )
+        if config.get("committee_mode_enabled"):
+            run_ids = run_committee_analysis(
+                persona_ids=config.get("committee_persona_ids", []),
+                ticker=ticker,
+                trade_date=trade_date,
+                config=config,
+                parallel=True,
+                event_context=raw_text,
+                queue_job_id=job_id,
+            )
+        else:
+            run_ids = run_default_analysis(
+                ticker=ticker,
+                trade_date=trade_date,
+                config=config,
+                event_context=raw_text,
+                queue_job_id=job_id,
+            )
 
         # Build persona_runs view for synthesis + rendering.
         persona_runs: List[Dict[str, Any]] = []

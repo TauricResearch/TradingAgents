@@ -62,12 +62,11 @@ def test_compose_event_alert_writes_brief(setup, monkeypatch):
     a markdown file, and a synthesis that includes the trigger event."""
     conn, data_dir, job_id = setup
 
-    # Mock the persona-runner so this test doesn't actually invoke the graph.
-    def fake_runner(*, personas, ticker, trade_date, config, parallel,
-                    event_context, queue_job_id):
+    # Mock the analysis runner so this test doesn't actually invoke the graph.
+    def fake_runner(*, ticker, trade_date, config, event_context, queue_job_id):
         return ["r1", "r2", "r3"]
     monkeypatch.setattr(
-        "tradingagents.secretary.service.run_personas_parallel",
+        "tradingagents.secretary.service.run_default_analysis",
         fake_runner,
     )
 
@@ -105,7 +104,7 @@ def test_compose_event_alert_writes_brief(setup, monkeypatch):
 def test_compose_event_alert_returns_brief_id_string(setup, monkeypatch):
     conn, data_dir, job_id = setup
     monkeypatch.setattr(
-        "tradingagents.secretary.service.run_personas_parallel",
+        "tradingagents.secretary.service.run_default_analysis",
         lambda **kw: ["r1", "r2", "r3"],
     )
     monkeypatch.setattr(
