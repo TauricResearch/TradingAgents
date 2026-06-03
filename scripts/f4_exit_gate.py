@@ -7,6 +7,9 @@ docs/superpowers/artifacts/.
 
 Usage:
     python scripts/f4_exit_gate.py --since 2026-05-27T08:00:00Z [--window-hours 12]
+
+For the approval-through-delivery gate that spans F4 and F5, use:
+    python scripts/f4_f5_exit_gate.py --since 2026-06-03T09:00:00Z --window-hours 12
 """
 
 from __future__ import annotations
