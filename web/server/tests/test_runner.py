@@ -16,7 +16,7 @@ def _payload(event) -> dict:
 
 @pytest.mark.asyncio
 async def test_happy_path_emits_and_persists(monkeypatch, temp_db):
-    monkeypatch.setattr(runner, "build_graph", lambda config=None: FakeTradingAgents(happy_path("NVDA")))
+    monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(happy_path("NVDA")))
     monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
 
     await runner.start(num_workers=1)
@@ -48,7 +48,7 @@ async def test_semaphore_limits_concurrency(monkeypatch, temp_db):
     started = []
     release = threading.Event()
 
-    def slow_graph(config=None):
+    def slow_graph(config=None, callbacks=None):
         class Slow:
             def propagate(self_inner, ticker, trade_date, *, event_callback=None):
                 started.append(ticker)
@@ -88,7 +88,7 @@ async def test_cancellation_emits_run_failed(monkeypatch, temp_db):
     started = threading.Event()
     release = threading.Event()
 
-    def blocking_graph(config=None):
+    def blocking_graph(config=None, callbacks=None):
         class Blocking:
             def propagate(self_inner, ticker, trade_date, *, event_callback=None):
                 started.set()
@@ -125,7 +125,7 @@ async def test_rate_limit_exhaustion_emits_warnings_and_run_failed(monkeypatch, 
     class _AlwaysRateLimitError(RuntimeError):
         pass
 
-    def always_failing_graph(config=None):
+    def always_failing_graph(config=None, callbacks=None):
         class _Failing:
             def propagate(self_inner, ticker, trade_date, *, event_callback=None):
                 raise _AlwaysRateLimitError(
@@ -177,7 +177,7 @@ async def test_rate_limit_recovered_after_two_attempts(monkeypatch, temp_db):
 
     counter = {"calls": 0}
 
-    def flaky_graph(config=None):
+    def flaky_graph(config=None, callbacks=None):
         class _Flaky:
             def propagate(self_inner, ticker, trade_date, *, event_callback=None):
                 counter["calls"] += 1
@@ -208,3 +208,129 @@ async def test_rate_limit_recovered_after_two_attempts(monkeypatch, temp_db):
         assert len(run_failed) == 0
     finally:
         await runner.stop()
+
+
+class TestNodeExitedMapping:
+
+    @pytest.mark.asyncio
+    async def test_node_exited_emits_analyst_completed_for_agent_node(self, monkeypatch, temp_db):
+        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
+
+        script = ScriptedRun(
+            nodes=[ScriptedNode("Market Analyst")],
+            final_state={"decision": {"action": "HOLD"}},
+        )
+        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
+        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
+
+        await runner.start(num_workers=1)
+        try:
+            rid = runner.enqueue("NVDA", idempotency_key="NVDA:node-exited-agent")
+            await runner._wait_for_idle(timeout=5)
+
+            events_list = db.events_for_run(rid)
+            analyst_completed = [e for e in events_list if e.type == "analyst_completed"]
+            assert len(analyst_completed) == 1
+            data = json.loads(analyst_completed[0].payload_json)
+            assert data["stage"] == "market"
+        finally:
+            await runner.stop()
+
+    @pytest.mark.asyncio
+    async def test_node_exited_skips_completion_for_tool_node(self, monkeypatch, temp_db):
+        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
+
+        script = ScriptedRun(
+            nodes=[ScriptedNode("tools_market")],
+            final_state={"decision": {"action": "HOLD"}},
+        )
+        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
+        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
+
+        await runner.start(num_workers=1)
+        try:
+            rid = runner.enqueue("NVDA", idempotency_key="NVDA:node-exited-tool")
+            await runner._wait_for_idle(timeout=5)
+
+            events_list = db.events_for_run(rid)
+            analyst_completed = [e for e in events_list if e.type == "analyst_completed"]
+            assert len(analyst_completed) == 0
+        finally:
+            await runner.stop()
+
+    @pytest.mark.asyncio
+    async def test_node_exited_skips_completion_for_portfolio_manager(self, monkeypatch, temp_db):
+        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
+
+        script = ScriptedRun(
+            nodes=[ScriptedNode("Portfolio Manager")],
+            final_state={"decision": {"action": "HOLD"}},
+        )
+        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
+        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
+
+        await runner.start(num_workers=1)
+        try:
+            rid = runner.enqueue("NVDA", idempotency_key="NVDA:node-exited-pm")
+            await runner._wait_for_idle(timeout=5)
+
+            events_list = db.events_for_run(rid)
+            analyst_completed = [e for e in events_list if e.type == "analyst_completed"]
+            assert len(analyst_completed) == 0
+        finally:
+            await runner.stop()
+
+
+class TestDecisionAndRunFinished:
+
+    @pytest.mark.asyncio
+    async def test_decision_event_emitted_after_propagate(self, monkeypatch, temp_db):
+        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
+
+        script = ScriptedRun(
+            nodes=[ScriptedNode("Market Analyst")],
+            final_state={"decision": {"action": "BUY", "target": 150.0, "rationale": "looks good", "confidence": 0.9}},
+        )
+        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
+        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
+
+        await runner.start(num_workers=1)
+        try:
+            rid = runner.enqueue("AAPL", idempotency_key="AAPL:decision-test")
+            await runner._wait_for_idle(timeout=5)
+
+            events_list = db.events_for_run(rid)
+            decisions = [e for e in events_list if e.type == "decision"]
+            assert len(decisions) == 1
+            data = json.loads(decisions[0].payload_json)
+            assert data["action"] == "BUY"
+            assert data["target"] == 150.0
+            assert data["rationale"] == "looks good"
+            assert data["confidence"] == 0.9
+        finally:
+            await runner.stop()
+
+    @pytest.mark.asyncio
+    async def test_run_finished_uses_real_duration_and_summary_map(self, monkeypatch, temp_db):
+        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
+
+        script = ScriptedRun(
+            nodes=[ScriptedNode("Market Analyst")],
+            final_state={"decision": {"action": "HOLD"}},
+        )
+        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
+        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
+
+        await runner.start(num_workers=1)
+        try:
+            rid = runner.enqueue("MSFT", idempotency_key="MSFT:run-finished-test")
+            await runner._wait_for_idle(timeout=5)
+
+            events_list = db.events_for_run(rid)
+            run_finished = [e for e in events_list if e.type == "run_finished"]
+            assert len(run_finished) == 1
+            data = json.loads(run_finished[0].payload_json)
+            assert 0.0 < data["duration_s"] < 5.0
+            assert isinstance(data.get("summary_by_stage"), dict)
+        finally:
+            await runner.stop()
