@@ -7,6 +7,8 @@ interface Props {
   lastDecision: string | null;
   sparkline: number[];
   status: "idle" | "queued" | "running" | "done" | "errored";
+  price?: number;
+  changePct?: number;
   onRemove?: (ticker: string) => void | Promise<void>;
 }
 
@@ -18,7 +20,7 @@ const dotColor: Record<Props["status"], string> = {
   errored: "bg-rose-500",
 };
 
-export function TickerRow({ ticker, companyName, lastDecision, sparkline, status, onRemove }: Props) {
+export function TickerRow({ ticker, companyName, lastDecision, sparkline, status, price, changePct, onRemove }: Props) {
   const focused = useUi((s) => s.focusedTicker);
   const setFocused = useUi((s) => s.setFocusedTicker);
   const isFocused = focused === ticker;
@@ -35,6 +37,9 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
     }
   };
 
+  const showChange = changePct != null && !isNaN(changePct);
+  const changeColor = showChange ? (changePct >= 0 ? "text-emerald-600" : "text-rose-600") : "text-slate-400";
+
   return (
     <div
       role="button"
@@ -47,11 +52,25 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
       }`}
     >
       <span className={`h-2 w-2 rounded-full ${dotColor[status]}`} />
-      <div className="flex-1">
-        <div className="text-sm font-semibold">{ticker}</div>
-        <div className="text-xs text-slate-500 truncate">{companyName || lastDecision || "—"}</div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-semibold">{ticker}</span>
+          {price != null && !isNaN(price) && (
+            <span className="text-xs tabular-nums text-slate-600">
+              ${price.toFixed(2)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xs text-slate-500 truncate">{companyName || lastDecision || "—"}</span>
+          {showChange && (
+            <span className={`text-xs tabular-nums font-medium ${changeColor}`}>
+              {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
+            </span>
+          )}
+        </div>
       </div>
-      <svg width="40" height="20" className="opacity-60">
+      <svg width="40" height="20" className="opacity-60 shrink-0">
         {sparkPath && <path d={sparkPath} stroke="rgb(59 130 246)" strokeWidth="1" fill="none" />}
       </svg>
       {!pending ? (
@@ -59,12 +78,12 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
           type="button"
           onClick={(e) => { e.stopPropagation(); setPending(true); }}
           aria-label={`Remove ${ticker} from watchlist`}
-          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 text-sm px-1"
+          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 text-sm px-1 shrink-0"
         >
           ×
         </button>
       ) : (
-        <span className="flex items-center gap-1 text-xs" onClick={(e) => e.stopPropagation()}>
+        <span className="flex items-center gap-1 text-xs shrink-0" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             onClick={async (e) => { e.stopPropagation(); await onRemove?.(ticker); }}

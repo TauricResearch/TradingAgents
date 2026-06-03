@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchWatchlist, fetchPrices } from "./lib/api";
 import { useUi } from "./store/ui";
 import { useRunStream } from "./hooks/useRunStream";
+import { useGlobalStream } from "./hooks/useGlobalStream";
 import { useFocusedRunEvents } from "./hooks/useFocusedRunEvents";
 import { useRestoredRunEvents } from "./hooks/useRestoredRunEvents";
 import { WatchlistRail } from "./components/WatchlistRail";
@@ -30,6 +31,7 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   useRunStream(runId);
+  useGlobalStream();
   useRestoredRunEvents(focused);
 
   // Sync focusedTicker with the watchlist. This is the single source of

@@ -81,7 +81,7 @@
       "cwd": "${workspaceFolder}/web/frontend",
       "console": "integratedTerminal",
       "serverReadyAction": {
-        "pattern": "Local:\\s+http://localhost:\\d+",
+        "pattern": "Local:\\s+(https?):\\/\\/([a-zA-Z0-9.-]+):(\\d+)",
         "uriFormat": "%s://%s:%d",
         "action": "openExternally"
       },
@@ -100,7 +100,7 @@
       "cwd": "${workspaceFolder}/web",
       "console": "integratedTerminal",
       "serverReadyAction": {
-        "pattern": "Local:\\s+http://localhost:\\d+",
+        "pattern": "Local:\\s+(https?):\\/\\/([a-zA-Z0-9.-]+):(\\d+)",
         "uriFormat": "%s://%s:%d",
         "action": "openExternally"
       },

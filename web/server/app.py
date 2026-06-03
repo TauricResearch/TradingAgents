@@ -21,9 +21,6 @@ from web.server.settings import get_settings
 log = logging.getLogger(__name__)
 
 
-# Per-run subscriber lists. _subs[run_id] = set of asyncio.Queue.
-_subs: dict[int, set[asyncio.Queue]] = {}
-
 # Set of currently-open WebSocket objects. Tracked so the lifespan teardown
 # can force-close them; otherwise a handler stuck in `ws.receive()` will keep
 # the ASGI portal from closing cleanly.
@@ -34,6 +31,23 @@ _active_ws: set[WebSocket] = set()
 # `asyncio.Queue.put_nowait` is not thread-safe across event loops and does
 # not wake the loop, so direct calls from other threads silently lose events.
 _broadcast_loop: Optional[asyncio.AbstractEventLoop] = None
+
+# Per-run subscriber lists.  _subs[run_id] = set of asyncio.Queue.
+_subs: dict[int, set[asyncio.Queue]] = {}
+# Global subscriber set (receives price updates, server notices, etc.).
+_global_subs: set[asyncio.Queue] = set()
+
+
+def _broadcast_global(evt: dict) -> None:
+    """Broadcast an event to all global WS subscribers (price updates etc.)."""
+    loop = _broadcast_loop
+    if loop is None:
+        return
+    for q in list(_global_subs):
+        try:
+            loop.call_soon_threadsafe(q.put_nowait, evt)
+        except Exception:
+            pass
 
 
 def _broadcast(run_id: int, evt: dict) -> None:
@@ -95,10 +109,9 @@ async def lifespan(app: FastAPI):
 
     # start runner
     await runner.start(num_workers=1)
-    # Prices are exposed to the frontend via HTTP /api/prices (polled).
-    # The runner emits WS events for runs; price events stay local to the
-    # PriceState in app.state.price_state.
-    feed.start()
+    # Prices are broadcast via WS to global subscribers so the frontend
+    # receives live updates instead of only REST polling.
+    feed.start(broadcast=_broadcast_global)
     app.state.price_feed = feed
     app.state.price_state = state
     # Stash the running loop so `_broadcast` (called from worker threads)
@@ -238,6 +251,64 @@ def create_app() -> FastAPI:
             _subs.get(run_id, set()).discard(q)
             if not _subs.get(run_id):
                 _subs.pop(run_id, None)
+            _active_ws.discard(ws)
+            watcher.cancel()
+            try:
+                await watcher
+            except BaseException:
+                pass
+
+    @app.websocket("/ws/global")
+    async def ws_global(ws: WebSocket):
+        """Global event stream — receives price updates, server notices, etc."""
+        await ws.accept()
+        _active_ws.add(ws)
+        q: asyncio.Queue = asyncio.Queue(maxsize=1024)
+        _global_subs.add(q)
+
+        # Send initial price snapshot so the client has data immediately
+        snapshots = getattr(app.state, "price_state", None)
+        if snapshots is not None:
+            for ticker, snap in snapshots.snapshots.items():
+                await ws.send_json(events.make_event(
+                    "price_update", run_id=0, data={
+                        "ticker": ticker,
+                        "price": snap.price,
+                        "change_pct": snap.change_pct,
+                        "sparkline": snap.sparkline,
+                        "stale": snap.stale,
+                    }
+                ))
+
+        disconnect = asyncio.Event()
+
+        async def _watch_close():
+            try:
+                while True:
+                    msg = await ws.receive()
+                    if msg.get("type") == "websocket.disconnect":
+                        break
+            except WebSocketDisconnect:
+                pass
+            except Exception:
+                pass
+            finally:
+                disconnect.set()
+
+        watcher = asyncio.create_task(_watch_close())
+        try:
+            while True:
+                try:
+                    evt = await asyncio.wait_for(q.get(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    if disconnect.is_set() or _broadcast_loop is None:
+                        break
+                    continue
+                await ws.send_json(evt)
+        except WebSocketDisconnect:
+            pass
+        finally:
+            _global_subs.discard(q)
             _active_ws.discard(ws)
             watcher.cancel()
             try:

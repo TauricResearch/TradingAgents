@@ -54,7 +54,7 @@ class StreamingCallbackHandler(BaseCallbackHandler):
                     content = str(getattr(msg, "content", "") or "")
                     tool_calls = getattr(msg, "tool_calls", None) or []
                     if content and not tool_calls:
-                        self._emit("analyst_thinking", {"text_fragment": content[:500]})
+                        self._emit("analyst_thinking", {"text_fragment": content})
                         return
         except Exception:
             return

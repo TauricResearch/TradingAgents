@@ -45,7 +45,7 @@ export function TickerHeader({ ticker, price, changePct }: Props) {
           {price != null ? `$${price.toFixed(2)}` : "—"}
           {changePct != null && (
             <span className={changePct >= 0 ? "text-emerald-600 ml-2" : "text-rose-600 ml-2"}>
-              {changePct >= 0 ? "+" : ""}{(changePct * 100).toFixed(2)}%
+              {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
             </span>
           )}
         </p>

@@ -1,0 +1,60 @@
+import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ResilientWs, buildGlobalUrl } from "../lib/ws";
+import { EventType, type WsEvent } from "../lib/events";
+
+interface PriceData {
+  price: number;
+  change_pct: number;
+  sparkline: number[];
+  stale: boolean;
+}
+
+/**
+ * Connects to the global event stream and dispatches price updates
+ * into the React Query cache so all price-dependent components
+ * (TickerHeader, TickerRow, etc.) re-render in real-time.
+ */
+export function useGlobalStream() {
+  const qc = useQueryClient();
+  const clientRef = useRef<ResilientWs | null>(null);
+
+  useEffect(() => {
+    const client = new ResilientWs({
+      url: buildGlobalUrl,
+      onMessage: (evt: WsEvent) => {
+        if (evt.type === EventType.PRICE_UPDATE) {
+          const { ticker, price, change_pct, sparkline, stale } = evt.data as Record<
+            string,
+            unknown
+          >;
+          if (typeof ticker !== "string") return;
+
+          const priceData: PriceData = {
+            price: Number(price) || 0,
+            change_pct: Number(change_pct) || 0,
+            sparkline: Array.isArray(sparkline)
+              ? sparkline.map(Number)
+              : [],
+            stale: Boolean(stale),
+          };
+
+          // Merge into the existing ["prices"] cache so REST polling
+          // and WS updates coexist — WS just fills the gap between polls.
+          qc.setQueryData(["prices"], (old: Record<string, PriceData> | undefined) => ({
+            ...(old || {}),
+            [ticker]: priceData,
+          }));
+        }
+      },
+    });
+
+    clientRef.current = client;
+    client.start();
+
+    return () => {
+      client.stop();
+      clientRef.current = null;
+    };
+  }, [qc]);
+}
