@@ -360,8 +360,16 @@ class Secretary:
                 body = render_for_channel(
                     channel=name, mode="event_alert_light", brief=brief)
                 ch.send(brief=brief, mode="event_alert_light", body=body)
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                store.insert_delivery(
+                    self._conn,
+                    brief_id=brief_id,
+                    channel=name,
+                    status="failed",
+                    sent_ts=None,
+                    channel_ref=str(exc)[:500],
+                    skip_reason=None,
+                )
 
     # ----- F5: morning digest -----
     def compose_morning_digest(
