@@ -9,6 +9,7 @@ import { WatchlistRail } from "./components/WatchlistRail";
 import { TickerHeader } from "./components/TickerHeader";
 import { StageGrid } from "./components/StageGrid";
 import { LiveEventStream } from "./components/LiveEventStream";
+import { ReportPanel } from "./components/ReportPanel";
 import { DecisionPanel } from "./components/DecisionPanel";
 import { RunHistoryDrawer } from "./components/RunHistoryDrawer";
 
@@ -72,6 +73,7 @@ export default function App() {
             <TickerHeader ticker={focused} price={price.price} changePct={price.change_pct} />
             <StageGrid />
             <LiveEventStream />
+            <ReportPanel />
             {decision && (
               <DecisionPanel
                 action={decision.action}
