@@ -525,3 +525,148 @@ class TestBuildMcpServer:
         # crash if called directly.
         server = mod.ClaudeCodeChatModel._build_mcp_server([])
         assert server is not None
+
+
+# ---------------------------------------------------------------------------
+# Error-only partial text: detect + retry once
+# ---------------------------------------------------------------------------
+
+
+def _scripted_query(*attempts):
+    """fake_query that returns a different message script on each successive
+    invocation. Lets us simulate "first attempt errors, second succeeds"
+    flows without mocking the SDK's internals."""
+    state = {"i": 0}
+
+    async def fake(prompt, options):
+        i = state["i"]
+        state["i"] += 1
+        for m in attempts[i]:
+            yield m
+
+    fake.state = state  # exposed for assertions on call count
+    return fake
+
+
+@pytest.mark.unit
+class TestLooksLikeErrorText:
+    """Pure heuristic — covers every branch of the detector."""
+
+    def test_empty_text_is_not_error(self):
+        assert mod.ClaudeCodeChatModel._looks_like_error_text("", None) is False
+
+    def test_short_text_with_api_error_prefix_is_error(self):
+        assert mod.ClaudeCodeChatModel._looks_like_error_text(
+            "API Error: The socket connection was closed unexpectedly.", None
+        ) is True
+
+    def test_short_text_with_lowercase_api_error_is_error(self):
+        assert mod.ClaudeCodeChatModel._looks_like_error_text(
+            "API error: rate limited", None
+        ) is True
+
+    def test_short_text_with_leading_whitespace_handled(self):
+        assert mod.ClaudeCodeChatModel._looks_like_error_text(
+            "\n   API Error: x", None
+        ) is True
+
+    def test_short_text_without_known_prefix_is_not_error(self):
+        # Short *legit* responses must pass through (e.g. "42" from the
+        # calculator smoke must not be misclassified).
+        assert mod.ClaudeCodeChatModel._looks_like_error_text("42", None) is False
+        assert mod.ClaudeCodeChatModel._looks_like_error_text(
+            "Buy.", None
+        ) is False
+
+    def test_long_text_with_error_prefix_is_not_error(self):
+        # A 500-char reply starting with "Error:" is almost certainly the
+        # model legitimately discussing an error in its output, not a
+        # CLI failure notice. Sanity threshold prevents over-retry.
+        text = "Error: " + ("x" * 500)
+        assert mod.ClaudeCodeChatModel._looks_like_error_text(text, None) is False
+
+    def test_rate_limit_429_suppresses_retry(self):
+        class FakeResult:
+            api_error_status = 429
+
+        # Even if the text looks like a soft failure, 429 means quota —
+        # immediate retry is wasted.
+        assert mod.ClaudeCodeChatModel._looks_like_error_text(
+            "API Error: rate limited", FakeResult()
+        ) is False
+
+    def test_non_429_api_error_status_still_retries(self):
+        class FakeResult:
+            api_error_status = 500
+
+        assert mod.ClaudeCodeChatModel._looks_like_error_text(
+            "API Error: server error", FakeResult()
+        ) is True
+
+
+@pytest.mark.unit
+class TestRetryFlow:
+    """End-to-end retry behaviour through ``_aquery``."""
+
+    def test_error_only_text_triggers_retry_then_succeeds(
+        self, monkeypatch, caplog
+    ):
+        fake = _scripted_query(
+            # Attempt 1: SDK delivers a 70-char "API Error..." TextBlock.
+            [
+                _assistant("API Error: The socket connection was closed unexpectedly."),
+                _result(),
+            ],
+            # Attempt 2: model writes the real report.
+            [_assistant("The real analyst report goes here."), _result()],
+        )
+        _patch_query(monkeypatch, fake)
+
+        llm = mod.ClaudeCodeChatModel()
+        with caplog.at_level(logging.WARNING, logger=ADAPTER_LOGGER):
+            text = asyncio.run(llm._aquery(None, "ask"))
+
+        assert text == "The real analyst report goes here."
+        assert fake.state["i"] == 2  # two query() invocations
+        msgs = [r.getMessage() for r in caplog.records]
+        assert any("retrying once" in m for m in msgs)
+
+    def test_double_failure_raises_runtime_error(self, monkeypatch):
+        fake = _scripted_query(
+            [_assistant("API Error: socket closed"), _result()],
+            [_assistant("API Error: socket closed again"), _result()],
+        )
+        _patch_query(monkeypatch, fake)
+
+        llm = mod.ClaudeCodeChatModel()
+        with pytest.raises(RuntimeError, match="error-only text on both attempts"):
+            asyncio.run(llm._aquery(None, "ask"))
+        assert fake.state["i"] == 2
+
+    def test_429_skips_retry(self, monkeypatch):
+        # Rate limit on attempt 1 — must NOT spend a second attempt; the
+        # short error text is returned to the caller so the surrounding
+        # ``invoke_structured_or_freetext`` can decide what to do with it.
+        fake = _scripted_query(
+            [
+                _assistant("API Error: rate limited"),
+                _result(is_error=True, api_error_status=429),
+            ],
+        )
+        _patch_query(monkeypatch, fake)
+
+        llm = mod.ClaudeCodeChatModel()
+        text = asyncio.run(llm._aquery(None, "ask"))
+        assert text == "API Error: rate limited"
+        assert fake.state["i"] == 1  # no retry consumed
+
+    def test_clean_first_attempt_does_not_retry(self, monkeypatch):
+        fake = _scripted_query(
+            [_assistant("A normal, well-formed reply."), _result()],
+        )
+        _patch_query(monkeypatch, fake)
+
+        llm = mod.ClaudeCodeChatModel()
+        text = asyncio.run(llm._aquery(None, "ask"))
+        assert text == "A normal, well-formed reply."
+        assert fake.state["i"] == 1

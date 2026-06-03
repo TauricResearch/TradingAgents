@@ -124,13 +124,7 @@ class ClaudeCodeChatModel(BaseChatModel):
         # Lazy import keeps simply loading this module cheap when the SDK
         # is absent (and lets the install-error point at the right place).
         try:
-            from claude_agent_sdk import (
-                AssistantMessage,
-                ClaudeAgentOptions,
-                ResultMessage,
-                TextBlock,
-                query,
-            )
+            from claude_agent_sdk import ClaudeAgentOptions
         except ImportError as e:
             raise ImportError(
                 "claude-agent-sdk is required for the 'claude-code' provider. "
@@ -171,13 +165,56 @@ class ClaudeCodeChatModel(BaseChatModel):
                 options_kwargs["system_prompt"] + _TOOL_SILENCE_INSTRUCTION
             )
 
+        options = ClaudeAgentOptions(**options_kwargs)
+
+        # First attempt. Most calls return cleanly here.
+        text, last_result = await self._run_query(options, user_text)
+
+        # Some socket / upstream-API hiccups manifest as the CLI emitting
+        # an error-only ``"API Error: ..."`` AssistantMessage TextBlock
+        # right before tearing down — partial-text recovery picks it up
+        # and treats it as success. Detect that shape and retry once;
+        # raise loudly on double failure so corrupted analyst reports
+        # don't silently poison downstream nodes (we caught the news /
+        # fundamentals reports getting a 134-char "API Error..." string
+        # in the first full-graph run).
+        if self._looks_like_error_text(text, last_result):
+            logger.warning(
+                "claude-code returned error-only %d-char text on attempt 1 "
+                "(%r); retrying once.",
+                len(text),
+                text[:120],
+            )
+            text2, last_result2 = await self._run_query(options, user_text)
+            if self._looks_like_error_text(text2, last_result2):
+                raise RuntimeError(
+                    "claude-code returned error-only text on both attempts. "
+                    f"First ({len(text)} chars): {text!r}. "
+                    f"Second ({len(text2)} chars): {text2!r}."
+                )
+            text = text2
+
+        return text
+
+    async def _run_query(
+        self, options: Any, user_text: str
+    ) -> tuple[str, Any]:
+        """Single SDK roundtrip with partial-text recovery + usage logging.
+
+        Returns ``(stripped_text, last_result_message_or_None)``. Caller
+        uses ``_looks_like_error_text`` to decide whether to retry.
+        """
+        from claude_agent_sdk import (
+            AssistantMessage,
+            ResultMessage,
+            TextBlock,
+            query,
+        )
+
         parts: list[str] = []
         last_result: Any = None
         try:
-            async for msg in query(
-                prompt=user_text,
-                options=ClaudeAgentOptions(**options_kwargs),
-            ):
+            async for msg in query(prompt=user_text, options=options):
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, TextBlock):
@@ -189,8 +226,8 @@ class ClaudeCodeChatModel(BaseChatModel):
             # signal for an upstream API failure (429/500/529) — see the
             # ``api_error_status`` field on ResultMessage in SDK 0.2.87+.
             # When that fires after assistant text has already streamed,
-            # treat the partial reply as success; only re-raise when we
-            # have nothing usable.
+            # treat the partial reply as a soft success here; the retry
+            # gate in ``_aquery`` decides whether to escalate.
             if parts:
                 api_err = getattr(last_result, "api_error_status", None)
                 logger.warning(
@@ -199,12 +236,39 @@ class ClaudeCodeChatModel(BaseChatModel):
                     exc, api_err, sum(len(p) for p in parts),
                 )
             else:
+                if last_result is not None:
+                    self._log_usage(last_result)
                 raise
 
         if last_result is not None:
             self._log_usage(last_result)
 
-        return "".join(parts).strip()
+        return "".join(parts).strip(), last_result
+
+    @staticmethod
+    def _looks_like_error_text(text: str, last_result: Any) -> bool:
+        """Heuristic for "this looks like a CLI error notice, not a real reply".
+
+        A short response that opens with a known error marker is treated
+        as a soft failure worth one retry. Hard rate limits
+        (``api_error_status=429``) are exempt — backing off immediately
+        is wasted quota, and Claude's rate-limit window is measured in
+        minutes, not retries.
+        """
+        if not text:
+            return False
+        if getattr(last_result, "api_error_status", None) == 429:
+            return False
+        if len(text) > 400:
+            return False
+        head = text.lstrip()
+        return head.startswith((
+            "API Error:",
+            "API error:",
+            "Error:",
+            "Internal server error",
+            "Claude Code returned an error",
+        ))
 
     def _log_usage(self, result_msg: Any) -> None:
         """Emit a structured per-call usage line so operators can size the
