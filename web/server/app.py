@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -14,8 +14,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from web.server import db, events, price_feed, runner
-from web.server.settings import get_settings
+from . import storage, queries, events, llm_calls, runner, settings as settings_mod
 
 
 log = logging.getLogger(__name__)
@@ -25,58 +24,6 @@ log = logging.getLogger(__name__)
 # can force-close them; otherwise a handler stuck in `ws.receive()` will keep
 # the ASGI portal from closing cleanly.
 _active_ws: set[WebSocket] = set()
-
-# Stash the FastAPI event loop here at startup so `_broadcast` (called from
-# worker threads) can schedule puts via `loop.call_soon_threadsafe`.
-# `asyncio.Queue.put_nowait` is not thread-safe across event loops and does
-# not wake the loop, so direct calls from other threads silently lose events.
-_broadcast_loop: Optional[asyncio.AbstractEventLoop] = None
-
-# Per-run subscriber lists.  _subs[run_id] = set of asyncio.Queue.
-_subs: dict[int, set[asyncio.Queue]] = {}
-# Global subscriber set (receives price updates, server notices, etc.).
-_global_subs: set[asyncio.Queue] = set()
-
-
-def _broadcast_global(evt: dict) -> None:
-    """Broadcast an event to all global WS subscribers (price updates etc.)."""
-    loop = _broadcast_loop
-    if loop is None:
-        return
-    for q in list(_global_subs):
-        try:
-            loop.call_soon_threadsafe(q.put_nowait, evt)
-        except Exception:
-            pass
-
-
-def _broadcast(run_id: int, evt: dict) -> None:
-    loop = _broadcast_loop
-    if loop is None:
-        return
-    for q in list(_subs.get(run_id, ())):
-        try:
-            loop.call_soon_threadsafe(q.put_nowait, evt)
-        except Exception:
-            pass
-
-
-async def _close_all_ws() -> None:
-    """Close every active WebSocket. Called from the lifespan finally block.
-
-    This unblocks any client stuck in `receive_json()` (the receive will
-    raise on the close frame) and lets the WS handler exit, so the ASGI
-    portal can shut down cleanly. Each close is awaited so the close
-    frame is actually flushed before the loop tears down.
-    """
-    for ws in list(_active_ws):
-        try:
-            await asyncio.wait_for(ws.close(code=1001, reason="server shutdown"), timeout=1.0)
-        except Exception:
-            pass
-
-
-events.set_broadcast(_broadcast)
 
 
 # --------- request/response models ---------
@@ -96,42 +43,33 @@ class RunIn(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _broadcast_loop
-    settings = get_settings()
-    logging.basicConfig(level=settings.log_level)
-    db.init_db()
-    db.reap_stale_runs(timeout_s=600)
-
-    state = price_feed.PriceState(
-        snapshots={},
-        tickers=lambda: [w.ticker for w in db.list_watchlist()],
-    )
-    # yfinance logs at ERROR for delisted/foreign symbols (e.g. "TA125:
-    # possibly delisted"). Those are downstream of a single bad-ticker
-    # decision the user has already made; suppress the noise.
-    logging.getLogger("yfinance").setLevel(logging.CRITICAL)
-    feed = price_feed.PriceFeed(state, poll_s=settings.price_poll_s)
-
-    # start runner
-    await runner.start(num_workers=1)
-    # Prices are broadcast via WS to global subscribers so the frontend
-    # receives live updates instead of only REST polling.
-    feed.start(broadcast=_broadcast_global)
-    app.state.price_feed = feed
-    app.state.price_state = state
-    # Stash the running loop so `_broadcast` (called from worker threads)
-    # can schedule puts via `call_soon_threadsafe`.
-    _broadcast_loop = asyncio.get_running_loop()
-    try:
-        yield
-    finally:
-        _broadcast_loop = None
-        # Force-close any open WebSockets so handlers exit and the portal
-        # can shut down (clients blocked in receive_json() get a clean
-        # disconnect and unblock their threads).
-        await _close_all_ws()
-        await feed.stop()
-        await runner.stop()
+    # Drop the legacy SQLite DB if present.
+    s = settings_mod.get_settings()
+    legacy = Path(s.db_path) if hasattr(s, "db_path") and s.db_path else None
+    if legacy and legacy.exists():
+        log.warning("removing legacy SQLite DB at %s (file-based storage only)", legacy)
+        try:
+            legacy.unlink()
+        except OSError as exc:
+            log.error("failed to remove legacy DB: %s", exc)
+    storage.init_settings(data_dir=s.data_dir, cache_dir=s.cache_dir)
+    # Mark any previously-running runs as failed (process restart recovery).
+    for td in storage.walk_data_dir():
+        for sd in td.iterdir():
+            if not sd.is_dir():
+                continue
+            rj = storage.read_json(sd / "run.json")
+            if rj and rj.get("status") == "running":
+                storage.mark_run_status(
+                    rj["id"],
+                    status="failed",
+                    finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                )
+                log.warning("reaped stale running run %s", rj["id"])
+    # Start the runner worker.
+    await runner.start()
+    yield
+    await runner.stop()
 
 
 def create_app() -> FastAPI:
@@ -141,264 +79,99 @@ def create_app() -> FastAPI:
     def health():
         return {
             "status": "ok",
-            "uptime_s": 0,  # simple; real uptime tracked by external process
-            "watchlist_size": len(db.list_watchlist()),
+            "uptime_s": 0,
+            "watchlist_size": len(queries.read_watchlist()),
             "runs_in_queue": 0,
             "runs_running": 0,
         }
 
     @app.get("/api/watchlist")
-    def list_watch():
-        return [_w_to_dict(w) for w in db.list_watchlist()]
+    def list_watchlist() -> list[dict]:
+        return [queries.watchlist_to_dict(r) for r in queries.read_watchlist()]
 
     @app.post("/api/watchlist", status_code=201)
-    def add_watch(row: WatchlistIn):
-        from web.server.db import Watchlist, DuplicateTicker
-        # Reject unknown / delisted tickers up-front so the user gets
-        # immediate feedback (HTTP 400) instead of a silent 'stale'
-        # state in the price feed forever after.
+    def add_to_watchlist(body: WatchlistIn) -> dict:
         try:
-            price_feed.validate_ticker_exists(row.ticker.upper())
-        except price_feed.TickerNotFound as e:
-            raise HTTPException(
-                status_code=400,
-                detail={"error": "ticker_not_found", "ticker": e.ticker, "reason": e.reason},
-            )
-        try:
-            db.add_watchlist(Watchlist(
-                ticker=row.ticker.upper(),
-                company_name=row.company_name,
-                exchange=row.exchange,
-                added_at=datetime.utcnow(),
-            ))
-        except DuplicateTicker:
-            raise HTTPException(status_code=409, detail={"error": "already_in_watchlist"})
-        return _w_to_dict(db.list_watchlist()[[w.ticker for w in db.list_watchlist()].index(row.ticker.upper())])
+            row = queries.add_ticker(body.ticker, body.company_name, body.exchange)
+        except queries.DuplicateTicker:
+            raise HTTPException(status_code=409, detail="ticker already on watchlist")
+        return queries.watchlist_to_dict(row)
 
     @app.delete("/api/watchlist/{ticker}", status_code=204)
-    def del_watch(ticker: str):
-        db.remove_watchlist(ticker.upper())
-        # Plain Response with 204 — JSONResponse(content=None) serializes
-        # to b"null" which exceeds the 204 implied Content-Length: 0.
+    def remove_from_watchlist(ticker: str) -> Response:
+        queries.remove_ticker(ticker)
         return Response(status_code=204)
 
-    @app.get("/api/prices")
-    def prices():
-        return app.state.price_state.snapshots
-
-    @app.post("/api/runs", status_code=201)
-    def create_run(row: RunIn):
-        from datetime import date
-        rid = runner.enqueue(
-            row.ticker.upper(),
-            idempotency_key=f"{row.ticker.upper()}:{date.today().isoformat()}",
-            force=row.force,
-        )
-        return {"run_id": rid}
+    @app.post("/api/runs", status_code=202)
+    async def start_run(body: RunIn) -> dict:
+        ticker = body.ticker.upper()
+        if ticker not in {r["ticker"] for r in queries.read_watchlist()}:
+            raise HTTPException(status_code=404, detail="ticker not on watchlist")
+        date_str = storage.today_utc_iso()
+        run_id = await runner.enqueue(ticker, date_str, force=bool(body.force))
+        return {"run_id": run_id}
 
     @app.get("/api/tickers/{ticker}/runs")
-    def list_ticker_runs(ticker: str, limit: int = 50):
-        from web.server.llm_calls import list_runs_for_ticker
-        return list_runs_for_ticker(ticker.upper(), limit=limit)
-
-    @app.get("/api/runs")
-    def list_runs(limit: int = 20):
-        return [_run_to_dict(r) for r in db.list_runs(limit=limit)]
+    def list_ticker_runs(ticker: str, limit: int = 50) -> list[dict]:
+        rows = storage.list_ticker_runs(ticker.upper(), limit=limit)
+        return [queries.run_to_dict(r) for r in rows]
 
     @app.get("/api/runs/{run_id}")
-    def get_run(run_id: int):
-        from web.server.llm_calls import llm_calls_for_run
-        run = db.get_run(run_id)
-        if run is None:
-            raise HTTPException(status_code=404, detail="run_not_found")
-        return {
-            "run": _run_to_dict(run),
-            "events": [_event_to_dict(e) for e in db.events_for_run(run_id)],
-            "llm_calls": [_llm_call_to_dict(c) for c in llm_calls_for_run(run_id)],
-        }
+    def get_run(run_id: str) -> dict:
+        rj = storage.read_run(run_id)
+        if rj is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        out = queries.run_to_dict(rj)
+        out["events"] = [queries.event_to_dict(e, run_id) for e in storage.list_run_events(run_id)]
+        out["llm_calls"] = [queries.llm_call_to_dict(c) for c in storage.list_run_llm_calls(run_id)]
+        out["stages"] = _load_stages(run_id)
+        return out
 
     @app.post("/api/runs/{run_id}/cancel")
-    def cancel_run(run_id: int):
-        db.request_cancellation(run_id)
-        return {"cancelled": True}
+    def cancel_run(run_id: str) -> dict:
+        rj = storage.read_run(run_id)
+        if rj is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        storage.mark_run_status(run_id, cancel_requested=True)
+        return queries.run_to_dict(storage.read_run(run_id))
 
     @app.websocket("/ws/runs/{run_id}")
-    async def ws_run(ws: WebSocket, run_id: int, since: int = 0):
+    async def ws_run(ws: WebSocket, run_id: str) -> None:
         await ws.accept()
         _active_ws.add(ws)
-        # Replay persisted events since `since`
-        for e in db.events_for_run(run_id, since_id=since):
-            await ws.send_json({
-                "v": 1,
-                "type": e.type,
-                "ts": e.ts.isoformat() + "Z",
-                "run_id": e.run_id,
-                "data": json.loads(e.payload_json),
-                "id": e.id,
-            })
-        # Subscribe to live
-        q: asyncio.Queue = asyncio.Queue(maxsize=1024)
-        _subs.setdefault(run_id, set()).add(q)
-
-        # Background task: calls ws.receive() so we actually see the
-        # ASGI `websocket.disconnect` message and flip client_state.
-        # (Polling `ws.client_state` alone never detects a closed socket
-        # because starlette only updates that state inside `receive()`.)
-        disconnect = asyncio.Event()
-
-        async def _watch_close():
-            try:
-                while True:
-                    msg = await ws.receive()
-                    if msg.get("type") == "websocket.disconnect":
-                        break
-            except WebSocketDisconnect:
-                pass
-            except Exception:
-                pass
-            finally:
-                disconnect.set()
-
-        watcher = asyncio.create_task(_watch_close())
+        rj = storage.read_run(run_id)
+        if rj is None:
+            await ws.send_json({"type": "error", "detail": "run not found"})
+            await ws.close()
+            return
+        # Replay all events for the run.
+        for ev in storage.list_run_events(run_id):
+            await ws.send_json(ev)
+        events.subscribe(run_id, ws)
         try:
             while True:
-                try:
-                    evt = await asyncio.wait_for(q.get(), timeout=0.5)
-                except asyncio.TimeoutError:
-                    # No event in 0.5s. Check (a) client disconnect and
-                    # (b) server shutdown.
-                    if disconnect.is_set() or _broadcast_loop is None:
-                        break
-                    continue
-                await ws.send_json(evt)
+                # Drain client messages; we don't act on them.
+                await ws.receive_text()
         except WebSocketDisconnect:
             pass
         finally:
-            _subs.get(run_id, set()).discard(q)
-            if not _subs.get(run_id):
-                _subs.pop(run_id, None)
+            events.unsubscribe(run_id, ws)
             _active_ws.discard(ws)
-            watcher.cancel()
-            try:
-                await watcher
-            except BaseException:
-                pass
-
-    @app.websocket("/ws/global")
-    async def ws_global(ws: WebSocket):
-        """Global event stream — receives price updates, server notices, etc."""
-        await ws.accept()
-        _active_ws.add(ws)
-        q: asyncio.Queue = asyncio.Queue(maxsize=1024)
-        _global_subs.add(q)
-
-        # Send initial price snapshot so the client has data immediately
-        snapshots = getattr(app.state, "price_state", None)
-        if snapshots is not None:
-            for ticker, snap in snapshots.snapshots.items():
-                await ws.send_json(events.make_event(
-                    "price_update", run_id=0, data={
-                        "ticker": ticker,
-                        "price": snap.price,
-                        "change_pct": snap.change_pct,
-                        "sparkline": snap.sparkline,
-                        "stale": snap.stale,
-                    }
-                ))
-
-        disconnect = asyncio.Event()
-
-        async def _watch_close():
-            try:
-                while True:
-                    msg = await ws.receive()
-                    if msg.get("type") == "websocket.disconnect":
-                        break
-            except WebSocketDisconnect:
-                pass
-            except Exception:
-                pass
-            finally:
-                disconnect.set()
-
-        watcher = asyncio.create_task(_watch_close())
-        try:
-            while True:
-                try:
-                    evt = await asyncio.wait_for(q.get(), timeout=0.5)
-                except asyncio.TimeoutError:
-                    if disconnect.is_set() or _broadcast_loop is None:
-                        break
-                    continue
-                await ws.send_json(evt)
-        except WebSocketDisconnect:
-            pass
-        finally:
-            _global_subs.discard(q)
-            _active_ws.discard(ws)
-            watcher.cancel()
-            try:
-                await watcher
-            except BaseException:
-                pass
 
     # static mount (only if build dir exists)
-    settings = get_settings()
+    settings = settings_mod.get_settings()
     if os.path.isdir(settings.frontend_dist):
         app.mount("/", StaticFiles(directory=settings.frontend_dist, html=True), name="frontend")
 
     return app
 
 
-def _w_to_dict(w) -> dict:
-    return {
-        "ticker": w.ticker,
-        "company_name": w.company_name,
-        "exchange": w.exchange,
-        "added_at": w.added_at.isoformat() if w.added_at else None,
-        "last_decision": w.last_decision,
-        "last_decision_at": w.last_decision_at.isoformat() if w.last_decision_at else None,
-    }
-
-
-def _run_to_dict(r) -> dict:
-    return {
-        "id": r.id,
-        "ticker": r.ticker,
-        "started_at": r.started_at.isoformat() if r.started_at else None,
-        "finished_at": r.finished_at.isoformat() if r.finished_at else None,
-        "status": r.status,
-        "decision_action": r.decision_action,
-        "decision_target": r.decision_target,
-        "decision_rationale": r.decision_rationale,
-        "decision_confidence": r.decision_confidence,
-    }
-
-
-def _event_to_dict(e) -> dict:
-    import json
-    return {
-        "id": e.id,
-        "type": e.type,
-        "ts": e.ts.isoformat() if e.ts else None,
-        "data": json.loads(e.payload_json),
-    }
-
-
-def _llm_call_to_dict(c) -> dict:
-    import json
-    return {
-        "id": c.id,
-        "run_id": c.run_id,
-        "ticker": c.ticker,
-        "node_name": c.node_name,
-        "started_at": c.started_at.isoformat() if c.started_at else None,
-        "model": c.model,
-        "prompt_text": c.prompt_text,
-        "response_text": c.response_text,
-        "tool_calls": json.loads(c.tool_calls_json) if c.tool_calls_json else [],
-        "input_tokens": c.input_tokens,
-        "output_tokens": c.output_tokens,
-        "total_tokens": c.total_tokens,
-        "duration_ms": c.duration_ms,
-    }
+def _load_stages(run_id: str) -> list[dict]:
+    rd = storage.read_run_dir(run_id)
+    if rd is None:
+        return []
+    out = []
+    for sp in sorted((rd / "stages").glob("*.json")):
+        d = storage.read_json(sp) or {}
+        out.append(d)
+    return out

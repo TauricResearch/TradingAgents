@@ -67,6 +67,19 @@ def remove_ticker(ticker: str) -> None:
     storage.clear_ticker_data(safe)
 
 
+def watchlist_to_dict(w: dict) -> dict:
+    """Shape a stored watchlist row for the API."""
+    return {
+        "ticker": w.get("ticker"),
+        "company_name": w.get("company_name"),
+        "exchange": w.get("exchange"),
+        "added_at": w.get("added_at"),
+        "last_run_id": w.get("last_run_id"),
+        "last_decision": w.get("last_decision"),
+        "last_decision_at": w.get("last_decision_at"),
+    }
+
+
 def update_last_decision(ticker: str, run_id: str, decision_text: str, at: datetime) -> None:
     """Set the watchlist row's last_decision_* fields. No-op if ticker is gone."""
     safe = safe_ticker_component(ticker).upper()
