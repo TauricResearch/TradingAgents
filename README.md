@@ -234,8 +234,15 @@ yfinance -> AKShare -> Futu OpenD -> Polygon
 ```
 
 `yfinance` remains the primary numerical data source. AKShare, Futu OpenD, and
-Polygon are fallbacks for snapshot data when the earlier provider cannot return
-usable OHLCV. Same-day OHLCV cache files refresh after
+Polygon are fallbacks for snapshot data. The market snapshot layer now validates
+expected trading sessions, skips weekends and a simple whitelist of fixed-date
+closures (`01-01`, `05-01`, `06-19`, `07-04`, `10-01`, `12-25`), and fetches
+missing sessions from fallback providers. The resulting chart is one fused
+OHLCV table with a `source` column for row-level provenance.
+
+This holiday filter is intentionally approximate: it avoids common fixed-date
+closures and weekends, but it does not model every exchange-specific or
+observed holiday. Same-day OHLCV cache files refresh after
 `market_data_cache_ttl_seconds`; past-date cache files are reused to keep
 historical runs reproducible.
 
