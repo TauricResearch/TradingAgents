@@ -11,6 +11,10 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.checkpointer import (
+    clear_checkpoint,
+    thread_id as framework_thread_id,
+)
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 from web.server import db, events
@@ -20,6 +24,17 @@ from web.server.retry import compute_backoff, detect_rate_limit
 log = logging.getLogger(__name__)
 
 MAX_CONCURRENT = int(os.environ.get("TRADINGAGENTS_DASHBOARD_MAX_CONCURRENT", "3"))
+
+
+def checkpoint_thread_id(ticker: str, date_str: str) -> str:
+    """Mirror of ``tradingagents.graph.checkpointer.thread_id`` for tests."""
+    return framework_thread_id(ticker, date_str)
+
+
+def clear_today_checkpoint(ticker: str, date_str: str) -> None:
+    """Used by force=True to drop the LangGraph thread state for today."""
+    from . import storage
+    clear_checkpoint(str(storage.cache_dir()), ticker, date_str)
 
 # Retry policy. See docs/superpowers/specs/2026-06-02-rate-aware-retry-design.md
 MAX_ATTEMPTS = 4
@@ -156,7 +171,17 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
         from web.server.callbacks import CaptureCallbackHandler, StreamingCallbackHandler
         stream_handler = StreamingCallbackHandler(run_id=rid)
         capture_handler = CaptureCallbackHandler(run_id=rid, ticker=run.ticker)
-        graph = build_graph(callbacks=[stream_handler, capture_handler])
+
+        loop = asyncio.get_event_loop()
+        trade_date = datetime.now(timezone.utc).date().isoformat()
+
+        config = {
+            **DEFAULT_CONFIG,
+            "ticker": run.ticker,
+            "trade_date": trade_date,
+            "checkpoint_enabled": True,
+        }
+        graph = build_graph(config, callbacks=[stream_handler, capture_handler])
 
         # _stage_summary_for_node is a module-level pure function used
         # by the callback; module-level avoids rebuilding the closure.
@@ -181,9 +206,6 @@ async def _run_one(rid: int, sem: asyncio.Semaphore) -> None:
                 events.emit(rid, "analyst_completed", data)
             else:
                 events.emit(rid, node_name, payload)
-
-        loop = asyncio.get_event_loop()
-        trade_date = datetime.now(timezone.utc).date().isoformat()
 
         def _do_propagate():
             return graph.propagate(run.ticker, trade_date, event_callback=cb)
