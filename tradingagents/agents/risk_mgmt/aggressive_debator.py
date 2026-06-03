@@ -1,7 +1,8 @@
 from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_aggressive_debator(llm):
+def create_aggressive_debator(llm, persona=None):
     def aggressive_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
@@ -22,6 +23,7 @@ def create_aggressive_debator(llm):
 Your task is to create a compelling case for the trader's decision by questioning and critiquing the conservative and neutral stances to demonstrate why your high-reward perspective offers the best path forward. Incorporate insights from the sources provided in the next message into your arguments. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
 
 Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
+        system_prompt = apply_fragment(system_prompt, persona)
 
         user_prompt = f"""Here is the trader's decision:
 

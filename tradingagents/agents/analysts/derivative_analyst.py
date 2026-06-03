@@ -8,9 +8,10 @@ from tradingagents.agents.utils.derivatives_tools import (
     get_options_chain,
     get_options_overview,
 )
+from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_derivative_analyst(llm):
+def create_derivative_analyst(llm, persona=None):
 
     def derivative_analyst_node(state):
         current_date = state["trade_date"]
@@ -37,6 +38,7 @@ def create_derivative_analyst(llm):
             "strategies you discuss."
             + get_language_instruction()
         )
+        system_message = apply_fragment(system_message, persona)
 
         prompt = ChatPromptTemplate.from_messages(
             [

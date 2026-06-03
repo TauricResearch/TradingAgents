@@ -1,7 +1,8 @@
 from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_bear_researcher(llm):
+def create_bear_researcher(llm, persona=None):
     def bear_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
@@ -32,6 +33,7 @@ Key points to focus on:
 - Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
 
 Use the resources provided in the next message to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the {target_label}.""" + get_language_instruction()
+        system_prompt = apply_fragment(system_prompt, persona)
 
         user_prompt = f"""Resources available:
 

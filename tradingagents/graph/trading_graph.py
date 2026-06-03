@@ -25,6 +25,10 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.personas.resolver import load_persona_from_config
+
+
+_load_persona_from_config = load_persona_from_config
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -72,6 +76,7 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        self.persona = _load_persona_from_config(self.config)
 
         # Update the interface's config
         set_config(self.config)
@@ -144,6 +149,7 @@ class TradingAgentsGraph:
             self.tool_nodes,
             self.conditional_logic,
             analyst_concurrency_limit=self.config.get("analyst_concurrency_limit", 1),
+            persona=self.persona,
         )
 
         self.propagator = Propagator(

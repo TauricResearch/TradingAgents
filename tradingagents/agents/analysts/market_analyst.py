@@ -6,9 +6,10 @@ from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
 )
 from tradingagents.dataflows.config import get_config
+from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_market_analyst(llm):
+def create_market_analyst(llm, persona=None):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
@@ -51,6 +52,7 @@ Volume-Based Indicators:
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + get_language_instruction()
         )
+        system_message = apply_fragment(system_message, persona)
 
         prompt = ChatPromptTemplate.from_messages(
             [

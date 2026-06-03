@@ -11,9 +11,10 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_research_manager(llm):
+def create_research_manager(llm, persona=None):
     structured_llm = bind_structured(llm, ResearchPlan, "Research Manager")
 
     def research_manager_node(state) -> dict:
@@ -34,6 +35,7 @@ def create_research_manager(llm):
 - **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.""" + get_language_instruction()
+        system_prompt = apply_fragment(system_prompt, persona)
 
         user_prompt = f"""{instrument_context}
 

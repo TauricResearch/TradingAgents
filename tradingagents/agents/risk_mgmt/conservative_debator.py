@@ -1,7 +1,8 @@
 from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_conservative_debator(llm):
+def create_conservative_debator(llm, persona=None):
     def conservative_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
@@ -22,6 +23,7 @@ def create_conservative_debator(llm):
 Your task is to actively counter the arguments of the Aggressive and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the data sources provided in the next message to build a convincing case for a low-risk approach adjustment to the trader's decision. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
 
 Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
+        system_prompt = apply_fragment(system_prompt, persona)
 
         user_prompt = f"""Here is the trader's decision:
 

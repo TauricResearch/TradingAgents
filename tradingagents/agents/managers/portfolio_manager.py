@@ -19,16 +19,18 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.personas.prompt_overlay import apply_fragment
+from tradingagents.personas.risk_weights import format_weighted_risk_debate
 
 
-def create_portfolio_manager(llm):
+def create_portfolio_manager(llm, persona=None):
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
 
-        history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
+        history = format_weighted_risk_debate(risk_debate_state, persona)
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
 
@@ -51,6 +53,7 @@ def create_portfolio_manager(llm):
 - **Sell**: Exit position or avoid entry
 
 Be decisive and ground every conclusion in specific evidence from the analysts.""" + get_language_instruction()
+        system_prompt = apply_fragment(system_prompt, persona)
 
         user_prompt = f"""{instrument_context}
 

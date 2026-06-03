@@ -15,9 +15,10 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_trader(llm):
+def create_trader(llm, persona=None):
     structured_llm = bind_structured(llm, TraderProposal, "Trader")
 
     def trader_node(state, name):
@@ -25,16 +26,20 @@ def create_trader(llm):
         asset_type = state.get("asset_type", "stock")
         instrument_context = build_instrument_context(company_name, asset_type)
         investment_plan = state["investment_plan"]
+        system_prompt = apply_fragment(
+            (
+                "You are a trading agent analyzing market data to make investment decisions. "
+                "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
+                "Anchor your reasoning in the analysts' reports and the research plan."
+                + get_language_instruction()
+            ),
+            persona,
+        )
 
         messages = [
             {
                 "role": "system",
-                "content": (
-                    "You are a trading agent analyzing market data to make investment decisions. "
-                    "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
-                    + get_language_instruction()
-                ),
+                "content": system_prompt,
             },
             {
                 "role": "user",
