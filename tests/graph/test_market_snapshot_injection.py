@@ -74,11 +74,21 @@ def test_graph_prefetches_market_snapshot(monkeypatch):
     graph.memory_log.store_decision = MagicMock()
     monkeypatch.setattr(
         "tradingagents.graph.trading_graph.route_to_vendor",
-        lambda method, ticker, trade_date, **kwargs: "# Market snapshot for AAPL\n",
+        lambda method, ticker, trade_date, **kwargs: (
+            "# Market snapshot for AAPL\n\n"
+            "- Source: fused\n"
+            "- Coverage: 5/5 expected sessions (100.00%)\n\n"
+            "## Fused OHLCV Chart\n"
+            "| date | open | high | low | close | volume | source |\n"
+            "|---|---:|---:|---:|---:|---:|---|\n"
+            "| 2026-06-05 | 14.0000 | 15.0000 | 13.0000 | 14.5000 | 140 | yfinance |\n"
+        ),
     )
 
     final_state, decision = graph._run_graph("AAPL", "2026-06-03")
 
     assert decision == "HOLD"
-    assert final_state["market_snapshot_text"] == "# Market snapshot for AAPL\n"
+    assert "# Market snapshot for AAPL" in final_state["market_snapshot_text"]
     assert final_state["market_snapshot_error"] == ""
+    assert "## Fused OHLCV Chart" in final_state["market_snapshot_text"]
+    assert "Coverage: 5/5 expected sessions" in final_state["market_snapshot_text"]

@@ -88,21 +88,27 @@ def test_run_recorder_writes_market_snapshot_artifacts(db_and_dir, sample_state)
     rec.record(
         {
             **sample_state,
-            "market_snapshot_text": "# Market snapshot for AAPL\n",
+            "market_snapshot_text": (
+                "# Market snapshot for AAPL\n\n"
+                "- Source: fused\n"
+                "- Coverage: 5/5 expected sessions (100.00%)\n\n"
+                "## Fused OHLCV Chart\n"
+                "| date | open | high | low | close | volume | source |\n"
+            ),
             "market_snapshot_error": "",
         }
     )
 
     run_path = Path(data_dir) / "runs" / "snapshotrun"
-    assert (run_path / "market_snapshot.md").read_text(
-        encoding="utf-8"
-    ) == "# Market snapshot for AAPL\n"
+    snapshot_text = (run_path / "market_snapshot.md").read_text(encoding="utf-8")
+    assert "## Fused OHLCV Chart" in snapshot_text
+    assert "Coverage: 5/5 expected sessions" in snapshot_text
     snapshot_payload = json.loads(
         (run_path / "market_snapshot.json").read_text(encoding="utf-8")
     )
     assert snapshot_payload["ticker"] == "AAPL"
     assert snapshot_payload["trade_date"] == "2026-05-25"
-    assert snapshot_payload["content"] == "# Market snapshot for AAPL\n"
+    assert "## Fused OHLCV Chart" in snapshot_payload["content"]
     meta = json.loads((run_path / "meta.json").read_text(encoding="utf-8"))
     assert meta["market_snapshot_artifact"] == "market_snapshot.md"
     assert meta["market_snapshot_error"] == ""
