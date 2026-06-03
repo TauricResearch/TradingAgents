@@ -145,10 +145,26 @@ def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch):
     (docs / "index.md").write_text(
         (
             "# TradingAgents Reports\n\n"
+            "## Daily Decision Summaries\n\n"
+            '<div class="daily-summary-layout" markdown="1">\n\n'
+            '<nav class="daily-summary-rail" aria-label="Analysis dates">\n'
+            "<h3>Dates</h3>\n"
+            "<ul>\n"
+            '<li><a class="daily-summary-date" href="#2026-06-03-decision-summary">2026-06-03</a><span>1 ticker</span></li>\n'
+            '<li><a class="daily-summary-date daily-summary-date--active" href="#2026-06-02-decision-summary">2026-06-02</a><span>1 ticker</span></li>\n'
+            "</ul>\n"
+            "</nav>\n\n"
+            '<div class="daily-summary-tables" markdown="1">\n\n'
+            "## 2026-06-03 Decision Summary\n\n"
+            "| Ticker | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
+            "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
+            "| [MSFT](./MSFT/20260603_opus_20260603_101010/complete_report.md) | Hold / Neutral | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n\n"
             "## 2026-06-02 Decision Summary\n\n"
             "| Ticker | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
             "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
             "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n\n"
+            "</div>\n\n"
+            "</div>\n\n"
             "## Regeneration Skill\n"
         ),
         encoding="utf-8",

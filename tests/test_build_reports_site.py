@@ -15,6 +15,21 @@ def load_builder():
     return module
 
 
+def summary_row(builder, ticker: str, folder: str, action: str = "Buy"):
+    return builder.SummaryRow(
+        ticker=ticker,
+        report_link=f"./{ticker}/{folder}/complete_report.md",
+        rating="Overweight",
+        action=action,
+        current_price=10.0,
+        price_target=12.0,
+        target_uplift=0.2,
+        annualized_uplift=0.4,
+        confidence="High",
+        horizon="6m",
+    )
+
+
 @pytest.mark.unit
 def test_latest_runs_can_filter_to_analysis_date():
     builder = load_builder()
@@ -35,6 +50,56 @@ def test_latest_runs_can_filter_to_analysis_date():
         "AAPL": "aapl-0601",
         "QCOM": "qcom-late",
     }
+
+
+@pytest.mark.unit
+def test_build_daily_summaries_groups_dates_and_selects_latest_run(monkeypatch):
+    builder = load_builder()
+    runs = {
+        "AAPL": [
+            builder.Run("AAPL", "2026-06-01", "opus", "2026-06-01 20:12:03", "aapl-early"),
+            builder.Run("AAPL", "2026-06-01", "opus", "2026-06-02 09:28:30", "aapl-late"),
+            builder.Run("AAPL", "2026-06-02", "opus", "2026-06-02 11:01:33", "aapl-0602"),
+        ],
+        "MSFT": [
+            builder.Run("MSFT", "2026-06-01", "opus", "2026-06-01 20:15:00", "msft-0601"),
+        ],
+    }
+    selected_folders: list[str] = []
+
+    def fake_summary_row(run):
+        selected_folders.append(run.folder_name)
+        return summary_row(builder, run.ticker, run.folder_name)
+
+    monkeypatch.setattr(builder, "build_summary_row", fake_summary_row)
+
+    summaries = builder.build_daily_summaries(runs)
+
+    assert [summary.analysis_date for summary in summaries] == [
+        "2026-06-02",
+        "2026-06-01",
+    ]
+    assert selected_folders == ["aapl-0602", "aapl-late", "msft-0601"]
+    assert "aapl-early" not in selected_folders
+
+
+@pytest.mark.unit
+def test_daily_decision_summaries_render_newest_first_with_left_rail():
+    builder = load_builder()
+    summaries = [
+        builder.DailySummary("2026-06-02", [summary_row(builder, "AAPL", "aapl-0602")]),
+        builder.DailySummary("2026-06-01", [summary_row(builder, "MSFT", "msft-0601")]),
+    ]
+
+    text = "\n".join(builder.build_daily_decision_summaries(summaries, "20260602"))
+
+    assert '<nav class="daily-summary-rail" aria-label="Analysis dates">' in text
+    assert 'class="daily-summary-date daily-summary-date--active"' in text
+    assert "#2026-06-02-decision-summary" in text
+    assert "#2026-06-01-decision-summary" in text
+    assert text.index("## 2026-06-02 Decision Summary") < text.index(
+        "## 2026-06-01 Decision Summary"
+    )
 
 
 @pytest.mark.unit
@@ -71,23 +136,42 @@ def test_replace_decision_summary_leaves_other_homepage_sections():
 
 
 @pytest.mark.unit
+def test_replace_decision_summary_replaces_daily_summary_block():
+    builder = load_builder()
+    home = (
+        "# TradingAgents Reports\n"
+        "\n"
+        "## Daily Decision Summaries\n"
+        "\n"
+        "old daily block\n"
+        "\n"
+        "## 2026-06-01 Decision Summary\n"
+        "\n"
+        "old table\n"
+        "\n"
+        "## Regeneration Skill\n"
+        "\n"
+        "regen text\n"
+    )
+
+    out = builder.replace_decision_summary(
+        home,
+        ["## Daily Decision Summaries", "", "new daily block", ""],
+    )
+
+    assert "old daily block" not in out
+    assert "old table" not in out
+    assert "new daily block" in out
+    assert "## Regeneration Skill\n\nregen text" in out
+
+
+@pytest.mark.unit
 def test_generated_pages_do_not_end_with_extra_blank_line():
     builder = load_builder()
     run = builder.Run("AAPL", "2026-06-02", "opus", "2026-06-02 10:10:10", "run")
-    row = builder.SummaryRow(
-        ticker="AAPL",
-        report_link="./AAPL/run/complete_report.md",
-        rating="Overweight",
-        action="Buy",
-        current_price=10.0,
-        price_target=12.0,
-        target_uplift=0.2,
-        annualized_uplift=0.4,
-        confidence="High",
-        horizon="6m",
-    )
+    summaries = [builder.DailySummary("2026-06-02", [summary_row(builder, "AAPL", "run")])]
 
-    home = builder.build_home({"AAPL": [run]}, 1, [row], "20260602")
+    home = builder.build_home({"AAPL": [run]}, 1, summaries, "20260602")
     hub = builder.build_ticker_hub("AAPL", [run])
 
     assert home.endswith("\n")

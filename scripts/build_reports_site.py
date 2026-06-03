@@ -4,7 +4,7 @@ Each run lives at ``docs/<TICKER>/<DATE>_<MODEL>_<TS>/complete_report.md``.
 
 Layout produced by this script:
 
-* ``docs/index.md`` -- home page with the latest-decision summary, ticker
+* ``docs/index.md`` -- home page with daily decision summaries, ticker
   list, and regeneration instructions.
 * ``docs/<TICKER>/index.md`` -- per-ticker hub page with a table of runs.
 
@@ -73,6 +73,11 @@ class SummaryRow(NamedTuple):
     annualized_uplift: float | None
     confidence: str
     horizon: str
+
+
+class DailySummary(NamedTuple):
+    analysis_date: str
+    rows: list[SummaryRow]
 
 
 def parse_run_folder(ticker_dir: Path, run_path: Path) -> Run | None:
@@ -343,6 +348,25 @@ def latest_runs(
     return runs
 
 
+def analysis_dates(by_ticker: dict[str, list[Run]]) -> list[str]:
+    dates = {run.analysis_date for ticker_runs in by_ticker.values() for run in ticker_runs}
+    return sorted(dates, reverse=True)
+
+
+def build_daily_summaries(by_ticker: dict[str, list[Run]]) -> list[DailySummary]:
+    summaries = []
+    for analysis_date in analysis_dates(by_ticker):
+        runs = latest_runs(by_ticker, analysis_date)
+        if runs:
+            summaries.append(
+                DailySummary(
+                    analysis_date=analysis_date,
+                    rows=[build_summary_row(run) for run in runs],
+                )
+            )
+    return summaries
+
+
 def summary_sort_key(row: SummaryRow) -> tuple[int, float]:
     action_rank = {"Buy": 0, "Hold": 1, "Sell": 2}
     return (
@@ -376,6 +400,10 @@ def short_horizon(horizon: str) -> str:
         .replace(" days", "d")
         .replace(" day", "d")
     )
+
+
+def decision_summary_anchor(analysis_date: str) -> str:
+    return f"{analysis_date}-decision-summary"
 
 
 def build_decision_summary(
@@ -412,6 +440,60 @@ def build_decision_summary(
     return lines
 
 
+def build_daily_decision_summaries(
+    summaries: list[DailySummary],
+    focus_analysis_date: str | None = None,
+) -> list[str]:
+    focus_analysis_date = normalize_analysis_date(focus_analysis_date)
+    lines = [
+        "## Daily Decision Summaries",
+        "",
+        '<div class="daily-summary-layout" markdown="1">',
+        "",
+        '<nav class="daily-summary-rail" aria-label="Analysis dates">',
+        "<h3>Dates</h3>",
+        "<ul>",
+    ]
+    for summary in summaries:
+        ticker_count = len(summary.rows)
+        suffix = "ticker" if ticker_count == 1 else "tickers"
+        classes = ["daily-summary-date"]
+        if focus_analysis_date == summary.analysis_date:
+            classes.append("daily-summary-date--active")
+        lines.extend(
+            [
+                "<li>",
+                (
+                    f'<a class="{" ".join(classes)}" '
+                    f'href="#{decision_summary_anchor(summary.analysis_date)}">'
+                    f"{summary.analysis_date}</a>"
+                ),
+                f"<span>{ticker_count} {suffix}</span>",
+                "</li>",
+            ]
+        )
+    lines.extend(
+        [
+            "</ul>",
+            "</nav>",
+            "",
+            '<div class="daily-summary-tables" markdown="1">',
+            "",
+        ]
+    )
+    for summary in summaries:
+        lines.extend(build_decision_summary(summary.rows, summary.analysis_date))
+    lines.extend(
+        [
+            "</div>",
+            "",
+            "</div>",
+            "",
+        ]
+    )
+    return lines
+
+
 def build_regeneration_skill() -> list[str]:
     return [
         "## Regeneration Skill",
@@ -420,11 +502,11 @@ def build_regeneration_skill() -> list[str]:
         "",
         "1. Add each completed run under `docs/<TICKER>/<YYYYMMDD>_<MODEL>_<YYYYMMDD>_<HHMMSS>/` with `complete_report.md`, `3_trading/trader.md`, and `5_portfolio/decision.md` present.",
         "2. Run `python scripts/build_reports_site.py` from the repository root.",
-        "3. For a fixed-date homepage summary, run `python scripts/build_reports_site.py --summary-analysis-date YYYYMMDD --summary-only`.",
+        "3. To refresh only the homepage summary block while focusing a date, run `python scripts/build_reports_site.py --summary-analysis-date YYYYMMDD --summary-only`.",
         "4. Review `docs/index.md` and the affected `docs/<TICKER>/index.md` files in `git diff`.",
         "5. If a row has a missing value, check that the new report includes `**Rating**`, `**Price Target**`, `**Time Horizon**`, `**Action**`, and a latest close/current price line in the market report.",
         "",
-        "The generator always chooses the newest run per ticker by analysis date and run-start timestamp.",
+        "The generator groups summaries by analysis date and chooses the newest run per ticker by run-start timestamp within each date.",
         "",
     ]
 
@@ -432,8 +514,8 @@ def build_regeneration_skill() -> list[str]:
 def build_home(
     by_ticker: dict[str, list[Run]],
     total_runs: int,
-    summary_rows: list[SummaryRow],
-    summary_analysis_date: str | None = None,
+    daily_summaries: list[DailySummary],
+    focus_analysis_date: str | None = None,
 ) -> str:
     tickers = sorted(by_ticker)
     lines = [
@@ -443,7 +525,7 @@ def build_home(
         "",
         DISCLAIMER,
         "",
-        *build_decision_summary(summary_rows, summary_analysis_date),
+        *build_daily_decision_summaries(daily_summaries, focus_analysis_date),
         *build_regeneration_skill(),
         "## Tickers",
         "",
@@ -458,14 +540,21 @@ def build_home(
 
 def replace_decision_summary(home_text: str, summary_lines: list[str]) -> str:
     new_summary = "\n".join(summary_lines).rstrip() + "\n\n"
-    pattern = re.compile(
-        r"^## .+Decision Summary\n.*?(?=^## Regeneration Skill\n)",
-        flags=re.M | re.S,
-    )
-    new_text, replacements = pattern.subn(new_summary, home_text, count=1)
-    if replacements != 1:
-        raise ValueError("Could not find decision summary block in docs/index.md")
-    return new_text
+    patterns = [
+        re.compile(
+            r"^## Daily Decision Summaries\n.*?(?=^## Regeneration Skill\n)",
+            flags=re.M | re.S,
+        ),
+        re.compile(
+            r"^## .+Decision Summary\n.*?(?=^## Regeneration Skill\n)",
+            flags=re.M | re.S,
+        ),
+    ]
+    for pattern in patterns:
+        new_text, replacements = pattern.subn(new_summary, home_text, count=1)
+        if replacements == 1:
+            return new_text
+    raise ValueError("Could not find decision summary block in docs/index.md")
 
 
 def build_ticker_hub(ticker: str, runs: list[Run]) -> str:
@@ -509,12 +598,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--summary-analysis-date",
-        help="Use only this analysis date for the homepage decision summary.",
+        help="Focus this analysis date in the homepage decision summaries.",
     )
     parser.add_argument(
         "--summary-only",
         action="store_true",
-        help="Rewrite only the decision-summary block in docs/index.md.",
+        help="Rewrite only the daily decision-summary block in docs/index.md.",
     )
     args = parser.parse_args(argv)
     try:
@@ -552,18 +641,17 @@ def main(argv: list[str] | None = None) -> int:
     for r in runs:
         by_ticker[r.ticker].append(r)
 
-    summary_runs = latest_runs(by_ticker, args.summary_analysis_date)
-    if not summary_runs:
-        if args.summary_analysis_date:
-            print(
-                f"No run folders found for analysis date {args.summary_analysis_date}.",
-                file=sys.stderr,
-            )
-        else:
-            print("No runs available for homepage summary.", file=sys.stderr)
+    daily_summaries = build_daily_summaries(by_ticker)
+    if not daily_summaries:
+        print("No runs available for homepage summaries.", file=sys.stderr)
         return 1
-
-    summary_rows = [build_summary_row(r) for r in summary_runs]
+    summary_dates = {summary.analysis_date for summary in daily_summaries}
+    if args.summary_analysis_date and args.summary_analysis_date not in summary_dates:
+        print(
+            f"No run folders found for analysis date {args.summary_analysis_date}.",
+            file=sys.stderr,
+        )
+        return 1
 
     if args.summary_only:
         index_path = DOCS_DIR / "index.md"
@@ -571,8 +659,8 @@ def main(argv: list[str] | None = None) -> int:
             index_path.write_text(
                 replace_decision_summary(
                     read_text(index_path),
-                    build_decision_summary(
-                        summary_rows,
+                    build_daily_decision_summaries(
+                        daily_summaries,
                         args.summary_analysis_date,
                     ),
                 ),
@@ -581,16 +669,16 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 1
-        source = args.summary_analysis_date or "latest"
-        print(f"Wrote docs/index.md decision summary from {source} runs.")
+        focus = args.summary_analysis_date or "latest"
+        print(f"Wrote docs/index.md daily decision summaries; focus={focus}.")
         return 0
 
     (DOCS_DIR / "index.md").write_text(
         build_home(
             by_ticker,
             total_runs=len(runs),
-            summary_rows=summary_rows,
-            summary_analysis_date=args.summary_analysis_date,
+            daily_summaries=daily_summaries,
+            focus_analysis_date=args.summary_analysis_date,
         ),
         encoding="utf-8",
     )

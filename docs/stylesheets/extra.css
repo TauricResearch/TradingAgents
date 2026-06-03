@@ -16,3 +16,109 @@
   display: table;
   width: 100%;
 }
+
+/* Homepage daily summaries */
+body:has(.daily-summary-layout) .md-sidebar--secondary {
+  display: none;
+}
+
+.daily-summary-layout {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.daily-summary-rail {
+  position: sticky;
+  top: 4rem;
+  max-height: calc(100vh - 5rem);
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.25rem;
+  background: var(--md-default-bg-color);
+}
+
+.daily-summary-rail h3 {
+  margin: 0 0 0.5rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.daily-summary-rail ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.daily-summary-rail li {
+  margin: 0;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.daily-summary-rail li:first-child {
+  border-top: 0;
+}
+
+.daily-summary-date {
+  display: block;
+  font-weight: 700;
+}
+
+.daily-summary-date--active {
+  color: var(--md-accent-fg-color);
+}
+
+.daily-summary-rail span {
+  display: block;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+}
+
+.daily-summary-tables h2 {
+  scroll-margin-top: 4.5rem;
+}
+
+.daily-summary-tables {
+  overflow-x: auto;
+}
+
+.daily-summary-tables table:not([class]) {
+  font-size: 0.72rem;
+  min-width: 48rem;
+}
+
+.daily-summary-tables table:not([class]) th,
+.daily-summary-tables table:not([class]) td {
+  padding: 0.55rem 0.65rem;
+}
+
+@media screen and (max-width: 60em) {
+  .daily-summary-layout {
+    display: block;
+  }
+
+  .daily-summary-rail {
+    position: static;
+    max-height: none;
+    margin-bottom: 1rem;
+  }
+
+  .daily-summary-rail ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .daily-summary-rail li {
+    min-width: 8rem;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--md-default-fg-color--lightest);
+    border-radius: 0.25rem;
+  }
+}

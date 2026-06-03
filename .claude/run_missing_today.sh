@@ -27,7 +27,7 @@ ROOT="$(pwd)"
 
 DATE="${TRADINGAGENTS_DATE:-$(date +%F)}"
 DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder prefix)
-CONCURRENCY="${CONCURRENCY:-5}"               # 5 is the verified-safe default; >5 risks 429
+CONCURRENCY="${CONCURRENCY:-10}"               # 10 is the verified-safe default; >10 risks 429
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs}"
 mkdir -p "$LOGDIR"
 
