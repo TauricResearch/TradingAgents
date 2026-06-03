@@ -1,7 +1,7 @@
 from sqlmodel import select
 
 from web.server import db
-from web.server.db import Watchlist, Run, Event
+from web.server.db import Watchlist, Run, Event, LlmCall
 
 
 def test_init_db_creates_tables(temp_db):
@@ -10,11 +10,12 @@ def test_init_db_creates_tables(temp_db):
         assert s.exec(select(Watchlist)).first() is None
         assert s.exec(select(Run)).first() is None
         assert s.exec(select(Event)).first() is None
+        assert s.exec(select(LlmCall)).first() is None
 
 
 from datetime import datetime, timezone
 from web.server import db
-from web.server.db import Watchlist, Run, Event
+from web.server.db import Watchlist, Run, Event, LlmCall
 
 
 def test_watchlist_add_list_remove(temp_db):
@@ -64,3 +65,48 @@ def test_run_idempotency(temp_db):
     db.mark_run_done(rid1, decision_action="HOLD", decision_target=None, decision_rationale="", decision_confidence=0.5)
     rid2 = db.create_run(ticker="NVDA", idempotency_key="NVDA:2026-06-01")
     assert rid1 == rid2
+
+
+def test_run_force_flag(temp_db):
+    rid1 = db.create_run(ticker="TSLA", idempotency_key="TSLA:2026-06-01")
+    db.mark_run_done(rid1, decision_action="BUY", decision_target=300.0, decision_rationale="ok", decision_confidence=0.7)
+    rid2 = db.create_run(ticker="TSLA", idempotency_key="TSLA:2026-06-01", force=True)
+    assert rid1 != rid2
+
+
+from datetime import datetime, timezone
+
+
+def test_llm_call_crud(temp_db):
+    from web.server.llm_calls import save_llm_call, llm_calls_for_run, list_runs_for_ticker
+
+    rid = db.create_run(ticker="NVDA", idempotency_key="NVDA:2026-06-01")
+
+    save_llm_call(
+        run_id=rid,
+        ticker="NVDA",
+        node_name="Market Analyst",
+        started_at=datetime.now(timezone.utc),
+        model="gpt-4",
+        prompt_text="user: hello",
+        response_text="world",
+        tool_calls=[{"name": "get_price"}],
+        input_tokens=10,
+        output_tokens=5,
+        total_tokens=15,
+        duration_ms=1234,
+    )
+
+    calls = llm_calls_for_run(rid)
+    assert len(calls) == 1
+    c = calls[0]
+    assert c.ticker == "NVDA"
+    assert c.node_name == "Market Analyst"
+    assert c.model == "gpt-4"
+    assert c.prompt_text == "user: hello"
+    assert c.response_text == "world"
+    assert c.total_tokens == 15
+
+    rows = list_runs_for_ticker("NVDA")
+    assert len(rows) >= 1
+    assert rows[0]["ticker"] == "NVDA"

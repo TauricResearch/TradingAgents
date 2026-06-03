@@ -49,6 +49,23 @@ class Event(SQLModel, table=True):
     payload_json: str
 
 
+class LlmCall(SQLModel, table=True):
+    __tablename__ = "llm_call"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    run_id: int = Field(index=True)
+    ticker: str = Field(index=True)
+    node_name: str = ""
+    started_at: datetime
+    model: str
+    prompt_text: str
+    response_text: str
+    tool_calls_json: str = "[]"
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    duration_ms: int = 0
+
+
 def _make_engine():
     path = os.environ.get("TRADINGAGENTS_DASHBOARD_DB")
     if not path or path == ":memory:":
@@ -116,11 +133,12 @@ def update_watchlist_last_decision(ticker: str, run_id: int, decision_text: str,
         s.commit()
 
 
-def create_run(ticker: str, idempotency_key: str) -> int:
+def create_run(ticker: str, idempotency_key: str, force: bool = False) -> int:
     with get_session() as s:
-        existing = s.exec(select(Run).where(Run.idempotency_key == idempotency_key, Run.status != "running")).first()
-        if existing is not None:
-            return existing.id
+        if not force:
+            existing = s.exec(select(Run).where(Run.idempotency_key == idempotency_key, Run.status != "running")).first()
+            if existing is not None:
+                return existing.id
         row = Run(ticker=ticker, started_at=datetime.now(timezone.utc), status="running", idempotency_key=idempotency_key)
         s.add(row)
         s.commit()
