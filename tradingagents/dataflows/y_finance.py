@@ -1,10 +1,22 @@
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .market_snapshot import (
+    MarketDataUnavailable,
+    bars_from_frame,
+    format_market_snapshot,
+    snapshot_from_bars,
+)
+
+
+def _inclusive_history_end(end_date: str) -> str:
+    return (datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -19,16 +31,19 @@ def get_YFin_data_online(
     ticker = yf.Ticker(symbol.upper())
 
     # Fetch historical data for the specified date range
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    data = yf_retry(
+        lambda: ticker.history(start=start_date, end=_inclusive_history_end(end_date))
+    )
 
     # Check if data is empty
     if data.empty:
-        return (
-            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
+        raise MarketDataUnavailable(
+            f"yfinance returned empty OHLCV for {symbol} between "
+            f"{start_date} and {end_date}"
         )
 
     # Remove timezone info from index for cleaner output
-    if data.index.tz is not None:
+    if getattr(data.index, "tz", None) is not None:
         data.index = data.index.tz_localize(None)
 
     # Round numerical values to 2 decimal places for cleaner display
@@ -46,6 +61,29 @@ def get_YFin_data_online(
     header += "\n"
 
     return header + csv_string
+
+
+def get_market_snapshot(
+    ticker: str,
+    curr_date: str,
+    lookback_days: int = 10,
+    stale_after_seconds: int = 900,
+) -> str:
+    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    start_date = (curr_dt - relativedelta(days=lookback_days)).strftime("%Y-%m-%d")
+    tk = yf.Ticker(ticker.upper())
+    data = yf_retry(
+        lambda: tk.history(start=start_date, end=_inclusive_history_end(curr_date))
+    )
+    bars = bars_from_frame(data, source="yfinance")
+    snapshot = snapshot_from_bars(
+        ticker=ticker,
+        requested_date=curr_date,
+        source="yfinance",
+        bars=bars,
+        stale_after_seconds=stale_after_seconds,
+    )
+    return format_market_snapshot(snapshot)
 
 def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
