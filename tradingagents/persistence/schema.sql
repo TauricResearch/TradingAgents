@@ -254,10 +254,16 @@ ALTER TABLE deliveries ADD COLUMN channel_ref       TEXT;
 ALTER TABLE briefs     ADD COLUMN refine_depth      INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE briefs     ADD COLUMN refine_overrides  TEXT;
 
+ALTER TABLE brief_actions ADD COLUMN result_job_id INTEGER REFERENCES queue_jobs(job_id);
+ALTER TABLE brief_actions ADD COLUMN dispatched_ts TEXT;
+ALTER TABLE brief_actions ADD COLUMN error TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_deliveries_brief
     ON deliveries(brief_id);
 CREATE INDEX IF NOT EXISTS idx_brief_actions_pending_expires
     ON brief_actions(state, expires_at) WHERE state = 'pending';
+CREATE INDEX IF NOT EXISTS idx_brief_actions_result_job
+    ON brief_actions(result_job_id);
 
 -- ============================================================
 -- P0 instrumentation: DeepSeek prompt-cache token capture

@@ -72,6 +72,8 @@ def _dispatch_one(
         store.mark_action_done(conn, action_id=row["action_id"],
                                result_brief_id=new_brief_id)
     elif row["action_type"] == "run_full_study":
+        from datetime import datetime, timezone
+
         ticker = params.get("ticker")
         light = store.load_brief(conn, row["brief_id"])
         event_id = (light or {}).get("trigger_event_id")
@@ -83,24 +85,35 @@ def _dispatch_one(
             log.error("run_full_study action %s missing event_id/ticker "
                       "(event_id=%r ticker=%r); skipping enqueue",
                       row["action_id"], event_id, ticker)
+            store.mark_action_error(
+                conn,
+                action_id=row["action_id"],
+                error=(
+                    f"missing event_id/ticker event_id={event_id!r} "
+                    f"ticker={ticker!r}"
+                ),
+            )
             return
         with conn:
-            conn.execute(
+            cur = conn.execute(
                 "INSERT INTO queue_jobs (job_type, payload, state, "
                 "enqueued_ts, trigger_event_id) VALUES (?, ?, 'queued', "
                 "datetime('now'), ?)",
                 ("event_alert",
-                 _j.dumps({"event_id": event_id, "ticker": ticker}),
+                 _j.dumps({
+                     "event_id": event_id,
+                     "ticker": ticker,
+                     "action_id": row["action_id"],
+                     "parent_brief_id": row["brief_id"],
+                 }),
                  event_id),
             )
-        # Sentinel: set result_brief_id to the PARENT light brief so this
-        # accepted action is filtered out of fetch_accepted_undispatched and
-        # never re-enqueues. NOTE (audit-trail caveat): unlike refine_brief —
-        # where result_brief_id points at the produced CHILD brief — here it
-        # points at the parent light brief (the full brief does not exist yet
-        # at enqueue time). A dedicated dispatched_ts/result_job_id column would
-        # be cleaner; tracked as a follow-up for F4+F5 audit work.
-        store.mark_action_done(conn, action_id=row["action_id"],
-                               result_brief_id=row["brief_id"])
+            job_id = cur.lastrowid
+        store.mark_action_dispatched(
+            conn,
+            action_id=row["action_id"],
+            result_job_id=job_id,
+            dispatched_ts=datetime.now(timezone.utc).isoformat(),
+        )
     else:
         log.warning("action_handler: unknown action_type %r", row["action_type"])
