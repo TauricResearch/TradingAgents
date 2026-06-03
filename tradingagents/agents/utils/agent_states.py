@@ -52,6 +52,8 @@ class AgentState(MessagesState):
 
     # research step
     market_report: Annotated[str, "Report from the Market Analyst"]
+    market_snapshot_text: Annotated[str, "Freshness-aware market snapshot captured before graph execution"]
+    market_snapshot_error: Annotated[str, "Market snapshot fetch error captured before graph execution"]
     sentiment_report: Annotated[str, "Report from the Sentiment Analyst"]
     news_report: Annotated[
         str, "Report from the News Researcher of current world affairs"
