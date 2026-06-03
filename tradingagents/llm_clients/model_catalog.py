@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
+from tradingagents.llm_clients.custom_provider_config import (
+    get_all_custom_model_options,
+    get_custom_model_options,
+)
+
 ModelOption = Tuple[str, str]
 ProviderModeOptions = Dict[str, Dict[str, List[ModelOption]]]
 
@@ -180,12 +185,22 @@ MODEL_OPTIONS: ProviderModeOptions = {
 
 def get_model_options(provider: str, mode: str) -> List[ModelOption]:
     """Return shared model options for a provider and selection mode."""
-    return MODEL_OPTIONS[provider.lower()][mode]
+    provider_key = provider.lower()
+    mode_key = mode.lower()
+
+    if provider_key in MODEL_OPTIONS:
+        return MODEL_OPTIONS[provider_key][mode_key]
+
+    custom_options = get_custom_model_options(provider_key, mode_key)
+    if custom_options is not None:
+        return custom_options
+
+    raise KeyError(provider_key)
 
 
 def get_known_models() -> Dict[str, List[str]]:
     """Build known model names from the shared CLI catalog."""
-    return {
+    known_models = {
         provider: sorted(
             {
                 value
@@ -195,3 +210,14 @@ def get_known_models() -> Dict[str, List[str]]:
         )
         for provider, mode_options in MODEL_OPTIONS.items()
     }
+
+    for provider, mode_options in get_all_custom_model_options().items():
+        known_models[provider] = sorted(
+            {
+                value
+                for options in mode_options.values()
+                for _, value in options
+            }
+        )
+
+    return known_models

@@ -9,6 +9,7 @@ from rich.console import Console
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.llm_clients.custom_provider_config import get_custom_provider_choices
 
 console = Console()
 
@@ -279,6 +280,12 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
     ]
+
+    existing_provider_keys = {provider_key for _, provider_key, _ in PROVIDERS}
+    for display, provider_key, url in get_custom_provider_choices():
+        if provider_key not in existing_provider_keys:
+            PROVIDERS.append((display, provider_key, url))
+            existing_provider_keys.add(provider_key)
 
     choice = questionary.select(
         "Select your LLM Provider:",
