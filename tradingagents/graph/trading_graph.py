@@ -487,6 +487,18 @@ class TradingAgentsGraph:
                     except Exception:  # callbacks must never break the run
                         logger.exception("event_callback raised; continuing")
                 final_state.update(chunk)
+                if event_callback is not None:
+                    try:
+                        event_callback(
+                            "node_exited",
+                            {
+                                "node": next(iter(chunk)),
+                                "ts": _now_iso(),
+                                "delta": next(iter(chunk.values())),
+                            },
+                        )
+                    except Exception:  # callbacks must never break the run
+                        logger.exception("event_callback raised; continuing")
         else:
             # Stream the graph so the event_callback fires in the non-debug
             # path too (was previously only emitted in the debug branch).
@@ -507,6 +519,18 @@ class TradingAgentsGraph:
                     except Exception:  # callbacks must never break the run
                         logger.exception("event_callback raised; continuing")
                 final_state.update(next(iter(chunk.values())))
+                if event_callback is not None:
+                    try:
+                        event_callback(
+                            "node_exited",
+                            {
+                                "node": next(iter(chunk)),
+                                "ts": _now_iso(),
+                                "delta": next(iter(chunk.values())),
+                            },
+                        )
+                    except Exception:  # callbacks must never break the run
+                        logger.exception("event_callback raised; continuing")
 
         # Store current state for reflection.
         self.curr_state = final_state

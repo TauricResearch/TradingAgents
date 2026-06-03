@@ -45,6 +45,7 @@ class FakeTradingAgents:
         for node in self._script.nodes:
             if event_callback is not None:
                 event_callback("node_entered", {"node": node.name})
+                event_callback("node_exited", {"node": node.name, "delta": {}})
             for ev in node.events:
                 event_callback(ev["type"], ev.get("data", {}))
             if rl_remaining > 0:
