@@ -20,8 +20,6 @@ export function WatchlistRail() {
   const qc = useQueryClient();
   const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: fetchWatchlist });
   const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices });
-  const focused = useUi((s) => s.focusedTicker);
-  const setFocused = useUi((s) => s.setFocusedTicker);
   const clearLast = useUi((s) => s.clearLastRunIdForTicker);
 
   const handleRemove = useCallback(async (ticker: string) => {
@@ -32,11 +30,7 @@ export function WatchlistRail() {
     }
     clearLast(ticker);
     qc.invalidateQueries({ queryKey: ["watchlist"] });
-    if (focused === ticker) {
-      const next = watchlist.find((w) => w.ticker !== ticker);
-      setFocused(next ? next.ticker : null);
-    }
-  }, [focused, watchlist, qc, clearLast, setFocused]);
+  }, [qc, clearLast]);
 
   return (
     <aside className="w-64 border-r border-slate-200 p-2 h-screen overflow-y-auto">
