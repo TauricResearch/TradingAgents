@@ -54,8 +54,24 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
 
                 # Previous close — fetch once and cache in the snapshot so
                 # subsequent polls avoid an extra API round-trip.
+                #
+                # yfinance fast_info exposes TWO previous-close values:
+                #   - ``regularMarketPreviousClose``: the prior REGULAR
+                #     session's close, the standard reference used by every
+                #     financial site ("today's change" vs yesterday's close)
+                #   - ``previousClose``: an intraday/adjusted value that
+                #     can differ by 0.5-1% on real tickers (e.g. NVDA,
+                #     TSLA, MSFT) and yields a visibly wrong change_pct
+                #
+                # Prefer the regular-session value; fall back to
+                # ``previousClose`` for tickers/sessions that don't
+                # populate it.
                 if snap.prev_close <= 0:
-                    prev_close = info.get("previousClose") or info.get("previous_close")
+                    prev_close = (
+                        info.get("regularMarketPreviousClose")
+                        or info.get("previousClose")
+                        or info.get("previous_close")
+                    )
                     if prev_close is not None:
                         snap.prev_close = float(prev_close)
 
