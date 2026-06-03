@@ -7,6 +7,7 @@ codex CLI installed or authenticated.
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 from typing import Any, Optional
 from unittest.mock import MagicMock
@@ -90,12 +91,12 @@ class TestFlattenMessages:
 class TestFactoryWiring:
     def test_factory_returns_codex_client(self, monkeypatch):
         _patch_which(monkeypatch, True)
-        c = create_llm_client("codex", "o4-mini")
+        c = create_llm_client("codex", "gpt-5.4-mini")
         assert isinstance(c, mod.CodexClient)
         assert c.get_provider_name() == "codex"
 
     def test_validate_known_model(self):
-        c = create_llm_client("codex", "o4-mini")
+        c = create_llm_client("codex", "gpt-5.4-mini")
         assert c.validate_model() is True
 
     def test_validate_unknown_model(self):
@@ -104,19 +105,19 @@ class TestFactoryWiring:
 
     def test_base_url_rejected(self):
         with pytest.raises(ValueError, match="no base_url"):
-            create_llm_client("codex", "o4-mini", base_url="https://x")
+            create_llm_client("codex", "gpt-5.4-mini", base_url="https://x")
 
     def test_get_llm_returns_chat_model(self, monkeypatch):
         _patch_which(monkeypatch, True)
-        llm = create_llm_client("codex", "o4-mini").get_llm()
+        llm = create_llm_client("codex", "gpt-5.4-mini").get_llm()
         assert isinstance(llm, mod.CodexChatModel)
         assert llm._llm_type == "codex"
-        assert llm.model == "o4-mini"
+        assert llm.model == "gpt-5.4-mini"
 
     def test_get_llm_raises_when_codex_missing(self, monkeypatch):
         _patch_which(monkeypatch, False)
         with pytest.raises(RuntimeError, match="codex CLI"):
-            create_llm_client("codex", "o4-mini").get_llm()
+            create_llm_client("codex", "gpt-5.4-mini").get_llm()
 
 
 # ---------------------------------------------------------------------------
@@ -148,26 +149,46 @@ class TestPhase1Contracts:
 @pytest.mark.unit
 class TestBuildArgv:
     def test_default_flags_present(self):
-        argv = mod.CodexChatModel(model="o4-mini")._build_argv("hello")
-        assert argv[0] == "codex"
-        # Quiet mode is non-negotiable — without it the CLI streams
-        # intermediate reasoning into stdout and pollutes the report.
-        assert "-q" in argv
-        assert "-m" in argv and "o4-mini" in argv
-        assert "-a" in argv and "full-auto" in argv
-        # ``--no-project-doc`` keeps a stray codex.md in cwd from
-        # silently changing the model's behaviour.
-        assert "--no-project-doc" in argv
-        assert argv[-1] == "hello"
+        argv = mod.CodexChatModel(model="gpt-5.4-mini")._build_argv("/tmp/out.md")
+        # Non-interactive subcommand: ``codex exec`` is the only public
+        # entry point that does not require a TTY.
+        assert argv[:2] == ["codex", "exec"]
+        assert "-m" in argv and "gpt-5.4-mini" in argv
+        # Sandbox the model's shell commands to read-only by default.
+        assert "-s" in argv and "read-only" in argv
+        # Run outside a git repo (TradingAgents-driven invocations may
+        # not be in a repo) and don't persist a session file.
+        assert "--skip-git-repo-check" in argv
+        assert "--ephemeral" in argv
+        # ``-o <file>`` is how we get the final assistant text without
+        # parsing the agent-loop's progress events out of stdout.
+        oi = argv.index("-o")
+        assert argv[oi + 1] == "/tmp/out.md"
+        # ``-`` as the positional prompt makes codex read from stdin.
+        assert argv[-1] == "-"
 
-    def test_approval_mode_override(self):
-        argv = mod.CodexChatModel(approval_mode="auto-edit")._build_argv("p")
-        assert "auto-edit" in argv
+    def test_sandbox_mode_override(self):
+        argv = mod.CodexChatModel(
+            sandbox_mode="workspace-write"
+        )._build_argv("/tmp/x")
+        assert "workspace-write" in argv
 
 
 # ---------------------------------------------------------------------------
 # _generate happy + error paths
 # ---------------------------------------------------------------------------
+
+
+def _output_writer(content: str):
+    """Build a fake ``subprocess.run`` that mimics codex writing its
+    final reply to the ``-o <file>`` path."""
+
+    def fake_run(argv, **kwargs):
+        out_idx = argv.index("-o") + 1
+        with open(argv[out_idx], "w", encoding="utf-8") as fh:
+            fh.write(content)
+        return _completed(stdout="")
+    return fake_run
 
 
 @pytest.mark.unit
@@ -178,26 +199,43 @@ class TestGenerate:
         def fake_run(argv, **kwargs):
             captured["argv"] = argv
             captured["kwargs"] = kwargs
-            return _completed(stdout="hello back\n")
+            out_idx = argv.index("-o") + 1
+            with open(argv[out_idx], "w", encoding="utf-8") as fh:
+                fh.write("hello back\n")
+            return _completed(stdout="")
 
         _patch_run(monkeypatch, fake_run)
-        llm = mod.CodexChatModel(model="o4-mini")
+        llm = mod.CodexChatModel(model="gpt-5.4-mini")
 
         with caplog.at_level(logging.INFO, logger=ADAPTER_LOGGER):
             out = llm.invoke("hi")
 
         assert isinstance(out, AIMessage)
         assert out.content == "hello back"
-        # argv shape: codex -q -m o4-mini -a full-auto --no-project-doc <prompt>
-        assert captured["argv"][0] == "codex"
-        assert captured["argv"][-1] == "hi"
-        # capture_output=True and text=True force string IO + capture.
+        # argv first two: ``codex exec``; prompt comes via stdin (``-``).
+        assert captured["argv"][:2] == ["codex", "exec"]
+        assert captured["argv"][-1] == "-"
+        # The full flattened prompt must reach the CLI through stdin.
+        assert captured["kwargs"]["input"] == "hi"
         assert captured["kwargs"]["capture_output"] is True
         assert captured["kwargs"]["text"] is True
         # Usage line emitted exactly once.
         usage = [r.getMessage() for r in caplog.records if "codex call" in r.getMessage()]
         assert len(usage) == 1
-        assert "model=o4-mini" in usage[0]
+        assert "model=gpt-5.4-mini" in usage[0]
+
+    def test_falls_back_to_stdout_if_output_file_empty(self, monkeypatch):
+        # If a future codex build stops writing the ``-o`` file, we
+        # should not silently fail — fall back to whatever ended up
+        # on stdout.
+        def fake_run(argv, **kwargs):
+            return _completed(stdout="stdout reply\n")
+
+        _patch_run(monkeypatch, fake_run)
+        llm = mod.CodexChatModel()
+
+        out = llm.invoke("hi")
+        assert out.content == "stdout reply"
 
     def test_nonzero_exit_raises_with_stderr_snippet(self, monkeypatch):
         def fake_run(argv, **kwargs):
@@ -209,15 +247,45 @@ class TestGenerate:
         with pytest.raises(RuntimeError, match="Missing OpenAI API key"):
             llm.invoke("hi")
 
-    def test_empty_stdout_raises(self, monkeypatch):
+    def test_no_assistant_text_anywhere_raises(self, monkeypatch):
+        # Both the ``-o`` file and stdout come back empty — surface a
+        # clean error rather than handing downstream an empty AIMessage.
         def fake_run(argv, **kwargs):
             return _completed(stdout="   \n  ", stderr="")
 
         _patch_run(monkeypatch, fake_run)
         llm = mod.CodexChatModel()
 
-        with pytest.raises(RuntimeError, match="empty stdout"):
+        with pytest.raises(RuntimeError, match="no assistant text"):
             llm.invoke("hi")
+
+    def test_output_file_is_cleaned_up_on_success(self, monkeypatch):
+        captured: dict[str, str] = {}
+
+        def fake_run(argv, **kwargs):
+            out_idx = argv.index("-o") + 1
+            captured["path"] = argv[out_idx]
+            with open(argv[out_idx], "w") as fh:
+                fh.write("done")
+            return _completed()
+
+        _patch_run(monkeypatch, fake_run)
+        mod.CodexChatModel().invoke("hi")
+        # Adapter is responsible for cleaning up its own temp file.
+        assert not os.path.exists(captured["path"])
+
+    def test_output_file_is_cleaned_up_on_failure(self, monkeypatch):
+        captured: dict[str, str] = {}
+
+        def fake_run(argv, **kwargs):
+            out_idx = argv.index("-o") + 1
+            captured["path"] = argv[out_idx]
+            return _completed(returncode=1, stderr="boom")
+
+        _patch_run(monkeypatch, fake_run)
+        with pytest.raises(RuntimeError):
+            mod.CodexChatModel().invoke("hi")
+        assert not os.path.exists(captured["path"])
 
     def test_codex_missing_translates_to_runtime_error(self, monkeypatch):
         # ``subprocess.run`` raises FileNotFoundError when argv[0] is
@@ -247,7 +315,7 @@ class TestGenerate:
 
         def fake_run(*a, **kw):
             called["n"] += 1
-            return _completed(stdout="should not run")
+            return _completed()
 
         _patch_run(monkeypatch, fake_run)
         llm = mod.CodexChatModel()

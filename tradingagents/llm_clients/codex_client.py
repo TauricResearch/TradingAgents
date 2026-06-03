@@ -20,8 +20,10 @@ codex ships only as a Node CLI, no Python SDK.
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
+import tempfile
 from typing import Any, List, Optional
 
 from langchain_core.callbacks import CallbackManagerForLLMRun
@@ -34,19 +36,18 @@ from .base_client import BaseLLMClient
 logger = logging.getLogger(__name__)
 
 
-# Models the codex CLI accepts via ``-m``. Codex passes the value through
-# to OpenAI's API, so anything the user's account is entitled to should
-# work — we list a representative set for the CLI picker. Unknown values
-# trigger the standard ``warn_if_unknown_model`` warning, never a hard fail.
+# Models the codex CLI accepts via ``-m`` differ sharply between API-key
+# mode and ChatGPT-subscription mode. Under subscription auth the codex
+# backend whitelists only a small set of GPT-5.x IDs; raw API model names
+# (``gpt-5``, ``o4-mini``, ``gpt-5.5-mini``, etc.) come back with
+# ``invalid_request_error: The '...' model is not supported when using
+# Codex with a ChatGPT account.`` This list mirrors that whitelist; users
+# running codex with ``OPENAI_API_KEY`` can pass anything via "Custom
+# model ID" and the warning will fire but the call will still go through.
 _KNOWN_MODELS = {
-    "o4-mini",
-    "o4",
-    "o3-mini",
-    "o3",
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-5",
-    "gpt-5-mini",
+    "gpt-5.5",         # subscription deep tier
+    "gpt-5.4",         # subscription deep tier (previous-gen frontier)
+    "gpt-5.4-mini",    # subscription quick tier
 }
 
 _DEFAULT_TIMEOUT_S = 600
@@ -79,17 +80,25 @@ def _flatten_messages(messages: List[BaseMessage]) -> str:
 class CodexChatModel(BaseChatModel):
     """LangChain chat model backed by the Codex CLI subprocess.
 
-    Each ``invoke`` shells out to ``codex -q -m <model> -a full-auto``
-    with the flattened prompt as the trailing positional argument.
-    ``-q`` (quiet) keeps the CLI from emitting intermediate reasoning
-    / tool-call narration — only the final assistant text reaches
-    stdout. ``-a full-auto`` keeps the loop from blocking on permission
-    prompts in non-interactive contexts.
+    Each ``invoke`` shells out to
+    ``codex exec -m <model> -s <sandbox> --skip-git-repo-check --ephemeral
+    -o <tmpfile> -`` and pipes the flattened prompt through stdin.
+
+    Using ``-o``/``--output-last-message`` is the cleanest way to read
+    only the assistant's final reply — stdout otherwise mixes the
+    agent loop's progress lines and the answer together. The temp file
+    is created with restricted permissions and deleted in the finally
+    block regardless of outcome.
+
+    ``-s read-only`` keeps the sandbox from letting any model-generated
+    shell command mutate the filesystem; ``--skip-git-repo-check`` lets
+    Codex run from non-git working trees; ``--ephemeral`` skips
+    persisting a session file to disk.
     """
 
     model: str = "o4-mini"
     timeout_s: int = _DEFAULT_TIMEOUT_S
-    approval_mode: str = "full-auto"
+    sandbox_mode: str = "read-only"
 
     model_config = {"protected_namespaces": ()}
 
@@ -101,14 +110,16 @@ class CodexChatModel(BaseChatModel):
     def _identifying_params(self) -> dict:
         return {"model": self.model, "provider": "codex"}
 
-    def _build_argv(self, prompt: str) -> list[str]:
+    def _build_argv(self, output_file: str) -> list[str]:
         return [
             "codex",
-            "-q",                       # quiet: only final assistant output
+            "exec",                         # non-interactive subcommand
             "-m", self.model,
-            "-a", self.approval_mode,   # don't block on tool approvals
-            "--no-project-doc",         # don't auto-include codex.md from cwd
-            prompt,
+            "-s", self.sandbox_mode,        # sandbox model-generated commands
+            "--skip-git-repo-check",        # allow running outside a git repo
+            "--ephemeral",                  # don't persist session to disk
+            "-o", output_file,              # write only the final reply here
+            "-",                            # read prompt from stdin
         ]
 
     def _generate(
@@ -122,50 +133,72 @@ class CodexChatModel(BaseChatModel):
         if not prompt:
             raise ValueError("CodexChatModel received an empty prompt.")
 
-        argv = self._build_argv(prompt)
+        # Create the output file up front so codex has a path to
+        # write to; close the fd immediately so codex (which opens it
+        # for writing) doesn't race us. We delete in finally below.
+        fd, output_file = tempfile.mkstemp(prefix="codex-out-", suffix=".md")
+        os.close(fd)
+
         try:
-            result = subprocess.run(
-                argv,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_s,
-                check=False,
+            argv = self._build_argv(output_file)
+            try:
+                result = subprocess.run(
+                    argv,
+                    input=prompt,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout_s,
+                    check=False,
+                )
+            except FileNotFoundError as e:
+                raise RuntimeError(
+                    "The `codex` CLI is not on PATH. Install with one of:\n"
+                    "  npm install -g @openai/codex\n"
+                    "  pnpm add -g @openai/codex\n"
+                    "  brew install codex\n"
+                    "then run `codex login` to authenticate."
+                ) from e
+            except subprocess.TimeoutExpired as e:
+                raise RuntimeError(
+                    f"codex exceeded the {self.timeout_s}s timeout while "
+                    f"generating a response for model {self.model!r}."
+                ) from e
+
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"codex exited with code {result.returncode}. "
+                    f"stderr: {(result.stderr or '').strip()[:500]}"
+                )
+
+            # Prefer the dedicated output file; fall back to stdout in
+            # case a future CLI version stops writing it.
+            try:
+                with open(output_file, encoding="utf-8") as fh:
+                    text = fh.read().strip()
+            except OSError:
+                text = ""
+            if not text:
+                text = (result.stdout or "").strip()
+            if not text:
+                raise RuntimeError(
+                    f"codex returned no assistant text "
+                    f"(exit code {result.returncode}). "
+                    f"stderr: {(result.stderr or '').strip()[:500]}"
+                )
+
+            logger.info(
+                "codex call: model=%s prompt_len=%d output_len=%d",
+                self.model, len(prompt), len(text),
             )
-        except FileNotFoundError as e:
-            raise RuntimeError(
-                "The `codex` CLI is not on PATH. Install with one of:\n"
-                "  npm install -g @openai/codex\n"
-                "  pnpm add -g @openai/codex\n"
-                "  brew install codex\n"
-                "then run `codex --login` to authenticate."
-            ) from e
-        except subprocess.TimeoutExpired as e:
-            raise RuntimeError(
-                f"codex exceeded the {self.timeout_s}s timeout while generating "
-                f"a response for model {self.model!r}."
-            ) from e
 
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"codex exited with code {result.returncode}. "
-                f"stderr: {(result.stderr or '').strip()[:500]}"
+            return ChatResult(
+                generations=[ChatGeneration(message=AIMessage(content=text))]
             )
-
-        text = (result.stdout or "").strip()
-        if not text:
-            raise RuntimeError(
-                f"codex returned empty stdout (exit code {result.returncode}). "
-                f"stderr: {(result.stderr or '').strip()[:500]}"
-            )
-
-        logger.info(
-            "codex call: model=%s prompt_len=%d output_len=%d",
-            self.model, len(prompt), len(text),
-        )
-
-        return ChatResult(
-            generations=[ChatGeneration(message=AIMessage(content=text))]
-        )
+        finally:
+            try:
+                os.unlink(output_file)
+            except OSError:
+                pass
 
     def bind_tools(self, tools, **kwargs):
         # codex runs its own internal tool-use loop with built-in

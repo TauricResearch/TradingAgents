@@ -153,21 +153,20 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # so the two provider keys share one model list.
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
-    # Codex: the local `codex` CLI passes -m through to OpenAI's
-    # backend; what actually resolves depends on the user's account
-    # entitlements. Surface a small representative set; everything
-    # else can be entered via "Custom model ID".
+    # Codex: under ChatGPT-subscription auth the backend whitelists a
+    # small fixed set of GPT-5.x IDs; raw API model names like
+    # ``gpt-5``, ``o4-mini``, ``gpt-5.5-mini`` come back as
+    # ``invalid_request_error``. Users on ``OPENAI_API_KEY`` mode can
+    # enter anything via "Custom model ID".
     "codex": {
         "quick": [
-            ("o4-mini - Fast reasoning, codex default", "o4-mini"),
-            ("gpt-4o-mini - Fast non-reasoning, low cost", "gpt-4o-mini"),
-            ("o3-mini - Previous-gen fast reasoning", "o3-mini"),
+            ("GPT-5.4 Mini - Subscription quick tier, fast", "gpt-5.4-mini"),
+            ("GPT-5.4 - Subscription tier, balanced", "gpt-5.4"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("o4 - Frontier reasoning", "o4"),
-            ("o3 - Previous-gen reasoning", "o3"),
-            ("gpt-5 - Latest non-reasoning, large context", "gpt-5"),
+            ("GPT-5.5 - Subscription deep tier, latest frontier", "gpt-5.5"),
+            ("GPT-5.4 - Subscription tier, previous-gen frontier", "gpt-5.4"),
             ("Custom model ID", "custom"),
         ],
     },
