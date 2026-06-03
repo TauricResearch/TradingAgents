@@ -105,7 +105,7 @@ def test_market_snapshot_default_vendor_order():
     assert cfg["market_data_cache_ttl_seconds"] == 900
 
 
-def test_market_snapshot_route_falls_back_to_akshare(monkeypatch):
+def test_stock_data_route_falls_back_to_akshare(monkeypatch):
     iface = _load_interface_with_fake_optional_market_deps(monkeypatch)
 
     calls = []
@@ -120,7 +120,7 @@ def test_market_snapshot_route_falls_back_to_akshare(monkeypatch):
 
     monkeypatch.setitem(
         iface.VENDOR_METHODS,
-        "get_market_snapshot",
+        "get_stock_data",
         {"yfinance": yfinance_fail, "akshare": akshare_ok},
     )
     monkeypatch.setattr(
@@ -129,7 +129,33 @@ def test_market_snapshot_route_falls_back_to_akshare(monkeypatch):
         lambda category, method=None: "yfinance, akshare, futu, polygon",
     )
 
-    assert iface.route_to_vendor("get_market_snapshot", "AAPL", "2026-06-03") == (
+    assert iface.route_to_vendor("get_stock_data", "AAPL", "2026-06-01", "2026-06-03") == (
         "akshare snapshot"
     )
     assert calls == ["yfinance", "akshare"]
+
+
+def test_market_snapshot_route_uses_fusion_provider_order(monkeypatch):
+    import tradingagents.dataflows.interface as iface
+
+    calls = []
+
+    def fake_fused_snapshot(ticker, curr_date, **kwargs):
+        calls.append((ticker, curr_date, kwargs))
+        return "# Market snapshot for AAPL\n\n## Fused OHLCV Chart\n"
+
+    monkeypatch.setattr(iface, "get_fused_market_snapshot", fake_fused_snapshot)
+    cfg = get_config()
+    cfg["data_vendors"]["market_snapshot"] = "yfinance, akshare, futu, polygon"
+    set_config(cfg)
+
+    out = iface.route_to_vendor("get_market_snapshot", "AAPL", "2026-06-05")
+
+    assert "## Fused OHLCV Chart" in out
+    assert calls == [
+        (
+            "AAPL",
+            "2026-06-05",
+            {"providers": ["yfinance", "akshare", "futu", "polygon"]},
+        )
+    ]

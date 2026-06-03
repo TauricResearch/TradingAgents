@@ -32,6 +32,7 @@ from .futu import (
     get_options_chain as get_futu_options_chain,
     get_market_snapshot as get_futu_market_snapshot,
 )
+from .market_fusion import get_market_snapshot as get_fused_market_snapshot
 from .telegram_osint import get_telegram_signals as get_telegram_signals_impl
 from .x_osint import get_x_signals as get_x_signals_impl
 from .alpha_vantage import (
@@ -209,6 +210,10 @@ def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
+    if method == "get_market_snapshot":
+        providers = [v.strip() for v in vendor_config.split(",") if v.strip()]
+        return get_fused_market_snapshot(*args, providers=providers, **kwargs)
+
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:
