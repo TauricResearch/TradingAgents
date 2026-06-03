@@ -32,6 +32,10 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "openrouter": "OPENROUTER_API_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
+    # The codex CLI owns its own auth (ChatGPT subscription OAuth or
+    # OPENAI_API_KEY configured via `codex --login`); no env-var check
+    # at the TradingAgents layer.
+    "codex":      None,
 }
 
 

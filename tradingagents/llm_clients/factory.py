@@ -46,6 +46,14 @@ def create_llm_client(
         from .anthropic_client import AnthropicClient
         return AnthropicClient(model, base_url, **kwargs)
 
+    if provider_lower == "codex":
+        # OpenAI Codex CLI as a subprocess. Auth (ChatGPT subscription
+        # OAuth or OPENAI_API_KEY) is owned by the CLI's own login state;
+        # bind_tools is unsupported because codex runs its own agent
+        # loop and does not accept LangChain tool descriptors.
+        from .codex_client import CodexClient
+        return CodexClient(model, base_url, **kwargs)
+
     if provider_lower == "google":
         from .google_client import GoogleClient
         return GoogleClient(model, base_url, **kwargs)

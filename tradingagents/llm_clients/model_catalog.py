@@ -153,6 +153,24 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # so the two provider keys share one model list.
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
+    # Codex: the local `codex` CLI passes -m through to OpenAI's
+    # backend; what actually resolves depends on the user's account
+    # entitlements. Surface a small representative set; everything
+    # else can be entered via "Custom model ID".
+    "codex": {
+        "quick": [
+            ("o4-mini - Fast reasoning, codex default", "o4-mini"),
+            ("gpt-4o-mini - Fast non-reasoning, low cost", "gpt-4o-mini"),
+            ("o3-mini - Previous-gen fast reasoning", "o3-mini"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("o4 - Frontier reasoning", "o4"),
+            ("o3 - Previous-gen reasoning", "o3"),
+            ("gpt-5 - Latest non-reasoning, large context", "gpt-5"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     # Ollama display labels intentionally omit a "local" marker — the
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
