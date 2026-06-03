@@ -8,7 +8,7 @@
 | **Base engine** | TauricResearch/TradingAgents v0.2.5 (F1, F2, F3 shipped) |
 | **Owner** | Ziwei |
 | **Date** | 2026-05-27 |
-| **Status** | Ready for implementation planning |
+| **Status** | Historical; superseded for event alerts by IIC-FORGE-09 and the 2026-06-03 persona-cost redesign |
 | **Supersedes** | — |
 | **Amends** | — (operates within F1 schema + F3 sensing output; adds five `ALTER TABLE … ADD COLUMN` statements only) |
 | **Relates to** | [IIC-FORGE-03 program design](2026-05-25-iic-forge-program-design.md) §3 architecture, §6 state schema, §7-F4 exit gate, Appendix A; [IIC-FORGE-04 F1 plan](../plans/2026-05-25-iic-forge-04-f1-decision-core.md); [IIC-FORGE-06 F3 design](2026-05-26-iic-forge-06-f3-sensing-triage-design.md) |

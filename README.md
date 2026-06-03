@@ -3,8 +3,8 @@
 > An always-on, **local-first investment-intelligence desk** built on the
 > [TradingAgents](https://github.com/TauricResearch/TradingAgents) multi-agent
 > LLM core. It senses the market 24/7, triages what matters, and — **on your
-> approval** — runs a multi-persona analysis and delivers a brief you can act
-> on, refine, or backtest.
+> approval** — runs an enriched TradingAgents analysis and delivers a brief you
+> can act on, refine, or backtest.
 
 IIC-FORGE wraps the TradingAgents research framework (a multi-agent LLM
 stock-analysis graph) in a stateful, persistent pipeline coordinated by a
@@ -24,10 +24,10 @@ Secretary and state store:
 
 - **Event-triggered alerts** — when triage flags a significant event for a
   watchlist instrument, you get a **terse light alert** asking whether to
-  commission a full study. The heavy multi-persona analysis runs **only after
-  you approve** (see *The approval gate* below).
+  commission a full study. The heavy analysis runs **only after you approve**
+  (see *The approval gate* below).
 - **Morning digest** — a scheduled daily brief over the watchlist.
-- **On-demand deep-dive** — you pick a ticker; you get a multi-persona brief
+- **On-demand deep-dive** — you pick a ticker; you get a full research brief
   with risk debate, synchronously.
 
 ## Architecture
@@ -44,8 +44,8 @@ telegram ─┘            watchlist                      │  no study yet)    
                                           ┌─────────────────────────┐            │
    on-demand CLI ───────────────────────►│  approve? (you decide)  │            ▼
    morning timer ──────────────────────► │  telegram buttons / CLI  │   TradingAgents graph
-                                          └────────────┬────────────┘   × N personas ‖
-                                                       │ approved              │
+                                          └────────────┬────────────┘   balanced IIC
+                                                       │ approved      persona overlay
                                                        ▼                       ▼
                                           worker leases job ───────►   STATE (SQLite + fs)
                                           runs the full study         runs, briefs, events,
@@ -79,8 +79,8 @@ Event alerts **do not** auto-run the expensive study. The flow is
    tradingagents forge alert dismiss <brief-id>
    ```
 3. On approval the **action-handler** enqueues the existing heavy `event_alert`
-   job; the **worker** runs the full multi-persona study and links the full
-   brief back to the light one via `parent_brief_id`.
+   job; the **worker** runs the full balanced TradingAgents study and links
+   the full brief back to the light one via `parent_brief_id`.
 
 Because studies fire at *your* approval rate, the F4 SLA is **alert latency**
 (event → light-alert, p95 ≤ 5 min), not study throughput. The legacy
@@ -88,12 +88,18 @@ auto-enqueue path is retained behind `alert_approval_gate_enabled=False`.
 
 ## How a study works (the personas)
 
-A full study runs the **three starter personas** — `macro`, `value`,
-`momentum` — each a complete TradingAgents graph with its own analyst set, LLM
-tier, and risk lean (config under `tradingagents/personas/*.yaml`). They run in
-parallel; a single persona failure degrades the brief rather than failing the
-job. The Secretary then synthesizes their outputs into three sections that
-**preserve disagreement**: **Consensus**, **Divergence**, **Recommendation**.
+The default full study runs **one TradingAgents graph** with the enriched
+`balanced` IIC persona overlay. That overlay modifies the native TradingAgents
+analyst, researcher, trader, and risk roles in-place; it is not a second layer
+of outer personas wrapped around the original graph.
+
+After the default full brief, directed follow-ups reuse the persisted
+**Analysis Pack** context so a request like "make this more aggressive" can
+focus the next run instead of replaying every prompt from scratch.
+
+Committee mode is explicit and opt-in. It runs the `value`, `momentum`, and
+`macro` profiles only when the operator asks for comparison, disagreement
+analysis, or a committee-style second opinion.
 
 Persona memory is **hybrid**: decision-maker reflections are partitioned per
 `(persona_id, component)` (no cross-persona leakage), while a shared
@@ -106,7 +112,7 @@ similarity.
 |---|---|---|
 | Sensing | `tradingagents/sensing/` | 24/7 ingest → dedupe → salience → watchlist |
 | Orchestration | `tradingagents/orchestrator/` | promote events → light alert → on approval, lease + run study |
-| Analysis | `tradingagents/graph/`, `tradingagents/agents/` | the TradingAgents multi-persona graph |
+| Analysis | `tradingagents/graph/`, `tradingagents/agents/` | the TradingAgents graph with IIC persona overlays |
 | Secretary | `tradingagents/secretary/` | compose light alerts, full briefs, digest, refinement |
 | Delivery | `tradingagents/delivery/` | telegram / email / cli channels + bot |
 | Dashboard | `tradingagents/dashboard/` | Streamlit ops panel |
@@ -122,15 +128,15 @@ measurable exit gate (`scripts/f*_exit_gate.py`) whose report lands in
 |---|---|---|
 | F0 | Forge the fork — base engine + capabilities | ✅ |
 | F1 | Decision core: stateful Secretary, personas, persistence, deep-dive | ✅ |
-| F2 | Validation: backtest + benchmark harness | ⏳ schema in place; harness not built (action-handler inserts a `stub_pending_f2` row) |
+| F2 | Validation: backtest + benchmark harness | ✅ restored from `origin/feat/iic-forge-05-f2` and wired to accepted backtest actions |
 | F3 | Always-on sensing + triage — 24h soak gate **passed** | ✅ |
 | F4 | Autonomous trigger loop, reworked into the **approval gate** (IIC-FORGE-09) | ✅ |
 | F5 | Delivery + operations (3 channels, scheduler, dashboard, refinement) | ✅ |
 | F6 | Geospatial LiveMap (read-only) | ⬜ not started |
 
-> Because the approval gate fuses the F4 trigger loop with F5 delivery, the
-> separate F4/F5 exit gates are slated to be rewritten as one combined
-> F4+F5 gate.
+> The approval gate fuses the F4 trigger loop with F5 delivery. Use
+> `scripts/f4_f5_exit_gate.py` for the combined approval-through-delivery exit
+> gate.
 
 ## Quickstart
 
@@ -173,6 +179,7 @@ tradingagents forge sense sweep-watchlist      # TTL prune
 
 # Orchestrator
 tradingagents forge orchestrator status        # queue + recent jobs
+python scripts/f4_f5_exit_gate.py --since 2026-06-03T09:00:00Z --window-hours 12
 
 # Event-alert approval gate
 tradingagents forge alert list                 # pending light alerts
@@ -254,6 +261,9 @@ sudo systemctl start iic-telegram-bot
   explicit approval before any expensive analysis; refinement re-runs analysis
   with the operator's overrides; backtests and refinements are **never**
   auto-triggered.
+- **Default analysis is one balanced graph** — IIC enriches the native
+  TradingAgents roles in-place. Committee mode is explicit and reserved for
+  comparison or disagreement analysis.
 - **Disagreement is signal** — synthesis renders Consensus / Divergence /
   Recommendation; the divergence section is never averaged away.
 - **Cost guards ship disabled** — rate/budget guards are coded but
@@ -279,7 +289,7 @@ that need real keys must `load_dotenv(override=True)` inside the test body.
 
 IIC-FORGE is a downstream application of the
 [TradingAgents](https://github.com/TauricResearch/TradingAgents) framework by
-Tauric Research. The multi-persona analysis graph (`tradingagents/agents/`,
+Tauric Research. The multi-agent analysis graph (`tradingagents/agents/`,
 `tradingagents/graph/`) is theirs; IIC-FORGE adds the sensing, orchestration,
 secretary, delivery, and operations layers around it.
 

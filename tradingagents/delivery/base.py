@@ -2,7 +2,7 @@
 
 Every channel inherits from DeliveryChannel and implements ``_send_impl``.
 The base ``send()`` handles:
-  - quiet-hours gating (event_alert only)
+  - quiet-hours gating (event_alert and event_alert_light)
   - writing the deliveries row on success / failure / skip
   - returning the delivery_id
 

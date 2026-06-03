@@ -1,6 +1,6 @@
-"""Quiet-hours predicate used by the delivery base to skip event_alert sends.
+"""Quiet-hours predicate used by the delivery base to skip alert sends.
 
-Per IIC-FORGE-08 D5: quiet hours apply to event_alert only — morning_digest
+Quiet hours apply to ``event_alert`` and ``event_alert_light``; morning_digest
 and deep_dive bypass. The bypass gate lives in base.send(), not here.
 """
 
