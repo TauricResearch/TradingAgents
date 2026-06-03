@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchWatchlist, fetchPrices } from "./lib/api";
 import { useUi } from "./store/ui";
 import { useRunStream } from "./hooks/useRunStream";
+import { useFocusedRunEvents } from "./hooks/useFocusedRunEvents";
+import { useRestoredRunEvents } from "./hooks/useRestoredRunEvents";
 import { WatchlistRail } from "./components/WatchlistRail";
 import { TickerHeader } from "./components/TickerHeader";
 import { StageGrid } from "./components/StageGrid";
@@ -18,7 +20,7 @@ export default function App() {
   // active run for the *focused* ticker only; the WS hook is short-lived
   // and re-opens when focus or the underlying run id changes.
   const runId = useUi((s) => (focused ? s.activeRunIdByTicker[focused] ?? null : null));
-  const events = useUi((s) => s.eventBuffer);
+  const events = useFocusedRunEvents();
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery({
     queryKey: ["watchlist"],
     queryFn: fetchWatchlist,
@@ -27,6 +29,7 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   useRunStream(runId);
+  useRestoredRunEvents(focused);
 
   useEffect(() => {
     if (!focused && watchlist.length > 0) setFocused(watchlist[0].ticker);
