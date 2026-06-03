@@ -49,6 +49,15 @@ def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
             pass
 
 
+def get_market_snapshot(
+    ticker: str,
+    curr_date: str,
+    lookback_days: int = 10,
+    stale_after_seconds: int = 900,
+) -> str:
+    raise DataVendorError("futu.get_market_snapshot unavailable before Task 5")
+
+
 def get_options_chain(symbol: str, expiration: str = "") -> str:
     """Options chain via ctx.get_option_chain(...) then get_market_snapshot(...) for IV/greeks.
 

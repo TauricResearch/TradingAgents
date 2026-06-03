@@ -57,6 +57,15 @@ def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
     raise DataVendorError("polygon.get_stock_data: response formatter not implemented yet")
 
 
+def get_market_snapshot(
+    ticker: str,
+    curr_date: str,
+    lookback_days: int = 10,
+    stale_after_seconds: int = 900,
+) -> str:
+    raise DataVendorError("polygon.get_market_snapshot unavailable before Task 6")
+
+
 def get_options_chain(symbol: str, expiration: str = "") -> str:
     """Options snapshot via /v3/snapshot/options/{symbol}.
 

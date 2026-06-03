@@ -169,6 +169,8 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     "news_article_limit": 20,             # max articles per ticker (ticker-news)
     "global_news_article_limit": 12,      # max articles for global/macro news
     "global_news_lookback_days": 7,       # macro news lookback window
+    "market_data_stale_after_seconds": 900,
+    "market_data_cache_ttl_seconds": 900,
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [
@@ -181,7 +183,8 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
+        "core_stock_apis": "yfinance, akshare, futu, polygon",
+        "market_snapshot": "yfinance, akshare, futu, polygon",
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
