@@ -18,7 +18,7 @@ def data_root(tmp_path, monkeypatch):
     return data, cache
 
 
-def test_write_json_atomic_survives_concurrent_reader(tmp_path, data_root):
+def test_write_json_atomic_overwrites_existing_file(tmp_path, data_root):
     target = tmp_path / "config.json"
     storage.write_json_atomic(target, {"v": 1})
     with open(target, "r", encoding="utf-8") as reader:
@@ -115,4 +115,22 @@ def test_clear_ticker_data_removes_both_data_dir_and_checkpoint(tmp_path, data_r
 
 
 def test_clear_ticker_data_is_noop_when_missing(tmp_path, data_root):
+    """If neither the data dir nor the checkpoint file exists, clear_ticker_data
+    is a no-op and does not raise.
+    """
     storage.clear_ticker_data("ZZZZ")  # should not raise
+    assert not (data_root[0] / "ZZZZ").exists()
+
+
+def test_clear_ticker_data_handles_partial_existence(tmp_path, data_root):
+    """Works whether one of the two targets is missing or both exist."""
+    data, cache = data_root
+    # Only data dir, no checkpoint
+    (data / "AAPL" / "run1").mkdir(parents=True)
+    storage.clear_ticker_data("AAPL")
+    assert not (data / "AAPL").exists()
+    # Only checkpoint, no data dir
+    (cache / "checkpoints").mkdir(parents=True, exist_ok=True)
+    (cache / "checkpoints" / "MSFT.db").touch()
+    storage.clear_ticker_data("MSFT")
+    assert not (cache / "checkpoints" / "MSFT.db").exists()
