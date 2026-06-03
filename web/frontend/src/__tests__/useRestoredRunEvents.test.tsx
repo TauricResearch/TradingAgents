@@ -22,6 +22,7 @@ beforeEach(() => {
   useUi.setState({
     eventBuffer: [],
     lastRunIdByTicker: {},
+    historicalRunIdByTicker: {},
     activeRunIdByTicker: {},
     focusedTicker: null,
   });
@@ -98,5 +99,63 @@ describe("useRestoredRunEvents", () => {
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(7));
     rerender({ focused: "AAPL" });
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(8));
+  });
+
+  it("fetches the historical run, not the latest, when both are set", async () => {
+    // Regression: useRestoredRunEvents used to key on lastRunIdByTicker
+    // only, so picking a historical run from the dropdown left the
+    // timeline empty (useFocusedRunEvents displayed historical events
+    // but the hook never fetched them from the DB).
+    useUi.setState({
+      focusedTicker: "NVDA",
+      lastRunIdByTicker: { NVDA: 11 },
+      historicalRunIdByTicker: { NVDA: 5 },
+    });
+    const fetchSpy = vi.spyOn(api, "fetchRunDetail").mockImplementation(async (id) => ({
+      run: { id, ticker: "NVDA", started_at: null, finished_at: null,
+             status: "done", decision_action: null, decision_target: null,
+             decision_rationale: null, decision_confidence: null },
+      events: [evt(id, "analyst_thinking", 1), evt(id, "analyst_completed", 2)],
+    }));
+    renderHook(() => useRestoredRunEvents("NVDA"), { wrapper: createWrapper() });
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(5));
+    await waitFor(() => {
+      const buf = useUi.getState().eventBuffer;
+      expect(buf).toHaveLength(2);
+      expect(buf.every((e) => e.run_id === 5)).toBe(true);
+    });
+    expect(fetchSpy).not.toHaveBeenCalledWith(11);
+  });
+
+  it("refetches when the user picks a different historical run", async () => {
+    useUi.setState({
+      focusedTicker: "NVDA",
+      lastRunIdByTicker: { NVDA: 11 },
+      historicalRunIdByTicker: { NVDA: 5 },
+    });
+    const fetchSpy = vi.spyOn(api, "fetchRunDetail").mockImplementation(async (id) => ({
+      run: { id, ticker: "NVDA", started_at: null, finished_at: null,
+             status: "done", decision_action: null, decision_target: null,
+             decision_rationale: null, decision_confidence: null },
+      events: [evt(id, "analyst_thinking", 1)],
+    }));
+    renderHook(() => useRestoredRunEvents("NVDA"), { wrapper: createWrapper() });
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(5));
+    // User picks a different historical run from the dropdown.
+    useUi.getState().setHistoricalRunForTicker?.("NVDA", 7);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(7));
+  });
+
+  it("clears the historical run id on 404", async () => {
+    useUi.setState({
+      focusedTicker: "NVDA",
+      lastRunIdByTicker: { NVDA: 11 },
+      historicalRunIdByTicker: { NVDA: 5 },
+    });
+    vi.spyOn(api, "fetchRunDetail").mockRejectedValue(new Error("run 404"));
+    renderHook(() => useRestoredRunEvents("NVDA"), { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(useUi.getState().historicalRunIdByTicker.NVDA ?? null).toBeNull();
+    });
   });
 });
