@@ -18,7 +18,8 @@ from tradingagents.graph.checkpointer import (
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
-from web.server import db, events
+from web.server import events, storage
+from web.server import queries as queries_module
 from web.server.retry import compute_backoff, detect_rate_limit
 
 
@@ -58,6 +59,26 @@ _STAGE_MAP = {
     "Conservative Analyst": ("risk", None),
     "Neutral Analyst": ("risk", None),
 }
+
+
+_NODE_STATE_KEY = {
+    "market_analyst": "market_report",
+    "social_analyst": "sentiment_report",
+    "news_analyst": "news_report",
+    "fundamentals_analyst": "fundamentals_report",
+    "bull_researcher": "investment_debate_state.bull_history",
+    "bear_researcher": "investment_debate_state.bear_history",
+    "research_manager": "investment_plan",
+    "trader": "trader_investment_plan",
+    "risky_analyst": "risk_debate_state.risky_history",
+    "safe_analyst": "risk_debate_state.safe_history",
+    "neutral_analyst": "risk_debate_state.neutral_history",
+    "risk_manager": "final_trade_decision",
+}
+
+
+def _state_key_for_node(node_name: str) -> str:
+    return _NODE_STATE_KEY.get(node_name, node_name)
 
 
 def _stage_summary_for_node(node_name: str, delta: dict):
@@ -185,11 +206,163 @@ async def _worker_loop() -> None:
 
 
 async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: asyncio.Semaphore) -> None:
-    """Execute a single run. Full implementation in Task 11."""
+    """Execute a single run with file-based storage."""
     global _active
+    t_start = time.monotonic()
     try:
-        _active += 1
-        log.warning("_run_one stub called for %s — Task 11 will implement", run_id)
+        run_json = storage.read_run(run_id)
+        if run_json is None:
+            return
+        if run_json.get("cancel_requested"):
+            storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error="cancelled")
+            events.emit(run_id, "run_failed", {"reason": "cancelled"})
+            return
+
+        events.emit(run_id, "run_started", {"ticker": ticker})
+
+        from web.server.callbacks import CaptureCallbackHandler, StreamingCallbackHandler
+        stream_handler = StreamingCallbackHandler(run_id=run_id)
+        capture_handler = CaptureCallbackHandler(run_id=run_id, ticker=ticker)
+
+        loop = asyncio.get_event_loop()
+
+        config = {
+            **DEFAULT_CONFIG,
+            "ticker": ticker,
+            "trade_date": date_str,
+            "checkpoint_enabled": True,
+        }
+        graph = build_graph(config, callbacks=[stream_handler, capture_handler])
+
+        def cb(node_name: str, payload: dict) -> None:
+            rj = storage.read_run(run_id)
+            if rj and rj.get("cancel_requested"):
+                raise _CancelSentinel()
+            if node_name == "node_entered":
+                capture_handler.current_node = payload.get("node", node_name)
+                events.emit(run_id, "analyst_started", {"node": payload.get("node", node_name), **payload})
+            elif node_name == "node_exited":
+                stage, summary, excerpt, full_text = _stage_summary_for_node(
+                    payload.get("node", ""), payload.get("delta", {})
+                )
+                if stage is None:
+                    return
+                data: dict = {"stage": stage, "summary": summary}
+                if excerpt:
+                    data["report_excerpt"] = excerpt
+                if full_text:
+                    data["report_text"] = full_text
+                events.emit(run_id, "analyst_completed", data)
+                # Persist the stage result to disk.
+                node = payload.get("node", "")
+                stage_name = _STAGE_MAP.get(node, (node,))[0]
+                storage.write_stage(
+                    run_id,
+                    stage_name,
+                    {
+                        "stage": stage_name,
+                        "node": node,
+                        "state_key": _state_key_for_node(node),
+                        "completed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                        "duration_ms": 0,
+                        "value": summary,
+                    },
+                )
+            else:
+                events.emit(run_id, node_name, payload)
+
+        def _do_propagate():
+            return graph.propagate(ticker, date_str, event_callback=cb)
+
+        final_state = None
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                final_state, final_signal = await loop.run_in_executor(None, _do_propagate)
+                break
+            except _CancelSentinel:
+                storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error="cancelled")
+                events.emit(run_id, "run_failed", {"reason": "cancelled"})
+                return
+            except asyncio.CancelledError:
+                storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error="cancelled")
+                events.emit(run_id, "run_failed", {"reason": "cancelled"})
+                return
+            except Exception as e:
+                if detect_rate_limit(e) and attempt < MAX_ATTEMPTS - 1:
+                    wait_s = compute_backoff(attempt, e, max_s=MAX_BACKOFF_S)
+                    events.emit(run_id, "tool_call_warning", {
+                        "message": f"rate limited; sleeping {wait_s:.1f}s before retry {attempt+1}/{MAX_ATTEMPTS-1}",
+                        "retry_after_s": wait_s,
+                        "exception_class": type(e).__name__,
+                    })
+                    log.warning(
+                        "rate limit rid=%s attempt=%d sleep_s=%.2f exc=%s",
+                        run_id, attempt, wait_s, type(e).__name__,
+                    )
+                    await asyncio.sleep(wait_s)
+                    continue
+                is_rate_limit = detect_rate_limit(e)
+                log.exception(
+                    "run failed rid=%s ticker=%s attempt=%d rate_limit=%s",
+                    run_id, ticker, attempt, is_rate_limit,
+                )
+                storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error=f"{type(e).__name__}: {e}")
+                events.emit(run_id, "run_failed", {
+                    "reason": "rate_limited" if is_rate_limit else "exception",
+                    "exception_class": type(e).__name__,
+                    "message": str(e),
+                    "traceback": _format_traceback(e),
+                })
+                return
+
+        rj = storage.read_run(run_id)
+        if rj and rj.get("cancel_requested"):
+            storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error="cancelled")
+            events.emit(run_id, "run_failed", {"reason": "cancelled"})
+            return
+
+        decision = (final_state or {}).get("decision") or {}
+        action = decision.get("action")
+        target = decision.get("target")
+        rationale = decision.get("rationale", "")
+        confidence = decision.get("confidence", 0.0)
+        events.emit(run_id, "decision", {
+            "action": action,
+            "target": target,
+            "rationale": rationale,
+            "confidence": confidence,
+        })
+        storage.mark_run_status(
+            run_id,
+            status="done",
+            finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            decision_action=action or "HOLD",
+            decision_target=target,
+            decision_rationale=rationale,
+            decision_confidence=confidence,
+        )
+        queries_module.update_last_decision(
+            ticker,
+            run_id,
+            f"{action} @ {target}" if target else (action or ""),
+            datetime.now(timezone.utc),
+        )
+        duration_s = round(time.monotonic() - t_start, 2)
+        summary_by_stage = {}
+        if final_state:
+            for stage_key, field in (
+                ("market", "market_report"),
+                ("sentiment", "sentiment_report"),
+                ("news", "news_report"),
+                ("fundamentals", "fundamentals_report"),
+            ):
+                excerpt = final_state.get(field) or ""
+                if excerpt:
+                    summary_by_stage[stage_key] = excerpt[:200]
+        events.emit(run_id, "run_finished", {
+            "duration_s": duration_s,
+            "summary_by_stage": summary_by_stage,
+        })
     finally:
         _active -= 1
         sem.release()
