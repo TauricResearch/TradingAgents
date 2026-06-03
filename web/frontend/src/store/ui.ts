@@ -10,6 +10,12 @@ interface UiState {
   // explicitly resets (or, eventually, when the ticker is removed from
   // the watchlist).
   lastRunIdByTicker: Record<string, number | null>;
+  // User-picked historical run id per ticker. When set, the
+  // event-display hook prefers this over lastRunIdByTicker so the user
+  // can inspect an older run without it being overwritten by a newer
+  // one streaming in. Cleared when the user "resets" to the live view
+  // (e.g. starts a new run, switches tickers).
+  historicalRunIdByTicker: Record<string, number | null>;
   // Run id currently being WS-streamed per ticker. Cleared on terminal
   // events (run_finished / run_failed). Drives `useRunStream` so the
   // hook only opens a WS for the focused ticker while it's still live.
@@ -23,6 +29,8 @@ interface UiState {
   setLastRunIdForTicker: (ticker: string, runId: number | null) => void;
   setActiveRunIdForTicker: (ticker: string, runId: number | null) => void;
   clearActiveRunForTicker: (ticker: string) => void;
+  setHistoricalRunForTicker: (ticker: string, runId: number | null) => void;
+  clearHistoricalRunForTicker: (ticker: string) => void;
   appendEvent: (e: WsEvent) => void;
   restoreEvents: (runId: number, events: WsEvent[]) => void;
   clearLastRunIdForTicker: (ticker: string) => void;
@@ -34,6 +42,7 @@ export const useUi = create<UiState>()(
     (set) => ({
       focusedTicker: null,
       lastRunIdByTicker: {},
+      historicalRunIdByTicker: {},
       activeRunIdByTicker: {},
       eventBuffer: [],
       setFocusedTicker: (t) => set({ focusedTicker: t }),
@@ -43,6 +52,14 @@ export const useUi = create<UiState>()(
         set((s) => ({ activeRunIdByTicker: { ...s.activeRunIdByTicker, [ticker]: runId } })),
       clearActiveRunForTicker: (ticker) =>
         set((s) => ({ activeRunIdByTicker: { ...s.activeRunIdByTicker, [ticker]: null } })),
+      setHistoricalRunForTicker: (ticker, runId) =>
+        set((s) => ({ historicalRunIdByTicker: { ...s.historicalRunIdByTicker, [ticker]: runId } })),
+      clearHistoricalRunForTicker: (ticker) =>
+        set((s) => {
+          const next = { ...s.historicalRunIdByTicker };
+          delete next[ticker];
+          return { historicalRunIdByTicker: next };
+        }),
       appendEvent: (e) => set((s) => ({ eventBuffer: [...s.eventBuffer, e].slice(-1000) })),
       restoreEvents: (runId, events) => set((s) => {
         const others = s.eventBuffer.filter((e) => e.run_id !== runId);
@@ -64,10 +81,13 @@ export const useUi = create<UiState>()(
       // omitted: active runs are re-derived on hydration from the
       // server, and the event buffer is for live streaming only (a
       // 1000-event buffer re-stringified on every WS append would
-      // dominate the main thread during a busy run).
+      // dominate the main thread during a busy run). The historical
+      // run selection IS persisted so the user can refresh and keep
+      // viewing the same older run.
       partialize: (s) => ({
         focusedTicker: s.focusedTicker,
         lastRunIdByTicker: s.lastRunIdByTicker,
+        historicalRunIdByTicker: s.historicalRunIdByTicker,
       }),
     },
   ),
