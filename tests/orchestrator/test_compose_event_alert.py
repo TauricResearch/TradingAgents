@@ -91,6 +91,7 @@ def test_compose_event_alert_writes_brief(setup, monkeypatch):
     assert b["mode"] == "event_alert"
     assert b["trigger_event_id"] == "ev1"
     assert b["scope"] == "AAPL"
+    assert b["analysis_pack_id"] is not None
 
     # markdown file written; contains the trigger event text
     md_path = Path(data_dir) / "briefs" / f"{brief_id}.md"
@@ -98,6 +99,16 @@ def test_compose_event_alert_writes_brief(setup, monkeypatch):
     content = md_path.read_text()
     assert "Apple beats Q3 earnings by 12%." in content
     assert "BUY (high confidence)" in content
+
+    pack = conn.execute(
+        "SELECT * FROM analysis_packs WHERE pack_id = ?",
+        (b["analysis_pack_id"],),
+    ).fetchone()
+    assert pack is not None
+    pack_body = json.loads((Path(data_dir) / pack["content_path"]).read_text())
+    assert pack_body["event_id"] == "ev1"
+    assert pack_body["ticker"] == "AAPL"
+    assert pack_body["event_context"] == "Apple beats Q3 earnings by 12%."
 
 
 @pytest.mark.unit

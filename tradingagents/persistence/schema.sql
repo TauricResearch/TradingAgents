@@ -123,6 +123,19 @@ CREATE TABLE IF NOT EXISTS backtest_runs (
     metrics         TEXT NOT NULL                                -- JSON: sharpe, total_return, win_rate, ...
 );
 
+CREATE TABLE IF NOT EXISTS analysis_packs (
+    pack_id        TEXT PRIMARY KEY,
+    event_id       TEXT REFERENCES events(event_id),
+    ticker         TEXT NOT NULL,
+    trade_date     TEXT NOT NULL,
+    source_run_ids TEXT NOT NULL,
+    content_path   TEXT NOT NULL,
+    created_ts     TEXT NOT NULL,
+    version        INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_analysis_packs_event_ticker
+    ON analysis_packs(event_id, ticker);
+
 -- ============================================================
 -- F3 tables — defined upfront, populated when F3 ships
 -- ============================================================
@@ -228,6 +241,8 @@ ALTER TABLE queue_jobs ADD COLUMN error             TEXT;
 ALTER TABLE briefs     ADD COLUMN trigger_event_id  TEXT REFERENCES events(event_id);
 
 ALTER TABLE runs       ADD COLUMN queue_job_id      INTEGER REFERENCES queue_jobs(job_id);
+ALTER TABLE briefs     ADD COLUMN analysis_pack_id  TEXT REFERENCES analysis_packs(pack_id);
+ALTER TABLE runs       ADD COLUMN analysis_pack_id  TEXT REFERENCES analysis_packs(pack_id);
 
 CREATE INDEX IF NOT EXISTS idx_queue_jobs_trigger_event
     ON queue_jobs(trigger_event_id);

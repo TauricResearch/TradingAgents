@@ -252,6 +252,32 @@ class Secretary:
             parent_brief_id=parent_brief_id,
             trigger_event_id=event_id,
         )
+        from tradingagents.analysis_pack.builder import build_pack_content_from_runs
+        from tradingagents.analysis_pack.store import create_analysis_pack
+
+        pack_content = build_pack_content_from_runs(
+            conn=self._conn,
+            data_dir=self._data_dir,
+            event_id=event_id,
+            ticker=ticker,
+            trade_date=trade_date,
+            event_context=raw_text,
+            run_ids=run_ids,
+        )
+        pack_id = create_analysis_pack(
+            conn=self._conn,
+            data_dir=self._data_dir,
+            event_id=event_id,
+            ticker=ticker,
+            trade_date=trade_date,
+            source_run_ids=run_ids,
+            content=pack_content,
+        )
+        store.update_brief_analysis_pack(
+            self._conn,
+            brief_id=brief_id,
+            analysis_pack_id=pack_id,
+        )
         return brief_id
 
     def compose_event_alert_light(

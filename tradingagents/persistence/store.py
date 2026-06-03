@@ -541,3 +541,16 @@ def update_brief_refine_metadata(
         (refine_depth, json.dumps(refine_overrides), brief_id),
     )
     conn.commit()
+
+
+def update_brief_analysis_pack(
+    conn: sqlite3.Connection,
+    *,
+    brief_id: str,
+    analysis_pack_id: str,
+) -> None:
+    conn.execute(
+        "UPDATE briefs SET analysis_pack_id = ? WHERE brief_id = ?",
+        (analysis_pack_id, brief_id),
+    )
+    conn.commit()
