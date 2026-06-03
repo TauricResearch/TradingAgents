@@ -193,3 +193,6 @@ app.add_typer(digest_app, name="digest")
 
 from cli.action_handler import action_handler_app  # noqa: E402
 app.add_typer(action_handler_app, name="action-handler")
+
+from cli.alert import alert_app  # noqa: E402
+app.add_typer(alert_app, name="alert")

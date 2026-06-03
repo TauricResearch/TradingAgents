@@ -9,8 +9,11 @@ def test_default_config_has_f4_keys():
     assert C["promoter_poll_interval_s"] == 10
     assert C["promoter_batch_size"] == 50
     assert C["alert_cooldown_min"] == 60
-    assert C["alert_salience_threshold"] == 0.7
-    assert C["alert_ticker_confidence_threshold"] == 0.8
+    assert C["alert_salience_threshold"] == 0.85
+    assert C["alert_ticker_confidence_threshold"] == 0.9
+    # F4 approval gate (IIC-FORGE-09)
+    assert C["alert_approval_gate_enabled"] is True
+    assert C["alert_pending_ttl_hours"] == 24
     assert C["worker_poll_interval_s"] == 2
     assert C["worker_job_timeout_min"] == 20
     assert C["max_concurrent_jobs"] == 1

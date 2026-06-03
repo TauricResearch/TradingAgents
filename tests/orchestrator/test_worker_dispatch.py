@@ -49,7 +49,7 @@ def test_dispatch_event_alert_calls_secretary_with_payload(setup):
     result = dispatch_event_alert(conn, job, secretary=sec)
 
     sec.compose_event_alert.assert_called_once_with(
-        event_id="ev1", ticker="AAPL", job_id=1
+        event_id="ev1", ticker="AAPL", job_id=1, parent_brief_id=None
     )
     assert result["brief_id"] == "b1"
     assert result["run_ids"] == []
@@ -111,3 +111,35 @@ def test_dispatch_unknown_job_type_raises(setup):
            "trigger_event_id": None}
     with pytest.raises(ValueError, match="unknown job_type"):
         dispatch(conn, job, secretary=sec)
+
+
+@pytest.mark.unit
+def test_dispatch_event_alert_links_parent_light_brief(tmp_path):
+    import json
+    from unittest.mock import MagicMock
+    from tradingagents.persistence.db import connect
+    from tradingagents.persistence import store
+    from tradingagents.orchestrator.dispatch import dispatch_event_alert
+
+    conn = connect(str(tmp_path / "iic.db"))
+    store.insert_event(conn, event_id="ev1", source="rss",
+                       ingested_ts="2026-06-01T00:00:00+00:00", salience=0.9,
+                       raw_path=None, status="triaged", deduped_of=None)
+    # a light brief already exists for this event
+    store.insert_brief(conn, brief_id="lb1", mode="event_alert_light",
+                       scope='["NVDA"]', generated_ts="2026-06-01T00:00:00+00:00",
+                       content_path="briefs/lb1.md", run_ids=[],
+                       trigger_event_id="ev1")
+    # full brief the secretary is mocked to produce
+    store.insert_brief(conn, brief_id="fb1", mode="event_alert", scope="NVDA",
+                       generated_ts="2026-06-01T00:10:00+00:00",
+                       content_path="briefs/fb1.md", run_ids=["r1"],
+                       parent_brief_id="lb1", trigger_event_id="ev1")
+    sec = MagicMock()
+    sec.compose_event_alert.return_value = "fb1"
+
+    job = {"job_id": 1, "payload": json.dumps({"event_id": "ev1", "ticker": "NVDA"})}
+    dispatch_event_alert(conn, job, secretary=sec)
+
+    _, kwargs = sec.compose_event_alert.call_args
+    assert kwargs["parent_brief_id"] == "lb1"

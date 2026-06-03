@@ -83,14 +83,53 @@ def drain_one(
 
 _shutdown = False
 
+# How often the worker re-checks _shutdown while a job is in flight. Bounds how
+# long a stop signal takes to be honored mid-job instead of blocking for the
+# whole per-job wall-clock cap (worker_job_timeout_min).
+_SHUTDOWN_POLL_S = 2.0
+
 
 def _install_signal_handlers():
     def _handler(signum, frame):
         global _shutdown
         _shutdown = True
-        log.info("received signal %s; shutting down after current job", signum)
+        log.info("received signal %s; stopping (in-flight job, if any, is "
+                 "abandoned and reclaimed by the stale-lease sweep)", signum)
     signal.signal(signal.SIGTERM, _handler)
     signal.signal(signal.SIGINT, _handler)
+
+
+def _await_job(fut, *, job_timeout, poll_interval=_SHUTDOWN_POLL_S):
+    """Wait for the in-flight drain future, polling in short slices.
+
+    Returns the future's result (True if a job ran, False if the queue was
+    idle) on normal completion. If a stop is requested mid-job (``_shutdown``
+    set by the signal handler on SIGTERM/SIGINT), returns ``True`` immediately
+    so the caller skips its idle sleep and the loop exits within ~poll_interval
+    — the abandoned job's lease is reclaimed by the stale-lease sweep on the
+    next boot. Raises ``FuturesTimeout`` once the job exceeds ``job_timeout``,
+    preserving the caller's S-4b abandon-and-replace handling.
+
+    Without this, ``fut.result(timeout=job_timeout)`` blocks the loop for the
+    full per-job cap (up to 20 min) before re-checking _shutdown, so
+    ``systemctl stop`` hangs until the current brief finishes.
+    """
+    deadline = time.monotonic() + job_timeout
+    while True:
+        if _shutdown:
+            log.info("stop requested mid-job; abandoning the in-flight run "
+                     "(cannot abort LangGraph) — lease reclaimed by sweep")
+            return True
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise FuturesTimeout
+        try:
+            return fut.result(timeout=min(poll_interval, remaining))
+        except FuturesTimeout:
+            if time.monotonic() >= deadline:
+                raise
+            # Only a poll slice elapsed — loop to re-check _shutdown.
+            continue
 
 
 def main(config: Optional[dict] = None) -> None:
@@ -181,7 +220,10 @@ def main(config: Optional[dict] = None) -> None:
             try:
                 fut = ex.submit(_drain_once)
                 try:
-                    ran = fut.result(timeout=job_timeout)
+                    # Poll in short slices so a stop signal (which sets
+                    # _shutdown) is honored within ~_SHUTDOWN_POLL_S rather than
+                    # blocking here for the whole per-job wall-clock cap.
+                    ran = _await_job(fut, job_timeout=job_timeout)
                 except FuturesTimeout:
                     # Non-blocking timeout (S-4b): we do NOT join the runaway
                     # thread. Abandon the future, replace the wedged executor

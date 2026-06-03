@@ -391,6 +391,18 @@ def fetch_actions(conn: sqlite3.Connection, *, state: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def fetch_pending_run_full_study(conn: sqlite3.Connection) -> list[dict]:
+    """All pending run_full_study actions (one per awaiting ticker), oldest
+    first. Used by the `forge alert` CLI and the exit-gate evaluator."""
+    rows = conn.execute(
+        "SELECT a.*, b.trigger_event_id, b.scope "
+        "FROM brief_actions a JOIN briefs b ON b.brief_id = a.brief_id "
+        "WHERE a.action_type = 'run_full_study' AND a.state = 'pending' "
+        "ORDER BY a.action_id",
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def fetch_accepted_undispatched(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM brief_actions "

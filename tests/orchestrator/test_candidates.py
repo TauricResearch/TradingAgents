@@ -123,3 +123,25 @@ def test_limit_respected_and_ordered_by_ingested_ts(conn):
     rows = fetch_candidates(conn, salience_threshold=0.7,
                             ticker_conf_threshold=0.8, limit=2)
     assert [r["event_id"] for r in rows] == ["ev0", "ev1"]
+
+
+@pytest.mark.unit
+def test_fetch_candidates_grouped_by_event(tmp_path):
+    from tradingagents.persistence.db import connect
+    from tradingagents.persistence import store
+    from tradingagents.orchestrator.candidates import fetch_candidates_grouped
+
+    conn = connect(str(tmp_path / "iic.db"))
+    store.upsert_watchlist(conn, ticker="NVDA", ttl_until=None, tags=["user"])
+    store.upsert_watchlist(conn, ticker="PANW", ttl_until=None, tags=["user"])
+    store.insert_event(conn, event_id="ev1", source="rss",
+                       ingested_ts="2026-06-01T00:00:00+00:00", salience=0.9,
+                       raw_path=None, status="triaged", deduped_of=None)
+    store.insert_event_ticker(conn, event_id="ev1", ticker="NVDA", confidence=1.0)
+    store.insert_event_ticker(conn, event_id="ev1", ticker="PANW", confidence=1.0)
+
+    groups = fetch_candidates_grouped(conn, salience_threshold=0.85,
+                                      ticker_conf_threshold=0.9, limit=50)
+    assert len(groups) == 1
+    assert groups[0]["event_id"] == "ev1"
+    assert sorted(groups[0]["tickers"]) == ["NVDA", "PANW"]

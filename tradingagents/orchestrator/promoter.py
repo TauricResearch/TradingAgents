@@ -15,7 +15,7 @@ from typing import Optional
 
 from tradingagents.persistence import store
 from tradingagents.persistence.db import connect
-from tradingagents.orchestrator.candidates import fetch_candidates
+from tradingagents.orchestrator.candidates import fetch_candidates, fetch_candidates_grouped
 from tradingagents.orchestrator.guards import QueueBackpressure, QueueRateGuard
 
 
@@ -35,13 +35,53 @@ def run_once(
     cooldown_min: int,
     backpressure: Optional[QueueBackpressure] = None,
     rate_guard: Optional[QueueRateGuard] = None,
+    secretary=None,
+    approval_gate_enabled: bool = False,
+    pending_ttl_hours: int = 24,
 ) -> int:
-    """Perform one poll cycle. Returns the count of jobs enqueued."""
+    """Perform one poll cycle. With the approval gate enabled, composes one
+    light alert per event (no study enqueued). Returns the count of light
+    alerts (gate) or jobs (legacy) created."""
     if backpressure is not None and not backpressure.gate(conn):
         return 0
     if rate_guard is not None and not rate_guard.gate(conn):
         return 0
 
+    if approval_gate_enabled:
+        if secretary is None:
+            raise ValueError("run_once: approval_gate_enabled requires a secretary")
+        groups = fetch_candidates_grouped(
+            conn, salience_threshold=salience_threshold,
+            ticker_conf_threshold=ticker_conf_threshold, limit=batch_size,
+        )
+        # Intra-batch dedup: the candidate query reflects the suppression table
+        # as it was when the fetch ran, but each compose writes new same-day
+        # suppressions mid-loop that the already-fetched batch can't see. Without
+        # an in-pass guard, several events naming the same ticker in one batch
+        # each spawn a light alert before suppression takes hold (cross-cycle
+        # dedup works; intra-batch did not). Track tickers alerted THIS pass and
+        # strip them from later events so a ticker fires at most once per pass.
+        seen_tickers: set = set()
+        composed = 0
+        for g in groups:
+            fresh = [t for t in g["tickers"] if t not in seen_tickers]
+            if not fresh:
+                continue
+            try:
+                secretary.compose_event_alert_light(
+                    event_id=g["event_id"], tickers=fresh,
+                    ttl_hours=pending_ttl_hours, deliver=True,
+                )
+                seen_tickers.update(fresh)
+                composed += 1
+                log.info("light alert composed event_id=%s tickers=%s",
+                         g["event_id"], fresh)
+            except Exception:
+                log.exception("light alert failed event_id=%s; continuing",
+                              g["event_id"])
+        return composed
+
+    # ----- Legacy auto-enqueue path (approval gate disabled) -----
     candidates = fetch_candidates(
         conn,
         salience_threshold=salience_threshold,
@@ -101,6 +141,17 @@ def main(config: Optional[dict] = None) -> None:
         max_per_day=cfg["trigger_daily_rate_max_jobs"],
     )
 
+    gate_enabled = cfg["alert_approval_gate_enabled"]
+    secretary = None
+    if gate_enabled:
+        from tradingagents.llm_clients.factory import create_llm_client
+        from tradingagents.secretary.service import Secretary
+        llm = create_llm_client(
+            provider=cfg["llm_provider"], model=cfg["quick_think_llm"],
+            base_url=cfg.get("backend_url"),
+        ).get_llm()
+        secretary = Secretary(conn=conn, data_dir=cfg["iic_data_dir"], llm=llm)
+
     log.info("promoter starting: poll=%ss cooldown=%sm guards: bp=%s rate=%s",
              cfg["promoter_poll_interval_s"], cfg["alert_cooldown_min"],
              backpressure.enabled, rate_guard.enabled)
@@ -115,6 +166,9 @@ def main(config: Optional[dict] = None) -> None:
                 cooldown_min=cfg["alert_cooldown_min"],
                 backpressure=backpressure,
                 rate_guard=rate_guard,
+                secretary=secretary,
+                approval_gate_enabled=gate_enabled,
+                pending_ttl_hours=cfg["alert_pending_ttl_hours"],
             )
         except KeyboardInterrupt:
             log.info("promoter shutting down on KeyboardInterrupt")

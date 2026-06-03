@@ -111,8 +111,14 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     "promoter_poll_interval_s": 10,
     "promoter_batch_size": 50,
     "alert_cooldown_min": 60,
-    "alert_salience_threshold": 0.7,
-    "alert_ticker_confidence_threshold": 0.8,
+    "alert_salience_threshold": 0.85,
+    "alert_ticker_confidence_threshold": 0.9,
+    # F4 approval gate (IIC-FORGE-09): light alert → approve → study.
+    # When False, the promoter would fall back to the legacy auto-enqueue path
+    # (kept only as an escape hatch; default behavior is the gate).
+    "alert_approval_gate_enabled": True,
+    # How long a pending run_full_study approval stays valid (1 day per spec §4).
+    "alert_pending_ttl_hours": 24,
     "worker_poll_interval_s": 2,
     "worker_job_timeout_min": 20,
     "max_concurrent_jobs": 1,

@@ -28,8 +28,17 @@ def dispatch_event_alert(
     ticker = payload["ticker"]
     job_id = job["job_id"]
 
+    # Link the full brief back to the light alert for the same event, if any.
+    parent_row = conn.execute(
+        "SELECT brief_id FROM briefs WHERE mode = 'event_alert_light' "
+        "AND trigger_event_id = ? ORDER BY generated_ts DESC LIMIT 1",
+        (event_id,),
+    ).fetchone()
+    parent_brief_id = parent_row[0] if parent_row else None
+
     brief_id = secretary.compose_event_alert(
         event_id=event_id, ticker=ticker, job_id=job_id,
+        parent_brief_id=parent_brief_id,
     )
 
     # Pull run_ids back from the brief row (compose_event_alert wrote them).

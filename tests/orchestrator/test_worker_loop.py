@@ -164,3 +164,65 @@ def test_main_loop_processes_one_job_on_pool_thread(tmp_path, monkeypatch):
                          "WHERE trigger_event_id='ev1'").fetchone()
     assert row["state"] == "done"
     assert row["brief_id"] == "b1"
+
+
+@pytest.mark.unit
+def test_main_loop_stops_promptly_when_shutdown_set_midjob(tmp_path, monkeypatch):
+    """A stop signal (which sets _shutdown) must be honored within a poll slice
+    even while a job is in flight — NOT blocked until the per-job wall-clock cap.
+
+    Regression for the `systemctl stop` hang: the worker blocked in
+    fut.result(timeout=job_timeout) and only re-checked _shutdown between jobs,
+    so stopping mid-brief waited up to ~20 min (TimeoutStopSec=1500). With the
+    bug present, main() stays blocked, _shutdown is ignored, and the join()
+    below times out → t.is_alive() asserts True → test fails."""
+    from tradingagents.orchestrator import worker as worker_mod
+
+    db = str(tmp_path / "iic.db")
+    conn = connect(db)
+    store.insert_event(conn, event_id="ev1", source="rss", ingested_ts=_now(),
+                       salience=0.9, raw_path=None, status="triaged",
+                       deduped_of=None)
+    store.insert_brief(conn, brief_id="b1", mode="event_alert", scope="AAPL",
+                       generated_ts=_now(), content_path="briefs/b1.md",
+                       run_ids=[], parent_brief_id=None, trigger_event_id="ev1")
+    queue_store.insert_queue_job(conn, job_type="event_alert",
+                                 payload=json.dumps({"event_id": "ev1",
+                                                     "ticker": "AAPL"}),
+                                 trigger_event_id="ev1")
+    conn.close()
+
+    job_started = threading.Event()
+    release = threading.Event()
+    sec = MagicMock()
+
+    def _block(**kwargs):
+        # Simulate a long in-flight job: signal that we've started, then block
+        # well past the test's join() timeout (until the test releases us).
+        job_started.set()
+        release.wait(timeout=30)
+        return "b1"
+
+    sec.compose_event_alert.side_effect = _block
+    monkeypatch.setattr(worker_mod, "_build_secretary", lambda cfg, c: sec)
+    # signal.signal() only works on the main thread; main() runs in a thread here.
+    monkeypatch.setattr(worker_mod, "_install_signal_handlers", lambda: None)
+
+    # Large per-job cap so ONLY the _shutdown path can end main() quickly —
+    # if the fix regresses, the loop blocks for the full cap and join() times out.
+    cfg = {"iic_db_path": db, "worker_poll_interval_s": 0,
+           "worker_job_timeout_min": 60, "daily_budget_enabled": False}
+
+    worker_mod._shutdown = False
+    t = threading.Thread(target=worker_mod.main, kwargs={"config": cfg},
+                         daemon=True)
+    t.start()
+    try:
+        assert job_started.wait(timeout=10), "worker never started the job"
+        worker_mod._shutdown = True            # simulate SIGTERM mid-job
+        t.join(timeout=10)
+        assert not t.is_alive(), ("worker.main did not stop promptly on "
+                                  "_shutdown — it blocked on the in-flight job")
+    finally:
+        release.set()                          # let the abandoned job thread end
+        worker_mod._shutdown = False           # reset module global for others

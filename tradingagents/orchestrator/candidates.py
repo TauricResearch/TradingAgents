@@ -44,3 +44,34 @@ def fetch_candidates(
             (salience_threshold, ticker_conf_threshold, limit),
         )
     )
+
+
+def fetch_candidates_grouped(
+    conn: sqlite3.Connection,
+    *,
+    salience_threshold: float,
+    ticker_conf_threshold: float,
+    limit: int,
+) -> List[dict]:
+    """Like fetch_candidates, but groups the per-(event,ticker) rows into one
+    dict per event: {event_id, ingested_ts, salience, tickers: [...]}. Preserves
+    event order (oldest-first). ``limit`` bounds the number of underlying rows."""
+    rows = fetch_candidates(
+        conn,
+        salience_threshold=salience_threshold,
+        ticker_conf_threshold=ticker_conf_threshold,
+        limit=limit,
+    )
+    grouped: "dict[str, dict]" = {}
+    for r in rows:
+        g = grouped.get(r["event_id"])
+        if g is None:
+            g = {
+                "event_id": r["event_id"],
+                "ingested_ts": r["ingested_ts"],
+                "salience": r["salience"],
+                "tickers": [],
+            }
+            grouped[r["event_id"]] = g
+        g["tickers"].append(r["ticker"])
+    return list(grouped.values())
