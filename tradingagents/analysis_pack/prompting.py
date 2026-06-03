@@ -12,6 +12,9 @@ def render_pack_for_followup(pack: dict[str, Any], *, max_chars: int = 12000) ->
         "Event context:",
         content.get("event_context", ""),
         "",
+        "Market snapshot:",
+        content.get("market_snapshot", ""),
+        "",
         "Key reports:",
     ]
     for key, body in content.get("reports", {}).items():

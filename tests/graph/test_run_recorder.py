@@ -1,3 +1,4 @@
+import json
 import pytest
 from pathlib import Path
 from datetime import datetime, timezone
@@ -69,6 +70,42 @@ def test_run_recorder_writes_db_row_and_artifact_files(db_and_dir, sample_state)
 
     # State is returned unchanged so it flows through the graph.
     assert new_state["company_of_interest"] == "AAPL"
+
+
+@pytest.mark.unit
+def test_run_recorder_writes_market_snapshot_artifacts(db_and_dir, sample_state):
+    from tradingagents.graph.run_recorder import RunRecorder
+
+    conn, data_dir = db_and_dir
+    rec = RunRecorder(
+        conn=conn,
+        data_dir=data_dir,
+        run_id="snapshotrun",
+        persona_id="macro",
+        cost_callback=MagicMock(totals_by_model=lambda: {}),
+    )
+    rec.start("AAPL", started_ts=datetime.now(timezone.utc).isoformat())
+    rec.record(
+        {
+            **sample_state,
+            "market_snapshot_text": "# Market snapshot for AAPL\n",
+            "market_snapshot_error": "",
+        }
+    )
+
+    run_path = Path(data_dir) / "runs" / "snapshotrun"
+    assert (run_path / "market_snapshot.md").read_text(
+        encoding="utf-8"
+    ) == "# Market snapshot for AAPL\n"
+    snapshot_payload = json.loads(
+        (run_path / "market_snapshot.json").read_text(encoding="utf-8")
+    )
+    assert snapshot_payload["ticker"] == "AAPL"
+    assert snapshot_payload["trade_date"] == "2026-05-25"
+    assert snapshot_payload["content"] == "# Market snapshot for AAPL\n"
+    meta = json.loads((run_path / "meta.json").read_text(encoding="utf-8"))
+    assert meta["market_snapshot_artifact"] == "market_snapshot.md"
+    assert meta["market_snapshot_error"] == ""
 
 
 @pytest.mark.unit

@@ -174,12 +174,37 @@ class RunRecorder:
         event_ctx = state.get("event_context_text", "") or ""
         if event_ctx:
             (run_path / "event_context.md").write_text(event_ctx, encoding="utf-8")
+
+        snapshot_text = state.get("market_snapshot_text", "") or ""
+        snapshot_error = state.get("market_snapshot_error", "") or ""
+        if snapshot_text:
+            (run_path / "market_snapshot.md").write_text(
+                snapshot_text, encoding="utf-8"
+            )
+            (run_path / "market_snapshot.json").write_text(
+                json.dumps(
+                    {
+                        "ticker": ticker,
+                        "trade_date": state.get("trade_date"),
+                        "content": snapshot_text,
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+        if snapshot_error:
+            (run_path / "market_snapshot_error.md").write_text(
+                snapshot_error, encoding="utf-8"
+            )
+
         (run_path / "meta.json").write_text(json.dumps({
             "run_id": self._run_id,
             "persona_id": self._persona_id,
             "ticker": ticker,
             "trade_date": state.get("trade_date"),
             "decision": decision,
+            "market_snapshot_artifact": "market_snapshot.md" if snapshot_text else "",
+            "market_snapshot_error": snapshot_error,
         }, indent=2), encoding="utf-8")
 
         # Costs

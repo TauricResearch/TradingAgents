@@ -44,3 +44,34 @@ def test_build_pack_content_from_run_artifact(tmp_path):
     assert content["ticker"] == "NVDA"
     assert content["reports"]["market_report"] == "market"
     assert content["final_trade_decisions"][0]["body"] == "Final BUY"
+
+
+def test_analysis_pack_collects_market_snapshot(tmp_path):
+    conn = connect(str(tmp_path / "iic.db"))
+    data_dir = tmp_path / "data"
+    artifact_dir = data_dir / "runs" / "run-snapshot"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "market_snapshot.md").write_text(
+        "# Market snapshot for AAPL\n", encoding="utf-8"
+    )
+    (artifact_dir / "pm_synthesis.md").write_text("Final HOLD", encoding="utf-8")
+    store.insert_run(
+        conn,
+        run_id="run-snapshot",
+        ticker="AAPL",
+        persona_id="balanced",
+        started_ts="2026-06-03T20:30:00+00:00",
+        artifact_dir="runs/run-snapshot",
+    )
+
+    content = build_pack_content_from_runs(
+        conn=conn,
+        data_dir=data_dir,
+        event_id=None,
+        ticker="AAPL",
+        trade_date="2026-06-03",
+        event_context="",
+        run_ids=["run-snapshot"],
+    )
+
+    assert content["market_snapshot"] == "# Market snapshot for AAPL\n"

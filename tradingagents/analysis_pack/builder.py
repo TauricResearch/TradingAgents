@@ -53,6 +53,10 @@ def _collect_debates_from_artifacts(artifact_dir: Path) -> dict[str, Any]:
     return debates
 
 
+def _collect_market_snapshot_from_artifacts(artifact_dir: Path) -> str:
+    return _read_text(artifact_dir / "market_snapshot.md")
+
+
 def build_pack_content_from_runs(
     *,
     conn: sqlite3.Connection,
@@ -66,6 +70,7 @@ def build_pack_content_from_runs(
     reports: dict[str, str] = {}
     debates: dict[str, Any] = {}
     finals: list[dict[str, str]] = []
+    market_snapshot = ""
 
     for run_id in run_ids:
         row = conn.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
@@ -74,6 +79,8 @@ def build_pack_content_from_runs(
         artifact_dir = data_dir / row["artifact_dir"]
         reports.update(_collect_reports_from_artifacts(artifact_dir))
         debates.update(_collect_debates_from_artifacts(artifact_dir))
+        if not market_snapshot:
+            market_snapshot = _collect_market_snapshot_from_artifacts(artifact_dir)
         finals.append(
             {
                 "run_id": run_id,
@@ -89,6 +96,7 @@ def build_pack_content_from_runs(
         "trade_date": trade_date,
         "event_id": event_id,
         "event_context": event_context,
+        "market_snapshot": market_snapshot,
         "reports": reports,
         "debates": debates,
         "final_trade_decisions": finals,
