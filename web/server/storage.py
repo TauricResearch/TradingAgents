@@ -74,18 +74,34 @@ def write_json_atomic(path: Path | str, data: Any) -> None:
 
 
 def read_json(path: Path | str) -> Optional[Any]:
-    """Return parsed JSON or ``None`` on missing/invalid."""
+    """Return parsed JSON or ``None`` on missing/invalid.
+
+    A corrupted file logs a WARNING before returning ``None`` so the
+    caller doesn't silently overwrite a recoverable source of truth
+    (e.g. the watchlist).
+    """
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError:
+        return None
+    except json.JSONDecodeError as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "read_json: %s is malformed (%s); returning None", path, exc
+        )
         return None
 
 
 # ---- append-only JSONL ----
 
 def append_jsonl(path: Path | str, obj: Any) -> None:
-    """Append ``obj`` as a single JSON line. Creates parent dir if needed."""
+    """Append ``obj`` as a single JSON line. Creates parent dir if needed.
+
+    Flushed but not ``fsync``'d: durable across process crashes, not
+    guaranteed across power loss. A truncated last line (from a crash
+    mid-write) is handled by ``read_jsonl``.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
