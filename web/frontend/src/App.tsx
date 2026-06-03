@@ -8,7 +8,7 @@ import { useFocusedRunEvents } from "./hooks/useFocusedRunEvents";
 import { useRestoredRunEvents } from "./hooks/useRestoredRunEvents";
 import { WatchlistRail } from "./components/WatchlistRail";
 import { TickerHeader } from "./components/TickerHeader";
-import { StageGrid } from "./components/StageGrid";
+import { RunTimeline } from "./components/RunTimeline";
 import { LiveEventStream } from "./components/LiveEventStream";
 import { ReportPanel } from "./components/ReportPanel";
 import { DecisionPanel } from "./components/DecisionPanel";
@@ -73,7 +73,7 @@ export default function App() {
         {focused ? (
           <>
             <TickerHeader ticker={focused} price={price.price} changePct={price.change_pct} />
-            <StageGrid />
+            <RunTimeline />
             <LiveEventStream />
             <ReportPanel />
             {decision && (
