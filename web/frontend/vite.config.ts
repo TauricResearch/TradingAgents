@@ -6,8 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:8000",
-      "/ws": { target: "ws://localhost:8000", ws: true },
+      // Pin to 127.0.0.1 (not `localhost`) so Vite's http-proxy can't
+      // resolve to ::1 (IPv6) on hosts where `localhost` is dual-stack
+      // and the backend (uvicorn, bound to 127.0.0.1) is not — that
+      // mismatch surfaced as ECONNREFUSED in the Vite log.
+      "/api": "http://127.0.0.1:8000",
+      "/ws": { target: "ws://127.0.0.1:8000", ws: true },
     },
   },
   test: {

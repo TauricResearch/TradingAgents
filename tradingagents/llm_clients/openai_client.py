@@ -272,9 +272,12 @@ class OpenAIClient(BaseLLMClient):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
-        # Native OpenAI: use Responses API for consistent behavior across
-        # all model families. Third-party providers use Chat Completions.
-        if self.provider == "openai":
+        # Native OpenAI (no custom base_url): use Responses API for
+        # consistent behavior across all model families. When a custom
+        # base_url is set (e.g. a third-party proxy or self-hosted
+        # backend), fall back to Chat Completions since those backends
+        # typically don't implement /v1/responses.
+        if self.provider == "openai" and not self.base_url:
             llm_kwargs["use_responses_api"] = True
 
         # Provider-specific quirks live in their own subclasses so the

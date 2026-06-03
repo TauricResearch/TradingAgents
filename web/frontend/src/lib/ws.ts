@@ -66,3 +66,8 @@ export function buildRunUrl(runId: number, since?: number): string {
   const base = `${proto}//${location.host}/ws/runs/${runId}`;
   return since ? `${base}?since=${since}` : base;
 }
+
+export function buildGlobalUrl(): string {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${location.host}/ws/global`;
+}

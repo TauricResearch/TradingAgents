@@ -223,6 +223,10 @@ __marimo__/
 .tmp_wiring_cache/
 .superpowers/
 
+# Env file backups/copies (secrets)
+.env.backup
+.env copy
+
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
 reports/

@@ -30,49 +30,46 @@ class PriceState:
 
 
 async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], None]]) -> None:
+    """Fast poll: fetch current price via yfinance fast_info for every ticker.
+
+    This runs every ``poll_s`` seconds (default 2s) and uses the lightweight
+    ``fast_info`` API which returns the last-trade price.  Sparkline/history
+    data is fetched separately by ``_update_sparklines`` every ~60s.
+    """
     tickers = list(state.tickers())
     if not tickers:
-        return
-    try:
-        df = yf.download(tickers=tickers, period="1d", interval="1m", progress=False, group_by="ticker")
-    except Exception:
-        log.exception("yfinance total failure; skipping poll")
         return
 
     for ticker in tickers:
         snap = state.snapshots.get(ticker) or PriceSnapshot()
         try:
-            # With ``group_by="ticker"`` yfinance returns a MultiIndex where
-            # the OUTER level is the field (Close/Open/...) and the INNER
-            # level is the ticker — even for a single-ticker list. So
-            # ``df[ticker]["Close"]`` works for both single and multi.
-            series = df[ticker]["Close"]
-            if hasattr(series, "empty") and series.empty:
-                snap.stale = True
-            else:
-                values = list(series.dropna().tail(30))
-                if not values:
-                    snap.stale = True
+            info = yf.Ticker(ticker).fast_info
+
+            # Real-time last-trade price.  fast_info.get() accepts both
+            # camelCase and snake_case keys.
+            price = info.get("lastPrice") or info.get("last_price")
+
+            if price is not None and float(price) > 0:
+                snap.price = float(price)
+
+                # Previous close — fetch once and cache in the snapshot so
+                # subsequent polls avoid an extra API round-trip.
+                if snap.prev_close <= 0:
+                    prev_close = info.get("previousClose") or info.get("previous_close")
+                    if prev_close is not None:
+                        snap.prev_close = float(prev_close)
+
+                if snap.prev_close > 0:
+                    snap.change_pct = (snap.price - snap.prev_close) / snap.prev_close * 100.0
                 else:
-                    snap.price = float(values[-1])
-                    snap.sparkline = [float(v) for v in values]
-                    snap.stale = False
-            # change_pct is the percent move from the previous trading
-            # session's close. fast_info is a lightweight single-field
-            # lookup; the CLI uses it for the same purpose elsewhere.
-            # Guard against zero to avoid div-by-zero on newly-listed
-            # tickers and on stale prices.
-            prev_close = float(
-                yf.Ticker(ticker).fast_info.get("previousClose", 0) or 0
-            )
-            if prev_close > 0 and snap.price > 0 and not snap.stale:
-                snap.change_pct = (snap.price - prev_close) / prev_close * 100.0
+                    snap.change_pct = 0.0
+                snap.stale = False
             else:
-                snap.change_pct = 0.0
+                snap.stale = True
         except Exception:
-            log.exception("price lookup failed for %s; marking stale", ticker)
+            log.exception("fast_info failed for %s; marking stale", ticker)
             snap.stale = True
-            snap.change_pct = 0.0
+
         state.snapshots[ticker] = snap
 
         if broadcast is not None:
@@ -89,19 +86,67 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
             ))
 
 
+# ── sparkline refresh (heavy, runs every ~60s) ──────────────────────────
+
+async def _update_sparklines(state: PriceState) -> None:
+    """Download 1m-bar history for all watchlist tickers and update snapshots.
+
+    This is intentionally kept separate from ``_poll_once`` because
+    ``yf.download(interval="1m")`` is a heavy multi-ticker request; we
+    only run it every ~60 seconds.
+    """
+    tickers = list(state.tickers())
+    if not tickers:
+        return
+
+    try:
+        df = yf.download(tickers=tickers, period="1d", interval="1m", progress=False, group_by="ticker")
+    except Exception:
+        log.exception("sparkline yfinance download failed")
+        return
+
+    for ticker in tickers:
+        snap = state.snapshots.get(ticker)
+        if snap is None:
+            continue
+        try:
+            series = df[ticker]["Close"]
+            if hasattr(series, "empty") and not series.empty:
+                values = list(series.dropna().tail(30))
+                snap.sparkline = [float(v) for v in values]
+        except Exception:
+            pass
+
+
+# ── poll loop ───────────────────────────────────────────────────────────
+
 class PriceFeed:
-    def __init__(self, state: PriceState, poll_s: int = 15):
+    def __init__(self, state: PriceState, poll_s: int = 2):
         self.state = state
         self.poll_s = poll_s
         self._task: Optional[asyncio.Task] = None
         self._stop = asyncio.Event()
 
     async def _loop(self, broadcast: Optional[Callable[[dict], None]]) -> None:
+        sparkline_counter = 0
+        # Run sparkline refresh on the very first iteration too so new
+        # tickers don't sit with an empty sparkline for a full minute.
         while not self._stop.is_set():
             try:
                 await _poll_once(self.state, broadcast)
             except Exception:
                 log.exception("poll loop iteration crashed; continuing")
+
+            sparkline_counter += 1
+            # Refresh sparklines every ~30 iterations (~60s at 2s poll),
+            # and also on the very first iteration.
+            if sparkline_counter >= 30 or sparkline_counter == 1:
+                sparkline_counter = 0
+                try:
+                    await _update_sparklines(self.state)
+                except Exception:
+                    log.exception("sparkline update crashed; continuing")
+
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=self.poll_s)
             except asyncio.TimeoutError:

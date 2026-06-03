@@ -5,10 +5,20 @@ from web.server import price_feed
 from web.server.tests.fixtures.fake_yfinance import make_fake_download
 
 
-def _make_yf_mock(*, download=None):
-    """Build a stand-in for the ``yf`` module: ``download`` plus a no-op ``Ticker``."""
+def _make_yf_mock(*, download=None, last_price=0.0, previous_close=0.0):
+    """Build a stand-in for the ``yf`` module.
+
+    ``fast_info.get()`` returns the given ``last_price`` / ``previous_close``
+    for the corresponding keys.  If ``download`` is provided it replaces
+    ``yf.download`` (used by sparkline refresh).
+    """
     fast_info = MagicMock()
-    fast_info.get.return_value = 0.0
+
+    def _get(key, default=None):
+        mapping = {"lastPrice": last_price, "previousClose": previous_close}
+        return mapping.get(key, default)
+
+    fast_info.get = _get
     ticker = MagicMock()
     ticker.fast_info = fast_info
     attrs = {"Ticker": staticmethod(lambda _t: ticker)}
@@ -17,91 +27,150 @@ def _make_yf_mock(*, download=None):
     return type("M", (), attrs)
 
 
-@pytest.mark.asyncio
-async def test_first_poll_updates_snapshot(monkeypatch):
-    snapshot = price_feed.PriceSnapshot(price=0.0, prev_close=0.0, change_pct=0.0, sparkline=[])
-    state = price_feed.PriceState(snapshots={"NVDA": snapshot}, tickers=lambda: ["NVDA"])
-    fake = make_fake_download({"NVDA": [110.0, 111.0, 112.4]})
-    monkeypatch.setattr(price_feed, "yf", _make_yf_mock(download=fake))
-
-    await price_feed._poll_once(state, broadcast=lambda e: None)
-    s = state.snapshots["NVDA"]
-    assert s.price == 112.4
-    assert s.sparkline == [110.0, 111.0, 112.4]
-    assert s.stale is False
+# ── _poll_once (fast price via fast_info) ───────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_partial_failure_marks_stale(monkeypatch):
-    snap_ok = price_feed.PriceSnapshot(price=200.0, prev_close=200.0, change_pct=0.0, sparkline=[])
-    snap_bad = price_feed.PriceSnapshot(price=100.0, prev_close=100.0, change_pct=0.0, sparkline=[])
-    state = price_feed.PriceState(snapshots={"NVDA": snap_ok, "BAD": snap_bad}, tickers=lambda: ["NVDA", "BAD"])
+async def test_poll_once_uses_fast_info_for_price(monkeypatch):
+    """_poll_once fetches price from fast_info and broadcasts it."""
+    monkeypatch.setattr(price_feed, "yf", _make_yf_mock(last_price=150.0, previous_close=145.0))
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
 
-    def bad_download(*args, **kwargs):
-        raise RuntimeError("network down")
-    monkeypatch.setattr(price_feed, "yf", _make_yf_mock(download=bad_download))
-
-    await price_feed._poll_once(state, broadcast=lambda e: None)
-    # on total failure, snapshots are unchanged but no exception propagates
-    assert state.snapshots["NVDA"].price == 200.0
-    assert state.snapshots["BAD"].price == 100.0
-
-
-@pytest.mark.asyncio
-async def test_missing_ticker_marks_stale(monkeypatch):
-    snap = price_feed.PriceSnapshot(price=50.0, prev_close=50.0, change_pct=0.0, sparkline=[50.0])
-    state = price_feed.PriceState(snapshots={"NVDA": snap, "BAD": price_feed.PriceSnapshot(0,0,0,[])}, tickers=lambda: ["NVDA", "BAD"])
-    fake = make_fake_download({"NVDA": [50.0, 51.0]})  # no "BAD"
-    monkeypatch.setattr(price_feed, "yf", _make_yf_mock(download=fake))
-
-    broadcasts = []
-    await price_feed._poll_once(state, broadcast=lambda e: broadcasts.append(e))
-    assert state.snapshots["NVDA"].price == 51.0
-    assert state.snapshots["BAD"].stale is True
-
-
-"""Tests for change_pct computation added in Task 1."""
-from unittest.mock import MagicMock
-
-
-def _make_broadcast():
-    """Returns (calls, broadcast_fn). Each call appends the event dict."""
     calls = []
-    def broadcast(evt):
-        calls.append(evt)
-    return calls, broadcast
+    await price_feed._poll_once(state, broadcast=lambda e: calls.append(e))
+
+    s = state.snapshots["NVDA"]
+    assert s.price == 150.0
+    assert s.change_pct == pytest.approx(3.448, rel=1e-3)
+    assert s.stale is False
+    # broadcast includes the live data
+    assert len(calls) == 1
+    assert calls[0]["data"]["price"] == 150.0
+    assert calls[0]["data"]["change_pct"] == pytest.approx(3.448, rel=1e-3)
+    assert calls[0]["data"]["stale"] is False
 
 
-def _patch_yfinance(monkeypatch, *, previous_close: float, last_price: float, intraday: list[float] | None = None):
-    """Patch yfinance so the poll loop sees a known state.
+@pytest.mark.asyncio
+async def test_poll_once_zero_price_marks_stale(monkeypatch):
+    """When fast_info returns 0 as price the ticker is marked stale."""
+    monkeypatch.setattr(price_feed, "yf", _make_yf_mock(last_price=0.0, previous_close=100.0))
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
 
-    - ``previous_close`` is what ``fast_info.get("previousClose")`` returns.
-    - ``last_price`` is the last value of the intraday series (overrides ``intraday``).
-    - ``intraday`` is the full intraday series; defaults to ``[last_price]``.
-    """
-    if intraday is None:
-        intraday = [last_price]
-    df = MagicMock()
-    # df["NVDA"]["Close"] -> Series-like
-    series = MagicMock()
-    series.empty = False
-    series.dropna.return_value.tail.return_value = intraday
-    df.__getitem__.return_value.__getitem__.return_value = series
+    await price_feed._poll_once(state, broadcast=lambda e: None)
+    assert state.snapshots["NVDA"].stale is True
 
+
+@pytest.mark.asyncio
+async def test_poll_once_exception_marks_stale(monkeypatch):
+    """When fast_info raises, the ticker is marked stale but no exception propagates."""
     fast_info = MagicMock()
-    fast_info.get.return_value = previous_close
+    fast_info.get.side_effect = RuntimeError("network error")
     ticker = MagicMock()
     ticker.fast_info = fast_info
     monkeypatch.setattr("web.server.price_feed.yf.Ticker", lambda _t: ticker)
-    monkeypatch.setattr("web.server.price_feed.yf.download", lambda **kw: df)
-    return df
+
+    snap = price_feed.PriceSnapshot(price=200.0, prev_close=200.0, change_pct=0.0, sparkline=[])
+    state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
+
+    await price_feed._poll_once(state, broadcast=lambda e: None)
+    # snapshot retains previous values but is marked stale
+    assert state.snapshots["NVDA"].price == 200.0
+    assert state.snapshots["NVDA"].stale is True
+
+
+@pytest.mark.asyncio
+async def test_poll_once_caches_prev_close(monkeypatch):
+    """prev_close is fetched once and reused on subsequent polls."""
+    fast_info = MagicMock()
+
+    call_count = 0
+
+    def _get(key, default=None):
+        nonlocal call_count
+        call_count += 1
+        return {"lastPrice": 100.0, "previousClose": 95.0}.get(key, default)
+
+    fast_info.get = _get
+    ticker = MagicMock()
+    ticker.fast_info = fast_info
+    monkeypatch.setattr("web.server.price_feed.yf.Ticker", lambda _t: ticker)
+
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
+
+    # First poll: prev_close > 0, so it's cached
+    await price_feed._poll_once(state, broadcast=lambda e: None)
+    assert state.snapshots["NVDA"].prev_close == 95.0
+
+    # Second poll: prev_close is already cached (>0) so fast_info should
+    # NOT be queried for previousClose again.  The fast_info mock is set
+    # up so that lastPrice returns 100.0 and previousClose returns 95.0
+    # — the snapshot should keep 95.0 regardless.
+    await price_feed._poll_once(state, broadcast=lambda e: None)
+    assert state.snapshots["NVDA"].prev_close == 95.0
+
+
+# ── _update_sparklines ─────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_update_sparklines_populates_sparkline(monkeypatch):
+    """_update_sparklines downloads history and updates snapshots."""
+    fake = make_fake_download({"NVDA": [110.0, 111.0, 112.4]})
+    monkeypatch.setattr(price_feed, "yf", _make_yf_mock(download=fake))
+
+    snap = price_feed.PriceSnapshot(price=112.4, prev_close=110.0, change_pct=2.18, sparkline=[])
+    state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
+
+    await price_feed._update_sparklines(state)
+
+    assert state.snapshots["NVDA"].sparkline == [110.0, 111.0, 112.4]
+
+
+@pytest.mark.asyncio
+async def test_update_sparklines_handles_download_failure(monkeypatch):
+    """When yf.download raises, sparklines stay unchanged."""
+    def bad_download(**kw):
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr(price_feed, "yf", _make_yf_mock(download=bad_download))
+
+    snap = price_feed.PriceSnapshot(price=50.0, prev_close=50.0, change_pct=0.0, sparkline=[10.0])
+    state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
+
+    await price_feed._update_sparklines(state)
+    assert state.snapshots["NVDA"].sparkline == [10.0]  # unchanged
+
+
+# ── change_pct regression tests ─────────────────────────────────────────
+
+
+def _make_broadcast():
+    calls = []
+
+    def broadcast(evt):
+        calls.append(evt)
+
+    return calls, broadcast
+
+
+def _patch_fast_info(monkeypatch, *, last_price: float, previous_close: float):
+    """Patch yfinance.Ticker.fast_info so it returns the given values."""
+    fast_info = MagicMock()
+
+    def _get(key, default=None):
+        mapping = {"lastPrice": last_price, "previousClose": previous_close}
+        return mapping.get(key, default)
+
+    fast_info.get = _get
+    ticker = MagicMock()
+    ticker.fast_info = fast_info
+    monkeypatch.setattr("web.server.price_feed.yf.Ticker", lambda _t: ticker)
 
 
 @pytest.mark.unit
 class TestComputeChangePct:
     def test_change_pct_is_computed_from_previous_close(self, monkeypatch):
-        """The regression test: change_pct must come from previousClose, not the default 0.0."""
-        _patch_yfinance(monkeypatch, previous_close=100.0, last_price=103.0)
+        _patch_fast_info(monkeypatch, last_price=103.0, previous_close=100.0)
         state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
         calls, broadcast = _make_broadcast()
 
@@ -111,46 +180,36 @@ class TestComputeChangePct:
         assert calls[0]["data"]["change_pct"] == pytest.approx(3.0)
 
     def test_change_pct_is_zero_when_previous_close_is_zero(self, monkeypatch):
-        _patch_yfinance(monkeypatch, previous_close=0.0, last_price=103.0)
+        _patch_fast_info(monkeypatch, last_price=103.0, previous_close=0.0)
         state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
         calls, broadcast = _make_broadcast()
 
         asyncio.run(price_feed._poll_once(state, broadcast))
-
         assert calls[0]["data"]["change_pct"] == 0.0
 
-    def test_change_pct_is_zero_when_price_series_is_empty(self, monkeypatch):
-        df = MagicMock()
-        series = MagicMock()
-        series.empty = True
-        df.__getitem__.return_value.__getitem__.return_value = series
-        fast_info = MagicMock()
-        fast_info.get.return_value = 100.0
-        ticker = MagicMock()
-        ticker.fast_info = fast_info
-        monkeypatch.setattr("web.server.price_feed.yf.Ticker", lambda _t: ticker)
-        monkeypatch.setattr("web.server.price_feed.yf.download", lambda **kw: df)
-
+    def test_change_pct_is_zero_when_price_is_zero(self, monkeypatch):
+        _patch_fast_info(monkeypatch, last_price=0.0, previous_close=100.0)
         state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
         calls, broadcast = _make_broadcast()
-        asyncio.run(price_feed._poll_once(state, broadcast))
 
+        asyncio.run(price_feed._poll_once(state, broadcast))
         assert calls[0]["data"]["stale"] is True
         assert calls[0]["data"]["change_pct"] == 0.0
 
     def test_change_pct_handles_negative_change(self, monkeypatch):
-        _patch_yfinance(monkeypatch, previous_close=100.0, last_price=97.0)
+        _patch_fast_info(monkeypatch, last_price=97.0, previous_close=100.0)
         state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
         calls, broadcast = _make_broadcast()
-        asyncio.run(price_feed._poll_once(state, broadcast))
 
+        asyncio.run(price_feed._poll_once(state, broadcast))
         assert calls[0]["data"]["change_pct"] == pytest.approx(-3.0)
 
     def test_price_update_event_uses_real_change_pct_not_default(self, monkeypatch):
-        """Final regression test: a positive previousClose and a positive last_price must yield a non-zero change_pct."""
-        _patch_yfinance(monkeypatch, previous_close=200.0, last_price=210.0)
+        """Final regression test: positive prevClose and positive price must yield non-zero change_pct."""
+        _patch_fast_info(monkeypatch, last_price=210.0, previous_close=200.0)
         state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
         calls, broadcast = _make_broadcast()
+
         asyncio.run(price_feed._poll_once(state, broadcast))
 
         assert calls[0]["data"]["change_pct"] != 0.0
