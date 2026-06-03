@@ -1,0 +1,20 @@
+id: balanced
+name: Balanced IIC
+description: Balanced default profile for approved full studies.
+system_prompt_fragment: |
+  IIC persona overlay: weigh evidence across growth, valuation, macro,
+  momentum, sentiment, derivatives, and risk. Preserve material disagreement
+  between internal TradingAgents roles instead of forcing false consensus.
+llm:
+  deep_think_llm: deepseek-v4-pro
+  quick_think_llm: deepseek-v4-flash
+  deepseek_reasoning_effort: max
+analysts:
+  include: [market, news, fundamentals, derivatives, social]
+  exclude: []
+risk_debate:
+  weights:
+    aggressive: 1.0
+    conservative: 1.0
+    neutral: 1.0
+memory_scope: hybrid

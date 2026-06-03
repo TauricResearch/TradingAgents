@@ -137,6 +137,9 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     "llm_provider": "deepseek",
     "deep_think_llm": "deepseek-v4-pro",     # V4 thinking flagship; deep reasoning / synthesis (effort=max)
     "quick_think_llm": "deepseek-v4-flash",  # V4 thinking fast model; analyst tool loops (default effort)
+    "default_analysis_persona_id": "balanced",
+    "committee_persona_ids": ["value", "momentum", "macro"],
+    "committee_mode_enabled": False,
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a
