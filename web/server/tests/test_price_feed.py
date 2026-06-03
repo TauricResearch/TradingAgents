@@ -5,7 +5,7 @@ from web.server import price_feed
 from web.server.tests.fixtures.fake_yfinance import make_fake_download
 
 
-def _make_yf_mock(*, download=None, last_price=0.0, previous_close=0.0):
+def _make_yf_mock(*, download=None, last_price=0.0, previous_close=0.0, regular_market_previous_close=None):
     """Build a stand-in for the ``yf`` module.
 
     ``fast_info.get()`` returns the given ``last_price`` / ``previous_close``
@@ -13,9 +13,14 @@ def _make_yf_mock(*, download=None, last_price=0.0, previous_close=0.0):
     ``yf.download`` (used by sparkline refresh).
     """
     fast_info = MagicMock()
+    rmpc = previous_close if regular_market_previous_close is None else regular_market_previous_close
 
     def _get(key, default=None):
-        mapping = {"lastPrice": last_price, "previousClose": previous_close}
+        mapping = {
+            "lastPrice": last_price,
+            "previousClose": previous_close,
+            "regularMarketPreviousClose": rmpc,
+        }
         return mapping.get(key, default)
 
     fast_info.get = _get
@@ -153,12 +158,17 @@ def _make_broadcast():
     return calls, broadcast
 
 
-def _patch_fast_info(monkeypatch, *, last_price: float, previous_close: float):
+def _patch_fast_info(monkeypatch, *, last_price: float, previous_close: float, regular_market_previous_close: float | None = None):
     """Patch yfinance.Ticker.fast_info so it returns the given values."""
     fast_info = MagicMock()
+    rmpc = previous_close if regular_market_previous_close is None else regular_market_previous_close
 
     def _get(key, default=None):
-        mapping = {"lastPrice": last_price, "previousClose": previous_close}
+        mapping = {
+            "lastPrice": last_price,
+            "previousClose": previous_close,
+            "regularMarketPreviousClose": rmpc,
+        }
         return mapping.get(key, default)
 
     fast_info.get = _get
@@ -213,4 +223,39 @@ class TestComputeChangePct:
         asyncio.run(price_feed._poll_once(state, broadcast))
 
         assert calls[0]["data"]["change_pct"] != 0.0
+        assert calls[0]["data"]["change_pct"] == pytest.approx(5.0)
+
+    def test_change_pct_prefers_regular_market_previous_close(self, monkeypatch):
+        """yfinance fast_info returns TWO previous-close values:
+        ``previousClose`` (intraday/adjusted) and
+        ``regularMarketPreviousClose`` (prior regular-session close, the
+        standard reference used by every financial site). The dashboard
+        must use the latter, otherwise the % change is slightly off
+        (observed: ~0.5% absolute error on real tickers like TSLA, MSFT).
+        """
+        _patch_fast_info(
+            monkeypatch,
+            last_price=309.41,
+            previous_close=314.9999,             # wrong reference
+            regular_market_previous_close=315.20,  # correct reference
+        )
+        state = price_feed.PriceState(snapshots={}, tickers=lambda: ["AAPL"])
+        calls, broadcast = _make_broadcast()
+
+        asyncio.run(price_feed._poll_once(state, broadcast))
+
+        # Using previousClose:        (309.41-314.9999)/314.9999*100 = -1.776%
+        # Using regularMarketPrevCl:   (309.41-315.20)/315.20*100    = -1.838%
+        # The dashboard must report the second (the standard one).
+        assert calls[0]["data"]["change_pct"] == pytest.approx(-1.838, rel=1e-2)
+
+    def test_change_pct_falls_back_to_previous_close(self, monkeypatch):
+        """If regularMarketPreviousClose is absent (some tickers/sessions
+        don't populate it), the hook must fall back to previousClose."""
+        _patch_fast_info(monkeypatch, last_price=210.0, previous_close=200.0, regular_market_previous_close=None)
+        state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
+        calls, broadcast = _make_broadcast()
+
+        asyncio.run(price_feed._poll_once(state, broadcast))
+
         assert calls[0]["data"]["change_pct"] == pytest.approx(5.0)
