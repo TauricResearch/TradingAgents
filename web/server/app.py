@@ -89,6 +89,7 @@ class WatchlistIn(BaseModel):
 
 class RunIn(BaseModel):
     ticker: str
+    force: bool = False
 
 
 # --------- lifespan ---------
@@ -174,8 +175,17 @@ def create_app() -> FastAPI:
     @app.post("/api/runs", status_code=201)
     def create_run(row: RunIn):
         from datetime import date
-        rid = runner.enqueue(row.ticker.upper(), idempotency_key=f"{row.ticker.upper()}:{date.today().isoformat()}")
+        rid = runner.enqueue(
+            row.ticker.upper(),
+            idempotency_key=f"{row.ticker.upper()}:{date.today().isoformat()}",
+            force=row.force,
+        )
         return {"run_id": rid}
+
+    @app.get("/api/tickers/{ticker}/runs")
+    def list_ticker_runs(ticker: str, limit: int = 50):
+        from web.server.llm_calls import list_runs_for_ticker
+        return list_runs_for_ticker(ticker.upper(), limit=limit)
 
     @app.get("/api/runs")
     def list_runs(limit: int = 20):
@@ -183,12 +193,14 @@ def create_app() -> FastAPI:
 
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: int):
+        from web.server.llm_calls import llm_calls_for_run
         run = db.get_run(run_id)
         if run is None:
             raise HTTPException(status_code=404, detail="run_not_found")
         return {
             "run": _run_to_dict(run),
             "events": [_event_to_dict(e) for e in db.events_for_run(run_id)],
+            "llm_calls": [_llm_call_to_dict(c) for c in llm_calls_for_run(run_id)],
         }
 
     @app.post("/api/runs/{run_id}/cancel")
@@ -356,4 +368,23 @@ def _event_to_dict(e) -> dict:
         "type": e.type,
         "ts": e.ts.isoformat() if e.ts else None,
         "data": json.loads(e.payload_json),
+    }
+
+
+def _llm_call_to_dict(c) -> dict:
+    import json
+    return {
+        "id": c.id,
+        "run_id": c.run_id,
+        "ticker": c.ticker,
+        "node_name": c.node_name,
+        "started_at": c.started_at.isoformat() if c.started_at else None,
+        "model": c.model,
+        "prompt_text": c.prompt_text,
+        "response_text": c.response_text,
+        "tool_calls": json.loads(c.tool_calls_json) if c.tool_calls_json else [],
+        "input_tokens": c.input_tokens,
+        "output_tokens": c.output_tokens,
+        "total_tokens": c.total_tokens,
+        "duration_ms": c.duration_ms,
     }
