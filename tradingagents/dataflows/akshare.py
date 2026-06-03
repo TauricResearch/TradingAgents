@@ -9,6 +9,7 @@ from tradingagents.dataflows.market_snapshot import (
     MarketDataUnavailable,
     bars_from_frame,
     format_market_snapshot,
+    normalize_ohlcv_frame,
     snapshot_from_bars,
 )
 
@@ -64,6 +65,10 @@ def _fetch_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
             adjust="",
         )
     raise MarketDataUnavailable(f"akshare unsupported symbol {symbol}")
+
+
+def fetch_ohlcv_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    return normalize_ohlcv_frame(_fetch_frame(symbol, start_date, end_date), source="akshare")
 
 
 def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:

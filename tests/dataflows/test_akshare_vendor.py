@@ -75,3 +75,27 @@ def test_akshare_unsupported_symbol_raises():
 
     with pytest.raises(MarketDataUnavailable, match="unsupported"):
         akmod.get_stock_data("BTC-USD", "2026-06-01", "2026-06-03")
+
+
+def test_akshare_fetch_ohlcv_frame_exposes_normalized_data(monkeypatch):
+    import tradingagents.dataflows.akshare as akmod
+
+    monkeypatch.setattr(
+        akmod,
+        "_fetch_frame",
+        lambda symbol, start_date, end_date: pd.DataFrame(
+            {
+                "date": ["2026-06-03"],
+                "open": [100],
+                "high": [103],
+                "low": [99],
+                "close": [102],
+                "volume": [12345],
+            }
+        ),
+    )
+
+    out = akmod.fetch_ohlcv_frame("AAPL", "2026-06-03", "2026-06-03")
+
+    assert list(out.columns) == ["timestamp", "open", "high", "low", "close", "volume"]
+    assert out.iloc[0]["close"] == 102

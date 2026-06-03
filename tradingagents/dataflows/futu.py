@@ -12,6 +12,7 @@ from .errors import DataVendorError
 from .market_snapshot import (
     bars_from_frame,
     format_market_snapshot,
+    normalize_ohlcv_frame,
     snapshot_from_bars,
 )
 
@@ -71,6 +72,11 @@ def _fetch_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
             ctx.close()
         except Exception:
             pass
+
+
+def fetch_ohlcv_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    frame = _fetch_frame(symbol, start_date, end_date)
+    return normalize_ohlcv_frame(frame.rename(columns={"time_key": "timestamp"}), source="futu")
 
 
 def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:

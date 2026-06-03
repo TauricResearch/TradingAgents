@@ -9,6 +9,7 @@ from .market_snapshot import (
     MarketDataUnavailable,
     bars_from_frame,
     format_market_snapshot,
+    normalize_ohlcv_frame,
     snapshot_from_bars,
 )
 
@@ -61,6 +62,14 @@ def get_YFin_data_online(
     header += "\n"
 
     return header + csv_string
+
+
+def fetch_ohlcv_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    ticker = yf.Ticker(symbol.upper())
+    data = yf_retry(
+        lambda: ticker.history(start=start_date, end=_inclusive_history_end(end_date))
+    )
+    return normalize_ohlcv_frame(data, source="yfinance")
 
 
 def get_market_snapshot(

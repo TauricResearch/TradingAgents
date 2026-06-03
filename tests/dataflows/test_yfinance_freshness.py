@@ -154,3 +154,23 @@ def test_past_ohlcv_cache_reuses_file_even_when_old(tmp_path, monkeypatch):
         today_date=pd.Timestamp("2026-06-03"),
         ttl_seconds=900,
     ) is False
+
+
+def test_yfinance_fetch_ohlcv_frame_returns_normalized_frame(monkeypatch):
+    df = pd.DataFrame(
+        {
+            "Open": [100.0],
+            "High": [103.0],
+            "Low": [99.0],
+            "Close": [102.5],
+            "Volume": [12345],
+        },
+        index=pd.to_datetime(["2026-06-03"]),
+    )
+    ticker = MagicMock(history=MagicMock(return_value=df))
+    yfmod = _load_yfinance_module(monkeypatch, ticker=ticker)
+
+    out = yfmod.fetch_ohlcv_frame("AAPL", "2026-06-03", "2026-06-03")
+
+    assert list(out.columns) == ["timestamp", "open", "high", "low", "close", "volume"]
+    assert out.iloc[0]["close"] == 102.5

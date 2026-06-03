@@ -59,3 +59,27 @@ def test_futu_market_snapshot_uses_futu_source(monkeypatch):
 
     assert "Source: futu" in text
     assert "101.5000" in text
+
+
+def test_futu_fetch_ohlcv_frame_exposes_normalized_data(monkeypatch):
+    import tradingagents.dataflows.futu as futu_mod
+
+    monkeypatch.setattr(
+        futu_mod,
+        "_fetch_frame",
+        lambda symbol, start_date, end_date: pd.DataFrame(
+            {
+                "time_key": ["2026-06-03"],
+                "open": [100],
+                "high": [103],
+                "low": [99],
+                "close": [102],
+                "volume": [12345],
+            }
+        ),
+    )
+
+    out = futu_mod.fetch_ohlcv_frame("AAPL", "2026-06-03", "2026-06-03")
+
+    assert list(out.columns) == ["timestamp", "open", "high", "low", "close", "volume"]
+    assert out.iloc[0]["close"] == 102

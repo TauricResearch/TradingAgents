@@ -25,7 +25,12 @@ import requests
 from dateutil.relativedelta import relativedelta
 
 from .errors import DataVendorError
-from .market_snapshot import bars_from_frame, format_market_snapshot, snapshot_from_bars
+from .market_snapshot import (
+    bars_from_frame,
+    format_market_snapshot,
+    normalize_ohlcv_frame,
+    snapshot_from_bars,
+)
 
 _BASE = "https://api.polygon.io"
 
@@ -67,6 +72,10 @@ def _aggs_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+def fetch_ohlcv_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    return normalize_ohlcv_frame(_aggs_frame(symbol, start_date, end_date), source="polygon")
 
 
 def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:

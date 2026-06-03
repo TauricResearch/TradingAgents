@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 def test_polygon_stock_data_formats_aggregates(monkeypatch):
     import tradingagents.dataflows.polygon as polygon
 
@@ -53,3 +56,27 @@ def test_polygon_market_snapshot_uses_polygon_source(monkeypatch):
 
     assert "Source: polygon" in text
     assert "102.0000" in text
+
+
+def test_polygon_fetch_ohlcv_frame_exposes_normalized_data(monkeypatch):
+    import tradingagents.dataflows.polygon as polygon
+
+    monkeypatch.setattr(
+        polygon,
+        "_aggs_frame",
+        lambda symbol, start_date, end_date: pd.DataFrame(
+            {
+                "timestamp": ["2026-06-03"],
+                "open": [100],
+                "high": [103],
+                "low": [99],
+                "close": [102],
+                "volume": [12345],
+            }
+        ),
+    )
+
+    out = polygon.fetch_ohlcv_frame("AAPL", "2026-06-03", "2026-06-03")
+
+    assert list(out.columns) == ["timestamp", "open", "high", "low", "close", "volume"]
+    assert out.iloc[0]["close"] == 102
