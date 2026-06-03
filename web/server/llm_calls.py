@@ -1,81 +1,58 @@
-"""Persistence functions for LlmCall records."""
+"""File-backed LLM call log. One JSONL line per call, per run."""
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from sqlmodel import select, desc
+from typing import Any, Dict, List, Optional
 
-from web.server.db import get_session, LlmCall, Run
+from . import storage
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def save_llm_call(
+    run_id: str,
     *,
-    run_id: int,
-    ticker: str,
     node_name: str,
-    started_at: datetime,
+    ticker: str,
     model: str,
     prompt_text: str,
     response_text: str,
-    tool_calls: list | None = None,
+    tool_calls: Optional[List[Dict[str, Any]]] = None,
     input_tokens: int = 0,
     output_tokens: int = 0,
     total_tokens: int = 0,
     duration_ms: int = 0,
-) -> int:
-    with get_session() as s:
-        row = LlmCall(
-            run_id=run_id,
-            ticker=ticker,
-            node_name=node_name,
-            started_at=started_at,
-            model=model,
-            prompt_text=prompt_text,
-            response_text=response_text,
-            tool_calls_json=json.dumps(tool_calls or []),
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            total_tokens=total_tokens,
-            duration_ms=duration_ms,
-        )
-        s.add(row)
-        s.commit()
-        s.refresh(row)
-        return row.id
-
-
-def llm_calls_for_run(run_id: int) -> list[LlmCall]:
-    with get_session() as s:
-        return list(
-            s.exec(
-                select(LlmCall)
-                .where(LlmCall.run_id == run_id)
-                .order_by(LlmCall.started_at)
-            )
-        )
-
-
-def _run_to_dict(r: Run) -> dict:
-    return {
-        "id": r.id,
-        "ticker": r.ticker,
-        "started_at": r.started_at.isoformat() if r.started_at else None,
-        "finished_at": r.finished_at.isoformat() if r.finished_at else None,
-        "status": r.status,
-        "decision_action": r.decision_action,
-        "decision_target": r.decision_target,
-        "decision_rationale": r.decision_rationale,
-        "decision_confidence": r.decision_confidence,
+    started_at: Optional[str] = None,
+) -> None:
+    """Append a single LLM call to ``{run_dir}/llm_calls.jsonl``."""
+    call = {
+        "id": f"{run_id}:{_now_iso()}:{node_name}",
+        "run_id": run_id,
+        "node_name": node_name,
+        "ticker": ticker,
+        "model": model,
+        "prompt_text": prompt_text,
+        "response_text": response_text,
+        "tool_calls_json": tool_calls or [],
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": total_tokens,
+        "duration_ms": duration_ms,
+        "started_at": started_at or _now_iso(),
     }
+    try:
+        storage.append_run_llm_call(run_id, call)
+    except KeyError:
+        pass
 
 
-def list_runs_for_ticker(ticker: str, limit: int = 50) -> list[dict]:
-    """Return runs for a ticker as lightweight dicts (no events/llm_calls)."""
-    with get_session() as s:
-        rows = s.exec(
-            select(Run)
-            .where(Run.ticker == ticker)
-            .order_by(desc(Run.started_at))
-            .limit(limit)
-        )
-        return [_run_to_dict(r) for r in rows]
+def llm_calls_for_run(run_id: str) -> List[Dict[str, Any]]:
+    """Return all LLM calls recorded for a run, in order."""
+    return storage.list_run_llm_calls(run_id)
+
+
+def list_runs_for_ticker(ticker: str) -> List[Dict[str, Any]]:
+    """Return all run.json rows for a ticker, newest first."""
+    return storage.list_ticker_runs(ticker)
