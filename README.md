@@ -219,7 +219,25 @@ Notable tunables in `default_config.py`:
 | `alert_approval_gate_enabled` | `True` | light-alert → approve → study (vs. legacy auto-enqueue) |
 | `alert_salience_threshold` / `alert_ticker_confidence_threshold` | `0.85` / `0.9` | how selective the alert trigger is |
 | `alert_pending_ttl_hours` | `24` | how long a pending approval stays valid |
+| `market_data_stale_after_seconds` | `900` | snapshot freshness TTL for same-day market data |
+| `market_data_cache_ttl_seconds` | `900` | same-day OHLCV cache TTL; historical cache files are reused |
 | cost / rate guards | `enabled=False` | coded but off through F0–F5 (measure first) |
+
+### Market Data Freshness
+
+Full studies pre-fetch a numerical market snapshot before the TradingAgents
+graph runs, then pass it into the market analyst and persist it with the run
+artifacts. The default provider order is:
+
+```text
+yfinance -> AKShare -> Futu OpenD -> Polygon
+```
+
+`yfinance` remains the primary numerical data source. AKShare, Futu OpenD, and
+Polygon are fallbacks for snapshot data when the earlier provider cannot return
+usable OHLCV. Same-day OHLCV cache files refresh after
+`market_data_cache_ttl_seconds`; past-date cache files are reused to keep
+historical runs reproducible.
 
 ## Operations
 

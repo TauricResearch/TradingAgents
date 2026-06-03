@@ -35,6 +35,26 @@ committee-style second opinion.
 - Directed follow-ups reuse persisted Analysis Packs so the next run can focus
   on the requested lens instead of rebuilding the whole context from scratch.
 
+## Market Data Freshness
+
+The default approved study now starts by fetching a freshness-aware numerical
+market snapshot and injecting it into the TradingAgents state before any
+analyst node runs. The market analyst sees that snapshot in its prompt, can
+call the same snapshot tool if it needs a recovery path, and the run recorder
+persists the snapshot for follow-up Analysis Packs.
+
+The configured snapshot fallback order is:
+
+```text
+yfinance -> AKShare -> Futu OpenD -> Polygon
+```
+
+`yfinance` remains the primary numerical source. AKShare, Futu OpenD, and
+Polygon are fallback paths for usable OHLCV when the previous source is empty,
+stale, or unavailable. Same-day yfinance OHLCV cache files refresh after
+`market_data_cache_ttl_seconds`; historical cache files are reused for
+reproducibility.
+
 ## F2 Recovery
 
 F2 is no longer a stub in this branch. The backtest harness and tests were
