@@ -166,9 +166,9 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.
-    "news_article_limit": 30,             # max articles per ticker (ticker-news)
-    "global_news_article_limit": 20,      # max articles for global/macro news
-    "global_news_lookback_days": 14,       # macro news lookback window
+    "news_article_limit": 20,             # max articles per ticker (ticker-news)
+    "global_news_article_limit": 12,      # max articles for global/macro news
+    "global_news_lookback_days": 7,       # macro news lookback window
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [

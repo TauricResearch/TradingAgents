@@ -84,6 +84,20 @@ def estimate_usd(
     return round(usd, 6)
 
 
+def compute_cache_hit_ratio(
+    cache_hit_tokens: Optional[int],
+    cache_miss_tokens: Optional[int],
+) -> Optional[float]:
+    if cache_hit_tokens is None and cache_miss_tokens is None:
+        return None
+    hit = int(cache_hit_tokens or 0)
+    miss = int(cache_miss_tokens or 0)
+    total = hit + miss
+    if total <= 0:
+        return None
+    return hit / total
+
+
 def parse_decision(text: str) -> Optional[str]:
     """Extract BUY/HOLD/SELL from a free-form decision string. Returns None
     when no clear signal is present."""

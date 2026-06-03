@@ -43,7 +43,7 @@ def get_YFin_data_online(
     # Add header information
     header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
     header += f"# Total records: {len(data)}\n"
-    header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    header += "\n"
 
     return header + csv_string
 
@@ -294,7 +294,7 @@ def get_fundamentals(
                 lines.append(f"{label}: {value}")
 
         header = f"# Company Fundamentals for {ticker.upper()}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += "\n"
 
         return header + "\n".join(lines)
 
@@ -326,7 +326,7 @@ def get_balance_sheet(
         
         # Add header information
         header = f"# Balance Sheet data for {ticker.upper()} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += "\n"
         
         return header + csv_string
         
@@ -358,7 +358,7 @@ def get_cashflow(
         
         # Add header information
         header = f"# Cash Flow data for {ticker.upper()} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += "\n"
         
         return header + csv_string
         
@@ -390,7 +390,7 @@ def get_income_statement(
         
         # Add header information
         header = f"# Income Statement data for {ticker.upper()} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += "\n"
         
         return header + csv_string
         
@@ -414,7 +414,7 @@ def get_insider_transactions(
         
         # Add header information
         header = f"# Insider Transactions data for {ticker.upper()}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += "\n"
         
         return header + csv_string
         
