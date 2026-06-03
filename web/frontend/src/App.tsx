@@ -21,7 +21,7 @@ export default function App() {
   // and re-opens when focus or the underlying run id changes.
   const runId = useUi((s) => (focused ? s.activeRunIdByTicker[focused] ?? null : null));
   const events = useFocusedRunEvents();
-  const { data: watchlist = [], isLoading: watchlistLoading } = useQuery({
+  const { data: watchlist = [], isLoading: watchlistLoading, isFetching: watchlistFetching } = useQuery({
     queryKey: ["watchlist"],
     queryFn: fetchWatchlist,
   });
@@ -31,9 +31,19 @@ export default function App() {
   useRunStream(runId);
   useRestoredRunEvents(focused);
 
+  // Sync focusedTicker with the watchlist. This is the single source of
+  // truth: the effect skips during refetches (when data may be stale) and
+  // only acts on fresh server data.
   useEffect(() => {
-    if (!focused && watchlist.length > 0) setFocused(watchlist[0].ticker);
-  }, [watchlist, focused, setFocused]);
+    if (watchlistFetching) return;
+    if (watchlist.length === 0 && focused !== null) {
+      setFocused(null);
+    } else if (focused && !watchlist.some((w) => w.ticker === focused)) {
+      setFocused(watchlist[0]?.ticker ?? null);
+    } else if (!focused && watchlist.length > 0) {
+      setFocused(watchlist[0].ticker);
+    }
+  }, [watchlist, focused, setFocused, watchlistFetching]);
 
   if (watchlistLoading) {
     return (
