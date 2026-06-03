@@ -233,12 +233,19 @@ artifacts. The default provider order is:
 yfinance -> AKShare -> Futu OpenD -> Polygon
 ```
 
-`yfinance` remains the primary numerical data source. AKShare, Futu OpenD, and
-Polygon are fallbacks for snapshot data. The market snapshot layer now validates
-expected trading sessions, skips weekends and a simple whitelist of fixed-date
-closures (`01-01`, `05-01`, `06-19`, `07-04`, `10-01`, `12-25`), and fetches
-missing sessions from fallback providers. The resulting chart is one fused
-OHLCV table with a `source` column for row-level provenance.
+The graph/tool contract stays the same: callers still request
+`get_market_snapshot`, and the returned Markdown is injected into the market
+analyst state and written to `market_snapshot.md` / `market_snapshot.json`.
+Behind that contract, the snapshot engine now works at the bar/session level
+instead of falling back only when a whole provider fails.
+
+`yfinance` remains the primary numerical data source. For each requested
+window, the fusion layer computes expected sessions, skips weekends and a
+simple whitelist of fixed-date closures (`01-01`, `05-01`, `06-19`, `07-04`,
+`10-01`, `12-25`), then asks AKShare, Futu OpenD, and Polygon only for
+sessions that are still uncovered. The resulting chart is one fused OHLCV
+table with a `source` column on every row, plus coverage, allowed-missing
+sessions, and provider-error notes when applicable.
 
 This holiday filter is intentionally approximate: it avoids common fixed-date
 closures and weekends, but it does not model every exchange-specific or
