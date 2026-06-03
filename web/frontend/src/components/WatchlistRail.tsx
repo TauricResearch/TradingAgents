@@ -47,6 +47,7 @@ export function WatchlistRail() {
             status={statusForTicker(row.ticker, row.last_decision, [])}
             price={price.price}
             changePct={price.change_pct}
+            stale={price.stale === true}
             onRemove={handleRemove}
           />
         );

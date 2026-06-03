@@ -9,6 +9,10 @@ interface Props {
   status: "idle" | "queued" | "running" | "done" | "errored";
   price?: number;
   changePct?: number;
+  /** True when the price feed has flagged the symbol as stale (delisted,
+   *  invalid, or unreachable). Surfaces a clear "unavailable" indicator
+   *  so the user knows the price/change shown is unreliable. */
+  stale?: boolean;
   onRemove?: (ticker: string) => void | Promise<void>;
 }
 
@@ -20,7 +24,7 @@ const dotColor: Record<Props["status"], string> = {
   errored: "bg-rose-500",
 };
 
-export function TickerRow({ ticker, companyName, lastDecision, sparkline, status, price, changePct, onRemove }: Props) {
+export function TickerRow({ ticker, companyName, lastDecision, sparkline, status, price, changePct, stale, onRemove }: Props) {
   const focused = useUi((s) => s.focusedTicker);
   const setFocused = useUi((s) => s.setFocusedTicker);
   const isFocused = focused === ticker;
@@ -55,15 +59,24 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-semibold">{ticker}</span>
-          {price != null && !isNaN(price) && (
+          {stale ? (
+            <span
+              data-testid={`ticker-row-${ticker}-unavailable`}
+              className="text-[10px] uppercase tracking-wide font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5"
+            >
+              unavailable
+            </span>
+          ) : price != null && !isNaN(price) ? (
             <span className="text-xs tabular-nums text-slate-600">
               ${price.toFixed(2)}
             </span>
-          )}
+          ) : null}
         </div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-xs text-slate-500 truncate">{companyName || lastDecision || "—"}</span>
-          {showChange && (
+          <span className="text-xs text-slate-500 truncate">
+            {stale ? "Price data unavailable" : companyName || lastDecision || "—"}
+          </span>
+          {!stale && showChange && (
             <span className={`text-xs tabular-nums font-medium ${changeColor}`}>
               {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
             </span>

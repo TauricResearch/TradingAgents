@@ -46,6 +46,47 @@ def test_watchlist_crud(client):
     assert client.get("/api/watchlist").json() == []
 
 
+def test_post_watchlist_rejects_unknown_ticker(client, monkeypatch):
+    """POST /api/watchlist must validate the ticker against yfinance.
+    Unknown / delisted symbols (e.g. TA125) must be rejected with a
+    clear 400 so the user gets immediate feedback instead of a silent
+    'stale' state in the price feed."""
+    from web.server import price_feed
+
+    # Make yfinance return no usable price for "BADX".
+    def _raise(_key, default=None):
+        raise KeyError("exchangeTimezoneName")  # mirrors TA125
+
+    fast_info = type("FI", (), {"get": staticmethod(_raise)})()
+    ticker_obj = type("T", (), {"fast_info": fast_info})()
+    monkeypatch.setattr(price_feed.yf, "Ticker", staticmethod(lambda _t: ticker_obj))
+
+    r = client.post("/api/watchlist", json={"ticker": "BADX", "company_name": "", "exchange": ""})
+    assert r.status_code == 400
+    body = r.json()["detail"]
+    assert body["error"] == "ticker_not_found"
+    assert body["ticker"] == "BADX"
+    # And the ticker was NOT added.
+    r = client.get("/api/watchlist")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_post_watchlist_rejects_zero_price_ticker(client, monkeypatch):
+    """yfinance returns lastPrice=0 for some symbols (no trades today).
+    Those must be rejected too — a ticker with no live price isn't
+    useful in the dashboard."""
+    from web.server import price_feed
+
+    fi = type("FI", (), {"get": staticmethod(lambda k, d=None: {"lastPrice": 0.0, "previousClose": 100.0}.get(k, d))})()
+    ticker_obj = type("T", (), {"fast_info": fi})()
+    monkeypatch.setattr(price_feed.yf, "Ticker", staticmethod(lambda _t: ticker_obj))
+
+    r = client.post("/api/watchlist", json={"ticker": "DEAD", "company_name": "", "exchange": ""})
+    assert r.status_code == 400
+    assert r.json()["detail"]["error"] == "ticker_not_found"
+
+
 def test_runs_lifecycle(client, monkeypatch):
     from web.server import runner
     # Bypass the queue push so the worker cannot race with the GET below.

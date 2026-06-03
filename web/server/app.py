@@ -154,6 +154,16 @@ def create_app() -> FastAPI:
     @app.post("/api/watchlist", status_code=201)
     def add_watch(row: WatchlistIn):
         from web.server.db import Watchlist, DuplicateTicker
+        # Reject unknown / delisted tickers up-front so the user gets
+        # immediate feedback (HTTP 400) instead of a silent 'stale'
+        # state in the price feed forever after.
+        try:
+            price_feed.validate_ticker_exists(row.ticker.upper())
+        except price_feed.TickerNotFound as e:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "ticker_not_found", "ticker": e.ticker, "reason": e.reason},
+            )
         try:
             db.add_watchlist(Watchlist(
                 ticker=row.ticker.upper(),

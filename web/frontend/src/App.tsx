@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchWatchlist, fetchPrices } from "./lib/api";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchWatchlist, fetchPrices, removeFromWatchlist } from "./lib/api";
 import { useUi } from "./store/ui";
 import { useRunStream } from "./hooks/useRunStream";
 import { useGlobalStream } from "./hooks/useGlobalStream";
@@ -17,6 +17,8 @@ import { RunHistoryDrawer } from "./components/RunHistoryDrawer";
 export default function App() {
   const focused = useUi((s) => s.focusedTicker);
   const setFocused = useUi((s) => s.setFocusedTicker);
+  const clearLast = useUi((s) => s.clearLastRunIdForTicker);
+  const qc = useQueryClient();
   // The new store keys active runs by ticker (multiple tickers can be
   // streaming concurrently in the global buffer). Subscribe to the
   // active run for the *focused* ticker only; the WS hook is short-lived
@@ -29,6 +31,7 @@ export default function App() {
   });
   const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices });
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [dismissedStaleBanner, setDismissedStaleBanner] = useState<string | null>(null);
 
   useRunStream(runId);
   useGlobalStream();
@@ -48,6 +51,30 @@ export default function App() {
     }
   }, [watchlist, focused, setFocused, watchlistFetching]);
 
+  const handleRemoveFocused = useCallback(async () => {
+    if (!focused) return;
+    try {
+      await removeFromWatchlist(focused);
+    } catch {
+      return;
+    }
+    clearLast(focused);
+    setDismissedStaleBanner(null);
+    qc.invalidateQueries({ queryKey: ["watchlist"] });
+  }, [focused, clearLast, qc]);
+
+  const price = focused ? (prices as any)[focused] || {} : {};
+  const priceStale = price.stale === true;
+  // Re-show the banner whenever the user navigates to a different stale
+  // ticker (don't let a dismissal on a previous one persist).
+  useEffect(() => {
+    if (!priceStale && dismissedStaleBanner === focused) {
+      setDismissedStaleBanner(null);
+    }
+  }, [priceStale, focused, dismissedStaleBanner]);
+  const showStaleBanner =
+    !!focused && priceStale && dismissedStaleBanner !== focused;
+
   if (watchlistLoading) {
     return (
       <div className="min-h-screen p-6">
@@ -56,7 +83,6 @@ export default function App() {
     );
   }
 
-  const price = focused ? (prices as any)[focused] || {} : {};
   const decisionEvent = [...events].reverse().find((e) => e.type === "decision");
   const decision = decisionEvent?.data as { action: string; target: number; rationale: string; confidence: number } | undefined;
 
@@ -72,7 +98,35 @@ export default function App() {
         </header>
         {focused ? (
           <>
-            <TickerHeader ticker={focused} price={price.price} changePct={price.change_pct} />
+            {showStaleBanner && (
+              <div
+                data-testid="stale-ticker-banner"
+                role="alert"
+                className="mb-4 flex items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+              >
+                <span>
+                  <strong className="font-semibold">{focused}</strong> is not available
+                  on Yahoo Finance, so price and history are unavailable.
+                </span>
+                <span className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={handleRemoveFocused}
+                    data-testid="stale-ticker-remove"
+                    className="rounded bg-amber-700 px-2 py-1 text-xs font-medium text-white hover:bg-amber-800"
+                  >
+                    Remove from watchlist
+                  </button>
+                  <button
+                    onClick={() => setDismissedStaleBanner(focused)}
+                    className="text-amber-700 hover:text-amber-900"
+                    aria-label="Dismiss"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+            )}
+            <TickerHeader ticker={focused} price={price.price} changePct={price.change_pct} stale={priceStale} />
             <RunTimeline />
             <LiveEventStream />
             <ReportPanel />
