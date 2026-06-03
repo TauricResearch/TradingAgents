@@ -187,3 +187,30 @@ class TestCaptureCallbackHandler:
         assert len(calls) == 1
         assert len(calls[0]["tool_calls"]) == 1
         assert calls[0]["tool_calls"][0]["name"] == "get_price"
+
+    def test_on_llm_error_clears_pending_state(self):
+        """An LLM error between start and end should pop the pending
+        entry so the handler's internal dict doesn't grow unbounded.
+        No LlmCall row should be written on error."""
+        calls = []
+        handler = CaptureCallbackHandler(run_id=42, ticker="NVDA", save_call=calls.append)
+        from uuid import uuid4
+        rid = uuid4()
+        handler.on_chat_model_start(
+            {"name": "ChatOpenAI"},
+            [[HumanMessage(content="hello")]],
+            run_id=rid,
+        )
+        # The pending entry exists after the start callback.
+        assert rid in handler._pending
+        handler.on_llm_error(RuntimeError("rate limit"), run_id=rid)
+        # Pending state was cleared; no call was persisted.
+        assert rid not in handler._pending
+        assert calls == []
+
+    def test_on_llm_error_is_safe_for_unknown_run_id(self):
+        """Errors for a run_id we never saw must be a no-op, not a crash."""
+        from uuid import uuid4
+        handler = CaptureCallbackHandler(run_id=42, ticker="NVDA", save_call=lambda _: None)
+        # Should not raise.
+        handler.on_llm_error(RuntimeError("orphan error"), run_id=uuid4())
