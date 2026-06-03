@@ -36,6 +36,8 @@ Phase 1 is the capture layer. We build the table, the CLI, and the AI extraction
 
 ## Stories
 
+> **⚠ Induced requirement:** `entry_rules` and `exit_rules` JSON columns must conform to the fixed schema defined in `decisions/013-strategy-rule-schema.md`. CLI validation (S02) and LLM extraction (S04) must enforce this. This requirement emerged from the Phase 1/Phase 2 handoff risk — freeform JSON cannot be parsed by the backtester.
+
 ### STRAT-001-S01: `strategies` table + `strategy_backtests` table
 
 **What:** Add both tables to `schema.sql`.
@@ -131,7 +133,7 @@ trading strategy add \
 **Acceptance:**
 - Interactive mode prompts for each field with sensible defaults/skips
 - Non-interactive mode accepts all fields as flags
-- Entry rules and exit rules validate as parseable JSON (error if not)
+- Entry rules and exit rules validate as parseable JSON **conforming to the fixed schema in `decisions/013-strategy-rule-schema.md`** (error if not)
 - Generates a human-readable `id` (slug from name + timestamp, e.g. `rsi-mean-reversion-2026-05-30`)
 - Status defaults to `draft`
 - Prints confirmation with the generated ID
@@ -215,7 +217,7 @@ trading strategy extract --from-url https://... --dry-run
 4. Save as `draft` status (never `extracted` or higher)
 5. Print the extracted strategy for human review
 
-**LLM prompt skeleton:**
+**LLM prompt skeleton (must include the fixed schema from `decisions/013-strategy-rule-schema.md` — see `Indicator` union, `EntryRule`, `ExitRule` types):**
 ```
 You are a trading strategy extraction tool. Given the following content, extract any trading strategy described into this JSON template:
 

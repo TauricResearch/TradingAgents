@@ -47,7 +47,9 @@ Every intake must reduce to testable rules before it enters the pipeline. No sen
 
 ### R01: Strategy Definition Store
 
-A `strategies` table and associated schema to capture strategy definitions:
+A `strategies` table and associated schema to capture strategy definitions.
+
+> **⚠ Induced requirement:** `entry_rules` and `exit_rules` are JSON text columns, but freeform JSON cannot be parsed by the Phase 2 backtester. A fixed, typed schema for entry/exit rules is required before any strategy is captured. See `decisions/013-strategy-rule-schema.md` for the full schema — it defines `ThresholdEntry`, `CrossEntry`, `CompositeEntry`, and typed `Indicator` unions for entries; `TakeProfitExit`, `StopLossExit`, `TrailingStopExit`, `TimeExit`, `SignalReverseExit`, and `CompositeExit` for exits. This is a lesson: **induced requirements must be documented immediately** — they accrue interest as downstream dependencies and become retroactive reformatting work if deferred.
 
 ```sql
 CREATE TABLE strategies (

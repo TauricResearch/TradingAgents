@@ -12,11 +12,12 @@
 {"file":"010-configurable-gate-relaxation.md","date":"2026-05-21","status":"Proposed","summary":"Configurable entry gates via --relax=GATE flags — each gate independently toggleable, MA150 always enforced","meta":{"epic":"SCAN-001","supersedes":null,"superseded_by":null}}
 {"file":"011-resilience-index-weighting.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"012-reject-sakura-css.md","date":"2026-06-01","status":"Accepted","summary":"Reject sakura.css CDN stylesheet — retain custom dark-theme stylesheet; no classless framework overlays","meta":{"supersedes":null,"superseded_by":null}}
+{"file":"013-decommission-bifrost.md","date":"2026-06-02","status":"Accepted","summary":"Decommission Bifrost permanently — API is UI-first, underspecified for programmatic use; rely on pi native multi-provider config and direct provider APIs","meta":{"supersedes":"decisions/006-bifrost-local-ai-router.md, decisions/009-defer-bifrost-integration.md"}}
+{"file":"013-strategy-rule-schema.md","date":"2026-06-03","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-11-local-registers-over-remote-services.md","date":"2026-05-12","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-06-cli-first-architecture.md","date":"2026-06-02","type":"decision","summary":"CLI-first architecture adopted, MCP deprecated. Prefer CLI+RTK over MCP protocol.","meta":{"status":"adopted"}}
 {"file":"drydock/2026-05-24/BARNACLE_SCAN_ANALYSIS_2026-05-24.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"drydock/2026-05-24/playbooks/lab-first-playbook.md/BR-playbooks-lab-first-playbook-58-1/block.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"drydock/DELETION_LOG.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"opinion-blog-substrate-voice.md","date":"2026-05-13","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"TEMPLATE.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
-{"file":"013-decommission-bifrost.md","date":"2026-06-02","status":"Accepted","summary":"Decommission Bifrost permanently — API is UI-first, underspecified for programmatic use; rely on pi native multi-provider config and direct provider APIs","meta":{"supersedes":"decisions/006-bifrost-local-ai-router.md, decisions/009-defer-bifrost-integration.md"}}
-{"file":"2026-06-cli-first-architecture.md","date":"2026-06-02","type":"decision","summary":"CLI-first architecture adopted, MCP deprecated. Prefer CLI+RTK over MCP protocol.","meta":{"status":"adopted"}}
