@@ -62,6 +62,12 @@ def test_trading_graph_seeds_event_context_into_initial_state(monkeypatch, tmp_p
     the compiled graph."""
     monkeypatch.setenv("TRADINGAGENTS_IIC_DB_PATH", str(tmp_path / "iic.db"))
     monkeypatch.setenv("TRADINGAGENTS_IIC_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("TRADINGAGENTS_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setenv("TRADINGAGENTS_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv(
+        "TRADINGAGENTS_MEMORY_LOG_PATH",
+        str(tmp_path / "memory" / "trading_memory.md"),
+    )
 
     # Reload default_config so the env vars take effect.
     import importlib
