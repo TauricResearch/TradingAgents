@@ -95,7 +95,8 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Claude Sonnet 4.5 - High-performance for agents and coding", "claude-sonnet-4-5"),
         ],
         "deep": [
-            ("Claude Opus 4.7 - Latest frontier, long-running agents and coding", "claude-opus-4-7"),
+            ("Claude Opus 4.8 - Latest frontier, long-running agents and coding", "claude-opus-4-8"),
+            ("Claude Opus 4.7 - Previous-gen frontier, long-running agents and coding", "claude-opus-4-7"),
             ("Claude Opus 4.6 - Frontier intelligence, agents and coding", "claude-opus-4-6"),
             ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
