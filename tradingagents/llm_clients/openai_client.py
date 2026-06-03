@@ -114,14 +114,15 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
 
     M2.x reasoning models embed ``<think>...</think>`` blocks directly in
     ``message.content`` by default, which would pollute saved reports.
-    Per platform.minimax.io/docs/api-reference/text-openai-api, setting
-    ``reasoning_split=True`` in the request body redirects the thinking
-    block into ``reasoning_details`` so ``content`` stays clean.
+    Per platform.minimax.io/docs/api-reference/text-openai-api,
+    ``reasoning_split=True`` redirects the thinking block into
+    ``reasoning_details`` so ``content`` stays clean. It is sent via
+    ``extra_body`` (not a top-level kwarg) because the openai SDK validates
+    top-level params and rejects unknown ones like reasoning_split (#826).
 
-    The flag is gated by ``ModelCapabilities.requires_reasoning_split``
-    because non-reasoning MiniMax endpoints (Coding Plan, MiniMax-Text-01)
-    reject the parameter via the openai SDK's strict kwarg validation
-    (#826).
+    The flag is gated by ``ModelCapabilities.requires_reasoning_split`` so
+    only M2.x reasoning models receive it; non-reasoning MiniMax endpoints
+    (Coding Plan, MiniMax-Text-01) never see it.
 
     Tool-choice handling for M2.x — those models accept only the string
     enum ``{"none", "auto"}`` and reject langchain's function-spec dict —
@@ -132,13 +133,18 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
         if get_capabilities(self.model_name).requires_reasoning_split:
-            payload.setdefault("reasoning_split", True)
+            # Pass via extra_body, not as a top-level kwarg: the openai SDK
+            # (>=1.56) validates top-level params against Completions.create
+            # and rejects unknown ones like reasoning_split (#826). extra_body
+            # is forwarded into the request body untouched.
+            extra_body = payload.setdefault("extra_body", {})
+            extra_body.setdefault("reasoning_split", True)
         return payload
 
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
-    "timeout", "max_retries", "reasoning_effort",
+    "timeout", "max_retries", "reasoning_effort", "temperature",
     "api_key", "callbacks", "http_client", "http_async_client",
 )
 
