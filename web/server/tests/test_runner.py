@@ -334,3 +334,189 @@ class TestDecisionAndRunFinished:
             assert isinstance(data.get("summary_by_stage"), dict)
         finally:
             await runner.stop()
+
+
+class TestCaptureCallbackWiring:
+    """The runner must attach a CaptureCallbackHandler to the graph's
+    callbacks list so every LLM call writes an LlmCall row, and the
+    handler's ``current_node`` must be updated by the cb closure so the
+    rows carry the correct stage name."""
+
+    @pytest.mark.asyncio
+    async def test_capture_handler_attached_to_graph_callbacks(self, monkeypatch, temp_db):
+        from web.server.callbacks import CaptureCallbackHandler
+        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, happy_path
+
+        captured_callbacks: list = []
+        def spy_graph(config=None, *, callbacks=None):
+            captured_callbacks.extend(callbacks or [])
+            return FakeTradingAgents(happy_path("NVDA"))
+
+        monkeypatch.setattr(runner, "build_graph", spy_graph)
+        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
+
+        await runner.start(num_workers=1)
+        try:
+            rid = runner.enqueue("NVDA", idempotency_key="NVDA:wiring")
+            await runner._wait_for_idle(timeout=5)
+
+            capture_handlers = [
+                c for c in captured_callbacks if isinstance(c, CaptureCallbackHandler)
+            ]
+            assert len(capture_handlers) == 1
+            handler = capture_handlers[0]
+            assert handler.run_id == rid
+            assert handler.ticker == "NVDA"
+        finally:
+            await runner.stop()
+
+    @pytest.mark.asyncio
+    async def test_capture_handler_current_node_updates_on_node_entered(
+        self, monkeypatch, temp_db
+    ):
+        """The cb closure must write the active node name into
+        ``CaptureCallbackHandler.current_node`` so LlmCall rows carry it.
+        """
+        from web.server.callbacks import CaptureCallbackHandler
+        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
+
+        script = ScriptedRun(
+            nodes=[
+                ScriptedNode("Market Analyst"),
+                ScriptedNode("Sentiment Analyst"),
+            ],
+            final_state={"decision": {"action": "HOLD"}},
+        )
+
+        # After each node_entered, we sample current_node from the
+        # capture handler. Once the cb closure has set it, the value
+        # must equal the node name that was just entered.
+        observed: list = []
+        def spy_graph(config=None, *, callbacks=None):
+            capture = next(
+                (c for c in (callbacks or []) if isinstance(c, CaptureCallbackHandler)),
+                None,
+            )
+
+            class _Watch(FakeTradingAgents):
+                def propagate(self_inner, ticker, trade_date, *, event_callback=None):
+                    if capture is not None and event_callback is not None:
+                        original_cb = event_callback
+                        def wrapped_cb(node_name, payload):
+                            original_cb(node_name, payload)
+                            # After cb runs, current_node should be set
+                            # for node_entered (and unchanged for others).
+                            observed.append((node_name, capture.current_node))
+                        return super().propagate(ticker, trade_date, event_callback=wrapped_cb)
+                    return super().propagate(ticker, trade_date, event_callback=event_callback)
+
+            return _Watch(script)
+
+        monkeypatch.setattr(runner, "build_graph", spy_graph)
+        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
+
+        await runner.start(num_workers=1)
+        try:
+            runner.enqueue("AAPL", idempotency_key="AAPL:current-node")
+            await runner._wait_for_idle(timeout=5)
+        finally:
+            await runner.stop()
+
+        # Filter to node_entered events; current_node must match the
+        # node name after cb runs.
+        entered = [(n, cn) for (n, cn) in observed if n == "node_entered"]
+        assert entered == [
+            ("node_entered", "Market Analyst"),
+            ("node_entered", "Sentiment Analyst"),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_capture_handler_persists_llm_call_via_default_sink(
+        self, monkeypatch, temp_db
+    ):
+        """When the capture handler's on_llm_end fires, an LlmCall row
+        must be persisted via the default sink (i.e. the runner wiring
+        uses the production default, not a no-op)."""
+        from langchain_core.messages import AIMessage, HumanMessage
+        from unittest.mock import MagicMock
+        from uuid import uuid4
+        from web.server import llm_calls
+        from web.server.callbacks import CaptureCallbackHandler
+        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, happy_path
+
+        captured: list = []
+        original_save = llm_calls.save_llm_call
+
+        def spy_save(**kwargs):
+            captured.append(kwargs)
+            return original_save(**kwargs)
+
+        monkeypatch.setattr(llm_calls, "save_llm_call", spy_save)
+
+        def spy_graph(config=None, *, callbacks=None):
+            capture = next(
+                (c for c in (callbacks or []) if isinstance(c, CaptureCallbackHandler)),
+                None,
+            )
+
+            class _Drive(FakeTradingAgents):
+                def propagate(self_inner, ticker, trade_date, *, event_callback=None):
+                    if capture is not None:
+                        # Simulate the real flow: the cb closure fires
+                        # node_entered first (which sets current_node),
+                        # THEN an LLM call happens inside the node, THEN
+                        # node_exited fires.
+                        if event_callback is not None:
+                            event_callback(
+                                "node_entered",
+                                {"node": "Market Analyst"},
+                            )
+                        cb_run_id = uuid4()
+                        capture.on_chat_model_start(
+                            {"name": "ChatOpenAI"},
+                            [[HumanMessage(content="analyze NVDA")]],
+                            run_id=cb_run_id,
+                        )
+                        gen = MagicMock()
+                        chat = MagicMock(message=AIMessage(content="looks bullish"))
+                        gen.__iter__ = lambda self: iter([chat])
+                        response = MagicMock()
+                        response.generations = [gen]
+                        response.llm_output = {
+                            "model_name": "gpt-4o",
+                            "token_usage": {
+                                "prompt_tokens": 10,
+                                "completion_tokens": 5,
+                                "total_tokens": 15,
+                            },
+                        }
+                        capture.on_llm_end(response, run_id=cb_run_id)
+                    return super().propagate(
+                        ticker, trade_date, event_callback=event_callback
+                    )
+
+            return _Drive(happy_path("NVDA"))
+
+        monkeypatch.setattr(runner, "build_graph", spy_graph)
+        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
+
+        await runner.start(num_workers=1)
+        try:
+            rid = runner.enqueue("NVDA", idempotency_key="NVDA:persist-llm")
+            await runner._wait_for_idle(timeout=5)
+        finally:
+            await runner.stop()
+
+        assert len(captured) == 1
+        row = captured[0]
+        assert row["run_id"] == rid
+        assert row["ticker"] == "NVDA"
+        assert row["model"] == "gpt-4o"
+        assert row["input_tokens"] == 10
+        assert row["output_tokens"] == 5
+        assert row["total_tokens"] == 15
+        assert row["duration_ms"] >= 0
+        assert "analyze NVDA" in row["prompt_text"]
+        assert "bullish" in row["response_text"]
+        # current_node was set to the Market Analyst node before LLM fired
+        assert row["node_name"] == "Market Analyst"
