@@ -6,15 +6,20 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-def _default_db_path() -> str:
-    home = Path.home() / ".tradingagents"
-    home.mkdir(parents=True, exist_ok=True)
-    return str(home / "dashboard.db")
+def _default_root() -> Path:
+    p = Path.home() / ".tradingagents"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
 
 
 @dataclass(frozen=True)
 class Settings:
-    db_path: str = os.environ.get("TRADINGAGENTS_DASHBOARD_DB", _default_db_path())
+    data_dir: str = os.environ.get(
+        "TRADINGAGENTS_DATA_DIR", str(_default_root() / "data")
+    )
+    cache_dir: str = os.environ.get(
+        "TRADINGAGENTS_CACHE_DIR", str(_default_root() / "cache")
+    )
     host: str = os.environ.get("TRADINGAGENTS_DASHBOARD_HOST", "127.0.0.1")
     port: int = int(os.environ.get("TRADINGAGENTS_DASHBOARD_PORT", "8000"))
     max_concurrent: int = int(os.environ.get("TRADINGAGENTS_DASHBOARD_MAX_CONCURRENT", "3"))
