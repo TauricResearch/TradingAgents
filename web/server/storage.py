@@ -146,10 +146,10 @@ def slug_for_now(now: Optional[datetime] = None) -> str:
 
 
 def utc_iso(dt: datetime) -> str:
-    """Format a datetime as UTC ISO-8601 with ``Z`` suffix."""
+    """Format a datetime as UTC ISO-8601 with ``Z`` suffix, always including microseconds."""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return dt.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def now_utc() -> datetime:
