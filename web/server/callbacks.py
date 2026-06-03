@@ -11,11 +11,15 @@ can capture events without going through the WS plumbing.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
 from langchain_core.callbacks import BaseCallbackHandler
+
+
+_log = logging.getLogger(__name__)
 
 
 def _broadcast_via_events(run_id: int) -> Callable[[dict], None]:
@@ -152,8 +156,8 @@ class CaptureCallbackHandler(BaseCallbackHandler):
                     content = str(getattr(msg, "content", "") or "")
                     response_text += content
                     tool_calls.extend(getattr(msg, "tool_calls", None) or [])
-        except Exception:
-            pass
+        except Exception as exc:
+            _log.warning("CaptureCallbackHandler: error extracting response: %s", exc)
 
         # Extract token usage (handle both older and newer LLM result shapes)
         input_tokens = output_tokens = total_tokens = 0
@@ -165,8 +169,8 @@ class CaptureCallbackHandler(BaseCallbackHandler):
             input_tokens = usage.get("prompt_tokens", usage.get("input_tokens", 0))
             output_tokens = usage.get("completion_tokens", usage.get("output_tokens", 0))
             total_tokens = usage.get("total_tokens", 0)
-        except Exception:
-            pass
+        except Exception as exc:
+            _log.warning("CaptureCallbackHandler: error extracting tokens: %s", exc)
 
         started_at: datetime = pending["started_at"]
         duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
@@ -185,6 +189,10 @@ class CaptureCallbackHandler(BaseCallbackHandler):
             "total_tokens": total_tokens,
             "duration_ms": duration_ms,
         })
+
+    def on_llm_error(self, error: BaseException, *, run_id: uuid.UUID, **kw: Any) -> None:
+        """Clean up pending state on LLM error to prevent memory leaks."""
+        self._pending.pop(run_id, None)
 
 
 def _extract_last_user_text(messages: list) -> Optional[str]:
