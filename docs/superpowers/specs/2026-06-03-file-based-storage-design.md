@@ -267,6 +267,10 @@ Watchlist remove
 
 - `test_runner.py`, `test_callbacks.py`, `test_app.py` — replace SQLite fixtures with `tmp_path`-based data dirs; the fake `ScriptedRun` graph in `fixtures/fake_graph.py` is reused.
 
+### Old SQLite DB deletion
+
+- On server startup, if `dashboard.db` exists, it is unlinked and a `WARNING` is logged. No recovery, no migration.
+
 ### Frontend
 
 - Run detail page renders from the new event shape (should be transparent)
@@ -282,9 +286,10 @@ Watchlist remove
 
 ## Scope
 
-- **Backend new:** `web/server/storage.py` (~120 lines), `web/server/queries.py` (~60 lines), one-off migration script (`scripts/migrate_sqlite_to_files.py`, ~80 lines)
+- **Backend new:** `web/server/storage.py` (~120 lines), `web/server/queries.py` (~60 lines)
 - **Backend modified:** `runner.py`, `events.py`, `app.py`, `llm_calls.py` — all switch from SQLModel to file IO
 - **Backend deleted:** `web/server/db.py`
+- **Old data:** the existing SQLite DB at `~/.tradingagents/dashboard.db` is **not** migrated. On first server start after this change, it is deleted. Any pre-change runs are gone — the user starts fresh.
 - **Frontend:** type update for `run_id` string; small UI affordance for resume button (~30 lines)
 - **Config:** one env var, `TRADINGAGENTS_DATA_DIR` (default `~/.tradingagents/data`), already partially in use as `TRADINGAGENTS_DASHBOARD_DB`
 - **Dependencies:** none added (stdlib `json`, `shutil`, `zoneinfo` are sufficient)
