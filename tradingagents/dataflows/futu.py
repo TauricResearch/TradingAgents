@@ -1,22 +1,27 @@
-"""Futu OpenD vendor implementation.
+"""Futu OpenD vendor implementation."""
 
-Futu requires the **OpenD** gateway daemon running locally with a logged-in
-Futu account; the Python SDK talks to OpenD over a local TCP socket
-(default 127.0.0.1:11111). Treat Futu strictly as a fallback vendor —
-never block a run on its availability.
+from __future__ import annotations
 
-To activate: start OpenD, install futu-api, set ``futu_opend_host`` and
-``futu_opend_port`` in DEFAULT_CONFIG (defaults provided), and append
-``"futu"`` to a vendor list (e.g. ``"core_stock_apis": "yfinance, futu"``).
+from datetime import datetime
 
-NOTE: Bodies are minimal stubs. ``_ctx`` handles connection + import failures
-cleanly; the actual data-fetch + Markdown-formatting work is TODO. Futu
-symbols are market-prefixed (e.g. "HK.00700", "US.AAPL") — callers must
-translate the framework's ticker before passing it through.
-"""
+import pandas as pd
+from dateutil.relativedelta import relativedelta
 
 from .config import get_config
 from .errors import DataVendorError
+from .market_snapshot import (
+    bars_from_frame,
+    format_market_snapshot,
+    snapshot_from_bars,
+)
+
+
+def _futu_constants():
+    try:
+        from futu import KLType  # type: ignore
+    except ImportError as e:
+        raise DataVendorError("futu-api not installed") from e
+    return KLType
 
 
 def _ctx():
@@ -34,19 +39,46 @@ def _ctx():
         raise DataVendorError(f"Cannot reach OpenD: {e}") from e
 
 
-def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
-    """Daily klines via ctx.request_history_kline(...).
+def translate_symbol(symbol: str) -> str:
+    s = symbol.strip().upper()
+    if s.endswith(".HK"):
+        return f"HK.{s.split('.')[0].zfill(5)}"
+    if s.endswith(".SS") or s.endswith(".SH"):
+        return f"SH.{s.split('.')[0]}"
+    if s.endswith(".SZ"):
+        return f"SZ.{s.split('.')[0]}"
+    if "." in s or "-" in s:
+        raise DataVendorError(f"futu unsupported symbol {symbol}")
+    return f"US.{s}"
 
-    TODO: translate ``symbol`` to Futu's market-prefixed format and format the
-    response into the same Markdown table shape as ``get_YFin_data_online``."""
+
+def _fetch_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
     ctx = _ctx()
     try:
-        raise DataVendorError("futu.get_stock_data: implementation pending")
+        constants = _futu_constants()
+        result = ctx.request_history_kline(
+            translate_symbol(symbol),
+            start=start_date,
+            end=end_date,
+            ktype=constants.K_DAY,
+        )
+        ret, data = result[0], result[1]
+        if ret != 0:
+            raise DataVendorError(f"futu returned error code {ret}")
+        return data.rename(columns={"time_key": "timestamp"})
     finally:
         try:
             ctx.close()
         except Exception:
             pass
+
+
+def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
+    df = _fetch_frame(symbol, start_date, end_date)
+    clean = pd.DataFrame([bar.__dict__ for bar in bars_from_frame(df, source="futu")])
+    header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
+    header += f"# Total records: {len(clean)}\n\n"
+    return header + clean.to_csv(index=False)
 
 
 def get_market_snapshot(
@@ -55,18 +87,18 @@ def get_market_snapshot(
     lookback_days: int = 10,
     stale_after_seconds: int = 900,
 ) -> str:
-    raise DataVendorError("futu.get_market_snapshot unavailable before Task 5")
+    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    start_date = (curr_dt - relativedelta(days=lookback_days)).strftime("%Y-%m-%d")
+    df = _fetch_frame(ticker, start_date, curr_date)
+    snapshot = snapshot_from_bars(
+        ticker=ticker,
+        requested_date=curr_date,
+        source="futu",
+        bars=bars_from_frame(df, source="futu"),
+        stale_after_seconds=stale_after_seconds,
+    )
+    return format_market_snapshot(snapshot)
 
 
 def get_options_chain(symbol: str, expiration: str = "") -> str:
-    """Options chain via ctx.get_option_chain(...) then get_market_snapshot(...) for IV/greeks.
-
-    TODO: implement and format to match ``yfinance_options.get_options_chain``."""
-    ctx = _ctx()
-    try:
-        raise DataVendorError("futu.get_options_chain: implementation pending")
-    finally:
-        try:
-            ctx.close()
-        except Exception:
-            pass
+    raise DataVendorError("futu.get_options_chain is not implemented")
