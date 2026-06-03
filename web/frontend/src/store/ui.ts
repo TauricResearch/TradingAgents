@@ -55,11 +55,9 @@ export const useUi = create<UiState>()(
       setHistoricalRunForTicker: (ticker, runId) =>
         set((s) => ({ historicalRunIdByTicker: { ...s.historicalRunIdByTicker, [ticker]: runId } })),
       clearHistoricalRunForTicker: (ticker) =>
-        set((s) => {
-          const next = { ...s.historicalRunIdByTicker };
-          delete next[ticker];
-          return { historicalRunIdByTicker: next };
-        }),
+        set((s) => ({
+          historicalRunIdByTicker: { ...s.historicalRunIdByTicker, [ticker]: null },
+        })),
       appendEvent: (e) => set((s) => ({ eventBuffer: [...s.eventBuffer, e].slice(-1000) })),
       restoreEvents: (runId, events) => set((s) => {
         const others = s.eventBuffer.filter((e) => e.run_id !== runId);
