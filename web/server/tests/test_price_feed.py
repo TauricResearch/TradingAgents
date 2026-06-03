@@ -259,3 +259,77 @@ class TestComputeChangePct:
         asyncio.run(price_feed._poll_once(state, broadcast))
 
         assert calls[0]["data"]["change_pct"] == pytest.approx(5.0)
+
+
+# ── bad-symbol / internal-yfinance-failure handling ─────────────────────
+
+
+def _patch_fast_info_raises(monkeypatch, exc: Exception):
+    """Patch yfinance.Ticker.fast_info so that ANY key access raises the
+    given exception. Mirrors the real-world failure mode for symbols
+    like TA125 where yfinance's lazy ``last_price`` property crashes
+    inside ``format_history_metadata`` with KeyError('exchangeTimezoneName')."""
+    fast_info = MagicMock()
+
+    def _get(key, default=None):
+        raise exc
+
+    fast_info.get = _get
+    ticker = MagicMock()
+    ticker.fast_info = fast_info
+    monkeypatch.setattr("web.server.price_feed.yf.Ticker", lambda _t: ticker)
+
+
+def test_poll_once_does_not_traceback_on_bad_symbol(monkeypatch, caplog):
+    """yfinance raises KeyError (and other internal errors) for delisted
+    or invalid symbols. The poll loop must:
+      - not raise out of _poll_once
+      - mark the snapshot stale
+      - log at WARN level ONCE, not at ERROR with a traceback every 2s
+    """
+    _patch_fast_info_raises(monkeypatch, KeyError("exchangeTimezoneName"))
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: ["TA125"])
+    calls, broadcast = _make_broadcast()
+
+    with caplog.at_level("WARNING", logger="web.server.price_feed"):
+        asyncio.run(price_feed._poll_once(state, broadcast))
+
+    # Snapshot marked stale, no price/change_pct leaked.
+    snap = state.snapshots["TA125"]
+    assert snap.stale is True
+    assert snap.price == 0.0
+    assert snap.change_pct == 0.0
+
+    # Broadcast still happens so the frontend can show "unavailable".
+    assert len(calls) == 1
+    assert calls[0]["data"]["stale"] is True
+
+    # Exactly one warn-level entry, no error/exception log, no traceback.
+    records = [r for r in caplog.records if r.name == "web.server.price_feed"]
+    assert any(r.levelname == "WARNING" for r in records), \
+        f"expected a WARN, got: {[r.levelname for r in records]}"
+    assert not any(r.levelname == "ERROR" for r in records), \
+        f"expected no ERROR (no traceback), got: {[r.levelname for r in records]}"
+    # No record should carry an exception (the WARN must be plain).
+    assert all(r.exc_info is None for r in records), \
+        "WARN records must not carry an exc_info (would re-emit the traceback)"
+
+
+def test_poll_once_does_not_re_log_bad_symbol_each_poll(monkeypatch, caplog):
+    """Once a symbol has been flagged as bad, subsequent polls should
+    not re-log the warning. Otherwise the dashboard log fills up with
+    one entry every 2 seconds."""
+    # Reset the module-level warned-set so this test is independent of
+    # any earlier test that may have already flagged TA125.
+    price_feed._bad_symbol_warned.clear()
+    _patch_fast_info_raises(monkeypatch, KeyError("exchangeTimezoneName"))
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: ["TA125"])
+    broadcast = lambda e: None
+
+    with caplog.at_level("WARNING", logger="web.server.price_feed"):
+        asyncio.run(price_feed._poll_once(state, broadcast))
+        asyncio.run(price_feed._poll_once(state, broadcast))
+        asyncio.run(price_feed._poll_once(state, broadcast))
+
+    warn_count = sum(1 for r in caplog.records if r.levelname == "WARNING")
+    assert warn_count == 1, f"expected exactly 1 WARN across 3 polls, got {warn_count}"
