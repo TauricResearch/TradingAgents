@@ -185,4 +185,5 @@ class TestCaptureCallbackHandler:
         r = MagicMock(); r.generations = [gen]; r.llm_output = {}
         handler.on_llm_end(r, run_id=rid)
         assert len(calls) == 1
-        assert '"get_price"' in calls[0]["tool_calls_json"]
+        assert len(calls[0]["tool_calls"]) == 1
+        assert calls[0]["tool_calls"][0]["name"] == "get_price"

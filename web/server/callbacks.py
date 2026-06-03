@@ -10,7 +10,11 @@ can capture events without going through the WS plumbing.
 """
 from __future__ import annotations
 
+import json
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Callable, Optional
+
 from langchain_core.callbacks import BaseCallbackHandler
 
 
@@ -75,15 +79,10 @@ class StreamingCallbackHandler(BaseCallbackHandler):
         self._emit("tool_result", {"tool": "unknown", "error": text, "summary": text[:200]})
 
 
-import json
-import uuid
-from datetime import datetime, timezone
-
-
-def _save_llm_call_default(**kw: Any) -> None:
+def _save_llm_call_default(call_data: dict[str, Any]) -> None:
     """Production default: persist via the llm_calls module."""
     from web.server.llm_calls import save_llm_call
-    save_llm_call(**kw)
+    save_llm_call(**call_data)
 
 
 class CaptureCallbackHandler(BaseCallbackHandler):
@@ -181,7 +180,6 @@ class CaptureCallbackHandler(BaseCallbackHandler):
             "prompt_text": pending["prompt_text"],
             "response_text": response_text,
             "tool_calls": tool_calls,
-            "tool_calls_json": json.dumps(tool_calls),
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "total_tokens": total_tokens,
