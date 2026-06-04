@@ -139,9 +139,10 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
         state.snapshots[ticker] = snap
 
         if broadcast is not None:
+            type_ = getattr(events.EventType, "PRICE_UPDATE", "price_update")
             broadcast(events.make_event(
-                "price_update",
-                run_id=0,
+                run_id="price_feed",
+                type_=type_,
                 data={
                     "ticker": ticker,
                     "price": snap.price,
