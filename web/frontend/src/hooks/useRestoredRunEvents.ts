@@ -17,7 +17,7 @@ export function useRestoredRunEvents(focused: string | null): void {
   const restoreEvents = useUi((s) => s.restoreEvents);
   const clearLast = useUi((s) => s.clearLastRunIdForTicker);
   const clearHistorical = useUi((s) => s.clearHistoricalRunForTicker);
-  const lastFetchedRunIdRef = useRef<number | null>(null);
+  const lastFetchedRunIdRef = useRef<string | null>(null);
 
   const { data } = useQuery<RunDetail | null>({
     queryKey: ["run-detail", focused, runId],
@@ -48,9 +48,9 @@ export function useRestoredRunEvents(focused: string | null): void {
 
   useEffect(() => {
     if (!data || !focused) return;
-    if (data.run.status === "running" || data.run.status === "queued") return;
-    if (lastFetchedRunIdRef.current === data.run.id) return;
-    lastFetchedRunIdRef.current = data.run.id;
-    restoreEvents(data.run.id, data.events);
+    if (data.status === "running" || data.status === "queued") return;
+    if (lastFetchedRunIdRef.current === data.id) return;
+    lastFetchedRunIdRef.current = data.id;
+    restoreEvents(data.id, data.events);
   }, [data, focused, restoreEvents]);
 }
