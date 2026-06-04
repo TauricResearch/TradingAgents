@@ -46,6 +46,21 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+def format_risk_constraints(constraints: Mapping[str, Any]) -> str:
+    """Render persistent session risk constraints for risk-agent prompts."""
+    if not constraints:
+        return ""
+    return (
+        "Session Risk Constraints (always apply; do not override):\n"
+        f"- Max position size: {constraints.get('max_position_size_pct', 10.0)}% "
+        "of portfolio\n"
+        f"- Max risk per trade: {constraints.get('max_risk_per_trade_pct', 2.0)}% "
+        "of portfolio\n"
+        f"- Stop loss: {constraints.get('stop_loss_pct', 5.0)}%\n"
+        f"- Risk tolerance: {constraints.get('risk_tolerance', 'moderate')}\n\n"
+    )
+
+
 def _clean_identity_value(value: Any) -> Optional[str]:
     """Return a trimmed string, or None for empty / placeholder-ish values."""
     if not isinstance(value, str):

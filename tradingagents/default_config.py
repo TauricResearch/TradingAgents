@@ -15,6 +15,10 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
+    "TRADINGAGENTS_MAX_POSITION_SIZE_PCT": "max_position_size_pct",
+    "TRADINGAGENTS_MAX_RISK_PER_TRADE_PCT": "max_risk_per_trade_pct",
+    "TRADINGAGENTS_STOP_LOSS_PCT":        "stop_loss_pct",
+    "TRADINGAGENTS_RISK_TOLERANCE":       "risk_tolerance",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
@@ -81,6 +85,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
     "analyst_concurrency_limit": 1,
+    # Risk constraints are copied into graph state at run start and re-injected
+    # into each risk-agent prompt at invocation time, so message compression
+    # cannot remove them from the active prompt context.
+    "max_position_size_pct": 10.0,
+    "max_risk_per_trade_pct": 2.0,
+    "stop_loss_pct": 5.0,
+    "risk_tolerance": "moderate",
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.

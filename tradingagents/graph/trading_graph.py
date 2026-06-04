@@ -164,6 +164,15 @@ class TradingAgentsGraph:
 
         return kwargs
 
+    def _risk_constraints_from_config(self) -> Dict[str, Any]:
+        """Return session risk constraints to persist outside message history."""
+        return {
+            "max_position_size_pct": self.config.get("max_position_size_pct", 10.0),
+            "max_risk_per_trade_pct": self.config.get("max_risk_per_trade_pct", 2.0),
+            "stop_loss_pct": self.config.get("stop_loss_pct", 5.0),
+            "risk_tolerance": self.config.get("risk_tolerance", "moderate"),
+        }
+
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
         return {
@@ -360,12 +369,14 @@ class TradingAgentsGraph:
         # deterministically resolved instrument identity for all agents.
         past_context = self.memory_log.get_past_context(company_name)
         instrument_context = self.resolve_instrument_context(company_name, asset_type)
+        risk_constraints = self._risk_constraints_from_config()
         init_agent_state = self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
             past_context=past_context,
             instrument_context=instrument_context,
+            risk_constraints=risk_constraints,
         )
         args = self.propagator.get_graph_args()
 
@@ -420,6 +431,7 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "risk_constraints": final_state.get("risk_constraints", {}),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
