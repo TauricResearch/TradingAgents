@@ -15,7 +15,7 @@ def client(data_root, monkeypatch):
     not race with the API tests that are asserting the HTTP contract.
     Worker processing is covered by web/server/tests/test_runner.py.
     """
-    async def fake_enqueue(ticker, date_str, force=False):
+    async def fake_enqueue(ticker, date_str, force=False, **kwargs):
         ticker_u = ticker.upper()
         # Mirror real enqueue: if today's run exists (any status), it's
         # the idempotency anchor; only create a fresh run when force=true

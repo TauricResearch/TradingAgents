@@ -173,7 +173,12 @@ def create_app() -> FastAPI:
         if ticker not in {r["ticker"] for r in queries.read_watchlist()}:
             raise HTTPException(status_code=404, detail="ticker not on watchlist")
         date_str = storage.today_utc_iso()
-        run_id = await runner.enqueue(ticker, date_str, force=bool(body.force))
+        run_id = await runner.enqueue(
+            ticker,
+            date_str,
+            force=bool(body.force),
+            price_state=app.state.price_state,
+        )
         return {"run_id": run_id}
 
     @app.get("/api/tickers/{ticker}/runs")
