@@ -5,7 +5,7 @@ keeps the low-level IO testable independently of the API.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from tradingagents.dataflows.utils import safe_ticker_component
@@ -109,7 +109,6 @@ def run_to_dict(r: dict) -> dict:
             if finished_at is not None:
                 elapsed_s = round((finished_at - started_at).total_seconds(), 2)
         else:
-            from datetime import datetime, timezone
             elapsed_s = round((datetime.now(timezone.utc) - started_at).total_seconds(), 2)
 
     return {
@@ -367,7 +366,6 @@ def _parse_iso_z(s: str):
         return None
     try:
         # Python 3.11+: ``datetime.fromisoformat`` accepts ``Z``.
-        from datetime import datetime
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
     except (ValueError, TypeError):
         return None
