@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Opencode provider.** Native support for the OpenAI-compatible Opencode
+  endpoint via `OPENCODE_API_KEY` / `OPENCODE_BASE_URL` environment
+  variables. Registerable through the CLI provider menu, env-driven config
+  (`TRADINGAGENTS_LLM_PROVIDER=opencode`), or programmatic client. (#opencode)
+
 ## [0.2.5] — 2026-05-11
 
 ### Added

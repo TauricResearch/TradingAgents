@@ -278,6 +278,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     localhost default when unset.
     """
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
+    opencode_url = os.environ.get("OPENCODE_BASE_URL") or "https://opencode.ai/zen/go/v1"
     return [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
@@ -288,6 +289,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
+        ("Opencode", "opencode", opencode_url),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
     ]

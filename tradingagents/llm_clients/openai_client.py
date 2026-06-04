@@ -163,6 +163,7 @@ _PROVIDER_BASE_URL = {
     "minimax":    "https://api.minimax.io/v1",
     "minimax-cn": "https://api.minimaxi.com/v1",
     "openrouter": "https://openrouter.ai/api/v1",
+    "opencode":   "https://opencode.ai/zen/go/v1",
     "ollama":     "http://localhost:11434/v1",
 }
 
@@ -178,6 +179,10 @@ def _resolve_provider_base_url(provider: str) -> Optional[str]:
     """
     if provider == "ollama":
         env_url = os.environ.get("OLLAMA_BASE_URL")
+        if env_url:
+            return env_url
+    if provider == "opencode":
+        env_url = os.environ.get("OPENCODE_BASE_URL")
         if env_url:
             return env_url
     return _PROVIDER_BASE_URL.get(provider)
