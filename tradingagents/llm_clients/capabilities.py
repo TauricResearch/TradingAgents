@@ -38,6 +38,12 @@ class ModelCapabilities:
     # DeepSeek thinking-mode models 400 if reasoning_content from prior
     # assistant turns is not echoed back on the next request.
     requires_reasoning_content_roundtrip: bool = False
+    # MiniMax M2.x reasoning models need ``reasoning_split=True`` so the
+    # <think> block lands in ``reasoning_details`` instead of polluting
+    # ``content``. The flag is rejected by non-reasoning MiniMax models
+    # (Coding Plan, MiniMax-Text-01, etc.), so we only set it where the
+    # model actually consumes it. (#826)
+    requires_reasoning_split: bool = False
 
 
 # DeepSeek's thinking models accept the ``tools`` array but reject the
@@ -74,6 +80,7 @@ _MINIMAX_THINKING = ModelCapabilities(
     supports_json_mode=False,
     supports_json_schema=False,
     preferred_structured_method="function_calling",
+    requires_reasoning_split=True,
 )
 
 _DEFAULT = ModelCapabilities(

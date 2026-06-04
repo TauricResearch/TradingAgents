@@ -44,9 +44,9 @@ _QWEN_MODELS: Dict[str, List[ModelOption]] = {
         ("Custom model ID", "custom"),
     ],
     "deep": [
-        ("Qwen 3.6 Plus - Flagship vision-language, agentic coding SOTA", "qwen3.6-plus"),
+        ("Qwen 3.7 Max - Latest flagship reasoning agent, 1M ctx", "qwen3.7-max"),
+        ("Qwen 3.6 Plus - Vision-language, agentic coding", "qwen3.6-plus"),
         ("Qwen 3.5 Plus - Previous-gen flagship", "qwen3.5-plus"),
-        ("Qwen 3 Max - Specialized for agent programming + tool use", "qwen3-max"),
         ("Custom model ID", "custom"),
     ],
 }
@@ -95,37 +95,37 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Claude Sonnet 4.5 - High-performance for agents and coding", "claude-sonnet-4-5"),
         ],
         "deep": [
-            ("Claude Opus 4.7 - Latest frontier, long-running agents and coding", "claude-opus-4-7"),
+            ("Claude Opus 4.8 - Latest frontier, agentic coding and reasoning", "claude-opus-4-8"),
+            ("Claude Opus 4.7 - Previous frontier, long-running agents", "claude-opus-4-7"),
             ("Claude Opus 4.6 - Frontier intelligence, agents and coding", "claude-opus-4-6"),
-            ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
         ],
     },
     "google": {
         "quick": [
-            ("Gemini 3 Flash - Next-gen fast (preview)", "gemini-3-flash-preview"),
-            ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
+            ("Gemini 3.5 Flash - Latest, frontier agentic + coding (GA)", "gemini-3.5-flash"),
             ("Gemini 3.1 Flash Lite - Most cost-efficient (GA)", "gemini-3.1-flash-lite"),
+            ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
             ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
         ],
         "deep": [
             ("Gemini 3.1 Pro - Reasoning-first, complex workflows (preview)", "gemini-3.1-pro-preview"),
-            ("Gemini 3 Flash - Next-gen fast (preview)", "gemini-3-flash-preview"),
+            ("Gemini 3.5 Flash - Latest GA, strong agentic + coding", "gemini-3.5-flash"),
             ("Gemini 2.5 Pro - Stable pro model", "gemini-2.5-pro"),
             ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
         ],
     },
     "xai": {
         "quick": [
-            ("Grok 4.20 (Non-Reasoning) - Latest, speed-optimized", "grok-4.20-non-reasoning"),
+            ("Grok 4.3 - Latest flagship, fast with built-in reasoning", "grok-4.3"),
+            ("Grok Build 0.1 - Coding-specialized, 256K ctx", "grok-build-0.1"),
             ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
-            ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
         ],
         "deep": [
-            ("Grok 4.20 (Reasoning) - Latest frontier reasoning model", "grok-4.20-reasoning"),
-            ("Grok 4 - Flagship (dated build)", "grok-4-0709"),
+            ("Grok 4.3 - Latest flagship, built-in reasoning, 1M ctx", "grok-4.3"),
+            ("Grok 4.20 (Reasoning) - Previous-gen reasoning", "grok-4.20-0309-reasoning"),
             ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
-            ("Grok 4.20 - Auto-select reasoning behavior", "grok-4.20"),
+            ("Grok 4 - Flagship (dated build)", "grok-4-0709"),
         ],
     },
     "deepseek": {
