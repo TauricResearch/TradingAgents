@@ -18,6 +18,9 @@ invisible in the UI:
    surfaces it in the UI.
 5. **Total run duration** — wall-clock seconds from start to terminal state;
    new persistence + display.
+6. **Live in-progress indicator** — the running stage's dot shows a
+   spinner with elapsed time inside it, so the active stage is
+   immediately recognizable without expanding the timeline.
 
 ## Motivation
 
@@ -35,6 +38,8 @@ upgrade change decision quality?").
 - Capturing price *changes* during a run (only the start price is recorded).
 - Per-LLM-call model attribution on `run.json` (already in `llm_calls.jsonl`).
 - Sum-of-stages vs. wall-clock reconciliation reporting.
+- Per-stage progress bars, ETA predictions, or stage-level cancel —
+  only the in-progress *visual* indicator is in scope.
 
 ## Approach
 
@@ -139,6 +144,29 @@ matches the dropdown.
 Show `duration_ms` next to each stage name. Format: `2 ms`, `1.4s`,
 `1m 23s` (auto-pick unit by magnitude).
 
+### `RunTimeline.tsx` — running-stage indicator
+
+The currently-running stage's **dot** (the round button in the timeline
+strip) becomes a recognizable "in progress" element:
+
+- **Container** is widened from a circle (`w-8 h-8`) to a small pill
+  (`min-w-[3.25rem] h-8 px-2`) so spinner + time text fit side by side
+  without truncation. The pulse ring + blue background are kept.
+- **Inside the pill** the static stage number is replaced by:
+  - a small spinning SVG arc (CSS `animate-spin` on a 12×12 SVG), and
+  - the elapsed time in monospace tiny text next to it, e.g.
+    `⟳  12s` / `⟳  1m 5s`.
+- **Elapsed time** is computed from the `analyst_started` event's
+  timestamp to `Date.now()`, updated by a 1 Hz `setInterval` in
+  `useEffect` (cleaned up on unmount or when the stage completes).
+- **When the stage completes** (status flips to `done`), the pill
+  collapses back to a circle, the spinner is replaced by a `✓`, and
+  the per-stage `duration_ms` is shown below the stage label
+  (replacing the live "running…" text).
+
+Stages that are *not* running keep the existing circle + number
+appearance; the change is scoped to the active stage only.
+
 ## Error Handling & Edge Cases
 
 - **Existing 4 runs** — no migration. New fields are null; UI shows `—`.
@@ -152,6 +180,15 @@ Show `duration_ms` next to each stage name. Format: `2 ms`, `1.4s`,
   (try/except → log + leave null).
 - **Concurrent writes** — `mark_run_status` and `write_stage` are already
   atomic; no new race surface.
+- **Elapsed-time clock on slow devices** — `setInterval(1000)` is fine;
+  the displayed seconds are an approximation, not a measurement. When
+  the active stage's `analyst_completed` event arrives, the interval is
+  cleared and the final value is replaced with the persisted
+  `duration_ms`.
+- **Multiple rapid stage transitions** — the `useEffect` deps include
+  the active stage's `analyst_started` timestamp; switching stages
+  re-keys the interval cleanly. Stale intervals are cleared on
+  unmount.
 
 ## Testing
 
@@ -172,11 +209,16 @@ Show `duration_ms` next to each stage name. Format: `2 ms`, `1.4s`,
 - `TickerHeader.test.tsx` (or existing equivalent) — `runLabel` produces
   the expected string for: full data, partial data, no data.
 - `RunTimeline.test.tsx` — each stage renders its `duration_ms` formatted.
+- `RunTimeline.test.tsx` — running stage's dot renders the spinner + a
+  text node containing the elapsed time; advances on timer tick; flips
+  to the `✓`/number view on completion. Use `vi.useFakeTimers()` to
+  advance the 1 Hz interval deterministically.
 
 ### Manual / Integration
 
 - Trigger an end-to-end run; confirm the new fields appear in the
-  dropdown, drawer, and timeline.
+  dropdown, drawer, and timeline; watch the active stage's pill
+  update its elapsed counter every second.
 
 ## Files Touched
 
@@ -195,13 +237,14 @@ Show `duration_ms` next to each stage name. Format: `2 ms`, `1.4s`,
   live `elapsed_s` for the current run.
 - `web/frontend/src/components/RunHistoryDrawer.tsx` — append to each row.
 - `web/frontend/src/components/RunTimeline.tsx` — per-stage duration
-  display.
+  display; running-stage pill (spinner + elapsed time); 1 Hz timer.
 
 **Tests**
 - `web/server/tests/test_storage.py`
 - `web/server/tests/test_runner_pm_decision.py` (extend)
 - `web/frontend/src/__tests__/TickerHeader.test.tsx` (or new)
-- `web/frontend/src/__tests__/RunTimeline.test.tsx` (extend)
+- `web/frontend/src/__tests__/RunTimeline.test.tsx` (extend with
+  spinner/elapsed assertions + fake timers)
 
 ## Out-of-Scope Follow-Ups (for a future spec)
 
