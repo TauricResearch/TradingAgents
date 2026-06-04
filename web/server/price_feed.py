@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Callable, Optional
 
 import yfinance as yf
@@ -64,6 +65,15 @@ class PriceSnapshot:
 class PriceState:
     snapshots: dict[str, PriceSnapshot]
     tickers: Callable[[], list[str]]
+
+
+def snapshot_price(state: PriceState, ticker: str) -> tuple[Optional[float], Optional[str]]:
+    snap = state.snapshots.get(ticker.upper())
+    if snap is None or snap.stale or snap.price <= 0:
+        return (None, None)
+    now = datetime.now(timezone.utc)
+    iso = now.isoformat().replace("+00:00", "Z")
+    return (snap.price, iso)
 
 
 async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], None]]) -> None:
