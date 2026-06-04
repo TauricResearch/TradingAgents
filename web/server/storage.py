@@ -231,11 +231,32 @@ def today_utc_iso() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
-def create_run_dir(ticker: str, started_at: Optional[datetime] = None) -> dict:
+def create_run_dir(
+    ticker: str,
+    started_at: Optional[datetime] = None,
+    *,
+    llm_provider: Optional[str] = None,
+    deep_think_model: Optional[str] = None,
+    quick_think_model: Optional[str] = None,
+    start_price: Optional[float] = None,
+    start_price_at: Optional[str] = None,
+) -> dict:
     """Create a fresh run dir + write initial run.json. Return the dir info.
 
     The returned dict has keys: ``run_dir`` (Path), ``run_id`` (str),
     ``slug`` (str), ``started_at_iso`` (str).
+
+    All fields are written on creation; older ``run.json`` files that
+    pre-date this change will simply not have these keys, so consumers
+    must use ``.get()``.
+
+    Fields:
+      llm_provider:     str, LLM provider used (e.g. "openai")
+      deep_think_model: str, model for deep reasoning calls
+      quick_think_model: str, model for quick reasoning calls
+      start_price:      float, ticker price at run start (None until populated)
+      start_price_at:   ISO-8601 UTC string, timestamp of start_price
+      total_duration_s: float|None, set when run finishes; None while running
     """
     if started_at is None:
         started_at = now_utc()
@@ -265,6 +286,12 @@ def create_run_dir(ticker: str, started_at: Optional[datetime] = None) -> dict:
         "decision_confidence": None,
         "idempotency_key": f"{ticker.upper()}:{started_at.date().isoformat()}",
         "completed_stages": [],
+        "llm_provider": llm_provider,
+        "deep_think_model": deep_think_model,
+        "quick_think_model": quick_think_model,
+        "start_price": start_price,
+        "start_price_at": start_price_at,
+        "total_duration_s": None,
     }
     write_json_atomic(run_dir / "run.json", run_json)
     return {
