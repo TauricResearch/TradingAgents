@@ -120,6 +120,13 @@ Install the package and its dependencies:
 pip install .
 ```
 
+Alternatively, if you use `uv`:
+
+```bash
+uv python pin 3.13
+uv sync
+source .venv/bin/activate
+```
 ### Docker
 
 Alternatively, run with Docker:
