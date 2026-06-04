@@ -1,14 +1,37 @@
+import asyncio
 import pytest
 import logging
 from fastapi.testclient import TestClient
 
 from web.server.app import create_app
-from web.server import db, llm_calls
+from web.server import llm_calls, runner, storage
 
 
 @pytest.fixture
-def client(temp_db, monkeypatch):
-    monkeypatch.setattr("web.server.events._broadcast", lambda rid, evt: None)
+def client(data_root, monkeypatch):
+    """FastAPI TestClient with file-backed storage configured.
+
+    Patches the runner's enqueue() to a no-op fake so the worker does
+    not race with the API tests that are asserting the HTTP contract.
+    Worker processing is covered by web/server/tests/test_runner.py.
+    """
+    async def fake_enqueue(ticker, date_str, force=False):
+        ticker_u = ticker.upper()
+        # Mirror real enqueue: if today's run exists (any status), it's
+        # the idempotency anchor; only create a fresh run when force=true
+        # (which first supersedes today's existing partial).
+        todays = [
+            r for r in storage.list_ticker_runs(ticker_u)
+            if (r.get("started_at") or "").startswith(date_str)
+        ]
+        if todays and not force:
+            return todays[0]["id"]
+        if todays and force:
+            for r in todays:
+                storage.mark_run_superseded(r["id"])
+        return storage.create_run_dir(ticker_u)["run_id"]
+
+    monkeypatch.setattr(runner, "enqueue", fake_enqueue)
     app = create_app()
     with TestClient(app) as c:
         yield c
@@ -87,30 +110,21 @@ def test_post_watchlist_rejects_zero_price_ticker(client, monkeypatch):
     assert r.json()["detail"]["error"] == "ticker_not_found"
 
 
-def test_runs_lifecycle(client, monkeypatch):
-    from web.server import runner
-    # Bypass the queue push so the worker cannot race with the GET below.
-    # The route contract under test is that POST returns a run_id and GET returns
-    # the run + its events; worker processing is covered by test_runner.py.
-    monkeypatch.setattr(
-        runner,
-        "enqueue",
-        lambda ticker, *, idempotency_key, force=False: db.create_run(
-            ticker=ticker, idempotency_key=idempotency_key, force=force
-        ),
-    )
+def test_runs_lifecycle(client):
     r = client.post("/api/runs", json={"ticker": "NVDA"})
-    assert r.status_code == 201
+    # The new app uses 202 Accepted (the run is queued, not yet done).
+    assert r.status_code == 202
     rid = r.json()["run_id"]
-    assert rid > 0
+    assert isinstance(rid, str) and rid
 
     r = client.get(f"/api/runs/{rid}")
     assert r.status_code == 200
     body = r.json()
-    assert body["run"]["ticker"] == "NVDA"
+    assert body["ticker"] == "NVDA"
     assert body["events"] == []  # worker bypassed; no events emitted
+    assert body["llm_calls"] == []
 
-    r = client.get("/api/runs?limit=10")
+    r = client.get("/api/tickers/NVDA/runs")
     assert r.status_code == 200
     assert len(r.json()) >= 1
 
@@ -120,56 +134,47 @@ class TestForceRerun:
     per-day idempotency key so users can rerun an analysis for a
     ticker without waiting until tomorrow."""
 
-    def test_post_run_without_force_is_idempotent_per_day(self, client, monkeypatch):
-        from web.server import runner
-        monkeypatch.setattr(
-            runner,
-            "enqueue",
-            lambda ticker, *, idempotency_key, force=False: db.create_run(
-                ticker=ticker, idempotency_key=idempotency_key, force=force
-            ),
-        )
+    def test_post_run_without_force_is_idempotent_per_day(self, client):
         r1 = client.post("/api/runs", json={"ticker": "NVDA"})
         rid_1 = r1.json()["run_id"]
         # The first run is in "running" status (worker was bypassed, so
         # nothing advanced it). Mark it done so the next call sees a
-        # non-running existing row and returns it via the idempotency
+        # terminal existing run and returns it via the idempotency
         # short-circuit.
-        db.mark_run_done(rid_1, decision_action="HOLD", decision_target=None, decision_rationale="", decision_confidence=0.0)
+        storage.mark_run_status(
+            rid_1,
+            status="done",
+            decision_action="HOLD",
+            decision_target=None,
+            decision_rationale="",
+            decision_confidence=0.0,
+        )
         r2 = client.post("/api/runs", json={"ticker": "NVDA"})
         rid_2 = r2.json()["run_id"]
-        assert rid_1 == rid_2  # same day, same idempotency_key
+        assert rid_1 == rid_2  # same day, same run is returned
 
-    def test_post_run_with_force_creates_new_run(self, client, monkeypatch):
-        from web.server import runner
-        monkeypatch.setattr(
-            runner,
-            "enqueue",
-            lambda ticker, *, idempotency_key, force=False: db.create_run(
-                ticker=ticker, idempotency_key=idempotency_key, force=force
-            ),
-        )
+    def test_post_run_with_force_creates_new_run(self, client):
         r1 = client.post("/api/runs", json={"ticker": "NVDA"})
         rid_1 = r1.json()["run_id"]
         r2 = client.post("/api/runs", json={"ticker": "NVDA", "force": True})
         rid_2 = r2.json()["run_id"]
-        assert rid_2 > rid_1  # new row was inserted
+        assert rid_1 != rid_2  # force created a new run
 
-    def test_runner_enqueue_passes_force_to_db(self, temp_db, monkeypatch):
-        """The runner's enqueue() must forward ``force`` to db.create_run
-        so a re-run actually creates a new row instead of returning the
-        cached one."""
-        from unittest.mock import MagicMock
+    @pytest.mark.asyncio
+    async def test_runner_enqueue_passes_force_to_storage(self, data_root, monkeypatch):
+        """The runner's enqueue() must honor ``force=True`` to supersede
+        today's partial run and create a new one."""
+        from unittest.mock import AsyncMock, MagicMock
         from web.server import runner
-        # Replace the queue with a no-op so the worker doesn't run; we
-        # only care about the create_run side-effect of enqueue().
+        # Replace the queue with an AsyncMock so the put() call is awaitable
+        # but the worker never actually runs.
         fake_queue = MagicMock()
-        fake_queue.put_nowait = MagicMock()
-        monkeypatch.setattr(runner, "_queue", fake_queue)
+        fake_queue.put = AsyncMock()
+        monkeypatch.setattr(runner, "_WORK_QUEUE", fake_queue)
 
-        rid1 = runner.enqueue("AAPL", idempotency_key="AAPL:rerun-test")
-        rid2 = runner.enqueue("AAPL", idempotency_key="AAPL:rerun-test", force=True)
-        assert rid2 > rid1
+        rid1 = await runner.enqueue("AAPL", storage.today_utc_iso())
+        rid2 = await runner.enqueue("AAPL", storage.today_utc_iso(), force=True)
+        assert rid1 != rid2
 
 
 class TestTickerRunsList:
@@ -177,12 +182,18 @@ class TestTickerRunsList:
     used by the TickerHeader dropdown selector."""
 
     def test_returns_runs_for_ticker_in_descending_order(self, client):
+        # Clear any runs from prior tests in the data dir so the
+        # descending-order assertion only sees the runs we create here.
+        ticker_dir = storage.data_dir() / "NVDA"
+        if ticker_dir.exists():
+            import shutil
+            shutil.rmtree(ticker_dir)
         # Create three runs for NVDA in chronological order.
-        r1 = db.create_run(ticker="NVDA", idempotency_key="NVDA:2026-01-01")
-        r2 = db.create_run(ticker="NVDA", idempotency_key="NVDA:2026-01-02")
-        r3 = db.create_run(ticker="NVDA", idempotency_key="NVDA:2026-01-03")
+        r1 = storage.create_run_dir("NVDA")["run_id"]
+        r2 = storage.create_run_dir("NVDA")["run_id"]
+        r3 = storage.create_run_dir("NVDA")["run_id"]
         # And one for a different ticker that must NOT appear.
-        db.create_run(ticker="AAPL", idempotency_key="AAPL:2026-01-01")
+        storage.create_run_dir("AAPL")
 
         r = client.get("/api/tickers/NVDA/runs")
         assert r.status_code == 200
@@ -200,9 +211,9 @@ class TestRunDetailLlmCalls:
     """GET /api/runs/{run_id} must include the persisted LlmCall rows
     so the UI can show the LLM traffic that produced the decision."""
 
-    def test_get_run_includes_llm_calls_array(self, client, temp_db):
+    def test_get_run_includes_llm_calls_array(self, client, data_root):
         from datetime import datetime, timezone
-        rid = db.create_run(ticker="NVDA", idempotency_key="NVDA:llm-detail")
+        rid = storage.create_run_dir("NVDA")["run_id"]
         llm_calls.save_llm_call(
             run_id=rid,
             ticker="NVDA",
@@ -231,7 +242,7 @@ class TestRunDetailLlmCalls:
         assert call["input_tokens"] == 5
 
     def test_get_run_returns_empty_llm_calls_when_none(self, client):
-        rid = db.create_run(ticker="AAPL", idempotency_key="AAPL:no-llms")
+        rid = storage.create_run_dir("AAPL")["run_id"]
         r = client.get(f"/api/runs/{rid}")
         assert r.status_code == 200
         assert r.json()["llm_calls"] == []
