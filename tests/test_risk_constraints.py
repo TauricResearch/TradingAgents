@@ -7,7 +7,10 @@ from tradingagents.agents.risk_mgmt.aggressive_debator import create_aggressive_
 from tradingagents.agents.risk_mgmt.conservative_debator import create_conservative_debator
 from tradingagents.agents.risk_mgmt.neutral_debator import create_neutral_debator
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
-from tradingagents.agents.utils.agent_utils import format_risk_constraints
+from tradingagents.agents.utils.agent_utils import (
+    format_risk_constraints,
+    resolve_risk_constraints,
+)
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -76,6 +79,41 @@ def test_format_risk_constraints_renders_all_limits():
 
 
 @pytest.mark.unit
+def test_resolve_risk_constraints_falls_back_for_none_values():
+    constraints = resolve_risk_constraints(
+        {
+            "max_position_size_pct": None,
+            "max_risk_per_trade_pct": None,
+            "stop_loss_pct": None,
+            "risk_tolerance": None,
+        }
+    )
+    assert constraints == {
+        "max_position_size_pct": 10.0,
+        "max_risk_per_trade_pct": 2.0,
+        "stop_loss_pct": 5.0,
+        "risk_tolerance": "moderate",
+    }
+
+
+@pytest.mark.unit
+def test_format_risk_constraints_falls_back_for_none_values():
+    prompt = format_risk_constraints(
+        {
+            "max_position_size_pct": None,
+            "max_risk_per_trade_pct": None,
+            "stop_loss_pct": None,
+            "risk_tolerance": None,
+        }
+    )
+    assert "None" not in prompt
+    assert "Max position size: 10.0% of portfolio" in prompt
+    assert "Max risk per trade: 2.0% of portfolio" in prompt
+    assert "Stop loss: 5.0%" in prompt
+    assert "Risk tolerance: moderate" in prompt
+
+
+@pytest.mark.unit
 def test_propagator_carries_risk_constraints_in_initial_state():
     state = Propagator().create_initial_state(
         "NVDA",
@@ -101,6 +139,26 @@ def test_graph_extracts_risk_constraints_from_config_with_defaults():
     assert constraints == {
         "max_position_size_pct": 10.0,
         "max_risk_per_trade_pct": 0.75,
+        "stop_loss_pct": 5.0,
+        "risk_tolerance": "moderate",
+    }
+
+
+@pytest.mark.unit
+def test_graph_extracts_risk_constraints_falls_back_for_none_values():
+    graph = MagicMock(spec=TradingAgentsGraph)
+    graph.config = {
+        "max_position_size_pct": None,
+        "max_risk_per_trade_pct": None,
+        "stop_loss_pct": None,
+        "risk_tolerance": None,
+    }
+
+    constraints = TradingAgentsGraph._risk_constraints_from_config(graph)
+
+    assert constraints == {
+        "max_position_size_pct": 10.0,
+        "max_risk_per_trade_pct": 2.0,
         "stop_loss_pct": 5.0,
         "risk_tolerance": "moderate",
     }

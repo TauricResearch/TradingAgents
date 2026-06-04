@@ -38,7 +38,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    resolve_risk_constraints,
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -166,12 +167,7 @@ class TradingAgentsGraph:
 
     def _risk_constraints_from_config(self) -> Dict[str, Any]:
         """Return session risk constraints to persist outside message history."""
-        return {
-            "max_position_size_pct": self.config.get("max_position_size_pct", 10.0),
-            "max_risk_per_trade_pct": self.config.get("max_risk_per_trade_pct", 2.0),
-            "stop_loss_pct": self.config.get("stop_loss_pct", 5.0),
-            "risk_tolerance": self.config.get("risk_tolerance", "moderate"),
-        }
+        return resolve_risk_constraints(self.config)
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
