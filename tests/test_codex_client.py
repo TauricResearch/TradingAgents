@@ -224,19 +224,6 @@ class TestGenerate:
         assert len(usage) == 1
         assert "model=gpt-5.4-mini" in usage[0]
 
-    def test_falls_back_to_stdout_if_output_file_empty(self, monkeypatch):
-        # If a future codex build stops writing the ``-o`` file, we
-        # should not silently fail — fall back to whatever ended up
-        # on stdout.
-        def fake_run(argv, **kwargs):
-            return _completed(stdout="stdout reply\n")
-
-        _patch_run(monkeypatch, fake_run)
-        llm = mod.CodexChatModel()
-
-        out = llm.invoke("hi")
-        assert out.content == "stdout reply"
-
     def test_nonzero_exit_raises_with_stderr_snippet(self, monkeypatch):
         def fake_run(argv, **kwargs):
             return _completed(returncode=1, stderr="Missing OpenAI API key.\nFix it.")
@@ -247,16 +234,17 @@ class TestGenerate:
         with pytest.raises(RuntimeError, match="Missing OpenAI API key"):
             llm.invoke("hi")
 
-    def test_no_assistant_text_anywhere_raises(self, monkeypatch):
-        # Both the ``-o`` file and stdout come back empty — surface a
-        # clean error rather than handing downstream an empty AIMessage.
+    def test_empty_response_file_raises(self, monkeypatch):
+        # codex returned 0 but never wrote anything to ``-o`` — surface
+        # a clean error rather than handing downstream an empty
+        # AIMessage.
         def fake_run(argv, **kwargs):
-            return _completed(stdout="   \n  ", stderr="")
+            return _completed(stderr="")
 
         _patch_run(monkeypatch, fake_run)
         llm = mod.CodexChatModel()
 
-        with pytest.raises(RuntimeError, match="no assistant text"):
+        with pytest.raises(RuntimeError, match="empty response file"):
             llm.invoke("hi")
 
     def test_output_file_is_cleaned_up_on_success(self, monkeypatch):

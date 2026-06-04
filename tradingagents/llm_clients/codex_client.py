@@ -1,8 +1,8 @@
 """LangChain chat-model adapter for the OpenAI Codex CLI.
 
-Bridges whatever auth the local ``codex`` CLI is already configured with
-(ChatGPT subscription via ``codex --login``, or ``OPENAI_API_KEY``) into
-the LangChain ``BaseChatModel`` surface that TradingAgents expects from
+Bridges the local ``codex`` CLI's session (configured via
+``codex login``) into the LangChain ``BaseChatModel`` surface that
+TradingAgents expects from
 ``tradingagents.llm_clients.factory.create_llm_client``.
 
 Scope: pure chat. ``bind_tools`` raises ``NotImplementedError`` — the
@@ -36,18 +36,16 @@ from .base_client import BaseLLMClient
 logger = logging.getLogger(__name__)
 
 
-# Models the codex CLI accepts via ``-m`` differ sharply between API-key
-# mode and ChatGPT-subscription mode. Under subscription auth the codex
-# backend whitelists only a small set of GPT-5.x IDs; raw API model names
-# (``gpt-5``, ``o4-mini``, ``gpt-5.5-mini``, etc.) come back with
+# The codex backend whitelists a small fixed set of GPT-5.x IDs under
+# ChatGPT-subscription auth — anything else comes back with
 # ``invalid_request_error: The '...' model is not supported when using
-# Codex with a ChatGPT account.`` This list mirrors that whitelist; users
-# running codex with ``OPENAI_API_KEY`` can pass anything via "Custom
-# model ID" and the warning will fire but the call will still go through.
+# Codex with a ChatGPT account.`` This list mirrors that whitelist.
+# Anything outside it (custom deployments, future models) goes through
+# the standard ``warn_if_unknown_model`` warning but is still forwarded.
 _KNOWN_MODELS = {
-    "gpt-5.5",         # subscription deep tier
-    "gpt-5.4",         # subscription deep tier (previous-gen frontier)
-    "gpt-5.4-mini",    # subscription quick tier
+    "gpt-5.5",         # deep tier, frontier
+    "gpt-5.4",         # deep tier, previous-gen frontier
+    "gpt-5.4-mini",    # quick tier
 }
 
 _DEFAULT_TIMEOUT_S = 600
@@ -56,7 +54,7 @@ _DEFAULT_TIMEOUT_S = 600
 def _flatten_messages(messages: List[BaseMessage]) -> str:
     """Collapse a LangChain message list into a single prompt string.
 
-    The codex CLI takes the prompt as one positional argv — there is no
+    ``codex exec`` reads its prompt as one stdin blob — there is no
     separate system / user channel. Sections are labelled inline so the
     model can tell system instructions apart from prior turns and the
     current user message.
@@ -96,7 +94,7 @@ class CodexChatModel(BaseChatModel):
     persisting a session file to disk.
     """
 
-    model: str = "o4-mini"
+    model: str = "gpt-5.4-mini"
     timeout_s: int = _DEFAULT_TIMEOUT_S
     sandbox_mode: str = "read-only"
 
@@ -170,19 +168,11 @@ class CodexChatModel(BaseChatModel):
                     f"stderr: {(result.stderr or '').strip()[:500]}"
                 )
 
-            # Prefer the dedicated output file; fall back to stdout in
-            # case a future CLI version stops writing it.
-            try:
-                with open(output_file, encoding="utf-8") as fh:
-                    text = fh.read().strip()
-            except OSError:
-                text = ""
-            if not text:
-                text = (result.stdout or "").strip()
+            with open(output_file, encoding="utf-8") as fh:
+                text = fh.read().strip()
             if not text:
                 raise RuntimeError(
-                    f"codex returned no assistant text "
-                    f"(exit code {result.returncode}). "
+                    "codex wrote an empty response file. "
                     f"stderr: {(result.stderr or '').strip()[:500]}"
                 )
 
@@ -231,8 +221,8 @@ class CodexClient(BaseLLMClient):
 
     def __init__(self, model: str, base_url: Optional[str] = None, **kwargs):
         if base_url is not None:
-            # codex CLI's endpoint is configured at install time via
-            # ``codex --login``; we don't expose a runtime override.
+            # codex's endpoint is configured by the CLI itself via
+            # ``codex login``; we don't expose a runtime override.
             raise ValueError(
                 "The 'codex' provider has no base_url — endpoint and auth "
                 "are owned by the local `codex` CLI's configured session."
@@ -248,7 +238,7 @@ class CodexClient(BaseLLMClient):
             raise RuntimeError(
                 "The 'codex' provider requires the codex CLI on PATH. "
                 "Install with `npm install -g @openai/codex` and run "
-                "`codex --login`."
+                "`codex login`."
             )
         return CodexChatModel(model=self.model)
 
