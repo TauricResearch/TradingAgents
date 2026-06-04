@@ -4,10 +4,10 @@ import { useUi } from "../store/ui";
 
 export type WsStatus = "idle" | "connecting" | "open" | "reconnecting" | "closed";
 
-export function useRunStream(runId: number | null) {
+export function useRunStream(runId: string | null) {
   const appendEvent = useUi((s) => s.appendEvent);
   const [status, setStatus] = useState<WsStatus>("idle");
-  const lastIdRef = useRef<number>(0);
+  const lastIdRef = useRef<string | null>(null);
   const clientRef = useRef<ResilientWs | null>(null);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export function useRunStream(runId: number | null) {
     const client = new ResilientWs({
       url: () => buildRunUrl(runId, lastIdRef.current || undefined),
       onMessage: (evt) => {
-        if (typeof evt.id === "number") lastIdRef.current = Math.max(lastIdRef.current, evt.id);
+        if (typeof evt.id === "string") lastIdRef.current = evt.id;
         appendEvent(evt);
         // Terminal events clear the active-run marker for whatever ticker
         // was running this id, so the UI stops showing "running" once the

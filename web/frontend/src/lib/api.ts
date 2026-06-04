@@ -34,12 +34,22 @@ export interface WatchlistRow {
   last_decision_at: string | null;
 }
 
+export type RunStatus =
+  | "queued"
+  | "running"
+  | "done"
+  | "failed"
+  | "cancelled"
+  | "superseded";
+
 export interface RunRow {
-  id: number;
+  id: string;
+  slug: string;
   ticker: string;
   started_at: string | null;
   finished_at: string | null;
-  status: "queued" | "running" | "done" | "failed" | "cancelled";
+  status: RunStatus;
+  cancel_requested: boolean;
   decision_action: string | null;
   decision_target: number | null;
   decision_rationale: string | null;
@@ -48,7 +58,7 @@ export interface RunRow {
 
 export interface LlmCallRow {
   id: number;
-  run_id: number;
+  run_id: string;
   ticker: string;
   node_name: string;
   started_at: string | null;
@@ -63,9 +73,20 @@ export interface LlmCallRow {
 }
 
 export interface RunDetail {
-  run: RunRow;
-  events: Array<{ id: number; type: string; ts: string | null; data: unknown }>;
+  id: string;
+  slug: string;
+  ticker: string;
+  started_at: string | null;
+  finished_at: string | null;
+  status: RunStatus;
+  cancel_requested: boolean;
+  decision_action: string | null;
+  decision_target: number | null;
+  decision_rationale: string | null;
+  decision_confidence: number | null;
+  events: Array<{ id: string; type: string; ts: string | null; data: unknown }>;
   llm_calls: LlmCallRow[];
+  stages: unknown[];
 }
 
 export async function fetchWatchlist(): Promise<WatchlistRow[]> {
@@ -100,7 +121,7 @@ export async function fetchPrices(): Promise<Record<string, unknown>> {
   return r.json();
 }
 
-export async function startRun(ticker: string, force: boolean = false): Promise<{ run_id: number }> {
+export async function startRun(ticker: string, force: boolean = false): Promise<{ run_id: string }> {
   const r = await fetch(`${base}/api/runs`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -112,14 +133,14 @@ export async function startRun(ticker: string, force: boolean = false): Promise<
   return r.json();
 }
 
-export async function cancelRun(runId: number): Promise<void> {
+export async function cancelRun(runId: string): Promise<void> {
   const r = await fetch(`${base}/api/runs/${runId}/cancel`, { method: "POST" });
   if (!r.ok) {
     throw new ApiError(`cancel ${r.status}`, r.status, await readJsonOrNull(r));
   }
 }
 
-export async function fetchRunDetail(runId: number): Promise<RunDetail> {
+export async function fetchRunDetail(runId: string): Promise<RunDetail> {
   const r = await fetch(`${base}/api/runs/${runId}`);
   if (!r.ok) {
     throw new ApiError(`run ${r.status}`, r.status, await readJsonOrNull(r));
@@ -133,4 +154,8 @@ export async function fetchTickerRuns(ticker: string): Promise<RunRow[]> {
     throw new ApiError(`ticker-runs ${r.status}`, r.status, await readJsonOrNull(r));
   }
   return r.json();
+}
+
+export function buildRunId(ticker: string, startedAtIso: string): string {
+  return `${ticker}:${startedAtIso}`;
 }

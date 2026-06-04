@@ -61,10 +61,10 @@ function defaultBackoff(attempt: number): number {
   return Math.min(1000 * 2 ** attempt, 30_000);
 }
 
-export function buildRunUrl(runId: number, since?: number): string {
+export function buildRunUrl(runId: string, since?: string): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const base = `${proto}//${location.host}/ws/runs/${runId}`;
-  return since ? `${base}?since=${since}` : base;
+  return since ? `${base}?since=${encodeURIComponent(since)}` : base;
 }
 
 export function buildGlobalUrl(): string {

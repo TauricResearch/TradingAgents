@@ -23,9 +23,9 @@ export interface WsEvent<T = unknown> {
   v: 1;
   type: EventTypeValue;
   ts: string;
-  run_id: number;
+  run_id: string;
   data: T;
-  id?: number;
+  id: string;
 }
 
 export const ALL_EVENT_TYPES: EventTypeValue[] = Object.values(EventType);

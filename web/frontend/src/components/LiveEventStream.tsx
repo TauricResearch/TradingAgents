@@ -67,7 +67,7 @@ export function LiveEventStream() {
     <div ref={ref} className="h-96 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 space-y-2">
       {events.length === 0 && <p className="text-sm text-slate-400">No events yet. Click "Run analysis" to start.</p>}
       {events.map((e) => {
-        const key = (e.id ?? 0) + ":" + e.ts;
+        const key = (e.id ?? "") + ":" + e.ts;
         const data = e.data as EventData;
         const hasReport = !!data.report_text;
         return (
