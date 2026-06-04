@@ -7,10 +7,10 @@ describe("LiveEventStream", () => {
   it("renders bubbles in order, colors decision green/red", () => {
     useUi.setState({
       focusedTicker: "T",
-      lastRunIdByTicker: { T: 1 },
+      lastRunIdByTicker: { T: "T:1" },
       eventBuffer: [
-        { v: 1, type: "analyst_thinking", ts: "t1", run_id: 1, data: { node: "Market Analyst" }, id: 1 },
-        { v: 1, type: "decision", ts: "t2", run_id: 1, data: { action: "BUY", target: 260 }, id: 2 },
+        { v: 1, type: "analyst_thinking", ts: "t1", run_id: "T:1", data: { node: "Market Analyst" }, id: "1" },
+        { v: 1, type: "decision", ts: "t2", run_id: "T:1", data: { action: "BUY", target: 260 }, id: "2" },
       ],
     });
     render(<LiveEventStream />);
@@ -22,19 +22,19 @@ describe("LiveEventStream", () => {
   it("shows exception class and message on run_failed", () => {
     useUi.setState({
       focusedTicker: "T",
-      lastRunIdByTicker: { T: 1 },
+      lastRunIdByTicker: { T: "T:1" },
       eventBuffer: [
         {
           v: 1,
           type: "run_failed",
           ts: "t1",
-          run_id: 1,
+          run_id: "T:1",
           data: {
             reason: "exception",
             exception_class: "RateLimitError",
             message: "OpenRouter 429: rate limit exceeded",
           },
-          id: 10,
+          id: "10",
         },
       ],
     });
@@ -47,15 +47,15 @@ describe("LiveEventStream", () => {
   it("falls back to reason-only when exception class/message absent", () => {
     useUi.setState({
       focusedTicker: "T",
-      lastRunIdByTicker: { T: 1 },
+      lastRunIdByTicker: { T: "T:1" },
       eventBuffer: [
         {
           v: 1,
           type: "run_failed",
           ts: "t1",
-          run_id: 1,
+          run_id: "T:1",
           data: { reason: "cancelled" },
-          id: 11,
+          id: "11",
         },
       ],
     });
@@ -66,15 +66,15 @@ describe("LiveEventStream", () => {
   it("shows message on tool_call_warning", () => {
     useUi.setState({
       focusedTicker: "T",
-      lastRunIdByTicker: { T: 1 },
+      lastRunIdByTicker: { T: "T:1" },
       eventBuffer: [
         {
           v: 1,
           type: "tool_call_warning",
           ts: "t1",
-          run_id: 1,
+          run_id: "T:1",
           data: { message: "retrying after RateLimitError: 429" },
-          id: 20,
+          id: "20",
         },
       ],
     });
@@ -87,23 +87,23 @@ describe("LiveEventStream", () => {
   it("shows node name on analyst_started", () => {
     useUi.setState({
       focusedTicker: "T",
-      lastRunIdByTicker: { T: 1 },
+      lastRunIdByTicker: { T: "T:1" },
       eventBuffer: [
         {
           v: 1,
           type: "analyst_started",
           ts: "t1",
-          run_id: 1,
+          run_id: "T:1",
           data: { node: "Market Analyst" },
-          id: 30,
+          id: "30",
         },
         {
           v: 1,
           type: "analyst_started",
           ts: "t2",
-          run_id: 1,
+          run_id: "T:1",
           data: { node: "News Analyst" },
-          id: 31,
+          id: "31",
         },
       ],
     });
@@ -115,15 +115,15 @@ describe("LiveEventStream", () => {
   it("falls back to stage on analyst_completed and appends summary", () => {
     useUi.setState({
       focusedTicker: "T",
-      lastRunIdByTicker: { T: 1 },
+      lastRunIdByTicker: { T: "T:1" },
       eventBuffer: [
         {
           v: 1,
           type: "analyst_completed",
           ts: "t1",
-          run_id: 1,
+          run_id: "T:1",
           data: { stage: "market", summary: "bullish" },
-          id: 40,
+          id: "40",
         },
       ],
     });
@@ -136,10 +136,10 @@ describe("LiveEventStream", () => {
   it("renders only the focused run's events", () => {
     useUi.setState({
       focusedTicker: "NVDA",
-      lastRunIdByTicker: { NVDA: 1 },
+      lastRunIdByTicker: { NVDA: "NVDA:1" },
       eventBuffer: [
-        { v: 1, type: "analyst_thinking", ts: "t1", run_id: 1, data: { node: "NVDA fragment" }, id: 1 },
-        { v: 1, type: "analyst_thinking", ts: "t2", run_id: 2, data: { node: "AAPL fragment" }, id: 2 },
+        { v: 1, type: "analyst_thinking", ts: "t1", run_id: "NVDA:1", data: { node: "NVDA fragment" }, id: "1" },
+        { v: 1, type: "analyst_thinking", ts: "t2", run_id: "AAPL:2", data: { node: "AAPL fragment" }, id: "2" },
       ],
     });
     render(<LiveEventStream />);

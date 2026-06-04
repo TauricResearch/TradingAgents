@@ -4,11 +4,11 @@ import { RunTimeline } from "../components/RunTimeline";
 import { useUi } from "../store/ui";
 import type { WsEvent } from "../lib/events";
 
-const evt = (runId: number, type: string, data: any, id: number): WsEvent => ({
+const evt = (runId: string, type: string, data: any, id: string): WsEvent => ({
   v: 1, type: type as any, ts: `t${id}`, run_id: runId, data, id,
 });
 
-const setup = (events: WsEvent[], focused = "NVDA", runId = 1) => {
+const setup = (events: WsEvent[], focused = "NVDA", runId: string = "NVDA:1") => {
   useUi.setState({
     focusedTicker: focused,
     lastRunIdByTicker: { [focused]: runId },
@@ -63,8 +63,8 @@ describe("RunTimeline — stage status", () => {
 
   it("marks a stage as 'done' when analyst_completed fires", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_completed", { stage: "market", summary: "completed" }, 2),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_completed", { stage: "market", summary: "completed" }, "2"),
     ]);
     render(<RunTimeline />);
     expect(screen.getByTestId("stage-market").getAttribute("data-status")).toBe("done");
@@ -73,8 +73,8 @@ describe("RunTimeline — stage status", () => {
 
   it("marks a stage as 'running' between started and completed", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_thinking", { text_preview: "analyzing" }, 2),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_thinking", { text_preview: "analyzing" }, "2"),
     ]);
     render(<RunTimeline />);
     expect(screen.getByTestId("stage-market").getAttribute("data-status")).toBe("running");
@@ -82,18 +82,18 @@ describe("RunTimeline — stage status", () => {
 
   it("does not leak events from a different run into the timeline", () => {
     setup([
-      evt(1, "analyst_completed", { stage: "market" }, 1),
-      evt(2, "analyst_started", { node: "Market Analyst" }, 2),
-    ], "NVDA", 1);
+      evt("NVDA:1", "analyst_completed", { stage: "market" }, "1"),
+      evt("NVDA:2", "analyst_started", { node: "Market Analyst" }, "2"),
+    ], "NVDA", "NVDA:1");
     render(<RunTimeline />);
     expect(screen.getByTestId("stage-market").getAttribute("data-status")).toBe("done");
   });
 
   it("marks all stages as 'errored' after a run_failed event", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_completed", { stage: "market" }, 2),
-      evt(1, "run_failed", { reason: "rate_limited" }, 3),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_completed", { stage: "market" }, "2"),
+      evt("NVDA:1", "run_failed", { reason: "rate_limited" }, "3"),
     ]);
     render(<RunTimeline />);
     expect(screen.getByTestId("stage-market").getAttribute("data-status")).toBe("done");
@@ -104,8 +104,8 @@ describe("RunTimeline — stage status", () => {
 describe("RunTimeline — segment progress", () => {
   it("the first segment is 'traversed' once market completes", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_completed", { stage: "market" }, 2),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_completed", { stage: "market" }, "2"),
     ]);
     const { container } = render(<RunTimeline />);
     const segs = container.querySelectorAll('[data-testid="timeline-segment"]');
@@ -115,9 +115,9 @@ describe("RunTimeline — segment progress", () => {
 
   it("the segment leading to the running stage is 'active'", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_completed", { stage: "market" }, 2),
-      evt(1, "analyst_started", { node: "Sentiment Analyst" }, 3),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_completed", { stage: "market" }, "2"),
+      evt("NVDA:1", "analyst_started", { node: "Sentiment Analyst" }, "3"),
     ]);
     const { container } = render(<RunTimeline />);
     const segs = container.querySelectorAll('[data-testid="timeline-segment"]');
@@ -130,8 +130,8 @@ describe("RunTimeline — segment progress", () => {
 describe("RunTimeline — click to expand details", () => {
   it("clicking a node toggles its details panel open", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_thinking", { text_preview: "looking at prices" }, 2),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_thinking", { text_preview: "looking at prices" }, "2"),
     ]);
     render(<RunTimeline />);
     const market = screen.getByTestId("stage-market");
@@ -142,7 +142,7 @@ describe("RunTimeline — click to expand details", () => {
 
   it("clicking the same node again collapses the panel", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
     ]);
     render(<RunTimeline />);
     const market = screen.getByTestId("stage-market");
@@ -153,9 +153,9 @@ describe("RunTimeline — click to expand details", () => {
 
   it("opening one stage closes the others (accordion behavior)", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_completed", { stage: "market" }, 2),
-      evt(1, "analyst_started", { node: "Sentiment Analyst" }, 3),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_completed", { stage: "market" }, "2"),
+      evt("NVDA:1", "analyst_started", { node: "Sentiment Analyst" }, "3"),
     ]);
     render(<RunTimeline />);
     fireEvent.click(screen.getByTestId("stage-market"));
@@ -167,9 +167,9 @@ describe("RunTimeline — click to expand details", () => {
 
   it("a running stage's details panel shows its thinking log", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_thinking", { text_preview: "q1" }, 2),
-      evt(1, "analyst_thinking", { text_fragment: "answer chunk" }, 3),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_thinking", { text_preview: "q1" }, "2"),
+      evt("NVDA:1", "analyst_thinking", { text_fragment: "answer chunk" }, "3"),
     ]);
     render(<RunTimeline />);
     fireEvent.click(screen.getByTestId("stage-market"));
@@ -179,13 +179,13 @@ describe("RunTimeline — click to expand details", () => {
 
   it("a done stage's details panel shows its report excerpt", () => {
     setup([
-      evt(1, "analyst_started", { node: "Market Analyst" }, 1),
-      evt(1, "analyst_completed", {
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "1"),
+      evt("NVDA:1", "analyst_completed", {
         stage: "market",
         summary: "completed",
         report_excerpt: "Bullish on NVDA long-term",
         report_text: "Full bullish analysis here…",
-      }, 2),
+      }, "2"),
     ]);
     render(<RunTimeline />);
     fireEvent.click(screen.getByTestId("stage-market"));

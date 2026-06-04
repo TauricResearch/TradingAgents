@@ -1,16 +1,30 @@
+import type { RunDetail } from "../lib/api";
+
 interface Props {
   action: "BUY" | "SELL" | "HOLD" | string;
   target: number | null;
   confidence: number;
   rationale: string;
   degraded?: boolean;
+  /** When set, a "running" run surfaces an "incomplete" hint so the user
+   *  knows the run was interrupted and can resume it from the header. */
+  run?: RunDetail | null;
 }
 
-export function DecisionPanel({ action, target, confidence, rationale, degraded }: Props) {
+export function DecisionPanel({ action, target, confidence, rationale, degraded, run }: Props) {
   const actionColor = action === "BUY" ? "text-emerald-600" : action === "SELL" ? "text-rose-600" : "text-slate-600";
   const pct = Math.max(0, Math.min(1, confidence)) * 100;
+  const isIncomplete = run?.status === "running";
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 mt-4">
+      {isIncomplete && (
+        <div
+          data-testid="incomplete-hint"
+          className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
+          This run was interrupted. Click <b>Resume</b> in the header to continue.
+        </div>
+      )}
       <div className="flex items-center gap-3 mb-2">
         <span className={`text-2xl font-semibold ${actionColor}`}>{action}</span>
         {target != null && <span className="text-lg text-slate-700">@ ${target.toFixed(2)}</span>}
