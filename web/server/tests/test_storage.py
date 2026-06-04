@@ -230,3 +230,31 @@ def test_clear_ticker_data_handles_partial_existence(tmp_path, data_root):
     (cache / "checkpoints" / "MSFT.db").touch()
     storage.clear_ticker_data("MSFT")
     assert not (cache / "checkpoints" / "MSFT.db").exists()
+
+
+def test_create_run_dir_writes_model_fields(data_root):
+    info = storage.create_run_dir(
+        "NVDA",
+        llm_provider="openai",
+        deep_think_model="gpt-5.5",
+        quick_think_model="gpt-5.4-mini",
+        start_price=123.45,
+        start_price_at="2026-06-04T12:00:00Z",
+    )
+    rj = storage.read_run(info["run_id"])
+    assert rj["llm_provider"] == "openai"
+    assert rj["deep_think_model"] == "gpt-5.5"
+    assert rj["quick_think_model"] == "gpt-5.4-mini"
+    assert rj["start_price"] == 123.45
+    assert rj["start_price_at"] == "2026-06-04T12:00:00Z"
+
+
+def test_create_run_dir_defaults_new_fields_to_null(data_root):
+    info = storage.create_run_dir("NVDA")
+    rj = storage.read_run(info["run_id"])
+    assert rj["llm_provider"] is None
+    assert rj["deep_think_model"] is None
+    assert rj["quick_think_model"] is None
+    assert rj["start_price"] is None
+    assert rj["start_price_at"] is None
+    assert rj["total_duration_s"] is None
