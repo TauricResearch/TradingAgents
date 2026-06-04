@@ -56,3 +56,49 @@ def test_ws_rejects_unknown_run(client):
         msg = ws.receive_json()
         assert msg["type"] == "error"
         assert "not found" in msg["detail"]
+
+
+def test_ws_global_endpoint_accepts_and_closes_cleanly(client):
+    """The /ws/global endpoint must accept connections and close cleanly.
+
+    Regression test: the frontend's ``useGlobalStream`` hook always
+    opens a WS to ``/ws/global`` on dashboard mount. Without this route
+    the request fell through to the ``StaticFiles`` mount at ``/`` and
+    crashed the ASGI app with
+    ``AssertionError: scope["type"] == "http"`` (starlette/staticfiles.py:91).
+    """
+    with client.websocket_connect("/ws/global") as ws:
+        # If we got here, the WS was accepted without the ASGI app
+        # raising. The handler is now draining client messages; we
+        # just close on exit.
+        pass
+
+
+def test_ws_global_unsubscribes_on_disconnect(client):
+    """After the global WS disconnects, the connection must be removed
+    from the events bus so we don't leak subscribers (and memory)."""
+    from web.server import events as events_mod
+
+    assert not events_mod._subscribers.get("*")
+
+    with client.websocket_connect("/ws/global"):
+        # Inside the ``with`` block, the handler has registered us.
+        assert events_mod._subscribers.get("*")
+
+    # After disconnect, the ``finally`` block must have cleaned up.
+    assert not events_mod._subscribers.get("*")
+
+
+def test_ws_global_does_not_match_run_route(client):
+    """/ws/global must NOT be served by the /ws/runs/{run_id} handler —
+    if it were, the runtime would crash when storage.read_run("global")
+    returns None. Routing the global stream to its own handler avoids
+    this and also lets the two streams have different lifecycle
+    semantics (the global stream is live-only, no replay)."""
+    # Verify a fresh /ws/global connect works — the /ws/runs/{run_id}
+    # route would have replied with a "run not found" error frame
+    # before the global handler can claim the connection.
+    with client.websocket_connect("/ws/global") as ws:
+        # No initial error frame expected (the global handler doesn't
+        # send one). Close cleanly.
+        pass

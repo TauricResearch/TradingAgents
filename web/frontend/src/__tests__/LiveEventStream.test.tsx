@@ -19,6 +19,46 @@ describe("LiveEventStream", () => {
     expect(bubble.className).toMatch(/emerald/);
   });
 
+  it("shows 'DECISION: BUY @ 260' when target is provided", () => {
+    useUi.setState({
+      focusedTicker: "T",
+      lastRunIdByTicker: { T: "T:1" },
+      eventBuffer: [
+        {
+          v: 1,
+          type: "decision",
+          ts: "t1",
+          run_id: "T:1",
+          data: { action: "BUY", target: 260 },
+          id: "100",
+        },
+      ],
+    });
+    render(<LiveEventStream />);
+    expect(screen.getByTestId("event-100")).toHaveTextContent("DECISION: BUY @ 260");
+  });
+
+  it("omits the '@ null' suffix when decision has no target", () => {
+    useUi.setState({
+      focusedTicker: "T",
+      lastRunIdByTicker: { T: "T:1" },
+      eventBuffer: [
+        {
+          v: 1,
+          type: "decision",
+          ts: "t1",
+          run_id: "T:1",
+          data: { action: "BUY", target: null, rationale: "", confidence: 0.9 },
+          id: "101",
+        },
+      ],
+    });
+    render(<LiveEventStream />);
+    const bubble = screen.getByTestId("event-101");
+    expect(bubble).toHaveTextContent("DECISION: BUY");
+    expect(bubble).not.toHaveTextContent("null");
+  });
+
   it("shows exception class and message on run_failed", () => {
     useUi.setState({
       focusedTicker: "T",

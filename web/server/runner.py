@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import threading
 import time
 import traceback
@@ -35,7 +36,6 @@ def checkpoint_thread_id(ticker: str, date_str: str) -> str:
 
 def clear_today_checkpoint(ticker: str, date_str: str) -> None:
     """Used by force=True to drop the LangGraph thread state for today."""
-    from . import storage
     clear_checkpoint(str(storage.cache_dir()), ticker, date_str)
 
 # Retry policy. See docs/superpowers/specs/2026-06-02-rate-aware-retry-design.md
@@ -58,7 +58,102 @@ _STAGE_MAP = {
     "Aggressive Analyst": ("risk", None),
     "Conservative Analyst": ("risk", None),
     "Neutral Analyst": ("risk", None),
+    # Portfolio Manager synthesises the risk debate and writes the
+    # final decision into ``final_trade_decision``.  It is the
+    # consolidator of the risk stage, so its exit must emit
+    # ``analyst_completed`` with a report — otherwise the risk stage
+    # never shows as "done" in the UI and the run is reported without
+    # a final decision.
+    "Portfolio Manager": ("risk", "final_trade_decision"),
 }
+
+
+# Map the framework's 5-tier rating (from ``signal_processing.parse_rating``)
+# to the 3-tier action vocabulary the dashboard API and frontend speak.
+_RATING_TO_ACTION = {
+    "Buy": "BUY",
+    "Overweight": "BUY",
+    "Hold": "HOLD",
+    "Underweight": "SELL",
+    "Sell": "SELL",
+}
+
+
+# Heuristic confidence for each rating.  The framework's
+# ``PortfolioDecision`` schema does not carry a numeric confidence
+# field, so the runner derives one from the rating's strength.  This
+# gives the dashboard a meaningful bar instead of an always-empty 0%.
+_RATING_TO_CONFIDENCE = {
+    "Buy": 0.9,
+    "Overweight": 0.7,
+    "Hold": 0.5,
+    "Underweight": 0.3,
+    "Sell": 0.1,
+}
+
+
+# Target-price extraction patterns, tried in order.  The structured
+# ``**Price Target**: X`` field rendered from the PM's typed output is
+# the most reliable signal, so it wins when present.  The model often
+# puts the target inline in the decision header (``BUY at $4,000``)
+# instead, so we fall back to that.  Both patterns require the
+# currency sigil so position-sizing prose like ``at 3000 USD`` is not
+# misread as a price target.
+_TARGET_PATTERNS = (
+    # Structured: "**Price Target**: 150.5" or "**Price Target**: $150.5"
+    re.compile(r"\*\*Price Target\*\*\s*:\s*\$\s*([\d,.]+)|\*\*Price Target\*\*\s*:\s*([\d,.]+)"),
+    # Inline in header: "BUY at $4,000" / "SELL at $2.50"
+    re.compile(
+        r"\b(?:Buy|Sell|Hold|Overweight|Underweight|BUY|SELL|HOLD|"
+        r"OVERWEIGHT|UNDERWEIGHT)\s+at\s+\$\s*([\d,.]+)"
+    ),
+)
+
+
+def _extract_target(markdown: str) -> Optional[float]:
+    """Pull a numeric target price out of the PM's rendered markdown.
+
+    Tries the structured ``**Price Target**: X`` field first, then
+    falls back to ``ACTION at $X`` in the decision header.  Returns
+    ``None`` if neither pattern matches — the model simply didn't
+    emit a target (e.g. ``BUY MSTR`` with no number).
+    """
+    if not markdown:
+        return None
+    for pat in _TARGET_PATTERNS:
+        m = pat.search(markdown)
+        if not m:
+            continue
+        raw = next((g for g in m.groups() if g), None)
+        if raw is None:
+            continue
+        try:
+            return float(raw.replace(",", ""))
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_pm_decision(final_state: dict, final_signal: str) -> dict:
+    """Extract ``{action, target, rationale, confidence}`` for the dashboard.
+
+    The Portfolio Manager's structured output is rendered to markdown
+    and stored at ``final_state["final_trade_decision"]`` (see
+    ``tradingagents.agents.schemas.render_pm_decision``).  The parsed
+    5-tier rating is returned by ``TradingAgentsGraph.propagate`` as
+    the second tuple element.  This helper turns those two inputs
+    into the shape the API contract and ``DecisionPanel`` expect.
+    """
+    markdown = (final_state or {}).get("final_trade_decision", "") or ""
+    action = _RATING_TO_ACTION.get(final_signal, "HOLD")
+    confidence = _RATING_TO_CONFIDENCE.get(final_signal, 0.5)
+    target = _extract_target(markdown)
+    return {
+        "action": action,
+        "target": target,
+        "rationale": markdown,
+        "confidence": confidence,
+    }
 
 
 _NODE_STATE_KEY = {
@@ -119,8 +214,14 @@ _WORK_QUEUE: asyncio.Queue = None  # type: ignore
 _workers: list[asyncio.Task] = []
 _sem: asyncio.Semaphore = None  # type: ignore
 _active = 0
+_in_flight: set[str] = set()  # run_ids currently held by a worker task
 _idle = threading.Event()
 _idle.set()
+
+
+def run_id_in_flight(run_id: str) -> bool:
+    """True iff a worker task is currently processing ``run_id``."""
+    return run_id in _in_flight
 
 
 async def enqueue(ticker: str, date_str: str, force: bool = False) -> str:
@@ -139,7 +240,6 @@ async def enqueue(ticker: str, date_str: str, force: bool = False) -> str:
           checkpoint and resume from the last completed node.
         - If no run for today, create a fresh run dir + enqueue.
     """
-    from . import storage
     ticker_u = ticker.upper()
 
     existing = storage.find_resumable_run(ticker_u, date_str)
@@ -147,18 +247,30 @@ async def enqueue(ticker: str, date_str: str, force: bool = False) -> str:
         run_json = existing["run_json"]
         status = run_json.get("status")
         if status == "running":
+            # Resume: reuse dir, enqueue the work. The framework's
+            # thread_id is sha256(f"{ticker}:{date_str}") which is the
+            # same as the prior partial's thread, so LangGraph's
+            # SqliteSaver resumes from the last completed node.
             log.info("resuming run %s for %s", existing["run_id"], ticker_u)
+            if run_id_in_flight(existing["run_id"]):
+                log.info("resume already in flight for %s; no-op", existing["run_id"])
+                return existing["run_id"]
+            await _WORK_QUEUE.put(
+                (existing["run_id"], ticker_u, date_str, existing["run_dir"])
+            )
             return existing["run_id"]
         log.info("idempotent: returning existing %s run %s", status, existing["run_id"])
         return existing["run_id"]
 
     if existing and force:
+        # Retire the partial before starting fresh.
         storage.mark_run_superseded(existing["run_id"])
         clear_today_checkpoint(ticker_u, date_str)
         log.info("force=true: superseded %s", existing["run_id"])
 
     info = storage.create_run_dir(ticker_u)
     run_id = info["run_id"]
+    # Enqueue a worker that calls _run_one.
     await _WORK_QUEUE.put((run_id, ticker_u, date_str, info["run_dir"]))
     return run_id
 
@@ -200,15 +312,29 @@ async def _worker_loop() -> None:
         try:
             await _sem.acquire()
         except Exception:
+            # Semaphore acquire failed; release the queue slot so
+            # queue.join() can make progress if anyone calls it.
+            _WORK_QUEUE.task_done()
             continue
         _active += 1
-        asyncio.create_task(_run_one(run_id, ticker, date_str, run_dir, _sem))
+        _in_flight.add(run_id)
+        task = asyncio.create_task(
+            _run_one(run_id, ticker, date_str, run_dir, _sem)
+        )
+        # Always call task_done when the work has been consumed, and
+        # clear the in-flight marker so a follow-up "Resume" click
+        # knows the previous attempt has finished.
+        def _on_done(t, _rid=run_id):
+            _in_flight.discard(_rid)
+            _WORK_QUEUE.task_done()
+        task.add_done_callback(_on_done)
 
 
 async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: asyncio.Semaphore) -> None:
     """Execute a single run with file-based storage."""
     global _active
     t_start = time.monotonic()
+    log.info("runner: run started rid=%s ticker=%s date=%s", run_id, ticker, date_str)
     try:
         run_json = storage.read_run(run_id)
         if run_json is None:
@@ -224,7 +350,7 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
         stream_handler = StreamingCallbackHandler(run_id=run_id)
         capture_handler = CaptureCallbackHandler(run_id=run_id, ticker=ticker)
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         config = {
             **DEFAULT_CONFIG,
@@ -234,13 +360,19 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
         }
         graph = build_graph(config, callbacks=[stream_handler, capture_handler])
 
+        # Per-node timing for structured stage progress logs.
+        node_enter_t: dict[str, float] = {}
+
         def cb(node_name: str, payload: dict) -> None:
             rj = storage.read_run(run_id)
             if rj and rj.get("cancel_requested"):
                 raise _CancelSentinel()
             if node_name == "node_entered":
-                capture_handler.current_node = payload.get("node", node_name)
-                events.emit(run_id, "analyst_started", {"node": payload.get("node", node_name), **payload})
+                node = payload.get("node", node_name)
+                node_enter_t[node] = time.monotonic()
+                capture_handler.current_node = node
+                log.info("runner: node_entered rid=%s node=%s", run_id, node)
+                events.emit(run_id, "analyst_started", {"node": node, **payload})
             elif node_name == "node_exited":
                 stage, summary, excerpt, full_text = _stage_summary_for_node(
                     payload.get("node", ""), payload.get("delta", {})
@@ -256,6 +388,12 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
                 # Persist the stage result to disk.
                 node = payload.get("node", "")
                 stage_name = _STAGE_MAP.get(node, (node,))[0]
+                t_enter = node_enter_t.pop(node, None)
+                duration_ms = int((time.monotonic() - t_enter) * 1000) if t_enter else 0
+                log.info(
+                    "runner: node_exited rid=%s node=%s stage=%s duration_ms=%d",
+                    run_id, node, stage_name, duration_ms,
+                )
                 storage.write_stage(
                     run_id,
                     stage_name,
@@ -264,7 +402,7 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
                         "node": node,
                         "state_key": _state_key_for_node(node),
                         "completed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                        "duration_ms": 0,
+                        "duration_ms": duration_ms,
                         "value": summary,
                     },
                 )
@@ -275,6 +413,7 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
             return graph.propagate(ticker, date_str, event_callback=cb)
 
         final_state = None
+        final_signal: str = ""
         for attempt in range(MAX_ATTEMPTS):
             try:
                 final_state, final_signal = await loop.run_in_executor(None, _do_propagate)
@@ -321,11 +460,11 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
             events.emit(run_id, "run_failed", {"reason": "cancelled"})
             return
 
-        decision = (final_state or {}).get("decision") or {}
-        action = decision.get("action")
-        target = decision.get("target")
-        rationale = decision.get("rationale", "")
-        confidence = decision.get("confidence", 0.0)
+        decision = _parse_pm_decision(final_state or {}, final_signal or "")
+        action = decision["action"]
+        target = decision["target"]
+        rationale = decision["rationale"]
+        confidence = decision["confidence"]
         events.emit(run_id, "decision", {
             "action": action,
             "target": target,
@@ -363,6 +502,10 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
             "duration_s": duration_s,
             "summary_by_stage": summary_by_stage,
         })
+        log.info(
+            "runner: run finished rid=%s ticker=%s duration_s=%.2f action=%s target=%s",
+            run_id, ticker, duration_s, action, target,
+        )
     finally:
         _active -= 1
         sem.release()

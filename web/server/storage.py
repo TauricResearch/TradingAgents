@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
@@ -52,8 +53,53 @@ def ticker_dir(ticker: str) -> Path:
 
 # ---- atomic JSON ----
 
+# On Windows, antivirus / search indexer / the OS file-locking policy
+# can briefly hold a read handle on the dest file even after the
+# previous writer closed. os.replace then fails with errno 5 (Access
+# denied) or errno 32 (sharing violation). A short retry resolves the
+# vast majority of these races; the unlink+rename fallback handles
+# the rare case where the lock is held longer.
+_ATOMIC_REPLACE_DELAYS: tuple[float, ...] = (0.0, 0.02, 0.05, 0.1)
+
+
+def _replace_with_retry(tmp: str, path: Path) -> None:
+    """``os.replace`` that survives transient Windows file locks.
+
+    Retries with exponential backoff on ``PermissionError`` (errno 5) or
+    ``OSError`` with ``winerror`` 5/32 (sharing violation). If all
+    retries fail, falls back to ``os.unlink(path)`` + ``os.rename(tmp, path)``
+    so the write eventually lands. If the fallback also fails, re-raises
+    the original lock error so the caller knows the write was lost.
+    """
+    last_exc: OSError | None = None
+    for delay in _ATOMIC_REPLACE_DELAYS:
+        if delay:
+            time.sleep(delay)
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError as exc:
+            last_exc = exc
+            continue
+    # All retries exhausted: try the unlink+rename fallback.
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        if last_exc is not None:
+            raise last_exc from None
+        raise
+    os.rename(tmp, path)
+
+
 def write_json_atomic(path: Path | str, data: Any) -> None:
-    """Write ``data`` as JSON to ``path`` atomically via tmp + os.replace."""
+    """Write ``data`` as JSON to ``path`` atomically via tmp + os.replace.
+
+    The replace step is retried to survive transient Windows file locks
+    (see :func:`_replace_with_retry`); only an unrecoverable lock surfaces
+    to the caller as ``PermissionError``.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(
@@ -64,7 +110,7 @@ def write_json_atomic(path: Path | str, data: Any) -> None:
             json.dump(data, f, indent=2, sort_keys=True, ensure_ascii=False)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        _replace_with_retry(tmp, path)
     except Exception:
         try:
             os.unlink(tmp)
