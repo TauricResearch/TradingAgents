@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,6 +41,101 @@ def test_write_json_atomic_creates_parent_dirs(tmp_path, data_root):
     target = tmp_path / "nested" / "deeper" / "x.json"
     storage.write_json_atomic(target, {"ok": True})
     assert storage.read_json(target) == {"ok": True}
+
+
+def test_write_json_atomic_retries_on_permission_error(tmp_path, data_root, monkeypatch):
+    """Windows antivirus / search indexer can briefly hold a handle to
+    the dest file, making os.replace fail with errno 5. write_json_atomic
+    must retry until the lock clears, then succeed transparently."""
+    target = tmp_path / "watchlist.json"
+    target.write_text("{}", encoding="utf-8")
+
+    real_replace = os.replace
+    calls: list[Path] = []
+
+    def flaky_replace(src, dst):
+        calls.append(Path(dst))
+        if len(calls) == 1:
+            raise PermissionError(5, "Access is denied")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(storage.os, "replace", flaky_replace)
+    # Shorten the retry backoff so the test stays fast.
+    monkeypatch.setattr(storage.time, "sleep", lambda _s: None)
+
+    storage.write_json_atomic(target, {"v": 7})
+    assert len(calls) >= 2  # at least one retry
+    assert storage.read_json(target) == {"v": 7}
+
+
+def test_write_json_atomic_unlinks_then_renames_when_replace_keeps_failing(
+    tmp_path, data_root, monkeypatch
+):
+    """If os.replace keeps failing past all retries, fall back to
+    unlink(dest) + rename(tmp, dest) so the write eventually lands.
+    Without this, watchlist.json writes silently lost their data on
+    persistently-locked files (the user observed repeated
+    `PermissionError: [WinError 5]` errors in the server log)."""
+    target = tmp_path / "watchlist.json"
+    target.write_text("{}", encoding="utf-8")
+
+    replace_calls: list[Path] = []
+    unlink_calls: list[Path] = []
+    rename_calls: list[Path] = []
+
+    def always_fail_replace(src, dst):
+        replace_calls.append(Path(dst))
+        raise PermissionError(5, "Access is denied")
+
+    real_unlink = os.unlink
+    real_rename = os.rename
+
+    def tracking_unlink(path):
+        unlink_calls.append(Path(path))
+        return real_unlink(path)
+
+    def tracking_rename(src, dst):
+        rename_calls.append(Path(dst))
+        return real_rename(src, dst)
+
+    monkeypatch.setattr(storage.os, "replace", always_fail_replace)
+    monkeypatch.setattr(storage.os, "unlink", tracking_unlink)
+    monkeypatch.setattr(storage.os, "rename", tracking_rename)
+    monkeypatch.setattr(storage.time, "sleep", lambda _s: None)
+
+    storage.write_json_atomic(target, {"v": 42})
+
+    assert len(replace_calls) >= 2  # we tried at least once
+    assert unlink_calls == [target]  # fallback removed the locked dest
+    assert len(rename_calls) == 1
+    assert storage.read_json(target) == {"v": 42}
+
+
+def test_write_json_atomic_does_not_swallow_unrecoverable_errors(tmp_path, data_root, monkeypatch):
+    """If os.replace keeps failing AND the unlink fallback also fails
+    (e.g. dest is held by an unkillable AV scanner), the original
+    PermissionError is re-raised so the caller knows the write failed.
+    The dest file's original content must be preserved."""
+    target = tmp_path / "x.json"
+    target.write_text("{}", encoding="utf-8")
+
+    def always_fail_replace(_src, _dst):
+        raise PermissionError(5, "Access is denied")
+
+    monkeypatch.setattr(storage.os, "replace", always_fail_replace)
+    # Fallback unlink also fails: the lock is permanent.
+    monkeypatch.setattr(
+        storage.os,
+        "unlink",
+        lambda _p: (_ for _ in ()).throw(OSError(32, "sharing violation")),
+    )
+    monkeypatch.setattr(storage.time, "sleep", lambda _s: None)
+
+    with pytest.raises(PermissionError):
+        storage.write_json_atomic(target, {"v": 1})
+
+    # The original content is preserved (write did not silently corrupt).
+    assert storage.read_json(target) == {}
 
 
 def test_read_json_returns_none_for_missing(tmp_path, data_root):

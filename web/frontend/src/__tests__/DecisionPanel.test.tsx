@@ -9,4 +9,9 @@ describe("DecisionPanel", () => {
     expect(screen.getByText(/\$260/)).toBeInTheDocument();
     expect(screen.getByText(/looks good/)).toBeInTheDocument();
   });
+
+  it("displays the numeric confidence value as a percentage", () => {
+    render(<DecisionPanel action="BUY" target={260.5} confidence={0.82} rationale="looks good" />);
+    expect(screen.getByText("82%")).toBeInTheDocument();
+  });
 });

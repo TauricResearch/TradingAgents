@@ -38,7 +38,11 @@ const formatBubble: Record<string, Formatter> = {
     (d.summary ? ` — ${String(d.summary)}` : ""),
   debate_message: (d) => `${d.side}: ${d.text}`,
   risk_message: (d) => `${d.side}: ${d.text}`,
-  decision: (d) => `DECISION: ${d.action} @ ${d.target}`,
+  decision: (d) => {
+    const action = d.action ?? "(none)";
+    const target = d.target;
+    return target == null ? `DECISION: ${action}` : `DECISION: ${action} @ ${target}`;
+  },
   tool_call: (d) => `tool: ${d.tool}`,
   tool_result: (d) => `result: ${String(d.summary ?? "").slice(0, 60)}`,
   tool_call_warning: (d) => `warning: ${d.message ?? "(no message)"}`,

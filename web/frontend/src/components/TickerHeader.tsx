@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { startRun, cancelRun, fetchTickerRuns, type RunRow } from "../lib/api";
 import { useUi } from "../store/ui";
@@ -66,22 +65,6 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
     },
   });
 
-  // Resume uses force=false so the server's idempotency layer can chain
-  // onto the existing in-progress run (Task 10) instead of starting a
-  // fresh one. Same wiring as `start` so the user immediately sees the
-  // streamed events.
-  const resume = useMutation({
-    mutationFn: () => startRun(ticker, false),
-    onSuccess: ({ run_id }) => {
-      clearBuffer();
-      clearHistoricalRunForTicker(ticker);
-      setActiveRunIdForTicker(ticker, run_id);
-      setLastRunIdForTicker(ticker, run_id);
-      qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
-      qc.invalidateQueries({ queryKey: ["runs", "list"] });
-    },
-  });
-
   const cancel = useMutation({
     mutationFn: () => cancelRun(activeRunId!),
     onSuccess: () => {
@@ -99,25 +82,6 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
       setHistoricalRunForTicker(ticker, id);
     }
   };
-
-  // The dropdown's currently-selected row (historical pick or the
-  // latest) is the row the Resume button refers to. Only show Resume
-  // when that row is "running" AND its started_at is today (UTC) — an
-  // older "running" run would create a new run directory, which the
-  // server's idempotency layer does not collapse across days.
-  const focusedRun: RunRow | undefined = useMemo(() => {
-    const rows = Array.isArray(tickerRuns.data) ? tickerRuns.data : [];
-    const id = historicalRunId ?? lastRunId;
-    if (id == null) return undefined;
-    return rows.find((r) => r.id === id);
-  }, [tickerRuns.data, historicalRunId, lastRunId]);
-
-  const isTodayIncomplete = useMemo(() => {
-    if (!focusedRun) return false;
-    if (focusedRun.status !== "running") return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return focusedRun.started_at?.startsWith(today) ?? false;
-  }, [focusedRun]);
 
   const actionLabel = start.isPending
     ? "Starting…"
@@ -164,16 +128,6 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
               </option>
             ))}
           </select>
-        )}
-        {isTodayIncomplete && (
-          <button
-            data-testid="resume-btn"
-            onClick={() => resume.mutate()}
-            disabled={resume.isPending}
-            className="resume-btn px-3 py-1.5 text-sm font-medium rounded-md bg-amber-600 text-white disabled:opacity-50 hover:bg-amber-700"
-          >
-            {resume.isPending ? "Resuming…" : "Resume"}
-          </button>
         )}
         <button
           disabled={isRunning || start.isPending}
