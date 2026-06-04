@@ -43,13 +43,14 @@ class RunIn(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Drop the legacy SQLite DB if present.
     s = settings_mod.get_settings()
-    legacy = Path(s.db_path) if hasattr(s, "db_path") and s.db_path else None
-    if legacy and legacy.exists():
-        log.warning("removing legacy SQLite DB at %s (file-based storage only)", legacy)
+    # Hardcoded legacy path: pre-Task-3 default was ~/.tradingagents/dashboard.db.
+    # Remove if present so file-based storage starts truly fresh.
+    legacy_db = Path.home() / ".tradingagents" / "dashboard.db"
+    if legacy_db.exists():
+        log.warning("removing legacy SQLite DB at %s (file-based storage only)", legacy_db)
         try:
-            legacy.unlink()
+            legacy_db.unlink()
         except OSError as exc:
             log.error("failed to remove legacy DB: %s", exc)
     storage.init_settings(data_dir=s.data_dir, cache_dir=s.cache_dir)
@@ -136,7 +137,7 @@ def create_app() -> FastAPI:
         return queries.run_to_dict(storage.read_run(run_id))
 
     @app.websocket("/ws/runs/{run_id}")
-    async def ws_run(ws: WebSocket, run_id: str) -> None:
+    async def ws_run(ws: WebSocket, run_id: str, since: Optional[str] = None) -> None:
         await ws.accept()
         _active_ws.add(ws)
         rj = storage.read_run(run_id)
@@ -144,8 +145,13 @@ def create_app() -> FastAPI:
             await ws.send_json({"type": "error", "detail": "run not found"})
             await ws.close()
             return
-        # Replay all events for the run.
+        # Replay events for the run. If ``since`` was provided (the id of
+        # the last event the client already received on a previous
+        # connection), skip events with id <= since so the client only
+        # gets the gap plus any new live events.
         for ev in storage.list_run_events(run_id):
+            if since and (ev.get("id") or "") <= since:
+                continue
             await ws.send_json(ev)
         events.subscribe(run_id, ws)
         try:
