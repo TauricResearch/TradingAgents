@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchWatchlist, fetchPrices, removeFromWatchlist } from "./lib/api";
+import { fetchWatchlist, fetchPrices, removeFromWatchlist, fetchRunDetail, type RunDetail } from "./lib/api";
 import { useUi } from "./store/ui";
 import { useRunStream } from "./hooks/useRunStream";
 import { useGlobalStream } from "./hooks/useGlobalStream";
@@ -36,6 +36,23 @@ export default function App() {
   useRunStream(runId);
   useGlobalStream();
   useRestoredRunEvents(focused);
+
+  // The run detail for the currently focused run (historical pick or
+  // latest). Used to power the DecisionPanel's "incomplete" hint. The
+  // query key matches useRestoredRunEvents' so both share the cache and
+  // avoid a duplicate network round-trip.
+  const focusedRunId = useUi((s) => {
+    if (focused == null) return null;
+    const historical = s.historicalRunIdByTicker[focused];
+    if (historical != null) return historical;
+    return s.lastRunIdByTicker[focused] ?? null;
+  });
+  const { data: focusedRunDetail } = useQuery<RunDetail | null>({
+    queryKey: ["run-detail", focused, focusedRunId],
+    queryFn: () => (focusedRunId ? fetchRunDetail(focusedRunId) : Promise.resolve(null)),
+    enabled: focused != null && focusedRunId != null,
+    staleTime: Infinity,
+  });
 
   // Sync focusedTicker with the watchlist. This is the single source of
   // truth: the effect skips during refetches (when data may be stale) and
@@ -136,6 +153,7 @@ export default function App() {
                 target={decision.target ?? null}
                 confidence={decision.confidence ?? 0}
                 rationale={decision.rationale ?? ""}
+                run={focusedRunDetail}
               />
             )}
           </>

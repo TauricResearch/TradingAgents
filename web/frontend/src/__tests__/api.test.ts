@@ -9,15 +9,14 @@ import {
 const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
-  // @ts-expect-error override fetch for tests
-  globalThis.fetch = fetchMock;
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
 });
 
 describe("startRun", () => {
   it("posts the ticker and force=false when force is not set", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({ run_id: 1 }) });
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({ run_id: "NVDA:2026-06-04T03:21:57Z" }) });
     const result = await startRun("NVDA");
-    expect(result).toEqual({ run_id: 1 });
+    expect(result).toEqual({ run_id: "NVDA:2026-06-04T03:21:57Z" });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/runs");
     expect(init.method).toBe("POST");
@@ -25,7 +24,7 @@ describe("startRun", () => {
   });
 
   it("forwards the force flag when set", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({ run_id: 2 }) });
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({ run_id: "NVDA:2026-06-04T03:21:58Z" }) });
     await startRun("NVDA", true);
     const [, init] = fetchMock.mock.calls[0];
     expect(JSON.parse(init.body)).toEqual({ ticker: "NVDA", force: true });
@@ -43,13 +42,13 @@ describe("fetchTickerRuns", () => {
       ok: true,
       status: 200,
       json: async () => [
-        { id: 7, ticker: "NVDA", status: "done" },
-        { id: 5, ticker: "NVDA", status: "done" },
+        { id: "NVDA:7", slug: "2026-06-04T03-21-57Z", ticker: "NVDA", status: "done", started_at: null, finished_at: null, cancel_requested: false, decision_action: null, decision_target: null, decision_rationale: null, decision_confidence: null },
+        { id: "NVDA:5", slug: "2026-06-04T03-20-00Z", ticker: "NVDA", status: "done", started_at: null, finished_at: null, cancel_requested: false, decision_action: null, decision_target: null, decision_rationale: null, decision_confidence: null },
       ],
     });
     const rows = await fetchTickerRuns("NVDA");
     expect(rows).toHaveLength(2);
-    expect(rows[0].id).toBe(7);
+    expect(rows[0].id).toBe("NVDA:7");
     const [url] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/tickers/NVDA/runs");
   });
@@ -64,7 +63,7 @@ describe("fetchTickerRuns", () => {
 // they just verify the public types compile with the expected fields.
 const _llmCallShape: LlmCallRow = {
   id: 1,
-  run_id: 1,
+  run_id: "NVDA:1",
   ticker: "NVDA",
   node_name: "Market Analyst",
   started_at: null,
@@ -78,19 +77,20 @@ const _llmCallShape: LlmCallRow = {
   duration_ms: 0,
 };
 const _runDetailShape: RunDetail = {
-  run: {
-    id: 1,
-    ticker: "NVDA",
-    started_at: null,
-    finished_at: null,
-    status: "done",
-    decision_action: null,
-    decision_target: null,
-    decision_rationale: null,
-    decision_confidence: null,
-  },
+  id: "NVDA:1",
+  slug: "2026-06-04T03-21-57Z",
+  ticker: "NVDA",
+  started_at: null,
+  finished_at: null,
+  status: "done",
+  cancel_requested: false,
+  decision_action: null,
+  decision_target: null,
+  decision_rationale: null,
+  decision_confidence: null,
   events: [],
   llm_calls: [_llmCallShape],
+  stages: [],
 };
 void _llmCallShape;
 void _runDetailShape;

@@ -35,6 +35,20 @@ beforeEach(() => {
   });
 });
 
+const baseRow = (overrides: Record<string, unknown>) => ({
+  slug: "2026-06-04T03-21-57Z",
+  ticker: "NVDA",
+  started_at: null,
+  finished_at: null,
+  status: "done",
+  cancel_requested: false,
+  decision_action: null,
+  decision_target: null,
+  decision_rationale: null,
+  decision_confidence: null,
+  ...overrides,
+});
+
 describe("TickerHeader — action button", () => {
   it("shows 'Run analysis' on first visit (no prior history)", () => {
     mockFetch({});
@@ -43,7 +57,7 @@ describe("TickerHeader — action button", () => {
   });
 
   it("shows 'Re-run analysis' when prior history exists", () => {
-    useUi.setState({ lastRunIdByTicker: { NVDA: 5 } });
+    useUi.setState({ lastRunIdByTicker: { NVDA: "NVDA:5" } });
     mockFetch({});
     wrap(<TickerHeader ticker="NVDA" />);
     expect(screen.getByRole("button", { name: /re-run analysis/i })).toBeInTheDocument();
@@ -51,7 +65,7 @@ describe("TickerHeader — action button", () => {
 
   it("'Run analysis' on first visit posts force=false", async () => {
     const fetchMock = mockFetch({
-      "/api/runs": () => ({ run_id: 11 }),
+      "/api/runs": () => ({ run_id: "NVDA:11" }),
     });
     wrap(<TickerHeader ticker="NVDA" />);
     fireEvent.click(screen.getByRole("button", { name: /run analysis/i }));
@@ -64,9 +78,9 @@ describe("TickerHeader — action button", () => {
   });
 
   it("'Re-run analysis' when history exists posts force=true", async () => {
-    useUi.setState({ lastRunIdByTicker: { NVDA: 5 } });
+    useUi.setState({ lastRunIdByTicker: { NVDA: "NVDA:5" } });
     const fetchMock = mockFetch({
-      "/api/runs": () => ({ run_id: 12 }),
+      "/api/runs": () => ({ run_id: "NVDA:12" }),
     });
     wrap(<TickerHeader ticker="NVDA" />);
     fireEvent.click(screen.getByRole("button", { name: /re-run analysis/i }));
@@ -79,7 +93,7 @@ describe("TickerHeader — action button", () => {
   });
 
   it("the action button is disabled while a run is active", () => {
-    useUi.setState({ activeRunIdByTicker: { NVDA: 99 } });
+    useUi.setState({ activeRunIdByTicker: { NVDA: "NVDA:99" } });
     mockFetch({});
     wrap(<TickerHeader ticker="NVDA" />);
     const btn = screen.getByRole("button", { name: /run analysis/i });
@@ -89,11 +103,11 @@ describe("TickerHeader — action button", () => {
 
 describe("TickerHeader — run history dropdown", () => {
   it("fetches /api/tickers/{ticker}/runs and lists the rows", async () => {
-    useUi.setState({ lastRunIdByTicker: { NVDA: 5 } });
+    useUi.setState({ lastRunIdByTicker: { NVDA: "NVDA:5" } });
     mockFetch({
       "/api/tickers/NVDA/runs": () => [
-        { id: 5, ticker: "NVDA", status: "done", started_at: "2026-06-01T00:00:00Z", finished_at: "2026-06-01T00:10:00Z" },
-        { id: 3, ticker: "NVDA", status: "done", started_at: "2026-05-30T00:00:00Z", finished_at: "2026-05-30T00:10:00Z" },
+        baseRow({ id: "NVDA:5", started_at: "2026-06-01T00:00:00Z", finished_at: "2026-06-01T00:10:00Z" }),
+        baseRow({ id: "NVDA:3", started_at: "2026-05-30T00:00:00Z", finished_at: "2026-05-30T00:10:00Z" }),
       ],
     });
     wrap(<TickerHeader ticker="NVDA" />);
@@ -115,11 +129,11 @@ describe("TickerHeader — run history dropdown", () => {
   });
 
   it("selecting a row sets historicalRunIdByTicker[ticker]", async () => {
-    useUi.setState({ lastRunIdByTicker: { NVDA: 5 } });
+    useUi.setState({ lastRunIdByTicker: { NVDA: "NVDA:5" } });
     mockFetch({
       "/api/tickers/NVDA/runs": () => [
-        { id: 5, ticker: "NVDA", status: "done", started_at: "2026-06-01T00:00:00Z" },
-        { id: 3, ticker: "NVDA", status: "done", started_at: "2026-05-30T00:00:00Z" },
+        baseRow({ id: "NVDA:5", started_at: "2026-06-01T00:00:00Z" }),
+        baseRow({ id: "NVDA:3", started_at: "2026-05-30T00:00:00Z" }),
       ],
     });
     wrap(<TickerHeader ticker="NVDA" />);
@@ -129,18 +143,18 @@ describe("TickerHeader — run history dropdown", () => {
     // <select> in jsdom requires fireEvent.change on the element,
     // not fireEvent.click on the option text.
     const select = screen.getByLabelText(/run history/i) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: "3" } });
-    expect(useUi.getState().historicalRunIdByTicker["NVDA"]).toBe(3);
+    fireEvent.change(select, { target: { value: "NVDA:3" } });
+    expect(useUi.getState().historicalRunIdByTicker["NVDA"]).toBe("NVDA:3");
   });
 
   it("selecting 'Latest (live)' clears historicalRunIdByTicker[ticker]", async () => {
     useUi.setState({
-      lastRunIdByTicker: { NVDA: 5 },
-      historicalRunIdByTicker: { NVDA: 3 },
+      lastRunIdByTicker: { NVDA: "NVDA:5" },
+      historicalRunIdByTicker: { NVDA: "NVDA:3" },
     });
     mockFetch({
       "/api/tickers/NVDA/runs": () => [
-        { id: 5, ticker: "NVDA", status: "done", started_at: "2026-06-01T00:00:00Z" },
+        baseRow({ id: "NVDA:5", started_at: "2026-06-01T00:00:00Z" }),
       ],
     });
     wrap(<TickerHeader ticker="NVDA" />);
@@ -155,11 +169,11 @@ describe("TickerHeader — run history dropdown", () => {
 
 describe("TickerHeader — successful start", () => {
   it("on rerun, invalidates the ['ticker-runs', ticker] query cache", async () => {
-    useUi.setState({ lastRunIdByTicker: { NVDA: 5 } });
+    useUi.setState({ lastRunIdByTicker: { NVDA: "NVDA:5" } });
     const fetchMock = mockFetch({
-      "/api/runs": () => ({ run_id: 7 }),
+      "/api/runs": () => ({ run_id: "NVDA:7" }),
       "/api/tickers/NVDA/runs": () => [
-        { id: 5, ticker: "NVDA", status: "done", started_at: "2026-06-01T00:00:00Z" },
+        baseRow({ id: "NVDA:5", started_at: "2026-06-01T00:00:00Z" }),
       ],
     });
     wrap(<TickerHeader ticker="NVDA" />);
@@ -170,7 +184,7 @@ describe("TickerHeader — successful start", () => {
     });
     // The new run id is stored as the active run; the historical
     // selection is cleared so the user sees the new run live.
-    expect(useUi.getState().activeRunIdByTicker["NVDA"]).toBe(7);
+    expect(useUi.getState().activeRunIdByTicker["NVDA"]).toBe("NVDA:7");
     expect(useUi.getState().historicalRunIdByTicker["NVDA"]).toBeNull();
   });
 });
