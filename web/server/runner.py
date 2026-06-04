@@ -224,7 +224,13 @@ def run_id_in_flight(run_id: str) -> bool:
     return run_id in _in_flight
 
 
-async def enqueue(ticker: str, date_str: str, force: bool = False) -> str:
+async def enqueue(
+    ticker: str,
+    date_str: str,
+    force: bool = False,
+    *,
+    price_state: Optional["price_feed.PriceState"] = None,
+) -> str:
     """Resolve today's run for ``ticker`` and either resume or start fresh.
 
     Returns the ``run_id`` (a string of the form ``TICKER:UTC_ISO``).
@@ -239,8 +245,15 @@ async def enqueue(ticker: str, date_str: str, force: bool = False) -> str:
           framework's thread_id will match the existing SqliteSaver
           checkpoint and resume from the last completed node.
         - If no run for today, create a fresh run dir + enqueue.
+
+    Keyword Args:
+        price_state: optional live poller cache to snapshot the current
+            ticker price at enqueue time.  If ``None`` (or if the
+            snapshot is missing/stale/zero), ``start_price`` and
+            ``start_price_at`` in ``run.json`` are left as ``None``.
     """
     ticker_u = ticker.upper()
+    from web.server import price_feed as _pf  # local import to avoid cycles at import time
 
     existing = storage.find_resumable_run(ticker_u, date_str)
     if existing and not force:
@@ -268,7 +281,21 @@ async def enqueue(ticker: str, date_str: str, force: bool = False) -> str:
         clear_today_checkpoint(ticker_u, date_str)
         log.info("force=true: superseded %s", existing["run_id"])
 
-    info = storage.create_run_dir(ticker_u)
+    # Snapshot the live poller's price (or None) so historical runs
+    # record the price the user was looking at when they hit "Run".
+    start_price: Optional[float] = None
+    start_price_at: Optional[str] = None
+    if price_state is not None:
+        start_price, start_price_at = _pf.snapshot_price(price_state, ticker_u)
+
+    info = storage.create_run_dir(
+        ticker_u,
+        llm_provider=DEFAULT_CONFIG.get("llm_provider"),
+        deep_think_model=DEFAULT_CONFIG.get("deep_think_llm"),
+        quick_think_model=DEFAULT_CONFIG.get("quick_think_llm"),
+        start_price=start_price,
+        start_price_at=start_price_at,
+    )
     run_id = info["run_id"]
     # Enqueue a worker that calls _run_one.
     await _WORK_QUEUE.put((run_id, ticker_u, date_str, info["run_dir"]))

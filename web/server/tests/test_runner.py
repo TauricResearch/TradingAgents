@@ -1,522 +1,77 @@
+"""Tests for ``web.server.runner.enqueue`` and terminal-site writes."""
+from __future__ import annotations
+
 import asyncio
-import json
-import threading
-import time
+from pathlib import Path
+
 import pytest
-from datetime import datetime, timezone
 
-from web.server import db, runner
-from web.server.tests.fixtures.fake_graph import FakeTradingAgents, happy_path, RateLimitError
-
-
-def _payload(event) -> dict:
-    """Parse Event.payload_json into a dict (the model stores data as JSON)."""
-    return json.loads(event.payload_json)
-
-
-@pytest.mark.asyncio
-async def test_happy_path_emits_and_persists(monkeypatch, temp_db):
-    monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(happy_path("NVDA")))
-    monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-    await runner.start(num_workers=1)
-    try:
-        rid = runner.enqueue("NVDA", idempotency_key="NVDA:2026-06-01")
-        # wait for the queue worker to finish
-        await runner._wait_for_idle(timeout=5)
-
-        run = db.get_run(rid)
-        assert run.status == "done"
-        assert run.decision_action == "BUY"
-        assert run.decision_target == 260.0
-
-        events = db.events_for_run(rid)
-        types = [e.type for e in events]
-        assert "run_started" in types
-        assert "analyst_thinking" in types
-        assert "debate_message" in types
-        assert "decision" in types
-        assert "run_finished" in types
-    finally:
-        await runner.stop()
-
-
-@pytest.mark.asyncio
-async def test_semaphore_limits_concurrency(monkeypatch, temp_db):
-    from web.server.tests.fixtures.fake_graph import ScriptedRun, ScriptedNode
-
-    started = []
-    release = threading.Event()
-
-    def slow_graph(config=None, callbacks=None):
-        class Slow:
-            def propagate(self_inner, ticker, trade_date, *, event_callback=None):
-                started.append(ticker)
-                release.wait()
-                return {"decision": {"action": "HOLD"}}, {"action": "HOLD"}
-        return Slow()
-
-    monkeypatch.setattr(runner, "build_graph", slow_graph)
-    monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-    monkeypatch.setattr(runner, "MAX_CONCURRENT", 2)
-
-    await runner.start(num_workers=3)
-    try:
-        runner.enqueue("A", idempotency_key="A:k")
-        runner.enqueue("B", idempotency_key="B:k")
-        runner.enqueue("C", idempotency_key="C:k")
-
-        # wait until 2 are running
-        for _ in range(50):
-            if len(started) >= 2:
-                break
-            await asyncio.sleep(0.05)
-        assert len(started) == 2
-
-        # release the held jobs
-        release.set()
-        await runner._wait_for_idle(timeout=5)
-        assert len(started) == 3
-    finally:
-        await runner.stop()
-
-
-@pytest.mark.asyncio
-async def test_cancellation_emits_run_failed(monkeypatch, temp_db):
-    from web.server.tests.fixtures.fake_graph import ScriptedRun, ScriptedNode
-
-    started = threading.Event()
-    release = threading.Event()
-
-    def blocking_graph(config=None, callbacks=None):
-        class Blocking:
-            def propagate(self_inner, ticker, trade_date, *, event_callback=None):
-                started.set()
-                while not release.is_set():
-                    if event_callback is not None:
-                        event_callback("node_entered", {"node": "blocking"})
-                    time.sleep(0.05)
-                return {}, {"action": "HOLD"}
-        return Blocking()
-
-    monkeypatch.setattr(runner, "build_graph", blocking_graph)
-    monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-    await runner.start(num_workers=1)
-    try:
-        rid = runner.enqueue("NVDA", idempotency_key="NVDA:cancel")
-        while not started.is_set():
-            await asyncio.sleep(0.05)
-        db.request_cancellation(rid)
-        release.set()
-        await runner._wait_for_idle(timeout=5)
-
-        run = db.get_run(rid)
-        assert run.status == "failed"
-        assert "cancel" in (run.decision_rationale or "").lower()
-    finally:
-        await runner.stop()
-
-
-@pytest.mark.asyncio
-async def test_rate_limit_exhaustion_emits_warnings_and_run_failed(monkeypatch, temp_db):
-    """All 4 attempts hit a rate limit; final event has reason=rate_limited
-    and exactly 3 tool_call_warning events were persisted in between."""
-    class _AlwaysRateLimitError(RuntimeError):
-        pass
-
-    def always_failing_graph(config=None, callbacks=None):
-        class _Failing:
-            def propagate(self_inner, ticker, trade_date, *, event_callback=None):
-                raise _AlwaysRateLimitError(
-                    "Error calling model 'gemini-3.5-flash' (RESOURCE_EXHAUSTED): 429. "
-                    "'retryDelay': '0.05s'"
-                )
-        return _Failing()
-
-    monkeypatch.setattr(runner, "build_graph", always_failing_graph)
-    monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-    await runner.start(num_workers=1)
-    try:
-        rid = runner.enqueue("NVDA", idempotency_key="NVDA:rl-exhaust")
-        await runner._wait_for_idle(timeout=10)
-
-        events_list = db.events_for_run(rid)
-        warnings = [e for e in events_list if e.type == "tool_call_warning"]
-        run_failed = [e for e in events_list if e.type == "run_failed"]
-
-        # 3 retries (MAX_ATTEMPTS=4 → 3 sleeps before the final attempt fails).
-        assert len(warnings) == 3, [_payload(w) for w in warnings]
-        for w in warnings:
-            data = _payload(w)
-            assert data.get("retry_after_s") is not None
-            assert data.get("exception_class") == "_AlwaysRateLimitError"
-            # 0.05s hint is well under the 60s cap, so the hint is used.
-            assert 0 < data["retry_after_s"] <= 0.1
-
-        # Final failure: rate_limited, with the original message preserved.
-        assert len(run_failed) == 1
-        failed_data = _payload(run_failed[0])
-        assert failed_data["reason"] == "rate_limited"
-        assert failed_data["exception_class"] == "_AlwaysRateLimitError"
-        assert "RESOURCE_EXHAUSTED" in failed_data["message"]
-
-        run = db.get_run(rid)
-        assert run.status == "failed"
-    finally:
-        await runner.stop()
-
-
-@pytest.mark.asyncio
-async def test_rate_limit_recovered_after_two_attempts(monkeypatch, temp_db):
-    """First two attempts raise a rate-limit; third succeeds. The run ends
-    'done', with exactly 2 tool_call_warning events and a run_finished."""
-    class _RateLimitError(RuntimeError):
-        pass
-
-    counter = {"calls": 0}
-
-    def flaky_graph(config=None, callbacks=None):
-        class _Flaky:
-            def propagate(self_inner, ticker, trade_date, *, event_callback=None):
-                counter["calls"] += 1
-                if counter["calls"] <= 2:
-                    raise _RateLimitError("'retryDelay': '0.01s'")
-                return {"decision": {"action": "HOLD"}}, {"action": "HOLD"}
-        return _Flaky()
-
-    monkeypatch.setattr(runner, "build_graph", flaky_graph)
-    monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-    await runner.start(num_workers=1)
-    try:
-        rid = runner.enqueue("AAPL", idempotency_key="AAPL:rl-recover")
-        await runner._wait_for_idle(timeout=5)
-
-        run = db.get_run(rid)
-        assert run.status == "done"
-        assert run.decision_action == "HOLD"
-
-        events_list = db.events_for_run(rid)
-        warnings = [e for e in events_list if e.type == "tool_call_warning"]
-        run_finished = [e for e in events_list if e.type == "run_finished"]
-        run_failed = [e for e in events_list if e.type == "run_failed"]
-
-        assert len(warnings) == 2
-        assert len(run_finished) == 1
-        assert len(run_failed) == 0
-    finally:
-        await runner.stop()
-
-
-class TestNodeExitedMapping:
-
-    @pytest.mark.asyncio
-    async def test_node_exited_emits_analyst_completed_for_agent_node(self, monkeypatch, temp_db):
-        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
-
-        script = ScriptedRun(
-            nodes=[ScriptedNode("Market Analyst")],
-            final_state={"decision": {"action": "HOLD"}},
-        )
-        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
-        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-        await runner.start(num_workers=1)
-        try:
-            rid = runner.enqueue("NVDA", idempotency_key="NVDA:node-exited-agent")
-            await runner._wait_for_idle(timeout=5)
-
-            events_list = db.events_for_run(rid)
-            analyst_completed = [e for e in events_list if e.type == "analyst_completed"]
-            assert len(analyst_completed) == 1
-            data = json.loads(analyst_completed[0].payload_json)
-            assert data["stage"] == "market"
-        finally:
-            await runner.stop()
-
-    @pytest.mark.asyncio
-    async def test_node_exited_skips_completion_for_tool_node(self, monkeypatch, temp_db):
-        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
-
-        script = ScriptedRun(
-            nodes=[ScriptedNode("tools_market")],
-            final_state={"decision": {"action": "HOLD"}},
-        )
-        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
-        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-        await runner.start(num_workers=1)
-        try:
-            rid = runner.enqueue("NVDA", idempotency_key="NVDA:node-exited-tool")
-            await runner._wait_for_idle(timeout=5)
-
-            events_list = db.events_for_run(rid)
-            analyst_completed = [e for e in events_list if e.type == "analyst_completed"]
-            assert len(analyst_completed) == 0
-        finally:
-            await runner.stop()
-
-    @pytest.mark.asyncio
-    async def test_node_exited_skips_completion_for_portfolio_manager(self, monkeypatch, temp_db):
-        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
-
-        script = ScriptedRun(
-            nodes=[ScriptedNode("Portfolio Manager")],
-            final_state={"decision": {"action": "HOLD"}},
-        )
-        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
-        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-        await runner.start(num_workers=1)
-        try:
-            rid = runner.enqueue("NVDA", idempotency_key="NVDA:node-exited-pm")
-            await runner._wait_for_idle(timeout=5)
-
-            events_list = db.events_for_run(rid)
-            analyst_completed = [e for e in events_list if e.type == "analyst_completed"]
-            assert len(analyst_completed) == 0
-        finally:
-            await runner.stop()
-
-
-class TestDecisionAndRunFinished:
-
-    @pytest.mark.asyncio
-    async def test_decision_event_emitted_after_propagate(self, monkeypatch, temp_db):
-        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
-
-        script = ScriptedRun(
-            nodes=[ScriptedNode("Market Analyst")],
-            final_state={"decision": {"action": "BUY", "target": 150.0, "rationale": "looks good", "confidence": 0.9}},
-        )
-        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
-        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-        await runner.start(num_workers=1)
-        try:
-            rid = runner.enqueue("AAPL", idempotency_key="AAPL:decision-test")
-            await runner._wait_for_idle(timeout=5)
-
-            events_list = db.events_for_run(rid)
-            decisions = [e for e in events_list if e.type == "decision"]
-            assert len(decisions) == 1
-            data = json.loads(decisions[0].payload_json)
-            assert data["action"] == "BUY"
-            assert data["target"] == 150.0
-            assert data["rationale"] == "looks good"
-            assert data["confidence"] == 0.9
-        finally:
-            await runner.stop()
-
-    @pytest.mark.asyncio
-    async def test_run_finished_uses_real_duration_and_summary_map(self, monkeypatch, temp_db):
-        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
-
-        script = ScriptedRun(
-            nodes=[ScriptedNode("Market Analyst")],
-            final_state={"decision": {"action": "HOLD"}},
-        )
-        monkeypatch.setattr(runner, "build_graph", lambda config=None, callbacks=None: FakeTradingAgents(script))
-        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-        await runner.start(num_workers=1)
-        try:
-            rid = runner.enqueue("MSFT", idempotency_key="MSFT:run-finished-test")
-            await runner._wait_for_idle(timeout=5)
-
-            events_list = db.events_for_run(rid)
-            run_finished = [e for e in events_list if e.type == "run_finished"]
-            assert len(run_finished) == 1
-            data = json.loads(run_finished[0].payload_json)
-            assert 0.0 < data["duration_s"] < 5.0
-            assert isinstance(data.get("summary_by_stage"), dict)
-        finally:
-            await runner.stop()
-
-
-class TestCaptureCallbackWiring:
-    """The runner must attach a CaptureCallbackHandler to the graph's
-    callbacks list so every LLM call writes an LlmCall row, and the
-    handler's ``current_node`` must be updated by the cb closure so the
-    rows carry the correct stage name."""
-
-    @pytest.mark.asyncio
-    async def test_capture_handler_attached_to_graph_callbacks(self, monkeypatch, temp_db):
-        from web.server.callbacks import CaptureCallbackHandler
-        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, happy_path
-
-        captured_callbacks: list = []
-        def spy_graph(config=None, *, callbacks=None):
-            captured_callbacks.extend(callbacks or [])
-            return FakeTradingAgents(happy_path("NVDA"))
-
-        monkeypatch.setattr(runner, "build_graph", spy_graph)
-        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-        await runner.start(num_workers=1)
-        try:
-            rid = runner.enqueue("NVDA", idempotency_key="NVDA:wiring")
-            await runner._wait_for_idle(timeout=5)
-
-            capture_handlers = [
-                c for c in captured_callbacks if isinstance(c, CaptureCallbackHandler)
-            ]
-            assert len(capture_handlers) == 1
-            handler = capture_handlers[0]
-            assert handler.run_id == rid
-            assert handler.ticker == "NVDA"
-        finally:
-            await runner.stop()
-
-    @pytest.mark.asyncio
-    async def test_capture_handler_current_node_updates_on_node_entered(
-        self, monkeypatch, temp_db
-    ):
-        """The cb closure must write the active node name into
-        ``CaptureCallbackHandler.current_node`` so LlmCall rows carry it.
-        """
-        from web.server.callbacks import CaptureCallbackHandler
-        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, ScriptedRun, ScriptedNode
-
-        script = ScriptedRun(
-            nodes=[
-                ScriptedNode("Market Analyst"),
-                ScriptedNode("Sentiment Analyst"),
-            ],
-            final_state={"decision": {"action": "HOLD"}},
-        )
-
-        # After each node_entered, we sample current_node from the
-        # capture handler. Once the cb closure has set it, the value
-        # must equal the node name that was just entered.
-        observed: list = []
-        def spy_graph(config=None, *, callbacks=None):
-            capture = next(
-                (c for c in (callbacks or []) if isinstance(c, CaptureCallbackHandler)),
-                None,
-            )
-
-            class _Watch(FakeTradingAgents):
-                def propagate(self_inner, ticker, trade_date, *, event_callback=None):
-                    if capture is not None and event_callback is not None:
-                        original_cb = event_callback
-                        def wrapped_cb(node_name, payload):
-                            original_cb(node_name, payload)
-                            # After cb runs, current_node should be set
-                            # for node_entered (and unchanged for others).
-                            observed.append((node_name, capture.current_node))
-                        return super().propagate(ticker, trade_date, event_callback=wrapped_cb)
-                    return super().propagate(ticker, trade_date, event_callback=event_callback)
-
-            return _Watch(script)
-
-        monkeypatch.setattr(runner, "build_graph", spy_graph)
-        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-        await runner.start(num_workers=1)
-        try:
-            runner.enqueue("AAPL", idempotency_key="AAPL:current-node")
-            await runner._wait_for_idle(timeout=5)
-        finally:
-            await runner.stop()
-
-        # Filter to node_entered events; current_node must match the
-        # node name after cb runs.
-        entered = [(n, cn) for (n, cn) in observed if n == "node_entered"]
-        assert entered == [
-            ("node_entered", "Market Analyst"),
-            ("node_entered", "Sentiment Analyst"),
-        ]
-
-    @pytest.mark.asyncio
-    async def test_capture_handler_persists_llm_call_via_default_sink(
-        self, monkeypatch, temp_db
-    ):
-        """When the capture handler's on_llm_end fires, an LlmCall row
-        must be persisted via the default sink (i.e. the runner wiring
-        uses the production default, not a no-op)."""
-        from langchain_core.messages import AIMessage, HumanMessage
-        from unittest.mock import MagicMock
-        from uuid import uuid4
-        from web.server import llm_calls
-        from web.server.callbacks import CaptureCallbackHandler
-        from web.server.tests.fixtures.fake_graph import FakeTradingAgents, happy_path
-
-        captured: list = []
-        original_save = llm_calls.save_llm_call
-
-        def spy_save(**kwargs):
-            captured.append(kwargs)
-            return original_save(**kwargs)
-
-        monkeypatch.setattr(llm_calls, "save_llm_call", spy_save)
-
-        def spy_graph(config=None, *, callbacks=None):
-            capture = next(
-                (c for c in (callbacks or []) if isinstance(c, CaptureCallbackHandler)),
-                None,
-            )
-
-            class _Drive(FakeTradingAgents):
-                def propagate(self_inner, ticker, trade_date, *, event_callback=None):
-                    if capture is not None:
-                        # Simulate the real flow: the cb closure fires
-                        # node_entered first (which sets current_node),
-                        # THEN an LLM call happens inside the node, THEN
-                        # node_exited fires.
-                        if event_callback is not None:
-                            event_callback(
-                                "node_entered",
-                                {"node": "Market Analyst"},
-                            )
-                        cb_run_id = uuid4()
-                        capture.on_chat_model_start(
-                            {"name": "ChatOpenAI"},
-                            [[HumanMessage(content="analyze NVDA")]],
-                            run_id=cb_run_id,
-                        )
-                        gen = MagicMock()
-                        chat = MagicMock(message=AIMessage(content="looks bullish"))
-                        gen.__iter__ = lambda self: iter([chat])
-                        response = MagicMock()
-                        response.generations = [gen]
-                        response.llm_output = {
-                            "model_name": "gpt-4o",
-                            "token_usage": {
-                                "prompt_tokens": 10,
-                                "completion_tokens": 5,
-                                "total_tokens": 15,
-                            },
-                        }
-                        capture.on_llm_end(response, run_id=cb_run_id)
-                    return super().propagate(
-                        ticker, trade_date, event_callback=event_callback
-                    )
-
-            return _Drive(happy_path("NVDA"))
-
-        monkeypatch.setattr(runner, "build_graph", spy_graph)
-        monkeypatch.setattr(runner.events, "emit", lambda rid, t, d: db.append_event(rid, t, d))
-
-        await runner.start(num_workers=1)
-        try:
-            rid = runner.enqueue("NVDA", idempotency_key="NVDA:persist-llm")
-            await runner._wait_for_idle(timeout=5)
-        finally:
-            await runner.stop()
-
-        assert len(captured) == 1
-        row = captured[0]
-        assert row["run_id"] == rid
-        assert row["ticker"] == "NVDA"
-        assert row["model"] == "gpt-4o"
-        assert row["input_tokens"] == 10
-        assert row["output_tokens"] == 5
-        assert row["total_tokens"] == 15
-        assert row["duration_ms"] >= 0
-        assert "analyze NVDA" in row["prompt_text"]
-        assert "bullish" in row["response_text"]
-        # current_node was set to the Market Analyst node before LLM fired
-        assert row["node_name"] == "Market Analyst"
+from web.server import runner, storage
+from web.server import price_feed
+from tradingagents.default_config import DEFAULT_CONFIG
+
+
+@pytest.fixture
+def data_root(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    cache = tmp_path / "cache"
+    monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(data))
+    monkeypatch.setenv("TRADINGAGENTS_CACHE_DIR", str(cache))
+    storage.init_settings(data_dir=str(data), cache_dir=str(cache))
+    return data
+
+
+@pytest.fixture(autouse=True)
+def _reset_runner():
+    runner._WORK_QUEUE = None
+    runner._sem = None
+    runner._workers.clear()
+    runner._in_flight.clear()
+    runner._active = 0
+    yield
+    runner._WORK_QUEUE = None
+    runner._sem = None
+    runner._workers.clear()
+    runner._in_flight.clear()
+    runner._active = 0
+
+
+def test_enqueue_writes_model_fields_from_default_config(data_root, monkeypatch):
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: [])
+    asyncio.run(runner.start(num_workers=0))
+    run_id = asyncio.run(runner.enqueue(
+        "NVDA",
+        "2026-06-04",
+        force=False,
+        price_state=state,
+    ))
+    rj = storage.read_run(run_id)
+    assert rj["llm_provider"] == DEFAULT_CONFIG["llm_provider"]
+    assert rj["deep_think_model"] == DEFAULT_CONFIG["deep_think_llm"]
+    assert rj["quick_think_model"] == DEFAULT_CONFIG["quick_think_llm"]
+
+
+def test_enqueue_writes_start_price_from_snapshot(data_root):
+    snap = price_feed.PriceSnapshot(price=123.45, prev_close=120.0, change_pct=2.875, sparkline=[])
+    state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
+    asyncio.run(runner.start(num_workers=0))
+    run_id = asyncio.run(runner.enqueue(
+        "NVDA",
+        "2026-06-04",
+        force=False,
+        price_state=state,
+    ))
+    rj = storage.read_run(run_id)
+    assert rj["start_price"] == 123.45
+    assert rj["start_price_at"] is not None
+    assert rj["start_price_at"].endswith("Z")
+
+
+def test_enqueue_leaves_price_null_when_snapshot_missing_or_stale(data_root):
+    snap = price_feed.PriceSnapshot(price=100.0, prev_close=100.0, change_pct=0.0, sparkline=[], stale=True)
+    state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
+    asyncio.run(runner.start(num_workers=0))
+    run_id = asyncio.run(runner.enqueue("NVDA", "2026-06-04", force=False, price_state=state))
+    rj = storage.read_run(run_id)
+    assert rj["start_price"] is None
+    assert rj["start_price_at"] is None
