@@ -111,6 +111,8 @@ def test_post_watchlist_rejects_zero_price_ticker(client, monkeypatch):
 
 
 def test_runs_lifecycle(client):
+    # Ticker must be on the watchlist before /api/runs accepts it.
+    client.post("/api/watchlist", json={"ticker": "NVDA", "company_name": "NVIDIA", "exchange": "NASDAQ"})
     r = client.post("/api/runs", json={"ticker": "NVDA"})
     # The new app uses 202 Accepted (the run is queued, not yet done).
     assert r.status_code == 202
@@ -135,6 +137,7 @@ class TestForceRerun:
     ticker without waiting until tomorrow."""
 
     def test_post_run_without_force_is_idempotent_per_day(self, client):
+        client.post("/api/watchlist", json={"ticker": "NVDA", "company_name": "NVIDIA", "exchange": "NASDAQ"})
         r1 = client.post("/api/runs", json={"ticker": "NVDA"})
         rid_1 = r1.json()["run_id"]
         # The first run is in "running" status (worker was bypassed, so
@@ -154,6 +157,7 @@ class TestForceRerun:
         assert rid_1 == rid_2  # same day, same run is returned
 
     def test_post_run_with_force_creates_new_run(self, client):
+        client.post("/api/watchlist", json={"ticker": "NVDA", "company_name": "NVIDIA", "exchange": "NASDAQ"})
         r1 = client.post("/api/runs", json={"ticker": "NVDA"})
         rid_1 = r1.json()["run_id"]
         r2 = client.post("/api/runs", json={"ticker": "NVDA", "force": True})

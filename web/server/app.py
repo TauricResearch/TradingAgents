@@ -54,6 +54,11 @@ async def lifespan(app: FastAPI):
         except OSError as exc:
             log.error("failed to remove legacy DB: %s", exc)
     storage.init_settings(data_dir=s.data_dir, cache_dir=s.cache_dir)
+    # Silence yfinance's own ERROR-level noise for delisted/foreign symbols
+    # (e.g. "TA125: possibly delisted"). Without this, the dashboard log
+    # fills with yfinance-internal tracebacks every poll for every bad
+    # ticker in the watchlist.
+    logging.getLogger("yfinance").setLevel(logging.CRITICAL)
     # Mark any previously-running runs as failed (process restart recovery).
     for td in storage.walk_data_dir():
         for sd in td.iterdir():
@@ -92,6 +97,15 @@ def create_app() -> FastAPI:
 
     @app.post("/api/watchlist", status_code=201)
     def add_to_watchlist(body: WatchlistIn) -> dict:
+        # Validate the ticker against yfinance so delisted/foreign symbols
+        # are rejected up front (HTTP 400) instead of silently going stale
+        # in the price feed forever after.
+        from . import price_feed as _pf
+        try:
+            _pf.validate_ticker_exists(body.ticker)
+        except _pf.TickerNotFound as exc:
+            detail = {"error": "ticker_not_found", "ticker": body.ticker, "reason": exc.reason}
+            raise HTTPException(status_code=400, detail=detail)
         try:
             row = queries.add_ticker(body.ticker, body.company_name, body.exchange)
         except queries.DuplicateTicker:

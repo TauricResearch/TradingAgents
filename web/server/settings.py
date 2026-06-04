@@ -29,4 +29,21 @@ class Settings:
 
 
 def get_settings() -> Settings:
-    return Settings()
+    """Build Settings with env vars read AT CALL TIME (not class definition time).
+
+    Class-level defaults are evaluated once when the module is imported, so
+    monkeypatching TRADINGAGENTS_DATA_DIR after import has no effect on the
+    default value. This factory re-reads os.environ each call so tests that
+    set env vars in fixtures (and the conftest's monkeypatch) get isolated
+    data dirs.
+    """
+    return Settings(
+        data_dir=os.environ.get("TRADINGAGENTS_DATA_DIR", str(_default_root() / "data")),
+        cache_dir=os.environ.get("TRADINGAGENTS_CACHE_DIR", str(_default_root() / "cache")),
+        host=os.environ.get("TRADINGAGENTS_DASHBOARD_HOST", "127.0.0.1"),
+        port=int(os.environ.get("TRADINGAGENTS_DASHBOARD_PORT", "8000")),
+        max_concurrent=int(os.environ.get("TRADINGAGENTS_DASHBOARD_MAX_CONCURRENT", "3")),
+        price_poll_s=int(os.environ.get("TRADINGAGENTS_DASHBOARD_PRICE_POLL_S", "2")),
+        log_level=os.environ.get("TRADINGAGENTS_DASHBOARD_LOG_LEVEL", "INFO"),
+        frontend_dist=os.environ.get("TRADINGAGENTS_FRONTEND_DIST", "web/frontend/dist"),
+    )

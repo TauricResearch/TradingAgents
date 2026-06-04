@@ -17,6 +17,6 @@ def data_root(tmp_path, monkeypatch):
 def client(data_root):
     """FastAPI TestClient with the file-backed storage configured."""
     from fastapi.testclient import TestClient
-    from web.server.app import app
-    with TestClient(app) as c:
+    from web.server.app import create_app
+    with TestClient(create_app()) as c:
         yield c
