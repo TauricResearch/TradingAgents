@@ -175,6 +175,11 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    # Opencode: generic OpenAI-compatible endpoint — any model ID accepted.
+    "opencode": {
+        "quick": [("Custom model ID", "custom")],
+        "deep":  [("Custom model ID", "custom")],
+    },
 }
 
 
