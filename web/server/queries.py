@@ -100,6 +100,18 @@ def update_last_decision(ticker: str, run_id: str, decision_text: str, at: datet
 
 def run_to_dict(r: dict) -> dict:
     """Shape a stored run.json for the API. Keeps the wire format stable."""
+    elapsed_s: Optional[float] = None
+    started_at = _parse_iso_z(r.get("started_at") or "")
+    if started_at is not None:
+        finished_str = r.get("finished_at")
+        if finished_str:
+            finished_at = _parse_iso_z(finished_str)
+            if finished_at is not None:
+                elapsed_s = round((finished_at - started_at).total_seconds(), 2)
+        else:
+            from datetime import datetime, timezone
+            elapsed_s = round((datetime.now(timezone.utc) - started_at).total_seconds(), 2)
+
     return {
         "id": r.get("id"),
         "ticker": r.get("ticker"),
@@ -107,6 +119,13 @@ def run_to_dict(r: dict) -> dict:
         "started_at": r.get("started_at"),
         "finished_at": r.get("finished_at"),
         "status": r.get("status"),
+        "llm_provider": r.get("llm_provider"),
+        "deep_think_model": r.get("deep_think_model"),
+        "quick_think_model": r.get("quick_think_model"),
+        "start_price": r.get("start_price"),
+        "start_price_at": r.get("start_price_at"),
+        "total_duration_s": r.get("total_duration_s"),
+        "elapsed_s": elapsed_s,
         "decision_action": r.get("decision_action"),
         "decision_target": r.get("decision_target"),
         "decision_rationale": r.get("decision_rationale"),

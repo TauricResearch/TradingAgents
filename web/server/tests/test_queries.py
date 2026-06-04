@@ -88,8 +88,51 @@ def test_run_to_dict_passes_through_fields():
         "decision_target": 260.0,
         "decision_rationale": "ok",
         "decision_confidence": 0.8,
+        "llm_provider": "openai",
+        "deep_think_model": "gpt-5.5",
+        "quick_think_model": "gpt-5.4-mini",
+        "start_price": 123.45,
+        "start_price_at": "2026-06-04T12:00:00.000000Z",
+        "total_duration_s": 300.5,
     }
-    assert queries.run_to_dict(raw) == raw
+    out = queries.run_to_dict(raw)
+    assert out["elapsed_s"] == 300.0  # finished_at - started_at
+    # Remove derived field before comparing remainder.
+    del out["elapsed_s"]
+    assert out == raw
+
+
+def test_run_to_dict_computes_elapsed_s():
+    # Running run (no finished_at) — elapsed_s = now - started_at
+    raw = {
+        "id": "NVDA:2026-06-03T11:30:00.000000Z",
+        "ticker": "NVDA",
+        "slug": "2026-06-03_14-30-00_IDT",
+        "started_at": "2026-06-03T11:30:00.000000Z",
+        "finished_at": None,
+        "status": "running",
+    }
+    out = queries.run_to_dict(raw)
+    assert "elapsed_s" in out
+    assert isinstance(out["elapsed_s"], float)
+    assert out["elapsed_s"] >= 0
+
+    # Done run — elapsed_s = finished_at - started_at
+    raw2 = {
+        "id": "NVDA:2026-06-03T11:30:00.000000Z",
+        "ticker": "NVDA",
+        "slug": "2026-06-03_14-30-00_IDT",
+        "started_at": "2026-06-03T11:30:00.000000Z",
+        "finished_at": "2026-06-03T11:35:00.000000Z",
+        "status": "done",
+    }
+    out2 = queries.run_to_dict(raw2)
+    assert out2["elapsed_s"] == 300.0
+
+    # No started_at — elapsed_s is None
+    raw3 = {"status": "done"}
+    out3 = queries.run_to_dict(raw3)
+    assert out3["elapsed_s"] is None
 
 
 def test_event_to_dict_keeps_run_id():
