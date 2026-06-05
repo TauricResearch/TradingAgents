@@ -11,6 +11,13 @@ what reconciliation uses after a crash (broker = source of truth).
 
 from .base import Broker, BrokerOrder, OrderRequest, OrderStatus
 from .paper import PaperBroker
+from .commission import (
+    CommissionModel,
+    PercentCommission,
+    PerShareCommission,
+    PerTradeCommission,
+    ZeroCommission,
+)
 
 __all__ = [
     "Broker",
@@ -18,4 +25,9 @@ __all__ = [
     "OrderRequest",
     "OrderStatus",
     "PaperBroker",
+    "CommissionModel",
+    "ZeroCommission",
+    "PerTradeCommission",
+    "PerShareCommission",
+    "PercentCommission",
 ]
