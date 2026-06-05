@@ -150,12 +150,37 @@ export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
 export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io, M2.x, 204K ctx)
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com, M2.x, 204K ctx)
 export OPENROUTER_API_KEY=...      # OpenRouter
+export CUSTOM_PROVIDER_API_KEY=... # Custom OpenAI-compatible endpoint
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
+
+For a private gateway or newly launched provider that implements the OpenAI-compatible Chat Completions API, configure the generic custom provider:
+
+```bash
+export TRADINGAGENTS_LLM_PROVIDER=custom
+export TRADINGAGENTS_LLM_BACKEND_URL=https://llm.example.com/v1
+export TRADINGAGENTS_QUICK_THINK_LLM=vendor/fast-model
+export TRADINGAGENTS_DEEP_THINK_LLM=vendor/deep-model
+export CUSTOM_PROVIDER_API_KEY=...
+```
+
+The custom provider expects an OpenAI-compatible `/v1/chat/completions` style endpoint. Native non-OpenAI-compatible APIs such as Bedrock, Vertex AI, Gemini-native, or Anthropic-native endpoints require dedicated provider clients.
+
+For 9router, use the exact model IDs returned by `GET http://localhost:20128/v1/models`; for example, GPT-5.5 through the Codex route is `cx/gpt-5.5`, not `chatgpt5.5`:
+
+```bash
+export TRADINGAGENTS_LLM_PROVIDER=custom
+export TRADINGAGENTS_LLM_BACKEND_URL=http://localhost:20128/v1
+export TRADINGAGENTS_QUICK_THINK_LLM=cx/gpt-5.5
+export TRADINGAGENTS_DEEP_THINK_LLM=cx/gpt-5.5
+export CUSTOM_PROVIDER_API_KEY=...
+```
+
+If TradingAgents runs inside Docker while 9router runs on the host, use `http://host.docker.internal:20128/v1` for `TRADINGAGENTS_LLM_BACKEND_URL` so the container can reach the host service.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
@@ -199,7 +224,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, custom OpenAI-compatible endpoints, Ollama for local models, and Azure OpenAI for enterprise.
 
 ### Python Usage
 
@@ -223,7 +248,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
+config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, custom, ollama, azure
 config["deep_think_llm"] = "gpt-5.5"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2

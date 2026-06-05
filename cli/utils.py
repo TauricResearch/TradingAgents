@@ -9,6 +9,7 @@ from rich.console import Console
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.llm_clients.url_validation import validate_custom_provider_base_url
 
 console = Console()
 
@@ -222,10 +223,36 @@ def _prompt_custom_model_id() -> str:
     ).ask().strip()
 
 
+def _validate_custom_provider_url_input(value: str) -> bool | str:
+    try:
+        validate_custom_provider_base_url(value)
+        return True
+    except ValueError as exc:
+        return str(exc)
+
+
+def prompt_custom_provider_backend_url() -> str:
+    """Prompt for a custom OpenAI-compatible provider base URL."""
+    url = questionary.text(
+        "Enter custom OpenAI-compatible base URL (e.g. https://api.example.com/v1):",
+        validate=_validate_custom_provider_url_input,
+    ).ask()
+    if url is None:
+        console.print("\n[red]No custom provider backend URL provided. Exiting...[/red]")
+        exit(1)
+    return validate_custom_provider_base_url(url)
+
+
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
     if provider.lower() == "openrouter":
         return select_openrouter_model()
+
+    if provider.lower() == "custom":
+        return questionary.text(
+            f"Enter custom provider model ID ({mode}-thinking):",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
+        ).ask().strip()
 
     if provider.lower() == "azure":
         return questionary.text(
@@ -288,6 +315,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
+        ("Custom OpenAI-compatible", "custom", None),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
     ]
@@ -327,6 +355,8 @@ def select_llm_provider() -> tuple[str, str | None]:
         exit(1)
 
     provider, url = choice
+    if provider == "custom":
+        url = prompt_custom_provider_backend_url()
     return provider, url
 
 
@@ -475,7 +505,7 @@ def confirm_ollama_endpoint(url: str) -> None:
 
     Surfaces three things the user benefits from seeing before model
     selection: which URL we'll actually hit, where it came from
-    (\`OLLAMA_BASE_URL\` vs default), and a soft warning if the URL is
+    (``OLLAMA_BASE_URL`` vs default), and a soft warning if the URL is
     missing the scheme/port that ollama-serve expects. The warning is
     advisory only — we don't reject malformed input, since the user may
     be doing something deliberately unusual (e.g. a reverse-proxy path).

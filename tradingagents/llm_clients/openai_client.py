@@ -7,6 +7,7 @@ from langchain_openai import ChatOpenAI
 from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
+from .url_validation import validate_custom_provider_base_url
 from .validators import validate_model
 
 
@@ -210,7 +211,19 @@ class OpenAIClient(BaseLLMClient):
         # Provider-specific base URL and auth. An explicit base_url on the
         # client (e.g. a corporate proxy) takes precedence over the
         # provider default so users can route through their own gateway.
-        if self.provider in _PROVIDER_BASE_URL:
+        if self.provider == "custom":
+            llm_kwargs["base_url"] = validate_custom_provider_base_url(self.base_url)
+            api_key_env = get_api_key_env(self.provider)
+            api_key = os.environ.get(api_key_env or "")
+            if api_key:
+                llm_kwargs["api_key"] = api_key
+            else:
+                raise ValueError(
+                    "API key for provider 'custom' is not set. "
+                    "Please set the CUSTOM_PROVIDER_API_KEY environment variable "
+                    "(e.g. add CUSTOM_PROVIDER_API_KEY=your_key to your .env file)."
+                )
+        elif self.provider in _PROVIDER_BASE_URL:
             llm_kwargs["base_url"] = self.base_url or _resolve_provider_base_url(self.provider)
             api_key_env = get_api_key_env(self.provider)
             if api_key_env:

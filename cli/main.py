@@ -572,6 +572,8 @@ def get_user_selections():
     if provider_from_env:
         selected_llm_provider = DEFAULT_CONFIG["llm_provider"].lower()
         backend_url = DEFAULT_CONFIG["backend_url"] or provider_default_url(selected_llm_provider)
+        if selected_llm_provider == "custom":
+            backend_url = validate_custom_provider_base_url(backend_url)
         console.print(f"[green]✓ LLM provider from environment:[/green] {selected_llm_provider}")
         console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
         # Still confirm/persist the API key so the run doesn't fail later.
