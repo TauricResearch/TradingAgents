@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
 import { formatDuration } from "../lib/format";
 import type { WsEvent } from "../lib/events";
@@ -211,6 +211,94 @@ const SEGMENT_CLASS: Record<"traversed" | "active" | "future" | "failed", string
 
 /* ── component ─────────────────────────────────────── */
 
+function lastStartedIsoFor(stage: StageKey, events: WsEvent[]): string | undefined {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage) {
+      return (e.data as any)?.ts ?? undefined;
+    }
+  }
+  return undefined;
+}
+
+function StageButton({
+  status,
+  position,
+  testKey,
+  durationMs,
+  startedAtIso,
+  isExpanded,
+  onClick,
+  ariaLabel,
+}: {
+  status: StageDerived["status"];
+  position: number;
+  testKey: string;
+  durationMs?: number;
+  startedAtIso?: string;
+  isExpanded: boolean;
+  onClick: () => void;
+  ariaLabel: string;
+}) {
+  const isRunning = status === "running";
+  const [elapsed, setElapsed] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isRunning || !startedAtIso) return;
+    const tick = () => {
+      const ms = Date.now() - new Date(startedAtIso).getTime();
+      setElapsed(Math.max(0, Math.floor(ms / 1000)));
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [isRunning, startedAtIso]);
+
+  const baseShape = isRunning
+    ? "min-w-[3.25rem] h-8 px-2 rounded-full"
+    : "w-8 h-8 rounded-full";
+  const baseText = isRunning ? "text-[10px] font-mono" : "text-xs font-semibold";
+  const label = isRunning
+    ? formatElapsed(elapsed)
+    : status === "done"
+    ? "✓"
+    : `${position}`;
+
+  return (
+    <button
+      type="button"
+      data-testid={`stage-${testKey}`}
+      data-status={status}
+      data-expanded={isExpanded}
+      data-duration-ms={durationMs}
+      onClick={onClick}
+      aria-expanded={isExpanded}
+      aria-label={ariaLabel}
+      title={durationMs != null ? formatDuration(durationMs) : undefined}
+      className={`border-2 flex items-center justify-center gap-1 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 ${baseShape} ${baseText} ${STATUS_DOT[status]}`}
+    >
+      {isRunning && (
+        <svg
+          className="animate-spin h-3 w-3"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" fill="none" />
+          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
+        </svg>
+      )}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function formatElapsed(s: number): string {
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}m ${r}s`;
+}
+
 export function RunTimeline() {
   const events = useFocusedRunEvents();
   const [expanded, setExpanded] = useState<StageKey | null>(null);
@@ -239,18 +327,16 @@ export function RunTimeline() {
               <div key={d.key} className="flex items-start flex-1 last:flex-none">
                 {/* node column */}
                 <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
-                  <button
-                    type="button"
-                    data-testid={`stage-${d.key}`}
-                    data-status={d.info.status}
-                    data-expanded={isExpanded}
+                  <StageButton
+                    position={i + 1}
+                    testKey={d.key}
+                    status={d.info.status}
+                    durationMs={d.info.duration_ms}
+                    startedAtIso={lastStartedIsoFor(d.key, events)}
+                    isExpanded={isExpanded}
                     onClick={() => toggle(d.key)}
-                    aria-expanded={isExpanded}
-                    aria-label={`${d.label} stage: ${STATUS_LABEL[d.info.status]}`}
-                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-semibold transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 ${STATUS_DOT[d.info.status]}`}
-                  >
-                    {d.info.status === "done" ? "✓" : i + 1}
-                  </button>
+                    ariaLabel={`${d.label} stage: ${STATUS_LABEL[d.info.status]}`}
+                  />
                   <div className="mt-1.5 text-[11px] font-medium text-slate-700 text-center truncate w-full">
                     {d.label}
                   </div>
