@@ -213,8 +213,7 @@ class OpenAIClient(BaseLLMClient):
         # provider default so users can route through their own gateway.
         if self.provider == "custom":
             llm_kwargs["base_url"] = validate_custom_provider_base_url(self.base_url)
-            api_key_env = get_api_key_env(self.provider)
-            api_key = os.environ.get(api_key_env or "")
+            api_key = os.environ.get("CUSTOM_PROVIDER_API_KEY")
             if api_key:
                 llm_kwargs["api_key"] = api_key
             else:

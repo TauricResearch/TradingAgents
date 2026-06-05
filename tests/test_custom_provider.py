@@ -127,6 +127,20 @@ def test_cli_custom_provider_prompts_for_freeform_model_id(monkeypatch):
     catalog.assert_not_called()
 
 
+def test_cli_custom_provider_model_prompt_cancel_exits(monkeypatch):
+    import cli.utils as cli_utils
+
+    with mock.patch.object(
+        cli_utils.questionary,
+        "text",
+        return_value=_Prompt(None),
+    ), mock.patch.object(cli_utils.console, "print") as print_msg:
+        with pytest.raises(SystemExit):
+            cli_utils.select_shallow_thinking_agent("custom")
+
+    print_msg.assert_called_once()
+
+
 def test_cli_env_custom_provider_skips_llm_prompts(monkeypatch):
     import cli.main as m
 
@@ -170,3 +184,35 @@ def test_cli_env_custom_provider_skips_llm_prompts(monkeypatch):
     assert sel["backend_url"] == "https://llm.example.com/v1"
     assert sel["shallow_thinker"] == "vendor/quick"
     assert sel["deep_thinker"] == "vendor/deep"
+
+
+def test_cli_env_custom_provider_invalid_backend_url_exits_gracefully(monkeypatch):
+    import cli.main as m
+
+    env = {
+        "TRADINGAGENTS_LLM_PROVIDER": "custom",
+        "TRADINGAGENTS_LLM_BACKEND_URL": "llm.example.com/v1",
+        "TRADINGAGENTS_OUTPUT_LANGUAGE": "Vietnamese",
+    }
+    fake_cfg = dict(m.DEFAULT_CONFIG)
+    fake_cfg.update({
+        "llm_provider": "custom",
+        "backend_url": "llm.example.com/v1",
+        "output_language": "Vietnamese",
+    })
+
+    with mock.patch.dict("os.environ", env, clear=False), \
+         mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
+         mock.patch.object(m, "fetch_announcements", return_value=None), \
+         mock.patch.object(m, "display_announcements"), \
+         mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+         mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
+         mock.patch.object(m, "select_analysts", return_value=[]), \
+         mock.patch.object(m, "select_research_depth", return_value=1), \
+         mock.patch.object(m, "ensure_api_key") as ensure_key, \
+         mock.patch.object(m.console, "print") as print_msg:
+        with pytest.raises(SystemExit):
+            m.get_user_selections()
+
+    ensure_key.assert_not_called()
+    assert any("Error:" in str(call) for call in print_msg.call_args_list)

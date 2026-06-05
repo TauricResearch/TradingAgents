@@ -249,10 +249,14 @@ def _select_model(provider: str, mode: str) -> str:
         return select_openrouter_model()
 
     if provider.lower() == "custom":
-        return questionary.text(
+        model = questionary.text(
             f"Enter custom provider model ID ({mode}-thinking):",
             validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
-        ).ask().strip()
+        ).ask()
+        if model is None:
+            console.print("\n[red]No model ID provided. Exiting...[/red]")
+            exit(1)
+        return model.strip()
 
     if provider.lower() == "azure":
         return questionary.text(
