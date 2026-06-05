@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { RunTimeline } from "../components/RunTimeline";
 import { useUi } from "../store/ui";
 import type { WsEvent } from "../lib/events";
@@ -398,5 +398,83 @@ describe("RunTimeline — per-stage duration", () => {
     render(<RunTimeline />);
     expect(screen.getByTestId("stage-market").getAttribute("data-status")).toBe("done");
     expect(screen.getByTestId("stage-market").parentElement?.textContent ?? "").toMatch(/ms|s$/);
+  });
+});
+
+describe("RunTimeline — running-stage pill", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // Pin "now" to a deterministic instant for elapsed math.
+    vi.setSystemTime(new Date("2026-06-04T10:00:10.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("renders a spinner + elapsed text in the running stage's button", () => {
+    // Market analyst started 5s ago; no completion yet.
+    const events = [
+      evt("NVDA:1", "run_started", { ticker: "NVDA" }, "1"),
+      evt("NVDA:1", "analyst_started", {
+        node: "Market Analyst",
+        ts: "2026-06-04T10:00:05.000Z",
+      }, "2"),
+    ];
+    setup(events);
+    render(<RunTimeline />);
+    const btn = screen.getByTestId("stage-market");
+    expect(btn.getAttribute("data-status")).toBe("running");
+    // Spinner SVG is present (animate-spin class on an svg child).
+    expect(btn.querySelector("svg.animate-spin")).toBeInTheDocument();
+    // Elapsed text is "5s".
+    expect(btn.textContent).toMatch(/5s/);
+  });
+
+  it("advances the elapsed counter on a 1 Hz tick", () => {
+    const events = [
+      evt("NVDA:1", "run_started", { ticker: "NVDA" }, "1"),
+      evt("NVDA:1", "analyst_started", {
+        node: "Market Analyst",
+        ts: "2026-06-04T10:00:00.000Z",
+      }, "2"),
+    ];
+    setup(events);
+    render(<RunTimeline />);
+    expect(screen.getByTestId("stage-market").textContent).toMatch(/10s/);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(screen.getByTestId("stage-market").textContent).toMatch(/13s/);
+  });
+
+  it("collapses back to a circle + ✓ when the stage completes", () => {
+    const events = [
+      evt("NVDA:1", "run_started", { ticker: "NVDA" }, "1"),
+      evt("NVDA:1", "analyst_started", {
+        node: "Market Analyst",
+        ts: "2026-06-04T10:00:00.000Z",
+      }, "2"),
+    ];
+    setup(events);
+    const { rerender } = render(<RunTimeline />);
+    expect(screen.getByTestId("stage-market").querySelector("svg.animate-spin")).toBeInTheDocument();
+    // Add completion event, re-render with the new buffer.
+    useUi.setState({
+      eventBuffer: [
+        ...events,
+        evt("NVDA:1", "analyst_completed", {
+          stage: "market",
+          summary: "ok",
+          report_excerpt: "ok",
+          report_text: "ok",
+          duration_ms: 10_000,
+        }, "3"),
+      ],
+    });
+    rerender(<RunTimeline />);
+    const btn = screen.getByTestId("stage-market");
+    expect(btn.getAttribute("data-status")).toBe("done");
+    expect(btn.querySelector("svg.animate-spin")).not.toBeInTheDocument();
+    expect(btn.textContent).toContain("✓");
   });
 });
