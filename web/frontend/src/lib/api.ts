@@ -54,6 +54,16 @@ export interface RunRow {
   decision_target: number | null;
   decision_rationale: string | null;
   decision_confidence: number | null;
+  // Run-metadata enrichment: all nullable for backward compatibility
+  // with runs persisted before the schema change.
+  llm_provider: string | null;
+  deep_think_model: string | null;
+  quick_think_model: string | null;
+  start_price: number | null;
+  start_price_at: string | null;
+  total_duration_s: number | null;
+  // Derived: only set when status === "running". null for terminal runs.
+  elapsed_s: number | null;
 }
 
 export interface LlmCallRow {
@@ -72,18 +82,7 @@ export interface LlmCallRow {
   duration_ms: number;
 }
 
-export interface RunDetail {
-  id: string;
-  slug: string;
-  ticker: string;
-  started_at: string | null;
-  finished_at: string | null;
-  status: RunStatus;
-  cancel_requested: boolean;
-  decision_action: string | null;
-  decision_target: number | null;
-  decision_rationale: string | null;
-  decision_confidence: number | null;
+export interface RunDetail extends RunRow {
   events: Array<{ id: string; type: string; ts: string | null; data: unknown }>;
   llm_calls: LlmCallRow[];
   stages: unknown[];

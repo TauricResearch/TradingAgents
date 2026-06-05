@@ -3,6 +3,39 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TickerHeader } from "../components/TickerHeader";
 import { useUi } from "../store/ui";
+import type { RunRow, RunDetail } from "../lib/api";
+
+// Compile-time assertions: a value with the new run-metadata fields is
+// assignable to RunRow/RunDetail. Will fail tsc until those fields exist.
+const _rowSample: RunRow = {
+  id: "NVDA:2026-06-04T10:00:00.000000Z",
+  slug: "2026-06-04_13-00-00_IDT",
+  ticker: "NVDA",
+  started_at: "2026-06-04T10:00:00.000000Z",
+  finished_at: "2026-06-04T10:00:42.000000Z",
+  status: "done",
+  cancel_requested: false,
+  decision_action: "HOLD",
+  decision_target: null,
+  decision_rationale: null,
+  decision_confidence: null,
+  llm_provider: "openai",
+  deep_think_model: "gpt-5.5",
+  quick_think_model: "gpt-5.4-mini",
+  start_price: 123.45,
+  start_price_at: "2026-06-04T10:00:00.000000Z",
+  total_duration_s: 42.0,
+  elapsed_s: null,
+};
+void _rowSample;
+
+const _detailSample: RunDetail = {
+  ..._rowSample,
+  events: [],
+  llm_calls: [],
+  stages: [],
+};
+void _detailSample;
 
 function wrap(ui: React.ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });

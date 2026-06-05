@@ -30,6 +30,13 @@ const row = (id: string, status: "running" | "done" | "failed" | "queued" | "can
   decision_target: null,
   decision_rationale: null,
   decision_confidence: null,
+  llm_provider: null,
+  deep_think_model: null,
+  quick_think_model: null,
+  start_price: null,
+  start_price_at: null,
+  total_duration_s: null,
+  elapsed_s: null,
 });
 
 beforeEach(() => {
