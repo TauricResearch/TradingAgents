@@ -34,6 +34,9 @@ dependencies = [
     "sqlalchemy>=2.0",
 ]
 
+[project.scripts]
+tradingagents = "tradingagents.cli:main"
+
 [tool.setuptools.packages.find]
 include = ["tradingagents*"]
 
