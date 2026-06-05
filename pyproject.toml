@@ -34,14 +34,8 @@ dependencies = [
     "sqlalchemy>=2.0",
 ]
 
-[project.scripts]
-tradingagents = "cli.main:app"
-
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
-
-[tool.setuptools.package-data]
-cli = ["static/*"]
+include = ["tradingagents*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
