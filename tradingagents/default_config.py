@@ -134,6 +134,13 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
+    # DeepSeek official API prompt-cache optimization. These budgets cap only
+    # dynamic tail content; static instructions are never trimmed.
+    "prompt_cache_dynamic_budget_chars": 24000,
+    "prompt_cache_report_budget_chars": 5000,
+    "prompt_cache_debate_budget_chars": 8000,
+    "prompt_cache_prior_pack_budget_chars": 8000,
+    "prompt_cache_memory_budget_chars": 6000,
     # LLM settings
     "llm_provider": "deepseek",
     "deep_think_llm": "deepseek-v4-pro",     # V4 thinking flagship; deep reasoning / synthesis (effort=max)
