@@ -10,7 +10,7 @@ fully testable without any LLM.
 """
 
 from .triggers import TriggerEvent, collect_triggers
-from .analyze import Analyzer, hold_analyzer
+from .analyze import Analyzer, hold_analyzer, make_brain_analyzer
 from .cycle import CycleReport, run_cycle
 
 __all__ = [
@@ -18,6 +18,7 @@ __all__ = [
     "collect_triggers",
     "Analyzer",
     "hold_analyzer",
+    "make_brain_analyzer",
     "CycleReport",
     "run_cycle",
 ]
