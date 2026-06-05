@@ -15,6 +15,11 @@ export function useRunStream(runId: string | null) {
       setStatus("idle");
       return;
     }
+    // A fresh ResilientWs starts without a `since` cursor, so the
+    // server replays every event for this runId. Wipe any pre-existing
+    // buffer entries (typically from a REST replay) first so the
+    // replay doesn't duplicate them.
+    useUi.getState().clearEventBuffer(runId);
     const client = new ResilientWs({
       url: () => buildRunUrl(runId, lastIdRef.current || undefined),
       onMessage: (evt) => {

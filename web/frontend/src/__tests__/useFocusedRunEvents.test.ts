@@ -57,18 +57,44 @@ describe("useFocusedRunEvents", () => {
     });
     const { result, rerender } = renderHook(() => useFocusedRunEvents());
     expect(result.current[0].run_id).toBe("NVDA:1");
-    // Switching focus triggers the clearEventBuffer effect for the
-    // new runId (preventing REST-replay + WS duplicates on the
-    // handoff). Once the new run's events arrive (via REST replay or
-    // WS), they appear in the filtered list.
+    // Switching focus to AAPL filters out NVDA:1 (the new focus has
+    // no matching events), but the buffer is preserved so switching
+    // back to NVDA still shows the run.
     useUi.setState({ focusedTicker: "AAPL" });
     rerender();
     expect(result.current).toHaveLength(0);
+    expect(useUi.getState().eventBuffer).toHaveLength(1);
     useUi.setState({
       eventBuffer: [evt("NVDA:1", "analyst_started", "1"), evt("AAPL:2", "analyst_started", "2")],
     });
     rerender();
     expect(result.current[0].run_id).toBe("AAPL:2");
+  });
+
+  it("preserves buffered events when focus toggles away and back", () => {
+    // Regression: switching from NVDA → AAPL → NVDA used to wipe the
+    // NVDA:1 events from the buffer (a clearEventBuffer effect in
+    // this hook ran on every display-runId change). The events must
+    // be preserved so the user can navigate the watchlist without
+    // losing the analysis output.
+    useUi.setState({
+      focusedTicker: "NVDA",
+      lastRunIdByTicker: { NVDA: "NVDA:1" },
+      eventBuffer: [evt("NVDA:1", "analyst_started", "1")],
+    });
+    const { result, rerender } = renderHook(() => useFocusedRunEvents());
+    expect(result.current).toHaveLength(1);
+    // Focus moves to AAPL (no last run → display runId is null).
+    useUi.setState({ focusedTicker: "AAPL" });
+    rerender();
+    expect(result.current).toHaveLength(0);
+    expect(useUi.getState().eventBuffer).toHaveLength(1);
+    // Focus moves back to NVDA.
+    useUi.setState({ focusedTicker: "NVDA" });
+    rerender();
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0].run_id).toBe("NVDA:1");
+    expect(useUi.getState().eventBuffer).toHaveLength(1);
   });
 
   it("prefers historicalRunIdByTicker over lastRunIdByTicker", () => {

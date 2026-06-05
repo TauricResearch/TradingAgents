@@ -3,6 +3,11 @@ import { renderHook, act } from "@testing-library/react";
 import { installMockWebSocket, MockWebSocket } from "./mocks/mockWs";
 import { useRunStream } from "../hooks/useRunStream";
 import { useUi } from "../store/ui";
+import type { WsEvent } from "../lib/events";
+
+const evt = (runId: string, type: string, id: string): WsEvent => ({
+  v: 1, type: type as any, ts: `t${id}`, run_id: runId, data: {}, id,
+});
 
 describe("useRunStream", () => {
   beforeEach(() => {
@@ -32,5 +37,20 @@ describe("useRunStream", () => {
         resolve();
       }, 1100);
     });
+  });
+
+  it("clears buffered events for its runId before opening the WS", () => {
+    // The hook re-opens the WS whenever its runId changes, and a
+    // fresh ResilientWs starts without a `since` cursor — so the
+    // server replays all events from the start. Pre-existing buffer
+    // entries from a REST replay would therefore be duplicated. The
+    // hook wipes the buffer for its runId when (re)opening.
+    useUi.setState({
+      eventBuffer: [evt("NVDA:42", "analyst_started", "1"), evt("AAPL:1", "analyst_started", "2")],
+    });
+    renderHook(() => useRunStream("NVDA:42"));
+    // Only NVDA:42 events were cleared; AAPL:1 (a different run) is
+    // preserved.
+    expect(useUi.getState().eventBuffer.map((e) => e.id)).toEqual(["2"]);
   });
 });
