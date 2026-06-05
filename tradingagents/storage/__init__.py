@@ -27,6 +27,7 @@ from .database import Base, get_engine, get_session, init_db, reset_engine
 from .models import (
     CharterRule,
     Instrument,
+    NewsItem,
     PortfolioSnapshot,
     PriceBar,
     ResearchState,
@@ -42,6 +43,7 @@ __all__ = [
     "reset_engine",
     "CharterRule",
     "Instrument",
+    "NewsItem",
     "PortfolioSnapshot",
     "PriceBar",
     "ResearchState",

@@ -115,6 +115,32 @@ class PriceBar(Base):
 
 
 # ---------------------------------------------------------------------------
+# Area: market_data — news (for the Market/Sentiment desks)
+# ---------------------------------------------------------------------------
+class NewsItem(Base):
+    """A news/headline item for a ticker, with double date + optional sentiment."""
+
+    __tablename__ = "news_items"
+    __table_args__ = (
+        Index("ix_news_symbol_ts", "symbol", "ts"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    symbol: Mapped[str] = mapped_column(String(32), index=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    headline: Mapped[str] = mapped_column(String(512))
+    summary: Mapped[Optional[str]] = mapped_column(String(2048), default=None)
+    source: Mapped[Optional[str]] = mapped_column(String(128), default=None)
+    url: Mapped[Optional[str]] = mapped_column(String(1024), default=None)
+    sentiment: Mapped[Optional[float]] = mapped_column(Float, default=None)
+    dedup_key: Mapped[str] = mapped_column(String(512), index=True)
+    vendor: Mapped[Optional[str]] = mapped_column(String(32), default=None)
+    reference_date: Mapped[Optional[date]] = mapped_column(Date, default=None)
+    publication_date: Mapped[Optional[date]] = mapped_column(Date, default=None)
+    inserted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+# ---------------------------------------------------------------------------
 # Area: tesi — sealed research_state / investment_state (Opzione C → JSON)
 # ---------------------------------------------------------------------------
 class ResearchState(Base):

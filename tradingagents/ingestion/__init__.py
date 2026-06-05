@@ -16,6 +16,12 @@ from .price_ingest import (
     YFinanceFetcher,
     ingest_price_bars,
 )
+from .news_ingest import (
+    NewsFetcher,
+    NewsIngestResult,
+    YFinanceNewsFetcher,
+    ingest_news,
+)
 from .screening import compute_screening_signals, screen_ticker
 
 __all__ = [
@@ -23,6 +29,10 @@ __all__ = [
     "PriceFetcher",
     "YFinanceFetcher",
     "ingest_price_bars",
+    "NewsFetcher",
+    "NewsIngestResult",
+    "YFinanceNewsFetcher",
+    "ingest_news",
     "compute_screening_signals",
     "screen_ticker",
 ]

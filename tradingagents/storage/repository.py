@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from .models import (
     CharterRule,
     Instrument,
+    NewsItem,
     PortfolioSnapshot,
     PriceBar,
     ResearchState,
@@ -116,6 +117,30 @@ def insert_price_bars(session: Session, symbol: str, bars: Iterable[dict[str, An
     session.add_all(rows)
     session.flush()
     return len(rows)
+
+
+def existing_news_keys(session: Session, symbol: str) -> set[str]:
+    """Dedup keys already stored for a symbol (DB-first news ingestion)."""
+    return set(
+        session.scalars(select(NewsItem.dedup_key).where(NewsItem.symbol == symbol))
+    )
+
+
+def insert_news_items(session: Session, symbol: str, items: Iterable[dict[str, Any]]) -> int:
+    rows = [NewsItem(symbol=symbol, **item) for item in items]
+    session.add_all(rows)
+    session.flush()
+    return len(rows)
+
+
+def recent_news(session: Session, symbol: str, *, limit: int = 10) -> list[NewsItem]:
+    stmt = (
+        select(NewsItem)
+        .where(NewsItem.symbol == symbol)
+        .order_by(NewsItem.ts.desc())
+        .limit(limit)
+    )
+    return list(session.scalars(stmt))
 
 
 def latest_price(session: Session, symbol: str, interval: str = "1d") -> Optional[PriceBar]:

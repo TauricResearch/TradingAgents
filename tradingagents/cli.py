@@ -25,13 +25,14 @@ def main(argv: list[str] | None = None) -> int:
 
     # Live dependencies — imported here so the package stays import-light.
     from .brain import ForkStructuredLLM
-    from .ingestion import YFinanceFetcher
+    from .ingestion import YFinanceFetcher, YFinanceNewsFetcher
     from .orchestration import make_brain_analyzer
 
     analyzer = make_brain_analyzer(ForkStructuredLLM())
     report = run_once(
         args.symbols,
         fetcher=YFinanceFetcher(),
+        news_fetcher=YFinanceNewsFetcher(),
         analyzer=analyzer,
         db_url=args.db,
         start=args.start,

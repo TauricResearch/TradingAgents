@@ -14,24 +14,32 @@ from sqlalchemy.orm import Session
 
 from ..execution import inject_portfolio_state
 from ..indicators import indicator_snapshot
+from ..storage import repository as repo
 
 
 def _fmt(d: dict[str, Any]) -> str:
     return "\n".join(f"- {k}: {v}" for k, v in d.items())
 
 
+def _headlines(session: Session, symbol: str, limit: int = 8) -> str:
+    items = repo.recent_news(session, symbol, limit=limit)
+    if not items:
+        return "(no news in DB)"
+    return "\n".join(f"- [{n.ts:%Y-%m-%d}] {n.headline} ({n.source or '?'})" for n in items)
+
+
 def market_context(session: Session, symbol: str) -> str:
     return (
         f"<ticker>{symbol}</ticker>\n"
         "<macro>not yet wired to DB (FRED): treat as neutral unless stated</macro>\n"
-        "<news>not yet wired to DB (Finnhub): no catalysts available</news>"
+        f"<news_catalysts>\n{_headlines(session, symbol)}\n</news_catalysts>"
     )
 
 
 def sentiment_context(session: Session, symbol: str) -> str:
     return (
         f"<ticker>{symbol}</ticker>\n"
-        "<news_sentiment>not yet wired</news_sentiment>\n"
+        f"<news>\n{_headlines(session, symbol)}\n</news>\n"
         "<social_sentiment>not yet wired (Reddit/StockTwits/X)</social_sentiment>"
     )
 
