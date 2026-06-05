@@ -1,14 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchRunDetail, type RunRow } from "../lib/api";
-
-async function fetchRuns(): Promise<RunRow[]> {
-  const r = await fetch("/api/runs?limit=50");
-  if (!r.ok) throw new Error(`runs ${r.status}`);
-  return r.json();
-}
+import { fetchTickerRuns, type RunRow } from "../lib/api";
+import { useUi } from "../store/ui";
+import { formatDuration } from "../lib/format";
 
 export function RunHistoryDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { data: runs = [] } = useQuery({ queryKey: ["runs", "list"], queryFn: fetchRuns, enabled: open });
+  const focused = useUi((s) => s.focusedTicker);
+  const { data: runs = [] } = useQuery({
+    queryKey: ["ticker-runs", focused],
+    queryFn: () => (focused ? fetchTickerRuns(focused) : Promise.resolve([])),
+    enabled: open && !!focused,
+  });
 
   if (!open) return null;
 
@@ -26,20 +27,27 @@ export function RunHistoryDrawer({ open, onClose }: { open: boolean; onClose: ()
 }
 
 function RunRowItem({ run }: { run: RunRow }) {
-  const { data: detail } = useQuery({
-    queryKey: ["run", run.id],
-    queryFn: () => fetchRunDetail(run.id),
-  });
+  const model = run.deep_think_model ?? null;
+  const price = run.start_price != null ? `$${run.start_price.toFixed(2)}` : null;
+  const dur = run.total_duration_s != null ? formatDuration(run.total_duration_s * 1000) : null;
   return (
     <details className="border-b border-slate-100 p-3">
       <summary className="cursor-pointer">
-        <span className="text-sm font-medium">{run.ticker}</span>{" "}
-        <span className="text-xs text-slate-500">#{run.id} · {run.status}</span>
-        {run.decision_action && <span className="ml-2 text-xs">{run.decision_action}{run.decision_target ? ` @ $${run.decision_target}` : ""}</span>}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">{run.ticker}</span>
+          <span className="text-xs text-slate-500">#{run.id} · {run.status}</span>
+        </div>
+        {run.decision_action && (
+          <div className="mt-1 text-xs">
+            {run.decision_action}{run.decision_target ? ` @ $${run.decision_target}` : ""}
+          </div>
+        )}
+        <div className="mt-1 text-[11px] text-slate-500 flex flex-wrap gap-x-2">
+          {model && <span>{model}</span>}
+          {price && <span>· {price}</span>}
+          {dur && <span>· {dur}</span>}
+        </div>
       </summary>
-      <pre className="mt-2 text-xs text-slate-600 overflow-x-auto">
-        {JSON.stringify(detail?.events.map((e) => ({ type: e.type, data: e.data })) ?? [], null, 2)}
-      </pre>
     </details>
   );
 }
