@@ -6,32 +6,11 @@ from tradingagents.agents.utils.agent_utils import (
     get_market_snapshot,
     get_stock_data,
 )
-from tradingagents.dataflows.config import get_config
+from tradingagents.agents.utils.prompt_cache import stable_join_sections
 from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_market_analyst(llm, persona=None):
-
-    def market_analyst_node(state):
-        current_date = state["trade_date"]
-        asset_type = state.get("asset_type", "stock")
-        instrument_context = build_instrument_context(
-            state["company_of_interest"], asset_type
-        )
-        market_snapshot_context = (
-            state.get("market_snapshot_text")
-            or state.get("market_snapshot_error")
-            or "No pre-fetched market snapshot is available."
-        )
-
-        tools = [
-            get_market_snapshot,
-            get_stock_data,
-            get_indicators,
-        ]
-
-        system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+MARKET_SYSTEM_MESSAGE = """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
@@ -55,11 +34,57 @@ Volatility Indicators:
 Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
-- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. Use the pre-fetched market snapshot as the first numerical context. If the snapshot is absent or reports unavailable data, call get_market_snapshot. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data before generating indicators so the CSV needed by get_indicators is available. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
-            + get_language_instruction()
+- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. Use the pre-fetched market snapshot as the first numerical context. If the snapshot is absent or reports unavailable data, call get_market_snapshot. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data before generating indicators so the CSV needed by get_indicators is available. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions. Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+
+
+def build_market_user_prompt(
+    *,
+    current_date: str,
+    instrument_context: str,
+    market_snapshot_context: str,
+) -> str:
+    return stable_join_sections(
+        [
+            ("Trade Date", current_date),
+            ("Instrument Context", instrument_context),
+            ("Pre-Fetched Numerical Market Snapshot", market_snapshot_context),
+            (
+                "Current Task",
+                "Use the available market tools when needed and produce the market report.",
+            ),
+        ]
+    )
+
+
+def create_market_analyst(llm, persona=None):
+
+    def market_analyst_node(state):
+        current_date = state["trade_date"]
+        asset_type = state.get("asset_type", "stock")
+        instrument_context = build_instrument_context(
+            state["company_of_interest"], asset_type
         )
-        system_message = apply_fragment(system_message, persona)
+        market_snapshot_context = (
+            state.get("market_snapshot_text")
+            or state.get("market_snapshot_error")
+            or "No pre-fetched market snapshot is available."
+        )
+
+        tools = [
+            get_market_snapshot,
+            get_stock_data,
+            get_indicators,
+        ]
+
+        system_message = apply_fragment(
+            MARKET_SYSTEM_MESSAGE + get_language_instruction(),
+            persona,
+        )
+        user_prompt = build_market_user_prompt(
+            current_date=current_date,
+            instrument_context=instrument_context,
+            market_snapshot_context=market_snapshot_context,
+        )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -73,20 +98,14 @@ Volume-Based Indicators:
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}",
                 ),
-                (
-                    "human",
-                    "For your reference, the current date is {current_date}. {instrument_context}\n\n"
-                    "Pre-fetched numerical market snapshot:\n{market_snapshot_context}",
-                ),
+                ("human", "{user_prompt}"),
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )
 
         prompt = prompt.partial(system_message=system_message)
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
-        prompt = prompt.partial(current_date=current_date)
-        prompt = prompt.partial(instrument_context=instrument_context)
-        prompt = prompt.partial(market_snapshot_context=market_snapshot_context)
+        prompt = prompt.partial(user_prompt=user_prompt)
 
         chain = prompt | llm.bind_tools(tools)
 
