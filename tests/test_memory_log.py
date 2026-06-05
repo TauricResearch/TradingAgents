@@ -9,7 +9,15 @@ from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
 from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.propagation import Propagator
-from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
+from tradingagents.agents.managers.portfolio_manager import (
+    PORTFOLIO_MANAGER_SYSTEM_PROMPT,
+    build_portfolio_manager_user_prompt,
+    create_portfolio_manager,
+)
+from tradingagents.agents.utils.prompt_cache import (
+    DYNAMIC_CONTEXT_MARKER,
+    prompt_prefix_fingerprint,
+)
 
 _SEP = TradingMemoryLog._SEPARATOR
 
@@ -659,6 +667,27 @@ class TestDeferredReflection:
 # Portfolio Manager injection: past_context in state and prompt
 # ---------------------------------------------------------------------------
 
+
+def test_portfolio_manager_prefix_ignores_dynamic_state_values():
+    state_a = _make_pm_state(past_context="NVDA lesson")
+    state_a["company_of_interest"] = "NVDA"
+    state_b = _make_pm_state(past_context="AAPL lesson")
+    state_b["company_of_interest"] = "AAPL"
+    state_b["investment_plan"] = "Different research plan"
+
+    messages_a = [
+        {"role": "system", "content": PORTFOLIO_MANAGER_SYSTEM_PROMPT},
+        {"role": "user", "content": build_portfolio_manager_user_prompt(state_a)},
+    ]
+    messages_b = [
+        {"role": "system", "content": PORTFOLIO_MANAGER_SYSTEM_PROMPT},
+        {"role": "user", "content": build_portfolio_manager_user_prompt(state_b)},
+    ]
+
+    assert prompt_prefix_fingerprint(messages_a) == prompt_prefix_fingerprint(messages_b)
+    assert messages_a[1]["content"].startswith(DYNAMIC_CONTEXT_MARKER)
+
+
 class TestPortfolioManagerInjection:
 
     # past_context in initial state
@@ -685,8 +714,9 @@ class TestPortfolioManagerInjection:
         # The PM prompt is now a system+user message pair; the variable
         # past_context lives in the user message. Join contents to assert.
         prompt_text = "".join(m["content"] for m in captured["prompt"])
-        assert "Lessons from prior decisions and outcomes" in prompt_text
+        assert "Lessons From Prior Decisions And Outcomes" in prompt_text
         assert "Great call." in prompt_text
+        assert "## Dynamic Run Context" in prompt_text
 
     def test_pm_no_past_context_no_section(self):
         """PM prompt omits the lessons section entirely when past_context is empty."""
@@ -696,7 +726,7 @@ class TestPortfolioManagerInjection:
         state = _make_pm_state(past_context="")
         pm_node(state)
         prompt_text = "".join(m["content"] for m in captured["prompt"])
-        assert "Lessons from prior decisions" not in prompt_text
+        assert "Lessons From Prior Decisions And Outcomes" not in prompt_text
 
     def test_pm_returns_rendered_markdown_with_rating(self):
         """The structured PortfolioDecision is rendered to markdown that

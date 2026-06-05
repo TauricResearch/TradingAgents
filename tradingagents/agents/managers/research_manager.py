@@ -7,6 +7,10 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_language_instruction,
 )
+from tradingagents.agents.utils.prompt_cache import (
+    budgeted_dynamic_text,
+    stable_join_sections,
+)
 from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
@@ -14,22 +18,7 @@ from tradingagents.agents.utils.structured import (
 from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_research_manager(llm, persona=None):
-    structured_llm = bind_structured(llm, ResearchPlan, "Research Manager")
-
-    def research_manager_node(state) -> dict:
-        instrument_context = build_instrument_context(state["company_of_interest"])
-        history = state["investment_debate_state"].get("history", "")
-        prior_pack = state.get("prior_analysis_pack_context", "")
-        prior_pack_block = (
-            f"\n\n**Reusable prior analysis pack:**\n{prior_pack}\n"
-            if prior_pack
-            else ""
-        )
-
-        investment_debate_state = state["investment_debate_state"]
-
-        system_prompt = """As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
+RESEARCH_MANAGER_SYSTEM_PROMPT = """As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
 
 ---
 
@@ -40,15 +29,49 @@ def create_research_manager(llm, persona=None):
 - **Underweight**: Cautious view; recommend trimming exposure
 - **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
 
-Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.""" + get_language_instruction()
-        system_prompt = apply_fragment(system_prompt, persona)
+Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced."""
 
-        user_prompt = f"""{instrument_context}
 
----
+def build_research_manager_user_prompt(state: dict) -> str:
+    history = state["investment_debate_state"].get("history", "")
+    prior_pack = state.get("prior_analysis_pack_context", "")
+    return stable_join_sections(
+        [
+            ("Instrument Context", build_instrument_context(state["company_of_interest"])),
+            (
+                "Debate History",
+                budgeted_dynamic_text(
+                    history,
+                    "prompt_cache_debate_budget_chars",
+                    8000,
+                    "investment debate history",
+                ),
+            ),
+            (
+                "Reusable Prior Analysis Pack",
+                budgeted_dynamic_text(
+                    prior_pack,
+                    "prompt_cache_prior_pack_budget_chars",
+                    8000,
+                    "prior analysis pack",
+                ),
+            ),
+            ("Current Task", "Produce the structured investment plan."),
+        ]
+    )
 
-**Debate History:**
-{history}{prior_pack_block}"""
+
+def create_research_manager(llm, persona=None):
+    structured_llm = bind_structured(llm, ResearchPlan, "Research Manager")
+
+    def research_manager_node(state) -> dict:
+        investment_debate_state = state["investment_debate_state"]
+
+        system_prompt = apply_fragment(
+            RESEARCH_MANAGER_SYSTEM_PROMPT + get_language_instruction(),
+            persona,
+        )
+        user_prompt = build_research_manager_user_prompt(state)
 
         messages = [
             {"role": "system", "content": system_prompt},
