@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
+import { formatDuration } from "../lib/format";
 import type { WsEvent } from "../lib/events";
 
 const STAGES = [
@@ -33,6 +34,7 @@ interface StageDerived {
   status: "idle" | "running" | "done" | "errored";
   node?: string;
   thinkingLog: string[];
+  duration_ms?: number;
   excerpt?: string;
   fullText?: string;
 }
@@ -95,6 +97,7 @@ function deriveStage(stage: StageKey, events: WsEvent[]): StageDerived {
       status: "done",
       excerpt: (d.report_excerpt as string) ?? undefined,
       fullText: (d.report_text as string) ?? undefined,
+      duration_ms: typeof d.duration_ms === "number" ? d.duration_ms : undefined,
       thinkingLog: [],
     };
   }
@@ -252,7 +255,7 @@ export function RunTimeline() {
                     {d.label}
                   </div>
                   <div className="text-[10px] text-slate-400 text-center">
-                    {STATUS_LABEL[d.info.status]}
+                    {d.info.duration_ms != null ? formatDuration(d.info.duration_ms) : STATUS_LABEL[d.info.status]}
                   </div>
                 </div>
                 {/* segment */}

@@ -412,7 +412,13 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
                 )
                 if stage is None:
                     return
-                data: dict = {"stage": stage, "summary": summary}
+                # Compute the per-stage duration so it can ride on the WS
+                # event (the timeline renders it under the stage label).
+                t_enter_for_event = node_enter_t.get(payload.get("node", ""))
+                duration_ms_event = (
+                    int((time.monotonic() - t_enter_for_event) * 1000) if t_enter_for_event else 0
+                )
+                data: dict = {"stage": stage, "summary": summary, "duration_ms": duration_ms_event}
                 if excerpt:
                     data["report_excerpt"] = excerpt
                 if full_text:
