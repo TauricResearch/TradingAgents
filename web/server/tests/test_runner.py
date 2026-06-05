@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Callable, Optional
 
 import pytest
 
@@ -36,7 +37,7 @@ def _reset_runner():
     runner._active = 0
 
 
-def test_enqueue_writes_model_fields_from_default_config(data_root, monkeypatch):
+def test_enqueue_writes_model_fields_from_default_config(data_root):
     state = price_feed.PriceState(snapshots={}, tickers=lambda: [])
     asyncio.run(runner.start(num_workers=0))
     run_id = asyncio.run(runner.enqueue(
@@ -75,3 +76,73 @@ def test_enqueue_leaves_price_null_when_snapshot_missing_or_stale(data_root):
     rj = storage.read_run(run_id)
     assert rj["start_price"] is None
     assert rj["start_price_at"] is None
+
+
+# ---------------------------------------------------------------------------
+# Task 5: total_duration_s is written at every terminal site
+# ---------------------------------------------------------------------------
+
+
+class _FakeSem:
+    async def acquire(self) -> None:
+        return None
+
+    def release(self) -> None:
+        return None
+
+
+def test_terminal_sites_write_total_duration_s_on_cancel_before_start(data_root):
+    """The early-cancel path (line ~370) writes total_duration_s to run.json."""
+    asyncio.run(runner.start(num_workers=0))
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: [])
+    run_id = asyncio.run(runner.enqueue("NVDA", "2026-06-04", force=False, price_state=state))
+    runner_dir = storage.read_run_dir(run_id)
+
+    # Mark cancel before _run_one even checks — exercises the first terminal site.
+    storage.mark_run_status(run_id, cancel_requested=True)
+    asyncio.run(runner._run_one(run_id, "NVDA", "2026-06-04", runner_dir, _FakeSem()))
+
+    rj = storage.read_run(run_id)
+    assert rj["status"] == "failed"
+    assert rj["error"] == "cancelled"
+    assert rj["total_duration_s"] is not None
+    assert rj["total_duration_s"] >= 0
+
+
+def test_success_path_writes_total_duration_s(monkeypatch, data_root):
+    """The success path (line ~520) computes duration_s before mark_run_status
+    and persists it via the total_duration_s kwarg. Drives ``_run_one`` end-to-end
+    with a fake ``build_graph`` so the actual runner code is exercised.
+    """
+    final_state = {
+        "decision": "HOLD",
+        "final_trade_decision": "## Plan\nTarget 250.",
+    }
+
+    class _FakeGraph:
+        def propagate(
+            self, ticker: str, trade_date: str, *, event_callback: Optional[Callable] = None
+        ):
+            # Sleep briefly so the runner's monotonic-clock duration is
+            # measurable (otherwise it rounds to 0.0 on fast machines).
+            import time as _time
+            _time.sleep(0.05)
+            return final_state, "Hold"
+
+    def _fake_build_graph(config=None, *, callbacks=None):
+        return _FakeGraph()
+
+    monkeypatch.setattr(runner, "build_graph", _fake_build_graph)
+
+    asyncio.run(runner.start(num_workers=0))
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: [])
+    run_id = asyncio.run(runner.enqueue("NVDA", "2026-06-04", force=False, price_state=state))
+    runner_dir = storage.read_run_dir(run_id)
+
+    asyncio.run(runner._run_one(run_id, "NVDA", "2026-06-04", runner_dir, _FakeSem()))
+
+    rj = storage.read_run(run_id)
+    assert rj["status"] == "done"
+    assert rj["decision_action"] == "HOLD"
+    assert rj["total_duration_s"] is not None
+    assert rj["total_duration_s"] > 0

@@ -367,7 +367,13 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
         if run_json is None:
             return
         if run_json.get("cancel_requested"):
-            storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error="cancelled")
+            storage.mark_run_status(
+                run_id,
+                status="failed",
+                finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                error="cancelled",
+                total_duration_s=round(time.monotonic() - t_start, 2),
+            )
             events.emit(run_id, "run_failed", {"reason": "cancelled"})
             return
 
@@ -446,11 +452,23 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
                 final_state, final_signal = await loop.run_in_executor(None, _do_propagate)
                 break
             except _CancelSentinel:
-                storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error="cancelled")
+                storage.mark_run_status(
+                    run_id,
+                    status="failed",
+                    finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    error="cancelled",
+                    total_duration_s=round(time.monotonic() - t_start, 2),
+                )
                 events.emit(run_id, "run_failed", {"reason": "cancelled"})
                 return
             except asyncio.CancelledError:
-                storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error="cancelled")
+                storage.mark_run_status(
+                    run_id,
+                    status="failed",
+                    finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    error="cancelled",
+                    total_duration_s=round(time.monotonic() - t_start, 2),
+                )
                 events.emit(run_id, "run_failed", {"reason": "cancelled"})
                 return
             except Exception as e:
@@ -472,7 +490,13 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
                     "run failed rid=%s ticker=%s attempt=%d rate_limit=%s",
                     run_id, ticker, attempt, is_rate_limit,
                 )
-                storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error=f"{type(e).__name__}: {e}")
+                storage.mark_run_status(
+                    run_id,
+                    status="failed",
+                    finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    error=f"{type(e).__name__}: {e}",
+                    total_duration_s=round(time.monotonic() - t_start, 2),
+                )
                 events.emit(run_id, "run_failed", {
                     "reason": "rate_limited" if is_rate_limit else "exception",
                     "exception_class": type(e).__name__,
@@ -483,10 +507,17 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
 
         rj = storage.read_run(run_id)
         if rj and rj.get("cancel_requested"):
-            storage.mark_run_status(run_id, status="failed", finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), error="cancelled")
+            storage.mark_run_status(
+                run_id,
+                status="failed",
+                finished_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                error="cancelled",
+                total_duration_s=round(time.monotonic() - t_start, 2),
+            )
             events.emit(run_id, "run_failed", {"reason": "cancelled"})
             return
 
+        duration_s = round(time.monotonic() - t_start, 2)
         decision = _parse_pm_decision(final_state or {}, final_signal or "")
         action = decision["action"]
         target = decision["target"]
@@ -506,6 +537,7 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
             decision_target=target,
             decision_rationale=rationale,
             decision_confidence=confidence,
+            total_duration_s=duration_s,
         )
         queries_module.update_last_decision(
             ticker,
@@ -513,7 +545,6 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
             f"{action} @ {target}" if target else (action or ""),
             datetime.now(timezone.utc),
         )
-        duration_s = round(time.monotonic() - t_start, 2)
         summary_by_stage = {}
         if final_state:
             for stage_key, field in (
