@@ -162,18 +162,21 @@ as a deliberate cut, per Simplicity-First).
   **new "Sequential / Exhaustion" category** to the analyst prompt
   (`market_analyst.py:48-49`) documenting `td_9`, the running-count semantics,
   **and the weekly > monthly > daily tier order** so the LLM weights conflicts
-  correctly; add the matching entry to `best_ind_params`. (c) handle `td_9` in
-  `alpha_vantage_indicator.py` the same explicit way `vwma` is handled
-  (`:145-148`) — Alpha Vantage has no TD endpoint, so return an informative
-  "computed from OHLCV, not available from this vendor" string rather than a
-  silent `ValueError`. The `route_to_vendor` fallback (`interface.py:153-174`)
-  then lands on yfinance automatically.
+  correctly; add the matching entry to `best_ind_params`. (c) **leave
+  `alpha_vantage_indicator.py` unaware of `td_9`** — its existing
+  `ValueError("not supported")` (`:60-63`) is exactly what `route_to_vendor`'s
+  catch-all (`interface.py:167-174`) turns into a fall-through to yfinance, which
+  computes the real value. Do **not** copy the `vwma` placebo-string pattern
+  (`:145-148`): the router returns on the first *non-exception* result
+  (`interface.py:161`), so a returned string **stops** the chain and the vwma
+  path silently never falls back. `td_9` must raise, not return prose.
 - **Why:** `get_indicators` already splits comma lists and calls per-indicator
   (`technical_indicators_tools.py:25-31`), so no tool-signature change is needed
-  — the agent gains one legal name that emits the full tiered block. Keeping all
-  three catalogs in sync (or, better, deduping them — see the new TR8 below)
-  prevents a `td_9` that works on yfinance but `ValueError`s the instant the
-  vendor flips to Alpha Vantage.
+  — the agent gains one legal name that emits the full tiered block. Because the
+  default `technical_indicators` vendor is yfinance (`default_config.py:119`),
+  td_9 computes directly in the common case; the AV-primary override still
+  returns real values via the ValueError-driven fallback above. Deduping the
+  three catalogs (the new TR8) would make (a)/(b) a single insertion.
 
 ### P1.3 — Unit-test the running count, resampling, and tiering — **H / S** (depends on P1.1/P1.2)
 
@@ -188,11 +191,23 @@ as a deliberate cut, per Simplicity-First).
   - **tiering payload** — `td_setup_by_timeframe` returns all three keys
     (`weekly`/`monthly`/`daily`) with signed ints.
   - **wiring** — `get_stock_stats_indicators_window(..., "td_9", ...)` returns a
-    block containing all three tier labels and does **not** raise `ValueError`
-    ("not supported").
+    block containing all three tier labels and does **not** raise `ValueError`;
+    an unknown name still raises.
+  - **fallback** — Alpha Vantage's `td_9` raises `ValueError`, and a
+    `route_to_vendor` call with AV forced primary still returns the real tiered
+    block (proves the ValueError-driven fall-through to yfinance, config restored
+    in a `finally` so it doesn't leak).
 - **Why:** the count is off-by-one-prone (the "4 bars earlier" lookback, the
   9-bar reset, and now the resample boundary) and is a tradeable signal — exactly
   the kind of pure logic the plan already protects with TR1/TR3.
+
+> **Status (implemented):** P1.1–P1.3 landed — `compute_td_setup`,
+> `td_setup_by_timeframe`, `format_td_setup_block` in `stockstats_utils.py`; the
+> `td_9` branch + catalog entry in `y_finance.py`; the Sequential/Exhaustion
+> category in `market_analyst.py`; 18 tests in `tests/test_td_sequential.py` (all
+> green). AV left unaware of `td_9` by design (fallback via existing ValueError).
+> TR8 (catalog dedup) not yet done — `td_9` was added to the yfinance catalog +
+> prompt; the AV catalog intentionally omits it.
 
 > **Deliberately deferred (note in docstring, don't build):** TD Countdown (the
 > 13-bar phase after a 9), TDST support/resistance levels, intraday timeframes,

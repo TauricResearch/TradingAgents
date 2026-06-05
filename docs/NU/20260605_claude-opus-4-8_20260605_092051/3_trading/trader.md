@@ -1,0 +1,9 @@
+**Action**: Hold
+
+**Reasoning**: NU's underlying business remains fundamentally strong — $3.54B Q1 revenue, $872M net income, ~30% ROE, 48% operating margins, 135M customers, a 53% revenue CAGR, and a fortress balance sheet ($19.4B cash vs. ~$1.9B debt) — all at a forward P/E of ~10.5x and a sub-1 PEG ratio. However, near-term headwinds are real and unresolved: the credit reserve ratio rose 110bps (16% → 17.1%) faster than loan book growth, SG&A is expanding at 73% vs. 57% revenue growth (negative operating leverage), 70-75% of revenues are unhedged BRL-denominated into a risk-off macro/elevated-SELIC environment, and the technical structure is deeply bearish (price below all major MAs, negative MACD, record-volume distribution day). The EPS revision cycle triggered by the CFO transition and analyst downgrades has likely not bottomed, compressing both the multiple and estimates simultaneously. Consequently, the disciplined action is to hold existing exposure at a neutral/benchmark weight — neither liquidating a high-quality compounder at maximum pessimism nor adding fresh capital ahead of confirming a technical bottom — with a soft stop near $10.50–$10.75 on a decisive weekly close, and upgrade triggers tied to credit reserve stabilization, SG&A deceleration, BRL stabilization, and a confirmed MACD bullish crossover with price reclaiming ~$12.38–$12.85.
+
+**Stop Loss**: 10.5
+
+**Position Sizing**: Maintain existing position at neutral/benchmark weight. Trim only any excess above target weight back to neutral — do not fully exit. Reserve dry powder; no new capital deployment until upgrade triggers are confirmed.
+
+FINAL TRANSACTION PROPOSAL: **HOLD**

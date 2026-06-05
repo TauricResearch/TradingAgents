@@ -1,0 +1,7 @@
+**Action**: Hold
+
+**Reasoning**: The research plan confirms AAPL is a high-quality business — $101B TTM FCF, ~49% gross margins, 33.5% YoY R&D growth, and a strengthening balance sheet — but the bear case on valuation is compelling: a ~2.2% FCF yield against a ~4.3% risk-free rate leaves no meaningful equity risk premium unless FCF growth materially reaccelerates above its multi-year plateau. With WWDC (June 9) four days out representing a genuine binary catalyst — upside if a credible, monetizable agentic-AI roadmap is announced, meaningful downside (10–22% bear-case scenario) if the event merely meets already-elevated consensus — committing capital aggressively in either direction is unwarranted. The plan calls for holding existing core exposure at current weight, with a protective collar or modest put hedge through the WWDC window to manage tail risk, and clear post-event triggers to either upgrade toward Overweight (credible AI monetization + Services estimate revisions higher) or trim into any relief rally (disappointment + Services deceleration).
+
+**Position Sizing**: Maintain current weight; no material additions or trims ahead of WWDC. Consider a protective collar (buy puts / sell calls near $317 prior high) to hedge the binary catalyst window.
+
+FINAL TRANSACTION PROPOSAL: **HOLD**

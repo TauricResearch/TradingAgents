@@ -1,9 +1,10 @@
 # ADI
 
-_5 run(s)._
+_6 run(s)._
 
 | Analysis date | Model | Run started | Report |
 | --- | --- | --- | --- |
+| 2026-06-05 | `claude-opus-4-8` | 2026-06-05 08:46:16 | [Open](./20260605_claude-opus-4-8_20260605_084616/complete_report.md) |
 | 2026-06-04 | `claude-opus-4-8` | 2026-06-04 14:01:53 | [Open](./20260604_claude-opus-4-8_20260604_140153/complete_report.md) |
 | 2026-06-03 | `claude-opus-4-8` | 2026-06-03 09:44:27 | [Open](./20260603_claude-opus-4-8_20260603_094427/complete_report.md) |
 | 2026-06-02 | `claude-opus-4-8` | 2026-06-02 11:01:14 | [Open](./20260602_claude-opus-4-8_20260602_110114/complete_report.md) |

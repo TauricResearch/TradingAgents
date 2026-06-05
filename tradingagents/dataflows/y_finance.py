@@ -4,7 +4,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, td_setup_by_timeframe, format_td_setup_block
 from .symbol_utils import normalize_symbol, NoMarketDataError
 
 def get_YFin_data_online(
@@ -133,7 +133,18 @@ def get_stock_stats_indicators_window(
             "Usage: Identify overbought (>80) or oversold (<20) conditions and confirm the strength of trends or reversals. "
             "Tips: Use alongside RSI or MACD to confirm signals; divergence between price and MFI can indicate potential reversals."
         ),
+        "td_9": (
+            "TD-9 (TD Sequential Setup): A DeMark exhaustion indicator computed on weekly (tier 1), monthly (tier 2) and daily (tier 3) bars. "
+            "Usage: A running count toward 9 flags an approaching trend exhaustion; a completed 9 is a reversal watch. Weight a higher tier above a lower one on conflict. "
+            "Tips: Computed from OHLCV (not a stockstats handler); the count is the live signal, so read counts below 9 as 'approaching', not 'nothing'."
+        ),
     }
+
+    # TD-9 is not a stockstats handler — compute it from OHLCV across timeframes
+    # and return the tiered block (weekly > monthly > daily) directly.
+    if indicator == "td_9":
+        counts = td_setup_by_timeframe(load_ohlcv(symbol, curr_date), curr_date)
+        return format_td_setup_block(counts) + "\n\n" + best_ind_params["td_9"]
 
     if indicator not in best_ind_params:
         raise ValueError(

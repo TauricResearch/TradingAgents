@@ -46,6 +46,9 @@ Volatility Indicators:
 Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
+Sequential / Exhaustion:
+- td_9: TD-9 (TD Sequential Setup): A DeMark exhaustion/reversal signal computed on three timeframes at once — weekly (Tier 1, primary), monthly (Tier 2, regime context) and daily (Tier 3, entry timing). A single td_9 call returns the current running count (signed: + buy-setup, - sell-setup) for all three tiers. Usage: a count climbing toward 9 flags approaching trend exhaustion; a completed 9 is a reversal watch. Report the current count for each timeframe even when below 9. Tips: when timeframes disagree, weight the higher tier above the lower one (weekly > monthly > daily); a daily 9 does not override a weekly setup still in progress.
+
 - Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names.
 
 Before writing the final report, call get_verified_market_snapshot for this ticker and the current date, and treat it as the source of truth for any exact OHLCV, price-level, or indicator-value claim. If another tool's output conflicts with the verified snapshot, flag the discrepancy rather than inventing a reconciled number. Do not claim historical validation, support/resistance bounces, or exact percentage moves unless they are directly supported by tool output with concrete dates and prices.

@@ -139,6 +139,87 @@ def filter_financials_by_date(data: pd.DataFrame, curr_date: str) -> pd.DataFram
     return data.loc[:, mask]
 
 
+def compute_td_setup(close: "pd.Series") -> "pd.Series":
+    """TD Sequential *Setup* running count, signed by direction.
+
+    For each bar, compare Close to the Close 4 bars earlier:
+      * Close < Close[-4]  -> buy setup  (count climbs +1, +2, ...)
+      * Close > Close[-4]  -> sell setup (count falls  -1, -2, ...)
+      * equal, a flip, or no 4-bar lookback resets the run.
+    The magnitude is clamped at 9 (a completed setup); the Countdown phase and
+    TDST levels are intentionally out of scope (see plan P1). The *last* value
+    is the current running count — the live signal, not just a completed 9.
+    """
+    values = pd.to_numeric(pd.Series(close).reset_index(drop=True), errors="coerce")
+    counts = [0] * len(values)
+    run = 0
+    for i in range(len(values)):
+        if i < 4 or pd.isna(values.iloc[i]) or pd.isna(values.iloc[i - 4]):
+            run = 0
+        elif values.iloc[i] < values.iloc[i - 4]:
+            run = run + 1 if run > 0 else 1
+        elif values.iloc[i] > values.iloc[i - 4]:
+            run = run - 1 if run < 0 else -1
+        else:
+            run = 0
+        run = max(-9, min(9, run))
+        counts[i] = run
+    return pd.Series(counts, index=pd.Series(close).index)
+
+
+def td_setup_by_timeframe(data: "pd.DataFrame", curr_date: str = None) -> dict:
+    """Current TD Setup count on weekly / monthly / daily bars.
+
+    Weekly and monthly are resampled (last close per period) from the same daily
+    frame, so no extra fetch is needed. When ``curr_date`` is given, rows after
+    it are dropped first to preserve the no-look-ahead guarantee. Returns signed
+    ints keyed ``weekly``/``monthly``/``daily`` (the plan's tier 1/2/3).
+    """
+    df = _ensure_date_column(pd.DataFrame(data)).copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"]).sort_values("Date")
+    if curr_date:
+        df = df[df["Date"] <= pd.Timestamp(curr_date)]
+
+    close = pd.to_numeric(df["Close"], errors="coerce")
+    close.index = pd.DatetimeIndex(df["Date"])
+    close = close.dropna()
+
+    def _last(series: "pd.Series") -> int:
+        return int(compute_td_setup(series).iloc[-1]) if len(series) else 0
+
+    return {
+        "weekly": _last(close.resample("W").last().dropna()),
+        "monthly": _last(close.resample("ME").last().dropna()),
+        "daily": _last(close),
+    }
+
+
+def _td_phrase(n: int) -> str:
+    if n == 0:
+        return "(no active setup)"
+    side = "buy" if n > 0 else "sell"
+    if abs(n) == 9:
+        return f"({side}-setup COMPLETE 9 of 9 — reversal watch)"
+    return f"({side}-setup, {abs(n)} of 9)"
+
+
+def format_td_setup_block(counts: dict) -> str:
+    """Render the tiered TD-9 report block (weekly > monthly > daily)."""
+    tiers = [
+        ("Tier 1", "Weekly", counts.get("weekly", 0)),
+        ("Tier 2", "Monthly", counts.get("monthly", 0)),
+        ("Tier 3", "Daily", counts.get("daily", 0)),
+    ]
+    lines = [
+        "## TD-9 (TD Sequential Setup) — current running count by timeframe "
+        "(higher tier wins):"
+    ]
+    for tier, name, n in tiers:
+        lines.append(f"- {tier} {name}: {n:+d}  {_td_phrase(n)}")
+    return "\n".join(lines)
+
+
 class StockstatsUtils:
     @staticmethod
     def get_stock_stats(

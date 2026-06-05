@@ -1,9 +1,10 @@
 # CRDO
 
-_5 run(s)._
+_6 run(s)._
 
 | Analysis date | Model | Run started | Report |
 | --- | --- | --- | --- |
+| 2026-06-05 | `claude-opus-4-8` | 2026-06-05 08:45:03 | [Open](./20260605_claude-opus-4-8_20260605_084503/complete_report.md) |
 | 2026-06-04 | `claude-opus-4-8` | 2026-06-04 15:39:49 | [Open](./20260604_claude-opus-4-8_20260604_153949/complete_report.md) |
 | 2026-06-03 | `claude-opus-4-8` | 2026-06-03 12:03:08 | [Open](./20260603_claude-opus-4-8_20260603_120308/complete_report.md) |
 | 2026-06-02 | `claude-opus-4-8` | 2026-06-02 12:23:37 | [Open](./20260602_claude-opus-4-8_20260602_122337/complete_report.md) |
