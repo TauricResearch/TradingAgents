@@ -380,3 +380,23 @@ describe("RunTimeline — click to expand details", () => {
     expect(screen.getByText(/Bullish on NVDA long-term/)).toBeInTheDocument();
   });
 });
+
+describe("RunTimeline — per-stage duration", () => {
+  it("shows the persisted duration under each completed stage", () => {
+    const events = [
+      evt("NVDA:1", "run_started", { ticker: "NVDA" }, "1"),
+      evt("NVDA:1", "analyst_started", { node: "Market Analyst" }, "2"),
+      evt("NVDA:1", "analyst_completed", {
+        stage: "market",
+        summary: "ok",
+        report_excerpt: "ok",
+        report_text: "ok",
+        duration_ms: 1500,
+      }, "3"),
+    ];
+    setup(events);
+    render(<RunTimeline />);
+    expect(screen.getByTestId("stage-market").getAttribute("data-status")).toBe("done");
+    expect(screen.getByTestId("stage-market").parentElement?.textContent ?? "").toMatch(/ms|s$/);
+  });
+});
