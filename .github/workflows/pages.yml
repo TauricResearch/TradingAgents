@@ -3,6 +3,11 @@ name: Deploy MkDocs site to Pages
 on:
   push:
     branches: ["main"]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
