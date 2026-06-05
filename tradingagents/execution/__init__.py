@@ -14,6 +14,7 @@ from .trade import (
     persist_trade,
     propose_and_record,
 )
+from .submit import execute_thesis, reconcile_open_trades, submit_trade
 
 __all__ = [
     "OrderProposal",
@@ -22,4 +23,7 @@ __all__ = [
     "inject_portfolio_state",
     "persist_trade",
     "propose_and_record",
+    "execute_thesis",
+    "reconcile_open_trades",
+    "submit_trade",
 ]
