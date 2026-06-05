@@ -15,7 +15,7 @@
 #     is inlined into the bash -c string below.
 #
 # Usage:
-#   bash .claude/run_missing_today.sh                 # all missing tickers, 5-wide
+#   bash .claude/run_missing_today.sh                 # all missing tickers, 20-wide
 #   CONCURRENCY=8 bash .claude/run_missing_today.sh    # override concurrency
 #   TRADINGAGENTS_DATE=2026-06-01 bash .claude/run_missing_today.sh
 #   bash .claude/run_missing_today.sh NVDA AMD TSLA    # explicit ticker list
@@ -27,7 +27,7 @@ ROOT="$(pwd)"
 
 DATE="${TRADINGAGENTS_DATE:-$(date +%F)}"
 DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder prefix)
-CONCURRENCY="${CONCURRENCY:-10}"               # 10 is the verified-safe default; >10 risks 429
+CONCURRENCY="${CONCURRENCY:-20}"               # 20 is the verified-safe default; >20 risks 429
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs}"
 mkdir -p "$LOGDIR"
 
@@ -90,12 +90,12 @@ echo "Pass 1: ${#TODO[@]} ticker(s) missing for ${DATE}, concurrency=${CONCURREN
 echo "  ${TODO[*]}"
 run_pass "$CONCURRENCY" "${TODO[@]}"
 
-# --- pass 2: retry whatever is still missing, serially (429-safe) ---------
+# --- pass 2: retry whatever is still missing, at the safe concurrency -----
 read_into STILL < <(missing_tickers)
 if [ "${#STILL[@]}" -gt 0 ]; then
-  echo "Pass 2 (retry): ${#STILL[@]} still missing, concurrency=1"
+  echo "Pass 2 (retry): ${#STILL[@]} still missing, concurrency=${CONCURRENCY}"
   echo "  ${STILL[*]}"
-  run_pass 1 "${STILL[@]}"
+  run_pass "$CONCURRENCY" "${STILL[@]}"
 fi
 
 # --- final report ---------------------------------------------------------

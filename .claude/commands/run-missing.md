@@ -1,5 +1,5 @@
 ---
-description: Run the heavy TradingAgents analysis for every ticker missing today's report (5-wide, auto-retry, then rebuild docs site)
+description: Run the heavy TradingAgents analysis for every ticker missing today's report (20-wide, auto-retry, then rebuild docs site)
 argument-hint: "[CONCURRENCY=N] [TICKER ...]"
 allowed-tools: Bash(bash .claude/run_missing_today.sh*), Bash(CONCURRENCY=* bash .claude/run_missing_today.sh*), Bash(TA_BUILD_SITE=* bash .claude/run_missing_today.sh*), Bash(TRADINGAGENTS_DATE=* bash .claude/run_missing_today.sh*)
 ---
@@ -11,7 +11,7 @@ have a report for today. The script:
    uses an explicit ticker list if given as arguments.
 2. Skips any ticker that already has a `docs/<TICKER>/<YYYYMMDD>_*/` folder for
    today.
-3. Pass 1: runs the missing tickers at `CONCURRENCY` (default **5** — verified
+3. Pass 1: runs the missing tickers at `CONCURRENCY` (default **20** — verified
    safe; higher risks HTTP 429 rate limits on the API key).
 4. Pass 2: re-runs any stragglers serially (429-safe).
 5. Rebuilds the docs site (`build_reports_site.py` + `mkdocs build`) unless
