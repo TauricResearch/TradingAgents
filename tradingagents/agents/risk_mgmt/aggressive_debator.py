@@ -1,5 +1,70 @@
 from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.agents.utils.prompt_cache import budgeted_dynamic_text, stable_join_sections
 from tradingagents.personas.prompt_overlay import apply_fragment
+
+
+AGGRESSIVE_RISK_SYSTEM_PROMPT = """As the Aggressive Risk Analyst, your role is to actively champion high-reward, high-risk opportunities, emphasizing bold strategies and competitive advantages. When evaluating the trader's decision or plan, focus intently on potential upside, growth potential, and innovative benefits, even when these come with elevated risk.
+
+Your task is to create a compelling case for the trader's decision by questioning and critiquing the conservative and neutral stances. Incorporate insights from the sources provided in the next message. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
+
+Engage actively by addressing specific concerns raised, refuting weaknesses in opposing logic, and asserting the benefits of risk-taking to outpace market norms. Output conversationally as if you are speaking without special formatting."""
+
+
+def build_aggressive_risk_user_prompt(state: dict) -> str:
+    risk = state["risk_debate_state"]
+    return stable_join_sections(
+        [
+            ("Trader Decision", state.get("trader_investment_plan", "")),
+            (
+                "Market Research Report",
+                budgeted_dynamic_text(
+                    state.get("market_report", ""),
+                    "prompt_cache_report_budget_chars",
+                    5000,
+                    "market report",
+                ),
+            ),
+            (
+                "Social Media Sentiment Report",
+                budgeted_dynamic_text(
+                    state.get("sentiment_report", ""),
+                    "prompt_cache_report_budget_chars",
+                    5000,
+                    "sentiment report",
+                ),
+            ),
+            (
+                "Latest World Affairs Report",
+                budgeted_dynamic_text(
+                    state.get("news_report", ""),
+                    "prompt_cache_report_budget_chars",
+                    5000,
+                    "news report",
+                ),
+            ),
+            (
+                "Fundamentals Report",
+                budgeted_dynamic_text(
+                    state.get("fundamentals_report", ""),
+                    "prompt_cache_report_budget_chars",
+                    5000,
+                    "fundamentals report",
+                ),
+            ),
+            (
+                "Risk Debate History",
+                budgeted_dynamic_text(
+                    risk.get("history", ""),
+                    "prompt_cache_debate_budget_chars",
+                    8000,
+                    "risk debate history",
+                ),
+            ),
+            ("Last Conservative Argument", risk.get("current_conservative_response", "")),
+            ("Last Neutral Argument", risk.get("current_neutral_response", "")),
+            ("Current Task", "Deliver the aggressive risk argument."),
+        ]
+    )
 
 
 def create_aggressive_debator(llm, persona=None):
@@ -8,32 +73,11 @@ def create_aggressive_debator(llm, persona=None):
         history = risk_debate_state.get("history", "")
         aggressive_history = risk_debate_state.get("aggressive_history", "")
 
-        current_conservative_response = risk_debate_state.get("current_conservative_response", "")
-        current_neutral_response = risk_debate_state.get("current_neutral_response", "")
-
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
-
-        trader_decision = state["trader_investment_plan"]
-
-        system_prompt = """As the Aggressive Risk Analyst, your role is to actively champion high-reward, high-risk opportunities, emphasizing bold strategies and competitive advantages. When evaluating the trader's decision or plan, focus intently on the potential upside, growth potential, and innovative benefits—even when these come with elevated risk. Use the provided market data and sentiment analysis to strengthen your arguments and challenge the opposing views. Specifically, respond directly to each point made by the conservative and neutral analysts, countering with data-driven rebuttals and persuasive reasoning. Highlight where their caution might miss critical opportunities or where their assumptions may be overly conservative.
-
-Your task is to create a compelling case for the trader's decision by questioning and critiquing the conservative and neutral stances to demonstrate why your high-reward perspective offers the best path forward. Incorporate insights from the sources provided in the next message into your arguments. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
-
-Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
-        system_prompt = apply_fragment(system_prompt, persona)
-
-        user_prompt = f"""Here is the trader's decision:
-
-{trader_decision}
-
-Market Research Report: {market_research_report}
-Social Media Sentiment Report: {sentiment_report}
-Latest World Affairs Report: {news_report}
-Company Fundamentals Report: {fundamentals_report}
-Here is the current conversation history: {history} Here are the last arguments from the conservative analyst: {current_conservative_response} Here are the last arguments from the neutral analyst: {current_neutral_response}."""
+        system_prompt = apply_fragment(
+            AGGRESSIVE_RISK_SYSTEM_PROMPT + get_language_instruction(),
+            persona,
+        )
+        user_prompt = build_aggressive_risk_user_prompt(state)
 
         messages = [
             {"role": "system", "content": system_prompt},
