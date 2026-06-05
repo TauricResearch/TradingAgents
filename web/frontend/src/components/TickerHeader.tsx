@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { startRun, cancelRun, fetchTickerRuns, type RunRow } from "../lib/api";
 import { useUi } from "../store/ui";
+import { formatDuration } from "../lib/format";
 
 interface Props {
   ticker: string;
@@ -15,10 +16,23 @@ function formatStartedAt(iso: string | null): string {
   return iso.replace("T", " ").slice(0, 16);
 }
 
-function runLabel(r: RunRow): string {
+function formatPrice(p: number | null | undefined): string | null {
+  if (p == null) return null;
+  return `$${p.toFixed(2)}`;
+}
+
+function formatTotalDuration(s: number | null | undefined): string | null {
+  if (s == null) return null;
+  return formatDuration(s * 1000);
+}
+
+export function runLabel(r: RunRow): string {
   const when = formatStartedAt(r.started_at);
   const action = r.decision_action ? ` — ${r.decision_action}` : "";
-  return `${when}${action}`;
+  const model = r.deep_think_model ? ` · ${r.deep_think_model}` : "";
+  const price = formatPrice(r.start_price) ? ` · ${formatPrice(r.start_price)}` : "";
+  const dur = formatTotalDuration(r.total_duration_s) ? ` · ${formatTotalDuration(r.total_duration_s)}` : "";
+  return `${when}${action}${model}${price}${dur}`;
 }
 
 export function TickerHeader({ ticker, price, changePct, stale }: Props) {

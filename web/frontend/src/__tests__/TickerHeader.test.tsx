@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { TickerHeader } from "../components/TickerHeader";
+import { TickerHeader, runLabel } from "../components/TickerHeader";
 import { useUi } from "../store/ui";
 import type { RunRow, RunDetail } from "../lib/api";
 
@@ -68,7 +68,8 @@ beforeEach(() => {
   });
 });
 
-const baseRow = (overrides: Record<string, unknown>) => ({
+const baseRow = (overrides: Record<string, unknown>): RunRow => ({
+  id: "",
   slug: "2026-06-04T03-21-57Z",
   ticker: "NVDA",
   started_at: null,
@@ -79,6 +80,13 @@ const baseRow = (overrides: Record<string, unknown>) => ({
   decision_target: null,
   decision_rationale: null,
   decision_confidence: null,
+  llm_provider: null,
+  deep_think_model: null,
+  quick_think_model: null,
+  start_price: null,
+  start_price_at: null,
+  total_duration_s: null,
+  elapsed_s: null,
   ...overrides,
 });
 
@@ -220,4 +228,45 @@ describe("TickerHeader — successful start", () => {
     expect(useUi.getState().activeRunIdByTicker["NVDA"]).toBe("NVDA:7");
     expect(useUi.getState().historicalRunIdByTicker["NVDA"]).toBeNull();
   });
+
+describe("runLabel", () => {
+  it("formats a full run", () => {
+    expect(
+      runLabel({
+        ...baseRow({}),
+        started_at: "2026-06-04T10:00:00.000000Z",
+        decision_action: "HOLD",
+        llm_provider: "openai",
+        deep_think_model: "gpt-5.5",
+        start_price: 123.45,
+        total_duration_s: 42.0,
+      })
+    ).toContain("gpt-5.5");
+    expect(runLabel({
+      ...baseRow({}),
+      started_at: "2026-06-04T10:00:00.000000Z",
+      decision_action: "HOLD",
+      llm_provider: "openai",
+      deep_think_model: "gpt-5.5",
+      start_price: 123.45,
+      total_duration_s: 42.0,
+    })).toContain("$123.45");
+  });
+
+  it("omits missing fields cleanly", () => {
+    const out = runLabel(baseRow({ started_at: "2026-06-04T10:00:00.000000Z" }));
+    // No model/price/duration present → label is just the timestamp.
+    expect(out).toBe("2026-06-04 10:00");
+  });
+
+  it("uses deep_think_model when present even if quick is also set", () => {
+    const out = runLabel(baseRow({
+      started_at: "2026-06-04T10:00:00.000000Z",
+      deep_think_model: "gpt-5.5",
+      quick_think_model: "gpt-5.4-mini",
+    }));
+    expect(out).toContain("gpt-5.5");
+    expect(out).not.toContain("gpt-5.4-mini");
+  });
+});
 });
