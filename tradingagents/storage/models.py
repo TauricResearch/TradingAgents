@@ -183,6 +183,8 @@ class Trade(Base):
     stop_loss: Mapped[Optional[float]] = mapped_column(Float, default=None)
     take_profit: Mapped[Optional[float]] = mapped_column(Float, default=None)
     status: Mapped[str] = mapped_column(String(16), default="pending")  # pending/confirmed/cancelled
+    commission: Mapped[Optional[float]] = mapped_column(Float, default=None)
+    token_cost: Mapped[Optional[float]] = mapped_column(Float, default=None)
     client_order_id: Mapped[Optional[str]] = mapped_column(String(64), default=None)
     broker_order_id: Mapped[Optional[str]] = mapped_column(String(64), default=None)
     payload: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, default=None)

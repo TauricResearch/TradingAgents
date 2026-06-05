@@ -86,6 +86,8 @@ def run_cycle(
 
         # Execute: persist (with sealed thesis) then submit to the broker.
         trade = persist_trade(session, proposal, payload=state.seal())
+        trade.commission = commission
+        trade.token_cost = token_cost
         submit_trade(session, trade, broker)
         report.trades.append(trade)
 

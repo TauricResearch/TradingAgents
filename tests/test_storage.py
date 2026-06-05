@@ -127,3 +127,15 @@ def test_charter_rule_set_and_get(db):
     with database.get_session() as s:
         assert repo.get_charter_rule(s, "max_portfolio_var") == 0.10
         assert repo.get_charter_rule(s, "missing", default=0.0) == 0.0
+
+
+def test_seed_and_load_charter(db):
+    with database.get_session() as s:
+        repo.set_charter_rule(s, "min_risk_reward", 2.0)  # pre-existing, must be preserved
+        repo.seed_default_charter(s)
+
+    with database.get_session() as s:
+        charter = repo.load_charter(s)
+        assert charter["min_risk_reward"] == 2.0          # not overwritten
+        assert charter["max_position_pct"] == 0.10        # seeded default
+        assert "cash_reserve_pct" in charter

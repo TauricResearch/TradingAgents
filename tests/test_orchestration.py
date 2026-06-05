@@ -81,6 +81,24 @@ def test_run_cycle_executes_buy(db):
         assert report.trades[0].symbol == "AAPL"
 
 
+def test_run_cycle_records_commission(db):
+    broker = PaperBroker()
+    with database.get_session() as s:
+        repo.upsert_ticker_card(s, "AAPL", screening_score=0.9)
+        repo.save_portfolio_snapshot(s, cash=20_000, total_value=100_000, positions=[])
+
+    with database.get_session() as s:
+        report = run_cycle(
+            s, broker, _buy_analyzer,
+            commission_model=PerTradeCommission(5.0),
+            token_cost=0.5,
+            base_risk_pct=0.01,
+        )
+        assert report.traded == 1
+        assert report.trades[0].commission == 5.0
+        assert report.trades[0].token_cost == 0.5
+
+
 def test_run_cycle_cost_gate_skips(db):
     broker = PaperBroker()
     with database.get_session() as s:

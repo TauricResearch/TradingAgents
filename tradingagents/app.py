@@ -63,6 +63,7 @@ def run_once(
 
     with database.get_session() as s:
         ensure_initial_portfolio(s)
+        repo.seed_default_charter(s)
         ingest_and_screen(s, symbols, fetcher=fetcher, start=start, end=end)
 
     with database.get_session() as s:

@@ -56,6 +56,9 @@ def build_brain_graph(
     base_risk_pct: float = 0.01,
 ):
     """Compile the brain graph. Nodes close over session/llm/config."""
+    if charter is None:
+        from ..storage import repository as repo
+        charter = repo.load_charter(session) or None
 
     # --- desk nodes -----------------------------------------------------
     def _desk(agent: str, prompt: str, ctx_fn):
