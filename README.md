@@ -1,67 +1,103 @@
-# trading-agent
+<div align="center">
 
-Fondo d'investimento autonomo (paper trading), multi-agente LLM + motore
-deterministico. Questo repository è stato **ricostruito a immagine del design**
-descritto nella wiki del progetto (`trading-agent-wiki`): la topologia degli
-agenti, lo state, i nodi e gli edge corrispondono alla wiki, non alla struttura
-del fork TradingAgents da cui siamo partiti.
+# 🤖 trading-agent
 
-> Stato: **alpha v0** — la catena gira end-to-end su paper trading. I numeri
-> (soglie, rischio) sono default da tarare in backtest; alcuni vendor dati sono
-> ancora da collegare.
+**Fondo d'investimento autonomo** — multi-agente LLM + motore deterministico.
+Paper trading, mid-term swing, equity-first.
 
-## Come gira (la catena)
+`alpha v0` · 216 test verdi · Python 3.13 · LangGraph · OpenRouter/DeepSeek
+
+</div>
+
+---
+
+Questo repository è costruito **a immagine del design** descritto nella wiki del
+progetto (`trading-agent-wiki`): la topologia degli agenti, lo state, i nodi e
+gli edge corrispondono al canvas `architettura.canvas`, non alla struttura del
+fork TradingAgents da cui siamo partiti (di cui resta solo l'infrastruttura
+riusabile: client LLM e connettori dati).
+
+## 🧠 Come ragiona
+
+Tutto è deterministico **tranne il cervello** (gli agenti LLM). Il cervello
+riempie la tesi (`ResearchState`); il resto — sizing, livelli, ordine,
+esecuzione, uscite — è codice testato.
 
 ```
-yfinance → price_bars → indicatori/ATR → screening → ticker_card
-   → Trigger Engine → coda di priorità → BRAIN (2 desk → PM → Risk gate)
-   → cost gate (net-EV) → Trade deterministico → broker (paper) → reconcile
+loop autonomo (periodical synthesis)
+  └─ Trigger Engine   (checkpoint · price-alert · screening)
+       └─ coda di priorità
+            └─ BRAIN per ticker  ── warm start: extractor pre-lanciati → 1° contesto
+                 ├─ Market · Sentiment      (Analyst Research)
+                 ├─ Technical · Fondamentali (Analyst Technical)
+                 │     ↑ ogni agente chiama i propri tool (Extractors set) → DB
+                 │       e mantiene un context state cucito sul suo compito
+                 ├─ Portfolio Manager  (aggrega direction/conviction + livelli ATR)
+                 └─ Risk Analyst  (bear + Statuto: R:R · cash 10% · VaR · settore)
+                      └─ Investment State → Trade deterministico (equity / opzioni su Strong)
+                           └─ broker (paper) → uscite TP/SL · disinvestimento rating
+                                └─ DecisionLog (substrato di apprendimento)
 ```
 
-Tutto è deterministico tranne il **brain** (gli agenti LLM). Il brain riempie la
-tesi (`ResearchState`); il resto — sizing, livelli, ordine, esecuzione — è codice
-testato.
+## 🗺️ Mappa del codice
 
-## Mappa del codice → wiki
+| Pacchetto | Ruolo |
+|-----------|-------|
+| `storage/` | DB-first (4 aree + scheda ticker + research_state), SQLite→Postgres/Timescale |
+| `domain/` | `ResearchState`, enum, risk engine (ATR, sizing, guardrail Statuto) |
+| `indicators/` | ATR/RSI/SMA/EMA… (`compute_indicator`) |
+| `ingestion/` | extractor → DB (prezzi · news · fondamentali · macro · social), DB-first |
+| `tools/` · `brain/tooling.py` | Extractors set: tool che gli agenti chiamano (real-time-first + write-through) |
+| `brain/` | il grafo nostro (LangGraph): 2 desk → PM → Risk; context per-agente |
+| `execution/` | Trade deterministico, costi (net-EV), uscite, disinvestimento, mantainer |
+| `broker/` | adapter intercambiabile (PaperBroker · Alpaca) |
+| `orchestration/` | Trigger Engine + cycle runner |
+| `backtesting/` | validatore deterministico delle soglie |
+| `app.py` · `cli.py` | entrypoint runnabile + loop autonomo |
 
-| Pacchetto | Cosa | Pagina wiki |
-|-----------|------|-------------|
-| `storage/` | DB-first (4 aree + scheda ticker + research_state) | data-layer, db-access-performance |
-| `domain/` | `ResearchState`, enum `Direction`, risk engine (ATR, sizing, guardrail) | state-schemas, position-sizing |
-| `indicators/` | ATR/RSI/SMA/EMA… (`compute_indicator`) | tools-inventory (fam. B) |
-| `ingestion/` | OHLCV→DB (DB-first) + screening deterministico | data-layer, parallelism-design |
-| `brain/` | **grafo nostro**: 2 desk → PM aggrega → Risk gate singolo | agents, agent-behaviors, system-prompts |
-| `execution/` | Trade deterministico, costi (net-EV), portfolio injection | execution, cost-accounting |
-| `broker/` | adapter intercambiabile (PaperBroker, Alpaca) + commissioni | execution |
-| `orchestration/` | Trigger Engine + cycle runner (`run_cycle`) | trigger-engine, parallelism-design |
-| `app.py` / `cli.py` | entrypoint runnabile | architecture |
+Mappa completa canvas↔codice: vedi `trading-agent-wiki` → `system/canvas-code-mapping`.
 
-### Riusato dal fork (infra, non riscritto)
-`llm_clients/` (multi-provider, OpenRouter/DeepSeek), `dataflows/` (vendor:
-yfinance, Alpha Vantage, Finnhub, Reddit, StockTwits, stockstats),
-`brain/structured.py` (output JSON strict).
-
-## Avvio rapido
+## 🚀 Avvio
 
 ```bash
-# 1. dipendenze (uv)
-uv sync
+uv sync                                   # dipendenze
 
-# 2. configurare .env (vedi .env.example): provider LLM + chiavi
-#    TRADINGAGENTS_LLM_PROVIDER=openrouter + modello DeepSeek + OPENROUTER_API_KEY
-#    (DB: SQLite locale di default; TRADINGAGENTS_DATABASE_URL per Postgres/Timescale)
+# .env (vedi .env.example): serve almeno OPENROUTER_API_KEY
+#   (DB: SQLite locale di default; opzionali FRED_API_KEY, ALPACA_*)
 
-# 3. un ciclo live su paper trading
+# un ciclo
 uv run python -m tradingagents.cli AAPL MSFT --start 2024-01-01
+
+# loop autonomo (paper) ogni ora
+uv run python -m tradingagents.cli AAPL MSFT --loop 3600
 ```
 
-## Test
+## ✅ Test
 
 ```bash
-uv run pytest -m "not integration"   # offline, deterministici
-uv run pytest -m integration         # rete (yfinance, Alpaca, LLM)
+uv run pytest -m "not integration"   # offline, deterministici (no rete, no chiavi)
+uv run pytest -m integration         # rete: yfinance · Alpaca · LLM
 ```
 
 I test offline non richiedono né rete né chiavi: il brain è testato con un LLM
 finto, i vendor con fetcher finti. Sono l'**oracolo** che verifica che il codice
 rispetti il design della wiki.
+
+## 🛣️ Roadmap (prossimi sviluppi)
+
+- **Dashboard read-only** in stile **SFC fund (Streamlit)** — vista di sola
+  lettura su portafoglio, NAV, performance/attribuzione, decisioni e trade
+  (da sviluppare in un secondo momento).
+- **Observability & evaluation**: imparare a usare **LangSmith** e **LangGraph
+  Studio** per il tracing dei grafi, il debug degli agenti e la valutazione
+  (eval) prima di consolidare i prompt.
+- **Memoria inter-task** degli agenti (imparare dai casi passati) e
+  **deduplicazione** sistematica di ogni informazione nel DB.
+- Esecuzione live: **IBKR** adapter, esecuzione reale catena opzioni, broker
+  reale al posto del simulatore paper.
+- **Taratura dei numeri** in backtest (rischio, R:R, soglie, cadenze).
+
+## ⚠️ Stato
+
+`alpha v0`: la catena gira **end-to-end** su paper trading simulato. Non è ancora
+un deploy 24/7 production-grade (vedi roadmap). I numeri sono default da tarare.
