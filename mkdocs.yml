@@ -19,9 +19,6 @@ theme:
     - navigation.top
     - navigation.footer
     - toc.follow
-    - search.suggest
-    - search.highlight
-    - search.share
     - content.code.copy
     - content.tabs.link
   palette:
@@ -78,8 +75,11 @@ markdown_extensions:
   - pymdownx.mark
   - pymdownx.smartsymbols
 
-plugins:
-  - search
+# Search is intentionally disabled. The client-side search index grew to
+# ~204 MB (full body text of every run, indexed twice), which exhausted browser
+# tab memory and crashed the page ("Aw, Snap! Error 5"). An empty plugins list
+# turns off the default search plugin so no search_index.json is generated.
+plugins: []
 
 extra_css:
   - stylesheets/extra.css
