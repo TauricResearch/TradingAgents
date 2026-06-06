@@ -8,6 +8,7 @@ import pytest
 import yfinance as yf
 
 from web.server import history
+from web.server import storage
 
 
 _NOW = datetime(2026, 6, 7, 19, 0, 0, tzinfo=timezone.utc)
@@ -165,3 +166,75 @@ def test_fetch_history_bars_returns_empty_list_for_empty_dataframe(fixed_now, mo
     monkeypatch.setattr(yf, "Ticker", lambda _t: empty)
     bars = history.fetch_history_bars("DEAD", start=None, end=None, interval="1d")
     assert bars == []
+
+
+# ---- get_history ----
+
+
+def test_get_history_404_when_ticker_has_no_runs(fixed_now, data_root):
+    out = history.get_history("ZZZZ", preset="auto")
+    assert out == (404, {"error": "no_runs", "detail": "ZZZZ has no completed runs"})
+
+
+def test_get_history_422_for_invalid_preset(fixed_now, data_root):
+    storage.create_run_dir("MU")
+    out = history.get_history("MU", preset="bogus")
+    assert out[0] == 422
+    assert out[1]["error"] == "invalid_range"
+    assert "bogus" in out[1]["detail"]
+
+
+def test_get_history_502_when_yfinance_raises(fixed_now, data_root, monkeypatch):
+    rid = storage.create_run_dir("MU")["run_id"]
+    storage.mark_run_status(
+        rid, status="done", started_at="2026-05-01T00:00:00Z", finished_at="2026-05-01T00:01:00Z",
+        decision_action="BUY", decision_target=200.0,
+    )
+    def _raise(*_a, **_kw):
+        raise RuntimeError("network down")
+    monkeypatch.setattr(history, "fetch_history_bars", _raise)
+    out = history.get_history("MU", preset="1mo")
+    assert out[0] == 502
+    assert out[1]["error"] == "yfinance_failed"
+    assert "network down" in out[1]["detail"]
+
+
+def test_get_history_returns_200_with_bars_and_runs(fixed_now, data_root, monkeypatch):
+    """Happy path: ticker has a run, yfinance returns bars, response is shaped."""
+    rid = storage.create_run_dir("MU")["run_id"]
+    storage.mark_run_status(
+        rid, status="done", started_at="2026-06-06T00:00:00Z", finished_at="2026-06-06T00:01:00Z",
+        decision_action="BUY", decision_target=160.0, start_price=148.20,
+        start_price_at="2026-06-06T00:00:00Z",
+    )
+    monkeypatch.setattr(
+        history, "fetch_history_bars",
+        lambda *_a, **_kw: history._df_to_bars(
+            _bar_df(_NOW - timedelta(days=2), 48, base=148.0, step=0.25),
+        ),
+    )
+    status, body = history.get_history("MU", preset="5d")
+    assert status == 200
+    assert body["ticker"] == "MU"
+    assert body["range"] == "5d"
+    assert body["resolution"] == "1m"
+    assert len(body["bars"]) == 48
+    assert all(set(b) == {"t", "o", "h", "l", "c", "v"} for b in body["bars"])
+    assert len(body["runs"]) == 1
+    run = body["runs"][0]
+    assert run["id"] == rid
+    assert run["decision_action"] == "BUY"
+    assert run["decision_target"] == 160.0
+    assert run["start_price"] == 148.20
+
+
+def test_get_history_returns_empty_bars_array_on_empty_yfinance(fixed_now, data_root, monkeypatch):
+    rid = storage.create_run_dir("MU")["run_id"]
+    storage.mark_run_status(
+        rid, status="done", started_at="2026-06-06T00:00:00Z", finished_at="2026-06-06T00:01:00Z",
+    )
+    monkeypatch.setattr(history, "fetch_history_bars", lambda *_a, **_kw: [])
+    status, body = history.get_history("MU", preset="5d")
+    assert status == 200
+    assert body["bars"] == []
+    assert body["resolution"] == "1m"
