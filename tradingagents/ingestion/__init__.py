@@ -22,6 +22,11 @@ from .news_ingest import (
     YFinanceNewsFetcher,
     ingest_news,
 )
+from .fundamentals_ingest import (
+    FundamentalsFetcher,
+    YFinanceFundamentalsFetcher,
+    ingest_fundamentals,
+)
 from .screening import compute_screening_signals, screen_ticker
 
 __all__ = [
@@ -33,6 +38,9 @@ __all__ = [
     "NewsIngestResult",
     "YFinanceNewsFetcher",
     "ingest_news",
+    "FundamentalsFetcher",
+    "YFinanceFundamentalsFetcher",
+    "ingest_fundamentals",
     "compute_screening_signals",
     "screen_ticker",
 ]

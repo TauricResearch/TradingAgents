@@ -15,7 +15,8 @@ from typing import Any, Optional
 from .broker import PaperBroker
 from .broker.base import Broker
 from .broker.commission import CommissionModel
-from .ingestion import ingest_news, ingest_price_bars
+from .ingestion import ingest_fundamentals, ingest_news, ingest_price_bars
+from .ingestion.fundamentals_ingest import FundamentalsFetcher
 from .ingestion.news_ingest import NewsFetcher
 from .ingestion.price_ingest import PriceFetcher
 from .ingestion.screening import screen_ticker
@@ -40,11 +41,14 @@ def ingest_and_screen(
     end: str,
     interval: str = "1d",
     news_fetcher: Optional[NewsFetcher] = None,
+    fundamentals_fetcher: Optional[FundamentalsFetcher] = None,
 ) -> None:
     for symbol in symbols:
         ingest_price_bars(session, symbol, fetcher=fetcher, start=start, end=end, interval=interval)
         if news_fetcher is not None:
             ingest_news(session, symbol, fetcher=news_fetcher)
+        if fundamentals_fetcher is not None:
+            ingest_fundamentals(session, symbol, fetcher=fundamentals_fetcher)
         screen_ticker(session, symbol)
 
 
@@ -56,6 +60,7 @@ def run_once(
     broker: Optional[Broker] = None,
     commission_model: Optional[CommissionModel] = None,
     news_fetcher: Optional[NewsFetcher] = None,
+    fundamentals_fetcher: Optional[FundamentalsFetcher] = None,
     db_url: Optional[str] = None,
     start: str = "2024-01-01",
     end: Optional[str] = None,
@@ -69,7 +74,10 @@ def run_once(
     with database.get_session() as s:
         ensure_initial_portfolio(s)
         repo.seed_default_charter(s)
-        ingest_and_screen(s, symbols, fetcher=fetcher, start=start, end=end, news_fetcher=news_fetcher)
+        ingest_and_screen(
+            s, symbols, fetcher=fetcher, start=start, end=end,
+            news_fetcher=news_fetcher, fundamentals_fetcher=fundamentals_fetcher,
+        )
 
     with database.get_session() as s:
         return run_cycle(

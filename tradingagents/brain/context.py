@@ -50,10 +50,10 @@ def technical_context(session: Session, symbol: str) -> str:
 
 
 def fundamentals_context(session: Session, symbol: str) -> str:
-    return (
-        f"<ticker>{symbol}</ticker>\n"
-        "<financials>not yet wired to DB (Alpha Vantage): unavailable</financials>"
-    )
+    snap = repo.latest_fundamentals(session, symbol)
+    if snap is None or not snap.metrics:
+        return f"<ticker>{symbol}</ticker>\n<financials>(no fundamentals in DB)</financials>"
+    return f"<ticker>{symbol}</ticker>\n<financials>\n{_fmt(snap.metrics)}\n</financials>"
 
 
 def pm_context(session: Session, symbol: str, opinions: list[dict[str, Any]]) -> str:

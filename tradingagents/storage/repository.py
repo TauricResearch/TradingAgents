@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from .models import (
     CharterRule,
+    FundamentalSnapshot,
     Instrument,
     NewsItem,
     PortfolioSnapshot,
@@ -141,6 +142,25 @@ def recent_news(session: Session, symbol: str, *, limit: int = 10) -> list[NewsI
         .limit(limit)
     )
     return list(session.scalars(stmt))
+
+
+def save_fundamentals(
+    session: Session, symbol: str, metrics: dict[str, Any], *, as_of=None, vendor=None
+) -> FundamentalSnapshot:
+    snap = FundamentalSnapshot(symbol=symbol, metrics=metrics, as_of=as_of, vendor=vendor)
+    session.add(snap)
+    session.flush()
+    return snap
+
+
+def latest_fundamentals(session: Session, symbol: str) -> Optional[FundamentalSnapshot]:
+    stmt = (
+        select(FundamentalSnapshot)
+        .where(FundamentalSnapshot.symbol == symbol)
+        .order_by(FundamentalSnapshot.inserted_at.desc(), FundamentalSnapshot.id.desc())
+        .limit(1)
+    )
+    return session.scalar(stmt)
 
 
 def latest_price(session: Session, symbol: str, interval: str = "1d") -> Optional[PriceBar]:

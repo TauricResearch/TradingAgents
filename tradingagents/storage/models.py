@@ -141,6 +141,26 @@ class NewsItem(Base):
 
 
 # ---------------------------------------------------------------------------
+# Area: market_data — fundamentals snapshot (for the Fundamentals desk)
+# ---------------------------------------------------------------------------
+class FundamentalSnapshot(Base):
+    """Point-in-time fundamentals/valuation metrics for a ticker."""
+
+    __tablename__ = "fundamental_snapshots"
+    __table_args__ = (
+        Index("ix_fundamentals_symbol_asof", "symbol", "as_of"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    symbol: Mapped[str] = mapped_column(String(32), index=True)
+    as_of: Mapped[Optional[date]] = mapped_column(Date, default=None)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    vendor: Mapped[Optional[str]] = mapped_column(String(32), default=None)
+    publication_date: Mapped[Optional[date]] = mapped_column(Date, default=None)
+    inserted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+# ---------------------------------------------------------------------------
 # Area: tesi — sealed research_state / investment_state (Opzione C → JSON)
 # ---------------------------------------------------------------------------
 class ResearchState(Base):
