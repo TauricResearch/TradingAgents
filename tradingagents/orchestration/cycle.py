@@ -21,6 +21,7 @@ from ..execution import (
     build_trade,
     can_trade,
     inject_portfolio_state,
+    manage_exits,
     persist_trade,
     submit_trade,
 )
@@ -35,9 +36,11 @@ class CycleReport:
     triggers: int = 0
     analyzed: int = 0
     traded: int = 0
+    closed: int = 0
     skipped_not_tradable: int = 0
     skipped_cost: int = 0
     trades: list[Trade] = field(default_factory=list)
+    closed_trades: list[Trade] = field(default_factory=list)
     events: list[TriggerEvent] = field(default_factory=list)
 
 
@@ -53,8 +56,14 @@ def run_cycle(
     **sizing: Any,
 ) -> CycleReport:
     """Run one orchestration cycle and return a report."""
+    # First manage what we already hold (stop-loss / take-profit exits).
+    report = CycleReport()
+    report.closed_trades = manage_exits(session, broker)
+    report.closed = len(report.closed_trades)
+
     events = collect_triggers(session, top_k=top_k, today=today)
-    report = CycleReport(triggers=len(events), events=events)
+    report.triggers = len(events)
+    report.events = events
 
     portfolio = inject_portfolio_state(session)
     portfolio_value = portfolio.get("total_value", 0.0)

@@ -262,6 +262,15 @@ def trade_by_client_order_id(session: Session, client_order_id: str) -> Optional
     )
 
 
+def open_trades(session: Session) -> list[Trade]:
+    """Filled long positions not yet closed (candidates for exit management)."""
+    return list(
+        session.scalars(
+            select(Trade).where(Trade.status == "filled", Trade.action == "buy")
+        )
+    )
+
+
 # ---------------------------------------------------------------------------
 # Charter (Statuto parameters)
 # ---------------------------------------------------------------------------

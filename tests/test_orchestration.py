@@ -8,6 +8,7 @@ import pytest
 
 from tradingagents.broker import PaperBroker, PerTradeCommission
 from tradingagents.domain import Direction, Levels, ResearchState, RiskVerdict
+from tradingagents.execution import manage_exits
 from tradingagents.ingestion import ingest_price_bars
 from tradingagents.orchestration import collect_triggers, hold_analyzer, price_alerts, run_cycle
 from tradingagents.storage import database, init_db, reset_engine
@@ -77,6 +78,24 @@ def test_price_alert_fires_on_anomalous_move(db):
         assert any(e.symbol == "AAPL" and e.type == "price_alert" for e in alerts)
         # appears in the unified queue too
         assert any(e.type == "price_alert" for e in collect_triggers(s))
+
+
+def test_manage_exits_closes_on_take_profit(db):
+    with database.get_session() as s:
+        repo.record_trade(s, "AAPL", "buy", quantity=10, entry_price=100.0,
+                          stop_loss=90.0, take_profit=130.0, status="filled",
+                          client_order_id="c1")
+        repo.insert_price_bars(s, "AAPL", [{
+            "ts": datetime(2026, 6, 1, tzinfo=timezone.utc),
+            "open": 135.0, "high": 136.0, "low": 134.0, "close": 135.0,
+        }])
+
+    with database.get_session() as s:
+        closed = manage_exits(s, PaperBroker())
+        assert len(closed) == 1 and closed[0].exit_reason == "tp"
+
+    with database.get_session() as s:
+        assert repo.trade_by_client_order_id(s, "c1").status == "closed"
 
 
 def test_run_cycle_hold_stub_trades_nothing(db):

@@ -16,6 +16,7 @@ from .trade import (
 )
 from .submit import execute_thesis, reconcile_open_trades, submit_trade
 from .costs import CostAssessment, assess_costs, expected_reward, expected_risk
+from .exits import manage_exits
 
 __all__ = [
     "OrderProposal",
@@ -31,4 +32,5 @@ __all__ = [
     "assess_costs",
     "expected_reward",
     "expected_risk",
+    "manage_exits",
 ]
