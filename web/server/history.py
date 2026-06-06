@@ -82,3 +82,86 @@ def _interval_for_span(span: timedelta) -> str:
     if span <= timedelta(days=60):
         return "1h"
     return "1d"
+
+
+# ---- cache ----
+
+#: Key ``(ticker_upper, interval, start.date(), end.date())``.
+#: Value ``(fetched_at_monotonic, bars)``.
+_bar_cache: dict[tuple[str, str, object, object], tuple[float, list[dict]]] = {}
+
+#: TTL by interval. 1m polls are short; 1d polls are long.
+_CACHE_TTL_S: dict[str, int] = {
+    "1m": 60,
+    "1h": 300,
+    "1d": 3600,
+}
+
+
+def fetch_history_bars(
+    ticker: str,
+    *,
+    start: Optional[datetime],
+    end: Optional[datetime],
+    interval: str,
+) -> list[dict]:
+    """Return OHLCV bars for ``ticker`` between ``start`` and ``end``.
+
+    Caches the result in process memory keyed by
+    ``(ticker, interval, start.date(), end.date())`` with a TTL that
+    depends on the interval. ``start``/``end`` are resolved by the
+    caller (typically :func:`resolve_range`); passing ``None`` is
+    allowed but uses epoch / now as the implicit bounds, which usually
+    is not what you want.
+
+    Returns a list of ``Bar`` dicts (the JSON shape the API serialises).
+    An empty DataFrame yields ``[]`` (not an error).
+    """
+    if end is None:
+        end = now_utc()
+    if start is None:
+        start = end - timedelta(days=365)
+
+    key = (ticker.upper(), interval, start.date(), end.date())
+    now_mono = time.monotonic()
+    ttl = _CACHE_TTL_S.get(interval, 60)
+    cached = _bar_cache.get(key)
+    if cached is not None:
+        fetched_at, bars = cached
+        if now_mono - fetched_at < ttl:
+            return bars
+
+    df = yf.Ticker(ticker.upper()).history(
+        start=start, end=end, interval=interval, auto_adjust=False,
+    )
+    bars = _df_to_bars(df)
+    _bar_cache[key] = (now_mono, bars)
+    return bars
+
+
+def _df_to_bars(df) -> list[dict]:
+    """Convert a yfinance DataFrame to the API's Bar JSON shape.
+
+    Empty DataFrame → []. Index is normalised to UTC; rows are returned
+    in index order (ascending). The Volume column is read if present;
+    the spec tolerates it being absent.
+    """
+    if df is None or len(df) == 0:
+        return []
+    idx = df.index
+    if hasattr(idx, "tz") and idx.tz is not None:
+        idx = idx.tz_convert("UTC")
+    elif hasattr(idx, "tz_localize"):
+        idx = idx.tz_localize("UTC")
+    ts_iso = [t.isoformat().replace("+00:00", "Z") for t in idx]
+    if "Volume" in df.columns:
+        volumes = df["Volume"].tolist()
+    else:
+        volumes = [0.0] * len(df)
+    return [
+        {"t": t, "o": float(o), "h": float(h), "l": float(l), "c": float(c), "v": float(v)}
+        for t, o, h, l, c, v in zip(
+            ts_iso, df["Open"].tolist(), df["High"].tolist(),
+            df["Low"].tolist(), df["Close"].tolist(), volumes,
+        )
+    ]
