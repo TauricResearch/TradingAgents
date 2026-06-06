@@ -24,6 +24,7 @@ from ..domain.risk import atr_levels, check_guardrails, conviction_multiplier, p
 from ..domain.state import AgentOpinion, ResearchState
 from ..execution import inject_portfolio_state
 from ..indicators import atr_from_db, indicator_snapshot
+from ..tools import get_open_positions_risk, get_realtime_quote
 from . import context, prompts
 from .llm import StructuredLLM
 from .schemas import DeskOpinion, PMDecision, RiskDecision
@@ -55,8 +56,13 @@ def build_brain_graph(
     max_revisions: int = 1,
     charter: Optional[dict[str, Any]] = None,
     base_risk_pct: float = 0.01,
+    quote_fn: Optional[Any] = None,
 ):
-    """Compile the brain graph. Nodes close over session/llm/config."""
+    """Compile the brain graph. Nodes close over session/llm/config.
+
+    ``quote_fn(symbol) -> price`` enables the real-time-first price path
+    (write-through to the DB); when None the current price falls back to the DB.
+    """
     if charter is None:
         from ..storage import repository as repo
         charter = repo.load_charter(session) or None
@@ -89,7 +95,8 @@ def build_brain_graph(
         rs.contro = pm.contro
         rs.next_check_date = date.today() + timedelta(days=max(1, pm.next_check_days))
         snap_atr = atr_from_db(session, symbol)
-        last_close = indicator_snapshot(session, symbol).get("last_close")
+        # Real-time first (write-through), fallback to the latest stored bar.
+        last_close = get_realtime_quote(session, symbol, live_fn=quote_fn)
         rs.current_price = last_close
 
         if pm.direction.is_actionable and snap_atr and last_close:
@@ -113,10 +120,12 @@ def build_brain_graph(
 
         portfolio = inject_portfolio_state(session)
         portfolio_value = portfolio.get("total_value", 0.0)
+        heat = get_open_positions_risk(session)["heat_pct"]
+        heat_max = (charter or {}).get("heat_max_pct", 0.06)
         stop_distance = abs(rs.levels.entry_price - rs.levels.stop_loss)
         sizing = position_size(
             portfolio_value, rs.levels.entry_price, stop_distance, rs.direction,
-            base_risk_pct=base_risk_pct,
+            base_risk_pct=base_risk_pct, heat_used_pct=heat, heat_max_pct=heat_max,
         )
         guardrails = check_guardrails(
             levels=rs.levels, sizing=sizing, charter=charter, portfolio=portfolio,
@@ -176,10 +185,12 @@ def analyze_symbol(
     max_revisions: int = 1,
     charter: Optional[dict[str, Any]] = None,
     base_risk_pct: float = 0.01,
+    quote_fn: Optional[Any] = None,
 ) -> ResearchState:
     """Run the brain for one ticker and return the (possibly approved) thesis."""
     graph = build_brain_graph(
-        session, llm, max_revisions=max_revisions, charter=charter, base_risk_pct=base_risk_pct
+        session, llm, max_revisions=max_revisions, charter=charter,
+        base_risk_pct=base_risk_pct, quote_fn=quote_fn,
     )
     initial: BrainState = {
         "symbol": symbol,
