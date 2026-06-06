@@ -577,3 +577,97 @@ class TestTransparencyEndpoints:
         r = client.get(f"/api/runs/{rid}/health")
         body = r.json()
         assert body["subscribers"] == 2
+
+
+class TestHistoryEndpoint:
+    """GET /api/tickers/{ticker}/history. Powers the historical chart drawer."""
+
+    def test_history_200_returns_bars_and_runs(self, client, data_root, monkeypatch):
+        from datetime import datetime, timezone
+        from web.server.tests.fixtures.fake_yfinance import (
+            make_fake_ticker_with_history, make_history_df,
+        )
+        import yfinance as _yf
+
+        rid = storage.create_run_dir("MU")["run_id"]
+        storage.mark_run_status(
+            rid, status="done",
+            started_at="2026-06-06T00:00:00Z",
+            finished_at="2026-06-06T00:01:00Z",
+            decision_action="BUY",
+            decision_target=160.0,
+            start_price=148.20,
+            start_price_at="2026-06-06T00:00:00Z",
+        )
+        df = make_history_df(
+            start=datetime(2026, 6, 6, 0, 0, tzinfo=timezone.utc),
+            n=48, base=148.0, step=0.25, freq="1h",
+        )
+        FakeTicker = make_fake_ticker_with_history(df)
+        monkeypatch.setattr(_yf, "Ticker", lambda _t: FakeTicker())
+
+        r = client.get("/api/tickers/MU/history?range=5d")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["ticker"] == "MU"
+        assert body["range"] == "5d"
+        assert body["resolution"] in {"1m", "1h"}  # depends on now() wall clock
+        assert len(body["bars"]) == 48
+        assert all(set(b) == {"t", "o", "h", "l", "c", "v"} for b in body["bars"])
+        assert len(body["runs"]) == 1
+        run = body["runs"][0]
+        assert run["id"] == rid
+        assert run["decision_action"] == "BUY"
+        assert run["decision_target"] == 160.0
+        assert run["start_price"] == 148.20
+
+    def test_history_404_when_ticker_has_no_runs(self, client):
+        r = client.get("/api/tickers/ZZZZ/history?range=auto")
+        assert r.status_code == 404
+        body = r.json()["detail"]
+        assert body["error"] == "no_runs"
+
+    def test_history_422_for_invalid_range(self, client, data_root):
+        storage.create_run_dir("MU")
+        r = client.get("/api/tickers/MU/history?range=bogus")
+        assert r.status_code == 422
+        body = r.json()["detail"]
+        assert body["error"] == "invalid_range"
+        assert "bogus" in body["detail"]
+
+    def test_history_502_when_yfinance_raises(self, client, data_root, monkeypatch):
+        from web.server import history
+        rid = storage.create_run_dir("MU")["run_id"]
+        storage.mark_run_status(
+            rid, status="done", started_at="2026-06-06T00:00:00Z", finished_at="2026-06-06T00:01:00Z",
+        )
+        def _raise(*_a, **_kw):
+            raise RuntimeError("network unreachable")
+        monkeypatch.setattr(history, "fetch_history_bars", _raise)
+        r = client.get("/api/tickers/MU/history?range=5d")
+        assert r.status_code == 502
+        body = r.json()["detail"]
+        assert body["error"] == "yfinance_failed"
+        assert "network unreachable" in body["detail"]
+
+    def test_history_default_range_is_auto(self, client, data_root, monkeypatch):
+        from datetime import datetime, timezone
+        from web.server.tests.fixtures.fake_yfinance import (
+            make_fake_ticker_with_history, make_history_df,
+        )
+        import yfinance as _yf
+
+        rid = storage.create_run_dir("MU")["run_id"]
+        storage.mark_run_status(
+            rid, status="done", started_at="2026-06-06T00:00:00Z", finished_at="2026-06-06T00:01:00Z",
+        )
+        df = make_history_df(
+            start=datetime(2026, 6, 6, 0, 0, tzinfo=timezone.utc),
+            n=4, base=148.0, freq="1h",
+        )
+        FakeTicker = make_fake_ticker_with_history(df)
+        monkeypatch.setattr(_yf, "Ticker", lambda _t: FakeTicker())
+
+        r = client.get("/api/tickers/MU/history")
+        assert r.status_code == 200
+        assert r.json()["range"] == "auto"
