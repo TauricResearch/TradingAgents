@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from tradingagents.app import run_once
+from tradingagents.app import run_forever, run_once
 from tradingagents.brain import DeskOpinion, PMDecision, RiskDecision
 from tradingagents.broker import PaperBroker
 from tradingagents.domain import Direction, RiskVerdict
@@ -62,3 +62,21 @@ def test_run_once_executes_offline(tmp_path):
     assert report.traded == 1
     assert report.trades[0].symbol == "AAPL"
     assert report.trades[0].status == "filled"
+
+
+def test_run_forever_bounded(tmp_path):
+    sleeps: list[float] = []
+    reports = run_forever(
+        ["AAPL"],
+        interval_seconds=999,
+        max_cycles=2,
+        sleep=sleeps.append,  # no real sleeping
+        fetcher=_FetcherUp(),
+        analyzer=make_brain_analyzer(_FakeLLM(), max_revisions=0),
+        broker=PaperBroker(),
+        db_url=f"sqlite:///{tmp_path / 'loop.db'}",
+        start="2026-01-01",
+        end="2026-03-01",
+    )
+    assert len(reports) == 2
+    assert len(sleeps) == 1  # sleeps between cycles, not after the last

@@ -21,6 +21,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--end", default=None, help="History end (yyyy-mm-dd, default today)")
     parser.add_argument("--db", default=None, help="Database URL (default local SQLite)")
     parser.add_argument("--base-risk", type=float, default=0.01, help="Base risk fraction")
+    parser.add_argument("--loop", type=float, default=None, metavar="SECONDS",
+                        help="Run continuously every SECONDS (autonomous loop)")
     args = parser.parse_args(argv)
 
     # Live dependencies — imported here so the package stays import-light.
@@ -43,8 +45,7 @@ def main(argv: list[str] | None = None) -> int:
         macro_fetcher = FredFetcher()
 
     analyzer = make_brain_analyzer(ForkStructuredLLM())
-    report = run_once(
-        args.symbols,
+    deps = dict(
         fetcher=YFinanceFetcher(),
         news_fetcher=YFinanceNewsFetcher(),
         fundamentals_fetcher=YFinanceFundamentalsFetcher(),
@@ -57,13 +58,28 @@ def main(argv: list[str] | None = None) -> int:
         base_risk_pct=args.base_risk,
     )
 
-    print(
-        f"cycle: triggers={report.triggers} analyzed={report.analyzed} "
-        f"traded={report.traded} skipped_cost={report.skipped_cost} "
-        f"skipped_not_tradable={report.skipped_not_tradable}"
-    )
-    for t in report.trades:
-        print(f"  {t.action.upper()} {t.symbol} qty={t.quantity} @ {t.entry_price} -> {t.status}")
+    def _print(report):
+        print(
+            f"cycle: triggers={report.triggers} analyzed={report.analyzed} "
+            f"traded={report.traded} skipped_cost={report.skipped_cost} "
+            f"skipped_not_tradable={report.skipped_not_tradable}"
+        )
+        for t in report.trades:
+            print(f"  {t.action.upper()} {t.symbol} qty={t.quantity} @ {t.entry_price} -> {t.status}")
+
+    if args.loop:
+        import time
+
+        print(f"autonomous loop every {args.loop}s (Ctrl-C to stop)")
+        try:
+            while True:
+                _print(run_once(args.symbols, **deps))
+                time.sleep(args.loop)
+        except KeyboardInterrupt:
+            print("stopped")
+        return 0
+
+    _print(run_once(args.symbols, **deps))
     return 0
 
 

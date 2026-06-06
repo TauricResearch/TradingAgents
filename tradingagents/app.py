@@ -9,8 +9,9 @@ testable offline; the CLI builds the live ones (yfinance + DeepSeek brain).
 
 from __future__ import annotations
 
+import time
 from datetime import date
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from .broker import PaperBroker
 from .broker.base import Broker
@@ -104,3 +105,28 @@ def run_once(
             top_k=max(1, len(symbols)),
             **sizing,
         )
+
+
+def run_forever(
+    symbols: list[str],
+    *,
+    interval_seconds: float = 3600.0,
+    max_cycles: Optional[int] = None,
+    sleep: Callable[[float], None] = time.sleep,
+    **run_once_kwargs: Any,
+) -> list[CycleReport]:
+    """Autonomous loop: the recurring tick is the *periodical synthesis*.
+
+    Each tick refreshes data and runs one cycle. ``max_cycles`` + an injectable
+    ``sleep`` make it testable; with the defaults it runs indefinitely. The same
+    broker/DB persist across ticks (idempotent ``init_db``).
+    """
+    reports: list[CycleReport] = []
+    n = 0
+    while max_cycles is None or n < max_cycles:
+        reports.append(run_once(symbols, **run_once_kwargs))
+        n += 1
+        if max_cycles is not None and n >= max_cycles:
+            break
+        sleep(interval_seconds)
+    return reports
