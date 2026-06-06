@@ -41,7 +41,7 @@ class FakeLLM:
     def __init__(self, desk: DeskOpinion, pm: PMDecision, risk: RiskDecision):
         self._desk, self._pm, self._risk = desk, pm, risk
 
-    def generate(self, system_prompt, context, schema, *, tools=()):
+    def generate(self, system_prompt, context, schema, *, tools=(), recorder=None):
         if schema is DeskOpinion:
             return self._desk
         if schema is PMDecision:
@@ -73,10 +73,12 @@ class ToolUsingLLM:
     def __init__(self, desk, pm, risk):
         self._desk, self._pm, self._risk = desk, pm, risk
 
-    def generate(self, system_prompt, context, schema, *, tools=()):
+    def generate(self, system_prompt, context, schema, *, tools=(), recorder=None):
         if schema is DeskOpinion:
             for t in tools:  # the agent autonomously calls its tools
-                t.invoke({"symbol": "AAPL"})
+                res = t.invoke({"symbol": "AAPL"})
+                if recorder is not None:
+                    recorder(t.name, {"symbol": "AAPL"}, res)
             return self._desk
         if schema is PMDecision:
             return self._pm
@@ -108,6 +110,46 @@ def test_agents_call_tools_autonomously_and_write_through(db):
     with database.get_session() as s:
         rt = repo.latest_price(s, "AAPL", interval="rt")
         assert rt is not None and rt.close == 150.0
+
+
+def test_agent_context_tailored_sections_accumulate():
+    from tradingagents.brain.agent_context import make_agent_context
+
+    c = make_agent_context("market", injected="base context")
+    c.add_tool_record("quote", {"symbol": "AAPL"}, "150")     # -> price section
+    c.add_tool_record("news", {"symbol": "AAPL"}, "headline")  # -> catalysts section
+    rendered = c.render()
+    assert "# focus:" in rendered and "base context" in rendered
+    assert "<price>" in rendered and "<catalysts>" in rendered  # ad-hoc per-agent structure
+    assert len(c.tool_records) == 2
+
+
+def test_per_agent_context_self_maintains_across_revisions(db):
+    from tradingagents.brain.graph import build_brain_graph
+    from tradingagents.brain.tooling import Extractors
+    from tradingagents.domain.state import ResearchState
+
+    _ingest()
+    llm = ToolUsingLLM(
+        desk=DeskOpinion(view="v", suggested_direction=Direction.BUY,
+                         suggested_conviction=Direction.BUY, rationale="r"),
+        pm=PMDecision(direction=Direction.BUY, conviction=Direction.BUY,
+                      k_entry=0.5, k_stop=2.0, k_tp=3.0, need_more_info=True),  # forces 1 revision
+        risk=RiskDecision(verdict=RiskVerdict.APPROVED, rationale="ok"),
+    )
+    with database.get_session() as s:
+        graph = build_brain_graph(
+            s, llm, max_revisions=1, extractors=Extractors(quote_fn=lambda sym: 150.0)
+        )
+        final = graph.invoke({
+            "symbol": "AAPL", "research_state": ResearchState(ticker="AAPL"),
+            "revisions": 0, "need_more_info": False, "contexts": {},
+        })
+
+    mctx = final["contexts"]["market"]
+    assert mctx.rounds == 2                     # ran twice (one revision)
+    assert len(mctx.tool_records) >= 2          # tool results accumulated across rounds
+    assert mctx.injected                        # injected first context preserved
 
 
 def test_warm_start_prefetches_on_empty_state(db):

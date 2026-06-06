@@ -33,7 +33,7 @@ class _FetcherUp:
 
 
 class _FakeLLM:
-    def generate(self, system_prompt, context, schema, *, tools=()):
+    def generate(self, system_prompt, context, schema, *, tools=(), recorder=None):
         if schema is DeskOpinion:
             return DeskOpinion(view="ok", suggested_direction=Direction.BUY,
                                suggested_conviction=Direction.BUY, rationale="r")

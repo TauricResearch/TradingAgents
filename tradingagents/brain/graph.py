@@ -29,6 +29,7 @@ from . import context, prompts
 from .llm import StructuredLLM
 from .schemas import DeskOpinion, PMDecision, RiskDecision
 from .tooling import Extractors, build_desk_tools
+from .agent_context import AgentContext, make_agent_context
 
 
 class BrainState(TypedDict):
@@ -36,6 +37,7 @@ class BrainState(TypedDict):
     research_state: ResearchState
     revisions: int
     need_more_info: bool
+    contexts: dict[str, AgentContext]  # per-agent structured working memory
 
 
 def _set_opinion(rs: ResearchState, agent: str, op: DeskOpinion) -> None:
@@ -73,11 +75,21 @@ def build_brain_graph(
     def _desk(agent: str, prompt: str, ctx_fn):
         def node(state: BrainState) -> dict[str, Any]:
             rs = state["research_state"]
+            contexts = state.get("contexts") or {}
+            ctx = contexts.get(agent) or make_agent_context(
+                agent, injected=ctx_fn(session, state["symbol"])
+            )
+            ctx.rounds += 1
             tools = build_desk_tools(session, agent, extractors)
-            op = llm.generate(prompt, ctx_fn(session, state["symbol"]), DeskOpinion, tools=tools)
+            # injected first context + accumulated tool results; tools recorded
+            # into the per-agent structured context (self-maintains across rounds).
+            op = llm.generate(
+                prompt, ctx.render(), DeskOpinion, tools=tools, recorder=ctx.add_tool_record
+            )
+            contexts[agent] = ctx
             setattr(rs, f"{agent}_view", op.view)
             _set_opinion(rs, agent, op)
-            return {"research_state": rs}
+            return {"research_state": rs, "contexts": contexts}
         return node
 
     market_node = _desk("market", prompts.MARKET, context.market_context)
@@ -143,17 +155,23 @@ def build_brain_graph(
         rs.risk.guardrail_checks = guardrails
 
         sealed = rs.seal()
-        decision: RiskDecision = llm.generate(
-            prompts.RISK, context.risk_context(session, symbol, sealed, guardrails), RiskDecision,
-            tools=build_desk_tools(session, "risk", extractors),
+        contexts = state.get("contexts") or {}
+        rctx = contexts.get("risk") or make_agent_context(
+            "risk", injected=context.risk_context(session, symbol, sealed, guardrails)
         )
+        rctx.rounds += 1
+        decision: RiskDecision = llm.generate(
+            prompts.RISK, rctx.render(), RiskDecision,
+            tools=build_desk_tools(session, "risk", extractors), recorder=rctx.add_tool_record,
+        )
+        contexts["risk"] = rctx
         rs.risk.rationale = decision.rationale
         # Hard guardrail failure is binding regardless of the LLM's call.
         if not guardrails.get("all_ok", True):
             rs.risk.verdict = RiskVerdict.SEND_BACK
         else:
             rs.risk.verdict = decision.verdict
-        return {"research_state": rs}
+        return {"research_state": rs, "contexts": contexts}
 
     def increment_revision(state: BrainState) -> dict[str, Any]:
         return {"revisions": state["revisions"] + 1, "need_more_info": False}
@@ -214,6 +232,7 @@ def analyze_symbol(
         "research_state": ResearchState(ticker=symbol),
         "revisions": 0,
         "need_more_info": False,
+        "contexts": {},
     }
     final = graph.invoke(initial)
     return final["research_state"]

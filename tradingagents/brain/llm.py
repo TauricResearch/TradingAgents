@@ -9,17 +9,22 @@ behaviour ``<agent> -> Extractors set -> DB``, driven by the LLM itself.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol, Sequence, TypeVar, runtime_checkable
+from typing import Any, Callable, Optional, Protocol, Sequence, TypeVar, runtime_checkable
 
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
+# recorder(tool_name, args, result) — lets the caller accumulate tool results
+# into a structured per-agent context.
+Recorder = Callable[[str, dict, Any], None]
+
 
 @runtime_checkable
 class StructuredLLM(Protocol):
     def generate(
-        self, system_prompt: str, context: str, schema: type[T], *, tools: Sequence[Any] = ()
+        self, system_prompt: str, context: str, schema: type[T], *,
+        tools: Sequence[Any] = (), recorder: Optional[Recorder] = None,
     ) -> T: ...
 
 
@@ -43,7 +48,8 @@ class ForkStructuredLLM:
         self._model = client.get_llm() if hasattr(client, "get_llm") else client
 
     def generate(
-        self, system_prompt: str, context: str, schema: type[T], *, tools: Sequence[Any] = ()
+        self, system_prompt: str, context: str, schema: type[T], *,
+        tools: Sequence[Any] = (), recorder: Optional[Recorder] = None,
     ) -> T:
         from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
@@ -60,7 +66,10 @@ class ForkStructuredLLM:
                     break
                 for call in calls:
                     tool = tool_map.get(call["name"])
-                    result = tool.invoke(call.get("args", {})) if tool else f"unknown tool {call['name']}"
+                    args = call.get("args", {})
+                    result = tool.invoke(args) if tool else f"unknown tool {call['name']}"
+                    if recorder is not None:
+                        recorder(call["name"], args, result)
                     messages.append(ToolMessage(content=str(result), tool_call_id=call["id"]))
 
         return self._model.with_structured_output(schema).invoke(messages)
