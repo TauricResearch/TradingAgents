@@ -23,6 +23,7 @@ from ..execution import (
     inject_portfolio_state,
     manage_exits,
     persist_trade,
+    run_mantainer,
     submit_trade,
 )
 from ..storage import repository as repo
@@ -131,4 +132,6 @@ def run_cycle(
         )
 
     report.traded = len(report.trades)
+    # Mantainer: refresh the rendicontazione from the broker after the cycle.
+    run_mantainer(session, broker)
     return report
