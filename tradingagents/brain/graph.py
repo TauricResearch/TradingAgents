@@ -28,6 +28,7 @@ from ..tools import get_open_positions_risk, get_realtime_quote
 from . import context, prompts
 from .llm import StructuredLLM
 from .schemas import DeskOpinion, PMDecision, RiskDecision
+from .tooling import Extractors, build_desk_tools
 
 
 class BrainState(TypedDict):
@@ -56,22 +57,24 @@ def build_brain_graph(
     max_revisions: int = 1,
     charter: Optional[dict[str, Any]] = None,
     base_risk_pct: float = 0.01,
-    quote_fn: Optional[Any] = None,
+    extractors: Optional[Extractors] = None,
 ):
     """Compile the brain graph. Nodes close over session/llm/config.
 
-    ``quote_fn(symbol) -> price`` enables the real-time-first price path
-    (write-through to the DB); when None the current price falls back to the DB.
+    ``extractors`` carries the live fetchers + quote_fn behind the per-agent
+    tools (the Extractors set); the desk agents call those tools autonomously.
     """
     if charter is None:
         from ..storage import repository as repo
         charter = repo.load_charter(session) or None
+    quote_fn = extractors.quote_fn if extractors else None
 
-    # --- desk nodes -----------------------------------------------------
+    # --- desk nodes (each agent calls its own tools autonomously) -------
     def _desk(agent: str, prompt: str, ctx_fn):
         def node(state: BrainState) -> dict[str, Any]:
             rs = state["research_state"]
-            op = llm.generate(prompt, ctx_fn(session, state["symbol"]), DeskOpinion)
+            tools = build_desk_tools(session, agent, extractors)
+            op = llm.generate(prompt, ctx_fn(session, state["symbol"]), DeskOpinion, tools=tools)
             setattr(rs, f"{agent}_view", op.view)
             _set_opinion(rs, agent, op)
             return {"research_state": rs}
@@ -141,7 +144,8 @@ def build_brain_graph(
 
         sealed = rs.seal()
         decision: RiskDecision = llm.generate(
-            prompts.RISK, context.risk_context(session, symbol, sealed, guardrails), RiskDecision
+            prompts.RISK, context.risk_context(session, symbol, sealed, guardrails), RiskDecision,
+            tools=build_desk_tools(session, "risk", extractors),
         )
         rs.risk.rationale = decision.rationale
         # Hard guardrail failure is binding regardless of the LLM's call.
@@ -191,12 +195,12 @@ def analyze_symbol(
     max_revisions: int = 1,
     charter: Optional[dict[str, Any]] = None,
     base_risk_pct: float = 0.01,
-    quote_fn: Optional[Any] = None,
+    extractors: Optional[Extractors] = None,
 ) -> ResearchState:
     """Run the brain for one ticker and return the (possibly approved) thesis."""
     graph = build_brain_graph(
         session, llm, max_revisions=max_revisions, charter=charter,
-        base_risk_pct=base_risk_pct, quote_fn=quote_fn,
+        base_risk_pct=base_risk_pct, extractors=extractors,
     )
     initial: BrainState = {
         "symbol": symbol,

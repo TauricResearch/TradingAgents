@@ -44,7 +44,16 @@ def main(argv: list[str] | None = None) -> int:
 
         macro_fetcher = FredFetcher()
 
-    analyzer = make_brain_analyzer(ForkStructuredLLM())
+    from .brain.tooling import Extractors
+
+    extractors = Extractors(
+        price_fetcher=YFinanceFetcher(),
+        news_fetcher=YFinanceNewsFetcher(),
+        fundamentals_fetcher=YFinanceFundamentalsFetcher(),
+        macro_fetcher=macro_fetcher,
+        social_fetcher=StockTwitsFetcher(),
+    )
+    analyzer = make_brain_analyzer(ForkStructuredLLM(), extractors=extractors)
     deps = dict(
         fetcher=YFinanceFetcher(),
         news_fetcher=YFinanceNewsFetcher(),

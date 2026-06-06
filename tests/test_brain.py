@@ -41,7 +41,7 @@ class FakeLLM:
     def __init__(self, desk: DeskOpinion, pm: PMDecision, risk: RiskDecision):
         self._desk, self._pm, self._risk = desk, pm, risk
 
-    def generate(self, system_prompt, context, schema):
+    def generate(self, system_prompt, context, schema, *, tools=()):
         if schema is DeskOpinion:
             return self._desk
         if schema is PMDecision:
@@ -65,6 +65,49 @@ def _ingest(symbol="AAPL"):
     with database.get_session() as s:
         ingest_price_bars(s, symbol, fetcher=_FetcherUp(), start="2026-01-01", end="2026-03-01")
         repo.save_portfolio_snapshot(s, cash=20_000, total_value=100_000, positions=[])
+
+
+class ToolUsingLLM:
+    """Fake that exercises the tools it is given (proves agent tool-calling)."""
+
+    def __init__(self, desk, pm, risk):
+        self._desk, self._pm, self._risk = desk, pm, risk
+
+    def generate(self, system_prompt, context, schema, *, tools=()):
+        if schema is DeskOpinion:
+            for t in tools:  # the agent autonomously calls its tools
+                t.invoke({"symbol": "AAPL"})
+            return self._desk
+        if schema is PMDecision:
+            return self._pm
+        return self._risk
+
+
+def test_agents_call_tools_autonomously_and_write_through(db):
+    from tradingagents.brain.tooling import Extractors
+    from tradingagents.brain import analyze_symbol
+    from tradingagents.storage import repository as repo
+
+    _ingest()
+    calls: list[str] = []
+    llm = ToolUsingLLM(
+        desk=DeskOpinion(view="v", suggested_direction=Direction.BUY,
+                         suggested_conviction=Direction.BUY, rationale="r"),
+        pm=PMDecision(direction=Direction.BUY, conviction=Direction.BUY,
+                      k_entry=0.5, k_stop=2.0, k_tp=3.0),
+        risk=RiskDecision(verdict=RiskVerdict.APPROVED, rationale="ok"),
+    )
+    extractors = Extractors(quote_fn=lambda sym: calls.append(sym) or 150.0)
+
+    with database.get_session() as s:
+        analyze_symbol(s, "AAPL", llm, max_revisions=0, extractors=extractors)
+
+    # the agents called the real-time quote tool (autonomy) ...
+    assert "AAPL" in calls
+    # ... and it wrote the live price through to the DB ("rt" interval)
+    with database.get_session() as s:
+        rt = repo.latest_price(s, "AAPL", interval="rt")
+        assert rt is not None and rt.close == 150.0
 
 
 def test_brain_produces_approved_buy_thesis(db):
