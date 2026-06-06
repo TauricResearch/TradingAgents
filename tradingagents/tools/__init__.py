@@ -10,5 +10,12 @@ write-through, and an optional ``live_fn`` injected for the real-time path
 
 from .market import get_realtime_quote, volume_spike
 from .portfolio import get_open_positions_risk
+from .options import get_options_chain, select_contract
 
-__all__ = ["get_realtime_quote", "volume_spike", "get_open_positions_risk"]
+__all__ = [
+    "get_realtime_quote",
+    "volume_spike",
+    "get_open_positions_risk",
+    "get_options_chain",
+    "select_contract",
+]
