@@ -18,7 +18,9 @@ from typing import Any, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..storage.models import TickerCard
+from ..indicators import core as ind_core
+from ..indicators.db import recent_bars
+from ..storage.models import Instrument, TickerCard
 
 
 @dataclass(frozen=True)
@@ -62,15 +64,48 @@ def screening_candidates(session: Session, *, top_k: int = 5) -> list[TriggerEve
     ]
 
 
+def price_alerts(
+    session: Session, *, threshold_atr: float = 1.5, lookback: int = 20
+) -> list[TriggerEvent]:
+    """Anomalous price moves (efficient-markets alert): |last move| > k·ATR.
+
+    A price that jumps more than ``threshold_atr`` ATRs since the previous bar
+    is the signal that something happened — the system wakes to find out why.
+    """
+    events: list[TriggerEvent] = []
+    for symbol in session.scalars(select(Instrument.symbol)):
+        bars = recent_bars(session, symbol, lookback=lookback)
+        if len(bars) < 16:  # need enough bars for ATR(14) + a prior close
+            continue
+        atr = ind_core.atr(bars, 14)
+        if not atr:
+            continue
+        move = bars[-1]["close"] - bars[-2]["close"]
+        if abs(move) > threshold_atr * atr:
+            mult = abs(move) / atr
+            events.append(
+                TriggerEvent(
+                    "price_alert", symbol, f"move {move:+.2f} = {mult:.1f}x ATR",
+                    priority=0.9, payload={"move": move, "atr": atr, "atr_mult": mult},
+                )
+            )
+    return events
+
+
 def collect_triggers(
     session: Session, *, top_k: int = 5, today: Optional[date] = None
 ) -> list[TriggerEvent]:
     """Gather all sources, de-dup by symbol (keep highest priority), sort desc.
 
-    Checkpoints take precedence over screening for the same symbol (an open
-    position due for review matters more than a fresh candidate).
+    Precedence for the same symbol: checkpoint (1.0) > price_alert (0.9) >
+    screening (its score). An open position due for review or an anomalous move
+    matters more than a fresh screening candidate.
     """
-    events = due_checkpoints(session, today=today) + screening_candidates(session, top_k=top_k)
+    events = (
+        due_checkpoints(session, today=today)
+        + price_alerts(session)
+        + screening_candidates(session, top_k=top_k)
+    )
     best: dict[str, TriggerEvent] = {}
     for ev in events:
         cur = best.get(ev.symbol)

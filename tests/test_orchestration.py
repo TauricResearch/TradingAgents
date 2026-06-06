@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 from tradingagents.broker import PaperBroker, PerTradeCommission
 from tradingagents.domain import Direction, Levels, ResearchState, RiskVerdict
-from tradingagents.orchestration import collect_triggers, hold_analyzer, run_cycle
+from tradingagents.ingestion import ingest_price_bars
+from tradingagents.orchestration import collect_triggers, hold_analyzer, price_alerts, run_cycle
 from tradingagents.storage import database, init_db, reset_engine
 from tradingagents.storage import repository as repo
 
@@ -54,6 +55,30 @@ def test_collect_triggers_dedup_and_order(db):
 
 
 # --- Cycle runner ---------------------------------------------------------
+class _SpikeFetcher:
+    """16 flat bars then a large jump on the last bar."""
+
+    def fetch(self, symbol, start, end, interval):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        bars = []
+        for i in range(16):
+            bars.append({"ts": base + timedelta(days=i), "open": 100.0, "high": 100.5,
+                         "low": 99.5, "close": 100.0, "volume": 1000})
+        bars.append({"ts": base + timedelta(days=16), "open": 100.0, "high": 110.0,
+                     "low": 100.0, "close": 110.0, "volume": 5000})  # +10 spike
+        return bars
+
+
+def test_price_alert_fires_on_anomalous_move(db):
+    with database.get_session() as s:
+        ingest_price_bars(s, "AAPL", fetcher=_SpikeFetcher(), start="2026-01-01", end="2026-03-01")
+    with database.get_session() as s:
+        alerts = price_alerts(s, threshold_atr=1.5)
+        assert any(e.symbol == "AAPL" and e.type == "price_alert" for e in alerts)
+        # appears in the unified queue too
+        assert any(e.type == "price_alert" for e in collect_triggers(s))
+
+
 def test_run_cycle_hold_stub_trades_nothing(db):
     broker = PaperBroker()
     with database.get_session() as s:
