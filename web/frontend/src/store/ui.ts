@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { WsEvent } from "../lib/events";
 
+export type HistoryPollInterval = 0 | 5_000 | 15_000 | 30_000 | 60_000 | 300_000;
+
 interface UiState {
   // Currently-focused ticker in the rail. Driving the main pane.
   focusedTicker: string | null;
@@ -24,6 +26,16 @@ interface UiState {
   // already tagged with `run_id` by the server, so display components
   // filter by the focused ticker's run id.
   eventBuffer: WsEvent[];
+  // Per-ticker drawer open/closed flag. Lives in the store so the
+  // HistoricalAnalysisDrawer can be triggered from anywhere in the app,
+  // but is NOT persisted — the drawer should be closed on reload.
+  historyOpenByTicker: Record<string, boolean>;
+  // HOLD threshold in percent (0.1..5.0). Default 1.0. PERSISTED so
+  // the user's "is this HOLD within tolerance" knob survives a refresh.
+  holdThresholdPct: number;
+  // Polling interval in ms for the history chart, or 0 to disable.
+  // Default 30_000 (30s). PERSISTED.
+  historyPollIntervalMs: HistoryPollInterval;
 
   setFocusedTicker: (t: string | null) => void;
   setLastRunIdForTicker: (ticker: string, runId: string | null) => void;
@@ -36,6 +48,9 @@ interface UiState {
   clearEventBuffer: (runId: string) => void;
   clearLastRunIdForTicker: (ticker: string) => void;
   clearBuffer: () => void;
+  setHistoryOpen: (ticker: string, open: boolean) => void;
+  setHoldThresholdPct: (pct: number) => void;
+  setHistoryPollIntervalMs: (ms: HistoryPollInterval) => void;
 }
 
 export const useUi = create<UiState>()(
@@ -46,6 +61,9 @@ export const useUi = create<UiState>()(
       historicalRunIdByTicker: {},
       activeRunIdByTicker: {},
       eventBuffer: [],
+      historyOpenByTicker: {},
+      holdThresholdPct: 1.0,
+      historyPollIntervalMs: 30_000,
       setFocusedTicker: (t) => set({ focusedTicker: t }),
       setLastRunIdForTicker: (ticker, runId) =>
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
@@ -85,6 +103,10 @@ export const useUi = create<UiState>()(
         return { lastRunIdByTicker: next };
       }),
       clearBuffer: () => set({ eventBuffer: [] }),
+      setHistoryOpen: (ticker, open) =>
+        set((s) => ({ historyOpenByTicker: { ...s.historyOpenByTicker, [ticker]: open } })),
+      setHoldThresholdPct: (pct) => set({ holdThresholdPct: pct }),
+      setHistoryPollIntervalMs: (ms) => set({ historyPollIntervalMs: ms }),
     }),
     {
       name: "tradingagents-ui",
@@ -101,6 +123,8 @@ export const useUi = create<UiState>()(
         focusedTicker: s.focusedTicker,
         lastRunIdByTicker: s.lastRunIdByTicker,
         historicalRunIdByTicker: s.historicalRunIdByTicker,
+        holdThresholdPct: s.holdThresholdPct,
+        historyPollIntervalMs: s.historyPollIntervalMs,
       }),
     },
   ),
