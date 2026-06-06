@@ -39,6 +39,7 @@ else
   for d in docs/*/; do
     t="$(basename "$d")"
     [ "$t" = "stylesheets" ] && continue
+    [ "$t" = "archive" ] && continue
     ALL_TICKERS+=("$t")
   done
 fi

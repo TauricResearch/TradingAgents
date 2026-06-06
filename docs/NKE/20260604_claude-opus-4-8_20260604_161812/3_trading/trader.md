@@ -1,9 +1,0 @@
-**Action**: Hold
-
-**Reasoning**: The comprehensive analyst debate on NKE yields a balanced but disciplined Hold conclusion. While the bull case is compelling — decade-low valuation (~68% off highs), $8B cash, 3.74% dividend yield, credible CEO transition with Elliott Hill, and an imminent World Cup catalyst — the bear's counterpoints on margin data are decisive enough to prevent a Buy conviction. Specifically, the 42.2% Q1 FY2026 gross margin print appears to be an outlier rather than a confirmed inflection, with three of the last four quarters printing 40.2–40.6% and Q3 showing YoY deterioration (41.5% to 40.2%). Additionally, TTM free cash flow of ~$1.31B against a ~$2.3B dividend obligation represents a structural ~$1B annual cash burn, and the unresolved Vietnam tariff risk on ~50% of footwear manufacturing constitutes a real binary downside. However, the bear's own probability framework assigns ~60% to flat-to-up outcomes, which contradicts an outright Sell on a dominant franchise trading near decade-low multiples with $8B in balance sheet cushion. With the June 30, 2026 Q4 FY2026 earnings report serving as a near-term, decisive catalyst for gross margin sustainability (≥42%), China segment direction, and FCF trajectory confirmation, the disciplined action is to hold the existing position at neutral/benchmark weight (~3–4% of portfolio), collect the dividend, and await data confirmation before adjusting conviction in either direction.
-
-**Stop Loss**: 41.35
-
-**Position Sizing**: Neutral/benchmark weight; cap at ~3–4% of portfolio. Trim any excess above that threshold back to neutral on strength toward the $46.95 neckline resistance. Do not add pre-earnings.
-
-FINAL TRANSACTION PROPOSAL: **HOLD**

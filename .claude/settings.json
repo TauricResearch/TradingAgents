@@ -6,9 +6,6 @@
       "Bash(TA_BUILD_SITE=* bash .claude/run_missing_today.sh*)",
       "Bash(TRADINGAGENTS_DATE=* bash .claude/run_missing_today.sh*)"
     ],
-    "deny": [
-      // "Read(./docs/*.md)",
-      // "Read(./docs/**/*.md)"
-    ]
+    "deny": []
   }
 }

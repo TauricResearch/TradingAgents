@@ -241,6 +241,9 @@ docs/*/index.md
 docs/*/*/complete_report.md
 docs/archive/
 
+# Ignore all generated report Markdown under docs/
+docs/**/*.md
+
 # Enterprise env file (secrets)
 .env.enterprise
 
