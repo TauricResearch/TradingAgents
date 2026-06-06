@@ -141,6 +141,30 @@ class NewsItem(Base):
 
 
 # ---------------------------------------------------------------------------
+# Area: market_data — social posts (Reddit/StockTwits/X), for the Sentiment desk
+# ---------------------------------------------------------------------------
+class SocialPost(Base):
+    """A social/forum post for a ticker, with optional basic sentiment."""
+
+    __tablename__ = "social_posts"
+    __table_args__ = (
+        Index("ix_social_symbol_ts", "symbol", "ts"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    symbol: Mapped[str] = mapped_column(String(32), index=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    platform: Mapped[str] = mapped_column(String(32))  # reddit / stocktwits / x
+    body: Mapped[str] = mapped_column(String(2048))
+    sentiment: Mapped[Optional[float]] = mapped_column(Float, default=None)  # +1/-1/0
+    url: Mapped[Optional[str]] = mapped_column(String(1024), default=None)
+    dedup_key: Mapped[str] = mapped_column(String(256), index=True)
+    reference_date: Mapped[Optional[date]] = mapped_column(Date, default=None)
+    publication_date: Mapped[Optional[date]] = mapped_column(Date, default=None)
+    inserted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+# ---------------------------------------------------------------------------
 # Area: market_data — macro series (FRED), for the Market desk
 # ---------------------------------------------------------------------------
 class MacroPoint(Base):

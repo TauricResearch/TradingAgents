@@ -47,11 +47,21 @@ def market_context(session: Session, symbol: str) -> str:
     )
 
 
+def _social(session: Session, symbol: str, limit: int = 12) -> str:
+    posts = repo.recent_social(session, symbol, limit=limit)
+    if not posts:
+        return "(no social posts in DB)"
+    return "\n".join(
+        f"- [{p.platform}] {('%+d' % p.sentiment) if p.sentiment else '·'} {p.body[:120]}"
+        for p in posts
+    )
+
+
 def sentiment_context(session: Session, symbol: str) -> str:
     return (
         f"<ticker>{symbol}</ticker>\n"
         f"<news>\n{_headlines(session, symbol)}\n</news>\n"
-        "<social_sentiment>not yet wired (Reddit/StockTwits/X)</social_sentiment>"
+        f"<social_sentiment>\n{_social(session, symbol)}\n</social_sentiment>"
     )
 
 

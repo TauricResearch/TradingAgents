@@ -27,7 +27,12 @@ def main(argv: list[str] | None = None) -> int:
     import os
 
     from .brain import ForkStructuredLLM
-    from .ingestion import YFinanceFetcher, YFinanceFundamentalsFetcher, YFinanceNewsFetcher
+    from .ingestion import (
+        StockTwitsFetcher,
+        YFinanceFetcher,
+        YFinanceFundamentalsFetcher,
+        YFinanceNewsFetcher,
+    )
     from .orchestration import make_brain_analyzer
 
     # Macro is optional: only if a FRED key is configured.
@@ -44,6 +49,7 @@ def main(argv: list[str] | None = None) -> int:
         news_fetcher=YFinanceNewsFetcher(),
         fundamentals_fetcher=YFinanceFundamentalsFetcher(),
         macro_fetcher=macro_fetcher,
+        social_fetcher=StockTwitsFetcher(),
         analyzer=analyzer,
         db_url=args.db,
         start=args.start,

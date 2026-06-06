@@ -21,11 +21,13 @@ from .ingestion import (
     ingest_macro,
     ingest_news,
     ingest_price_bars,
+    ingest_social,
 )
 from .ingestion.fundamentals_ingest import FundamentalsFetcher
 from .ingestion.macro_ingest import MacroFetcher
 from .ingestion.news_ingest import NewsFetcher
 from .ingestion.price_ingest import PriceFetcher
+from .ingestion.social_ingest import SocialFetcher
 from .ingestion.screening import screen_ticker
 from .orchestration import CycleReport, run_cycle
 from .orchestration.analyze import Analyzer
@@ -49,6 +51,7 @@ def ingest_and_screen(
     interval: str = "1d",
     news_fetcher: Optional[NewsFetcher] = None,
     fundamentals_fetcher: Optional[FundamentalsFetcher] = None,
+    social_fetcher: Optional[SocialFetcher] = None,
 ) -> None:
     for symbol in symbols:
         ingest_price_bars(session, symbol, fetcher=fetcher, start=start, end=end, interval=interval)
@@ -56,6 +59,8 @@ def ingest_and_screen(
             ingest_news(session, symbol, fetcher=news_fetcher)
         if fundamentals_fetcher is not None:
             ingest_fundamentals(session, symbol, fetcher=fundamentals_fetcher)
+        if social_fetcher is not None:
+            ingest_social(session, symbol, fetcher=social_fetcher)
         screen_ticker(session, symbol)
 
 
@@ -69,6 +74,7 @@ def run_once(
     news_fetcher: Optional[NewsFetcher] = None,
     fundamentals_fetcher: Optional[FundamentalsFetcher] = None,
     macro_fetcher: Optional[MacroFetcher] = None,
+    social_fetcher: Optional[SocialFetcher] = None,
     db_url: Optional[str] = None,
     start: str = "2024-01-01",
     end: Optional[str] = None,
@@ -88,6 +94,7 @@ def run_once(
         ingest_and_screen(
             s, symbols, fetcher=fetcher, start=start, end=end,
             news_fetcher=news_fetcher, fundamentals_fetcher=fundamentals_fetcher,
+            social_fetcher=social_fetcher,
         )
 
     with database.get_session() as s:

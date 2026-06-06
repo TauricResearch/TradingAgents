@@ -33,6 +33,11 @@ from .macro_ingest import (
     MacroFetcher,
     ingest_macro,
 )
+from .social_ingest import (
+    SocialFetcher,
+    StockTwitsFetcher,
+    ingest_social,
+)
 from .screening import compute_screening_signals, screen_ticker
 
 __all__ = [
@@ -51,6 +56,9 @@ __all__ = [
     "FredFetcher",
     "MacroFetcher",
     "ingest_macro",
+    "SocialFetcher",
+    "StockTwitsFetcher",
+    "ingest_social",
     "compute_screening_signals",
     "screen_ticker",
 ]

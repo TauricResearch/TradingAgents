@@ -24,6 +24,7 @@ from .models import (
     PortfolioSnapshot,
     PriceBar,
     ResearchState,
+    SocialPost,
     TickerCard,
     Trade,
 )
@@ -183,6 +184,27 @@ def latest_fundamentals(session: Session, symbol: str) -> Optional[FundamentalSn
         .limit(1)
     )
     return session.scalar(stmt)
+
+
+def existing_social_keys(session: Session, symbol: str) -> set[str]:
+    return set(session.scalars(select(SocialPost.dedup_key).where(SocialPost.symbol == symbol)))
+
+
+def insert_social_posts(session: Session, symbol: str, items: Iterable[dict[str, Any]]) -> int:
+    rows = [SocialPost(symbol=symbol, **it) for it in items]
+    session.add_all(rows)
+    session.flush()
+    return len(rows)
+
+
+def recent_social(session: Session, symbol: str, *, limit: int = 15) -> list[SocialPost]:
+    stmt = (
+        select(SocialPost)
+        .where(SocialPost.symbol == symbol)
+        .order_by(SocialPost.ts.desc())
+        .limit(limit)
+    )
+    return list(session.scalars(stmt))
 
 
 def latest_price(session: Session, symbol: str, interval: str = "1d") -> Optional[PriceBar]:

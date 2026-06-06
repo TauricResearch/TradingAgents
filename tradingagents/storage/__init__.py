@@ -33,6 +33,7 @@ from .models import (
     PortfolioSnapshot,
     PriceBar,
     ResearchState,
+    SocialPost,
     TickerCard,
     Trade,
 )
@@ -51,6 +52,7 @@ __all__ = [
     "PortfolioSnapshot",
     "PriceBar",
     "ResearchState",
+    "SocialPost",
     "TickerCard",
     "Trade",
 ]
