@@ -1,11 +1,8 @@
-"""Shared persona-fan-out helper.
+"""Committee-only persona fan-out helper.
 
-Both ``cli.deepdive.run_deepdive`` and
-``Secretary.compose_event_alert`` use this to launch N persona-overlaid
-TradingAgentsGraph runs in parallel and collect their run_ids.
-
-Lifted out of cli/deepdive.py so the worker path doesn't need a CLI
-dependency to run personas.
+Default approved analysis now uses ``secretary.analysis_runner`` to run one
+balanced enriched TradingAgents graph. This module remains for explicit
+committee/comparison mode and backwards-compatible tests.
 """
 
 from __future__ import annotations

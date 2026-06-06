@@ -15,9 +15,12 @@ from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from tradingagents.personas.loader import load_all_personas
 from tradingagents.persistence import store
-from tradingagents.secretary.persona_runner import run_personas_parallel
+from tradingagents.secretary.analysis_runner import (
+    run_committee_analysis,
+    run_default_analysis,
+)
+from tradingagents.secretary.morning import run_one_ticker
 from tradingagents.secretary.synthesis import synthesize_brief
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -177,26 +180,27 @@ class Secretary:
             ev["ingested_ts"].replace("Z", "+00:00")
         ).date().isoformat()
 
-        # Load personas + run them in parallel with event_context threaded in.
-        personas_dir = (
-            Path(__file__).resolve().parent.parent / "personas"
-        )
-        personas = load_all_personas(str(personas_dir))
-        if not personas:
-            raise RuntimeError("compose_event_alert: no personas configured")
-
         from tradingagents.default_config import DEFAULT_CONFIG
         config = dict(DEFAULT_CONFIG)
 
-        run_ids = run_personas_parallel(
-            personas=personas,
-            ticker=ticker,
-            trade_date=trade_date,
-            config=config,
-            parallel=True,
-            event_context=raw_text,
-            queue_job_id=job_id,
-        )
+        if config.get("committee_mode_enabled"):
+            run_ids = run_committee_analysis(
+                persona_ids=config.get("committee_persona_ids", []),
+                ticker=ticker,
+                trade_date=trade_date,
+                config=config,
+                parallel=True,
+                event_context=raw_text,
+                queue_job_id=job_id,
+            )
+        else:
+            run_ids = run_default_analysis(
+                ticker=ticker,
+                trade_date=trade_date,
+                config=config,
+                event_context=raw_text,
+                queue_job_id=job_id,
+            )
 
         # Build persona_runs view for synthesis + rendering.
         persona_runs: List[Dict[str, Any]] = []
@@ -248,6 +252,32 @@ class Secretary:
             run_ids=[r["run_id"] for r in persona_runs],
             parent_brief_id=parent_brief_id,
             trigger_event_id=event_id,
+        )
+        from tradingagents.analysis_pack.builder import build_pack_content_from_runs
+        from tradingagents.analysis_pack.store import create_analysis_pack
+
+        pack_content = build_pack_content_from_runs(
+            conn=self._conn,
+            data_dir=self._data_dir,
+            event_id=event_id,
+            ticker=ticker,
+            trade_date=trade_date,
+            event_context=raw_text,
+            run_ids=run_ids,
+        )
+        pack_id = create_analysis_pack(
+            conn=self._conn,
+            data_dir=self._data_dir,
+            event_id=event_id,
+            ticker=ticker,
+            trade_date=trade_date,
+            source_run_ids=run_ids,
+            content=pack_content,
+        )
+        store.update_brief_analysis_pack(
+            self._conn,
+            brief_id=brief_id,
+            analysis_pack_id=pack_id,
         )
         return brief_id
 
@@ -357,8 +387,16 @@ class Secretary:
                 body = render_for_channel(
                     channel=name, mode="event_alert_light", brief=brief)
                 ch.send(brief=brief, mode="event_alert_light", body=body)
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                store.insert_delivery(
+                    self._conn,
+                    brief_id=brief_id,
+                    channel=name,
+                    status="failed",
+                    sent_ts=None,
+                    channel_ref=str(exc)[:500],
+                    skip_reason=None,
+                )
 
     # ----- F5: morning digest -----
     def compose_morning_digest(
@@ -442,7 +480,6 @@ class Secretary:
         self, *, parent_brief_id: str, overrides: dict, reply_text: str,
     ) -> str:
         from tradingagents.default_config import DEFAULT_CONFIG
-        from tradingagents.secretary.morning import run_one_ticker
 
         parent = store.load_brief(self._conn, parent_brief_id)
         if parent is None:
@@ -466,6 +503,13 @@ class Secretary:
             config["_horizon"] = overrides["horizon"]
         if overrides.get("analysts"):
             config["_analysts_override"] = overrides["analysts"]
+        if parent.get("analysis_pack_id"):
+            from tradingagents.analysis_pack.store import load_analysis_pack
+            config["prior_analysis_pack"] = load_analysis_pack(
+                conn=self._conn,
+                data_dir=self._data_dir,
+                pack_id=parent["analysis_pack_id"],
+            )
 
         ts = datetime.now(timezone.utc).isoformat()
         run_ids, synthesis = run_one_ticker(

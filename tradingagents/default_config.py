@@ -119,6 +119,7 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     "alert_approval_gate_enabled": True,
     # How long a pending run_full_study approval stays valid (1 day per spec §4).
     "alert_pending_ttl_hours": 24,
+    "alert_quality_threshold": 0.80,
     "worker_poll_interval_s": 2,
     "worker_job_timeout_min": 20,
     "max_concurrent_jobs": 1,
@@ -133,10 +134,20 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
+    # DeepSeek official API prompt-cache optimization. These budgets cap only
+    # dynamic tail content; static instructions are never trimmed.
+    "prompt_cache_dynamic_budget_chars": 24000,
+    "prompt_cache_report_budget_chars": 5000,
+    "prompt_cache_debate_budget_chars": 8000,
+    "prompt_cache_prior_pack_budget_chars": 8000,
+    "prompt_cache_memory_budget_chars": 6000,
     # LLM settings
     "llm_provider": "deepseek",
     "deep_think_llm": "deepseek-v4-pro",     # V4 thinking flagship; deep reasoning / synthesis (effort=max)
     "quick_think_llm": "deepseek-v4-flash",  # V4 thinking fast model; analyst tool loops (default effort)
+    "default_analysis_persona_id": "balanced",
+    "committee_persona_ids": ["value", "momentum", "macro"],
+    "committee_mode_enabled": False,
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a
@@ -162,9 +173,11 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.
-    "news_article_limit": 30,             # max articles per ticker (ticker-news)
-    "global_news_article_limit": 20,      # max articles for global/macro news
-    "global_news_lookback_days": 14,       # macro news lookback window
+    "news_article_limit": 20,             # max articles per ticker (ticker-news)
+    "global_news_article_limit": 12,      # max articles for global/macro news
+    "global_news_lookback_days": 7,       # macro news lookback window
+    "market_data_stale_after_seconds": 900,
+    "market_data_cache_ttl_seconds": 900,
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [
@@ -177,7 +190,8 @@ DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
+        "core_stock_apis": "yfinance, akshare, futu, polygon",
+        "market_snapshot": "yfinance, akshare, futu, polygon",
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance

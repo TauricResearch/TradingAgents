@@ -276,6 +276,33 @@ def insert_event_embedding(
     conn.commit()
 
 
+def insert_alert_evaluation(
+    conn: sqlite3.Connection,
+    *,
+    event_id: str,
+    tickers: list[str],
+    decision: str,
+    score: float,
+    payload: dict,
+    created_ts: str,
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO alert_evaluations "
+        "(event_id, tickers, decision, score, payload, created_ts) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            event_id,
+            json.dumps(tickers),
+            decision,
+            score,
+            json.dumps(payload),
+            created_ts,
+        ),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
 # --------------------------------------------------------------------
 # F4 helpers — events lookup / suppression / briefs lookup
 # --------------------------------------------------------------------
@@ -409,6 +436,8 @@ def fetch_accepted_undispatched(conn: sqlite3.Connection) -> list[dict]:
         "WHERE state = 'accepted' "
         "  AND result_backtest_id IS NULL "
         "  AND result_brief_id IS NULL "
+        "  AND result_job_id IS NULL "
+        "  AND error IS NULL "
         "ORDER BY action_id"
     ).fetchall()
     return [dict(r) for r in rows]
@@ -435,6 +464,48 @@ def mark_action_done(
         "UPDATE brief_actions SET result_backtest_id = ?, result_brief_id = ? "
         "WHERE action_id = ?",
         (result_backtest_id, result_brief_id, action_id),
+    )
+    conn.commit()
+
+
+def mark_action_dispatched(
+    conn: sqlite3.Connection,
+    *,
+    action_id: int,
+    result_job_id: int,
+    dispatched_ts: str,
+) -> None:
+    conn.execute(
+        "UPDATE brief_actions SET result_job_id = ?, dispatched_ts = ? "
+        "WHERE action_id = ?",
+        (result_job_id, dispatched_ts, action_id),
+    )
+    conn.commit()
+
+
+def mark_action_error(
+    conn: sqlite3.Connection,
+    *,
+    action_id: int,
+    error: str,
+) -> None:
+    conn.execute(
+        "UPDATE brief_actions SET error = ? WHERE action_id = ?",
+        (error[:1000], action_id),
+    )
+    conn.commit()
+
+
+def mark_full_study_action_done_for_job(
+    conn: sqlite3.Connection,
+    *,
+    job_id: int,
+    result_brief_id: str,
+) -> None:
+    conn.execute(
+        "UPDATE brief_actions SET result_brief_id = ? "
+        "WHERE action_type = 'run_full_study' AND result_job_id = ?",
+        (result_brief_id, job_id),
     )
     conn.commit()
 
@@ -468,5 +539,18 @@ def update_brief_refine_metadata(
     conn.execute(
         "UPDATE briefs SET refine_depth = ?, refine_overrides = ? WHERE brief_id = ?",
         (refine_depth, json.dumps(refine_overrides), brief_id),
+    )
+    conn.commit()
+
+
+def update_brief_analysis_pack(
+    conn: sqlite3.Connection,
+    *,
+    brief_id: str,
+    analysis_pack_id: str,
+) -> None:
+    conn.execute(
+        "UPDATE briefs SET analysis_pack_id = ? WHERE brief_id = ?",
+        (analysis_pack_id, brief_id),
     )
     conn.commit()

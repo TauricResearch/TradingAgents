@@ -43,11 +43,11 @@ def _g2_event_alerts(conn, since: str) -> tuple[bool, str]:
         """
         SELECT COUNT(*) AS n FROM briefs b
         JOIN deliveries d ON d.brief_id = b.brief_id
-        WHERE b.mode = 'event_alert' AND d.status = 'sent'
+        WHERE b.mode IN ('event_alert_light', 'event_alert') AND d.status = 'sent'
           AND b.generated_ts >= ?
         """, (since,),
     ).fetchone()
-    return (row["n"] >= 1, f"{row['n']} event_alert deliveries")
+    return (row["n"] >= 1, f"{row['n']} event_alert/event_alert_light deliveries")
 
 
 def _g3_deep_dives(conn, since: str) -> tuple[bool, str]:

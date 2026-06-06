@@ -7,10 +7,16 @@ pytestmark = pytest.mark.smoke
 
 def test_run_recorder_node_fires_for_every_persona_in_deepdive(tmp_path, monkeypatch):
     """Verify the Run Recorder node is invoked by the compiled graph for
-    each persona. Uses a real graph compile but with the engine's propagate
+    the default balanced run. Uses a real graph compile but with propagate
     monkey-patched to short-circuit after the Run Recorder runs."""
     monkeypatch.setenv("TRADINGAGENTS_IIC_DB_PATH", str(tmp_path / "iic.db"))
     monkeypatch.setenv("TRADINGAGENTS_IIC_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("TRADINGAGENTS_RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setenv("TRADINGAGENTS_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv(
+        "TRADINGAGENTS_MEMORY_LOG_PATH",
+        str(tmp_path / "memory" / "trading_memory.md"),
+    )
 
     invocations = []
     from tradingagents.graph.run_recorder import RunRecorder
@@ -56,11 +62,22 @@ def test_run_recorder_node_fires_for_every_persona_in_deepdive(tmp_path, monkeyp
             "consensus": "x", "divergence": "y", "recommendation": "HOLD", "raw": "..."
         }):
             # parallel=False: sequential execution makes invocations list deterministic.
-            run_deepdive(ticker="AAPL", trade_date="2026-05-25", parallel=False)
+            run_deepdive(
+                ticker="AAPL",
+                trade_date="2026-05-25",
+                parallel=False,
+                config_overrides={
+                    "iic_db_path": str(tmp_path / "iic.db"),
+                    "iic_data_dir": str(tmp_path / "data"),
+                    "results_dir": str(tmp_path / "results"),
+                    "data_cache_dir": str(tmp_path / "cache"),
+                    "memory_log_path": str(tmp_path / "memory" / "trading_memory.md"),
+                },
+            )
 
-    # Each persona must fire exactly once — guard against both missing and duplicate fires.
-    assert len(invocations) == 3, \
-        f"Expected 3 Run Recorder invocations (one per persona), got {len(invocations)}: {invocations}"
+    # Default analysis must fire exactly once — guard against both missing and duplicate fires.
+    assert len(invocations) == 1, \
+        f"Expected 1 Run Recorder invocation, got {len(invocations)}: {invocations}"
     persona_ids_seen = {pid for _, pid in invocations}
-    assert persona_ids_seen == {"macro", "value", "momentum"}, \
-        f"Run Recorder fired for {persona_ids_seen}, not all three personas"
+    assert persona_ids_seen == {"balanced"}, \
+        f"Run Recorder fired for {persona_ids_seen}, not the default balanced persona"

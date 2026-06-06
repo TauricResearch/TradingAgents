@@ -38,6 +38,7 @@ def run_once(
     secretary=None,
     approval_gate_enabled: bool = False,
     pending_ttl_hours: int = 24,
+    alert_evaluator=None,
 ) -> int:
     """Perform one poll cycle. With the approval gate enabled, composes one
     light alert per event (no study enqueued). Returns the count of light
@@ -67,6 +68,24 @@ def run_once(
             fresh = [t for t in g["tickers"] if t not in seen_tickers]
             if not fresh:
                 continue
+            if alert_evaluator is not None:
+                evaluation = alert_evaluator(g["event_id"], fresh)
+                store.insert_alert_evaluation(
+                    conn,
+                    event_id=g["event_id"],
+                    tickers=fresh,
+                    decision="pass" if evaluation.passed else "reject",
+                    score=evaluation.score,
+                    payload=evaluation.payload,
+                    created_ts=_now_utc().isoformat(),
+                )
+                if not evaluation.passed:
+                    log.info(
+                        "light alert rejected event_id=%s tickers=%s "
+                        "disqualifiers=%s",
+                        g["event_id"], fresh, evaluation.disqualifiers,
+                    )
+                    continue
             try:
                 secretary.compose_event_alert_light(
                     event_id=g["event_id"], tickers=fresh,
@@ -145,12 +164,32 @@ def main(config: Optional[dict] = None) -> None:
     secretary = None
     if gate_enabled:
         from tradingagents.llm_clients.factory import create_llm_client
+        from tradingagents.orchestrator.alert_evaluator import evaluate_alert_candidate
         from tradingagents.secretary.service import Secretary
         llm = create_llm_client(
             provider=cfg["llm_provider"], model=cfg["quick_think_llm"],
             base_url=cfg.get("backend_url"),
         ).get_llm()
         secretary = Secretary(conn=conn, data_dir=cfg["iic_data_dir"], llm=llm)
+
+        def alert_evaluator(event_id, tickers):
+            ev = store.get_event(conn, event_id=event_id)
+            event_text = ""
+            if ev is not None and ev["raw_path"]:
+                from pathlib import Path
+                p = Path(ev["raw_path"])
+                if p.exists():
+                    event_text = p.read_text(
+                        encoding="utf-8", errors="replace"
+                    )
+            return evaluate_alert_candidate(
+                llm=llm,
+                event_text=event_text,
+                tickers=list(tickers),
+                min_score=cfg.get("alert_quality_threshold", 0.80),
+            )
+    else:
+        alert_evaluator = None
 
     log.info("promoter starting: poll=%ss cooldown=%sm guards: bp=%s rate=%s",
              cfg["promoter_poll_interval_s"], cfg["alert_cooldown_min"],
@@ -169,6 +208,7 @@ def main(config: Optional[dict] = None) -> None:
                 secretary=secretary,
                 approval_gate_enabled=gate_enabled,
                 pending_ttl_hours=cfg["alert_pending_ttl_hours"],
+                alert_evaluator=alert_evaluator,
             )
         except KeyboardInterrupt:
             log.info("promoter shutting down on KeyboardInterrupt")

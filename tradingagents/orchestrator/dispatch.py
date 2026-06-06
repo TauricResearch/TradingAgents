@@ -26,15 +26,18 @@ def dispatch_event_alert(
     payload = json.loads(job["payload"])
     event_id = payload["event_id"]
     ticker = payload["ticker"]
+    action_id = payload.get("action_id")
+    parent_brief_id = payload.get("parent_brief_id")
     job_id = job["job_id"]
 
     # Link the full brief back to the light alert for the same event, if any.
-    parent_row = conn.execute(
-        "SELECT brief_id FROM briefs WHERE mode = 'event_alert_light' "
-        "AND trigger_event_id = ? ORDER BY generated_ts DESC LIMIT 1",
-        (event_id,),
-    ).fetchone()
-    parent_brief_id = parent_row[0] if parent_row else None
+    if not parent_brief_id:
+        parent_row = conn.execute(
+            "SELECT brief_id FROM briefs WHERE mode = 'event_alert_light' "
+            "AND trigger_event_id = ? ORDER BY generated_ts DESC LIMIT 1",
+            (event_id,),
+        ).fetchone()
+        parent_brief_id = parent_row[0] if parent_row else None
 
     brief_id = secretary.compose_event_alert(
         event_id=event_id, ticker=ticker, job_id=job_id,
@@ -58,6 +61,20 @@ def dispatch_event_alert(
         cost_usd = float(row[0])
     else:
         cost_usd = 0.0
+
+    from tradingagents.persistence import store
+    if action_id is not None:
+        store.mark_action_done(
+            conn,
+            action_id=int(action_id),
+            result_brief_id=brief_id,
+        )
+    else:
+        store.mark_full_study_action_done_for_job(
+            conn,
+            job_id=job_id,
+            result_brief_id=brief_id,
+        )
 
     return {"brief_id": brief_id, "run_ids": run_ids, "cost_usd": cost_usd}
 

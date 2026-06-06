@@ -38,4 +38,9 @@ def test_light_alert_approve_then_study(tmp_path):
     from tradingagents.orchestrator.action_handler import tick
     tick(conn=conn, secretary=MagicMock(), dispatch_backtest=MagicMock())
     job = conn.execute("SELECT payload FROM queue_jobs").fetchone()
-    assert json.loads(job["payload"]) == {"event_id": "ev1", "ticker": "NVDA"}
+    assert json.loads(job["payload"]) == {
+        "event_id": "ev1",
+        "ticker": "NVDA",
+        "action_id": aid,
+        "parent_brief_id": light["brief_id"],
+    }

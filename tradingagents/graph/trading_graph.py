@@ -19,16 +19,22 @@ from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.dataflows.interface import route_to_vendor
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.personas.resolver import load_persona_from_config
+
+
+_load_persona_from_config = load_persona_from_config
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
+    get_market_snapshot,
     get_indicators,
     get_fundamentals,
     get_balance_sheet,
@@ -72,6 +78,7 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        self.persona = _load_persona_from_config(self.config)
 
         # Update the interface's config
         set_config(self.config)
@@ -144,6 +151,7 @@ class TradingAgentsGraph:
             self.tool_nodes,
             self.conditional_logic,
             analyst_concurrency_limit=self.config.get("analyst_concurrency_limit", 1),
+            persona=self.persona,
         )
 
         self.propagator = Propagator(
@@ -201,6 +209,8 @@ class TradingAgentsGraph:
         return {
             "market": ToolNode(
                 [
+                    # Freshness-aware numerical market snapshot
+                    get_market_snapshot,
                     # Core stock data tools
                     get_stock_data,
                     # Technical indicators
@@ -388,9 +398,30 @@ class TradingAgentsGraph:
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date, asset_type=asset_type, past_context=past_context
         )
+        try:
+            init_agent_state["market_snapshot_text"] = route_to_vendor(
+                "get_market_snapshot",
+                company_name,
+                str(trade_date),
+                stale_after_seconds=self.config.get(
+                    "market_data_stale_after_seconds", 900
+                ),
+            )
+            init_agent_state["market_snapshot_error"] = ""
+        except Exception as e:
+            init_agent_state["market_snapshot_text"] = ""
+            init_agent_state["market_snapshot_error"] = (
+                f"Market snapshot unavailable for {company_name} on {trade_date}: {e}"
+            )
+            logger.warning(init_agent_state["market_snapshot_error"])
         # IIC-FORGE F4: event-context injection — seed event text into state.
         # Empty string when not in event_alert mode (deep-dive path unchanged).
         init_agent_state["event_context_text"] = self.config.get("event_context", "") or ""
+        if self.config.get("prior_analysis_pack"):
+            from tradingagents.analysis_pack.prompting import render_pack_for_followup
+            init_agent_state["prior_analysis_pack_context"] = render_pack_for_followup(
+                self.config["prior_analysis_pack"]
+            )
         args = self.propagator.get_graph_args()
 
         from datetime import datetime, timezone

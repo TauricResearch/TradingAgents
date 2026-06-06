@@ -14,7 +14,17 @@ import sqlite3
 from datetime import datetime, timezone
 
 import redis.asyncio as aioredis
-import tweepy
+try:
+    import tweepy
+except ModuleNotFoundError:
+    class _MissingTweepy:
+        def Client(self, *args, **kwargs):
+            raise ModuleNotFoundError(
+                "tweepy is required for the X sensing adapter. "
+                "Install TradingAgents with the osint extra."
+            )
+
+    tweepy = _MissingTweepy()
 
 from tradingagents.sensing.adapters.base import EnvelopeWriter
 from tradingagents.sensing.cursor import CursorStore

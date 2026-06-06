@@ -30,15 +30,24 @@ def test_accepted_run_full_study_enqueues_event_alert_job(tmp_path):
 
     tick(conn=conn, secretary=MagicMock(), dispatch_backtest=MagicMock())
 
-    job = conn.execute("SELECT job_type, payload, trigger_event_id "
+    job = conn.execute("SELECT job_id, job_type, payload, trigger_event_id "
                        "FROM queue_jobs").fetchone()
     assert job["job_type"] == "event_alert"
-    assert json.loads(job["payload"]) == {"event_id": "ev1", "ticker": "NVDA"}
+    assert json.loads(job["payload"]) == {
+        "event_id": "ev1",
+        "ticker": "NVDA",
+        "action_id": aid,
+        "parent_brief_id": "lb1",
+    }
     assert job["trigger_event_id"] == "ev1"
-    # action marked done (result_brief_id set) so it won't re-dispatch
-    row = conn.execute("SELECT result_brief_id FROM brief_actions "
-                       "WHERE action_id=?", (aid,)).fetchone()
-    assert row[0] is not None
+    row = conn.execute(
+        "SELECT result_job_id, result_brief_id, dispatched_ts FROM brief_actions "
+        "WHERE action_id=?",
+        (aid,),
+    ).fetchone()
+    assert row["result_job_id"] == job["job_id"]
+    assert row["result_brief_id"] is None
+    assert row["dispatched_ts"] is not None
 
 
 @pytest.mark.unit
@@ -70,8 +79,9 @@ def test_run_full_study_missing_ticker_does_not_enqueue_or_mark_done(tmp_path):
     store.update_action_state(conn, action_id=aid, state="accepted",
                               responded_at="2026-06-01T01:00:00+00:00")
     tick(conn=conn, secretary=MagicMock(), dispatch_backtest=MagicMock())
-    # no job enqueued, action NOT marked done (still recoverable)
+    # no job enqueued, action is marked errored so it does not spin forever
     assert conn.execute("SELECT COUNT(*) FROM queue_jobs").fetchone()[0] == 0
-    row = conn.execute("SELECT result_brief_id FROM brief_actions "
+    row = conn.execute("SELECT result_brief_id, error FROM brief_actions "
                        "WHERE action_id=?", (aid,)).fetchone()
-    assert row[0] is None
+    assert row["result_brief_id"] is None
+    assert "missing event_id/ticker" in row["error"]

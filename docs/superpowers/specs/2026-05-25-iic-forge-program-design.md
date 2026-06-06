@@ -39,7 +39,7 @@ The design is anchored on three decisions made during the brainstorming session 
 
 1. **All three operational modes are first-class** — morning brief on a watchlist, event-triggered alerts, and on-demand deep-dive. The secretary writes three brief formats; the orchestrator handles three trigger types; delivery supports three cadences.
 2. **The secretary is a stateful orchestrator from F1** — not a passive post-processor. It owns run intent, suppression, watchlist TTLs, and brief composition. Consequence: persistence (SQLite) arrives at F1, not F3.
-3. **Personas are rich config overlays** — system-prompt fragment + LLM tier + analyst include/exclude + risk-debate weights. Three starter personas: macro, value, momentum.
+3. **Personas are rich config overlays** — system-prompt fragment + LLM tier + analyst include/exclude + risk-debate weights. Updated 2026-06-03: the default full study uses one enriched `balanced` overlay inside the native TradingAgents graph; `macro`, `value`, and `momentum` are explicit committee/comparison profiles.
 
 Three changes to the existing plan follow directly:
 
@@ -72,7 +72,7 @@ Implications:
 
 ### D3 — Rich-overlay personas
 
-Each persona is a YAML config with: system-prompt fragment, deep/quick LLM choice + `reasoning_effort`, `analysts.include/exclude`, and `risk_debate.weights`. Macro, value, momentum are the three starter personas. Personas are meaningfully different — not three voices saying similar things.
+Each persona is a YAML config with: system-prompt fragment, deep/quick LLM choice + `reasoning_effort`, `analysts.include/exclude`, and `risk_debate.weights`. The default profile is `balanced`; `macro`, `value`, and `momentum` are opt-in committee/comparison profiles. Personas are meaningfully different — not three voices saying similar things.
 
 Implications:
 - IIC-FORGE-02 §A.9e (mandatory derivatives) is reverted — momentum and value personas may legitimately drop derivatives.
@@ -355,7 +355,7 @@ Migrations after F1 are **append-only** — new tables only, no column reshapes 
 
 **Deliverables:**
 - Secretary service (Python module, owns DB).
-- Persona overlay system (`tradingagents/personas/*.yaml`, three starter personas).
+- Persona overlay system (`tradingagents/personas/*.yaml`, default `balanced` plus opt-in committee profiles).
 - Run Recorder final node in the graph.
 - Full SQLite schema (all tables from §6, even those F3+ fill).
 - `sqlite-vec` installed and integrated.

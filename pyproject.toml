@@ -33,6 +33,8 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    # AKShare is the first market-data fallback after yfinance.
+    "akshare>=1.18.64",
     # tabulate is required by pandas.DataFrame.to_markdown — used by the
     # yfinance options vendor in tradingagents/dataflows/yfinance_options.py.
     "tabulate>=0.9",

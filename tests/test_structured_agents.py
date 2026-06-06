@@ -11,7 +11,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tradingagents.agents.managers.research_manager import create_research_manager
+from tradingagents.agents.managers.research_manager import (
+    RESEARCH_MANAGER_SYSTEM_PROMPT,
+    build_research_manager_user_prompt,
+    create_research_manager,
+)
 from tradingagents.agents.schemas import (
     PortfolioRating,
     ResearchPlan,
@@ -20,7 +24,15 @@ from tradingagents.agents.schemas import (
     render_research_plan,
     render_trader_proposal,
 )
-from tradingagents.agents.trader.trader import create_trader
+from tradingagents.agents.trader.trader import (
+    TRADER_SYSTEM_PROMPT,
+    build_trader_user_prompt,
+    create_trader,
+)
+from tradingagents.agents.utils.prompt_cache import (
+    DYNAMIC_CONTEXT_MARKER,
+    prompt_prefix_fingerprint,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +157,7 @@ class TestTraderAgent:
         trader(_make_trader_state())
         # The investment plan is in the user message of the captured prompt.
         prompt = captured["prompt"]
-        assert any("Proposed Investment Plan" in m["content"] for m in prompt)
+        assert any("Research Manager Investment Plan" in m["content"] for m in prompt)
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (
@@ -233,3 +245,43 @@ class TestResearchManagerAgent:
         rm = create_research_manager(llm)
         result = rm(_make_rm_state())
         assert result["investment_plan"] == plain_response
+
+
+def test_research_manager_prefix_ignores_ticker_and_debate_history():
+    state_a = _make_rm_state()
+    state_a["company_of_interest"] = "NVDA"
+    state_b = _make_rm_state()
+    state_b["company_of_interest"] = "AAPL"
+    state_b["investment_debate_state"]["history"] = "Different debate"
+
+    messages_a = [
+        {"role": "system", "content": RESEARCH_MANAGER_SYSTEM_PROMPT},
+        {"role": "user", "content": build_research_manager_user_prompt(state_a)},
+    ]
+    messages_b = [
+        {"role": "system", "content": RESEARCH_MANAGER_SYSTEM_PROMPT},
+        {"role": "user", "content": build_research_manager_user_prompt(state_b)},
+    ]
+
+    assert prompt_prefix_fingerprint(messages_a) == prompt_prefix_fingerprint(messages_b)
+    assert messages_a[1]["content"].startswith(DYNAMIC_CONTEXT_MARKER)
+
+
+def test_trader_prefix_ignores_ticker_and_investment_plan():
+    state_a = _make_trader_state()
+    state_a["company_of_interest"] = "NVDA"
+    state_b = _make_trader_state()
+    state_b["company_of_interest"] = "AAPL"
+    state_b["investment_plan"] = "Different plan"
+
+    messages_a = [
+        {"role": "system", "content": TRADER_SYSTEM_PROMPT},
+        {"role": "user", "content": build_trader_user_prompt(state_a)},
+    ]
+    messages_b = [
+        {"role": "system", "content": TRADER_SYSTEM_PROMPT},
+        {"role": "user", "content": build_trader_user_prompt(state_b)},
+    ]
+
+    assert prompt_prefix_fingerprint(messages_a) == prompt_prefix_fingerprint(messages_b)
+    assert messages_a[1]["content"].startswith(DYNAMIC_CONTEXT_MARKER)

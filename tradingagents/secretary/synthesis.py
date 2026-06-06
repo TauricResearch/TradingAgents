@@ -14,9 +14,11 @@ from typing import Any, Dict, List, Optional
 # headings) is byte-identical across every call, so it must come FIRST for
 # DeepSeek prefix-cache reuse. All VARIABLE content (ticker, persona reports,
 # and the event_alert trigger block) is appended at the TAIL below.
-_SYNTHESIS_TEMPLATE = """You are the IIC Secretary. Three persona investment teams have each produced
-an analysis of a stock. Your job is to synthesize their reports for a human
-decision-maker.
+_SYNTHESIS_TEMPLATE = """You are the IIC Secretary. The input contains one or more investment analyses
+for a stock. Your job is to synthesize the reports for a human decision-maker.
+If there is only one balanced analysis, surface the important internal
+TradingAgents disagreements from that report. If there are multiple committee
+analyses, compare them directly.
 
 Produce EXACTLY three sections, in this order, with these exact headings:
 

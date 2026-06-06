@@ -45,6 +45,21 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+def _should_refresh_cache(
+    data_file: str,
+    *,
+    curr_date_dt: pd.Timestamp,
+    today_date: pd.Timestamp,
+    ttl_seconds: int,
+) -> bool:
+    if not os.path.exists(data_file):
+        return True
+    if curr_date_dt.date() < today_date.date():
+        return False
+    age_seconds = time.time() - os.path.getmtime(data_file)
+    return age_seconds > ttl_seconds
+
+
 def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
 
@@ -71,7 +86,13 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
     )
 
-    if os.path.exists(data_file):
+    ttl_seconds = int(config.get("market_data_cache_ttl_seconds", 900))
+    if not _should_refresh_cache(
+        data_file,
+        curr_date_dt=curr_date_dt,
+        today_date=today_date,
+        ttl_seconds=ttl_seconds,
+    ):
         data = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
     else:
         data = yf_retry(lambda: yf.download(

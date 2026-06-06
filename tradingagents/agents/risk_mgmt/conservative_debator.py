@@ -1,37 +1,83 @@
 from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.agents.utils.prompt_cache import budgeted_dynamic_text, stable_join_sections
+from tradingagents.personas.prompt_overlay import apply_fragment
 
 
-def create_conservative_debator(llm):
+CONSERVATIVE_RISK_SYSTEM_PROMPT = """As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility.
+
+Your task is to actively counter the arguments of the aggressive and neutral analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Incorporate insights from the sources provided in the next message. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
+
+Engage by questioning optimism and emphasizing potential downsides that may have been overlooked. Output conversationally as if you are speaking without special formatting."""
+
+
+def build_conservative_risk_user_prompt(state: dict) -> str:
+    risk = state["risk_debate_state"]
+    return stable_join_sections(
+        [
+            ("Trader Decision", state.get("trader_investment_plan", "")),
+            (
+                "Market Research Report",
+                budgeted_dynamic_text(
+                    state.get("market_report", ""),
+                    "prompt_cache_report_budget_chars",
+                    5000,
+                    "market report",
+                ),
+            ),
+            (
+                "Social Media Sentiment Report",
+                budgeted_dynamic_text(
+                    state.get("sentiment_report", ""),
+                    "prompt_cache_report_budget_chars",
+                    5000,
+                    "sentiment report",
+                ),
+            ),
+            (
+                "Latest World Affairs Report",
+                budgeted_dynamic_text(
+                    state.get("news_report", ""),
+                    "prompt_cache_report_budget_chars",
+                    5000,
+                    "news report",
+                ),
+            ),
+            (
+                "Fundamentals Report",
+                budgeted_dynamic_text(
+                    state.get("fundamentals_report", ""),
+                    "prompt_cache_report_budget_chars",
+                    5000,
+                    "fundamentals report",
+                ),
+            ),
+            (
+                "Risk Debate History",
+                budgeted_dynamic_text(
+                    risk.get("history", ""),
+                    "prompt_cache_debate_budget_chars",
+                    8000,
+                    "risk debate history",
+                ),
+            ),
+            ("Last Aggressive Argument", risk.get("current_aggressive_response", "")),
+            ("Last Neutral Argument", risk.get("current_neutral_response", "")),
+            ("Current Task", "Deliver the conservative risk argument."),
+        ]
+    )
+
+
+def create_conservative_debator(llm, persona=None):
     def conservative_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
         conservative_history = risk_debate_state.get("conservative_history", "")
 
-        current_aggressive_response = risk_debate_state.get("current_aggressive_response", "")
-        current_neutral_response = risk_debate_state.get("current_neutral_response", "")
-
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
-
-        trader_decision = state["trader_investment_plan"]
-
-        system_prompt = """As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains.
-
-Your task is to actively counter the arguments of the Aggressive and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the data sources provided in the next message to build a convincing case for a low-risk approach adjustment to the trader's decision. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
-
-Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
-
-        user_prompt = f"""Here is the trader's decision:
-
-{trader_decision}
-
-Market Research Report: {market_research_report}
-Social Media Sentiment Report: {sentiment_report}
-Latest World Affairs Report: {news_report}
-Company Fundamentals Report: {fundamentals_report}
-Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the neutral analyst: {current_neutral_response}."""
+        system_prompt = apply_fragment(
+            CONSERVATIVE_RISK_SYSTEM_PROMPT + get_language_instruction(),
+            persona,
+        )
+        user_prompt = build_conservative_risk_user_prompt(state)
 
         messages = [
             {"role": "system", "content": system_prompt},

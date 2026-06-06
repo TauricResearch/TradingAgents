@@ -52,6 +52,8 @@ class AgentState(MessagesState):
 
     # research step
     market_report: Annotated[str, "Report from the Market Analyst"]
+    market_snapshot_text: Annotated[str, "Freshness-aware market snapshot captured before graph execution"]
+    market_snapshot_error: Annotated[str, "Market snapshot fetch error captured before graph execution"]
     sentiment_report: Annotated[str, "Report from the Sentiment Analyst"]
     news_report: Annotated[
         str, "Report from the News Researcher of current world affairs"
@@ -73,3 +75,4 @@ class AgentState(MessagesState):
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]
+    prior_analysis_pack_context: Annotated[str, "Reusable prior analysis pack context for directed follow-up runs"]

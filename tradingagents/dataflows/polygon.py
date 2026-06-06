@@ -17,11 +17,20 @@ for reference shapes) before flipping the default category vendor.
 """
 
 import os
+from datetime import datetime
 from typing import Any, Dict
 
+import pandas as pd
 import requests
+from dateutil.relativedelta import relativedelta
 
 from .errors import DataVendorError
+from .market_snapshot import (
+    bars_from_frame,
+    format_market_snapshot,
+    normalize_ohlcv_frame,
+    snapshot_from_bars,
+)
 
 _BASE = "https://api.polygon.io"
 
@@ -43,18 +52,57 @@ def _get(path: str, **params: Any) -> Dict[str, Any]:
         raise DataVendorError(f"Polygon request failed: {e}") from e
 
 
-def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
-    """OHLCV bars via /v2/aggs/ticker/{symbol}/range/1/day/{start}/{end}.
-
-    TODO: format `data["results"]` into the same Markdown table shape as
-    ``get_YFin_data_online`` so downstream callers don't need to branch."""
-    _get(
-        f"/v2/aggs/ticker/{symbol}/range/1/day/{start_date}/{end_date}",
+def _aggs_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    data = _get(
+        f"/v2/aggs/ticker/{symbol.upper()}/range/1/day/{start_date}/{end_date}",
         adjusted="true",
         sort="asc",
         limit=5000,
     )
-    raise DataVendorError("polygon.get_stock_data: response formatter not implemented yet")
+    rows = []
+    for item in data.get("results", []):
+        rows.append(
+            {
+                "timestamp": pd.to_datetime(item["t"], unit="ms", utc=True),
+                "open": item.get("o"),
+                "high": item.get("h"),
+                "low": item.get("l"),
+                "close": item.get("c"),
+                "volume": item.get("v"),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def fetch_ohlcv_frame(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    return normalize_ohlcv_frame(_aggs_frame(symbol, start_date, end_date), source="polygon")
+
+
+def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
+    """OHLCV bars via /v2/aggs/ticker/{symbol}/range/1/day/{start}/{end}."""
+    df = _aggs_frame(symbol, start_date, end_date)
+    clean = pd.DataFrame([bar.__dict__ for bar in bars_from_frame(df, source="polygon")])
+    header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
+    header += f"# Total records: {len(clean)}\n\n"
+    return header + clean.to_csv(index=False)
+
+
+def get_market_snapshot(
+    ticker: str,
+    curr_date: str,
+    lookback_days: int = 10,
+    stale_after_seconds: int = 900,
+) -> str:
+    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    start_date = (curr_dt - relativedelta(days=lookback_days)).strftime("%Y-%m-%d")
+    snapshot = snapshot_from_bars(
+        ticker=ticker,
+        requested_date=curr_date,
+        source="polygon",
+        bars=bars_from_frame(_aggs_frame(ticker, start_date, curr_date), source="polygon"),
+        stale_after_seconds=stale_after_seconds,
+    )
+    return format_market_snapshot(snapshot)
 
 
 def get_options_chain(symbol: str, expiration: str = "") -> str:

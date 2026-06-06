@@ -29,7 +29,10 @@ def _build_secretary(config: dict):
 
 def action_handler_run() -> None:
     """Loop calling action_handler.tick() at the configured interval."""
-    from tradingagents.orchestrator.action_handler import tick
+    from tradingagents.orchestrator.action_handler import (
+        dispatch_backtest_from_brief,
+        tick,
+    )
 
     config = _dc.DEFAULT_CONFIG
     interval = config["action_handler"]["tick_interval_seconds"]
@@ -42,24 +45,12 @@ def action_handler_run() -> None:
     secretary = _build_secretary(config)
 
     def _dispatch_backtest(brief_id: str, params: dict) -> int:
-        # F2 brief-scoped mode hookup. If F2 hasn't shipped yet, insert a
-        # placeholder backtests row so the action-handler seam works end-to-end.
-        try:
-            from tradingagents.backtest.harness import BacktestHarness  # type: ignore
-            harness = BacktestHarness(conn=conn, data_dir=config["iic_data_dir"])
-            return harness.run_brief_scoped(brief_id=brief_id)
-        except ImportError:
-            import json as _j
-            cur = conn.execute(
-                "INSERT INTO backtests (triggered_by_brief_id, universe, start_date, "
-                "end_date, status, created_ts) VALUES (?, ?, ?, ?, 'stub_pending_f2', "
-                "datetime('now'))",
-                (brief_id, _j.dumps([]), "stub", "stub"),
-            )
-            conn.commit()
-            log.warning("F2 backtest harness not available; inserted stub row id=%s",
-                        cur.lastrowid)
-            return cur.lastrowid
+        return dispatch_backtest_from_brief(
+            conn,
+            brief_id=brief_id,
+            params=params,
+            config=config,
+        )
 
     try:
         while True:

@@ -54,6 +54,8 @@ class Propagator:
                 }
             ),
             "market_report": "",
+            "market_snapshot_text": "",
+            "market_snapshot_error": "",
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",

@@ -203,7 +203,7 @@ def compose_morning_digest(self, *, watchlist: list[str] | None, ts: str) -> str
     If watchlist is None, fetch rows from `watchlist` table where
     `ttl_until IS NULL OR ttl_until > datetime('now')`.
     For each ticker:
-      1. Launch enabled personas in parallel via _run_personas_parallel (existing helper)
+      1. Run the default balanced TradingAgents graph
       2. Synthesize per-ticker consensus/divergence/recommendation
     Then synthesize an across-ticker top-of-digest summary.
     Write one briefs row: mode='morning_digest', scope=<json list>, run_ids=<all runs>.
@@ -213,7 +213,9 @@ def compose_morning_digest(self, *, watchlist: list[str] | None, ts: str) -> str
 
 **Three load-bearing details:**
 
-- Per-ticker personas run in parallel; across-ticker is serial. For 20 tickers × 3 personas at 3-wide concurrency, wall-clock ≈ 20× a single deep-dive (~25–40 min). Acceptable for a 07:00 trigger; documented in the runbook.
+- Per-ticker default studies use one balanced graph; across-ticker is serial.
+  Committee mode is explicit and should be reserved for comparison or
+  disagreement analysis.
 - Token cost dominates: ~$0.50–$2.00 per morning (deep_think_llm tier, 20 tickers). 3 mornings in the soak = real data for cost-guard calibration.
 - Per-ticker failures (graph crash, persona error) are caught and written as a "data error" line in that ticker's section. **The digest always completes** — failure threshold of 50%+ tickers is still left as an Open Question (§16) for post-soak tuning.
 
@@ -223,8 +225,8 @@ def compose_morning_digest(self, *, watchlist: list[str] | None, ts: str) -> str
 def compose_refinement(self, *, parent_brief_id: str, overrides: dict, reply_text: str) -> str:
     """
     1. Load parent brief; raise RefinementDepthExceeded if parent.refine_depth >= 3.
-    2. Apply overrides on top of parent's persona configs (transient, in-memory only).
-    3. Launch _run_personas_parallel with override-applied personas.
+    2. Load the parent's Analysis Pack when present.
+    3. Launch a focused default run, or explicit committee mode if requested.
     4. Synthesize a refined brief: mode='deep_dive' (regardless of parent mode),
        parent_brief_id=<parent>, refine_depth=<parent.depth + 1>,
        refine_overrides=<json>.
@@ -573,6 +575,11 @@ Plus the four F4 guards remain unchanged (`QueueBackpressure`, `QueueRateGuard`,
 
 ## 13 · Exit gate and evidence approach
 
+Update 2026-06-03: the approval model now spans F4 and F5, so the primary
+approval-through-delivery evaluator is `scripts/f4_f5_exit_gate.py`. The
+original `scripts/f5_exit_gate.py` remains useful for F5 soak checks, but it is
+no longer sufficient by itself to judge the event-alert approval flow.
+
 Single contiguous **72-hour soak** against live F3 OSINT. Operator interacts during the window to drive action-related checks.
 
 ### Gate criteria (all must hold)
@@ -580,27 +587,40 @@ Single contiguous **72-hour soak** against live F3 OSINT. Operator interacts dur
 | # | Check | How verified |
 |---|-------|--------------|
 | G1 | At least one morning_digest brief delivered per scheduled morning | `briefs` × `deliveries` for `mode='morning_digest' AND status='sent'`, count ≥ 3 |
-| G2 | At least one event_alert brief delivered | `briefs` × `deliveries` for `mode='event_alert' AND status='sent'`, count ≥ 1 |
+| G2 | At least one light or full event alert delivered | `briefs` × `deliveries` for `mode IN ('event_alert_light', 'event_alert') AND status='sent'`, count ≥ 1 |
 | G3 | At least one deep_dive brief delivered | Operator runs `forge deepdive <ticker>` at least once during the window |
-| G4 | At least one structured backtest prompt accepted → backtest completes | `brief_actions` row with `action_type='run_backtest' AND state='accepted' AND result_backtest_id IS NOT NULL` |
+| G4 | At least one structured backtest prompt accepted → F2 brief-scoped backtest completes | `brief_actions` row with `action_type='run_backtest' AND state='accepted' AND result_backtest_id IS NOT NULL`; backtests are valid only on full `event_alert` briefs with persisted run IDs |
 | G5 | At least one prompt left to expire → no work done | `brief_actions` row with `state='expired' AND result_backtest_id IS NULL AND result_brief_id IS NULL` |
 | G6 | At least one free-text refinement → threaded refined brief | `briefs` row with `parent_brief_id IS NOT NULL AND refine_overrides IS NOT NULL` |
 | G7 | No process crashes | `systemctl status` clean on all 4 new units (plus F4's 2 + F3's adapters); `journalctl --since=<soak_start>` shows no `Restart=on-failure` entries |
 | G8 | Token/cost telemetry visible | Dashboard cost chart shows ≥ 3 days of data; total spend recorded in `costs` |
 | G9 | Cost guards remain off | Evaluator imports `DEFAULT_CONFIG` (which already applies env-var overrides) and asserts every guard's `enabled` key is `False` |
 
-### `scripts/f5_exit_gate.py`
+### `scripts/f5_exit_gate.py` and the combined gate
 
 Runs all nine checks and produces `data/exit_gates/f5-<date>.md` (parallel to F4's evaluator output). Pre-flight checklist + runbook structure mirror `ops/runbooks/f4-exit-gate.md`.
 
+For the approval-through-delivery flow, run:
+
+```bash
+python scripts/f4_f5_exit_gate.py --since 2026-06-03T09:00:00Z --window-hours 12
+```
+
+The combined gate reports light-alert latency, strict alert evaluation
+pass/reject counts, light/full delivery audit counts, accepted approval
+lineage, worker errors, cost/cache summary, and operator false-positive sample
+sign-off.
+
 ### Cost outlook for the gate
 
-- 3 mornings × 20 tickers × 3 personas × ~$0.04/run ≈ **$7.20**
-- ~20 event alerts × 3 personas × ~$0.04/run ≈ **$2.40**
+- 3 mornings × 20 tickers × one balanced graph × ~$0.04/run ≈ **$2.40**
+- ~20 light alerts × one quick summary call ≈ **low dollars or cents, provider-dependent**
+- Approved full event studies × one balanced graph × ~$0.04/run each
 - 1 deep-dive + 1 refinement (chain depth 1) ≈ **$0.30**
 - 1 backtest brief-scoped over 30-day window ≈ **$0.50**
 - F3 ingestion + salience continues at ~$0.05/day × 3 = **$0.15**
-- **Total estimate: ~$10.55 for the full gate.**
+- **Total estimate is now approval-rate dependent**; the combined gate reports
+  actual cost/cache totals from `costs`.
 
 Well inside the cost-guards-off envelope. Provides real cost-shape data for guard calibration at end of F5.
 
@@ -627,7 +647,7 @@ F5 additions to the program risk register:
 | R-F5-4 | SMTP auth/quota failures during soak — Gmail blocks the IP or revokes the app password | Low-Med | Failure recorded as `deliveries.status='failed'`; dashboard surfaces it; soak does not crash. Pre-flight sends a test email |
 | R-F5-5 | `brief_actions` race on accept — user clicks the inline button while the action-handler is mid-sweep | Low | Action-handler uses `UPDATE … WHERE state='accepted' AND result_*_id IS NULL` — idempotent. Double-click is harmless |
 | R-F5-6 | Streamlit dashboard mutates state via the action_form — only mutation surface in an otherwise read-only dashboard | Low | Form writes a single `brief_actions` row with explicit `state='accepted'`; CSRF not a concern at 127.0.0.1; documented in runbook |
-| R-F5-7 | Morning digest tail latency — 20 tickers × 3 personas serial-across-tickers is ~25–40 min wall-clock | Med | Acceptable for a 07:00 trigger (digest arrives by ~07:40); documented in runbook; tail latency on dashboard alerts if it exceeds 60 min |
+| R-F5-7 | Morning digest tail latency — 20 tickers still run serially across tickers | Med | Default balanced graph keeps cost lower than committee mode; documented in runbook; tail latency on dashboard alerts if it exceeds 60 min |
 | R-F5-8 | Quiet-hours bug suppresses morning digest — wrong predicate flags the digest as quiet | Med | Quiet-hours check gated to `mode='event_alert'` only — boundary test asserts morning + deep-dive bypass |
 
 ## 15 · Out of scope

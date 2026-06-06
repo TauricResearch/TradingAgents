@@ -140,3 +140,44 @@ def test_exit_gate_fails_when_no_refinement(tmp_path, monkeypatch):
         report = evaluate(since="2026-05-25T00:00:00+00:00")
     assert report["pass"] is False
     assert report["checks"]["G6"]["pass"] is False
+
+
+@pytest.mark.unit
+def test_event_alert_check_counts_light_alert_deliveries(tmp_path):
+    from scripts.f5_exit_gate import _g2_event_alerts
+
+    conn = iic_connect(str(tmp_path / "iic.db"))
+    store.insert_event(
+        conn,
+        event_id="ev-light",
+        source="rss",
+        ingested_ts="2026-05-26T13:59:00+00:00",
+        salience=0.9,
+        raw_path=None,
+        status="triaged",
+        deduped_of=None,
+    )
+    store.insert_brief(
+        conn,
+        brief_id="light1",
+        mode="event_alert_light",
+        scope='["AAPL"]',
+        generated_ts="2026-05-26T14:00:00+00:00",
+        content_path="briefs/light1.md",
+        run_ids=[],
+        trigger_event_id="ev-light",
+    )
+    store.insert_delivery(
+        conn,
+        brief_id="light1",
+        channel="telegram",
+        status="sent",
+        sent_ts="2026-05-26T14:00:01+00:00",
+        channel_ref="12345:1",
+        skip_reason=None,
+    )
+
+    ok, detail = _g2_event_alerts(conn, "2026-05-25T00:00:00+00:00")
+
+    assert ok is True
+    assert "1 event_alert/event_alert_light" in detail

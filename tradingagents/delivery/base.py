@@ -2,7 +2,7 @@
 
 Every channel inherits from DeliveryChannel and implements ``_send_impl``.
 The base ``send()`` handles:
-  - quiet-hours gating (event_alert only)
+  - quiet-hours gating (event_alert and event_alert_light)
   - writing the deliveries row on success / failure / skip
   - returning the delivery_id
 
@@ -26,6 +26,9 @@ class DeliveryError(Exception):
     """Raised by a channel's ``_send_impl`` for a non-transient send failure
     (e.g. missing configuration). Caught by ``send()`` and recorded as a
     'failed' delivery row, so it never crashes the delivery loop."""
+
+
+_QUIET_HOUR_MODES = {"event_alert", "event_alert_light"}
 
 
 def _utc_now_iso() -> str:
@@ -52,7 +55,7 @@ class DeliveryChannel(ABC):
         """Return (channel_ref, error_msg). Raise on failure."""
 
     def send(self, *, brief: Dict[str, Any], mode: str, body: str) -> int:
-        if mode == "event_alert" and is_quiet_hours(
+        if mode in _QUIET_HOUR_MODES and is_quiet_hours(
             local_time=_local_now(),
             config=self._config["delivery"]["quiet_hours"],
         ):

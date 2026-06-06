@@ -1,11 +1,10 @@
 """F1 exit-gate smoke test.
 
-Runs the real deepdive on AAPL with all three personas. Requires
-DEEPSEEK_API_KEY in the environment. Marked ``integration`` so it does
-not run in the default test loop.
+Runs the real default deepdive on AAPL. Requires DEEPSEEK_API_KEY in the
+environment. Marked ``integration`` so it does not run in the default test loop.
 
 Verifies the four exit-gate clauses from §7 F1 of the program design:
-1. Three persona runs launched.
+1. One balanced default run launched.
 2. Per-analyst markdown is written to data/runs/<run_id>/.
 3. Both ``runs`` and ``briefs`` rows are recorded in SQLite.
 4. The produced brief contains the three structured sections.
@@ -38,21 +37,32 @@ def test_f1_exit_gate_deepdive_aapl(tmp_path):
     trade_date = (date.today() - timedelta(days=30)).isoformat()
 
     from cli.deepdive import run_deepdive
-    brief_id = run_deepdive(
-        ticker="AAPL",
-        trade_date=trade_date,
-        parallel=True,
-        config_overrides={"iic_db_path": db_path, "iic_data_dir": data_dir},
-    )
+    try:
+        brief_id = run_deepdive(
+            ticker="AAPL",
+            trade_date=trade_date,
+            parallel=True,
+            config_overrides={
+                "iic_db_path": db_path,
+                "iic_data_dir": data_dir,
+                "results_dir": str(tmp_path / "results"),
+                "data_cache_dir": str(tmp_path / "cache"),
+                "memory_log_path": str(tmp_path / "memory" / "trading_memory.md"),
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        if exc.__class__.__name__ == "APIConnectionError":
+            pytest.skip(f"LLM provider network unavailable: {exc}")
+        raise
     assert brief_id
 
     conn = connect(db_path)
 
-    # Exit-gate clause 1: three persona runs.
+    # Exit-gate clause 1: one balanced default run.
     runs = list(conn.execute("SELECT persona_id, status, decision FROM runs"))
-    assert len(runs) == 3, f"expected 3 persona runs, got {len(runs)}: {runs}"
+    assert len(runs) == 1, f"expected 1 default run, got {len(runs)}: {runs}"
     persona_ids = {r["persona_id"] for r in runs}
-    assert persona_ids == {"macro", "value", "momentum"}
+    assert persona_ids == {"balanced"}
     assert all(r["status"] == "complete" for r in runs)
 
     # Exit-gate clause 2: per-analyst markdown on disk.

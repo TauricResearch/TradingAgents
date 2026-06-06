@@ -4,7 +4,7 @@
 |---|---|
 | **Phase** | F4 rework (event-alert trigger loop) |
 | **Date** | 2026-06-01 |
-| **Status** | Approved (brainstorm) — pending implementation plan |
+| **Status** | Implemented; updated by [2026-06-03 F4/F5 persona-cost redesign](2026-06-03-iic-forge-f4-f5-persona-cost-redesign.md) |
 | **Supersedes** | The auto-fire trigger behavior in [IIC-FORGE-07 — F4 Orchestrator Design](2026-05-27-iic-forge-07-f4-orchestrator-design.md) §D5 / §9 SLA |
 | **Branch** | `feat/iic-forge-08-f5` (fork PR #2, `VegarGG/TradingAgents`) |
 
@@ -20,16 +20,16 @@ SLA (`p95 event→brief ≤ 15 min`) fails on throughput, not correctness.
 
 The **intended** product behavior (confirmed with the operator) is different:
 an event that passes triage should produce a **light alert** (cheap, fast)
-that asks the user whether to commission a full study. The heavy 3-team study
-runs **only after the user approves**, and only for the ticker(s) the user
-picks. This both matches the design intent and structurally dissolves the
-throughput problem — studies now fire at the user's approval rate, not the
-event arrival rate.
+that asks the user whether to commission a full study. The heavy default study
+is one balanced TradingAgents graph and runs **only after the user approves**,
+and only for the ticker(s) the user picks. This both matches the design intent
+and structurally dissolves the throughput problem — studies now fire at the
+user's approval rate, not the event arrival rate.
 
-This rework was **never built** and is **not** in the F4/F5 specs as written;
-F5 instead built a *post-hoc* "ask for more" model (`brief_actions`:
-`run_backtest`, `refine_brief`) that operates on an already-produced brief.
-This design adds the *pre-study* approval gate and reuses that F5 machinery.
+This design added the *pre-study* approval gate and reused the F5
+`brief_actions` machinery. The 2026-06-03 redesign then tightened the default
+study path to one enriched `balanced` TradingAgents graph, with committee mode
+kept explicit and opt-in.
 
 ## 2 · Scope
 
@@ -48,17 +48,16 @@ This design adds the *pre-study* approval gate and reuses that F5 machinery.
 - **Combined F4+F5 exit gate.** Because approval fuses the F4 trigger loop and
   the F5 delivery/follow-up path into one end-to-end flow (event → light alert
   delivered via F5 → user approves via Telegram/CLI → worker studies → F5
-  delivers the full brief), F4 can no longer be exit-gated in isolation. The
-  separate `scripts/f4_exit_gate.py` and `scripts/f5_exit_gate.py` should be
-  **rewritten as one combined F4+F5 gate** once F5 delivery is wired in. This
-  design updates the F4 evaluator for the new model now and flags the merge.
+  delivers the full brief), use `scripts/f4_f5_exit_gate.py` for the combined
+  approval-through-delivery gate.
 
 ## 3 · Architecture
 
 The rework inserts a human-approval gate between *detecting* an event and
-*studying* it. The expensive 3-team study path is **unchanged**; only what
-*triggers* it changes — the enqueue of the `event_alert` `queue_jobs` row moves
-from "automatic, in the promoter" to "after approval, in the action-handler."
+*studying* it. The expensive study path is now one enriched `balanced`
+TradingAgents graph by default; committee mode is explicit. The enqueue of the
+`event_alert` `queue_jobs` row moves from "automatic, in the promoter" to
+"after approval, in the action-handler."
 
 ```
 EVENT (triaged, watchlist-bound, high-confidence)
@@ -79,7 +78,7 @@ EVENT (triaged, watchlist-bound, high-confidence)
   accepted run_full_study(ticker=T) → enqueue queue_jobs(job_type='event_alert', ticker=T)
       │                                  ↑ the EXISTING heavy job, unchanged
       ▼  worker (UNCHANGED)
-  compose_event_alert(event, T) → 3 persona teams → synthesis → FULL brief
+  compose_event_alert(event, T) → balanced TradingAgents graph → synthesis → FULL brief
       │   full brief linked to the light brief via parent_brief_id;
       │   action.result_brief_id set to the full brief id
       ▼  F5 delivery (unchanged) + F5 follow-up (run_backtest / refine_brief) apply to the FULL brief
@@ -95,7 +94,7 @@ EVENT (triaged, watchlist-bound, high-confidence)
 | `delivery/telegram*.py` | Per-ticker buttons; callback protocol gains the ticker in field 4. |
 | `orchestrator/action_handler.py` | One new branch: accepted `run_full_study` → enqueue existing `event_alert` job. |
 | `cli/forge.py` | New `forge alert list / approve / dismiss` sub-app. |
-| `worker.py`, `secretary.compose_event_alert`, `synthesis.py` | **Unchanged.** |
+| `worker.py`, `secretary.compose_event_alert`, `synthesis.py` | Full study runs the balanced graph by default and persists an Analysis Pack for reuse. |
 | F5 `run_backtest` / `refine_brief` | **Unchanged** — operate on the full brief as today. |
 | `ops/systemd/iic-morning.timer` | 07:00 → 06:00. Digest behavior otherwise unchanged. |
 
@@ -243,12 +242,12 @@ light brief + pending actions within budget → `forge alert approve` → heavy
 `refine_brief` still attach to and operate on the resulting *full* brief,
 proving `run_full_study` coexists rather than conflicts.
 
-**Gate evaluator:** `scripts/f4_exit_gate.py` rewritten per §6.
+**Gate evaluator:** `scripts/f4_exit_gate.py` checks F4-specific latency; use
+`scripts/f4_f5_exit_gate.py` for the combined approval-through-delivery gate.
 
 ## 8 · Open questions / future
 
-- **Combined F4+F5 exit gate** (see §2) — rewrite both gates as one once F5
-  delivery is wired into the approval flow.
+- **Combined F4+F5 exit gate** — implemented as `scripts/f4_f5_exit_gate.py`.
 - **Morning digest** light-then-approve conversion — deferred.
 - **Per-event vs per-ticker dedup** — V1 is per-ticker-per-day; revisit if the
   operator wants distinct same-day events for a ticker to re-alert.

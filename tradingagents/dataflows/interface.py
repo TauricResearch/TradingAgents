@@ -9,6 +9,11 @@ from .y_finance import (
     get_cashflow as get_yfinance_cashflow,
     get_income_statement as get_yfinance_income_statement,
     get_insider_transactions as get_yfinance_insider_transactions,
+    get_market_snapshot as get_yfinance_market_snapshot,
+)
+from .akshare import (
+    get_stock_data as get_akshare_stock,
+    get_market_snapshot as get_akshare_market_snapshot,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
 from .yfinance_options import (
@@ -20,11 +25,14 @@ from .polygon import (
     get_options_chain as get_polygon_options_chain,
     get_options_overview as get_polygon_options_overview,
     get_news as get_polygon_news,
+    get_market_snapshot as get_polygon_market_snapshot,
 )
 from .futu import (
     get_stock_data as get_futu_stock,
     get_options_chain as get_futu_options_chain,
+    get_market_snapshot as get_futu_market_snapshot,
 )
+from .market_fusion import get_market_snapshot as get_fused_market_snapshot
 from .telegram_osint import get_telegram_signals as get_telegram_signals_impl
 from .x_osint import get_x_signals as get_x_signals_impl
 from .alpha_vantage import (
@@ -50,6 +58,12 @@ TOOLS_CATEGORIES = {
         "description": "OHLCV stock price data",
         "tools": [
             "get_stock_data"
+        ]
+    },
+    "market_snapshot": {
+        "description": "Freshness-aware numerical market snapshot",
+        "tools": [
+            "get_market_snapshot"
         ]
     },
     "technical_indicators": {
@@ -93,6 +107,7 @@ TOOLS_CATEGORIES = {
 
 VENDOR_LIST = [
     "yfinance",
+    "akshare",
     "alpha_vantage",
     "polygon",
     "futu",
@@ -104,8 +119,15 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "akshare": get_akshare_stock,
         "polygon": get_polygon_stock,
         "futu": get_futu_stock,
+    },
+    "get_market_snapshot": {
+        "yfinance": get_yfinance_market_snapshot,
+        "akshare": get_akshare_market_snapshot,
+        "futu": get_futu_market_snapshot,
+        "polygon": get_polygon_market_snapshot,
     },
     # technical_indicators
     "get_indicators": {
@@ -188,6 +210,10 @@ def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
+    if method == "get_market_snapshot":
+        providers = [v.strip() for v in vendor_config.split(",") if v.strip()]
+        return get_fused_market_snapshot(*args, providers=providers, **kwargs)
+
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:
