@@ -2,6 +2,8 @@
 from __future__ import annotations
 from typing import Iterable
 
+import pandas as pd
+
 
 class _FakeSeries:
     def __init__(self, prices: list[float]):
@@ -51,3 +53,46 @@ def make_fake_download(by_ticker: dict[str, list[float]]):
             return _FakeDf({tickers: by_ticker.get(tickers, [])})
         return _FakeDf({t: by_ticker.get(t, []) for t in tickers})
     return _download
+
+
+def make_fake_ticker_with_history(df: pd.DataFrame) -> type:
+    """Return a stand-in for ``yf.Ticker`` whose ``.history()`` returns ``df``.
+
+    The class records every ``.history`` call on ``.calls`` so cache-hit
+    assertions can count yfinance invocations.
+    """
+
+    class _FakeTicker:
+        calls = 0
+
+        def history(self, **kwargs):
+            type(self).calls += 1
+            return df
+
+    return _FakeTicker
+
+
+def make_history_df(
+    start,  # datetime (stringified to keep this file stdlib-friendly)
+    n: int,
+    *,
+    base: float = 100.0,
+    step: float = 0.5,
+    freq: str = "1h",
+) -> pd.DataFrame:
+    """Build a deterministic OHLCV DataFrame starting at ``start`` with ``n`` rows.
+
+    Columns: Open, High, Low, Close, Volume. Index: tz-aware UTC
+    ``DatetimeIndex`` with the given ``freq``.
+    """
+    idx = pd.date_range(start=start, periods=n, freq=freq, tz="UTC")
+    return pd.DataFrame(
+        {
+            "Open":  [base + i * step for i in range(n)],
+            "High":  [base + i * step + 0.1 for i in range(n)],
+            "Low":   [base + i * step - 0.1 for i in range(n)],
+            "Close": [base + i * step for i in range(n)],
+            "Volume": [1000.0 for _ in range(n)],
+        },
+        index=idx,
+    )
