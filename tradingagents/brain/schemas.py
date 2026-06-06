@@ -39,6 +39,10 @@ class PMDecision(BaseModel):
         default=False,
         description="True if a material doubt remains and the desks should be re-queried.",
     )
+    next_check_days: int = Field(
+        default=5,
+        description="In how many days to re-evaluate this ticker (Dynamic Temporal Checkpoint).",
+    )
     rationale: str = Field(default="", description="Why this decision.")
 
 

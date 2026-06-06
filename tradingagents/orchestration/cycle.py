@@ -24,6 +24,7 @@ from ..execution import (
     persist_trade,
     submit_trade,
 )
+from ..storage import repository as repo
 from ..storage.models import Trade
 from .analyze import Analyzer
 from .triggers import TriggerEvent, collect_triggers
@@ -63,6 +64,19 @@ def run_cycle(
         if state is None:
             continue
         report.analyzed += 1
+
+        # The deep-dive updates the persistent ticker card (B/C): latest call +
+        # the Dynamic Temporal Checkpoint, so the trigger engine can re-wake it.
+        repo.upsert_ticker_card(
+            session, ev.symbol,
+            latest_direction=state.direction.value if state.direction else None,
+            latest_conviction=state.conviction_level.value if state.conviction_level else None,
+            next_check_date=state.next_check_date,
+            latest_summary={
+                "pro": state.pro, "contro": state.contro,
+                "risk_verdict": state.risk.verdict.value if state.risk.verdict else None,
+            },
+        )
 
         if not can_trade(state):
             report.skipped_not_tradable += 1

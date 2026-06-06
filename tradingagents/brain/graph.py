@@ -13,6 +13,7 @@ lives in ``execution``). Everything here matches ``system/agents.md`` +
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Any, Optional, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -86,6 +87,7 @@ def build_brain_graph(
         rs.conviction_level = pm.conviction
         rs.pro = pm.pro
         rs.contro = pm.contro
+        rs.next_check_date = date.today() + timedelta(days=max(1, pm.next_check_days))
         snap_atr = atr_from_db(session, symbol)
         last_close = indicator_snapshot(session, symbol).get("last_close")
         rs.current_price = last_close
@@ -109,13 +111,17 @@ def build_brain_graph(
             rs.risk.rationale = "No actionable position; nothing to gate."
             return {"research_state": rs}
 
-        portfolio_value = inject_portfolio_state(session).get("total_value", 0.0)
+        portfolio = inject_portfolio_state(session)
+        portfolio_value = portfolio.get("total_value", 0.0)
         stop_distance = abs(rs.levels.entry_price - rs.levels.stop_loss)
         sizing = position_size(
             portfolio_value, rs.levels.entry_price, stop_distance, rs.direction,
             base_risk_pct=base_risk_pct,
         )
-        guardrails = check_guardrails(levels=rs.levels, sizing=sizing, charter=charter)
+        guardrails = check_guardrails(
+            levels=rs.levels, sizing=sizing, charter=charter, portfolio=portfolio,
+            side="buy" if rs.direction.is_long else "sell",
+        )
         rs.risk.guardrail_checks = guardrails
 
         sealed = rs.seal()

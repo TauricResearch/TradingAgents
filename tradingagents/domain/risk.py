@@ -162,12 +162,16 @@ def check_guardrails(
     levels: Levels,
     sizing: SizingResult,
     charter: Optional[dict[str, Any]] = None,
+    portfolio: Optional[dict[str, Any]] = None,
+    side: str = "buy",
 ) -> dict[str, Any]:
-    """Run the numeric guardrails. Returns a dict of per-check results + all_ok.
+    """Run the numeric Statute guardrails. Returns per-check results + all_ok.
 
     Thresholds come from the parametric Statute (``charter`` table); sensible
-    defaults are used when a key is absent. VaR and sector caps need portfolio
-    context and are left as follow-ups.
+    defaults are used when a key is absent. When a ``portfolio`` snapshot is
+    given, the 10% cash-reserve rule is enforced too (a buy must not eat into
+    the strategic reserve). VaR and sector/geography caps need richer position
+    data and are left as follow-ups.
     """
     charter = charter or {}
     min_rr = charter.get("min_risk_reward", 1.5)
@@ -186,5 +190,19 @@ def check_guardrails(
             "threshold": max_pos,
         },
     }
+
+    if portfolio is not None:
+        reserve_pct = charter.get("cash_reserve_pct", 0.10)
+        cash = float(portfolio.get("cash", 0.0))
+        total = float(portfolio.get("total_value", 0.0))
+        # Only a buy consumes cash; a sell frees it.
+        projected_cash = cash - (sizing.position_value if side == "buy" else 0.0)
+        min_cash = reserve_pct * total
+        checks["cash_reserve"] = {
+            "ok": total <= 0 or projected_cash + _EPS >= min_cash,
+            "projected_cash": projected_cash,
+            "min_cash": min_cash,
+        }
+
     checks["all_ok"] = all(c["ok"] for c in checks.values() if isinstance(c, dict))
     return checks

@@ -99,3 +99,19 @@ def test_check_guardrails_pass_and_fail():
     checks2 = check_guardrails(levels=bad_lv, sizing=good, charter={"min_risk_reward": 1.5})
     assert not checks2["risk_reward"]["ok"]
     assert not checks2["all_ok"]
+
+
+def test_cash_reserve_guardrail():
+    lv = atr_levels(100.0, 2.0, Direction.BUY, k_entry=0.5, k_stop=2, k_tp=3)
+    sizing = position_size(100_000, 100.0, 20.0, Direction.BUY, max_position_pct=0.50)
+    # Buy that would leave less than the 10% reserve -> fails
+    tight = check_guardrails(
+        levels=lv, sizing=sizing, portfolio={"cash": 12_000, "total_value": 100_000},
+    )
+    # position_value = 5000 ; projected cash 7000 < 10000 -> not ok
+    assert tight["cash_reserve"]["ok"] is False
+    # Same buy with ample cash -> ok
+    ample = check_guardrails(
+        levels=lv, sizing=sizing, portfolio={"cash": 50_000, "total_value": 100_000},
+    )
+    assert ample["cash_reserve"]["ok"] is True

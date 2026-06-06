@@ -109,3 +109,9 @@ def test_brain_analyzer_in_cycle_executes(db):
         assert report.traded == 1
         assert report.trades[0].status == "filled"
         assert report.trades[0].symbol == "AAPL"
+
+    # the deep-dive wrote the ticker card: latest call + next_check_date (DTC)
+    with database.get_session() as s:
+        card = repo.get_ticker_card(s, "AAPL")
+        assert card.latest_direction == "buy"
+        assert card.next_check_date is not None
