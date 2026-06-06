@@ -13,6 +13,9 @@ from typing import Optional
 
 import yfinance as yf
 
+from web.server import queries
+from web.server import storage as _storage
+
 
 log = logging.getLogger(__name__)
 
@@ -165,3 +168,60 @@ def _df_to_bars(df) -> list[dict]:
             df["Low"].tolist(), df["Close"].tolist(), volumes,
         )
     ]
+
+
+def get_history(ticker: str, preset: str) -> tuple[int, object]:
+    """Orchestrator: resolve the range, fetch bars, and load runs.
+
+    Returns ``(status_code, body)`` where ``body`` is either an error
+    envelope ``{"error": str, "detail": str}`` (status 404/422/502) or
+    the success body from the spec's API section.
+
+    Does not raise — converts yfinance failures and bad input into
+    structured responses so the FastAPI layer can forward them.
+    """
+    safe = ticker.upper()
+
+    # 1. Load runs. A ticker with zero completed runs → 404.
+    rows = _storage.list_ticker_runs(safe, limit=500)
+    if not rows:
+        return 404, {"error": "no_runs", "detail": f"{safe} has no completed runs"}
+
+    # 2. Resolve the range. Unknown preset → 422.
+    earliest = None
+    for r in rows:
+        s = r.get("started_at")
+        if not s:
+            continue
+        try:
+            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if earliest is None or dt < earliest:
+            earliest = dt
+    try:
+        start, end, interval = resolve_range(preset, earliest_started_at=earliest)
+    except ValueError as exc:
+        return 422, {"error": "invalid_range", "detail": str(exc)}
+
+    # 3. Fetch bars. yfinance failures → 502.
+    try:
+        bars = fetch_history_bars(safe, start=start, end=end, interval=interval)
+    except Exception as exc:  # noqa: BLE001 — yfinance raises a zoo of types
+        log.warning("yfinance failed for %s: %s", safe, exc)
+        return 502, {"error": "yfinance_failed", "detail": str(exc)}
+
+    # 4. Shape runs for the response. Use the existing helper so the
+    #    shape matches GET /api/runs/{id} (events, llm_calls, stages).
+    runs_out = [queries.run_to_dict(r) for r in rows]
+
+    body = {
+        "ticker": safe,
+        "range": preset,
+        "range_start": start.isoformat().replace("+00:00", "Z"),
+        "range_end": end.isoformat().replace("+00:00", "Z"),
+        "resolution": interval,
+        "bars": bars,
+        "runs": runs_out,
+    }
+    return 200, body
