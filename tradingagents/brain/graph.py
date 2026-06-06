@@ -198,6 +198,13 @@ def analyze_symbol(
     extractors: Optional[Extractors] = None,
 ) -> ResearchState:
     """Run the brain for one ticker and return the (possibly approved) thesis."""
+    # New analysis (empty data) -> warm start: pre-run the extractors so the
+    # agents' first injected context is already populated. Tool calling on top
+    # still happens during the analysis.
+    if extractors is not None:
+        from .warmup import warm_start
+        warm_start(session, symbol, extractors)
+
     graph = build_brain_graph(
         session, llm, max_revisions=max_revisions, charter=charter,
         base_risk_pct=base_risk_pct, extractors=extractors,

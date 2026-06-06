@@ -110,6 +110,29 @@ def test_agents_call_tools_autonomously_and_write_through(db):
         assert rt is not None and rt.close == 150.0
 
 
+def test_warm_start_prefetches_on_empty_state(db):
+    """Empty state -> extractors pre-run automatically (no agent tool call)."""
+    from tradingagents.brain import analyze_symbol
+    from tradingagents.brain.tooling import Extractors
+    from tradingagents.storage import repository as repo
+
+    class _NewsF:
+        def fetch(self, symbol):
+            return [{"ts": datetime(2026, 6, 1, tzinfo=timezone.utc),
+                     "headline": "AAPL big news", "url": "u1"}]
+
+    # DB empty; LLM returns canned and calls NO tools.
+    extractors = Extractors(price_fetcher=_FetcherUp(), news_fetcher=_NewsF())
+    with database.get_session() as s:
+        assert repo.latest_price(s, "AAPL") is None
+        analyze_symbol(s, "AAPL", _bullish_llm(), max_revisions=0, extractors=extractors)
+
+    with database.get_session() as s:
+        # warm start ran the extractors without any agent tool call
+        assert repo.latest_price(s, "AAPL") is not None
+        assert repo.recent_news(s, "AAPL")
+
+
 def test_brain_produces_approved_buy_thesis(db):
     _ingest()
     with database.get_session() as s:
