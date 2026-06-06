@@ -41,7 +41,7 @@ def dispatch_event_alert(
 
     brief_id = secretary.compose_event_alert(
         event_id=event_id, ticker=ticker, job_id=job_id,
-        parent_brief_id=parent_brief_id,
+        parent_brief_id=parent_brief_id, deliver=True,
     )
 
     # Pull run_ids back from the brief row (compose_event_alert wrote them).

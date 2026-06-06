@@ -71,6 +71,7 @@ def test_dispatch_uses_payload_parent_brief_and_marks_action_done(tmp_path):
         ticker="NVDA",
         job_id=42,
         parent_brief_id="light1",
+        deliver=True,
     )
     row = conn.execute(
         "SELECT result_brief_id FROM brief_actions WHERE action_id = ?",

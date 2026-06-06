@@ -49,7 +49,8 @@ def test_dispatch_event_alert_calls_secretary_with_payload(setup):
     result = dispatch_event_alert(conn, job, secretary=sec)
 
     sec.compose_event_alert.assert_called_once_with(
-        event_id="ev1", ticker="AAPL", job_id=1, parent_brief_id=None
+        event_id="ev1", ticker="AAPL", job_id=1, parent_brief_id=None,
+        deliver=True,
     )
     assert result["brief_id"] == "b1"
     assert result["run_ids"] == []
@@ -143,3 +144,4 @@ def test_dispatch_event_alert_links_parent_light_brief(tmp_path):
 
     _, kwargs = sec.compose_event_alert.call_args
     assert kwargs["parent_brief_id"] == "lb1"
+    assert kwargs["deliver"] is True

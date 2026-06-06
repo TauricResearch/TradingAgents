@@ -112,6 +112,44 @@ def test_compose_event_alert_writes_brief(setup, monkeypatch):
 
 
 @pytest.mark.unit
+def test_compose_event_alert_delivers_full_brief_when_enabled(setup, monkeypatch):
+    conn, data_dir, job_id = setup
+    monkeypatch.setattr(
+        "tradingagents.secretary.service.run_default_analysis",
+        lambda **kw: ["r1", "r2", "r3"],
+    )
+    monkeypatch.setattr(
+        "tradingagents.secretary.service.synthesize_brief",
+        lambda **kw: {
+            "consensus": "Beat is real.",
+            "divergence": "Macro neutral; value+momentum BUY.",
+            "recommendation": "BUY (high confidence)",
+        },
+    )
+
+    sent = []
+    fake_channel = MagicMock()
+    fake_channel.send.side_effect = lambda **kw: sent.append(kw) or 1
+    monkeypatch.setattr(
+        "tradingagents.secretary.service._build_channel",
+        lambda name, conn, config: fake_channel,
+    )
+
+    sec = Secretary(conn=conn, data_dir=data_dir, llm=MagicMock())
+    brief_id = sec.compose_event_alert(
+        event_id="ev1",
+        ticker="AAPL",
+        job_id=job_id,
+        deliver=True,
+    )
+
+    assert brief_id
+    assert sent
+    assert {call["mode"] for call in sent} == {"event_alert"}
+    assert all(call["brief"]["brief_id"] == brief_id for call in sent)
+
+
+@pytest.mark.unit
 def test_compose_event_alert_returns_brief_id_string(setup, monkeypatch):
     conn, data_dir, job_id = setup
     monkeypatch.setattr(
