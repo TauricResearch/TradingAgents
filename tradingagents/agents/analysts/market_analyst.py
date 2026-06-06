@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
@@ -6,13 +8,69 @@ from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_verified_market_snapshot,
 )
-from tradingagents.dataflows.config import get_config
+from tradingagents.agents.utils.tool_fallback import bind_tools_or_none, safe_tool_text
+
+
+# Default indicator set for the tool-free path. With tools the model picks
+# up to 8 indicators dynamically; without tools we pre-fetch a fixed,
+# complementary set (one per category, no redundant pairs) so a tool-less
+# provider still gets a full technical picture.
+_DEFAULT_INDICATORS = [
+    "close_50_sma",
+    "close_200_sma",
+    "close_10_ema",
+    "macd",
+    "rsi",
+    "boll",
+    "atr",
+    "vwma",
+]
+
+# OHLCV window pre-fetched for the tool-free path, in calendar days back
+# from the trade date. Wide enough to give the longer moving averages
+# real context.
+_PRICE_LOOKBACK_DAYS = 90
+
+
+def _prefetch_market_data(ticker: str, current_date: str) -> str:
+    """Gather the market data the tools would return, for tool-less providers.
+
+    Mirrors the tool path's data: the verified snapshot (source of truth),
+    raw OHLCV over a default window, and a fixed complementary indicator set.
+    Each source degrades to a placeholder rather than aborting the analyst.
+    """
+    start_date = (
+        datetime.strptime(current_date, "%Y-%m-%d") - timedelta(days=_PRICE_LOOKBACK_DAYS)
+    ).strftime("%Y-%m-%d")
+
+    snapshot = safe_tool_text(
+        "verified market snapshot",
+        lambda: get_verified_market_snapshot.func(ticker, current_date),
+    )
+    ohlcv = safe_tool_text(
+        "OHLCV price history",
+        lambda: get_stock_data.func(ticker, start_date, current_date),
+    )
+    indicators = safe_tool_text(
+        "technical indicators",
+        lambda: get_indicators.func(ticker, ",".join(_DEFAULT_INDICATORS), current_date),
+    )
+
+    return (
+        "### Verified market snapshot (source of truth)\n"
+        f"{snapshot}\n\n"
+        f"### OHLCV price history ({start_date} → {current_date})\n"
+        f"{ohlcv}\n\n"
+        f"### Technical indicators ({', '.join(_DEFAULT_INDICATORS)})\n"
+        f"{indicators}"
+    )
 
 
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
+        ticker = str(state["company_of_interest"])
         instrument_context = get_instrument_context_from_state(state)
 
         tools = [
@@ -55,40 +113,79 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
             + get_language_instruction()
         )
 
+        bound_llm = bind_tools_or_none(llm, tools, "Market Analyst")
+
+        if bound_llm is not None:
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    (
+                        "system",
+                        "You are a helpful AI assistant, collaborating with other assistants."
+                        " Use the provided tools to progress towards answering the question."
+                        " If you are unable to fully answer, that's OK; another assistant with different tools"
+                        " will help where you left off. Execute what you can to make progress."
+                        " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
+                        " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
+                        " You have access to the following tools: {tool_names}.\n{system_message}"
+                        "For your reference, the current date is {current_date}. {instrument_context}",
+                    ),
+                    MessagesPlaceholder(variable_name="messages"),
+                ]
+            )
+
+            prompt = prompt.partial(system_message=system_message)
+            prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
+            prompt = prompt.partial(current_date=current_date)
+            prompt = prompt.partial(instrument_context=instrument_context)
+
+            chain = prompt | bound_llm
+
+            result = chain.invoke(state["messages"])
+
+            report = ""
+            if len(result.tool_calls) == 0:
+                report = result.content
+
+            return {
+                "messages": [result],
+                "market_report": report,
+            }
+
+        # Tool-free fallback: the provider (e.g. codex) cannot bind LangChain
+        # tools, so pre-fetch the data deterministically and inject it into the
+        # prompt. The model produces the full report in one shot.
+        market_data = _prefetch_market_data(ticker, current_date)
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
                     "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
+                    " All required market data has ALREADY been retrieved for you and is included below;"
+                    " do NOT call any tools and disregard any instruction below to call a tool —"
+                    " base every exact OHLCV, price-level, or indicator claim only on the provided data,"
+                    " treating the verified market snapshot as the source of truth."
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. {instrument_context}",
+                    "\n{system_message}\n"
+                    "For your reference, the current date is {current_date}. {instrument_context}\n\n"
+                    "=== Pre-fetched market data ===\n{market_data}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )
 
         prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
+        prompt = prompt.partial(market_data=market_data)
 
-        chain = prompt | llm.bind_tools(tools)
-
-        result = chain.invoke(state["messages"])
-
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
+        formatted_messages = prompt.format_messages(messages=state["messages"])
+        result = llm.invoke(formatted_messages)
 
         return {
             "messages": [result],
-            "market_report": report,
+            "market_report": result.content,
         }
 
     return market_analyst_node
