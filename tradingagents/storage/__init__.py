@@ -26,6 +26,7 @@ Design notes:
 from .database import Base, get_engine, get_session, init_db, reset_engine
 from .models import (
     CharterRule,
+    DecisionLog,
     FundamentalSnapshot,
     Instrument,
     MacroPoint,
@@ -45,6 +46,7 @@ __all__ = [
     "init_db",
     "reset_engine",
     "CharterRule",
+    "DecisionLog",
     "FundamentalSnapshot",
     "Instrument",
     "MacroPoint",

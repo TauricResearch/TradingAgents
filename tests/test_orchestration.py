@@ -106,6 +106,25 @@ def test_run_cycle_executes_buy(db):
         assert report.trades[0].symbol == "AAPL"
 
 
+def test_run_cycle_logs_decision(db):
+    broker = PaperBroker()
+    with database.get_session() as s:
+        repo.upsert_ticker_card(s, "AAPL", screening_score=0.9)
+        repo.save_portfolio_snapshot(s, cash=20_000, total_value=100_000, positions=[])
+
+    with database.get_session() as s:
+        run_cycle(s, broker, _buy_analyzer, base_risk_pct=0.01)
+
+    with database.get_session() as s:
+        decisions = repo.recent_decisions(s, "AAPL")
+        assert len(decisions) == 1
+        assert decisions[0].traded is True
+        assert decisions[0].direction == "buy"
+        assert decisions[0].client_order_id is not None
+        # per-agent opinions captured for later outcome matching
+        assert isinstance(decisions[0].agent_opinions, list)
+
+
 def test_run_cycle_records_commission(db):
     broker = PaperBroker()
     with database.get_session() as s:
