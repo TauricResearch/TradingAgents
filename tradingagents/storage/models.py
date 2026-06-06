@@ -270,6 +270,8 @@ class Trade(Base):
     symbol: Mapped[str] = mapped_column(String(32), index=True)
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     action: Mapped[str] = mapped_column(String(16))  # buy / sell / hold
+    asset_type: Mapped[str] = mapped_column(String(16), default="equity")  # equity / option
+    option_type: Mapped[Optional[str]] = mapped_column(String(8), default=None)  # call / put
     quantity: Mapped[Optional[float]] = mapped_column(Float, default=None)
     entry_price: Mapped[Optional[float]] = mapped_column(Float, default=None)
     stop_loss: Mapped[Optional[float]] = mapped_column(Float, default=None)

@@ -32,6 +32,8 @@ def submit_trade(session: Session, trade: Trade, broker: Broker) -> Trade:
         stop_loss=trade.stop_loss,
         take_profit=trade.take_profit,
         client_order_id=trade.client_order_id,
+        asset_type=trade.asset_type,
+        option_type=trade.option_type,
     )
     order = broker.submit_order(req)
     trade.broker_order_id = order.broker_order_id

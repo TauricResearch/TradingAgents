@@ -29,6 +29,8 @@ class OrderProposal:
     take_profit: float
     client_order_id: str
     sizing: SizingResult
+    asset_type: str = "equity"        # "equity" | "option"
+    option_type: Optional[str] = None  # "call" | "put" — leverage on Strong signals
 
 
 def can_trade(state: ResearchState) -> bool:
@@ -73,6 +75,14 @@ def build_trade(
     )
     action = "buy" if state.direction.is_long else "sell"
     coid = client_order_id or f"{state.ticker}-{uuid.uuid4().hex[:12]}"
+
+    # Leverage via options on validated Strong signals (wiki): Strong Buy -> Call,
+    # Strong Sell -> Put; standard signals trade equity spot. No margin debt.
+    if state.direction.is_strong:
+        asset_type, option_type = "option", ("call" if state.direction.is_long else "put")
+    else:
+        asset_type, option_type = "equity", None
+
     return OrderProposal(
         symbol=state.ticker,
         action=action,
@@ -82,6 +92,8 @@ def build_trade(
         take_profit=lv.take_profit,
         client_order_id=coid,
         sizing=sizing,
+        asset_type=asset_type,
+        option_type=option_type,
     )
 
 
@@ -93,6 +105,8 @@ def persist_trade(
         session,
         proposal.symbol,
         proposal.action,
+        asset_type=proposal.asset_type,
+        option_type=proposal.option_type,
         quantity=proposal.quantity,
         entry_price=proposal.entry_price,
         stop_loss=proposal.stop_loss,

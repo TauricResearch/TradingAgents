@@ -25,6 +25,8 @@ class OrderRequest:
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
     client_order_id: Optional[str] = None
+    asset_type: str = "equity"  # "equity" | "option"
+    option_type: Optional[str] = None  # "call" | "put" (leverage on Strong signals)
 
 
 @dataclass

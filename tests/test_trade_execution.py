@@ -49,6 +49,16 @@ def test_build_trade_long():
     assert order.client_order_id.startswith("AAPL-")
 
 
+def test_strong_signals_use_options_leverage():
+    call = build_trade(_approved_state(Direction.STRONG_BUY), 100_000)
+    assert call.asset_type == "option" and call.option_type == "call"
+    put = build_trade(_approved_state(Direction.STRONG_SELL), 100_000)
+    assert put.asset_type == "option" and put.option_type == "put"
+    # standard signals stay equity spot
+    eq = build_trade(_approved_state(Direction.BUY), 100_000)
+    assert eq.asset_type == "equity" and eq.option_type is None
+
+
 def test_build_trade_rejects_unapproved():
     state = _approved_state()
     state.risk.verdict = RiskVerdict.DECLINED
