@@ -186,6 +186,16 @@ def create_app() -> FastAPI:
         rows = storage.list_ticker_runs(ticker.upper(), limit=limit)
         return [queries.run_to_dict(r) for r in rows]
 
+    @app.get("/api/tickers/{ticker}/history")
+    def get_ticker_history(ticker: str, range: str = "auto") -> dict:
+        from . import history as _history
+        status, body = _history.get_history(ticker, range)
+        if status != 200:
+            # Body is a {"error","detail"} envelope; forward as 4xx/5xx
+            # with the same shape used by the rest of the API.
+            raise HTTPException(status_code=status, detail=body)
+        return body
+
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: str) -> dict:
         rj = storage.read_run(run_id)
