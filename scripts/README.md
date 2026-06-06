@@ -13,3 +13,11 @@ Run TradingAgents analyses and build the report site.
 | `smoke_structured_output.py` | Smoke-test structured-output agents vs. a real LLM. | `provider`, `--deep-model`, `--quick-model` |
 
 Run every ticker missing today's report via the `/run-missing` skill.
+
+> **Derived artifacts are not committed.** `complete_report.md`, `docs/index.md`,
+> and per-ticker `index.md` hubs are gitignored and regenerated from the
+> committed stage files by `reassemble_complete_reports.py` +
+> `build_reports_site.py` in CI (`.github/workflows/pages.yml`) and the
+> pre-commit gate. An everyday-run commit should stage only new stage files
+> under `docs/<TICKER>/<run>/` — additions-only, no modified aggregates.
+> `docs/archive/**` is frozen and stays tracked.

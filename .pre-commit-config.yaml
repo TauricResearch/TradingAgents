@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: compile-reports-site
         name: Compile MkDocs reports site
-        entry: bash -c 'if [ -x .venv/bin/mkdocs ]; then .venv/bin/mkdocs build --strict --site-dir _site; else mkdocs build --strict --site-dir _site; fi'
+        entry: bash -c 'if [ -x .venv/bin/mkdocs ]; then PY=.venv/bin/python; MK=.venv/bin/mkdocs; else PY=python; MK=mkdocs; fi; "$PY" scripts/reassemble_complete_reports.py && "$PY" scripts/build_reports_site.py && "$MK" build --strict --site-dir _site'
         language: system
         pass_filenames: false
         always_run: true

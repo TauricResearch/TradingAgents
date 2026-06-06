@@ -7,8 +7,8 @@
       "Bash(TRADINGAGENTS_DATE=* bash .claude/run_missing_today.sh*)"
     ],
     "deny": [
-      "Read(./docs/*.md)",
-      "Read(./docs/**/*.md)"
+      // "Read(./docs/*.md)",
+      // "Read(./docs/**/*.md)"
     ]
   }
 }
