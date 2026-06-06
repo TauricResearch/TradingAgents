@@ -28,10 +28,21 @@ def _headlines(session: Session, symbol: str, limit: int = 8) -> str:
     return "\n".join(f"- [{n.ts:%Y-%m-%d}] {n.headline} ({n.source or '?'})" for n in items)
 
 
+def _macro_snapshot(session: Session) -> str:
+    from ..ingestion.macro_ingest import DEFAULT_MACRO_SERIES
+
+    lines = []
+    for sid in DEFAULT_MACRO_SERIES:
+        pt = repo.latest_macro(session, sid)
+        if pt is not None:
+            lines.append(f"- {sid}: {pt.value} (as of {pt.ts:%Y-%m-%d})")
+    return "\n".join(lines) if lines else "(no macro in DB)"
+
+
 def market_context(session: Session, symbol: str) -> str:
     return (
         f"<ticker>{symbol}</ticker>\n"
-        "<macro>not yet wired to DB (FRED): treat as neutral unless stated</macro>\n"
+        f"<macro>\n{_macro_snapshot(session)}\n</macro>\n"
         f"<news_catalysts>\n{_headlines(session, symbol)}\n</news_catalysts>"
     )
 

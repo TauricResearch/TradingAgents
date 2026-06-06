@@ -24,9 +24,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Live dependencies — imported here so the package stays import-light.
+    import os
+
     from .brain import ForkStructuredLLM
     from .ingestion import YFinanceFetcher, YFinanceFundamentalsFetcher, YFinanceNewsFetcher
     from .orchestration import make_brain_analyzer
+
+    # Macro is optional: only if a FRED key is configured.
+    macro_fetcher = None
+    if os.environ.get("FRED_API_KEY"):
+        from .ingestion import FredFetcher
+
+        macro_fetcher = FredFetcher()
 
     analyzer = make_brain_analyzer(ForkStructuredLLM())
     report = run_once(
@@ -34,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
         fetcher=YFinanceFetcher(),
         news_fetcher=YFinanceNewsFetcher(),
         fundamentals_fetcher=YFinanceFundamentalsFetcher(),
+        macro_fetcher=macro_fetcher,
         analyzer=analyzer,
         db_url=args.db,
         start=args.start,

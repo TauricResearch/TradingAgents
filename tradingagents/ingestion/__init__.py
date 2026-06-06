@@ -27,6 +27,12 @@ from .fundamentals_ingest import (
     YFinanceFundamentalsFetcher,
     ingest_fundamentals,
 )
+from .macro_ingest import (
+    DEFAULT_MACRO_SERIES,
+    FredFetcher,
+    MacroFetcher,
+    ingest_macro,
+)
 from .screening import compute_screening_signals, screen_ticker
 
 __all__ = [
@@ -41,6 +47,10 @@ __all__ = [
     "FundamentalsFetcher",
     "YFinanceFundamentalsFetcher",
     "ingest_fundamentals",
+    "DEFAULT_MACRO_SERIES",
+    "FredFetcher",
+    "MacroFetcher",
+    "ingest_macro",
     "compute_screening_signals",
     "screen_ticker",
 ]

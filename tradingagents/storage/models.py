@@ -141,6 +141,28 @@ class NewsItem(Base):
 
 
 # ---------------------------------------------------------------------------
+# Area: market_data — macro series (FRED), for the Market desk
+# ---------------------------------------------------------------------------
+class MacroPoint(Base):
+    """One observation of a macro series (e.g. CPI, fed funds), double-dated."""
+
+    __tablename__ = "macro_points"
+    __table_args__ = (
+        UniqueConstraint("series_id", "ts", name="uq_macro_point"),
+        Index("ix_macro_series_ts", "series_id", "ts"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    series_id: Mapped[str] = mapped_column(String(32), index=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    value: Mapped[float] = mapped_column(Float)
+    vendor: Mapped[Optional[str]] = mapped_column(String(32), default=None)
+    reference_date: Mapped[Optional[date]] = mapped_column(Date, default=None)
+    publication_date: Mapped[Optional[date]] = mapped_column(Date, default=None)
+    inserted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+# ---------------------------------------------------------------------------
 # Area: market_data — fundamentals snapshot (for the Fundamentals desk)
 # ---------------------------------------------------------------------------
 class FundamentalSnapshot(Base):

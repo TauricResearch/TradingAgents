@@ -15,8 +15,15 @@ from typing import Any, Optional
 from .broker import PaperBroker
 from .broker.base import Broker
 from .broker.commission import CommissionModel
-from .ingestion import ingest_fundamentals, ingest_news, ingest_price_bars
+from .ingestion import (
+    DEFAULT_MACRO_SERIES,
+    ingest_fundamentals,
+    ingest_macro,
+    ingest_news,
+    ingest_price_bars,
+)
 from .ingestion.fundamentals_ingest import FundamentalsFetcher
+from .ingestion.macro_ingest import MacroFetcher
 from .ingestion.news_ingest import NewsFetcher
 from .ingestion.price_ingest import PriceFetcher
 from .ingestion.screening import screen_ticker
@@ -61,6 +68,7 @@ def run_once(
     commission_model: Optional[CommissionModel] = None,
     news_fetcher: Optional[NewsFetcher] = None,
     fundamentals_fetcher: Optional[FundamentalsFetcher] = None,
+    macro_fetcher: Optional[MacroFetcher] = None,
     db_url: Optional[str] = None,
     start: str = "2024-01-01",
     end: Optional[str] = None,
@@ -74,6 +82,9 @@ def run_once(
     with database.get_session() as s:
         ensure_initial_portfolio(s)
         repo.seed_default_charter(s)
+        if macro_fetcher is not None:  # macro is global, ingested once per run
+            for sid in DEFAULT_MACRO_SERIES:
+                ingest_macro(s, sid, fetcher=macro_fetcher)
         ingest_and_screen(
             s, symbols, fetcher=fetcher, start=start, end=end,
             news_fetcher=news_fetcher, fundamentals_fetcher=fundamentals_fetcher,

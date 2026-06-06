@@ -19,6 +19,7 @@ from .models import (
     CharterRule,
     FundamentalSnapshot,
     Instrument,
+    MacroPoint,
     NewsItem,
     PortfolioSnapshot,
     PriceBar,
@@ -142,6 +143,27 @@ def recent_news(session: Session, symbol: str, *, limit: int = 10) -> list[NewsI
         .limit(limit)
     )
     return list(session.scalars(stmt))
+
+
+def existing_macro_ts(session: Session, series_id: str) -> set:
+    return set(session.scalars(select(MacroPoint.ts).where(MacroPoint.series_id == series_id)))
+
+
+def insert_macro_points(session: Session, series_id: str, points: Iterable[dict[str, Any]]) -> int:
+    rows = [MacroPoint(series_id=series_id, **p) for p in points]
+    session.add_all(rows)
+    session.flush()
+    return len(rows)
+
+
+def latest_macro(session: Session, series_id: str) -> Optional[MacroPoint]:
+    stmt = (
+        select(MacroPoint)
+        .where(MacroPoint.series_id == series_id)
+        .order_by(MacroPoint.ts.desc())
+        .limit(1)
+    )
+    return session.scalar(stmt)
 
 
 def save_fundamentals(
