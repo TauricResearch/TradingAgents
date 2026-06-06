@@ -158,3 +158,39 @@ export async function fetchTickerRuns(ticker: string): Promise<RunRow[]> {
 export function buildRunId(ticker: string, startedAtIso: string): string {
   return `${ticker}:${startedAtIso}`;
 }
+
+// ---- Historical analysis chart ----
+
+export type Bar = {
+  t: string; // ISO timestamp with Z suffix
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
+export type HistoryRange = "1d" | "5d" | "1mo" | "3mo" | "6mo" | "1y" | "all" | "auto";
+
+export interface HistoryResponse {
+  ticker: string;
+  range: HistoryRange;
+  range_start: string;
+  range_end: string;
+  resolution: "1m" | "1h" | "1d";
+  bars: Bar[];
+  runs: RunDetail[];
+}
+
+export async function getTickerHistory(
+  ticker: string,
+  range: HistoryRange = "auto",
+): Promise<HistoryResponse> {
+  const r = await fetch(
+    `${base}/api/tickers/${encodeURIComponent(ticker)}/history?range=${encodeURIComponent(range)}`,
+  );
+  if (!r.ok) {
+    throw new ApiError(`history ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
+}
