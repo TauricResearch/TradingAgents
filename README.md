@@ -11,7 +11,7 @@ deterministic risk & execution engine.
 ![python](https://img.shields.io/badge/python-3.13-blue)
 ![tests](https://img.shields.io/badge/tests-216%20passing-brightgreen)
 ![stack](https://img.shields.io/badge/LangGraph-OpenRouter%2FDeepSeek-purple)
-![license](https://img.shields.io/badge/license-MIT-lightgrey)
+![license](https://img.shields.io/badge/license-Apache--2.0-lightgrey)
 
 </div>
 
@@ -136,4 +136,4 @@ for the design.
 
 ## 📜 License
 
-MIT.
+Apache 2.0 (inherited from the upstream TradingAgents project this started from).
