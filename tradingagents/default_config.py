@@ -50,10 +50,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
-    # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.4",
-    "quick_think_llm": "gpt-5.4-mini",
+    # LLM settings — project default is OpenRouter + DeepSeek (wiki decision).
+    # The OpenRouter base URL is auto-resolved by the OpenAI-compatible client,
+    # so only OPENROUTER_API_KEY is required in .env. Model ids are OpenRouter
+    # ids and can be tuned (e.g. a newer DeepSeek snapshot) without code changes.
+    "llm_provider": "openrouter",
+    "deep_think_llm": "deepseek/deepseek-chat",
+    "quick_think_llm": "deepseek/deepseek-chat",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a
