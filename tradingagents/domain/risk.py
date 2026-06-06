@@ -204,5 +204,28 @@ def check_guardrails(
             "min_cash": min_cash,
         }
 
+        # VaR proxy: aggregate open risk (heat) + this trade's risk must stay
+        # within the portfolio VaR cap.
+        max_var = charter.get("max_portfolio_var", 0.10)
+        projected_var = float(portfolio.get("heat_pct", 0.0)) + sizing.risk_pct
+        checks["portfolio_var"] = {
+            "ok": projected_var <= max_var + _EPS,
+            "value": projected_var,
+            "threshold": max_var,
+        }
+
+        # Sector concentration: existing exposure + this position <= cap.
+        sector = portfolio.get("sector")
+        if sector:
+            max_sector = charter.get("max_sector_pct", 0.30)
+            projected_sector = (
+                portfolio.get("sector_exposure", {}).get(sector, 0.0) + sizing.position_pct
+            )
+            checks["sector_concentration"] = {
+                "ok": projected_sector <= max_sector + _EPS,
+                "value": projected_sector,
+                "threshold": max_sector,
+            }
+
     checks["all_ok"] = all(c["ok"] for c in checks.values() if isinstance(c, dict))
     return checks

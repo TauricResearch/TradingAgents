@@ -118,10 +118,16 @@ def build_brain_graph(
             rs.risk.rationale = "No actionable position; nothing to gate."
             return {"research_state": rs}
 
+        from ..storage import repository as _repo
+
         portfolio = inject_portfolio_state(session)
         portfolio_value = portfolio.get("total_value", 0.0)
         heat = get_open_positions_risk(session)["heat_pct"]
         heat_max = (charter or {}).get("heat_max_pct", 0.06)
+        # enrich for the VaR + sector guardrails
+        portfolio["heat_pct"] = heat
+        portfolio["sector"] = _repo.instrument_sector(session, symbol)
+        portfolio["sector_exposure"] = _repo.sector_exposure(session)
         stop_distance = abs(rs.levels.entry_price - rs.levels.stop_loss)
         sizing = position_size(
             portfolio_value, rs.levels.entry_price, stop_distance, rs.direction,

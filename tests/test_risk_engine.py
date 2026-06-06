@@ -115,3 +115,21 @@ def test_cash_reserve_guardrail():
         levels=lv, sizing=sizing, portfolio={"cash": 50_000, "total_value": 100_000},
     )
     assert ample["cash_reserve"]["ok"] is True
+
+
+def test_var_and_sector_guardrails():
+    lv = atr_levels(100.0, 2.0, Direction.BUY, k_entry=0.5, k_stop=2, k_tp=3)
+    sizing = position_size(100_000, 100.0, 20.0, Direction.BUY, max_position_pct=0.50)
+    # risk_pct ~1%; existing heat 9.5% -> projected VaR 10.5% > 10% cap -> fail
+    var = check_guardrails(
+        levels=lv, sizing=sizing,
+        portfolio={"cash": 90_000, "total_value": 100_000, "heat_pct": 0.095},
+    )
+    assert var["portfolio_var"]["ok"] is False
+    # sector already 28% + this ~5% -> 33% > 30% cap -> fail
+    sect = check_guardrails(
+        levels=lv, sizing=sizing,
+        portfolio={"cash": 90_000, "total_value": 100_000, "heat_pct": 0.0,
+                   "sector": "Tech", "sector_exposure": {"Tech": 0.28}},
+    )
+    assert sect["sector_concentration"]["ok"] is False

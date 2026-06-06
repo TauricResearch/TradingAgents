@@ -271,6 +271,26 @@ def open_trades(session: Session) -> list[Trade]:
     )
 
 
+def instrument_sector(session: Session, symbol: str) -> Optional[str]:
+    inst = session.scalar(select(Instrument).where(Instrument.symbol == symbol))
+    return inst.sector if inst is not None else None
+
+
+def sector_exposure(session: Session) -> dict[str, float]:
+    """Current portfolio exposure per sector, as a fraction of total value."""
+    snap = latest_portfolio_snapshot(session)
+    total = float(snap.total_value) if snap is not None else 0.0
+    exposure: dict[str, float] = {}
+    for t in open_trades(session):
+        sector = instrument_sector(session, t.symbol)
+        if not sector or t.entry_price is None or not t.quantity:
+            continue
+        exposure[sector] = exposure.get(sector, 0.0) + t.entry_price * t.quantity
+    if total > 0:
+        exposure = {k: v / total for k, v in exposure.items()}
+    return exposure
+
+
 # ---------------------------------------------------------------------------
 # Charter (Statuto parameters)
 # ---------------------------------------------------------------------------
@@ -350,6 +370,7 @@ DEFAULT_CHARTER: dict[str, Any] = {
     "max_portfolio_var": 0.10,
     "base_risk_pct": 0.01,
     "heat_max_pct": 0.06,
+    "max_sector_pct": 0.30,
 }
 
 
