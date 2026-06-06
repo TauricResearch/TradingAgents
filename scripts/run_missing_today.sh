@@ -64,7 +64,7 @@ run_pass() {
         --analysts market,social,news,fundamentals \
         --depth 5 --language English \
         --provider anthropic \
-        --deep-model claude-opus-4-8 --quick-model claude-sonnet-4-6 \
+        --deep-model claude-opus-4-8 --quick-model claude-haiku-4-5 \
         --checkpoint --clear-checkpoints \
         > "${LOGDIR}/${t}.log" 2>&1 \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"

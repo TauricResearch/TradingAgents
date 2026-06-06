@@ -4,7 +4,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, td_setup_by_timeframe, format_td_setup_block
+from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, td_setup_by_timeframe, format_td_setup_block, zscore_by_timeframe, format_zscore_block
 from .symbol_utils import normalize_symbol, NoMarketDataError
 
 def get_YFin_data_online(
@@ -138,6 +138,11 @@ def get_stock_stats_indicators_window(
             "Usage: A running count toward 9 flags an approaching trend exhaustion; a completed 9 is a reversal watch. Weight a higher tier above a lower one on conflict. "
             "Tips: Computed from OHLCV (not a stockstats handler); the count is the live signal, so read counts below 9 as 'approaching', not 'nothing'."
         ),
+        "z_score": (
+            "Z-Score (20-period close z-score): How many standard deviations the close sits from its 20-period mean, computed on weekly (tier 1), monthly (tier 2) and daily (tier 3) bars. "
+            "Usage: A mean-reversion / stretch gauge — |z| >= 2 flags a statistically stretched price (+ overbought, - oversold); near 0 is fair value. Weight a higher tier above a lower one on conflict. "
+            "Tips: Computed from OHLCV (not a stockstats handler); a high z-score in a strong trend can persist, so confirm with a trend indicator before fading it."
+        ),
     }
 
     # TD-9 is not a stockstats handler — compute it from OHLCV across timeframes
@@ -145,6 +150,11 @@ def get_stock_stats_indicators_window(
     if indicator == "td_9":
         counts = td_setup_by_timeframe(load_ohlcv(symbol, curr_date), curr_date)
         return format_td_setup_block(counts) + "\n\n" + best_ind_params["td_9"]
+
+    # Z-Score is likewise computed from OHLCV across timeframes, not stockstats.
+    if indicator == "z_score":
+        zscores = zscore_by_timeframe(load_ohlcv(symbol, curr_date), curr_date)
+        return format_zscore_block(zscores) + "\n\n" + best_ind_params["z_score"]
 
     if indicator not in best_ind_params:
         raise ValueError(

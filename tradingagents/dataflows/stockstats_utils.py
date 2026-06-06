@@ -220,6 +220,79 @@ def format_td_setup_block(counts: dict) -> str:
     return "\n".join(lines)
 
 
+def compute_zscore(close: "pd.Series", window: int = 20) -> "pd.Series":
+    """Rolling z-score of close: (close - rolling mean) / rolling std.
+
+    Measures how many standard deviations the latest close sits from its
+    ``window``-period mean — a mean-reversion / stretch gauge. Positive means
+    extended above the mean (overbought), negative below (oversold); magnitude
+    >= 2 flags a statistically stretched price. Bars without a full window or a
+    zero/NaN std yield 0 (no signal). The *last* value is the current reading.
+    """
+    values = pd.to_numeric(pd.Series(close).reset_index(drop=True), errors="coerce")
+    mean = values.rolling(window).mean()
+    std = values.rolling(window).std()
+    z = (values - mean) / std
+    z = z.where(std > 0)  # guard divide-by-zero (a flat window)
+    return pd.Series(z.fillna(0.0).to_numpy(), index=pd.Series(close).index)
+
+
+def zscore_by_timeframe(
+    data: "pd.DataFrame", curr_date: str = None, window: int = 20
+) -> dict:
+    """Current close z-score on weekly / monthly / daily bars.
+
+    Weekly and monthly are resampled (last close per period) from the same daily
+    frame, so no extra fetch is needed. When ``curr_date`` is given, rows after
+    it are dropped first to preserve the no-look-ahead guarantee. Returns floats
+    keyed ``weekly``/``monthly``/``daily`` (tier 1/2/3), mirroring TD-9.
+    """
+    df = _ensure_date_column(pd.DataFrame(data)).copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"]).sort_values("Date")
+    if curr_date:
+        df = df[df["Date"] <= pd.Timestamp(curr_date)]
+
+    close = pd.to_numeric(df["Close"], errors="coerce")
+    close.index = pd.DatetimeIndex(df["Date"])
+    close = close.dropna()
+
+    def _last(series: "pd.Series") -> float:
+        return float(compute_zscore(series, window).iloc[-1]) if len(series) else 0.0
+
+    return {
+        "weekly": _last(close.resample("W").last().dropna()),
+        "monthly": _last(close.resample("ME").last().dropna()),
+        "daily": _last(close),
+    }
+
+
+def _zscore_phrase(z: float) -> str:
+    if abs(z) < 1:
+        return "(near the mean)"
+    side = "above" if z > 0 else "below"
+    if abs(z) >= 2:
+        stretch = "overbought" if z > 0 else "oversold"
+        return f"(stretched {side} mean — {stretch})"
+    return f"({side} the mean)"
+
+
+def format_zscore_block(zscores: dict) -> str:
+    """Render the tiered z-score report block (weekly > monthly > daily)."""
+    tiers = [
+        ("Tier 1", "Weekly", zscores.get("weekly", 0.0)),
+        ("Tier 2", "Monthly", zscores.get("monthly", 0.0)),
+        ("Tier 3", "Daily", zscores.get("daily", 0.0)),
+    ]
+    lines = [
+        "## Z-Score (20-period close z-score) — current reading by timeframe "
+        "(higher tier wins):"
+    ]
+    for tier, name, z in tiers:
+        lines.append(f"- {tier} {name}: {z:+.2f}  {_zscore_phrase(z)}")
+    return "\n".join(lines)
+
+
 class StockstatsUtils:
     @staticmethod
     def get_stock_stats(
