@@ -206,20 +206,22 @@ def select_openrouter_model(mode: str) -> str:
     ).ask()
 
     if choice is None or choice == "custom":
-        return questionary.text(
+        custom_id = questionary.text(
             "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
             validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
-        ).ask().strip()
+        ).ask()
+        return custom_id.strip() if custom_id else ""
 
     return choice
 
 
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
-    return questionary.text(
+    response = questionary.text(
         "Enter model ID:",
         validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
-    ).ask().strip()
+    ).ask()
+    return response.strip() if response else ""
 
 
 def _select_model(provider: str, mode: str) -> str:
