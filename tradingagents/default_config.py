@@ -54,9 +54,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # The OpenRouter base URL is auto-resolved by the OpenAI-compatible client,
     # so only OPENROUTER_API_KEY is required in .env. Model ids are OpenRouter
     # ids and can be tuned (e.g. a newer DeepSeek snapshot) without code changes.
+    # Default to free OpenRouter models. Verify the exact slugs on openrouter.ai
+    # and override in .env if they change (e.g. owl-alpha for the deep thinker).
     "llm_provider": "openrouter",
-    "deep_think_llm": "deepseek/deepseek-chat",
-    "quick_think_llm": "deepseek/deepseek-chat",
+    "deep_think_llm": "deepseek/deepseek-v4-flash:free",
+    "quick_think_llm": "deepseek/deepseek-v4-flash:free",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a

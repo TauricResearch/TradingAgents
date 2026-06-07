@@ -53,8 +53,20 @@ def main(argv: list[str] | None = None) -> int:
         macro_fetcher=macro_fetcher,
         social_fetcher=StockTwitsFetcher(),
     )
+    # Broker: real Alpaca paper account if credentials are set, else the
+    # in-process simulator.
+    broker = None
+    if os.environ.get("ALPACA_API_KEY") and os.environ.get("ALPACA_SECRET_KEY"):
+        from .broker.alpaca import AlpacaBroker
+
+        broker = AlpacaBroker()
+        print("broker: Alpaca (paper)")
+    else:
+        print("broker: PaperBroker (simulated)")
+
     analyzer = make_brain_analyzer(ForkStructuredLLM(), extractors=extractors)
     deps = dict(
+        broker=broker,
         fetcher=YFinanceFetcher(),
         news_fetcher=YFinanceNewsFetcher(),
         fundamentals_fetcher=YFinanceFundamentalsFetcher(),

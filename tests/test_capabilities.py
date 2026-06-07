@@ -31,6 +31,22 @@ class TestExactIdMatches:
 
 
 @pytest.mark.unit
+class TestPrefixedAndFreeIds:
+    """OpenRouter-style ids (provider prefix + :free suffix) resolve to curated caps."""
+
+    def test_prefixed_deepseek_chat(self):
+        assert get_capabilities("deepseek/deepseek-chat").supports_tool_choice is True
+
+    def test_prefixed_free_thinking_model_keeps_quirks(self):
+        caps = get_capabilities("deepseek/deepseek-v4-flash:free")
+        assert caps.supports_tool_choice is False  # thinking-mode quirk preserved
+
+    def test_unknown_prefixed_model_falls_back_to_default(self):
+        caps = get_capabilities("openrouter/owl-alpha")
+        assert caps.preferred_structured_method == "function_calling"
+
+
+@pytest.mark.unit
 class TestPatternMatches:
     """Forward-compat regex patterns catch unknown DeepSeek and MiniMax variants."""
 

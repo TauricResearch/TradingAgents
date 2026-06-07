@@ -117,11 +117,32 @@ _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
 ]
 
 
+def _candidates(model_name: str) -> list[str]:
+    """Normalised forms of an id: with/without ``provider/`` prefix and
+    OpenRouter suffixes like ``:free`` / ``:nitro`` / ``@date``.
+
+    So ``deepseek/deepseek-v4-flash:free`` resolves to the curated
+    ``deepseek-v4-flash`` capabilities instead of falling back to the default.
+    """
+    out: list[str] = []
+    for base in (model_name, model_name.split("/")[-1]):
+        for form in (base, re.split(r"[:@]", base)[0]):
+            if form and form not in out:
+                out.append(form)
+    return out
+
+
 def get_capabilities(model_name: str) -> ModelCapabilities:
-    """Resolve capabilities by exact ID, then pattern, then default."""
-    if model_name in _BY_ID:
-        return _BY_ID[model_name]
-    for pattern, caps in _BY_PATTERN:
-        if pattern.match(model_name):
-            return caps
+    """Resolve capabilities by exact ID, then pattern, then default.
+
+    Handles provider-prefixed / suffixed ids (e.g. OpenRouter ``:free`` models).
+    """
+    candidates = _candidates(model_name)
+    for cand in candidates:
+        if cand in _BY_ID:
+            return _BY_ID[cand]
+    for cand in candidates:
+        for pattern, caps in _BY_PATTERN:
+            if pattern.match(cand):
+                return caps
     return _DEFAULT
