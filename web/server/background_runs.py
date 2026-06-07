@@ -239,6 +239,73 @@ class _IterationResult:
     decision: Optional[dict] = None
 
 
+import logging
+
+log = logging.getLogger(__name__)
+
+
+def _has_done_run(ticker: str, date_iso: str) -> bool:
+    """Return True if any run.json for (ticker, date_iso) has status 'done'."""
+    base = DATA_ROOT / ticker.upper() / date_iso
+    if not base.exists():
+        return False
+    for run_json in base.glob("*/run.json"):
+        try:
+            data = json.loads(run_json.read_text(encoding="utf-8"))
+            if data.get("status") == "done":
+                return True
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+def _record_iteration_error(state: BackgroundRunState, date_iso: str, error: str) -> None:
+    p = iteration_errors_path(state.job_id)
+    errors: dict[str, str] = {}
+    if p.exists():
+        try:
+            errors = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            errors = {}
+    errors[date_iso] = error
+    p.write_text(json.dumps(errors, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _run(handle: _JobHandle, date_list: list[str]) -> None:
+    """Sequential orchestrator. Task 7 replaces this with a parallel version;
+    the public surface is unchanged."""
+    state = handle.state
+    for date_iso in date_list:
+        if handle.cancel_event.is_set():
+            break
+        while handle.pause_event.is_set():
+            time.sleep(0.2)
+            if handle.cancel_event.is_set():
+                break
+        if handle.cancel_event.is_set():
+            break
+        if _has_done_run(state.ticker, date_iso):
+            state.current_index += 1
+            state._recompute_eta()
+            state.persist()
+            continue
+        try:
+            result = _run_one(state.ticker, date_iso)
+        except Exception as exc:
+            _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
+        else:
+            state.record_duration(result.duration_s)
+        state.current_index += 1
+        state._recompute_eta()
+        state.persist()
+    state.finished_at = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if handle.cancel_event.is_set():
+        state.status = "cancelled"
+    else:
+        state.status = "done"
+    state.persist()
+
+
 def _run_one(ticker: str, date_iso: str) -> _IterationResult:
     """Call propagate() for a single (ticker, date). Measure wall-clock time.
     Raises on failure (caller decides how to record the error)."""
