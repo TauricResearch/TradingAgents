@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, BarChart, Bar as BarRect, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from "recharts";
 import type { Bar, RunLike, Verdict } from "../verdicts";
@@ -62,102 +62,123 @@ export function HistoryChart(props: HistoryChartProps) {
 
   return (
     <div className="w-full h-72" data-testid="history-chart">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-          <CartesianGrid stroke="#e2e8f0" strokeDasharray="2 2" />
-          <XAxis
-            dataKey="t"
-            type="number"
-            domain={[rangeStartMs, rangeEndMs]}
-            scale="time"
-            tickFormatter={(v) => fmtTime(v, scale)}
-            tick={{ fontSize: 10, fill: "#64748b" }}
-            stroke="#cbd5e1"
-          />
-          <YAxis
-            domain={["auto", "auto"]}
-            tickFormatter={fmtPrice}
-            width={50}
-            tick={{ fontSize: 10, fill: "#64748b" }}
-            stroke="#cbd5e1"
-          />
-          <Line dataKey="c" dot={false} stroke="#475569" strokeWidth={1.5} isAnimationActive={false} />
-          <Tooltip
-            cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }}
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null;
-              const p = payload[0].payload as ChartRow;
-              return (
-                <div
-                  className="bg-white border border-slate-200 rounded shadow-sm px-2 py-1 text-xs"
-                  data-testid="history-tooltip"
-                >
-                  <div className="text-slate-500">{fmtTime(p.t, scale)}</div>
-                  <div className="font-medium text-slate-900">${fmtPrice(p.c)}</div>
-                  <div className="text-slate-400 mt-0.5">
-                    O {fmtPrice(p.o)} · H {fmtPrice(p.h)} · L {fmtPrice(p.l)}
-                  </div>
-                  <div className="text-slate-400">Vol {fmtVolume(p.v)}</div>
-                </div>
-              );
-            }}
-          />
-          {runs.map((run) => {
-            const startMs = isoToMs(run.startedAt);
-            const endMs = Math.min(startMs + deltaMs, nowMs);
-            const isSelected = run.id === selectedRunId;
-            return (
-              <ReferenceArea
-                key={`band-${run.id}`}
-                x1={startMs} x2={endMs}
-                fill={actionTint(run.decisionAction)}
-                fillOpacity={isSelected ? 0.25 : 0.08}
-                stroke="none"
-                ifOverflow="visible"
+      <div className="flex flex-col h-full">
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="2 2" />
+              <XAxis
+                dataKey="t"
+                type="number"
+                domain={[rangeStartMs, rangeEndMs]}
+                scale="time"
+                hide
               />
-            );
-          })}
-          {runs.map((run) => {
-            if (run.decisionTarget == null) return null;
-            if (run.decisionAction === "HOLD") return null;
-            const startMs = isoToMs(run.startedAt);
-            const isSelected = run.id === selectedRunId;
-            return (
+              <YAxis
+                domain={["auto", "auto"]}
+                tickFormatter={fmtPrice}
+                width={50}
+                tick={{ fontSize: 10, fill: "#64748b" }}
+                stroke="#cbd5e1"
+              />
+              <Line dataKey="c" dot={false} stroke="#475569" strokeWidth={1.5} isAnimationActive={false} />
+              <Tooltip
+                cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0].payload as ChartRow;
+                  return (
+                    <div
+                      className="bg-white border border-slate-200 rounded shadow-sm px-2 py-1 text-xs"
+                      data-testid="history-tooltip"
+                    >
+                      <div className="text-slate-500">{fmtTime(p.t, scale)}</div>
+                      <div className="font-medium text-slate-900">${fmtPrice(p.c)}</div>
+                      <div className="text-slate-400 mt-0.5">
+                        O {fmtPrice(p.o)} · H {fmtPrice(p.h)} · L {fmtPrice(p.l)}
+                      </div>
+                      <div className="text-slate-400">Vol {fmtVolume(p.v)}</div>
+                    </div>
+                  );
+                }}
+              />
+              {runs.map((run) => {
+                const startMs = isoToMs(run.startedAt);
+                const endMs = Math.min(startMs + deltaMs, nowMs);
+                const isSelected = run.id === selectedRunId;
+                return (
+                  <ReferenceArea
+                    key={`band-${run.id}`}
+                    x1={startMs} x2={endMs}
+                    fill={actionTint(run.decisionAction)}
+                    fillOpacity={isSelected ? 0.25 : 0.08}
+                    stroke="none"
+                    ifOverflow="visible"
+                  />
+                );
+              })}
+              {runs.map((run) => {
+                if (run.decisionTarget == null) return null;
+                if (run.decisionAction === "HOLD") return null;
+                const startMs = isoToMs(run.startedAt);
+                const isSelected = run.id === selectedRunId;
+                return (
+                  <ReferenceLine
+                    key={`target-${run.id}`}
+                    y={run.decisionTarget}
+                    x1={startMs} x2={startMs + deltaMs}
+                    stroke={actionColor(run.decisionAction)}
+                    strokeWidth={isSelected ? 3 : 1.5}
+                    strokeDasharray={isSelected ? undefined : "4 2"}
+                    ifOverflow="visible"
+                  />
+                );
+              })}
+              {runs.map((run) => {
+                if (run.startPrice == null) return null;
+                const startMs = isoToMs(run.startedAt);
+                const isSelected = run.id === selectedRunId;
+                return (
+                  <ReferenceDot
+                    key={`dot-${run.id}`}
+                    x={startMs} y={run.startPrice}
+                    r={isSelected ? 8 : 5}
+                    fill={actionColor(run.decisionAction)}
+                    stroke="#fff" strokeWidth={1}
+                    ifOverflow="extendDomain"
+                  />
+                );
+              })}
               <ReferenceLine
-                key={`target-${run.id}`}
-                y={run.decisionTarget}
-                x1={startMs} x2={startMs + deltaMs}
-                stroke={actionColor(run.decisionAction)}
-                strokeWidth={isSelected ? 3 : 1.5}
-                strokeDasharray={isSelected ? undefined : "4 2"}
-                ifOverflow="visible"
-              />
-            );
-          })}
-          {runs.map((run) => {
-            if (run.startPrice == null) return null;
-            const startMs = isoToMs(run.startedAt);
-            const isSelected = run.id === selectedRunId;
-            return (
-              <ReferenceDot
-                key={`dot-${run.id}`}
-                x={startMs} y={run.startPrice}
-                r={isSelected ? 8 : 5}
-                fill={actionColor(run.decisionAction)}
-                stroke="#fff" strokeWidth={1}
+                x={nowMs}
+                stroke="#94a3b8"
+                strokeDasharray="3 3"
+                label={{ value: "now", position: "insideTopRight", fill: "#94a3b8", fontSize: 10 }}
                 ifOverflow="extendDomain"
               />
-            );
-          })}
-          <ReferenceLine
-            x={nowMs}
-            stroke="#94a3b8"
-            strokeDasharray="3 3"
-            label={{ value: "now", position: "insideTopRight", fill: "#94a3b8", fontSize: 10 }}
-            ifOverflow="extendDomain"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="h-14 shrink-0 border-t border-slate-100">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 8, left: 8 }}>
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="2 2" vertical={false} />
+              <XAxis
+                dataKey="t"
+                type="number"
+                domain={[rangeStartMs, rangeEndMs]}
+                scale="time"
+                tickFormatter={(v) => fmtTime(v, scale)}
+                tick={{ fontSize: 10, fill: "#64748b" }}
+                stroke="#cbd5e1"
+                minTickGap={32}
+              />
+              <YAxis hide width={50} />
+              <BarRect dataKey="v" fill="#94a3b8" isAnimationActive={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }
