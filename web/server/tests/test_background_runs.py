@@ -130,3 +130,27 @@ class TestJobHandleRegistry:
         assert "bgr_REG2" in _jobs
         unregister_handle("bgr_REG2")
         assert "bgr_REG2" not in _jobs
+
+
+class TestRunOne:
+    def test_run_one_returns_duration_and_decision(self, tmp_path, monkeypatch, fake_propagate):
+        fake_propagate.record_in_storage = False
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        result = background_runs._run_one("NVDA", "2024-01-02")
+        assert result.duration_s >= 0
+        assert result.ticker == "NVDA"
+        assert result.date_iso == "2024-01-02"
+        assert result.decision is not None
+
+    def test_run_one_records_call(self, tmp_path, monkeypatch, fake_propagate):
+        fake_propagate.record_in_storage = False
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        background_runs._run_one("MU", "2024-01-03")
+        assert ("MU", "2024-01-03") in [(c[0], c[1]) for c in fake_propagate.calls]
+
+    def test_run_one_raises_on_failure(self, tmp_path, monkeypatch, fake_propagate):
+        fake_propagate.record_in_storage = False
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        fake_propagate.fail_on_dates.add("2024-01-04")
+        with pytest.raises(RuntimeError):
+            background_runs._run_one("AAPL", "2024-01-04")
