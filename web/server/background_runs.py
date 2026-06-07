@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 import threading
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, fields, asdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -93,3 +93,97 @@ def dates(date_from: str, date_to: str, every: str) -> list[str]:
         else:
             cur = cur + step
     return [d.isoformat() for d in out]
+
+
+import json
+import os
+import tempfile
+
+
+def _data_root() -> Path:
+    p = Path(os.environ.get("TRADINGAGENTS_DATA_DIR", str(Path.home() / ".tradingagents" / "data")))
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+# Convenience alias used by tests; mirrors _data_root() so monkeypatch works.
+DATA_ROOT = Path(os.environ.get("TRADINGAGENTS_DATA_DIR", str(Path.home() / ".tradingagents" / "data")))
+
+
+def job_dir(job_id: str) -> Path:
+    return _data_root() / "background_runs" / job_id
+
+
+def state_path(job_id: str) -> Path:
+    return job_dir(job_id) / "state.json"
+
+
+def iteration_dates_path(job_id: str) -> Path:
+    return job_dir(job_id) / "iteration_dates.txt"
+
+
+def iteration_errors_path(job_id: str) -> Path:
+    return job_dir(job_id) / "iteration_errors.json"
+
+
+@dataclass
+class BackgroundRunState:
+    job_id: str
+    ticker: str
+    date_from: str
+    date_to: str
+    every: str
+    parallel: int
+    total: int
+    current_index: int = 0
+    avg_duration_s: float = 0.0
+    eta_s: int = 0
+    started_at: str = ""
+    finished_at: Optional[str] = None
+    status: str = "running"  # running | paused | done | cancelled | error
+    durations_s: list[float] = field(default_factory=list)
+    _persist_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def __post_init__(self):
+        if not self.started_at:
+            self.started_at = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def record_duration(self, duration_s: float) -> None:
+        self.durations_s.append(duration_s)
+        self.avg_duration_s = sum(self.durations_s) / len(self.durations_s)
+        self._recompute_eta()
+
+    def _recompute_eta(self) -> None:
+        remaining = self.total - self.current_index
+        if remaining <= 0:
+            self.eta_s = 0
+        else:
+            denom = self.parallel if self.parallel > 0 else 1
+            self.eta_s = max(0, int(round(self.avg_duration_s * remaining / denom)))
+
+    def persist(self) -> None:
+        """Atomic write of state.json."""
+        d = job_dir(self.job_id)
+        d.mkdir(parents=True, exist_ok=True)
+        payload = {f.name: getattr(self, f.name) for f in fields(self) if not f.name.startswith("_")}
+        text = json.dumps(payload, indent=2, sort_keys=True)
+        fd, tmp = tempfile.mkstemp(dir=d, prefix=".state-", suffix=".json.tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(text)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, d / "state.json")
+        except Exception:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            raise
+
+    @classmethod
+    def load(cls, job_id: str) -> "BackgroundRunState":
+        p = state_path(job_id)
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+    def to_dict(self) -> dict:
+        return {f.name: getattr(self, f.name) for f in fields(self) if not f.name.startswith("_")}

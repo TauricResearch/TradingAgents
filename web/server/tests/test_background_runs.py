@@ -50,3 +50,59 @@ class TestDates:
     def test_same_from_and_to_returns_single_date(self):
         out = background_runs.dates("2024-01-15", "2024-01-15", "1d")
         assert out == ["2024-01-15"]
+
+
+class TestBackgroundRunState:
+    def test_persist_creates_file_with_full_state(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        state = background_runs.BackgroundRunState(
+            job_id="bgr_TEST", ticker="NVDA", date_from="2024-01-01",
+            date_to="2024-01-05", every="1d", parallel=1, total=5,
+        )
+        state.current_index = 2
+        state.avg_duration_s = 47.3
+        state.durations_s = [50.0, 44.6]
+        state.eta_s = 150
+        state.status = "running"
+        state.persist()
+        data = json.loads(background_runs.state_path(state.job_id).read_text())
+        assert data["ticker"] == "NVDA"
+        assert data["current_index"] == 2
+        assert data["avg_duration_s"] == 47.3
+        assert data["durations_s"] == [50.0, 44.6]
+        assert data["eta_s"] == 150
+        assert data["status"] == "running"
+        assert data["finished_at"] is None
+
+    def test_persist_writes_atomically(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        state = background_runs.BackgroundRunState(
+            job_id="bgr_TEST2", ticker="MU", date_from="2024-01-01",
+            date_to="2024-01-05", every="1d", parallel=1, total=5,
+        )
+        state.status = "running"
+        state.persist()
+        state.status = "done"
+        state.finished_at = "2024-01-01T15:00:00Z"
+        state.persist()
+        data = json.loads(background_runs.state_path(state.job_id).read_text())
+        assert data["status"] == "done"
+        assert data["finished_at"] == "2024-01-01T15:00:00Z"
+
+    def test_load_returns_parsed_state(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        state = background_runs.BackgroundRunState(
+            job_id="bgr_TEST3", ticker="AAPL", date_from="2024-02-01",
+            date_to="2024-02-05", every="1d", parallel=1, total=5,
+        )
+        state.status = "paused"
+        state.persist()
+        loaded = background_runs.BackgroundRunState.load("bgr_TEST3")
+        assert loaded.ticker == "AAPL"
+        assert loaded.status == "paused"
+        assert loaded.total == 5
+
+    def test_load_missing_raises(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        with pytest.raises(FileNotFoundError):
+            background_runs.BackgroundRunState.load("bgr_MISSING")
