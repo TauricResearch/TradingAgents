@@ -25,7 +25,8 @@ def create_india_news_filings_analyst(llm):
             "changes, order wins, regulatory notices, rating actions, plant/regulatory events, "
             "litigation, M&A, and policy sensitivity. Output an event timeline, materiality "
             "assessment, what changed, source table, and unknowns. If exchange data is unavailable, "
-            "say so plainly and do not fill gaps from memory."
+            "say so plainly and do not fill gaps from memory. Do not fabricate or infer undisclosed "
+            "filings, management actions, or regulatory outcomes. Use research-only language, not order instructions."
             + get_language_instruction()
         )
         prompt = ChatPromptTemplate.from_messages(

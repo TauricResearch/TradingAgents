@@ -1,4 +1,4 @@
-"""Trader: turns the Research Manager's investment plan into a concrete transaction proposal."""
+"""Trader: turns the Research Manager's plan into a research-view proposal."""
 
 from __future__ import annotations
 
@@ -30,7 +30,8 @@ def create_trader(llm):
             "You are an India-market research proposal agent. Translate the research manager's "
             "view into a model research view only. Do not say execute trade now. Include rating, "
             "time horizon, confidence, key evidence, risks, invalidation triggers, monitoring "
-            "checklist, data quality, compliance note, and not-financial-advice disclaimer."
+            "checklist, data quality, compliance note, and not-financial-advice disclaimer. "
+            "Do not provide order-placement instructions or personalized investment advice."
             if india_mode
             else "You are a trading agent analyzing market data to make investment decisions. "
             "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
@@ -45,12 +46,13 @@ def create_trader(llm):
             {
                 "role": "user",
                 "content": (
-                    f"Based on a comprehensive analysis by a team of analysts, here is an investment "
-                    f"plan tailored for {company_name}. {instrument_context} This plan incorporates "
+                    f"Based on a comprehensive analysis by a team of analysts, here is a research "
+                    f"plan for {company_name}. {instrument_context} This plan incorporates "
                     f"insights from current technical market trends, macroeconomic indicators, and "
-                    f"social media sentiment. Use this plan as a foundation for evaluating your next "
-                    f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"
-                    f"Leverage these insights to make an informed and strategic decision."
+                    f"sentiment or filing evidence where available. Use this plan as a foundation "
+                    f"for a research-only model view.\n\nProposed Research Plan: {investment_plan}\n\n"
+                    f"Leverage these insights to make an evidence-grounded research assessment, "
+                    f"not a live trading instruction."
                 ),
             },
         ]

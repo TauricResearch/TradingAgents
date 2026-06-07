@@ -14,7 +14,8 @@ def create_india_sentiment_analyst(llm):
             "news, filings, exchange announcements, credible financial media if configured, and user-provided "
             "notes. Do not hallucinate Twitter, Telegram, WhatsApp, Reddit, or StockTwits sentiment. "
             "Output institutional sentiment, retail/chatter sentiment only if data exists, narrative shifts, "
-            "and confidence."
+            "and confidence. Use research-only language and explicitly label unsupported sentiment channels "
+            "as unavailable instead of inferring them."
             + get_language_instruction()
         )
         prompt = ChatPromptTemplate.from_messages(

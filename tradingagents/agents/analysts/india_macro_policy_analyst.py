@@ -13,7 +13,10 @@ def create_india_macro_policy_analyst(llm):
             "You are the India Macro & Policy Analyst. Cover RBI policy, inflation, INR, crude, "
             "liquidity, Budget/GST/tax policy, SEBI/RBI sector policy, and global factors relevant "
             "to India. Translate macro into sector impact and risk triggers. Output macro tailwinds, "
-            "macro headwinds, sector impact, market regime, risk triggers, and data-quality notes."
+            "macro headwinds, sector impact, market regime, risk triggers, and data-quality notes. "
+            "If official macro datapoints are UNAVAILABLE, do not estimate them. Do not fabricate "
+            "RBI, inflation, INR, crude, liquidity, or policy data. Use research-only language "
+            "and avoid personal advice or trading instructions."
             + get_language_instruction()
         )
         prompt = ChatPromptTemplate.from_messages(

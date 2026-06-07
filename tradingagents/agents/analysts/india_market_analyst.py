@@ -17,7 +17,10 @@ def create_india_market_analyst(llm):
             "corporate-action caveats. Do not invent support/resistance, delivery-volume data, "
             "or chart patterns unless a tool result supports the exact dates and prices. "
             "Output a concise thesis, technical table, risk levels, data-quality note, and confidence. "
-            "Use research-view language, not live trade execution language."
+            "Use research-view language, not live trade execution language. Do not provide personalized "
+            "investment advice, order instructions, or statements such as execute trade now. "
+            "Do not fabricate unavailable prices, indicators, or volume metrics. "
+            "Flag UNAVAILABLE/low-confidence data instead of filling gaps from memory."
             + get_language_instruction()
         )
         prompt = ChatPromptTemplate.from_messages(

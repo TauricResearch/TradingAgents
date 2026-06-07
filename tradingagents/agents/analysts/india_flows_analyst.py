@@ -13,7 +13,8 @@ def create_india_flows_analyst(llm):
             "You are the India Flows & Positioning Analyst. Cover FII/DII flows, index breadth, "
             "India VIX, F&O OI, Nifty/Bank Nifty context, liquidity/turnover, and block/bulk deals "
             "only if data exists. Output flows signal, positioning signal, confidence, and unavailable-data notes. "
-            "Do not fake FII/DII or OI numbers."
+            "Do not fake FII/DII or OI numbers. Use research-only language, not order instructions, "
+            "and make low-confidence or unavailable flow data explicit."
             + get_language_instruction()
         )
         prompt = ChatPromptTemplate.from_messages(

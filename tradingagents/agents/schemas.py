@@ -40,12 +40,12 @@ class PortfolioRating(str, Enum):
 
 
 class TraderAction(str, Enum):
-    """3-tier transaction direction used by the Trader.
+    """3-tier research-view direction used by the Trader.
 
     The Trader's job is to translate the Research Manager's investment plan
-    into a concrete transaction proposal: should the desk execute a Buy, a
-    Sell, or sit on Hold this round.  Position sizing and the nuanced
-    Overweight / Underweight calls happen later at the Portfolio Manager.
+    into a concrete model view: Buy, Sell, or Hold as research labels only.
+    Position sizing and nuanced Overweight / Underweight calls happen later
+    at the Portfolio Manager.
     """
 
     BUY = "Buy"
@@ -81,8 +81,8 @@ class ResearchPlan(BaseModel):
 
     Hand-off to the Trader: the recommendation pins the directional view,
     the rationale captures which side of the bull/bear debate carried the
-    argument, and the strategic actions translate that into concrete
-    instructions the trader can execute against.
+    argument, and the strategic actions translate that into a research plan
+    for downstream review. This is not an order instruction.
     """
 
     recommendation: PortfolioRating = Field(
@@ -102,8 +102,8 @@ class ResearchPlan(BaseModel):
     )
     strategic_actions: str = Field(
         description=(
-            "Concrete steps for the trader to implement the recommendation, "
-            "including position sizing guidance consistent with the rating."
+            "Concrete research follow-ups, monitoring actions, and sizing context "
+            "consistent with the rating. Do not provide order-placement instructions."
         ),
     )
 
@@ -125,20 +125,19 @@ def render_research_plan(plan: ResearchPlan) -> str:
 
 
 class TraderProposal(BaseModel):
-    """Structured transaction proposal produced by the Trader.
+    """Structured research proposal produced by the Trader.
 
     The trader reads the Research Manager's investment plan and the analyst
-    reports, then turns them into a concrete transaction: what action to
-    take, the reasoning that justifies it, and the practical levels for
-    entry, stop-loss, and sizing.
+    reports, then turns them into a model view: the research label, reasoning,
+    and optional monitoring levels. This is not a live trade instruction.
     """
 
     action: TraderAction = Field(
-        description="The transaction direction. Exactly one of Buy / Hold / Sell.",
+        description="The research-view direction. Exactly one of Buy / Hold / Sell.",
     )
     reasoning: str = Field(
         description=(
-            "The case for this action, anchored in the analysts' reports and "
+            "The case for this research view, anchored in the analysts' reports and "
             "the research plan. Two to four sentences."
         ),
     )
@@ -152,16 +151,15 @@ class TraderProposal(BaseModel):
     )
     position_sizing: Optional[str] = Field(
         default=None,
-        description="Optional sizing guidance, e.g. '5% of portfolio'.",
+        description="Optional sizing context, e.g. 'would remain small until data quality improves'.",
     )
 
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
     """Render a TraderProposal to markdown.
 
-    The trailing ``FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**`` line is
-    preserved for backward compatibility with the analyst stop-signal text
-    and any external code that greps for it.
+    The trailing ``FINAL MODEL VIEW: **BUY/HOLD/SELL**`` line keeps the
+    Buy/Hold/Sell label parseable without using live-trading language.
     """
     parts = [
         f"**Action**: {proposal.action.value}",
@@ -176,7 +174,7 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         parts.extend(["", f"**Position Sizing**: {proposal.position_sizing}"])
     parts.extend([
         "",
-        f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
+        f"FINAL MODEL VIEW: **{proposal.action.value.upper()}**",
     ])
     return "\n".join(parts)
 
@@ -203,8 +201,9 @@ class PortfolioDecision(BaseModel):
     )
     executive_summary: str = Field(
         description=(
-            "A concise action plan covering entry strategy, position sizing, "
-            "key risk levels, and time horizon. Two to four sentences."
+            "A concise research summary covering thesis, sizing context, key "
+            "risk levels, and time horizon. Do not provide order-placement "
+            "instructions. Two to four sentences."
         ),
     )
     investment_thesis: str = Field(

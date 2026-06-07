@@ -1,4 +1,4 @@
-"""Research Manager: turns the bull/bear debate into a structured investment plan for the trader."""
+"""Research Manager: turns the bull/bear debate into a structured research plan."""
 
 from __future__ import annotations
 
@@ -23,7 +23,8 @@ def create_research_manager(llm):
         india_mode = get_config().get("market_scope") == "india"
         rating_scale = (
             "**India Rating Scale** (use research-view language): Strong Buy / Buy / "
-            "Accumulate / Hold / Reduce / Sell / Avoid. Map Accumulate to Overweight "
+            "Accumulate / Hold / Reduce / Sell / Avoid. Do not frame the output as "
+            "personal advice or an order instruction. Map Accumulate to Overweight "
             "and Reduce to Underweight if a legacy parser requires it. "
             "Legacy compatibility labels: **Buy**, **Overweight**, **Hold**, **Underweight**, **Sell**."
             if india_mode
@@ -37,7 +38,7 @@ def create_research_manager(llm):
 
         investment_debate_state = state["investment_debate_state"]
 
-        prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
+        prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear research plan for downstream review.
 
 {instrument_context}
 
@@ -47,6 +48,7 @@ def create_research_manager(llm):
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
 In India mode, include time horizon, confidence, key evidence, key risks, invalidation triggers, monitoring checklist, data quality, and a research-only compliance note.
+Never say execute trade now, never provide order-placement instructions, and never present unavailable data as fact.
 
 ---
 

@@ -1,4 +1,4 @@
-"""Portfolio Manager: synthesises the risk-analyst debate into the final decision.
+"""Portfolio Manager: synthesises the risk-analyst debate into the final research view.
 
 Uses LangChain's ``with_structured_output`` so the LLM produces a typed
 ``PortfolioDecision`` directly, in a single call.  The result is rendered
@@ -36,6 +36,7 @@ def create_portfolio_manager(llm):
         rating_scale = (
             "**India Rating Scale**: Strong Buy / Buy / Accumulate / Hold / Reduce / Sell / Avoid. "
             "Use research view/model view language only; never say execute trade now. "
+            "Do not provide order-placement instructions or personalized investment advice. "
             "Include time horizon, confidence, primary thesis, key evidence, key risks, "
             "invalidation triggers, monitoring checklist, data quality, compliance note, "
             "and not-financial-advice disclaimer."
@@ -55,7 +56,7 @@ def create_portfolio_manager(llm):
             else ""
         )
 
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
+        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final research/model view.
 
 {instrument_context}
 
@@ -65,14 +66,14 @@ def create_portfolio_manager(llm):
 
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
-- Trader's transaction proposal: **{trader_plan}**
+- Research proposal: **{trader_plan}**
 {lessons_line}
 **Risk Analysts Debate History:**
 {history}
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Be decisive and ground every conclusion in specific evidence from the analysts. Do not instruct the user to place orders or act immediately.{get_language_instruction()}"""
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,

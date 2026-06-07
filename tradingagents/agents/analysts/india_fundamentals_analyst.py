@@ -28,7 +28,9 @@ def create_india_fundamentals_analyst(llm):
             "and valuation context only when data exists. Apply India sector checklists with extra "
             "attention to pharma, chemicals, and oil & gas. Output business quality, earnings quality, "
             "balance sheet quality, valuation context, governance, sector lens, top 5 positives, "
-            "top 5 concerns, and data gaps. Do not fabricate unavailable filings or shareholding."
+            "top 5 concerns, and data gaps. Do not fabricate unavailable filings or shareholding. "
+            "Use research-only language, not personal advice or order instructions, and include "
+            "data-quality caveats for any yfinance or unavailable-source content."
             + get_language_instruction()
         )
         prompt = ChatPromptTemplate.from_messages(
