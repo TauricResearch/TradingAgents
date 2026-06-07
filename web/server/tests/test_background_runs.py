@@ -1,0 +1,52 @@
+"""Unit tests for web.server.background_runs."""
+from __future__ import annotations
+
+import json
+import pytest
+
+from web.server import background_runs
+
+
+class TestDates:
+    def test_1d_simple_range(self):
+        out = background_runs.dates("2024-01-01", "2024-01-05", "1d")
+        assert out == ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"]
+
+    def test_1d_skips_weekends(self):
+        # Jan 5, 2024 was a Friday; Jan 6-7 were Sat/Sun; Jan 8 was a Monday.
+        out = background_runs.dates("2024-01-05", "2024-01-08", "1d")
+        assert out == ["2024-01-05", "2024-01-08"]
+
+    def test_1w_lands_on_mondays(self):
+        out = background_runs.dates("2024-01-01", "2024-01-29", "1w")
+        # 2024-01-01 is a Monday; subsequent Mondays.
+        assert out == ["2024-01-01", "2024-01-08", "2024-01-15", "2024-01-22", "2024-01-29"]
+
+    def test_2w_lands_every_other_monday(self):
+        out = background_runs.dates("2024-01-01", "2024-01-29", "2w")
+        assert out == ["2024-01-01", "2024-01-15", "2024-01-29"]
+
+    def test_1mo_lands_same_day_of_month(self):
+        out = background_runs.dates("2024-01-15", "2024-05-15", "1mo")
+        assert out == ["2024-01-15", "2024-02-15", "2024-03-15", "2024-04-15", "2024-05-15"]
+
+    def test_1mo_caps_to_last_day_for_short_months(self):
+        # 2024 is a leap year; Feb caps at 29.
+        out = background_runs.dates("2024-01-31", "2024-04-30", "1mo")
+        assert out == ["2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30"]
+
+    def test_inverted_range_raises(self):
+        with pytest.raises(ValueError, match="date_from"):
+            background_runs.dates("2024-06-30", "2024-01-01", "1d")
+
+    def test_invalid_every_raises(self):
+        with pytest.raises(ValueError, match="every"):
+            background_runs.dates("2024-01-01", "2024-01-05", "5d")
+
+    def test_invalid_date_format_raises(self):
+        with pytest.raises(ValueError):
+            background_runs.dates("not-a-date", "2024-01-05", "1d")
+
+    def test_same_from_and_to_returns_single_date(self):
+        out = background_runs.dates("2024-01-15", "2024-01-15", "1d")
+        assert out == ["2024-01-15"]
