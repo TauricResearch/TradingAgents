@@ -96,3 +96,17 @@ def test_unknown_env_var_is_ignored(monkeypatch):
         TRADINGAGENTS_NONEXISTENT_KEY="oops",
     )
     assert "nonexistent_key" not in dc.DEFAULT_CONFIG
+
+
+def test_indiamarketagents_env_overrides(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        INDIAMARKETAGENTS_DEFAULT_EXCHANGE="BSE",
+        INDIAMARKETAGENTS_DEFAULT_SUFFIX=".BO",
+        INDIAMARKETAGENTS_ALLOW_NON_INDIA_TICKERS="true",
+        INDIAMARKETAGENTS_BENCHMARK_TICKER="^BSESN",
+    )
+    assert dc.DEFAULT_CONFIG["default_exchange"] == "BSE"
+    assert dc.DEFAULT_CONFIG["default_india_suffix"] == ".BO"
+    assert dc.DEFAULT_CONFIG["allow_non_india_tickers"] is True
+    assert dc.DEFAULT_CONFIG["benchmark_ticker"] == "^BSESN"
