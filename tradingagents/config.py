@@ -59,6 +59,11 @@ class CostSettings(BaseModel):
     commission_per_trade: float = 0.0  # 0 = ZeroCommission (e.g. Alpaca equity)
 
 
+class BrokerSettings(BaseModel):
+    provider: str = "paper"   # "paper" (in-process simulator) | "alpaca"
+    mode: str = "paper"       # "paper" | "live"  (applies to alpaca)
+
+
 class Settings(BaseModel):
     llm: LLMSettings = Field(default_factory=LLMSettings)
     risk: RiskSettings = Field(default_factory=RiskSettings)
@@ -67,6 +72,7 @@ class Settings(BaseModel):
     cycle: CycleSettings = Field(default_factory=CycleSettings)
     data: DataSettings = Field(default_factory=DataSettings)
     costs: CostSettings = Field(default_factory=CostSettings)
+    broker: BrokerSettings = Field(default_factory=BrokerSettings)
 
     # -- convenience views -------------------------------------------------
     def llm_config(self) -> dict[str, Any]:
@@ -100,11 +106,16 @@ def _deep_update(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any
 
 
 def _default_path() -> Path:
+    # Only TRADINGAGENTS_CONFIG (a path to the file) is read from the env — the
+    # .env holds secrets, not parameters. All parameters live in config.toml.
     return Path(os.environ.get("TRADINGAGENTS_CONFIG", "config.toml"))
 
 
 def load_settings(path: str | os.PathLike | None = None) -> Settings:
-    """Load Settings: code defaults overlaid with the TOML file when present."""
+    """Load Settings: code defaults overlaid with config.toml (no env overrides).
+
+    Parameters live in config.toml only; the .env is for secrets (API keys).
+    """
     p = Path(path) if path is not None else _default_path()
     data = Settings().model_dump()
     if p.exists():

@@ -13,6 +13,12 @@ from typing import Any, Optional
 from .base import BrokerOrder, OrderRequest, OrderStatus
 
 _PAPER_URL = "https://paper-api.alpaca.markets"
+_LIVE_URL = "https://api.alpaca.markets"
+
+
+def alpaca_base_url(mode: str) -> str:
+    """Resolve the Alpaca REST base URL for ``mode`` ('paper' | 'live')."""
+    return _LIVE_URL if mode == "live" else _PAPER_URL
 
 _STATUS_MAP = {
     "filled": OrderStatus.FILLED,

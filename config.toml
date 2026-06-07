@@ -40,6 +40,13 @@ price_alert_atr = 1.5       # anomalous-move trigger threshold (|move| > k·ATR)
 [data]
 history_start = "2024-01-01"  # how far back to pull OHLCV
 
+[broker]
+# provider: "paper" = in-process simulator (no account) · "alpaca" = real account
+# mode (alpaca only): "paper" = paper-api.alpaca.markets · "live" = api.alpaca.markets
+# Set ALPACA_API_KEY / ALPACA_SECRET_KEY in .env when provider = "alpaca".
+provider = "paper"
+mode     = "paper"
+
 [costs]
 token_cost_per_cycle = 0.0
 commission_per_trade = 0.0    # 0 = commission-free (e.g. Alpaca equity)

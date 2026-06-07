@@ -61,12 +61,19 @@ def main(argv: list[str] | None = None) -> int:
         macro_fetcher=macro_fetcher, social_fetcher=social_f, history_start=start,
     )
 
+    # Broker selected from config.toml [broker]; secrets from .env.
     broker = None
-    if os.environ.get("ALPACA_API_KEY") and os.environ.get("ALPACA_SECRET_KEY"):
-        from .broker.alpaca import AlpacaBroker
+    bs = settings.broker
+    if bs.provider == "alpaca":
+        has_keys = os.environ.get("ALPACA_API_KEY") and os.environ.get("ALPACA_SECRET_KEY")
+        if not has_keys:
+            print("broker: alpaca selected but ALPACA keys missing -> PaperBroker (simulated)")
+        else:
+            from .broker.alpaca import AlpacaBroker, alpaca_base_url
 
-        broker = AlpacaBroker()
-        print("broker: Alpaca (paper)")
+            broker = AlpacaBroker(base_url=alpaca_base_url(bs.mode))
+            banner = "LIVE — real money" if bs.mode == "live" else "paper"
+            print(f"broker: Alpaca ({banner})")
     else:
         print("broker: PaperBroker (simulated)")
 
