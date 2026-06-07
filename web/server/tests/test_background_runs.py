@@ -266,3 +266,39 @@ class TestPauseResume:
         background_runs._run(handle, [f"2024-01-{i:02d}" for i in range(1, 11)])
         elapsed = time.monotonic() - t0
         assert elapsed < 5.0
+
+
+class TestTagRun:
+    def test_tag_run_adds_fields_to_most_recent_run_json(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        fake_propagate.record_in_storage = False
+        background_runs._run_one("NVDA", "2024-01-05")
+        from web.server.background_runs import _tag_run, BackgroundRunState
+        state = BackgroundRunState(
+            job_id="bgr_TAG1", ticker="NVDA", date_from="2024-01-05",
+            date_to="2024-01-05", every="1d", parallel=1, total=1,
+        )
+        # _run_one with record_in_storage=False doesn't write a run.json,
+        # so create one manually under DATA_ROOT for _tag_run to find.
+        run_dir = background_runs.DATA_ROOT / "NVDA" / "2024-01-05" / "run_manual"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "run.json").write_text('{"status": "done"}', encoding="utf-8")
+
+        _tag_run(state, "2024-01-05", iteration_index=7)
+        target = background_runs.DATA_ROOT / "NVDA" / "2024-01-05" / "run_manual" / "run.json"
+        assert target.exists()
+        data = json.loads(target.read_text())
+        assert data["background_run_id"] == "bgr_TAG1"
+        assert data["background_run_iteration_index"] == 7
+
+    def test_tag_run_no_op_when_no_run_json(self, tmp_path, monkeypatch, caplog):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import _tag_run, BackgroundRunState
+        state = BackgroundRunState(
+            job_id="bgr_TAG2", ticker="ZZZZ", date_from="2024-01-05",
+            date_to="2024-01-05", every="1d", parallel=1, total=1,
+        )
+        with caplog.at_level("WARNING"):
+            _tag_run(state, "2024-01-05", iteration_index=0)
+        # _tag_run uses DATA_ROOT which is tmp_path, and it does NOT create dirs
+        assert not (background_runs.DATA_ROOT / "ZZZZ" / "2024-01-05").exists()

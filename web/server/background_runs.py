@@ -317,6 +317,7 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
                     except Exception as exc:
                         _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
                     else:
+                        _tag_run(state, date_iso, iteration_index=idx)
                         state.record_duration(result.duration_s)
                     with state._persist_lock:
                         state.current_index += 1
@@ -332,6 +333,7 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
                 except Exception as exc:
                     _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
                 else:
+                    _tag_run(state, date_iso, iteration_index=idx)
                     state.record_duration(result.duration_s)
                 with state._persist_lock:
                     state.current_index += 1
@@ -347,6 +349,39 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
     else:
         state.status = "done"
     state.persist()
+
+
+def _tag_run(state: BackgroundRunState, date_iso: str, iteration_index: int) -> None:
+    """Post-hoc rewrite the most recent run.json for (ticker, date_iso) to
+    add the two background-run fields. No-op + WARN log if no run.json exists.
+    """
+    base = DATA_ROOT / state.ticker.upper() / date_iso
+    if not base.exists():
+        log.warning("background_runs._tag_run: no run.json for %s on %s", state.ticker, date_iso)
+        return
+    candidates = list(base.glob("*/run.json"))
+    if not candidates:
+        log.warning("background_runs._tag_run: no run.json for %s on %s", state.ticker, date_iso)
+        return
+    target = max(candidates, key=lambda p: p.stat().st_mtime)
+    try:
+        data = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        log.warning("background_runs._tag_run: malformed run.json at %s", target)
+        return
+    data["background_run_id"] = state.job_id
+    data["background_run_iteration_index"] = iteration_index
+    fd, tmp = tempfile.mkstemp(dir=target.parent, prefix=".tag-", suffix=".json.tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, target)
+    except Exception:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 def _run_one(ticker: str, date_iso: str) -> _IterationResult:
