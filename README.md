@@ -72,18 +72,24 @@ Python 3.13 · LangGraph / LangChain · OpenRouter · SQLAlchemy 2 (SQLite / Pos
 
 ## 🚀 Quick start
 
+A single **uv-managed environment** (`.venv`) holds everything (runtime + dev
+tools); always use `uv`.
+
 ```bash
-uv sync
+uv sync                                   # provisions .venv with all deps + dev
 
 # configure .env (see .env.example) — at minimum OPENROUTER_API_KEY
-# optional: FRED_API_KEY (macro), ALPACA_* (live broker)
+# optional: FRED_API_KEY (macro), ALPACA_* or a running TWS/IB Gateway (broker)
 
 # one analysis cycle
-uv run python -m tradingagents.cli AAPL MSFT --start 2024-01-01
+uv run python -m tradingagents.cli AAPL MSFT
 
 # autonomous paper-trading loop, every hour
 uv run python -m tradingagents.cli AAPL MSFT --loop 3600
 ```
+
+Broker is chosen in `config.toml` (`[broker] provider = paper | alpaca | ibkr`);
+IBKR uses the TWS API via `ib_async` and needs a running TWS/IB Gateway.
 
 ## ⚙️ Configuration
 
@@ -113,8 +119,8 @@ interval_seconds = 3600  # autonomous loop period
 ## ✅ Testing
 
 ```bash
-uv run pytest -m "not integration"   # fast, offline, deterministic
-uv run pytest -m integration         # network: yfinance · Alpaca · LLM
+uv run python -m pytest -m "not integration"   # fast, offline, deterministic
+uv run python -m pytest -m integration         # network: yfinance · Alpaca · IBKR · LLM
 ```
 
 The offline suite needs no network and no API keys — the brain runs against a fake LLM and the vendors against fake fetchers, so the tests are a true oracle for the design.
