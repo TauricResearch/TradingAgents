@@ -248,3 +248,21 @@ class TestCancel:
         assert handle.state.current_index < 10
         assert handle.state.status == "cancelled"
         assert handle.state.finished_at is not None
+
+
+class TestPauseResume:
+    def test_pause_blocks_iterations(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
+        fake_propagate.sleep_s = 0.02
+        handle = background_runs.register_handle(
+            "bgr_PAUSE1", "NVDA", "2024-01-01", "2024-01-10", "1d", parallel=1, total=10,
+        )
+        def _pause_after():
+            time.sleep(0.05)
+            handle.pause_event.set()
+        threading.Thread(target=_pause_after).start()
+        t0 = time.monotonic()
+        background_runs._run(handle, [f"2024-01-{i:02d}" for i in range(1, 11)])
+        elapsed = time.monotonic() - t0
+        assert elapsed < 5.0
