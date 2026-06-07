@@ -18,6 +18,11 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    "INDIAMARKETAGENTS_MARKET_SCOPE":     "market_scope",
+    "INDIAMARKETAGENTS_DEFAULT_EXCHANGE": "default_exchange",
+    "INDIAMARKETAGENTS_DEFAULT_SUFFIX":   "default_india_suffix",
+    "INDIAMARKETAGENTS_ALLOW_NON_INDIA_TICKERS": "allow_non_india_tickers",
+    "INDIAMARKETAGENTS_BENCHMARK_TICKER": "benchmark_ticker",
 }
 
 
@@ -76,6 +81,44 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
+    # Product / market profile
+    "product_name": "IndiaMarketAgents",
+    "market_scope": "india",
+    "default_exchange": "NSE",
+    "default_india_suffix": ".NS",
+    "allow_non_india_tickers": False,
+    "india_base_currency": "INR",
+    "india_timezone": "Asia/Kolkata",
+    "india_default_benchmark": "^NSEI",
+    "india_secondary_benchmark": "^BSESN",
+    "india_report_units": "crore_lakh",
+    "india_sector_benchmark_map": {
+        # Yahoo-compatible sector symbols are uneven across Indian indices.
+        # Keep uncertain sector benchmarks explicit as None rather than using
+        # unverified symbols that could leak bad data into reports.
+        "pharma": None,
+        "chemicals": None,
+        "oil_gas": None,
+        "banks": "^NSEBANK",
+        "it_services": None,
+        "autos": None,
+        "cement": None,
+        "metals": None,
+        "consumer": None,
+        "utilities_power": None,
+    },
+    "india_news_queries": [
+        "RBI monetary policy repo rate India liquidity",
+        "SEBI regulations Indian equities listed companies",
+        "India Union Budget GST corporate tax capex",
+        "INR USD crude oil Brent India macro",
+        "FII DII flows NSE BSE India",
+        "India monsoon agriculture inflation demand",
+        "India pharma USFDA inspection warning letter ANDA",
+        "India chemicals China dumping inventory destocking capex",
+        "India oil gas OMC GRM LNG windfall tax",
+        "India banking liquidity credit growth asset quality",
+    ],
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
@@ -99,10 +142,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "core_stock_apis": "india,yfinance",       # Options: india, alpha_vantage, yfinance
+        "technical_indicators": "india,yfinance",  # Options: india, alpha_vantage, yfinance
+        "fundamental_data": "india,yfinance",      # Options: india, alpha_vantage, yfinance
+        "news_data": "india,yfinance",             # Options: india, alpha_vantage, yfinance
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
