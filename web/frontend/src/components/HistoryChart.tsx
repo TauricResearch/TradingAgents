@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from "recharts";
 import type { Bar, RunLike, Verdict } from "../verdicts";
@@ -20,7 +20,7 @@ export interface HistoryChartProps {
   rangeEndIso: string;
 }
 
-interface ChartRow { t: number; c: number; }
+interface ChartRow { t: number; o: number; h: number; l: number; c: number; v: number; }
 
 /** Downsample bars to ~3000 rows when the input is large. */
 function downsample(bars: Bar[], target = 3000): Bar[] {
@@ -52,7 +52,7 @@ export function HistoryChart(props: HistoryChartProps) {
   const scale: "m" | "h" | "d" = resolution === "1m" ? "m" : resolution === "1h" ? "h" : "d";
 
   const chartData: ChartRow[] = useMemo(
-    () => downsample(bars).map((b) => ({ t: isoToMs(b.t), c: b.c })),
+    () => downsample(bars).map((b) => ({ t: isoToMs(b.t), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })),
     [bars],
   );
 
@@ -82,6 +82,25 @@ export function HistoryChart(props: HistoryChartProps) {
             stroke="#cbd5e1"
           />
           <Line dataKey="c" dot={false} stroke="#475569" strokeWidth={1.5} isAnimationActive={false} />
+          <Tooltip
+            cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const p = payload[0].payload as ChartRow;
+              return (
+                <div
+                  className="bg-white border border-slate-200 rounded shadow-sm px-2 py-1 text-xs"
+                  data-testid="history-tooltip"
+                >
+                  <div className="text-slate-500">{fmtTime(p.t, scale)}</div>
+                  <div className="font-medium text-slate-900">${fmtPrice(p.c)}</div>
+                  <div className="text-slate-400 mt-0.5">
+                    H {fmtPrice(p.h)} · L {fmtPrice(p.l)}
+                  </div>
+                </div>
+              );
+            }}
+          />
           {runs.map((run) => {
             const startMs = isoToMs(run.startedAt);
             const endMs = Math.min(startMs + deltaMs, nowMs);
