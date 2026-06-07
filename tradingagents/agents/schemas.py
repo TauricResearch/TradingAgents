@@ -19,9 +19,9 @@ so that:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,15 @@ class ResearchPlan(BaseModel):
     instructions the trader can execute against.
     """
 
-    recommendation: PortfolioRating = Field(
+    # All fields are Optional with ``default=None`` so the structured call
+    # does not raise a validation error when the model fails to populate a
+    # field. ``_unwrap_schema_wrappers`` (below) also coerces "schema-wrapper"
+    # dicts (some reasoning models echo back the JSON schema definition of
+    # a field instead of an actual value) to ``None`` for the same reason.
+    # The render helpers fall back to placeholder text when a field is None
+    # so downstream consumers always see a complete markdown document.
+    recommendation: Optional[PortfolioRating] = Field(
+        default=None,
         description=(
             "The investment recommendation. Exactly one of Buy / Overweight / "
             "Hold / Underweight / Sell. Reserve Hold for situations where the "
@@ -75,29 +83,68 @@ class ResearchPlan(BaseModel):
             "the side with the stronger arguments."
         ),
     )
-    rationale: str = Field(
+    rationale: Optional[str] = Field(
+        default=None,
         description=(
             "Conversational summary of the key points from both sides of the "
             "debate, ending with which arguments led to the recommendation. "
             "Speak naturally, as if to a teammate."
         ),
     )
-    strategic_actions: str = Field(
+    strategic_actions: Optional[str] = Field(
+        default=None,
         description=(
             "Concrete steps for the trader to implement the recommendation, "
             "including position sizing guidance consistent with the rating."
         ),
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _unwrap_schema_wrappers(cls, data: Any) -> Any:
+        """Coerce "schema-wrapper" dicts to ``None`` so validation succeeds.
+
+        Some reasoning models (e.g. MiniMax M2.x / M3 with function-calling
+        structured output) emit tool-call args that echo the JSON schema
+        definition of a field instead of an actual value, e.g.
+        ``{"price_target": {"type": "null"}}`` or
+        ``{"rationale": {"description": "...", "type": "string"}}``. Pydantic
+        then fails because the dict cannot be coerced to the declared scalar
+        type. The heuristic here catches those cases and treats them as
+        missing values, which is the right call: the model has not provided
+        a usable value, and ``Optional`` fields with ``default=None`` accept
+        the resulting ``None`` cleanly.
+        """
+        if not isinstance(data, dict):
+            return data
+        out: dict[str, Any] = {}
+        for k, v in data.items():
+            if isinstance(v, dict) and "type" in v and len(v) <= 4:
+                # Looks like a JSON schema type fragment, not an actual value.
+                out[k] = None
+            else:
+                out[k] = v
+        return out
+
 
 def render_research_plan(plan: ResearchPlan) -> str:
-    """Render a ResearchPlan to markdown for storage and the trader's prompt context."""
+    """Render a ResearchPlan to markdown for storage and the trader's prompt context.
+
+    Falls back to placeholder text when a field is ``None`` so the rendered
+    markdown is always a complete document, even when the LLM failed to
+    populate every field of the structured call.
+    """
+    recommendation = (
+        plan.recommendation.value if plan.recommendation is not None else "(not provided)"
+    )
+    rationale = plan.rationale or "(not provided)"
+    strategic_actions = plan.strategic_actions or "(not provided)"
     return "\n".join([
-        f"**Recommendation**: {plan.recommendation.value}",
+        f"**Recommendation**: {recommendation}",
         "",
-        f"**Rationale**: {plan.rationale}",
+        f"**Rationale**: {rationale}",
         "",
-        f"**Strategic Actions**: {plan.strategic_actions}",
+        f"**Strategic Actions**: {strategic_actions}",
     ])
 
 
@@ -175,21 +222,32 @@ class PortfolioDecision(BaseModel):
     extraction pass is required. Field descriptions double as the model's
     output instructions, so the prompt body only needs to convey context and
     the rating-scale guidance.
+
+    All fields are Optional with ``default=None`` so the structured call
+    does not raise a validation error when the model fails to populate a
+    field. ``_unwrap_schema_wrappers`` (below) coerces "schema-wrapper" dicts
+    to ``None`` for the same reason — some reasoning models (e.g. MiniMax
+    M2.x / M3) echo back the JSON schema definition of a field instead of
+    an actual value. Render helpers fall back to placeholder text so
+    downstream consumers always see a complete markdown document.
     """
 
-    rating: PortfolioRating = Field(
+    rating: Optional[PortfolioRating] = Field(
+        default=None,
         description=(
             "The final position rating. Exactly one of Buy / Overweight / Hold / "
             "Underweight / Sell, picked based on the analysts' debate."
         ),
     )
-    executive_summary: str = Field(
+    executive_summary: Optional[str] = Field(
+        default=None,
         description=(
             "A concise action plan covering entry strategy, position sizing, "
             "key risk levels, and time horizon. Two to four sentences."
         ),
     )
-    investment_thesis: str = Field(
+    investment_thesis: Optional[str] = Field(
+        default=None,
         description=(
             "Detailed reasoning anchored in specific evidence from the analysts' "
             "debate. If prior lessons are referenced in the prompt context, "
@@ -205,6 +263,23 @@ class PortfolioDecision(BaseModel):
         description="Optional recommended holding period, e.g. '3-6 months'.",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _unwrap_schema_wrappers(cls, data: Any) -> Any:
+        """Coerce "schema-wrapper" dicts to ``None`` so validation succeeds.
+
+        See ``ResearchPlan._unwrap_schema_wrappers`` for the full rationale.
+        """
+        if not isinstance(data, dict):
+            return data
+        out: dict[str, Any] = {}
+        for k, v in data.items():
+            if isinstance(v, dict) and "type" in v and len(v) <= 4:
+                out[k] = None
+            else:
+                out[k] = v
+        return out
+
 
 def render_pm_decision(decision: PortfolioDecision) -> str:
     """Render a PortfolioDecision back to the markdown shape the rest of the system expects.
@@ -214,12 +289,15 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     ``**Executive Summary**``, ``**Investment Thesis**``) that downstream
     parsers and the report writers already handle.
     """
+    rating = decision.rating.value if decision.rating is not None else "(not provided)"
+    executive_summary = decision.executive_summary or "(not provided)"
+    investment_thesis = decision.investment_thesis or "(not provided)"
     parts = [
-        f"**Rating**: {decision.rating.value}",
+        f"**Rating**: {rating}",
         "",
-        f"**Executive Summary**: {decision.executive_summary}",
+        f"**Executive Summary**: {executive_summary}",
         "",
-        f"**Investment Thesis**: {decision.investment_thesis}",
+        f"**Investment Thesis**: {investment_thesis}",
     ]
     if decision.price_target is not None:
         parts.extend(["", f"**Price Target**: {decision.price_target}"])
