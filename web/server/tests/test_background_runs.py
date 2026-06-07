@@ -229,3 +229,22 @@ class TestRunParallel:
         background_runs._run(handle, ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04"])
         assert len(fake_propagate.calls) == 4
         assert handle.state.current_index == 4
+
+
+class TestCancel:
+    def test_cancel_stops_within_one_iteration(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
+        fake_propagate.sleep_s = 0.05
+        handle = background_runs.register_handle(
+            "bgr_CAN1", "NVDA", "2024-01-01", "2024-01-10", "1d", parallel=1, total=10,
+        )
+        def _trigger():
+            time.sleep(0.12)
+            handle.cancel_event.set()
+        t = threading.Thread(target=_trigger); t.start()
+        background_runs._run(handle, [f"2024-01-{i:02d}" for i in range(1, 11)])
+        t.join()
+        assert handle.state.current_index < 10
+        assert handle.state.status == "cancelled"
+        assert handle.state.finished_at is not None

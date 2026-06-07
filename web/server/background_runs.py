@@ -351,3 +351,16 @@ def _run_one(ticker: str, date_iso: str) -> _IterationResult:
         ticker=ticker, date_iso=date_iso,
         duration_s=duration_s, decision=decision,
     )
+
+
+def cancel(job_id: str) -> None:
+    h = get_handle(job_id)
+    if h is None:
+        try:
+            state = BackgroundRunState.load(job_id)
+        except FileNotFoundError:
+            raise KeyError(job_id) from None
+        if state.status in ("done", "cancelled", "error"):
+            return
+        return
+    h.cancel_event.set()
