@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { WsEvent } from "../lib/events";
+import type { CandleResolution } from "../lib/resolution";
 
 export type HistoryPollInterval = 0 | 5_000 | 15_000 | 30_000 | 60_000 | 300_000;
 
@@ -36,6 +37,11 @@ interface UiState {
   // Polling interval in ms for the history chart, or 0 to disable.
   // Default 30_000 (30s). PERSISTED.
   historyPollIntervalMs: HistoryPollInterval;
+  // Candle resolution: independent of the data's API resolution and of
+  // the verdict Δ window. "auto" = use whatever the API returns;
+  // explicit values trigger client-side resampling. PERSISTED so the
+  // user's preferred candle size survives a refresh.
+  candleResolution: CandleResolution;
 
   setFocusedTicker: (t: string | null) => void;
   setLastRunIdForTicker: (ticker: string, runId: string | null) => void;
@@ -51,6 +57,7 @@ interface UiState {
   setHistoryOpen: (ticker: string, open: boolean) => void;
   setHoldThresholdPct: (pct: number) => void;
   setHistoryPollIntervalMs: (ms: HistoryPollInterval) => void;
+  setCandleResolution: (r: CandleResolution) => void;
 }
 
 export const useUi = create<UiState>()(
@@ -64,6 +71,7 @@ export const useUi = create<UiState>()(
       historyOpenByTicker: {},
       holdThresholdPct: 1.0,
       historyPollIntervalMs: 30_000,
+      candleResolution: "auto",
       setFocusedTicker: (t) => set({ focusedTicker: t }),
       setLastRunIdForTicker: (ticker, runId) =>
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
@@ -107,6 +115,7 @@ export const useUi = create<UiState>()(
         set((s) => ({ historyOpenByTicker: { ...s.historyOpenByTicker, [ticker]: open } })),
       setHoldThresholdPct: (pct) => set({ holdThresholdPct: pct }),
       setHistoryPollIntervalMs: (ms) => set({ historyPollIntervalMs: ms }),
+      setCandleResolution: (r) => set({ candleResolution: r }),
     }),
     {
       name: "tradingagents-ui",
@@ -125,6 +134,7 @@ export const useUi = create<UiState>()(
         historicalRunIdByTicker: s.historicalRunIdByTicker,
         holdThresholdPct: s.holdThresholdPct,
         historyPollIntervalMs: s.historyPollIntervalMs,
+        candleResolution: s.candleResolution,
       }),
     },
   ),

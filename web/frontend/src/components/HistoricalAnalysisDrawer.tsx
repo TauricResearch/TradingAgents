@@ -3,31 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getTickerHistory, type HistoryRange, type RunDetail, type Bar,
 } from "../lib/api";
-import { useUi } from "../store/ui";
+import { useUi, type HistoryPollInterval } from "../store/ui";
 import {
   computeStats, computeVerdict, type Verdict,
 } from "../verdicts";
 import { HistoryStats } from "./HistoryStats";
 import { HistoryChart } from "./HistoryChart";
-import { HistoryControls, type CandleResolution } from "./HistoryControls";
+import { HistoryControls } from "./HistoryControls";
 import { RunListItem } from "./RunListItem";
+import { type CandleResolution, RESOLUTION_MS, scaleFor } from "../lib/resolution";
 
 // --- helpers ---
-
-function scaleFor(resolution: "1m" | "5m" | "15m" | "1h" | "4h" | "1d"): "m" | "h" | "d" {
-  if (resolution === "1d") return "d";
-  if (resolution === "1h" || resolution === "4h") return "h";
-  return "m";
-}
-
-const RESOLUTION_MS: Record<Exclude<CandleResolution, "auto">, number> = {
-  "1m": 60_000,
-  "5m": 5 * 60_000,
-  "15m": 15 * 60_000,
-  "1h": 60 * 60_000,
-  "4h": 4 * 60 * 60_000,
-  "1d": 24 * 60 * 60_000,
-};
 
 /**
  * Re-bin raw API bars into a coarser resolution. Bars are bucketed by
@@ -60,6 +46,26 @@ function resampleBars(bars: Bar[], resolution: Exclude<CandleResolution, "auto">
   });
 }
 
+const CANDLE_OPTIONS: Array<{ label: string; value: CandleResolution }> = [
+  { label: "Auto", value: "auto" },
+  { label: "1m", value: "1m" },
+  { label: "5m", value: "5m" },
+  { label: "15m", value: "15m" },
+  { label: "1h", value: "1h" },
+  { label: "4h", value: "4h" },
+  { label: "1d", value: "1d" },
+  { label: "1w", value: "1w" },
+];
+
+const REFRESH_OPTIONS: Array<{ label: string; value: HistoryPollInterval }> = [
+  { label: "Off", value: 0 },
+  { label: "5s", value: 5_000 },
+  { label: "15s", value: 15_000 },
+  { label: "30s", value: 30_000 },
+  { label: "1m", value: 60_000 },
+  { label: "5m", value: 300_000 },
+];
+
 function toRunLike(run: RunDetail) {
   return {
     id: run.id,
@@ -91,6 +97,7 @@ function useTickingNow(intervalMs: number): { nowIso: string; nowMs: number } {
 export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; onClose: () => void }) {
   const holdThresholdPct = useUi((s) => s.holdThresholdPct);
   const historyPollIntervalMs = useUi((s) => s.historyPollIntervalMs);
+  const setHistoryPollIntervalMs = useUi((s) => s.setHistoryPollIntervalMs);
   const focusedRunId = useUi((s) => {
     const hist = s.historicalRunIdByTicker[ticker];
     if (hist != null) return hist;
@@ -103,10 +110,11 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   // evaluated immediately. The user can slide up to 3y to see the
   // "we don't know yet" cases for recent runs.
   const [deltaMs, setDeltaMs] = useState<number>(60 * 60 * 1000);
-  // Candle resolution is independent of the data's API resolution and
-  // independent of the verdict Δ window. "auto" = use whatever the API
-  // returned; explicit values trigger client-side resampling.
-  const [candleResolution, setCandleResolution] = useState<CandleResolution>("auto");
+  // Candle resolution is persisted in the UI store so the user's choice
+  // survives a refresh. Read+write through the store; the toolbar
+  // rendered just above the chart is the only writer.
+  const candleResolution = useUi((s) => s.candleResolution);
+  const setCandleResolution = useUi((s) => s.setCandleResolution);
   const tick = useTickingNow(1000);
 
   const query = useQuery({
@@ -125,7 +133,7 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   const rangeEndIso = data?.range_end ?? tick.nowIso;
 
   // Effective resolution: explicit candle choice wins, otherwise the API's.
-  const effectiveResolution: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" =
+  const effectiveResolution: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w" =
     candleResolution === "auto" ? apiResolution : candleResolution;
   const scale = scaleFor(effectiveResolution);
 
@@ -182,8 +190,6 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
         <button onClick={onClose} className="text-sm text-slate-500">Close</button>
       </div>
 
-      <HistoryStats stats={stats} />
-
       <div className="flex-1 min-h-0">
         {query.isLoading ? (
           <div className="p-4 text-xs text-slate-500">Loading…</div>
@@ -199,26 +205,63 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
             <button onClick={() => setRange("1y")} className="text-blue-600">Use 1y</button>
           </div>
         ) : (
-          <HistoryChart
-            bars={resampledBars}
-            runs={runs.map(toRunLike)}
-            verdicts={verdicts}
-            deltaMs={deltaMs}
-            holdThresholdPct={holdThresholdPct}
-            nowIso={tick.nowIso}
-            selectedRunId={focusedRunId}
-            resolution={effectiveResolution}
-            rangeStartIso={rangeStartIso}
-            rangeEndIso={rangeEndIso}
-          />
+          <div className="flex flex-col h-full">
+            {/* Toolbar — sits just above the chart so the user can
+                adjust Candle resolution and the Refresh cadence without
+                scrolling. Both selections are persisted in the UI store. */}
+            <div className="flex items-center justify-end gap-3 px-2 py-1 text-xs border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-1">
+                <label htmlFor="candle-res-select" className="text-slate-500">Candle</label>
+                <select
+                  id="candle-res-select"
+                  data-testid="candle-res-select"
+                  value={candleResolution}
+                  onChange={(e) => setCandleResolution(e.target.value as CandleResolution)}
+                  className="border border-slate-300 rounded px-1 py-0.5 bg-white"
+                >
+                  {CANDLE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-1">
+                <label htmlFor="refresh-select" className="text-slate-500">Refresh</label>
+                <select
+                  id="refresh-select"
+                  data-testid="refresh-select"
+                  value={historyPollIntervalMs}
+                  onChange={(e) => setHistoryPollIntervalMs(Number(e.target.value) as HistoryPollInterval)}
+                  className="border border-slate-300 rounded px-1 py-0.5 bg-white"
+                >
+                  {REFRESH_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <HistoryChart
+                bars={resampledBars}
+                runs={runs.map(toRunLike)}
+                verdicts={verdicts}
+                deltaMs={deltaMs}
+                holdThresholdPct={holdThresholdPct}
+                nowIso={tick.nowIso}
+                selectedRunId={focusedRunId}
+                resolution={effectiveResolution}
+                rangeStartIso={rangeStartIso}
+                rangeEndIso={rangeEndIso}
+              />
+            </div>
+          </div>
         )}
       </div>
+
+      <HistoryStats stats={stats} />
 
       <HistoryControls
         deltaMs={deltaMs}
         onDeltaChange={setDeltaMs}
-        candleResolution={candleResolution}
-        onCandleResolutionChange={setCandleResolution}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto border-t border-slate-200">
