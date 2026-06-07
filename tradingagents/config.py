@@ -17,8 +17,8 @@ from pydantic import BaseModel, Field
 
 class LLMSettings(BaseModel):
     provider: str = "openrouter"
-    deep_model: str = "deepseek/deepseek-v4-flash:free"
-    quick_model: str = "deepseek/deepseek-v4-flash:free"
+    deep_model: str = "openrouter/owl-alpha"   # free, tool-calling, 1M ctx
+    quick_model: str = "openrouter/owl-alpha"
     backend_url: str | None = None
 
 
@@ -44,10 +44,30 @@ class ScreeningSettings(BaseModel):
     top_k: int = 5                   # how many tickers per cycle reach the deep dive
 
 
+class UniverseSettings(BaseModel):
+    scope: str = "watchlist"         # what the funnel analyses: "watchlist" | "full"
+    reconcile_every_cycles: int = 24  # how often to re-sync the broker universe
+    sp500_seed_path: str | None = None  # None -> packaged data/sp500.csv
+
+
+class WatchlistSettings(BaseModel):
+    membership: str = "hybrid"       # "hybrid" | "agent" | "deterministic"
+    max_size: int = 60               # cap on the working set
+    evict_after_cycles: int = 30     # drop stale, low-score names after N cycles
+    seed: str = "sp500"              # initial watchlist: "sp500" | "portfolio" | "empty"
+
+
+class BenchmarkSettings(BaseModel):
+    # Dynamic: a list so it can be more than one and change over time.
+    # Never hardcoded elsewhere; the code reads it from here.
+    symbols: list[str] = Field(default_factory=lambda: ["SPY"])
+
+
 class CycleSettings(BaseModel):
     max_revisions: int = 1           # "when in doubt, ask" loop cap
     interval_seconds: float = 3600.0  # autonomous loop period
     price_alert_atr: float = 1.5     # anomalous-move trigger threshold
+    max_parallel: int = 3            # concurrent per-ticker evaluators (fan-out)
 
 
 class DataSettings(BaseModel):
@@ -74,6 +94,9 @@ class Settings(BaseModel):
     risk: RiskSettings = Field(default_factory=RiskSettings)
     charter: CharterSettings = Field(default_factory=CharterSettings)
     screening: ScreeningSettings = Field(default_factory=ScreeningSettings)
+    universe: UniverseSettings = Field(default_factory=UniverseSettings)
+    watchlist: WatchlistSettings = Field(default_factory=WatchlistSettings)
+    benchmark: BenchmarkSettings = Field(default_factory=BenchmarkSettings)
     cycle: CycleSettings = Field(default_factory=CycleSettings)
     data: DataSettings = Field(default_factory=DataSettings)
     costs: CostSettings = Field(default_factory=CostSettings)

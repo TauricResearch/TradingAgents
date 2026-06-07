@@ -9,8 +9,8 @@
 # OpenRouter is the default single provider. Verify slugs on openrouter.ai
 # (free models end in :free). The API key lives in .env (OPENROUTER_API_KEY).
 provider    = "openrouter"
-deep_model  = "deepseek/deepseek-v4-flash:free"
-quick_model = "deepseek/deepseek-v4-flash:free"
+deep_model  = "openrouter/owl-alpha"   # free + tool-calling + 1M ctx
+quick_model = "openrouter/owl-alpha"
 # backend_url = ""          # leave unset: auto-resolved for OpenRouter
 
 [risk]
@@ -32,10 +32,28 @@ max_sector_pct    = 0.30    # max exposure per sector
 lookback = 60               # bars used by the screening signals
 top_k    = 5                # tickers per cycle that reach the deep dive
 
+[universe]
+# What the funnel actually analyses: "watchlist" (dynamic working set) or "full".
+# The system always KNOWS the whole broker-tradable universe and reconciles it.
+scope                  = "watchlist"
+reconcile_every_cycles = 24          # re-sync the broker universe every N cycles
+# sp500_seed_path      = ""          # default: packaged tradingagents/data/sp500.csv
+
+[watchlist]
+membership        = "hybrid"   # "hybrid" (rules propose + PM curates) | "agent" | "deterministic"
+max_size          = 60         # cap on the working set
+evict_after_cycles = 30        # drop stale low-score names after N cycles
+seed              = "sp500"    # initial watchlist: "sp500" | "portfolio" | "empty"
+
+[benchmark]
+# Dynamic: a list, can be more than one and change over time. Never hardcoded.
+symbols = ["SPY"]
+
 [cycle]
 max_revisions   = 1         # "when in doubt, ask" loop cap
 interval_seconds = 3600     # autonomous loop period (--loop)
 price_alert_atr = 1.5       # anomalous-move trigger threshold (|move| > k·ATR)
+max_parallel    = 3         # concurrent per-ticker evaluators (fan-out)
 
 [data]
 history_start = "2024-01-01"  # how far back to pull OHLCV

@@ -102,7 +102,7 @@ Anything omitted keeps its default (`tradingagents/config.py`).
 ```toml
 [llm]
 provider   = "openrouter"
-deep_model = "deepseek/deepseek-v4-flash:free"
+deep_model = "openrouter/owl-alpha"   # free, tool-calling
 [broker]
 provider = "paper"       # "paper" (simulator) | "alpaca"
 mode     = "paper"       # "paper" | "live"  (alpaca)

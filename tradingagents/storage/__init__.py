@@ -36,6 +36,7 @@ from .models import (
     ResearchState,
     SocialPost,
     TickerCard,
+    TickerEvent,
     Trade,
 )
 
@@ -56,5 +57,6 @@ __all__ = [
     "ResearchState",
     "SocialPost",
     "TickerCard",
+    "TickerEvent",
     "Trade",
 ]

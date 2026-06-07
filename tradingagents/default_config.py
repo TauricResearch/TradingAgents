@@ -19,8 +19,8 @@ DEFAULT_CONFIG = {
     "memory_log_max_entries": None,
     # LLM settings — sourced from config.toml [llm] (overlaid below).
     "llm_provider": "openrouter",
-    "deep_think_llm": "deepseek/deepseek-v4-flash:free",
-    "quick_think_llm": "deepseek/deepseek-v4-flash:free",
+    "deep_think_llm": "openrouter/owl-alpha",
+    "quick_think_llm": "openrouter/owl-alpha",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a

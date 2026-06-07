@@ -15,6 +15,8 @@ from typing import Any, Iterable, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from datetime import date as _date
+
 from .models import (
     CharterRule,
     DecisionLog,
@@ -27,12 +29,13 @@ from .models import (
     ResearchState,
     SocialPost,
     TickerCard,
+    TickerEvent,
     Trade,
 )
 
 
 # ---------------------------------------------------------------------------
-# Instruments
+# Instruments / investable universe
 # ---------------------------------------------------------------------------
 def upsert_instrument(session: Session, symbol: str, **fields: Any) -> Instrument:
     inst = session.scalar(select(Instrument).where(Instrument.symbol == symbol))
@@ -44,6 +47,50 @@ def upsert_instrument(session: Session, symbol: str, **fields: Any) -> Instrumen
             setattr(inst, key, value)
     session.flush()
     return inst
+
+
+def bulk_upsert_instruments(session: Session, rows: Iterable[dict[str, Any]]) -> int:
+    """Upsert many instruments (universe sync). Returns the count processed."""
+    n = 0
+    for row in rows:
+        symbol = row["symbol"]
+        upsert_instrument(session, symbol, **{k: v for k, v in row.items() if k != "symbol"})
+        n += 1
+    return n
+
+
+def list_universe(
+    session: Session, *, tradable_only: bool = True, active_only: bool = True
+) -> list[Instrument]:
+    stmt = select(Instrument)
+    if tradable_only:
+        stmt = stmt.where(Instrument.tradable.is_(True))
+    if active_only:
+        stmt = stmt.where(Instrument.active.is_(True))
+    return list(session.scalars(stmt))
+
+
+def universe_symbols(session: Session, **kwargs: Any) -> set[str]:
+    return {i.symbol for i in list_universe(session, **kwargs)}
+
+
+def mark_instruments_inactive(session: Session, symbols: Iterable[str]) -> int:
+    """Mark instruments no longer offered by the broker as inactive (reconcile)."""
+    symbols = list(symbols)
+    if not symbols:
+        return 0
+    rows = session.scalars(select(Instrument).where(Instrument.symbol.in_(symbols)))
+    n = 0
+    for inst in rows:
+        inst.active = False
+        inst.tradable = False
+        n += 1
+    session.flush()
+    return n
+
+
+def sp500_symbols(session: Session) -> set[str]:
+    return set(session.scalars(select(Instrument.symbol).where(Instrument.is_sp500.is_(True))))
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +121,83 @@ def top_screened(session: Session, limit: int = 10) -> list[TickerCard]:
         .limit(limit)
     )
     return list(session.scalars(stmt))
+
+
+# ---------------------------------------------------------------------------
+# Watchlist (the dynamic working set)
+# ---------------------------------------------------------------------------
+def set_watchlist(
+    session: Session, symbol: str, in_watchlist: bool, *, reason: Optional[str] = None
+) -> TickerCard:
+    """Add/remove a ticker from the watchlist, stamping reason + time on entry."""
+    fields: dict[str, Any] = {"in_watchlist": in_watchlist}
+    if in_watchlist:
+        fields["watchlist_reason"] = reason
+        fields["watchlist_added_at"] = datetime.now(timezone.utc)
+    return upsert_ticker_card(session, symbol, **fields)
+
+
+def list_watchlist(session: Session) -> list[TickerCard]:
+    return list(session.scalars(select(TickerCard).where(TickerCard.in_watchlist.is_(True))))
+
+
+def watchlist_symbols(session: Session) -> set[str]:
+    return set(
+        session.scalars(select(TickerCard.symbol).where(TickerCard.in_watchlist.is_(True)))
+    )
+
+
+def watchlist_size(session: Session) -> int:
+    return len(watchlist_symbols(session))
+
+
+# ---------------------------------------------------------------------------
+# Ticker events (dated checkpoints feeding the Trigger Engine)
+# ---------------------------------------------------------------------------
+def add_ticker_event(
+    session: Session, symbol: str, event_date, type: str,
+    *, note: Optional[str] = None, source: Optional[str] = None,
+) -> TickerEvent:
+    """Insert a dated event (idempotent on symbol+date+type)."""
+    existing = session.scalar(
+        select(TickerEvent).where(
+            TickerEvent.symbol == symbol,
+            TickerEvent.date == event_date,
+            TickerEvent.type == type,
+        )
+    )
+    if existing is not None:
+        return existing
+    ev = TickerEvent(symbol=symbol, date=event_date, type=type, note=note, source=source)
+    session.add(ev)
+    session.flush()
+    return ev
+
+
+def due_events(session: Session, *, today=None) -> list[TickerEvent]:
+    """Unconsumed events whose date is today or earlier (the system self-wakes)."""
+    today = today or _date.today()
+    return list(
+        session.scalars(
+            select(TickerEvent).where(
+                TickerEvent.consumed.is_(False),
+                TickerEvent.date <= today,
+            )
+        )
+    )
+
+
+def mark_events_consumed(session: Session, event_ids: Iterable[int]) -> int:
+    ids = list(event_ids)
+    if not ids:
+        return 0
+    rows = session.scalars(select(TickerEvent).where(TickerEvent.id.in_(ids)))
+    n = 0
+    for ev in rows:
+        ev.consumed = True
+        n += 1
+    session.flush()
+    return n
 
 
 # ---------------------------------------------------------------------------
