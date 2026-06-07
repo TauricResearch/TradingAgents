@@ -2,7 +2,7 @@
 
 Date: 2026-06-07
 Branch: `india-market-agents`
-Latest phase: Security/compliance final pass
+Latest phase: Final branch review and PR-readiness package
 
 ## Project Goal
 
@@ -16,11 +16,10 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Security/compliance scans found no tracked generated reports, user-supplied filing folders, PDFs, bytecode, database files, or real-looking secret prefixes.
-- Upstream README execution wording was tightened for IndiaMarketAgents so user-facing docs no longer say orders are sent to a simulated exchange.
-- Report writing now validates the India ticker before creating the output directory.
-- Fake `sk-...` style API-key fixtures were replaced with neutral placeholders to reduce false-positive secret scanner hits.
-- Data-source, agent prompt, broker, and dashboard feature code were intentionally left unchanged in this phase.
+- Branch review confirms `india-market-agents` is clean and 12 commits ahead of `upstream/main`.
+- `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
+- Final verification passed with the offline unit suite and targeted security/compliance scans.
+- No data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
 
 ## Completed Phases
 
@@ -57,6 +56,11 @@ The product is research and decision support only. It must not become a live tra
    - Removed simulated-exchange execution language from the user-facing README.
    - Moved report-writer India ticker validation ahead of output-directory creation.
    - Added offline security/compliance regression tests and neutralized fake API-key prefixes in tests.
+8. Final branch review and PR-readiness package:
+   - Reviewed branch status, commit history, changed-file scope, and remaining risks.
+   - Added a concise PR-readiness package for reviewers.
+   - Re-ran final offline validation and targeted security/compliance scans.
+   - Kept scope limited to documentation and branch-readiness review.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -67,10 +71,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `docs/CODEX_HANDOFF.md`
-- `README.md`
-- `cli/main.py`
-- `tests/test_api_key_env.py`
-- `tests/test_security_compliance.py`
+- `docs/PR_READINESS.md`
 
 ## Important Design Decisions
 
@@ -91,6 +92,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Validate ticker-derived report paths before creating output directories.
 - Use neutral placeholder strings in tests instead of fake values that resemble real provider secret prefixes.
 - Tracked `.env.example*` files are intentionally template files; real `.env` files must remain untracked.
+- Keep PR-readiness notes concise and evidence-backed; do not use them to introduce new scope.
 - Do not add broker execution or broker integrations.
 - Prefer official/user-provided data and explicit unavailable responses over fabricated values.
 - Keep live exchange/network tests out of the default test suite.
@@ -106,12 +108,12 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py -q`: 11 passed.
-- `python3 -m pytest tests/test_api_key_env.py tests/test_security_compliance.py tests/test_india_cli_report.py -q`: 34 passed.
-- `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ...`: no matches after excluding tracked `.env.example*` templates.
-- `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order' -- README.md README_INDIA.md dashboard cli tradingagents docs tests`: no matches.
-- `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|...generated artifacts...)'`: only tracked `.env.example*` templates matched the broader env-template pattern; no generated reports, local filings, PDFs, bytecode, DBs, or logs were tracked.
+- `git status --branch --short`: clean, `india-market-agents...upstream/main [ahead 12]`.
+- `git rev-list --count upstream/main..HEAD`: 12.
 - `git diff --check`: passed.
+- `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
+- `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
+- `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
 - `python3 -m pytest -m "not integration" -q`: 373 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Known Risks And Blockers
@@ -132,4 +134,4 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 ## Next Recommended Prompt
 
-Proceed to the next phase: final branch review and PR-readiness package. Keep scope limited to summarizing completed phases, reviewing remaining risks, checking git history/status, and preparing a concise PR description/checklist. Do not add data sources, agent prompts, dashboard features, or broker integrations. Update `docs/CODEX_HANDOFF.md` and commit only if documentation changes are needed.
+Proceed to PR creation: push branch `india-market-agents` and open a draft PR using `docs/PR_READINESS.md` as the PR body. Keep scope limited to git push/PR creation and do not change code unless a pre-push check fails.
