@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  LineChart, BarChart, Bar as BarRect, Cell, Customized,
+  LineChart, Line, BarChart, Bar as BarRect, Cell, Customized,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from "recharts";
@@ -56,14 +56,17 @@ const DOWN_COLOR = "#dc2626"; // red-600
  * Custom recharts renderer that draws one OHLC candle per data point.
  * Recharts has no built-in candlestick primitive, so we read the chart's
  * x/y scales (passed in by <Customized>) and emit a wick line + a body
- * rect per row. The body colour follows the close-vs-open direction.
+ * rect per row. The body colour follows the close-vs-open direction by
+ * default; an optional `colors` array overrides per-bar (used for
+ * run-context tinting, mirroring the volume bars).
  */
 function CandleRenderer(props: {
   data?: ChartRow[];
   xAxisMap?: Record<string, { scale: (v: number) => number }>;
   yAxisMap?: Record<string, { scale: (v: number) => number }>;
+  colors?: Array<{ wick: string; body: string } | null>;
 }) {
-  const { data, xAxisMap, yAxisMap } = props;
+  const { data, xAxisMap, yAxisMap, colors } = props;
   if (!data || !xAxisMap || !yAxisMap) return null;
   const xAxis = Object.values(xAxisMap)[0];
   const yAxis = Object.values(yAxisMap)[0];
@@ -76,21 +79,23 @@ function CandleRenderer(props: {
         const yLow = yAxis.scale(row.l);
         const yOpen = yAxis.scale(row.o);
         const yClose = yAxis.scale(row.c);
+        const override = colors?.[i] ?? null;
         const isUp = row.c >= row.o;
-        const color = isUp ? UP_COLOR : DOWN_COLOR;
+        const wickColor = override ? override.wick : (isUp ? UP_COLOR : DOWN_COLOR);
+        const bodyFill = override ? override.body : (isUp ? UP_COLOR : DOWN_COLOR);
         return (
           <g key={i}>
             <line
               x1={x} x2={x}
               y1={yHigh} y2={yLow}
-              stroke={color} strokeWidth={1}
+              stroke={wickColor} strokeWidth={1}
             />
             <rect
               x={x - CANDLE_WIDTH / 2}
               y={Math.min(yOpen, yClose)}
               width={CANDLE_WIDTH}
               height={Math.max(1, Math.abs(yClose - yOpen))}
-              fill={color}
+              fill={bodyFill}
             />
           </g>
         );
@@ -162,6 +167,43 @@ export function HistoryChart(props: HistoryChartProps) {
     [chartData, runs, deltaMs, nowMs],
   );
 
+  // Same active-run lookup for the candle renderer: when a candle falls
+  // inside a run's verdict window, override the wick + body fill with
+  // that run's action colour. Outside any run the candle keeps its
+  // standard up/down green/red.
+  const candleColors = useMemo(
+    () =>
+      chartData.map((row) => {
+        const t = row.t;
+        let active: RunLike | null = null;
+        for (const run of runs) {
+          const startMs = isoToMs(run.startedAt);
+          const endMs = Math.min(startMs + deltaMs, nowMs);
+          if (t >= startMs && t <= endMs) {
+            if (active == null || isoToMs(run.startedAt) > isoToMs(active.startedAt)) {
+              active = run;
+            }
+          }
+        }
+        if (!active) return null;
+        const c = actionColor(active.decisionAction);
+        return { wick: c, body: c };
+      }),
+    [chartData, runs, deltaMs, nowMs],
+  );
+
+  // <Customized> only forwards recharts' own props to its component, so
+  // we wrap CandleRenderer to inject our per-bar colour overrides.
+  const BoundCandleRenderer = useMemo(
+    () =>
+      (props: {
+        data?: ChartRow[];
+        xAxisMap?: Record<string, { scale: (v: number) => number }>;
+        yAxisMap?: Record<string, { scale: (v: number) => number }>;
+      }) => <CandleRenderer {...props} colors={candleColors} />,
+    [candleColors],
+  );
+
   return (
     <div className="w-full h-72" data-testid="history-chart">
       <div className="flex flex-col h-full">
@@ -183,7 +225,20 @@ export function HistoryChart(props: HistoryChartProps) {
                 tick={{ fontSize: 10, fill: "#64748b" }}
                 stroke="#cbd5e1"
               />
-              <Customized component={CandleRenderer} />
+              <Customized component={BoundCandleRenderer} />
+              {/* Hidden line — gives the <Tooltip> a real series to
+                  source its payload from. <Customized> alone doesn't
+                  register as a series, so without this the tooltip
+                  would never fire on hover. */}
+              <Line
+                dataKey="c"
+                stroke="none"
+                strokeWidth={0}
+                dot={false}
+                isAnimationActive={false}
+                legendType="none"
+                name="price"
+              />
               <Tooltip
                 cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }}
                 content={({ active, payload }) => {
