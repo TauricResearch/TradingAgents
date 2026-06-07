@@ -23,6 +23,8 @@ _F5_UNITS = (
     "iic-morning.service",
     "iic-dashboard.service",
 )
+_EVIDENCE_SINCE = "0001-01-01T00:00:00+00:00"
+_EVIDENCE_SINCE_LABEL = "all persisted DB rows"
 
 
 def _g1_morning_digests(conn, since: str) -> tuple[bool, str]:
@@ -143,26 +145,44 @@ def _g9_guards_off() -> tuple[bool, str]:
     return (not on, f"guards on: {on or 'none'}")
 
 
-def evaluate(*, since: str) -> dict:
+def evaluate(*, since: str | None = None, mode: str = "soak") -> dict:
+    if mode not in {"soak", "evidence"}:
+        raise ValueError(f"unknown F5 gate mode: {mode}")
+    if mode == "soak" and since is None:
+        raise ValueError("soak mode requires since")
+
+    query_since = since or _EVIDENCE_SINCE
+    report_since = since or _EVIDENCE_SINCE_LABEL
     conn = iic_connect(_dc.DEFAULT_CONFIG["iic_db_path"])
     checks: dict[str, dict[str, Any]] = {}
 
     for gid, fn in [
-        ("G1", lambda: _g1_morning_digests(conn, since)),
-        ("G2", lambda: _g2_event_alerts(conn, since)),
-        ("G3", lambda: _g3_deep_dives(conn, since)),
-        ("G4", lambda: _g4_backtest_accepted(conn, since)),
-        ("G5", lambda: _g5_expired_unactioned(conn, since)),
-        ("G6", lambda: _g6_refinement(conn, since)),
-        ("G7", lambda: _g7_no_crashes(since)),
-        ("G8", lambda: _g8_cost_data(conn, since)),
+        ("G1", lambda: _g1_morning_digests(conn, query_since)),
+        ("G2", lambda: _g2_event_alerts(conn, query_since)),
+        ("G3", lambda: _g3_deep_dives(conn, query_since)),
+        ("G4", lambda: _g4_backtest_accepted(conn, query_since)),
+        ("G5", lambda: _g5_expired_unactioned(conn, query_since)),
+        ("G6", lambda: _g6_refinement(conn, query_since)),
+        ("G7", lambda: _g7_no_crashes(query_since)),
+        ("G8", lambda: _g8_cost_data(conn, query_since)),
         ("G9", lambda: _g9_guards_off()),
     ]:
+        if mode == "evidence" and gid == "G7":
+            checks[gid] = {
+                "pass": True,
+                "evaluated": False,
+                "detail": (
+                    "not evaluated in evidence mode; runtime restart checks "
+                    "require a live soak window"
+                ),
+            }
+            continue
         ok, detail = fn()
-        checks[gid] = {"pass": ok, "detail": detail}
+        checks[gid] = {"pass": ok, "evaluated": True, "detail": detail}
 
     return {
-        "since": since,
+        "mode": mode,
+        "since": report_since,
         "checks": checks,
         "pass": all(c["pass"] for c in checks.values()),
     }
@@ -172,9 +192,13 @@ def _write_artifact(report: dict) -> Path:
     out_dir = Path(_dc.DEFAULT_CONFIG["iic_data_dir"]) / "exit_gates"
     out_dir.mkdir(parents=True, exist_ok=True)
     today = datetime.now().date().isoformat()
-    path = out_dir / f"f5-{today}.md"
+    mode = report.get("mode", "soak")
+    path = out_dir / (
+        f"f5-evidence-{today}.md" if mode == "evidence" else f"f5-{today}.md"
+    )
     lines = [
         f"# F5 Exit-Gate Report — {today}",
+        f"_mode: {mode}_",
         f"_since: {report['since']}_",
         "",
         f"**Overall:** {'PASS' if report['pass'] else 'FAIL'}",
@@ -183,7 +207,10 @@ def _write_artifact(report: dict) -> Path:
         "|---|---|---|",
     ]
     for gid, c in report["checks"].items():
-        mark = "PASS" if c["pass"] else "FAIL"
+        if c.get("evaluated", True):
+            mark = "PASS" if c["pass"] else "FAIL"
+        else:
+            mark = "NOT EVALUATED"
         lines.append(f"| {gid} | {mark} | {c['detail']} |")
     path.write_text("\n".join(lines))
     return path
@@ -191,10 +218,14 @@ def _write_artifact(report: dict) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--since", required=True,
+    parser.add_argument("--mode", choices=("soak", "evidence"), default="soak",
+                        help="soak requires --since; evidence uses existing DB rows")
+    parser.add_argument("--since",
                         help="ISO timestamp marking soak start")
     args = parser.parse_args()
-    report = evaluate(since=args.since)
+    if args.mode == "soak" and not args.since:
+        parser.error("--since is required in soak mode")
+    report = evaluate(since=args.since, mode=args.mode)
     print(json.dumps(report, indent=2, default=str))
     out = _write_artifact(report)
     print(f"\nReport written to {out}")

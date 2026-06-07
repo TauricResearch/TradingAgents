@@ -123,6 +123,29 @@ def test_exit_gate_passes_with_full_evidence(tmp_path, monkeypatch):
 
 
 @pytest.mark.unit
+def test_evidence_gate_uses_existing_db_rows_and_skips_runtime_g7(tmp_path, monkeypatch):
+    monkeypatch.setenv("TRADINGAGENTS_IIC_DB_PATH", str(tmp_path / "iic.db"))
+    monkeypatch.setenv("TRADINGAGENTS_IIC_DATA_DIR", str(tmp_path / "data"))
+    import importlib, tradingagents.default_config as dc
+    importlib.reload(dc)
+
+    conn = iic_connect(str(tmp_path / "iic.db"))
+    _seed_passing_soak(conn)
+
+    from scripts.f5_exit_gate import evaluate
+    report = evaluate(mode="evidence")
+
+    assert report["mode"] == "evidence"
+    assert report["since"] == "all persisted DB rows"
+    assert report["pass"] is True
+    assert report["checks"]["G7"]["pass"] is True
+    assert report["checks"]["G7"]["evaluated"] is False
+    assert "not evaluated in evidence mode" in report["checks"]["G7"]["detail"]
+    for g in ("G1", "G2", "G3", "G4", "G5", "G6", "G8", "G9"):
+        assert report["checks"][g]["pass"] is True, f"{g}: {report['checks'][g]}"
+
+
+@pytest.mark.unit
 def test_exit_gate_fails_when_no_refinement(tmp_path, monkeypatch):
     monkeypatch.setenv("TRADINGAGENTS_IIC_DB_PATH", str(tmp_path / "iic.db"))
     monkeypatch.setenv("TRADINGAGENTS_IIC_DATA_DIR", str(tmp_path / "data"))

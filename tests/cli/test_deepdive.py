@@ -28,6 +28,30 @@ def test_deepdive_invokes_default_analysis_then_secretary(tmp_path, monkeypatch)
 
 
 @pytest.mark.unit
+def test_run_deepdive_threads_deliver_flag(tmp_path, monkeypatch):
+    monkeypatch.setenv("TRADINGAGENTS_IIC_DB_PATH", str(tmp_path / "iic.db"))
+    monkeypatch.setenv("TRADINGAGENTS_IIC_DATA_DIR", str(tmp_path / "data"))
+
+    from cli.deepdive import run_deepdive
+
+    fake_secretary = MagicMock()
+    fake_secretary.compose_deep_dive.return_value = "brief-delivered"
+
+    with patch("cli.deepdive.run_default_analysis", return_value=["run-balanced"]), \
+         patch("cli.deepdive._build_secretary", return_value=fake_secretary):
+        brief_id = run_deepdive(
+            ticker="AAPL",
+            trade_date="2026-05-25",
+            parallel=False,
+            deliver=True,
+        )
+
+    assert brief_id == "brief-delivered"
+    call_kwargs = fake_secretary.compose_deep_dive.call_args.kwargs
+    assert call_kwargs["deliver"] is True
+
+
+@pytest.mark.unit
 def test_deepdive_typer_command_exists():
     """The Typer app must expose `deepdive` as a registered command."""
     from cli.main import app

@@ -38,6 +38,7 @@ def run_deepdive(
     parallel: bool = True,
     committee: bool = False,
     config_overrides: dict | None = None,
+    deliver: bool = False,
 ) -> str:
     """Programmatic entry point — returns the brief_id.
 
@@ -65,7 +66,12 @@ def run_deepdive(
         )
 
     sec = _build_secretary(config)
-    return sec.compose_deep_dive(ticker=ticker, run_ids=run_ids, trade_date=trade_date)
+    return sec.compose_deep_dive(
+        ticker=ticker,
+        run_ids=run_ids,
+        trade_date=trade_date,
+        deliver=deliver,
+    )
 
 
 def deepdive(
@@ -83,6 +89,7 @@ def deepdive(
         trade_date=td,
         parallel=parallel,
         committee=committee,
+        deliver=True,
     )
     typer.echo(f"brief_id: {brief_id}")
     typer.echo(f"brief markdown: {config['iic_data_dir']}/briefs/{brief_id}.md")

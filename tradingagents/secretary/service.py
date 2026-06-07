@@ -97,6 +97,7 @@ class Secretary:
         ticker: str,
         run_ids: List[str],
         trade_date: str,
+        deliver: bool = False,
     ) -> str:
         # Load each run's pm_synthesis.md (or fall back to meta.json) as the
         # final_trade_decision text for that persona.
@@ -134,16 +135,24 @@ class Secretary:
         (self._data_dir / "briefs").mkdir(parents=True, exist_ok=True)
         (self._data_dir / rel_path).write_text(markdown, encoding="utf-8")
 
+        generated_ts = datetime.now(timezone.utc).isoformat()
         store.insert_brief(
             self._conn,
             brief_id=brief_id,
             mode="deep_dive",
             scope=ticker,
-            generated_ts=datetime.now(timezone.utc).isoformat(),
+            generated_ts=generated_ts,
             content_path=rel_path,
             run_ids=run_ids,
             parent_brief_id=None,
         )
+        if deliver:
+            self._deliver_deep_dive(
+                brief_id=brief_id,
+                ticker=ticker,
+                generated_ts=generated_ts,
+                synthesis=synthesis,
+            )
         return brief_id
 
     # ----- Event alert (F4 scope) -----
@@ -397,6 +406,54 @@ class Secretary:
                 body = render_for_channel(
                     channel=name, mode="event_alert_light", brief=brief)
                 ch.send(brief=brief, mode="event_alert_light", body=body)
+            except Exception as exc:  # noqa: BLE001
+                store.insert_delivery(
+                    self._conn,
+                    brief_id=brief_id,
+                    channel=name,
+                    status="failed",
+                    sent_ts=None,
+                    channel_ref=str(exc)[:500],
+                    skip_reason=None,
+                )
+
+    def _deliver_deep_dive(
+        self,
+        *,
+        brief_id: str,
+        ticker: str,
+        generated_ts: str,
+        synthesis: Dict[str, str],
+    ) -> None:
+        """Best-effort fan-out for manually requested deep-dive briefs."""
+        from tradingagents.default_config import DEFAULT_CONFIG
+        from tradingagents.delivery.render import render_for_channel
+        config = dict(DEFAULT_CONFIG)
+        brief = {
+            "brief_id": brief_id,
+            "mode": "deep_dive",
+            "scope": ticker,
+            "generated_ts": generated_ts,
+            "tickers": [
+                {
+                    "ticker": ticker,
+                    "consensus": synthesis.get("consensus", ""),
+                    "divergence": synthesis.get("divergence", ""),
+                    "recommendation": synthesis.get("recommendation", ""),
+                }
+            ],
+        }
+        names = list(config["delivery"]["enabled_channels"])
+        if config["telegram_bot"]["enabled"] and "telegram" not in names:
+            names.append("telegram")
+        for name in names:
+            try:
+                ch = _build_channel(name, self._conn, config)
+                if ch is None:
+                    continue
+                body = render_for_channel(
+                    channel=name, mode="deep_dive", brief=brief)
+                ch.send(brief=brief, mode="deep_dive", body=body)
             except Exception as exc:  # noqa: BLE001
                 store.insert_delivery(
                     self._conn,
