@@ -1,3 +1,9 @@
+> # IndiaMarketAgents
+>
+> This fork is being transformed into **IndiaMarketAgents**, an India-only institutional market research copilot for Indian listed equities, Indian indices, Indian macro context, exchange filings, and SEBI-style research guardrails.
+>
+> Start with [README_INDIA.md](README_INDIA.md). This project remains an India-focused fork of TauricResearch/TradingAgents under Apache 2.0; upstream attribution is preserved in [NOTICE](NOTICE).
+
 <p align="center">
   <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
 </p>
