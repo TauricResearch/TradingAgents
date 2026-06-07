@@ -15,18 +15,29 @@ export function formatDuration(ms: number | null | undefined): string {
   return `${m}m ${s}s`;
 }
 
-/** Snap a Δ value to the nearest "named" horizon and format it. */
+/** Snap a Δ value to the nearest "named" horizon and format it.
+ *
+ *  < 1h   → "Xm"
+ *  < 1d   → "Xh"
+ *  < 1y   → "Xd"
+ *  >= 1y  → "Xy" (rounded to whole years)
+ */
 export function fmtDelta(deltaMs: number): string {
   const min = 5 * 60_000;
   const hour = 60 * 60_000;
   const day = 24 * hour;
+  const year = 365 * day;
   if (deltaMs < hour) return `${Math.max(1, Math.round(deltaMs / min))}m`;
   if (deltaMs < day) {
     const h = Math.round(deltaMs / hour);
     return `${h}h`;
   }
-  const d = Math.round(deltaMs / day);
-  return `${d}d`;
+  if (deltaMs < year) {
+    const d = Math.round(deltaMs / day);
+    return `${d}d`;
+  }
+  const y = Math.round(deltaMs / year);
+  return `${y}y`;
 }
 
 /** Format a price for axis tick labels: 2 decimals, no $ sign. */

@@ -57,7 +57,10 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   const setHistoricalRunForTicker = useUi((s) => s.setHistoricalRunForTicker);
 
   const [range, setRange] = useState<HistoryRange>("auto");
-  const [deltaMs, setDeltaMs] = useState<number>(24 * 60 * 60 * 1000); // 1d default
+  // Default Δ = 1h so most "done" runs (which complete in minutes) are
+  // evaluated immediately. The user can slide up to 3y to see the
+  // "we don't know yet" cases for recent runs.
+  const [deltaMs, setDeltaMs] = useState<number>(60 * 60 * 1000);
   const tick = useTickingNow(1000);
 
   const query = useQuery({
