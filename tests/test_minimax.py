@@ -11,7 +11,12 @@ import pytest
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
 
-from tradingagents.llm_clients.capabilities import _MINIMAX_THINKING, get_capabilities
+from tradingagents.llm_clients.capabilities import (
+    _DEEPSEEK_CHAT,
+    _DEEPSEEK_THINKING,
+    _MINIMAX_THINKING,
+    get_capabilities,
+)
 from tradingagents.llm_clients.factory import create_llm_client
 from tradingagents.llm_clients.openai_client import MinimaxChatOpenAI, NormalizedChatOpenAI
 
@@ -97,14 +102,26 @@ class TestOpenAICompatibleResponsesApiRouting:
 
         assert llm.use_responses_api is True
 
-    def test_openai_provider_with_nvidia_base_url_uses_chat_completions(self, monkeypatch):
-        llm = self._openai_llm(monkeypatch, "https://integrate.api.nvidia.com/v1")
+    def test_openai_provider_with_scheme_less_native_base_url_uses_responses_api(self, monkeypatch):
+        llm = self._openai_llm(monkeypatch, "api.openai.com/v1")
+
+        assert llm.use_responses_api is True
+
+    def test_openai_provider_with_custom_compatible_base_url_uses_chat_completions(self, monkeypatch):
+        llm = self._openai_llm(monkeypatch, "https://compatible.example/v1")
 
         assert isinstance(llm, NormalizedChatOpenAI)
         assert llm.use_responses_api is False
 
 
 @pytest.mark.unit
-class TestNvidiaHostedMinimaxCapabilities:
-    def test_nvidia_hosted_minimax_m2_7_uses_minimax_thinking_capabilities(self):
+class TestHostedModelCapabilities:
+    def test_hosted_minimax_m2_7_uses_minimax_thinking_capabilities(self):
         assert get_capabilities("minimaxai/minimax-m2.7") == _MINIMAX_THINKING
+
+    def test_hosted_deepseek_reasoning_models_use_deepseek_thinking_capabilities(self):
+        assert get_capabilities("deepseek-ai/deepseek-v3") == _DEEPSEEK_THINKING
+        assert get_capabilities("third-party/deepseek-r1") == _DEEPSEEK_THINKING
+
+    def test_hosted_deepseek_chat_uses_deepseek_chat_capabilities(self):
+        assert get_capabilities("deepseek-ai/deepseek-chat") == _DEEPSEEK_CHAT

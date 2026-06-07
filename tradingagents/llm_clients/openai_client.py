@@ -188,12 +188,14 @@ def _is_native_openai_base_url(base_url: Optional[str]) -> bool:
     """True when ``base_url`` is unset or points at api.openai.com.
 
     The Responses API (/v1/responses) only exists on native OpenAI. An
-    OpenAI-compatible custom endpoint (NVIDIA integrate API, LM Studio,
+    OpenAI-compatible custom endpoint (third-party gateways, LM Studio,
     vLLM, ...) only supports Chat Completions, so the Responses API must
     stay off there.
     """
     if not base_url:
         return True
+    if "://" not in base_url:
+        base_url = "https://" + base_url
     host = urlparse(base_url).hostname or ""
     return host == "api.openai.com" or host.endswith(".openai.com")
 
@@ -249,8 +251,8 @@ class OpenAIClient(BaseLLMClient):
                 llm_kwargs[key] = self.kwargs[key]
 
         # Native OpenAI uses the Responses API; OpenAI-compatible custom
-        # endpoints (NVIDIA, LM Studio, vLLM, ...) only speak Chat Completions,
-        # so only enable it for the real api.openai.com host.
+        # endpoints (third-party gateways, LM Studio, vLLM, ...) only speak
+        # Chat Completions, so only enable it for the real api.openai.com host.
         if self.provider == "openai":
             llm_kwargs["use_responses_api"] = _is_native_openai_base_url(self.base_url)
 
