@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
+
 import pytest
 
 from web.server import background_runs
@@ -154,3 +157,46 @@ class TestRunOne:
         fake_propagate.fail_on_dates.add("2024-01-04")
         with pytest.raises(RuntimeError):
             background_runs._run_one("AAPL", "2024-01-04")
+
+
+class TestRunSequential:
+    def _setup_root(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
+
+    def test_run_processes_all_dates(self, tmp_path, monkeypatch, fake_propagate):
+        self._setup_root(tmp_path, monkeypatch)
+        handle = background_runs.register_handle(
+            "bgr_SEQ1", "NVDA", "2024-01-01", "2024-01-03", "1d", parallel=1, total=3,
+        )
+        background_runs._run(handle, ["2024-01-01", "2024-01-02", "2024-01-03"])
+        assert len(fake_propagate.calls) == 3
+        assert handle.state.status == "done"
+        assert handle.state.current_index == 3
+        assert handle.state.finished_at is not None
+
+    def test_run_skips_dates_already_done_on_disk(self, tmp_path, monkeypatch, fake_propagate):
+        """Resume-safety: dates with a done run.json are skipped."""
+        self._setup_root(tmp_path, monkeypatch)
+        run_dir = background_runs.DATA_ROOT / "NVDA" / "2024-01-02" / "run_pre"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "run.json").write_text('{"status": "done"}', encoding="utf-8")
+
+        handle = background_runs.register_handle(
+            "bgr_SEQ2", "NVDA", "2024-01-01", "2024-01-03", "1d", parallel=1, total=3,
+        )
+        background_runs._run(handle, ["2024-01-01", "2024-01-02", "2024-01-03"])
+        assert len(fake_propagate.calls) == 2
+        assert handle.state.current_index == 3
+
+    def test_run_records_iteration_error_continues(self, tmp_path, monkeypatch, fake_propagate):
+        self._setup_root(tmp_path, monkeypatch)
+        fake_propagate.fail_on_dates.add("2024-01-02")
+        handle = background_runs.register_handle(
+            "bgr_SEQ3", "NVDA", "2024-01-01", "2024-01-03", "1d", parallel=1, total=3,
+        )
+        background_runs._run(handle, ["2024-01-01", "2024-01-02", "2024-01-03"])
+        assert len(fake_propagate.calls) == 3
+        assert handle.state.status == "done"
+        errors = json.loads(background_runs.iteration_errors_path(handle.job_id).read_text())
+        assert "2024-01-02" in errors

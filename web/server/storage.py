@@ -51,6 +51,18 @@ def ticker_dir(ticker: str) -> Path:
     return p
 
 
+def ticker_runs_dir(ticker: str, date_iso: str) -> Path:
+    """Return ``data/{ticker}/{date_iso}/`` (creating it).
+
+    Each call for this (ticker, date) will create a sub-run dir under this
+    path, so a date can have multiple run attempts (resume-safety).
+    """
+    safe = safe_ticker_component(ticker).upper()
+    p = data_dir() / safe / date_iso
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 # ---- atomic JSON ----
 
 # On Windows, antivirus / search indexer / the OS file-locking policy
