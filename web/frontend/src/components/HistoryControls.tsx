@@ -10,12 +10,28 @@ const REFRESH_OPTIONS: Array<{ label: string; value: HistoryPollInterval }> = [
   { label: "5m", value: 300_000 },
 ];
 
+export type CandleResolution = "auto" | "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+
+const CANDLE_RESOLUTIONS: Array<{ label: string; value: CandleResolution }> = [
+  { label: "Auto", value: "auto" },
+  { label: "1m", value: "1m" },
+  { label: "5m", value: "5m" },
+  { label: "15m", value: "15m" },
+  { label: "1h", value: "1h" },
+  { label: "4h", value: "4h" },
+  { label: "1d", value: "1d" },
+];
+
 export function HistoryControls({
   deltaMs,
   onDeltaChange,
+  candleResolution,
+  onCandleResolutionChange,
 }: {
   deltaMs: number;
   onDeltaChange: (ms: number) => void;
+  candleResolution: CandleResolution;
+  onCandleResolutionChange: (r: CandleResolution) => void;
 }) {
   const holdThresholdPct = useUi((s) => s.holdThresholdPct);
   const setHoldThresholdPct = useUi((s) => s.setHoldThresholdPct);
@@ -48,6 +64,20 @@ export function HistoryControls({
           className="flex-1"
         />
         <span className="w-12 text-right font-medium text-slate-900">{fmtDelta(deltaMs)}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <label htmlFor="candle-res-select" className="w-12 text-slate-600">Candle</label>
+        <select
+          id="candle-res-select"
+          data-testid="candle-res-select"
+          value={candleResolution}
+          onChange={(e) => onCandleResolutionChange(e.target.value as CandleResolution)}
+          className="flex-1 border border-slate-300 rounded px-1 py-0.5 bg-white"
+        >
+          {CANDLE_RESOLUTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </div>
       <div className="flex items-center gap-2">
         <label htmlFor="hold-slider" className="w-12 text-slate-600">HOLD%</label>

@@ -9,13 +9,55 @@ import {
 } from "../verdicts";
 import { HistoryStats } from "./HistoryStats";
 import { HistoryChart } from "./HistoryChart";
-import { HistoryControls } from "./HistoryControls";
+import { HistoryControls, type CandleResolution } from "./HistoryControls";
 import { RunListItem } from "./RunListItem";
 
 // --- helpers ---
 
-function scaleFor(resolution: "1m" | "1h" | "1d"): "m" | "h" | "d" {
-  return resolution === "1m" ? "m" : resolution === "1h" ? "h" : "d";
+function scaleFor(resolution: "1m" | "5m" | "15m" | "1h" | "4h" | "1d"): "m" | "h" | "d" {
+  if (resolution === "1d") return "d";
+  if (resolution === "1h" || resolution === "4h") return "h";
+  return "m";
+}
+
+const RESOLUTION_MS: Record<Exclude<CandleResolution, "auto">, number> = {
+  "1m": 60_000,
+  "5m": 5 * 60_000,
+  "15m": 15 * 60_000,
+  "1h": 60 * 60_000,
+  "4h": 4 * 60 * 60_000,
+  "1d": 24 * 60 * 60_000,
+};
+
+/**
+ * Re-bin raw API bars into a coarser resolution. Bars are bucketed by
+ * their UTC timestamp; each bucket is collapsed into a single OHLCV
+ * bar (first o, max h, min l, last c, sum v). If the chosen resolution
+ * is finer than the source data, each bar lands in its own bucket so
+ * the result is the same set of bars (no aggregation, no data loss).
+ */
+function resampleBars(bars: Bar[], resolution: Exclude<CandleResolution, "auto">): Bar[] {
+  const targetMs = RESOLUTION_MS[resolution];
+  if (bars.length === 0) return [];
+  const buckets = new Map<number, Bar[]>();
+  for (const b of bars) {
+    const t = new Date(b.t).getTime();
+    const bucket = Math.floor(t / targetMs) * targetMs;
+    let arr = buckets.get(bucket);
+    if (!arr) { arr = []; buckets.set(bucket, arr); }
+    arr.push(b);
+  }
+  return Array.from(buckets.keys()).sort((a, b) => a - b).map((k) => {
+    const group = buckets.get(k)!;
+    return {
+      t: new Date(k).toISOString().replace(/\.\d{3}Z$/, "Z"),
+      o: group[0].o,
+      h: group.reduce((m, b) => Math.max(m, b.h), -Infinity),
+      l: group.reduce((m, b) => Math.min(m, b.l), Infinity),
+      c: group[group.length - 1].c,
+      v: group.reduce((s, b) => s + b.v, 0),
+    };
+  });
 }
 
 function toRunLike(run: RunDetail) {
@@ -61,6 +103,10 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   // evaluated immediately. The user can slide up to 3y to see the
   // "we don't know yet" cases for recent runs.
   const [deltaMs, setDeltaMs] = useState<number>(60 * 60 * 1000);
+  // Candle resolution is independent of the data's API resolution and
+  // independent of the verdict Δ window. "auto" = use whatever the API
+  // returned; explicit values trigger client-side resampling.
+  const [candleResolution, setCandleResolution] = useState<CandleResolution>("auto");
   const tick = useTickingNow(1000);
 
   const query = useQuery({
@@ -74,10 +120,20 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   const data = query.data;
   const runs: RunDetail[] = data?.runs ?? [];
   const bars: Bar[] = data?.bars ?? [];
-  const resolution = (data?.resolution ?? "1h") as "1m" | "1h" | "1d";
+  const apiResolution = (data?.resolution ?? "1h") as "1m" | "1h" | "1d";
   const rangeStartIso = data?.range_start ?? tick.nowIso;
   const rangeEndIso = data?.range_end ?? tick.nowIso;
-  const scale = scaleFor(resolution);
+
+  // Effective resolution: explicit candle choice wins, otherwise the API's.
+  const effectiveResolution: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" =
+    candleResolution === "auto" ? apiResolution : candleResolution;
+  const scale = scaleFor(effectiveResolution);
+
+  // Resample once when bars or the candle resolution change.
+  const resampledBars: Bar[] = useMemo(
+    () => (candleResolution === "auto" ? bars : resampleBars(bars, candleResolution)),
+    [bars, candleResolution],
+  );
 
   const verdicts = useMemo(() => {
     const out = new Map<string, Verdict>();
@@ -144,21 +200,26 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
           </div>
         ) : (
           <HistoryChart
-            bars={bars}
+            bars={resampledBars}
             runs={runs.map(toRunLike)}
             verdicts={verdicts}
             deltaMs={deltaMs}
             holdThresholdPct={holdThresholdPct}
             nowIso={tick.nowIso}
             selectedRunId={focusedRunId}
-            resolution={resolution}
+            resolution={effectiveResolution}
             rangeStartIso={rangeStartIso}
             rangeEndIso={rangeEndIso}
           />
         )}
       </div>
 
-      <HistoryControls deltaMs={deltaMs} onDeltaChange={setDeltaMs} />
+      <HistoryControls
+        deltaMs={deltaMs}
+        onDeltaChange={setDeltaMs}
+        candleResolution={candleResolution}
+        onCandleResolutionChange={setCandleResolution}
+      />
 
       <div className="flex-1 min-h-0 overflow-y-auto border-t border-slate-200">
         {runs.length === 0 ? (
