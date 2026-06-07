@@ -87,13 +87,19 @@ uv run python -m tradingagents.cli AAPL MSFT --loop 3600
 
 ## ⚙️ Configuration
 
-One global file controls every tunable parameter — **`config.toml`** (repo root):
-LLM models, risk & sizing, the Statute guardrails, screening, the autonomous
-cycle, data lookback and costs. Anything omitted keeps its default
-(`tradingagents/config.py`); secrets stay in `.env`. Point elsewhere with
-`TRADINGAGENTS_CONFIG=/path/to/config.toml`.
+One global file controls **every** tunable parameter — **`config.toml`** (repo
+root): LLM models, broker (paper/live), risk & sizing, the Statute guardrails,
+screening, the autonomous cycle, data lookback and costs. It is the single
+source of truth; the **`.env` holds only secrets** (API keys + DB connection).
+Anything omitted keeps its default (`tradingagents/config.py`).
 
 ```toml
+[llm]
+provider   = "openrouter"
+deep_model = "deepseek/deepseek-v4-flash:free"
+[broker]
+provider = "paper"       # "paper" (simulator) | "alpaca"
+mode     = "paper"       # "paper" | "live"  (alpaca)
 [risk]
 base_risk_pct = 0.01     # risk budget per trade (× conviction)
 k_stop = 2.0             # stop distance in ATR
