@@ -22,22 +22,16 @@ export function HistoryControls({
   const historyPollIntervalMs = useUi((s) => s.historyPollIntervalMs);
   const setHistoryPollIntervalMs = useUi((s) => s.setHistoryPollIntervalMs);
 
-  // Log-scale slider: position 0..1000 maps to 5m..30d exponentially.
-  // pos 0   → 5m,   pos 500 → 1d,   pos 1000 → 30d.
-  const posToDelta = (pos: number): number => {
-    const min = 5 * 60_000;
-    const max = 30 * 24 * 60 * 60_000;
-    const logMin = Math.log(min);
-    const logMax = Math.log(max);
-    return Math.exp(logMin + (pos / 1000) * (logMax - logMin));
-  };
-  const deltaToPos = (ms: number): number => {
-    const min = 5 * 60_000;
-    const max = 30 * 24 * 60 * 60_000;
-    const logMin = Math.log(min);
-    const logMax = Math.log(max);
-    return ((Math.log(ms) - logMin) / (logMax - logMin)) * 1000;
-  };
+  // Log-scale slider: position 0..1000 maps to 5m..3y exponentially.
+  // pos 0   → 5m,   pos 500 → ~6mo,   pos 1000 → 3y.
+  const min = 5 * 60_000;
+  const max = 3 * 365 * 24 * 60 * 60_000;
+  const logMin = Math.log(min);
+  const logMax = Math.log(max);
+  const posToDelta = (pos: number): number =>
+    Math.exp(logMin + (pos / 1000) * (logMax - logMin));
+  const deltaToPos = (ms: number): number =>
+    ((Math.log(ms) - logMin) / (logMax - logMin)) * 1000;
 
   return (
     <div className="border-b border-slate-200 px-3 py-2 text-xs space-y-2">
