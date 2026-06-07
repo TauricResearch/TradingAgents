@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
-  LineChart, Line, BarChart, Bar as BarRect, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, BarChart, Bar as BarRect, Cell, Customized,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from "recharts";
 import type { Bar, RunLike, Verdict } from "../verdicts";
@@ -20,7 +21,7 @@ export interface HistoryChartProps {
   rangeEndIso: string;
 }
 
-interface ChartRow { t: number; o: number; h: number; l: number; c: number; v: number; }
+interface ChartRow { t: number; o: number; h: number; l: number; c: number; v: number; avg: number; std: number; }
 
 /** Downsample bars to ~3000 rows when the input is large. */
 function downsample(bars: Bar[], target = 3000): Bar[] {
@@ -47,14 +48,92 @@ function isoToMs(iso: string): number {
   return new Date(iso).getTime();
 }
 
+const CANDLE_WIDTH = 6;
+const UP_COLOR = "#16a34a";   // green-600
+const DOWN_COLOR = "#dc2626"; // red-600
+
+/**
+ * Custom recharts renderer that draws one OHLC candle per data point.
+ * Recharts has no built-in candlestick primitive, so we read the chart's
+ * x/y scales (passed in by <Customized>) and emit a wick line + a body
+ * rect per row. The body colour follows the close-vs-open direction.
+ */
+function CandleRenderer(props: {
+  data?: ChartRow[];
+  xAxisMap?: Record<string, { scale: (v: number) => number }>;
+  yAxisMap?: Record<string, { scale: (v: number) => number }>;
+}) {
+  const { data, xAxisMap, yAxisMap } = props;
+  if (!data || !xAxisMap || !yAxisMap) return null;
+  const xAxis = Object.values(xAxisMap)[0];
+  const yAxis = Object.values(yAxisMap)[0];
+  if (!xAxis?.scale || !yAxis?.scale) return null;
+  return (
+    <g>
+      {data.map((row, i) => {
+        const x = xAxis.scale(row.t);
+        const yHigh = yAxis.scale(row.h);
+        const yLow = yAxis.scale(row.l);
+        const yOpen = yAxis.scale(row.o);
+        const yClose = yAxis.scale(row.c);
+        const isUp = row.c >= row.o;
+        const color = isUp ? UP_COLOR : DOWN_COLOR;
+        return (
+          <g key={i}>
+            <line
+              x1={x} x2={x}
+              y1={yHigh} y2={yLow}
+              stroke={color} strokeWidth={1}
+            />
+            <rect
+              x={x - CANDLE_WIDTH / 2}
+              y={Math.min(yOpen, yClose)}
+              width={CANDLE_WIDTH}
+              height={Math.max(1, Math.abs(yClose - yOpen))}
+              fill={color}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 export function HistoryChart(props: HistoryChartProps) {
   const { bars, runs, deltaMs, nowIso, selectedRunId, resolution, rangeStartIso, rangeEndIso } = props;
   const scale: "m" | "h" | "d" = resolution === "1m" ? "m" : resolution === "1h" ? "h" : "d";
 
   const chartData: ChartRow[] = useMemo(
-    () => downsample(bars).map((b) => ({ t: isoToMs(b.t), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })),
+    () =>
+      downsample(bars).map((b) => {
+        // Typical price + population stddev of the bar's OHLC quartet.
+        // "The day or other delta time" the user asked for is exactly
+        // what one bar already represents, so the per-bar OHLC summary
+        // is the natural local-window stat.
+        const avg = (b.o + b.h + b.l + b.c) / 4;
+        const variance =
+          ((b.o - avg) ** 2 + (b.h - avg) ** 2 + (b.l - avg) ** 2 + (b.c - avg) ** 2) / 4;
+        const std = Math.sqrt(variance);
+        return { t: isoToMs(b.t), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, avg, std };
+      }),
     [bars],
   );
+
+  // Auto-scale the price y-axis to the candle highs/lows (with a small
+  // pad so edge candles aren't clipped). Recharts' `["auto","auto"]`
+  // would do this, but with <Customized> rendering (no <Line>) the
+  // built-in auto-scale has no dataKey to anchor to, so we drive it
+  // explicitly here.
+  const yDomain: [number, number] = useMemo(() => {
+    if (chartData.length === 0) return [0, 1];
+    let min = Infinity, max = -Infinity;
+    for (const row of chartData) {
+      if (row.l < min) min = row.l;
+      if (row.h > max) max = row.h;
+    }
+    const pad = (max - min) * 0.05 || 1;
+    return [min - pad, max + pad];
+  }, [chartData]);
 
   const rangeStartMs = isoToMs(rangeStartIso);
   const rangeEndMs = isoToMs(rangeEndIso);
@@ -98,13 +177,13 @@ export function HistoryChart(props: HistoryChartProps) {
                 hide
               />
               <YAxis
-                domain={["auto", "auto"]}
+                domain={yDomain}
                 tickFormatter={fmtPrice}
                 width={50}
                 tick={{ fontSize: 10, fill: "#64748b" }}
                 stroke="#cbd5e1"
               />
-              <Line dataKey="c" dot={false} stroke="#475569" strokeWidth={1.5} isAnimationActive={false} />
+              <Customized component={CandleRenderer} />
               <Tooltip
                 cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }}
                 content={({ active, payload }) => {
@@ -119,6 +198,9 @@ export function HistoryChart(props: HistoryChartProps) {
                       <div className="font-medium text-slate-900">${fmtPrice(p.c)}</div>
                       <div className="text-slate-400 mt-0.5">
                         O {fmtPrice(p.o)} · H {fmtPrice(p.h)} · L {fmtPrice(p.l)}
+                      </div>
+                      <div className="text-slate-400">
+                        Avg {fmtPrice(p.avg)} · σ {fmtPrice(p.std)}
                       </div>
                       <div className="text-slate-400">Vol {fmtVolume(p.v)}</div>
                     </div>
