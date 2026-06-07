@@ -2,7 +2,7 @@
 
 Date: 2026-06-07
 Branch: `india-market-agents`
-Latest phase: Report/disclaimer and saved-artifact review
+Latest phase: Read-only dashboard/report review
 
 ## Project Goal
 
@@ -16,11 +16,10 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Saved report bundles now include the research-only compliance disclaimer in `complete_report.md`, `disclaimer.md`, and each standalone section markdown file.
-- Saved report bundles now include a deterministic `sources.md` and `data_quality.json` coverage index based on writer-level section text markers.
-- `complete_report.md` now includes a top-level data-quality/source coverage table before section content.
-- The Trader research view is now saved as its own standalone artifact in report bundles.
-- Data-source, agent prompt, and dashboard code were intentionally left unchanged in this phase.
+- The Streamlit dashboard remains a read-only saved-report viewer with visible research-only disclaimer text.
+- Dashboard rendering now includes all current saved report artifacts, including research debate, trader research view, portfolio research view, sources, and data-quality coverage.
+- Dashboard source/data-quality rendering is backed by offline pure-Python helpers, so tests do not require Streamlit or live services.
+- Data-source, agent prompt, broker, and live trading code were intentionally left unchanged in this phase.
 
 ## Completed Phases
 
@@ -47,6 +46,11 @@ The product is research and decision support only. It must not become a live tra
    - Added writer-generated source/data-quality coverage tables in `complete_report.md`, `sources.md`, and `data_quality.json`.
    - Added a standalone `trader_research_view.md` artifact while keeping the existing portfolio filename for compatibility.
    - Added offline tests for disclaimer placement, artifact notes, source coverage indexing, unavailable-section handling, and summary metadata.
+6. Read-only dashboard/report review:
+   - Refactored dashboard report discovery/rendering into pure helpers that do not import Streamlit.
+   - Expanded the dashboard tabs to show all saved report-review artifacts, including `sources.md` and formatted `data_quality.json`.
+   - Kept the dashboard explicitly read-only with visible research-only/no-live-trading language.
+   - Added offline tests for saved-report discovery, companion compliance rendering, data-quality formatting, optional Streamlit import behavior, and absence of live-trading controls.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -57,8 +61,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `docs/CODEX_HANDOFF.md`
-- `cli/main.py`
-- `tests/test_india_cli_report.py`
+- `dashboard/app.py`
+- `dashboard/report_review.py`
+- `tests/test_dashboard_report_review.py`
 
 ## Important Design Decisions
 
@@ -74,6 +79,8 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Saved report artifacts should be usable as standalone files, so section markdown files carry the compliance disclaimer.
 - Report-writer source/data-quality coverage flags are marker-detection metadata only; they must not be treated as data verification.
 - Keep the existing `9_portfolio_decision.md` filename for compatibility, but title the content as a portfolio research view.
+- Keep dashboard logic read-only and report-focused; do not add order buttons, broker controls, chat trading controls, or live execution affordances.
+- Keep Streamlit optional. Put testable dashboard logic in non-Streamlit helper modules so offline tests run without installing dashboard extras.
 - Do not add broker execution or broker integrations.
 - Prefer official/user-provided data and explicit unavailable responses over fabricated values.
 - Keep live exchange/network tests out of the default test suite.
@@ -89,9 +96,10 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `python3 -m pytest tests/test_india_cli_report.py -q`: 7 passed.
+- `python3 -m pytest tests/test_dashboard_report_review.py -q`: 5 passed.
+- `python3 dashboard/app.py`: import path smoke reached the optional Streamlit import, then failed with `ModuleNotFoundError: No module named 'streamlit'`.
 - `git diff --check`: passed.
-- `python3 -m pytest -m "not integration" -q`: 364 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `python3 -m pytest -m "not integration" -q`: 369 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Known Risks And Blockers
 
@@ -103,9 +111,11 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Some schema field names such as `TraderAction` and `TraderProposal.action` remain for compatibility, even though user-facing language now renders as a model view.
 - The saved-report source/data-quality coverage index uses simple marker detection and can produce false positives or false negatives; it is an audit aid, not factual validation.
 - `sources.md` does not scrape or retrieve new sources; it indexes coverage markers already present in generated section text.
+- Streamlit is an optional dashboard dependency and is not installed in the baseline test environment; dashboard runtime was not browser-verified in this phase.
+- Dashboard report discovery reads local `reports/<SYMBOL>/<DATE>/` folders only and does not validate generated report facts.
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
 
 ## Next Recommended Prompt
 
-Proceed to the next phase: read-only dashboard/report review. Keep scope limited to dashboard display of saved IndiaMarketAgents reports, disclaimer visibility, source/data-quality artifact rendering, and offline tests. Do not add data sources, agent prompts, broker integrations, or live trading controls. Update `docs/CODEX_HANDOFF.md` and commit when done.
+Proceed to the next phase: security/compliance final pass. Keep scope limited to scanning for secrets, generated artifacts, unsafe file writes, report path issues, broker/live-trading affordances, and remaining user-facing compliance gaps. Do not add data sources, agent prompts, or dashboard features unless needed to fix a concrete security/compliance issue. Update `docs/CODEX_HANDOFF.md` and commit when done.
