@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  LineChart, Line, BarChart, Bar as BarRect, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, BarChart, Bar as BarRect, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from "recharts";
 import type { Bar, RunLike, Verdict } from "../verdicts";
@@ -59,6 +59,29 @@ export function HistoryChart(props: HistoryChartProps) {
   const rangeStartMs = isoToMs(rangeStartIso);
   const rangeEndMs = isoToMs(rangeEndIso);
   const nowMs = isoToMs(nowIso);
+
+  // Per-bar tint: color by the action of the most recently started run
+  // whose [T, T+Δ] window contains this bar. Neutral slate otherwise.
+  // Multiple overlapping runs → newest startedAt wins.
+  const barColors = useMemo(
+    () =>
+      chartData.map((row) => {
+        const t = row.t;
+        let active: RunLike | null = null;
+        for (const run of runs) {
+          const startMs = isoToMs(run.startedAt);
+          const endMs = Math.min(startMs + deltaMs, nowMs);
+          if (t >= startMs && t <= endMs) {
+            if (active == null || isoToMs(run.startedAt) > isoToMs(active.startedAt)) {
+              active = run;
+            }
+          }
+        }
+        if (active) return { fill: actionColor(active.decisionAction), opacity: 0.7 };
+        return { fill: "#94a3b8", opacity: 0.5 };
+      }),
+    [chartData, runs, deltaMs, nowMs],
+  );
 
   return (
     <div className="w-full h-72" data-testid="history-chart">
@@ -159,7 +182,7 @@ export function HistoryChart(props: HistoryChartProps) {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="h-14 shrink-0 border-t border-slate-100">
+        <div className="h-28 shrink-0 border-t border-slate-100">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 8, left: 8 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="2 2" vertical={false} />
@@ -174,7 +197,27 @@ export function HistoryChart(props: HistoryChartProps) {
                 minTickGap={32}
               />
               <YAxis hide width={50} />
-              <BarRect dataKey="v" fill="#94a3b8" isAnimationActive={false} />
+              <Tooltip
+                cursor={{ fill: "#f1f5f9" }}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0].payload as ChartRow;
+                  return (
+                    <div
+                      className="bg-white border border-slate-200 rounded shadow-sm px-2 py-1 text-xs"
+                      data-testid="volume-tooltip"
+                    >
+                      <div className="text-slate-500">{fmtTime(p.t, scale)}</div>
+                      <div className="font-medium text-slate-900">Vol {fmtVolume(p.v)}</div>
+                    </div>
+                  );
+                }}
+              />
+              <BarRect dataKey="v" isAnimationActive={false}>
+                {chartData.map((_, i) => (
+                  <Cell key={i} fill={barColors[i].fill} fillOpacity={barColors[i].opacity} />
+                ))}
+              </BarRect>
             </BarChart>
           </ResponsiveContainer>
         </div>
