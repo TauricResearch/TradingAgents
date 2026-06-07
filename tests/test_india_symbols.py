@@ -39,6 +39,16 @@ def test_non_india_symbols_rejected(symbol):
 
 
 @pytest.mark.unit
+def test_legacy_escape_hatch_allows_non_india_but_still_cleans_input():
+    assert (
+        validate_india_symbol_or_raise("aapl", {"allow_non_india_tickers": True})
+        == "AAPL"
+    )
+    with pytest.raises(IndiaSymbolError):
+        validate_india_symbol_or_raise("../AAPL", {"allow_non_india_tickers": True})
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("symbol", ["../RELIANCE", "", "RELIANCE/NS"])
 def test_path_traversal_and_empty_rejected(symbol):
     with pytest.raises(IndiaSymbolError):

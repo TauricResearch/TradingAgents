@@ -24,7 +24,7 @@ Built as an India-focused fork of TauricResearch/TradingAgents under Apache 2.0.
 
 ```bash
 git clone <your-fork-url>
-cd TradingAgents
+cd IndiaMarketAgents
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e ".[dev]"

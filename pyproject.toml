@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tradingagents"
 version = "0.2.5"
-description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+description = "IndiaMarketAgents: India-only institutional market research copilot"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
