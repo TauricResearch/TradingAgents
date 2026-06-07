@@ -182,7 +182,7 @@ export function HistoryChart(props: HistoryChartProps) {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="h-28 shrink-0 border-t border-slate-100">
+        <div className="h-14 shrink-0 border-t border-slate-100">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 8, left: 8 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="2 2" vertical={false} />
