@@ -16,7 +16,7 @@ export interface HistoryChartProps {
   holdThresholdPct: number;
   nowIso: string;
   selectedRunId: string | null;
-  resolution: "1m" | "1h" | "1d";
+  resolution: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
   rangeStartIso: string;
   rangeEndIso: string;
 }
@@ -64,7 +64,7 @@ function CandleRenderer(props: {
   data?: ChartRow[];
   xAxisMap?: Record<string, { scale: (v: number) => number }>;
   yAxisMap?: Record<string, { scale: (v: number) => number }>;
-  colors?: Array<{ wick: string; body: string } | null>;
+  colors?: Array<{ action: string | null; wick: string; body: string } | null>;
 }) {
   const { data, xAxisMap, yAxisMap, colors } = props;
   if (!data || !xAxisMap || !yAxisMap) return null;
@@ -82,7 +82,33 @@ function CandleRenderer(props: {
         const override = colors?.[i] ?? null;
         const isUp = row.c >= row.o;
         const wickColor = override ? override.wick : (isUp ? UP_COLOR : DOWN_COLOR);
-        const bodyFill = override ? override.body : (isUp ? UP_COLOR : DOWN_COLOR);
+
+        // Body fill/stroke: under a run context, hollow-out the body when
+        // the day's direction is the opposite of what the run expected
+        // (BUY expects up → down day = hollow; SELL expects down → up
+        // day = hollow). HOLD has no expectation, always solid. Outside
+        // any run, keep the standard up/down solid green/red.
+        let bodyFill: string;
+        let bodyStroke: string | undefined;
+        let bodyStrokeWidth: number | undefined;
+        if (override) {
+          const c = override.body;
+          if (override.action === "HOLD" || !override.action) {
+            bodyFill = c;
+          } else {
+            const expectedUp = override.action === "BUY";
+            if (isUp === expectedUp) {
+              bodyFill = c;
+            } else {
+              bodyFill = "none";
+              bodyStroke = c;
+              bodyStrokeWidth = 1;
+            }
+          }
+        } else {
+          bodyFill = isUp ? UP_COLOR : DOWN_COLOR;
+        }
+
         return (
           <g key={i}>
             <line
@@ -96,6 +122,8 @@ function CandleRenderer(props: {
               width={CANDLE_WIDTH}
               height={Math.max(1, Math.abs(yClose - yOpen))}
               fill={bodyFill}
+              stroke={bodyStroke}
+              strokeWidth={bodyStrokeWidth}
             />
           </g>
         );
@@ -106,7 +134,8 @@ function CandleRenderer(props: {
 
 export function HistoryChart(props: HistoryChartProps) {
   const { bars, runs, deltaMs, nowIso, selectedRunId, resolution, rangeStartIso, rangeEndIso } = props;
-  const scale: "m" | "h" | "d" = resolution === "1m" ? "m" : resolution === "1h" ? "h" : "d";
+  const scale: "m" | "h" | "d" =
+    resolution === "1d" ? "d" : (resolution === "1h" || resolution === "4h") ? "h" : "m";
 
   const chartData: ChartRow[] = useMemo(
     () =>
@@ -187,7 +216,7 @@ export function HistoryChart(props: HistoryChartProps) {
         }
         if (!active) return null;
         const c = actionColor(active.decisionAction);
-        return { wick: c, body: c };
+        return { action: active.decisionAction, wick: c, body: c };
       }),
     [chartData, runs, deltaMs, nowMs],
   );
