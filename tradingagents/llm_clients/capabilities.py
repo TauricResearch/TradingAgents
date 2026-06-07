@@ -114,6 +114,7 @@ _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
     (re.compile(r"^deepseek-v\d"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
     (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
+    (re.compile(r"(^|/)minimax-m\d", re.IGNORECASE), _MINIMAX_THINKING),
 ]
 
 
@@ -122,6 +123,6 @@ def get_capabilities(model_name: str) -> ModelCapabilities:
     if model_name in _BY_ID:
         return _BY_ID[model_name]
     for pattern, caps in _BY_PATTERN:
-        if pattern.match(model_name):
+        if pattern.search(model_name):
             return caps
     return _DEFAULT
