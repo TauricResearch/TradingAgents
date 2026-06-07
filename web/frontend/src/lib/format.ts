@@ -46,6 +46,21 @@ export function fmtPrice(p: number): string {
   return p.toFixed(2);
 }
 
+/** Format a trading volume with thousands separators.
+ *  < 1k   → raw
+ *  < 1M   → "X.Xk"
+ *  < 1B   → "X.Xm"
+ *  >= 1B  → "X.Xb"
+ *  null/NaN/<=0 → "—"
+ */
+export function fmtVolume(v: number | null | undefined): string {
+  if (v == null || Number.isNaN(v) || v <= 0) return "—";
+  if (v < 1_000) return String(Math.round(v));
+  if (v < 1_000_000) return `${(v / 1_000).toFixed(1)}k`;
+  if (v < 1_000_000_000) return `${(v / 1_000_000).toFixed(1)}m`;
+  return `${(v / 1_000_000_000).toFixed(1)}b`;
+}
+
 /** Format a signed percentage with a leading sign and 1 decimal. */
 export function fmtPct(p: number | null | undefined): string {
   if (p == null || Number.isNaN(p)) return "—";

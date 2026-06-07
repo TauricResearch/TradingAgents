@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import type { Bar, RunLike, Verdict } from "../verdicts";
 import { actionColor, actionTint } from "../verdicts";
-import { fmtPrice, fmtTime } from "../lib/format";
+import { fmtPrice, fmtTime, fmtVolume } from "../lib/format";
 
 export interface HistoryChartProps {
   bars: Bar[];
@@ -95,8 +95,9 @@ export function HistoryChart(props: HistoryChartProps) {
                   <div className="text-slate-500">{fmtTime(p.t, scale)}</div>
                   <div className="font-medium text-slate-900">${fmtPrice(p.c)}</div>
                   <div className="text-slate-400 mt-0.5">
-                    H {fmtPrice(p.h)} · L {fmtPrice(p.l)}
+                    O {fmtPrice(p.o)} · H {fmtPrice(p.h)} · L {fmtPrice(p.l)}
                   </div>
+                  <div className="text-slate-400">Vol {fmtVolume(p.v)}</div>
                 </div>
               );
             }}
