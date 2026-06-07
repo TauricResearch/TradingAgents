@@ -271,33 +271,65 @@ def _record_iteration_error(state: BackgroundRunState, date_iso: str, error: str
     p.write_text(json.dumps(errors, indent=2, sort_keys=True), encoding="utf-8")
 
 
+from concurrent.futures import Future, ThreadPoolExecutor, wait, FIRST_COMPLETED
+
+
 def _run(handle: _JobHandle, date_list: list[str]) -> None:
-    """Sequential orchestrator. Task 7 replaces this with a parallel version;
-    the public surface is unchanged."""
+    """Run iterations up to `parallel` at a time. Cancel/pause events are
+    checked while waiting for the next batch of completed futures.
+
+    current_index advances in date_list order. Parallelism only affects
+    wall-clock time.
+    """
     state = handle.state
-    for date_iso in date_list:
-        if handle.cancel_event.is_set():
-            break
-        while handle.pause_event.is_set():
-            time.sleep(0.2)
+    pending: dict[Future, tuple[int, str]] = {}
+
+    def _submit(idx: int, date_iso: str) -> None:
+        if _has_done_run(state.ticker, date_iso):
+            with state._persist_lock:
+                state.current_index += 1
+                state._recompute_eta()
+                state.persist()
+            return
+        fut = executor.submit(_run_one, state.ticker, date_iso)
+        pending[fut] = (idx, date_iso)
+
+    with ThreadPoolExecutor(max_workers=state.parallel) as executor:
+        it = iter(enumerate(date_list))
+
+        def _refill() -> None:
+            for idx, iso in it:
+                _submit(idx, iso)
+                if len(pending) >= state.parallel:
+                    return
+
+        _refill()
+
+        while pending:
             if handle.cancel_event.is_set():
                 break
-        if handle.cancel_event.is_set():
-            break
-        if _has_done_run(state.ticker, date_iso):
-            state.current_index += 1
-            state._recompute_eta()
-            state.persist()
-            continue
-        try:
-            result = _run_one(state.ticker, date_iso)
-        except Exception as exc:
-            _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
-        else:
-            state.record_duration(result.duration_s)
-        state.current_index += 1
-        state._recompute_eta()
-        state.persist()
+            while handle.pause_event.is_set():
+                time.sleep(0.2)
+                if handle.cancel_event.is_set():
+                    break
+            if handle.cancel_event.is_set():
+                break
+
+            done, _ = wait(pending.keys(), return_when=FIRST_COMPLETED)
+            for fut in done:
+                idx, date_iso = pending.pop(fut)
+                try:
+                    result = fut.result()
+                except Exception as exc:
+                    _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
+                else:
+                    state.record_duration(result.duration_s)
+                with state._persist_lock:
+                    state.current_index += 1
+                    state._recompute_eta()
+                    state.persist()
+            _refill()
+
     state.finished_at = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     if handle.cancel_event.is_set():
         state.status = "cancelled"

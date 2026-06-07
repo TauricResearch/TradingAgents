@@ -200,3 +200,32 @@ class TestRunSequential:
         assert handle.state.status == "done"
         errors = json.loads(background_runs.iteration_errors_path(handle.job_id).read_text())
         assert "2024-01-02" in errors
+
+
+class TestRunParallel:
+    def test_parallel_runs_concurrently(self, tmp_path, monkeypatch, fake_propagate):
+        """With parallel=2 and sleep=100ms, total wall-clock for 4 dates
+        should be roughly 200ms (not 400ms). Use a loose bound."""
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
+        fake_propagate.sleep_s = 0.1
+        handle = background_runs.register_handle(
+            "bgr_PAR1", "NVDA", "2024-01-01", "2024-01-04", "1d", parallel=2, total=4,
+        )
+        t0 = time.monotonic()
+        background_runs._run(handle, ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04"])
+        elapsed = time.monotonic() - t0
+        assert elapsed < 0.35, f"expected <350ms, got {elapsed*1000:.0f}ms"
+        assert len(fake_propagate.calls) == 4
+        assert handle.state.current_index == 4
+
+    def test_parallel_does_not_double_process(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
+        fake_propagate.sleep_s = 0.05
+        handle = background_runs.register_handle(
+            "bgr_PAR2", "NVDA", "2024-01-01", "2024-01-04", "1d", parallel=4, total=4,
+        )
+        background_runs._run(handle, ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04"])
+        assert len(fake_propagate.calls) == 4
+        assert handle.state.current_index == 4
