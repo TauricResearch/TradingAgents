@@ -21,22 +21,76 @@ def test_doctor_validates_india_ticker():
 def test_report_writer_creates_disclaimer_and_summary(tmp_path):
     final_state = {
         "trade_date": "2026-06-05",
-        "india_market_report": "Market section",
-        "india_fundamentals_report": "Fundamentals section",
-        "india_news_filings_report": "News section",
-        "india_macro_policy_report": "Macro section",
-        "india_flows_report": "Flows section",
+        "india_market_report": "Market section\n\nSource: NSE\nData Quality: medium\nConfidence: medium",
+        "india_fundamentals_report": "Fundamentals section\n\nSource: local filing\nData Quality: high\nConfidence: medium",
+        "india_news_filings_report": "News section\n\nSources: BSE announcements\nData Quality: medium\nConfidence: medium",
+        "india_macro_policy_report": "Macro section\n\nUNAVAILABLE: official macro datapoint missing.",
+        "india_flows_report": "Flows section\n\nUNAVAILABLE: FII/DII data missing.",
         "india_compliance_report": "Compliance section",
+        "trader_investment_plan": "Trader model view: Hold",
         "final_trade_decision": "Model view: Hold",
         "investment_debate_state": {"bull_history": "Bull", "bear_history": "Bear", "judge_decision": "Manager"},
         "risk_debate_state": {"aggressive_history": "Aggressive", "conservative_history": "Conservative", "neutral_history": "Neutral"},
     }
     report = save_report_to_disk(final_state, "RELIANCE.NS", tmp_path)
     assert report.exists()
-    assert INDIA_COMPLIANCE_DISCLAIMER in report.read_text(encoding="utf-8")
+    complete_report = report.read_text(encoding="utf-8")
+    assert INDIA_COMPLIANCE_DISCLAIMER in complete_report
+    assert "## Data Quality And Source Coverage" in complete_report
+    assert "Trader Research View" in complete_report
     assert (tmp_path / "disclaimer.md").exists()
+    assert (tmp_path / "trader_research_view.md").exists()
     summary = json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))
     assert summary["symbol"] == "RELIANCE.NS"
+    assert summary["section_files"]["Trader Research View"] == "trader_research_view.md"
+
+
+@pytest.mark.unit
+def test_report_writer_adds_disclaimer_and_artifact_notes_to_section_files(tmp_path):
+    final_state = {
+        "trade_date": "2026-06-05",
+        "india_market_report": "Source: NSE\nData Quality: medium\nConfidence: medium\nMarket section",
+        "final_trade_decision": "Model view: Hold",
+    }
+    save_report_to_disk(final_state, "RELIANCE.NS", tmp_path)
+
+    section = (tmp_path / "1_market_technical.md").read_text(encoding="utf-8")
+    assert "## Compliance Disclaimer" in section
+    assert INDIA_COMPLIANCE_DISCLAIMER in section
+    assert "## Report Artifact Notes" in section
+    assert "Source coverage detected in section text: Yes" in section
+    assert "Data-quality coverage detected in section text: Yes" in section
+    assert "Confidence coverage detected in section text: Yes" in section
+    assert "writer-level coverage checks only" in section
+
+
+@pytest.mark.unit
+def test_report_writer_indexes_sources_and_data_quality_coverage(tmp_path):
+    final_state = {
+        "trade_date": "2026-06-05",
+        "india_market_report": "Source: NSE\nData Quality: medium\nConfidence: medium\nMarket section",
+        "india_macro_policy_report": "UNAVAILABLE: official macro datapoint missing.",
+        "final_trade_decision": "Model view: Hold",
+    }
+    save_report_to_disk(final_state, "RELIANCE.NS", tmp_path)
+
+    data_quality = json.loads((tmp_path / "data_quality.json").read_text(encoding="utf-8"))
+    market = data_quality["sections"]["India Market Technical"]
+    macro = data_quality["sections"]["India Macro & Policy"]
+    flows = data_quality["sections"]["India Flows & Positioning"]
+
+    assert data_quality["coverage_method"] == "writer_marker_detection_only"
+    assert market["source_coverage_detected"] is True
+    assert market["data_quality_detected"] is True
+    assert market["confidence_detected"] is True
+    assert macro["contains_unavailable_marker"] is True
+    assert flows["status"] == "unavailable"
+    assert "Section was not produced in the current run." in flows["warnings"]
+
+    sources = (tmp_path / "sources.md").read_text(encoding="utf-8")
+    assert "# Sources And Data Quality Coverage" in sources
+    assert "| India Market Technical | 1_market_technical.md | available | Yes | Yes | Yes | No |" in sources
+    assert "Section text does not include explicit source coverage." in sources
 
 
 @pytest.mark.unit

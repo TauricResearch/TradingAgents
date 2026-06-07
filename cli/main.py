@@ -769,6 +769,138 @@ def get_analysis_date():
             )
 
 
+SOURCE_COVERAGE_MARKERS = (
+    "source:",
+    "sources:",
+    "source coverage",
+    "data source",
+    "user-supplied",
+    "local filing",
+    "company filing",
+    "nse",
+    "bse",
+    "yahoo finance",
+    "yfinance",
+)
+DATA_QUALITY_MARKERS = (
+    "data quality",
+    "data-quality",
+    "coverage:",
+    "confidence:",
+    "limitation",
+    "warning",
+    "unavailable",
+    "low-confidence",
+)
+CONFIDENCE_MARKERS = (
+    "confidence:",
+    "confidence",
+    "low-confidence",
+    "high-confidence",
+)
+
+
+def _yes_no(value: bool) -> str:
+    return "Yes" if value else "No"
+
+
+def _contains_any_marker(content: str, markers: tuple[str, ...]) -> bool:
+    lowered = content.lower()
+    return any(marker in lowered for marker in markers)
+
+
+def _build_report_section_record(
+    filename: str,
+    title: str,
+    content: str,
+    produced: bool,
+) -> dict:
+    source_detected = _contains_any_marker(content, SOURCE_COVERAGE_MARKERS)
+    data_quality_detected = _contains_any_marker(content, DATA_QUALITY_MARKERS)
+    confidence_detected = _contains_any_marker(content, CONFIDENCE_MARKERS)
+    unavailable_detected = "unavailable" in content.lower()
+    warnings = []
+    if not produced:
+        warnings.append("Section was not produced in the current run.")
+    if not source_detected:
+        warnings.append("Section text does not include explicit source coverage.")
+    if not data_quality_detected:
+        warnings.append("Section text does not include explicit data-quality coverage.")
+    if not confidence_detected:
+        warnings.append("Section text does not include explicit confidence coverage.")
+
+    return {
+        "title": title,
+        "file": filename,
+        "status": "available" if produced else "unavailable",
+        "source_coverage_detected": source_detected,
+        "data_quality_detected": data_quality_detected,
+        "confidence_detected": confidence_detected,
+        "contains_unavailable_marker": unavailable_detected,
+        "warnings": warnings,
+    }
+
+
+def _format_report_quality_table(records: list[dict]) -> str:
+    rows = [
+        "| Section | File | Status | Source coverage | Data quality | Confidence | UNAVAILABLE marker |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for record in records:
+        rows.append(
+            "| {title} | {file} | {status} | {source} | {quality} | {confidence} | {unavailable} |".format(
+                title=record["title"],
+                file=record["file"],
+                status=record["status"],
+                source=_yes_no(record["source_coverage_detected"]),
+                quality=_yes_no(record["data_quality_detected"]),
+                confidence=_yes_no(record["confidence_detected"]),
+                unavailable=_yes_no(record["contains_unavailable_marker"]),
+            )
+        )
+    return "\n".join(rows)
+
+
+def _format_report_artifact_notes(record: dict) -> str:
+    warnings = record["warnings"] or ["No writer-level coverage gaps detected."]
+    warning_lines = "\n".join(f"- {warning}" for warning in warnings)
+    return "\n".join(
+        [
+            "## Report Artifact Notes",
+            "",
+            f"- Section status: {record['status']}",
+            f"- Source coverage detected in section text: {_yes_no(record['source_coverage_detected'])}",
+            f"- Data-quality coverage detected in section text: {_yes_no(record['data_quality_detected'])}",
+            f"- Confidence coverage detected in section text: {_yes_no(record['confidence_detected'])}",
+            f"- UNAVAILABLE marker present: {_yes_no(record['contains_unavailable_marker'])}",
+            "- Limitation: these are writer-level coverage checks only; they do not verify facts or fill missing data.",
+            "",
+            "### Coverage Warnings",
+            "",
+            warning_lines,
+        ]
+    )
+
+
+def _format_sources_markdown(records: list[dict]) -> str:
+    lines = [
+        "# Sources And Data Quality Coverage",
+        "",
+        "This artifact is a report-writer coverage index. It does not certify data accuracy, replace official NSE/BSE/company filings, or fill missing data.",
+        "",
+        _format_report_quality_table(records),
+        "",
+        "## Coverage Warnings",
+        "",
+    ]
+    for record in records:
+        if record["warnings"]:
+            lines.append(f"### {record['title']}")
+            lines.extend(f"- {warning}" for warning in record["warnings"])
+            lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
     """Save complete analysis report to disk with organized IndiaMarketAgents files."""
     save_path.mkdir(parents=True, exist_ok=True)
@@ -783,6 +915,9 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         "",
         "## Compliance Disclaimer",
         INDIA_COMPLIANCE_DISCLAIMER,
+        "",
+        "## Data Quality And Source Coverage",
+        "The table below is generated by the report writer from section text markers. It does not verify facts or infer missing data.",
     ]
 
     file_map = [
@@ -793,8 +928,9 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         ("5_flows_positioning.md", "India Flows & Positioning", final_state.get("india_flows_report")),
         ("6_sentiment.md", "India Sentiment", final_state.get("india_sentiment_report") or final_state.get("sentiment_report")),
         ("7_research_debate.md", "Research Debate", None),
+        ("trader_research_view.md", "Trader Research View", final_state.get("trader_investment_plan")),
         ("8_risk.md", "Risk Review", None),
-        ("9_portfolio_decision.md", "Portfolio Decision", final_state.get("final_trade_decision")),
+        ("9_portfolio_decision.md", "Portfolio Research View", final_state.get("final_trade_decision")),
         ("compliance.md", "Compliance Guard", final_state.get("india_compliance_report")),
     ]
 
@@ -820,16 +956,29 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     )
 
     resolved_file_map = []
+    section_records = []
     for filename, title, content in file_map:
         if filename == "7_research_debate.md":
             content = research_debate
         elif filename == "8_risk.md":
             content = risk_review
+        produced = bool(content)
         if not content:
             content = "UNAVAILABLE: This section was not produced in the current run."
-        text = f"# {title}\n\n{content}\n"
+        record = _build_report_section_record(filename, title, content, produced)
+        artifact_notes = _format_report_artifact_notes(record)
+        text = (
+            f"# {title}\n\n"
+            f"## Compliance Disclaimer\n\n{INDIA_COMPLIANCE_DISCLAIMER}\n\n"
+            f"## Report Section\n\n{content}\n\n"
+            f"{artifact_notes}\n"
+        )
         (save_path / filename).write_text(text, encoding="utf-8")
         resolved_file_map.append((title, content))
+        section_records.append(record)
+
+    sections.append(_format_report_quality_table(section_records))
+    for title, content in resolved_file_map:
         sections.extend(["", f"## {title}", content])
 
     data_quality = {
@@ -837,16 +986,31 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "market_scope": DEFAULT_CONFIG.get("market_scope"),
         "disclaimer_present": True,
+        "coverage_method": "writer_marker_detection_only",
+        "limitations": [
+            "Coverage flags are based on section text markers only.",
+            "The report writer does not verify facts, source freshness, or numerical accuracy.",
+            "Missing data must remain explicit as UNAVAILABLE or low-confidence in generated reports.",
+        ],
+        "sections": {record["title"]: record for record in section_records},
     }
     (save_path / "summary.json").write_text(
-        json.dumps({"symbol": safe_ticker, "date": final_state.get("trade_date"), "sections": [t for t, _ in resolved_file_map]}, indent=2),
+        json.dumps(
+            {
+                "symbol": safe_ticker,
+                "date": final_state.get("trade_date"),
+                "sections": [t for t, _ in resolved_file_map],
+                "section_files": {record["title"]: record["file"] for record in section_records},
+                "disclaimer_file": "disclaimer.md",
+                "sources_file": "sources.md",
+                "data_quality_file": "data_quality.json",
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
     (save_path / "data_quality.json").write_text(json.dumps(data_quality, indent=2), encoding="utf-8")
-    (save_path / "sources.md").write_text(
-        "# Sources\n\nSee individual sections for source coverage and unavailable-data notes.\n",
-        encoding="utf-8",
-    )
+    (save_path / "sources.md").write_text(_format_sources_markdown(section_records), encoding="utf-8")
     (save_path / "disclaimer.md").write_text(f"# Disclaimer\n\n{INDIA_COMPLIANCE_DISCLAIMER}\n", encoding="utf-8")
     (save_path / "complete_report.md").write_text("\n".join(sections) + "\n", encoding="utf-8")
     return save_path / "complete_report.md"

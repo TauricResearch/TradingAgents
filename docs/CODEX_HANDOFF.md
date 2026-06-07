@@ -2,7 +2,7 @@
 
 Date: 2026-06-07
 Branch: `india-market-agents`
-Latest phase: India analyst prompt and decision-language review
+Latest phase: Report/disclaimer and saved-artifact review
 
 ## Project Goal
 
@@ -16,11 +16,11 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- India analyst prompts now require research-only language, explicit data-quality caveats, and no-fabrication handling for unavailable market, filing, macro, flow, sentiment, and compliance data.
-- Downstream Researcher, Research Manager, Trader, Risk, and Portfolio Manager prompts now use research/model-view language and explicitly prohibit order-placement wording, personalized advice, and "execute trade now" language.
-- Structured Trader rendering now ends with `FINAL MODEL VIEW` rather than transaction-proposal language.
-- Offline tests cover India prompt-language requirements and legacy structured-agent behavior.
-- Data-source and dashboard code were intentionally left unchanged in this phase.
+- Saved report bundles now include the research-only compliance disclaimer in `complete_report.md`, `disclaimer.md`, and each standalone section markdown file.
+- Saved report bundles now include a deterministic `sources.md` and `data_quality.json` coverage index based on writer-level section text markers.
+- `complete_report.md` now includes a top-level data-quality/source coverage table before section content.
+- The Trader research view is now saved as its own standalone artifact in report bundles.
+- Data-source, agent prompt, and dashboard code were intentionally left unchanged in this phase.
 
 ## Completed Phases
 
@@ -42,6 +42,11 @@ The product is research and decision support only. It must not become a live tra
    - Revised downstream Researcher, Trader, Risk, and Portfolio prompts where needed to avoid live-trading wording and order-placement instructions.
    - Updated structured Trader schema/rendering terminology from transaction proposal to model research view.
    - Added offline prompt-language tests and isolated legacy structured-agent tests from India-only ticker validation.
+5. Report/disclaimer and saved-artifact review:
+   - Added compliance disclaimers to every standalone saved section file.
+   - Added writer-generated source/data-quality coverage tables in `complete_report.md`, `sources.md`, and `data_quality.json`.
+   - Added a standalone `trader_research_view.md` artifact while keeping the existing portfolio filename for compatibility.
+   - Added offline tests for disclaimer placement, artifact notes, source coverage indexing, unavailable-section handling, and summary metadata.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -52,24 +57,8 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `docs/CODEX_HANDOFF.md`
-- `tests/test_india_prompt_language.py`
-- `tests/test_structured_agents.py`
-- `tradingagents/agents/analysts/india_compliance_risk_analyst.py`
-- `tradingagents/agents/analysts/india_flows_analyst.py`
-- `tradingagents/agents/analysts/india_fundamentals_analyst.py`
-- `tradingagents/agents/analysts/india_macro_policy_analyst.py`
-- `tradingagents/agents/analysts/india_market_analyst.py`
-- `tradingagents/agents/analysts/india_news_filings_analyst.py`
-- `tradingagents/agents/analysts/india_sentiment_analyst.py`
-- `tradingagents/agents/managers/portfolio_manager.py`
-- `tradingagents/agents/managers/research_manager.py`
-- `tradingagents/agents/researchers/bear_researcher.py`
-- `tradingagents/agents/researchers/bull_researcher.py`
-- `tradingagents/agents/risk_mgmt/aggressive_debator.py`
-- `tradingagents/agents/risk_mgmt/conservative_debator.py`
-- `tradingagents/agents/risk_mgmt/neutral_debator.py`
-- `tradingagents/agents/schemas.py`
-- `tradingagents/agents/trader/trader.py`
+- `cli/main.py`
+- `tests/test_india_cli_report.py`
 
 ## Important Design Decisions
 
@@ -82,6 +71,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Prompts should describe outputs as research views, model views, or research plans rather than live trading decisions.
 - The final structured Trader marker is now `FINAL MODEL VIEW`; preserve this wording for IndiaMarketAgents report and downstream parsing work.
 - Legacy/global structured-agent tests should opt into global scope explicitly when they exercise non-India tickers.
+- Saved report artifacts should be usable as standalone files, so section markdown files carry the compliance disclaimer.
+- Report-writer source/data-quality coverage flags are marker-detection metadata only; they must not be treated as data verification.
+- Keep the existing `9_portfolio_decision.md` filename for compatibility, but title the content as a portfolio research view.
 - Do not add broker execution or broker integrations.
 - Prefer official/user-provided data and explicit unavailable responses over fabricated values.
 - Keep live exchange/network tests out of the default test suite.
@@ -97,9 +89,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `python3 -m pytest tests/test_india_prompt_language.py tests/test_structured_agents.py -q`: 36 passed.
+- `python3 -m pytest tests/test_india_cli_report.py -q`: 7 passed.
 - `git diff --check`: passed.
-- `python3 -m pytest -m "not integration" -q`: 362 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `python3 -m pytest -m "not integration" -q`: 364 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Known Risks And Blockers
 
@@ -109,9 +101,11 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - yfinance remains third-party fallback data, not an official source.
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still use transaction-oriented vocabulary; this phase only changed India analyst prompts and downstream prompts needed for India research-only behavior.
 - Some schema field names such as `TraderAction` and `TraderProposal.action` remain for compatibility, even though user-facing language now renders as a model view.
+- The saved-report source/data-quality coverage index uses simple marker detection and can produce false positives or false negatives; it is an audit aid, not factual validation.
+- `sources.md` does not scrape or retrieve new sources; it indexes coverage markers already present in generated section text.
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
 
 ## Next Recommended Prompt
 
-Proceed to the next phase: report/disclaimer and saved-artifact review. Keep scope limited to generated report structure, disclaimer placement, source/data-quality coverage in reports, and offline report-writer tests. Do not add data sources, agent prompts, or dashboard changes in this phase. Update `docs/CODEX_HANDOFF.md` and commit when done.
+Proceed to the next phase: read-only dashboard/report review. Keep scope limited to dashboard display of saved IndiaMarketAgents reports, disclaimer visibility, source/data-quality artifact rendering, and offline tests. Do not add data sources, agent prompts, broker integrations, or live trading controls. Update `docs/CODEX_HANDOFF.md` and commit when done.
