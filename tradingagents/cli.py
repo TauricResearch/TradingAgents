@@ -28,6 +28,14 @@ def main(argv: list[str] | None = None) -> int:
     # Live dependencies — imported here so the package stays import-light.
     import os
 
+    from .default_config import DEFAULT_CONFIG
+
+    # Show the effective model selection (reflects .env overrides).
+    print(
+        f"model: provider={DEFAULT_CONFIG['llm_provider']} "
+        f"deep={DEFAULT_CONFIG['deep_think_llm']} quick={DEFAULT_CONFIG['quick_think_llm']}"
+    )
+
     from .brain import ForkStructuredLLM
     from .ingestion import (
         StockTwitsFetcher,
