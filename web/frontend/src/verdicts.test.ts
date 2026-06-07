@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { barsInWindow, computeVerdict, type Bar, type RunLike } from "./verdicts";
+import { barsInWindow, computeVerdict, computeStats, type Bar, type RunLike } from "./verdicts";
 
 const t0 = "2026-06-01T12:00:00Z";
 const delta1h = 60 * 60 * 1000;
@@ -146,5 +146,47 @@ describe("computeVerdict", () => {
     const v = computeVerdict(run, [], delta1h, 1.0, "2026-06-01T15:00:00Z");
     expect(v.status).toBe("unknown");
     expect(v.reason).toBe("unknown_action");
+  });
+});
+
+describe("computeStats", () => {
+  it("rightPct is null when no runs are scored", () => {
+    const runs: RunLike[] = [
+      { id: "n", startedAt: t0, decisionAction: "BUY", decisionTarget: 110, startPrice: 100 },
+    ];
+    const s = computeStats(runs, [], delta1h, 1.0, "2026-06-01T15:00:00Z");
+    expect(s.right).toBe(0);
+    expect(s.wrong).toBe(0);
+    expect(s.unknown).toBe(1);
+    expect(s.rightPct).toBeNull();
+  });
+
+  it("counts pending incomplete_window runs separately", () => {
+    const runs: RunLike[] = [
+      { id: "x", startedAt: t0, decisionAction: "BUY", decisionTarget: 110, startPrice: 100 },
+      { id: "y", startedAt: t0, decisionAction: "BUY", decisionTarget: 110, startPrice: 100 },
+    ];
+    const win = [bar(t0, 100), bar("2026-06-01T12:30:00Z", 100.5, 100, 112, 100, 1000)];
+    const s = computeStats(runs, win, delta1h, 1.0, "2026-06-01T12:15:00Z");
+    expect(s.pending).toBe(2);
+    expect(s.unknown).toBe(2);
+    expect(s.right).toBe(0);
+    expect(s.wrong).toBe(0);
+    expect(s.rightPct).toBeNull();
+  });
+
+  it("aggregates per-action counts and rightPct = right/(right+wrong)", () => {
+    const buyRight: RunLike = { id: "1", startedAt: t0, decisionAction: "BUY", decisionTarget: 110, startPrice: 100 };
+    const buyWrong: RunLike = { id: "2", startedAt: t0, decisionAction: "BUY", decisionTarget: 110, startPrice: 100 };
+    const winA = [bar(t0, 100), bar("2026-06-01T12:30:00Z", 100.5, 100, 112, 100, 1000)];  // hits
+    const winB = [bar(t0, 100), bar("2026-06-01T12:30:00Z", 105, 100, 106, 105, 1000)];     // misses
+    const sRight = computeStats([buyRight], winA, delta1h, 1.0, "2026-06-01T15:00:00Z");
+    const sWrong = computeStats([buyWrong], winB, delta1h, 1.0, "2026-06-01T15:00:00Z");
+    expect(sRight.right).toBe(1); expect(sRight.wrong).toBe(0);
+    expect(sWrong.right).toBe(0); expect(sWrong.wrong).toBe(1);
+    expect(sRight.byAction.BUY).toEqual({ right: 1, wrong: 0, unknown: 0 });
+    expect(sWrong.byAction.BUY).toEqual({ right: 0, wrong: 1, unknown: 0 });
+    expect(sRight.rightPct).toBe(1.0);
+    expect(sWrong.rightPct).toBe(0.0);
   });
 });

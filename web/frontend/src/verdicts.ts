@@ -163,3 +163,42 @@ export function computeVerdict(
   const right = action === "BUY" ? up : !up;
   return { runId: run.id, status: right ? "right" : "wrong", reason: "direction", ...filled };
 }
+
+export function computeStats(
+  runs: RunLike[],
+  bars: Bar[],
+  deltaMs: number,
+  holdThresholdPct: number,
+  nowIso: string,
+): Stats {
+  const byAction: Stats["byAction"] = {
+    BUY:  { right: 0, wrong: 0, unknown: 0 },
+    SELL: { right: 0, wrong: 0, unknown: 0 },
+    HOLD: { right: 0, wrong: 0, unknown: 0 },
+  };
+  let right = 0, wrong = 0, unknown = 0, pending = 0;
+
+  for (const run of runs) {
+    const windowBars = barsInWindow(bars, run.startedAt, deltaMs, nowIso);
+    const v = computeVerdict(run, windowBars, deltaMs, holdThresholdPct, nowIso);
+
+    if (v.status === "right") right++;
+    else if (v.status === "wrong") wrong++;
+    else unknown++;
+
+    if (v.reason === "incomplete_window") pending++;
+
+    const action = run.decisionAction;
+    if (action === "BUY" || action === "SELL" || action === "HOLD") {
+      const bucket = byAction[action];
+      if (v.status === "right") bucket.right++;
+      else if (v.status === "wrong") bucket.wrong++;
+      else bucket.unknown++;
+    }
+  }
+
+  const counted = right + wrong;
+  const rightPct = counted === 0 ? null : right / counted;
+
+  return { total: runs.length, right, wrong, unknown, pending, rightPct, byAction };
+}
