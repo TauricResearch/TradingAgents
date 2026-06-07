@@ -106,3 +106,27 @@ class TestBackgroundRunState:
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
         with pytest.raises(FileNotFoundError):
             background_runs.BackgroundRunState.load("bgr_MISSING")
+
+
+class TestJobHandleRegistry:
+    def test_register_and_get_handle(self):
+        from web.server.background_runs import _jobs, register_handle, get_handle
+        h = register_handle(
+            job_id="bgr_REG1", ticker="X", date_from="2024-01-01",
+            date_to="2024-01-02", every="1d", parallel=1, total=2,
+        )
+        assert h.job_id == "bgr_REG1"
+        assert h.state.ticker == "X"
+        assert _jobs["bgr_REG1"] is h
+        assert get_handle("bgr_REG1") is h
+
+    def test_get_handle_missing_returns_none(self):
+        from web.server.background_runs import get_handle
+        assert get_handle("bgr_DOES_NOT_EXIST") is None
+
+    def test_unregister_removes_handle(self):
+        from web.server.background_runs import _jobs, register_handle, unregister_handle
+        register_handle("bgr_REG2", "X", "2024-01-01", "2024-01-02", "1d", 1, 2)
+        assert "bgr_REG2" in _jobs
+        unregister_handle("bgr_REG2")
+        assert "bgr_REG2" not in _jobs
