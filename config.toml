@@ -1,0 +1,45 @@
+# =====================================================================
+# trading-agent — global configuration
+# One file to tune every parameter of the system. Secrets stay in .env.
+# Any value omitted here keeps its built-in default (see tradingagents/config.py).
+# Point elsewhere with TRADINGAGENTS_CONFIG=/path/to/config.toml
+# =====================================================================
+
+[llm]
+# OpenRouter is the default single provider. Verify slugs on openrouter.ai
+# (free models end in :free). The API key lives in .env (OPENROUTER_API_KEY).
+provider    = "openrouter"
+deep_model  = "deepseek/deepseek-v4-flash:free"
+quick_model = "deepseek/deepseek-v4-flash:free"
+# backend_url = ""          # leave unset: auto-resolved for OpenRouter
+
+[risk]
+base_risk_pct    = 0.01     # risk budget per trade (× conviction multiplier)
+heat_max_pct     = 0.06     # max aggregate open risk (portfolio heat)
+max_position_pct = 0.10     # max weight per single position
+atr_period       = 14
+k_entry          = 0.5      # entry distance in ATR units
+k_stop           = 2.0      # stop distance in ATR units
+k_tp             = 3.0      # take-profit distance in ATR units
+min_risk_reward  = 1.5      # R:R guardrail
+
+[charter]                   # institutional Statute (deterministic guardrails)
+cash_reserve_pct  = 0.10    # strategic cash reserve, never invested
+max_portfolio_var = 0.10    # portfolio VaR cap (proxy)
+max_sector_pct    = 0.30    # max exposure per sector
+
+[screening]
+lookback = 60               # bars used by the screening signals
+top_k    = 5                # tickers per cycle that reach the deep dive
+
+[cycle]
+max_revisions   = 1         # "when in doubt, ask" loop cap
+interval_seconds = 3600     # autonomous loop period (--loop)
+price_alert_atr = 1.5       # anomalous-move trigger threshold (|move| > k·ATR)
+
+[data]
+history_start = "2024-01-01"  # how far back to pull OHLCV
+
+[costs]
+token_cost_per_cycle = 0.0
+commission_per_trade = 0.0    # 0 = commission-free (e.g. Alpaca equity)

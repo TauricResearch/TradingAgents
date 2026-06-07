@@ -76,6 +76,8 @@ def run_once(
     fundamentals_fetcher: Optional[FundamentalsFetcher] = None,
     macro_fetcher: Optional[MacroFetcher] = None,
     social_fetcher: Optional[SocialFetcher] = None,
+    charter: Optional[dict[str, Any]] = None,
+    top_k: Optional[int] = None,
     db_url: Optional[str] = None,
     start: str = "2024-01-01",
     end: Optional[str] = None,
@@ -88,7 +90,7 @@ def run_once(
 
     with database.get_session() as s:
         ensure_initial_portfolio(s)
-        repo.seed_default_charter(s)
+        repo.seed_default_charter(s, overrides=charter)  # config Statute
         if macro_fetcher is not None:  # macro is global, ingested once per run
             for sid in DEFAULT_MACRO_SERIES:
                 ingest_macro(s, sid, fetcher=macro_fetcher)
@@ -102,7 +104,7 @@ def run_once(
         return run_cycle(
             s, broker, analyzer,
             commission_model=commission_model,
-            top_k=max(1, len(symbols)),
+            top_k=top_k or max(1, len(symbols)),
             **sizing,
         )
 

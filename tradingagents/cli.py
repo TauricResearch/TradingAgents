@@ -1,42 +1,42 @@
-"""Minimal CLI: run one live alpha cycle.
+"""CLI: run the alpha from the global config.
 
-    python -m tradingagents.cli AAPL MSFT --start 2024-01-01
+    python -m tradingagents.cli AAPL MSFT [--loop SECONDS]
 
-Builds the live dependencies (yfinance fetcher + DeepSeek brain via OpenRouter)
-and runs a single cycle on the paper broker. Requires the provider keys in .env
-(TRADINGAGENTS_LLM_PROVIDER=openrouter + the model + OPENROUTER_API_KEY).
+All tunable parameters live in ``config.toml`` (see tradingagents/config.py);
+secrets live in ``.env``. CLI flags override a few config values per-run.
 """
 
 from __future__ import annotations
 
 import argparse
 
-from .app import run_once
-
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run one trading-agent cycle.")
+    parser = argparse.ArgumentParser(description="Run the trading-agent.")
     parser.add_argument("symbols", nargs="+", help="Ticker symbols, e.g. AAPL MSFT")
-    parser.add_argument("--start", default="2024-01-01", help="History start (yyyy-mm-dd)")
-    parser.add_argument("--end", default=None, help="History end (yyyy-mm-dd, default today)")
+    parser.add_argument("--config", default=None, help="Path to config.toml")
+    parser.add_argument("--start", default=None, help="History start (override config)")
+    parser.add_argument("--end", default=None, help="History end (default today)")
     parser.add_argument("--db", default=None, help="Database URL (default local SQLite)")
-    parser.add_argument("--base-risk", type=float, default=0.01, help="Base risk fraction")
     parser.add_argument("--loop", type=float, default=None, metavar="SECONDS",
-                        help="Run continuously every SECONDS (autonomous loop)")
+                        help="Run continuously every SECONDS (default from config)")
     args = parser.parse_args(argv)
 
-    # Live dependencies — imported here so the package stays import-light.
     import os
 
-    from .default_config import DEFAULT_CONFIG
+    from .config import load_settings
 
-    # Show the effective model selection (reflects .env overrides).
+    settings = load_settings(args.config)
+    start = args.start or settings.data.history_start
+
     print(
-        f"model: provider={DEFAULT_CONFIG['llm_provider']} "
-        f"deep={DEFAULT_CONFIG['deep_think_llm']} quick={DEFAULT_CONFIG['quick_think_llm']}"
+        f"model: provider={settings.llm.provider} "
+        f"deep={settings.llm.deep_model} quick={settings.llm.quick_model}"
     )
 
     from .brain import ForkStructuredLLM
+    from .brain.tooling import Extractors
+    from .broker import PerTradeCommission, ZeroCommission
     from .ingestion import (
         StockTwitsFetcher,
         YFinanceFetcher,
@@ -45,24 +45,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     from .orchestration import make_brain_analyzer
 
-    # Macro is optional: only if a FRED key is configured.
     macro_fetcher = None
     if os.environ.get("FRED_API_KEY"):
         from .ingestion import FredFetcher
 
         macro_fetcher = FredFetcher()
 
-    from .brain.tooling import Extractors
+    price_f = YFinanceFetcher()
+    news_f = YFinanceNewsFetcher()
+    fund_f = YFinanceFundamentalsFetcher()
+    social_f = StockTwitsFetcher()
 
     extractors = Extractors(
-        price_fetcher=YFinanceFetcher(),
-        news_fetcher=YFinanceNewsFetcher(),
-        fundamentals_fetcher=YFinanceFundamentalsFetcher(),
-        macro_fetcher=macro_fetcher,
-        social_fetcher=StockTwitsFetcher(),
+        price_fetcher=price_f, news_fetcher=news_f, fundamentals_fetcher=fund_f,
+        macro_fetcher=macro_fetcher, social_fetcher=social_f, history_start=start,
     )
-    # Broker: real Alpaca paper account if credentials are set, else the
-    # in-process simulator.
+
     broker = None
     if os.environ.get("ALPACA_API_KEY") and os.environ.get("ALPACA_SECRET_KEY"):
         from .broker.alpaca import AlpacaBroker
@@ -72,38 +70,49 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("broker: PaperBroker (simulated)")
 
-    analyzer = make_brain_analyzer(ForkStructuredLLM(), extractors=extractors)
+    fee = settings.costs.commission_per_trade
+    commission = PerTradeCommission(fee) if fee > 0 else ZeroCommission()
+
+    llm = ForkStructuredLLM(config=settings.llm_config())
+    analyzer = make_brain_analyzer(
+        llm, extractors=extractors,
+        max_revisions=settings.cycle.max_revisions,
+        base_risk_pct=settings.risk.base_risk_pct,
+        charter=settings.charter_dict(),
+    )
+
     deps = dict(
         broker=broker,
-        fetcher=YFinanceFetcher(),
-        news_fetcher=YFinanceNewsFetcher(),
-        fundamentals_fetcher=YFinanceFundamentalsFetcher(),
-        macro_fetcher=macro_fetcher,
-        social_fetcher=StockTwitsFetcher(),
+        fetcher=price_f, news_fetcher=news_f, fundamentals_fetcher=fund_f,
+        macro_fetcher=macro_fetcher, social_fetcher=social_f,
         analyzer=analyzer,
-        db_url=args.db,
-        start=args.start,
-        end=args.end,
-        base_risk_pct=args.base_risk,
+        commission_model=commission,
+        charter=settings.charter_dict(),
+        top_k=settings.screening.top_k,
+        base_risk_pct=settings.risk.base_risk_pct,
+        db_url=args.db, start=start, end=args.end,
     )
+
+    from .app import run_once
 
     def _print(report):
         print(
             f"cycle: triggers={report.triggers} analyzed={report.analyzed} "
-            f"traded={report.traded} skipped_cost={report.skipped_cost} "
-            f"skipped_not_tradable={report.skipped_not_tradable}"
+            f"traded={report.traded} closed={report.closed} "
+            f"skipped_cost={report.skipped_cost} skipped_not_tradable={report.skipped_not_tradable}"
         )
         for t in report.trades:
             print(f"  {t.action.upper()} {t.symbol} qty={t.quantity} @ {t.entry_price} -> {t.status}")
 
-    if args.loop:
+    interval = args.loop if args.loop is not None else None
+    if interval:
         import time
 
-        print(f"autonomous loop every {args.loop}s (Ctrl-C to stop)")
+        print(f"autonomous loop every {interval}s (Ctrl-C to stop)")
         try:
             while True:
                 _print(run_once(args.symbols, **deps))
-                time.sleep(args.loop)
+                time.sleep(interval)
         except KeyboardInterrupt:
             print("stopped")
         return 0
