@@ -106,3 +106,60 @@ export function actionTint(action: string | null | undefined): string {
 }
 
 // computeVerdict and computeStats are added in Tasks 12 and 13.
+
+export function computeVerdict(
+  run: RunLike,
+  windowBars: Bar[],
+  deltaMs: number,
+  holdThresholdPct: number,
+  nowIso: string,
+): Verdict {
+  const base: Pick<Verdict, "pctMove" | "targetHit" | "maxHigh" | "minLow" | "endPrice"> = {
+    pctMove: null, targetHit: null, maxHigh: null, minLow: null, endPrice: null,
+  };
+
+  const action = run.decisionAction;
+  if (action !== "BUY" && action !== "SELL" && action !== "HOLD") {
+    return { runId: run.id, status: "unknown", reason: "unknown_action", ...base };
+  }
+  if (run.startPrice == null) {
+    return { runId: run.id, status: "unknown", reason: "no_start_price", ...base };
+  }
+  const startMs = isoToMs(run.startedAt);
+  if (startMs + deltaMs > isoToMs(nowIso)) {
+    return { runId: run.id, status: "unknown", reason: "incomplete_window", ...base };
+  }
+  if (windowBars.length === 0) {
+    return { runId: run.id, status: "unknown", reason: "no_data", ...base };
+  }
+
+  const maxHigh = windowBars.reduce((m, b) => Math.max(m, b.h), -Infinity);
+  const minLow = windowBars.reduce((m, b) => Math.min(m, b.l), Infinity);
+  const endPrice = windowBars[windowBars.length - 1].c;
+  const pctMove = ((endPrice - run.startPrice) / run.startPrice) * 100;
+  const filled = { pctMove, targetHit: null, maxHigh, minLow, endPrice };
+
+  if (action === "HOLD") {
+    if (Math.abs(pctMove) <= holdThresholdPct) {
+      return { runId: run.id, status: "right", reason: "within_threshold", ...filled };
+    }
+    return { runId: run.id, status: "wrong", reason: "threshold_exceeded", ...filled };
+  }
+
+  if (run.decisionTarget != null) {
+    if (action === "BUY") {
+      const hit = maxHigh >= run.decisionTarget;
+      return { runId: run.id, status: hit ? "right" : "wrong", reason: hit ? "target_hit" : "target_miss", ...filled, targetHit: hit };
+    }
+    const hit = minLow <= run.decisionTarget;
+    return { runId: run.id, status: hit ? "right" : "wrong", reason: hit ? "target_hit" : "target_miss", ...filled, targetHit: hit };
+  }
+
+  // No-target BUY/SELL: direction rule with tie protection.
+  if (endPrice === run.startPrice) {
+    return { runId: run.id, status: "unknown", reason: "tie", ...filled };
+  }
+  const up = endPrice > run.startPrice;
+  const right = action === "BUY" ? up : !up;
+  return { runId: run.id, status: right ? "right" : "wrong", reason: "direction", ...filled };
+}
