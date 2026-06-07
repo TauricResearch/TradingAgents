@@ -17,7 +17,8 @@ def get_india_macro_context(curr_date: str, look_back_days: int | None = None) -
     return (
         f"# India Macro Context\n\nDate: {curr_date}\n"
         f"Look-back days: {look_back_days or config.get('global_news_lookback_days', 7)}\n\n"
-        "Official macro datapoints are unavailable in this run. Use these configured query topics "
+        "UNAVAILABLE: Official RBI/MOSPI/DBIE macro datapoints are unavailable in this offline-safe run.\n\n"
+        "Use these configured query topics "
         "for news/macro retrieval when a permitted source is available:\n\n"
         f"{query_block}\n\n"
         "Data quality:\n"

@@ -20,6 +20,24 @@ class DataQuality:
     warnings: list[str] = field(default_factory=list)
 
     @classmethod
+    def current(
+        cls,
+        source: str,
+        coverage: str,
+        confidence: Confidence = "medium",
+        warnings: list[str] | None = None,
+        staleness: str = "retrieved during current run",
+    ) -> "DataQuality":
+        return cls(
+            source=source,
+            as_of=datetime.now(timezone.utc).isoformat(),
+            coverage=coverage,
+            staleness=staleness,
+            confidence=confidence,
+            warnings=list(warnings or []),
+        )
+
+    @classmethod
     def unavailable(cls, source: str, reason: str) -> "DataQuality":
         return cls(
             source=source,
@@ -45,13 +63,16 @@ class DataQuality:
         )
 
 
+def render_data_quality_block(quality: DataQuality) -> str:
+    return f"Data quality:\n{quality.to_markdown()}"
+
+
 def unavailable_response(source: str, symbol: str, reason: str) -> str:
     quality = DataQuality.unavailable(source, reason)
     return (
         f"UNAVAILABLE: {reason}\n\n"
         f"Symbol: {symbol}\n\n"
-        "Data quality:\n"
-        f"{quality.to_markdown()}\n\n"
+        f"{render_data_quality_block(quality)}\n\n"
         "Do not estimate or fabricate this data. Use local files under "
         "`data/india/manual/` or `data/india/filings/` when available."
     )
