@@ -12,7 +12,7 @@ import { RunTimeline } from "./components/RunTimeline";
 import { LiveEventStream } from "./components/LiveEventStream";
 import { ReportPanel } from "./components/ReportPanel";
 import { DecisionPanel } from "./components/DecisionPanel";
-import { RunHistoryDrawer } from "./components/RunHistoryDrawer";
+import { HistoricalAnalysisDrawer } from "./components/HistoricalAnalysisDrawer";
 
 export default function App() {
   const focused = useUi((s) => s.focusedTicker);
@@ -164,7 +164,9 @@ export default function App() {
           </div>
         )}
       </main>
-      <RunHistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} />
+      {focused && historyOpen && (
+        <HistoricalAnalysisDrawer ticker={focused} onClose={() => setHistoryOpen(false)} />
+      )}
     </div>
   );
 }
