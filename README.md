@@ -85,6 +85,25 @@ uv run python -m tradingagents.cli AAPL MSFT --start 2024-01-01
 uv run python -m tradingagents.cli AAPL MSFT --loop 3600
 ```
 
+## ⚙️ Configuration
+
+One global file controls every tunable parameter — **`config.toml`** (repo root):
+LLM models, risk & sizing, the Statute guardrails, screening, the autonomous
+cycle, data lookback and costs. Anything omitted keeps its default
+(`tradingagents/config.py`); secrets stay in `.env`. Point elsewhere with
+`TRADINGAGENTS_CONFIG=/path/to/config.toml`.
+
+```toml
+[risk]
+base_risk_pct = 0.01     # risk budget per trade (× conviction)
+k_stop = 2.0             # stop distance in ATR
+[charter]
+cash_reserve_pct = 0.10  # strategic cash reserve
+max_sector_pct = 0.30
+[cycle]
+interval_seconds = 3600  # autonomous loop period
+```
+
 ## ✅ Testing
 
 ```bash
