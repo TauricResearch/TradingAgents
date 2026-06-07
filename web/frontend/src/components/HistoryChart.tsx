@@ -7,6 +7,7 @@ import {
 import type { Bar, RunLike, Verdict } from "../verdicts";
 import { actionColor, actionTint } from "../verdicts";
 import { fmtPrice, fmtTime, fmtVolume } from "../lib/format";
+import type { CandleResolution } from "../lib/resolution";
 
 export interface HistoryChartProps {
   bars: Bar[];
@@ -16,7 +17,7 @@ export interface HistoryChartProps {
   holdThresholdPct: number;
   nowIso: string;
   selectedRunId: string | null;
-  resolution: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+  resolution: Exclude<CandleResolution, "auto">;
   rangeStartIso: string;
   rangeEndIso: string;
 }
@@ -71,6 +72,28 @@ function CandleRenderer(props: {
   const xAxis = Object.values(xAxisMap)[0];
   const yAxis = Object.values(yAxisMap)[0];
   if (!xAxis?.scale || !yAxis?.scale) return null;
+
+  // Body width: 6px at sparse densities, scaled down to (avgGap * 0.7)
+  // when candles get dense. The 0.7 factor leaves a 30% gap between
+  // adjacent bodies so they never overlap into a solid block.
+  let bodyWidth = CANDLE_WIDTH;
+  if (data.length > 1) {
+    let totalGap = 0;
+    let count = 0;
+    for (let i = 0; i < data.length - 1; i++) {
+      const t1 = data[i].t;
+      const t2 = data[i + 1].t;
+      if (typeof t1 === "number" && typeof t2 === "number") {
+        totalGap += Math.abs(xAxis.scale(t2) - xAxis.scale(t1));
+        count++;
+      }
+    }
+    if (count > 0) {
+      const avgGap = totalGap / count;
+      bodyWidth = Math.max(1, Math.min(CANDLE_WIDTH, avgGap * 0.7));
+    }
+  }
+
   return (
     <g>
       {data.map((row, i) => {
@@ -117,9 +140,9 @@ function CandleRenderer(props: {
               stroke={wickColor} strokeWidth={1}
             />
             <rect
-              x={x - CANDLE_WIDTH / 2}
+              x={x - bodyWidth / 2}
               y={Math.min(yOpen, yClose)}
-              width={CANDLE_WIDTH}
+              width={bodyWidth}
               height={Math.max(1, Math.abs(yClose - yOpen))}
               fill={bodyFill}
               stroke={bodyStroke}
@@ -135,7 +158,9 @@ function CandleRenderer(props: {
 export function HistoryChart(props: HistoryChartProps) {
   const { bars, runs, deltaMs, nowIso, selectedRunId, resolution, rangeStartIso, rangeEndIso } = props;
   const scale: "m" | "h" | "d" =
-    resolution === "1d" ? "d" : (resolution === "1h" || resolution === "4h") ? "h" : "m";
+    resolution === "1d" || resolution === "1w" ? "d"
+    : (resolution === "1h" || resolution === "4h") ? "h"
+    : "m";
 
   const chartData: ChartRow[] = useMemo(
     () =>
