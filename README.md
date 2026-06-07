@@ -91,7 +91,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 </p>
 
 ### Trader Agent
-- Composes reports from the analysts and researchers to make informed trading decisions, determining the timing and magnitude of trades.
+- In IndiaMarketAgents, composes analyst and researcher reports into a research-only model view. It does not place orders, route orders, or provide live execution instructions.
 
 <p align="center">
   <img src="assets/trader.png" width="70%" style="display: inline-block; margin: 0 2%;">
@@ -99,7 +99,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Risk Management and Portfolio Manager
 - Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
-- The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
+- In IndiaMarketAgents, the Portfolio Manager synthesizes a final research view for analyst review. No order is sent to a broker, simulated exchange, or execution venue.
 
 <p align="center">
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">

@@ -903,8 +903,8 @@ def _format_sources_markdown(records: list[dict]) -> str:
 
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
     """Save complete analysis report to disk with organized IndiaMarketAgents files."""
-    save_path.mkdir(parents=True, exist_ok=True)
     safe_ticker = safe_india_ticker_component(ticker) if DEFAULT_CONFIG.get("market_scope") == "india" else ticker
+    save_path.mkdir(parents=True, exist_ok=True)
     sections = [
         f"# IndiaMarketAgents Research Report: {safe_ticker}",
         "",

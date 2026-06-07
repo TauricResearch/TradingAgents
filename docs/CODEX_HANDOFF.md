@@ -2,7 +2,7 @@
 
 Date: 2026-06-07
 Branch: `india-market-agents`
-Latest phase: Read-only dashboard/report review
+Latest phase: Security/compliance final pass
 
 ## Project Goal
 
@@ -16,10 +16,11 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- The Streamlit dashboard remains a read-only saved-report viewer with visible research-only disclaimer text.
-- Dashboard rendering now includes all current saved report artifacts, including research debate, trader research view, portfolio research view, sources, and data-quality coverage.
-- Dashboard source/data-quality rendering is backed by offline pure-Python helpers, so tests do not require Streamlit or live services.
-- Data-source, agent prompt, broker, and live trading code were intentionally left unchanged in this phase.
+- Security/compliance scans found no tracked generated reports, user-supplied filing folders, PDFs, bytecode, database files, or real-looking secret prefixes.
+- Upstream README execution wording was tightened for IndiaMarketAgents so user-facing docs no longer say orders are sent to a simulated exchange.
+- Report writing now validates the India ticker before creating the output directory.
+- Fake `sk-...` style API-key fixtures were replaced with neutral placeholders to reduce false-positive secret scanner hits.
+- Data-source, agent prompt, broker, and dashboard feature code were intentionally left unchanged in this phase.
 
 ## Completed Phases
 
@@ -51,6 +52,11 @@ The product is research and decision support only. It must not become a live tra
    - Expanded the dashboard tabs to show all saved report-review artifacts, including `sources.md` and formatted `data_quality.json`.
    - Kept the dashboard explicitly read-only with visible research-only/no-live-trading language.
    - Added offline tests for saved-report discovery, companion compliance rendering, data-quality formatting, optional Streamlit import behavior, and absence of live-trading controls.
+7. Security/compliance final pass:
+   - Scanned tracked files for secret-like values, generated artifacts, local filing material, broker/live-trading affordances, unsafe report writes, and user-facing execution wording.
+   - Removed simulated-exchange execution language from the user-facing README.
+   - Moved report-writer India ticker validation ahead of output-directory creation.
+   - Added offline security/compliance regression tests and neutralized fake API-key prefixes in tests.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -61,9 +67,10 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `docs/CODEX_HANDOFF.md`
-- `dashboard/app.py`
-- `dashboard/report_review.py`
-- `tests/test_dashboard_report_review.py`
+- `README.md`
+- `cli/main.py`
+- `tests/test_api_key_env.py`
+- `tests/test_security_compliance.py`
 
 ## Important Design Decisions
 
@@ -81,6 +88,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Keep the existing `9_portfolio_decision.md` filename for compatibility, but title the content as a portfolio research view.
 - Keep dashboard logic read-only and report-focused; do not add order buttons, broker controls, chat trading controls, or live execution affordances.
 - Keep Streamlit optional. Put testable dashboard logic in non-Streamlit helper modules so offline tests run without installing dashboard extras.
+- Validate ticker-derived report paths before creating output directories.
+- Use neutral placeholder strings in tests instead of fake values that resemble real provider secret prefixes.
+- Tracked `.env.example*` files are intentionally template files; real `.env` files must remain untracked.
 - Do not add broker execution or broker integrations.
 - Prefer official/user-provided data and explicit unavailable responses over fabricated values.
 - Keep live exchange/network tests out of the default test suite.
@@ -96,14 +106,17 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `python3 -m pytest tests/test_dashboard_report_review.py -q`: 5 passed.
-- `python3 dashboard/app.py`: import path smoke reached the optional Streamlit import, then failed with `ModuleNotFoundError: No module named 'streamlit'`.
+- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py -q`: 11 passed.
+- `python3 -m pytest tests/test_api_key_env.py tests/test_security_compliance.py tests/test_india_cli_report.py -q`: 34 passed.
+- `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ...`: no matches after excluding tracked `.env.example*` templates.
+- `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order' -- README.md README_INDIA.md dashboard cli tradingagents docs tests`: no matches.
+- `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|...generated artifacts...)'`: only tracked `.env.example*` templates matched the broader env-template pattern; no generated reports, local filings, PDFs, bytecode, DBs, or logs were tracked.
 - `git diff --check`: passed.
-- `python3 -m pytest -m "not integration" -q`: 369 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `python3 -m pytest -m "not integration" -q`: 373 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Known Risks And Blockers
 
-- `README.md` still contains a large upstream TradingAgents body after an IndiaMarketAgents preface. This is acceptable for attribution during early phases, but user-facing docs should eventually route more clearly to `README_INDIA.md`.
+- `README.md` still contains a large upstream TradingAgents body after an IndiaMarketAgents preface. The most direct execution-language issue was removed, but user-facing docs should eventually route more clearly to `README_INDIA.md`.
 - NSE/BSE official-source modules are still placeholders; they fail closed and need verified endpoints or local-file workflows before use as live sources.
 - NSE/BSE public endpoints can block automation or change response formats.
 - yfinance remains third-party fallback data, not an official source.
@@ -113,9 +126,10 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `sources.md` does not scrape or retrieve new sources; it indexes coverage markers already present in generated section text.
 - Streamlit is an optional dashboard dependency and is not installed in the baseline test environment; dashboard runtime was not browser-verified in this phase.
 - Dashboard report discovery reads local `reports/<SYMBOL>/<DATE>/` folders only and does not validate generated report facts.
+- Local `__pycache__` files exist from test runs but are ignored by git and were not deleted because deletion was not requested.
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
 
 ## Next Recommended Prompt
 
-Proceed to the next phase: security/compliance final pass. Keep scope limited to scanning for secrets, generated artifacts, unsafe file writes, report path issues, broker/live-trading affordances, and remaining user-facing compliance gaps. Do not add data sources, agent prompts, or dashboard features unless needed to fix a concrete security/compliance issue. Update `docs/CODEX_HANDOFF.md` and commit when done.
+Proceed to the next phase: final branch review and PR-readiness package. Keep scope limited to summarizing completed phases, reviewing remaining risks, checking git history/status, and preparing a concise PR description/checklist. Do not add data sources, agent prompts, dashboard features, or broker integrations. Update `docs/CODEX_HANDOFF.md` and commit only if documentation changes are needed.
