@@ -226,3 +226,29 @@ def get_handle(job_id: str) -> Optional[_JobHandle]:
 
 def unregister_handle(job_id: str) -> None:
     _jobs.pop(job_id, None)
+
+
+import time
+
+
+@dataclass
+class _IterationResult:
+    ticker: str
+    date_iso: str
+    duration_s: float
+    decision: Optional[dict] = None
+
+
+def _run_one(ticker: str, date_iso: str) -> _IterationResult:
+    """Call propagate() for a single (ticker, date). Measure wall-clock time.
+    Raises on failure (caller decides how to record the error)."""
+    t0 = time.monotonic()
+    out = _call_propagate(ticker, date_iso)
+    duration_s = time.monotonic() - t0
+    decision = None
+    if isinstance(out, dict):
+        decision = out.get("decision")
+    return _IterationResult(
+        ticker=ticker, date_iso=date_iso,
+        duration_s=duration_s, decision=decision,
+    )
