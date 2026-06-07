@@ -11,13 +11,16 @@ class ConditionalLogic:
         self.max_debate_rounds = max_debate_rounds
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
 
-    def should_continue_market(self, state: AgentState):
-        """Determine if market analysis should continue."""
+    def _should_continue_tool_round(self, state: AgentState, tool_node: str, clear_node: str):
         messages = state["messages"]
         last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_market"
-        return "Msg Clear Market"
+        if getattr(last_message, "tool_calls", None):
+            return tool_node
+        return clear_node
+
+    def should_continue_market(self, state: AgentState):
+        """Determine if market analysis should continue."""
+        return self._should_continue_tool_round(state, "tools_market", "Msg Clear Market")
 
     def should_continue_social(self, state: AgentState):
         """Determine if sentiment-analyst tool round should continue.
@@ -27,27 +30,36 @@ class ConditionalLogic:
         back-compat); the returned ``clear_node`` label uses the v0.2.5
         rename so it matches the node registered by the execution plan.
         """
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_social"
-        return "Msg Clear Sentiment"
+        return self._should_continue_tool_round(state, "tools_social", "Msg Clear Sentiment")
 
     def should_continue_news(self, state: AgentState):
         """Determine if news analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_news"
-        return "Msg Clear News"
+        return self._should_continue_tool_round(state, "tools_news", "Msg Clear News")
 
     def should_continue_fundamentals(self, state: AgentState):
         """Determine if fundamentals analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_fundamentals"
-        return "Msg Clear Fundamentals"
+        return self._should_continue_tool_round(state, "tools_fundamentals", "Msg Clear Fundamentals")
+
+    def should_continue_india_market(self, state: AgentState):
+        return self._should_continue_tool_round(state, "tools_india_market", "Msg Clear India Market")
+
+    def should_continue_india_fundamentals(self, state: AgentState):
+        return self._should_continue_tool_round(state, "tools_india_fundamentals", "Msg Clear India Fundamentals")
+
+    def should_continue_india_news_filings(self, state: AgentState):
+        return self._should_continue_tool_round(state, "tools_india_news_filings", "Msg Clear India News Filings")
+
+    def should_continue_india_macro_policy(self, state: AgentState):
+        return self._should_continue_tool_round(state, "tools_india_macro_policy", "Msg Clear India Macro Policy")
+
+    def should_continue_india_flows(self, state: AgentState):
+        return self._should_continue_tool_round(state, "tools_india_flows", "Msg Clear India Flows")
+
+    def should_continue_india_sentiment(self, state: AgentState):
+        return self._should_continue_tool_round(state, "tools_india_sentiment", "Msg Clear India Sentiment")
+
+    def should_continue_india_compliance(self, state: AgentState):
+        return self._should_continue_tool_round(state, "tools_india_compliance", "Msg Clear India Compliance")
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""

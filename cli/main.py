@@ -1,6 +1,7 @@
 from typing import Optional
 import os
 import datetime
+import json
 import typer
 import questionary
 from pathlib import Path
@@ -23,12 +24,22 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.analyst_execution import (
+    INDIA_DEFAULT_ANALYSTS,
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
     get_initial_analyst_node,
     sync_analyst_tracker_from_chunk,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.dataflows.india.calendar import IndiaCalendarError, resolve_india_analysis_date
+from tradingagents.dataflows.india.symbols import (
+    IndiaSymbolError,
+    safe_india_ticker_component,
+    validate_india_symbol_or_raise,
+)
+from tradingagents.agents.analysts.india_compliance_risk_analyst import (
+    INDIA_COMPLIANCE_DISCLAIMER,
+)
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -37,8 +48,8 @@ from cli.stats_handler import StatsCallbackHandler
 console = Console()
 
 app = typer.Typer(
-    name="TradingAgents",
-    help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
+    name="IndiaMarketAgents",
+    help="IndiaMarketAgents CLI: India-only institutional market research copilot",
     add_completion=True,  # Enable shell completion
 )
 
@@ -59,6 +70,13 @@ class MessageBuffer:
         "social": "Sentiment Analyst",
         "news": "News Analyst",
         "fundamentals": "Fundamentals Analyst",
+        "india_market": "India Market Technical Analyst",
+        "india_fundamentals": "India Fundamentals Analyst",
+        "india_news_filings": "India News & Filings Analyst",
+        "india_macro_policy": "India Macro & Policy Analyst",
+        "india_flows": "India Flows & Positioning Analyst",
+        "india_sentiment": "India Sentiment Analyst",
+        "india_compliance": "India Compliance & Risk Guard",
     }
 
     # Report section mapping: section -> (analyst_key for filtering, finalizing_agent)
@@ -69,6 +87,13 @@ class MessageBuffer:
         "sentiment_report": ("social", "Sentiment Analyst"),
         "news_report": ("news", "News Analyst"),
         "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
+        "india_market_report": ("india_market", "India Market Technical Analyst"),
+        "india_fundamentals_report": ("india_fundamentals", "India Fundamentals Analyst"),
+        "india_news_filings_report": ("india_news_filings", "India News & Filings Analyst"),
+        "india_macro_policy_report": ("india_macro_policy", "India Macro & Policy Analyst"),
+        "india_flows_report": ("india_flows", "India Flows & Positioning Analyst"),
+        "india_sentiment_report": ("india_sentiment", "India Sentiment Analyst"),
+        "india_compliance_report": ("india_compliance", "India Compliance & Risk Guard"),
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
@@ -177,6 +202,13 @@ class MessageBuffer:
                 "sentiment_report": "Social Sentiment",
                 "news_report": "News Analysis",
                 "fundamentals_report": "Fundamentals Analysis",
+                "india_market_report": "India Market Technical",
+                "india_fundamentals_report": "India Fundamentals",
+                "india_news_filings_report": "India News & Filings",
+                "india_macro_policy_report": "India Macro & Policy",
+                "india_flows_report": "India Flows & Positioning",
+                "india_sentiment_report": "India Sentiment",
+                "india_compliance_report": "India Compliance",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
@@ -192,7 +224,19 @@ class MessageBuffer:
         report_parts = []
 
         # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
+        analyst_sections = [
+            "market_report",
+            "sentiment_report",
+            "news_report",
+            "fundamentals_report",
+            "india_market_report",
+            "india_fundamentals_report",
+            "india_news_filings_report",
+            "india_macro_policy_report",
+            "india_flows_report",
+            "india_sentiment_report",
+            "india_compliance_report",
+        ]
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
             if self.report_sections.get("market_report"):
@@ -211,6 +255,18 @@ class MessageBuffer:
                 report_parts.append(
                     f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
                 )
+            india_titles = {
+                "india_market_report": "India Market Technical",
+                "india_fundamentals_report": "India Fundamentals",
+                "india_news_filings_report": "India News & Filings",
+                "india_macro_policy_report": "India Macro & Policy",
+                "india_flows_report": "India Flows & Positioning",
+                "india_sentiment_report": "India Sentiment",
+                "india_compliance_report": "India Compliance",
+            }
+            for section, title in india_titles.items():
+                if self.report_sections.get(section):
+                    report_parts.append(f"### {title}\n{self.report_sections[section]}")
 
         # Research Team Reports
         if self.report_sections.get("investment_plan"):
@@ -260,9 +316,9 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Header with welcome message
     layout["header"].update(
         Panel(
-            "[bold green]Welcome to TradingAgents CLI[/bold green]\n"
-            "[dim]© [Tauric Research](https://github.com/TauricResearch)[/dim]",
-            title="Welcome to TradingAgents",
+            "[bold green]Welcome to IndiaMarketAgents CLI[/bold green]\n"
+            "[dim]India-focused fork of TauricResearch/TradingAgents under Apache 2.0[/dim]",
+            title="Welcome to IndiaMarketAgents",
             border_style="green",
             padding=(1, 2),
             expand=True,
@@ -290,6 +346,13 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
             "Sentiment Analyst",
             "News Analyst",
             "Fundamentals Analyst",
+            "India Market Technical Analyst",
+            "India Fundamentals Analyst",
+            "India News & Filings Analyst",
+            "India Macro & Policy Analyst",
+            "India Flows & Positioning Analyst",
+            "India Sentiment Analyst",
+            "India Compliance & Risk Guard",
         ],
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
@@ -466,16 +529,18 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open(Path(__file__).parent / "static" / "welcome.txt", "r", encoding="utf-8") as f:
+    welcome_file = "india_welcome.txt" if DEFAULT_CONFIG.get("market_scope") == "india" else "welcome.txt"
+    with open(Path(__file__).parent / "static" / welcome_file, "r", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
     # Create welcome box content
     welcome_content = f"{welcome_ascii}\n"
-    welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
+    welcome_content += "[bold green]IndiaMarketAgents: India-only institutional market research copilot[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
-    welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
+    welcome_content += "I. India Analysts → II. Research Debate → III. Research View → IV. Risk Review → V. Portfolio Decision\n\n"
+    welcome_content += f"[yellow]{INDIA_COMPLIANCE_DISCLAIMER}[/yellow]\n\n"
     welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
+        "[dim]Built as an India-focused fork of TauricResearch/TradingAgents under Apache 2.0.[/dim]"
     )
 
     # Create and center the welcome box
@@ -483,8 +548,8 @@ def get_user_selections():
         welcome_content,
         border_style="green",
         padding=(1, 2),
-        title="Welcome to TradingAgents",
-        subtitle="Multi-Agents LLM Financial Trading Framework",
+        title="Welcome to IndiaMarketAgents",
+        subtitle="India-only research and education tooling",
     )
     console.print(Align.center(welcome_box))
     console.print()
@@ -506,8 +571,8 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
-            "SPY",
+            "Enter an NSE/BSE ticker. Use .NS for NSE and .BO for BSE (e.g. RELIANCE.NS).",
+            "RELIANCE.NS",
         )
     )
     selected_ticker = get_ticker()
@@ -688,6 +753,15 @@ def get_analysis_date():
             if analysis_date.date() > datetime.datetime.now().date():
                 console.print("[red]Error: Analysis date cannot be in the future[/red]")
                 continue
+            if DEFAULT_CONFIG.get("market_scope") == "india":
+                try:
+                    resolved, warnings = resolve_india_analysis_date(date_str)
+                except IndiaCalendarError as exc:
+                    console.print(f"[red]Error: {exc}[/red]")
+                    continue
+                for warning in warnings:
+                    console.print(f"[yellow]{warning}[/yellow]")
+                return resolved
             return date_str
         except ValueError:
             console.print(
@@ -696,110 +770,114 @@ def get_analysis_date():
 
 
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
-    """Save complete analysis report to disk with organized subfolders."""
+    """Save complete analysis report to disk with organized IndiaMarketAgents files."""
     save_path.mkdir(parents=True, exist_ok=True)
-    sections = []
+    safe_ticker = safe_india_ticker_component(ticker) if DEFAULT_CONFIG.get("market_scope") == "india" else ticker
+    sections = [
+        f"# IndiaMarketAgents Research Report: {safe_ticker}",
+        "",
+        f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        f"Ticker/company: {safe_ticker}",
+        f"Date: {final_state.get('trade_date', 'unknown')}",
+        "",
+        "## Compliance Disclaimer",
+        INDIA_COMPLIANCE_DISCLAIMER,
+    ]
 
-    # 1. Analysts
-    analysts_dir = save_path / "1_analysts"
-    analyst_parts = []
-    if final_state.get("market_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "market.md").write_text(final_state["market_report"], encoding="utf-8")
-        analyst_parts.append(("Market Analyst", final_state["market_report"]))
-    if final_state.get("sentiment_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
-        analyst_parts.append(("Sentiment Analyst", final_state["sentiment_report"]))
-    if final_state.get("news_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
-        analyst_parts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
-        analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
-    if analyst_parts:
-        content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
-        sections.append(f"## I. Analyst Team Reports\n\n{content}")
+    file_map = [
+        ("1_market_technical.md", "India Market Technical", final_state.get("india_market_report") or final_state.get("market_report")),
+        ("2_fundamentals.md", "India Fundamentals", final_state.get("india_fundamentals_report") or final_state.get("fundamentals_report")),
+        ("3_news_filings.md", "India News & Filings", final_state.get("india_news_filings_report") or final_state.get("news_report")),
+        ("4_macro_policy.md", "India Macro & Policy", final_state.get("india_macro_policy_report")),
+        ("5_flows_positioning.md", "India Flows & Positioning", final_state.get("india_flows_report")),
+        ("6_sentiment.md", "India Sentiment", final_state.get("india_sentiment_report") or final_state.get("sentiment_report")),
+        ("7_research_debate.md", "Research Debate", None),
+        ("8_risk.md", "Risk Review", None),
+        ("9_portfolio_decision.md", "Portfolio Decision", final_state.get("final_trade_decision")),
+        ("compliance.md", "Compliance Guard", final_state.get("india_compliance_report")),
+    ]
 
-    # 2. Research
-    if final_state.get("investment_debate_state"):
-        research_dir = save_path / "2_research"
-        debate = final_state["investment_debate_state"]
-        research_parts = []
-        if debate.get("bull_history"):
-            research_dir.mkdir(exist_ok=True)
-            (research_dir / "bull.md").write_text(debate["bull_history"], encoding="utf-8")
-            research_parts.append(("Bull Researcher", debate["bull_history"]))
-        if debate.get("bear_history"):
-            research_dir.mkdir(exist_ok=True)
-            (research_dir / "bear.md").write_text(debate["bear_history"], encoding="utf-8")
-            research_parts.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
-            research_dir.mkdir(exist_ok=True)
-            (research_dir / "manager.md").write_text(debate["judge_decision"], encoding="utf-8")
-            research_parts.append(("Research Manager", debate["judge_decision"]))
-        if research_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
-            sections.append(f"## II. Research Team Decision\n\n{content}")
+    debate = final_state.get("investment_debate_state") or {}
+    research_debate = "\n\n".join(
+        part
+        for part in (
+            f"### Bull Researcher\n{debate.get('bull_history', '')}" if debate.get("bull_history") else "",
+            f"### Bear Researcher\n{debate.get('bear_history', '')}" if debate.get("bear_history") else "",
+            f"### Research Manager\n{debate.get('judge_decision', '')}" if debate.get("judge_decision") else "",
+        )
+        if part
+    )
+    risk = final_state.get("risk_debate_state") or {}
+    risk_review = "\n\n".join(
+        part
+        for part in (
+            f"### Aggressive Risk Analyst\n{risk.get('aggressive_history', '')}" if risk.get("aggressive_history") else "",
+            f"### Conservative Risk Analyst\n{risk.get('conservative_history', '')}" if risk.get("conservative_history") else "",
+            f"### Neutral Risk Analyst\n{risk.get('neutral_history', '')}" if risk.get("neutral_history") else "",
+        )
+        if part
+    )
 
-    # 3. Trading
-    if final_state.get("trader_investment_plan"):
-        trading_dir = save_path / "3_trading"
-        trading_dir.mkdir(exist_ok=True)
-        (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"], encoding="utf-8")
-        sections.append(f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}")
+    resolved_file_map = []
+    for filename, title, content in file_map:
+        if filename == "7_research_debate.md":
+            content = research_debate
+        elif filename == "8_risk.md":
+            content = risk_review
+        if not content:
+            content = "UNAVAILABLE: This section was not produced in the current run."
+        text = f"# {title}\n\n{content}\n"
+        (save_path / filename).write_text(text, encoding="utf-8")
+        resolved_file_map.append((title, content))
+        sections.extend(["", f"## {title}", content])
 
-    # 4. Risk Management
-    if final_state.get("risk_debate_state"):
-        risk_dir = save_path / "4_risk"
-        risk = final_state["risk_debate_state"]
-        risk_parts = []
-        if risk.get("aggressive_history"):
-            risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "aggressive.md").write_text(risk["aggressive_history"], encoding="utf-8")
-            risk_parts.append(("Aggressive Analyst", risk["aggressive_history"]))
-        if risk.get("conservative_history"):
-            risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "conservative.md").write_text(risk["conservative_history"], encoding="utf-8")
-            risk_parts.append(("Conservative Analyst", risk["conservative_history"]))
-        if risk.get("neutral_history"):
-            risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "neutral.md").write_text(risk["neutral_history"], encoding="utf-8")
-            risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
-        if risk_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
-            sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
-
-        # 5. Portfolio Manager
-        if risk.get("judge_decision"):
-            portfolio_dir = save_path / "5_portfolio"
-            portfolio_dir.mkdir(exist_ok=True)
-            (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
-            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
-
-    # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
+    data_quality = {
+        "symbol": safe_ticker,
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "market_scope": DEFAULT_CONFIG.get("market_scope"),
+        "disclaimer_present": True,
+    }
+    (save_path / "summary.json").write_text(
+        json.dumps({"symbol": safe_ticker, "date": final_state.get("trade_date"), "sections": [t for t, _ in resolved_file_map]}, indent=2),
+        encoding="utf-8",
+    )
+    (save_path / "data_quality.json").write_text(json.dumps(data_quality, indent=2), encoding="utf-8")
+    (save_path / "sources.md").write_text(
+        "# Sources\n\nSee individual sections for source coverage and unavailable-data notes.\n",
+        encoding="utf-8",
+    )
+    (save_path / "disclaimer.md").write_text(f"# Disclaimer\n\n{INDIA_COMPLIANCE_DISCLAIMER}\n", encoding="utf-8")
+    (save_path / "complete_report.md").write_text("\n".join(sections) + "\n", encoding="utf-8")
     return save_path / "complete_report.md"
 
 
 def display_complete_report(final_state):
     """Display the complete analysis report sequentially (avoids truncation)."""
     console.print()
-    console.print(Rule("Complete Analysis Report", style="bold green"))
+    console.print(Rule("IndiaMarketAgents Complete Research Report", style="bold green"))
+    console.print(Panel(INDIA_COMPLIANCE_DISCLAIMER, title="Compliance Disclaimer", border_style="yellow"))
 
     # I. Analyst Team Reports
     analysts = []
-    if final_state.get("market_report"):
+    if final_state.get("market_report") and not final_state.get("india_market_report"):
         analysts.append(("Market Analyst", final_state["market_report"]))
-    if final_state.get("sentiment_report"):
+    if final_state.get("sentiment_report") and not final_state.get("india_sentiment_report"):
         analysts.append(("Sentiment Analyst", final_state["sentiment_report"]))
-    if final_state.get("news_report"):
+    if final_state.get("news_report") and not final_state.get("india_news_filings_report"):
         analysts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
+    if final_state.get("fundamentals_report") and not final_state.get("india_fundamentals_report"):
         analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    india_sections = [
+        ("India Market Technical", final_state.get("india_market_report")),
+        ("India Fundamentals", final_state.get("india_fundamentals_report")),
+        ("India News & Filings", final_state.get("india_news_filings_report")),
+        ("India Macro & Policy", final_state.get("india_macro_policy_report")),
+        ("India Flows & Positioning", final_state.get("india_flows_report")),
+        ("India Sentiment", final_state.get("india_sentiment_report")),
+        ("India Compliance", final_state.get("india_compliance_report")),
+    ]
+    analysts.extend((title, content) for title, content in india_sections if content)
     if analysts:
         console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
         for title, content in analysts:
@@ -854,18 +932,44 @@ def update_research_team_status(status):
 
 
 # Ordered list of analysts for status transitions
-ANALYST_ORDER = ["market", "social", "news", "fundamentals"]
+ANALYST_ORDER = [
+    "market",
+    "social",
+    "news",
+    "fundamentals",
+    "india_market",
+    "india_fundamentals",
+    "india_news_filings",
+    "india_macro_policy",
+    "india_flows",
+    "india_sentiment",
+    "india_compliance",
+]
 ANALYST_AGENT_NAMES = {
     "market": "Market Analyst",
     "social": "Sentiment Analyst",
     "news": "News Analyst",
     "fundamentals": "Fundamentals Analyst",
+    "india_market": "India Market Technical Analyst",
+    "india_fundamentals": "India Fundamentals Analyst",
+    "india_news_filings": "India News & Filings Analyst",
+    "india_macro_policy": "India Macro & Policy Analyst",
+    "india_flows": "India Flows & Positioning Analyst",
+    "india_sentiment": "India Sentiment Analyst",
+    "india_compliance": "India Compliance & Risk Guard",
 }
 ANALYST_REPORT_MAP = {
     "market": "market_report",
     "social": "sentiment_report",
     "news": "news_report",
     "fundamentals": "fundamentals_report",
+    "india_market": "india_market_report",
+    "india_fundamentals": "india_fundamentals_report",
+    "india_news_filings": "india_news_filings_report",
+    "india_macro_policy": "india_macro_policy_report",
+    "india_flows": "india_flows_report",
+    "india_sentiment": "india_sentiment_report",
+    "india_compliance": "india_compliance_report",
 }
 
 
@@ -1006,6 +1110,8 @@ def run_analysis(checkpoint: bool = False):
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
+    if config.get("market_scope") == "india" and selections["asset_type"] == "stock":
+        selections["ticker"] = validate_india_symbol_or_raise(selections["ticker"], config)
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1034,7 +1140,8 @@ def run_analysis(checkpoint: bool = False):
     start_time = time.time()
 
     # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    safe_ticker = safe_india_ticker_component(selections["ticker"]) if config.get("market_scope") == "india" else selections["ticker"]
+    results_dir = Path(config["results_dir"]) / safe_ticker / selections["analysis_date"]
     results_dir.mkdir(parents=True, exist_ok=True)
     report_dir = results_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -1265,8 +1372,7 @@ def run_analysis(checkpoint: bool = False):
     # Prompt to save report
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
+        default_path = Path.cwd() / "reports" / safe_ticker / selections["analysis_date"]
         save_path_str = typer.prompt(
             "Save path (press Enter for default)",
             default=str(default_path)
@@ -1285,13 +1391,127 @@ def run_analysis(checkpoint: bool = False):
         display_complete_report(final_state)
 
 
+def _parse_analysts_option(analysts: Optional[str]) -> list[str]:
+    if not analysts:
+        return INDIA_DEFAULT_ANALYSTS if DEFAULT_CONFIG.get("market_scope") == "india" else ["market", "social", "news", "fundamentals"]
+    selected = [item.strip() for item in analysts.split(",") if item.strip()]
+    build_analyst_execution_plan(selected)
+    return selected
+
+
+def run_doctor_checks(ticker: str = "RELIANCE.NS") -> dict:
+    checks = {}
+    checks["python"] = True
+    checks["package_import"] = True
+    try:
+        normalized = validate_india_symbol_or_raise(ticker, DEFAULT_CONFIG)
+        checks["ticker_validation"] = normalized
+    except IndiaSymbolError as exc:
+        checks["ticker_validation"] = f"failed: {exc}"
+    cache_dir = Path(DEFAULT_CONFIG["data_cache_dir"])
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        probe = cache_dir / ".doctor_write_test"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        checks["cache_dir_writable"] = str(cache_dir)
+    except Exception as exc:  # noqa: BLE001 - health-check output should be readable.
+        checks["cache_dir_writable"] = f"failed: {exc}"
+    for provider, env_var in {
+        "openai": "OPENAI_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "alpha_vantage": "ALPHA_VANTAGE_API_KEY",
+    }.items():
+        checks[f"{provider}_key_present"] = bool(os.environ.get(env_var))
+    return checks
+
+
+def run_noninteractive_analysis(
+    *,
+    ticker: str,
+    analysis_date: str,
+    analysts: Optional[str],
+    provider: Optional[str],
+    quick_model: Optional[str],
+    deep_model: Optional[str],
+    research_depth: int,
+    checkpoint: bool,
+    save_path: Optional[Path],
+    no_display: bool,
+    no_save_prompt: bool,
+):
+    config = DEFAULT_CONFIG.copy()
+    config["checkpoint_enabled"] = checkpoint
+    config["max_debate_rounds"] = research_depth
+    config["max_risk_discuss_rounds"] = research_depth
+    if provider:
+        config["llm_provider"] = provider.lower()
+    if quick_model:
+        config["quick_think_llm"] = quick_model
+    if deep_model:
+        config["deep_think_llm"] = deep_model
+
+    normalized_ticker = validate_india_symbol_or_raise(ticker, config)
+    resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+    for warning in warnings:
+        console.print(f"[yellow]{warning}[/yellow]")
+
+    selected_analysts = _parse_analysts_option(analysts)
+    key_env = get_api_key_env(config["llm_provider"])
+    if key_env and not os.environ.get(key_env):
+        raise ValueError(
+            f"{key_env} is not set for provider '{config['llm_provider']}'. "
+            "Add it to .env or export it before running analysis."
+        )
+    graph = TradingAgentsGraph(selected_analysts, config=config, debug=False)
+    final_state, decision = graph.propagate(normalized_ticker, resolved_date)
+    final_state["trade_date"] = resolved_date
+
+    target_path = save_path or (Path.cwd() / "reports" / safe_india_ticker_component(normalized_ticker) / resolved_date)
+    report_file = save_report_to_disk(final_state, normalized_ticker, target_path)
+    console.print(f"[green]Report saved:[/green] {report_file.resolve()}")
+    if not no_display:
+        display_complete_report(final_state)
+    return decision
+
+
+@app.callback(invoke_without_command=True)
+def main_callback(ctx: typer.Context):
+    """Launch interactive analysis when no subcommand is provided."""
+    if ctx.invoked_subcommand is None:
+        run_analysis()
+
+
 @app.command()
 def analyze(
+    ticker: Optional[str] = typer.Option(
+        None,
+        "--ticker",
+        help="NSE/BSE ticker such as RELIANCE.NS. When omitted, launches the interactive beginner flow.",
+    ),
+    analysis_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="Analysis date in YYYY-MM-DD format. Future dates are rejected; India weekends roll back.",
+    ),
+    analysts: Optional[str] = typer.Option(
+        None,
+        "--analysts",
+        help="Comma-separated analyst keys, e.g. india_market,india_fundamentals,india_news_filings.",
+    ),
+    provider: Optional[str] = typer.Option(None, "--provider", help="LLM provider key, e.g. openai."),
+    quick_model: Optional[str] = typer.Option(None, "--quick-model", help="Quick-thinking model ID."),
+    deep_model: Optional[str] = typer.Option(None, "--deep-model", help="Deep-thinking model ID."),
+    research_depth: int = typer.Option(1, "--research-depth", help="Debate/risk rounds."),
     checkpoint: bool = typer.Option(
         False,
         "--checkpoint",
         help="Enable checkpoint/resume: save state after each node so a crashed run can resume.",
     ),
+    save_path: Optional[Path] = typer.Option(None, "--save-path", help="Directory for saved report files."),
+    no_display: bool = typer.Option(False, "--no-display", help="Do not print the final report."),
+    no_save_prompt: bool = typer.Option(False, "--no-save-prompt", help="Skip save prompts; non-interactive runs still save by default."),
     clear_checkpoints: bool = typer.Option(
         False,
         "--clear-checkpoints",
@@ -1302,7 +1522,42 @@ def analyze(
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
+    if ticker:
+        if not analysis_date:
+            raise typer.BadParameter("--date is required when --ticker is provided")
+        try:
+            run_noninteractive_analysis(
+                ticker=ticker,
+                analysis_date=analysis_date,
+                analysts=analysts,
+                provider=provider,
+                quick_model=quick_model,
+                deep_model=deep_model,
+                research_depth=research_depth,
+                checkpoint=checkpoint,
+                save_path=save_path,
+                no_display=no_display,
+                no_save_prompt=no_save_prompt,
+            )
+        except (IndiaSymbolError, IndiaCalendarError, ValueError) as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        return
     run_analysis(checkpoint=checkpoint)
+
+
+@app.command()
+def doctor(
+    ticker: str = typer.Option("RELIANCE.NS", "--ticker", help="Ticker to validate during health check."),
+):
+    """Run a local health check without live LLM calls."""
+    checks = run_doctor_checks(ticker)
+    table = Table(title="IndiaMarketAgents Doctor", box=box.SIMPLE_HEAD)
+    table.add_column("Check", style="cyan")
+    table.add_column("Result", style="green")
+    for key, value in checks.items():
+        table.add_row(key, str(value))
+    console.print(table)
 
 
 if __name__ == "__main__":

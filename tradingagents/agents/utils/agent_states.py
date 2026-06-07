@@ -58,6 +58,13 @@ class AgentState(MessagesState):
         str, "Report from the News Researcher of current world affairs"
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
+    india_market_report: Annotated[str, "Report from the India Market Technical Analyst"]
+    india_fundamentals_report: Annotated[str, "Report from the India Fundamentals Analyst"]
+    india_news_filings_report: Annotated[str, "Report from the India News and Filings Analyst"]
+    india_macro_policy_report: Annotated[str, "Report from the India Macro and Policy Analyst"]
+    india_flows_report: Annotated[str, "Report from the India Flows and Positioning Analyst"]
+    india_sentiment_report: Annotated[str, "Report from the India Sentiment Analyst"]
+    india_compliance_report: Annotated[str, "Report from the India Compliance and Risk Guard"]
 
     # researcher team discussion step
     investment_debate_state: Annotated[

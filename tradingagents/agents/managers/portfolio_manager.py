@@ -19,6 +19,7 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.config import get_config
 
 
 def create_portfolio_manager(llm):
@@ -31,6 +32,21 @@ def create_portfolio_manager(llm):
         risk_debate_state = state["risk_debate_state"]
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
+        india_mode = get_config().get("market_scope") == "india"
+        rating_scale = (
+            "**India Rating Scale**: Strong Buy / Buy / Accumulate / Hold / Reduce / Sell / Avoid. "
+            "Use research view/model view language only; never say execute trade now. "
+            "Include time horizon, confidence, primary thesis, key evidence, key risks, "
+            "invalidation triggers, monitoring checklist, data quality, compliance note, "
+            "and not-financial-advice disclaimer."
+            if india_mode
+            else """**Rating Scale** (use exactly one):
+- **Buy**: Strong conviction to enter or add to position
+- **Overweight**: Favorable outlook, gradually increase exposure
+- **Hold**: Maintain current position, no action needed
+- **Underweight**: Reduce exposure, take partial profits
+- **Sell**: Exit position or avoid entry"""
+        )
 
         past_context = state.get("past_context", "")
         lessons_line = (
@@ -45,12 +61,7 @@ def create_portfolio_manager(llm):
 
 ---
 
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
-- **Sell**: Exit position or avoid entry
+{rating_scale}
 
 **Context:**
 - Research Manager's investment plan: **{research_plan}**

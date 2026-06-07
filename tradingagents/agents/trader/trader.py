@@ -15,6 +15,7 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.config import get_config
 
 
 def create_trader(llm):
@@ -24,16 +25,22 @@ def create_trader(llm):
         company_name = state["company_of_interest"]
         instrument_context = get_instrument_context_from_state(state)
         investment_plan = state["investment_plan"]
+        india_mode = get_config().get("market_scope") == "india"
+        system_text = (
+            "You are an India-market research proposal agent. Translate the research manager's "
+            "view into a model research view only. Do not say execute trade now. Include rating, "
+            "time horizon, confidence, key evidence, risks, invalidation triggers, monitoring "
+            "checklist, data quality, compliance note, and not-financial-advice disclaimer."
+            if india_mode
+            else "You are a trading agent analyzing market data to make investment decisions. "
+            "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
+            "Anchor your reasoning in the analysts' reports and the research plan."
+        )
 
         messages = [
             {
                 "role": "system",
-                "content": (
-                    "You are a trading agent analyzing market data to make investment decisions. "
-                    "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
-                    + get_language_instruction()
-                ),
+                "content": system_text + get_language_instruction(),
             },
             {
                 "role": "user",

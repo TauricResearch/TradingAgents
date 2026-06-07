@@ -51,7 +51,66 @@ ANALYST_NODE_SPECS: Dict[str, AnalystNodeSpec] = {
         tool_node="tools_fundamentals",
         report_key="fundamentals_report",
     ),
+    "india_market": AnalystNodeSpec(
+        key="india_market",
+        agent_node="India Market Technical Analyst",
+        clear_node="Msg Clear India Market",
+        tool_node="tools_india_market",
+        report_key="india_market_report",
+    ),
+    "india_fundamentals": AnalystNodeSpec(
+        key="india_fundamentals",
+        agent_node="India Fundamentals Analyst",
+        clear_node="Msg Clear India Fundamentals",
+        tool_node="tools_india_fundamentals",
+        report_key="india_fundamentals_report",
+    ),
+    "india_news_filings": AnalystNodeSpec(
+        key="india_news_filings",
+        agent_node="India News & Filings Analyst",
+        clear_node="Msg Clear India News Filings",
+        tool_node="tools_india_news_filings",
+        report_key="india_news_filings_report",
+    ),
+    "india_macro_policy": AnalystNodeSpec(
+        key="india_macro_policy",
+        agent_node="India Macro & Policy Analyst",
+        clear_node="Msg Clear India Macro Policy",
+        tool_node="tools_india_macro_policy",
+        report_key="india_macro_policy_report",
+    ),
+    "india_flows": AnalystNodeSpec(
+        key="india_flows",
+        agent_node="India Flows & Positioning Analyst",
+        clear_node="Msg Clear India Flows",
+        tool_node="tools_india_flows",
+        report_key="india_flows_report",
+    ),
+    "india_sentiment": AnalystNodeSpec(
+        key="india_sentiment",
+        agent_node="India Sentiment Analyst",
+        clear_node="Msg Clear India Sentiment",
+        tool_node="tools_india_sentiment",
+        report_key="india_sentiment_report",
+    ),
+    "india_compliance": AnalystNodeSpec(
+        key="india_compliance",
+        agent_node="India Compliance & Risk Guard",
+        clear_node="Msg Clear India Compliance",
+        tool_node="tools_india_compliance",
+        report_key="india_compliance_report",
+    ),
 }
+
+
+INDIA_DEFAULT_ANALYSTS = [
+    "india_market",
+    "india_fundamentals",
+    "india_news_filings",
+    "india_macro_policy",
+    "india_flows",
+    "india_compliance",
+]
 
 
 def build_analyst_execution_plan(

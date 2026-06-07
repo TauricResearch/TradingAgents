@@ -18,6 +18,15 @@ def create_conservative_debator(llm):
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
         instrument_context = get_instrument_context_from_state(state)
+        india_context = "\n".join(
+            part
+            for part in (
+                f"India Macro/Policy Report: {state.get('india_macro_policy_report', '')}",
+                f"India Flows/Positioning Report: {state.get('india_flows_report', '')}",
+                f"India Compliance Report: {state.get('india_compliance_report', '')}",
+            )
+            if part.split(": ", 1)[1]
+        )
 
         trader_decision = state["trader_investment_plan"]
 
@@ -32,6 +41,7 @@ Market Research Report: {market_research_report}
 Social Media Sentiment Report: {sentiment_report}
 Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
+{india_context}
 Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
 
 Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()

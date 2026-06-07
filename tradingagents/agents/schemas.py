@@ -53,6 +53,24 @@ class TraderAction(str, Enum):
     SELL = "Sell"
 
 
+class IndiaPortfolioRating(str, Enum):
+    """IndiaMarketAgents research-view rating scale."""
+
+    STRONG_BUY = "Strong Buy"
+    BUY = "Buy"
+    ACCUMULATE = "Accumulate"
+    HOLD = "Hold"
+    REDUCE = "Reduce"
+    SELL = "Sell"
+    AVOID = "Avoid"
+
+
+class TimeHorizon(str, Enum):
+    TACTICAL = "Tactical: 1-10 trading days"
+    POSITIONAL = "Positional: 1-3 months"
+    FUNDAMENTAL = "Fundamental: 6-18 months"
+
+
 # ---------------------------------------------------------------------------
 # Research Manager
 # ---------------------------------------------------------------------------
@@ -226,6 +244,119 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# IndiaMarketAgents schemas
+# ---------------------------------------------------------------------------
+
+
+class IndiaReportBase(BaseModel):
+    headline_view: str = Field(description="Concise headline view.")
+    evidence_table: str = Field(description="Markdown evidence table.")
+    risks: str = Field(description="Key risks and invalidation triggers.")
+    data_quality: str = Field(description="Source coverage, staleness, confidence, and gaps.")
+    what_would_change_view: str = Field(description="Monitoring checklist or triggers that would change the view.")
+
+
+class IndiaMarketTechnicalReport(IndiaReportBase):
+    pass
+
+
+class IndiaFundamentalsReport(IndiaReportBase):
+    pass
+
+
+class IndiaNewsFilingsReport(IndiaReportBase):
+    pass
+
+
+class IndiaMacroPolicyReport(IndiaReportBase):
+    pass
+
+
+class IndiaFlowsReport(IndiaReportBase):
+    pass
+
+
+class IndiaSentimentReport(IndiaReportBase):
+    pass
+
+
+class IndiaComplianceReport(BaseModel):
+    checks_passed: str
+    checks_failed: str
+    required_disclaimers: str
+    data_quality_warnings: str
+    guardrail_notes: str
+
+
+class IndiaResearchPlan(BaseModel):
+    rating: IndiaPortfolioRating
+    time_horizon: TimeHorizon
+    confidence: Literal["low", "medium", "high"]
+    primary_thesis: str
+    key_evidence: str
+    key_risks: str
+    invalidation_triggers: str
+    monitoring_checklist: str
+    data_quality: str
+    compliance_note: str
+    not_financial_advice_disclaimer: str
+
+
+class IndiaTraderProposal(IndiaResearchPlan):
+    pass
+
+
+class IndiaPortfolioDecision(IndiaResearchPlan):
+    pass
+
+
+def render_india_report(report: IndiaReportBase) -> str:
+    return "\n".join(
+        [
+            f"**Headline View**: {report.headline_view}",
+            "",
+            "## Evidence",
+            report.evidence_table,
+            "",
+            "## Risks",
+            report.risks,
+            "",
+            "## Data Quality",
+            report.data_quality,
+            "",
+            "## What Would Change The View",
+            report.what_would_change_view,
+        ]
+    )
+
+
+def render_india_decision(decision: IndiaResearchPlan) -> str:
+    return "\n".join(
+        [
+            f"**Rating**: {decision.rating.value}",
+            f"**Time Horizon**: {decision.time_horizon.value}",
+            f"**Confidence**: {decision.confidence}",
+            "",
+            f"**Primary Thesis**: {decision.primary_thesis}",
+            "",
+            f"**Key Evidence**: {decision.key_evidence}",
+            "",
+            f"**Key Risks**: {decision.key_risks}",
+            "",
+            f"**Invalidation Triggers**: {decision.invalidation_triggers}",
+            "",
+            f"**Monitoring Checklist**: {decision.monitoring_checklist}",
+            "",
+            f"**Data Quality**: {decision.data_quality}",
+            "",
+            f"**Compliance Note**: {decision.compliance_note}",
+            "",
+            f"**Not Financial Advice Disclaimer**: {decision.not_financial_advice_disclaimer}",
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------

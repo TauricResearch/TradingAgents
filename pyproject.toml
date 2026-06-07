@@ -20,6 +20,7 @@ dependencies = [
     "pandas>=2.3.0",
     "parsel>=1.10.0",
     "pytz>=2025.2",
+    "pyyaml>=6.0.3",
     "questionary>=2.1.0",
     "redis>=6.2.0",
     "requests>=2.32.4",
@@ -34,6 +35,11 @@ dependencies = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
+indiamarketagents = "cli.main:app"
+
+[project.optional-dependencies]
+dashboard = ["streamlit>=1.41.0"]
+dev = ["pytest>=9.0.0"]
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]

@@ -7,6 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.dataflows.config import get_config
 from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
@@ -19,6 +20,20 @@ def create_research_manager(llm):
     def research_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
         history = state["investment_debate_state"].get("history", "")
+        india_mode = get_config().get("market_scope") == "india"
+        rating_scale = (
+            "**India Rating Scale** (use research-view language): Strong Buy / Buy / "
+            "Accumulate / Hold / Reduce / Sell / Avoid. Map Accumulate to Overweight "
+            "and Reduce to Underweight if a legacy parser requires it. "
+            "Legacy compatibility labels: **Buy**, **Overweight**, **Hold**, **Underweight**, **Sell**."
+            if india_mode
+            else """**Rating Scale** (use exactly one):
+- **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
+- **Overweight**: Constructive view; recommend gradually increasing exposure
+- **Hold**: Balanced view; recommend maintaining the current position
+- **Underweight**: Cautious view; recommend trimming exposure
+- **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position"""
+        )
 
         investment_debate_state = state["investment_debate_state"]
 
@@ -28,14 +43,10 @@ def create_research_manager(llm):
 
 ---
 
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
-- **Overweight**: Constructive view; recommend gradually increasing exposure
-- **Hold**: Balanced view; recommend maintaining the current position
-- **Underweight**: Cautious view; recommend trimming exposure
-- **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
+{rating_scale}
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
+In India mode, include time horizon, confidence, key evidence, key risks, invalidation triggers, monitoring checklist, data quality, and a research-only compliance note.
 
 ---
 

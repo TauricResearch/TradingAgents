@@ -10,6 +10,13 @@ class AnalystType(str, Enum):
     SOCIAL = "social"
     NEWS = "news"
     FUNDAMENTALS = "fundamentals"
+    INDIA_MARKET = "india_market"
+    INDIA_FUNDAMENTALS = "india_fundamentals"
+    INDIA_NEWS_FILINGS = "india_news_filings"
+    INDIA_MACRO_POLICY = "india_macro_policy"
+    INDIA_FLOWS = "india_flows"
+    INDIA_SENTIMENT = "india_sentiment"
+    INDIA_COMPLIANCE = "india_compliance"
 
 
 class AssetType(str, Enum):
