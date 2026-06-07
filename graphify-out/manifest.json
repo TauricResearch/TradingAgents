@@ -4,16 +4,6 @@
     "ast_hash": "0d6f696cb722d43b8e4358084f6d709d",
     "semantic_hash": "0d6f696cb722d43b8e4358084f6d709d"
   },
-  "/Users/luca/Desktop/trading-agent/main.py": {
-    "mtime": 1779403421.4960835,
-    "ast_hash": "c4ca94e81e6459ed5d73d8c283b9a191",
-    "semantic_hash": "c4ca94e81e6459ed5d73d8c283b9a191"
-  },
-  "/Users/luca/Desktop/trading-agent/tests/test_structured_agents.py": {
-    "mtime": 1779403421.4978304,
-    "ast_hash": "0f283139813755984bb1252a456d0317",
-    "semantic_hash": "0f283139813755984bb1252a456d0317"
-  },
   "/Users/luca/Desktop/trading-agent/tests/test_minimax.py": {
     "mtime": 1779403421.4974675,
     "ast_hash": "93ece32623e30415fbb2ebafed9704af",
@@ -30,14 +20,9 @@
     "semantic_hash": "3b419ec3c1c40e46f35d0901086f05a1"
   },
   "/Users/luca/Desktop/trading-agent/tests/test_capabilities.py": {
-    "mtime": 1779403421.4968326,
-    "ast_hash": "442d96db9ca010e8df5aef098e3d3d80",
-    "semantic_hash": "442d96db9ca010e8df5aef098e3d3d80"
-  },
-  "/Users/luca/Desktop/trading-agent/tests/test_signal_processing.py": {
-    "mtime": 1779403421.4977415,
-    "ast_hash": "bab9965c1ac6b198dc072a87cb03c07c",
-    "semantic_hash": "bab9965c1ac6b198dc072a87cb03c07c"
+    "mtime": 1780837399.9938393,
+    "ast_hash": "2b34e6107ef8874710f66250aae77ae3",
+    "semantic_hash": ""
   },
   "/Users/luca/Desktop/trading-agent/tests/__init__.py": {
     "mtime": 1779403421.4964743,
@@ -59,30 +44,10 @@
     "ast_hash": "539ffd0ede420d4410adc332e5dc7cb6",
     "semantic_hash": "539ffd0ede420d4410adc332e5dc7cb6"
   },
-  "/Users/luca/Desktop/trading-agent/tests/test_analyst_execution.py": {
-    "mtime": 1779403421.496624,
-    "ast_hash": "44a5bb1ee4d8e852d64324d053713f32",
-    "semantic_hash": "44a5bb1ee4d8e852d64324d053713f32"
-  },
-  "/Users/luca/Desktop/trading-agent/tests/test_checkpoint_resume.py": {
-    "mtime": 1779403421.4969137,
-    "ast_hash": "cb3ffec4239bb5debabd1d1a884c525c",
-    "semantic_hash": "cb3ffec4239bb5debabd1d1a884c525c"
-  },
-  "/Users/luca/Desktop/trading-agent/tests/test_ticker_symbol_handling.py": {
-    "mtime": 1779403421.4979126,
-    "ast_hash": "f4ffaf707f5808767b6400b4b7f0fc3a",
-    "semantic_hash": "f4ffaf707f5808767b6400b4b7f0fc3a"
-  },
   "/Users/luca/Desktop/trading-agent/tests/test_google_api_key.py": {
     "mtime": 1779403421.4972377,
     "ast_hash": "4e3402e62a65f69ee55c5fcf81ab4e2e",
     "semantic_hash": "4e3402e62a65f69ee55c5fcf81ab4e2e"
-  },
-  "/Users/luca/Desktop/trading-agent/tests/test_env_overrides.py": {
-    "mtime": 1779403421.497181,
-    "ast_hash": "ed9d706d6eaa01bb2292d5b25bf1a659",
-    "semantic_hash": "ed9d706d6eaa01bb2292d5b25bf1a659"
   },
   "/Users/luca/Desktop/trading-agent/tests/test_deepseek_reasoning.py": {
     "mtime": 1779403421.4971201,
@@ -94,16 +59,6 @@
     "ast_hash": "285e7210816a4c9a55f59bf9f045641f",
     "semantic_hash": "285e7210816a4c9a55f59bf9f045641f"
   },
-  "/Users/luca/Desktop/trading-agent/tests/test_crypto_asset_mode.py": {
-    "mtime": 1779403421.496981,
-    "ast_hash": "31f675671d81d2b362975d1b3db01a26",
-    "semantic_hash": "31f675671d81d2b362975d1b3db01a26"
-  },
-  "/Users/luca/Desktop/trading-agent/tests/test_memory_log.py": {
-    "mtime": 1779403421.4973722,
-    "ast_hash": "8c2cdebe4f1086d76c322fa0b4e929c5",
-    "semantic_hash": "8c2cdebe4f1086d76c322fa0b4e929c5"
-  },
   "/Users/luca/Desktop/trading-agent/tests/test_anthropic_effort.py": {
     "mtime": 1779403421.496681,
     "ast_hash": "3f2e7905e249a4e793ab4f665b633e55",
@@ -114,215 +69,15 @@
     "ast_hash": "304678d80ffc9d46fdc305e43667bc18",
     "semantic_hash": "304678d80ffc9d46fdc305e43667bc18"
   },
-  "/Users/luca/Desktop/trading-agent/cli/config.py": {
-    "mtime": 1779403421.4955053,
-    "ast_hash": "274b370b2e21b67b0ff4c6f8e0f7cd8b",
-    "semantic_hash": "274b370b2e21b67b0ff4c6f8e0f7cd8b"
-  },
-  "/Users/luca/Desktop/trading-agent/cli/models.py": {
-    "mtime": 1779403421.495715,
-    "ast_hash": "e73c553574bc21d4418755316806491f",
-    "semantic_hash": "e73c553574bc21d4418755316806491f"
-  },
-  "/Users/luca/Desktop/trading-agent/cli/__init__.py": {
-    "mtime": 1779403421.4953704,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
-    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
-  },
-  "/Users/luca/Desktop/trading-agent/cli/utils.py": {
-    "mtime": 1779403421.4959636,
-    "ast_hash": "d9543349db7bd9c11516acde744f8b33",
-    "semantic_hash": "d9543349db7bd9c11516acde744f8b33"
-  },
-  "/Users/luca/Desktop/trading-agent/cli/main.py": {
-    "mtime": 1779403421.495618,
-    "ast_hash": "002bf257813972cd4272b87be7e75743",
-    "semantic_hash": "002bf257813972cd4272b87be7e75743"
-  },
-  "/Users/luca/Desktop/trading-agent/cli/announcements.py": {
-    "mtime": 1779403421.4954512,
-    "ast_hash": "c0dce97bf8815a2ea9273adde1d2122c",
-    "semantic_hash": "c0dce97bf8815a2ea9273adde1d2122c"
-  },
-  "/Users/luca/Desktop/trading-agent/cli/stats_handler.py": {
-    "mtime": 1779403421.495872,
-    "ast_hash": "fed5efefe48d04d81f02f1e5a524ecbb",
-    "semantic_hash": "fed5efefe48d04d81f02f1e5a524ecbb"
-  },
   "/Users/luca/Desktop/trading-agent/tradingagents/__init__.py": {
     "mtime": 1779403421.4980185,
     "ast_hash": "1c3f34556f95f4a8a85b51cd47563243",
     "semantic_hash": "1c3f34556f95f4a8a85b51cd47563243"
   },
   "/Users/luca/Desktop/trading-agent/tradingagents/default_config.py": {
-    "mtime": 1779403421.5010314,
-    "ast_hash": "7794c0a50e1a8e5c5983535072b05e92",
-    "semantic_hash": "7794c0a50e1a8e5c5983535072b05e92"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/analyst_execution.py": {
-    "mtime": 1779403421.5011857,
-    "ast_hash": "76cfe250d4be4b2d362b3658c6353db0",
-    "semantic_hash": "76cfe250d4be4b2d362b3658c6353db0"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/reflection.py": {
-    "mtime": 1779403421.5014691,
-    "ast_hash": "be2cdb144fe7b46a19894f4184e4f78f",
-    "semantic_hash": "be2cdb144fe7b46a19894f4184e4f78f"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/checkpointer.py": {
-    "mtime": 1779403421.5012605,
-    "ast_hash": "0ed1e3772a355fa1f9296be6477f4a03",
-    "semantic_hash": "0ed1e3772a355fa1f9296be6477f4a03"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/__init__.py": {
-    "mtime": 1779403421.5011203,
-    "ast_hash": "8c67780df1e8db2667f19ddf3b1575c8",
-    "semantic_hash": "8c67780df1e8db2667f19ddf3b1575c8"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/trading_graph.py": {
-    "mtime": 1779403421.5017083,
-    "ast_hash": "a084b99987ee32dd8eab8751f25b51f4",
-    "semantic_hash": "a084b99987ee32dd8eab8751f25b51f4"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/conditional_logic.py": {
-    "mtime": 1779403421.5013309,
-    "ast_hash": "ab964a5e32a835745e7a1c5f4d46c321",
-    "semantic_hash": "ab964a5e32a835745e7a1c5f4d46c321"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/setup.py": {
-    "mtime": 1779403421.5015604,
-    "ast_hash": "1afdc0f7207a1ba55237e8e07189dce2",
-    "semantic_hash": "1afdc0f7207a1ba55237e8e07189dce2"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/propagation.py": {
-    "mtime": 1779403421.5014014,
-    "ast_hash": "06573c8707ea43cc98c99a813579f1f8",
-    "semantic_hash": "06573c8707ea43cc98c99a813579f1f8"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/graph/signal_processing.py": {
-    "mtime": 1779403421.5016205,
-    "ast_hash": "e5c1bfa9d65568fe7ba4de14394f3ab6",
-    "semantic_hash": "e5c1bfa9d65568fe7ba4de14394f3ab6"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/__init__.py": {
-    "mtime": 1779403421.498106,
-    "ast_hash": "8e8e58a1529e1bf3ee0c4a40e5abcf30",
-    "semantic_hash": "8e8e58a1529e1bf3ee0c4a40e5abcf30"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/schemas.py": {
-    "mtime": 1779403421.4991844,
-    "ast_hash": "b1376249a304b82369af19255a60ab28",
-    "semantic_hash": "b1376249a304b82369af19255a60ab28"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/researchers/bull_researcher.py": {
-    "mtime": 1779403421.4988246,
-    "ast_hash": "a23f9a8b7ad18293e07a0540c9864f55",
-    "semantic_hash": "a23f9a8b7ad18293e07a0540c9864f55"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/researchers/bear_researcher.py": {
-    "mtime": 1779403421.4987624,
-    "ast_hash": "80d099efd919d86092a5acc025be92d9",
-    "semantic_hash": "80d099efd919d86092a5acc025be92d9"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/risk_mgmt/conservative_debator.py": {
-    "mtime": 1779403421.4990392,
-    "ast_hash": "0ce4359fab4d90d26d0adad5cbf3c64f",
-    "semantic_hash": "0ce4359fab4d90d26d0adad5cbf3c64f"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/risk_mgmt/aggressive_debator.py": {
-    "mtime": 1779403421.4989417,
-    "ast_hash": "08c5c21f1c72c4a7c5ddab83b2386d03",
-    "semantic_hash": "08c5c21f1c72c4a7c5ddab83b2386d03"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/risk_mgmt/neutral_debator.py": {
-    "mtime": 1779403421.4991107,
-    "ast_hash": "fa524283adc36e713d0661d27626005f",
-    "semantic_hash": "fa524283adc36e713d0661d27626005f"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/trader/trader.py": {
-    "mtime": 1779403421.4992864,
-    "ast_hash": "372957f4e1957597567af857633e8b80",
-    "semantic_hash": "372957f4e1957597567af857633e8b80"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/managers/portfolio_manager.py": {
-    "mtime": 1779403421.498602,
-    "ast_hash": "78a0faf408c815e74202974c14c4b996",
-    "semantic_hash": "78a0faf408c815e74202974c14c4b996"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/managers/research_manager.py": {
-    "mtime": 1779403421.4986682,
-    "ast_hash": "d6929e7bf166bbc9ad86dc4c8cffe034",
-    "semantic_hash": "d6929e7bf166bbc9ad86dc4c8cffe034"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/fundamental_data_tools.py": {
-    "mtime": 1779403421.4995754,
-    "ast_hash": "b465c35448c2ddd57bcecf6a66d9cde6",
-    "semantic_hash": "b465c35448c2ddd57bcecf6a66d9cde6"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/memory.py": {
-    "mtime": 1779403421.4996471,
-    "ast_hash": "e9849ba47bbba3296f16268cd7c6552b",
-    "semantic_hash": "e9849ba47bbba3296f16268cd7c6552b"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/agent_utils.py": {
-    "mtime": 1779403421.4994626,
-    "ast_hash": "72f98146b01ac5ab17ca02d2740e2dd0",
-    "semantic_hash": "72f98146b01ac5ab17ca02d2740e2dd0"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/rating.py": {
-    "mtime": 1779403421.49976,
-    "ast_hash": "1a5fea2ea2aa431e1d0c7521c6d80577",
-    "semantic_hash": "1a5fea2ea2aa431e1d0c7521c6d80577"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/news_data_tools.py": {
-    "mtime": 1779403421.4997032,
-    "ast_hash": "ee5227db0c2914e5688356cbe32e1e63",
-    "semantic_hash": "ee5227db0c2914e5688356cbe32e1e63"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/agent_states.py": {
-    "mtime": 1779403421.4993932,
-    "ast_hash": "4a4cfc74bc15de58a505196e35761c0a",
-    "semantic_hash": "4a4cfc74bc15de58a505196e35761c0a"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/structured.py": {
-    "mtime": 1779403421.4998274,
-    "ast_hash": "ffabcc89d7d79fc8c8921f07e44f56eb",
-    "semantic_hash": "ffabcc89d7d79fc8c8921f07e44f56eb"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/core_stock_tools.py": {
-    "mtime": 1779403421.4995208,
-    "ast_hash": "f3e112f57f60813f50bc15126ca82b49",
-    "semantic_hash": "f3e112f57f60813f50bc15126ca82b49"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/utils/technical_indicators_tools.py": {
-    "mtime": 1779403421.499897,
-    "ast_hash": "0b4e44be1d39136d7806020def041407",
-    "semantic_hash": "0b4e44be1d39136d7806020def041407"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/analysts/market_analyst.py": {
-    "mtime": 1779403421.498288,
-    "ast_hash": "fd496cbede89d99a75bdd819351a7e76",
-    "semantic_hash": "fd496cbede89d99a75bdd819351a7e76"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/analysts/social_media_analyst.py": {
-    "mtime": 1779403421.4985018,
-    "ast_hash": "65f9b02601a2b4156f9ffa99751eef4c",
-    "semantic_hash": "65f9b02601a2b4156f9ffa99751eef4c"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/analysts/news_analyst.py": {
-    "mtime": 1779403421.4983466,
-    "ast_hash": "9997198a5ca155dea0180588eeadbe59",
-    "semantic_hash": "9997198a5ca155dea0180588eeadbe59"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/analysts/sentiment_analyst.py": {
-    "mtime": 1779403421.4984264,
-    "ast_hash": "06293581be6ca5ff602782d775ebfb15",
-    "semantic_hash": "06293581be6ca5ff602782d775ebfb15"
-  },
-  "/Users/luca/Desktop/trading-agent/tradingagents/agents/analysts/fundamentals_analyst.py": {
-    "mtime": 1779403421.4982018,
-    "ast_hash": "60d33d7f5ecb34b232749bee7c78fb8b",
-    "semantic_hash": "60d33d7f5ecb34b232749bee7c78fb8b"
+    "mtime": 1780839746.3967006,
+    "ast_hash": "8c5ee802da5b360450eb8bdfa26247da",
+    "semantic_hash": ""
   },
   "/Users/luca/Desktop/trading-agent/tradingagents/dataflows/config.py": {
     "mtime": 1779403421.5004587,
@@ -355,7 +110,7 @@
     "semantic_hash": "3ce7f3de6fcf01a715941602acacde87"
   },
   "/Users/luca/Desktop/trading-agent/tradingagents/dataflows/y_finance.py": {
-    "mtime": 1779403421.5008647,
+    "mtime": 1780049882.1821315,
     "ast_hash": "fd524b15be3173a6275321fce0de0fc7",
     "semantic_hash": "fd524b15be3173a6275321fce0de0fc7"
   },
@@ -435,9 +190,9 @@
     "semantic_hash": "31de71a0035aa971a962bcaea9a830c6"
   },
   "/Users/luca/Desktop/trading-agent/tradingagents/llm_clients/capabilities.py": {
-    "mtime": 1779403421.502206,
-    "ast_hash": "6bae1c2cb26af7dbbb1f1ff7efaabe4d",
-    "semantic_hash": "6bae1c2cb26af7dbbb1f1ff7efaabe4d"
+    "mtime": 1780837368.4027693,
+    "ast_hash": "5a41f9e47a5b32b7b2caddc5ab2af23e",
+    "semantic_hash": ""
   },
   "/Users/luca/Desktop/trading-agent/tradingagents/llm_clients/api_key_env.py": {
     "mtime": 1779403421.5020137,
@@ -470,19 +225,14 @@
     "semantic_hash": "ca0e852ea5c80b5a778922ee99ac27fb"
   },
   "/Users/luca/Desktop/trading-agent/README.md": {
-    "mtime": 1779403421.486717,
-    "ast_hash": "e3a92d836b1f4726388a1bb134551fa7",
-    "semantic_hash": "e3a92d836b1f4726388a1bb134551fa7"
+    "mtime": 1780839870.8777742,
+    "ast_hash": "dcf4e3668e4485472060f14338f0a26a",
+    "semantic_hash": ""
   },
   "/Users/luca/Desktop/trading-agent/docker-compose.yml": {
     "mtime": 1779403421.4960284,
     "ast_hash": "be4ca4ce21074a57dea6791e8e1403ce",
     "semantic_hash": "be4ca4ce21074a57dea6791e8e1403ce"
-  },
-  "/Users/luca/Desktop/trading-agent/cli/static/welcome.txt": {
-    "mtime": 1779403421.4958072,
-    "ast_hash": "eece957f7b9d61b1d3e0ffaa13c9ee74",
-    "semantic_hash": "eece957f7b9d61b1d3e0ffaa13c9ee74"
   },
   "/Users/luca/Desktop/trading-agent/tradingagents/llm_clients/TODO.md": {
     "mtime": 1779403421.5018172,
@@ -619,59 +369,384 @@
     "ast_hash": "81a5189610ecbdee992c2054390859cc",
     "semantic_hash": "81a5189610ecbdee992c2054390859cc"
   },
-  "/Users/luca/Desktop/trading-agent/assets/TauricResearch.png": {
-    "mtime": 1779403421.4869378,
-    "ast_hash": "fc1788d11571f9cf491388742860f019",
-    "semantic_hash": "fc1788d11571f9cf491388742860f019"
+  "/Users/luca/Desktop/trading-agent/tests/test_brain.py": {
+    "mtime": 1780787103.8110707,
+    "ast_hash": "52a7e2fd16c759c20d5f6091df6bb777",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/researcher.png": {
-    "mtime": 1779403421.4932578,
-    "ast_hash": "40cf4d70ed8f8c828a5a54469d7f03ad",
-    "semantic_hash": "40cf4d70ed8f8c828a5a54469d7f03ad"
+  "/Users/luca/Desktop/trading-agent/tests/test_mantainer.py": {
+    "mtime": 1780785877.6867583,
+    "ast_hash": "e4795fee2b5bcfc19bcaa820e16f7191",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/trader.png": {
-    "mtime": 1779403421.4947724,
-    "ast_hash": "f07a05b4be1cbdad01a24caf37e030b1",
-    "semantic_hash": "f07a05b4be1cbdad01a24caf37e030b1"
+  "/Users/luca/Desktop/trading-agent/tests/test_costs.py": {
+    "mtime": 1780698164.0819392,
+    "ast_hash": "ddea4e38a68cd168ef8a576d1b152b9e",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/analyst.png": {
-    "mtime": 1779403421.487474,
-    "ast_hash": "93096fff6ed78bfb3aeeacadf7169546",
-    "semantic_hash": "93096fff6ed78bfb3aeeacadf7169546"
+  "/Users/luca/Desktop/trading-agent/tests/test_risk_engine.py": {
+    "mtime": 1780784817.8501978,
+    "ast_hash": "272fc5e1c58fd0856f70c6c098eabef6",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/schema.png": {
-    "mtime": 1779403421.4943516,
-    "ast_hash": "b1d6a9e2d0d3987ba2cc4b9e859afc30",
-    "semantic_hash": "b1d6a9e2d0d3987ba2cc4b9e859afc30"
+  "/Users/luca/Desktop/trading-agent/tests/test_options.py": {
+    "mtime": 1780784984.1428246,
+    "ast_hash": "bdc56a21289103240af0a0b970de8501",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/wechat.png": {
-    "mtime": 1779403421.495305,
-    "ast_hash": "3a42783c8efb5eabe98f1116634e70f1",
-    "semantic_hash": "3a42783c8efb5eabe98f1116634e70f1"
+  "/Users/luca/Desktop/trading-agent/tests/test_backtesting.py": {
+    "mtime": 1780750506.4586148,
+    "ast_hash": "1c4aba07d450476230d9a15499e65eb9",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/risk.png": {
-    "mtime": 1779403421.4937127,
-    "ast_hash": "749e3f0a9c0f9928e93786e860592594",
-    "semantic_hash": "749e3f0a9c0f9928e93786e860592594"
+  "/Users/luca/Desktop/trading-agent/tests/test_broker.py": {
+    "mtime": 1780689902.2836268,
+    "ast_hash": "991fdfb9137d90347c66976859fa643a",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/cli/cli_transaction.png": {
-    "mtime": 1779403421.4928558,
-    "ast_hash": "4ab6758ca0d5201f881fb010c063238f",
-    "semantic_hash": "4ab6758ca0d5201f881fb010c063238f"
+  "/Users/luca/Desktop/trading-agent/tests/test_macro.py": {
+    "mtime": 1780704850.3747048,
+    "ast_hash": "18436d2defaa5fb96193405e57eab721",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/cli/cli_technical.png": {
-    "mtime": 1779403421.4911907,
-    "ast_hash": "439f6740a4b455bf4d05756f9eb537be",
-    "semantic_hash": "439f6740a4b455bf4d05756f9eb537be"
+  "/Users/luca/Desktop/trading-agent/tests/test_data_ingestion.py": {
+    "mtime": 1780689902.254284,
+    "ast_hash": "2c9dd36bcad4a93e09800289b05f1fed",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/cli/cli_news.png": {
-    "mtime": 1779403421.4896,
-    "ast_hash": "396432d87fe7e404843c56a1b93fddf9",
-    "semantic_hash": "396432d87fe7e404843c56a1b93fddf9"
+  "/Users/luca/Desktop/trading-agent/tests/test_storage.py": {
+    "mtime": 1780703575.2907894,
+    "ast_hash": "b7fdad829b627388d1c3b6079c70b1cf",
+    "semantic_hash": ""
   },
-  "/Users/luca/Desktop/trading-agent/assets/cli/cli_init.png": {
-    "mtime": 1779403421.4878778,
-    "ast_hash": "28b84708d06f7d4328b0d15219df731c",
-    "semantic_hash": "28b84708d06f7d4328b0d15219df731c"
+  "/Users/luca/Desktop/trading-agent/tests/test_social.py": {
+    "mtime": 1780705105.184108,
+    "ast_hash": "684ccede9bab71633d857d249f3cb8c5",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_config.py": {
+    "mtime": 1780839118.5340457,
+    "ast_hash": "3bfd90b64f8e2cd69d11d838be940714",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_orchestration.py": {
+    "mtime": 1780749231.4921658,
+    "ast_hash": "44845c6526615a26f4e857f30f855433",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_indicators.py": {
+    "mtime": 1780689902.2547088,
+    "ast_hash": "13505a25eb28548bcc28cdd02716a154",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_trade_execution.py": {
+    "mtime": 1780750637.0466092,
+    "ast_hash": "475362cca50e070dd6fdf730fcceea0c",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_domain_state.py": {
+    "mtime": 1780687255.3691678,
+    "ast_hash": "105c4b5755e46d69a766011d991b8b25",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_news.py": {
+    "mtime": 1780703828.415437,
+    "ast_hash": "10eb15e00edf4b25c4e4931a93551537",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_tools.py": {
+    "mtime": 1780784680.7218776,
+    "ast_hash": "b45a4f22ad0e232fd88e386b5cb32ce4",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_fundamentals.py": {
+    "mtime": 1780704108.9469156,
+    "ast_hash": "6e0c9a314d41923f335562122e402a1e",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_pipeline_e2e.py": {
+    "mtime": 1780689902.2549262,
+    "ast_hash": "dfd1745bcf1e2801441c71499d81ebfe",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_disinvest.py": {
+    "mtime": 1780784910.0166366,
+    "ast_hash": "10ef8b3170b906dfd3e0db20dcf1bf74",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tests/test_app.py": {
+    "mtime": 1780787132.5598557,
+    "ast_hash": "5bde2be5258ccbd3fe7e26fb8042aab1",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/config.py": {
+    "mtime": 1780839685.5565693,
+    "ast_hash": "20970204b9ea3ee94605b4b065bc5192",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/cli.py": {
+    "mtime": 1780839585.623844,
+    "ast_hash": "6cf4adcf14190f12df7d1426dd801356",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/app.py": {
+    "mtime": 1780839074.5491896,
+    "ast_hash": "e95111a6e26fa3b8b3cc62a2f63d4c76",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/ingestion/fundamentals_ingest.py": {
+    "mtime": 1780704033.3311903,
+    "ast_hash": "0e7ad2141c0ae6037497664bb1cafcdd",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/ingestion/macro_ingest.py": {
+    "mtime": 1780704770.1225543,
+    "ast_hash": "c4105fc5369d66918fcd40390406dafb",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/ingestion/social_ingest.py": {
+    "mtime": 1780705006.853986,
+    "ast_hash": "2c408c24d5dfe750aee4968da14ea5ac",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/ingestion/__init__.py": {
+    "mtime": 1780705027.8009794,
+    "ast_hash": "67a2211d54fd573637536e8f119a8d08",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/ingestion/screening.py": {
+    "mtime": 1780689902.2581952,
+    "ast_hash": "e266c27c200d766f69a431fe65f6cfdb",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/ingestion/news_ingest.py": {
+    "mtime": 1780703749.8663514,
+    "ast_hash": "e9d3b16b6f42890beef11c1836091820",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/ingestion/price_ingest.py": {
+    "mtime": 1780689902.2577915,
+    "ast_hash": "470008446839cc1e2c7423558ed51b43",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/tools/options.py": {
+    "mtime": 1780784965.663056,
+    "ast_hash": "46ef334d75291d50123a2c30c947de29",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/tools/market.py": {
+    "mtime": 1780784578.9310672,
+    "ast_hash": "3f7902e049418e320e5447788bf1176a",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/tools/__init__.py": {
+    "mtime": 1780784973.7080493,
+    "ast_hash": "8d0c998abe29ab9081a2864bd327caeb",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/tools/portfolio.py": {
+    "mtime": 1780784589.7767775,
+    "ast_hash": "2691c0a1c4e2338a9a59842544185ff0",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/backtesting/__init__.py": {
+    "mtime": 1780750478.3741791,
+    "ast_hash": "be890036e7702f632d3ea6617bc64817",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/backtesting/engine.py": {
+    "mtime": 1780750496.5857253,
+    "ast_hash": "293617d38f009d066c31cc7b6017c095",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/broker/commission.py": {
+    "mtime": 1780689952.8602574,
+    "ast_hash": "be6c589b483245941fb5c7846c7e2d89",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/broker/paper.py": {
+    "mtime": 1780689902.2850988,
+    "ast_hash": "d9b30cee54a10d1af997efa080c2ddef",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/broker/__init__.py": {
+    "mtime": 1780689971.5021653,
+    "ast_hash": "bdaf4ff0bc2021a46fd6579353423d5b",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/broker/base.py": {
+    "mtime": 1780750564.3329859,
+    "ast_hash": "8dd3a14b87b03dbdfd85ba2a04e6adc9",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/broker/alpaca.py": {
+    "mtime": 1780839552.5784068,
+    "ast_hash": "30b14eb31dbf508ff0f4af1bf5cbc15c",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/indicators/db.py": {
+    "mtime": 1780689902.2563844,
+    "ast_hash": "66f7706080370713effbaf899ce4156e",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/indicators/__init__.py": {
+    "mtime": 1780689902.2557812,
+    "ast_hash": "a980be3e33e42744422c5f34f1723fac",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/indicators/core.py": {
+    "mtime": 1780689902.2560318,
+    "ast_hash": "7959becaa6b03310672a4c75865cd81e",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/storage/models.py": {
+    "mtime": 1780750575.648288,
+    "ast_hash": "9e8ecbd7dff65d561599ffe434596c40",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/storage/database.py": {
+    "mtime": 1780684328.9529436,
+    "ast_hash": "6117a231032911b4f76f36d4af07bd16",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/storage/__init__.py": {
+    "mtime": 1780747766.6247923,
+    "ast_hash": "8aa365486f4aa7f00d815d1cdd396608",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/storage/repository.py": {
+    "mtime": 1780784774.498863,
+    "ast_hash": "22ce71593302093a816aa1879965b30f",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/execution/submit.py": {
+    "mtime": 1780750621.2645195,
+    "ast_hash": "cbae019dad1f5ce18af1f0b4f0ff3879",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/execution/trade.py": {
+    "mtime": 1780750609.4101918,
+    "ast_hash": "68ced1fb2fe9be02b8d9e20bcff38f06",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/execution/disinvest.py": {
+    "mtime": 1780784880.8656104,
+    "ast_hash": "36fc477399a908716359617b1c5bfcbe",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/execution/__init__.py": {
+    "mtime": 1780785846.956971,
+    "ast_hash": "e5d0c571d98ce73f8e9e96e647855456",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/execution/mantainer.py": {
+    "mtime": 1780785831.0098798,
+    "ast_hash": "b17f3d7d7c55ccf3705caa01758b64a8",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/execution/costs.py": {
+    "mtime": 1780689962.7966309,
+    "ast_hash": "4465e0589fee52017bb457a8604529b1",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/execution/exits.py": {
+    "mtime": 1780749164.2254884,
+    "ast_hash": "71ac3c1d5b1aadbf93d369fcfe08da1c",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/orchestration/cycle.py": {
+    "mtime": 1780785866.1556923,
+    "ast_hash": "38282508ffb0b2d69bd91980885c23b7",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/orchestration/triggers.py": {
+    "mtime": 1780704623.3346312,
+    "ast_hash": "eb5ba1b4ef26585c87214a5edb693cb6",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/orchestration/__init__.py": {
+    "mtime": 1780704637.181985,
+    "ast_hash": "ba34a06849e85026e530f67b570bf7f9",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/orchestration/analyze.py": {
+    "mtime": 1780703082.3754294,
+    "ast_hash": "38e63a6a06939125e4db4cef487ea5c7",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/graph.py": {
+    "mtime": 1780787085.4703267,
+    "ast_hash": "9019c748d39a99703aea0116cb084f55",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/__init__.py": {
+    "mtime": 1780703066.2776713,
+    "ast_hash": "4af7382ed228dc8f61c07258c1051d0c",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/llm.py": {
+    "mtime": 1780786816.1665893,
+    "ast_hash": "baa4b90b72200f9473184c702c578f21",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/prompts.py": {
+    "mtime": 1780702921.1324673,
+    "ast_hash": "2d861f7ba17375bb59b02ffc63fec98e",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/warmup.py": {
+    "mtime": 1780786420.1302657,
+    "ast_hash": "def0f09852e2a3ac4ffc621b3f894916",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/context.py": {
+    "mtime": 1780705037.5094151,
+    "ast_hash": "1a788e503917fd7561bcd22769d5c646",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/schemas.py": {
+    "mtime": 1780747498.8047078,
+    "ast_hash": "e74efed87e4b3e8bb039b87866268d33",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/structured.py": {
+    "mtime": 1779403421.4998274,
+    "ast_hash": "ffabcc89d7d79fc8c8921f07e44f56eb",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/tooling.py": {
+    "mtime": 1780785653.575668,
+    "ast_hash": "7c91e64ee19e3c020481182940450692",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/brain/agent_context.py": {
+    "mtime": 1780787053.5880823,
+    "ast_hash": "8aaed16139f2c5521f8080dd8bd9f40e",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/domain/enums.py": {
+    "mtime": 1780687255.3702314,
+    "ast_hash": "4834eaf5b75478eee9f3843892405bf5",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/domain/__init__.py": {
+    "mtime": 1780687255.369988,
+    "ast_hash": "0728f5209c86f35ff7fb70108215b9b8",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/domain/risk.py": {
+    "mtime": 1780784786.3386683,
+    "ast_hash": "cdfa734430b55bfea1bc809258be0f35",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/tradingagents/domain/state.py": {
+    "mtime": 1780687255.3713517,
+    "ast_hash": "ad33ea93ddcaff6f55c7590268114ebb",
+    "semantic_hash": ""
+  },
+  "/Users/luca/Desktop/trading-agent/reports/MONC.MI_20260526_162528/complete_report_it.md": {
+    "mtime": 1779812227.2982712,
+    "ast_hash": "684c67436f9e4ef4498ad36ac13abf75",
+    "semantic_hash": ""
   }
 }

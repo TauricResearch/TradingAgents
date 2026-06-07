@@ -32,6 +32,7 @@ dependencies = [
     "yfinance>=0.2.63",
     "langsmith>=0.3.45",
     "sqlalchemy>=2.0",
+    "ib_async>=2.0",
 ]
 
 [project.scripts]

@@ -41,11 +41,18 @@ price_alert_atr = 1.5       # anomalous-move trigger threshold (|move| > k·ATR)
 history_start = "2024-01-01"  # how far back to pull OHLCV
 
 [broker]
-# provider: "paper" = in-process simulator (no account) · "alpaca" = real account
+# provider: "paper" = in-process simulator · "alpaca" · "ibkr"
 # mode (alpaca only): "paper" = paper-api.alpaca.markets · "live" = api.alpaca.markets
-# Set ALPACA_API_KEY / ALPACA_SECRET_KEY in .env when provider = "alpaca".
-provider = "paper"
+#   -> set ALPACA_API_KEY / ALPACA_SECRET_KEY in .env when provider = "alpaca".
+# ibkr: TWS API via ib_async — a TWS or IB Gateway must be running locally
+#   (session auth, no API key in .env).
+provider = "alpaca"
 mode     = "paper"
+# --- IBKR only (provider = "ibkr") ---
+# account_id     = ""             # None/empty = first available account
+# ibkr_host      = "127.0.0.1"
+# ibkr_port      = 7497           # None -> 7497 paper / 7496 live (TWS); Gateway: 4002/4001
+# ibkr_client_id = 1
 
 [costs]
 token_cost_per_cycle = 0.0

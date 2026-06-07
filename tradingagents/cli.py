@@ -74,6 +74,13 @@ def main(argv: list[str] | None = None) -> int:
             broker = AlpacaBroker(base_url=alpaca_base_url(bs.mode))
             banner = "LIVE — real money" if bs.mode == "live" else "paper"
             print(f"broker: Alpaca ({banner})")
+    elif bs.provider == "ibkr":
+        from .broker.ibkr import IBKRBroker, default_port
+
+        port = bs.ibkr_port or default_port(bs.mode)
+        broker = IBKRBroker(host=bs.ibkr_host, port=port, client_id=bs.ibkr_client_id, account=bs.account_id)
+        banner = "LIVE — real money" if bs.mode == "live" else "paper"
+        print(f"broker: IBKR TWS API ({banner}) {bs.ibkr_host}:{port}")
     else:
         print("broker: PaperBroker (simulated)")
 

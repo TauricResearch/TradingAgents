@@ -60,8 +60,13 @@ class CostSettings(BaseModel):
 
 
 class BrokerSettings(BaseModel):
-    provider: str = "paper"   # "paper" (in-process simulator) | "alpaca"
-    mode: str = "paper"       # "paper" | "live"  (applies to alpaca)
+    provider: str = "paper"   # "paper" (simulator) | "alpaca" | "ibkr"
+    mode: str = "paper"       # "paper" | "live"  (alpaca url / ibkr default port)
+    account_id: str | None = None   # IBKR account id (None = first available)
+    # IBKR TWS API (ib_async) connection — TWS/IB Gateway must be running.
+    ibkr_host: str = "127.0.0.1"
+    ibkr_port: int | None = None    # None -> 7497 paper / 7496 live (TWS)
+    ibkr_client_id: int = 1
 
 
 class Settings(BaseModel):
