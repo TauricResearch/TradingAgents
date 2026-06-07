@@ -187,3 +187,42 @@ class BackgroundRunState:
 
     def to_dict(self) -> dict:
         return {f.name: getattr(self, f.name) for f in fields(self) if not f.name.startswith("_")}
+
+
+_jobs: dict[str, "_JobHandle"] = {}
+
+
+@dataclass
+class _JobHandle:
+    job_id: str
+    cancel_event: threading.Event
+    pause_event: threading.Event
+    state: BackgroundRunState
+    thread: Optional[threading.Thread] = None
+
+
+def register_handle(
+    job_id: str, ticker: str, date_from: str, date_to: str,
+    every: str, parallel: int, total: int,
+) -> _JobHandle:
+    state = BackgroundRunState(
+        job_id=job_id, ticker=ticker, date_from=date_from, date_to=date_to,
+        every=every, parallel=parallel, total=total,
+    )
+    state.persist()
+    handle = _JobHandle(
+        job_id=job_id,
+        cancel_event=threading.Event(),
+        pause_event=threading.Event(),
+        state=state,
+    )
+    _jobs[job_id] = handle
+    return handle
+
+
+def get_handle(job_id: str) -> Optional[_JobHandle]:
+    return _jobs.get(job_id)
+
+
+def unregister_handle(job_id: str) -> None:
+    _jobs.pop(job_id, None)
