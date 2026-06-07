@@ -26,3 +26,23 @@ def client(data_root):
     from web.server.app import create_app
     with TestClient(create_app()) as c:
         yield c
+
+
+@pytest.fixture
+def fake_propagate(monkeypatch):
+    """Replace ``background_runs._call_propagate`` with a recording fake.
+
+    Tests that need the fake add ``fake_propagate`` to their parameter list.
+    The setattr is best-effort: if ``background_runs`` is not yet importing
+    cleanly or doesn't have ``_call_propagate`` (e.g. earlier in the plan),
+    the fixture still yields the fake so the test can inspect it.
+    """
+    from web.server.tests.fixtures.fake_propagate import FakePropagate
+    fake = FakePropagate()
+    try:
+        from web.server import background_runs
+        monkeypatch.setattr(background_runs, "_call_propagate", fake)
+    except (ImportError, AttributeError):
+        # background_runs module or _call_propagate not yet defined.
+        pass
+    yield fake
