@@ -308,12 +308,21 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
         while pending:
             if handle.cancel_event.is_set():
                 break
-            while handle.pause_event.is_set():
-                time.sleep(0.2)
-                if handle.cancel_event.is_set():
-                    break
-            if handle.cancel_event.is_set():
-                break
+            if handle.pause_event.is_set():
+                done, _ = wait(pending.keys(), return_when=FIRST_COMPLETED)
+                for fut in done:
+                    idx, date_iso = pending.pop(fut)
+                    try:
+                        result = fut.result()
+                    except Exception as exc:
+                        _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
+                    else:
+                        state.record_duration(result.duration_s)
+                    with state._persist_lock:
+                        state.current_index += 1
+                        state._recompute_eta()
+                        state.persist()
+                continue
 
             done, _ = wait(pending.keys(), return_when=FIRST_COMPLETED)
             for fut in done:
@@ -333,6 +342,8 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
     state.finished_at = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     if handle.cancel_event.is_set():
         state.status = "cancelled"
+    elif handle.pause_event.is_set():
+        state.status = "paused"
     else:
         state.status = "done"
     state.persist()
@@ -364,3 +375,36 @@ def cancel(job_id: str) -> None:
             return
         return
     h.cancel_event.set()
+
+
+def pause(job_id: str) -> None:
+    h = get_handle(job_id)
+    if h is None:
+        raise KeyError(job_id)
+    h.pause_event.set()
+    h.state.status = "paused"
+    h.state.persist()
+
+
+def _spawn_worker(job_id: str, date_list: list[str]) -> None:
+    h = get_handle(job_id)
+    if not h:
+        return
+    t = threading.Thread(target=_run, args=(h, date_list), daemon=True, name=f"bg-run-{job_id}")
+    h.thread = t
+    t.start()
+
+
+def resume(job_id: str) -> None:
+    h = get_handle(job_id)
+    if h is None:
+        raise KeyError(job_id)
+    h.pause_event.clear()
+    h.state.status = "running"
+    dp = iteration_dates_path(job_id)
+    if dp.exists():
+        date_list = [line.strip() for line in dp.read_text(encoding="utf-8").splitlines() if line.strip()]
+    else:
+        date_list = []
+    _spawn_worker(job_id, date_list)
+    h.state.persist()
