@@ -38,6 +38,14 @@ dependencies = [
 [project.scripts]
 tradingagents = "tradingagents.cli:main"
 
+[dependency-groups]
+# Dev tools live in the project's uv-managed .venv (single environment).
+# `uv sync` installs these too; run everything via `uv run`.
+dev = [
+    "pytest>=8.0",
+    "pytest-subtests>=0.12",
+]
+
 [tool.setuptools.packages.find]
 include = ["tradingagents*"]
 
