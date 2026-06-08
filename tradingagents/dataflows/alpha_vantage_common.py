@@ -7,6 +7,10 @@ from io import StringIO
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
+# (connect, read) timeout in seconds for Alpha Vantage HTTP requests, so a
+# stalled network path can't block the whole analysis indefinitely (see #990).
+REQUEST_TIMEOUT = (5, 30)
+
 
 class AlphaVantageNotConfiguredError(ValueError):
     """Raised when Alpha Vantage is selected but no API key is configured.
@@ -76,7 +80,7 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
     
-    response = requests.get(API_BASE_URL, params=api_params)
+    response = requests.get(API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
 
     response_text = response.text
@@ -84,11 +88,20 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
     # Check if response is JSON (error responses are typically JSON)
     try:
         response_json = json.loads(response_text)
-        # Check for rate limit error
+        # Alpha Vantage returns soft errors as JSON under "Information".
         if "Information" in response_json:
             info_message = response_json["Information"]
-            if "rate limit" in info_message.lower() or "api key" in info_message.lower():
+            lowered = info_message.lower()
+            # Check rate limit first: throttling messages can also mention the
+            # API key (e.g. "detected your API key ... rate limit is ..."), so
+            # they must stay rate-limit errors.
+            if "rate limit" in lowered:
                 raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {info_message}")
+            # An API-key message that is not a rate limit is a configuration
+            # problem, not throttling — surface it as such so callers don't back
+            # off as if rate limited (see #991).
+            if "api key" in lowered:
+                raise AlphaVantageNotConfiguredError(f"Alpha Vantage API key rejected: {info_message}")
     except json.JSONDecodeError:
         # Response is not JSON (likely CSV data), which is normal
         pass
