@@ -162,7 +162,6 @@ class TestRunOne:
 class TestRunSequential:
     def _setup_root(self, tmp_path, monkeypatch):
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
 
     def test_run_processes_all_dates(self, tmp_path, monkeypatch, fake_propagate):
         self._setup_root(tmp_path, monkeypatch)
@@ -207,7 +206,6 @@ class TestRunParallel:
         """With parallel=2 and sleep=100ms, total wall-clock for 4 dates
         should be roughly 200ms (not 400ms). Use a loose bound."""
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
         fake_propagate.sleep_s = 0.1
         handle = background_runs.register_handle(
             "bgr_PAR1", "NVDA", "2024-01-01", "2024-01-04", "1d", parallel=2, total=4,
@@ -221,7 +219,6 @@ class TestRunParallel:
 
     def test_parallel_does_not_double_process(self, tmp_path, monkeypatch, fake_propagate):
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
         fake_propagate.sleep_s = 0.05
         handle = background_runs.register_handle(
             "bgr_PAR2", "NVDA", "2024-01-01", "2024-01-04", "1d", parallel=4, total=4,
@@ -234,7 +231,6 @@ class TestRunParallel:
 class TestCancel:
     def test_cancel_stops_within_one_iteration(self, tmp_path, monkeypatch, fake_propagate):
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
         fake_propagate.sleep_s = 0.05
         handle = background_runs.register_handle(
             "bgr_CAN1", "NVDA", "2024-01-01", "2024-01-10", "1d", parallel=1, total=10,
@@ -253,7 +249,6 @@ class TestCancel:
 class TestPauseResume:
     def test_pause_blocks_iterations(self, tmp_path, monkeypatch, fake_propagate):
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
         fake_propagate.sleep_s = 0.02
         handle = background_runs.register_handle(
             "bgr_PAUSE1", "NVDA", "2024-01-01", "2024-01-10", "1d", parallel=1, total=10,
@@ -403,7 +398,7 @@ class TestETA:
 
 class TestLoadExistingJobs:
     def test_resumes_running_job(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
         from web.server.background_runs import (
             job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
         )
@@ -429,7 +424,6 @@ class TestLoadExistingJobs:
         assert len(fake_propagate.calls) == 5
 
     def test_resume_skips_already_done_dates(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
         from web.server.background_runs import (
             job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
@@ -458,7 +452,7 @@ class TestLoadExistingJobs:
         assert handle.state.current_index == 5
 
     def test_does_not_resume_paused_job(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
         from web.server.background_runs import (
             job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
         )
@@ -481,7 +475,7 @@ class TestLoadExistingJobs:
         assert len(fake_propagate.calls) == 0
 
     def test_does_not_resume_terminal_jobs(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
         from web.server.background_runs import job_dir, BackgroundRunState, _load_existing_jobs
         for terminal_status in ("done", "cancelled", "error"):
             job_id = f"bgr_TERM_{terminal_status}"
@@ -500,9 +494,7 @@ class TestLoadExistingJobs:
 
 class TestStart:
     def test_start_creates_job_and_returns_id(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
         job_id = background_runs.start(
             ticker="NVDA", date_from="2024-05-01", date_to="2024-05-03",
             every="1d", parallel=1,
@@ -536,9 +528,7 @@ class TestStart:
 
 class TestGetAndList:
     def test_get_returns_state_dict(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
         job_id = background_runs.start("MU", "2024-05-06", "2024-05-06", "1d", 1)
         h = background_runs.get_handle(job_id)
         if h and h.thread:
@@ -554,9 +544,7 @@ class TestGetAndList:
             background_runs.get("bgr_DOES_NOT_EXIST")
 
     def test_list_jobs_returns_recent_first(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
         id1 = background_runs.start("AAPL", "2024-05-06", "2024-05-06", "1d", 1)
         h1 = background_runs.get_handle(id1)
         if h1 and h1.thread:

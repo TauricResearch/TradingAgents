@@ -100,14 +100,14 @@ import os
 import tempfile
 
 
-def _data_root() -> Path:
-    p = Path(os.environ.get("TRADINGAGENTS_DATA_DIR", str(Path.home() / ".tradingagents" / "data")))
-    p.mkdir(parents=True, exist_ok=True)
-    return p
-
-
-# Convenience alias used by tests; mirrors _data_root() so monkeypatch works.
 DATA_ROOT = Path(os.environ.get("TRADINGAGENTS_DATA_DIR", str(Path.home() / ".tradingagents" / "data")))
+
+
+def _data_root() -> Path:
+    """Return DATA_ROOT.  This function exists so that the many path helpers
+    below (job_dir, state_path, …) can be kept consistent with the public
+    symbol ``DATA_ROOT`` that tests monkeypatch."""
+    return DATA_ROOT
 
 
 def job_dir(job_id: str) -> Path:
