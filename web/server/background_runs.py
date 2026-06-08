@@ -399,6 +399,49 @@ def _run_one(ticker: str, date_iso: str) -> _IterationResult:
     )
 
 
+def _load_existing_jobs() -> None:
+    """Scan background_runs/*/state.json; for each job with status='running',
+    register a handle and spawn a worker. For status='paused', register a
+    handle but do not spawn. Terminal jobs are ignored."""
+    base = _data_root() / "background_runs"
+    if not base.exists():
+        return
+    for d in sorted(base.iterdir()):
+        if not d.is_dir():
+            continue
+        sp = d / "state.json"
+        if not sp.exists():
+            continue
+        try:
+            state = BackgroundRunState.load(d.name)
+        except (OSError, ValueError, KeyError) as exc:
+            log.warning("background_runs._load_existing_jobs: skipping %s: %s", d.name, exc)
+            continue
+        if state.status not in ("running", "paused"):
+            continue
+        handle = _JobHandle(
+            job_id=state.job_id,
+            cancel_event=threading.Event(),
+            pause_event=threading.Event(),
+            state=state,
+        )
+        if state.status == "paused":
+            handle.pause_event.set()
+        _jobs[state.job_id] = handle
+        if state.status == "running":
+            dp = d / "iteration_dates.txt"
+            if not dp.exists():
+                log.warning("background_runs._load_existing_jobs: %s has no iteration_dates.txt", state.job_id)
+                continue
+            date_list = [line.strip() for line in dp.read_text(encoding="utf-8").splitlines() if line.strip()]
+            t = threading.Thread(
+                target=_run, args=(handle, date_list),
+                daemon=True, name=f"bg-run-{state.job_id}",
+            )
+            handle.thread = t
+            t.start()
+
+
 def cancel(job_id: str) -> None:
     h = get_handle(job_id)
     if h is None:
