@@ -399,3 +399,100 @@ class TestETA:
         assert s.avg_duration_s == 50.0
         assert s.durations_s == [50.0, 60.0, 40.0]
         assert s.eta_s == 500
+
+
+class TestLoadExistingJobs:
+    def test_resumes_running_job(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        from web.server.background_runs import (
+            job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
+        )
+        job_id = "bgr_RESUME1"
+        d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+        state = BackgroundRunState(
+            job_id=job_id, ticker="NVDA", date_from="2024-03-01",
+            date_to="2024-03-05", every="1d", parallel=1, total=5,
+        )
+        state.status = "running"
+        state.current_index = 0
+        state.persist()
+        iteration_dates_path(job_id).write_text(
+            "\n".join([f"2024-03-0{i}" for i in range(1, 6)]),
+            encoding="utf-8",
+        )
+        _load_existing_jobs()
+        handle = background_runs.get_handle(job_id)
+        assert handle is not None
+        handle.thread.join(timeout=5.0)
+        assert handle.state.status == "done"
+        assert handle.state.current_index == 5
+        assert len(fake_propagate.calls) == 5
+
+    def test_resume_skips_already_done_dates(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import (
+            job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
+        )
+        run_dir = background_runs.DATA_ROOT / "NVDA" / "2024-03-02" / "run_pre"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "run.json").write_text('{"status": "done"}', encoding="utf-8")
+
+        job_id = "bgr_RESUME2"
+        d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+        state = BackgroundRunState(
+            job_id=job_id, ticker="NVDA", date_from="2024-03-01",
+            date_to="2024-03-05", every="1d", parallel=1, total=5,
+        )
+        state.status = "running"
+        state.persist()
+        iteration_dates_path(job_id).write_text(
+            "\n".join([f"2024-03-0{i}" for i in range(1, 6)]),
+            encoding="utf-8",
+        )
+        _load_existing_jobs()
+        handle = background_runs.get_handle(job_id)
+        assert handle is not None
+        handle.thread.join(timeout=5.0)
+        assert len(fake_propagate.calls) == 4
+        assert handle.state.current_index == 5
+
+    def test_does_not_resume_paused_job(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        from web.server.background_runs import (
+            job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
+        )
+        job_id = "bgr_RESUME3"
+        d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+        state = BackgroundRunState(
+            job_id=job_id, ticker="NVDA", date_from="2024-04-01",
+            date_to="2024-04-03", every="1d", parallel=1, total=3,
+        )
+        state.status = "paused"
+        state.persist()
+        iteration_dates_path(job_id).write_text(
+            "\n".join(["2024-04-01", "2024-04-02", "2024-04-03"]),
+            encoding="utf-8",
+        )
+        _load_existing_jobs()
+        handle = background_runs.get_handle(job_id)
+        assert handle is not None
+        assert handle.thread is None
+        assert len(fake_propagate.calls) == 0
+
+    def test_does_not_resume_terminal_jobs(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        from web.server.background_runs import job_dir, BackgroundRunState, _load_existing_jobs
+        for terminal_status in ("done", "cancelled", "error"):
+            job_id = f"bgr_TERM_{terminal_status}"
+            d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+            state = BackgroundRunState(
+                job_id=job_id, ticker="NVDA", date_from="2024-01-01",
+                date_to="2024-01-01", every="1d", parallel=1, total=1,
+            )
+            state.status = terminal_status
+            state.persist()
+        _load_existing_jobs()
+        for _status in ("done", "cancelled", "error"):
+            job_id = f"bgr_TERM_{_status}"
+            assert background_runs.get_handle(job_id) is None
