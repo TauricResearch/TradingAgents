@@ -326,6 +326,59 @@ def create_app() -> FastAPI:
             events.unsubscribe_global(ws)
             _active_ws.discard(ws)
 
+    # --- Background Past Runs ---
+    from web.server import background_runs
+
+    @app.post("/api/background-runs", status_code=201)
+    def post_background_run(body: dict):
+        """Start a new background past-run job."""
+        try:
+            job_id = background_runs.start(
+                ticker=body["ticker"],
+                date_from=body["date_from"],
+                date_to=body["date_to"],
+                every=body.get("every", "1d"),
+                parallel=body.get("parallel", 1),
+            )
+        except (KeyError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        return {"job_id": job_id}
+
+    @app.get("/api/background-runs")
+    def get_background_runs():
+        return {"jobs": background_runs.list_jobs(limit=50)}
+
+    @app.get("/api/background-runs/{job_id}")
+    def get_background_run(job_id: str):
+        try:
+            return background_runs.get(job_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"job_not_found: {job_id}") from None
+
+    @app.post("/api/background-runs/{job_id}/cancel")
+    def post_background_run_cancel(job_id: str):
+        try:
+            background_runs.cancel(job_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"job_not_found: {job_id}") from None
+        return {"status": "ok"}
+
+    @app.post("/api/background-runs/{job_id}/pause")
+    def post_background_run_pause(job_id: str):
+        try:
+            background_runs.pause(job_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"job_not_found: {job_id}") from None
+        return {"status": "ok"}
+
+    @app.post("/api/background-runs/{job_id}/resume")
+    def post_background_run_resume(job_id: str):
+        try:
+            background_runs.resume(job_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"job_not_found: {job_id}") from None
+        return {"status": "ok"}
+
     # static mount (only if build dir exists)
     settings = settings_mod.get_settings()
     if os.path.isdir(settings.frontend_dist):
