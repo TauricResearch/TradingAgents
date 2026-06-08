@@ -158,15 +158,20 @@ describe("TickerHeader — run history dropdown", () => {
     });
   });
 
-  it("does not fetch the runs list for a ticker that has never been analyzed", () => {
+  it("does not show the dropdown when there are no runs", async () => {
     mockFetch({});
     wrap(<TickerHeader ticker="NVDA" />);
-    // No 'NVDA' key in lastRunIdByTicker — the query should not fire.
-    const fetchMock = (globalThis as any).fetch as ReturnType<typeof vi.fn>;
-    const tickerRunsCall = fetchMock.mock.calls.find((c: unknown[]) =>
-      String(c[0]).includes("/api/tickers/NVDA/runs"),
-    );
-    expect(tickerRunsCall).toBeUndefined();
+    // Always fetches to check for runs (background runs may exist).
+    await waitFor(() => {
+      const fetchMock = (globalThis as any).fetch as ReturnType<typeof vi.fn>;
+      expect(fetchMock.mock.calls.some((c: unknown[]) =>
+        String(c[0]).includes("/api/tickers/NVDA/runs"),
+      )).toBe(true);
+    });
+    // No 'NVDA' key in lastRunIdByTicker and the response was empty — dropdown hidden.
+    await waitFor(() => {
+      expect(screen.queryByRole("combobox", { name: /run history/i })).not.toBeInTheDocument();
+    });
   });
 
   it("selecting a row sets historicalRunIdByTicker[ticker]", async () => {

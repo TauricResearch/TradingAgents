@@ -48,16 +48,14 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
   const clearHistoricalRunForTicker = useUi((s) => s.clearHistoricalRunForTicker);
   const clearBuffer = useUi((s) => s.clearBuffer);
 
-  // Only load the per-ticker run list when the user has already
-  // analyzed this ticker at least once. Avoids pointless /api/.../runs
-  // hits for fresh tickers.
   const hasHistory = lastRunId != null;
   const tickerRuns = useQuery({
     queryKey: ["ticker-runs", ticker],
     queryFn: () => fetchTickerRuns(ticker),
-    enabled: hasHistory,
     staleTime: 30_000,
+    retry: false,
   });
+  const hasAnyRuns = hasHistory || (Array.isArray(tickerRuns.data) && tickerRuns.data.length > 0);
 
   const isRunning = !!activeRunId;
   // "Re-run" when prior history exists: the user already has a run to
@@ -125,7 +123,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
         </p>
       </div>
       <div className="flex items-center gap-2">
-        {hasHistory && (
+        {hasAnyRuns && (
           <select
             aria-label="Run history"
             value={historicalRunId ?? "latest"}
