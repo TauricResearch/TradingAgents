@@ -496,3 +496,79 @@ class TestLoadExistingJobs:
         for _status in ("done", "cancelled", "error"):
             job_id = f"bgr_TERM_{_status}"
             assert background_runs.get_handle(job_id) is None
+
+
+class TestStart:
+    def test_start_creates_job_and_returns_id(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
+        job_id = background_runs.start(
+            ticker="NVDA", date_from="2024-05-01", date_to="2024-05-03",
+            every="1d", parallel=1,
+        )
+        assert job_id.startswith("bgr_")
+        assert "NVDA" in job_id
+        state = background_runs.BackgroundRunState.load(job_id)
+        assert state.ticker == "NVDA"
+        assert state.total == 3
+        dates = background_runs.iteration_dates_path(job_id).read_text().splitlines()
+        assert dates == ["2024-05-01", "2024-05-02", "2024-05-03"]
+        handle = background_runs.get_handle(job_id)
+        assert handle is not None
+        handle.thread.join(timeout=5.0)
+        assert handle.state.status == "done"
+        assert handle.state.current_index == 3
+
+    def test_start_rejects_invalid_inputs(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        with pytest.raises(ValueError, match="date_from"):
+            background_runs.start("NVDA", "2024-06-30", "2024-01-01", "1d", 1)
+        with pytest.raises(ValueError, match="future"):
+            background_runs.start("NVDA", "2024-01-01", "2099-01-01", "1d", 1)
+        with pytest.raises(ValueError, match="every"):
+            background_runs.start("NVDA", "2024-01-01", "2024-01-05", "5d", 1)
+        with pytest.raises(ValueError, match="parallel"):
+            background_runs.start("NVDA", "2024-01-01", "2024-01-05", "1d", 8)
+        with pytest.raises(ValueError, match="ticker"):
+            background_runs.start("lowercase", "2024-01-01", "2024-01-05", "1d", 1)
+
+
+class TestGetAndList:
+    def test_get_returns_state_dict(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
+        job_id = background_runs.start("MU", "2024-05-06", "2024-05-06", "1d", 1)
+        h = background_runs.get_handle(job_id)
+        if h and h.thread:
+            h.thread.join(timeout=5.0)
+        out = background_runs.get(job_id)
+        assert out["job_id"] == job_id
+        assert out["ticker"] == "MU"
+        assert out["total"] == 1
+        assert out["current_index"] >= 0
+
+    def test_get_unknown_raises(self):
+        with pytest.raises(KeyError):
+            background_runs.get("bgr_DOES_NOT_EXIST")
+
+    def test_list_jobs_returns_recent_first(self, tmp_path, monkeypatch, fake_propagate):
+        monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        monkeypatch.setattr(background_runs, "_data_root", lambda: tmp_path)
+        id1 = background_runs.start("AAPL", "2024-05-06", "2024-05-06", "1d", 1)
+        h1 = background_runs.get_handle(id1)
+        if h1 and h1.thread:
+            h1.thread.join(timeout=5.0)
+        time.sleep(0.01)
+        id2 = background_runs.start("MSFT", "2024-05-06", "2024-05-06", "1d", 1)
+        h2 = background_runs.get_handle(id2)
+        if h2 and h2.thread:
+            h2.thread.join(timeout=5.0)
+        out = background_runs.list_jobs()
+        assert len(out) == 2
+        assert out[0]["job_id"] == id2
+        assert out[1]["job_id"] == id1
+        for entry in out:
+            assert {"job_id", "ticker", "status", "current_index", "total"}.issubset(entry.keys())
