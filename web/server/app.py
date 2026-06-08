@@ -112,6 +112,13 @@ async def lifespan(app: FastAPI):
 
     # Start the runner worker.
     await runner.start()
+
+    # Auto-resume any background past-runs that were running when the
+    # server last exited. Runs in the orchestrator's own threads;
+    # the server startup is not blocked.
+    from web.server import background_runs
+    background_runs._load_existing_jobs()
+
     yield
     # Stop the price feed (if it was started) before the runner so any
     # in-flight poll iteration can complete without racing shutdown.
