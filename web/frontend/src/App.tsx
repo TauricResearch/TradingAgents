@@ -13,6 +13,7 @@ import { LiveEventStream } from "./components/LiveEventStream";
 import { ReportPanel } from "./components/ReportPanel";
 import { DecisionPanel } from "./components/DecisionPanel";
 import { HistoricalAnalysisDrawer } from "./components/HistoricalAnalysisDrawer";
+import { BackgroundRunsDrawer } from "./components/BackgroundRunsDrawer";
 
 export default function App() {
   const focused = useUi((s) => s.focusedTicker);
@@ -109,9 +110,17 @@ export default function App() {
       <main className="flex-1 p-6">
         <header className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-semibold">TradingAgents</h1>
-          {focused && (
-            <button onClick={() => setHistoryOpen(true)} className="text-sm text-blue-600">History</button>
-          )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => useUi.getState().setBackgroundRunsOpen(true)}
+              className="text-sm text-blue-600"
+            >
+              Past Runs
+            </button>
+            {focused && (
+              <button onClick={() => setHistoryOpen(true)} className="text-sm text-blue-600">History</button>
+            )}
+          </div>
         </header>
         {focused ? (
           <>
@@ -167,6 +176,7 @@ export default function App() {
       {focused && historyOpen && (
         <HistoricalAnalysisDrawer ticker={focused} onClose={() => setHistoryOpen(false)} />
       )}
+      <BackgroundRunsDrawer focusedTicker={focused ?? "AAPL"} />
     </div>
   );
 }
