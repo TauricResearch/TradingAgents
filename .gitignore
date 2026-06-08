@@ -234,3 +234,7 @@ tradingagents.local.json
 
 # Cache
 **/data_cache/
+
+# Temp files
+.tmp_cache/
+tmp_run_*.py
