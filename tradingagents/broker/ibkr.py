@@ -141,3 +141,8 @@ class IBKRBroker:
             if value.tag == "TotalCashValue":
                 cash = float(value.value)
         return {"cash": cash, "positions": self.get_positions()}
+
+    def list_assets(self) -> list[dict[str, Any]]:
+        """IBKR (TWS API) has no clean 'list the whole universe' call — the
+        universe for IBKR comes from the S&P 500 seed instead. Returns []."""
+        return []

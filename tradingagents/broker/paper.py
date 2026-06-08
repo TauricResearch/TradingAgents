@@ -14,10 +14,14 @@ from .base import BrokerOrder, OrderRequest, OrderStatus
 
 
 class PaperBroker:
-    def __init__(self, cash: float = 100_000.0):
+    def __init__(self, cash: float = 100_000.0, assets: Optional[list[dict[str, Any]]] = None):
         self._cash = cash
         self._positions: dict[str, float] = {}
         self._orders: dict[str, BrokerOrder] = {}
+        self._assets = assets or []  # optional static universe for tests/local
+
+    def list_assets(self) -> list[dict[str, Any]]:
+        return list(self._assets)
 
     # -- Broker interface ------------------------------------------------
     def submit_order(self, req: OrderRequest) -> BrokerOrder:

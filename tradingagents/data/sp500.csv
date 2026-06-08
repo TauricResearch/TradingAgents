@@ -1,0 +1,58 @@
+symbol,sector
+# Starter S&P 500 seed (partial, large caps across sectors). Replace with the
+# full official constituents list; the loader reads any number of rows.
+AAPL,Information Technology
+MSFT,Information Technology
+NVDA,Information Technology
+AVGO,Information Technology
+ORCL,Information Technology
+CRM,Information Technology
+ADBE,Information Technology
+AMD,Information Technology
+CSCO,Information Technology
+ACN,Information Technology
+AMZN,Consumer Discretionary
+TSLA,Consumer Discretionary
+HD,Consumer Discretionary
+MCD,Consumer Discretionary
+NKE,Consumer Discretionary
+LOW,Consumer Discretionary
+SBUX,Consumer Discretionary
+GOOGL,Communication Services
+META,Communication Services
+NFLX,Communication Services
+DIS,Communication Services
+CMCSA,Communication Services
+T,Communication Services
+VZ,Communication Services
+JPM,Financials
+BAC,Financials
+WFC,Financials
+GS,Financials
+MS,Financials
+V,Financials
+MA,Financials
+BRK.B,Financials
+JNJ,Health Care
+UNH,Health Care
+LLY,Health Care
+PFE,Health Care
+MRK,Health Care
+ABBV,Health Care
+TMO,Health Care
+ABT,Health Care
+XOM,Energy
+CVX,Energy
+COP,Energy
+PG,Consumer Staples
+KO,Consumer Staples
+PEP,Consumer Staples
+COST,Consumer Staples
+WMT,Consumer Staples
+CAT,Industrials
+BA,Industrials
+GE,Industrials
+HON,Industrials
+UPS,Industrials
+LIN,Materials
+NEE,Utilities

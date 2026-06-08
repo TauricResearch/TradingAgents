@@ -49,6 +49,9 @@ dev = [
 [tool.setuptools.packages.find]
 include = ["tradingagents*"]
 
+[tool.setuptools.package-data]
+tradingagents = ["data/*.csv"]   # ship the S&P 500 seed
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"

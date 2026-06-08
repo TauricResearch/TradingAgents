@@ -53,3 +53,11 @@ class Broker(Protocol):
     def get_positions(self) -> list[dict[str, Any]]: ...
 
     def get_account(self) -> dict[str, Any]: ...
+
+    def list_assets(self) -> list[dict[str, Any]]:
+        """Tradable instruments the broker offers (the investable universe).
+
+        Each dict: ``symbol`` + optionally ``name``, ``exchange``, ``asset_class``,
+        ``tradable``. Brokers that cannot enumerate their universe return ``[]``.
+        """
+        ...

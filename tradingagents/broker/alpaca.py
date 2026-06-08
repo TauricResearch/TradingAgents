@@ -124,3 +124,30 @@ class AlpacaBroker:
         resp = requests.get(f"{self.base_url}/v2/account", headers=self._headers, timeout=15)
         resp.raise_for_status()
         return resp.json()
+
+    def list_assets(self, asset_class: str = "us_equity") -> list[dict[str, Any]]:
+        """List active, tradable US-equity assets (the investable universe).
+
+        Official endpoint: GET /v2/assets?status=active&asset_class=us_equity.
+        """
+        import requests
+
+        resp = requests.get(
+            f"{self.base_url}/v2/assets",
+            params={"status": "active", "asset_class": asset_class},
+            headers=self._headers,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        out: list[dict[str, Any]] = []
+        for a in resp.json():
+            if not a.get("tradable", False):
+                continue
+            out.append({
+                "symbol": a.get("symbol"),
+                "name": a.get("name"),
+                "exchange": a.get("exchange"),
+                "asset_class": a.get("class") or asset_class,
+                "tradable": True,
+            })
+        return out
