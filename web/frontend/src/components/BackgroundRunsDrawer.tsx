@@ -61,6 +61,7 @@ export function BackgroundRunsDrawer({ focusedTicker }: { focusedTicker: string 
         <div className="h-[calc(45vh-3rem)] overflow-y-auto p-4 space-y-4">
           <NewJobForm tickers={fallbackTickers} defaultTicker={focusedTicker} />
           <ActiveJobs />
+          <PastJobs />
         </div>
       </aside>
     </>
@@ -188,6 +189,40 @@ function StatusPill({ status }: { status: BackgroundRunState["status"] }) {
   }[status];
   return (
     <span className={`text-xs px-2 py-0.5 rounded ${color}`}>{status}</span>
+  );
+}
+
+function PastJobs() {
+  const { data } = useQuery({
+    queryKey: ["background-runs"],
+    queryFn: () => getBackgroundRuns(),
+  });
+  const past = (data?.jobs ?? []).filter(
+    (j) => j.status === "done" || j.status === "cancelled" || j.status === "error"
+  );
+  if (past.length === 0) return null;
+  return (
+    <section>
+      <details className="rounded border p-3">
+        <summary className="cursor-pointer font-medium">
+          Past jobs (last {Math.min(10, past.length)})
+        </summary>
+        <ul className="mt-2 space-y-1 text-sm">
+          {past.slice(0, 10).map((j) => (
+            <li key={j.job_id} className="flex items-center gap-2">
+              <span className="font-medium">{j.ticker}</span>
+              <span className="text-slate-500">
+                {j.date_from} -&gt; {j.date_to} - {j.every}
+              </span>
+              <StatusPill status={j.status} />
+              <span className="text-xs text-slate-500">
+                {j.current_index}/{j.total}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </section>
   );
 }
 

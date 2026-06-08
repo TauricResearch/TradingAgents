@@ -113,3 +113,17 @@ describe("BackgroundRunsDrawer live iteration feed", () => {
     expect(await screen.findByText(/recent iterations/i)).toBeInTheDocument();
   });
 });
+
+describe("BackgroundRunsDrawer past jobs list", () => {
+  it("renders terminal jobs in a collapsible section", async () => {
+    mockFetchBackgroundRuns([makeState({ status: "done", current_index: 130 })]);
+    renderDrawer();
+    expect(await screen.findByText(/Past jobs/)).toBeInTheDocument();
+  });
+
+  it("hides the past jobs section when no terminal jobs exist", async () => {
+    mockFetchBackgroundRuns([]);
+    renderDrawer();
+    expect(screen.queryByText(/Past jobs/)).not.toBeInTheDocument();
+  });
+});
