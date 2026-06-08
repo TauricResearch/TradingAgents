@@ -182,6 +182,86 @@ export interface HistoryResponse {
   runs: RunDetail[];
 }
 
+// --- Background past runs ---
+
+export type BackgroundEvery = "1d" | "1w" | "2w" | "1mo";
+export type BackgroundStatus = "running" | "paused" | "done" | "cancelled" | "error";
+
+export interface StartBackgroundRunRequest {
+  ticker: string;
+  date_from: string;
+  date_to: string;
+  every: BackgroundEvery;
+  parallel: number;
+}
+
+export interface BackgroundRunState {
+  job_id: string;
+  ticker: string;
+  date_from: string;
+  date_to: string;
+  every: BackgroundEvery;
+  parallel: number;
+  total: number;
+  current_index: number;
+  avg_duration_s: number;
+  eta_s: number;
+  started_at: string;
+  finished_at: string | null;
+  status: BackgroundStatus;
+  durations_s: number[];
+}
+
+export interface BackgroundRunListResponse {
+  jobs: BackgroundRunState[];
+}
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(detail.detail ?? `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(detail.detail ?? `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export function startBackgroundRun(body: StartBackgroundRunRequest): Promise<{ job_id: string }> {
+  return postJson("/api/background-runs", body);
+}
+
+export function getBackgroundRuns(): Promise<BackgroundRunListResponse> {
+  return getJson("/api/background-runs");
+}
+
+export function getBackgroundRun(jobId: string): Promise<BackgroundRunState> {
+  return getJson(`/api/background-runs/${encodeURIComponent(jobId)}`);
+}
+
+export function cancelBackgroundRun(jobId: string): Promise<{ status: string }> {
+  return postJson(`/api/background-runs/${encodeURIComponent(jobId)}/cancel`, {});
+}
+
+export function pauseBackgroundRun(jobId: string): Promise<{ status: string }> {
+  return postJson(`/api/background-runs/${encodeURIComponent(jobId)}/pause`, {});
+}
+
+export function resumeBackgroundRun(jobId: string): Promise<{ status: string }> {
+  return postJson(`/api/background-runs/${encodeURIComponent(jobId)}/resume`, {});
+}
+
 export async function getTickerHistory(
   ticker: string,
   range: HistoryRange = "auto",
