@@ -1305,5 +1305,113 @@ def analyze(
     run_analysis(checkpoint=checkpoint)
 
 
+run_past_app = typer.Typer(help="Schedule past-dated propagate() runs in the background.")
+app.add_typer(run_past_app, name="run-past")
+
+
+@run_past_app.callback(invoke_without_command=True)
+def _run_past_default(
+    ctx: typer.Context,
+    ticker: str = typer.Option(None, "--ticker", "-t", help="Ticker symbol, e.g. NVDA"),
+    date_from: str = typer.Option(None, "--from", help="Start date (YYYY-MM-DD)"),
+    date_to: str = typer.Option(None, "--to", help="End date (YYYY-MM-DD)"),
+    every: str = typer.Option("1d", "--every", help="Cadence: 1d|1w|2w|1mo"),
+    parallel: int = typer.Option(1, "--parallel", "-p", help="Parallelism (1-4)"),
+):
+    """Default invocation: start a new job (alias for `run-past start`)."""
+    if ctx.invoked_subcommand is not None:
+        return
+    if not ticker or not date_from or not date_to:
+        console.print("[red]--ticker, --from, and --to are required[/red]")
+        raise typer.Exit(code=2)
+    from web.server import background_runs
+    job_id = background_runs.start(
+        ticker=ticker, date_from=date_from, date_to=date_to,
+        every=every, parallel=parallel,
+    )
+    console.print(f"[green]OK[/green] Started background job: {job_id}")
+
+
+@run_past_app.command("list")
+def _run_past_list():
+    """List all background jobs (most recent first)."""
+    from web.server import background_runs
+    jobs = background_runs.list_jobs(limit=50)
+    if not jobs:
+        console.print("[dim](no jobs)[/dim]")
+        return
+    from rich.table import Table
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Job ID", style="cyan")
+    table.add_column("Ticker", style="green")
+    table.add_column("Range", style="white")
+    table.add_column("Status")
+    table.add_column("Progress", justify="right")
+    for j in jobs:
+        progress = f"{j['current_index']} / {j['total']}"
+        range_ = f"{j['date_from']} -> {j['date_to']}"
+        table.add_row(j["job_id"], j["ticker"], range_, j["status"], progress)
+    console.print(table)
+
+
+@run_past_app.command("status")
+def _run_past_status(job_id: str):
+    """Show detailed status for one job."""
+    from web.server import background_runs
+    try:
+        s = background_runs.get(job_id)
+    except KeyError:
+        console.print(f"[red]job not found: {job_id}[/red]")
+        raise typer.Exit(code=1)
+    pct = (s["current_index"] / s["total"] * 100) if s["total"] else 0.0
+    console.print(f"job_id:    {s['job_id']}")
+    console.print(f"ticker:    {s['ticker']}")
+    console.print(f"range:     {s['date_from']} -> {s['date_to']} ({s['every']}, parallel={s['parallel']})")
+    console.print(f"status:    {s['status']}")
+    console.print(f"progress:  {s['current_index']} / {s['total']}  ({pct:.1f}%)")
+    console.print(f"avg:       {s['avg_duration_s']:.1f}s")
+    if s["status"] == "running":
+        console.print(f"eta:       {s['eta_s']}s")
+    console.print(f"started:   {s['started_at']}")
+    if s.get("finished_at"):
+        console.print(f"finished:  {s['finished_at']}")
+
+
+@run_past_app.command("cancel")
+def _run_past_cancel(job_id: str):
+    """Cancel a running or paused job."""
+    from web.server import background_runs
+    try:
+        background_runs.cancel(job_id)
+    except KeyError:
+        console.print(f"[red]job not found: {job_id}[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]OK[/green] cancelled: {job_id}")
+
+
+@run_past_app.command("pause")
+def _run_past_pause(job_id: str):
+    """Pause a running job."""
+    from web.server import background_runs
+    try:
+        background_runs.pause(job_id)
+    except KeyError:
+        console.print(f"[red]job not found: {job_id}[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]OK[/green] paused: {job_id}")
+
+
+@run_past_app.command("resume")
+def _run_past_resume(job_id: str):
+    """Resume a paused job."""
+    from web.server import background_runs
+    try:
+        background_runs.resume(job_id)
+    except KeyError:
+        console.print(f"[red]job not found: {job_id}[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]OK[/green] resumed: {job_id}")
+
+
 if __name__ == "__main__":
     app()
