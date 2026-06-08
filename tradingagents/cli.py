@@ -1,9 +1,14 @@
-"""CLI: run the alpha from the global config.
+"""CLI for the trading-agent.
 
-    python -m tradingagents.cli AAPL MSFT [--loop SECONDS]
+Background (whole system, one command each):
+    python -m tradingagents.cli start    # launch everything in background
+    python -m tradingagents.cli stop     # stop it
+    python -m tradingagents.cli status   # is it running?
 
-All tunable parameters live in ``config.toml`` (see tradingagents/config.py);
-secrets live in ``.env``. CLI flags override a few config values per-run.
+Foreground:
+    python -m tradingagents.cli run [SYMBOLS...] [--loop SECONDS]
+
+All tunable parameters live in ``config.toml``; secrets in ``.env``.
 """
 
 from __future__ import annotations
@@ -13,15 +18,49 @@ import argparse
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the trading-agent.")
-    parser.add_argument("symbols", nargs="*", help="Optional override; default = watchlist")
-    parser.add_argument("--config", default=None, help="Path to config.toml")
-    parser.add_argument("--start", default=None, help="History start (override config)")
-    parser.add_argument("--end", default=None, help="History end (default today)")
-    parser.add_argument("--db", default=None, help="Database URL (default local SQLite)")
-    parser.add_argument("--loop", type=float, default=None, metavar="SECONDS",
-                        help="Run continuously every SECONDS (default from config)")
+    sub = parser.add_subparsers(dest="command")
+
+    p_start = sub.add_parser("start", help="Launch the whole system in the background")
+    p_start.add_argument("--interval", type=float, default=None,
+                         help="Loop period in seconds (default from config)")
+    p_start.add_argument("--config", default=None)
+    p_start.add_argument("--db", default=None)
+
+    sub.add_parser("stop", help="Stop the background system")
+    sub.add_parser("status", help="Show whether the system is running")
+
+    p_run = sub.add_parser("run", help="Run in the foreground")
+    p_run.add_argument("symbols", nargs="*", help="Optional override; default = watchlist")
+    p_run.add_argument("--config", default=None, help="Path to config.toml")
+    p_run.add_argument("--start", default=None, help="History start (override config)")
+    p_run.add_argument("--end", default=None, help="History end (default today)")
+    p_run.add_argument("--db", default=None, help="Database URL (default local SQLite)")
+    p_run.add_argument("--loop", type=float, default=None, metavar="SECONDS",
+                       help="Run continuously every SECONDS (default from config)")
+
     args = parser.parse_args(argv)
 
+    # --- daemon subcommands ---------------------------------------------
+    if args.command == "start":
+        from . import daemon
+        print(daemon.start(interval=args.interval, config=args.config, db=args.db))
+        return 0
+    if args.command == "stop":
+        from . import daemon
+        print(daemon.stop())
+        return 0
+    if args.command == "status":
+        from . import daemon
+        print(daemon.status())
+        return 0
+    if args.command != "run":
+        parser.print_help()
+        return 0
+
+    return _cmd_run(args)
+
+
+def _cmd_run(args) -> int:
     import os
 
     from .config import load_settings
