@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 # Import from vendor-specific modules
@@ -132,6 +133,9 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+logger = logging.getLogger(__name__)
+
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
@@ -169,6 +173,15 @@ def route_to_vendor(method: str, *args, **kwargs):
             # key configured) must not crash the call when another vendor
             # already determined the symbol simply has no data. Remember the
             # first error so a genuine primary-vendor failure still surfaces.
+            # Log it so a broken primary vendor isn't silently masked when a
+            # later fallback succeeds (see #989).
+            logger.warning(
+                "Vendor %r failed for %s%s: %s",
+                vendor,
+                method,
+                " (configured primary)" if vendor in primary_vendors else "",
+                e,
+            )
             if first_error is None:
                 first_error = e
             continue
