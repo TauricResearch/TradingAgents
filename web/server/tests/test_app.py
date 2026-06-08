@@ -671,3 +671,77 @@ class TestHistoryEndpoint:
         r = client.get("/api/tickers/MU/history")
         assert r.status_code == 200
         assert r.json()["range"] == "auto"
+
+
+class TestBackgroundRunsEndpoints:
+    def test_post_creates_job_returns_201(self, client, monkeypatch):
+        from web.server import background_runs
+        monkeypatch.setattr(background_runs, "_call_propagate",
+                            lambda t, d: {"ticker": t, "trade_date": d, "decision": {"action": "HOLD"}})
+        r = client.post("/api/background-runs", json={
+            "ticker": "NVDA", "date_from": "2024-05-06", "date_to": "2024-05-06",
+            "every": "1d", "parallel": 1,
+        })
+        assert r.status_code == 201
+        assert "job_id" in r.json()
+
+    def test_post_422_on_bad_input(self, client):
+        r = client.post("/api/background-runs", json={
+            "ticker": "", "date_from": "2024-05-06", "date_to": "2024-05-06",
+            "every": "1d", "parallel": 1,
+        })
+        assert r.status_code == 422
+
+    def test_get_list_returns_jobs(self, client, monkeypatch):
+        from web.server import background_runs
+        monkeypatch.setattr(background_runs, "_call_propagate",
+                            lambda t, d: {"ticker": t, "trade_date": d})
+        client.post("/api/background-runs", json={
+            "ticker": "MU", "date_from": "2024-05-06", "date_to": "2024-05-06", "every": "1d", "parallel": 1,
+        })
+        r = client.get("/api/background-runs")
+        assert r.status_code == 200
+        assert "jobs" in r.json()
+        assert len(r.json()["jobs"]) >= 1
+
+    def test_get_one_returns_state(self, client, monkeypatch):
+        from web.server import background_runs
+        monkeypatch.setattr(background_runs, "_call_propagate",
+                            lambda t, d: {"ticker": t, "trade_date": d})
+        r = client.post("/api/background-runs", json={
+            "ticker": "AAPL", "date_from": "2024-05-06", "date_to": "2024-05-06", "every": "1d", "parallel": 1,
+        })
+        job_id = r.json()["job_id"]
+        r2 = client.get(f"/api/background-runs/{job_id}")
+        assert r2.status_code == 200
+        assert r2.json()["job_id"] == job_id
+
+    def test_get_one_404(self, client):
+        r = client.get("/api/background-runs/bgr_MISSING")
+        assert r.status_code == 404
+
+    def test_cancel_returns_200(self, client, monkeypatch):
+        from web.server import background_runs
+        monkeypatch.setattr(background_runs, "_call_propagate",
+                            lambda t, d: {"ticker": t, "trade_date": d})
+        r = client.post("/api/background-runs", json={
+            "ticker": "GOOG", "date_from": "2024-05-06", "date_to": "2024-05-06", "every": "1d", "parallel": 1,
+        })
+        job_id = r.json()["job_id"]
+        r2 = client.post(f"/api/background-runs/{job_id}/cancel")
+        assert r2.status_code == 200
+
+    def test_cancel_404(self, client):
+        r = client.post("/api/background-runs/bgr_MISSING/cancel")
+        assert r.status_code == 404
+
+    def test_pause_resume(self, client, monkeypatch):
+        from web.server import background_runs
+        monkeypatch.setattr(background_runs, "_call_propagate",
+                            lambda t, d: {"ticker": t, "trade_date": d})
+        r = client.post("/api/background-runs", json={
+            "ticker": "AMZN", "date_from": "2024-05-06", "date_to": "2024-05-06", "every": "1d", "parallel": 1,
+        })
+        job_id = r.json()["job_id"]
+        assert client.post(f"/api/background-runs/{job_id}/pause").status_code == 200
+        assert client.post(f"/api/background-runs/{job_id}/resume").status_code == 200
