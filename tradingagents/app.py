@@ -99,6 +99,7 @@ def run_once(
     benchmark_symbols: Optional[list[str]] = None,
     charter: Optional[dict[str, Any]] = None,
     top_k: Optional[int] = None,
+    batch_analyze: Optional[Any] = None,   # Director parallel fan-out (symbols->states)
     bootstrap: bool = True,
     watchlist_seed: str = "sp500",
     sp500_source=None,
@@ -138,7 +139,9 @@ def run_once(
     with database.get_session() as s:
         return run_cycle(
             s, broker, analyzer,
+            batch_analyze=batch_analyze,
             commission_model=commission_model,
+            charter=charter,
             top_k=top_k or 5,
             **sizing,
         )

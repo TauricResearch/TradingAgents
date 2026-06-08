@@ -49,7 +49,12 @@ def get_engine(url: Optional[str] = None) -> Engine:
     global _engine, _SessionLocal
     if _engine is None or url is not None:
         resolved = resolve_url(url)
-        connect_args = {"check_same_thread": False} if resolved.startswith("sqlite") else {}
+        # SQLite: allow cross-thread use (parallel evaluators) + wait on locks
+        # instead of erroring immediately, since the fan-out writes concurrently.
+        connect_args = (
+            {"check_same_thread": False, "timeout": 30}
+            if resolved.startswith("sqlite") else {}
+        )
         _engine = create_engine(resolved, future=True, connect_args=connect_args)
         _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False, future=True)
     return _engine

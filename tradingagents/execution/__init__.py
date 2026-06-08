@@ -19,6 +19,11 @@ from .costs import CostAssessment, assess_costs, expected_reward, expected_risk
 from .exits import manage_exits
 from .disinvest import disinvest_weakest, rank_holdings_by_weakness
 from .mantainer import run_mantainer
+from .portfolio_risk import (
+    PortfolioProposal,
+    PortfolioRiskResult,
+    admit_within_statute,
+)
 
 __all__ = [
     "OrderProposal",
@@ -38,4 +43,7 @@ __all__ = [
     "disinvest_weakest",
     "rank_holdings_by_weakness",
     "run_mantainer",
+    "PortfolioProposal",
+    "PortfolioRiskResult",
+    "admit_within_statute",
 ]

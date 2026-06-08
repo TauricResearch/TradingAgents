@@ -95,6 +95,20 @@ def main(argv: list[str] | None = None) -> int:
         charter=settings.charter_dict(),
     )
 
+    # Director: parallel per-ticker Evaluators (fan-out, bounded).
+    from .brain.director import analyze_batch
+    from .storage import database as _database
+
+    def batch_analyze(syms):
+        return analyze_batch(
+            syms, llm, session_factory=_database.get_session,
+            max_parallel=settings.cycle.max_parallel,
+            max_revisions=settings.cycle.max_revisions,
+            charter=settings.charter_dict(),
+            base_risk_pct=settings.risk.base_risk_pct,
+            extractors=extractors,
+        )
+
     deps = dict(
         broker=broker,
         fetcher=price_f, news_fetcher=news_f, fundamentals_fetcher=fund_f,
@@ -102,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         benchmark_symbols=settings.benchmark.symbols,
         watchlist_seed=settings.watchlist.seed,
         analyzer=analyzer,
+        batch_analyze=batch_analyze,
         commission_model=commission,
         charter=settings.charter_dict(),
         top_k=settings.screening.top_k,
