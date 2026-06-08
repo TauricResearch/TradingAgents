@@ -41,13 +41,20 @@ def _extract_article_data(article: dict) -> dict:
             "pub_date": pub_date,
         }
     else:
-        # Fallback for flat structure
+        # Flat structure — parse providerPublishTime (Unix timestamp)
+        pub_date = None
+        ts = article.get("providerPublishTime")
+        if ts:
+            try:
+                pub_date = datetime.fromtimestamp(int(ts))
+            except (ValueError, OSError, TypeError):
+                pass
         return {
             "title": article.get("title", "No title"),
             "summary": article.get("summary", ""),
             "publisher": article.get("publisher", "Unknown"),
             "link": article.get("link", ""),
-            "pub_date": None,
+            "pub_date": pub_date,
         }
 
 
@@ -171,23 +178,25 @@ def get_global_news_yfinance(
 
         news_str = ""
         for article in all_news[:limit]:
-            # Handle both flat and nested structures
-            if "content" in article:
-                data = _extract_article_data(article)
-                # Skip articles published after curr_date (look-ahead guard)
-                if data.get("pub_date"):
-                    pub_naive = data["pub_date"].replace(tzinfo=None) if hasattr(data["pub_date"], "replace") else data["pub_date"]
-                    if pub_naive > curr_dt + relativedelta(days=1):
-                        continue
-                title = data["title"]
-                publisher = data["publisher"]
-                link = data["link"]
-                summary = data["summary"]
-            else:
-                title = article.get("title", "No title")
-                publisher = article.get("publisher", "Unknown")
-                link = article.get("link", "")
-                summary = ""
+            data = _extract_article_data(article)
+
+            # Unified date filter for both nested and flat formats.
+            # _extract_article_data now parses providerPublishTime for flat
+            # articles, so pub_date is populated for both formats when available.
+            pub_date = data.get("pub_date")
+            if pub_date is not None:
+                pub_naive = pub_date.replace(tzinfo=None)
+                if pub_naive > curr_dt + relativedelta(days=1):
+                    continue  # future article — look-ahead guard
+                if pub_naive < start_dt:
+                    continue  # outside lookback window
+            # pub_date is None only when timestamp is missing/unparseable;
+            # include the article but it will show no date metadata.
+
+            title = data["title"]
+            publisher = data["publisher"]
+            link = data["link"]
+            summary = data["summary"]
 
             news_str += f"### {title} (source: {publisher})\n"
             if summary:
