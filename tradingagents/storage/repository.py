@@ -342,6 +342,19 @@ def latest_price(session: Session, symbol: str, interval: str = "1d") -> Optiona
     return session.scalar(stmt)
 
 
+def first_price_on_or_after(
+    session: Session, symbol: str, ts, interval: str = "1d"
+) -> Optional[PriceBar]:
+    """Earliest stored bar at/after ``ts`` (for return-since calculations)."""
+    stmt = (
+        select(PriceBar)
+        .where(PriceBar.symbol == symbol, PriceBar.interval == interval, PriceBar.ts >= ts)
+        .order_by(PriceBar.ts.asc())
+        .limit(1)
+    )
+    return session.scalar(stmt)
+
+
 # ---------------------------------------------------------------------------
 # Portfolio accounting (rendicontazione)
 # ---------------------------------------------------------------------------
@@ -367,6 +380,16 @@ def save_portfolio_snapshot(
 def latest_portfolio_snapshot(session: Session) -> Optional[PortfolioSnapshot]:
     stmt = select(PortfolioSnapshot).order_by(PortfolioSnapshot.ts.desc()).limit(1)
     return session.scalar(stmt)
+
+
+def first_portfolio_snapshot_on_or_after(
+    session: Session, ts=None
+) -> Optional[PortfolioSnapshot]:
+    """Earliest snapshot (optionally at/after ``ts``) — the baseline for returns."""
+    stmt = select(PortfolioSnapshot)
+    if ts is not None:
+        stmt = stmt.where(PortfolioSnapshot.ts >= ts)
+    return session.scalar(stmt.order_by(PortfolioSnapshot.ts.asc()).limit(1))
 
 
 # ---------------------------------------------------------------------------
