@@ -302,3 +302,100 @@ class TestTagRun:
             _tag_run(state, "2024-01-05", iteration_index=0)
         # _tag_run uses DATA_ROOT which is tmp_path, and it does NOT create dirs
         assert not (background_runs.DATA_ROOT / "ZZZZ" / "2024-01-05").exists()
+
+
+class TestHasDoneRun:
+    def test_returns_true_when_done_run_exists(self, tmp_path, monkeypatch):
+        from web.server.background_runs import _has_done_run
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        run_dir = tmp_path / "NVDA" / "2024-02-01" / "run_x"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "run.json").write_text('{"status": "done"}', encoding="utf-8")
+        assert _has_done_run("NVDA", "2024-02-01") is True
+
+    def test_returns_false_when_status_running(self, tmp_path, monkeypatch):
+        from web.server.background_runs import _has_done_run
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        run_dir = tmp_path / "NVDA" / "2024-02-02" / "run_x"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "run.json").write_text('{"status": "running"}', encoding="utf-8")
+        assert _has_done_run("NVDA", "2024-02-02") is False
+
+    def test_returns_false_when_dir_missing(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import _has_done_run
+        assert _has_done_run("ZZZZ", "2024-02-03") is False
+
+    def test_returns_false_when_malformed_json(self, tmp_path, monkeypatch):
+        from web.server.background_runs import _has_done_run
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        run_dir = tmp_path / "NVDA" / "2024-02-04" / "run_x"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "run.json").write_text("not json", encoding="utf-8")
+        assert _has_done_run("NVDA", "2024-02-04") is False
+
+
+class TestRecordIterationError:
+    def test_records_error_to_json(self, tmp_path, monkeypatch):
+        from web.server.background_runs import _record_iteration_error, iteration_errors_path
+        from web.server.background_runs import BackgroundRunState, job_dir
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        state = BackgroundRunState(
+            job_id="bgr_ERR1", ticker="X", date_from="2024-01-01",
+            date_to="2024-01-01", every="1d", parallel=1, total=1,
+        )
+        job_dir(state.job_id).mkdir(parents=True, exist_ok=True)
+        _record_iteration_error(state, "2024-01-01", "RuntimeError: boom")
+        data = json.loads(iteration_errors_path(state.job_id).read_text())
+        assert data["2024-01-01"] == "RuntimeError: boom"
+
+    def test_appends_to_existing_errors(self, tmp_path, monkeypatch):
+        from web.server.background_runs import _record_iteration_error, iteration_errors_path
+        from web.server.background_runs import BackgroundRunState, job_dir
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        state = BackgroundRunState(
+            job_id="bgr_ERR2", ticker="X", date_from="2024-01-01",
+            date_to="2024-01-02", every="1d", parallel=1, total=2,
+        )
+        job_dir(state.job_id).mkdir(parents=True, exist_ok=True)
+        _record_iteration_error(state, "2024-01-01", "first")
+        _record_iteration_error(state, "2024-01-02", "second")
+        data = json.loads(iteration_errors_path(state.job_id).read_text())
+        assert data == {"2024-01-01": "first", "2024-01-02": "second"}
+
+
+class TestETA:
+    def test_eta_zero_when_complete(self):
+        from web.server.background_runs import BackgroundRunState
+        s = BackgroundRunState(
+            job_id="bgr_ETA1", ticker="X", date_from="2024-01-01",
+            date_to="2024-01-10", every="1d", parallel=1, total=10,
+        )
+        s.current_index = 10
+        s.avg_duration_s = 50.0
+        s._recompute_eta()
+        assert s.eta_s == 0
+
+    def test_eta_uses_avg_times_remaining_over_parallel(self):
+        from web.server.background_runs import BackgroundRunState
+        s = BackgroundRunState(
+            job_id="bgr_ETA2", ticker="X", date_from="2024-01-01",
+            date_to="2024-01-10", every="1d", parallel=2, total=100,
+        )
+        s.current_index = 20
+        s.avg_duration_s = 50.0
+        s._recompute_eta()
+        assert s.eta_s == 2000
+
+    def test_record_duration_updates_avg_and_eta(self):
+        from web.server.background_runs import BackgroundRunState
+        s = BackgroundRunState(
+            job_id="bgr_ETA3", ticker="X", date_from="2024-01-01",
+            date_to="2024-01-10", every="1d", parallel=1, total=10,
+        )
+        s.record_duration(50.0)
+        s.record_duration(60.0)
+        s.record_duration(40.0)
+        assert s.avg_duration_s == 50.0
+        assert s.durations_s == [50.0, 60.0, 40.0]
+        assert s.eta_s == 500
