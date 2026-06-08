@@ -31,6 +31,8 @@ interface UiState {
   // HistoricalAnalysisDrawer can be triggered from anywhere in the app,
   // but is NOT persisted — the drawer should be closed on reload.
   historyOpenByTicker: Record<string, boolean>;
+  // Whether the "past runs" drawer (background runs table) is open.
+  backgroundRunsOpen: boolean;
   // HOLD threshold in percent (0.1..5.0). Default 1.0. PERSISTED so
   // the user's "is this HOLD within tolerance" knob survives a refresh.
   holdThresholdPct: number;
@@ -55,6 +57,7 @@ interface UiState {
   clearLastRunIdForTicker: (ticker: string) => void;
   clearBuffer: () => void;
   setHistoryOpen: (ticker: string, open: boolean) => void;
+  setBackgroundRunsOpen: (open: boolean) => void;
   setHoldThresholdPct: (pct: number) => void;
   setHistoryPollIntervalMs: (ms: HistoryPollInterval) => void;
   setCandleResolution: (r: CandleResolution) => void;
@@ -69,6 +72,7 @@ export const useUi = create<UiState>()(
       activeRunIdByTicker: {},
       eventBuffer: [],
       historyOpenByTicker: {},
+      backgroundRunsOpen: false,
       holdThresholdPct: 1.0,
       historyPollIntervalMs: 30_000,
       candleResolution: "auto",
@@ -113,6 +117,7 @@ export const useUi = create<UiState>()(
       clearBuffer: () => set({ eventBuffer: [] }),
       setHistoryOpen: (ticker, open) =>
         set((s) => ({ historyOpenByTicker: { ...s.historyOpenByTicker, [ticker]: open } })),
+      setBackgroundRunsOpen: (open) => set({ backgroundRunsOpen: open }),
       setHoldThresholdPct: (pct) => set({ holdThresholdPct: pct }),
       setHistoryPollIntervalMs: (ms) => set({ historyPollIntervalMs: ms }),
       setCandleResolution: (r) => set({ candleResolution: r }),
@@ -139,3 +144,5 @@ export const useUi = create<UiState>()(
     },
   ),
 );
+
+export const useUiStore = useUi;
