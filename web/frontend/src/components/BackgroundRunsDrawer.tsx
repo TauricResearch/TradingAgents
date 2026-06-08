@@ -60,9 +60,119 @@ export function BackgroundRunsDrawer({ focusedTicker }: { focusedTicker: string 
         </header>
         <div className="h-[calc(45vh-3rem)] overflow-y-auto p-4 space-y-4">
           <NewJobForm tickers={fallbackTickers} defaultTicker={focusedTicker} />
+          <ActiveJobs />
         </div>
       </aside>
     </>
+  );
+}
+
+function ActiveJobs() {
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["background-runs"],
+    queryFn: () => getBackgroundRuns(),
+    refetchInterval: (q) => {
+      const jobs = (q.state.data?.jobs ?? []) as BackgroundRunState[];
+      return jobs.some((j) => j.status === "running" || j.status === "paused") ? 2000 : false;
+    },
+  });
+  const active = (data?.jobs ?? []).filter(
+    (j) => j.status === "running" || j.status === "paused"
+  );
+  if (active.length === 0) return null;
+  return (
+    <section>
+      <h3 className="font-medium mb-2">Active jobs ({active.length})</h3>
+      <ul className="space-y-2">
+        {active.map((j) => (
+          <li key={j.job_id}>
+            <JobCard
+              job={j}
+              onChanged={() => qc.invalidateQueries({ queryKey: ["background-runs"] })}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function JobCard({ job, onChanged }: { job: BackgroundRunState; onChanged: () => void }) {
+  const pct = job.total ? Math.min(100, (job.current_index / job.total) * 100) : 0;
+  const showEta = job.status === "running" && job.current_index < job.total;
+  const etaText = job.current_index === 0 ? "Calculating..." : fmtEta(job.eta_s);
+  return (
+    <div className="rounded border p-3" data-testid={`job-card-${job.job_id}`}>
+      <div className="flex items-center justify-between">
+        <div className="text-sm">
+          <span className="font-medium">{job.ticker}</span>
+          <span className="text-slate-500">
+            {" "}
+            - {job.date_from} -&gt; {job.date_to} - {job.every}
+          </span>
+        </div>
+        <StatusPill status={job.status} />
+      </div>
+      <div
+        className="mt-2 h-2 bg-slate-200 rounded overflow-hidden"
+        role="progressbar"
+        aria-valuenow={job.current_index}
+        aria-valuemax={job.total}
+      >
+        <div className="h-full bg-blue-500" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-1 text-xs text-slate-600">
+        {job.current_index} / {job.total} ({pct.toFixed(1)}%)
+        {showEta && <span className="ml-2">ETA: {etaText}</span>}
+      </div>
+      <div className="mt-2 flex gap-2">
+        {job.status === "running" && (
+          <button
+            onClick={async () => {
+              await pauseBackgroundRun(job.job_id);
+              onChanged();
+            }}
+            className="px-2 py-1 text-xs rounded bg-amber-500 text-white"
+          >
+            Pause
+          </button>
+        )}
+        {job.status === "paused" && (
+          <button
+            onClick={async () => {
+              await resumeBackgroundRun(job.job_id);
+              onChanged();
+            }}
+            className="px-2 py-1 text-xs rounded bg-blue-600 text-white"
+          >
+            Resume
+          </button>
+        )}
+        <button
+          onClick={async () => {
+            await cancelBackgroundRun(job.job_id);
+            onChanged();
+          }}
+          className="px-2 py-1 text-xs rounded bg-red-600 text-white"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: BackgroundRunState["status"] }) {
+  const color = {
+    running: "bg-blue-100 text-blue-800",
+    paused: "bg-amber-100 text-amber-800",
+    done: "bg-green-100 text-green-800",
+    cancelled: "bg-slate-200 text-slate-700",
+    error: "bg-red-100 text-red-800",
+  }[status];
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded ${color}`}>{status}</span>
   );
 }
 
