@@ -6,6 +6,7 @@ import {
   cancelBackgroundRun,
   pauseBackgroundRun,
   resumeBackgroundRun,
+  fetchWatchlist,
   type StartBackgroundRunRequest,
   type BackgroundEvery,
   type BackgroundRunState,
@@ -28,7 +29,8 @@ function daysAgoIso(n: number): string {
 export function BackgroundRunsDrawer({ focusedTicker }: { focusedTicker: string }) {
   const open = useUi((s) => s.backgroundRunsOpen);
   const setOpen = useUi((s) => s.setBackgroundRunsOpen);
-  const [fallbackTickers] = useState<string[]>([focusedTicker]);
+  const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: fetchWatchlist });
+  const tickers = watchlist.map((w) => w.ticker);
 
   return (
     <>
@@ -59,7 +61,7 @@ export function BackgroundRunsDrawer({ focusedTicker }: { focusedTicker: string 
           </button>
         </header>
         <div className="h-[calc(45vh-3rem)] overflow-y-auto p-4 space-y-4">
-          <NewJobForm tickers={fallbackTickers} defaultTicker={focusedTicker} />
+          <NewJobForm tickers={tickers.length > 0 ? tickers : [focusedTicker]} defaultTicker={focusedTicker} />
           <ActiveJobs />
           <PastJobs />
         </div>
