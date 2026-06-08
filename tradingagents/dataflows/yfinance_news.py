@@ -3,7 +3,7 @@
 from typing import Optional
 
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
@@ -42,12 +42,17 @@ def _extract_article_data(article: dict) -> dict:
         }
     else:
         # Fallback for flat structure
+        article_ts = article.get("providerPublishTime", 0)
+        pub_date = None
+        if isinstance(article_ts, (int, float)) and article_ts > 0:
+            pub_date = datetime.fromtimestamp(article_ts, tz=timezone.utc)
+
         return {
             "title": article.get("title", "No title"),
             "summary": article.get("summary", ""),
             "publisher": article.get("publisher", "Unknown"),
             "link": article.get("link", ""),
-            "pub_date": None,
+            "pub_date": pub_date,
         }
 
 
@@ -86,10 +91,11 @@ def get_news_yfinance(
             data = _extract_article_data(article)
 
             # Filter by date if publish time is available
-            if data["pub_date"]:
-                pub_date_naive = data["pub_date"].replace(tzinfo=None)
-                if not (start_dt <= pub_date_naive <= end_dt + relativedelta(days=1)):
-                    continue
+            if not data["pub_date"]:
+                continue
+            pub_date_naive = data["pub_date"].replace(tzinfo=None)
+            if not (start_dt <= pub_date_naive <= end_dt + relativedelta(days=1)):
+                continue
 
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
             if data["summary"]:
@@ -158,9 +164,6 @@ def get_global_news_yfinance(
                         seen_titles.add(title)
                         all_news.append(article)
 
-            if len(all_news) >= limit:
-                break
-
         if not all_news:
             return f"No global news found for {curr_date}"
 
@@ -170,7 +173,8 @@ def get_global_news_yfinance(
         start_date = start_dt.strftime("%Y-%m-%d")
 
         news_str = ""
-        for article in all_news[:limit]:
+        count = 0
+        for article in all_news:
             # Handle both flat and nested structures
             if "content" in article:
                 data = _extract_article_data(article)
@@ -196,6 +200,12 @@ def get_global_news_yfinance(
                 news_str += f"Link: {link}\n"
             news_str += "\n"
 
+            count += 1
+            if count >= limit:
+                break
+
+        if not news_str.strip():
+            return f"No global news found for {curr_date}"
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
     except Exception as e:
