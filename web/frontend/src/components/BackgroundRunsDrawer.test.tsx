@@ -6,6 +6,10 @@ import { BackgroundRunsDrawer } from "./BackgroundRunsDrawer";
 import * as api from "../lib/api";
 import type { BackgroundRunState } from "../lib/api";
 
+beforeEach(() => {
+  vi.restoreAllMocks();
+});
+
 function makeState(over: Partial<BackgroundRunState> = {}): BackgroundRunState {
   return {
     job_id: "bgr_TEST",
@@ -99,5 +103,13 @@ describe("BackgroundRunsDrawer active job card", () => {
     await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(pause).toHaveBeenCalledWith("bgr_TEST");
     expect(cancel).toHaveBeenCalledWith("bgr_TEST");
+  });
+});
+
+describe("BackgroundRunsDrawer live iteration feed", () => {
+  it("renders the feed for a running job", async () => {
+    mockFetchBackgroundRuns([makeState({ status: "running" })]);
+    renderDrawer();
+    expect(await screen.findByText(/recent iterations/i)).toBeInTheDocument();
   });
 });

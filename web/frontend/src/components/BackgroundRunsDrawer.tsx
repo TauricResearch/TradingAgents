@@ -159,6 +159,21 @@ function JobCard({ job, onChanged }: { job: BackgroundRunState; onChanged: () =>
           Cancel
         </button>
       </div>
+      {job.current_index > 0 && (
+        <div className="mt-3 border-t pt-2" data-testid="iteration-feed">
+          <div className="text-xs font-medium text-slate-500 mb-1">Recent iterations</div>
+          <ul className="text-xs space-y-0.5 max-h-32 overflow-y-auto">
+            {Array.from({ length: Math.min(5, job.current_index) }).map((_, i) => {
+              const n = job.current_index - i;
+              return (
+                <li key={n} className="text-slate-700">
+                  iteration {n} - completed
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
