@@ -68,6 +68,14 @@ export function fmtPct(p: number | null | undefined): string {
   return p > 0 ? `+${s}%` : `${s}%`;
 }
 
+/** Format an ETA in seconds for human display. */
+export function fmtEta(etaS: number | null): string {
+  if (etaS == null) return "Calculating...";
+  if (etaS < 60) return `${Math.ceil(etaS)}s`;
+  if (etaS < 3600) return `${Math.floor(etaS / 60)}m ${Math.ceil(etaS % 60)}s`;
+  return `${Math.floor(etaS / 3600)}h ${Math.floor((etaS % 3600) / 60)}m`;
+}
+
 /** Format an ms timestamp for a chart x-axis tick.
  *
  *  ``scale`` controls the granularity:
