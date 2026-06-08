@@ -90,19 +90,27 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [
-        "Federal Reserve interest rates inflation",
-        "S&P 500 earnings GDP economic outlook",
-        "geopolitical risk trade war sanctions",
-        "ECB Bank of England BOJ central bank policy",
-        "oil commodities supply chain energy",
+        "China A-share policy liquidity macro economy",
+        "China stock market earnings regulatory policy",
+        "Shanghai Shenzhen market industry rotation",
+        "PBOC interest rates RMB credit social financing",
+        "A-share commodities property consumption technology",
     ],
     # Data vendor configuration
+    # Keep this false for the China A-share profile: if AKShare is unavailable,
+    # fail visibly instead of silently falling back to Yahoo/US-centric sources.
+    "allow_vendor_fallback": False,
+    # AKShare reads domestic market APIs; bypass broken local system proxies
+    # (e.g. Clash on 127.0.0.1:7890 when the client is not running).
+    "akshare_bypass_system_proxy": True,
+    "akshare_request_retries": 3,
+    "akshare_request_serial": True,
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "core_stock_apis": "akshare_cn",       # Options: akshare_cn, alpha_vantage, yfinance
+        "technical_indicators": "akshare_cn",  # Options: akshare_cn, alpha_vantage, yfinance
+        "fundamental_data": "akshare_cn",      # Options: akshare_cn, alpha_vantage, yfinance
+        "news_data": "akshare_cn",             # Options: akshare_cn, alpha_vantage, yfinance
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

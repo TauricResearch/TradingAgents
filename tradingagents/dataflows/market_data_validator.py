@@ -10,12 +10,13 @@ claim. Deterministic, no LLM involved.
 
 from __future__ import annotations
 
+from io import StringIO
 from typing import Iterable, Optional
 
 import pandas as pd
 from stockstats import wrap
 
-from tradingagents.dataflows.stockstats_utils import load_ohlcv
+from tradingagents.dataflows.interface import route_to_vendor
 
 # A fixed, common indicator set so the snapshot is the same shape every run.
 DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
@@ -32,7 +33,12 @@ def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
     look-ahead rows, but we re-apply the cutoff defensively — this is a
     verification path, so it must not trust its input to be pre-filtered.
     """
-    data = load_ohlcv(symbol, curr_date)
+    start = (pd.to_datetime(curr_date) - pd.DateOffset(years=2)).strftime("%Y-%m-%d")
+    raw = route_to_vendor("get_stock_data", symbol, start, curr_date)
+    csv_lines = [line for line in str(raw).splitlines() if line and not line.startswith("#")]
+    if not csv_lines:
+        raise ValueError(f"No OHLCV CSV rows available for {symbol}.")
+    data = pd.read_csv(StringIO("\n".join(csv_lines)))
     if data is None or data.empty:
         raise ValueError(f"No OHLCV data available for {symbol}.")
 
