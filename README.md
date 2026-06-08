@@ -81,12 +81,20 @@ uv sync                                   # provisions .venv with all deps + dev
 # configure .env (see .env.example) — at minimum OPENROUTER_API_KEY
 # optional: FRED_API_KEY (macro), ALPACA_* or a running TWS/IB Gateway (broker)
 
-# one analysis cycle
-uv run python -m tradingagents.cli AAPL MSFT
+# run the whole system in the BACKGROUND (one command), then stop it
+uv run python -m tradingagents.cli start     # detached; prints a confirmation
+uv run python -m tradingagents.cli status
+uv run python -m tradingagents.cli stop
 
-# autonomous paper-trading loop, every hour
-uv run python -m tradingagents.cli AAPL MSFT --loop 3600
+# or run in the foreground:
+uv run python -m tradingagents.cli run            # autonomous: works the watchlist
+uv run python -m tradingagents.cli run AAPL MSFT  # explicit override
+uv run python -m tradingagents.cli run --loop 3600
 ```
+
+With no symbols the system is fully autonomous: it learns the broker's investable
+universe, seeds a dynamic watchlist (S&P 500 ∩ tradable), and decides what to
+analyse from its own state. Background logs + PID live in `~/.tradingagents/`.
 
 Broker is chosen in `config.toml` (`[broker] provider = paper | alpaca | ibkr`);
 IBKR uses the TWS API via `ib_async` and needs a running TWS/IB Gateway.
@@ -134,7 +142,9 @@ The offline suite needs no network and no API keys — the brain runs against a 
 
 ## 🛣️ Roadmap
 
-- **Read-only dashboard** (Streamlit, SFC-fund style): portfolio, NAV, performance/attribution, decisions and trades — observe, never control.
+- **Read-only dashboard** (Streamlit, SFC-fund style) to observe the running
+  daemon: portfolio, NAV, watchlist/universe, decisions and trades, alpha vs
+  benchmark, logs — observe, never control.
 - **Observability & evaluation**: LangSmith + LangGraph Studio for graph tracing, agent debugging and prompt evaluation.
 - **Inter-task agent memory** (learn from past cases) + systematic DB dedup.
 - **Live execution**: IBKR adapter, real options chain, service wrapper (24/7, market-hours scheduling, crash recovery).
