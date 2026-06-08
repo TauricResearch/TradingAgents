@@ -173,7 +173,15 @@ class BackgroundRunState:
                 f.write(text)
                 f.flush()
                 os.fsync(f.fileno())
-            os.replace(tmp, d / "state.json")
+            dst = d / "state.json"
+            for _attempt in range(3):
+                try:
+                    os.replace(tmp, dst)
+                    break
+                except PermissionError:
+                    if _attempt == 2:
+                        raise
+                    time.sleep(0.02 * (_attempt + 1))
         except Exception:
             if os.path.exists(tmp):
                 os.unlink(tmp)
@@ -209,7 +217,6 @@ def register_handle(
         job_id=job_id, ticker=ticker, date_from=date_from, date_to=date_to,
         every=every, parallel=parallel, total=total,
     )
-    state.persist()
     handle = _JobHandle(
         job_id=job_id,
         cancel_event=threading.Event(),
@@ -486,3 +493,61 @@ def resume(job_id: str) -> None:
         date_list = []
     _spawn_worker(job_id, date_list)
     h.state.persist()
+
+
+def _new_job_id(ticker: str) -> str:
+    ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+    return f"bgr_{ts}_{ticker}"
+
+
+def start(ticker: str, date_from: str, date_to: str, every: str = "1d", parallel: int = 1) -> str:
+    f, t = _validate_inputs(ticker, date_from, date_to, every, parallel)
+    date_list = dates(date_from, date_to, every)
+    if not date_list:
+        raise ValueError(f"date range {date_from}..{date_to} with every={every} produced no dates")
+    job_id = _new_job_id(ticker)
+    handle = register_handle(
+        job_id=job_id, ticker=ticker, date_from=date_from, date_to=date_to,
+        every=every, parallel=parallel, total=len(date_list),
+    )
+    handle.state.persist()
+    iteration_dates_path(job_id).write_text("\n".join(date_list) + "\n", encoding="utf-8")
+    t = threading.Thread(
+        target=_run, args=(handle, date_list),
+        daemon=True, name=f"bg-run-{job_id}",
+    )
+    handle.thread = t
+    t.start()
+    return job_id
+
+
+def get(job_id: str) -> dict:
+    h = get_handle(job_id)
+    if h is not None:
+        return h.state.to_dict()
+    try:
+        state = BackgroundRunState.load(job_id)
+    except FileNotFoundError:
+        raise KeyError(job_id) from None
+    return state.to_dict()
+
+
+def list_jobs(limit: int = 50) -> list[dict]:
+    base = _data_root() / "background_runs"
+    if not base.exists():
+        return []
+    out: list[dict] = []
+    for d in sorted(base.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+        if not d.is_dir():
+            continue
+        sp = d / "state.json"
+        if not sp.exists():
+            continue
+        try:
+            state = BackgroundRunState.load(d.name)
+        except (OSError, ValueError, KeyError):
+            continue
+        out.append(state.to_dict())
+        if len(out) >= limit:
+            break
+    return out
