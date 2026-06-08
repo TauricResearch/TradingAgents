@@ -44,6 +44,9 @@ function mockFetchBackgroundRuns(jobs: BackgroundRunState[]) {
     if (String(url) === "/api/background-runs") {
       return Promise.resolve(new Response(JSON.stringify({ jobs }), { status: 200 }));
     }
+    if (String(url) === "/api/watchlist") {
+      return Promise.resolve(new Response(JSON.stringify([{ ticker: "NVDA", company_name: "NVIDIA Corp", exchange: "NASDAQ", added_at: null, last_decision: null, last_decision_at: null }]), { status: 200 }));
+    }
     return Promise.resolve(new Response("{}", { status: 200 }));
   }) as any;
 }
