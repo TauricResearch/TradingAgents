@@ -195,6 +195,32 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+### Background past runs
+
+Schedule a series of past-dated analysis runs that execute in the background.
+Runs are surfaced in the dashboard's existing per-ticker views (history,
+historical analysis chart) automatically.
+
+**CLI:**
+```bash
+tradingagents run-past NVDA --from 2024-01-01 --to 2024-06-30
+tradingagents run-past NVDA --from 2024-01-01 --to 2024-06-30 --every 1w --parallel 2
+tradingagents run-past list
+tradingagents run-past status bgr_2026-06-07T19-30-00Z_NVDA
+tradingagents run-past cancel bgr_2026-06-07T19-30-00Z_NVDA
+tradingagents run-past pause bgr_2026-06-07T19-30-00Z_NVDA
+tradingagents run-past resume bgr_2026-06-07T19-30-00Z_NVDA
+```
+
+**Dashboard:** open the bottom-slide "Past Runs" panel from the header button.
+Configure the ticker, date range, cadence (1d, 1w, 2w, 1mo), and parallelism
+(1, 2, 4). Active jobs show a progress bar and ETA; pause/resume/cancel
+directly from the panel. Jobs auto-resume on server restart.
+
+> **Note:** Use the dashboard server (`tradingagents dashboard`) to host
+> long-running jobs. The CLI's `start` is for one-shot kicking off; if the
+> CLI process exits, its in-memory threads die with it.
+
 ## TradingAgents Package
 
 ### Implementation Details
