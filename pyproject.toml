@@ -20,6 +20,7 @@ dependencies = [
     "pandas>=2.3.0",
     "parsel>=1.10.0",
     "pytz>=2025.2",
+    "python-dotenv>=1.1.0",
     "questionary>=2.1.0",
     "redis>=6.2.0",
     "requests>=2.32.4",

@@ -120,6 +120,23 @@ Install the package and its dependencies:
 pip install .
 ```
 
+### Windows one-click launcher
+
+On Windows, you can let the launcher create the virtual environment, install
+dependencies, prepare `.env`, and start the interactive CLI:
+
+```powershell
+.\start_tradingagents.bat
+```
+
+PowerShell users can run the underlying script directly:
+
+```powershell
+.\scripts\start_tradingagents.ps1
+.\scripts\start_tradingagents.ps1 -SetupOnly      # prepare env without launching
+.\scripts\start_tradingagents.ps1 -Checkpoint     # enable checkpoint resume
+```
+
 ### Docker
 
 Alternatively, run with Docker:
