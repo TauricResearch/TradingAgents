@@ -9,13 +9,21 @@ The ``analyze`` step is a pluggable hook: Luca's LangGraph implements the
 fully testable without any LLM.
 """
 
-from .triggers import TriggerEvent, collect_triggers, price_alerts
+from .triggers import (
+    TriggerEvent,
+    collect_triggers,
+    event_checkpoints,
+    price_alerts,
+    watchlist_candidates,
+)
 from .analyze import Analyzer, hold_analyzer, make_brain_analyzer
 from .cycle import CycleReport, run_cycle
 
 __all__ = [
     "TriggerEvent",
     "collect_triggers",
+    "event_checkpoints",
+    "watchlist_candidates",
     "price_alerts",
     "Analyzer",
     "hold_analyzer",

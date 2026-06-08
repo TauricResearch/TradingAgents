@@ -13,7 +13,7 @@ import argparse
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the trading-agent.")
-    parser.add_argument("symbols", nargs="+", help="Ticker symbols, e.g. AAPL MSFT")
+    parser.add_argument("symbols", nargs="*", help="Optional override; default = watchlist")
     parser.add_argument("--config", default=None, help="Path to config.toml")
     parser.add_argument("--start", default=None, help="History start (override config)")
     parser.add_argument("--end", default=None, help="History end (default today)")
@@ -99,6 +99,8 @@ def main(argv: list[str] | None = None) -> int:
         broker=broker,
         fetcher=price_f, news_fetcher=news_f, fundamentals_fetcher=fund_f,
         macro_fetcher=macro_fetcher, social_fetcher=social_f,
+        benchmark_symbols=settings.benchmark.symbols,
+        watchlist_seed=settings.watchlist.seed,
         analyzer=analyzer,
         commission_model=commission,
         charter=settings.charter_dict(),
@@ -106,6 +108,7 @@ def main(argv: list[str] | None = None) -> int:
         base_risk_pct=settings.risk.base_risk_pct,
         db_url=args.db, start=start, end=args.end,
     )
+    symbols = args.symbols or None  # None -> default to the watchlist
 
     from .app import run_once
 
@@ -125,13 +128,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"autonomous loop every {interval}s (Ctrl-C to stop)")
         try:
             while True:
-                _print(run_once(args.symbols, **deps))
+                _print(run_once(symbols, **deps))
                 time.sleep(interval)
         except KeyboardInterrupt:
             print("stopped")
         return 0
 
-    _print(run_once(args.symbols, **deps))
+    _print(run_once(symbols, **deps))
     return 0
 
 

@@ -64,6 +64,30 @@ def test_run_once_executes_offline(tmp_path):
     assert report.trades[0].status == "filled"
 
 
+def test_autonomous_mode_seeds_watchlist_from_universe(tmp_path):
+    """No symbols -> bootstrap universe + watchlist from the S&P 500 seed."""
+    from tradingagents.storage import database, init_db
+    from tradingagents.storage import repository as repo
+
+    # PaperBroker with no listing -> sync falls back to the packaged S&P 500 seed.
+    broker = PaperBroker()
+    report = run_once(
+        None,  # autonomous: decide the working set from own state
+        fetcher=_FetcherUp(),
+        analyzer=make_brain_analyzer(_FakeLLM(), max_revisions=0),
+        broker=broker,
+        top_k=3,
+        db_url=f"sqlite:///{tmp_path / 'auto.db'}",
+        start="2026-01-01", end="2026-03-01",
+    )
+    # the watchlist got seeded and the funnel analysed some of it
+    assert report.triggers >= 1
+    assert report.analyzed >= 1
+    with database.get_session() as s:
+        assert repo.watchlist_size(s) > 0
+        assert len(repo.universe_symbols(s)) > 20
+
+
 def test_run_forever_bounded(tmp_path):
     sleeps: list[float] = []
     reports = run_forever(

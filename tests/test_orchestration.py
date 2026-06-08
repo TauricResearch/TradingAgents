@@ -70,6 +70,18 @@ class _SpikeFetcher:
         return bars
 
 
+def test_watchlist_and_events_feed_triggers(db):
+    from datetime import date as _d
+    with database.get_session() as s:
+        repo.set_watchlist(s, "AAPL", True, reason="seed")
+        repo.add_ticker_event(s, "MSFT", _d(2026, 1, 1), "earnings")  # due (past)
+    with database.get_session() as s:
+        events = collect_triggers(s, today=_d(2026, 6, 8))
+        by = {e.symbol: e for e in events}
+        assert "AAPL" in by and by["AAPL"].type == "watchlist"
+        assert "MSFT" in by and by["MSFT"].type == "checkpoint"  # from ticker_events
+
+
 def test_price_alert_fires_on_anomalous_move(db):
     with database.get_session() as s:
         ingest_price_bars(s, "AAPL", fetcher=_SpikeFetcher(), start="2026-01-01", end="2026-03-01")

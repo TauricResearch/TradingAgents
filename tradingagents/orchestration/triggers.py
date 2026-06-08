@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from ..indicators import core as ind_core
 from ..indicators.db import recent_bars
+from ..storage import repository as repo
 from ..storage.models import Instrument, TickerCard
 
 
@@ -46,6 +47,33 @@ def due_checkpoints(session: Session, *, today: Optional[date] = None) -> list[T
                      priority=1.0, payload={"next_check_date": str(c.next_check_date)})
         for c in cards
     ]
+
+
+def event_checkpoints(session: Session, *, today: Optional[date] = None) -> list[TriggerEvent]:
+    """Due dated events (earnings/exdiv/review/custom) from ``ticker_events``.
+
+    The generalised, DB-first version of next_check_date: the system wakes itself
+    from its own stored dates.
+    """
+    return [
+        TriggerEvent("checkpoint", ev.symbol, f"event {ev.type} {ev.date} due",
+                     priority=1.0, payload={"event_id": ev.id, "event_type": ev.type})
+        for ev in repo.due_events(session, today=today)
+    ]
+
+
+def watchlist_candidates(session: Session) -> list[TriggerEvent]:
+    """The dynamic working set: every watchlist ticker is a candidate.
+
+    Priority = its screening score (so the better-scored watchlist names rank
+    higher), with a modest floor so an unscored watchlist name is still seen.
+    """
+    out: list[TriggerEvent] = []
+    for c in repo.list_watchlist(session):
+        score = c.screening_score if c.screening_score is not None else 0.4
+        out.append(TriggerEvent("watchlist", c.symbol, "watchlist member",
+                                priority=float(score), payload={"screening_score": c.screening_score}))
+    return out
 
 
 def screening_candidates(session: Session, *, top_k: int = 5) -> list[TriggerEvent]:
@@ -103,7 +131,9 @@ def collect_triggers(
     """
     events = (
         due_checkpoints(session, today=today)
+        + event_checkpoints(session, today=today)
         + price_alerts(session)
+        + watchlist_candidates(session)
         + screening_candidates(session, top_k=top_k)
     )
     best: dict[str, TriggerEvent] = {}
