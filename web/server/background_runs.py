@@ -252,17 +252,27 @@ log = logging.getLogger(__name__)
 
 
 def _has_done_run(ticker: str, date_iso: str) -> bool:
-    """Return True if any run.json for (ticker, date_iso) has status 'done'."""
-    base = DATA_ROOT / ticker.upper() / date_iso
+    """Return True if any run.json for (ticker, date_iso) has status 'done'.
+
+    Scans all subdirectories under ``DATA_ROOT / TICKER / `` and checks
+    each run.json for a matching ``trade_date`` field.  Supports both the
+    standard timestamp-slug layout and older layouts.
+    """
+    base = DATA_ROOT / ticker.upper()
     if not base.exists():
         return False
-    for run_json in base.glob("*/run.json"):
+    for sub in base.iterdir():
+        if not sub.is_dir():
+            continue
+        rj = sub / "run.json"
+        if not rj.exists():
+            continue
         try:
-            data = json.loads(run_json.read_text(encoding="utf-8"))
-            if data.get("status") == "done":
-                return True
+            data = json.loads(rj.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
+        if data.get("trade_date") == date_iso and data.get("status") == "done":
+            return True
     return False
 
 
@@ -324,7 +334,8 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
                     except Exception as exc:
                         _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
                     else:
-                        _tag_run(state, date_iso, iteration_index=idx)
+                        _record_run(state.ticker, date_iso, result.decision,
+                                    result.duration_s, state.job_id, idx)
                         state.record_duration(result.duration_s)
                     with state._persist_lock:
                         state.current_index += 1
@@ -340,7 +351,8 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
                 except Exception as exc:
                     _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
                 else:
-                    _tag_run(state, date_iso, iteration_index=idx)
+                    _record_run(state.ticker, date_iso, result.decision,
+                                result.duration_s, state.job_id, idx)
                     state.record_duration(result.duration_s)
                 with state._persist_lock:
                     state.current_index += 1
@@ -358,33 +370,40 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
     state.persist()
 
 
-def _tag_run(state: BackgroundRunState, date_iso: str, iteration_index: int) -> None:
-    """Post-hoc rewrite the most recent run.json for (ticker, date_iso) to
-    add the two background-run fields. No-op + WARN log if no run.json exists.
+def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s: float,
+                background_job_id: str, background_iteration_index: int) -> None:
+    """Create a standard run directory + run.json for a completed iteration.
+
+    Uses ``storage.create_run_dir`` so that the history endpoint
+    (``list_ticker_runs``) finds the run.  The ``trade_date`` field allows
+    ``_has_done_run`` to detect duplicates for resume-safety.
     """
-    base = DATA_ROOT / state.ticker.upper() / date_iso
-    if not base.exists():
-        log.warning("background_runs._tag_run: no run.json for %s on %s", state.ticker, date_iso)
-        return
-    candidates = list(base.glob("*/run.json"))
-    if not candidates:
-        log.warning("background_runs._tag_run: no run.json for %s on %s", state.ticker, date_iso)
-        return
-    target = max(candidates, key=lambda p: p.stat().st_mtime)
-    try:
-        data = json.loads(target.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        log.warning("background_runs._tag_run: malformed run.json at %s", target)
-        return
-    data["background_run_id"] = state.job_id
-    data["background_run_iteration_index"] = iteration_index
-    fd, tmp = tempfile.mkstemp(dir=target.parent, prefix=".tag-", suffix=".json.tmp")
+    from web.server import storage  # defer to avoid early import side-effects
+
+    run_info = storage.create_run_dir(ticker)
+    run_dir = run_info["run_dir"]
+    rj_path = run_dir / "run.json"
+    data = json.loads(rj_path.read_text(encoding="utf-8"))
+
+    data["status"] = "done"
+    # The propagate call finished, so total_duration_s is known.
+    data["total_duration_s"] = duration_s
+    data["trade_date"] = date_iso
+    data["background_run_id"] = background_job_id
+    data["background_run_iteration_index"] = background_iteration_index
+    dec = decision or {}
+    data["decision_action"] = dec.get("action")
+    data["decision_target"] = dec.get("target")
+    data["decision_rationale"] = dec.get("rationale")
+    data["decision_confidence"] = dec.get("confidence")
+
+    fd, tmp = tempfile.mkstemp(dir=run_dir, prefix=".run-", suffix=".json.tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, sort_keys=True)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, target)
+        os.replace(tmp, rj_path)
     except Exception:
         if os.path.exists(tmp):
             os.unlink(tmp)

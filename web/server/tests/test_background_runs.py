@@ -7,7 +7,17 @@ import time
 
 import pytest
 
-from web.server import background_runs
+from web.server import background_runs, storage
+
+
+def _setup_test_storage(tmp_path, monkeypatch):
+    """Configure BOTH ``storage`` and ``background_runs.DATA_ROOT`` to
+    point at ``tmp_path`` so that ``_record_run`` / ``_has_done_run`` /
+    ``list_ticker_runs`` all agree on where data lives."""
+    data = tmp_path / "data"
+    cache = tmp_path / "cache"
+    storage.init_settings(data_dir=str(data), cache_dir=str(cache))
+    monkeypatch.setattr(background_runs, "DATA_ROOT", data)
 
 
 class TestDates:
@@ -161,7 +171,7 @@ class TestRunOne:
 
 class TestRunSequential:
     def _setup_root(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
 
     def test_run_processes_all_dates(self, tmp_path, monkeypatch, fake_propagate):
         self._setup_root(tmp_path, monkeypatch)
@@ -177,9 +187,11 @@ class TestRunSequential:
     def test_run_skips_dates_already_done_on_disk(self, tmp_path, monkeypatch, fake_propagate):
         """Resume-safety: dates with a done run.json are skipped."""
         self._setup_root(tmp_path, monkeypatch)
-        run_dir = background_runs.DATA_ROOT / "NVDA" / "2024-01-02" / "run_pre"
+        run_dir = background_runs.DATA_ROOT / "NVDA" / "pre_existing"
         run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "run.json").write_text('{"status": "done"}', encoding="utf-8")
+        (run_dir / "run.json").write_text(
+            '{"status": "done", "trade_date": "2024-01-02"}', encoding="utf-8",
+        )
 
         handle = background_runs.register_handle(
             "bgr_SEQ2", "NVDA", "2024-01-01", "2024-01-03", "1d", parallel=1, total=3,
@@ -205,7 +217,7 @@ class TestRunParallel:
     def test_parallel_runs_concurrently(self, tmp_path, monkeypatch, fake_propagate):
         """With parallel=2 and sleep=100ms, total wall-clock for 4 dates
         should be roughly 200ms (not 400ms). Use a loose bound."""
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         fake_propagate.sleep_s = 0.1
         handle = background_runs.register_handle(
             "bgr_PAR1", "NVDA", "2024-01-01", "2024-01-04", "1d", parallel=2, total=4,
@@ -218,7 +230,7 @@ class TestRunParallel:
         assert handle.state.current_index == 4
 
     def test_parallel_does_not_double_process(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         fake_propagate.sleep_s = 0.05
         handle = background_runs.register_handle(
             "bgr_PAR2", "NVDA", "2024-01-01", "2024-01-04", "1d", parallel=4, total=4,
@@ -230,7 +242,7 @@ class TestRunParallel:
 
 class TestCancel:
     def test_cancel_stops_within_one_iteration(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         fake_propagate.sleep_s = 0.05
         handle = background_runs.register_handle(
             "bgr_CAN1", "NVDA", "2024-01-01", "2024-01-10", "1d", parallel=1, total=10,
@@ -248,7 +260,7 @@ class TestCancel:
 
 class TestPauseResume:
     def test_pause_blocks_iterations(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         fake_propagate.sleep_s = 0.02
         handle = background_runs.register_handle(
             "bgr_PAUSE1", "NVDA", "2024-01-01", "2024-01-10", "1d", parallel=1, total=10,
@@ -263,57 +275,54 @@ class TestPauseResume:
         assert elapsed < 5.0
 
 
-class TestTagRun:
-    def test_tag_run_adds_fields_to_most_recent_run_json(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        fake_propagate.record_in_storage = False
-        background_runs._run_one("NVDA", "2024-01-05")
-        from web.server.background_runs import _tag_run, BackgroundRunState
-        state = BackgroundRunState(
-            job_id="bgr_TAG1", ticker="NVDA", date_from="2024-01-05",
-            date_to="2024-01-05", every="1d", parallel=1, total=1,
-        )
-        # _run_one with record_in_storage=False doesn't write a run.json,
-        # so create one manually under DATA_ROOT for _tag_run to find.
-        run_dir = background_runs.DATA_ROOT / "NVDA" / "2024-01-05" / "run_manual"
-        run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "run.json").write_text('{"status": "done"}', encoding="utf-8")
+class TestRecordRun:
+    def test_record_run_creates_standard_run_json(self, tmp_path, monkeypatch):
+        _setup_test_storage(tmp_path, monkeypatch)
+        from web.server.background_runs import _record_run
+        _record_run("NVDA", "2024-01-05", {"action": "BUY", "target": 150.0}, 42.5, "bgr_REC1", 0)
+        runs = storage.list_ticker_runs("NVDA")
+        assert len(runs) == 1
+        rj = runs[0]
+        assert rj["status"] == "done"
+        assert rj["trade_date"] == "2024-01-05"
+        assert rj["decision_action"] == "BUY"
+        assert rj["decision_target"] == 150.0
+        assert rj["total_duration_s"] == 42.5
+        assert rj["background_run_id"] == "bgr_REC1"
+        assert rj["background_run_iteration_index"] == 0
 
-        _tag_run(state, "2024-01-05", iteration_index=7)
-        target = background_runs.DATA_ROOT / "NVDA" / "2024-01-05" / "run_manual" / "run.json"
-        assert target.exists()
-        data = json.loads(target.read_text())
-        assert data["background_run_id"] == "bgr_TAG1"
-        assert data["background_run_iteration_index"] == 7
-
-    def test_tag_run_no_op_when_no_run_json(self, tmp_path, monkeypatch, caplog):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        from web.server.background_runs import _tag_run, BackgroundRunState
-        state = BackgroundRunState(
-            job_id="bgr_TAG2", ticker="ZZZZ", date_from="2024-01-05",
-            date_to="2024-01-05", every="1d", parallel=1, total=1,
-        )
-        with caplog.at_level("WARNING"):
-            _tag_run(state, "2024-01-05", iteration_index=0)
-        # _tag_run uses DATA_ROOT which is tmp_path, and it does NOT create dirs
-        assert not (background_runs.DATA_ROOT / "ZZZZ" / "2024-01-05").exists()
+    def test_record_run_handles_null_decision(self, tmp_path, monkeypatch):
+        _setup_test_storage(tmp_path, monkeypatch)
+        from web.server.background_runs import _record_run
+        _record_run("NVDA", "2024-01-06", None, 10.0, "bgr_REC2", 1)
+        runs = storage.list_ticker_runs("NVDA")
+        assert len(runs) == 1
+        rj = runs[0]
+        assert rj["status"] == "done"
+        assert rj["trade_date"] == "2024-01-06"
+        assert rj["decision_action"] is None
+        assert rj["decision_target"] is None
 
 
 class TestHasDoneRun:
     def test_returns_true_when_done_run_exists(self, tmp_path, monkeypatch):
         from web.server.background_runs import _has_done_run
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        run_dir = tmp_path / "NVDA" / "2024-02-01" / "run_x"
+        run_dir = tmp_path / "NVDA" / "some_run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "run.json").write_text('{"status": "done"}', encoding="utf-8")
+        (run_dir / "run.json").write_text(
+            '{"status": "done", "trade_date": "2024-02-01"}', encoding="utf-8",
+        )
         assert _has_done_run("NVDA", "2024-02-01") is True
 
     def test_returns_false_when_status_running(self, tmp_path, monkeypatch):
         from web.server.background_runs import _has_done_run
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        run_dir = tmp_path / "NVDA" / "2024-02-02" / "run_x"
+        run_dir = tmp_path / "NVDA" / "other_run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "run.json").write_text('{"status": "running"}', encoding="utf-8")
+        (run_dir / "run.json").write_text(
+            '{"status": "running", "trade_date": "2024-02-02"}', encoding="utf-8",
+        )
         assert _has_done_run("NVDA", "2024-02-02") is False
 
     def test_returns_false_when_dir_missing(self, tmp_path, monkeypatch):
@@ -324,7 +333,7 @@ class TestHasDoneRun:
     def test_returns_false_when_malformed_json(self, tmp_path, monkeypatch):
         from web.server.background_runs import _has_done_run
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        run_dir = tmp_path / "NVDA" / "2024-02-04" / "run_x"
+        run_dir = tmp_path / "NVDA" / "bad_run"
         run_dir.mkdir(parents=True, exist_ok=True)
         (run_dir / "run.json").write_text("not json", encoding="utf-8")
         assert _has_done_run("NVDA", "2024-02-04") is False
@@ -398,7 +407,7 @@ class TestETA:
 
 class TestLoadExistingJobs:
     def test_resumes_running_job(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         from web.server.background_runs import (
             job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
         )
@@ -424,13 +433,15 @@ class TestLoadExistingJobs:
         assert len(fake_propagate.calls) == 5
 
     def test_resume_skips_already_done_dates(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         from web.server.background_runs import (
             job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
         )
-        run_dir = background_runs.DATA_ROOT / "NVDA" / "2024-03-02" / "run_pre"
+        run_dir = background_runs.DATA_ROOT / "NVDA" / "done_run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "run.json").write_text('{"status": "done"}', encoding="utf-8")
+        (run_dir / "run.json").write_text(
+            '{"status": "done", "trade_date": "2024-03-02"}', encoding="utf-8",
+        )
 
         job_id = "bgr_RESUME2"
         d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
@@ -452,7 +463,7 @@ class TestLoadExistingJobs:
         assert handle.state.current_index == 5
 
     def test_does_not_resume_paused_job(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         from web.server.background_runs import (
             job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
         )
@@ -475,7 +486,7 @@ class TestLoadExistingJobs:
         assert len(fake_propagate.calls) == 0
 
     def test_does_not_resume_terminal_jobs(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         from web.server.background_runs import job_dir, BackgroundRunState, _load_existing_jobs
         for terminal_status in ("done", "cancelled", "error"):
             job_id = f"bgr_TERM_{terminal_status}"
@@ -494,7 +505,7 @@ class TestLoadExistingJobs:
 
 class TestStart:
     def test_start_creates_job_and_returns_id(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         job_id = background_runs.start(
             ticker="NVDA", date_from="2024-05-01", date_to="2024-05-03",
             every="1d", parallel=1,
@@ -528,7 +539,7 @@ class TestStart:
 
 class TestGetAndList:
     def test_get_returns_state_dict(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         job_id = background_runs.start("MU", "2024-05-06", "2024-05-06", "1d", 1)
         h = background_runs.get_handle(job_id)
         if h and h.thread:
@@ -544,7 +555,7 @@ class TestGetAndList:
             background_runs.get("bgr_DOES_NOT_EXIST")
 
     def test_list_jobs_returns_recent_first(self, tmp_path, monkeypatch, fake_propagate):
-        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        _setup_test_storage(tmp_path, monkeypatch)
         id1 = background_runs.start("AAPL", "2024-05-06", "2024-05-06", "1d", 1)
         h1 = background_runs.get_handle(id1)
         if h1 and h1.thread:
