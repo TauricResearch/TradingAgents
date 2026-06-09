@@ -83,6 +83,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     start_date = today_date - pd.DateOffset(years=5)
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = today_date.strftime("%Y-%m-%d")
+    download_end_str = (today_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     data_file = os.path.join(
@@ -103,7 +104,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         downloaded = yf_retry(lambda: yf.download(
             canonical,
             start=start_str,
-            end=end_str,
+            end=download_end_str,
             multi_level_index=False,
             progress=False,
             auto_adjust=True,
