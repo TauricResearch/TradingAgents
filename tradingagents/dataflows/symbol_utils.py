@@ -61,6 +61,7 @@ _FOREX_CURRENCIES = frozenset(
 _CRYPTO_BASES = frozenset(
     {"BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "LTC", "BCH", "DOT", "AVAX", "LINK"}
 )
+_STABLECOIN_QUOTES = ("USDT", "USDC")
 
 # Explicit aliases for instruments whose broker symbol does not map to a
 # Yahoo symbol by rule. Metals/energy resolve to their front-month future;
@@ -95,8 +96,9 @@ def normalize_symbol(raw: str) -> str:
     Resolution order (first match wins):
       1. Explicit alias table (metals, energy, index CFDs).
       2. Crypto rule: ``<BASE>USD`` where BASE is a known crypto -> ``BASE-USD``.
-      3. Forex rule: six letters that are two ISO currency codes -> ``PAIR=X``.
-      4. Otherwise the upper-cased symbol is returned unchanged (plain
+      3. Stablecoin crypto pairs map to Yahoo's USD quote, e.g. ``BTC-USDT`` -> ``BTC-USD``.
+      4. Forex rule: six letters that are two ISO currency codes -> ``PAIR=X``.
+      5. Otherwise the upper-cased symbol is returned unchanged (plain
          equities, ETFs, Yahoo-native symbols like ``GC=F`` or ``^GSPC``).
 
     A trailing ``+`` (broker CFD marker, e.g. ``XAUUSD+``) is stripped before
@@ -116,6 +118,19 @@ def normalize_symbol(raw: str) -> str:
         canonical = f"{s[:3]}-USD"
     elif s[:-3] in _CRYPTO_BASES and s.endswith("USD") and "-" not in s:
         canonical = f"{s[:-3]}-USD"
+    elif "-" in s:
+        base, quote = s.split("-", 1)
+        if base in _CRYPTO_BASES and quote in _STABLECOIN_QUOTES:
+            canonical = f"{base}-USD"
+        else:
+            canonical = s
+    elif any(s.endswith(quote) for quote in _STABLECOIN_QUOTES):
+        quote = next(quote for quote in _STABLECOIN_QUOTES if s.endswith(quote))
+        base = s[: -len(quote)]
+        if base in _CRYPTO_BASES:
+            canonical = f"{base}-USD"
+        else:
+            canonical = s
     elif len(s) == 6 and s[:3] in _FOREX_CURRENCIES and s[3:] in _FOREX_CURRENCIES:
         canonical = f"{s}=X"
     else:

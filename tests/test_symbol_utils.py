@@ -42,6 +42,8 @@ class TestNormalizeSymbol(unittest.TestCase):
     def test_crypto_pairs_get_dash_usd(self):
         self.assertEqual(normalize_symbol("BTCUSD"), "BTC-USD")
         self.assertEqual(normalize_symbol("ETHUSD"), "ETH-USD")
+        self.assertEqual(normalize_symbol("BTC-USDT"), "BTC-USD")
+        self.assertEqual(normalize_symbol("ethusdt"), "ETH-USD")
 
     def test_six_letter_non_currency_left_alone(self):
         # GOOGLE-style 6-letter tickers that aren't two currency codes

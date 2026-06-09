@@ -9,10 +9,14 @@ class CryptoAssetModeTests(unittest.TestCase):
     def test_detects_crypto_pair_symbols(self):
         self.assertEqual(detect_asset_type("BTC-USD"), AssetType.CRYPTO)
         self.assertEqual(detect_asset_type("eth-usd"), AssetType.CRYPTO)
+        self.assertEqual(detect_asset_type("BTCUSD"), AssetType.CRYPTO)
+        self.assertEqual(detect_asset_type("ethusd"), AssetType.CRYPTO)
+        self.assertEqual(detect_asset_type("BTC-USDT"), AssetType.CRYPTO)
 
     def test_defaults_non_crypto_symbols_to_stock(self):
         self.assertEqual(detect_asset_type("AAPL"), AssetType.STOCK)
         self.assertEqual(detect_asset_type("SPY"), AssetType.STOCK)
+        self.assertEqual(detect_asset_type("EURUSD"), AssetType.STOCK)
 
     def test_filters_out_fundamentals_analyst_for_crypto(self):
         analysts = [

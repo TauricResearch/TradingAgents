@@ -7,12 +7,14 @@ from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
+from tradingagents.dataflows.symbol_utils import normalize_symbol
+from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
+TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD, GC=F"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -22,6 +24,15 @@ ANALYST_ORDER = [
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
+
+
+def is_valid_ticker_symbol(ticker: str) -> bool:
+    """Return True when ticker input is safe and matches supported symbol syntax."""
+    try:
+        safe_ticker_component(ticker.strip())
+    except (AttributeError, ValueError):
+        return False
+    return True
 
 
 def get_ticker() -> str:
@@ -35,8 +46,8 @@ def get_ticker() -> str:
         f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
         validate=lambda x: (
             not x.strip()
-            or (all(ch.isalnum() or ch in "._-^" for ch in x.strip()) and len(x.strip()) <= 32)
-            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK."
+            or is_valid_ticker_symbol(x)
+            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, GC=F."
         ),
         style=questionary.Style(
             [
@@ -59,7 +70,7 @@ def normalize_ticker_symbol(ticker: str) -> str:
 
 
 def detect_asset_type(ticker: str) -> AssetType:
-    normalized_ticker = ticker.strip().upper()
+    normalized_ticker = normalize_symbol(ticker).strip().upper()
     if normalized_ticker.endswith(CRYPTO_SUFFIXES):
         return AssetType.CRYPTO
     return AssetType.STOCK

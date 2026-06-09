@@ -2,7 +2,7 @@ import unittest
 
 import pytest
 
-from cli.utils import normalize_ticker_symbol
+from cli.utils import is_valid_ticker_symbol, normalize_ticker_symbol
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 
 
@@ -10,6 +10,14 @@ from tradingagents.agents.utils.agent_utils import build_instrument_context
 class TickerSymbolHandlingTests(unittest.TestCase):
     def test_normalize_ticker_symbol_preserves_exchange_suffix(self):
         self.assertEqual(normalize_ticker_symbol(" cnc.to "), "CNC.TO")
+
+    def test_cli_ticker_validation_accepts_yahoo_and_broker_symbols(self):
+        for symbol in ("GC=F", "XAUUSD+", "EURUSD+", "^GSPC"):
+            self.assertTrue(is_valid_ticker_symbol(symbol), symbol)
+
+    def test_cli_ticker_validation_rejects_unsafe_symbols(self):
+        for symbol in ("AAP L", "../AAPL", "AAPL\x00", "A" * 33):
+            self.assertFalse(is_valid_ticker_symbol(symbol), symbol)
 
     def test_build_instrument_context_mentions_exact_symbol(self):
         context = build_instrument_context("7203.T")
