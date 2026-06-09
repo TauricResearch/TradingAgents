@@ -127,6 +127,48 @@ class TestRouteToVendorSentinel(unittest.TestCase):
         alpha_vantage.assert_called_once()
         yfinance.assert_called_once()
 
+    def test_list_vendor_config_enables_explicit_fallback(self):
+        alpha_vantage = mock.Mock(side_effect=AlphaVantageRateLimitError())
+        yfinance = mock.Mock(return_value="fallback data")
+        patched = {"alpha_vantage": alpha_vantage, "yfinance": yfinance}
+
+        with (
+            mock.patch.dict(
+                interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
+            ),
+            mock.patch.object(
+                interface, "get_vendor", return_value=["alpha_vantage", "yfinance"]
+            ),
+        ):
+            result = interface.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
+
+        self.assertEqual(result, "fallback data")
+        alpha_vantage.assert_called_once()
+        yfinance.assert_called_once()
+
+    def test_default_in_vendor_chain_expands_remaining_vendors(self):
+        alpha_vantage = mock.Mock(side_effect=AlphaVantageRateLimitError())
+        yfinance = mock.Mock(return_value="fallback data")
+        patched = {"alpha_vantage": alpha_vantage, "yfinance": yfinance}
+
+        with (
+            mock.patch.dict(
+                interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
+            ),
+            mock.patch.object(
+                interface, "get_vendor", return_value="alpha_vantage, default"
+            ),
+        ):
+            result = interface.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
+
+        self.assertEqual(result, "fallback data")
+        alpha_vantage.assert_called_once()
+        yfinance.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

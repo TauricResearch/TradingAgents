@@ -133,17 +133,27 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 
-def _vendor_chain(method: str, vendor_config: str) -> list[str]:
+def _vendor_chain(method: str, vendor_config: str | list[str] | None) -> list[str]:
     """Resolve the configured vendor string into the exact routing chain."""
     available = list(VENDOR_METHODS[method].keys())
-    requested = [
-        vendor.strip()
-        for vendor in str(vendor_config or "").split(",")
-        if vendor.strip()
-    ]
+    if isinstance(vendor_config, list):
+        raw_requested = [str(vendor).strip() for vendor in vendor_config if str(vendor).strip()]
+    else:
+        raw_requested = [
+            vendor.strip()
+            for vendor in str(vendor_config or "").split(",")
+            if vendor.strip()
+        ]
 
-    if not requested or requested == ["default"]:
+    if not raw_requested:
         return available
+
+    requested: list[str] = []
+    for vendor in raw_requested:
+        if vendor == "default":
+            requested.extend(v for v in available if v not in requested)
+        else:
+            requested.append(vendor)
     return requested
 
 
