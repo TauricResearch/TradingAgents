@@ -1,13 +1,10 @@
 name: Deploy MkDocs site to Pages
 
+# Source report Markdown under docs/ is gitignored and never reaches the
+# remote, so CI has nothing to build from. The site is published from a local
+# `mkdocs gh-deploy` to the gh-pages branch instead. This workflow is kept for
+# reference / manual runs only and no longer auto-deploys on push to main.
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "docs/**"
-      - "mkdocs.yml"
-      - "pyproject.toml"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
