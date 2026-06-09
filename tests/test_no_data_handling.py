@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 from tradingagents.dataflows import stockstats_utils, interface
+from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.symbol_utils import NoMarketDataError
 
@@ -82,6 +83,49 @@ class TestRouteToVendorSentinel(unittest.TestCase):
                 "get_stock_data", "FAKE", "2026-01-01", "2026-01-10"
             )
         self.assertIn("NO_DATA_AVAILABLE", result)
+
+    def test_single_configured_vendor_does_not_auto_fallback(self):
+        def raises_no_data(symbol, *a, **k):
+            raise NoMarketDataError(symbol, symbol, "no rows")
+
+        yfinance = mock.Mock(side_effect=raises_no_data)
+        alpha_vantage = mock.Mock(return_value="fallback data")
+        patched = {"yfinance": yfinance, "alpha_vantage": alpha_vantage}
+
+        with (
+            mock.patch.dict(
+                interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
+            ),
+            mock.patch.object(interface, "get_vendor", return_value="yfinance"),
+        ):
+            result = interface.route_to_vendor(
+                "get_stock_data", "FAKE", "2026-01-01", "2026-01-10"
+            )
+
+        self.assertIn("NO_DATA_AVAILABLE", result)
+        yfinance.assert_called_once()
+        alpha_vantage.assert_not_called()
+
+    def test_comma_separated_vendor_config_enables_explicit_fallback(self):
+        alpha_vantage = mock.Mock(side_effect=AlphaVantageRateLimitError())
+        yfinance = mock.Mock(return_value="fallback data")
+        patched = {"alpha_vantage": alpha_vantage, "yfinance": yfinance}
+
+        with (
+            mock.patch.dict(
+                interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
+            ),
+            mock.patch.object(
+                interface, "get_vendor", return_value="alpha_vantage,yfinance"
+            ),
+        ):
+            result = interface.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
+
+        self.assertEqual(result, "fallback data")
+        alpha_vantage.assert_called_once()
+        yfinance.assert_called_once()
 
 
 if __name__ == "__main__":

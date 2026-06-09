@@ -132,21 +132,34 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+
+def _vendor_chain(method: str, vendor_config: str) -> list[str]:
+    """Resolve the configured vendor string into the exact routing chain."""
+    available = list(VENDOR_METHODS[method].keys())
+    requested = [
+        vendor.strip()
+        for vendor in str(vendor_config or "").split(",")
+        if vendor.strip()
+    ]
+
+    if not requested or requested == ["default"]:
+        return available
+    return requested
+
+
 def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+    """Route method calls to the configured vendor implementation.
+
+    Fallback is explicit: use a comma-separated vendor list in config, such as
+    ``"alpha_vantage,yfinance"``. A single configured vendor is authoritative.
+    """
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
-    primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
 
-    # Build fallback chain: primary vendors first, then remaining available vendors
-    all_available_vendors = list(VENDOR_METHODS[method].keys())
-    fallback_vendors = primary_vendors.copy()
-    for vendor in all_available_vendors:
-        if vendor not in fallback_vendors:
-            fallback_vendors.append(vendor)
+    fallback_vendors = _vendor_chain(method, vendor_config)
 
     last_no_data: NoMarketDataError | None = None
     first_error: Exception | None = None
