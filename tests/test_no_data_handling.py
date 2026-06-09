@@ -45,6 +45,30 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
                 stockstats_utils.load_ohlcv("FAKE", "2026-01-01")
             self.assertTrue(dl2.called)
 
+    def test_download_window_matches_documented_cache_horizon(self):
+        downloaded = pd.DataFrame(
+            {
+                "Open": [100.0],
+                "High": [101.0],
+                "Low": [99.0],
+                "Close": [100.5],
+                "Volume": [1000],
+            },
+            index=pd.DatetimeIndex(["2025-01-02"], name="Date"),
+        )
+
+        with mock.patch.object(stockstats_utils.yf, "download", return_value=downloaded) as dl:
+            stockstats_utils.load_ohlcv("AAPL", "2025-12-31")
+
+        kwargs = dl.call_args.kwargs
+        start = pd.Timestamp(kwargs["start"])
+        end = pd.Timestamp(kwargs["end"])
+
+        self.assertGreaterEqual(
+            (end - start).days,
+            stockstats_utils.OHLCV_CACHE_YEARS * 365,
+        )
+
 
 @pytest.mark.unit
 class TestRouteToVendorSentinel(unittest.TestCase):
