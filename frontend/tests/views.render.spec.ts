@@ -59,6 +59,12 @@ describe('view render smoke tests', () => {
     expect(w.html().length).toBeGreaterThan(0)
   })
 
+  it('HistoryView mounts and loads entries without throwing', async () => {
+    const { default: HistoryView } = await import('../src/views/HistoryView.vue')
+    const w = await renderInProvider(HistoryView)
+    expect(w.html().length).toBeGreaterThan(0)
+  })
+
   it('SettingsView mounts and loads prefs without throwing', async () => {
     const { default: SettingsView } = await import('../src/views/SettingsView.vue')
     const w = await renderInProvider(SettingsView)
