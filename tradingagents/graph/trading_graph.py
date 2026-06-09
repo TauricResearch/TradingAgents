@@ -239,8 +239,9 @@ class TradingAgentsGraph:
             end_str = end.strftime("%Y-%m-%d")
 
             canonical = normalize_symbol(ticker)
+            canonical_benchmark = normalize_symbol(benchmark)
             stock = yf.Ticker(canonical).history(start=trade_date, end=end_str)
-            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
+            bench = yf.Ticker(canonical_benchmark).history(start=trade_date, end=end_str)
 
             if len(stock) < 2 or len(bench) < 2:
                 return None, None, None
