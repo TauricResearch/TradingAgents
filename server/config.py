@@ -17,9 +17,12 @@ class Settings:
     port = int(os.getenv("TRADINGAGENTS_API_PORT", "8502"))
     bind = os.getenv("TRADINGAGENTS_BIND", "127.0.0.1")
 
-    # session cookie carrying the auth.py HMAC token
+    # session cookie carrying the auth.py HMAC token.
+    # Default OFF so plain-HTTP access (LAN / localhost) keeps the session — a
+    # Secure cookie is silently dropped by the browser over HTTP, which breaks
+    # login. The HTTPS production deploy (behind the tunnel) sets this to 1.
     cookie_name = "ta_session"
-    cookie_secure = os.getenv("TRADINGAGENTS_COOKIE_SECURE", "1") == "1"
+    cookie_secure = os.getenv("TRADINGAGENTS_COOKIE_SECURE", "0") == "1"
 
     # built Vue SPA; served at "/" when present
     frontend_dist = os.getenv(
