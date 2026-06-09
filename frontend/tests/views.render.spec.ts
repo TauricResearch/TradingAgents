@@ -39,6 +39,14 @@ async function renderInProvider(view: any) {
 }
 
 describe('view render smoke tests', () => {
+  it('App shell renders the left sidebar nav', async () => {
+    const { default: App } = await import('../src/App.vue')
+    const w = mount(App, { global: { plugins: [createPinia(), i18n, router] } })
+    await new Promise((r) => setTimeout(r, 0))
+    // Sidebar menu items present (analysis/history/settings keys render).
+    expect(w.html()).toContain('analysis')
+  })
+
   it('LoginView renders the email input', async () => {
     const { default: LoginView } = await import('../src/views/LoginView.vue')
     const w = await renderInProvider(LoginView)
