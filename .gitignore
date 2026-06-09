@@ -217,3 +217,7 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Vue frontend
+frontend/node_modules/
+frontend/dist/
