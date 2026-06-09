@@ -82,3 +82,29 @@ class TestEffortGate:
         assert captured["kwargs"]["max_tokens"] == 1024
         assert captured["kwargs"]["timeout"] == 30
         assert "effort" not in captured["kwargs"]
+
+    def test_setup_token_env_uses_bearer_auth(self, monkeypatch):
+        captured = _capture_kwargs(monkeypatch)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-oat01-test")
+
+        mod.AnthropicClient(model="claude-sonnet-4-6").get_llm()
+
+        assert captured["kwargs"]["api_key"] == ""
+        assert captured["kwargs"]["default_headers"] == {
+            "Authorization": "Bearer sk-ant-oat01-test"
+        }
+
+    def test_setup_token_kwarg_uses_bearer_auth(self, monkeypatch):
+        captured = _capture_kwargs(monkeypatch)
+
+        mod.AnthropicClient(
+            model="claude-sonnet-4-6",
+            api_key="sk-ant-oat01-test",
+            default_headers={"anthropic-beta": "example"},
+        ).get_llm()
+
+        assert captured["kwargs"]["api_key"] == ""
+        assert captured["kwargs"]["default_headers"] == {
+            "anthropic-beta": "example",
+            "Authorization": "Bearer sk-ant-oat01-test",
+        }

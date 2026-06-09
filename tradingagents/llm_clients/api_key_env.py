@@ -42,3 +42,8 @@ def get_api_key_env(provider: str) -> Optional[str]:
     "no key check possible" rather than as "no key required".
     """
     return PROVIDER_API_KEY_ENV.get(provider.lower())
+
+
+def is_anthropic_setup_token(api_key: str) -> bool:
+    """Whether `api_key` is a Claude setup/OAuth token."""
+    return api_key.strip().startswith("sk-ant-oat")

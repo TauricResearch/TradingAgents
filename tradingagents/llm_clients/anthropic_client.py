@@ -1,14 +1,17 @@
+import os
 import re
 from typing import Any, Optional
 
 from langchain_anthropic import ChatAnthropic
 
 from .base_client import BaseLLMClient, normalize_content
+from .api_key_env import is_anthropic_setup_token
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "api_key", "max_tokens", "temperature",
     "callbacks", "http_client", "http_async_client", "effort",
+    "default_headers",
 )
 
 # Anthropic's extended-thinking ``effort`` parameter is accepted by Opus 4.5+
@@ -49,13 +52,25 @@ class AnthropicClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatAnthropic instance."""
         self.warn_if_unknown_model()
+        api_key = self.kwargs.get("api_key") or os.environ.get("ANTHROPIC_API_KEY")
         llm_kwargs = {"model": self.model}
 
         if self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
+        using_setup_token = bool(api_key and is_anthropic_setup_token(api_key))
+        if using_setup_token:
+            headers = dict(self.kwargs.get("default_headers") or {})
+            headers["Authorization"] = f"Bearer {api_key}"
+            # ChatAnthropic requires an api_key string, while the Anthropic
+            # SDK accepts Bearer auth when X-Api-Key is omitted or empty.
+            llm_kwargs["api_key"] = ""
+            llm_kwargs["default_headers"] = headers
+
         for key in _PASSTHROUGH_KWARGS:
             if key not in self.kwargs:
+                continue
+            if using_setup_token and key in ("api_key", "default_headers"):
                 continue
             if key == "effort" and not _supports_effort(self.model):
                 continue

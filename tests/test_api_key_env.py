@@ -8,7 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
-from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV, get_api_key_env
+from tradingagents.llm_clients.api_key_env import (
+    PROVIDER_API_KEY_ENV,
+    get_api_key_env,
+    is_anthropic_setup_token,
+)
 
 
 # ---- Mapping coverage -----------------------------------------------------
@@ -64,6 +68,14 @@ def test_case_insensitive_lookup():
     assert get_api_key_env("QWEN-CN") == "DASHSCOPE_CN_API_KEY"
 
 
+def test_anthropic_setup_token_is_detected():
+    assert is_anthropic_setup_token("sk-ant-oat01-test")
+
+
+def test_anthropic_console_api_key_is_allowed():
+    assert not is_anthropic_setup_token("sk-ant-api03-test")
+
+
 # ---- ensure_api_key behavior ---------------------------------------------
 
 
@@ -79,6 +91,12 @@ def test_ensure_api_key_returns_existing(monkeypatch, cli_utils):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-already-set")
     result = cli_utils.ensure_api_key("openai")
     assert result == "sk-already-set"
+
+
+def test_ensure_api_key_returns_existing_anthropic_setup_token(monkeypatch, cli_utils):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-oat01-test")
+    result = cli_utils.ensure_api_key("anthropic")
+    assert result == "sk-ant-oat01-test"
 
 
 def test_ensure_api_key_no_op_for_ollama(monkeypatch, cli_utils):
