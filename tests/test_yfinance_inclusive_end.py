@@ -50,6 +50,9 @@ def test_load_ohlcv_downloads_through_day_after_cache_end(monkeypatch, tmp_path)
     frame.index.name = "Date"
 
     class FrozenTimestamp:
+        def __new__(cls, *args, **kwargs):
+            return real_timestamp(*args, **kwargs)
+
         @staticmethod
         def today():
             return real_timestamp("2026-01-05")
