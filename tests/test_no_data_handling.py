@@ -57,17 +57,53 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
             index=pd.DatetimeIndex(["2025-01-02"], name="Date"),
         )
 
-        with mock.patch.object(stockstats_utils.yf, "download", return_value=downloaded) as dl:
+        with (
+            mock.patch.object(stockstats_utils, "_today", return_value=pd.Timestamp("2026-01-15")),
+            mock.patch.object(stockstats_utils.yf, "download", return_value=downloaded) as dl,
+        ):
             stockstats_utils.load_ohlcv("AAPL", "2025-12-31")
 
         kwargs = dl.call_args.kwargs
         start = pd.Timestamp(kwargs["start"])
         end = pd.Timestamp(kwargs["end"])
 
+        self.assertEqual(end, pd.Timestamp("2026-01-15"))
         self.assertGreaterEqual(
             (end - start).days,
             stockstats_utils.OHLCV_CACHE_YEARS * 365,
         )
+
+    def test_cache_file_is_stable_across_days(self):
+        downloaded = pd.DataFrame(
+            {
+                "Open": [100.0],
+                "High": [101.0],
+                "Low": [99.0],
+                "Close": [100.5],
+                "Volume": [1000],
+            },
+            index=pd.DatetimeIndex(["2026-01-10"], name="Date"),
+        )
+        legacy_cache = os.path.join(
+            self._tmp,
+            "AAPL-YFin-data-2011-01-15-2026-01-15.csv",
+        )
+        with open(legacy_cache, "w", encoding="utf-8") as f:
+            f.write("Date,Close\n2026-01-10,100.5\n")
+
+        with (
+            mock.patch.object(
+                stockstats_utils,
+                "_today",
+                side_effect=[pd.Timestamp("2026-01-15"), pd.Timestamp("2026-01-16")],
+            ),
+            mock.patch.object(stockstats_utils.yf, "download", return_value=downloaded) as dl,
+        ):
+            stockstats_utils.load_ohlcv("AAPL", "2026-01-10")
+            stockstats_utils.load_ohlcv("AAPL", "2026-01-10")
+
+        self.assertEqual(dl.call_count, 1)
+        self.assertEqual(os.listdir(self._tmp), ["AAPL-YFin-data-15y.csv"])
 
 
 @pytest.mark.unit

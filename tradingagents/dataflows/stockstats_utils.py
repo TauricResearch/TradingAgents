@@ -14,6 +14,49 @@ from .symbol_utils import normalize_symbol, NoMarketDataError
 logger = logging.getLogger(__name__)
 
 OHLCV_CACHE_YEARS = 15
+OHLCV_CACHE_FILE_SUFFIX = f"{OHLCV_CACHE_YEARS}y"
+
+
+def _today() -> pd.Timestamp:
+    return pd.Timestamp.today().normalize()
+
+
+def _cache_covers_request(
+    data_file: str,
+    cached: pd.DataFrame,
+    curr_date_dt: pd.Timestamp,
+    today_date: pd.Timestamp,
+) -> bool:
+    if cached.empty or "Close" not in cached.columns:
+        return False
+
+    cached = _ensure_date_column(cached.copy())
+    if "Date" not in cached.columns:
+        return False
+
+    cached_dates = pd.to_datetime(cached["Date"], errors="coerce")
+    max_cached_date = cached_dates.max()
+    if pd.isna(max_cached_date):
+        return False
+    if max_cached_date.normalize() >= curr_date_dt.normalize():
+        return True
+
+    modified_at = pd.Timestamp(os.path.getmtime(data_file), unit="s").normalize()
+    return modified_at >= today_date
+
+
+def _cleanup_legacy_ohlcv_cache_files(cache_dir: str, safe_symbol: str, keep_file: str) -> None:
+    prefix = f"{safe_symbol}-YFin-data-"
+    keep_file = os.path.abspath(keep_file)
+    for filename in os.listdir(cache_dir):
+        path = os.path.abspath(os.path.join(cache_dir, filename))
+        if path == keep_file:
+            continue
+        if filename.startswith(prefix) and filename.endswith(".csv"):
+            try:
+                os.remove(path)
+            except OSError:
+                logger.debug("Could not remove stale OHLCV cache file %s", path, exc_info=True)
 
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
@@ -80,8 +123,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date)
 
-    # Cache uses a fixed window (15y to today) so one file per symbol
-    today_date = pd.Timestamp.today()
+    today_date = _today()
     start_date = today_date - pd.DateOffset(years=OHLCV_CACHE_YEARS)
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = today_date.strftime("%Y-%m-%d")
@@ -89,7 +131,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     data_file = os.path.join(
         config["data_cache_dir"],
-        f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
+        f"{safe_symbol}-YFin-data-{OHLCV_CACHE_FILE_SUFFIX}.csv",
     )
 
     # A cached file may be empty if a prior fetch failed (unknown symbol,
@@ -98,7 +140,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     data = None
     if os.path.exists(data_file):
         cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
-        if not cached.empty and "Close" in cached.columns:
+        if _cache_covers_request(data_file, cached, curr_date_dt, today_date):
             data = cached
 
     if data is None:
@@ -117,6 +159,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
                 symbol, canonical, "Yahoo Finance returned no rows"
             )
         downloaded.to_csv(data_file, index=False, encoding="utf-8")
+        _cleanup_legacy_ohlcv_cache_files(config["data_cache_dir"], safe_symbol, data_file)
         data = downloaded
 
     data = _clean_dataframe(data)
