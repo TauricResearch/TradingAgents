@@ -18,6 +18,7 @@ from tradingagents.llm_clients import create_llm_client
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.dataflows.symbol_utils import normalize_symbol
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.agents.utils.agent_states import (
     AgentState,
@@ -237,7 +238,8 @@ class TradingAgentsGraph:
             end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
             end_str = end.strftime("%Y-%m-%d")
 
-            stock = yf.Ticker(ticker).history(start=trade_date, end=end_str)
+            canonical = normalize_symbol(ticker)
+            stock = yf.Ticker(canonical).history(start=trade_date, end=end_str)
             bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
 
             if len(stock) < 2 or len(bench) < 2:

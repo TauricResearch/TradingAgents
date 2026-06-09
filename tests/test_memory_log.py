@@ -500,6 +500,20 @@ class TestDeferredReflection:
         assert isinstance(raw, float) and isinstance(alpha, float) and isinstance(days, int)
         assert days == 5
 
+    def test_fetch_returns_normalizes_ticker_before_yfinance_lookup(self):
+        stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
+        spy_prices = [400.0, 402.0, 404.0, 403.0, 405.0, 406.0]
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        with patch("yfinance.Ticker") as mock_ticker_cls:
+            def _make_ticker(sym):
+                m = MagicMock()
+                m.history.return_value = _price_df(spy_prices if sym == "SPY" else stock_prices)
+                return m
+            mock_ticker_cls.side_effect = _make_ticker
+            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "BTCUSD", "2026-01-05")
+        assert raw is not None and alpha is not None and days == 5
+        assert mock_ticker_cls.call_args_list[0].args[0] == "BTC-USD"
+
     def test_fetch_returns_too_recent(self):
         """Only 1 data point available → returns (None, None, None), no crash."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)

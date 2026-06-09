@@ -5,6 +5,8 @@ from typing import Any, Mapping, Optional
 import yfinance as yf
 from langchain_core.messages import HumanMessage, RemoveMessage
 
+from tradingagents.dataflows.symbol_utils import normalize_symbol
+
 # Import tools from separate utility files
 from tradingagents.agents.utils.core_stock_tools import (
     get_stock_data
@@ -72,7 +74,8 @@ def resolve_instrument_identity(ticker: str) -> dict:
     the lookup happens at most once per ticker per process.
     """
     try:
-        info = yf.Ticker(ticker.upper()).info or {}
+        canonical = normalize_symbol(ticker)
+        info = yf.Ticker(canonical).info or {}
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}

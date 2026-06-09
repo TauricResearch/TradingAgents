@@ -37,6 +37,13 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
         self.assertEqual(identity["industry"], "Building Products & Equipment")
         self.assertEqual(identity["exchange"], "PNK")
 
+    def test_queries_yfinance_with_normalized_symbol(self):
+        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
+            mock.return_value.info = {"longName": "Gold Futures", "quoteType": "FUTURE"}
+            identity = resolve_instrument_identity("XAUUSD+")
+        mock.assert_called_once_with("GC=F")
+        self.assertEqual(identity["company_name"], "Gold Futures")
+
     def test_falls_back_to_short_name(self):
         with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
             mock.return_value.info = {"shortName": "TOTO", "sector": "Industrials"}
