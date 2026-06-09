@@ -81,6 +81,39 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         self.assertEqual(sel["deep_thinker"], "kimi-k2.5")
         self.assertEqual(sel["output_language"], "Japanese")
 
+    def test_backend_url_env_overrides_interactive_provider_default(self):
+        import cli.main as m
+
+        env = {
+            "TRADINGAGENTS_LLM_BACKEND_URL": "https://proxy.example.com/v1",
+            "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
+        }
+        fake_cfg = dict(m.DEFAULT_CONFIG)
+        fake_cfg.update({
+            "backend_url": "https://proxy.example.com/v1",
+            "output_language": "English",
+        })
+
+        with mock.patch.dict(os.environ, env, clear=False), \
+             mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
+             mock.patch.object(m, "fetch_announcements", return_value=None), \
+             mock.patch.object(m, "display_announcements"), \
+             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
+             mock.patch.object(m, "select_analysts", return_value=[]), \
+             mock.patch.object(m, "select_research_depth", return_value=1), \
+             mock.patch.object(m, "select_llm_provider", return_value=("openai", "https://api.openai.com/v1")), \
+             mock.patch.object(m, "ensure_api_key"), \
+             mock.patch.object(m, "ask_output_language") as prompt_lang, \
+             mock.patch.object(m, "select_shallow_thinking_agent", return_value="gpt-4o-mini"), \
+             mock.patch.object(m, "select_deep_thinking_agent", return_value="o3"), \
+             mock.patch.object(m, "ask_openai_reasoning_effort", return_value=None):
+            sel = m.get_user_selections()
+
+        prompt_lang.assert_not_called()
+        self.assertEqual(sel["llm_provider"], "openai")
+        self.assertEqual(sel["backend_url"], "https://proxy.example.com/v1")
+
 
 if __name__ == "__main__":
     unittest.main()
