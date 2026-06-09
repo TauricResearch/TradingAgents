@@ -12,6 +12,7 @@ class CryptoAssetModeTests(unittest.TestCase):
         self.assertEqual(detect_asset_type("BTCUSD"), AssetType.CRYPTO)
         self.assertEqual(detect_asset_type("ethusd"), AssetType.CRYPTO)
         self.assertEqual(detect_asset_type("BTC-USDT"), AssetType.CRYPTO)
+        self.assertEqual(detect_asset_type("BTC-EUR"), AssetType.CRYPTO)
 
     def test_defaults_non_crypto_symbols_to_stock(self):
         self.assertEqual(detect_asset_type("AAPL"), AssetType.STOCK)

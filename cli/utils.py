@@ -7,7 +7,7 @@ from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
-from tradingagents.dataflows.symbol_utils import normalize_symbol
+from tradingagents.dataflows.symbol_utils import CRYPTO_BASES, normalize_symbol
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
@@ -73,6 +73,10 @@ def detect_asset_type(ticker: str) -> AssetType:
     normalized_ticker = normalize_symbol(ticker).strip().upper()
     if normalized_ticker.endswith(CRYPTO_SUFFIXES):
         return AssetType.CRYPTO
+    if "-" in normalized_ticker:
+        base, _ = normalized_ticker.split("-", 1)
+        if base in CRYPTO_BASES:
+            return AssetType.CRYPTO
     return AssetType.STOCK
 
 

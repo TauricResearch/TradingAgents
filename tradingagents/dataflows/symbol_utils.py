@@ -61,6 +61,7 @@ _FOREX_CURRENCIES = frozenset(
 _CRYPTO_BASES = frozenset(
     {"BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "LTC", "BCH", "DOT", "AVAX", "LINK"}
 )
+CRYPTO_BASES = _CRYPTO_BASES
 _STABLECOIN_QUOTES = ("USDT", "USDC")
 
 # Explicit aliases for instruments whose broker symbol does not map to a
