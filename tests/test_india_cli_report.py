@@ -140,7 +140,9 @@ def test_use_case_guidance_names_best_workflow_and_commands():
     assert any("sample-report" in command for command in guidance["commands"])
     assert any("first-run-check" in command for command in guidance["commands"])
     assert any("analyze --ticker RELIANCE.NS" in command for command in guidance["commands"])
+    assert any("--provider openai" in command for command in guidance["commands"])
     assert any("Live trading" in poor_fit for poor_fit in guidance["poor_fit"])
+    assert any("first-run-check passes" in note for note in guidance["notes"])
     assert "docs/USAGE_PLAYBOOK.md" in guidance["docs"]
 
 

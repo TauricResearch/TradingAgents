@@ -1869,7 +1869,15 @@ def get_use_case_guidance() -> dict:
         "commands": [
             "indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05",
             "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai",
-            "indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 --research-depth 1 --no-display --no-save-prompt",
+            build_first_analysis_command(
+                ticker="RELIANCE.NS",
+                analysis_date="2026-06-05",
+                provider="openai",
+            ),
+        ],
+        "notes": [
+            "Run the analyze command only after first-run-check passes.",
+            "If using another provider, run the generated command printed by first-run-check.",
         ],
         "docs": [
             "docs/USAGE_PLAYBOOK.md",
@@ -2137,6 +2145,8 @@ def use_case():
     for index, command in enumerate(guidance["commands"], start=1):
         command_table.add_row(str(index), command)
     console.print(command_table)
+    for note in guidance["notes"]:
+        console.print(f"[dim]{note}[/dim]")
     console.print("Read: " + ", ".join(guidance["docs"]))
     console.print(
         "[yellow]Research and education only. Not investment advice or a trade instruction.[/yellow]"
