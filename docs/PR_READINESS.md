@@ -3,9 +3,9 @@
 Date: 2026-06-10
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 22 commits ahead of `upstream/main` after the use-case guidance command commit.
+Branch state: 23 commits ahead of `upstream/main` after the first workflow rehearsal handoff commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the use-case guidance command commit.
+PR body: updated from this file after the first workflow rehearsal handoff commit.
 
 ## PR Title
 
@@ -33,10 +33,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Added an offline `sample-report` CLI command so users can verify saved-report and dashboard workflow without LLM credentials.
 - Lazy-loaded the heavy graph class so offline CLI commands do not pay graph startup cost.
 - Added an offline `use-case` CLI command that states the highest-value use case and first workflow commands.
+- Rehearsed the first workflow through the installed `indiamarketagents` console script.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the use-case guidance command commit.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the first workflow rehearsal handoff commit.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -45,6 +46,9 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python3 -m cli.main sample-report --ticker RELIANCE.NS --date 2026-06-05 --save-path /tmp/ima-sample-report.EBbwOv`: passed and generated the full saved-report bundle with sample/UNAVAILABLE markers.
 - `python3 -m cli.main --help`, `doctor`, `first-run-check`, `sample-report`, and `use-case` returned promptly after lazy graph import.
 - `python3 -m cli.main use-case`: passed and printed the highest-value workflow.
+- `indiamarketagents use-case`: passed and printed the highest-value workflow from the installed console script.
+- `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05`: passed and generated `reports/RELIANCE.NS/2026-06-05/complete_report.md` plus companion review artifacts.
+- `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected because `OPENAI_API_KEY` is not configured; ticker, date, analyst selection, and report path checks passed.
 - `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 20 passed after the use-case guidance update.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
@@ -58,9 +62,10 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - yfinance remains a third-party fallback, not an official source.
 - README still contains a large upstream TradingAgents body after the IndiaMarketAgents preface; the most direct execution-language issue was removed, but user-facing docs should eventually route more clearly to `README_INDIA.md`.
 - Dashboard runtime was not browser-verified in this environment because Streamlit is optional and not installed.
+- `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle; it is not tracked and contains no live market, broker, filing, or LLM output.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the use-case guidance command commit.
+- PR body was updated from this file after the first workflow rehearsal handoff commit.
 
 ## PR Checklist
 

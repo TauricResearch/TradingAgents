@@ -16,6 +16,7 @@ The session progressed through scoped phases:
 8. Final branch review and PR-readiness package.
 9. PR creation.
 10. Usage playbook and best-use-case guidance.
+11. First workflow rehearsal.
 
 The branch is already pushed and a draft PR is open:
 
@@ -33,26 +34,29 @@ Current follow-up state as of 2026-06-10:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the CLI use-case guidance commit.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the first workflow rehearsal handoff commit.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
 - `indiamarketagents sample-report` is included in the offline sample-report phase.
 - Offline CLI commands lazy-load `TradingAgentsGraph`, so help/doctor/preflight/sample-report do not pay analysis startup cost.
 - `indiamarketagents use-case` is included in the CLI use-case guidance phase.
+- The installed `indiamarketagents` console script has been used to rehearse the documented first workflow through `use-case`, `sample-report`, and `first-run-check`.
+- `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle with `complete_report.md`, section files, `sources.md`, `data_quality.json`, `summary.json`, `disclaimer.md`, and `compliance.md`.
+- The real `analyze` run is not ready yet because `OPENAI_API_KEY` is not configured for the `openai` provider.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `2354073` before committing the CLI use-case guidance command.
+- `git rev-parse --short HEAD`: `c35415e` before committing the first workflow rehearsal handoff update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the CLI use-case guidance command: `2354073 perf: lazy load analysis graph for offline CLI`; re-check after the guidance commit.
+- Latest committed HEAD before the first workflow rehearsal handoff update: `c35415e feat: add use-case guidance command`; re-check after the handoff commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -65,7 +69,7 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 22 after the CLI use-case guidance command commit.
+- `git rev-list --count upstream/main..HEAD`: 23 after the first workflow rehearsal handoff commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -164,6 +168,10 @@ Follow-up usage work:
 - Added `indiamarketagents sample-report` and unit tests for explicit sample/UNAVAILABLE saved-report bundles.
 - Lazy-loaded `TradingAgentsGraph` so offline commands stay fast and do not import the full analysis graph until `analyze` runs.
 - Added `indiamarketagents use-case` and unit tests for the recommended workflow guidance.
+- Rehearsed the documented first workflow with installed console-script commands:
+  - `indiamarketagents use-case`: passed.
+  - `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05`: passed and generated the ignored local sample report bundle.
+  - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed only because `OPENAI_API_KEY` is not configured.
 
 PR/publish work:
 
@@ -287,7 +295,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the CLI use-case guidance commit.
+- PR body was updated from `docs/PR_READINESS.md` after the first workflow rehearsal handoff commit.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -350,6 +358,9 @@ GitHub/PR commands:
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected when `OPENAI_API_KEY` was not configured.
 - `OPENAI_API_KEY=test-openai-key python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: passed without live market, broker, or LLM calls.
 - `python3 -m cli.main sample-report --ticker RELIANCE.NS --date 2026-06-05 --save-path /tmp/ima-sample-report.EBbwOv`: passed and generated the full saved-report bundle with sample/UNAVAILABLE markers.
+- `indiamarketagents use-case`: passed and printed the highest-value workflow from the installed console script.
+- `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05`: passed and generated `reports/RELIANCE.NS/2026-06-05/complete_report.md` plus companion review artifacts.
+- `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected because `OPENAI_API_KEY` is not configured; ticker, date, analyst selection, and report path checks passed.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 20 passed.
 
@@ -376,6 +387,7 @@ Commits created in this session/branch:
 - `5bd0c30 feat: add first-run readiness check`
 - `ab6c095 feat: add offline sample report workflow`
 - `2354073 perf: lazy load analysis graph for offline CLI`
+- `c35415e feat: add use-case guidance command`
 
 ## 8. How to verify the work
 
@@ -391,8 +403,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `2354073` before committing the CLI use-case guidance command.
-- Worktree should be clean after the CLI use-case guidance command is committed.
+- Head is `c35415e` before committing the first workflow rehearsal handoff update.
+- Worktree should be clean after the first workflow rehearsal handoff update is committed.
 
 2. Check formatting/whitespace:
 
@@ -451,16 +463,15 @@ Expected:
 
 ## 9. Next recommended steps
 
-1. Run `indiamarketagents use-case` to review the recommended first workflow.
-2. Run `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05` to rehearse saved-report review.
-3. Run `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>` after an LLM/API key is configured.
-4. Run a real first-company analysis from `docs/FIRST_RUN_CHECKLIST.md` after preflight passes.
-5. Inspect PR #1002 again if GitHub status checks or reviewer feedback appear.
-6. If continuing implementation, do not add new data sources or broker integrations casually.
+1. Configure an LLM/API key for the intended provider.
+2. Run `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>` after the key is configured.
+3. Run a real first-company analysis from `docs/FIRST_RUN_CHECKLIST.md` after preflight passes.
+4. Inspect PR #1002 again if GitHub status checks or reviewer feedback appear.
+5. If continuing implementation, do not add new data sources or broker integrations casually.
    - Next code work should likely be official-source review for NSE/BSE only after source/legal/access review, or README cleanup to route users to `README_INDIA.md`.
-7. Optional: verify dashboard runtime after installing `.[dashboard]`.
-8. Optional: update `docs/PR_READINESS.md` if PR CI or review feedback adds new validation evidence or risks.
-9. Keep all generated reports under ignored `reports/` and local filings under ignored `data/india/filings/`.
+6. Optional: verify dashboard runtime after installing `.[dashboard]`.
+7. Optional: update `docs/PR_READINESS.md` if PR CI or review feedback adds new validation evidence or risks.
+8. Keep all generated reports under ignored `reports/` and local filings under ignored `data/india/filings/`.
 
 ## 10. Files the next session should read first
 
@@ -497,5 +508,5 @@ First read `.codex/HANDOFF.md`, then inspect the live repo state with:
 
 Verify the assumptions in the handoff before making changes. Do not add data sources, agent prompts, dashboard features, broker integrations, or live trading controls unless I explicitly ask.
 
-Current likely next step: run `indiamarketagents use-case`, then `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05` to rehearse saved-report review, then run `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>` after an LLM/API key is configured, then run the real first-company analysis in `docs/FIRST_RUN_CHECKLIST.md` once preflight passes. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
+Current likely next step: configure an LLM/API key, rerun `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>`, then run the real first-company analysis in `docs/FIRST_RUN_CHECKLIST.md` once preflight passes. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
 ```

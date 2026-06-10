@@ -2,7 +2,7 @@
 
 Date: 2026-06-10
 Branch: `india-market-agents`
-Latest phase: CLI use-case guidance
+Latest phase: First workflow rehearsal
 
 ## Project Goal
 
@@ -16,7 +16,7 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 22 commits ahead of `upstream/main` after the use-case guidance command commit.
+- Branch review confirms `india-market-agents` is clean and 23 commits ahead of `upstream/main` after the first workflow rehearsal handoff commit.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -24,6 +24,7 @@ The product is research and decision support only. It must not become a live tra
 - `indiamarketagents sample-report` now creates explicit sample/UNAVAILABLE saved-report bundles without live market, broker, or LLM calls.
 - Offline commands now lazy-load the heavy graph class, so help/doctor/preflight/sample-report do not pay analysis startup cost.
 - `indiamarketagents use-case` now prints the recommended highest-value use case and first workflow commands.
+- The documented first workflow has been rehearsed with the installed `indiamarketagents` console script through `use-case`, `sample-report`, and `first-run-check`.
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
 - Final verification passed with the offline unit suite and targeted security/compliance scans.
@@ -99,6 +100,10 @@ The product is research and decision support only. It must not become a live tra
 16. CLI use-case guidance:
    - Added `get_use_case_guidance()` and `indiamarketagents use-case`.
    - Linked the command from `README_INDIA.md`, `docs/FIRST_RUN_CHECKLIST.md`, `docs/USAGE_PLAYBOOK.md`, and `docs/BEGINNER_SETUP.md`.
+17. First workflow rehearsal:
+   - Ran `indiamarketagents use-case` from the installed console script.
+   - Ran `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05`, generating the ignored sample bundle at `reports/RELIANCE.NS/2026-06-05/`.
+   - Ran `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`; ticker/date/analyst/report-path checks passed and the only failed check was missing `OPENAI_API_KEY`.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -155,7 +160,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 22 after the use-case guidance command commit.
+- `git rev-list --count upstream/main..HEAD`: 23 after the first workflow rehearsal handoff commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -169,6 +174,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python3 -m cli.main sample-report --ticker RELIANCE.NS --date 2026-06-05 --save-path /tmp/ima-sample-report.EBbwOv`: passed and generated the full saved-report bundle with sample/UNAVAILABLE markers.
 - `python3 -m cli.main --help`, `doctor`, `first-run-check`, and `sample-report`: returned promptly after lazy graph import.
 - `python3 -m cli.main use-case`: passed and printed the highest-value workflow.
+- `indiamarketagents use-case`: passed and printed the highest-value workflow from the installed console script.
+- `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05`: passed and generated `reports/RELIANCE.NS/2026-06-05/complete_report.md` plus companion review artifacts.
+- `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected because `OPENAI_API_KEY` is not configured; ticker, date, analyst selection, and report path checks passed.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 20 passed.
 - `git diff --check`: passed.
@@ -189,6 +197,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `sources.md` does not scrape or retrieve new sources; it indexes coverage markers already present in generated section text.
 - Streamlit is an optional dashboard dependency and is not installed in the baseline test environment; dashboard runtime was not browser-verified in this phase.
 - Dashboard report discovery reads local `reports/<SYMBOL>/<DATE>/` folders only and does not validate generated report facts.
+- `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle from the first workflow rehearsal.
 - Local `__pycache__` files exist from test runs but are ignored by git and were not deleted because deletion was not requested.
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
@@ -197,4 +206,4 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 ## Next Recommended Prompt
 
-Run `indiamarketagents use-case`, then run `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05` to rehearse saved-report review, then run `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>` after configuring an LLM/API key, then continue with the real first-company analysis run in `docs/FIRST_RUN_CHECKLIST.md`. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.
+Configure an LLM/API key, rerun `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>`, then continue with the real first-company analysis run in `docs/FIRST_RUN_CHECKLIST.md`. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.
