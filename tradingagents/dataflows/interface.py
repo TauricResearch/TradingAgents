@@ -181,6 +181,7 @@ def route_to_vendor(method: str, *args, **kwargs):
                 method,
                 " (configured primary)" if vendor in primary_vendors else "",
                 e,
+                exc_info=True,
             )
             if first_error is None:
                 first_error = e

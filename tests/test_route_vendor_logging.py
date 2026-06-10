@@ -36,6 +36,7 @@ class TestRouteToVendorLogging(unittest.TestCase):
         self.assertIn("boomvendor", joined)
         self.assertIn("get_stock_data", joined)
         self.assertIn("configured primary", joined)
+        self.assertTrue(any(record.exc_info for record in cm.records))
 
 
 if __name__ == "__main__":
