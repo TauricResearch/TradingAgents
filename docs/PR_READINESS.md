@@ -3,7 +3,7 @@
 Date: 2026-06-10
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 16 commits ahead of `upstream/main` after the PR-body auth correction commit.
+Branch state: 17 commits ahead of `upstream/main` after the first-run checklist commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
 
 ## PR Title
@@ -27,6 +27,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Made the dashboard a read-only saved-report reviewer with optional Streamlit dependency and offline-testable helpers.
 - Added security/compliance regressions for tracked generated artifacts, report path validation, fake secret prefixes, and user-facing no-execution wording.
 - Added a practical usage playbook that identifies the best first use case and a repeatable analyst workflow.
+- Added a credential-safe first-run checklist for getting from local setup to a `RELIANCE.NS` research pack.
 
 ## Validation
 
@@ -62,6 +63,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Generated reports, local filings, PDFs, caches, and secrets are ignored and not tracked.
 - [x] Offline unit tests pass without API keys or live exchange access.
 - [x] Recommended first workflow and best-use-case guidance is documented.
+- [x] Credential-safe first-run checklist is documented.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
 

@@ -48,6 +48,8 @@ cp .env.example.india .env
 
 Open `.env` and add your API keys.
 
+For a credential-safe first research-pack workflow, see `docs/FIRST_RUN_CHECKLIST.md`.
+
 ## 6. Run Doctor
 
 ```bash

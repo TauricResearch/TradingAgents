@@ -24,7 +24,7 @@ The branch is already pushed and a draft PR is open:
 - Head: `tgabhawala-creator:india-market-agents`
 - PR title: `Transform TradingAgents into IndiaMarketAgents research copilot foundation`
 
-Current objective: make the GitHub repo practically usable and identify the highest-value use case. The current best use case is a first-pass India equity research pack for an NSE/BSE-listed company, using local filings where available and saved report artifacts for analyst review. This is documented in `docs/USAGE_PLAYBOOK.md`.
+Current objective: make the GitHub repo practically usable and identify the highest-value use case. The current best use case is a first-pass India equity research pack for an NSE/BSE-listed company, using local filings where available and saved report artifacts for analyst review. This is documented in `docs/USAGE_PLAYBOOK.md`; exact first-run steps are in `docs/FIRST_RUN_CHECKLIST.md`.
 
 ## 2. Current repo state
 
@@ -35,19 +35,20 @@ Current follow-up state as of 2026-06-10:
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
 - GitHub PR mutation is still blocked: `gh pr edit` and REST `gh api` returned `HTTP 401`, and `gh auth refresh -h github.com` requires browser device-code reauthentication.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
+- `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `035f8a3` before committing the PR-body auth correction docs.
+- `git rev-parse --short HEAD`: `5798077` before committing the first-run checklist docs.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the PR-body auth correction docs: `035f8a3 docs: refresh IndiaMarketAgents PR status`; re-check after the auth correction commit.
+- Latest committed HEAD before the first-run checklist docs: `5798077 docs: note GitHub PR body auth blocker`; re-check after the first-run checklist commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -60,7 +61,7 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 16 after the PR-body auth correction docs commit.
+- `git rev-list --count upstream/main..HEAD`: 17 after the first-run checklist docs commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -71,6 +72,7 @@ Material file changes by area:
   - `README.md`: IndiaMarketAgents preface and removal of the most direct simulated-exchange execution wording.
   - `README_INDIA.md`: India-specific setup, usage, disclaimers, dashboard instructions.
   - `docs/USAGE_PLAYBOOK.md`: practical first workflow and highest-value use case for using the repo.
+  - `docs/FIRST_RUN_CHECKLIST.md`: credential-safe setup, first analysis, output review, and acceptance checks.
   - `docs/CODEX_HANDOFF.md`: phase-by-phase project handoff.
   - `docs/PR_READINESS.md`: PR title/body/checklist/reviewer focus.
   - `docs/REPO_AUDIT_INDIA.md`: architecture audit and India migration plan.
@@ -150,6 +152,7 @@ Follow-up usage work:
 - Added `docs/USAGE_PLAYBOOK.md` with the highest-value use case, first recommended workflow, setup path, optional local filings path, first analysis command, saved artifacts to review, review sequence, current limits, and acceptance checks.
 - Linked the playbook from `README_INDIA.md`.
 - Updated `docs/CODEX_HANDOFF.md` and `docs/PR_READINESS.md` to reflect the usage phase and current PR status.
+- Added `docs/FIRST_RUN_CHECKLIST.md` and linked it from `README_INDIA.md`, `docs/USAGE_PLAYBOOK.md`, and `docs/BEGINNER_SETUP.md`.
 
 PR/publish work:
 
@@ -352,6 +355,7 @@ Commits created in this session/branch:
 - `9c3347b docs: add Codex session handoff`
 - `9be81c3 docs: add IndiaMarketAgents usage playbook`
 - `035f8a3 docs: refresh IndiaMarketAgents PR status`
+- `5798077 docs: note GitHub PR body auth blocker`
 
 ## 8. How to verify the work
 
@@ -367,8 +371,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `035f8a3` before committing the PR-body auth correction docs.
-- Worktree should be clean after the PR-body auth correction docs are committed.
+- Head is `5798077` before committing the first-run checklist docs.
+- Worktree should be clean after the first-run checklist docs are committed.
 
 2. Check formatting/whitespace:
 
@@ -429,7 +433,7 @@ Expected:
 
 1. Refresh GitHub CLI auth through the browser device-code flow.
 2. Update PR #1002 body from `docs/PR_READINESS.md`.
-3. Run a real first-company analysis after an LLM/API key is configured.
+3. Run a real first-company analysis from `docs/FIRST_RUN_CHECKLIST.md` after an LLM/API key is configured.
 4. If continuing implementation, do not add new data sources or broker integrations casually.
    - Next code work should likely be official-source review for NSE/BSE only after source/legal/access review, or README cleanup to route users to `README_INDIA.md`.
 5. Optional: verify dashboard runtime after installing `.[dashboard]`.
@@ -442,18 +446,19 @@ Expected:
 2. `docs/CODEX_HANDOFF.md`
 3. `docs/PR_READINESS.md`
 4. `docs/USAGE_PLAYBOOK.md`
-5. `AGENTS.md`
-6. `README_INDIA.md`
-7. `README.md`
-8. `cli/main.py`
-9. `tradingagents/default_config.py`
-10. `tradingagents/dataflows/india/symbols.py`
-11. `tradingagents/dataflows/india/quality.py`
-12. `tradingagents/graph/analyst_execution.py`
-13. `dashboard/report_review.py`
-14. `tests/test_security_compliance.py`
-15. `tests/test_india_cli_report.py`
-16. `tests/test_dashboard_report_review.py`
+5. `docs/FIRST_RUN_CHECKLIST.md`
+6. `AGENTS.md`
+7. `README_INDIA.md`
+8. `README.md`
+9. `cli/main.py`
+10. `tradingagents/default_config.py`
+11. `tradingagents/dataflows/india/symbols.py`
+12. `tradingagents/dataflows/india/quality.py`
+13. `tradingagents/graph/analyst_execution.py`
+14. `dashboard/report_review.py`
+15. `tests/test_security_compliance.py`
+16. `tests/test_india_cli_report.py`
+17. `tests/test_dashboard_report_review.py`
 
 ## 11. Prompt for the next Codex chat
 
@@ -470,5 +475,5 @@ First read `.codex/HANDOFF.md`, then inspect the live repo state with:
 
 Verify the assumptions in the handoff before making changes. Do not add data sources, agent prompts, dashboard features, broker integrations, or live trading controls unless I explicitly ask.
 
-Current likely next step: refresh GitHub CLI auth through the browser device-code flow, update PR #1002 body from `docs/PR_READINESS.md`, then run a real first-company analysis once an LLM/API key is configured. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
+Current likely next step: refresh GitHub CLI auth through the browser device-code flow, update PR #1002 body from `docs/PR_READINESS.md`, then run the real first-company analysis in `docs/FIRST_RUN_CHECKLIST.md` once an LLM/API key is configured. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
 ```

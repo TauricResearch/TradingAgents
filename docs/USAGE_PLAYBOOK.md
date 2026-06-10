@@ -48,6 +48,8 @@ cp .env.example.india .env
 
 Add at least one LLM key to `.env`.
 
+For a credential-safe step-by-step run path, use `docs/FIRST_RUN_CHECKLIST.md`.
+
 Check the local install without making live market or LLM calls:
 
 ```bash
