@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 
 import pytest
 
@@ -25,6 +26,12 @@ def _resync_reloaded_modules():
 
 
 # ---- openai_client side: _resolve_provider_base_url -----------------------
+
+
+def test_india_env_example_includes_ollama_base_url():
+    env_example = Path(".env.example.india").read_text(encoding="utf-8")
+
+    assert "OLLAMA_BASE_URL=" in env_example
 
 
 def _reload_client():

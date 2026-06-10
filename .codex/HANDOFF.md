@@ -23,6 +23,7 @@ The session progressed through scoped phases:
 15. Use-case preflight alignment.
 16. Usage playbook command alignment.
 17. macOS metadata ignore.
+18. Ollama env-template placeholder.
 
 The branch is already pushed and a draft PR is open:
 
@@ -40,7 +41,7 @@ Current follow-up state as of 2026-06-10:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the macOS metadata ignore commit.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the Ollama env-template placeholder commit.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
@@ -54,20 +55,21 @@ Current follow-up state as of 2026-06-10:
 - `indiamarketagents use-case` now reuses the preflight command builder and tells users to run analysis only after `first-run-check` passes.
 - `docs/USAGE_PLAYBOOK.md` now directs users to run the shallow `analyze` command printed by `first-run-check`, with a provider-aware OpenAI example.
 - `.gitignore` now ignores `.DS_Store` so local macOS metadata does not appear as untracked repo noise.
-- The real `analyze` run is not ready yet because no LLM provider is configured: `OPENAI_API_KEY` is missing for OpenAI and Ollama has neither a local `ollama` command nor `OLLAMA_BASE_URL`.
+- `.env.example.india` now includes `OLLAMA_BASE_URL=` so the local template matches the Ollama preflight/docs path.
+- The real `analyze` run is not ready yet because no LLM provider is configured: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `327ea4f` before committing the macOS metadata ignore update.
+- `git rev-parse --short HEAD`: `a6c463c` before committing the Ollama env-template placeholder update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the macOS metadata ignore update: `327ea4f docs: align usage playbook with preflight command`; re-check after the ignore commit.
+- Latest committed HEAD before the Ollama env-template placeholder update: `a6c463c chore: ignore macOS metadata`; re-check after the template commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -80,8 +82,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 29 after the macOS metadata ignore commit.
-- `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
+- `git rev-list --count upstream/main..HEAD`: 30 after the Ollama env-template placeholder commit.
+- `git diff --stat upstream/main`: 78 files changed, 6062 insertions, 228 deletions.
 
 Material file changes by area:
 
@@ -127,7 +129,7 @@ Generated files or artifacts:
 
 - No generated reports, local filing folders, PDFs, DBs, bytecode, logs, or secrets are tracked.
 - Local `__pycache__` files exist from test runs but are ignored by git and were intentionally not deleted.
-- `.codex/HANDOFF.md` is newly created for this handoff and is not yet committed unless the next session/user commits it.
+- `.codex/HANDOFF.md` is tracked, committed, and kept current for restart-ready handoffs.
 
 ## 3. Decisions made
 
@@ -206,6 +208,10 @@ Follow-up usage work:
 - Ignored macOS metadata:
   - Added `.DS_Store` to `.gitignore`.
   - Left the existing local `.DS_Store` in place; it is ignored and not tracked.
+- Added Ollama env-template placeholder:
+  - Added `OLLAMA_BASE_URL=` to `.env.example.india`.
+  - Created ignored local `.env` from `.env.example.india`; all provider placeholders remain empty.
+  - Added regression coverage so the India env template keeps the Ollama placeholder.
 
 PR/publish work:
 
@@ -329,7 +335,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the macOS metadata ignore commit.
+- PR body was updated from `docs/PR_READINESS.md` after the Ollama env-template placeholder commit.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -407,6 +413,9 @@ GitHub/PR commands:
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution -q`: 1 passed.
 - `git status --branch --short`: no longer reports `.DS_Store` as untracked after the `.gitignore` update.
 - `git check-ignore .DS_Store`: passed.
+- `awk -F= ... .env.example.india .env`: confirmed provider placeholders are empty, including `OLLAMA_BASE_URL=`.
+- `git check-ignore .env .DS_Store`: passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_ollama_base_url.py::test_india_env_example_includes_ollama_base_url -q`: 1 passed.
 
 Commits created in this session/branch:
 
@@ -438,6 +447,7 @@ Commits created in this session/branch:
 - `2c08eb0 docs: add IndiaMarketAgents root quick start`
 - `d88eb94 fix: align use-case command with preflight flow`
 - `327ea4f docs: align usage playbook with preflight command`
+- `a6c463c chore: ignore macOS metadata`
 
 ## 8. How to verify the work
 
@@ -453,8 +463,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `327ea4f` before committing the macOS metadata ignore update.
-- Worktree should be clean after the macOS metadata ignore update is committed.
+- Head is `a6c463c` before committing the Ollama env-template placeholder update.
+- Worktree should be clean after the Ollama env-template placeholder update is committed.
 
 2. Check formatting/whitespace:
 
