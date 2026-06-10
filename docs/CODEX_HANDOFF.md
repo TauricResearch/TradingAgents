@@ -2,7 +2,7 @@
 
 Date: 2026-06-10
 Branch: `india-market-agents`
-Latest phase: First-run checklist
+Latest phase: First-run checklist and PR body refresh
 
 ## Project Goal
 
@@ -16,7 +16,7 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 17 commits ahead of `upstream/main` after the first-run checklist commit.
+- Branch review confirms `india-market-agents` is clean and 18 commits ahead of `upstream/main` after the PR body update confirmation commit.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -79,6 +79,8 @@ The product is research and decision support only. It must not become a live tra
 11. First-run checklist:
    - Added `docs/FIRST_RUN_CHECKLIST.md` with exact install, credential, local-input, first-analysis, output-review, and acceptance steps.
    - Linked the checklist from `README_INDIA.md`, `docs/USAGE_PLAYBOOK.md`, and `docs/BEGINNER_SETUP.md`.
+12. PR body refresh:
+   - Updated draft PR #1002 body from `docs/PR_READINESS.md` after the first-run checklist update.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -133,12 +135,13 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 17 after the first-run checklist commit.
+- `git rev-list --count upstream/main..HEAD`: 18 after the PR body update confirmation commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
 - `gh api repos/TauricResearch/TradingAgents/pulls/1002 -X PATCH -F body=@docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
 - `gh auth refresh -h github.com`: requires browser device-code reauthentication; command was stopped rather than left running.
+- `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: later passed and updated the PR body.
 - `python3 -m cli.main --help`: passed.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; package import and ticker validation were OK; no LLM/API keys detected.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
@@ -165,8 +168,8 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
 - PR #1002 is open and draft, with no reported GitHub status checks at the latest inspection.
-- PR body update is blocked until GitHub CLI auth is refreshed through the browser device-code flow.
+- PR body has been updated from `docs/PR_READINESS.md`.
 
 ## Next Recommended Prompt
 
-Refresh GitHub CLI auth through the browser device-code flow, update PR #1002 body from `docs/PR_READINESS.md`, then continue with the real first-company analysis run in `docs/FIRST_RUN_CHECKLIST.md` after an LLM/API key is configured. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.
+Continue with the real first-company analysis run in `docs/FIRST_RUN_CHECKLIST.md` after an LLM/API key is configured. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.

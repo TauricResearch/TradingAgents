@@ -3,8 +3,9 @@
 Date: 2026-06-10
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 17 commits ahead of `upstream/main` after the first-run checklist commit.
+Branch state: 18 commits ahead of `upstream/main` after the PR body update confirmation commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
+PR body: updated from this file after the first-run checklist update.
 
 ## PR Title
 
@@ -50,7 +51,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Dashboard runtime was not browser-verified in this environment because Streamlit is optional and not installed.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- Updating the PR body is currently blocked by GitHub API authentication. `gh auth refresh -h github.com` requires browser device-code reauthentication.
+- PR body was updated from this file after the first-run checklist update.
 
 ## PR Checklist
 
