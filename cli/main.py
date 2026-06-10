@@ -1630,6 +1630,15 @@ def run_doctor_checks(ticker: str = "RELIANCE.NS") -> dict:
         "alpha_vantage": "ALPHA_VANTAGE_API_KEY",
     }.items():
         checks[f"{provider}_key_present"] = bool(os.environ.get(env_var))
+    workflow_status = get_first_workflow_status(ticker=ticker)
+    provider_status = workflow_status["provider_status"]
+    report_status = workflow_status.get("report_status") or {}
+    checks["provider_ready"] = provider_status["ready"]
+    checks["preferred_provider"] = provider_status["preferred_provider"] or "none"
+    checks["provider_next_step"] = provider_status["recommended_next_step"]
+    checks["saved_report_bundle_ready"] = bool(report_status.get("ready"))
+    checks["first_workflow_ready"] = workflow_status["ready_for_analysis"]
+    checks["first_workflow_next_step"] = workflow_status["next_step"]
     return checks
 
 

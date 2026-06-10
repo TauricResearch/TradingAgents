@@ -23,10 +23,53 @@ from tradingagents.dataflows.india.symbols import IndiaSymbolError
 
 
 @pytest.mark.unit
-def test_doctor_validates_india_ticker():
+def test_doctor_validates_india_ticker(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    for env_var in (
+        "OPENAI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OLLAMA_BASE_URL",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+
     checks = run_doctor_checks("RELIANCE")
+
     assert checks["ticker_validation"] == "RELIANCE.NS"
     assert checks["package_import"] is True
+    assert checks["provider_ready"] is False
+    assert checks["preferred_provider"] == "none"
+    assert checks["saved_report_bundle_ready"] is False
+    assert checks["first_workflow_ready"] is False
+    assert (
+        "sample-report --ticker RELIANCE.NS --date 2026-06-05"
+        in checks["first_workflow_next_step"]
+    )
+
+
+@pytest.mark.unit
+def test_doctor_surfaces_ready_workflow_next_step(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+    report_dir = tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
+    generate_sample_report(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        save_path=report_dir,
+    )
+
+    checks = run_doctor_checks("RELIANCE")
+
+    assert checks["provider_ready"] is True
+    assert checks["preferred_provider"] == "ollama"
+    assert checks["saved_report_bundle_ready"] is True
+    assert checks["first_workflow_ready"] is True
+    assert checks["first_workflow_next_step"] == (
+        "indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 "
+        "--provider ollama --research-depth 1 --no-display --no-save-prompt"
+    )
 
 
 @pytest.mark.unit

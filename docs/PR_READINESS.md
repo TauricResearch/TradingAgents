@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 41 commits ahead of `upstream/main` after the use-case generated-analyze guidance update.
+Branch state: 42 commits ahead of `upstream/main` after the doctor workflow-readiness update.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the use-case generated-analyze guidance update.
+PR body: updated from this file after the doctor workflow-readiness update.
 
 ## PR Title
 
@@ -50,10 +50,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Tightened `workflow-status` so incomplete saved-report bundles cannot pass readiness just because `complete_report.md` exists.
 - Updated `first-run-check` to auto-select a ready provider when `--provider` is omitted, while preserving explicit provider overrides.
 - Updated `use-case` so the final workflow step points to the provider-specific `analyze` command printed by `first-run-check`.
+- Updated `doctor` so the general health check surfaces provider readiness, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the use-case generated-analyze guidance update.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the doctor workflow-readiness update.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -96,13 +97,16 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python3 -m cli.main use-case`: passed and directed users to the `analyze` command printed by `first-run-check`.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and auto-selected Ollama.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected on the configured default OpenAI provider because no provider is locally ready.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 25 passed.
+- `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed and reported the current provider setup blocker in first-workflow readiness.
+- `indiamarketagents doctor --ticker RELIANCE.NS`: passed from the installed console script and reported the same provider setup blocker.
+- `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main doctor --ticker RELIANCE.NS`: passed and reported the generated shallow `indiamarketagents analyze` command as the first-workflow next step.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 26 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with handoff, PR-readiness, and test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
-- `python3 -m pytest -m "not integration" -q`: 373 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 393 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Remaining Risks
 
@@ -114,7 +118,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the use-case generated-analyze guidance update.
+- PR body was updated from this file after the doctor workflow-readiness update.
 
 ## PR Checklist
 
@@ -140,6 +144,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Workflow status validates full saved-report bundle readiness.
 - [x] First-run preflight auto-selects a ready provider when `--provider` is omitted.
 - [x] Use-case guidance points to the generated provider-specific analyze command.
+- [x] Doctor health check surfaces first-workflow readiness and next step.
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
