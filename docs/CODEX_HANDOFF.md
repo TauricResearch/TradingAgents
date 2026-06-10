@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: First-run-check provider-blocker detail
+Latest phase: Dashboard runtime verification
 
 ## Project Goal
 
@@ -16,8 +16,8 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `adc56cf` before the first-run-check provider-blocker update.
-- The branch is 51 commits ahead of `upstream/main` after this first-run-check provider-blocker commit.
+- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `405feb1` before the dashboard runtime verification update.
+- The branch is 52 commits ahead of `upstream/main` after this dashboard verification commit.
 - Goal status: the repo is usable for the recommended no-key workflow rehearsal, saved-report review, provider readiness checks, and highest-value use-case identification. A real LLM-backed `analyze` run still requires configuring one provider path.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
@@ -41,6 +41,7 @@ The product is research and decision support only. It must not become a live tra
 - `indiamarketagents workflow-status` now includes the configured-provider blocker in its provider row when no provider path is ready.
 - `indiamarketagents doctor` now surfaces provider readiness, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
 - `indiamarketagents report-status` now checks saved-report artifacts and summarizes `data_quality.json` without live calls or writes.
+- The optional Streamlit dashboard path was installed with `python3 -m pip install -e ".[dashboard]"` and browser-verified against the local sample report bundle.
 - `docs/USAGE_PLAYBOOK.md` now directs users to run the shallow `analyze` command printed by `first-run-check`, with a provider-aware OpenAI example.
 - `docs/USAGE_PLAYBOOK.md` now separates no-key rehearsal readiness from first LLM-backed research-run readiness so `doctor` output cannot be misread as full readiness when no provider is configured.
 - `docs/FIRST_RUN_CHECKLIST.md` now shows the same provider-aware OpenAI analyze path as the generated preflight command.
@@ -48,7 +49,7 @@ The product is research and decision support only. It must not become a live tra
 - `.env.example.india` now includes `OLLAMA_BASE_URL=` so the local template matches the Ollama preflight/docs path.
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
-- Final verification passed with the offline unit suite and targeted security/compliance scans.
+- Latest verification passed for provider status, first-run blocker output, optional dashboard runtime rendering, and absence of dashboard broker/order action controls.
 - No data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
 
 ## Completed Phases
@@ -221,6 +222,10 @@ The product is research and decision support only. It must not become a live tra
    - Reused the non-secret provider blocker formatter in `first-run-check`.
    - Updated the `Provider readiness` row to show the configured provider and missing credential/runtime detail when no provider path is ready.
    - Updated the first-run checklist and regression coverage for this explicit blocker.
+42. Dashboard runtime verification:
+   - Installed the optional dashboard extra with `python3 -m pip install -e ".[dashboard]"`.
+   - Started `streamlit run dashboard/app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false`.
+   - Browser-verified the local dashboard renders the `RELIANCE.NS` / `2026-06-05` saved sample-report bundle, report tabs, research-only disclaimer, data-quality content, and no broker/order action controls.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -231,12 +236,8 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `.codex/HANDOFF.md`
-- `cli/main.py`
 - `docs/CODEX_HANDOFF.md`
-- `docs/FIRST_RUN_CHECKLIST.md`
 - `docs/PR_READINESS.md`
-- `docs/USAGE_PLAYBOOK.md`
-- `tests/test_india_cli_report.py`
 
 ## Important Design Decisions
 
@@ -274,9 +275,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `adc56cf` before the first-run-check provider-blocker update.
-- `git log -1 --oneline`: `adc56cf feat: clarify workflow provider blocker`.
-- `git rev-list --count upstream/main..HEAD`: 51 after this first-run-check provider-blocker commit.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `405feb1` before the dashboard runtime verification update.
+- `git log -1 --oneline`: `405feb1 feat: clarify first-run provider blocker`.
+- `git rev-list --count upstream/main..HEAD`: 52 after this dashboard verification commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -340,6 +341,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python3 -m cli.main provider-status`: passed; showed configured provider `openai` from `TRADINGAGENTS_LLM_PROVIDER` and reported `OPENAI_API_KEY` missing without printing secrets.
 - `python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed; provider row now includes configured provider `openai` and missing `OPENAI_API_KEY`.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected; `Provider readiness` row now includes configured provider `openai` and missing `OPENAI_API_KEY`.
+- `python3 -m pip install -e ".[dashboard]"`: passed; installed optional Streamlit dashboard dependencies in the current Python 3.14 environment.
+- `streamlit run dashboard/app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false`: passed; served the dashboard at `http://localhost:8501`, then was stopped after verification.
+- Browser verification at `http://localhost:8501`: passed; the dashboard rendered `IndiaMarketAgents`, ticker `RELIANCE.NS`, date `2026-06-05`, report-review tabs, research-only disclaimer, data-quality content, no browser console errors, and no broker/order action controls.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 30 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
@@ -359,7 +363,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Some schema field names such as `TraderAction` and `TraderProposal.action` remain for compatibility, even though user-facing language now renders as a model view.
 - The saved-report source/data-quality coverage index uses simple marker detection and can produce false positives or false negatives; it is an audit aid, not factual validation.
 - `sources.md` does not scrape or retrieve new sources; it indexes coverage markers already present in generated section text.
-- Streamlit is an optional dashboard dependency and is not installed in the baseline test environment; dashboard runtime was not browser-verified in this phase.
+- Streamlit remains an optional dashboard dependency; it was installed in the current environment for browser verification, but baseline offline tests still do not require it.
 - Dashboard report discovery reads local `reports/<SYMBOL>/<DATE>/` folders only and does not validate generated report facts.
 - `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle from the first workflow rehearsal.
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
@@ -367,7 +371,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
 - PR #1002 is open and draft, with no reported GitHub status checks at the latest inspection.
-- PR body has been updated from `docs/PR_READINESS.md`.
+- PR body should be updated from `docs/PR_READINESS.md` after this dashboard verification commit is pushed.
 
 ## Next Recommended Prompt
 

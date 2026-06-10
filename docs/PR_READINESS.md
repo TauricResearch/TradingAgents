@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 51 commits ahead of `upstream/main` after this first-run-check provider-blocker update is committed.
+Branch state: 52 commits ahead of `upstream/main` after this dashboard runtime verification update is committed.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after this first-run-check provider-blocker update.
+PR body: updated from this file after this dashboard runtime verification update.
 
 ## PR Title
 
@@ -46,6 +46,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Added `init-env` so fresh users can create local `.env` from `.env.example.india` without overwriting an existing env file.
 - Added `workflow-status` so users can see saved-report bundle, provider, and first-run preflight status plus the next unfinished step.
 - Added `report-status` so users can verify saved-report artifacts and review `data_quality.json` before analyst review.
+- Browser-verified the optional Streamlit dashboard runtime against the local `RELIANCE.NS` sample report bundle after installing `.[dashboard]`.
 - Aligned the first-run checklist's shallow OpenAI analysis example with the generated provider-aware preflight command.
 - Tightened `workflow-status` so incomplete saved-report bundles cannot pass readiness just because `complete_report.md` exists.
 - Updated `first-run-check` to auto-select a ready provider when `--provider` is omitted, while preserving explicit provider overrides.
@@ -61,9 +62,9 @@ The branch explicitly does not add live broker execution, broker integrations, o
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at `adc56cf` before this first-run-check provider-blocker update.
-- `git log -1 --oneline`: `adc56cf feat: clarify workflow provider blocker`.
-- `git rev-list --count upstream/main..HEAD`: 51 after this first-run-check provider-blocker update is committed.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at `405feb1` before this dashboard runtime verification update.
+- `git log -1 --oneline`: `405feb1 feat: clarify first-run provider blocker`.
+- `git rev-list --count upstream/main..HEAD`: 52 after this dashboard runtime verification update is committed.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -116,6 +117,9 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python3 -m cli.main provider-status`: passed; showed configured provider `openai` from `TRADINGAGENTS_LLM_PROVIDER` and reported `OPENAI_API_KEY` missing without printing secrets.
 - `python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed; provider row now includes configured provider `openai` and missing `OPENAI_API_KEY`.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected; `Provider readiness` row now includes configured provider `openai` and missing `OPENAI_API_KEY`.
+- `python3 -m pip install -e ".[dashboard]"`: passed; installed optional dashboard dependencies in the current Python 3.14 environment.
+- `streamlit run dashboard/app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false`: passed and was stopped after browser verification.
+- Browser verification at `http://localhost:8501`: passed; rendered `IndiaMarketAgents`, ticker `RELIANCE.NS`, date `2026-06-05`, saved-report tabs, research-only disclaimer, data-quality content, no browser console errors, and no broker/order action controls.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; first-workflow readiness is false because no provider path is ready.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_usage_playbook_distinguishes_rehearsal_from_research_readiness -q`: 1 passed.
@@ -133,12 +137,12 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - NSE/BSE official-source modules are still defensive placeholders. They fail closed and need verified public-source workflows before live use.
 - yfinance remains a third-party fallback, not an official source.
 - README still retains the upstream TradingAgents body for attribution/background, but the first user-facing path now routes through the IndiaMarketAgents quick start and India docs.
-- Dashboard runtime was not browser-verified in this environment because Streamlit is optional and not installed.
+- Streamlit remains optional and was installed in the current environment only to browser-verify the saved-report dashboard runtime.
 - `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle; it is not tracked and contains no live market, broker, filing, or LLM output.
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the first-run-check provider-blocker update.
+- PR body was updated from this file after the dashboard runtime verification update.
 
 ## PR Checklist
 
@@ -172,7 +176,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Provider status shows the configured provider without printing secrets.
 - [x] Workflow status surfaces the configured-provider blocker when no provider path is ready.
 - [x] First-run check surfaces the configured-provider blocker when no provider path is ready.
-- [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
+- [x] Optional dashboard runtime was browser-verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
 
 ## Suggested Reviewer Focus
