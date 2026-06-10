@@ -61,7 +61,7 @@ indiamarketagents provider-status
 indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05
 indiamarketagents doctor --ticker RELIANCE.NS
 indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05
-indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
+indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05
 ```
 
 `provider-status` checks OpenAI, Google, Anthropic, and Ollama readiness without printing secrets, echoing endpoint values, or calling any endpoint. It also shows which local `.env` file it is reading.
@@ -69,6 +69,7 @@ indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provi
 `report-status` checks the saved report bundle, summarizes `data_quality.json`, and prints the first files to review without calling market data or an LLM.
 
 When `first-run-check` passes, it prints the exact shallow `analyze` command to run next.
+When `--provider` is omitted, `first-run-check` auto-selects a ready provider if `provider-status` found one. Pass `--provider <provider>` to force a specific provider.
 
 ## Optional Local Filings
 

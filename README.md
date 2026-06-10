@@ -21,7 +21,7 @@ indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05
 indiamarketagents doctor --ticker RELIANCE.NS
 indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05
 indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05
-indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
+indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05
 ```
 
 After `first-run-check` passes, run the shallow `indiamarketagents analyze` command that it prints. Outputs are saved under `reports/RELIANCE.NS/2026-06-05/` and must be treated as research and education only, not investment advice.

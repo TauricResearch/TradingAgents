@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 39 commits ahead of `upstream/main` after the workflow-status saved-report bundle readiness update.
+Branch state: 40 commits ahead of `upstream/main` after the auto provider preflight update.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the workflow-status saved-report bundle readiness update.
+PR body: updated from this file after the auto provider preflight update.
 
 ## PR Title
 
@@ -48,10 +48,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Added `report-status` so users can verify saved-report artifacts and review `data_quality.json` before analyst review.
 - Aligned the first-run checklist's shallow OpenAI analysis example with the generated provider-aware preflight command.
 - Tightened `workflow-status` so incomplete saved-report bundles cannot pass readiness just because `complete_report.md` exists.
+- Updated `first-run-check` to auto-select a ready provider when `--provider` is omitted, while preserving explicit provider overrides.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the workflow-status saved-report bundle readiness update.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the auto provider preflight update.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -92,7 +93,9 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05`: passed from the installed console script and showed all saved sample-report artifacts as present.
 - `python3 -m cli.main --help`: passed and listed `workflow-status` and `report-status`.
 - `python3 -m cli.main use-case`: passed and included `report-status` after `sample-report`.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 24 passed.
+- `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and auto-selected Ollama.
+- `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected on the configured default OpenAI provider because no provider is locally ready.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 25 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
@@ -110,7 +113,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the workflow-status saved-report bundle readiness update.
+- PR body was updated from this file after the auto provider preflight update.
 
 ## PR Checklist
 
@@ -134,6 +137,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Saved report status is available from the CLI without live calls or writes.
 - [x] First-run checklist analyze example matches the provider-aware generated command.
 - [x] Workflow status validates full saved-report bundle readiness.
+- [x] First-run preflight auto-selects a ready provider when `--provider` is omitted.
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.

@@ -176,10 +176,14 @@ def test_provider_status_prefers_ready_ollama_for_low_cost(monkeypatch, tmp_path
     assert "openai" in result["ready_providers"]
     assert "ollama" in result["ready_providers"]
     assert result["preferred_provider"] == "ollama"
-    assert "--provider ollama" in result["recommended_next_step"]
+    assert result["recommended_next_step"] == (
+        "Run indiamarketagents first-run-check --ticker RELIANCE.NS "
+        "--date 2026-06-05"
+    )
     assert result["env_file"]["exists"] is True
     providers = {item["provider"]: item for item in result["providers"]}
     assert providers["ollama"]["detail"] == "OLLAMA_BASE_URL is set"
+    assert "--provider ollama" in providers["ollama"]["next_step"]
     assert "http://localhost:11434/v1" not in providers["ollama"]["detail"]
 
 
@@ -337,6 +341,31 @@ def test_first_run_check_passes_with_ollama_base_url(monkeypatch, tmp_path):
     assert runtime_check["status"] == "pass"
     assert runtime_check["detail"] == "OLLAMA_BASE_URL is set"
     assert "http://localhost:11434/v1" not in runtime_check["detail"]
+
+
+@pytest.mark.unit
+def test_first_run_check_auto_selects_ready_ollama(monkeypatch, tmp_path):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+    monkeypatch.chdir(tmp_path)
+
+    result = run_first_run_checks(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        analysts="india_market",
+    )
+
+    assert result["ready"] is True
+    assert result["provider"] == "ollama"
+    assert result["provider_source"] == "auto-selected ready provider"
+    assert result["next_command"] == (
+        "indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 "
+        "--provider ollama --research-depth 1 --no-display --no-save-prompt "
+        "--analysts india_market"
+    )
+    checks = {check["name"]: check for check in result["checks"]}
+    assert checks["Provider selection"]["detail"] == "ollama (auto-selected ready provider)"
 
 
 @pytest.mark.unit

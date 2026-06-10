@@ -1755,7 +1755,7 @@ def get_provider_setup_status() -> dict:
         recommended_next_step = (
             "Run "
             f"indiamarketagents first-run-check --ticker RELIANCE.NS "
-            f"--date 2026-06-05 --provider {preferred_provider}"
+            "--date 2026-06-05"
         )
     else:
         recommended_next_step = (
@@ -1786,8 +1786,15 @@ def run_first_run_checks(
 ) -> dict:
     """Return offline readiness checks for the recommended first research pack."""
     config = DEFAULT_CONFIG.copy()
+    provider_source = "configured default"
     if provider:
         config["llm_provider"] = provider.lower()
+        provider_source = "explicit"
+    else:
+        provider_status = get_provider_setup_status()
+        if provider_status["preferred_provider"]:
+            config["llm_provider"] = provider_status["preferred_provider"]
+            provider_source = "auto-selected ready provider"
 
     checks = []
 
@@ -1841,6 +1848,7 @@ def run_first_run_checks(
         )
 
     provider_key = config["llm_provider"]
+    add_check("Provider selection", "pass", f"{provider_key} ({provider_source})")
     key_env = get_api_key_env(provider_key)
     if key_env is None:
         if provider_key == "ollama":
@@ -1909,6 +1917,7 @@ def run_first_run_checks(
         "ticker": normalized_ticker,
         "analysis_date": resolved_date,
         "provider": provider_key,
+        "provider_source": provider_source,
         "report_path": str(report_path) if report_path else None,
         "next_command": next_command,
         "checks": checks,
@@ -2293,7 +2302,7 @@ def get_use_case_guidance() -> dict:
             "indiamarketagents init-env",
             "indiamarketagents provider-status",
             "indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05",
-            "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai",
+            "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05",
             build_first_analysis_command(
                 ticker="RELIANCE.NS",
                 analysis_date="2026-06-05",
@@ -2304,6 +2313,7 @@ def get_use_case_guidance() -> dict:
             "init-env creates .env from .env.example.india only when .env is missing.",
             "report-status checks saved report artifacts before analyst review.",
             "Run provider-status before first-run-check to confirm one provider path is configured.",
+            "When --provider is omitted, first-run-check auto-selects a ready provider if one is available.",
             "Run workflow-status to see the next unfinished setup or first-run step.",
             "Run the analyze command only after first-run-check passes.",
             "If using another provider, run the generated command printed by first-run-check.",
@@ -2465,7 +2475,7 @@ def first_run_check(
     provider: Optional[str] = typer.Option(
         None,
         "--provider",
-        help="LLM provider key to validate, e.g. openai.",
+        help="LLM provider key to validate. When omitted, auto-selects a ready provider when available.",
     ),
     analysts: Optional[str] = typer.Option(
         None,

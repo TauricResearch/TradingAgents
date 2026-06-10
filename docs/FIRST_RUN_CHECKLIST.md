@@ -138,11 +138,10 @@ Run the offline preflight first:
 ```bash
 python3 -m cli.main first-run-check \
   --ticker RELIANCE.NS \
-  --date 2026-06-05 \
-  --provider openai
+  --date 2026-06-05
 ```
 
-This command does not call an LLM or live market data. It should pass ticker/date/report-path checks and fail clearly if the provider key is missing.
+This command does not call an LLM or live market data. When `--provider` is omitted, it auto-selects a ready provider if `provider-status` found one; pass `--provider openai`, `--provider google`, `--provider anthropic`, or `--provider ollama` to force a provider. It should pass ticker/date/report-path checks and fail clearly if provider setup is missing.
 
 When it passes, it prints the exact shallow analysis command to run next. Use a shallow run first to control cost. For the default OpenAI path, it should look like this:
 
