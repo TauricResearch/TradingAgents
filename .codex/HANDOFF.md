@@ -19,6 +19,7 @@ The session progressed through scoped phases:
 11. First workflow rehearsal.
 12. Ollama preflight hardening.
 13. Post-preflight command guidance.
+14. Root README quick start.
 
 The branch is already pushed and a draft PR is open:
 
@@ -36,7 +37,7 @@ Current follow-up state as of 2026-06-10:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the post-preflight command guidance commit.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the root README quick-start commit.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
@@ -46,20 +47,21 @@ Current follow-up state as of 2026-06-10:
 - The installed `indiamarketagents` console script has been used to rehearse the documented first workflow through `use-case`, `sample-report`, and `first-run-check`.
 - `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle with `complete_report.md`, section files, `sources.md`, `data_quality.json`, `summary.json`, `disclaimer.md`, and `compliance.md`.
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
+- `README.md` now opens with an IndiaMarketAgents quick start before the retained upstream TradingAgents content.
 - The real `analyze` run is not ready yet because no LLM provider is configured: `OPENAI_API_KEY` is missing for OpenAI and Ollama has neither a local `ollama` command nor `OLLAMA_BASE_URL`.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `d2d9c22` before committing the post-preflight command guidance update.
+- `git rev-parse --short HEAD`: `3e8e81f` before committing the root README quick-start update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the post-preflight command guidance update: `d2d9c22 fix: validate Ollama runtime in first-run check`; re-check after the guidance commit.
+- Latest committed HEAD before the root README quick-start update: `3e8e81f feat: print next analysis command after preflight`; re-check after the quick-start commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -72,7 +74,7 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 25 after the post-preflight command guidance commit.
+- `git rev-list --count upstream/main..HEAD`: 26 after the root README quick-start commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -80,7 +82,7 @@ Material file changes by area:
 - Project docs and attribution:
   - `AGENTS.md`: future-agent rules for India-only scope, no live trading, no secrets, tests, data integrity, compliance, and handoff updates.
   - `NOTICE`: upstream attribution retained/extended.
-  - `README.md`: IndiaMarketAgents preface and removal of the most direct simulated-exchange execution wording.
+  - `README.md`: IndiaMarketAgents quick start, fork preface, and removal of the most direct simulated-exchange execution wording.
   - `README_INDIA.md`: India-specific setup, usage, disclaimers, dashboard instructions.
   - `docs/USAGE_PLAYBOOK.md`: practical first workflow and highest-value use case for using the repo.
   - `docs/FIRST_RUN_CHECKLIST.md`: credential-safe setup, first analysis, output review, and acceptance checks.
@@ -184,6 +186,10 @@ Follow-up usage work:
   - `run_first_run_checks()` now returns `next_command` and `report_path` when ready.
   - `first-run-check` now prints the generated shallow `indiamarketagents analyze` command after a passing preflight.
   - Added unit tests for generated first-analysis commands.
+- Added a root README quick start:
+  - Routes new users to the IndiaMarketAgents workflow before the retained upstream TradingAgents content.
+  - States the highest-value use case directly in the root README.
+  - Updates `README_INDIA.md` to run the shallow `analyze` command printed by `first-run-check`.
 
 PR/publish work:
 
@@ -204,7 +210,7 @@ Documentation:
   - `docs/SECURITY.md`
   - `docs/BEGINNER_SETUP.md`
   - `docs/ADDING_NEW_INDIAN_AGENT.md`
-- Updated `README.md` with IndiaMarketAgents preface and research-only/no-simulated-exchange wording.
+- Updated `README.md` with IndiaMarketAgents quick start, fork preface, and research-only/no-simulated-exchange wording.
 
 Config/rebrand/validation:
 
@@ -290,7 +296,7 @@ Items intentionally left for future work:
 
 - Optional dashboard runtime/browser verification after installing `python3 -m pip install -e ".[dashboard]"`.
 - Official NSE/BSE source workflows after legal/source/access review.
-- Cleaner user-facing README routing to `README_INDIA.md`; `README.md` still contains much upstream content.
+- Root README keeps upstream content for attribution/background, but now routes users through the IndiaMarketAgents quick start first.
 - Possible full package rename from `tradingagents` to `indiamarketagents`, if explicitly requested later.
 - Review/update PR #1002 after upstream CI or reviewer feedback, if any.
 
@@ -307,7 +313,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the post-preflight command guidance commit.
+- PR body was updated from `docs/PR_READINESS.md` after the root README quick-start commit.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -378,6 +384,7 @@ GitHub/PR commands:
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 14 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 23 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 
 Commits created in this session/branch:
 
@@ -405,6 +412,7 @@ Commits created in this session/branch:
 - `c35415e feat: add use-case guidance command`
 - `c756028 docs: record first workflow rehearsal`
 - `d2d9c22 fix: validate Ollama runtime in first-run check`
+- `3e8e81f feat: print next analysis command after preflight`
 
 ## 8. How to verify the work
 
@@ -420,8 +428,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `d2d9c22` before committing the post-preflight command guidance update.
-- Worktree should be clean after the post-preflight command guidance update is committed.
+- Head is `3e8e81f` before committing the root README quick-start update.
+- Worktree should be clean after the root README quick-start update is committed.
 
 2. Check formatting/whitespace:
 

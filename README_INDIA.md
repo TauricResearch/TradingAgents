@@ -46,8 +46,9 @@ indiamarketagents use-case
 indiamarketagents doctor --ticker RELIANCE.NS
 indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05
 indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
-indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 --research-depth 1 --no-display --no-save-prompt
 ```
+
+After `first-run-check` passes, run the shallow `indiamarketagents analyze` command it prints.
 
 Reports are saved to:
 

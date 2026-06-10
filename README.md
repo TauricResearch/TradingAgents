@@ -3,6 +3,31 @@
 > This fork is being transformed into **IndiaMarketAgents**, an India-only institutional market research copilot for Indian listed equities, Indian indices, Indian macro context, exchange filings, and SEBI-style research guardrails.
 >
 > Start with [README_INDIA.md](README_INDIA.md). This project remains an India-focused fork of TauricResearch/TradingAgents under Apache 2.0; upstream attribution is preserved in [NOTICE](NOTICE).
+>
+> The highest-value practical use case is a first-pass India equity research pack for one NSE/BSE-listed company, starting with `RELIANCE.NS`. Use `indiamarketagents use-case` for the current recommendation and workflow commands.
+
+## IndiaMarketAgents Quick Start
+
+Use this section for the India-focused fork. The upstream TradingAgents README below is retained for attribution and framework background, but it may describe global/default workflows that are not the default scope of this fork.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -e ".[dev]"
+cp .env.example.india .env
+indiamarketagents use-case
+indiamarketagents doctor --ticker RELIANCE.NS
+indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05
+indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
+```
+
+After `first-run-check` passes, run the shallow `indiamarketagents analyze` command that it prints. Outputs are saved under `reports/RELIANCE.NS/2026-06-05/` and must be treated as research and education only, not investment advice.
+
+Key India docs:
+
+- [README_INDIA.md](README_INDIA.md)
+- [docs/USAGE_PLAYBOOK.md](docs/USAGE_PLAYBOOK.md)
+- [docs/FIRST_RUN_CHECKLIST.md](docs/FIRST_RUN_CHECKLIST.md)
 
 <p align="center">
   <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">

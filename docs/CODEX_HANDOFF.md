@@ -2,7 +2,7 @@
 
 Date: 2026-06-10
 Branch: `india-market-agents`
-Latest phase: Post-preflight command guidance
+Latest phase: Root README quick start
 
 ## Project Goal
 
@@ -16,7 +16,7 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 25 commits ahead of `upstream/main` after the post-preflight command guidance commit.
+- Branch review confirms `india-market-agents` is clean and 26 commits ahead of `upstream/main` after the root README quick-start commit.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -27,6 +27,7 @@ The product is research and decision support only. It must not become a live tra
 - The documented first workflow has been rehearsed with the installed `indiamarketagents` console script through `use-case`, `sample-report`, and `first-run-check`.
 - `indiamarketagents first-run-check --provider ollama` now verifies local Ollama runtime configuration instead of passing solely because no API key is required.
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
+- `README.md` now has an IndiaMarketAgents quick-start section before the retained upstream TradingAgents README content.
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
 - Final verification passed with the offline unit suite and targeted security/compliance scans.
@@ -115,6 +116,10 @@ The product is research and decision support only. It must not become a live tra
    - Added `build_first_analysis_command()` and included `next_command`/`report_path` in `run_first_run_checks()`.
    - Updated the `first-run-check` CLI output so a passing preflight prints the next shallow analysis command.
    - Added regression coverage for generated first-analysis commands.
+20. Root README quick start:
+   - Added an IndiaMarketAgents quick-start block to `README.md` before the upstream TradingAgents content.
+   - Made `README_INDIA.md` direct users to run the shallow `analyze` command printed by `first-run-check`.
+   - Kept the upstream README content for attribution and framework background.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -171,7 +176,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 25 after the post-preflight command guidance commit.
+- `git rev-list --count upstream/main..HEAD`: 26 after the root README quick-start commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -193,6 +198,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 14 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 23 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `git diff --check`: passed.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
@@ -201,7 +207,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 ## Known Risks And Blockers
 
-- `README.md` still contains a large upstream TradingAgents body after an IndiaMarketAgents preface. The most direct execution-language issue was removed, but user-facing docs should eventually route more clearly to `README_INDIA.md`.
+- `README.md` still retains the upstream TradingAgents body for attribution/background, but the first user-facing path now routes through the IndiaMarketAgents quick start and India docs.
 - NSE/BSE official-source modules are still placeholders; they fail closed and need verified endpoints or local-file workflows before use as live sources.
 - NSE/BSE public endpoints can block automation or change response formats.
 - yfinance remains third-party fallback data, not an official source.
