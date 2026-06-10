@@ -30,6 +30,8 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "minimax":    "MINIMAX_API_KEY",
     "minimax-cn": "MINIMAX_CN_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
+    # Optional for 9Router: deployments with requireApiKey=false do not need it.
+    "9router":    "NINEROUTER_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
 }

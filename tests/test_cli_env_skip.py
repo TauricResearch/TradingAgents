@@ -17,8 +17,14 @@ class TestProviderDefaultUrl(unittest.TestCase):
     def test_known_providers_resolve(self):
         from cli.utils import provider_default_url
         self.assertEqual(provider_default_url("openai"), "https://api.openai.com/v1")
+        self.assertEqual(provider_default_url("9router"), "http://localhost:20128/v1")
         self.assertEqual(provider_default_url("DeepSeek"), "https://api.deepseek.com")
         self.assertIsNone(provider_default_url("google"))  # uses SDK default
+
+    def test_9router_honors_base_url_env(self):
+        from cli.utils import provider_default_url
+        with mock.patch.dict(os.environ, {"NINEROUTER_URL": "http://host:20128"}):
+            self.assertEqual(provider_default_url("9router"), "http://host:20128/v1")
 
     def test_unknown_provider_returns_none(self):
         from cli.utils import provider_default_url

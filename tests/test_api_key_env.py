@@ -24,6 +24,7 @@ def test_every_select_llm_provider_choice_has_an_entry():
         "qwen", "qwen-cn",
         "glm", "glm-cn",
         "minimax", "minimax-cn",
+        "9router",
         "openrouter", "azure", "ollama",
     }
     assert expected.issubset(PROVIDER_API_KEY_ENV.keys())
@@ -44,6 +45,7 @@ def test_every_select_llm_provider_choice_has_an_entry():
         ("glm-cn",     "ZHIPU_CN_API_KEY"),
         ("minimax",    "MINIMAX_API_KEY"),
         ("minimax-cn", "MINIMAX_CN_API_KEY"),
+        ("9router",    "NINEROUTER_KEY"),
         ("openrouter", "OPENROUTER_API_KEY"),
     ],
 )
@@ -86,6 +88,14 @@ def test_ensure_api_key_no_op_for_ollama(monkeypatch, cli_utils):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with patch.object(cli_utils, "questionary") as mock_q:
         result = cli_utils.ensure_api_key("ollama")
+    assert result is None
+    mock_q.password.assert_not_called()
+
+
+def test_ensure_api_key_no_prompt_for_9router_without_key(monkeypatch, cli_utils):
+    monkeypatch.delenv("NINEROUTER_KEY", raising=False)
+    with patch.object(cli_utils, "questionary") as mock_q:
+        result = cli_utils.ensure_api_key("9router")
     assert result is None
     mock_q.password.assert_not_called()
 

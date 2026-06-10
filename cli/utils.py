@@ -278,8 +278,12 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     localhost default when unset.
     """
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
+    ninerouter_url = os.environ.get("NINEROUTER_URL", "http://localhost:20128").rstrip("/")
+    if not ninerouter_url.endswith("/v1"):
+        ninerouter_url += "/v1"
     return [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
+        ("9Router", "9router", ninerouter_url),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("xAI", "xai", "https://api.x.ai/v1"),
@@ -518,6 +522,12 @@ def ensure_api_key(provider: str) -> Optional[str]:
     existing = os.environ.get(env_var)
     if existing:
         return existing
+
+    if provider.lower() == "9router":
+        console.print(
+            "\n[yellow]NINEROUTER_KEY is not set; continuing because 9Router can run with auth disabled.[/yellow]"
+        )
+        return None
 
     console.print(
         f"\n[yellow]{env_var} is not set in your environment.[/yellow]"

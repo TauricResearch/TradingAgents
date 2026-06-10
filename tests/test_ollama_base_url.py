@@ -38,6 +38,62 @@ def test_resolver_returns_default_when_env_unset(monkeypatch):
     assert mod._resolve_provider_base_url("ollama") == "http://localhost:11434/v1"
 
 
+def test_9router_resolver_returns_default_when_env_unset(monkeypatch):
+    monkeypatch.delenv("NINEROUTER_URL", raising=False)
+    mod = _reload_client()
+    assert mod._resolve_provider_base_url("9router") == "http://localhost:20128/v1"
+
+
+def test_9router_resolver_appends_v1(monkeypatch):
+    monkeypatch.setenv("NINEROUTER_URL", "http://remote-9router:20128")
+    mod = _reload_client()
+    assert mod._resolve_provider_base_url("9router") == "http://remote-9router:20128/v1"
+
+
+def test_9router_resolver_keeps_existing_v1(monkeypatch):
+    monkeypatch.setenv("NINEROUTER_URL", "http://remote-9router:20128/v1")
+    mod = _reload_client()
+    assert mod._resolve_provider_base_url("9router") == "http://remote-9router:20128/v1"
+
+
+def test_9router_client_uses_chat_completions_not_responses(monkeypatch):
+    monkeypatch.setenv("NINEROUTER_URL", "http://my-9router:20128")
+    monkeypatch.delenv("NINEROUTER_KEY", raising=False)
+    mod = _reload_client()
+    client = mod.OpenAIClient(model="openai/gpt-5", provider="9router")
+    llm = client.get_llm()
+    assert "my-9router" in str(llm.openai_api_base)
+    assert llm.openai_api_key.get_secret_value() == "ninerouter"
+    assert getattr(llm, "use_responses_api", None) is None
+
+
+def test_9router_unwraps_nested_data_response(monkeypatch):
+    monkeypatch.delenv("NINEROUTER_KEY", raising=False)
+    mod = _reload_client()
+    client = mod.OpenAIClient(model="openai/gpt-5", provider="9router").get_llm()
+    result = client._create_chat_result(
+        {
+            "id": "chatcmpl-wrapper",
+            "choices": None,
+            "created": 123,
+            "model": "openai/gpt-5",
+            "object": "chat.completion",
+            "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+            "data": {
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "market ok"},
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+            "success": True,
+        }
+    )
+    assert result.generations[0].message.content == "market ok"
+
+
 def test_resolver_returns_env_when_set(monkeypatch):
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://remote-ollama:11434/v1")
     mod = _reload_client()

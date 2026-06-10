@@ -142,6 +142,35 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
         return payload
 
 
+class NinerouterChatOpenAI(NormalizedChatOpenAI):
+    """9Router-specific response normalization.
+
+    Some 9Router responses wrap the upstream OpenAI-compatible payload in a
+    top-level ``data`` object while leaving top-level ``choices`` as ``null``.
+    LangChain validates ``choices`` before looking anywhere else, so unwrap the
+    nested payload first.
+    """
+
+    def _create_chat_result(self, response, generation_info=None):
+        response_dict = (
+            response
+            if isinstance(response, dict)
+            else response.model_dump(
+                exclude={"choices": {"__all__": {"message": {"parsed"}}}}
+            )
+        )
+        if response_dict.get("choices") is None and isinstance(response_dict.get("data"), dict):
+            nested = dict(response_dict["data"])
+            for key in (
+                "id", "created", "model", "object", "usage",
+                "service_tier", "system_fingerprint",
+            ):
+                if key not in nested and key in response_dict:
+                    nested[key] = response_dict[key]
+            response = nested
+        return super()._create_chat_result(response, generation_info)
+
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort", "temperature",
@@ -163,6 +192,7 @@ _PROVIDER_BASE_URL = {
     "minimax":    "https://api.minimax.io/v1",
     "minimax-cn": "https://api.minimaxi.com/v1",
     "openrouter": "https://openrouter.ai/api/v1",
+    "9router":    "http://localhost:20128/v1",
     "ollama":     "http://localhost:11434/v1",
 }
 
@@ -170,16 +200,19 @@ _PROVIDER_BASE_URL = {
 def _resolve_provider_base_url(provider: str) -> Optional[str]:
     """Default base URL for ``provider``, with env-var overrides where defined.
 
-    Currently only Ollama supports an env-var override (``OLLAMA_BASE_URL``),
-    matching the convention in the broader Ollama tooling ecosystem so users
-    can point at a remote ollama-serve without editing code. The check is
-    call-time, not import-time, so tests that monkeypatch the env after
-    import behave correctly.
+    Ollama and 9Router support env-var overrides (``OLLAMA_BASE_URL`` and
+    ``NINEROUTER_URL``). The check is call-time, not import-time, so tests
+    that monkeypatch the env after import behave correctly.
     """
     if provider == "ollama":
         env_url = os.environ.get("OLLAMA_BASE_URL")
         if env_url:
             return env_url
+    if provider == "9router":
+        env_url = os.environ.get("NINEROUTER_URL")
+        if env_url:
+            env_url = env_url.rstrip("/")
+            return env_url if env_url.endswith("/v1") else env_url + "/v1"
     return _PROVIDER_BASE_URL.get(provider)
 
 
@@ -213,7 +246,9 @@ class OpenAIClient(BaseLLMClient):
         if self.provider in _PROVIDER_BASE_URL:
             llm_kwargs["base_url"] = self.base_url or _resolve_provider_base_url(self.provider)
             api_key_env = get_api_key_env(self.provider)
-            if api_key_env:
+            if self.provider == "9router":
+                llm_kwargs["api_key"] = os.environ.get(api_key_env or "") or "ninerouter"
+            elif api_key_env:
                 api_key = os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
@@ -244,6 +279,8 @@ class OpenAIClient(BaseLLMClient):
             chat_cls = DeepSeekChatOpenAI
         elif self.provider in ("minimax", "minimax-cn"):
             chat_cls = MinimaxChatOpenAI
+        elif self.provider == "9router":
+            chat_cls = NinerouterChatOpenAI
         else:
             chat_cls = NormalizedChatOpenAI
         return chat_cls(**llm_kwargs)
