@@ -59,6 +59,15 @@ ANTHROPIC_API_KEY=<your key>
 TRADINGAGENTS_LLM_PROVIDER=anthropic
 ```
 
+For a local Ollama run, no API key is required, but the runtime still must be configured:
+
+```text
+TRADINGAGENTS_LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
+`first-run-check --provider ollama` validates that either the `ollama` command is on `PATH` or `OLLAMA_BASE_URL` is set. It does not call the endpoint or verify model availability.
+
 Security rules:
 
 - Never commit `.env`.
@@ -140,7 +149,8 @@ The repo is ready for practical use when:
 - Non-India tickers such as `AAPL` are rejected by default.
 - `sample-report` can generate an explicit sample/UNAVAILABLE saved-report bundle.
 - `first-run-check` passes for the selected provider.
-- At least one LLM key is detected locally.
+- For keyed providers, at least one LLM key is detected locally.
+- For Ollama, either the local `ollama` command is available or `OLLAMA_BASE_URL` is set.
 - A `reports/RELIANCE.NS/2026-06-05/` bundle is generated.
 - The generated `data_quality.json` clearly shows missing or low-confidence sections instead of hiding gaps.
 

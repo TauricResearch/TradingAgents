@@ -33,6 +33,12 @@ cp .env.example.india .env
 
 Add at least one LLM API key to `.env`.
 
+For Ollama, configure the local runtime instead of an API key by adding this to `.env` or exporting it:
+
+```bash
+export OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
 ## First Run
 
 ```bash

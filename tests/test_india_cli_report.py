@@ -66,6 +66,47 @@ def test_first_run_check_passes_with_llm_key(monkeypatch, tmp_path):
 
 
 @pytest.mark.unit
+def test_first_run_check_requires_ollama_runtime(monkeypatch):
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+
+    result = run_first_run_checks(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        provider="ollama",
+        analysts="india_market",
+    )
+
+    assert result["ready"] is False
+    failures = {
+        check["name"]: check
+        for check in result["checks"]
+        if check["status"] == "fail"
+    }
+    assert "Ollama runtime" in failures
+    assert "OLLAMA_BASE_URL is not set" in failures["Ollama runtime"]["detail"]
+
+
+@pytest.mark.unit
+def test_first_run_check_passes_with_ollama_base_url(monkeypatch, tmp_path):
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+    monkeypatch.chdir(tmp_path)
+
+    result = run_first_run_checks(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        provider="ollama",
+        analysts="india_market",
+    )
+
+    assert result["ready"] is True
+    runtime_check = next(check for check in result["checks"] if check["name"] == "Ollama runtime")
+    assert runtime_check["status"] == "pass"
+    assert "OLLAMA_BASE_URL is set" in runtime_check["detail"]
+
+
+@pytest.mark.unit
 def test_use_case_guidance_names_best_workflow_and_commands():
     guidance = get_use_case_guidance()
 

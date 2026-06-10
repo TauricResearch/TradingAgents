@@ -2,6 +2,7 @@ from typing import Optional
 import os
 import datetime
 import json
+import shutil
 import typer
 import questionary
 from pathlib import Path
@@ -1670,6 +1671,28 @@ def run_first_run_checks(
     if key_env is None:
         if provider_key == "ollama":
             add_check("LLM credentials", "pass", "ollama does not require an API key")
+            ollama_base_url = os.environ.get("OLLAMA_BASE_URL")
+            if ollama_base_url:
+                add_check(
+                    "Ollama runtime",
+                    "pass",
+                    f"OLLAMA_BASE_URL is set to {ollama_base_url}",
+                    "Endpoint and model reachability are not checked offline.",
+                )
+            elif shutil.which("ollama"):
+                add_check(
+                    "Ollama runtime",
+                    "pass",
+                    "ollama command is available on PATH",
+                    "Start Ollama and pull the selected model before analyze.",
+                )
+            else:
+                add_check(
+                    "Ollama runtime",
+                    "fail",
+                    "ollama command is not on PATH and OLLAMA_BASE_URL is not set.",
+                    "Install Ollama locally, set OLLAMA_BASE_URL, or use a keyed provider.",
+                )
         else:
             add_check(
                 "LLM credentials",

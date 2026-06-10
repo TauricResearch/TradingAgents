@@ -50,6 +50,8 @@ cp .env.example.india .env
 
 Add at least one LLM key to `.env`.
 
+For a local low-cost run with Ollama, set `TRADINGAGENTS_LLM_PROVIDER=ollama` and make sure either the `ollama` command is on `PATH` or `OLLAMA_BASE_URL` is set. The offline preflight checks configuration only; it does not call the Ollama server or verify model availability.
+
 For a credential-safe step-by-step run path, use `docs/FIRST_RUN_CHECKLIST.md`.
 
 Check the local install without making live market or LLM calls:
