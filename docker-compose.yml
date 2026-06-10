@@ -1,35 +1,18 @@
+# docker-compose.yml for Pulse Trading Signals Microservice
+
 services:
-  tradingagents:
-    build: .
+  trading-signals-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
     env_file:
       - .env
     volumes:
+      # Persist SQLite databases, caching, and logs on the host
       - tradingagents_data:/home/appuser/.tradingagents
-    tty: true
-    stdin_open: true
-
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/root/.ollama
-    profiles:
-      - ollama
-
-  tradingagents-ollama:
-    build: .
-    env_file:
-      - .env
-    environment:
-      - LLM_PROVIDER=ollama
-    volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
-    depends_on:
-      - ollama
-    tty: true
-    stdin_open: true
-    profiles:
-      - ollama
+    restart: unless-stopped
 
 volumes:
   tradingagents_data:
-  ollama_data:
