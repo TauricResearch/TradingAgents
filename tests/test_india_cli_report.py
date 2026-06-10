@@ -103,6 +103,7 @@ def test_first_run_check_reports_missing_provider_readiness(monkeypatch, tmp_pat
         "GOOGLE_API_KEY",
         "ANTHROPIC_API_KEY",
         "OLLAMA_BASE_URL",
+        "TRADINGAGENTS_LLM_PROVIDER",
     ):
         monkeypatch.delenv(env_var, raising=False)
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
@@ -123,7 +124,11 @@ def test_first_run_check_reports_missing_provider_readiness(monkeypatch, tmp_pat
     assert checks["Provider selection"]["detail"] == (
         "none (no ready provider; configured default is openai)"
     )
-    assert failures["Provider readiness"]["detail"] == "No LLM provider path is ready"
+    assert (
+        "configured provider openai is missing"
+        in failures["Provider readiness"]["detail"]
+    )
+    assert "OPENAI_API_KEY is not set" in failures["Provider readiness"]["detail"]
     assert "LLM credentials" not in failures
     assert (
         "OLLAMA_BASE_URL=http://localhost:11434/v1"

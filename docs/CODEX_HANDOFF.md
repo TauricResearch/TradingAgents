@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: Workflow status provider-blocker detail
+Latest phase: First-run-check provider-blocker detail
 
 ## Project Goal
 
@@ -16,8 +16,8 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `f535c33` before the workflow-status provider-blocker update.
-- The branch is 50 commits ahead of `upstream/main` after this workflow-status provider-blocker commit.
+- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `adc56cf` before the first-run-check provider-blocker update.
+- The branch is 51 commits ahead of `upstream/main` after this first-run-check provider-blocker commit.
 - Goal status: the repo is usable for the recommended no-key workflow rehearsal, saved-report review, provider readiness checks, and highest-value use-case identification. A real LLM-backed `analyze` run still requires configuring one provider path.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
@@ -36,6 +36,7 @@ The product is research and decision support only. It must not become a live tra
 - `indiamarketagents provider-status` now shows the local `.env` path/status, configured provider, and OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets, echoing configured endpoint values, or calling endpoints.
 - `indiamarketagents first-run-check` now auto-selects a ready provider when `--provider` is omitted, while preserving explicit provider selection.
 - `indiamarketagents first-run-check` now reports no selected provider plus a single `Provider readiness` failure when no provider path is ready, instead of also surfacing the configured default provider's missing key.
+- `indiamarketagents first-run-check` now includes the configured-provider blocker in its `Provider readiness` row when no provider path is ready.
 - `indiamarketagents workflow-status` now summarizes full saved-report bundle readiness, provider readiness, and first-run preflight status, then prints the next unfinished step.
 - `indiamarketagents workflow-status` now includes the configured-provider blocker in its provider row when no provider path is ready.
 - `indiamarketagents doctor` now surfaces provider readiness, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
@@ -216,6 +217,10 @@ The product is research and decision support only. It must not become a live tra
    - Updated `workflow-status` so its provider row includes the configured provider and missing credential/runtime detail when no provider path is ready.
    - Updated first-run docs to mention configured-provider blockers in `workflow-status`.
    - Added regression coverage so `workflow-status` keeps surfacing the missing OpenAI key when OpenAI is configured but not ready.
+41. First-run-check provider-blocker detail:
+   - Reused the non-secret provider blocker formatter in `first-run-check`.
+   - Updated the `Provider readiness` row to show the configured provider and missing credential/runtime detail when no provider path is ready.
+   - Updated the first-run checklist and regression coverage for this explicit blocker.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -269,9 +274,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `f535c33` before the workflow-status provider-blocker update.
-- `git log -1 --oneline`: `f535c33 feat: show configured provider status`.
-- `git rev-list --count upstream/main..HEAD`: 50 after this workflow-status provider-blocker commit.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `adc56cf` before the first-run-check provider-blocker update.
+- `git log -1 --oneline`: `adc56cf feat: clarify workflow provider blocker`.
+- `git rev-list --count upstream/main..HEAD`: 51 after this first-run-check provider-blocker commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -334,6 +339,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected, showed no selected provider, and included only `Provider readiness` for the provider setup blocker.
 - `python3 -m cli.main provider-status`: passed; showed configured provider `openai` from `TRADINGAGENTS_LLM_PROVIDER` and reported `OPENAI_API_KEY` missing without printing secrets.
 - `python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed; provider row now includes configured provider `openai` and missing `OPENAI_API_KEY`.
+- `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected; `Provider readiness` row now includes configured provider `openai` and missing `OPENAI_API_KEY`.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 30 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.

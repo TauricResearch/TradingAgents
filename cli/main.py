@@ -1822,6 +1822,16 @@ def get_provider_setup_status() -> dict:
     }
 
 
+def format_provider_blocker_detail(provider_status: dict) -> str:
+    """Format a non-secret provider blocker for first-use readiness commands."""
+    configured_provider = provider_status["configured_provider"]
+    return (
+        "No LLM provider path is ready; configured provider "
+        f"{configured_provider['provider']} is {configured_provider['status']}: "
+        f"{configured_provider['detail']}"
+    )
+
+
 def run_first_run_checks(
     ticker: str = "RELIANCE.NS",
     analysis_date: str = "2026-06-05",
@@ -1906,7 +1916,7 @@ def run_first_run_checks(
         add_check(
             "Provider readiness",
             "fail",
-            "No LLM provider path is ready",
+            format_provider_blocker_detail(provider_status),
             provider_status["recommended_next_step"],
         )
     key_env = get_api_key_env(provider_key)
@@ -2063,15 +2073,10 @@ def get_first_workflow_status(
             provider_status["recommended_next_step"],
         )
     else:
-        configured_provider = provider_status["configured_provider"]
         add_check(
             "Provider",
             "fail",
-            (
-                "No LLM provider path is ready; configured provider "
-                f"{configured_provider['provider']} is {configured_provider['status']}: "
-                f"{configured_provider['detail']}"
-            ),
+            format_provider_blocker_detail(provider_status),
             provider_status["recommended_next_step"],
         )
 
