@@ -1915,6 +1915,144 @@ def run_first_run_checks(
     }
 
 
+def get_first_workflow_status(
+    ticker: str = "RELIANCE.NS",
+    analysis_date: str = "2026-06-05",
+) -> dict:
+    """Return offline status for the recommended first workflow."""
+    checks = []
+
+    def add_check(name: str, status: str, detail: str, next_step: str = "") -> None:
+        checks.append(
+            {
+                "name": name,
+                "status": status,
+                "detail": detail,
+                "next_step": next_step,
+            }
+        )
+
+    normalized_ticker = None
+    resolved_date = None
+    try:
+        normalized_ticker = validate_india_symbol_or_raise(ticker, DEFAULT_CONFIG)
+        resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+        detail = f"{normalized_ticker} on {resolved_date}"
+        if warnings:
+            detail = f"{detail}; warnings: {'; '.join(warnings)}"
+        add_check("Ticker/date", "pass", detail)
+    except (IndiaSymbolError, IndiaCalendarError) as exc:
+        add_check(
+            "Ticker/date",
+            "fail",
+            str(exc),
+            "Use an India ticker such as RELIANCE.NS and a valid market date.",
+        )
+
+    report_path = None
+    sample_report_ready = False
+    if normalized_ticker and resolved_date:
+        report_path = (
+            Path.cwd()
+            / "reports"
+            / safe_india_ticker_component(normalized_ticker)
+            / resolved_date
+        )
+        sample_report_ready = (report_path / "complete_report.md").exists()
+        if sample_report_ready:
+            add_check("Sample report", "pass", str(report_path))
+        else:
+            add_check(
+                "Sample report",
+                "pending",
+                str(report_path),
+                (
+                    f"Run indiamarketagents sample-report --ticker {normalized_ticker} "
+                    f"--date {resolved_date}"
+                ),
+            )
+
+    provider_status = get_provider_setup_status()
+    if provider_status["ready"]:
+        add_check(
+            "Provider",
+            "pass",
+            ", ".join(provider_status["ready_providers"]),
+            provider_status["recommended_next_step"],
+        )
+    else:
+        add_check(
+            "Provider",
+            "fail",
+            "No LLM provider path is ready",
+            provider_status["recommended_next_step"],
+        )
+
+    preflight = None
+    if provider_status["preferred_provider"] and normalized_ticker and resolved_date:
+        preflight = run_first_run_checks(
+            ticker=normalized_ticker,
+            analysis_date=resolved_date,
+            provider=provider_status["preferred_provider"],
+        )
+        if preflight["ready"]:
+            add_check(
+                "First-run preflight",
+                "pass",
+                provider_status["preferred_provider"],
+                preflight["next_command"] or "",
+            )
+        else:
+            add_check(
+                "First-run preflight",
+                "fail",
+                provider_status["preferred_provider"],
+                (
+                    f"Run indiamarketagents first-run-check --ticker {normalized_ticker} "
+                    f"--date {resolved_date} --provider {provider_status['preferred_provider']}"
+                ),
+            )
+    else:
+        add_check(
+            "First-run preflight",
+            "pending",
+            "Waiting for provider readiness",
+            "Run indiamarketagents provider-status.",
+        )
+
+    if not sample_report_ready and normalized_ticker and resolved_date:
+        next_step = (
+            f"Run indiamarketagents sample-report --ticker {normalized_ticker} "
+            f"--date {resolved_date}"
+        )
+    elif not provider_status["ready"]:
+        next_step = provider_status["recommended_next_step"]
+    elif preflight and preflight["ready"] and preflight.get("next_command"):
+        next_step = preflight["next_command"]
+    elif provider_status["preferred_provider"] and normalized_ticker and resolved_date:
+        next_step = (
+            f"Run indiamarketagents first-run-check --ticker {normalized_ticker} "
+            f"--date {resolved_date} --provider {provider_status['preferred_provider']}"
+        )
+    else:
+        next_step = "Fix failed workflow checks, then rerun workflow-status."
+
+    ready_for_analysis = bool(
+        sample_report_ready and preflight and preflight.get("ready")
+    )
+
+    return {
+        "ready_for_analysis": ready_for_analysis,
+        "ticker": normalized_ticker,
+        "analysis_date": resolved_date,
+        "report_path": str(report_path) if report_path else None,
+        "provider_status": provider_status,
+        "first_run_check": preflight,
+        "next_step": next_step,
+        "checks": checks,
+    }
+
+
 def _sample_section(title: str, symbol: str) -> str:
     return (
         "SAMPLE ONLY - UNAVAILABLE: This section was generated by the offline "
@@ -2015,6 +2153,7 @@ def get_use_case_guidance() -> dict:
             "indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05",
             "indiamarketagents init-env",
             "indiamarketagents provider-status",
+            "indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05",
             "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai",
             build_first_analysis_command(
                 ticker="RELIANCE.NS",
@@ -2025,6 +2164,7 @@ def get_use_case_guidance() -> dict:
         "notes": [
             "init-env creates .env from .env.example.india only when .env is missing.",
             "Run provider-status before first-run-check to confirm one provider path is configured.",
+            "Run workflow-status to see the next unfinished setup or first-run step.",
             "Run the analyze command only after first-run-check passes.",
             "If using another provider, run the generated command printed by first-run-check.",
         ],
@@ -2284,6 +2424,48 @@ def provider_status():
             result["recommended_next_step"],
             title="Recommended Next Step",
             border_style="green" if result["ready"] else "yellow",
+        )
+    )
+
+
+@app.command("workflow-status")
+def workflow_status(
+    ticker: str = typer.Option(
+        "RELIANCE.NS",
+        "--ticker",
+        help="Ticker for the recommended first workflow.",
+    ),
+    analysis_date: str = typer.Option(
+        "2026-06-05",
+        "--date",
+        help="Analysis date in YYYY-MM-DD format.",
+    ),
+):
+    """Show offline status for the recommended first workflow."""
+    result = get_first_workflow_status(ticker=ticker, analysis_date=analysis_date)
+    table = Table(title="IndiaMarketAgents Workflow Status", box=box.SIMPLE_HEAD)
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Detail")
+    table.add_column("Next step")
+    status_styles = {
+        "pass": "[green]PASS[/green]",
+        "pending": "[yellow]PENDING[/yellow]",
+        "fail": "[red]FAIL[/red]",
+    }
+    for check in result["checks"]:
+        table.add_row(
+            check["name"],
+            status_styles.get(check["status"], check["status"].upper()),
+            check["detail"],
+            check["next_step"],
+        )
+    console.print(table)
+    console.print(
+        Panel(
+            result["next_step"],
+            title="Next Step",
+            border_style="green" if result["ready_for_analysis"] else "yellow",
         )
     )
 

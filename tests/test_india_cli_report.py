@@ -10,6 +10,7 @@ from cli.main import (
     INDIA_COMPLIANCE_DISCLAIMER,
     build_first_analysis_command,
     generate_sample_report,
+    get_first_workflow_status,
     get_provider_setup_status,
     get_use_case_guidance,
     initialize_env_file,
@@ -171,6 +172,51 @@ def test_provider_status_prefers_ready_ollama_for_low_cost(monkeypatch, tmp_path
 
 
 @pytest.mark.unit
+def test_first_workflow_status_reports_next_sample_report_step(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    for env_var in (
+        "OPENAI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OLLAMA_BASE_URL",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+
+    result = get_first_workflow_status()
+
+    assert result["ready_for_analysis"] is False
+    assert "sample-report --ticker RELIANCE.NS --date 2026-06-05" in result["next_step"]
+    checks = {item["name"]: item for item in result["checks"]}
+    assert checks["Ticker/date"]["status"] == "pass"
+    assert checks["Sample report"]["status"] == "pending"
+    assert checks["Provider"]["status"] == "fail"
+    assert checks["First-run preflight"]["status"] == "pending"
+
+
+@pytest.mark.unit
+def test_first_workflow_status_returns_analysis_command_when_ready(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+    report_dir = tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
+    report_dir.mkdir(parents=True)
+    (report_dir / "complete_report.md").write_text("sample", encoding="utf-8")
+
+    result = get_first_workflow_status()
+
+    assert result["ready_for_analysis"] is True
+    assert result["next_step"] == (
+        "indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 "
+        "--provider ollama --research-depth 1 --no-display --no-save-prompt"
+    )
+    checks = {item["name"]: item for item in result["checks"]}
+    assert checks["Sample report"]["status"] == "pass"
+    assert checks["Provider"]["status"] == "pass"
+    assert checks["First-run preflight"]["status"] == "pass"
+
+
+@pytest.mark.unit
 def test_first_run_check_requires_ollama_runtime(monkeypatch):
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
@@ -221,12 +267,14 @@ def test_use_case_guidance_names_best_workflow_and_commands():
     assert any("sample-report" in command for command in guidance["commands"])
     assert any("init-env" in command for command in guidance["commands"])
     assert any("provider-status" in command for command in guidance["commands"])
+    assert any("workflow-status" in command for command in guidance["commands"])
     assert any("first-run-check" in command for command in guidance["commands"])
     assert any("analyze --ticker RELIANCE.NS" in command for command in guidance["commands"])
     assert any("--provider openai" in command for command in guidance["commands"])
     assert any("Live trading" in poor_fit for poor_fit in guidance["poor_fit"])
     assert any("only when .env is missing" in note for note in guidance["notes"])
     assert any("provider-status" in note for note in guidance["notes"])
+    assert any("workflow-status" in note for note in guidance["notes"])
     assert any("first-run-check passes" in note for note in guidance["notes"])
     assert "docs/USAGE_PLAYBOOK.md" in guidance["docs"]
 

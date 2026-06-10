@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 35 commits ahead of `upstream/main` after the no-overwrite env initialization handoff refresh.
+Branch state: 36 commits ahead of `upstream/main` after the first workflow status command commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the no-overwrite env initialization update.
+PR body: updated from this file after the first workflow status command update.
 
 ## PR Title
 
@@ -44,10 +44,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Added an offline `provider-status` CLI command so users can see OpenAI, Google, Anthropic, and Ollama readiness without live calls or secret values.
 - Updated `provider-status` to show the local `.env` path/status and avoid echoing configured `OLLAMA_BASE_URL` values.
 - Added `init-env` so fresh users can create local `.env` from `.env.example.india` without overwriting an existing env file.
+- Added `workflow-status` so users can see sample-report, provider, and first-run preflight status plus the next unfinished step.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the no-overwrite env initialization update.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the first workflow status command update.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -61,7 +62,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected because `OPENAI_API_KEY` is not configured; ticker, date, analyst selection, and report path checks passed.
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider ollama`: failed as expected because neither the local `ollama` command nor `OLLAMA_BASE_URL` is configured; ticker, date, analyst selection, and report path checks passed.
 - `OPENAI_API_KEY=test-openai-key python3 -c 'from cli.main import run_first_run_checks; ...'`: passed; returned `ready=True`, the generated shallow `indiamarketagents analyze` command, and the expected report path.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 18 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 20 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 23 passed after the post-preflight command guidance update.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed after the root README quick-start update.
 - `python3 -c 'from cli.main import get_use_case_guidance; ...'`: passed and printed the provider-aware shallow `indiamarketagents analyze` command plus preflight notes.
@@ -83,6 +84,9 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `indiamarketagents init-env`: passed and reported that the existing local `.env` was left unchanged.
 - `indiamarketagents use-case`: passed and included `init-env` before `provider-status`.
 - `python3 -m cli.main --help`: passed and listed `init-env`.
+- `indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed and reported provider setup as the next unfinished step.
+- `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed and printed the generated shallow `analyze` command.
+- `python3 -m cli.main --help`: passed and listed `workflow-status`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
@@ -99,7 +103,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the no-overwrite env initialization update.
+- PR body was updated from this file after the first workflow status command update.
 
 ## PR Checklist
 
@@ -119,6 +123,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Highest-value use case is available from the CLI.
 - [x] Provider readiness status is available from the CLI without live calls or secret output.
 - [x] Local env initialization is available from the CLI without overwriting existing `.env`.
+- [x] First workflow status is available from the CLI without live calls.
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.

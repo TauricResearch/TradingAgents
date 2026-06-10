@@ -23,6 +23,7 @@ python3 -m cli.main --help
 python3 -m cli.main init-env
 python3 -m cli.main use-case
 python3 -m cli.main provider-status
+python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05
 python3 -m cli.main doctor --ticker RELIANCE.NS
 ```
 
@@ -37,6 +38,10 @@ Expected provider-status result:
 - It checks OpenAI, Google, Anthropic, and Ollama without printing secrets or calling any endpoint.
 - It reports missing providers until one keyed provider or Ollama runtime path is configured.
 - It prints the next `first-run-check` command once a provider path is ready.
+
+Expected workflow-status result:
+
+- It shows the recommended workflow checks and the next unfinished step without live market, broker, or LLM calls.
 
 ## 3. Configure Credentials Without Committing Them
 
