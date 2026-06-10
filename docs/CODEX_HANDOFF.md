@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: Saved report status command
+Latest phase: Provider-aware first-run checklist alignment
 
 ## Project Goal
 
@@ -16,7 +16,7 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 37 commits ahead of `upstream/main` after the saved report status command commit.
+- Branch review confirms `india-market-agents` is clean and 38 commits ahead of `upstream/main` after the provider-aware first-run checklist alignment.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -34,6 +34,7 @@ The product is research and decision support only. It must not become a live tra
 - `indiamarketagents workflow-status` now summarizes sample-report readiness, provider readiness, and first-run preflight status, then prints the next unfinished step.
 - `indiamarketagents report-status` now checks saved-report artifacts and summarizes `data_quality.json` without live calls or writes.
 - `docs/USAGE_PLAYBOOK.md` now directs users to run the shallow `analyze` command printed by `first-run-check`, with a provider-aware OpenAI example.
+- `docs/FIRST_RUN_CHECKLIST.md` now shows the same provider-aware OpenAI analyze path as the generated preflight command.
 - `.gitignore` now ignores `.DS_Store` so local macOS metadata does not appear as untracked repo noise.
 - `.env.example.india` now includes `OLLAMA_BASE_URL=` so the local template matches the Ollama preflight/docs path.
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
@@ -165,6 +166,9 @@ The product is research and decision support only. It must not become a live tra
    - Added `indiamarketagents report-status` to verify saved-report artifacts and summarize `data_quality.json` without live calls or writes.
    - Updated README, India README, first-run checklist, usage playbook, and `use-case` guidance to include the saved-report review checkpoint.
    - Added regression coverage for missing and complete saved-report bundles.
+30. Provider-aware first-run checklist alignment:
+   - Updated `docs/FIRST_RUN_CHECKLIST.md` so the shallow OpenAI analysis example uses `indiamarketagents analyze` and includes `--provider openai`.
+   - Added regression coverage so the checklist keeps the provider-aware analyze example.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -174,15 +178,11 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 ## Files Touched In Latest Phase
 
-- `.codex/HANDOFF.md`
-- `README.md`
-- `README_INDIA.md`
-- `cli/main.py`
-- `docs/USAGE_PLAYBOOK.md`
 - `docs/FIRST_RUN_CHECKLIST.md`
+- `tests/test_india_cli_report.py`
+- `.codex/HANDOFF.md`
 - `docs/CODEX_HANDOFF.md`
 - `docs/PR_READINESS.md`
-- `tests/test_india_cli_report.py`
 
 ## Important Design Decisions
 
@@ -221,7 +221,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 37 after the saved report status command commit.
+- `git rev-list --count upstream/main..HEAD`: 38 after the provider-aware first-run checklist alignment.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -270,7 +270,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05`: passed from the installed console script and showed all saved sample-report artifacts as present.
 - `python3 -m cli.main --help`: passed and listed `workflow-status` and `report-status`.
 - `python3 -m cli.main use-case`: passed and included `report-status` after `sample-report`.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 22 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 23 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `git diff --check`: passed.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.

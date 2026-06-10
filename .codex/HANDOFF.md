@@ -29,6 +29,7 @@ The session progressed through scoped phases:
 21. No-overwrite env initialization.
 22. First workflow status command.
 23. Saved report status command.
+24. Provider-aware first-run checklist alignment.
 
 The branch is already pushed and a draft PR is open:
 
@@ -46,7 +47,7 @@ Current follow-up state as of 2026-06-11:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the saved report status command update.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the provider-aware first-run checklist alignment.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
@@ -69,16 +70,16 @@ Current follow-up state as of 2026-06-11:
 
 Latest local inspection commands:
 
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the saved report status command update.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the provider-aware checklist update.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `ef78289` before committing the saved report status command update.
+- `git rev-parse --short HEAD`: `55b58b3` before committing the provider-aware checklist update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the saved report status command update: `ef78289 feat: add first workflow status`.
+- Latest committed HEAD before the provider-aware checklist update: `55b58b3 feat: add saved report status`.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -91,8 +92,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 37 after the saved report status command commit.
-- `git diff --stat upstream/main`: 78 files changed, 7010 insertions, 228 deletions.
+- `git rev-list --count upstream/main..HEAD`: 38 after the provider-aware checklist alignment commit.
+- `git diff --stat upstream/main`: 78 files changed, 7029 insertions, 228 deletions.
 
 Material file changes by area:
 
@@ -245,6 +246,9 @@ Follow-up usage work:
   - Added `indiamarketagents report-status` to verify saved-report artifacts and summarize `data_quality.json` without live calls or writes.
   - Updated README, India README, first-run checklist, usage playbook, and `use-case` guidance to include the saved-report review checkpoint.
   - Added regression coverage for missing and complete saved-report bundles.
+- Aligned first-run checklist with generated analysis command:
+  - Updated `docs/FIRST_RUN_CHECKLIST.md` so the shallow OpenAI analysis example uses `indiamarketagents analyze` and includes `--provider openai`.
+  - Added regression coverage so the checklist keeps the provider-aware analyze example.
 
 PR/publish work:
 
@@ -368,7 +372,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the saved report status command update.
+- PR body was updated from `docs/PR_READINESS.md` after the provider-aware first-run checklist alignment.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -466,7 +470,7 @@ GitHub/PR commands:
 - `indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05`: passed from the installed console script and showed all saved sample-report artifacts as present.
 - `python3 -m cli.main --help`: passed and listed `workflow-status` and `report-status`.
 - `python3 -m cli.main use-case`: passed and included `report-status` after `sample-report`.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 22 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 23 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 
 Commits created in this session/branch:
@@ -507,6 +511,7 @@ Commits created in this session/branch:
 - `3b2b032 feat: add no-overwrite env initialization`
 - `74bd87a docs: refresh init-env handoff`
 - `ef78289 feat: add first workflow status`
+- `55b58b3 feat: add saved report status`
 
 ## 8. How to verify the work
 
@@ -522,8 +527,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is the saved report status commit after the latest phase is committed.
-- Worktree should be clean after the saved report status command update is committed.
+- Head is the provider-aware checklist alignment commit after the latest phase is committed.
+- Worktree should be clean after the provider-aware checklist update is committed.
 
 2. Check formatting/whitespace:
 

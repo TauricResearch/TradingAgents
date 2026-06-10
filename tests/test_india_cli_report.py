@@ -95,6 +95,17 @@ def test_build_first_analysis_command_quotes_arguments():
 
 
 @pytest.mark.unit
+def test_first_run_checklist_keeps_provider_aware_analyze_example():
+    checklist = Path("docs/FIRST_RUN_CHECKLIST.md").read_text(encoding="utf-8")
+
+    assert "indiamarketagents analyze" in checklist
+    assert "--provider openai" in checklist
+    assert "--research-depth 1" in checklist
+    assert "--no-display" in checklist
+    assert "--no-save-prompt" in checklist
+
+
+@pytest.mark.unit
 def test_initialize_env_file_creates_from_india_template(tmp_path):
     template = tmp_path / ".env.example.india"
     template.write_text("OPENAI_API_KEY=\nOLLAMA_BASE_URL=\n", encoding="utf-8")

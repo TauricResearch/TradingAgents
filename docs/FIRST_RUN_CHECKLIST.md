@@ -144,12 +144,13 @@ python3 -m cli.main first-run-check \
 
 This command does not call an LLM or live market data. It should pass ticker/date/report-path checks and fail clearly if the provider key is missing.
 
-When it passes, it prints the exact shallow analysis command to run next. Use a shallow run first to control cost:
+When it passes, it prints the exact shallow analysis command to run next. Use a shallow run first to control cost. For the default OpenAI path, it should look like this:
 
 ```bash
-python3 -m cli.main analyze \
+indiamarketagents analyze \
   --ticker RELIANCE.NS \
   --date 2026-06-05 \
+  --provider openai \
   --research-depth 1 \
   --no-display \
   --no-save-prompt
