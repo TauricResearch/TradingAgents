@@ -32,6 +32,7 @@ The session progressed through scoped phases:
 24. Provider-aware first-run checklist alignment.
 25. Workflow-status saved-report bundle readiness.
 26. Auto provider preflight.
+27. Use-case generated-analyze guidance.
 
 The branch is already pushed and a draft PR is open:
 
@@ -49,7 +50,7 @@ Current follow-up state as of 2026-06-11:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the auto provider preflight update.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the use-case generated-analyze guidance update.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
@@ -60,7 +61,7 @@ Current follow-up state as of 2026-06-11:
 - `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle with `complete_report.md`, section files, `sources.md`, `data_quality.json`, `summary.json`, `disclaimer.md`, and `compliance.md`.
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - `README.md` now opens with an IndiaMarketAgents quick start before the retained upstream TradingAgents content.
-- `indiamarketagents use-case` now reuses the preflight command builder and tells users to run analysis only after `first-run-check` passes.
+- `indiamarketagents use-case` now tells users to run the provider-specific `analyze` command printed by `first-run-check`, instead of hardcoding OpenAI.
 - `indiamarketagents init-env` now creates a local `.env` from `.env.example.india` only when `.env` is missing and never overwrites an existing local env file.
 - `indiamarketagents provider-status` now shows the local `.env` file path/status and checks OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets, echoing configured endpoint values, or calling endpoints.
 - `indiamarketagents first-run-check` now auto-selects a ready provider when `--provider` is omitted, while preserving explicit provider selection.
@@ -73,16 +74,16 @@ Current follow-up state as of 2026-06-11:
 
 Latest local inspection commands:
 
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the auto provider preflight update.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the use-case generated-analyze guidance update.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `17ea5f4` before committing the auto provider preflight update.
+- `git rev-parse --short HEAD`: `97d7bfc` before committing the use-case generated-analyze guidance update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the auto provider preflight update: `17ea5f4 fix: require complete report bundle in workflow status`.
+- Latest committed HEAD before the use-case generated-analyze guidance update: `97d7bfc feat: auto-select ready provider in preflight`.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -95,8 +96,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 40 after the auto provider preflight commit.
-- `git diff --stat upstream/main`: 78 files changed, 7145 insertions, 228 deletions.
+- `git rev-list --count upstream/main..HEAD`: 41 after the use-case generated-analyze guidance commit.
+- `git diff --stat upstream/main`: 78 files changed, 7148 insertions, 228 deletions.
 
 Material file changes by area:
 
@@ -259,6 +260,10 @@ Follow-up usage work:
   - `first-run-check` now auto-selects the ready provider preferred by `provider-status` when `--provider` is omitted.
   - The recommended first workflow now uses provider-agnostic `first-run-check`; users can still pass `--provider` to force OpenAI, Google, Anthropic, or Ollama.
   - Added regression coverage for auto-selecting ready Ollama without echoing endpoint values.
+- Aligned use-case guidance with generated analysis command:
+  - `indiamarketagents use-case` no longer hardcodes an OpenAI `analyze` command as the final workflow step.
+  - The final use-case step now points users to the provider-specific `analyze` command printed by `first-run-check`.
+  - Added regression coverage so use-case guidance does not drift back to a static provider command.
 
 PR/publish work:
 
@@ -382,7 +387,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the auto provider preflight update.
+- PR body was updated from `docs/PR_READINESS.md` after the use-case generated-analyze guidance update.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -479,7 +484,7 @@ GitHub/PR commands:
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed and printed the generated shallow `analyze` command.
 - `indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05`: passed from the installed console script and showed all saved sample-report artifacts as present.
 - `python3 -m cli.main --help`: passed and listed `workflow-status` and `report-status`.
-- `python3 -m cli.main use-case`: passed and included `report-status` after `sample-report`.
+- `python3 -m cli.main use-case`: passed and directed users to the `analyze` command printed by `first-run-check`.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and auto-selected Ollama.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected on the configured default OpenAI provider because no provider is locally ready.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 25 passed.
@@ -526,6 +531,7 @@ Commits created in this session/branch:
 - `55b58b3 feat: add saved report status`
 - `6953e86 docs: align first-run analyze command`
 - `17ea5f4 fix: require complete report bundle in workflow status`
+- `97d7bfc feat: auto-select ready provider in preflight`
 
 ## 8. How to verify the work
 
@@ -541,8 +547,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is the auto provider preflight commit after the latest phase is committed.
-- Worktree should be clean after the auto provider preflight update is committed.
+- Head is the use-case generated-analyze guidance commit after the latest phase is committed.
+- Worktree should be clean after the use-case generated-analyze guidance update is committed.
 
 2. Check formatting/whitespace:
 

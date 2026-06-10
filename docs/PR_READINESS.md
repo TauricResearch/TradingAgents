@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 40 commits ahead of `upstream/main` after the auto provider preflight update.
+Branch state: 41 commits ahead of `upstream/main` after the use-case generated-analyze guidance update.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the auto provider preflight update.
+PR body: updated from this file after the use-case generated-analyze guidance update.
 
 ## PR Title
 
@@ -49,10 +49,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Aligned the first-run checklist's shallow OpenAI analysis example with the generated provider-aware preflight command.
 - Tightened `workflow-status` so incomplete saved-report bundles cannot pass readiness just because `complete_report.md` exists.
 - Updated `first-run-check` to auto-select a ready provider when `--provider` is omitted, while preserving explicit provider overrides.
+- Updated `use-case` so the final workflow step points to the provider-specific `analyze` command printed by `first-run-check`.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the auto provider preflight update.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the use-case generated-analyze guidance update.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -92,7 +93,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed and printed the generated shallow `analyze` command.
 - `indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05`: passed from the installed console script and showed all saved sample-report artifacts as present.
 - `python3 -m cli.main --help`: passed and listed `workflow-status` and `report-status`.
-- `python3 -m cli.main use-case`: passed and included `report-status` after `sample-report`.
+- `python3 -m cli.main use-case`: passed and directed users to the `analyze` command printed by `first-run-check`.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and auto-selected Ollama.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected on the configured default OpenAI provider because no provider is locally ready.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 25 passed.
@@ -113,7 +114,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the auto provider preflight update.
+- PR body was updated from this file after the use-case generated-analyze guidance update.
 
 ## PR Checklist
 
@@ -138,6 +139,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] First-run checklist analyze example matches the provider-aware generated command.
 - [x] Workflow status validates full saved-report bundle readiness.
 - [x] First-run preflight auto-selects a ready provider when `--provider` is omitted.
+- [x] Use-case guidance points to the generated provider-specific analyze command.
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.

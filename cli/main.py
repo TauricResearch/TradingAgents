@@ -2303,11 +2303,7 @@ def get_use_case_guidance() -> dict:
             "indiamarketagents provider-status",
             "indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05",
             "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05",
-            build_first_analysis_command(
-                ticker="RELIANCE.NS",
-                analysis_date="2026-06-05",
-                provider="openai",
-            ),
+            "Run the indiamarketagents analyze command printed by first-run-check.",
         ],
         "notes": [
             "init-env creates .env from .env.example.india only when .env is missing.",
@@ -2315,8 +2311,7 @@ def get_use_case_guidance() -> dict:
             "Run provider-status before first-run-check to confirm one provider path is configured.",
             "When --provider is omitted, first-run-check auto-selects a ready provider if one is available.",
             "Run workflow-status to see the next unfinished setup or first-run step.",
-            "Run the analyze command only after first-run-check passes.",
-            "If using another provider, run the generated command printed by first-run-check.",
+            "Run only the analyze command printed by first-run-check; it includes the selected provider.",
         ],
         "docs": [
             "docs/USAGE_PLAYBOOK.md",

@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: Auto provider preflight
+Latest phase: Use-case generated-analyze guidance
 
 ## Project Goal
 
@@ -16,7 +16,7 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 40 commits ahead of `upstream/main` after the auto provider preflight update.
+- Branch review confirms `india-market-agents` is clean and 41 commits ahead of `upstream/main` after the use-case generated-analyze guidance update.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -28,7 +28,7 @@ The product is research and decision support only. It must not become a live tra
 - `indiamarketagents first-run-check --provider ollama` now verifies local Ollama runtime configuration instead of passing solely because no API key is required.
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - `README.md` now has an IndiaMarketAgents quick-start section before the retained upstream TradingAgents README content.
-- `indiamarketagents use-case` now reuses the preflight command builder and tells users to run analysis only after `first-run-check` passes.
+- `indiamarketagents use-case` now tells users to run the provider-specific `analyze` command printed by `first-run-check`, instead of hardcoding OpenAI.
 - `indiamarketagents init-env` now creates local `.env` from `.env.example.india` only when `.env` is missing and never overwrites an existing env file.
 - `indiamarketagents provider-status` now shows the local `.env` path/status and checks OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets, echoing configured endpoint values, or calling endpoints.
 - `indiamarketagents first-run-check` now auto-selects a ready provider when `--provider` is omitted, while preserving explicit provider selection.
@@ -178,6 +178,10 @@ The product is research and decision support only. It must not become a live tra
    - Updated `first-run-check` so omitted `--provider` auto-selects the ready provider preferred by `provider-status`.
    - Updated README, India README, first-run checklist, usage playbook, and `use-case` guidance to use provider-agnostic preflight while preserving explicit provider override guidance.
    - Added regression coverage for auto-selecting ready Ollama.
+33. Use-case generated-analyze guidance:
+   - Updated `indiamarketagents use-case` so the final workflow step points to the provider-specific `analyze` command printed by `first-run-check`.
+   - Removed the hardcoded OpenAI analyze command from `use-case` guidance.
+   - Added regression coverage so the use-case command cannot drift back to a static provider command.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -188,10 +192,6 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `cli/main.py`
-- `README.md`
-- `README_INDIA.md`
-- `docs/FIRST_RUN_CHECKLIST.md`
-- `docs/USAGE_PLAYBOOK.md`
 - `tests/test_india_cli_report.py`
 - `.codex/HANDOFF.md`
 - `docs/CODEX_HANDOFF.md`
@@ -234,7 +234,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 40 after the auto provider preflight update.
+- `git rev-list --count upstream/main..HEAD`: 41 after the use-case generated-analyze guidance update.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -282,7 +282,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed and printed the generated shallow `analyze` command.
 - `indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05`: passed from the installed console script and showed all saved sample-report artifacts as present.
 - `python3 -m cli.main --help`: passed and listed `workflow-status` and `report-status`.
-- `python3 -m cli.main use-case`: passed and included `report-status` after `sample-report`.
+- `python3 -m cli.main use-case`: passed and directed users to the `analyze` command printed by `first-run-check`.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and auto-selected Ollama.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected on the configured default OpenAI provider because no provider is locally ready.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 25 passed.

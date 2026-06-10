@@ -380,14 +380,14 @@ def test_use_case_guidance_names_best_workflow_and_commands():
     assert any("provider-status" in command for command in guidance["commands"])
     assert any("workflow-status" in command for command in guidance["commands"])
     assert any("first-run-check" in command for command in guidance["commands"])
-    assert any("analyze --ticker RELIANCE.NS" in command for command in guidance["commands"])
-    assert any("--provider openai" in command for command in guidance["commands"])
+    assert any("analyze command printed by first-run-check" in command for command in guidance["commands"])
+    assert not any("analyze --ticker RELIANCE.NS" in command for command in guidance["commands"])
     assert any("Live trading" in poor_fit for poor_fit in guidance["poor_fit"])
     assert any("only when .env is missing" in note for note in guidance["notes"])
     assert any("report-status" in note for note in guidance["notes"])
     assert any("provider-status" in note for note in guidance["notes"])
     assert any("workflow-status" in note for note in guidance["notes"])
-    assert any("first-run-check passes" in note for note in guidance["notes"])
+    assert any("printed by first-run-check" in note for note in guidance["notes"])
     assert "docs/USAGE_PLAYBOOK.md" in guidance["docs"]
 
 
