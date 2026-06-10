@@ -32,21 +32,22 @@ Current follow-up state as of 2026-06-10:
 
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
-- GitHub CLI PR inspection is working again; PR #1002 is open, draft, and currently reports no status checks in `statusCheckRollup`.
+- GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
+- GitHub PR mutation is still blocked: `gh pr edit` and REST `gh api` returned `HTTP 401`, and `gh auth refresh -h github.com` requires browser device-code reauthentication.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `9be81c3` before committing the PR-status refresh docs.
+- `git rev-parse --short HEAD`: `035f8a3` before committing the PR-body auth correction docs.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the PR-status refresh docs: `9be81c3 docs: add IndiaMarketAgents usage playbook`; re-check after the PR-status refresh commit.
+- Latest committed HEAD before the PR-body auth correction docs: `035f8a3 docs: refresh IndiaMarketAgents PR status`; re-check after the auth correction commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -59,7 +60,7 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 15 after the PR-status refresh docs commit.
+- `git rev-list --count upstream/main..HEAD`: 16 after the PR-body auth correction docs commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -272,6 +273,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
+- PR body update is blocked until GitHub CLI auth is refreshed through the browser device-code flow.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -325,7 +327,9 @@ GitHub/PR commands:
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,author,statusCheckRollup`: failed with `HTTP 401: Requires authentication`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed later; PR is open, draft, and currently has no reported status checks.
-- `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: updated the draft PR body with the current usage-playbook evidence.
+- `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
+- `gh api repos/TauricResearch/TradingAgents/pulls/1002 -X PATCH -F body=@docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
+- `gh auth refresh -h github.com`: requires browser device-code reauthentication; command was stopped rather than left running.
 - `python3 -m cli.main --help`: passed.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; ticker validation returned `RELIANCE.NS`; no LLM/API keys detected.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
@@ -347,6 +351,7 @@ Commits created in this session/branch:
 - `3bab168 docs: add IndiaMarketAgents PR readiness package`
 - `9c3347b docs: add Codex session handoff`
 - `9be81c3 docs: add IndiaMarketAgents usage playbook`
+- `035f8a3 docs: refresh IndiaMarketAgents PR status`
 
 ## 8. How to verify the work
 
@@ -362,8 +367,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `9be81c3` before committing the PR-status refresh docs.
-- Worktree should be clean after the PR-status refresh docs are committed.
+- Head is `035f8a3` before committing the PR-body auth correction docs.
+- Worktree should be clean after the PR-body auth correction docs are committed.
 
 2. Check formatting/whitespace:
 
@@ -422,13 +427,14 @@ Expected:
 
 ## 9. Next recommended steps
 
-1. Run a real first-company analysis after an LLM/API key is configured.
-2. Inspect PR #1002 again if GitHub status checks or reviewer feedback appear.
-3. If continuing implementation, do not add new data sources or broker integrations casually.
+1. Refresh GitHub CLI auth through the browser device-code flow.
+2. Update PR #1002 body from `docs/PR_READINESS.md`.
+3. Run a real first-company analysis after an LLM/API key is configured.
+4. If continuing implementation, do not add new data sources or broker integrations casually.
    - Next code work should likely be official-source review for NSE/BSE only after source/legal/access review, or README cleanup to route users to `README_INDIA.md`.
-4. Optional: verify dashboard runtime after installing `.[dashboard]`.
-5. Optional: update `docs/PR_READINESS.md` if PR CI or review feedback adds new validation evidence or risks.
-6. Keep all generated reports under ignored `reports/` and local filings under ignored `data/india/filings/`.
+5. Optional: verify dashboard runtime after installing `.[dashboard]`.
+6. Optional: update `docs/PR_READINESS.md` if PR CI or review feedback adds new validation evidence or risks.
+7. Keep all generated reports under ignored `reports/` and local filings under ignored `data/india/filings/`.
 
 ## 10. Files the next session should read first
 
@@ -464,5 +470,5 @@ First read `.codex/HANDOFF.md`, then inspect the live repo state with:
 
 Verify the assumptions in the handoff before making changes. Do not add data sources, agent prompts, dashboard features, broker integrations, or live trading controls unless I explicitly ask.
 
-Current likely next step: run a real first-company analysis once an LLM/API key is configured. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
+Current likely next step: refresh GitHub CLI auth through the browser device-code flow, update PR #1002 body from `docs/PR_READINESS.md`, then run a real first-company analysis once an LLM/API key is configured. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
 ```
