@@ -2,7 +2,7 @@
 
 Date: 2026-06-10
 Branch: `india-market-agents`
-Latest phase: Usage playbook and best-use-case guidance
+Latest phase: PR status refresh and usage handoff
 
 ## Project Goal
 
@@ -16,9 +16,10 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 14 commits ahead of `upstream/main` after the usage-playbook commit.
+- Branch review confirms `india-market-agents` is clean and 15 commits ahead of `upstream/main` after the PR-status refresh commit.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
+- PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
 - Final verification passed with the offline unit suite and targeted security/compliance scans.
 - No data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
@@ -68,6 +69,11 @@ The product is research and decision support only. It must not become a live tra
    - Added `docs/USAGE_PLAYBOOK.md` with the best first use case, setup path, expected report artifacts, review workflow, and current limits.
    - Linked the playbook from `README_INDIA.md`.
    - Kept scope limited to documentation and cheap local CLI validation.
+10. PR status refresh:
+   - Confirmed GitHub CLI auth is working again.
+   - Confirmed draft PR #1002 is open and has no reported status checks.
+   - Refreshed `docs/PR_READINESS.md` so the PR body can be updated with current usage-playbook evidence.
+   - Updated draft PR #1002 body from `docs/PR_READINESS.md`.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -78,7 +84,6 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `docs/USAGE_PLAYBOOK.md`
-- `README_INDIA.md`
 - `docs/CODEX_HANDOFF.md`
 - `docs/PR_READINESS.md`
 
@@ -119,9 +124,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 14 after the usage-playbook commit.
+- `git rev-list --count upstream/main..HEAD`: 15 after the PR-status refresh commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
-- `gh pr view 1002 --repo TauricResearch/TradingAgents --json ...`: failed with `HTTP 401: Requires authentication`; run `gh auth refresh -h github.com`.
+- `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `python3 -m cli.main --help`: passed.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; package import and ticker validation were OK; no LLM/API keys detected.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
@@ -147,8 +152,8 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Local `__pycache__` files exist from test runs but are ignored by git and were not deleted because deletion was not requested.
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
-- GitHub CLI PR inspection currently needs refreshed authentication.
+- PR #1002 is open and draft, with no reported GitHub status checks at the latest inspection.
 
 ## Next Recommended Prompt
 
-Refresh GitHub CLI authentication with `gh auth refresh -h github.com`, inspect draft PR #1002 status/checks/reviews, and decide whether to update the PR body with the new usage-playbook evidence. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.
+Continue with a real first-company analysis run after an LLM/API key is configured. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.

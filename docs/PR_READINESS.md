@@ -1,9 +1,10 @@
 # PR Readiness Package
 
-Date: 2026-06-07
+Date: 2026-06-10
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 14 commits ahead of `upstream/main` after the usage-playbook commit.
+Branch state: 15 commits ahead of `upstream/main` after the PR-status refresh commit.
+PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
 
 ## PR Title
 
@@ -34,6 +35,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
 - `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 16 passed after the usage-playbook update.
+- `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
@@ -46,7 +48,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - README still contains a large upstream TradingAgents body after the IndiaMarketAgents preface; the most direct execution-language issue was removed, but user-facing docs should eventually route more clearly to `README_INDIA.md`.
 - Dashboard runtime was not browser-verified in this environment because Streamlit is optional and not installed.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
-- GitHub CLI authentication expired during the follow-up session, so PR status inspection should be retried with `gh auth refresh -h github.com`.
+- PR #1002 is still draft and currently has no GitHub status checks reported.
 
 ## PR Checklist
 
