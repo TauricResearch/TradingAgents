@@ -3,7 +3,7 @@
 Date: 2026-06-10
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 19 commits ahead of `upstream/main` after the first-run preflight command commit.
+Branch state: 20 commits ahead of `upstream/main` after the sample-report workflow commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
 PR body: updated from this file after the first-run checklist update.
 
@@ -30,6 +30,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Added a practical usage playbook that identifies the best first use case and a repeatable analyst workflow.
 - Added a credential-safe first-run checklist for getting from local setup to a `RELIANCE.NS` research pack.
 - Added an offline `first-run-check` CLI command so users can verify first-run readiness before spending on LLM calls.
+- Added an offline `sample-report` CLI command so users can verify saved-report and dashboard workflow without LLM credentials.
 
 ## Validation
 
@@ -39,7 +40,8 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `git diff --check`: passed.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected when `OPENAI_API_KEY` was not configured.
 - `OPENAI_API_KEY=test-openai-key python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: passed without live market, broker, or LLM calls.
-- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 18 passed after the first-run preflight update.
+- `python3 -m cli.main sample-report --ticker RELIANCE.NS --date 2026-06-05 --save-path /tmp/ima-sample-report.EBbwOv`: passed and generated the full saved-report bundle with sample/UNAVAILABLE markers.
+- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 19 passed after the sample-report update.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
@@ -69,6 +71,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Recommended first workflow and best-use-case guidance is documented.
 - [x] Credential-safe first-run checklist is documented.
 - [x] First-run preflight is available without live market, broker, or LLM calls.
+- [x] Sample saved-report generation is available without live market, broker, or LLM calls.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
 

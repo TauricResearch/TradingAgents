@@ -8,6 +8,7 @@ import typer
 from cli import main as cli_main
 from cli.main import (
     INDIA_COMPLIANCE_DISCLAIMER,
+    generate_sample_report,
     run_doctor_checks,
     run_first_run_checks,
     save_report_to_disk,
@@ -61,6 +62,32 @@ def test_first_run_check_passes_with_llm_key(monkeypatch, tmp_path):
     assert report_path["detail"] == str(
         tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
     )
+
+
+@pytest.mark.unit
+def test_sample_report_generates_explicit_no_data_bundle(tmp_path):
+    report_file = generate_sample_report(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        save_path=tmp_path,
+    )
+
+    assert report_file == tmp_path / "complete_report.md"
+    complete_report = report_file.read_text(encoding="utf-8")
+    assert "SAMPLE ONLY - UNAVAILABLE" in complete_report
+    assert "It did not use live market data" in complete_report
+    assert INDIA_COMPLIANCE_DISCLAIMER in complete_report
+
+    trader_view = (tmp_path / "trader_research_view.md").read_text(encoding="utf-8")
+    assert "SAMPLE MODEL VIEW - UNAVAILABLE" in trader_view
+    assert "not a trade instruction" in trader_view
+
+    data_quality = json.loads((tmp_path / "data_quality.json").read_text(encoding="utf-8"))
+    market = data_quality["sections"]["India Market Technical"]
+    assert data_quality["symbol"] == "RELIANCE.NS"
+    assert market["contains_unavailable_marker"] is True
+    assert market["data_quality_detected"] is True
+    assert market["confidence_detected"] is True
 
 
 @pytest.mark.unit

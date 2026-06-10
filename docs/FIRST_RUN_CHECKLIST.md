@@ -80,6 +80,16 @@ Prefer `.md`, `.txt`, or `.csv` for the first run. PDF OCR is not enabled by def
 
 ## 5. Run The First Research Pack
 
+Optional no-key workflow rehearsal:
+
+```bash
+python3 -m cli.main sample-report \
+  --ticker RELIANCE.NS \
+  --date 2026-06-05
+```
+
+This writes a saved-report bundle under `reports/RELIANCE.NS/2026-06-05/` with every section marked sample/UNAVAILABLE. Use it to verify report saving and dashboard review before configuring an LLM key. Do not treat it as market research.
+
 Run the offline preflight first:
 
 ```bash
@@ -127,6 +137,7 @@ The repo is ready for practical use when:
 
 - `doctor` validates `RELIANCE.NS`.
 - Non-India tickers such as `AAPL` are rejected by default.
+- `sample-report` can generate an explicit sample/UNAVAILABLE saved-report bundle.
 - `first-run-check` passes for the selected provider.
 - At least one LLM key is detected locally.
 - A `reports/RELIANCE.NS/2026-06-05/` bundle is generated.

@@ -99,6 +99,8 @@ Treat `sources.md` and `data_quality.json` as report-writer coverage indexes. Th
 
 ## Review Workflow
 
+If you do not have an LLM key yet, run `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05` first. The output is sample/UNAVAILABLE only, but it lets you verify the saved-report and dashboard review workflow.
+
 Use this sequence:
 
 1. Read `disclaimer.md` and confirm the report is research-only.
