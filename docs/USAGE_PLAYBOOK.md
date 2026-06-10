@@ -58,7 +58,10 @@ Check the local install without making live market or LLM calls:
 
 ```bash
 indiamarketagents doctor --ticker RELIANCE.NS
+indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
 ```
+
+When `first-run-check` passes, it prints the exact shallow `analyze` command to run next.
 
 ## Optional Local Filings
 

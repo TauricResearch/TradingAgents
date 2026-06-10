@@ -18,6 +18,7 @@ The session progressed through scoped phases:
 10. Usage playbook and best-use-case guidance.
 11. First workflow rehearsal.
 12. Ollama preflight hardening.
+13. Post-preflight command guidance.
 
 The branch is already pushed and a draft PR is open:
 
@@ -35,7 +36,7 @@ Current follow-up state as of 2026-06-10:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the Ollama preflight hardening commit.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the post-preflight command guidance commit.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
@@ -44,20 +45,21 @@ Current follow-up state as of 2026-06-10:
 - `indiamarketagents use-case` is included in the CLI use-case guidance phase.
 - The installed `indiamarketagents` console script has been used to rehearse the documented first workflow through `use-case`, `sample-report`, and `first-run-check`.
 - `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle with `complete_report.md`, section files, `sources.md`, `data_quality.json`, `summary.json`, `disclaimer.md`, and `compliance.md`.
+- A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - The real `analyze` run is not ready yet because no LLM provider is configured: `OPENAI_API_KEY` is missing for OpenAI and Ollama has neither a local `ollama` command nor `OLLAMA_BASE_URL`.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `c756028` before committing the Ollama preflight hardening update.
+- `git rev-parse --short HEAD`: `d2d9c22` before committing the post-preflight command guidance update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the Ollama preflight hardening update: `c756028 docs: record first workflow rehearsal`; re-check after the hardening commit.
+- Latest committed HEAD before the post-preflight command guidance update: `d2d9c22 fix: validate Ollama runtime in first-run check`; re-check after the guidance commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -70,7 +72,7 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 24 after the Ollama preflight hardening commit.
+- `git rev-list --count upstream/main..HEAD`: 25 after the post-preflight command guidance commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -178,6 +180,10 @@ Follow-up usage work:
   - The check remains offline and does not call the Ollama endpoint or verify model availability.
   - Added unit tests for missing Ollama runtime and configured `OLLAMA_BASE_URL`.
   - Updated first-run docs and README guidance for local Ollama configuration.
+- Added post-preflight command guidance:
+  - `run_first_run_checks()` now returns `next_command` and `report_path` when ready.
+  - `first-run-check` now prints the generated shallow `indiamarketagents analyze` command after a passing preflight.
+  - Added unit tests for generated first-analysis commands.
 
 PR/publish work:
 
@@ -301,7 +307,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the Ollama preflight hardening commit.
+- PR body was updated from `docs/PR_READINESS.md` after the post-preflight command guidance commit.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -368,8 +374,10 @@ GitHub/PR commands:
 - `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05`: passed and generated `reports/RELIANCE.NS/2026-06-05/complete_report.md` plus companion review artifacts.
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected because `OPENAI_API_KEY` is not configured; ticker, date, analyst selection, and report path checks passed.
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider ollama`: failed as expected because neither the local `ollama` command nor `OLLAMA_BASE_URL` is configured; ticker, date, analyst selection, and report path checks passed.
+- `OPENAI_API_KEY=test-openai-key python3 -c 'from cli.main import run_first_run_checks; ...'`: passed; returned `ready=True`, the generated shallow `indiamarketagents analyze` command, and the expected report path.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
-- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 22 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 14 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 23 passed.
 
 Commits created in this session/branch:
 
@@ -396,6 +404,7 @@ Commits created in this session/branch:
 - `2354073 perf: lazy load analysis graph for offline CLI`
 - `c35415e feat: add use-case guidance command`
 - `c756028 docs: record first workflow rehearsal`
+- `d2d9c22 fix: validate Ollama runtime in first-run check`
 
 ## 8. How to verify the work
 
@@ -411,8 +420,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `c756028` before committing the Ollama preflight hardening update.
-- Worktree should be clean after the Ollama preflight hardening update is committed.
+- Head is `d2d9c22` before committing the post-preflight command guidance update.
+- Worktree should be clean after the post-preflight command guidance update is committed.
 
 2. Check formatting/whitespace:
 
@@ -473,7 +482,7 @@ Expected:
 
 1. Configure an LLM provider: add an API key for a keyed provider or configure Ollama with a local `ollama` command or `OLLAMA_BASE_URL`.
 2. Run `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>` after the provider is configured.
-3. Run a real first-company analysis from `docs/FIRST_RUN_CHECKLIST.md` after preflight passes.
+3. Run the generated shallow `indiamarketagents analyze` command after preflight passes.
 4. Inspect PR #1002 again if GitHub status checks or reviewer feedback appear.
 5. If continuing implementation, do not add new data sources or broker integrations casually.
    - Next code work should likely be official-source review for NSE/BSE only after source/legal/access review, or README cleanup to route users to `README_INDIA.md`.
@@ -516,5 +525,5 @@ First read `.codex/HANDOFF.md`, then inspect the live repo state with:
 
 Verify the assumptions in the handoff before making changes. Do not add data sources, agent prompts, dashboard features, broker integrations, or live trading controls unless I explicitly ask.
 
-Current likely next step: configure an LLM provider by adding an API key for a keyed provider or configuring Ollama with a local `ollama` command or `OLLAMA_BASE_URL`, rerun `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>`, then run the real first-company analysis in `docs/FIRST_RUN_CHECKLIST.md` once preflight passes. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
+Current likely next step: configure an LLM provider by adding an API key for a keyed provider or configuring Ollama with a local `ollama` command or `OLLAMA_BASE_URL`, rerun `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>`, then run the generated shallow `indiamarketagents analyze` command once preflight passes. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
 ```

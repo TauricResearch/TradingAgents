@@ -2,7 +2,7 @@
 
 Date: 2026-06-10
 Branch: `india-market-agents`
-Latest phase: Ollama preflight hardening
+Latest phase: Post-preflight command guidance
 
 ## Project Goal
 
@@ -16,7 +16,7 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 24 commits ahead of `upstream/main` after the Ollama preflight hardening commit.
+- Branch review confirms `india-market-agents` is clean and 25 commits ahead of `upstream/main` after the post-preflight command guidance commit.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -26,6 +26,7 @@ The product is research and decision support only. It must not become a live tra
 - `indiamarketagents use-case` now prints the recommended highest-value use case and first workflow commands.
 - The documented first workflow has been rehearsed with the installed `indiamarketagents` console script through `use-case`, `sample-report`, and `first-run-check`.
 - `indiamarketagents first-run-check --provider ollama` now verifies local Ollama runtime configuration instead of passing solely because no API key is required.
+- A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
 - Final verification passed with the offline unit suite and targeted security/compliance scans.
@@ -110,6 +111,10 @@ The product is research and decision support only. It must not become a live tra
    - Kept the check offline; it does not call the Ollama endpoint or verify model availability.
    - Added regression tests for missing Ollama runtime and configured `OLLAMA_BASE_URL`.
    - Updated first-run docs and India README with the Ollama runtime requirement.
+19. Post-preflight command guidance:
+   - Added `build_first_analysis_command()` and included `next_command`/`report_path` in `run_first_run_checks()`.
+   - Updated the `first-run-check` CLI output so a passing preflight prints the next shallow analysis command.
+   - Added regression coverage for generated first-analysis commands.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -166,7 +171,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 24 after the Ollama preflight hardening commit.
+- `git rev-list --count upstream/main..HEAD`: 25 after the post-preflight command guidance commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -184,8 +189,10 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05`: passed and generated `reports/RELIANCE.NS/2026-06-05/complete_report.md` plus companion review artifacts.
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected because `OPENAI_API_KEY` is not configured; ticker, date, analyst selection, and report path checks passed.
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider ollama`: failed as expected because neither the local `ollama` command nor `OLLAMA_BASE_URL` is configured; ticker, date, analyst selection, and report path checks passed.
+- `OPENAI_API_KEY=test-openai-key python3 -c 'from cli.main import run_first_run_checks; ...'`: passed; returned `ready=True`, the generated shallow `indiamarketagents analyze` command, and the expected report path.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
-- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 22 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 14 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 23 passed.
 - `git diff --check`: passed.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
@@ -214,4 +221,4 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 ## Next Recommended Prompt
 
-Configure an LLM provider by adding a keyed provider API key or setting up Ollama, rerun `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>`, then continue with the real first-company analysis run in `docs/FIRST_RUN_CHECKLIST.md`. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.
+Configure an LLM provider by adding a keyed provider API key or setting up Ollama, rerun `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>`, then run the generated shallow `indiamarketagents analyze` command. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.

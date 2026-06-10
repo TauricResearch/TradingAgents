@@ -8,6 +8,7 @@ import typer
 from cli import main as cli_main
 from cli.main import (
     INDIA_COMPLIANCE_DISCLAIMER,
+    build_first_analysis_command,
     generate_sample_report,
     get_use_case_guidance,
     run_doctor_checks,
@@ -62,6 +63,30 @@ def test_first_run_check_passes_with_llm_key(monkeypatch, tmp_path):
     report_path = next(check for check in result["checks"] if check["name"] == "Report path")
     assert report_path["detail"] == str(
         tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
+    )
+    assert result["report_path"] == str(
+        tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
+    )
+    assert result["next_command"] == (
+        "indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 "
+        "--provider openai --research-depth 1 --no-display --no-save-prompt "
+        "--analysts india_market"
+    )
+
+
+@pytest.mark.unit
+def test_build_first_analysis_command_quotes_arguments():
+    command = build_first_analysis_command(
+        ticker="RELIANCE.NS",
+        analysis_date="2026-06-05",
+        provider="openai",
+        analysts=["india_market", "india_fundamentals"],
+    )
+
+    assert command == (
+        "indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 "
+        "--provider openai --research-depth 1 --no-display --no-save-prompt "
+        "--analysts india_market,india_fundamentals"
     )
 
 

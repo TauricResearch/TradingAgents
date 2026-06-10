@@ -3,6 +3,7 @@ import os
 import datetime
 import json
 import shutil
+import shlex
 import typer
 import questionary
 from pathlib import Path
@@ -1577,6 +1578,33 @@ def _parse_analysts_option(analysts: Optional[str]) -> list[str]:
     return selected
 
 
+def build_first_analysis_command(
+    *,
+    ticker: str,
+    analysis_date: str,
+    provider: str,
+    analysts: Optional[list[str]] = None,
+) -> str:
+    """Return the recommended shallow first-analysis command."""
+    command = [
+        "indiamarketagents",
+        "analyze",
+        "--ticker",
+        ticker,
+        "--date",
+        analysis_date,
+        "--provider",
+        provider,
+        "--research-depth",
+        "1",
+        "--no-display",
+        "--no-save-prompt",
+    ]
+    if analysts:
+        command.extend(["--analysts", ",".join(analysts)])
+    return shlex.join(command)
+
+
 def run_doctor_checks(ticker: str = "RELIANCE.NS") -> dict:
     checks = {}
     checks["python"] = True
@@ -1655,6 +1683,7 @@ def run_first_run_checks(
             "Use a valid India market date on or before today.",
         )
 
+    selected_analysts = None
     try:
         selected_analysts = _parse_analysts_option(analysts)
         add_check("Analyst selection", "pass", ", ".join(selected_analysts))
@@ -1710,6 +1739,7 @@ def run_first_run_checks(
             "Add the key to .env or export it before running analyze.",
         )
 
+    report_path = None
     if normalized_ticker and resolved_date:
         report_path = (
             Path.cwd()
@@ -1719,11 +1749,23 @@ def run_first_run_checks(
         )
         add_check("Report path", "pass", str(report_path))
 
+    ready = all(check["status"] == "pass" for check in checks)
+    next_command = None
+    if ready and normalized_ticker and resolved_date:
+        next_command = build_first_analysis_command(
+            ticker=normalized_ticker,
+            analysis_date=resolved_date,
+            provider=provider_key,
+            analysts=selected_analysts if analysts else None,
+        )
+
     return {
-        "ready": all(check["status"] == "pass" for check in checks),
+        "ready": ready,
         "ticker": normalized_ticker,
         "analysis_date": resolved_date,
         "provider": provider_key,
+        "report_path": str(report_path) if report_path else None,
+        "next_command": next_command,
         "checks": checks,
     }
 
@@ -2016,6 +2058,16 @@ def first_run_check(
     console.print(table)
     if result["ready"]:
         console.print("[green]Ready for the first IndiaMarketAgents research run.[/green]")
+        if result.get("next_command"):
+            console.print(
+                Panel(
+                    result["next_command"],
+                    title="Next Analysis Command",
+                    border_style="green",
+                )
+            )
+        if result.get("report_path"):
+            console.print(f"[dim]Expected report path:[/dim] {result['report_path']}")
     else:
         console.print("[red]Not ready for the first research run. Fix failed checks first.[/red]")
         raise typer.Exit(1)

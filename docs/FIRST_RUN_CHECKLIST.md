@@ -111,7 +111,7 @@ python3 -m cli.main first-run-check \
 
 This command does not call an LLM or live market data. It should pass ticker/date/report-path checks and fail clearly if the provider key is missing.
 
-Use a shallow run first to control cost:
+When it passes, it prints the exact shallow analysis command to run next. Use a shallow run first to control cost:
 
 ```bash
 python3 -m cli.main analyze \
