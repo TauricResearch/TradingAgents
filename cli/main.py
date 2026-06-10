@@ -1633,6 +1633,35 @@ def run_doctor_checks(ticker: str = "RELIANCE.NS") -> dict:
     return checks
 
 
+def initialize_env_file(
+    env_path: Optional[Path] = None,
+    template_path: Optional[Path] = None,
+) -> dict:
+    """Create local .env from the India template without overwriting."""
+    env_path = env_path or (Path.cwd() / ".env")
+    template_path = template_path or (Path.cwd() / ".env.example.india")
+    if env_path.exists():
+        return {
+            "created": False,
+            "status": "exists",
+            "path": str(env_path),
+            "template_path": str(template_path),
+            "message": f"{env_path} already exists; leaving it unchanged.",
+            "next_step": "Run indiamarketagents provider-status.",
+        }
+    if not template_path.exists():
+        raise FileNotFoundError(f"{template_path} was not found.")
+    shutil.copyfile(template_path, env_path)
+    return {
+        "created": True,
+        "status": "created",
+        "path": str(env_path),
+        "template_path": str(template_path),
+        "message": f"Created {env_path} from {template_path}.",
+        "next_step": "Edit the local .env, then run indiamarketagents provider-status.",
+    }
+
+
 def get_provider_setup_status() -> dict:
     """Return local provider readiness without network calls or secret values."""
     env_file_path = Path.cwd() / ".env"
@@ -1640,7 +1669,7 @@ def get_provider_setup_status() -> dict:
     env_file_next_step = (
         f"Edit {env_file_path} locally; do not commit it."
         if env_file_exists
-        else "Run cp .env.example.india .env, then add one provider setting."
+        else "Run indiamarketagents init-env, then add one provider setting."
     )
 
     providers = []
@@ -1984,6 +2013,7 @@ def get_use_case_guidance() -> dict:
         ],
         "commands": [
             "indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05",
+            "indiamarketagents init-env",
             "indiamarketagents provider-status",
             "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai",
             build_first_analysis_command(
@@ -1993,6 +2023,7 @@ def get_use_case_guidance() -> dict:
             ),
         ],
         "notes": [
+            "init-env creates .env from .env.example.india only when .env is missing.",
             "Run provider-status before first-run-check to confirm one provider path is configured.",
             "Run the analyze command only after first-run-check passes.",
             "If using another provider, run the generated command printed by first-run-check.",
@@ -2197,6 +2228,24 @@ def first_run_check(
     else:
         console.print("[red]Not ready for the first research run. Fix failed checks first.[/red]")
         raise typer.Exit(1)
+
+
+@app.command("init-env")
+def init_env():
+    """Create local .env from .env.example.india without overwriting."""
+    try:
+        result = initialize_env_file()
+    except FileNotFoundError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    title = "Local .env Created" if result["created"] else "Local .env Exists"
+    console.print(
+        Panel(
+            f"{result['message']}\n{result['next_step']}",
+            title=title,
+            border_style="green" if result["created"] else "yellow",
+        )
+    )
 
 
 @app.command("provider-status")

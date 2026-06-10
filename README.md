@@ -14,7 +14,7 @@ Use this section for the India-focused fork. The upstream TradingAgents README b
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e ".[dev]"
-cp .env.example.india .env
+indiamarketagents init-env
 indiamarketagents use-case
 indiamarketagents provider-status
 indiamarketagents doctor --ticker RELIANCE.NS

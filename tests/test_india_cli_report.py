@@ -12,6 +12,7 @@ from cli.main import (
     generate_sample_report,
     get_provider_setup_status,
     get_use_case_guidance,
+    initialize_env_file,
     run_doctor_checks,
     run_first_run_checks,
     save_report_to_disk,
@@ -92,6 +93,35 @@ def test_build_first_analysis_command_quotes_arguments():
 
 
 @pytest.mark.unit
+def test_initialize_env_file_creates_from_india_template(tmp_path):
+    template = tmp_path / ".env.example.india"
+    template.write_text("OPENAI_API_KEY=\nOLLAMA_BASE_URL=\n", encoding="utf-8")
+    env_file = tmp_path / ".env"
+
+    result = initialize_env_file(env_path=env_file, template_path=template)
+
+    assert result["created"] is True
+    assert result["status"] == "created"
+    assert env_file.read_text(encoding="utf-8") == template.read_text(encoding="utf-8")
+    assert result["next_step"] == "Edit the local .env, then run indiamarketagents provider-status."
+
+
+@pytest.mark.unit
+def test_initialize_env_file_never_overwrites_existing_env(tmp_path):
+    template = tmp_path / ".env.example.india"
+    template.write_text("OPENAI_API_KEY=\n", encoding="utf-8")
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENAI_API_KEY=keep-me\n", encoding="utf-8")
+
+    result = initialize_env_file(env_path=env_file, template_path=template)
+
+    assert result["created"] is False
+    assert result["status"] == "exists"
+    assert env_file.read_text(encoding="utf-8") == "OPENAI_API_KEY=keep-me\n"
+    assert "leaving it unchanged" in result["message"]
+
+
+@pytest.mark.unit
 def test_provider_status_reports_no_ready_provider(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     for env_var in (
@@ -110,7 +140,7 @@ def test_provider_status_reports_no_ready_provider(monkeypatch, tmp_path):
     assert result["env_file"] == {
         "path": str(tmp_path / ".env"),
         "exists": False,
-        "next_step": "Run cp .env.example.india .env, then add one provider setting.",
+        "next_step": "Run indiamarketagents init-env, then add one provider setting.",
     }
     providers = {item["provider"]: item for item in result["providers"]}
     assert providers["openai"]["status"] == "missing"
@@ -189,11 +219,13 @@ def test_use_case_guidance_names_best_workflow_and_commands():
     assert "First-pass India equity research pack" in guidance["best_use_case"]
     assert "RELIANCE.NS" in guidance["best_use_case"]
     assert any("sample-report" in command for command in guidance["commands"])
+    assert any("init-env" in command for command in guidance["commands"])
     assert any("provider-status" in command for command in guidance["commands"])
     assert any("first-run-check" in command for command in guidance["commands"])
     assert any("analyze --ticker RELIANCE.NS" in command for command in guidance["commands"])
     assert any("--provider openai" in command for command in guidance["commands"])
     assert any("Live trading" in poor_fit for poor_fit in guidance["poor_fit"])
+    assert any("only when .env is missing" in note for note in guidance["notes"])
     assert any("provider-status" in note for note in guidance["notes"])
     assert any("first-run-check passes" in note for note in guidance["notes"])
     assert "docs/USAGE_PLAYBOOK.md" in guidance["docs"]

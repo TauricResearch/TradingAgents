@@ -45,7 +45,7 @@ Use Python 3.10, 3.11, or 3.12 for the most predictable dependency support.
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e ".[dev]"
-cp .env.example.india .env
+indiamarketagents init-env
 ```
 
 Add at least one LLM key to `.env`.

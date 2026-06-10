@@ -20,6 +20,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e ".[dev]"
 python3 -m cli.main --help
+python3 -m cli.main init-env
 python3 -m cli.main use-case
 python3 -m cli.main provider-status
 python3 -m cli.main doctor --ticker RELIANCE.NS
@@ -42,7 +43,7 @@ Expected provider-status result:
 Create a local `.env` file:
 
 ```bash
-cp .env.example.india .env
+indiamarketagents init-env
 ```
 
 Add exactly one LLM provider key to start:
