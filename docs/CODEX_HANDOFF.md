@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: First-run provider readiness check
+Latest phase: Goal status and handoff refresh
 
 ## Project Goal
 
@@ -16,7 +16,9 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 46 commits ahead of `upstream/main` after the first-run provider-readiness update.
+- Branch review confirms `india-market-agents` is clean and synced with `origin/india-market-agents` at implementation HEAD `d90f410`.
+- The branch is 47 commits ahead of `upstream/main` after this handoff/status refresh commit.
+- Goal status: the repo is usable for the recommended no-key workflow rehearsal, saved-report review, provider readiness checks, and highest-value use-case identification. A real LLM-backed `analyze` run still requires configuring one provider path.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -44,7 +46,7 @@ The product is research and decision support only. It must not become a live tra
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
 - Final verification passed with the offline unit suite and targeted security/compliance scans.
-- No data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
+- No source, data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
 
 ## Completed Phases
 
@@ -196,6 +198,10 @@ The product is research and decision support only. It must not become a live tra
    - Updated `first-run-check` so the default no-provider-ready path says no provider is selected and includes a single `Provider readiness` failure with the same provider setup next step as `provider-status`.
    - Updated `docs/FIRST_RUN_CHECKLIST.md` to describe the new preflight row.
    - Added regression coverage for the no-provider-ready first-run preflight output.
+37. Goal status and handoff refresh:
+   - Rechecked the active goal, current branch, PR status, provider status, workflow status, doctor output, and non-India rejection smoke path.
+   - Confirmed the highest-value practical use case remains a first-pass India equity research pack for `RELIANCE.NS` or another NSE/BSE-listed company.
+   - Updated handoff and PR-readiness status only; no source-code behavior changed.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -205,9 +211,6 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 ## Files Touched In Latest Phase
 
-- `cli/main.py`
-- `docs/FIRST_RUN_CHECKLIST.md`
-- `tests/test_india_cli_report.py`
 - `.codex/HANDOFF.md`
 - `docs/CODEX_HANDOFF.md`
 - `docs/PR_READINESS.md`
@@ -248,8 +251,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 46 after the first-run provider-readiness update.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at implementation HEAD `d90f410`.
+- `git log -1 --oneline`: `d90f410 fix: clarify missing provider preflight`.
+- `git rev-list --count upstream/main..HEAD`: 47 after this handoff/status refresh commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -258,7 +262,11 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: later passed and updated the PR body.
 - `python3 -m cli.main --help`: passed.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; package import and ticker validation were OK; no LLM/API keys detected.
+- `python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed; saved report bundle is present and provider setup is the next unfinished step.
+- `python3 -m cli.main report-status --ticker RELIANCE.NS --date 2026-06-05`: passed; all expected saved sample-report artifacts are present.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected when `OPENAI_API_KEY` was not configured.
+- `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected with no selected provider and only the `Provider readiness` blocker.
+- `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `OPENAI_API_KEY=test-openai-key python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: passed without live market, broker, or LLM calls.
 - `python3 -m cli.main sample-report --ticker RELIANCE.NS --date 2026-06-05 --save-path /tmp/ima-sample-report.EBbwOv`: passed and generated the full saved-report bundle with sample/UNAVAILABLE markers.
 - `python3 -m cli.main --help`, `doctor`, `first-run-check`, and `sample-report`: returned promptly after lazy graph import.

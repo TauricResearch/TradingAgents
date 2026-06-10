@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 46 commits ahead of `upstream/main` after the first-run provider-readiness update.
+Branch state: 47 commits ahead of `upstream/main` after this docs-only handoff/status refresh is committed.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the first-run provider-readiness update.
+PR body: updated from this file after this handoff/status refresh.
 
 ## PR Title
 
@@ -53,10 +53,13 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Updated `doctor` so the general health check surfaces provider readiness, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
 - Updated beginner setup so fresh users use `init-env`, readiness checks, and the generated `analyze` command instead of manual `.env` copying or a hardcoded OpenAI run path.
 - Updated `first-run-check` so the default no-provider-ready path shows no selected provider plus a single `Provider readiness` failure and setup next step.
+- Refreshed handoff and PR-readiness status against the current branch, PR, provider-status, workflow-status, doctor, and non-India rejection smoke evidence.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the first-run provider-readiness update.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at implementation HEAD `d90f410` before this docs-only status refresh.
+- `git log -1 --oneline`: `d90f410 fix: clarify missing provider preflight`.
+- `git rev-list --count upstream/main..HEAD`: 46 before this docs-only status refresh.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -104,6 +107,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main doctor --ticker RELIANCE.NS`: passed and reported the generated shallow `indiamarketagents analyze` command as the first-workflow next step.
 - `rg -n 'cp \.env\.example\.india \.env|first-run-check --ticker RELIANCE\.NS --date 2026-06-05 --provider openai|analyze --ticker RELIANCE\.NS --date 2026-06-05 --research-depth 1' docs/BEGINNER_SETUP.md README.md README_INDIA.md docs/USAGE_PLAYBOOK.md docs/FIRST_RUN_CHECKLIST.md`: no matches after the beginner setup alignment update.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected, showed no selected provider, and included only `Provider readiness` for the provider setup blocker.
+- `python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed; saved report bundle is present and provider setup is the next unfinished step.
+- `python3 -m cli.main report-status --ticker RELIANCE.NS --date 2026-06-05`: passed; all expected saved sample-report artifacts are present.
+- `python3 -m cli.main provider-status`: passed; local `.env` exists but no provider path is ready.
+- `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; first-workflow readiness is false because no provider path is ready.
+- `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 28 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
@@ -123,7 +131,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the first-run provider-readiness update.
+- PR body was updated from this file after the docs-only handoff/status refresh.
 
 ## PR Checklist
 

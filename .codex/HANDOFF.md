@@ -50,6 +50,9 @@ Current objective: make the GitHub repo practically usable and identify the high
 
 Current follow-up state as of 2026-06-11:
 
+- Latest implementation HEAD before this handoff/status refresh: `d90f410 fix: clarify missing provider preflight`.
+- Branch is clean and synced with `origin/india-market-agents` at the latest inspection.
+- The active goal is partly complete: the repo can now be used for no-key workflow rehearsal, saved-report review, provider readiness checks, and identification of the highest-value use case. The real LLM-backed `analyze` run remains blocked on provider configuration.
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
@@ -80,16 +83,14 @@ Current follow-up state as of 2026-06-11:
 
 Latest local inspection commands:
 
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the first-run provider-readiness update.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents`.
 - `git branch --show-current`: `india-market-agents`.
-- `git log -1 --oneline`: `c254bd6 feat: surface provider readiness in preflight` before committing the first-run provider-readiness refinement.
+- `git log -1 --oneline`: `d90f410 fix: clarify missing provider preflight`.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the first-run provider-readiness refinement: `c254bd6 feat: surface provider readiness in preflight`.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -102,8 +103,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 46 after the first-run provider-readiness commit.
-- `git diff --stat upstream/main`: 78 files changed, 7350 insertions, 228 deletions.
+- `git rev-list --count upstream/main..HEAD`: 47 after this handoff/status refresh is committed.
+- `git diff --stat upstream/main`: 78 files changed, 7363 insertions, 228 deletions after this handoff/status refresh.
 
 Material file changes by area:
 
@@ -414,17 +415,13 @@ Items intentionally left for future work:
 
 Important repo/env commands:
 
-- `git status --short`: initially clean before `.codex/HANDOFF.md`; no output.
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents`.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `3bab168`.
-- `git diff --stat`: no working-tree diff before this handoff.
-- `git diff --name-only`: no working-tree diff before this handoff.
+- `git log -1 --oneline`: `d90f410 fix: clarify missing provider preflight`.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
-- `git rev-list --count upstream/main..HEAD`: `12`.
-- `git log --oneline --reverse upstream/main..HEAD`: listed 12 phase commits from `17f9f1d` through `3bab168`.
-- `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
+- `git rev-list --count upstream/main..HEAD`: `47` after this handoff/status refresh is committed.
+- `git diff --stat upstream/main`: 78 files changed, 7363 insertions, 228 deletions after this handoff/status refresh.
 
 Important focused tests run during the session:
 
@@ -574,8 +571,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is the first-run provider-readiness commit after the latest phase is committed.
-- Worktree should be clean after the first-run provider-readiness update is committed.
+- Head is this handoff/status refresh commit, with `d90f410` as the latest implementation commit before the refresh.
+- Worktree should be clean after this handoff/status refresh is committed.
 
 2. Check formatting/whitespace:
 
@@ -591,7 +588,7 @@ Expected: no output and exit code 0.
 python3 -m pytest -m "not integration" -q
 ```
 
-Expected at commit `3bab168`: 373 passed, 1 deselected, 7 warnings, 75 subtests passed.
+Expected after the first-run provider-readiness work: 395 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 4. Run security/compliance scans:
 
