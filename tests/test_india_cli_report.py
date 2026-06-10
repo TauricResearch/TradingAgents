@@ -30,6 +30,7 @@ def test_doctor_validates_india_ticker(monkeypatch, tmp_path):
         "GOOGLE_API_KEY",
         "ANTHROPIC_API_KEY",
         "OLLAMA_BASE_URL",
+        "TRADINGAGENTS_LLM_PROVIDER",
     ):
         monkeypatch.delenv(env_var, raising=False)
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
@@ -351,6 +352,7 @@ def test_first_workflow_status_reports_next_sample_report_step(monkeypatch, tmp_
         "GOOGLE_API_KEY",
         "ANTHROPIC_API_KEY",
         "OLLAMA_BASE_URL",
+        "TRADINGAGENTS_LLM_PROVIDER",
     ):
         monkeypatch.delenv(env_var, raising=False)
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
@@ -364,6 +366,8 @@ def test_first_workflow_status_reports_next_sample_report_step(monkeypatch, tmp_
     assert checks["Saved report bundle"]["status"] == "pending"
     assert "complete_report.md" in checks["Saved report bundle"]["detail"]
     assert checks["Provider"]["status"] == "fail"
+    assert "configured provider openai is missing" in checks["Provider"]["detail"]
+    assert "OPENAI_API_KEY is not set" in checks["Provider"]["detail"]
     assert checks["First-run preflight"]["status"] == "pending"
 
 

@@ -2063,10 +2063,15 @@ def get_first_workflow_status(
             provider_status["recommended_next_step"],
         )
     else:
+        configured_provider = provider_status["configured_provider"]
         add_check(
             "Provider",
             "fail",
-            "No LLM provider path is ready",
+            (
+                "No LLM provider path is ready; configured provider "
+                f"{configured_provider['provider']} is {configured_provider['status']}: "
+                f"{configured_provider['detail']}"
+            ),
             provider_status["recommended_next_step"],
         )
 

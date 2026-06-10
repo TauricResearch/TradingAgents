@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 49 commits ahead of `upstream/main` after this provider-status configured-provider update is committed.
+Branch state: 50 commits ahead of `upstream/main` after this workflow-status provider-blocker update is committed.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after this provider-status configured-provider update.
+PR body: updated from this file after this workflow-status provider-blocker update.
 
 ## PR Title
 
@@ -56,12 +56,13 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Refreshed handoff and PR-readiness status against the current branch, PR, provider-status, workflow-status, doctor, and non-India rejection smoke evidence.
 - Split `docs/USAGE_PLAYBOOK.md` acceptance checks into no-key workflow rehearsal readiness and first LLM-backed research-run readiness, with provider readiness plus passing `first-run-check` as the full-use gate.
 - Added a non-secret configured-provider summary to `provider-status`, so the current local blocker clearly shows configured provider `openai` and missing `OPENAI_API_KEY`.
+- Updated `workflow-status` so its provider row also shows the configured provider and missing credential/runtime detail when no provider path is ready.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at `b2cba1a` before this provider-status configured-provider update.
-- `git log -1 --oneline`: `b2cba1a docs: clarify first-use readiness gate`.
-- `git rev-list --count upstream/main..HEAD`: 49 after this provider-status configured-provider update is committed.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at `f535c33` before this workflow-status provider-blocker update.
+- `git log -1 --oneline`: `f535c33 feat: show configured provider status`.
+- `git rev-list --count upstream/main..HEAD`: 50 after this workflow-status provider-blocker update is committed.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -112,6 +113,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed; saved report bundle is present and provider setup is the next unfinished step.
 - `python3 -m cli.main report-status --ticker RELIANCE.NS --date 2026-06-05`: passed; all expected saved sample-report artifacts are present.
 - `python3 -m cli.main provider-status`: passed; showed configured provider `openai` from `TRADINGAGENTS_LLM_PROVIDER` and reported `OPENAI_API_KEY` missing without printing secrets.
+- `python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed; provider row now includes configured provider `openai` and missing `OPENAI_API_KEY`.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; first-workflow readiness is false because no provider path is ready.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_usage_playbook_distinguishes_rehearsal_from_research_readiness -q`: 1 passed.
@@ -134,7 +136,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the provider-status configured-provider update.
+- PR body was updated from this file after the workflow-status provider-blocker update.
 
 ## PR Checklist
 
@@ -166,6 +168,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
 - [x] Usage playbook separates no-key rehearsal readiness from first LLM-backed research-run readiness.
 - [x] Provider status shows the configured provider without printing secrets.
+- [x] Workflow status surfaces the configured-provider blocker when no provider path is ready.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
 
