@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 47 commits ahead of `upstream/main` after this docs-only handoff/status refresh is committed.
+Branch state: 48 commits ahead of `upstream/main` after this usage-playbook acceptance-gate update is committed.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after this handoff/status refresh.
+PR body: updated from this file after this usage-playbook acceptance-gate update.
 
 ## PR Title
 
@@ -54,12 +54,13 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Updated beginner setup so fresh users use `init-env`, readiness checks, and the generated `analyze` command instead of manual `.env` copying or a hardcoded OpenAI run path.
 - Updated `first-run-check` so the default no-provider-ready path shows no selected provider plus a single `Provider readiness` failure and setup next step.
 - Refreshed handoff and PR-readiness status against the current branch, PR, provider-status, workflow-status, doctor, and non-India rejection smoke evidence.
+- Split `docs/USAGE_PLAYBOOK.md` acceptance checks into no-key workflow rehearsal readiness and first LLM-backed research-run readiness, with provider readiness plus passing `first-run-check` as the full-use gate.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at implementation HEAD `d90f410` before this docs-only status refresh.
-- `git log -1 --oneline`: `d90f410 fix: clarify missing provider preflight`.
-- `git rev-list --count upstream/main..HEAD`: 46 before this docs-only status refresh.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at `64ea3f6` before this usage-playbook acceptance-gate update.
+- `git log -1 --oneline`: `64ea3f6 docs: refresh goal status handoff`.
+- `git rev-list --count upstream/main..HEAD`: 48 after this usage-playbook acceptance-gate update is committed.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -112,14 +113,15 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python3 -m cli.main provider-status`: passed; local `.env` exists but no provider path is ready.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; first-workflow readiness is false because no provider path is ready.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_usage_playbook_distinguishes_rehearsal_from_research_readiness -q`: 1 passed.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 28 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 29 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with handoff, PR-readiness, and test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 395 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 396 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Remaining Risks
 
@@ -131,7 +133,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the docs-only handoff/status refresh.
+- PR body was updated from this file after the usage-playbook acceptance-gate update.
 
 ## PR Checklist
 
@@ -161,6 +163,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Beginner setup uses the no-overwrite env init and generated analysis command flow.
 - [x] First-run preflight reports provider readiness before users spend on analysis.
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
+- [x] Usage playbook separates no-key rehearsal readiness from first LLM-backed research-run readiness.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
 

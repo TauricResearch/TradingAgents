@@ -36,6 +36,7 @@ The session progressed through scoped phases:
 28. Doctor workflow readiness.
 29. Beginner setup generated-command alignment.
 30. First-run provider readiness check.
+31. Usage playbook acceptance-gate clarification.
 
 The branch is already pushed and a draft PR is open:
 
@@ -50,8 +51,8 @@ Current objective: make the GitHub repo practically usable and identify the high
 
 Current follow-up state as of 2026-06-11:
 
-- Latest implementation HEAD before this handoff/status refresh: `d90f410 fix: clarify missing provider preflight`.
-- Branch is clean and synced with `origin/india-market-agents` at the latest inspection.
+- Latest HEAD before this usage-playbook acceptance-gate update: `64ea3f6 docs: refresh goal status handoff`.
+- Branch was clean and synced with `origin/india-market-agents` at the latest inspection before this update.
 - The active goal is partly complete: the repo can now be used for no-key workflow rehearsal, saved-report review, provider readiness checks, and identification of the highest-value use case. The real LLM-backed `analyze` run remains blocked on provider configuration.
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
@@ -77,6 +78,7 @@ Current follow-up state as of 2026-06-11:
 - `indiamarketagents doctor` now surfaces provider readiness, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
 - `indiamarketagents report-status` now checks saved report bundle artifacts and summarizes `data_quality.json` without live calls or writes.
 - `docs/USAGE_PLAYBOOK.md` now directs users to run the shallow `analyze` command printed by `first-run-check`, with a provider-aware OpenAI example.
+- `docs/USAGE_PLAYBOOK.md` now separates no-key rehearsal readiness from first LLM-backed research-run readiness; provider readiness plus a passing `first-run-check` is the gate for the first real research run.
 - `.gitignore` now ignores `.DS_Store` so local macOS metadata does not appear as untracked repo noise.
 - `.env.example.india` now includes `OLLAMA_BASE_URL=` so the local template matches the Ollama preflight/docs path.
 - The real `analyze` run is not ready yet because no LLM provider is configured: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
@@ -85,7 +87,7 @@ Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents`.
 - `git branch --show-current`: `india-market-agents`.
-- `git log -1 --oneline`: `d90f410 fix: clarify missing provider preflight`.
+- `git log -1 --oneline`: `64ea3f6 docs: refresh goal status handoff` before the usage-playbook acceptance-gate update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
@@ -103,8 +105,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 47 after this handoff/status refresh is committed.
-- `git diff --stat upstream/main`: 78 files changed, 7363 insertions, 228 deletions after this handoff/status refresh.
+- `git rev-list --count upstream/main..HEAD`: 48 after this usage-playbook acceptance-gate update is committed.
+- `git diff --stat upstream/main`: 78 files changed, 7412 insertions, 228 deletions after this usage-playbook acceptance-gate update.
 
 Material file changes by area:
 
@@ -285,6 +287,10 @@ Follow-up usage work:
   - The failure uses the same next setup step as `provider-status`.
   - `docs/FIRST_RUN_CHECKLIST.md` now describes the provider-readiness row.
   - Added regression coverage for the no-provider-ready first-run preflight output.
+- Clarified usage-playbook acceptance gates:
+  - `docs/USAGE_PLAYBOOK.md` now separates no-key workflow rehearsal readiness from first LLM-backed research-run readiness.
+  - The playbook says full research-run readiness requires a ready provider path and a passing `first-run-check`.
+  - Added regression coverage so the playbook cannot drift back to implying that `doctor` plus ticker rejection is enough for full research readiness.
 
 PR/publish work:
 
@@ -420,8 +426,8 @@ Important repo/env commands:
 - `git log -1 --oneline`: `d90f410 fix: clarify missing provider preflight`.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
-- `git rev-list --count upstream/main..HEAD`: `47` after this handoff/status refresh is committed.
-- `git diff --stat upstream/main`: 78 files changed, 7363 insertions, 228 deletions after this handoff/status refresh.
+- `git rev-list --count upstream/main..HEAD`: `48` after this usage-playbook acceptance-gate update is committed.
+- `git diff --stat upstream/main`: 78 files changed, 7412 insertions, 228 deletions after this usage-playbook acceptance-gate update.
 
 Important focused tests run during the session:
 
@@ -473,6 +479,7 @@ GitHub/PR commands:
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider ollama`: failed as expected because neither the local `ollama` command nor `OLLAMA_BASE_URL` is configured; ticker, date, analyst selection, and report path checks passed.
 - `OPENAI_API_KEY=test-openai-key python3 -c 'from cli.main import run_first_run_checks; ...'`: passed; returned `ready=True`, the generated shallow `indiamarketagents analyze` command, and the expected report path.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_usage_playbook_distinguishes_rehearsal_from_research_readiness -q`: 1 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 20 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 23 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
@@ -510,9 +517,9 @@ GitHub/PR commands:
 - `rg -n 'cp \.env\.example\.india \.env|first-run-check --ticker RELIANCE\.NS --date 2026-06-05 --provider openai|analyze --ticker RELIANCE\.NS --date 2026-06-05 --research-depth 1' docs/BEGINNER_SETUP.md README.md README_INDIA.md docs/USAGE_PLAYBOOK.md docs/FIRST_RUN_CHECKLIST.md`: no matches after the beginner setup alignment update.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected, showed no selected provider, and included only `Provider readiness` for the provider setup blocker.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 28 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 29 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 395 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 396 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 Commits created in this session/branch:
 
@@ -588,7 +595,7 @@ Expected: no output and exit code 0.
 python3 -m pytest -m "not integration" -q
 ```
 
-Expected after the first-run provider-readiness work: 395 passed, 1 deselected, 7 warnings, 75 subtests passed.
+Expected after the usage-playbook acceptance-gate update: 396 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 4. Run security/compliance scans:
 

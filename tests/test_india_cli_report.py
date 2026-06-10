@@ -186,6 +186,22 @@ def test_first_run_checklist_keeps_provider_aware_analyze_example():
 
 
 @pytest.mark.unit
+def test_usage_playbook_distinguishes_rehearsal_from_research_readiness():
+    playbook = Path("docs/USAGE_PLAYBOOK.md").read_text(encoding="utf-8")
+
+    assert "For no-key workflow rehearsal, confirm:" in playbook
+    assert "For the first LLM-backed research run, confirm:" in playbook
+    assert "indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05" in playbook
+    assert "indiamarketagents provider-status" in playbook
+    assert (
+        "Treat the repo as ready for the first research run only when "
+        "`provider-status` shows at least one ready provider path"
+        in playbook
+    )
+    assert "first_workflow_ready=False" in playbook
+
+
+@pytest.mark.unit
 def test_beginner_setup_uses_safe_generated_analysis_flow():
     setup = Path("docs/BEGINNER_SETUP.md").read_text(encoding="utf-8")
 

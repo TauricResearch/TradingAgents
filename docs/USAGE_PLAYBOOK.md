@@ -159,15 +159,30 @@ Do not use it as a trading bot or a source of personalized investment recommenda
 - Generated reports are ignored by git under `reports/`.
 - Local filings are ignored by git under `data/india/filings/`.
 
-## Minimum Acceptance Check
+## Acceptance Check
 
-Before treating the repo as usable, confirm:
+There are two readiness levels.
+
+For no-key workflow rehearsal, confirm:
 
 ```bash
+indiamarketagents use-case
+indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05
+indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05
 indiamarketagents doctor --ticker RELIANCE.NS
 indiamarketagents analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt
 ```
 
-The first command should validate `RELIANCE.NS`. The second command should reject `AAPL` because the default scope is India-only.
+The `doctor` command should validate `RELIANCE.NS`. The `AAPL` command should reject the ticker before any provider call because the default scope is India-only. If no provider is configured yet, `doctor` should still report `first_workflow_ready=False`; that means the rehearsal path is ready but the first LLM-backed research run is not.
+
+For the first LLM-backed research run, confirm:
+
+```bash
+indiamarketagents provider-status
+indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05
+indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05
+```
+
+Treat the repo as ready for the first research run only when `provider-status` shows at least one ready provider path and `first-run-check` prints the shallow `indiamarketagents analyze` command to run next.
 
 This output is for research and education only. It is not investment advice, a recommendation, an offer, or a solicitation to buy or sell securities. IndiaMarketAgents is not a SEBI-registered investment adviser or research analyst. Verify all data with official exchange/company filings and consult a qualified adviser before acting.

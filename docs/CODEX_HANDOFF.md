@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: Goal status and handoff refresh
+Latest phase: Usage playbook acceptance gate
 
 ## Project Goal
 
@@ -16,8 +16,8 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and synced with `origin/india-market-agents` at implementation HEAD `d90f410`.
-- The branch is 47 commits ahead of `upstream/main` after this handoff/status refresh commit.
+- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `64ea3f6` before the usage-playbook acceptance-gate update.
+- The branch is 48 commits ahead of `upstream/main` after this usage-playbook acceptance-gate commit.
 - Goal status: the repo is usable for the recommended no-key workflow rehearsal, saved-report review, provider readiness checks, and highest-value use-case identification. A real LLM-backed `analyze` run still requires configuring one provider path.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
@@ -40,13 +40,14 @@ The product is research and decision support only. It must not become a live tra
 - `indiamarketagents doctor` now surfaces provider readiness, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
 - `indiamarketagents report-status` now checks saved-report artifacts and summarizes `data_quality.json` without live calls or writes.
 - `docs/USAGE_PLAYBOOK.md` now directs users to run the shallow `analyze` command printed by `first-run-check`, with a provider-aware OpenAI example.
+- `docs/USAGE_PLAYBOOK.md` now separates no-key rehearsal readiness from first LLM-backed research-run readiness so `doctor` output cannot be misread as full readiness when no provider is configured.
 - `docs/FIRST_RUN_CHECKLIST.md` now shows the same provider-aware OpenAI analyze path as the generated preflight command.
 - `.gitignore` now ignores `.DS_Store` so local macOS metadata does not appear as untracked repo noise.
 - `.env.example.india` now includes `OLLAMA_BASE_URL=` so the local template matches the Ollama preflight/docs path.
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
 - Final verification passed with the offline unit suite and targeted security/compliance scans.
-- No source, data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
+- No data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
 
 ## Completed Phases
 
@@ -202,6 +203,10 @@ The product is research and decision support only. It must not become a live tra
    - Rechecked the active goal, current branch, PR status, provider status, workflow status, doctor output, and non-India rejection smoke path.
    - Confirmed the highest-value practical use case remains a first-pass India equity research pack for `RELIANCE.NS` or another NSE/BSE-listed company.
    - Updated handoff and PR-readiness status only; no source-code behavior changed.
+38. Usage playbook acceptance gate:
+   - Split the playbook acceptance check into no-key workflow rehearsal readiness and first LLM-backed research-run readiness.
+   - Made provider readiness and passing `first-run-check` the explicit gate before treating the repo as ready for the first real research run.
+   - Added a regression test so the playbook cannot drift back to a false-ready checklist.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -214,6 +219,8 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `.codex/HANDOFF.md`
 - `docs/CODEX_HANDOFF.md`
 - `docs/PR_READINESS.md`
+- `docs/USAGE_PLAYBOOK.md`
+- `tests/test_india_cli_report.py`
 
 ## Important Design Decisions
 
@@ -251,9 +258,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at implementation HEAD `d90f410`.
-- `git log -1 --oneline`: `d90f410 fix: clarify missing provider preflight`.
-- `git rev-list --count upstream/main..HEAD`: 47 after this handoff/status refresh commit.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `64ea3f6` before the usage-playbook acceptance-gate update.
+- `git log -1 --oneline`: `64ea3f6 docs: refresh goal status handoff`.
+- `git rev-list --count upstream/main..HEAD`: 48 after this usage-playbook acceptance-gate commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -267,6 +274,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected when `OPENAI_API_KEY` was not configured.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected with no selected provider and only the `Provider readiness` blocker.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_usage_playbook_distinguishes_rehearsal_from_research_readiness -q`: 1 passed.
 - `OPENAI_API_KEY=test-openai-key python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: passed without live market, broker, or LLM calls.
 - `python3 -m cli.main sample-report --ticker RELIANCE.NS --date 2026-06-05 --save-path /tmp/ima-sample-report.EBbwOv`: passed and generated the full saved-report bundle with sample/UNAVAILABLE markers.
 - `python3 -m cli.main --help`, `doctor`, `first-run-check`, and `sample-report`: returned promptly after lazy graph import.
@@ -314,13 +322,13 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `rg -n 'cp \.env\.example\.india \.env|first-run-check --ticker RELIANCE\.NS --date 2026-06-05 --provider openai|analyze --ticker RELIANCE\.NS --date 2026-06-05 --research-depth 1' docs/BEGINNER_SETUP.md README.md README_INDIA.md docs/USAGE_PLAYBOOK.md docs/FIRST_RUN_CHECKLIST.md`: no matches after the beginner setup alignment update.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected, showed no selected provider, and included only `Provider readiness` for the provider setup blocker.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 28 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 29 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `git diff --check`: passed.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with handoff, PR-readiness, and test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 395 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 396 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Known Risks And Blockers
 
