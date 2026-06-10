@@ -10,6 +10,7 @@ from cli.main import (
     INDIA_COMPLIANCE_DISCLAIMER,
     build_first_analysis_command,
     generate_sample_report,
+    get_provider_setup_status,
     get_use_case_guidance,
     run_doctor_checks,
     run_first_run_checks,
@@ -91,6 +92,43 @@ def test_build_first_analysis_command_quotes_arguments():
 
 
 @pytest.mark.unit
+def test_provider_status_reports_no_ready_provider(monkeypatch):
+    for env_var in (
+        "OPENAI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OLLAMA_BASE_URL",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+
+    result = get_provider_setup_status()
+
+    assert result["ready"] is False
+    assert result["ready_providers"] == []
+    providers = {item["provider"]: item for item in result["providers"]}
+    assert providers["openai"]["status"] == "missing"
+    assert "OPENAI_API_KEY" in providers["openai"]["next_step"]
+    assert providers["ollama"]["status"] == "missing"
+    assert "OLLAMA_BASE_URL=http://localhost:11434/v1" in result["recommended_next_step"]
+
+
+@pytest.mark.unit
+def test_provider_status_prefers_ready_ollama_for_low_cost(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+
+    result = get_provider_setup_status()
+
+    assert result["ready"] is True
+    assert "openai" in result["ready_providers"]
+    assert "ollama" in result["ready_providers"]
+    assert result["preferred_provider"] == "ollama"
+    assert "--provider ollama" in result["recommended_next_step"]
+
+
+@pytest.mark.unit
 def test_first_run_check_requires_ollama_runtime(monkeypatch):
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
@@ -138,10 +176,12 @@ def test_use_case_guidance_names_best_workflow_and_commands():
     assert "First-pass India equity research pack" in guidance["best_use_case"]
     assert "RELIANCE.NS" in guidance["best_use_case"]
     assert any("sample-report" in command for command in guidance["commands"])
+    assert any("provider-status" in command for command in guidance["commands"])
     assert any("first-run-check" in command for command in guidance["commands"])
     assert any("analyze --ticker RELIANCE.NS" in command for command in guidance["commands"])
     assert any("--provider openai" in command for command in guidance["commands"])
     assert any("Live trading" in poor_fit for poor_fit in guidance["poor_fit"])
+    assert any("provider-status" in note for note in guidance["notes"])
     assert any("first-run-check passes" in note for note in guidance["notes"])
     assert "docs/USAGE_PLAYBOOK.md" in guidance["docs"]
 

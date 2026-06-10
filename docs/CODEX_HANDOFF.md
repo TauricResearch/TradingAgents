@@ -2,7 +2,7 @@
 
 Date: 2026-06-10
 Branch: `india-market-agents`
-Latest phase: Ollama env-template placeholder
+Latest phase: Provider-status preflight
 
 ## Project Goal
 
@@ -16,7 +16,7 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 30 commits ahead of `upstream/main` after the Ollama env-template placeholder commit.
+- Branch review confirms `india-market-agents` is clean and 31 commits ahead of `upstream/main` after the provider-status preflight commit.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -29,6 +29,7 @@ The product is research and decision support only. It must not become a live tra
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - `README.md` now has an IndiaMarketAgents quick-start section before the retained upstream TradingAgents README content.
 - `indiamarketagents use-case` now reuses the preflight command builder and tells users to run analysis only after `first-run-check` passes.
+- `indiamarketagents provider-status` now checks OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets or calling endpoints.
 - `docs/USAGE_PLAYBOOK.md` now directs users to run the shallow `analyze` command printed by `first-run-check`, with a provider-aware OpenAI example.
 - `.gitignore` now ignores `.DS_Store` so local macOS metadata does not appear as untracked repo noise.
 - `.env.example.india` now includes `OLLAMA_BASE_URL=` so the local template matches the Ollama preflight/docs path.
@@ -138,6 +139,10 @@ The product is research and decision support only. It must not become a live tra
    - Added `OLLAMA_BASE_URL=` to `.env.example.india`.
    - Created an ignored local `.env` from `.env.example.india`; all provider values remain empty.
    - Added regression coverage so the India env template keeps the Ollama placeholder.
+25. Provider-status preflight:
+   - Added `indiamarketagents provider-status` to report OpenAI, Google, Anthropic, and Ollama readiness without live calls or secret values.
+   - Updated `indiamarketagents use-case`, README quick starts, `docs/USAGE_PLAYBOOK.md`, and `docs/FIRST_RUN_CHECKLIST.md` to include `provider-status` before `first-run-check`.
+   - Added regression coverage for missing-provider and Ollama-preferred readiness paths.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -194,7 +199,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 30 after the Ollama env-template placeholder commit.
+- `git rev-list --count upstream/main..HEAD`: 31 after the provider-status preflight commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -214,7 +219,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider ollama`: failed as expected because neither the local `ollama` command nor `OLLAMA_BASE_URL` is configured; ticker, date, analyst selection, and report path checks passed.
 - `OPENAI_API_KEY=test-openai-key python3 -c 'from cli.main import run_first_run_checks; ...'`: passed; returned `ready=True`, the generated shallow `indiamarketagents analyze` command, and the expected report path.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 14 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 16 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 23 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `python3 -c 'from cli.main import get_use_case_guidance; ...'`: passed and printed the provider-aware shallow `indiamarketagents analyze` command plus preflight notes.
@@ -226,6 +231,11 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `awk -F= ... .env.example.india .env`: confirmed provider placeholders are empty, including `OLLAMA_BASE_URL=`.
 - `git check-ignore .env .DS_Store`: passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_ollama_base_url.py::test_india_env_example_includes_ollama_base_url -q`: 1 passed.
+- `python3 -m cli.main provider-status`: passed and reported that no keyed provider is configured and neither `ollama` nor `OLLAMA_BASE_URL` is available; printed the lowest-cost Ollama setup path.
+- `python3 -m cli.main use-case`: passed and included `provider-status` before `first-run-check`.
+- `indiamarketagents provider-status`: passed and reported the same missing-provider state from the installed console script.
+- `indiamarketagents use-case`: passed and included `provider-status` before `first-run-check`.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_provider_status_reports_no_ready_provider tests/test_india_cli_report.py::test_provider_status_prefers_ready_ollama_for_low_cost tests/test_india_cli_report.py::test_use_case_guidance_names_best_workflow_and_commands -q`: 3 passed.
 - `git diff --check`: passed.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.

@@ -21,6 +21,7 @@ source .venv/bin/activate
 python3 -m pip install -e ".[dev]"
 python3 -m cli.main --help
 python3 -m cli.main use-case
+python3 -m cli.main provider-status
 python3 -m cli.main doctor --ticker RELIANCE.NS
 ```
 
@@ -28,7 +29,12 @@ Expected doctor result:
 
 - `ticker_validation` is `RELIANCE.NS`.
 - `package_import` is `True`.
-- At least one LLM key is present before you run `analyze`.
+
+Expected provider-status result:
+
+- It checks OpenAI, Google, Anthropic, and Ollama without printing secrets or calling any endpoint.
+- It reports missing providers until one keyed provider or Ollama runtime path is configured.
+- It prints the next `first-run-check` command once a provider path is ready.
 
 ## 3. Configure Credentials Without Committing Them
 
@@ -67,6 +73,12 @@ OLLAMA_BASE_URL=http://localhost:11434/v1
 ```
 
 `first-run-check --provider ollama` validates that either the `ollama` command is on `PATH` or `OLLAMA_BASE_URL` is set. It does not call the endpoint or verify model availability.
+
+Recheck provider readiness after editing `.env`:
+
+```bash
+python3 -m cli.main provider-status
+```
 
 Security rules:
 
@@ -148,6 +160,7 @@ The repo is ready for practical use when:
 - `doctor` validates `RELIANCE.NS`.
 - Non-India tickers such as `AAPL` are rejected by default.
 - `sample-report` can generate an explicit sample/UNAVAILABLE saved-report bundle.
+- `provider-status` shows at least one ready provider path.
 - `first-run-check` passes for the selected provider.
 - For keyed providers, at least one LLM key is detected locally.
 - For Ollama, either the local `ollama` command is available or `OLLAMA_BASE_URL` is set.

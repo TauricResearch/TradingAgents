@@ -1633,6 +1633,109 @@ def run_doctor_checks(ticker: str = "RELIANCE.NS") -> dict:
     return checks
 
 
+def get_provider_setup_status() -> dict:
+    """Return local provider readiness without network calls or secret values."""
+    providers = []
+    for provider, env_var in (
+        ("openai", "OPENAI_API_KEY"),
+        ("google", "GOOGLE_API_KEY"),
+        ("anthropic", "ANTHROPIC_API_KEY"),
+    ):
+        if os.environ.get(env_var):
+            providers.append(
+                {
+                    "provider": provider,
+                    "status": "ready",
+                    "detail": f"{env_var} is set",
+                    "next_step": (
+                        "Run "
+                        f"indiamarketagents first-run-check --ticker RELIANCE.NS "
+                        f"--date 2026-06-05 --provider {provider}"
+                    ),
+                }
+            )
+        else:
+            providers.append(
+                {
+                    "provider": provider,
+                    "status": "missing",
+                    "detail": f"{env_var} is not set",
+                    "next_step": f"Add {env_var}=<your key> to .env or export it.",
+                }
+            )
+
+    ollama_base_url = os.environ.get("OLLAMA_BASE_URL")
+    ollama_command = shutil.which("ollama")
+    if ollama_base_url:
+        providers.append(
+            {
+                "provider": "ollama",
+                "status": "ready",
+                "detail": f"OLLAMA_BASE_URL is set to {ollama_base_url}",
+                "next_step": (
+                    "Run indiamarketagents first-run-check --ticker RELIANCE.NS "
+                    "--date 2026-06-05 --provider ollama"
+                ),
+            }
+        )
+    elif ollama_command:
+        providers.append(
+            {
+                "provider": "ollama",
+                "status": "ready",
+                "detail": "ollama command is available on PATH",
+                "next_step": (
+                    "Start Ollama, pull the selected model, then run "
+                    "indiamarketagents first-run-check --ticker RELIANCE.NS "
+                    "--date 2026-06-05 --provider ollama"
+                ),
+            }
+        )
+    else:
+        providers.append(
+            {
+                "provider": "ollama",
+                "status": "missing",
+                "detail": "ollama command is not on PATH and OLLAMA_BASE_URL is not set",
+                "next_step": (
+                    "Install Ollama locally, set OLLAMA_BASE_URL=http://localhost:11434/v1, "
+                    "or use one keyed provider."
+                ),
+            }
+        )
+
+    ready_providers = [
+        item["provider"] for item in providers if item["status"] == "ready"
+    ]
+    if "ollama" in ready_providers:
+        preferred_provider = "ollama"
+    elif ready_providers:
+        preferred_provider = ready_providers[0]
+    else:
+        preferred_provider = None
+
+    if preferred_provider:
+        recommended_next_step = (
+            "Run "
+            f"indiamarketagents first-run-check --ticker RELIANCE.NS "
+            f"--date 2026-06-05 --provider {preferred_provider}"
+        )
+    else:
+        recommended_next_step = (
+            "Lowest-cost local path: configure Ollama with "
+            "OLLAMA_BASE_URL=http://localhost:11434/v1. Otherwise add exactly one "
+            "LLM API key to .env, then rerun provider-status."
+        )
+
+    return {
+        "ready": bool(ready_providers),
+        "ready_providers": ready_providers,
+        "preferred_provider": preferred_provider,
+        "recommended_next_step": recommended_next_step,
+        "providers": providers,
+    }
+
+
 def run_first_run_checks(
     ticker: str = "RELIANCE.NS",
     analysis_date: str = "2026-06-05",
@@ -1868,6 +1971,7 @@ def get_use_case_guidance() -> dict:
         ],
         "commands": [
             "indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05",
+            "indiamarketagents provider-status",
             "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai",
             build_first_analysis_command(
                 ticker="RELIANCE.NS",
@@ -1876,6 +1980,7 @@ def get_use_case_guidance() -> dict:
             ),
         ],
         "notes": [
+            "Run provider-status before first-run-check to confirm one provider path is configured.",
             "Run the analyze command only after first-run-check passes.",
             "If using another provider, run the generated command printed by first-run-check.",
         ],
@@ -2079,6 +2184,37 @@ def first_run_check(
     else:
         console.print("[red]Not ready for the first research run. Fix failed checks first.[/red]")
         raise typer.Exit(1)
+
+
+@app.command("provider-status")
+def provider_status():
+    """Show local LLM provider readiness without live calls or secret values."""
+    result = get_provider_setup_status()
+    table = Table(title="IndiaMarketAgents Provider Status", box=box.SIMPLE_HEAD)
+    table.add_column("Provider", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Detail")
+    table.add_column("Next step")
+    for provider in result["providers"]:
+        status = (
+            "[green]READY[/green]"
+            if provider["status"] == "ready"
+            else "[red]MISSING[/red]"
+        )
+        table.add_row(
+            provider["provider"],
+            status,
+            provider["detail"],
+            provider["next_step"],
+        )
+    console.print(table)
+    console.print(
+        Panel(
+            result["recommended_next_step"],
+            title="Recommended Next Step",
+            border_style="green" if result["ready"] else "yellow",
+        )
+    )
 
 
 @app.command("sample-report")

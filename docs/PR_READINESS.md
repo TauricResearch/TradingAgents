@@ -3,9 +3,9 @@
 Date: 2026-06-10
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 30 commits ahead of `upstream/main` after the Ollama env-template placeholder commit.
+Branch state: 31 commits ahead of `upstream/main` after the provider-status preflight commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the Ollama env-template placeholder commit.
+PR body: updated from this file after the provider-status preflight commit.
 
 ## PR Title
 
@@ -41,10 +41,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Aligned the usage playbook first-analysis section with the preflight-generated command flow.
 - Ignored `.DS_Store` so local macOS metadata does not show as untracked repo noise.
 - Added `OLLAMA_BASE_URL=` to `.env.example.india` so the template matches the Ollama preflight/docs path.
+- Added an offline `provider-status` CLI command so users can see OpenAI, Google, Anthropic, and Ollama readiness without live calls or secret values.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the Ollama env-template placeholder commit.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the provider-status preflight commit.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -58,7 +59,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected because `OPENAI_API_KEY` is not configured; ticker, date, analyst selection, and report path checks passed.
 - `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider ollama`: failed as expected because neither the local `ollama` command nor `OLLAMA_BASE_URL` is configured; ticker, date, analyst selection, and report path checks passed.
 - `OPENAI_API_KEY=test-openai-key python3 -c 'from cli.main import run_first_run_checks; ...'`: passed; returned `ready=True`, the generated shallow `indiamarketagents analyze` command, and the expected report path.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 14 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 16 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 23 passed after the post-preflight command guidance update.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed after the root README quick-start update.
 - `python3 -c 'from cli.main import get_use_case_guidance; ...'`: passed and printed the provider-aware shallow `indiamarketagents analyze` command plus preflight notes.
@@ -69,6 +70,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `awk -F= ... .env.example.india .env`: confirmed provider placeholders are empty, including `OLLAMA_BASE_URL=`.
 - `git check-ignore .env .DS_Store`: passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_ollama_base_url.py::test_india_env_example_includes_ollama_base_url -q`: 1 passed after the Ollama env-template placeholder update.
+- `python3 -m cli.main provider-status`: passed and reported that no keyed provider is configured and neither `ollama` nor `OLLAMA_BASE_URL` is available; printed the lowest-cost Ollama setup path.
+- `python3 -m cli.main use-case`: passed and included `provider-status` before `first-run-check`.
+- `indiamarketagents provider-status`: passed and reported the same missing-provider state from the installed console script.
+- `indiamarketagents use-case`: passed and included `provider-status` before `first-run-check`.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_provider_status_reports_no_ready_provider tests/test_india_cli_report.py::test_provider_status_prefers_ready_ollama_for_low_cost tests/test_india_cli_report.py::test_use_case_guidance_names_best_workflow_and_commands -q`: 3 passed after the provider-status preflight update.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
@@ -85,7 +91,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the Ollama env-template placeholder commit.
+- PR body was updated from this file after the provider-status preflight commit.
 
 ## PR Checklist
 
@@ -103,6 +109,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Sample saved-report generation is available without live market, broker, or LLM calls.
 - [x] Offline CLI commands avoid importing the full graph until analysis is requested.
 - [x] Highest-value use case is available from the CLI.
+- [x] Provider readiness status is available from the CLI without live calls or secret output.
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.

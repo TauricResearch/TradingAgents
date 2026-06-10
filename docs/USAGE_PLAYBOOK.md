@@ -57,9 +57,12 @@ For a credential-safe step-by-step run path, use `docs/FIRST_RUN_CHECKLIST.md`.
 Check the local install without making live market or LLM calls:
 
 ```bash
+indiamarketagents provider-status
 indiamarketagents doctor --ticker RELIANCE.NS
 indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
 ```
+
+`provider-status` checks OpenAI, Google, Anthropic, and Ollama readiness without printing secrets or calling any endpoint.
 
 When `first-run-check` passes, it prints the exact shallow `analyze` command to run next.
 
