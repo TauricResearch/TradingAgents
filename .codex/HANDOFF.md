@@ -21,6 +21,7 @@ The session progressed through scoped phases:
 13. Post-preflight command guidance.
 14. Root README quick start.
 15. Use-case preflight alignment.
+16. Usage playbook command alignment.
 
 The branch is already pushed and a draft PR is open:
 
@@ -38,7 +39,7 @@ Current follow-up state as of 2026-06-10:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the use-case preflight alignment commit.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the usage playbook command alignment commit.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
@@ -50,20 +51,21 @@ Current follow-up state as of 2026-06-10:
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - `README.md` now opens with an IndiaMarketAgents quick start before the retained upstream TradingAgents content.
 - `indiamarketagents use-case` now reuses the preflight command builder and tells users to run analysis only after `first-run-check` passes.
+- `docs/USAGE_PLAYBOOK.md` now directs users to run the shallow `analyze` command printed by `first-run-check`, with a provider-aware OpenAI example.
 - The real `analyze` run is not ready yet because no LLM provider is configured: `OPENAI_API_KEY` is missing for OpenAI and Ollama has neither a local `ollama` command nor `OLLAMA_BASE_URL`.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `2c08eb0` before committing the use-case preflight alignment update.
+- `git rev-parse --short HEAD`: `d88eb94` before committing the usage playbook command alignment update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the use-case preflight alignment update: `2c08eb0 docs: add IndiaMarketAgents root quick start`; re-check after the alignment commit.
+- Latest committed HEAD before the usage playbook command alignment update: `d88eb94 fix: align use-case command with preflight flow`; re-check after the alignment commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -76,7 +78,7 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 27 after the use-case preflight alignment commit.
+- `git rev-list --count upstream/main..HEAD`: 28 after the usage playbook command alignment commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -196,6 +198,9 @@ Follow-up usage work:
   - `get_use_case_guidance()` now reuses `build_first_analysis_command()`.
   - Use-case notes tell users to run `analyze` only after `first-run-check` passes.
   - Added regression coverage for the provider-aware use-case command and notes.
+- Aligned the usage playbook first-analysis section with the generated command flow:
+  - The playbook now says to run the shallow `analyze` command printed by `first-run-check`.
+  - The example includes `--provider openai` so it matches the default preflight command shape.
 
 PR/publish work:
 
@@ -319,7 +324,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the use-case preflight alignment commit.
+- PR body was updated from `docs/PR_READINESS.md` after the usage playbook command alignment commit.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -393,6 +398,8 @@ GitHub/PR commands:
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `python3 -c 'from cli.main import get_use_case_guidance; ...'`: passed and printed the provider-aware shallow `indiamarketagents analyze` command plus preflight notes.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_use_case_guidance_names_best_workflow_and_commands -q`: 1 passed.
+- `rg -n 'First Analysis Run|--provider openai|generated by your successful|printed by `first-run-check`' docs/USAGE_PLAYBOOK.md README.md README_INDIA.md docs/FIRST_RUN_CHECKLIST.md`: passed and confirmed the generated-command wording.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution -q`: 1 passed.
 
 Commits created in this session/branch:
 
@@ -422,6 +429,7 @@ Commits created in this session/branch:
 - `d2d9c22 fix: validate Ollama runtime in first-run check`
 - `3e8e81f feat: print next analysis command after preflight`
 - `2c08eb0 docs: add IndiaMarketAgents root quick start`
+- `d88eb94 fix: align use-case command with preflight flow`
 
 ## 8. How to verify the work
 
@@ -437,8 +445,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `2c08eb0` before committing the use-case preflight alignment update.
-- Worktree should be clean after the use-case preflight alignment update is committed.
+- Head is `d88eb94` before committing the usage playbook command alignment update.
+- Worktree should be clean after the usage playbook command alignment update is committed.
 
 2. Check formatting/whitespace:
 
