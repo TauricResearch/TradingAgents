@@ -24,7 +24,7 @@ The branch is already pushed and a draft PR is open:
 - Head: `tgabhawala-creator:india-market-agents`
 - PR title: `Transform TradingAgents into IndiaMarketAgents research copilot foundation`
 
-Current objective: make the GitHub repo practically usable and identify the highest-value use case. The current best use case is a first-pass India equity research pack for an NSE/BSE-listed company, using local filings where available and saved report artifacts for analyst review. This is documented in `docs/USAGE_PLAYBOOK.md`; exact first-run steps are in `docs/FIRST_RUN_CHECKLIST.md`.
+Current objective: make the GitHub repo practically usable and identify the highest-value use case. The current best use case is a first-pass India equity research pack for an NSE/BSE-listed company, using local filings where available and saved report artifacts for analyst review. This is documented in `docs/USAGE_PLAYBOOK.md`; exact first-run steps are in `docs/FIRST_RUN_CHECKLIST.md`; offline readiness is checked by `indiamarketagents first-run-check`.
 
 ## 2. Current repo state
 
@@ -36,19 +36,20 @@ Current follow-up state as of 2026-06-10:
 - GitHub PR body was updated from `docs/PR_READINESS.md` after the first-run checklist update.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
+- `indiamarketagents first-run-check` is included in the first-run preflight phase.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `5e7d693` before committing the PR body update confirmation docs.
+- `git rev-parse --short HEAD`: `dabde63` before committing the first-run preflight command.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the PR body update confirmation docs: `5e7d693 docs: add first-run research checklist`; re-check after the confirmation commit.
+- Latest committed HEAD before the first-run preflight command: `dabde63 docs: confirm PR body refresh`; re-check after the preflight commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -61,7 +62,7 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 18 after the PR body update confirmation docs commit.
+- `git rev-list --count upstream/main..HEAD`: 19 after the first-run preflight command commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -73,6 +74,7 @@ Material file changes by area:
   - `README_INDIA.md`: India-specific setup, usage, disclaimers, dashboard instructions.
   - `docs/USAGE_PLAYBOOK.md`: practical first workflow and highest-value use case for using the repo.
   - `docs/FIRST_RUN_CHECKLIST.md`: credential-safe setup, first analysis, output review, and acceptance checks.
+  - `cli/main.py`: includes `first-run-check` offline preflight for the recommended first research pack.
   - `docs/CODEX_HANDOFF.md`: phase-by-phase project handoff.
   - `docs/PR_READINESS.md`: PR title/body/checklist/reviewer focus.
   - `docs/REPO_AUDIT_INDIA.md`: architecture audit and India migration plan.
@@ -153,6 +155,7 @@ Follow-up usage work:
 - Linked the playbook from `README_INDIA.md`.
 - Updated `docs/CODEX_HANDOFF.md` and `docs/PR_READINESS.md` to reflect the usage phase and current PR status.
 - Added `docs/FIRST_RUN_CHECKLIST.md` and linked it from `README_INDIA.md`, `docs/USAGE_PLAYBOOK.md`, and `docs/BEGINNER_SETUP.md`.
+- Added `indiamarketagents first-run-check` and unit tests for first-run readiness.
 
 PR/publish work:
 
@@ -336,8 +339,10 @@ GitHub/PR commands:
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: later passed and updated the PR body.
 - `python3 -m cli.main --help`: passed.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; ticker validation returned `RELIANCE.NS`; no LLM/API keys detected.
+- `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected when `OPENAI_API_KEY` was not configured.
+- `OPENAI_API_KEY=test-openai-key python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: passed without live market, broker, or LLM calls.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
-- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 16 passed.
+- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 18 passed.
 
 Commits created in this session/branch:
 
@@ -358,6 +363,7 @@ Commits created in this session/branch:
 - `035f8a3 docs: refresh IndiaMarketAgents PR status`
 - `5798077 docs: note GitHub PR body auth blocker`
 - `5e7d693 docs: add first-run research checklist`
+- `dabde63 docs: confirm PR body refresh`
 
 ## 8. How to verify the work
 
@@ -373,8 +379,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `5e7d693` before committing the PR body update confirmation docs.
-- Worktree should be clean after the PR body update confirmation docs are committed.
+- Head is `dabde63` before committing the first-run preflight command.
+- Worktree should be clean after the first-run preflight command is committed.
 
 2. Check formatting/whitespace:
 
@@ -433,8 +439,9 @@ Expected:
 
 ## 9. Next recommended steps
 
-1. Run a real first-company analysis from `docs/FIRST_RUN_CHECKLIST.md` after an LLM/API key is configured.
-2. Inspect PR #1002 again if GitHub status checks or reviewer feedback appear.
+1. Run `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>` after an LLM/API key is configured.
+2. Run a real first-company analysis from `docs/FIRST_RUN_CHECKLIST.md` after preflight passes.
+3. Inspect PR #1002 again if GitHub status checks or reviewer feedback appear.
 4. If continuing implementation, do not add new data sources or broker integrations casually.
    - Next code work should likely be official-source review for NSE/BSE only after source/legal/access review, or README cleanup to route users to `README_INDIA.md`.
 5. Optional: verify dashboard runtime after installing `.[dashboard]`.
@@ -476,5 +483,5 @@ First read `.codex/HANDOFF.md`, then inspect the live repo state with:
 
 Verify the assumptions in the handoff before making changes. Do not add data sources, agent prompts, dashboard features, broker integrations, or live trading controls unless I explicitly ask.
 
-Current likely next step: run the real first-company analysis in `docs/FIRST_RUN_CHECKLIST.md` once an LLM/API key is configured. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
+Current likely next step: run `indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider <provider>` after an LLM/API key is configured, then run the real first-company analysis in `docs/FIRST_RUN_CHECKLIST.md` once preflight passes. If CI or review feedback appears, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
 ```

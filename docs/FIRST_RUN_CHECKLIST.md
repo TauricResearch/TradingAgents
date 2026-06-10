@@ -80,6 +80,17 @@ Prefer `.md`, `.txt`, or `.csv` for the first run. PDF OCR is not enabled by def
 
 ## 5. Run The First Research Pack
 
+Run the offline preflight first:
+
+```bash
+python3 -m cli.main first-run-check \
+  --ticker RELIANCE.NS \
+  --date 2026-06-05 \
+  --provider openai
+```
+
+This command does not call an LLM or live market data. It should pass ticker/date/report-path checks and fail clearly if the provider key is missing.
+
 Use a shallow run first to control cost:
 
 ```bash
@@ -116,6 +127,7 @@ The repo is ready for practical use when:
 
 - `doctor` validates `RELIANCE.NS`.
 - Non-India tickers such as `AAPL` are rejected by default.
+- `first-run-check` passes for the selected provider.
 - At least one LLM key is detected locally.
 - A `reports/RELIANCE.NS/2026-06-05/` bundle is generated.
 - The generated `data_quality.json` clearly shows missing or low-confidence sections instead of hiding gaps.

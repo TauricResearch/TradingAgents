@@ -1591,6 +1591,107 @@ def run_doctor_checks(ticker: str = "RELIANCE.NS") -> dict:
     return checks
 
 
+def run_first_run_checks(
+    ticker: str = "RELIANCE.NS",
+    analysis_date: str = "2026-06-05",
+    analysts: Optional[str] = None,
+    provider: Optional[str] = None,
+) -> dict:
+    """Return offline readiness checks for the recommended first research pack."""
+    config = DEFAULT_CONFIG.copy()
+    if provider:
+        config["llm_provider"] = provider.lower()
+
+    checks = []
+
+    def add_check(name: str, status: str, detail: str, next_step: str = "") -> None:
+        checks.append(
+            {
+                "name": name,
+                "status": status,
+                "detail": detail,
+                "next_step": next_step,
+            }
+        )
+
+    normalized_ticker = None
+    try:
+        normalized_ticker = validate_india_symbol_or_raise(ticker, config)
+        add_check("Ticker", "pass", normalized_ticker)
+    except IndiaSymbolError as exc:
+        add_check(
+            "Ticker",
+            "fail",
+            str(exc),
+            "Use an India ticker such as RELIANCE.NS or RELIANCE.BO.",
+        )
+
+    resolved_date = None
+    try:
+        resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+        detail = resolved_date
+        if warnings:
+            detail = f"{resolved_date}; warnings: {'; '.join(warnings)}"
+        add_check("Analysis date", "pass", detail)
+    except IndiaCalendarError as exc:
+        add_check(
+            "Analysis date",
+            "fail",
+            str(exc),
+            "Use a valid India market date on or before today.",
+        )
+
+    try:
+        selected_analysts = _parse_analysts_option(analysts)
+        add_check("Analyst selection", "pass", ", ".join(selected_analysts))
+    except ValueError as exc:
+        add_check(
+            "Analyst selection",
+            "fail",
+            str(exc),
+            "Use analyst keys such as india_market,india_fundamentals.",
+        )
+
+    provider_key = config["llm_provider"]
+    key_env = get_api_key_env(provider_key)
+    if key_env is None:
+        if provider_key == "ollama":
+            add_check("LLM credentials", "pass", "ollama does not require an API key")
+        else:
+            add_check(
+                "LLM credentials",
+                "fail",
+                f"Unknown or unsupported provider '{provider_key}' for preflight.",
+                "Use --provider openai, google, anthropic, or ollama.",
+            )
+    elif os.environ.get(key_env):
+        add_check("LLM credentials", "pass", f"{key_env} is set")
+    else:
+        add_check(
+            "LLM credentials",
+            "fail",
+            f"{key_env} is not set for provider '{provider_key}'.",
+            "Add the key to .env or export it before running analyze.",
+        )
+
+    if normalized_ticker and resolved_date:
+        report_path = (
+            Path.cwd()
+            / "reports"
+            / safe_india_ticker_component(normalized_ticker)
+            / resolved_date
+        )
+        add_check("Report path", "pass", str(report_path))
+
+    return {
+        "ready": all(check["status"] == "pass" for check in checks),
+        "ticker": normalized_ticker,
+        "analysis_date": resolved_date,
+        "provider": provider_key,
+        "checks": checks,
+    }
+
+
 def run_noninteractive_analysis(
     *,
     ticker: str,
@@ -1722,6 +1823,56 @@ def doctor(
     for key, value in checks.items():
         table.add_row(key, str(value))
     console.print(table)
+
+
+@app.command("first-run-check")
+def first_run_check(
+    ticker: str = typer.Option(
+        "RELIANCE.NS",
+        "--ticker",
+        help="Ticker for the first research pack.",
+    ),
+    analysis_date: str = typer.Option(
+        "2026-06-05",
+        "--date",
+        help="Analysis date in YYYY-MM-DD format.",
+    ),
+    provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        help="LLM provider key to validate, e.g. openai.",
+    ),
+    analysts: Optional[str] = typer.Option(
+        None,
+        "--analysts",
+        help="Comma-separated analyst keys to preflight.",
+    ),
+):
+    """Check first-run readiness without live market, broker, or LLM calls."""
+    result = run_first_run_checks(
+        ticker=ticker,
+        analysis_date=analysis_date,
+        analysts=analysts,
+        provider=provider,
+    )
+    table = Table(title="IndiaMarketAgents First Run Check", box=box.SIMPLE_HEAD)
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Detail")
+    table.add_column("Next step")
+    for check in result["checks"]:
+        status = (
+            "[green]PASS[/green]"
+            if check["status"] == "pass"
+            else "[red]FAIL[/red]"
+        )
+        table.add_row(check["name"], status, check["detail"], check["next_step"])
+    console.print(table)
+    if result["ready"]:
+        console.print("[green]Ready for the first IndiaMarketAgents research run.[/green]")
+    else:
+        console.print("[red]Not ready for the first research run. Fix failed checks first.[/red]")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

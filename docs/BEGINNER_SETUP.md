@@ -59,6 +59,7 @@ indiamarketagents doctor --ticker RELIANCE.NS
 ## 7. First Analysis
 
 ```bash
+indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
 indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 --research-depth 1 --no-display --no-save-prompt
 ```
 

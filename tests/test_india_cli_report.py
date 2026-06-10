@@ -6,7 +6,12 @@ import pytest
 import typer
 
 from cli import main as cli_main
-from cli.main import INDIA_COMPLIANCE_DISCLAIMER, run_doctor_checks, save_report_to_disk
+from cli.main import (
+    INDIA_COMPLIANCE_DISCLAIMER,
+    run_doctor_checks,
+    run_first_run_checks,
+    save_report_to_disk,
+)
 from tradingagents.dataflows.india.symbols import IndiaSymbolError
 
 
@@ -15,6 +20,47 @@ def test_doctor_validates_india_ticker():
     checks = run_doctor_checks("RELIANCE")
     assert checks["ticker_validation"] == "RELIANCE.NS"
     assert checks["package_import"] is True
+
+
+@pytest.mark.unit
+def test_first_run_check_reports_missing_llm_key(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    result = run_first_run_checks(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        provider="openai",
+        analysts="india_market",
+    )
+
+    assert result["ready"] is False
+    assert result["ticker"] == "RELIANCE.NS"
+    failures = {
+        check["name"]: check
+        for check in result["checks"]
+        if check["status"] == "fail"
+    }
+    assert "LLM credentials" in failures
+    assert "OPENAI_API_KEY is not set" in failures["LLM credentials"]["detail"]
+
+
+@pytest.mark.unit
+def test_first_run_check_passes_with_llm_key(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.chdir(tmp_path)
+
+    result = run_first_run_checks(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        provider="openai",
+        analysts="india_market",
+    )
+
+    assert result["ready"] is True
+    report_path = next(check for check in result["checks"] if check["name"] == "Report path")
+    assert report_path["detail"] == str(
+        tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
+    )
 
 
 @pytest.mark.unit
