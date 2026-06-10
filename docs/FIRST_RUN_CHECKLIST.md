@@ -41,7 +41,7 @@ Expected provider-status result:
 
 Expected workflow-status result:
 
-- It shows the recommended workflow checks and the next unfinished step without live market, broker, or LLM calls.
+- It shows the recommended workflow checks, saved-report bundle readiness, and the next unfinished step without live market, broker, or LLM calls.
 
 ## 3. Configure Credentials Without Committing Them
 

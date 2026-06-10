@@ -201,9 +201,36 @@ def test_first_workflow_status_reports_next_sample_report_step(monkeypatch, tmp_
     assert "sample-report --ticker RELIANCE.NS --date 2026-06-05" in result["next_step"]
     checks = {item["name"]: item for item in result["checks"]}
     assert checks["Ticker/date"]["status"] == "pass"
-    assert checks["Sample report"]["status"] == "pending"
+    assert checks["Saved report bundle"]["status"] == "pending"
+    assert "complete_report.md" in checks["Saved report bundle"]["detail"]
     assert checks["Provider"]["status"] == "fail"
     assert checks["First-run preflight"]["status"] == "pending"
+
+
+@pytest.mark.unit
+def test_first_workflow_status_requires_complete_saved_report_bundle(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    for env_var in (
+        "OPENAI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OLLAMA_BASE_URL",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+    report_dir = tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
+    report_dir.mkdir(parents=True)
+    (report_dir / "complete_report.md").write_text("sample", encoding="utf-8")
+
+    result = get_first_workflow_status()
+
+    assert result["ready_for_analysis"] is False
+    assert result["report_status"]["ready"] is False
+    assert "data_quality.json" in result["report_status"]["missing_required"]
+    checks = {item["name"]: item for item in result["checks"]}
+    assert checks["Saved report bundle"]["status"] == "pending"
+    assert "missing:" in checks["Saved report bundle"]["detail"]
+    assert "1_market_technical.md" in checks["Saved report bundle"]["detail"]
 
 
 @pytest.mark.unit
@@ -212,8 +239,11 @@ def test_first_workflow_status_returns_analysis_command_when_ready(monkeypatch, 
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
     report_dir = tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
-    report_dir.mkdir(parents=True)
-    (report_dir / "complete_report.md").write_text("sample", encoding="utf-8")
+    generate_sample_report(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        save_path=report_dir,
+    )
 
     result = get_first_workflow_status()
 
@@ -223,7 +253,7 @@ def test_first_workflow_status_returns_analysis_command_when_ready(monkeypatch, 
         "--provider ollama --research-depth 1 --no-display --no-save-prompt"
     )
     checks = {item["name"]: item for item in result["checks"]}
-    assert checks["Sample report"]["status"] == "pass"
+    assert checks["Saved report bundle"]["status"] == "pass"
     assert checks["Provider"]["status"] == "pass"
     assert checks["First-run preflight"]["status"] == "pass"
 

@@ -1950,7 +1950,8 @@ def get_first_workflow_status(
         )
 
     report_path = None
-    sample_report_ready = False
+    saved_report_ready = False
+    report_status = None
     if normalized_ticker and resolved_date:
         report_path = (
             Path.cwd()
@@ -1958,17 +1959,27 @@ def get_first_workflow_status(
             / safe_india_ticker_component(normalized_ticker)
             / resolved_date
         )
-        sample_report_ready = (report_path / "complete_report.md").exists()
-        if sample_report_ready:
-            add_check("Sample report", "pass", str(report_path))
+        report_status = get_report_status(
+            ticker=normalized_ticker,
+            analysis_date=resolved_date,
+        )
+        saved_report_ready = report_status["ready"]
+        if saved_report_ready:
+            add_check("Saved report bundle", "pass", str(report_path))
         else:
+            missing = ", ".join(report_status["missing_required"][:3])
+            if len(report_status["missing_required"]) > 3:
+                missing = f"{missing}, ..."
+            detail = str(report_path)
+            if missing:
+                detail = f"{detail}; missing: {missing}"
             add_check(
-                "Sample report",
+                "Saved report bundle",
                 "pending",
-                str(report_path),
+                detail,
                 (
                     f"Run indiamarketagents sample-report --ticker {normalized_ticker} "
-                    f"--date {resolved_date}"
+                    f"--date {resolved_date}, then rerun report-status."
                 ),
             )
 
@@ -2020,7 +2031,7 @@ def get_first_workflow_status(
             "Run indiamarketagents provider-status.",
         )
 
-    if not sample_report_ready and normalized_ticker and resolved_date:
+    if not saved_report_ready and normalized_ticker and resolved_date:
         next_step = (
             f"Run indiamarketagents sample-report --ticker {normalized_ticker} "
             f"--date {resolved_date}"
@@ -2038,7 +2049,7 @@ def get_first_workflow_status(
         next_step = "Fix failed workflow checks, then rerun workflow-status."
 
     ready_for_analysis = bool(
-        sample_report_ready and preflight and preflight.get("ready")
+        saved_report_ready and preflight and preflight.get("ready")
     )
 
     return {
@@ -2046,6 +2057,7 @@ def get_first_workflow_status(
         "ticker": normalized_ticker,
         "analysis_date": resolved_date,
         "report_path": str(report_path) if report_path else None,
+        "report_status": report_status,
         "provider_status": provider_status,
         "first_run_check": preflight,
         "next_step": next_step,
