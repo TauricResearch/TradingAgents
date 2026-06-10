@@ -3,7 +3,7 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 34 commits ahead of `upstream/main` after the no-overwrite env initialization commit.
+Branch state: 35 commits ahead of `upstream/main` after the no-overwrite env initialization handoff refresh.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
 PR body: updated from this file after the no-overwrite env initialization update.
 

@@ -87,8 +87,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 34 after the no-overwrite env initialization commit.
-- `git diff --stat upstream/main`: 78 files changed, 6427 insertions, 228 deletions.
+- `git rev-list --count upstream/main..HEAD`: 35 after the no-overwrite env initialization handoff refresh.
+- `git diff --stat upstream/main`: 78 files changed, 6455 insertions, 228 deletions.
 
 Material file changes by area:
 
@@ -483,6 +483,7 @@ Commits created in this session/branch:
 - `b2723a0 feat: add provider readiness status`
 - `21a94dc docs: refresh provider status handoff`
 - `988cb62 fix: clarify provider env setup`
+- `3b2b032 feat: add no-overwrite env initialization`
 
 ## 8. How to verify the work
 
