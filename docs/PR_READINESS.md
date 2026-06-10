@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 52 commits ahead of `upstream/main` after this dashboard runtime verification update is committed.
+Branch state: 53 commits ahead of `upstream/main` after this root README upstream-boundary update is committed.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after this dashboard runtime verification update.
+PR body: updated from this file after this root README upstream-boundary update.
 
 ## PR Title
 
@@ -37,6 +37,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Hardened `first-run-check --provider ollama` so it requires either a local `ollama` command or `OLLAMA_BASE_URL` instead of passing solely because no API key is needed.
 - Added post-preflight command guidance so a passing `first-run-check` prints the exact shallow `analyze` command to run next.
 - Added a root README quick start that routes new users to the IndiaMarketAgents workflow before the retained upstream TradingAgents content.
+- Added a root README scope notice before the retained upstream content so global/upstream examples are not presented as the default IndiaMarketAgents workflow.
 - Aligned `indiamarketagents use-case` with the preflight-generated command flow and provider-aware shallow run.
 - Aligned the usage playbook first-analysis section with the preflight-generated command flow.
 - Ignored `.DS_Store` so local macOS metadata does not show as untracked repo noise.
@@ -62,9 +63,9 @@ The branch explicitly does not add live broker execution, broker integrations, o
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at `405feb1` before this dashboard runtime verification update.
-- `git log -1 --oneline`: `405feb1 feat: clarify first-run provider blocker`.
-- `git rev-list --count upstream/main..HEAD`: 52 after this dashboard runtime verification update is committed.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` at `635f740` before this root README upstream-boundary update.
+- `git log -1 --oneline`: `635f740 docs: record dashboard runtime verification`.
+- `git rev-list --count upstream/main..HEAD`: 53 after this root README upstream-boundary update is committed.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -120,6 +121,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python3 -m pip install -e ".[dashboard]"`: passed; installed optional dashboard dependencies in the current Python 3.14 environment.
 - `streamlit run dashboard/app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false`: passed and was stopped after browser verification.
 - Browser verification at `http://localhost:8501`: passed; rendered `IndiaMarketAgents`, ticker `RELIANCE.NS`, date `2026-06-05`, saved-report tabs, research-only disclaimer, data-quality content, no browser console errors, and no broker/order action controls.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_root_readme_routes_users_away_from_upstream_defaults tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: passed after the root README upstream-boundary update.
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; first-workflow readiness is false because no provider path is ready.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_usage_playbook_distinguishes_rehearsal_from_research_readiness -q`: 1 passed.
@@ -130,19 +132,19 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with handoff, PR-readiness, and test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 397 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 398 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Remaining Risks
 
 - NSE/BSE official-source modules are still defensive placeholders. They fail closed and need verified public-source workflows before live use.
 - yfinance remains a third-party fallback, not an official source.
-- README still retains the upstream TradingAgents body for attribution/background, but the first user-facing path now routes through the IndiaMarketAgents quick start and India docs.
+- README still retains the upstream TradingAgents body for attribution/background, but it is now explicitly marked as upstream reference material and not the default IndiaMarketAgents run path.
 - Streamlit remains optional and was installed in the current environment only to browser-verify the saved-report dashboard runtime.
 - `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle; it is not tracked and contains no live market, broker, filing, or LLM output.
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the dashboard runtime verification update.
+- PR body was updated from this file after the root README upstream-boundary update.
 
 ## PR Checklist
 
@@ -172,6 +174,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Beginner setup uses the no-overwrite env init and generated analysis command flow.
 - [x] First-run preflight reports provider readiness before users spend on analysis.
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
+- [x] Root README marks retained upstream examples as reference material, not the IndiaMarketAgents default workflow.
 - [x] Usage playbook separates no-key rehearsal readiness from first LLM-backed research-run readiness.
 - [x] Provider status shows the configured provider without printing secrets.
 - [x] Workflow status surfaces the configured-provider blocker when no provider path is ready.

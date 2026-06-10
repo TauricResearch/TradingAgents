@@ -32,6 +32,18 @@ Key India docs:
 - [docs/USAGE_PLAYBOOK.md](docs/USAGE_PLAYBOOK.md)
 - [docs/FIRST_RUN_CHECKLIST.md](docs/FIRST_RUN_CHECKLIST.md)
 
+## India Fork Scope Notice
+
+Everything below this point is retained from upstream TradingAgents for attribution, architecture background, and compatibility context. Do not use the upstream examples below as the default run path for IndiaMarketAgents.
+
+For this fork:
+
+- Use the `indiamarketagents` commands above for the practical workflow.
+- Treat `README_INDIA.md`, `docs/USAGE_PLAYBOOK.md`, and `docs/FIRST_RUN_CHECKLIST.md` as the controlling user docs.
+- Default ticker scope is India-only; `AAPL`, `SPY`, `BTC-USD`, and other non-India symbols are rejected unless a legacy/global config escape hatch is explicitly enabled.
+- Run `indiamarketagents provider-status` and `indiamarketagents first-run-check` before any LLM-backed `analyze` run.
+- Outputs are research and education only, not investment advice or trade instructions.
+
 <p align="center">
   <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
 </p>
@@ -59,7 +71,7 @@ Key India docs:
 
 ---
 
-# TradingAgents: Multi-Agents LLM Financial Trading Framework
+# Upstream TradingAgents Reference
 
 ## News
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening. See [CHANGELOG.md](CHANGELOG.md) for the full list.

@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: Dashboard runtime verification
+Latest phase: Root README upstream-boundary clarification
 
 ## Project Goal
 
@@ -16,8 +16,8 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `405feb1` before the dashboard runtime verification update.
-- The branch is 52 commits ahead of `upstream/main` after this dashboard verification commit.
+- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `635f740` before the root README upstream-boundary update.
+- The branch is 53 commits ahead of `upstream/main` after this README boundary commit.
 - Goal status: the repo is usable for the recommended no-key workflow rehearsal, saved-report review, provider readiness checks, and highest-value use-case identification. A real LLM-backed `analyze` run still requires configuring one provider path.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
@@ -30,6 +30,7 @@ The product is research and decision support only. It must not become a live tra
 - `indiamarketagents first-run-check --provider ollama` now verifies local Ollama runtime configuration instead of passing solely because no API key is required.
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - `README.md` now has an IndiaMarketAgents quick-start section before the retained upstream TradingAgents README content.
+- `README.md` now has an explicit India fork scope notice before the retained upstream content, so global/upstream examples are not presented as the default IndiaMarketAgents workflow.
 - `docs/BEGINNER_SETUP.md` now uses `init-env`, readiness commands, and the `first-run-check` generated `analyze` command instead of manual `.env` copying or a hardcoded OpenAI command.
 - `indiamarketagents use-case` now tells users to run the provider-specific `analyze` command printed by `first-run-check`, instead of hardcoding OpenAI.
 - `indiamarketagents init-env` now creates local `.env` from `.env.example.india` only when `.env` is missing and never overwrites an existing env file.
@@ -49,7 +50,7 @@ The product is research and decision support only. It must not become a live tra
 - `.env.example.india` now includes `OLLAMA_BASE_URL=` so the local template matches the Ollama preflight/docs path.
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
-- Latest verification passed for provider status, first-run blocker output, optional dashboard runtime rendering, and absence of dashboard broker/order action controls.
+- Latest verification passed for root README routing, user-facing no-execution wording, generated-artifact hygiene, and the full offline test suite.
 - No data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
 
 ## Completed Phases
@@ -226,6 +227,10 @@ The product is research and decision support only. It must not become a live tra
    - Installed the optional dashboard extra with `python3 -m pip install -e ".[dashboard]"`.
    - Started `streamlit run dashboard/app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false`.
    - Browser-verified the local dashboard renders the `RELIANCE.NS` / `2026-06-05` saved sample-report bundle, report tabs, research-only disclaimer, data-quality content, and no broker/order action controls.
+43. Root README upstream-boundary clarification:
+   - Added an explicit India fork scope notice before the retained upstream README content.
+   - Renamed the retained upstream heading to `Upstream TradingAgents Reference`.
+   - Added regression coverage so the root README keeps routing users to the IndiaMarketAgents commands and India-only ticker defaults.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -236,8 +241,10 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `.codex/HANDOFF.md`
+- `README.md`
 - `docs/CODEX_HANDOFF.md`
 - `docs/PR_READINESS.md`
+- `tests/test_security_compliance.py`
 
 ## Important Design Decisions
 
@@ -275,9 +282,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `405feb1` before the dashboard runtime verification update.
-- `git log -1 --oneline`: `405feb1 feat: clarify first-run provider blocker`.
-- `git rev-list --count upstream/main..HEAD`: 52 after this dashboard verification commit.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `635f740` before the root README upstream-boundary update.
+- `git log -1 --oneline`: `635f740 docs: record dashboard runtime verification`.
+- `git rev-list --count upstream/main..HEAD`: 53 after this README boundary commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -344,6 +351,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python3 -m pip install -e ".[dashboard]"`: passed; installed optional Streamlit dashboard dependencies in the current Python 3.14 environment.
 - `streamlit run dashboard/app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false`: passed; served the dashboard at `http://localhost:8501`, then was stopped after verification.
 - Browser verification at `http://localhost:8501`: passed; the dashboard rendered `IndiaMarketAgents`, ticker `RELIANCE.NS`, date `2026-06-05`, report-review tabs, research-only disclaimer, data-quality content, no browser console errors, and no broker/order action controls.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_root_readme_routes_users_away_from_upstream_defaults tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: passed after the root README upstream-boundary update.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 30 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
@@ -351,11 +359,11 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with handoff, PR-readiness, and test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 397 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 398 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Known Risks And Blockers
 
-- `README.md` still retains the upstream TradingAgents body for attribution/background, but the first user-facing path now routes through the IndiaMarketAgents quick start and India docs.
+- `README.md` still retains the upstream TradingAgents body for attribution/background, but the upstream section is now explicitly marked as reference material rather than the default IndiaMarketAgents run path.
 - NSE/BSE official-source modules are still placeholders; they fail closed and need verified endpoints or local-file workflows before use as live sources.
 - NSE/BSE public endpoints can block automation or change response formats.
 - yfinance remains third-party fallback data, not an official source.
@@ -371,7 +379,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
 - PR #1002 is open and draft, with no reported GitHub status checks at the latest inspection.
-- PR body should be updated from `docs/PR_READINESS.md` after this dashboard verification commit is pushed.
+- PR body should be updated from `docs/PR_READINESS.md` after this root README upstream-boundary commit is pushed.
 
 ## Next Recommended Prompt
 

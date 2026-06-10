@@ -64,6 +64,21 @@ def test_user_facing_docs_do_not_advertise_order_execution():
 
 
 @pytest.mark.unit
+def test_root_readme_routes_users_away_from_upstream_defaults():
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "## India Fork Scope Notice" in readme
+    assert (
+        "Do not use the upstream examples below as the default run path for IndiaMarketAgents"
+        in readme
+    )
+    assert "Use the `indiamarketagents` commands above for the practical workflow" in readme
+    assert "Default ticker scope is India-only" in readme
+    assert "`AAPL`, `SPY`, `BTC-USD`" in readme
+    assert "# Upstream TradingAgents Reference" in readme
+
+
+@pytest.mark.unit
 def test_gitignore_protects_local_sensitive_artifact_folders():
     gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
 
