@@ -1858,10 +1858,15 @@ def run_first_run_checks(
         )
 
     provider_key = config["llm_provider"]
-    add_check("Provider selection", "pass", f"{provider_key} ({provider_source})")
     provider_readiness_missing = bool(
         provider_status is not None and not provider_status["ready"]
     )
+    provider_selection_detail = f"{provider_key} ({provider_source})"
+    if provider_readiness_missing:
+        provider_selection_detail = (
+            f"none (no ready provider; configured default is {provider_key})"
+        )
+    add_check("Provider selection", "pass", provider_selection_detail)
     if provider_status is not None and not provider_status["ready"]:
         add_check(
             "Provider readiness",

@@ -118,6 +118,10 @@ def test_first_run_check_reports_missing_provider_readiness(monkeypatch, tmp_pat
         for check in result["checks"]
         if check["status"] == "fail"
     }
+    checks = {check["name"]: check for check in result["checks"]}
+    assert checks["Provider selection"]["detail"] == (
+        "none (no ready provider; configured default is openai)"
+    )
     assert failures["Provider readiness"]["detail"] == "No LLM provider path is ready"
     assert "LLM credentials" not in failures
     assert (
