@@ -1635,6 +1635,14 @@ def run_doctor_checks(ticker: str = "RELIANCE.NS") -> dict:
 
 def get_provider_setup_status() -> dict:
     """Return local provider readiness without network calls or secret values."""
+    env_file_path = Path.cwd() / ".env"
+    env_file_exists = env_file_path.exists()
+    env_file_next_step = (
+        f"Edit {env_file_path} locally; do not commit it."
+        if env_file_exists
+        else "Run cp .env.example.india .env, then add one provider setting."
+    )
+
     providers = []
     for provider, env_var in (
         ("openai", "OPENAI_API_KEY"),
@@ -1660,7 +1668,7 @@ def get_provider_setup_status() -> dict:
                     "provider": provider,
                     "status": "missing",
                     "detail": f"{env_var} is not set",
-                    "next_step": f"Add {env_var}=<your key> to .env or export it.",
+                    "next_step": f"Add {env_var}=<your key> to {env_file_path} or export it.",
                 }
             )
 
@@ -1671,7 +1679,7 @@ def get_provider_setup_status() -> dict:
             {
                 "provider": "ollama",
                 "status": "ready",
-                "detail": f"OLLAMA_BASE_URL is set to {ollama_base_url}",
+                "detail": "OLLAMA_BASE_URL is set",
                 "next_step": (
                     "Run indiamarketagents first-run-check --ticker RELIANCE.NS "
                     "--date 2026-06-05 --provider ollama"
@@ -1728,6 +1736,11 @@ def get_provider_setup_status() -> dict:
         )
 
     return {
+        "env_file": {
+            "path": str(env_file_path),
+            "exists": env_file_exists,
+            "next_step": env_file_next_step,
+        },
         "ready": bool(ready_providers),
         "ready_providers": ready_providers,
         "preferred_provider": preferred_provider,
@@ -1808,7 +1821,7 @@ def run_first_run_checks(
                 add_check(
                     "Ollama runtime",
                     "pass",
-                    f"OLLAMA_BASE_URL is set to {ollama_base_url}",
+                    "OLLAMA_BASE_URL is set",
                     "Endpoint and model reachability are not checked offline.",
                 )
             elif shutil.which("ollama"):
@@ -2190,6 +2203,15 @@ def first_run_check(
 def provider_status():
     """Show local LLM provider readiness without live calls or secret values."""
     result = get_provider_setup_status()
+    env_file = result["env_file"]
+    env_status = "found" if env_file["exists"] else "not found"
+    console.print(
+        Panel(
+            f"{env_file['path']}\n{env_file['next_step']}",
+            title=f"Local .env ({env_status})",
+            border_style="green" if env_file["exists"] else "yellow",
+        )
+    )
     table = Table(title="IndiaMarketAgents Provider Status", box=box.SIMPLE_HEAD)
     table.add_column("Provider", style="cyan")
     table.add_column("Status", style="green")

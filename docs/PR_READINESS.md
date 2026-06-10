@@ -1,11 +1,11 @@
 # PR Readiness Package
 
-Date: 2026-06-10
+Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 32 commits ahead of `upstream/main` after the provider-status handoff refresh.
+Branch state: 33 commits ahead of `upstream/main` after the provider-status `.env` guidance commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the provider-status updates.
+PR body: updated from this file after the provider-status `.env` guidance update.
 
 ## PR Title
 
@@ -42,10 +42,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Ignored `.DS_Store` so local macOS metadata does not show as untracked repo noise.
 - Added `OLLAMA_BASE_URL=` to `.env.example.india` so the template matches the Ollama preflight/docs path.
 - Added an offline `provider-status` CLI command so users can see OpenAI, Google, Anthropic, and Ollama readiness without live calls or secret values.
+- Updated `provider-status` to show the local `.env` path/status and avoid echoing configured `OLLAMA_BASE_URL` values.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the provider-status updates.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the provider-status `.env` guidance update.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -75,6 +76,9 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `indiamarketagents provider-status`: passed and reported the same missing-provider state from the installed console script.
 - `indiamarketagents use-case`: passed and included `provider-status` before `first-run-check`.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_provider_status_reports_no_ready_provider tests/test_india_cli_report.py::test_provider_status_prefers_ready_ollama_for_low_cost tests/test_india_cli_report.py::test_use_case_guidance_names_best_workflow_and_commands -q`: 3 passed after the provider-status preflight update.
+- `indiamarketagents provider-status`: passed and showed the local `.env` path/status while reporting the current missing-provider state.
+- `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main provider-status`: passed and reported `OLLAMA_BASE_URL is set` without echoing the endpoint value.
+- `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider ollama`: passed and printed the generated shallow `analyze` command without echoing the endpoint value.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
@@ -91,7 +95,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the provider-status updates.
+- PR body was updated from this file after the provider-status `.env` guidance update.
 
 ## PR Checklist
 

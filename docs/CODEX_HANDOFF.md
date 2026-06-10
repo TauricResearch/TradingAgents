@@ -1,8 +1,8 @@
 # Codex Handoff
 
-Date: 2026-06-10
+Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: Provider-status preflight
+Latest phase: Provider-status `.env` guidance
 
 ## Project Goal
 
@@ -16,7 +16,7 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 32 commits ahead of `upstream/main` after the provider-status handoff refresh.
+- Branch review confirms `india-market-agents` is clean and 33 commits ahead of `upstream/main` after the provider-status `.env` guidance commit.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
@@ -29,7 +29,7 @@ The product is research and decision support only. It must not become a live tra
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - `README.md` now has an IndiaMarketAgents quick-start section before the retained upstream TradingAgents README content.
 - `indiamarketagents use-case` now reuses the preflight command builder and tells users to run analysis only after `first-run-check` passes.
-- `indiamarketagents provider-status` now checks OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets or calling endpoints.
+- `indiamarketagents provider-status` now shows the local `.env` path/status and checks OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets, echoing configured endpoint values, or calling endpoints.
 - `docs/USAGE_PLAYBOOK.md` now directs users to run the shallow `analyze` command printed by `first-run-check`, with a provider-aware OpenAI example.
 - `.gitignore` now ignores `.DS_Store` so local macOS metadata does not appear as untracked repo noise.
 - `.env.example.india` now includes `OLLAMA_BASE_URL=` so the local template matches the Ollama preflight/docs path.
@@ -143,6 +143,11 @@ The product is research and decision support only. It must not become a live tra
    - Added `indiamarketagents provider-status` to report OpenAI, Google, Anthropic, and Ollama readiness without live calls or secret values.
    - Updated `indiamarketagents use-case`, README quick starts, `docs/USAGE_PLAYBOOK.md`, and `docs/FIRST_RUN_CHECKLIST.md` to include `provider-status` before `first-run-check`.
    - Added regression coverage for missing-provider and Ollama-preferred readiness paths.
+26. Provider-status `.env` guidance:
+   - `provider-status` now reports whether the local `.env` file exists and shows the exact path it is checking.
+   - Missing-key next steps now point to that local `.env` path.
+   - Configured `OLLAMA_BASE_URL` checks no longer echo the endpoint value in `provider-status` or `first-run-check`.
+   - Added regression coverage for `.env` path reporting and no endpoint echoing.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -199,7 +204,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 32 after the provider-status handoff refresh.
+- `git rev-list --count upstream/main..HEAD`: 33 after the provider-status `.env` guidance commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -236,6 +241,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `indiamarketagents provider-status`: passed and reported the same missing-provider state from the installed console script.
 - `indiamarketagents use-case`: passed and included `provider-status` before `first-run-check`.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py::test_provider_status_reports_no_ready_provider tests/test_india_cli_report.py::test_provider_status_prefers_ready_ollama_for_low_cost tests/test_india_cli_report.py::test_use_case_guidance_names_best_workflow_and_commands -q`: 3 passed.
+- `indiamarketagents provider-status`: passed and showed the local `.env` path/status while reporting the current missing-provider state.
+- `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main provider-status`: passed and reported `OLLAMA_BASE_URL is set` without echoing the endpoint value.
+- `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider ollama`: passed and printed the generated shallow `analyze` command without echoing the endpoint value.
 - `git diff --check`: passed.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.

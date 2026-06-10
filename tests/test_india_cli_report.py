@@ -92,7 +92,8 @@ def test_build_first_analysis_command_quotes_arguments():
 
 
 @pytest.mark.unit
-def test_provider_status_reports_no_ready_provider(monkeypatch):
+def test_provider_status_reports_no_ready_provider(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
     for env_var in (
         "OPENAI_API_KEY",
         "GOOGLE_API_KEY",
@@ -106,15 +107,22 @@ def test_provider_status_reports_no_ready_provider(monkeypatch):
 
     assert result["ready"] is False
     assert result["ready_providers"] == []
+    assert result["env_file"] == {
+        "path": str(tmp_path / ".env"),
+        "exists": False,
+        "next_step": "Run cp .env.example.india .env, then add one provider setting.",
+    }
     providers = {item["provider"]: item for item in result["providers"]}
     assert providers["openai"]["status"] == "missing"
-    assert "OPENAI_API_KEY" in providers["openai"]["next_step"]
+    assert str(tmp_path / ".env") in providers["openai"]["next_step"]
     assert providers["ollama"]["status"] == "missing"
     assert "OLLAMA_BASE_URL=http://localhost:11434/v1" in result["recommended_next_step"]
 
 
 @pytest.mark.unit
-def test_provider_status_prefers_ready_ollama_for_low_cost(monkeypatch):
+def test_provider_status_prefers_ready_ollama_for_low_cost(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("OLLAMA_BASE_URL=http://localhost:11434/v1\n", encoding="utf-8")
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
@@ -126,6 +134,10 @@ def test_provider_status_prefers_ready_ollama_for_low_cost(monkeypatch):
     assert "ollama" in result["ready_providers"]
     assert result["preferred_provider"] == "ollama"
     assert "--provider ollama" in result["recommended_next_step"]
+    assert result["env_file"]["exists"] is True
+    providers = {item["provider"]: item for item in result["providers"]}
+    assert providers["ollama"]["detail"] == "OLLAMA_BASE_URL is set"
+    assert "http://localhost:11434/v1" not in providers["ollama"]["detail"]
 
 
 @pytest.mark.unit
@@ -166,7 +178,8 @@ def test_first_run_check_passes_with_ollama_base_url(monkeypatch, tmp_path):
     assert result["ready"] is True
     runtime_check = next(check for check in result["checks"] if check["name"] == "Ollama runtime")
     assert runtime_check["status"] == "pass"
-    assert "OLLAMA_BASE_URL is set" in runtime_check["detail"]
+    assert runtime_check["detail"] == "OLLAMA_BASE_URL is set"
+    assert "http://localhost:11434/v1" not in runtime_check["detail"]
 
 
 @pytest.mark.unit

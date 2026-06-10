@@ -62,7 +62,7 @@ indiamarketagents doctor --ticker RELIANCE.NS
 indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
 ```
 
-`provider-status` checks OpenAI, Google, Anthropic, and Ollama readiness without printing secrets or calling any endpoint.
+`provider-status` checks OpenAI, Google, Anthropic, and Ollama readiness without printing secrets, echoing endpoint values, or calling any endpoint. It also shows which local `.env` file it is reading.
 
 When `first-run-check` passes, it prints the exact shallow `analyze` command to run next.
 
