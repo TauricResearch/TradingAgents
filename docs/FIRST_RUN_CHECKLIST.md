@@ -20,6 +20,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e ".[dev]"
 python3 -m cli.main --help
+python3 -m cli.main use-case
 python3 -m cli.main doctor --ticker RELIANCE.NS
 ```
 

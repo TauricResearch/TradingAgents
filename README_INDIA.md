@@ -36,6 +36,7 @@ Add at least one LLM API key to `.env`.
 ## First Run
 
 ```bash
+indiamarketagents use-case
 indiamarketagents doctor --ticker RELIANCE.NS
 indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05
 indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai

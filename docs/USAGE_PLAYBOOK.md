@@ -4,6 +4,8 @@
 
 Use IndiaMarketAgents as a first-pass research pack generator for Indian listed equities where an analyst needs a structured view before deeper manual work.
 
+From the CLI, run `indiamarketagents use-case` for the same recommendation and first workflow commands.
+
 Best fit:
 
 - Indian large and mid-cap listed companies with NSE/BSE tickers.

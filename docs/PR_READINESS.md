@@ -3,9 +3,9 @@
 Date: 2026-06-10
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 21 commits ahead of `upstream/main` after the offline CLI startup improvement commit.
+Branch state: 22 commits ahead of `upstream/main` after the use-case guidance command commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the first-run checklist update.
+PR body: updated from this file after the use-case guidance command commit.
 
 ## PR Title
 
@@ -32,18 +32,20 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Added an offline `first-run-check` CLI command so users can verify first-run readiness before spending on LLM calls.
 - Added an offline `sample-report` CLI command so users can verify saved-report and dashboard workflow without LLM credentials.
 - Lazy-loaded the heavy graph class so offline CLI commands do not pay graph startup cost.
+- Added an offline `use-case` CLI command that states the highest-value use case and first workflow commands.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...upstream/main [ahead 12]`.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the use-case guidance command commit.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected when `OPENAI_API_KEY` was not configured.
 - `OPENAI_API_KEY=test-openai-key python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: passed without live market, broker, or LLM calls.
 - `python3 -m cli.main sample-report --ticker RELIANCE.NS --date 2026-06-05 --save-path /tmp/ima-sample-report.EBbwOv`: passed and generated the full saved-report bundle with sample/UNAVAILABLE markers.
-- `python3 -m cli.main --help`, `doctor`, `first-run-check`, and `sample-report` returned promptly after lazy graph import.
-- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 19 passed after the sample-report update.
+- `python3 -m cli.main --help`, `doctor`, `first-run-check`, `sample-report`, and `use-case` returned promptly after lazy graph import.
+- `python3 -m cli.main use-case`: passed and printed the highest-value workflow.
+- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 20 passed after the use-case guidance update.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
@@ -58,7 +60,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Dashboard runtime was not browser-verified in this environment because Streamlit is optional and not installed.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the first-run checklist update.
+- PR body was updated from this file after the use-case guidance command commit.
 
 ## PR Checklist
 
@@ -75,6 +77,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] First-run preflight is available without live market, broker, or LLM calls.
 - [x] Sample saved-report generation is available without live market, broker, or LLM calls.
 - [x] Offline CLI commands avoid importing the full graph until analysis is requested.
+- [x] Highest-value use case is available from the CLI.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
 

@@ -1783,6 +1783,37 @@ def generate_sample_report(
     return save_report_to_disk(final_state, normalized_ticker, target_path)
 
 
+def get_use_case_guidance() -> dict:
+    """Return the recommended practical first use case and next commands."""
+    return {
+        "best_use_case": (
+            "First-pass India equity research pack for an NSE/BSE-listed "
+            "company, starting with RELIANCE.NS."
+        ),
+        "why": [
+            "Exercises India-only ticker validation and report-path safety.",
+            "Covers market, fundamentals, filings/news, macro, flows, and compliance agents.",
+            "Produces saved artifacts for analyst review and dashboard rehearsal.",
+            "Keeps outputs research-only with explicit data-quality and source caveats.",
+        ],
+        "poor_fit": [
+            "Live trading, broker order execution, or personalized investment advice.",
+            "Real-time market monitoring.",
+            "Official NSE/BSE/FII/DII workflows before source/legal/access review.",
+        ],
+        "commands": [
+            "indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05",
+            "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai",
+            "indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 --research-depth 1 --no-display --no-save-prompt",
+        ],
+        "docs": [
+            "docs/USAGE_PLAYBOOK.md",
+            "docs/FIRST_RUN_CHECKLIST.md",
+            "README_INDIA.md",
+        ],
+    }
+
+
 def run_noninteractive_analysis(
     *,
     ticker: str,
@@ -1999,6 +2030,41 @@ def sample_report(
     console.print(
         "[yellow]Sample only: no live market data, filings, broker access, or "
         "LLM analysis was used.[/yellow]"
+    )
+
+
+@app.command("use-case")
+def use_case():
+    """Show the highest-value practical IndiaMarketAgents use case."""
+    guidance = get_use_case_guidance()
+    console.print(
+        Panel(
+            guidance["best_use_case"],
+            title="Highest-Value Use Case",
+            border_style="cyan",
+        )
+    )
+
+    fit_table = Table(title="Use-Case Fit", box=box.SIMPLE_HEAD)
+    fit_table.add_column("Best fit", style="green")
+    fit_table.add_column("Poor fit", style="red")
+    max_rows = max(len(guidance["why"]), len(guidance["poor_fit"]))
+    for index in range(max_rows):
+        fit_table.add_row(
+            guidance["why"][index] if index < len(guidance["why"]) else "",
+            guidance["poor_fit"][index] if index < len(guidance["poor_fit"]) else "",
+        )
+    console.print(fit_table)
+
+    command_table = Table(title="Recommended First Workflow", box=box.SIMPLE_HEAD)
+    command_table.add_column("Step", style="cyan")
+    command_table.add_column("Command")
+    for index, command in enumerate(guidance["commands"], start=1):
+        command_table.add_row(str(index), command)
+    console.print(command_table)
+    console.print("Read: " + ", ".join(guidance["docs"]))
+    console.print(
+        "[yellow]Research and education only. Not investment advice or a trade instruction.[/yellow]"
     )
 
 

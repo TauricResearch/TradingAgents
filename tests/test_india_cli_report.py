@@ -9,6 +9,7 @@ from cli import main as cli_main
 from cli.main import (
     INDIA_COMPLIANCE_DISCLAIMER,
     generate_sample_report,
+    get_use_case_guidance,
     run_doctor_checks,
     run_first_run_checks,
     save_report_to_disk,
@@ -62,6 +63,19 @@ def test_first_run_check_passes_with_llm_key(monkeypatch, tmp_path):
     assert report_path["detail"] == str(
         tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
     )
+
+
+@pytest.mark.unit
+def test_use_case_guidance_names_best_workflow_and_commands():
+    guidance = get_use_case_guidance()
+
+    assert "First-pass India equity research pack" in guidance["best_use_case"]
+    assert "RELIANCE.NS" in guidance["best_use_case"]
+    assert any("sample-report" in command for command in guidance["commands"])
+    assert any("first-run-check" in command for command in guidance["commands"])
+    assert any("analyze --ticker RELIANCE.NS" in command for command in guidance["commands"])
+    assert any("Live trading" in poor_fit for poor_fit in guidance["poor_fit"])
+    assert "docs/USAGE_PLAYBOOK.md" in guidance["docs"]
 
 
 @pytest.mark.unit
