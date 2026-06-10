@@ -141,7 +141,7 @@ python3 -m cli.main first-run-check \
   --date 2026-06-05
 ```
 
-This command does not call an LLM or live market data. When `--provider` is omitted, it auto-selects a ready provider if `provider-status` found one; pass `--provider openai`, `--provider google`, `--provider anthropic`, or `--provider ollama` to force a provider. It should pass ticker/date/report-path checks and show a `Provider readiness` failure with the next setup step if no provider path is ready.
+This command does not call an LLM or live market data. When `--provider` is omitted, it auto-selects a ready provider if `provider-status` found one; pass `--provider openai`, `--provider google`, `--provider anthropic`, or `--provider ollama` to force a provider. It should pass ticker/date/report-path checks and show one clear `Provider readiness` failure with the next setup step if no provider path is ready.
 
 When it passes, it prints the exact shallow analysis command to run next. Use a shallow run first to control cost. For the default OpenAI path, it should look like this:
 

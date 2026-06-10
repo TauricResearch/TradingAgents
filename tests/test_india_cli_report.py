@@ -119,6 +119,7 @@ def test_first_run_check_reports_missing_provider_readiness(monkeypatch, tmp_pat
         if check["status"] == "fail"
     }
     assert failures["Provider readiness"]["detail"] == "No LLM provider path is ready"
+    assert "LLM credentials" not in failures
     assert (
         "OLLAMA_BASE_URL=http://localhost:11434/v1"
         in failures["Provider readiness"]["next_step"]

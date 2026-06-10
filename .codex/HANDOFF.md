@@ -69,7 +69,7 @@ Current follow-up state as of 2026-06-11:
 - `indiamarketagents init-env` now creates a local `.env` from `.env.example.india` only when `.env` is missing and never overwrites an existing local env file.
 - `indiamarketagents provider-status` now shows the local `.env` file path/status and checks OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets, echoing configured endpoint values, or calling endpoints.
 - `indiamarketagents first-run-check` now auto-selects a ready provider when `--provider` is omitted, while preserving explicit provider selection.
-- `indiamarketagents first-run-check` now reports a dedicated `Provider readiness` failure when no provider path is ready, before users spend on analysis.
+- `indiamarketagents first-run-check` now reports a single `Provider readiness` failure when no provider path is ready, before users spend on analysis.
 - `indiamarketagents workflow-status` now summarizes saved-report bundle readiness, provider readiness, and first-run preflight status, then prints the next unfinished step.
 - `indiamarketagents doctor` now surfaces provider readiness, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
 - `indiamarketagents report-status` now checks saved report bundle artifacts and summarizes `data_quality.json` without live calls or writes.
@@ -82,14 +82,14 @@ Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the first-run provider-readiness update.
 - `git branch --show-current`: `india-market-agents`.
-- `git log -1 --oneline`: `6d78546 docs: align beginner setup first run` before committing the first-run provider-readiness update.
+- `git log -1 --oneline`: `c254bd6 feat: surface provider readiness in preflight` before committing the first-run provider-readiness refinement.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the first-run provider-readiness update: `6d78546 docs: align beginner setup first run`.
+- Latest committed HEAD before the first-run provider-readiness refinement: `c254bd6 feat: surface provider readiness in preflight`.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -102,8 +102,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 44 after the first-run provider-readiness commit.
-- `git diff --stat upstream/main`: 78 files changed, 7335 insertions, 228 deletions.
+- `git rev-list --count upstream/main..HEAD`: 45 after the first-run provider-readiness commit.
+- `git diff --stat upstream/main`: 78 files changed, 7341 insertions, 228 deletions.
 
 Material file changes by area:
 
@@ -280,7 +280,7 @@ Follow-up usage work:
   - Removed the hardcoded OpenAI preflight and static `analyze` command from the beginner path.
   - Added regression coverage so beginner setup keeps the safe generated-command flow.
 - Added first-run provider readiness check:
-  - `first-run-check` now adds a `Provider readiness` failure when `--provider` is omitted and no provider path is ready.
+  - `first-run-check` now adds a single `Provider readiness` failure when `--provider` is omitted and no provider path is ready.
   - The failure uses the same next setup step as `provider-status`.
   - `docs/FIRST_RUN_CHECKLIST.md` now describes the provider-readiness row.
   - Added regression coverage for the no-provider-ready first-run preflight output.
@@ -511,7 +511,7 @@ GitHub/PR commands:
 - `indiamarketagents doctor --ticker RELIANCE.NS`: passed from the installed console script and reported the same provider setup blocker.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main doctor --ticker RELIANCE.NS`: passed and reported the generated shallow `indiamarketagents analyze` command as the first-workflow next step.
 - `rg -n 'cp \.env\.example\.india \.env|first-run-check --ticker RELIANCE\.NS --date 2026-06-05 --provider openai|analyze --ticker RELIANCE\.NS --date 2026-06-05 --research-depth 1' docs/BEGINNER_SETUP.md README.md README_INDIA.md docs/USAGE_PLAYBOOK.md docs/FIRST_RUN_CHECKLIST.md`: no matches after the beginner setup alignment update.
-- `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected and included `Provider readiness` with the provider setup next step.
+- `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected and included only `Provider readiness` for the provider setup blocker.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 28 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.

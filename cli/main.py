@@ -1859,6 +1859,9 @@ def run_first_run_checks(
 
     provider_key = config["llm_provider"]
     add_check("Provider selection", "pass", f"{provider_key} ({provider_source})")
+    provider_readiness_missing = bool(
+        provider_status is not None and not provider_status["ready"]
+    )
     if provider_status is not None and not provider_status["ready"]:
         add_check(
             "Provider readiness",
@@ -1867,7 +1870,9 @@ def run_first_run_checks(
             provider_status["recommended_next_step"],
         )
     key_env = get_api_key_env(provider_key)
-    if key_env is None:
+    if provider_readiness_missing:
+        pass
+    elif key_env is None:
         if provider_key == "ollama":
             add_check("LLM credentials", "pass", "ollama does not require an API key")
             ollama_base_url = os.environ.get("OLLAMA_BASE_URL")

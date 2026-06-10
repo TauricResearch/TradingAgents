@@ -3,7 +3,7 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 44 commits ahead of `upstream/main` after the first-run provider-readiness update.
+Branch state: 45 commits ahead of `upstream/main` after the first-run provider-readiness update.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
 PR body: updated from this file after the first-run provider-readiness update.
 
@@ -52,7 +52,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Updated `use-case` so the final workflow step points to the provider-specific `analyze` command printed by `first-run-check`.
 - Updated `doctor` so the general health check surfaces provider readiness, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
 - Updated beginner setup so fresh users use `init-env`, readiness checks, and the generated `analyze` command instead of manual `.env` copying or a hardcoded OpenAI run path.
-- Updated `first-run-check` so the default no-provider-ready path shows a dedicated `Provider readiness` failure and setup next step.
+- Updated `first-run-check` so the default no-provider-ready path shows a single `Provider readiness` failure and setup next step.
 
 ## Validation
 
@@ -103,7 +103,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `indiamarketagents doctor --ticker RELIANCE.NS`: passed from the installed console script and reported the same provider setup blocker.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main doctor --ticker RELIANCE.NS`: passed and reported the generated shallow `indiamarketagents analyze` command as the first-workflow next step.
 - `rg -n 'cp \.env\.example\.india \.env|first-run-check --ticker RELIANCE\.NS --date 2026-06-05 --provider openai|analyze --ticker RELIANCE\.NS --date 2026-06-05 --research-depth 1' docs/BEGINNER_SETUP.md README.md README_INDIA.md docs/USAGE_PLAYBOOK.md docs/FIRST_RUN_CHECKLIST.md`: no matches after the beginner setup alignment update.
-- `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected and included `Provider readiness` with the provider setup next step.
+- `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected and included only `Provider readiness` for the provider setup blocker.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 28 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
