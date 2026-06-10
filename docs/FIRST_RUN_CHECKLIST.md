@@ -35,6 +35,7 @@ Expected doctor result:
 Expected provider-status result:
 
 - It shows the local `.env` path it is checking and whether that file exists.
+- It shows the configured provider from `TRADINGAGENTS_LLM_PROVIDER` or the default config, plus whether that provider is ready.
 - It checks OpenAI, Google, Anthropic, and Ollama without printing secrets or calling any endpoint.
 - It reports missing providers until one keyed provider or Ollama runtime path is configured.
 - It prints the next `first-run-check` command once a provider path is ready.

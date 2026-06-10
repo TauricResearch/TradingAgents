@@ -268,6 +268,7 @@ def test_provider_status_reports_no_ready_provider(monkeypatch, tmp_path):
         "GOOGLE_API_KEY",
         "ANTHROPIC_API_KEY",
         "OLLAMA_BASE_URL",
+        "TRADINGAGENTS_LLM_PROVIDER",
     ):
         monkeypatch.delenv(env_var, raising=False)
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
@@ -281,11 +282,40 @@ def test_provider_status_reports_no_ready_provider(monkeypatch, tmp_path):
         "exists": False,
         "next_step": "Run indiamarketagents init-env, then add one provider setting.",
     }
+    assert result["configured_provider"]["provider"] == "openai"
+    assert result["configured_provider"]["source"] == "default config"
+    assert result["configured_provider"]["status"] == "missing"
+    assert result["configured_provider"]["detail"] == "OPENAI_API_KEY is not set"
     providers = {item["provider"]: item for item in result["providers"]}
     assert providers["openai"]["status"] == "missing"
     assert str(tmp_path / ".env") in providers["openai"]["next_step"]
     assert providers["ollama"]["status"] == "missing"
     assert "OLLAMA_BASE_URL=http://localhost:11434/v1" in result["recommended_next_step"]
+
+
+@pytest.mark.unit
+def test_provider_status_surfaces_configured_provider_from_env(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    for env_var in (
+        "OPENAI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OLLAMA_BASE_URL",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+    monkeypatch.setenv("TRADINGAGENTS_LLM_PROVIDER", "google")
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+
+    result = get_provider_setup_status()
+
+    assert result["ready"] is False
+    assert result["configured_provider"] == {
+        "provider": "google",
+        "source": "TRADINGAGENTS_LLM_PROVIDER",
+        "status": "missing",
+        "detail": "GOOGLE_API_KEY is not set",
+        "next_step": f"Add GOOGLE_API_KEY=<your key> to {tmp_path / '.env'} or export it.",
+    }
 
 
 @pytest.mark.unit

@@ -1753,6 +1753,40 @@ def get_provider_setup_status() -> dict:
     ready_providers = [
         item["provider"] for item in providers if item["status"] == "ready"
     ]
+    provider_by_name = {item["provider"]: item for item in providers}
+    configured_provider_name = str(
+        os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+        or DEFAULT_CONFIG.get("llm_provider", "openai")
+        or "openai"
+    ).strip().lower() or "openai"
+    configured_source = (
+        "TRADINGAGENTS_LLM_PROVIDER"
+        if os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+        else "default config"
+    )
+    configured_provider_status = provider_by_name.get(configured_provider_name)
+    if configured_provider_status:
+        configured_provider = {
+            "provider": configured_provider_name,
+            "source": configured_source,
+            "status": configured_provider_status["status"],
+            "detail": configured_provider_status["detail"],
+            "next_step": configured_provider_status["next_step"],
+        }
+    else:
+        configured_provider = {
+            "provider": configured_provider_name,
+            "source": configured_source,
+            "status": "unsupported",
+            "detail": (
+                f"{configured_provider_name} is not covered by offline provider-status."
+            ),
+            "next_step": (
+                "Use openai, google, anthropic, or ollama for the first workflow, "
+                "or pass an explicit supported --provider to first-run-check."
+            ),
+        }
+
     if "ollama" in ready_providers:
         preferred_provider = "ollama"
     elif ready_providers:
@@ -1782,6 +1816,7 @@ def get_provider_setup_status() -> dict:
         "ready": bool(ready_providers),
         "ready_providers": ready_providers,
         "preferred_provider": preferred_provider,
+        "configured_provider": configured_provider,
         "recommended_next_step": recommended_next_step,
         "providers": providers,
     }
@@ -2571,6 +2606,22 @@ def provider_status():
             f"{env_file['path']}\n{env_file['next_step']}",
             title=f"Local .env ({env_status})",
             border_style="green" if env_file["exists"] else "yellow",
+        )
+    )
+    configured_provider = result["configured_provider"]
+    configured_status = configured_provider["status"].upper()
+    console.print(
+        Panel(
+            (
+                f"{configured_provider['provider']} ({configured_provider['source']})\n"
+                f"Status: {configured_status}\n"
+                f"{configured_provider['detail']}\n"
+                f"{configured_provider['next_step']}"
+            ),
+            title="Configured Provider",
+            border_style=(
+                "green" if configured_provider["status"] == "ready" else "yellow"
+            ),
         )
     )
     table = Table(title="IndiaMarketAgents Provider Status", box=box.SIMPLE_HEAD)

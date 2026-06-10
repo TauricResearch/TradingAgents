@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Branch: `india-market-agents`
-Latest phase: Usage playbook acceptance gate
+Latest phase: Provider status configured-provider summary
 
 ## Project Goal
 
@@ -16,8 +16,8 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `64ea3f6` before the usage-playbook acceptance-gate update.
-- The branch is 48 commits ahead of `upstream/main` after this usage-playbook acceptance-gate commit.
+- Branch review confirms `india-market-agents` was clean and synced with `origin/india-market-agents` at `b2cba1a` before the provider-status configured-provider update.
+- The branch is 49 commits ahead of `upstream/main` after this provider-status configured-provider commit.
 - Goal status: the repo is usable for the recommended no-key workflow rehearsal, saved-report review, provider readiness checks, and highest-value use-case identification. A real LLM-backed `analyze` run still requires configuring one provider path.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
@@ -33,7 +33,7 @@ The product is research and decision support only. It must not become a live tra
 - `docs/BEGINNER_SETUP.md` now uses `init-env`, readiness commands, and the `first-run-check` generated `analyze` command instead of manual `.env` copying or a hardcoded OpenAI command.
 - `indiamarketagents use-case` now tells users to run the provider-specific `analyze` command printed by `first-run-check`, instead of hardcoding OpenAI.
 - `indiamarketagents init-env` now creates local `.env` from `.env.example.india` only when `.env` is missing and never overwrites an existing env file.
-- `indiamarketagents provider-status` now shows the local `.env` path/status and checks OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets, echoing configured endpoint values, or calling endpoints.
+- `indiamarketagents provider-status` now shows the local `.env` path/status, configured provider, and OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets, echoing configured endpoint values, or calling endpoints.
 - `indiamarketagents first-run-check` now auto-selects a ready provider when `--provider` is omitted, while preserving explicit provider selection.
 - `indiamarketagents first-run-check` now reports no selected provider plus a single `Provider readiness` failure when no provider path is ready, instead of also surfacing the configured default provider's missing key.
 - `indiamarketagents workflow-status` now summarizes full saved-report bundle readiness, provider readiness, and first-run preflight status, then prints the next unfinished step.
@@ -207,6 +207,10 @@ The product is research and decision support only. It must not become a live tra
    - Split the playbook acceptance check into no-key workflow rehearsal readiness and first LLM-backed research-run readiness.
    - Made provider readiness and passing `first-run-check` the explicit gate before treating the repo as ready for the first real research run.
    - Added a regression test so the playbook cannot drift back to a false-ready checklist.
+39. Provider status configured-provider summary:
+   - Added a non-secret configured-provider summary to `provider-status`, sourced from `TRADINGAGENTS_LLM_PROVIDER` or the default config.
+   - The current local output now makes it explicit that the configured provider is OpenAI and `OPENAI_API_KEY` is missing.
+   - Added regression coverage for default-config and env-configured provider summaries.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -217,7 +221,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 ## Files Touched In Latest Phase
 
 - `.codex/HANDOFF.md`
+- `cli/main.py`
 - `docs/CODEX_HANDOFF.md`
+- `docs/FIRST_RUN_CHECKLIST.md`
 - `docs/PR_READINESS.md`
 - `docs/USAGE_PLAYBOOK.md`
 - `tests/test_india_cli_report.py`
@@ -258,9 +264,9 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `64ea3f6` before the usage-playbook acceptance-gate update.
-- `git log -1 --oneline`: `64ea3f6 docs: refresh goal status handoff`.
-- `git rev-list --count upstream/main..HEAD`: 48 after this usage-playbook acceptance-gate commit.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` at `b2cba1a` before the provider-status configured-provider update.
+- `git log -1 --oneline`: `b2cba1a docs: clarify first-use readiness gate`.
+- `git rev-list --count upstream/main..HEAD`: 49 after this provider-status configured-provider commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -321,14 +327,15 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main doctor --ticker RELIANCE.NS`: passed and reported the generated shallow `indiamarketagents analyze` command as the first-workflow next step.
 - `rg -n 'cp \.env\.example\.india \.env|first-run-check --ticker RELIANCE\.NS --date 2026-06-05 --provider openai|analyze --ticker RELIANCE\.NS --date 2026-06-05 --research-depth 1' docs/BEGINNER_SETUP.md README.md README_INDIA.md docs/USAGE_PLAYBOOK.md docs/FIRST_RUN_CHECKLIST.md`: no matches after the beginner setup alignment update.
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05`: failed as expected, showed no selected provider, and included only `Provider readiness` for the provider setup blocker.
+- `python3 -m cli.main provider-status`: passed; showed configured provider `openai` from `TRADINGAGENTS_LLM_PROVIDER` and reported `OPENAI_API_KEY` missing without printing secrets.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --analysts india_market`: passed and printed the generated shallow `indiamarketagents analyze` command.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 29 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 30 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `git diff --check`: passed.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with handoff, PR-readiness, and test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 396 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 397 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 ## Known Risks And Blockers
 
