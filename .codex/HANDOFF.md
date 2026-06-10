@@ -42,7 +42,7 @@ Current follow-up state as of 2026-06-10:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the provider-status preflight commit.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the provider-status updates.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
@@ -84,8 +84,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 31 after the provider-status preflight commit.
-- `git diff --stat upstream/main`: 78 files changed, 6258 insertions, 228 deletions.
+- `git rev-list --count upstream/main..HEAD`: 32 after the provider-status handoff refresh.
+- `git diff --stat upstream/main`: 78 files changed, 6286 insertions, 228 deletions.
 
 Material file changes by area:
 
@@ -341,7 +341,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the provider-status preflight commit.
+- PR body was updated from `docs/PR_READINESS.md` after the provider-status updates.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results

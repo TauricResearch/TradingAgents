@@ -3,9 +3,9 @@
 Date: 2026-06-10
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 31 commits ahead of `upstream/main` after the provider-status preflight commit.
+Branch state: 32 commits ahead of `upstream/main` after the provider-status handoff refresh.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the provider-status preflight commit.
+PR body: updated from this file after the provider-status updates.
 
 ## PR Title
 
@@ -45,7 +45,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the provider-status preflight commit.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the provider-status updates.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -91,7 +91,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the provider-status preflight commit.
+- PR body was updated from this file after the provider-status updates.
 
 ## PR Checklist
 
