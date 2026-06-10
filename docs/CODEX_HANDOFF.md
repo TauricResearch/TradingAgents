@@ -1,8 +1,8 @@
 # Codex Handoff
 
-Date: 2026-06-07
+Date: 2026-06-10
 Branch: `india-market-agents`
-Latest phase: Final branch review and PR-readiness package
+Latest phase: Usage playbook and best-use-case guidance
 
 ## Project Goal
 
@@ -16,7 +16,9 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 12 commits ahead of `upstream/main`.
+- Branch review confirms `india-market-agents` is clean and 14 commits ahead of `upstream/main` after the usage-playbook commit.
+- `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
+- `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
 - Final verification passed with the offline unit suite and targeted security/compliance scans.
 - No data-source, agent prompt, dashboard feature, or broker code changes were made in this phase.
@@ -61,6 +63,11 @@ The product is research and decision support only. It must not become a live tra
    - Added a concise PR-readiness package for reviewers.
    - Re-ran final offline validation and targeted security/compliance scans.
    - Kept scope limited to documentation and branch-readiness review.
+9. Usage playbook and best-use-case guidance:
+   - Pushed the committed `.codex/HANDOFF.md` to `origin/india-market-agents`.
+   - Added `docs/USAGE_PLAYBOOK.md` with the best first use case, setup path, expected report artifacts, review workflow, and current limits.
+   - Linked the playbook from `README_INDIA.md`.
+   - Kept scope limited to documentation and cheap local CLI validation.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -70,6 +77,8 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 ## Files Touched In Latest Phase
 
+- `docs/USAGE_PLAYBOOK.md`
+- `README_INDIA.md`
 - `docs/CODEX_HANDOFF.md`
 - `docs/PR_READINESS.md`
 
@@ -93,6 +102,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Use neutral placeholder strings in tests instead of fake values that resemble real provider secret prefixes.
 - Tracked `.env.example*` files are intentionally template files; real `.env` files must remain untracked.
 - Keep PR-readiness notes concise and evidence-backed; do not use them to introduce new scope.
+- Treat the best first workflow as a single-company India equity research pack, not live trading or real-time market monitoring.
 - Do not add broker execution or broker integrations.
 - Prefer official/user-provided data and explicit unavailable responses over fabricated values.
 - Keep live exchange/network tests out of the default test suite.
@@ -108,8 +118,14 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
-- `git status --branch --short`: clean, `india-market-agents...upstream/main [ahead 12]`.
-- `git rev-list --count upstream/main..HEAD`: 12.
+- `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
+- `git rev-list --count upstream/main..HEAD`: 14 after the usage-playbook commit.
+- `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
+- `gh pr view 1002 --repo TauricResearch/TradingAgents --json ...`: failed with `HTTP 401: Requires authentication`; run `gh auth refresh -h github.com`.
+- `python3 -m cli.main --help`: passed.
+- `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; package import and ticker validation were OK; no LLM/API keys detected.
+- `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
+- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 16 passed.
 - `git diff --check`: passed.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
@@ -131,7 +147,8 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - Local `__pycache__` files exist from test runs but are ignored by git and were not deleted because deletion was not requested.
 - Full package rename would be disruptive and should remain out of scope unless explicitly requested.
 - `python` remains unavailable on PATH; use `python3` in this workspace.
+- GitHub CLI PR inspection currently needs refreshed authentication.
 
 ## Next Recommended Prompt
 
-Proceed to PR creation: push branch `india-market-agents` and open a draft PR using `docs/PR_READINESS.md` as the PR body. Keep scope limited to git push/PR creation and do not change code unless a pre-push check fails.
+Refresh GitHub CLI authentication with `gh auth refresh -h github.com`, inspect draft PR #1002 status/checks/reviews, and decide whether to update the PR body with the new usage-playbook evidence. Keep code changes out of scope unless CI or reviewer feedback identifies a specific issue.

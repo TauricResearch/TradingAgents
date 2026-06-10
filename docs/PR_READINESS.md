@@ -3,7 +3,7 @@
 Date: 2026-06-07
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 12 commits ahead of `upstream/main`
+Branch state: 14 commits ahead of `upstream/main` after the usage-playbook commit.
 
 ## PR Title
 
@@ -25,6 +25,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Hardened saved report artifacts with disclaimers, `sources.md`, `data_quality.json`, standalone section files, and writer-level coverage notes.
 - Made the dashboard a read-only saved-report reviewer with optional Streamlit dependency and offline-testable helpers.
 - Added security/compliance regressions for tracked generated artifacts, report path validation, fake secret prefixes, and user-facing no-execution wording.
+- Added a practical usage playbook that identifies the best first use case and a repeatable analyst workflow.
 
 ## Validation
 
@@ -32,6 +33,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
+- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 16 passed after the usage-playbook update.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
 - `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
@@ -44,6 +46,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - README still contains a large upstream TradingAgents body after the IndiaMarketAgents preface; the most direct execution-language issue was removed, but user-facing docs should eventually route more clearly to `README_INDIA.md`.
 - Dashboard runtime was not browser-verified in this environment because Streamlit is optional and not installed.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
+- GitHub CLI authentication expired during the follow-up session, so PR status inspection should be retried with `gh auth refresh -h github.com`.
 
 ## PR Checklist
 
@@ -55,6 +58,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Saved report artifacts include compliance disclaimers and data-quality/source coverage.
 - [x] Generated reports, local filings, PDFs, caches, and secrets are ignored and not tracked.
 - [x] Offline unit tests pass without API keys or live exchange access.
+- [x] Recommended first workflow and best-use-case guidance is documented.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
 

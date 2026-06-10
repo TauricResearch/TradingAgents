@@ -1,0 +1,147 @@
+# IndiaMarketAgents Usage Playbook
+
+## Highest-Value Use Case
+
+Use IndiaMarketAgents as a first-pass research pack generator for Indian listed equities where an analyst needs a structured view before deeper manual work.
+
+Best fit:
+
+- Indian large and mid-cap listed companies with NSE/BSE tickers.
+- Sector coverage in pharma, chemicals, oil and gas, banks, IT services, and other filing-heavy businesses.
+- Workflows where local filings, concall notes, investor presentations, and analyst notes can be supplied under `data/india/filings/`.
+- Research memos that need explicit source coverage, data-quality caveats, and compliance disclaimers.
+
+Poor fit:
+
+- Live trading, order routing, broker execution, or automated investment advice.
+- Real-time market monitoring.
+- Workflows that need complete official NSE/BSE/FII/DII data before the official-source modules are reviewed and implemented.
+- Non-India equities, crypto, or global ETFs unless legacy behavior is explicitly enabled.
+
+## Best First Workflow
+
+Start with a single company research pack for an Indian equity.
+
+Recommended ticker:
+
+```bash
+RELIANCE.NS
+```
+
+Why this is the best first use:
+
+- It exercises the India-only ticker path and report writer.
+- It keeps the first run broad enough to test market, fundamentals, filings/news, macro, flows, and compliance agents.
+- It produces saved artifacts that can be reviewed in the dashboard later.
+- It avoids pretending the repo has live official exchange integrations that are not implemented yet.
+
+## Setup
+
+Use Python 3.10, 3.11, or 3.12 for the most predictable dependency support.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -e ".[dev]"
+cp .env.example.india .env
+```
+
+Add at least one LLM key to `.env`.
+
+Check the local install without making live market or LLM calls:
+
+```bash
+indiamarketagents doctor --ticker RELIANCE.NS
+```
+
+## Optional Local Filings
+
+For higher-quality output, add user-supplied files before running analysis:
+
+```text
+data/india/filings/RELIANCE.NS/concall/
+data/india/filings/RELIANCE.NS/results/
+data/india/filings/RELIANCE.NS/investor_presentations/
+data/india/filings/RELIANCE.NS/notes/
+```
+
+Use text or markdown for the most auditable inputs. PDF OCR is intentionally not enabled by default.
+
+## First Analysis Run
+
+```bash
+indiamarketagents analyze \
+  --ticker RELIANCE.NS \
+  --date 2026-06-05 \
+  --research-depth 1 \
+  --no-display \
+  --no-save-prompt
+```
+
+Expected output folder:
+
+```text
+reports/RELIANCE.NS/2026-06-05/
+```
+
+Key files to read first:
+
+- `complete_report.md`
+- `trader_research_view.md`
+- `9_portfolio_decision.md`
+- `sources.md`
+- `data_quality.json`
+- `disclaimer.md`
+
+Treat `sources.md` and `data_quality.json` as report-writer coverage indexes. They do not verify factual accuracy or fill missing data.
+
+## Review Workflow
+
+Use this sequence:
+
+1. Read `disclaimer.md` and confirm the report is research-only.
+2. Read `data_quality.json` for missing or low-confidence sections.
+3. Read `sources.md` to see which report sections included explicit source and confidence markers.
+4. Read the analyst sections for raw reasoning and gaps.
+5. Use `trader_research_view.md` and `9_portfolio_decision.md` as model views, not trade instructions.
+6. Verify material claims against official filings, exchange disclosures, and user-supplied documents.
+
+Optional dashboard:
+
+```bash
+python3 -m pip install -e ".[dashboard]"
+streamlit run dashboard/app.py
+```
+
+The dashboard is a read-only saved-report reviewer. It should not contain order buttons, broker controls, or live execution actions.
+
+## Practical Use-Case Ranking
+
+1. Company initiation note support for an Indian listed equity.
+2. Earnings/concall prep when local notes and results files are supplied.
+3. Sector comparison memo across pharma, chemicals, oil and gas, or banks.
+4. Compliance-aware report artifact generation for internal analyst review.
+5. Dashboard review of saved research packs.
+
+Do not use it as a trading bot or a source of personalized investment recommendations.
+
+## Current Limits
+
+- NSE/BSE official-source modules are defensive placeholders and return explicit unavailable responses until reviewed.
+- yfinance is a third-party fallback, not official exchange data.
+- Missing FII/DII, macro, filings, or corporate-action data must stay visible as `UNAVAILABLE` or low-confidence output.
+- Generated reports are ignored by git under `reports/`.
+- Local filings are ignored by git under `data/india/filings/`.
+
+## Minimum Acceptance Check
+
+Before treating the repo as usable, confirm:
+
+```bash
+indiamarketagents doctor --ticker RELIANCE.NS
+indiamarketagents analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt
+```
+
+The first command should validate `RELIANCE.NS`. The second command should reject `AAPL` because the default scope is India-only.
+
+This output is for research and education only. It is not investment advice, a recommendation, an offer, or a solicitation to buy or sell securities. IndiaMarketAgents is not a SEBI-registered investment adviser or research analyst. Verify all data with official exchange/company filings and consult a qualified adviser before acting.

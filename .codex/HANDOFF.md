@@ -15,6 +15,7 @@ The session progressed through scoped phases:
 7. Security/compliance final pass.
 8. Final branch review and PR-readiness package.
 9. PR creation.
+10. Usage playbook and best-use-case guidance.
 
 The branch is already pushed and a draft PR is open:
 
@@ -23,22 +24,29 @@ The branch is already pushed and a draft PR is open:
 - Head: `tgabhawala-creator:india-market-agents`
 - PR title: `Transform TradingAgents into IndiaMarketAgents research copilot foundation`
 
-Current request was to create this durable handoff at `.codex/HANDOFF.md` so a fresh Codex session can continue without relying on chat history. No product/code changes were requested or made for this handoff.
+Current objective: make the GitHub repo practically usable and identify the highest-value use case. The current best use case is a first-pass India equity research pack for an NSE/BSE-listed company, using local filings where available and saved report artifacts for analyst review. This is documented in `docs/USAGE_PLAYBOOK.md`.
 
 ## 2. Current repo state
 
-Inspection commands run before creating this handoff:
+Current follow-up state as of 2026-06-10:
 
-- `git status --short`: no output; working tree was clean.
+- `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
+- A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
+- GitHub CLI PR inspection failed with `HTTP 401: Requires authentication`; run `gh auth refresh -h github.com` before checking PR status or updating the PR body.
+- `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
+
+Latest local inspection commands:
+
+- `git status --branch --short`: clean after pushing `9c3347b`; dirty while the usage-playbook docs were being edited.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `3bab168`.
-- `git diff --stat`: no output; no unstaged tracked diff.
-- `git diff --name-only`: no output; no unstaged tracked diff.
+- `git rev-parse --short HEAD`: `9c3347b` before committing the usage-playbook docs.
+- `python --version`: failed with `zsh:1: command not found: python`.
+- `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents`.
-- Latest commit: `3bab168 docs: add IndiaMarketAgents PR readiness package`.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
+- Latest committed HEAD before the usage-playbook docs: `9c3347b docs: add Codex session handoff`; re-check after the usage-playbook commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -47,11 +55,11 @@ Additional state:
 - `upstream` is read-only for the authenticated GitHub account.
 - Draft PR `#1002` is open and draft.
 
-After creating this handoff, the working tree will show `.codex/HANDOFF.md` as an untracked file unless it is committed. `.codex/HANDOFF.md` is not ignored by the current `.gitignore`.
+`.codex/HANDOFF.md` is tracked and pushed.
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 12.
+- `git rev-list --count upstream/main..HEAD`: 14 after the usage-playbook docs commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -61,6 +69,7 @@ Material file changes by area:
   - `NOTICE`: upstream attribution retained/extended.
   - `README.md`: IndiaMarketAgents preface and removal of the most direct simulated-exchange execution wording.
   - `README_INDIA.md`: India-specific setup, usage, disclaimers, dashboard instructions.
+  - `docs/USAGE_PLAYBOOK.md`: practical first workflow and highest-value use case for using the repo.
   - `docs/CODEX_HANDOFF.md`: phase-by-phase project handoff.
   - `docs/PR_READINESS.md`: PR title/body/checklist/reviewer focus.
   - `docs/REPO_AUDIT_INDIA.md`: architecture audit and India migration plan.
@@ -133,6 +142,13 @@ Generated files or artifacts:
   - Reason: user requested phase-level commits where possible.
 
 ## 4. Work completed
+
+Follow-up usage work:
+
+- Committed and pushed `.codex/HANDOFF.md`.
+- Added `docs/USAGE_PLAYBOOK.md` with the highest-value use case, first recommended workflow, setup path, optional local filings path, first analysis command, saved artifacts to review, review sequence, current limits, and acceptance checks.
+- Linked the playbook from `README_INDIA.md`.
+- Updated `docs/CODEX_HANDOFF.md` and `docs/PR_READINESS.md` to reflect the usage phase and GitHub auth blocker.
 
 PR/publish work:
 
@@ -256,6 +272,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - Unknown: GitHub PR CI status after PR creation. It was not inspected after opening the draft PR.
+- Current blocker for PR inspection: `gh pr view` returned `HTTP 401: Requires authentication`.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -306,6 +323,12 @@ GitHub/PR commands:
 - `git push -u origin india-market-agents`: passed; branch pushed and set to track `origin/india-market-agents`.
 - `gh pr create --repo TauricResearch/TradingAgents --head tgabhawala-creator:india-market-agents --base main --draft --title "Transform TradingAgents into IndiaMarketAgents research copilot foundation" --body-file docs/PR_READINESS.md`: passed; created https://github.com/TauricResearch/TradingAgents/pull/1002.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,author`: PR is open, draft, base `main`, head `tgabhawala-creator:india-market-agents`.
+- `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
+- `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,author,statusCheckRollup`: failed with `HTTP 401: Requires authentication`.
+- `python3 -m cli.main --help`: passed.
+- `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed; ticker validation returned `RELIANCE.NS`; no LLM/API keys detected.
+- `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
+- `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 16 passed.
 
 Commits created in this session/branch:
 
@@ -321,6 +344,7 @@ Commits created in this session/branch:
 - `8449735 feat: make India dashboard report review read-only`
 - `4b8803a chore: complete India security compliance pass`
 - `3bab168 docs: add IndiaMarketAgents PR readiness package`
+- `9c3347b docs: add Codex session handoff`
 
 ## 8. How to verify the work
 
@@ -336,8 +360,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `3bab168` unless this handoff was committed afterward.
-- Worktree is clean except possibly `.codex/HANDOFF.md` if not committed.
+- Head is `9c3347b` before committing the usage-playbook docs.
+- Worktree should be clean after the usage-playbook docs are committed.
 
 2. Check formatting/whitespace:
 
@@ -396,14 +420,10 @@ Expected:
 
 ## 9. Next recommended steps
 
-1. Decide whether to commit `.codex/HANDOFF.md`.
-   - If this handoff should travel with the branch, run:
-     ```bash
-     git add .codex/HANDOFF.md
-     git commit -m "docs: add Codex session handoff"
-     git push
-     ```
-   - If this is local-only session context, leave it uncommitted or add `.codex/` to local excludes.
+1. Refresh GitHub CLI authentication:
+   ```bash
+   gh auth refresh -h github.com
+   ```
 2. Inspect draft PR #1002 on GitHub.
    - Check whether CI ran.
    - If CI failed, inspect logs before changing code.
@@ -411,7 +431,7 @@ Expected:
 3. If continuing implementation, do not add new data sources or broker integrations casually.
    - Next code work should likely be official-source review for NSE/BSE only after source/legal/access review, or README cleanup to route users to `README_INDIA.md`.
 4. Optional: verify dashboard runtime after installing `.[dashboard]`.
-5. Optional: update `docs/PR_READINESS.md` if PR CI or review feedback adds new validation evidence or risks.
+5. Optional: update `docs/PR_READINESS.md` or PR body if PR CI or review feedback adds new validation evidence or risks.
 6. Keep all generated reports under ignored `reports/` and local filings under ignored `data/india/filings/`.
 
 ## 10. Files the next session should read first
@@ -419,18 +439,19 @@ Expected:
 1. `.codex/HANDOFF.md`
 2. `docs/CODEX_HANDOFF.md`
 3. `docs/PR_READINESS.md`
-4. `AGENTS.md`
-5. `README_INDIA.md`
-6. `README.md`
-7. `cli/main.py`
-8. `tradingagents/default_config.py`
-9. `tradingagents/dataflows/india/symbols.py`
-10. `tradingagents/dataflows/india/quality.py`
-11. `tradingagents/graph/analyst_execution.py`
-12. `dashboard/report_review.py`
-13. `tests/test_security_compliance.py`
-14. `tests/test_india_cli_report.py`
-15. `tests/test_dashboard_report_review.py`
+4. `docs/USAGE_PLAYBOOK.md`
+5. `AGENTS.md`
+6. `README_INDIA.md`
+7. `README.md`
+8. `cli/main.py`
+9. `tradingagents/default_config.py`
+10. `tradingagents/dataflows/india/symbols.py`
+11. `tradingagents/dataflows/india/quality.py`
+12. `tradingagents/graph/analyst_execution.py`
+13. `dashboard/report_review.py`
+14. `tests/test_security_compliance.py`
+15. `tests/test_india_cli_report.py`
+16. `tests/test_dashboard_report_review.py`
 
 ## 11. Prompt for the next Codex chat
 
@@ -447,5 +468,5 @@ First read `.codex/HANDOFF.md`, then inspect the live repo state with:
 
 Verify the assumptions in the handoff before making changes. Do not add data sources, agent prompts, dashboard features, broker integrations, or live trading controls unless I explicitly ask.
 
-Current likely next step: inspect draft PR #1002 and any CI/review status. If `.codex/HANDOFF.md` is uncommitted, ask me whether to commit it or keep it local-only. If CI is failing, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
+Current likely next step: refresh GitHub CLI auth with `gh auth refresh -h github.com`, inspect draft PR #1002 and any CI/review status, and decide whether to update the PR body with the usage-playbook evidence. If CI is failing, summarize failures before patching. Keep all changes small, offline-testable, India-only by default, research-only, and compliant with the project rules in `AGENTS.md`.
 ```

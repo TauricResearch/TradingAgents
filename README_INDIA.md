@@ -46,6 +46,8 @@ Reports are saved to:
 reports/RELIANCE.NS/2026-06-05/
 ```
 
+For the recommended first workflow and highest-value use case, read `docs/USAGE_PLAYBOOK.md`.
+
 ## Pharma, Chemicals, Oil & Gas
 
 Use explicit NSE tickers:
