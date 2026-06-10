@@ -1796,6 +1796,7 @@ def run_first_run_checks(
     """Return offline readiness checks for the recommended first research pack."""
     config = DEFAULT_CONFIG.copy()
     provider_source = "configured default"
+    provider_status = None
     if provider:
         config["llm_provider"] = provider.lower()
         provider_source = "explicit"
@@ -1858,6 +1859,13 @@ def run_first_run_checks(
 
     provider_key = config["llm_provider"]
     add_check("Provider selection", "pass", f"{provider_key} ({provider_source})")
+    if provider_status is not None and not provider_status["ready"]:
+        add_check(
+            "Provider readiness",
+            "fail",
+            "No LLM provider path is ready",
+            provider_status["recommended_next_step"],
+        )
     key_env = get_api_key_env(provider_key)
     if key_env is None:
         if provider_key == "ollama":

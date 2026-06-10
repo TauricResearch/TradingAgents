@@ -95,6 +95,37 @@ def test_first_run_check_reports_missing_llm_key(monkeypatch):
 
 
 @pytest.mark.unit
+def test_first_run_check_reports_missing_provider_readiness(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    for env_var in (
+        "OPENAI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OLLAMA_BASE_URL",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+    monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
+
+    result = run_first_run_checks(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        analysts="india_market",
+    )
+
+    assert result["ready"] is False
+    failures = {
+        check["name"]: check
+        for check in result["checks"]
+        if check["status"] == "fail"
+    }
+    assert failures["Provider readiness"]["detail"] == "No LLM provider path is ready"
+    assert (
+        "OLLAMA_BASE_URL=http://localhost:11434/v1"
+        in failures["Provider readiness"]["next_step"]
+    )
+
+
+@pytest.mark.unit
 def test_first_run_check_passes_with_llm_key(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.chdir(tmp_path)
@@ -142,6 +173,7 @@ def test_first_run_checklist_keeps_provider_aware_analyze_example():
     checklist = Path("docs/FIRST_RUN_CHECKLIST.md").read_text(encoding="utf-8")
 
     assert "indiamarketagents analyze" in checklist
+    assert "Provider readiness" in checklist
     assert "--provider openai" in checklist
     assert "--research-depth 1" in checklist
     assert "--no-display" in checklist
