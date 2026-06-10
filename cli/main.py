@@ -22,7 +22,6 @@ from rich import box
 from rich.align import Align
 from rich.rule import Rule
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.analyst_execution import (
     INDIA_DEFAULT_ANALYSTS,
     AnalystWallTimeTracker,
@@ -46,6 +45,19 @@ from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
 
 console = Console()
+
+TradingAgentsGraph = None
+
+
+def get_trading_agents_graph_class():
+    """Lazy-load the graph so offline CLI commands stay cheap."""
+    global TradingAgentsGraph
+    if TradingAgentsGraph is None:
+        from tradingagents.graph.trading_graph import TradingAgentsGraph as graph_class
+
+        TradingAgentsGraph = graph_class
+    return TradingAgentsGraph
+
 
 app = typer.Typer(
     name="IndiaMarketAgents",
@@ -1290,7 +1302,8 @@ def run_analysis(checkpoint: bool = False):
     analyst_wall_time_tracker = AnalystWallTimeTracker(analyst_execution_plan)
 
     # Initialize the graph with callbacks bound to LLMs
-    graph = TradingAgentsGraph(
+    graph_class = get_trading_agents_graph_class()
+    graph = graph_class(
         selected_analyst_keys,
         config=config,
         debug=True,
@@ -1807,7 +1820,8 @@ def run_noninteractive_analysis(
             f"{key_env} is not set for provider '{config['llm_provider']}'. "
             "Add it to .env or export it before running analysis."
         )
-    graph = TradingAgentsGraph(selected_analysts, config=config, debug=False)
+    graph_class = get_trading_agents_graph_class()
+    graph = graph_class(selected_analysts, config=config, debug=False)
     final_state, decision = graph.propagate(normalized_ticker, resolved_date)
     final_state["trade_date"] = resolved_date
 

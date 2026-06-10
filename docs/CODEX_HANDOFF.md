@@ -2,7 +2,7 @@
 
 Date: 2026-06-10
 Branch: `india-market-agents`
-Latest phase: Offline sample-report workflow
+Latest phase: Offline CLI startup improvement
 
 ## Project Goal
 
@@ -16,12 +16,13 @@ The product is research and decision support only. It must not become a live tra
 - The branch is ahead of `upstream/main`.
 - Apache 2.0 license text is present in `LICENSE`.
 - Upstream attribution is present in `NOTICE`.
-- Branch review confirms `india-market-agents` is clean and 20 commits ahead of `upstream/main` after the sample-report workflow commit.
+- Branch review confirms `india-market-agents` is clean and 21 commits ahead of `upstream/main` after the offline CLI startup improvement commit.
 - `.codex/HANDOFF.md` was committed and pushed to `origin/india-market-agents`.
 - `docs/USAGE_PLAYBOOK.md` now documents the recommended first workflow and highest-value practical use case.
 - `docs/FIRST_RUN_CHECKLIST.md` now documents credential-safe setup and acceptance checks for the first `RELIANCE.NS` research pack.
 - `indiamarketagents first-run-check` now verifies first-run readiness without live market, broker, or LLM calls.
 - `indiamarketagents sample-report` now creates explicit sample/UNAVAILABLE saved-report bundles without live market, broker, or LLM calls.
+- Offline commands now lazy-load the heavy graph class, so help/doctor/preflight/sample-report do not pay analysis startup cost.
 - PR #1002 is open and draft; `statusCheckRollup` is currently empty.
 - `docs/PR_READINESS.md` now contains a PR title, summary, completed-work list, validation evidence, remaining risks, reviewer focus areas, and checklist.
 - Final verification passed with the offline unit suite and targeted security/compliance scans.
@@ -91,6 +92,9 @@ The product is research and decision support only. It must not become a live tra
    - Added `generate_sample_report()` and `indiamarketagents sample-report`.
    - Added unit tests for explicit sample/UNAVAILABLE saved-report bundles.
    - Updated first-run docs so users can rehearse report and dashboard review before adding an LLM key.
+15. Offline CLI startup improvement:
+   - Lazy-loaded `TradingAgentsGraph` so offline commands stay cheap and fast.
+   - Preserved `analyze` behavior by loading the graph only when analysis starts.
 
 Prior local commits indicate earlier IndiaMarketAgents work already exists:
 
@@ -147,7 +151,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python --version`: failed; `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git status --branch --short`: `india-market-agents...origin/india-market-agents [ahead 1]` before pushing `.codex/HANDOFF.md`; clean after push and before usage-playbook edits.
-- `git rev-list --count upstream/main..HEAD`: 20 after the sample-report workflow commit.
+- `git rev-list --count upstream/main..HEAD`: 21 after the offline CLI startup improvement commit.
 - `git push`: pushed `9c3347b docs: add Codex session handoff` to `origin/india-market-agents`.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `gh pr edit 1002 --repo TauricResearch/TradingAgents --body-file docs/PR_READINESS.md`: failed with `HTTP 401: Requires authentication`.
@@ -159,6 +163,7 @@ Prior local commits indicate earlier IndiaMarketAgents work already exists:
 - `python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: failed as expected when `OPENAI_API_KEY` was not configured.
 - `OPENAI_API_KEY=test-openai-key python3 -m cli.main first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai`: passed without live market, broker, or LLM calls.
 - `python3 -m cli.main sample-report --ticker RELIANCE.NS --date 2026-06-05 --save-path /tmp/ima-sample-report.EBbwOv`: passed and generated the full saved-report bundle with sample/UNAVAILABLE markers.
+- `python3 -m cli.main --help`, `doctor`, `first-run-check`, and `sample-report`: returned promptly after lazy graph import.
 - `python3 -m cli.main analyze --ticker AAPL --date 2026-06-05 --no-display --no-save-prompt`: rejected `AAPL` as expected under India-only defaults.
 - `python3 -m pytest tests/test_security_compliance.py tests/test_india_cli_report.py tests/test_dashboard_report_review.py -q`: 19 passed.
 - `git diff --check`: passed.

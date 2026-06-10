@@ -38,19 +38,20 @@ Current follow-up state as of 2026-06-10:
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
 - `indiamarketagents sample-report` is included in the offline sample-report phase.
+- Offline CLI commands lazy-load `TradingAgentsGraph`, so help/doctor/preflight/sample-report do not pay analysis startup cost.
 
 Latest local inspection commands:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the PR-status refresh docs edit.
 - `git branch --show-current`: `india-market-agents`.
-- `git rev-parse --short HEAD`: `5bd0c30` before committing the sample-report workflow.
+- `git rev-parse --short HEAD`: `ab6c095` before committing the offline CLI startup improvement.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the sample-report workflow: `5bd0c30 feat: add first-run readiness check`; re-check after the sample-report commit.
+- Latest committed HEAD before the offline CLI startup improvement: `ab6c095 feat: add offline sample report workflow`; re-check after the startup improvement commit.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -63,7 +64,7 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 20 after the sample-report workflow commit.
+- `git rev-list --count upstream/main..HEAD`: 21 after the offline CLI startup improvement commit.
 - `git diff --stat upstream/main..HEAD`: 74 files changed, 4362 insertions, 226 deletions.
 
 Material file changes by area:
@@ -76,6 +77,7 @@ Material file changes by area:
   - `docs/USAGE_PLAYBOOK.md`: practical first workflow and highest-value use case for using the repo.
   - `docs/FIRST_RUN_CHECKLIST.md`: credential-safe setup, first analysis, output review, and acceptance checks.
   - `cli/main.py`: includes `first-run-check` offline preflight and `sample-report` saved-report workflow rehearsal.
+  - `cli/main.py`: lazy-loads `TradingAgentsGraph` so offline commands stay cheap.
   - `docs/CODEX_HANDOFF.md`: phase-by-phase project handoff.
   - `docs/PR_READINESS.md`: PR title/body/checklist/reviewer focus.
   - `docs/REPO_AUDIT_INDIA.md`: architecture audit and India migration plan.
@@ -158,6 +160,7 @@ Follow-up usage work:
 - Added `docs/FIRST_RUN_CHECKLIST.md` and linked it from `README_INDIA.md`, `docs/USAGE_PLAYBOOK.md`, and `docs/BEGINNER_SETUP.md`.
 - Added `indiamarketagents first-run-check` and unit tests for first-run readiness.
 - Added `indiamarketagents sample-report` and unit tests for explicit sample/UNAVAILABLE saved-report bundles.
+- Lazy-loaded `TradingAgentsGraph` so offline commands stay fast and do not import the full analysis graph until `analyze` runs.
 
 PR/publish work:
 
@@ -368,6 +371,7 @@ Commits created in this session/branch:
 - `5e7d693 docs: add first-run research checklist`
 - `dabde63 docs: confirm PR body refresh`
 - `5bd0c30 feat: add first-run readiness check`
+- `ab6c095 feat: add offline sample report workflow`
 
 ## 8. How to verify the work
 
@@ -383,8 +387,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is `5bd0c30` before committing the sample-report workflow.
-- Worktree should be clean after the sample-report workflow is committed.
+- Head is `ab6c095` before committing the offline CLI startup improvement.
+- Worktree should be clean after the offline CLI startup improvement is committed.
 
 2. Check formatting/whitespace:
 
