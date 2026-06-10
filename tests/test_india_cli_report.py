@@ -149,6 +149,36 @@ def test_first_run_checklist_keeps_provider_aware_analyze_example():
 
 
 @pytest.mark.unit
+def test_beginner_setup_uses_safe_generated_analysis_flow():
+    setup = Path("docs/BEGINNER_SETUP.md").read_text(encoding="utf-8")
+
+    assert "indiamarketagents init-env" in setup
+    assert (
+        "indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05"
+        in setup
+    )
+    assert "indiamarketagents provider-status" in setup
+    assert (
+        "indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05"
+        in setup
+    )
+    assert (
+        "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05"
+        in setup
+    )
+    assert "command that it prints" in setup
+    assert "cp .env.example.india .env" not in setup
+    assert (
+        "first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai"
+        not in setup
+    )
+    assert (
+        "analyze --ticker RELIANCE.NS --date 2026-06-05 --research-depth 1"
+        not in setup
+    )
+
+
+@pytest.mark.unit
 def test_initialize_env_file_creates_from_india_template(tmp_path):
     template = tmp_path / ".env.example.india"
     template.write_text("OPENAI_API_KEY=\nOLLAMA_BASE_URL=\n", encoding="utf-8")

@@ -43,10 +43,11 @@ py -m venv .venv
 
 ```bash
 python3 -m pip install -e ".[dev]"
-cp .env.example.india .env
+indiamarketagents init-env
 ```
 
-Open `.env` and add your API keys.
+Open `.env` and add one provider setting. For the lowest-cost local path,
+configure Ollama with `OLLAMA_BASE_URL=http://localhost:11434/v1`.
 
 For a credential-safe first research-pack workflow, see `docs/FIRST_RUN_CHECKLIST.md`.
 
@@ -61,9 +62,13 @@ indiamarketagents doctor --ticker RELIANCE.NS
 ```bash
 indiamarketagents use-case
 indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05
-indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
-indiamarketagents analyze --ticker RELIANCE.NS --date 2026-06-05 --research-depth 1 --no-display --no-save-prompt
+indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05
+indiamarketagents provider-status
+indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05
+indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05
 ```
+
+When `first-run-check` passes, run the shallow `indiamarketagents analyze` command that it prints.
 
 ## 8. Open Dashboard
 

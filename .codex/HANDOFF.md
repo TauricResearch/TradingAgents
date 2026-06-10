@@ -34,6 +34,7 @@ The session progressed through scoped phases:
 26. Auto provider preflight.
 27. Use-case generated-analyze guidance.
 28. Doctor workflow readiness.
+29. Beginner setup generated-command alignment.
 
 The branch is already pushed and a draft PR is open:
 
@@ -51,7 +52,7 @@ Current follow-up state as of 2026-06-11:
 - `.codex/HANDOFF.md` was committed as `9c3347b docs: add Codex session handoff` and pushed to `origin/india-market-agents`.
 - A draft PR remains open: https://github.com/TauricResearch/TradingAgents/pull/1002.
 - GitHub CLI PR inspection can read PR #1002, which is open, draft, and currently reports no status checks in `statusCheckRollup`.
-- GitHub PR body was updated from `docs/PR_READINESS.md` after the doctor workflow-readiness update.
+- GitHub PR body was updated from `docs/PR_READINESS.md` after the beginner setup generated-command alignment update.
 - `docs/USAGE_PLAYBOOK.md` is included in the usage-playbook docs phase.
 - `docs/FIRST_RUN_CHECKLIST.md` is included in the first-run usability phase.
 - `indiamarketagents first-run-check` is included in the first-run preflight phase.
@@ -62,6 +63,7 @@ Current follow-up state as of 2026-06-11:
 - `reports/RELIANCE.NS/2026-06-05/` now exists locally as an ignored offline sample bundle with `complete_report.md`, section files, `sources.md`, `data_quality.json`, `summary.json`, `disclaimer.md`, and `compliance.md`.
 - A passing `first-run-check` now returns and prints the exact shallow `indiamarketagents analyze` command to run next, plus the expected report path.
 - `README.md` now opens with an IndiaMarketAgents quick start before the retained upstream TradingAgents content.
+- `docs/BEGINNER_SETUP.md` now uses `init-env`, readiness commands, and the `first-run-check` generated `analyze` command instead of manual `.env` copying or a hardcoded OpenAI command.
 - `indiamarketagents use-case` now tells users to run the provider-specific `analyze` command printed by `first-run-check`, instead of hardcoding OpenAI.
 - `indiamarketagents init-env` now creates a local `.env` from `.env.example.india` only when `.env` is missing and never overwrites an existing local env file.
 - `indiamarketagents provider-status` now shows the local `.env` file path/status and checks OpenAI, Google, Anthropic, and Ollama readiness offline without printing secrets, echoing configured endpoint values, or calling endpoints.
@@ -76,16 +78,16 @@ Current follow-up state as of 2026-06-11:
 
 Latest local inspection commands:
 
-- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the doctor workflow-readiness update.
+- `git status --branch --short`: `## india-market-agents...origin/india-market-agents` before the beginner setup generated-command alignment update.
 - `git branch --show-current`: `india-market-agents`.
-- `git log -1 --oneline`: `c05182e fix: point use-case to generated analyze command` before committing the doctor workflow-readiness update.
+- `git log -1 --oneline`: `7918953 feat: include workflow readiness in doctor` before committing the beginner setup generated-command alignment update.
 - `python --version`: failed with `zsh:1: command not found: python`.
 - `python3 --version`: `Python 3.14.5`.
 
 Additional state:
 
 - `git status --branch --short`: `## india-market-agents...origin/india-market-agents` after pushing `9c3347b`.
-- Latest committed HEAD before the doctor workflow-readiness update: `c05182e fix: point use-case to generated analyze command`.
+- Latest committed HEAD before the beginner setup generated-command alignment update: `7918953 feat: include workflow readiness in doctor`.
 - Local branch tracks `origin/india-market-agents`.
 - Remotes:
   - `origin`: `https://github.com/tgabhawala-creator/TradingAgents_India.git`
@@ -98,8 +100,8 @@ Additional state:
 
 Branch scope relative to `upstream/main`:
 
-- `git rev-list --count upstream/main..HEAD`: 42 after the doctor workflow-readiness commit.
-- `git diff --stat upstream/main`: 78 files changed, 7218 insertions, 228 deletions.
+- `git rev-list --count upstream/main..HEAD`: 43 after the beginner setup generated-command alignment commit.
+- `git diff --stat upstream/main`: 78 files changed, 7274 insertions, 228 deletions.
 
 Material file changes by area:
 
@@ -110,6 +112,7 @@ Material file changes by area:
   - `README_INDIA.md`: India-specific setup, usage, disclaimers, dashboard instructions.
   - `docs/USAGE_PLAYBOOK.md`: practical first workflow and highest-value use case for using the repo.
   - `docs/FIRST_RUN_CHECKLIST.md`: credential-safe setup, first analysis, output review, and acceptance checks.
+  - `docs/BEGINNER_SETUP.md`: beginner install and first-analysis path aligned to `init-env`, readiness checks, and generated analysis commands.
   - `cli/main.py`: includes `doctor` workflow-readiness output, `first-run-check` offline preflight, and `sample-report` saved-report workflow rehearsal.
   - `cli/main.py`: lazy-loads `TradingAgentsGraph` so offline commands stay cheap.
   - `cli/main.py`: includes `use-case` guidance for the recommended first workflow.
@@ -269,6 +272,11 @@ Follow-up usage work:
 - Added doctor workflow readiness:
   - `indiamarketagents doctor` now reports provider readiness, preferred provider, saved-report bundle readiness, first-workflow readiness, and the next unfinished first-workflow step.
   - Added regression coverage for missing-provider doctor output and ready-Ollama doctor output.
+- Aligned beginner setup with generated analysis command:
+  - `docs/BEGINNER_SETUP.md` now uses `indiamarketagents init-env` instead of manual `.env` copying.
+  - The beginner first-analysis path now runs `report-status`, `provider-status`, `workflow-status`, and provider-agnostic `first-run-check`.
+  - Removed the hardcoded OpenAI preflight and static `analyze` command from the beginner path.
+  - Added regression coverage so beginner setup keeps the safe generated-command flow.
 
 PR/publish work:
 
@@ -392,7 +400,7 @@ Items intentionally left for future work:
 - Some legacy/global prompt text outside the IndiaMarketAgents path may still contain transaction-oriented vocabulary; India/default path and downstream India behavior were tightened.
 - Local ignored `__pycache__` files exist from test runs. They are not tracked and were not deleted.
 - PR #1002 is open and draft. Latest `statusCheckRollup` was empty, so no GitHub status checks were reported.
-- PR body was updated from `docs/PR_READINESS.md` after the doctor workflow-readiness update.
+- PR body was updated from `docs/PR_READINESS.md` after the beginner setup generated-command alignment update.
 - Unknown: whether upstream maintainers want this broad fork transformation in the upstream repo; PR is draft.
 
 ## 7. Commands run and results
@@ -495,9 +503,10 @@ GitHub/PR commands:
 - `python3 -m cli.main doctor --ticker RELIANCE.NS`: passed and reported the current provider setup blocker in first-workflow readiness.
 - `indiamarketagents doctor --ticker RELIANCE.NS`: passed from the installed console script and reported the same provider setup blocker.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main doctor --ticker RELIANCE.NS`: passed and reported the generated shallow `indiamarketagents analyze` command as the first-workflow next step.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 26 passed.
+- `rg -n 'cp \.env\.example\.india \.env|first-run-check --ticker RELIANCE\.NS --date 2026-06-05 --provider openai|analyze --ticker RELIANCE\.NS --date 2026-06-05 --research-depth 1' docs/BEGINNER_SETUP.md README.md README_INDIA.md docs/USAGE_PLAYBOOK.md docs/FIRST_RUN_CHECKLIST.md`: no matches after the beginner setup alignment update.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 27 passed.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 393 passed, 1 deselected, 7 warnings, 75 subtests passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -m "not integration" -q`: 394 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
 Commits created in this session/branch:
 
@@ -556,8 +565,8 @@ git rev-parse --short HEAD
 Expected:
 
 - Branch is `india-market-agents`.
-- Head is the doctor workflow-readiness commit after the latest phase is committed.
-- Worktree should be clean after the doctor workflow-readiness update is committed.
+- Head is the beginner setup generated-command alignment commit after the latest phase is committed.
+- Worktree should be clean after the beginner setup generated-command alignment update is committed.
 
 2. Check formatting/whitespace:
 
