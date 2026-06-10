@@ -12,6 +12,7 @@ from cli.main import (
     generate_sample_report,
     get_first_workflow_status,
     get_provider_setup_status,
+    get_report_status,
     get_use_case_guidance,
     initialize_env_file,
     run_doctor_checks,
@@ -217,6 +218,45 @@ def test_first_workflow_status_returns_analysis_command_when_ready(monkeypatch, 
 
 
 @pytest.mark.unit
+def test_report_status_reports_missing_saved_bundle(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    result = get_report_status(ticker="RELIANCE", analysis_date="2026-06-05")
+
+    assert result["ready"] is False
+    assert result["ticker"] == "RELIANCE.NS"
+    assert result["report_path"] == str(
+        tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
+    )
+    assert "complete_report.md" in result["missing_required"]
+    assert "sample-report --ticker RELIANCE.NS --date 2026-06-05" in result["next_step"]
+    assert result["data_quality"]["available"] is False
+    assert {artifact["status"] for artifact in result["artifacts"]} == {"missing"}
+
+
+@pytest.mark.unit
+def test_report_status_accepts_complete_sample_bundle(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    report_dir = tmp_path / "reports" / "RELIANCE.NS" / "2026-06-05"
+    generate_sample_report(
+        ticker="RELIANCE",
+        analysis_date="2026-06-05",
+        save_path=report_dir,
+    )
+
+    result = get_report_status(ticker="RELIANCE", analysis_date="2026-06-05")
+
+    assert result["ready"] is True
+    assert result["missing_required"] == []
+    assert all(artifact["status"] == "present" for artifact in result["artifacts"])
+    assert "Read disclaimer.md" in result["next_step"]
+    assert result["data_quality"]["available"] is True
+    assert result["data_quality"]["symbol"] == "RELIANCE.NS"
+    assert result["data_quality"]["section_count"] >= 1
+    assert "India Market Technical" in result["data_quality"]["unavailable_sections"]
+
+
+@pytest.mark.unit
 def test_first_run_check_requires_ollama_runtime(monkeypatch):
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
     monkeypatch.setattr(cli_main.shutil, "which", lambda command: None)
@@ -265,6 +305,7 @@ def test_use_case_guidance_names_best_workflow_and_commands():
     assert "First-pass India equity research pack" in guidance["best_use_case"]
     assert "RELIANCE.NS" in guidance["best_use_case"]
     assert any("sample-report" in command for command in guidance["commands"])
+    assert any("report-status" in command for command in guidance["commands"])
     assert any("init-env" in command for command in guidance["commands"])
     assert any("provider-status" in command for command in guidance["commands"])
     assert any("workflow-status" in command for command in guidance["commands"])
@@ -273,6 +314,7 @@ def test_use_case_guidance_names_best_workflow_and_commands():
     assert any("--provider openai" in command for command in guidance["commands"])
     assert any("Live trading" in poor_fit for poor_fit in guidance["poor_fit"])
     assert any("only when .env is missing" in note for note in guidance["notes"])
+    assert any("report-status" in note for note in guidance["notes"])
     assert any("provider-status" in note for note in guidance["notes"])
     assert any("workflow-status" in note for note in guidance["notes"])
     assert any("first-run-check passes" in note for note in guidance["notes"])

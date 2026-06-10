@@ -2053,6 +2053,132 @@ def get_first_workflow_status(
     }
 
 
+REPORT_STATUS_ARTIFACTS = (
+    ("Complete", "complete_report.md", "markdown", ()),
+    ("Technical", "1_market_technical.md", "markdown", ()),
+    ("Fundamentals", "2_fundamentals.md", "markdown", ()),
+    ("News/Filings", "3_news_filings.md", "markdown", ()),
+    ("Macro/Policy", "4_macro_policy.md", "markdown", ()),
+    ("Flows", "5_flows_positioning.md", "markdown", ()),
+    ("Sentiment", "6_sentiment.md", "markdown", ()),
+    ("Research Debate", "7_research_debate.md", "markdown", ()),
+    ("Trader Research View", "trader_research_view.md", "markdown", ()),
+    ("Risk/Compliance", "8_risk.md", "markdown", ("compliance.md", "disclaimer.md")),
+    ("Portfolio Research View", "9_portfolio_decision.md", "markdown", ()),
+    ("Sources", "sources.md", "markdown", ()),
+    ("Data Quality", "data_quality.json", "data_quality_json", ()),
+)
+
+
+def _read_saved_report_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {
+            "status": "UNAVAILABLE",
+            "warning": "Saved JSON artifact could not be parsed.",
+        }
+
+
+def get_report_status(
+    ticker: str = "RELIANCE.NS",
+    analysis_date: str = "2026-06-05",
+) -> dict:
+    """Return saved-report bundle readiness without live calls or writes."""
+    normalized_ticker = validate_india_symbol_or_raise(ticker, DEFAULT_CONFIG)
+    resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+    report_path = (
+        Path.cwd()
+        / "reports"
+        / safe_india_ticker_component(normalized_ticker)
+        / resolved_date
+    )
+
+    artifacts = []
+    for label, filename, kind, companion_files in REPORT_STATUS_ARTIFACTS:
+        artifact_path = report_path / filename
+        artifacts.append(
+            {
+                "label": label,
+                "filename": filename,
+                "kind": kind,
+                "path": str(artifact_path),
+                "status": "present" if artifact_path.exists() else "missing",
+                "required": True,
+            }
+        )
+        for companion in companion_files:
+            companion_path = report_path / companion
+            artifacts.append(
+                {
+                    "label": f"{label} companion",
+                    "filename": companion,
+                    "kind": "companion",
+                    "path": str(companion_path),
+                    "status": "present" if companion_path.exists() else "missing",
+                    "required": True,
+                }
+            )
+
+    data_quality_path = report_path / "data_quality.json"
+    data_quality = _read_saved_report_json(data_quality_path)
+    sections = data_quality.get("sections") or {}
+    section_warnings = []
+    unavailable_sections = []
+    for title, record in sections.items():
+        if record.get("status") == "unavailable" or record.get("contains_unavailable_marker"):
+            unavailable_sections.append(title)
+        for warning in record.get("warnings") or []:
+            section_warnings.append(f"{title}: {warning}")
+
+    data_quality_summary = {
+        "available": data_quality_path.exists() and bool(data_quality),
+        "symbol": data_quality.get("symbol"),
+        "market_scope": data_quality.get("market_scope"),
+        "generated_at": data_quality.get("generated_at"),
+        "section_count": len(sections),
+        "unavailable_sections": unavailable_sections,
+        "warning_count": len(section_warnings),
+        "warnings": section_warnings[:5],
+    }
+    if data_quality.get("warning") and not section_warnings:
+        data_quality_summary["warnings"] = [data_quality["warning"]]
+        data_quality_summary["warning_count"] = 1
+
+    missing_required = [
+        artifact for artifact in artifacts if artifact["required"] and artifact["status"] == "missing"
+    ]
+    ready = not missing_required
+    if ready:
+        next_step = (
+            "Read disclaimer.md, data_quality.json, sources.md, and complete_report.md; "
+            "then verify material claims against official filings or user-supplied documents."
+        )
+    elif any(artifact["filename"] == "complete_report.md" for artifact in missing_required):
+        next_step = (
+            f"Run indiamarketagents sample-report --ticker {normalized_ticker} "
+            f"--date {resolved_date}, or run analyze after first-run-check passes."
+        )
+    else:
+        next_step = (
+            "Regenerate the saved report bundle, then rerun report-status before review."
+        )
+
+    return {
+        "ready": ready,
+        "ticker": normalized_ticker,
+        "analysis_date": resolved_date,
+        "report_path": str(report_path),
+        "warnings": warnings,
+        "artifacts": artifacts,
+        "missing_required": [artifact["filename"] for artifact in missing_required],
+        "data_quality": data_quality_summary,
+        "next_step": next_step,
+    }
+
+
 def _sample_section(title: str, symbol: str) -> str:
     return (
         "SAMPLE ONLY - UNAVAILABLE: This section was generated by the offline "
@@ -2151,6 +2277,7 @@ def get_use_case_guidance() -> dict:
         ],
         "commands": [
             "indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05",
+            "indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05",
             "indiamarketagents init-env",
             "indiamarketagents provider-status",
             "indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05",
@@ -2163,6 +2290,7 @@ def get_use_case_guidance() -> dict:
         ],
         "notes": [
             "init-env creates .env from .env.example.india only when .env is missing.",
+            "report-status checks saved report artifacts before analyst review.",
             "Run provider-status before first-run-check to confirm one provider path is configured.",
             "Run workflow-status to see the next unfinished setup or first-run step.",
             "Run the analyze command only after first-run-check passes.",
@@ -2502,6 +2630,78 @@ def sample_report(
     console.print(
         "[yellow]Sample only: no live market data, filings, broker access, or "
         "LLM analysis was used.[/yellow]"
+    )
+
+
+@app.command("report-status")
+def report_status(
+    ticker: str = typer.Option(
+        "RELIANCE.NS",
+        "--ticker",
+        help="Ticker for the saved-report bundle.",
+    ),
+    analysis_date: str = typer.Option(
+        "2026-06-05",
+        "--date",
+        help="Analysis date in YYYY-MM-DD format.",
+    ),
+):
+    """Show saved-report artifact readiness without live calls or writes."""
+    try:
+        result = get_report_status(ticker=ticker, analysis_date=analysis_date)
+    except (IndiaSymbolError, IndiaCalendarError) as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    console.print(
+        Panel(
+            result["report_path"],
+            title=f"Saved Report Bundle: {result['ticker']} {result['analysis_date']}",
+            border_style="green" if result["ready"] else "yellow",
+        )
+    )
+    table = Table(title="IndiaMarketAgents Report Status", box=box.SIMPLE_HEAD)
+    table.add_column("Artifact", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("File")
+    for artifact in result["artifacts"]:
+        status = (
+            "[green]PRESENT[/green]"
+            if artifact["status"] == "present"
+            else "[yellow]MISSING[/yellow]"
+        )
+        table.add_row(artifact["label"], status, artifact["filename"])
+    console.print(table)
+
+    data_quality = result["data_quality"]
+    if data_quality["available"]:
+        summary = [
+            f"Symbol: {data_quality.get('symbol') or 'unknown'}",
+            f"Sections: {data_quality['section_count']}",
+            f"Unavailable sections: {len(data_quality['unavailable_sections'])}",
+            f"Warnings: {data_quality['warning_count']}",
+        ]
+    else:
+        summary = ["data_quality.json is missing or unavailable."]
+    console.print(
+        Panel(
+            "\n".join(summary),
+            title="Data Quality Summary",
+            border_style="green" if data_quality["available"] else "yellow",
+        )
+    )
+    if data_quality.get("warnings"):
+        warning_table = Table(title="Coverage Warnings", box=box.SIMPLE_HEAD)
+        warning_table.add_column("Warning", style="yellow")
+        for warning in data_quality["warnings"]:
+            warning_table.add_row(warning)
+        console.print(warning_table)
+    console.print(
+        Panel(
+            result["next_step"],
+            title="Next Review Step",
+            border_style="green" if result["ready"] else "yellow",
+        )
     )
 
 

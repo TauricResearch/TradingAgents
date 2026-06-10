@@ -60,11 +60,13 @@ Check the local install without making live market or LLM calls:
 indiamarketagents provider-status
 indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05
 indiamarketagents doctor --ticker RELIANCE.NS
+indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05
 indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05 --provider openai
 ```
 
 `provider-status` checks OpenAI, Google, Anthropic, and Ollama readiness without printing secrets, echoing endpoint values, or calling any endpoint. It also shows which local `.env` file it is reading.
 `workflow-status` summarizes the no-key sample-report step, provider readiness, and first-run preflight status, then prints the next unfinished step.
+`report-status` checks the saved report bundle, summarizes `data_quality.json`, and prints the first files to review without calling market data or an LLM.
 
 When `first-run-check` passes, it prints the exact shallow `analyze` command to run next.
 
@@ -117,6 +119,8 @@ Treat `sources.md` and `data_quality.json` as report-writer coverage indexes. Th
 ## Review Workflow
 
 If you do not have an LLM key yet, run `indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05` first. The output is sample/UNAVAILABLE only, but it lets you verify the saved-report and dashboard review workflow.
+
+Run `indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05` before review to confirm the saved bundle has the expected artifacts.
 
 Use this sequence:
 

@@ -3,9 +3,9 @@
 Date: 2026-06-11
 Branch: `india-market-agents`
 Base: `upstream/main`
-Branch state: 36 commits ahead of `upstream/main` after the first workflow status command commit.
+Branch state: 37 commits ahead of `upstream/main` after the saved report status command commit.
 PR status: open draft PR #1002; GitHub currently reports no status checks in `statusCheckRollup`.
-PR body: updated from this file after the first workflow status command update.
+PR body: updated from this file after the saved report status command update.
 
 ## PR Title
 
@@ -45,10 +45,11 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Updated `provider-status` to show the local `.env` path/status and avoid echoing configured `OLLAMA_BASE_URL` values.
 - Added `init-env` so fresh users can create local `.env` from `.env.example.india` without overwriting an existing env file.
 - Added `workflow-status` so users can see sample-report, provider, and first-run preflight status plus the next unfinished step.
+- Added `report-status` so users can verify saved-report artifacts and review `data_quality.json` before analyst review.
 
 ## Validation
 
-- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the first workflow status command update.
+- `git status --branch --short`: clean, `india-market-agents...origin/india-market-agents` after the saved report status command update.
 - `python --version`: failed because `python` is not on PATH.
 - `python3 --version`: Python 3.14.5.
 - `git diff --check`: passed.
@@ -86,10 +87,14 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - `python3 -m cli.main --help`: passed and listed `init-env`.
 - `indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed and reported provider setup as the next unfinished step.
 - `OLLAMA_BASE_URL=http://localhost:11434/v1 python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05`: passed and printed the generated shallow `analyze` command.
-- `python3 -m cli.main --help`: passed and listed `workflow-status`.
+- `indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05`: passed from the installed console script and showed all saved sample-report artifacts as present.
+- `python3 -m cli.main --help`: passed and listed `workflow-status` and `report-status`.
+- `python3 -m cli.main use-case`: passed and included `report-status` after `sample-report`.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_india_cli_report.py -q`: 22 passed.
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_security_compliance.py::test_user_facing_docs_do_not_advertise_order_execution tests/test_security_compliance.py::test_no_tracked_generated_reports_filings_or_bytecode -q`: 2 passed.
 - `gh pr view 1002 --repo TauricResearch/TradingAgents --json url,title,state,isDraft,baseRefName,headRefName,headRepositoryOwner,statusCheckRollup,updatedAt`: passed; PR is open, draft, and currently has no reported status checks.
 - `git grep -n -I -E 'sk-[A-Za-z0-9_-]{8,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- .` with `.env.example*` templates excluded: no matches.
-- `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with audit/test assertion files excluded: no matches.
+- `git grep -n -I -E 'sent to the simulated exchange|KiteConnect|place_order'` with handoff, PR-readiness, and test assertion files excluded: no matches.
 - `git ls-files | rg '(^reports/|^data/india/filings/|^data/india/manual/|\\.pdf$|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.log$)'`: no matches.
 - `python3 -m pytest -m "not integration" -q`: 373 passed, 1 deselected, 7 warnings, 75 subtests passed.
 
@@ -103,7 +108,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - No LLM provider is ready in this environment yet: local `.env` exists but `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, and `OLLAMA_BASE_URL` are empty; `ollama` is not on PATH.
 - The internal Python package name remains `tradingagents` to avoid disruptive import churn.
 - PR #1002 is still draft and currently has no GitHub status checks reported.
-- PR body was updated from this file after the first workflow status command update.
+- PR body was updated from this file after the saved report status command update.
 
 ## PR Checklist
 
@@ -124,6 +129,7 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - [x] Provider readiness status is available from the CLI without live calls or secret output.
 - [x] Local env initialization is available from the CLI without overwriting existing `.env`.
 - [x] First workflow status is available from the CLI without live calls.
+- [x] Saved report status is available from the CLI without live calls or writes.
 - [x] Root README routes new users to the IndiaMarketAgents quick start.
 - [ ] Optional dashboard runtime should be verified after installing `.[dashboard]`.
 - [ ] Official NSE/BSE data-source behavior should be implemented only after source/legal/access review.
@@ -133,5 +139,6 @@ The branch explicitly does not add live broker execution, broker integrations, o
 - Confirm India ticker validation and report path safety behavior.
 - Review compliance wording in README, README_INDIA, dashboard, CLI reports, and generated artifacts.
 - Review unavailable-response and data-quality treatment in India dataflows.
+- Review saved-report artifact readiness and `data_quality.json` summary behavior.
 - Review that no live broker/order execution affordance exists.
 - Review test coverage around India defaults, report artifacts, dashboard helpers, and security/compliance scans.

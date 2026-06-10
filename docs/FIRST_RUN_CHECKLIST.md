@@ -119,6 +119,20 @@ python3 -m cli.main sample-report \
 
 This writes a saved-report bundle under `reports/RELIANCE.NS/2026-06-05/` with every section marked sample/UNAVAILABLE. Use it to verify report saving and dashboard review before configuring an LLM key. Do not treat it as market research.
 
+Inspect the saved bundle without live calls:
+
+```bash
+python3 -m cli.main report-status \
+  --ticker RELIANCE.NS \
+  --date 2026-06-05
+```
+
+Expected report-status result:
+
+- It lists each required saved artifact as present or missing.
+- It summarizes `data_quality.json` and the count of unavailable sections.
+- It prints the first files to read before analyst review.
+
 Run the offline preflight first:
 
 ```bash
@@ -167,6 +181,7 @@ The repo is ready for practical use when:
 - `doctor` validates `RELIANCE.NS`.
 - Non-India tickers such as `AAPL` are rejected by default.
 - `sample-report` can generate an explicit sample/UNAVAILABLE saved-report bundle.
+- `report-status` confirms the saved-report bundle is complete before review.
 - `provider-status` shows at least one ready provider path.
 - `first-run-check` passes for the selected provider.
 - For keyed providers, at least one LLM key is detected locally.
