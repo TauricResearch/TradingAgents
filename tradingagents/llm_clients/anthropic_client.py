@@ -6,6 +6,7 @@ from langchain_anthropic import ChatAnthropic
 
 from .base_client import BaseLLMClient, normalize_content
 from .api_key_env import is_anthropic_setup_token
+from .retry import call_with_rate_limit_retry
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
@@ -37,10 +38,20 @@ class NormalizedChatAnthropic(ChatAnthropic):
     Claude models with extended thinking or tool use return content as a
     list of typed blocks. This normalizes to string for consistent
     downstream handling.
+
+    ``invoke`` is also the single funnel for every chat call in the graph
+    (plain, tool-bound, and structured-output runnables all delegate here),
+    so the long-horizon rate-limit retry wraps it rather than each agent.
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        parent_invoke = super().invoke
+        return normalize_content(
+            call_with_rate_limit_retry(
+                lambda: parent_invoke(input, config, **kwargs),
+                description=self.model,
+            )
+        )
 
 
 class AnthropicClient(BaseLLMClient):

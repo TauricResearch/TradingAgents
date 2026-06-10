@@ -83,6 +83,32 @@ def test_explicit_base_url_overrides_env(monkeypatch):
     assert "env-set" not in str(llm.openai_api_base)
 
 
+def test_native_openai_root_base_url_normalizes_to_v1():
+    """OpenAI Responses API calls must go to /v1/responses, not /responses."""
+    mod = _reload_client()
+    client = mod.OpenAIClient(
+        model="gpt-5.5",
+        provider="openai",
+        base_url="https://api.openai.com",
+        api_key="placeholder",
+    )
+    llm = client.get_llm()
+    assert str(llm.root_client.base_url) == "https://api.openai.com/v1/"
+
+
+def test_native_openai_custom_base_url_is_not_modified():
+    """Custom OpenAI-compatible gateways keep their configured path."""
+    mod = _reload_client()
+    client = mod.OpenAIClient(
+        model="gpt-5.5",
+        provider="openai",
+        base_url="https://gateway.example.test/openai",
+        api_key="placeholder",
+    )
+    llm = client.get_llm()
+    assert str(llm.root_client.base_url) == "https://gateway.example.test/openai/"
+
+
 # ---- cli.utils side: select_llm_provider dropdown -------------------------
 
 

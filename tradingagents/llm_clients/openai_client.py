@@ -1,5 +1,6 @@
 import os
 from typing import Any, Optional
+from urllib.parse import urlparse, urlunparse
 
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
@@ -7,6 +8,7 @@ from langchain_openai import ChatOpenAI
 from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
+from .retry import call_with_rate_limit_retry
 from .validators import validate_model
 
 
@@ -30,7 +32,15 @@ class NormalizedChatOpenAI(ChatOpenAI):
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        # Single funnel for plain, tool-bound, and structured calls alike;
+        # the long-horizon rate-limit retry therefore lives here.
+        parent_invoke = super().invoke
+        return normalize_content(
+            call_with_rate_limit_retry(
+                lambda: parent_invoke(input, config, **kwargs),
+                description=self.model_name,
+            )
+        )
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)
@@ -167,6 +177,17 @@ _PROVIDER_BASE_URL = {
 }
 
 
+def _normalize_native_openai_base_url(base_url: Optional[str]) -> Optional[str]:
+    """Accept OpenAI's API root as shorthand for the SDK's /v1 base URL."""
+    if not base_url:
+        return base_url
+
+    parsed = urlparse(base_url)
+    if parsed.netloc == "api.openai.com" and parsed.path.rstrip("/") == "":
+        return urlunparse(parsed._replace(path="/v1"))
+    return base_url
+
+
 def _resolve_provider_base_url(provider: str) -> Optional[str]:
     """Default base URL for ``provider``, with env-var overrides where defined.
 
@@ -226,7 +247,10 @@ class OpenAIClient(BaseLLMClient):
             else:
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:
-            llm_kwargs["base_url"] = self.base_url
+            if self.provider == "openai":
+                llm_kwargs["base_url"] = _normalize_native_openai_base_url(self.base_url)
+            else:
+                llm_kwargs["base_url"] = self.base_url
 
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:

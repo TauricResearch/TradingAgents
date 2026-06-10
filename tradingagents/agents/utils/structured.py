@@ -8,9 +8,14 @@ canonical pattern:
    not support structured output (rare; mostly older Ollama models), the
    wrap is skipped and the agent uses free-text generation instead.
 2. At invocation, run the structured call and render the result back to
-   markdown. If the structured call itself fails for any reason
-   (malformed JSON from a weak model, transient provider issue), fall
+   markdown. If the structured call itself fails for an output-shaped
+   reason (malformed JSON from a weak model, schema rejection), fall
    back to a plain ``llm.invoke`` so the pipeline never blocks.
+   Rate-limit errors are the one exception: they re-raise instead of
+   falling back, because by the time a 429/529 escapes the retry layer
+   in ``llm_clients.retry`` the provider is saturated (or the account
+   is out of credits) and the free-text request would fail identically
+   — masking the real error behind a second, slower one.
 
 Centralising the pattern here keeps the agent factories small and ensures
 all three agents log the same warnings when fallback fires.
@@ -22,6 +27,8 @@ import logging
 from typing import Any, Callable, Optional, TypeVar
 
 from pydantic import BaseModel
+
+from tradingagents.llm_clients.retry import is_rate_limit_error
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +71,11 @@ def invoke_structured_or_freetext(
             result = structured_llm.invoke(prompt)
             return render(result)
         except Exception as exc:
+            if is_rate_limit_error(exc):
+                # Capacity or billing, not an output-format problem: the
+                # free-text request would hit the same wall after another
+                # full retry cycle. Surface the real error instead.
+                raise
             logger.warning(
                 "%s: structured-output invocation failed (%s); retrying once as free text",
                 agent_name, exc,
