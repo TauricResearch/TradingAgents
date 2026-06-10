@@ -75,6 +75,20 @@ class TestAlphaVantageRequest(unittest.TestCase):
             result = av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
         self.assertEqual(result, csv_text)
 
+    def test_unexpected_json_shape_passes_through(self):
+        body = json.dumps(["unexpected", "payload"])
+        with mock.patch.object(av, "get_api_key", return_value="demo"), \
+                mock.patch.object(av.requests, "get", return_value=_FakeResponse(body)):
+            result = av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+        self.assertEqual(result, body)
+
+    def test_non_string_information_passes_through(self):
+        body = json.dumps({"Information": {"message": "Invalid API key"}})
+        with mock.patch.object(av, "get_api_key", return_value="demo"), \
+                mock.patch.object(av.requests, "get", return_value=_FakeResponse(body)):
+            result = av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+        self.assertEqual(result, body)
+
 
 if __name__ == "__main__":
     unittest.main()

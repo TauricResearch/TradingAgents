@@ -89,7 +89,7 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
     try:
         response_json = json.loads(response_text)
         # Alpha Vantage returns soft errors as JSON under "Information".
-        if "Information" in response_json:
+        if isinstance(response_json, dict) and isinstance(response_json.get("Information"), str):
             info_message = response_json["Information"]
             lowered = info_message.lower()
             # Check rate limit first: throttling messages can also mention the
