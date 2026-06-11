@@ -15,10 +15,14 @@
 #     is inlined into the bash -c string below.
 #
 # Usage:
-#   bash .claude/run_missing_today.sh                 # all missing tickers, 20-wide
-#   CONCURRENCY=8 bash .claude/run_missing_today.sh    # override concurrency
-#   TRADINGAGENTS_DATE=2026-06-01 bash .claude/run_missing_today.sh
-#   bash .claude/run_missing_today.sh NVDA AMD TSLA    # explicit ticker list
+#   bash scripts/run_missing_today.sh                  # all missing tickers, 5-wide
+#   CONCURRENCY=8 bash scripts/run_missing_today.sh    # override concurrency
+#   TRADINGAGENTS_DATE=2026-06-01 bash scripts/run_missing_today.sh
+#   bash scripts/run_missing_today.sh NVDA AMD TSLA    # explicit ticker list
+#
+# Rate-limit pacing: export TRADINGAGENTS_LLM_RPM=$((QUOTA / CONCURRENCY)) to
+# divide the provider's request quota across the parallel workers (each run
+# paces itself; the limiter is per-process and cannot see its siblings).
 
 set -uo pipefail
 
@@ -27,7 +31,7 @@ ROOT="$(pwd)"
 
 DATE="${TRADINGAGENTS_DATE:-$(date +%F)}"
 DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder prefix)
-CONCURRENCY="${CONCURRENCY:-20}"               # 20 is the verified-safe default; >20 risks 429
+CONCURRENCY="${CONCURRENCY:-5}"                # 5 ran clean; 20 tripped HTTP 429 ("Current limit: 50")
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs}"
 mkdir -p "$LOGDIR"
 
@@ -64,8 +68,8 @@ run_pass() {
         --ticker "$t" --date "$DATE" \
         --analysts market,social,news,fundamentals \
         --depth 5 --language English \
-        --provider openai \
-        --deep-model gpt-5.5 --quick-model gpt-5.5 \
+        --provider anthropic \
+        --deep-model claude-fable-5 --quick-model claude-kaiku-4-5 \
         --checkpoint --clear-checkpoints \
         > "${LOGDIR}/${t}.log" 2>&1 \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"
@@ -109,12 +113,12 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
 fi
 
 # --- regenerate docs indices + build the static site (per skill.md) -------
-if [ "${TA_BUILD_SITE:-1}" = "1" ]; then
-  echo "Rebuilding reports site..."
-  # Backfill complete_report.md for any run interrupted after its stages were
-  # written but before consolidation; otherwise the index links a missing file
-  # and `mkdocs build --strict` fails.
-  uv run python scripts/reassemble_complete_reports.py \
-    && uv run python scripts/build_reports_site.py \
-    && uv run mkdocs build --clean
-fi
+# if [ "${TA_BUILD_SITE:-1}" = "1" ]; then
+#   echo "Rebuilding reports site..."
+#   # Backfill complete_report.md for any run interrupted after its stages were
+#   # written but before consolidation; otherwise the index links a missing file
+#   # and `mkdocs build --strict` fails.
+#   uv run python scripts/reassemble_complete_reports.py \
+#     && uv run python scripts/build_reports_site.py \
+#     && uv run mkdocs build --clean
+# fi

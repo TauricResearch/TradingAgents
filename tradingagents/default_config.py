@@ -20,6 +20,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_TIMEOUT":          "llm_timeout",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
+    "TRADINGAGENTS_LLM_RPM":              "llm_requests_per_minute",
 }
 
 
@@ -86,6 +87,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # TRADINGAGENTS_LLM_MAX_RETRIES.
     "llm_timeout": 600.0,
     "llm_max_retries": 5,
+    # Proactive request pacing: cap on LLM requests per minute for this
+    # process (deep + quick combined). None disables pacing. The limiter is
+    # in-memory and per-process, so parallel batch runs must divide the
+    # provider quota themselves: TRADINGAGENTS_LLM_RPM = quota / concurrency.
+    # The reactive 429 retry in llm_clients/retry.py remains the backstop.
+    "llm_requests_per_minute": None,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

@@ -12,7 +12,7 @@ from .validators import validate_model
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "api_key", "max_tokens", "temperature",
     "callbacks", "http_client", "http_async_client", "effort",
-    "default_headers",
+    "default_headers", "rate_limiter",
 )
 
 # Anthropic's extended-thinking ``effort`` parameter is accepted by Opus 4.5+
@@ -32,6 +32,66 @@ def _supports_effort(model: str) -> bool:
     return model_lc in _EFFORT_EXACT or bool(_EFFORT_PATTERN.match(model_lc))
 
 
+# Block types that may carry ``cache_control`` per the Anthropic prompt-caching
+# docs. thinking/redacted_thinking blocks reject the field, so the marker is
+# placed on the last *eligible* block, not blindly on the last block.
+_CACHE_ELIGIBLE_BLOCK_TYPES = frozenset(
+    {"text", "image", "tool_use", "tool_result", "document"}
+)
+
+
+def _cache_disabled() -> bool:
+    # Read at call time (same convention as the retry.py env knobs) so batch
+    # scripts can flip it without re-importing.
+    return os.environ.get("TRADINGAGENTS_ANTHROPIC_CACHE", "1").strip().lower() in (
+        "0", "false", "no", "off",
+    )
+
+
+def _mark_last_eligible_block(blocks: list) -> None:
+    for block in reversed(blocks):
+        if isinstance(block, dict) and block.get("type") in _CACHE_ELIGIBLE_BLOCK_TYPES:
+            block.setdefault("cache_control", {"type": "ephemeral"})
+            return
+
+
+def _as_block_list(content):
+    """String content as a one-text-block list; lists pass through unchanged."""
+    if isinstance(content, str) and content:
+        return [{"type": "text", "text": content}]
+    return content
+
+
+def _inject_cache_control(payload: dict) -> None:
+    """Add prompt-cache breakpoints to a finished Messages API payload.
+
+    Two of the four allowed breakpoints are used:
+
+    * the last system block — tools and system render before messages, so this
+      caches the whole static prefix (analyst instructions, debate-round
+      report blobs) that is resent verbatim on every call;
+    * the last eligible block of the final message — a sliding breakpoint, so
+      growing message lists (analyst tool loops, multi-turn debates) hit the
+      cache incrementally via Anthropic's previous-breakpoint lookback.
+
+    ``setdefault`` keeps the injection idempotent and never overrides a
+    marker a caller placed deliberately. Payloads below the model's minimum
+    cacheable size are marked too — the API just skips caching them.
+    """
+    system = _as_block_list(payload.get("system"))
+    if isinstance(system, list) and system:
+        payload["system"] = system
+        _mark_last_eligible_block(system)
+
+    messages = payload.get("messages") or []
+    if messages:
+        last = messages[-1]
+        content = _as_block_list(last.get("content"))
+        if isinstance(content, list) and content:
+            last["content"] = content
+            _mark_last_eligible_block(content)
+
+
 class NormalizedChatAnthropic(ChatAnthropic):
     """ChatAnthropic with normalized content output.
 
@@ -42,6 +102,14 @@ class NormalizedChatAnthropic(ChatAnthropic):
     ``invoke`` is also the single funnel for every chat call in the graph
     (plain, tool-bound, and structured-output runnables all delegate here),
     so the long-horizon rate-limit retry wraps it rather than each agent.
+
+    ``_get_request_payload`` is likewise the single funnel for the outgoing
+    request body (sync/async, generate and stream alike), so prompt-cache
+    breakpoints are injected there — agents stay provider-neutral. The
+    override-the-payload pattern matches DeepSeekChatOpenAI /
+    MinimaxChatOpenAI in openai_client.py. Disable with
+    ``TRADINGAGENTS_ANTHROPIC_CACHE=0`` if a langchain-anthropic upgrade
+    ever changes the payload contract.
     """
 
     def invoke(self, input, config=None, **kwargs):
@@ -52,6 +120,12 @@ class NormalizedChatAnthropic(ChatAnthropic):
                 description=self.model,
             )
         )
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        if not _cache_disabled():
+            _inject_cache_control(payload)
+        return payload
 
 
 class AnthropicClient(BaseLLMClient):

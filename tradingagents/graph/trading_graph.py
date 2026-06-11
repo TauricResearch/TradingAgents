@@ -11,6 +11,7 @@ import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
+from langchain_core.rate_limiters import InMemoryRateLimiter
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.llm_clients import create_llm_client
@@ -47,6 +48,29 @@ from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
+
+
+def _build_rate_limiter(rpm) -> Optional[InMemoryRateLimiter]:
+    """Limiter for ``llm_requests_per_minute``; None/empty/<=0 disables it.
+
+    One instance is shared by the deep and quick clients so the cap is a
+    per-process total — provider quotas (e.g. the gateway's 50 req/min) apply
+    to the whole key, not per model. The limiter cannot see sibling
+    processes: parallel batch runs must set TRADINGAGENTS_LLM_RPM to
+    quota / concurrency.
+    """
+    if rpm is None or rpm == "":
+        return None
+    rpm = float(rpm)
+    if rpm <= 0:
+        return None
+    return InMemoryRateLimiter(
+        requests_per_second=rpm / 60.0,
+        check_every_n_seconds=0.5,
+        # A bucket below 1 would never accumulate a full token and no
+        # request could ever start.
+        max_bucket_size=max(1.0, rpm / 60.0),
+    )
 
 
 class TradingAgentsGraph:
@@ -171,6 +195,12 @@ class TradingAgentsGraph:
         max_retries = self.config.get("llm_max_retries")
         if max_retries is not None and max_retries != "":
             kwargs["max_retries"] = int(max_retries)
+
+        # Proactive pacing on top of the reactive 429 retry: both clients get
+        # the same limiter instance, capping the process's total request rate.
+        rate_limiter = _build_rate_limiter(self.config.get("llm_requests_per_minute"))
+        if rate_limiter is not None:
+            kwargs["rate_limiter"] = rate_limiter
 
         return kwargs
 

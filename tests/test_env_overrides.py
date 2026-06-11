@@ -68,6 +68,13 @@ def test_bool_coercion(monkeypatch, raw, expected):
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is expected
 
 
+def test_llm_rpm_override(monkeypatch):
+    """The default is None, so the value stays a string — the consumer
+    (_build_rate_limiter) coerces, same as TRADINGAGENTS_TEMPERATURE."""
+    dc = _reload_with_env(monkeypatch, TRADINGAGENTS_LLM_RPM="30")
+    assert dc.DEFAULT_CONFIG["llm_requests_per_minute"] == "30"
+
+
 def test_empty_env_value_is_passthrough(monkeypatch):
     """Empty TRADINGAGENTS_* values must not clobber the built-in default."""
     dc = _reload_with_env(

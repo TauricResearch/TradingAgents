@@ -24,7 +24,10 @@ def create_bear_researcher(llm):
             else "Asset fundamentals report (may be unavailable for crypto)"
         )
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the {target_label}. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        # The system message must stay byte-identical across debate rounds —
+        # it is the prompt-cache prefix (reports dominate the token count).
+        # Everything that changes per round goes in the human message.
+        system = f"""You are a Bear Analyst making the case against investing in the {target_label}. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 
 Key points to focus on:
 
@@ -41,12 +44,17 @@ Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bull argument: {current_response}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the {target_label}.
 """ + get_language_instruction()
 
-        response = llm.invoke(prompt)
+        human = (
+            f"Conversation history of the debate:\n"
+            f"{history or '(the debate has not started yet)'}\n\n"
+            f"Last bull argument:\n"
+            f"{current_response or '(none yet — present your opening argument)'}"
+        )
+
+        response = llm.invoke([("system", system), ("human", human)])
 
         argument = f"Bear Analyst: {response.content}"
 
