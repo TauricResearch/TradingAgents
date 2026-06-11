@@ -42,6 +42,15 @@ class FakePropagate:
             "ticker": ticker,
             "trade_date": trade_date,
             "decision": {"action": "BUY", "target": 100.0},
+            "final_state": {
+                "market_report": "Market indicators show bullish momentum.",
+                "sentiment_report": "Social sentiment is positive.",
+                "news_report": "No significant news events.",
+                "fundamentals_report": "Strong fundamentals with growing revenue.",
+                "investment_plan": "**Recommendation**: Buy\nStrong growth potential.",
+                "trader_investment_plan": "**Action**: Buy\nPosition at 5% of portfolio.",
+                "final_trade_decision": "**Final Decision**: BUY\n\nStrong buy signal across all indicators.",
+            },
         }
 
     def _write_fake_run(self, ticker: str, trade_date: str) -> None:
