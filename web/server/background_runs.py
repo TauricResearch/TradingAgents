@@ -20,8 +20,19 @@ def _call_propagate(ticker: str, trade_date: str) -> dict:
     """Default propagator. The fake_propagate fixture patches this symbol."""
     from tradingagents.graph.trading_graph import TradingAgentsGraph
     graph = TradingAgentsGraph()
-    final_state, _ = graph.propagate(ticker, trade_date)
-    return {"ticker": ticker, "trade_date": trade_date, "decision": final_state.get("decision", {})}
+    final_state, final_signal = graph.propagate(ticker, trade_date)
+    # Parse the decision using the same logic as the normal runner
+    # (runner._parse_pm_decision) so background runs get the same
+    # decision_action / decision_target / decision_rationale /
+    # decision_confidence fields as interactive runs.
+    from web.server.runner import _parse_pm_decision
+    decision = _parse_pm_decision(final_state or {}, final_signal or "")
+    return {
+        "ticker": ticker,
+        "trade_date": trade_date,
+        "decision": decision,
+        "final_state": final_state,
+    }
 
 
 _EVERY_OPTIONS = {"1d", "1w", "2w", "1mo"}
@@ -244,6 +255,7 @@ class _IterationResult:
     date_iso: str
     duration_s: float
     decision: Optional[dict] = None
+    final_state: Optional[dict] = None
 
 
 import logging
@@ -335,7 +347,8 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
                         _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
                     else:
                         _record_run(state.ticker, date_iso, result.decision,
-                                    result.duration_s, state.job_id, idx)
+                                    result.duration_s, state.job_id, idx,
+                                    final_state=result.final_state)
                         state.record_duration(result.duration_s)
                     with state._persist_lock:
                         state.current_index += 1
@@ -352,7 +365,8 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
                     _record_iteration_error(state, date_iso, f"{type(exc).__name__}: {exc}")
                 else:
                     _record_run(state.ticker, date_iso, result.decision,
-                                result.duration_s, state.job_id, idx)
+                                result.duration_s, state.job_id, idx,
+                                final_state=result.final_state)
                     state.record_duration(result.duration_s)
                 with state._persist_lock:
                     state.current_index += 1
@@ -370,18 +384,69 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
     state.persist()
 
 
+def _fetch_close_price(ticker: str, date_iso: str) -> tuple[Optional[float], Optional[str]]:
+    """Fetch the last closing price for (ticker, date_iso) from market data.
+
+    Background runs have no live price feed, so we fetch the close from
+    OHLCV data (typically already cached by the graph run).  Returns
+    ``(None, None)`` on any failure so the caller still produces a valid
+    run even when price lookup fails.
+    """
+    from tradingagents.dataflows.stockstats_utils import load_ohlcv
+    from tradingagents.dataflows.symbol_utils import NoMarketDataError
+
+    try:
+        df = load_ohlcv(ticker, date_iso)
+        if df is not None and not df.empty and "Close" in df.columns:
+            close = float(df["Close"].iloc[-1])
+            ts = f"{date_iso}T20:00:00Z"  # approximate market close
+            log.info("_fetch_close_price: %s on %s = %.2f @ %s", ticker, date_iso, close, ts)
+            return close, ts
+        log.warning("_fetch_close_price: %s on %s — no Close column (df=%s)",
+                     ticker, date_iso,
+                     "empty" if df is None or df.empty else f"cols={list(df.columns)})")
+    except NoMarketDataError:
+        log.warning("_fetch_close_price: %s on %s — NoMarketDataError (no data from yahoo)", ticker, date_iso)
+    except Exception as exc:
+        log.warning("_fetch_close_price: %s on %s — %s: %s", ticker, date_iso, type(exc).__name__, exc)
+    return None, None
+
+
 def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s: float,
-                background_job_id: str, background_iteration_index: int) -> None:
+                background_job_id: str, background_iteration_index: int,
+                final_state: Optional[dict] = None) -> None:
     """Create a standard run directory + run.json for a completed iteration.
 
     Uses ``storage.create_run_dir`` so that the history endpoint
     (``list_ticker_runs``) finds the run.  The ``trade_date`` field allows
     ``_has_done_run`` to detect duplicates for resume-safety.
-    """
-    from web.server import storage  # defer to avoid early import side-effects
 
-    run_info = storage.create_run_dir(ticker)
+    When ``final_state`` is provided, also writes stage files and events
+    so background runs have the same persisted data as interactive runs.
+    """
+    from web.server import events as _events  # defer import
+    from web.server import storage  # defer to avoid early import side-effects
+    from tradingagents.default_config import DEFAULT_CONFIG  # for model info
+
+    # Use the trade date as the started_at so the slug is meaningful
+    # (e.g. "2026-06-01_03-00-00_IDT") and matches historical expectations.
+    trade_dt = datetime.fromisoformat(date_iso).replace(tzinfo=timezone.utc)
+
+    # Fetch close price from market data (background runs don't have a
+    # live price feed, so we look up the historical close).
+    start_price, start_price_at = _fetch_close_price(ticker, date_iso)
+
+    run_info = storage.create_run_dir(
+        ticker,
+        started_at=trade_dt,
+        llm_provider=DEFAULT_CONFIG.get("llm_provider"),
+        deep_think_model=DEFAULT_CONFIG.get("deep_think_llm"),
+        quick_think_model=DEFAULT_CONFIG.get("quick_think_llm"),
+        start_price=start_price,
+        start_price_at=start_price_at,
+    )
     run_dir = run_info["run_dir"]
+    run_id = run_info["run_id"]
     rj_path = run_dir / "run.json"
     data = json.loads(rj_path.read_text(encoding="utf-8"))
 
@@ -391,6 +456,8 @@ def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s
     data["trade_date"] = date_iso
     data["background_run_id"] = background_job_id
     data["background_run_iteration_index"] = background_iteration_index
+    log.info("_record_run: %s/%s start_price=%s start_price_at=%s",
+             ticker, date_iso, data.get("start_price"), data.get("start_price_at"))
     dec = decision or {}
     data["decision_action"] = dec.get("action")
     data["decision_target"] = dec.get("target")
@@ -409,6 +476,76 @@ def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s
             os.unlink(tmp)
         raise
 
+    # ---- persist stage files + events from final_state ----
+    if final_state is None:
+        return
+
+    # Map stage names to the report field in final_state.
+    _STAGE_REPORT_MAP = {
+        "market": "market_report",
+        "sentiment": "sentiment_report",
+        "news": "news_report",
+        "fundamentals": "fundamentals_report",
+        "research": "investment_plan",
+        "trader": "trader_investment_plan",
+        "risk": "final_trade_decision",
+    }
+
+    # Write stage files and emit completion events for every stage
+    # whose report is present and non-empty in final_state.
+    for stage_name, report_field in _STAGE_REPORT_MAP.items():
+        report_text = (final_state.get(report_field) or "")
+        if not report_text:
+            # Try nested path for research/risk debate sub-stages
+            if stage_name == "research":
+                bs = (final_state.get("investment_debate_state") or {}).get("judge_decision")
+                report_text = bs or ""
+            elif stage_name == "risk":
+                rds = (final_state.get("risk_debate_state") or {}).get("judge_decision")
+                report_text = rds or ""
+        if not report_text:
+            continue
+
+        excerpt = report_text[:200] + "\u2026" if len(report_text) > 200 else report_text
+        storage.write_stage(
+            run_id,
+            stage_name,
+            {
+                "stage": stage_name,
+                "state_key": report_field,
+                "completed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "value": report_text,
+            },
+        )
+        # Emit an analyst_completed event for this stage so the UI's
+        # timeline and restore-from-disk paths can pick it up.
+        # Note: using string keys matching the WS protocol (same as runner.py).
+        _events.emit(run_id, _events.EventType.ANALYST_COMPLETED, {
+            "stage": stage_name,
+            "summary": "completed",
+            "report_excerpt": excerpt,
+            "report_text": report_text,
+        })
+
+    # Emit the decision event so the dashboard can display it.
+    _events.emit(run_id, "decision", {
+        "action": dec.get("action"),
+        "target": dec.get("target"),
+        "rationale": dec.get("rationale"),
+        "confidence": dec.get("confidence"),
+    })
+
+    # Emit run_finished.
+    summary_by_stage = {}
+    for s, field in _STAGE_REPORT_MAP.items():
+        report = (final_state.get(field) or "")
+        if report:
+            summary_by_stage[s] = report[:200]
+    _events.emit(run_id, "run_finished", {
+        "duration_s": duration_s,
+        "summary_by_stage": summary_by_stage,
+    })
+
 
 def _run_one(ticker: str, date_iso: str) -> _IterationResult:
     """Call propagate() for a single (ticker, date). Measure wall-clock time.
@@ -417,11 +554,14 @@ def _run_one(ticker: str, date_iso: str) -> _IterationResult:
     out = _call_propagate(ticker, date_iso)
     duration_s = time.monotonic() - t0
     decision = None
+    final_state = None
     if isinstance(out, dict):
         decision = out.get("decision")
+        final_state = out.get("final_state")
     return _IterationResult(
         ticker=ticker, date_iso=date_iso,
         duration_s=duration_s, decision=decision,
+        final_state=final_state,
     )
 
 

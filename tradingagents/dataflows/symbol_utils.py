@@ -110,6 +110,17 @@ def normalize_symbol(raw: str) -> str:
     # Broker CFD/qualifier suffixes Yahoo never uses.
     s = s.rstrip("+")
 
+    # Strip exchange prefixes that LLMs sometimes hallucinate from
+    # instrument context (e.g. "Exchange: NMS" → agent passes
+    # "NMS:NVDA" as the ticker).  Colons are never valid in Yahoo
+    # Finance symbols, so removing an alphabetic prefix before a
+    # colon is always safe.
+    if ":" in s:
+        parts = s.split(":", 1)
+        if parts[0].isalpha():
+            s = parts[1]
+            logger.info("Stripped exchange prefix from symbol %r → %r", raw, s)
+
     if s in _ALIASES:
         canonical = _ALIASES[s]
     elif len(s) == 6 and s[:3] in _CRYPTO_BASES and s[3:] == "USD":
