@@ -1,10 +1,19 @@
+
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .stockstats_utils import (
+    StockstatsUtils,
+    StaleMarketDataError,
+    _assert_ohlcv_not_stale,
+    _clean_dataframe,
+    yf_retry,
+    load_ohlcv,
+    filter_financials_by_date,
+)
 from .symbol_utils import normalize_symbol, NoMarketDataError
 
 def get_YFin_data_online(
@@ -32,8 +41,18 @@ def get_YFin_data_online(
         )
 
     # Remove timezone info from index for cleaner output
+    # Remove timezone info from index for cleaner output
     if data.index.tz is not None:
         data.index = data.index.tz_localize(None)
+
+    freshness_data = _clean_dataframe(data.reset_index())
+
+    try:
+        _assert_ohlcv_not_stale(freshness_data, end_date, symbol)
+    except StaleMarketDataError as e:
+        return f"Stale market data for symbol '{symbol}': {e}"
+
+    # Round numerical values to 2 decimal places for cleaner display
 
     # Round numerical values to 2 decimal places for cleaner display
     numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
@@ -168,9 +187,10 @@ def get_stock_stats_indicators_window(
         ind_string = ""
         for date_str, value in date_values:
             ind_string += f"{date_str}: {value}\n"
-
     except NoMarketDataError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
+    except StaleMarketDataError as e:
+        return f"Stale market data for symbol '{symbol}': {e}"
     except Exception as e:
         print(f"Error getting bulk stockstats data: {e}")
         # Fallback to original implementation if bulk method fails
@@ -246,6 +266,8 @@ def get_stockstats_indicator(
         )
     except NoMarketDataError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
+    except StaleMarketDataError as e:
+        return f"Stale market data for symbol '{symbol}': {e}"
     except Exception as e:
         print(
             f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"

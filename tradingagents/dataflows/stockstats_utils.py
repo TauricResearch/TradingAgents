@@ -13,6 +13,12 @@ from .symbol_utils import normalize_symbol, NoMarketDataError
 
 logger = logging.getLogger(__name__)
 
+MAX_OHLCV_STALE_DAYS = 10
+
+
+class StaleMarketDataError(ValueError):
+    """Raised when latest OHLCV data is too old for the requested analysis date."""
+
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
     """Execute a yfinance call with exponential backoff on rate limits.
@@ -27,7 +33,10 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
         except YFRateLimitError:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                logger.warning(
+                    f"Yahoo Finance rate limited, retrying in {delay:.0f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(delay)
             else:
                 raise
@@ -62,6 +71,60 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+def _coerce_ohlcv_dates(data: pd.DataFrame) -> pd.Series:
+    """Return parsed OHLCV dates from a DataFrame that may have Date as index or column."""
+    df = data.copy()
+
+    if "Date" not in df.columns:
+        df = df.reset_index()
+
+    if "Date" not in df.columns and len(df.columns) > 0:
+        df = df.rename(columns={df.columns[0]: "Date"})
+
+    if "Date" not in df.columns:
+        return pd.Series(dtype="datetime64[ns]")
+
+    return pd.to_datetime(df["Date"], errors="coerce").dropna()
+
+
+def _assert_ohlcv_not_stale(
+    data: pd.DataFrame,
+    curr_date: str,
+    symbol: str,
+    *,
+    max_stale_days: int = MAX_OHLCV_STALE_DAYS,
+) -> None:
+    """Reject OHLCV data when the latest row is too far before curr_date."""
+    if data is None or data.empty:
+        raise StaleMarketDataError(
+            f"No OHLCV rows available for {symbol} on or before {curr_date}."
+        )
+
+    requested_date = pd.to_datetime(curr_date, errors="coerce")
+
+    if pd.isna(requested_date):
+        raise ValueError(f"Invalid current date for OHLCV freshness check: {curr_date}")
+
+    requested_date = requested_date.normalize()
+    dates = _coerce_ohlcv_dates(data)
+
+    if dates.empty:
+        raise StaleMarketDataError(
+            f"No valid OHLCV dates available for {symbol} on or before {curr_date}."
+        )
+
+    latest_date = dates.max().normalize()
+    stale_days = (requested_date - latest_date).days
+
+    if stale_days > max_stale_days:
+        raise StaleMarketDataError(
+            f"Latest OHLCV row for {symbol} is stale: latest row is "
+            f"{latest_date.date()}, requested analysis date is "
+            f"{requested_date.date()} ({stale_days} calendar days old). "
+            "Refusing to use stale market data."
+        )
+
+
 def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
 
@@ -78,7 +141,6 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date)
 
-    # Cache uses a fixed window (15y to today) so one file per symbol
     today_date = pd.Timestamp.today()
     start_date = today_date - pd.DateOffset(years=5)
     start_str = start_date.strftime("%Y-%m-%d")
@@ -122,6 +184,8 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     # Filter to curr_date to prevent look-ahead bias in backtesting
     data = data[data["Date"] <= curr_date_dt]
 
+    _assert_ohlcv_not_stale(data, curr_date, symbol)
+
     return data
 
 
@@ -155,7 +219,7 @@ class StockstatsUtils:
         df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
         curr_date_str = pd.to_datetime(curr_date).strftime("%Y-%m-%d")
 
-        df[indicator]  # trigger stockstats to calculate the indicator
+        df[indicator]
         matching_rows = df[df["Date"].str.startswith(curr_date_str)]
 
         if not matching_rows.empty:
