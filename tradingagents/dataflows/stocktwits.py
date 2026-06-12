@@ -14,6 +14,7 @@ network call succeeded.
 
 from __future__ import annotations
 
+import http.client
 import json
 import logging
 from datetime import datetime, timezone
@@ -40,7 +41,7 @@ def fetch_stocktwits_messages(ticker: str, limit: int = 30, timeout: float = 10.
     try:
         with urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read())
-    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
+    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError, http.client.HTTPException) as exc:
         logger.warning("StockTwits fetch failed for %s: %s", ticker, exc)
         return f"<stocktwits unavailable: {type(exc).__name__}>"
 

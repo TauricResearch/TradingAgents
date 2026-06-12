@@ -18,6 +18,7 @@ rather than raising, so callers never special-case missing data.
 from __future__ import annotations
 
 import html
+import http.client
 import json
 import logging
 import re
@@ -94,7 +95,7 @@ def _fetch_subreddit_rss(
     try:
         with urlopen(req, timeout=timeout) as resp:
             root = ET.fromstring(resp.read())
-    except (HTTPError, URLError, TimeoutError, ET.ParseError) as exc:
+    except (HTTPError, URLError, TimeoutError, ET.ParseError, http.client.HTTPException) as exc:
         logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
         return []
 
@@ -129,7 +130,7 @@ def _fetch_subreddit(
             payload = json.loads(resp.read())
         children = (payload.get("data") or {}).get("children") or []
         return [c.get("data", {}) for c in children if isinstance(c, dict)]
-    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
+    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError, http.client.HTTPException) as exc:
         logger.warning(
             "Reddit JSON fetch failed for r/%s · %s: %s — falling back to RSS feed.",
             sub, ticker, exc,
