@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { barsInWindow, computeVerdict, computeStats, type Bar, type RunLike } from "./verdicts";
+import { barsInWindow, computeVerdict, computeStats, findNearestBar, computeAccuracyCurve, ACCURACY_DELTAS, type Bar, type RunLike } from "./verdicts";
 
 const t0 = "2026-06-01T12:00:00Z";
 const delta1h = 60 * 60 * 1000;
@@ -188,5 +188,87 @@ describe("computeStats", () => {
     expect(sWrong.byAction.BUY).toEqual({ right: 0, wrong: 1, unknown: 0 });
     expect(sRight.rightPct).toBe(1.0);
     expect(sWrong.rightPct).toBe(0.0);
+  });
+});
+
+describe("findNearestBar", () => {
+  it("returns the bar whose timestamp is closest to the target", () => {
+    const bars = [
+      bar("2026-06-01T12:00:00Z", 100),
+      bar("2026-06-01T13:00:00Z", 101),
+      bar("2026-06-01T14:00:00Z", 102),
+    ];
+    // target exactly at 13:30 → bar at 14:00 is 30m away, 13:00 is 30m away → 13:00 wins (first)
+    expect(findNearestBar(bars, new Date("2026-06-01T13:30:00Z").getTime())!.t).toBe("2026-06-01T13:00:00Z");
+    // target at 12:45 → 12:00 is 45m away, 13:00 is 15m away → 13:00 wins
+    expect(findNearestBar(bars, new Date("2026-06-01T12:45:00Z").getTime())!.t).toBe("2026-06-01T13:00:00Z");
+    // target exactly at a bar
+    expect(findNearestBar(bars, new Date("2026-06-01T13:00:00Z").getTime())!.t).toBe("2026-06-01T13:00:00Z");
+  });
+
+  it("returns null for empty bars", () => {
+    expect(findNearestBar([], 1000)).toBeNull();
+  });
+
+  it("handles single bar", () => {
+    const bars = [bar("2026-06-01T12:00:00Z", 100)];
+    expect(findNearestBar(bars, 0)!.t).toBe("2026-06-01T12:00:00Z");
+    expect(findNearestBar(bars, 1e15)!.t).toBe("2026-06-01T12:00:00Z");
+  });
+});
+
+describe("computeAccuracyCurve", () => {
+  const t0 = "2026-06-01T12:00:00Z";
+
+  function runWith(id: string, action: "BUY" | "SELL" | "HOLD", target: number | null, startPrice: number): RunLike {
+    return { id, startedAt: t0, decisionAction: action, decisionTarget: target, startPrice };
+  }
+
+  it("returns one point per delta, filtering out unscored deltas", () => {
+    const bars: Bar[] = [];
+    const testDeltas = [5 * 60_000, 30 * 60_000];
+    for (const d of testDeltas) {
+      const t = new Date(new Date(t0).getTime() + d).toISOString().replace(/\.\d{3}Z$/, "Z");
+      bars.push(bar(t, 105, 100, 106, 99, 1000));
+    }
+    const runs = [runWith("r1", "BUY", null, 100)];
+
+    const curve = computeAccuracyCurve(runs, bars, testDeltas, 1.0, "2026-06-02T12:00:00Z");
+    expect(curve.length).toBe(2);
+    for (const p of curve) {
+      expect(p.right).toBe(1);
+      expect(p.wrong).toBe(0);
+      expect(p.rightPct).toBe(1.0);
+    }
+  });
+
+  it("omits deltas where no runs have scoring data", () => {
+    const bars: Bar[] = [bar(t0, 100)];
+    const runs = [runWith("r1", "BUY", null, 100)];
+    const deltas = [5 * 60_000];
+    const curve = computeAccuracyCurve(runs, bars, deltas, 1.0, "2026-06-02T12:00:00Z");
+    expect(curve.length).toBe(0);
+  });
+
+  it("works with the full ACCURACY_DELTAS set", () => {
+    const bars: Bar[] = [];
+    for (const d of ACCURACY_DELTAS) {
+      const t = new Date(new Date(t0).getTime() + d).toISOString().replace(/\.\d{3}Z$/, "Z");
+      bars.push(bar(t, 105, 100, 106, 99, 1000));
+    }
+    const runs = [runWith("r1", "BUY", null, 100)];
+    const curve = computeAccuracyCurve(runs, bars, ACCURACY_DELTAS, 1.0, "2028-01-01T00:00:00Z");
+    expect(curve.length).toBe(ACCURACY_DELTAS.length);
+    for (const p of curve) {
+      expect(p.rightPct).toBe(1.0);
+    }
+  });
+
+  it("respects holdThresholdPct", () => {
+    const bars = [bar(new Date(new Date(t0).getTime() + 5 * 60_000).toISOString().replace(/\.\d{3}Z$/, "Z"), 100.2)];
+    const runs = [runWith("r1", "HOLD", null, 100)];
+    const curve = computeAccuracyCurve(runs, bars, [5 * 60_000], 0.5, "2026-06-02T12:00:00Z");
+    expect(curve[0].right).toBe(1);
+    expect(curve[0].rightPct).toBe(1.0);
   });
 });
