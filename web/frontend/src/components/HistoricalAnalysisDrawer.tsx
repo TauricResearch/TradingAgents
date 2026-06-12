@@ -5,23 +5,18 @@ import {
 } from "../lib/api";
 import { useUi, type HistoryPollInterval } from "../store/ui";
 import {
-  computeStats, computeVerdict, type Verdict,
+  computeStats, computeVerdict, computeAccuracyCurve, ACCURACY_DELTAS,
+  type Verdict, type AccuracyPoint,
 } from "../verdicts";
-import { HistoryStats } from "./HistoryStats";
 import { HistoryChart } from "./HistoryChart";
 import { HistoryControls } from "./HistoryControls";
+import { AccuracyPlot } from "./AccuracyPlot";
+import { SuccessFailurePlot } from "./SuccessFailurePlot";
 import { RunListItem } from "./RunListItem";
 import { type CandleResolution, RESOLUTION_MS, scaleFor } from "../lib/resolution";
 
 // --- helpers ---
 
-/**
- * Re-bin raw API bars into a coarser resolution. Bars are bucketed by
- * their UTC timestamp; each bucket is collapsed into a single OHLCV
- * bar (first o, max h, min l, last c, sum v). If the chosen resolution
- * is finer than the source data, each bar lands in its own bucket so
- * the result is the same set of bars (no aggregation, no data loss).
- */
 function resampleBars(bars: Bar[], resolution: Exclude<CandleResolution, "auto">): Bar[] {
   const targetMs = RESOLUTION_MS[resolution];
   if (bars.length === 0) return [];
@@ -106,13 +101,7 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   const setHistoricalRunForTicker = useUi((s) => s.setHistoricalRunForTicker);
 
   const [range, setRange] = useState<HistoryRange>("auto");
-  // Default Δ = 1h so most "done" runs (which complete in minutes) are
-  // evaluated immediately. The user can slide up to 3y to see the
-  // "we don't know yet" cases for recent runs.
   const [deltaMs, setDeltaMs] = useState<number>(60 * 60 * 1000);
-  // Candle resolution is persisted in the UI store so the user's choice
-  // survives a refresh. Read+write through the store; the toolbar
-  // rendered just above the chart is the only writer.
   const candleResolution = useUi((s) => s.candleResolution);
   const setCandleResolution = useUi((s) => s.setCandleResolution);
   const tick = useTickingNow(1000);
@@ -132,17 +121,16 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   const rangeStartIso = data?.range_start ?? tick.nowIso;
   const rangeEndIso = data?.range_end ?? tick.nowIso;
 
-  // Effective resolution: explicit candle choice wins, otherwise the API's.
   const effectiveResolution: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w" =
     candleResolution === "auto" ? apiResolution : candleResolution;
   const scale = scaleFor(effectiveResolution);
 
-  // Resample once when bars or the candle resolution change.
   const resampledBars: Bar[] = useMemo(
     () => (candleResolution === "auto" ? bars : resampleBars(bars, candleResolution)),
     [bars, candleResolution],
   );
 
+  // Single-delta verdicts for OHLC chart (uses the slider-selected deltaMs)
   const verdicts = useMemo(() => {
     const out = new Map<string, Verdict>();
     for (const run of runs) {
@@ -158,9 +146,10 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
     return out;
   }, [runs, bars, deltaMs, holdThresholdPct, tick.nowIso, tick.nowMs]);
 
-  const stats = useMemo(
-    () => computeStats(runs.map(toRunLike), bars, deltaMs, holdThresholdPct, tick.nowIso),
-    [runs, bars, deltaMs, holdThresholdPct, tick.nowIso],
+  // Accuracy curve across all deltas (independent of slider)
+  const accuracyCurve: AccuracyPoint[] = useMemo(
+    () => computeAccuracyCurve(runs.map(toRunLike), bars, ACCURACY_DELTAS, holdThresholdPct, tick.nowIso),
+    [runs, bars, holdThresholdPct, tick.nowIso],
   );
 
   return (
@@ -190,7 +179,7 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
         <button onClick={onClose} className="text-sm text-slate-500">Close</button>
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 flex flex-col">
         {query.isLoading ? (
           <div className="p-4 text-xs text-slate-500">Loading…</div>
         ) : query.isError ? (
@@ -205,41 +194,51 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
             <button onClick={() => setRange("1y")} className="text-blue-600">Use 1y</button>
           </div>
         ) : (
-          <div className="flex flex-col h-full">
-            {/* Toolbar — sits just above the chart so the user can
-                adjust Candle resolution and the Refresh cadence without
-                scrolling. Both selections are persisted in the UI store. */}
-            <div className="flex items-center justify-end gap-3 px-2 py-1 text-xs border-b border-slate-100 shrink-0">
-              <div className="flex items-center gap-1">
-                <label htmlFor="candle-res-select" className="text-slate-500">Candle</label>
-                <select
-                  id="candle-res-select"
-                  data-testid="candle-res-select"
-                  value={candleResolution}
-                  onChange={(e) => setCandleResolution(e.target.value as CandleResolution)}
-                  className="border border-slate-300 rounded px-1 py-0.5 bg-white"
-                >
-                  {CANDLE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+          <>
+            {/* Toolbar — Candle, Refresh, and Δ slider grouped together */}
+            <div className="flex flex-col gap-1 border-b border-slate-100 shrink-0">
+              <div className="flex items-center justify-end gap-3 px-2 py-1 text-xs">
+                <div className="flex items-center gap-1">
+                  <label htmlFor="candle-res-select" className="text-slate-500">Candle</label>
+                  <select
+                    id="candle-res-select"
+                    data-testid="candle-res-select"
+                    value={candleResolution}
+                    onChange={(e) => setCandleResolution(e.target.value as CandleResolution)}
+                    className="border border-slate-300 rounded px-1 py-0.5 bg-white"
+                  >
+                    {CANDLE_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <label htmlFor="refresh-select" className="text-slate-500">Refresh</label>
+                  <select
+                    id="refresh-select"
+                    data-testid="refresh-select"
+                    value={historyPollIntervalMs}
+                    onChange={(e) => setHistoryPollIntervalMs(Number(e.target.value) as HistoryPollInterval)}
+                    className="border border-slate-300 rounded px-1 py-0.5 bg-white"
+                  >
+                    {REFRESH_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <label htmlFor="refresh-select" className="text-slate-500">Refresh</label>
-                <select
-                  id="refresh-select"
-                  data-testid="refresh-select"
-                  value={historyPollIntervalMs}
-                  onChange={(e) => setHistoryPollIntervalMs(Number(e.target.value) as HistoryPollInterval)}
-                  className="border border-slate-300 rounded px-1 py-0.5 bg-white"
-                >
-                  {REFRESH_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+              {/* Δ slider moved here, below Candle/Refresh */}
+              <div className="px-2 pb-1">
+                <HistoryControls
+                  deltaMs={deltaMs}
+                  onDeltaChange={setDeltaMs}
+                  compact
+                />
               </div>
             </div>
-            <div className="flex-1 min-h-0">
+
+            {/* OHLC Chart */}
+            <div className="shrink-0">
               <HistoryChart
                 bars={resampledBars}
                 runs={runs.map(toRunLike)}
@@ -253,40 +252,40 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
                 rangeEndIso={rangeEndIso}
               />
             </div>
-          </div>
-        )}
-      </div>
 
-      <HistoryStats stats={stats} />
+            {/* Accuracy vs Δ plot */}
+            {accuracyCurve.length > 0 && <AccuracyPlot data={accuracyCurve} />}
 
-      <HistoryControls
-        deltaMs={deltaMs}
-        onDeltaChange={setDeltaMs}
-      />
+            {/* Successes & Failures vs Δ plot */}
+            {accuracyCurve.length > 0 && <SuccessFailurePlot data={accuracyCurve} />}
 
-      <div className="flex-1 min-h-0 overflow-y-auto border-t border-slate-200">
-        {runs.length === 0 ? (
-          <div className="p-4 text-xs text-slate-500">No runs for {ticker}.</div>
-        ) : (
-          runs.map((run) => (
-            <RunListItem
-              key={run.id}
-              run={{
-                id: run.id,
-                started_at: run.started_at,
-                decision_action: run.decision_action,
-                decision_target: run.decision_target,
-                start_price: run.start_price,
-              }}
-              verdict={verdicts.get(run.id) ?? {
-                runId: run.id, status: "unknown", reason: "no_data",
-                pctMove: null, targetHit: null, maxHigh: null, minLow: null, endPrice: null,
-              }}
-              selected={run.id === focusedRunId}
-              scale={scale}
-              onClick={() => setHistoricalRunForTicker(ticker, run.id)}
-            />
-          ))
+            {/* Run list */}
+            <div className="flex-1 min-h-0 overflow-y-auto border-t border-slate-200">
+              {runs.length === 0 ? (
+                <div className="p-4 text-xs text-slate-500">No runs for {ticker}.</div>
+              ) : (
+                runs.map((run) => (
+                  <RunListItem
+                    key={run.id}
+                    run={{
+                      id: run.id,
+                      started_at: run.started_at,
+                      decision_action: run.decision_action,
+                      decision_target: run.decision_target,
+                      start_price: run.start_price,
+                    }}
+                    verdict={verdicts.get(run.id) ?? {
+                      runId: run.id, status: "unknown", reason: "no_data",
+                      pctMove: null, targetHit: null, maxHigh: null, minLow: null, endPrice: null,
+                    }}
+                    selected={run.id === focusedRunId}
+                    scale={scale}
+                    onClick={() => setHistoricalRunForTicker(ticker, run.id)}
+                  />
+                ))
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>
