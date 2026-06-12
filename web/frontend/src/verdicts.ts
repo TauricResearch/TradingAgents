@@ -92,7 +92,6 @@ export type AccuracyPoint = {
   rightPct: number | null;
 };
 
-/** Fixed set of delta horizons for the accuracy curve. */
 export const ACCURACY_DELTAS: number[] = [
   5 * 60_000,               // 5m
   15 * 60_000,              // 15m
@@ -110,6 +109,42 @@ export const ACCURACY_DELTAS: number[] = [
   182 * 24 * 60 * 60_000,   // 6mo
   365 * 24 * 60 * 60_000,   // 1y
 ];
+
+/**
+ * Compute candidate delta horizons from actual run and bar data.
+ * For each run-bar pair, computes the time difference (run start → bar time).
+ * Unique positive deltas are sorted then sampled to at most `maxPoints`.
+ */
+export function computeDeltasFromRuns(
+  runs: RunLike[],
+  bars: Bar[],
+  maxPoints: number,
+): number[] {
+  if (runs.length === 0 || bars.length === 0 || maxPoints < 1) return [];
+
+  const deltas = new Set<number>();
+  for (const run of runs) {
+    const runStartMs = isoToMs(run.startedAt);
+    if (isNaN(runStartMs)) continue;
+    for (const bar of bars) {
+      const barMs = isoToMs(bar.t);
+      const delta = barMs - runStartMs;
+      if (delta > 0) deltas.add(delta);
+    }
+  }
+
+  const sorted = Array.from(deltas).sort((a, b) => a - b);
+  if (sorted.length === 0) return [];
+  if (sorted.length <= maxPoints) return sorted;
+
+  // Evenly spaced indices through the sorted array
+  const stride = (sorted.length - 1) / (maxPoints - 1);
+  const result: number[] = [];
+  for (let i = 0; i < maxPoints; i++) {
+    result.push(sorted[Math.round(i * stride)]);
+  }
+  return result;
+}
 
 /**
  * Compute a verdict for a run using the single bar nearest to T+Δ.

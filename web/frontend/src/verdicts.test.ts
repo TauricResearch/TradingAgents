@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { barsInWindow, computeVerdict, computeStats, findNearestBar, computeAccuracyCurve, ACCURACY_DELTAS, type Bar, type RunLike } from "./verdicts";
+import { barsInWindow, computeVerdict, computeStats, findNearestBar, computeAccuracyCurve, computeDeltasFromRuns, ACCURACY_DELTAS, type Bar, type RunLike } from "./verdicts";
 
 const t0 = "2026-06-01T12:00:00Z";
 const delta1h = 60 * 60 * 1000;
@@ -270,5 +270,35 @@ describe("computeAccuracyCurve", () => {
     const curve = computeAccuracyCurve(runs, bars, [5 * 60_000], 0.5, "2026-06-02T12:00:00Z");
     expect(curve[0].right).toBe(1);
     expect(curve[0].rightPct).toBe(1.0);
+  });
+});
+
+describe("computeDeltasFromRuns", () => {
+  it("returns unique positive deltas from run-bar pairs", () => {
+    const run: RunLike = { id: "r1", startedAt: t0, decisionAction: "BUY", decisionTarget: null, startPrice: 100 };
+    const bars = [
+      bar("2026-06-01T12:05:00Z", 101), // +5m
+      bar("2026-06-01T13:00:00Z", 102), // +1h
+    ];
+    const result = computeDeltasFromRuns([run], bars, 10);
+    expect(result).toEqual([5 * 60_000, 60 * 60_000]);
+  });
+
+  it("samples to maxPoints when there are more unique deltas", () => {
+    const run: RunLike = { id: "r1", startedAt: t0, decisionAction: "BUY", decisionTarget: null, startPrice: 100 };
+    const bars = Array.from({ length: 50 }, (_, i) =>
+      bar(new Date(new Date(t0).getTime() + (i + 1) * 60_000).toISOString().replace(/\.\d{3}Z$/, "Z"), 100 + i)
+    );
+    const result = computeDeltasFromRuns([run], bars, 10);
+    expect(result.length).toBe(10);
+    expect(result[0]).toBe(60_000);
+    expect(result[result.length - 1]).toBe(50 * 60_000);
+  });
+
+  it("returns empty array for no runs or no bars", () => {
+    const run: RunLike = { id: "r1", startedAt: t0, decisionAction: "BUY", decisionTarget: null, startPrice: 100 };
+    expect(computeDeltasFromRuns([], [], 100)).toEqual([]);
+    expect(computeDeltasFromRuns([run], [], 100)).toEqual([]);
+    expect(computeDeltasFromRuns([], [bar("2026-06-01T12:00:00Z", 100)], 100)).toEqual([]);
   });
 });

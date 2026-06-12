@@ -5,7 +5,7 @@ import {
 } from "../lib/api";
 import { useUi, type HistoryPollInterval } from "../store/ui";
 import {
-  computeStats, computeVerdict, computeAccuracyCurve, ACCURACY_DELTAS,
+  computeStats, computeVerdict, computeAccuracyCurve, computeDeltasFromRuns,
   type Verdict, type AccuracyPoint,
 } from "../verdicts";
 import { HistoryChart } from "./HistoryChart";
@@ -146,10 +146,19 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
     return out;
   }, [runs, bars, deltaMs, holdThresholdPct, tick.nowIso, tick.nowMs]);
 
-  // Accuracy curve across all deltas (independent of slider)
+  // Max plot points from env (default 100)
+  const maxPlotPoints = Number(import.meta.env.VITE_ACCURACY_PLOT_POINTS) || 100;
+
+  // Derive deltas from actual run-bar data (independent of slider)
+  const accuracyDeltas: number[] = useMemo(
+    () => computeDeltasFromRuns(runs.map(toRunLike), bars, maxPlotPoints),
+    [runs, bars, maxPlotPoints],
+  );
+
+  // Accuracy curve across all deltas
   const accuracyCurve: AccuracyPoint[] = useMemo(
-    () => computeAccuracyCurve(runs.map(toRunLike), bars, ACCURACY_DELTAS, holdThresholdPct, tick.nowIso),
-    [runs, bars, holdThresholdPct, tick.nowIso],
+    () => computeAccuracyCurve(runs.map(toRunLike), bars, accuracyDeltas, holdThresholdPct, tick.nowIso),
+    [runs, bars, accuracyDeltas, holdThresholdPct, tick.nowIso],
   );
 
   return (
