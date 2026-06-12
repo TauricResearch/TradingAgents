@@ -81,6 +81,84 @@ export function barsInWindow(
   return out;
 }
 
+// ---- Accuracy-curve types and functions ----
+
+export type AccuracyPoint = {
+  delta: number;
+  total: number;
+  right: number;
+  wrong: number;
+  unknown: number;
+  rightPct: number | null;
+};
+
+/** Fixed set of delta horizons for the accuracy curve. */
+export const ACCURACY_DELTAS: number[] = [
+  5 * 60_000,               // 5m
+  15 * 60_000,              // 15m
+  30 * 60_000,              // 30m
+  60 * 60_000,              // 1h
+  2 * 60 * 60_000,          // 2h
+  4 * 60 * 60_000,          // 4h
+  8 * 60 * 60_000,          // 8h
+  24 * 60 * 60_000,         // 1d
+  3 * 24 * 60 * 60_000,     // 3d
+  7 * 24 * 60 * 60_000,     // 1w
+  14 * 24 * 60 * 60_000,    // 2w
+  30 * 24 * 60 * 60_000,    // 1mo (approx)
+  90 * 24 * 60 * 60_000,    // 3mo
+  182 * 24 * 60 * 60_000,   // 6mo
+  365 * 24 * 60 * 60_000,   // 1y
+];
+
+/**
+ * Compute a verdict for a run using the single bar nearest to T+Δ.
+ * Thin wrapper around `computeVerdict` — finds the closest bar to the
+ * target time and passes it as a single-element window.
+ */
+export function computeVerdictNearestPrice(
+  run: RunLike,
+  bars: Bar[],
+  deltaMs: number,
+  holdThresholdPct: number,
+  nowIso: string,
+): Verdict {
+  const targetTimeMs = isoToMs(run.startedAt) + deltaMs;
+  const nearestBar = findNearestBar(bars, targetTimeMs);
+  const windowBars = nearestBar ? [nearestBar] : [];
+  return computeVerdict(run, windowBars, deltaMs, holdThresholdPct, nowIso);
+}
+
+/**
+ * Compute the accuracy curve: for each delta horizon, compute aggregate
+ * stats across all runs using nearest-price evaluation.
+ *
+ * Deltas where no runs have scoring data (right + wrong === 0) are
+ * omitted from the result array.
+ */
+export function computeAccuracyCurve(
+  runs: RunLike[],
+  bars: Bar[],
+  deltas: number[],
+  holdThresholdPct: number,
+  nowIso: string,
+): AccuracyPoint[] {
+  const out: AccuracyPoint[] = [];
+  for (const delta of deltas) {
+    let right = 0, wrong = 0, unknown = 0;
+    for (const run of runs) {
+      const v = computeVerdictNearestPrice(run, bars, delta, holdThresholdPct, nowIso);
+      if (v.status === "right") right++;
+      else if (v.status === "wrong") wrong++;
+      else unknown++;
+    }
+    if (right + wrong === 0) continue;
+    const rightPct = right / (right + wrong);
+    out.push({ delta, total: runs.length, right, wrong, unknown, rightPct });
+  }
+  return out;
+}
+
 // ---- Action colors / tints (used by HistoryChart and RunListItem) ----
 
 export const ACTION_COLORS: Record<Action, string> = {
@@ -162,6 +240,24 @@ export function computeVerdict(
   const up = endPrice > run.startPrice;
   const right = action === "BUY" ? up : !up;
   return { runId: run.id, status: right ? "right" : "wrong", reason: "direction", ...filled };
+}
+
+/**
+ * Find the bar whose timestamp is closest to `targetTimeMs`.
+ * Returns null for an empty array.
+ */
+export function findNearestBar(bars: Bar[], targetTimeMs: number): Bar | null {
+  if (bars.length === 0) return null;
+  let best = bars[0];
+  let bestDist = Math.abs(isoToMs(bars[0].t) - targetTimeMs);
+  for (let i = 1; i < bars.length; i++) {
+    const dist = Math.abs(isoToMs(bars[i].t) - targetTimeMs);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = bars[i];
+    }
+  }
+  return best;
 }
 
 export function computeStats(
