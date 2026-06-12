@@ -376,11 +376,19 @@ class TradingAgentsGraph:
 
         if self.debug:
             trace = []
+            last_printed_sig = None
             for chunk in self.graph.stream(init_agent_state, **args):
                 if len(chunk["messages"]) == 0:
                     pass
                 else:
-                    chunk["messages"][-1].pretty_print()
+                    msg = chunk["messages"][-1]
+                    # Streamed chunks repeat the same trailing message across
+                    # consecutive nodes that don't append one; only print when
+                    # it actually changes so the log isn't 5x-duplicated.
+                    sig = (msg.__class__.__name__, getattr(msg, "content", None))
+                    if sig != last_printed_sig:
+                        msg.pretty_print()
+                        last_printed_sig = sig
                     trace.append(chunk)
             # Streamed chunks are per-node deltas. Merge them so the returned
             # state matches what graph.invoke() yields in the non-debug path.
