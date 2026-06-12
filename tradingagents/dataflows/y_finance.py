@@ -4,7 +4,8 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, td_setup_by_timeframe, format_td_setup_block, zscore_by_timeframe, format_zscore_block
+from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, td_setup_by_timeframe, format_td_setup_block, zscore_by_timeframe, format_zscore_block, compute_obv, supertrend_by_timeframe, format_supertrend_block
+from .indicator_registry import effective_params, get_spec, resolve_column
 from .symbol_utils import normalize_symbol, NoMarketDataError
 
 def get_YFin_data_online(
@@ -62,103 +63,36 @@ def get_stock_stats_indicators_window(
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
 
-    best_ind_params = {
-        # Moving Averages
-        "close_50_sma": (
-            "50 SMA: A medium-term trend indicator. "
-            "Usage: Identify trend direction and serve as dynamic support/resistance. "
-            "Tips: It lags price; combine with faster indicators for timely signals."
-        ),
-        "close_200_sma": (
-            "200 SMA: A long-term trend benchmark. "
-            "Usage: Confirm overall market trend and identify golden/death cross setups. "
-            "Tips: It reacts slowly; best for strategic trend confirmation rather than frequent trading entries."
-        ),
-        "close_10_ema": (
-            "10 EMA: A responsive short-term average. "
-            "Usage: Capture quick shifts in momentum and potential entry points. "
-            "Tips: Prone to noise in choppy markets; use alongside longer averages for filtering false signals."
-        ),
-        # MACD Related
-        "macd": (
-            "MACD: Computes momentum via differences of EMAs. "
-            "Usage: Look for crossovers and divergence as signals of trend changes. "
-            "Tips: Confirm with other indicators in low-volatility or sideways markets."
-        ),
-        "macds": (
-            "MACD Signal: An EMA smoothing of the MACD line. "
-            "Usage: Use crossovers with the MACD line to trigger trades. "
-            "Tips: Should be part of a broader strategy to avoid false positives."
-        ),
-        "macdh": (
-            "MACD Histogram: Shows the gap between the MACD line and its signal. "
-            "Usage: Visualize momentum strength and spot divergence early. "
-            "Tips: Can be volatile; complement with additional filters in fast-moving markets."
-        ),
-        # Momentum Indicators
-        "rsi": (
-            "RSI: Measures momentum to flag overbought/oversold conditions. "
-            "Usage: Apply 70/30 thresholds and watch for divergence to signal reversals. "
-            "Tips: In strong trends, RSI may remain extreme; always cross-check with trend analysis."
-        ),
-        # Volatility Indicators
-        "boll": (
-            "Bollinger Middle: A 20 SMA serving as the basis for Bollinger Bands. "
-            "Usage: Acts as a dynamic benchmark for price movement. "
-            "Tips: Combine with the upper and lower bands to effectively spot breakouts or reversals."
-        ),
-        "boll_ub": (
-            "Bollinger Upper Band: Typically 2 standard deviations above the middle line. "
-            "Usage: Signals potential overbought conditions and breakout zones. "
-            "Tips: Confirm signals with other tools; prices may ride the band in strong trends."
-        ),
-        "boll_lb": (
-            "Bollinger Lower Band: Typically 2 standard deviations below the middle line. "
-            "Usage: Indicates potential oversold conditions. "
-            "Tips: Use additional analysis to avoid false reversal signals."
-        ),
-        "atr": (
-            "ATR: Averages true range to measure volatility. "
-            "Usage: Set stop-loss levels and adjust position sizes based on current market volatility. "
-            "Tips: It's a reactive measure, so use it as part of a broader risk management strategy."
-        ),
-        # Volume-Based Indicators
-        "vwma": (
-            "VWMA: A moving average weighted by volume. "
-            "Usage: Confirm trends by integrating price action with volume data. "
-            "Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses."
-        ),
-        "mfi": (
-            "MFI: The Money Flow Index is a momentum indicator that uses both price and volume to measure buying and selling pressure. "
-            "Usage: Identify overbought (>80) or oversold (<20) conditions and confirm the strength of trends or reversals. "
-            "Tips: Use alongside RSI or MACD to confirm signals; divergence between price and MFI can indicate potential reversals."
-        ),
-        "td_9": (
-            "TD-9 (TD Sequential Setup): A DeMark exhaustion indicator computed on weekly (tier 1), monthly (tier 2) and daily (tier 3) bars. "
-            "Usage: A running count toward 9 flags an approaching trend exhaustion; a completed 9 is a reversal watch. Weight a higher tier above a lower one on conflict. "
-            "Tips: Computed from OHLCV (not a stockstats handler); the count is the live signal, so read counts below 9 as 'approaching', not 'nothing'."
-        ),
-        "z_score": (
-            "Z-Score (20-period close z-score): How many standard deviations the close sits from its 20-period mean, computed on weekly (tier 1), monthly (tier 2) and daily (tier 3) bars. "
-            "Usage: A mean-reversion / stretch gauge — |z| >= 2 flags a statistically stretched price (+ overbought, - oversold); near 0 is fair value. Weight a higher tier above a lower one on conflict. "
-            "Tips: Computed from OHLCV (not a stockstats handler); a high z-score in a strong trend can persist, so confirm with a trend indicator before fading it."
-        ),
-    }
+    spec = get_spec(indicator)  # unknown names raise ValueError
+    params = effective_params(indicator)  # spec defaults + config overrides
 
     # TD-9 is not a stockstats handler — compute it from OHLCV across timeframes
     # and return the tiered block (weekly > monthly > daily) directly.
-    if indicator == "td_9":
+    if spec.custom == "td_9":
         counts = td_setup_by_timeframe(load_ohlcv(symbol, curr_date), curr_date)
-        return format_td_setup_block(counts) + "\n\n" + best_ind_params["td_9"]
+        return format_td_setup_block(counts) + "\n\n" + spec.description
 
     # Z-Score is likewise computed from OHLCV across timeframes, not stockstats.
-    if indicator == "z_score":
-        zscores = zscore_by_timeframe(load_ohlcv(symbol, curr_date), curr_date)
-        return format_zscore_block(zscores) + "\n\n" + best_ind_params["z_score"]
+    if spec.custom == "z_score":
+        zscores = zscore_by_timeframe(
+            load_ohlcv(symbol, curr_date), curr_date, window=params["window"]
+        )
+        return (
+            format_zscore_block(zscores, window=params["window"])
+            + "\n\n"
+            + spec.description
+        )
 
-    if indicator not in best_ind_params:
-        raise ValueError(
-            f"Indicator {indicator} is not supported. Please choose from: {list(best_ind_params.keys())}"
+    # SuperTrend resamples OHLCV to weekly/monthly bars itself, so it also
+    # returns a tiered block rather than a windowed daily listing.
+    if spec.custom == "supertrend":
+        snapshots = supertrend_by_timeframe(
+            load_ohlcv(symbol, curr_date), curr_date, window=params["window"]
+        )
+        return (
+            format_supertrend_block(snapshots, window=params["window"])
+            + "\n\n"
+            + spec.description
         )
 
     end_date = curr_date
@@ -167,7 +101,16 @@ def get_stock_stats_indicators_window(
 
     # Optimized: Get stock data once and calculate indicators for all dates
     try:
-        indicator_data = _get_stock_stats_bulk(symbol, indicator, curr_date)
+        if spec.custom == "obv":
+            # OBV is computed from OHLCV (not a stockstats handler) but reads
+            # like any daily series, so it renders through the same window.
+            obv = compute_obv(load_ohlcv(symbol, curr_date))
+            indicator_data = {
+                date.strftime("%Y-%m-%d"): str(float(value))
+                for date, value in obv.items()
+            }
+        else:
+            indicator_data = _get_stock_stats_bulk(symbol, indicator, curr_date)
         
         # Generate the date range we need
         current_dt = curr_date_dt
@@ -204,11 +147,17 @@ def get_stock_stats_indicators_window(
             ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
             curr_date_dt = curr_date_dt - relativedelta(days=1)
 
+    # Show effective params in the header only when they differ from the
+    # defaults, so unconfigured output stays byte-identical.
+    label = indicator
+    if params and params != spec.default_params:
+        label += " (" + ", ".join(f"{k}={v}" for k, v in params.items()) + ")"
+
     result_str = (
-        f"## {indicator} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
+        f"## {label} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
         + ind_string
         + "\n\n"
-        + best_ind_params.get(indicator, "No description available.")
+        + spec.description
     )
 
     return result_str
@@ -226,25 +175,30 @@ def _get_stock_stats_bulk(
     """
     from stockstats import wrap
 
+    spec = get_spec(indicator)
+    column = resolve_column(indicator, effective_params(indicator))
+
     data = load_ohlcv(symbol, curr_date)
     df = wrap(data)
     df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-    
+
     # Calculate the indicator for all rows at once
-    df[indicator]  # This triggers stockstats to calculate the indicator
-    
+    df[column]  # This triggers stockstats to calculate the indicator
+
     # Create a dictionary mapping date strings to indicator values
     result_dict = {}
     for _, row in df.iterrows():
         date_str = row["Date"]
-        indicator_value = row[indicator]
-        
+        indicator_value = row[column]
+
         # Handle NaN/None values
         if pd.isna(indicator_value):
             result_dict[date_str] = "N/A"
+        elif spec.scale != 1.0:
+            result_dict[date_str] = str(float(indicator_value) * spec.scale)
         else:
             result_dict[date_str] = str(indicator_value)
-    
+
     return result_dict
 
 
@@ -260,11 +214,16 @@ def get_stockstats_indicator(
     curr_date = curr_date_dt.strftime("%Y-%m-%d")
 
     try:
+        spec = get_spec(indicator)
         indicator_value = StockstatsUtils.get_stock_stats(
             symbol,
-            indicator,
+            resolve_column(indicator, effective_params(indicator)),
             curr_date,
         )
+        # Non-trading days come back as an explanatory string; only numeric
+        # readings are rescaled (stockstats mfi is 0-1, reported as 0-100).
+        if spec.scale != 1.0 and not isinstance(indicator_value, str):
+            indicator_value = float(indicator_value) * spec.scale
     except NoMarketDataError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
     except Exception as e:

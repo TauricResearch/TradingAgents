@@ -131,6 +131,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+    # Per-indicator parameter overrides, keyed by canonical indicator name
+    # (see dataflows/indicator_registry.py for names and their defaults).
+    # The agent-facing name never changes — overriding rsi to window 7 still
+    # reads "rsi" in prompts and reports, just computed on 7 periods.
+    "indicator_params": {
+        # Example: "rsi": {"window": 7}, "boll_ub": {"window": 30},
+    },
     # Benchmark for alpha calculation in the reflection layer.
     # ``benchmark_ticker`` (when set) overrides the suffix map for all
     # tickers; leave it None to use ``benchmark_map`` for auto-detection

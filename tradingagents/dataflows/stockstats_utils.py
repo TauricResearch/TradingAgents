@@ -277,7 +277,7 @@ def _zscore_phrase(z: float) -> str:
     return f"({side} the mean)"
 
 
-def format_zscore_block(zscores: dict) -> str:
+def format_zscore_block(zscores: dict, window: int = 20) -> str:
     """Render the tiered z-score report block (weekly > monthly > daily)."""
     tiers = [
         ("Tier 1", "Weekly", zscores.get("weekly", 0.0)),
@@ -285,11 +285,116 @@ def format_zscore_block(zscores: dict) -> str:
         ("Tier 3", "Daily", zscores.get("daily", 0.0)),
     ]
     lines = [
-        "## Z-Score (20-period close z-score) — current reading by timeframe "
+        f"## Z-Score ({window}-period close z-score) — current reading by timeframe "
         "(higher tier wins):"
     ]
     for tier, name, z in tiers:
         lines.append(f"- {tier} {name}: {z:+.2f}  {_zscore_phrase(z)}")
+    return "\n".join(lines)
+
+
+def compute_obv(data: "pd.DataFrame") -> "pd.Series":
+    """On-Balance Volume: cumulative volume signed by the close-to-close move.
+
+    Volume is added on up days, subtracted on down days and ignored on
+    unchanged days. The absolute level is meaningless — the signal is the
+    slope and divergences against price over the lookback window. Returned as
+    a date-indexed daily series (OBV has no tiered timeframe payload).
+    """
+    df = _ensure_date_column(pd.DataFrame(data)).copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"]).sort_values("Date")
+
+    close = pd.to_numeric(df["Close"], errors="coerce")
+    volume = pd.to_numeric(df["Volume"], errors="coerce").fillna(0.0)
+    move = close.diff()
+    direction = move.mask(move > 0, 1.0).mask(move < 0, -1.0).fillna(0.0)
+    obv = (volume * direction).cumsum()
+    obv.index = pd.DatetimeIndex(df["Date"])
+    return obv
+
+
+def _resample_ohlcv(df: "pd.DataFrame", rule: str) -> "pd.DataFrame":
+    """Resample a date-indexed daily OHLCV frame to weekly/monthly bars."""
+    agg = df.resample(rule).agg(
+        {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+    )
+    return agg.dropna(subset=["Close"])
+
+
+def supertrend_by_timeframe(
+    data: "pd.DataFrame", curr_date: str = None, window: int = 14
+) -> dict:
+    """Current SuperTrend state on weekly / monthly / daily bars.
+
+    stockstats computes the SuperTrend line itself (``window``-period ATR,
+    3x multiplier); the custom part is only the weekly/monthly OHLC resample —
+    mirroring ``td_setup_by_timeframe``. When ``curr_date`` is given, rows
+    after it are dropped first to preserve the no-look-ahead guarantee.
+    Returns per tier (``weekly``/``monthly``/``daily``) either None
+    (insufficient history) or a dict with:
+
+    * ``direction`` — "up" (close at/above the line) or "down"
+    * ``level`` — the SuperTrend line, i.e. the current trailing stop
+    * ``distance_pct`` — signed % distance from the line to the close
+    """
+    df = _ensure_date_column(pd.DataFrame(data)).copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"]).sort_values("Date")
+    if curr_date:
+        df = df[df["Date"] <= pd.Timestamp(curr_date)]
+
+    column = f"supertrend_{window}"
+
+    def _last(frame: "pd.DataFrame"):
+        if len(frame) < 2:
+            return None
+        stock_df = wrap(frame.copy())
+        level = stock_df[column].iloc[-1]
+        close = pd.to_numeric(frame["Close"], errors="coerce").iloc[-1]
+        if pd.isna(level) or level <= 0 or pd.isna(close):
+            return None
+        level = float(level)
+        close = float(close)
+        return {
+            "direction": "up" if close >= level else "down",
+            "level": level,
+            "distance_pct": (close - level) / level * 100.0,
+        }
+
+    if df.empty:
+        return {"weekly": None, "monthly": None, "daily": None}
+
+    daily = df.set_index(pd.DatetimeIndex(df["Date"]))[
+        ["Open", "High", "Low", "Close", "Volume"]
+    ]
+    return {
+        "weekly": _last(_resample_ohlcv(daily, "W")),
+        "monthly": _last(_resample_ohlcv(daily, "ME")),
+        "daily": _last(daily),
+    }
+
+
+def format_supertrend_block(snapshots: dict, window: int = 14) -> str:
+    """Render the tiered SuperTrend report block (weekly > monthly > daily)."""
+    tiers = [
+        ("Tier 1", "Weekly", snapshots.get("weekly")),
+        ("Tier 2", "Monthly", snapshots.get("monthly")),
+        ("Tier 3", "Daily", snapshots.get("daily")),
+    ]
+    lines = [
+        f"## SuperTrend ({window}-period, 3x ATR) — trend direction and "
+        "trailing stop by timeframe (higher tier wins):"
+    ]
+    for tier, name, snap in tiers:
+        if snap is None:
+            lines.append(f"- {tier} {name}: n/a (insufficient history)")
+        else:
+            direction = snap["direction"].upper()
+            lines.append(
+                f"- {tier} {name}: {direction} — trailing stop {snap['level']:.2f} "
+                f"(close {snap['distance_pct']:+.2f}% from stop)"
+            )
     return "\n".join(lines)
 
 

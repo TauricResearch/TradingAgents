@@ -15,14 +15,16 @@ from typing import Iterable, Optional
 import pandas as pd
 from stockstats import wrap
 
+from tradingagents.dataflows.indicator_registry import (
+    effective_params,
+    get_spec,
+    resolve_column,
+    snapshot_indicators,
+)
 from tradingagents.dataflows.stockstats_utils import load_ohlcv
 
 # A fixed, common indicator set so the snapshot is the same shape every run.
-DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
-    "close_10_ema", "close_50_sma", "close_200_sma",
-    "rsi", "boll", "boll_ub", "boll_lb",
-    "macd", "macds", "macdh", "atr",
-)
+DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = snapshot_indicators()
 
 
 def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
@@ -76,8 +78,17 @@ def build_verified_market_snapshot(
     indicator_values: dict[str, str] = {}
     for name in selected:
         try:
-            stock_df[name]  # triggers stockstats calculation
-            indicator_values[name] = _fmt(stock_df.iloc[-1][name])
+            # Resolve configured param overrides exactly like the
+            # get_indicators tool so the agent's two sources agree.
+            column = resolve_column(name, effective_params(name))
+            stock_df[column]  # triggers stockstats calculation
+            value = stock_df.iloc[-1][column]
+            # Rescale exactly like the get_indicators tool so the agent's two
+            # sources agree (stockstats mfi is 0-1, reported as 0-100).
+            scale = get_spec(name).scale
+            if scale != 1.0 and not pd.isna(value):
+                value = float(value) * scale
+            indicator_values[name] = _fmt(value)
         except Exception as exc:  # noqa: BLE001 — one bad indicator shouldn't sink the snapshot
             indicator_values[name] = f"N/A ({type(exc).__name__})"
 
