@@ -161,6 +161,23 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
     [runs, bars, accuracyDeltas, holdThresholdPct, tick.nowIso],
   );
 
+  // Zoom state for accuracy plots (shared x-axis domain)
+  const [zoomLevel, setZoomLevel] = useState(0);
+  const accuracyXDomain: [number, number] | undefined = useMemo(() => {
+    if (accuracyCurve.length === 0) return undefined;
+    if (zoomLevel === 0) return undefined;
+    const fullMin = Math.min(...accuracyCurve.map(p => p.delta));
+    const fullMax = Math.max(...accuracyCurve.map(p => p.delta));
+    if (fullMin <= 0) return undefined;
+    const logMin = Math.log(fullMin);
+    const logMax = Math.log(fullMax);
+    const logCenter = (logMin + logMax) / 2;
+    const logHalfSpan = (logMax - logMin) / 2;
+    const factor = Math.pow(0.8, -zoomLevel); // negative zoomLevel = zoom in
+    const newLogHalfSpan = logHalfSpan * factor;
+    return [Math.exp(logCenter - newLogHalfSpan), Math.exp(logCenter + newLogHalfSpan)] as [number, number];
+  }, [accuracyCurve, zoomLevel]);
+
   return (
     <div
       className="fixed inset-y-0 right-0 w-[28rem] max-w-full bg-white border-l border-slate-200 shadow-xl z-20 flex flex-col"
@@ -263,10 +280,31 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
             </div>
 
             {/* Accuracy vs Δ plot */}
-            {accuracyCurve.length > 0 && <AccuracyPlot data={accuracyCurve} />}
+            {accuracyCurve.length > 0 && (
+              <div className="relative">
+                <div className="absolute top-1 right-2 z-10 flex items-center gap-1">
+                  <button
+                    onClick={() => setZoomLevel(z => z + 1)}
+                    className="text-xs text-slate-500 hover:text-slate-900 bg-white/80 rounded px-1"
+                    title="Zoom in"
+                  >+</button>
+                  <button
+                    onClick={() => setZoomLevel(z => Math.min(z - 1, 0))}
+                    className="text-xs text-slate-500 hover:text-slate-900 bg-white/80 rounded px-1"
+                    title="Zoom out"
+                  >-</button>
+                  <button
+                    onClick={() => setZoomLevel(0)}
+                    className="text-xs text-slate-500 hover:text-slate-900 bg-white/80 rounded px-1"
+                    title="Reset zoom"
+                  >↺</button>
+                </div>
+                <AccuracyPlot data={accuracyCurve} xDomain={accuracyXDomain} />
+              </div>
+            )}
 
             {/* Successes & Failures vs Δ plot */}
-            {accuracyCurve.length > 0 && <SuccessFailurePlot data={accuracyCurve} />}
+            {accuracyCurve.length > 0 && <SuccessFailurePlot data={accuracyCurve} xDomain={accuracyXDomain} />}
 
             {/* Run list */}
             <div className="flex-1 min-h-0 overflow-y-auto border-t border-slate-200">

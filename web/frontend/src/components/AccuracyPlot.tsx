@@ -7,6 +7,7 @@ import { fmtDelta, fmtPct } from "../lib/format";
 
 interface AccuracyPlotProps {
   data: AccuracyPoint[];
+  xDomain?: [number, number];
 }
 
 interface ChartPoint {
@@ -15,7 +16,7 @@ interface ChartPoint {
   label: string;
 }
 
-export function AccuracyPlot({ data }: AccuracyPlotProps) {
+export function AccuracyPlot({ data, xDomain }: AccuracyPlotProps) {
   const chartData: ChartPoint[] = useMemo(
     () => data.map((p) => ({ delta: p.delta, rightPct: p.rightPct ?? 0, label: fmtDelta(p.delta) })),
     [data],
@@ -38,7 +39,7 @@ export function AccuracyPlot({ data }: AccuracyPlotProps) {
             dataKey="delta"
             type="number"
             scale="log"
-            domain={[Math.min(...data.map(p => p.delta)), Math.max(...data.map(p => p.delta))]}
+            domain={xDomain ?? [Math.min(...data.map(p => p.delta)), Math.max(...data.map(p => p.delta))]}
             tickFormatter={fmtDelta}
             tick={{ fontSize: 10, fill: "#64748b" }}
             stroke="#cbd5e1"
