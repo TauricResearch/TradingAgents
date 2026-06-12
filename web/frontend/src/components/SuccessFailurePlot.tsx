@@ -7,6 +7,7 @@ import { fmtDelta } from "../lib/format";
 
 interface SuccessFailurePlotProps {
   data: AccuracyPoint[];
+  xDomain?: [number, number];
 }
 
 interface ChartPoint {
@@ -16,7 +17,7 @@ interface ChartPoint {
   label: string;
 }
 
-export function SuccessFailurePlot({ data }: SuccessFailurePlotProps) {
+export function SuccessFailurePlot({ data, xDomain }: SuccessFailurePlotProps) {
   const chartData: ChartPoint[] = useMemo(
     () => data.map((p) => ({ delta: p.delta, success: p.right, failure: p.wrong, label: fmtDelta(p.delta) })),
     [data],
@@ -39,7 +40,7 @@ export function SuccessFailurePlot({ data }: SuccessFailurePlotProps) {
             dataKey="delta"
             type="number"
             scale="log"
-            domain={[Math.min(...data.map(p => p.delta)), Math.max(...data.map(p => p.delta))]}
+            domain={xDomain ?? [Math.min(...data.map(p => p.delta)), Math.max(...data.map(p => p.delta))]}
             tickFormatter={fmtDelta}
             tick={{ fontSize: 10, fill: "#64748b" }}
             stroke="#cbd5e1"
