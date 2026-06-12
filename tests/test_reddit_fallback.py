@@ -1,4 +1,5 @@
-"""Tests for the Reddit RSS/Atom fallback when the JSON endpoint 403s (#862)."""
+"""Tests for the RSS-first Reddit fetcher, its 429 backoff and the opt-in
+JSON path's degradation (#862)."""
 
 from __future__ import annotations
 
@@ -76,14 +77,69 @@ class TestRssFallbackParsing:
 
 
 @pytest.mark.unit
-class TestJsonFallsBackToRss:
+class TestFetchSubredditIsRssFirst:
+    """The default per-subreddit fetch goes straight to RSS — it must not hit
+    the WAF-blocked JSON endpoint, which only burned rate-limit budget."""
+
+    def test_delegates_to_rss_without_touching_json(self):
+        sentinel = [{"title": "x", "source": "rss", "score": None,
+                     "num_comments": None, "created_utc": None, "selftext": ""}]
+        with patch.object(reddit, "_fetch_subreddit_rss", return_value=sentinel) as rss, \
+             patch.object(reddit, "urlopen",
+                          side_effect=AssertionError("JSON endpoint must not be called")):
+            out = reddit._fetch_subreddit("NVDA", "stocks", 5, 5.0)
+        rss.assert_called_once()
+        assert out is sentinel
+
+
+@pytest.mark.unit
+class TestJsonPathFallsBackToRss:
+    """The opt-in JSON path still degrades to RSS on a 403 (kept for #862)."""
+
     def test_403_triggers_rss(self):
         err = HTTPError("url", 403, "Blocked", {}, None)
         with patch.object(reddit, "urlopen", side_effect=err), \
              patch.object(reddit, "_fetch_subreddit_rss", return_value=[{"title": "x", "source": "rss", "score": None, "num_comments": None, "created_utc": None, "selftext": ""}]) as rss:
-            out = reddit._fetch_subreddit("NVDA", "stocks", 5, 5.0)
+            out = reddit._fetch_subreddit_json("NVDA", "stocks", 5, 5.0)
         rss.assert_called_once()
         assert out and out[0]["source"] == "rss"
+
+
+@pytest.mark.unit
+class TestRss429Backoff:
+    def _atom_resp(self):
+        class _Resp:
+            def __enter__(self_inner):
+                return self_inner
+            def __exit__(self_inner, *a):
+                return False
+            def read(self_inner):
+                return _SAMPLE_ATOM.encode("utf-8")
+        return _Resp()
+
+    def test_429_then_success_retries_once(self):
+        err = HTTPError("url", 429, "Too Many Requests", {}, None)
+        with patch.object(reddit, "urlopen", side_effect=[err, self._atom_resp()]) as op, \
+             patch.object(reddit.time, "sleep") as slept:
+            posts = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        assert op.call_count == 2          # original + exactly one retry
+        slept.assert_called_once()         # backed off before retrying
+        assert len(posts) == 2
+
+    def test_429_twice_gives_up_after_one_retry(self):
+        err = HTTPError("url", 429, "Too Many Requests", {}, None)
+        with patch.object(reddit, "urlopen", side_effect=[err, err]) as op, \
+             patch.object(reddit.time, "sleep"):
+            posts = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        assert op.call_count == 2          # one retry, then gives up cleanly
+        assert posts == []
+
+    def test_retry_after_header_is_honoured(self):
+        err = HTTPError("url", 429, "Too Many Requests", {"Retry-After": "12"}, None)
+        with patch.object(reddit, "urlopen", side_effect=[err, self._atom_resp()]), \
+             patch.object(reddit.time, "sleep") as slept:
+            reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        slept.assert_called_once_with(12.0)
 
 
 @pytest.mark.unit
