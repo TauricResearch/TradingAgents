@@ -22,6 +22,20 @@ def create_news_analyst(llm):
 
         system_message = (
             f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for {asset_label}-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            + """
+
+            ## Geopolitical Risk Analysis (mandatory — weight 20%)
+            You **MUST** call get_global_news() to pull broad macro/geopolitical news for the current trading period (trade_date and 3-7 days prior). From the results, extract **5-10 top current geopolitical hot topics**, focusing on:
+
+            - Armed conflicts and military escalation (e.g. wars, cross-border clashes)
+            - Geopolitical tensions and sanctions (e.g. trade wars, diplomatic standoffs)
+            - Military & security developments (e.g. exercises, defense spending, nuclear risks)
+            - Major diplomatic events (e.g. treaties, summits, alliance shifts)
+
+            At the end of your report, append a dedicated **「Geopolitical Risk Assessment」** section listing these 5-10 hot topics, assign an overall risk rating: 🔴 High / 🟡 Medium / 🟢 Low, and briefly explain the potential market transmission channel for each item.
+
+            Note: get_global_news(curr_date, look_back_days=7, limit=50) fetches a broad batch of macro headlines in one call — use it to ensure your analysis covers the most salient international events of the current period.
+            """
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + get_language_instruction()
         )
