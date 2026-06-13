@@ -24,6 +24,17 @@ ANALYST_ORDER = [
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
 
 
+def is_valid_ticker_input(value: str) -> bool:
+    """Whether a ticker entry is acceptable (charset + length).
+
+    Allows the characters Yahoo symbols use, including ``=`` for futures/forex
+    like ``GC=F`` and ``EURUSD=X`` (#980), and ``^`` for indices. Empty input is
+    allowed (it defaults to SPY downstream).
+    """
+    v = value.strip()
+    return not v or (all(ch.isalnum() or ch in "._-^=" for ch in v) and len(v) <= 32)
+
+
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol, preserving exchange suffixes.
 
@@ -34,9 +45,8 @@ def get_ticker() -> str:
     ticker = questionary.text(
         f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
         validate=lambda x: (
-            not x.strip()
-            or (all(ch.isalnum() or ch in "._-^" for ch in x.strip()) and len(x.strip()) <= 32)
-            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK."
+            is_valid_ticker_input(x)
+            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, GC=F."
         ),
         style=questionary.Style(
             [
@@ -54,13 +64,26 @@ def get_ticker() -> str:
 
 
 def normalize_ticker_symbol(ticker: str) -> str:
-    """Normalize ticker input while preserving exchange suffixes."""
-    return ticker.strip().upper()
+    """Resolve user input to its canonical Yahoo symbol (single source of truth).
+
+    Delegates to the data layer's ``normalize_symbol`` so the symbol the CLI
+    passes through the pipeline is exactly the one the data path will price
+    (e.g. ``BTCUSD`` -> ``BTC-USD``, ``XAUUSD`` -> ``GC=F``). Falls back to the
+    plain upper-case if the data layer is unavailable.
+    """
+    try:
+        from tradingagents.dataflows.symbol_utils import normalize_symbol
+
+        return normalize_symbol(ticker)
+    except Exception:
+        return ticker.strip().upper()
 
 
 def detect_asset_type(ticker: str) -> AssetType:
-    normalized_ticker = ticker.strip().upper()
-    if normalized_ticker.endswith(CRYPTO_SUFFIXES):
+    """Classify on the canonical symbol so e.g. BTCUSD and BTC-USDT both read as
+    crypto (#981/#982), matching what the data path will actually fetch."""
+    canonical = normalize_ticker_symbol(ticker)
+    if canonical.endswith(CRYPTO_SUFFIXES):
         return AssetType.CRYPTO
     return AssetType.STOCK
 
