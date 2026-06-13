@@ -14,6 +14,7 @@ import { ReportPanel } from "./components/ReportPanel";
 import { DecisionPanel } from "./components/DecisionPanel";
 import { HistoricalAnalysisDrawer } from "./components/HistoricalAnalysisDrawer";
 import { BackgroundRunsDrawer } from "./components/BackgroundRunsDrawer";
+import { PipelineFlow } from "./components/PipelineFlow";
 
 export default function App() {
   const focused = useUi((s) => s.focusedTicker);
@@ -95,8 +96,11 @@ export default function App() {
 
   if (watchlistLoading) {
     return (
-      <div className="min-h-screen p-6">
-        <p className="text-sm text-slate-500">Loading watchlist…</p>
+      <div className="min-h-screen flex items-center justify-center bg-market-DEFAULT">
+        <div className="text-center animate-fade-in">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading watchlist…</p>
+        </div>
       </div>
     );
   }
@@ -105,20 +109,34 @@ export default function App() {
   const decision = decisionEvent?.data as { action: string; target: number; rationale: string; confidence: number } | undefined;
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-market-DEFAULT relative">
+      {/* Ambient background gradient */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-sky-500/5 blur-[120px]" />
+        <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full bg-emerald-500/5 blur-[150px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-sky-400/3 blur-[200px]" />
+      </div>
       <WatchlistRail />
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-6 relative z-10">
         <header className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-semibold">TradingAgents</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-display font-semibold text-slate-100 tracking-tight">
+              TradingAgents
+            </h1>
+            <span className="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-widest 
+                         bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-md">
+              Multi-Agent
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => useUi.getState().setBackgroundRunsOpen(true)}
-              className="text-sm text-blue-600"
+              className="btn-secondary text-xs"
             >
               Past Runs
             </button>
             {focused && (
-              <button onClick={() => setHistoryOpen(true)} className="text-sm text-blue-600">History</button>
+              <button onClick={() => setHistoryOpen(true)} className="btn-secondary text-xs">History</button>
             )}
           </div>
         </header>
@@ -128,23 +146,23 @@ export default function App() {
               <div
                 data-testid="stale-ticker-banner"
                 role="alert"
-                className="mb-4 flex items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm px-4 py-3 text-sm text-amber-300"
               >
                 <span>
-                  <strong className="font-semibold">{focused}</strong> is not available
-                  on Yahoo Finance, so price and history are unavailable.
+                  <strong className="font-semibold text-amber-200">{focused}</strong> is not available
+                  on Yahoo Finance — price and history are unavailable.
                 </span>
                 <span className="flex items-center gap-3 shrink-0">
                   <button
                     onClick={handleRemoveFocused}
                     data-testid="stale-ticker-remove"
-                    className="rounded bg-amber-700 px-2 py-1 text-xs font-medium text-white hover:bg-amber-800"
+                    className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-300 border border-amber-500/20 hover:bg-amber-500/30 transition-colors"
                   >
                     Remove from watchlist
                   </button>
                   <button
                     onClick={() => setDismissedStaleBanner(focused)}
-                    className="text-amber-700 hover:text-amber-900"
+                    className="text-amber-400/60 hover:text-amber-300 transition-colors text-lg leading-none"
                     aria-label="Dismiss"
                   >
                     ×
@@ -153,6 +171,10 @@ export default function App() {
               </div>
             )}
             <TickerHeader ticker={focused} price={price.price} changePct={price.change_pct} stale={priceStale} />
+            {/* Pipeline flow: 5-team workflow visualization */}
+            <div className="mb-4">
+              <PipelineFlow events={events} />
+            </div>
             <RunTimeline />
             <LiveEventStream />
             <ReportPanel />
@@ -167,9 +189,14 @@ export default function App() {
             )}
           </>
         ) : (
-          <div className="mt-12 text-center text-slate-500">
-            <p className="text-base">Your watchlist is empty.</p>
-            <p className="text-sm mt-1">Use “+ Add ticker” in the rail on the left to get started.</p>
+          <div className="mt-24 text-center animate-fade-in">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-800/60 border border-slate-700/50 mb-4">
+              <svg className="w-8 h-8 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              </svg>
+            </div>
+            <p className="text-base font-medium text-slate-400">Your watchlist is empty</p>
+            <p className="text-sm text-slate-600 mt-1">Add tickers using the "+ Add ticker" button in the sidebar.</p>
           </div>
         )}
       </main>

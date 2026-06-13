@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { startRun, cancelRun, fetchTickerRuns, type RunRow } from "../lib/api";
 import { useUi } from "../store/ui";
 import { formatDuration } from "../lib/format";
+import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
 
 interface Props {
   ticker: string;
@@ -40,6 +42,24 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
   const activeRunId = useUi((s) => s.activeRunIdByTicker[ticker] ?? null);
   const lastRunId = useUi((s) => s.lastRunIdByTicker[ticker] ?? null);
   const historicalRunId = useUi((s) => s.historicalRunIdByTicker[ticker] ?? null);
+  const events = useFocusedRunEvents();
+  const agentProgress = useMemo(() => {
+    if (!activeRunId) return null;
+    const started = new Set<string>();
+    const completed = new Set<string>();
+    for (const e of events) {
+      const data = e.data as Record<string, unknown>;
+      if (e.type === "analyst_started") {
+        const node = String(data.node ?? "");
+        if (node) started.add(node);
+      } else if (e.type === "analyst_completed") {
+        const node = String(data.node ?? "");
+        if (node) completed.add(node);
+      }
+    }
+    if (started.size === 0) return null;
+    return { done: completed.size, total: started.size };
+  }, [events, activeRunId]);
 
   const setActiveRunIdForTicker = useUi((s) => s.setActiveRunIdForTicker);
   const setLastRunIdForTicker = useUi((s) => s.setLastRunIdForTicker);
@@ -102,23 +122,42 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
     : "Run analysis";
 
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center justify-between mb-5">
       <div>
-        <h2 className="text-2xl font-semibold">{ticker}</h2>
-        <p className="text-sm text-slate-500">
-          {stale ? (
-            <span data-testid="ticker-header-unavailable" className="text-amber-700 font-medium">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-display font-semibold text-slate-100 tracking-tight">{ticker}</h2>
+          {agentProgress && (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-mono font-semibold rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse shadow-[0_0_4px_rgba(56,189,248,0.4)]" />
+              {agentProgress.done}/{agentProgress.total} agents
+            </span>
+          )}
+          {!stale && changePct != null && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs data-text font-medium rounded-md ${
+              changePct >= 0
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+            }`}>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d={changePct >= 0 ? "M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" : "M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3"} />
+              </svg>
+              {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
+            </span>
+          )}
+          {stale && (
+            <span data-testid="ticker-header-unavailable" className="text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
               Price data unavailable
             </span>
+          )}
+        </div>
+        <p className="text-sm text-slate-500 mt-1">
+          {stale ? (
+            <span className="text-amber-400/60">Unavailable on Yahoo Finance</span>
           ) : (
-            <>
+            <span className="data-text text-slate-400">
               {price != null ? `$${price.toFixed(2)}` : "—"}
-              {changePct != null && (
-                <span className={changePct >= 0 ? "text-emerald-600 ml-2" : "text-rose-600 ml-2"}>
-                  {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
-                </span>
-              )}
-            </>
+              {' · '}USD
+            </span>
           )}
         </p>
       </div>
@@ -131,7 +170,8 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
               const v = e.target.value;
               onSelectHistorical(v === "latest" ? null : v);
             }}
-            className="px-2 py-1.5 text-sm border border-slate-300 rounded-md bg-white"
+            className="px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-300 
+                       focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30"
           >
             <option value="latest">Latest (live)</option>
             {(Array.isArray(tickerRuns.data) ? tickerRuns.data : []).map((r) => (
@@ -144,14 +184,20 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
         <button
           disabled={isRunning || start.isPending}
           onClick={() => start.mutate()}
-          className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white disabled:opacity-50"
+          className="btn-primary"
         >
+          {start.isPending && (
+            <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" className="opacity-25" />
+              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          )}
           {actionLabel}
         </button>
         {isRunning && (
           <button
             onClick={() => cancel.mutate()}
-            className="px-3 py-1.5 text-sm font-medium rounded-md border border-slate-300"
+            className="btn-secondary"
           >
             Cancel
           </button>

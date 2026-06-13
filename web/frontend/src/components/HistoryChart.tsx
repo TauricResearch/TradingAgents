@@ -264,7 +264,7 @@ export function HistoryChart(props: HistoryChartProps) {
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="2 2" />
+              <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
               <XAxis
                 dataKey="t"
                 type="number"
@@ -277,7 +277,7 @@ export function HistoryChart(props: HistoryChartProps) {
                 tickFormatter={fmtPrice}
                 width={50}
                 tick={{ fontSize: 10, fill: "#64748b" }}
-                stroke="#cbd5e1"
+                stroke="#334155"
               />
               <Customized component={BoundCandleRenderer} />
               {/* Hidden line — gives the <Tooltip> a real series to
@@ -294,24 +294,24 @@ export function HistoryChart(props: HistoryChartProps) {
                 name="price"
               />
               <Tooltip
-                cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }}
+                cursor={{ stroke: "#475569", strokeDasharray: "3 3" }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const p = payload[0].payload as ChartRow;
                   return (
                     <div
-                      className="bg-white border border-slate-200 rounded shadow-sm px-2 py-1 text-xs"
+                      className="glass-panel px-3 py-2 text-xs"
                       data-testid="history-tooltip"
                     >
-                      <div className="text-slate-500">{fmtTime(p.t, scale)}</div>
-                      <div className="font-medium text-slate-900">${fmtPrice(p.c)}</div>
-                      <div className="text-slate-400 mt-0.5">
-                        O {fmtPrice(p.o)} · H {fmtPrice(p.h)} · L {fmtPrice(p.l)}
+                      <div className="text-slate-500 font-mono text-[10px]">{fmtTime(p.t, scale)}</div>
+                      <div className="data-text font-semibold text-slate-100 text-sm mt-0.5">${fmtPrice(p.c)}</div>
+                      <div className="text-slate-500 mt-1 text-[10px]">
+                        O <span className="data-text text-slate-400">{fmtPrice(p.o)}</span> · H <span className="data-text text-slate-400">{fmtPrice(p.h)}</span> · L <span className="data-text text-slate-400">{fmtPrice(p.l)}</span>
                       </div>
-                      <div className="text-slate-400">
-                        Avg {fmtPrice(p.avg)} · σ {fmtPrice(p.std)}
+                      <div className="text-slate-600 text-[10px]">
+                        Avg <span className="data-text">{fmtPrice(p.avg)}</span> · σ <span className="data-text">{fmtPrice(p.std)}</span>
                       </div>
-                      <div className="text-slate-400">Vol {fmtVolume(p.v)}</div>
+                      <div className="text-slate-600 text-[10px]">Vol <span className="data-text">{fmtVolume(p.v)}</span></div>
                     </div>
                   );
                 }}
@@ -358,25 +358,25 @@ export function HistoryChart(props: HistoryChartProps) {
                     x={startMs} y={run.startPrice}
                     r={isSelected ? 8 : 5}
                     fill={actionColor(run.decisionAction)}
-                    stroke="#fff" strokeWidth={1}
+                    stroke="#1e293b" strokeWidth={1.5}
                     ifOverflow="extendDomain"
                   />
                 );
               })}
               <ReferenceLine
                 x={nowMs}
-                stroke="#94a3b8"
+                stroke="#475569"
                 strokeDasharray="3 3"
-                label={{ value: "now", position: "insideTopRight", fill: "#94a3b8", fontSize: 10 }}
+                label={{ value: "now", position: "insideTopRight", fill: "#64748b", fontSize: 10 }}
                 ifOverflow="extendDomain"
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="h-14 shrink-0 border-t border-slate-100">
+        <div className="h-14 shrink-0 border-t border-slate-800">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 8, left: 8 }}>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="2 2" vertical={false} />
+              <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="t"
                 type="number"
@@ -384,22 +384,22 @@ export function HistoryChart(props: HistoryChartProps) {
                 scale="time"
                 tickFormatter={(v) => fmtTime(v, scale)}
                 tick={{ fontSize: 10, fill: "#64748b" }}
-                stroke="#cbd5e1"
+                stroke="#334155"
                 minTickGap={32}
               />
               <YAxis hide width={50} />
               <Tooltip
-                cursor={{ fill: "#f1f5f9" }}
+                cursor={{ fill: "rgba(30,41,59,0.5)" }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const p = payload[0].payload as ChartRow;
                   return (
                     <div
-                      className="bg-white border border-slate-200 rounded shadow-sm px-2 py-1 text-xs"
+                      className="glass-panel px-3 py-2 text-xs"
                       data-testid="volume-tooltip"
                     >
-                      <div className="text-slate-500">{fmtTime(p.t, scale)}</div>
-                      <div className="font-medium text-slate-900">Vol {fmtVolume(p.v)}</div>
+                      <div className="text-slate-500 font-mono text-[10px]">{fmtTime(p.t, scale)}</div>
+                      <div className="data-text font-semibold text-slate-100 text-sm mt-0.5">Vol {fmtVolume(p.v)}</div>
                     </div>
                   );
                 }}

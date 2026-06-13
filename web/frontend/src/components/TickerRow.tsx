@@ -17,11 +17,11 @@ interface Props {
 }
 
 const dotColor: Record<Props["status"], string> = {
-  idle: "bg-slate-300",
-  queued: "bg-amber-400",
-  running: "bg-blue-500 animate-pulse",
-  done: "bg-emerald-500",
-  errored: "bg-rose-500",
+  idle: "bg-slate-600",
+  queued: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
+  running: "bg-sky-400 animate-pulse shadow-[0_0_8px_rgba(56,189,248,0.5)]",
+  done: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]",
+  errored: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]",
 };
 
 export function TickerRow({ ticker, companyName, lastDecision, sparkline, status, price, changePct, stale, onRemove }: Props) {
@@ -51,47 +51,49 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
       onClick={() => setFocused(ticker)}
       onKeyDown={handleKeyDown}
       data-focused={isFocused}
-      className={`group w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 hover:bg-slate-50 ${
-        isFocused ? "bg-blue-50 ring-1 ring-blue-200" : ""
+      className={`group w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-150 cursor-pointer ${
+        isFocused
+          ? "bg-sky-500/10 ring-1 ring-sky-500/30 shadow-[0_0_12px_rgba(56,189,248,0.08)]"
+          : "hover:bg-slate-800/60"
       }`}
     >
-      <span className={`h-2 w-2 rounded-full ${dotColor[status]}`} />
+      <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor[status]}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold">{ticker}</span>
+          <span className="text-sm font-semibold text-slate-100">{ticker}</span>
           {stale ? (
             <span
               data-testid={`ticker-row-${ticker}-unavailable`}
-              className="text-[10px] uppercase tracking-wide font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5"
+              className="text-[10px] uppercase tracking-wider font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md px-1.5 py-0.5"
             >
               unavailable
             </span>
           ) : price != null && !isNaN(price) ? (
-            <span className="text-xs tabular-nums text-slate-600">
+            <span className="text-xs data-text text-slate-400">
               ${price.toFixed(2)}
             </span>
           ) : null}
         </div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-xs text-slate-500 truncate">
+          <span className="text-xs text-slate-600 truncate">
             {stale ? "Price data unavailable" : companyName || lastDecision || "—"}
           </span>
           {!stale && showChange && (
-            <span className={`text-xs tabular-nums font-medium ${changeColor}`}>
+            <span className={`text-xs data-text font-medium ${changeColor}`}>
               {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
             </span>
           )}
         </div>
       </div>
-      <svg width="40" height="20" className="opacity-60 shrink-0">
-        {sparkPath && <path d={sparkPath} stroke="rgb(59 130 246)" strokeWidth="1" fill="none" />}
+      <svg width="40" height="20" className="opacity-40 shrink-0" aria-hidden="true">
+        {sparkPath && <path d={sparkPath} stroke={isFocused ? "#38bdf8" : "#475569"} strokeWidth="1.5" fill="none" />}
       </svg>
       {!pending ? (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); setPending(true); }}
           aria-label={`Remove ${ticker} from watchlist`}
-          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 text-sm px-1 shrink-0"
+          className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 text-sm px-1 shrink-0 transition-opacity"
         >
           ×
         </button>
@@ -100,12 +102,12 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
           <button
             type="button"
             onClick={async (e) => { e.stopPropagation(); await onRemove?.(ticker); }}
-            className="text-rose-600 hover:underline"
+            className="text-red-400 hover:text-red-300 hover:underline"
           >Remove</button>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setPending(false); }}
-            className="text-slate-500 hover:underline"
+            className="text-slate-500 hover:text-slate-400 hover:underline"
           >Cancel</button>
         </span>
       )}
