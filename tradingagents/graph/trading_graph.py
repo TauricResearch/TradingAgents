@@ -271,6 +271,16 @@ class TradingAgentsGraph:
         Trade-off: only same-ticker entries are resolved per run.  Entries for
         other tickers accumulate until that ticker is run again.
         """
+        if (
+            not self.config.get("allow_vendor_fallback", True)
+            and self.config.get("data_vendors", {}).get("core_stock_apis") == "akshare_cn"
+        ):
+            logger.info(
+                "Skipping memory-log outcome resolution for %s in strict AKShare mode.",
+                ticker,
+            )
+            return
+
         pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
         if not pending:
             return

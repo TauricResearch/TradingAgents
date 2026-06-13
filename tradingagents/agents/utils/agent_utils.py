@@ -56,6 +56,53 @@ def _clean_identity_value(value: Any) -> Optional[str]:
     return cleaned
 
 
+def _a_share_code(ticker: str) -> Optional[str]:
+    raw = str(ticker).strip().upper()
+    if "." in raw:
+        raw = raw.split(".", 1)[0]
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    return digits if len(digits) == 6 else None
+
+
+def _resolve_a_share_identity(ticker: str) -> dict:
+    code = _a_share_code(ticker)
+    if not code:
+        return {}
+    try:
+        import akshare as ak
+        from tradingagents.dataflows.akshare_http import run_akshare
+
+        df = run_akshare(ak.stock_individual_info_em, symbol=code)
+    except Exception as exc:  # noqa: BLE001 - fail open, like the yfinance path
+        logger.debug("Could not resolve A-share identity for %s: %s", ticker, exc)
+        return {}
+
+    if df is None or df.empty:
+        return {}
+
+    item_col = "item" if "item" in df.columns else df.columns[0]
+    value_col = "value" if "value" in df.columns else df.columns[-1]
+    raw_info = {
+        str(row[item_col]).strip(): row[value_col]
+        for _, row in df.iterrows()
+    }
+
+    identity: dict[str, str] = {}
+    for key in ("股票简称", "股票名称", "证券简称"):
+        name = _clean_identity_value(raw_info.get(key))
+        if name:
+            identity["company_name"] = name
+            break
+    for key in ("行业", "所属行业"):
+        industry = _clean_identity_value(raw_info.get(key))
+        if industry:
+            identity["industry"] = industry
+            break
+    exchange = "Shanghai Stock Exchange" if code.startswith(("5", "6", "9")) else "Shenzhen Stock Exchange"
+    identity["exchange"] = exchange
+    return identity
+
+
 @functools.lru_cache(maxsize=256)
 def resolve_instrument_identity(ticker: str) -> dict:
     """Resolve deterministic identity metadata (company name, sector, …) for a ticker.
@@ -71,6 +118,10 @@ def resolve_instrument_identity(ticker: str) -> dict:
     ticker-only context rather than failing before analysis starts. Cached so
     the lookup happens at most once per ticker per process.
     """
+    a_share_identity = _resolve_a_share_identity(ticker)
+    if a_share_identity:
+        return a_share_identity
+
     try:
         info = yf.Ticker(ticker.upper()).info or {}
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
