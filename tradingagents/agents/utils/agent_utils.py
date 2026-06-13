@@ -70,9 +70,14 @@ def resolve_instrument_identity(ticker: str) -> dict:
     recognise the ticker, we return ``{}`` and the caller falls back to
     ticker-only context rather than failing before analysis starts. Cached so
     the lookup happens at most once per ticker per process.
+
+    The symbol is normalized first (e.g. ``XAUUSD`` -> ``GC=F``) so identity
+    resolves for the same instrument the price path actually fetches (#983).
     """
+    from tradingagents.dataflows.symbol_utils import normalize_symbol
+
     try:
-        info = yf.Ticker(ticker.upper()).info or {}
+        info = yf.Ticker(normalize_symbol(ticker)).info or {}
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}
