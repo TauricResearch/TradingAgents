@@ -38,7 +38,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    resolve_risk_constraints,
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -163,6 +164,10 @@ class TradingAgentsGraph:
             kwargs["temperature"] = float(temperature)
 
         return kwargs
+
+    def _risk_constraints_from_config(self) -> Dict[str, Any]:
+        """Return session risk constraints to persist outside message history."""
+        return resolve_risk_constraints(self.config)
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
@@ -360,12 +365,14 @@ class TradingAgentsGraph:
         # deterministically resolved instrument identity for all agents.
         past_context = self.memory_log.get_past_context(company_name)
         instrument_context = self.resolve_instrument_context(company_name, asset_type)
+        risk_constraints = self._risk_constraints_from_config()
         init_agent_state = self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
             past_context=past_context,
             instrument_context=instrument_context,
+            risk_constraints=risk_constraints,
         )
         args = self.propagator.get_graph_args()
 
@@ -420,6 +427,7 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "risk_constraints": final_state.get("risk_constraints", {}),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
