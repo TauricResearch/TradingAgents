@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from tradingagents.llm_clients.custom_provider_config import get_custom_api_key_env
+
 
 PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "openai":     "OPENAI_API_KEY",
@@ -41,4 +43,9 @@ def get_api_key_env(provider: str) -> Optional[str]:
     Unknown providers also return None — callers should treat that as
     "no key check possible" rather than as "no key required".
     """
-    return PROVIDER_API_KEY_ENV.get(provider.lower())
+    provider_key = provider.lower()
+
+    if provider_key in PROVIDER_API_KEY_ENV:
+        return PROVIDER_API_KEY_ENV[provider_key]
+
+    return get_custom_api_key_env(provider_key)

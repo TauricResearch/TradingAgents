@@ -1,6 +1,7 @@
 from typing import Optional
 
 from .base_client import BaseLLMClient
+from .custom_provider_config import is_custom_openai_compatible_provider
 
 # Providers that use the OpenAI-compatible chat completions API
 _OPENAI_COMPATIBLE = (
@@ -38,7 +39,7 @@ def create_llm_client(
     """
     provider_lower = provider.lower()
 
-    if provider_lower in _OPENAI_COMPATIBLE:
+    if provider_lower in _OPENAI_COMPATIBLE or is_custom_openai_compatible_provider(provider_lower):
         from .openai_client import OpenAIClient
         return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
 

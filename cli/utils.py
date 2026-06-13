@@ -9,6 +9,7 @@ from rich.console import Console
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.llm_clients.custom_provider_config import get_custom_provider_choices
 
 console = Console()
 
@@ -278,7 +279,8 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     localhost default when unset.
     """
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
-    return [
+
+    PROVIDERS = [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
@@ -292,6 +294,13 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("Ollama", "ollama", ollama_url),
     ]
 
+    existing_provider_keys = {provider_key for _, provider_key, _ in PROVIDERS}
+    for display, provider_key, url in get_custom_provider_choices():
+        if provider_key not in existing_provider_keys:
+            PROVIDERS.append((display, provider_key, url))
+            existing_provider_keys.add(provider_key)
+
+    return PROVIDERS
 
 def provider_default_url(provider_key: str) -> str | None:
     """Return the default backend URL for a provider key, or None if unknown."""
