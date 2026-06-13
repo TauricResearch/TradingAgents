@@ -10,24 +10,41 @@ interface Props {
 }
 
 export function DecisionPanel({ action, target, confidence, rationale, degraded }: Props) {
-  const actionColor = action === "BUY" ? "text-emerald-600" : action === "SELL" ? "text-rose-600" : "text-slate-600";
+  const isBuy = action === "BUY";
+  const isSell = action === "SELL";
+  const actionColor = isBuy ? "text-emerald-400" : isSell ? "text-red-400" : "text-slate-400";
+  const actionBg = isBuy ? "bg-emerald-500/10 border-emerald-500/25" : isSell ? "bg-red-500/10 border-red-500/25" : "bg-slate-700/30 border-slate-600/50";
+  const accentBorder = isBuy ? "border-l-emerald-500" : isSell ? "border-l-red-500" : "border-l-slate-500";
+  const progressColor = isBuy ? "bg-emerald-500" : isSell ? "bg-red-500" : "bg-slate-500";
   const pct = Math.max(0, Math.min(1, confidence)) * 100;
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 mt-4">
-      <div className="flex items-center gap-3 mb-2">
-        <span className={`text-2xl font-semibold ${actionColor}`}>{action}</span>
-        {target != null && <span className="text-lg text-slate-700">@ ${target.toFixed(2)}</span>}
+    <div className={`glass-panel mt-4 border-l-2 ${accentBorder}`}>
+      <div className="flex items-center gap-3 mb-3">
+        <span className={`tag ${actionBg} text-sm font-semibold ${actionColor}`}>
+          {isBuy && (
+            <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+            </svg>
+          )}
+          {isSell && (
+            <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
+            </svg>
+          )}
+          {action}
+        </span>
+        {target != null && <span className="text-lg data-text text-slate-300">@ ${target.toFixed(2)}</span>}
         <div className="flex-1" />
-        {degraded && <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">degraded</span>}
+        {degraded && <span className="text-[10px] font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">degraded</span>}
       </div>
-      <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+      <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
         <span>Confidence</span>
-        <span className="font-medium text-slate-700">{pct.toFixed(0)}%</span>
+        <span className="data-text font-semibold text-slate-300">{pct.toFixed(0)}%</span>
       </div>
-      <div className="h-2 bg-slate-100 rounded">
-        <div className="h-2 rounded bg-blue-500" style={{ width: `${pct}%` }} />
+      <div className="progress-bar">
+        <div className={`progress-fill ${progressColor}`} style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-sm text-slate-700 mt-3 whitespace-pre-wrap">{rationale}</p>
+      <p className="text-sm text-slate-400 mt-3 whitespace-pre-wrap leading-relaxed">{rationale}</p>
     </div>
   );
 }

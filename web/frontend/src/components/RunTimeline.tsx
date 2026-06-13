@@ -3,17 +3,25 @@ import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
 import { formatDuration } from "../lib/format";
 import type { WsEvent } from "../lib/events";
 
-const STAGES = [
-  { key: "market", label: "Market" },
-  { key: "sentiment", label: "Sentiment" },
-  { key: "news", label: "News" },
-  { key: "fundamentals", label: "Fundamentals" },
-  { key: "research", label: "Research" },
-  { key: "risk", label: "Risk" },
-  { key: "trader", label: "Trader" },
-] as const;
+type StageKey = "market" | "sentiment" | "news" | "fundamentals" | "research" | "risk" | "trader";
 
-type StageKey = (typeof STAGES)[number]["key"];
+interface StageConfig {
+  key: StageKey;
+  label: string;
+  icon: string;
+  agentColor: string;
+  description: string;
+}
+
+const STAGES: StageConfig[] = [
+  { key: "market", label: "Market", icon: "M", agentColor: "agent-market", description: "Technical indicators & price patterns" },
+  { key: "sentiment", label: "Sentiment", icon: "S", agentColor: "agent-sentiment", description: "Social media & market mood" },
+  { key: "news", label: "News", icon: "N", agentColor: "agent-news", description: "Global news & macro analysis" },
+  { key: "fundamentals", label: "Fundamentals", icon: "F", agentColor: "agent-fundamentals", description: "Financials & performance metrics" },
+  { key: "research", label: "Research", icon: "R", agentColor: "agent-research", description: "Bull & Bear debate analysis" },
+  { key: "risk", label: "Risk", icon: "⚠", agentColor: "agent-risk", description: "Portfolio risk assessment" },
+  { key: "trader", label: "Trader", icon: "T", agentColor: "agent-trader", description: "Execution & position sizing" },
+] as const;
 
 /* Map node name -> stage key (mirrors runner._STAGE_MAP). */
 const NODE_TO_STAGE: Record<string, StageKey> = {
@@ -188,11 +196,22 @@ function deriveSegmentProgress(
   return out;
 }
 
+/* Per-stage agent color tokens (used inline to avoid complex Tailwind JIT). */
+const AGENT_COLORS: Record<string, { base: string; dim: string; ring: string }> = {
+  market:       { base: "#38bdf8", dim: "rgba(56,189,248,0.15)",  ring: "rgba(56,189,248,0.3)" },
+  sentiment:    { base: "#a78bfa", dim: "rgba(167,139,250,0.15)", ring: "rgba(167,139,250,0.3)" },
+  news:         { base: "#34d399", dim: "rgba(52,211,153,0.15)",  ring: "rgba(52,211,153,0.3)" },
+  fundamentals: { base: "#f472b6", dim: "rgba(244,114,182,0.15)", ring: "rgba(244,114,182,0.3)" },
+  research:     { base: "#fb923c", dim: "rgba(251,146,60,0.15)",  ring: "rgba(251,146,60,0.3)" },
+  risk:         { base: "#ef4444", dim: "rgba(239,68,68,0.15)",   ring: "rgba(239,68,68,0.3)" },
+  trader:       { base: "#fbbf24", dim: "rgba(251,191,36,0.15)",  ring: "rgba(251,191,36,0.3)" },
+};
+
 const STATUS_DOT: Record<StageDerived["status"], string> = {
-  idle: "bg-slate-300 text-slate-500 border-slate-300",
-  running: "bg-blue-500 text-white border-blue-500 ring-2 ring-blue-200 animate-pulse",
-  done: "bg-emerald-500 text-white border-emerald-500",
-  errored: "bg-rose-500 text-white border-rose-500",
+  idle: "",
+  running: "ring-2 animate-pulse",
+  done: "",
+  errored: "",
 };
 
 const STATUS_LABEL: Record<StageDerived["status"], string> = {
@@ -223,25 +242,28 @@ function lastStartedIsoFor(stage: StageKey, events: WsEvent[]): string | undefin
 
 function StageButton({
   status,
-  position,
   testKey,
   durationMs,
   startedAtIso,
   isExpanded,
   onClick,
   ariaLabel,
+  agentColor,
+  agentIcon,
 }: {
   status: StageDerived["status"];
-  position: number;
   testKey: string;
   durationMs?: number;
   startedAtIso?: string;
   isExpanded: boolean;
   onClick: () => void;
   ariaLabel: string;
+  agentColor: string;
+  agentIcon: string;
 }) {
   const isRunning = status === "running";
   const [elapsed, setElapsed] = useState<number>(0);
+  const ac = AGENT_COLORS[agentColor] ?? AGENT_COLORS.market;
 
   useEffect(() => {
     if (!isRunning || !startedAtIso) return;
@@ -255,14 +277,15 @@ function StageButton({
   }, [isRunning, startedAtIso]);
 
   const baseShape = isRunning
-    ? "min-w-[3.25rem] h-8 px-2 rounded-full"
-    : "w-8 h-8 rounded-full";
-  const baseText = isRunning ? "text-[10px] font-mono" : "text-xs font-semibold";
-  const label = isRunning
-    ? formatElapsed(elapsed)
-    : status === "done"
-    ? "✓"
-    : `${position}`;
+    ? "min-w-[3.25rem] h-9 px-3 rounded-full"
+    : "w-9 h-9 rounded-full";
+
+  const dynamicStyle: React.CSSProperties = {
+    borderColor: isRunning || status === "done" ? ac.base : "rgba(71,85,105,0.5)",
+    backgroundColor: status === "done" ? ac.dim : status === "running" ? ac.dim : isExpanded ? "rgba(30,41,59,0.8)" : "transparent",
+    color: status === "idle" ? "#64748b" : ac.base,
+    boxShadow: isRunning ? `0 0 12px ${ac.ring}` : status === "done" ? `0 0 6px ${ac.ring}` : "none",
+  };
 
   return (
     <button
@@ -275,19 +298,20 @@ function StageButton({
       aria-expanded={isExpanded}
       aria-label={ariaLabel}
       title={durationMs != null ? formatDuration(durationMs) : undefined}
-      className={`border-2 flex items-center justify-center gap-1 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 ${baseShape} ${baseText} ${STATUS_DOT[status]}`}
+      className={`flex items-center justify-center transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-market-DEFAULT ${baseShape} ${STATUS_DOT[status]}`}
+      style={dynamicStyle}
     >
-      {isRunning && (
-        <svg
-          className="animate-spin h-3 w-3"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" fill="none" />
-          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
-        </svg>
+      {isRunning ? (
+        <>
+          <svg className="animate-spin h-3 w-3 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" fill="none" />
+            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
+          </svg>
+          <span className="ml-1 text-[10px] font-mono font-semibold">{formatElapsed(elapsed)}</span>
+        </>
+      ) : (
+        <span className="text-sm font-bold leading-none">{status === "done" ? "✓" : agentIcon}</span>
       )}
-      <span>{label}</span>
     </button>
   );
 }
@@ -316,19 +340,50 @@ export function RunTimeline() {
 
   const toggle = (key: StageKey) => setExpanded((prev) => (prev === key ? null : key));
 
+  const TEAM_GROUPS = [
+    { label: "Analyst Team", indices: [0, 1, 2, 3], color: "#38bdf8" },
+    { label: "Research", indices: [4], color: "#fb923c" },
+    { label: "Risk Mgmt", indices: [5], color: "#ef4444" },
+    { label: "Trader", indices: [6], color: "#fbbf24" },
+  ] as const;
+
   return (
     <div className="mb-4">
       {/* timeline strip */}
-      <div className="relative px-2 py-3" data-testid="run-timeline">
+      <div className="relative px-2 py-4 rounded-xl bg-slate-900/40 border border-slate-800/60" data-testid="run-timeline">
+        {/* Team grouping labels */}
+        <div className="flex items-start mb-3 px-1">
+          {TEAM_GROUPS.map((group) => {
+            const groupStages = group.indices.map((i) => derived[i].info.status);
+            const allDone = groupStages.every((s) => s === "done");
+            const anyActive = groupStages.some((s) => s === "running");
+            return (
+              <div
+                key={group.label}
+                className="flex-1 last:flex-none text-center"
+                style={{ maxWidth: group.indices.length > 1 ? `${group.indices.length * 14}%` : "14%" }}
+              >
+                <span
+                  className="text-[9px] font-semibold uppercase tracking-widest transition-colors duration-300"
+                  style={{
+                    color: allDone ? group.color : anyActive ? `${group.color}99` : "#334155",
+                  }}
+                >
+                  {group.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
         <div className="flex items-start">
           {derived.map((d, i) => {
             const isExpanded = expanded === d.key;
+            const stageConfig = STAGES.find((s) => s.key === d.key)!;
             return (
               <div key={d.key} className="flex items-start flex-1 last:flex-none">
                 {/* node column */}
                 <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
                   <StageButton
-                    position={i + 1}
                     testKey={d.key}
                     status={d.info.status}
                     durationMs={d.info.duration_ms}
@@ -336,11 +391,13 @@ export function RunTimeline() {
                     isExpanded={isExpanded}
                     onClick={() => toggle(d.key)}
                     ariaLabel={`${d.label} stage: ${STATUS_LABEL[d.info.status]}`}
+                    agentColor={stageConfig.key}
+                    agentIcon={stageConfig.icon}
                   />
-                  <div className="mt-1.5 text-[11px] font-medium text-slate-700 text-center truncate w-full">
+                  <div className="mt-1.5 text-[11px] font-semibold text-slate-400 text-center truncate w-full max-w-[80px]">
                     {d.label}
                   </div>
-                  <div className="text-[10px] text-slate-400 text-center">
+                  <div className="text-[10px] text-slate-600 text-center font-mono">
                     {d.info.duration_ms != null ? formatDuration(d.info.duration_ms) : STATUS_LABEL[d.info.status]}
                   </div>
                 </div>
@@ -350,7 +407,7 @@ export function RunTimeline() {
                     data-testid="timeline-segment"
                     data-progress={segmentProgress[i]}
                     aria-hidden="true"
-                    className={`flex-1 h-1 mx-1 mt-3.5 rounded-full transition-colors ${SEGMENT_CLASS[segmentProgress[i]]}`}
+                    className={`flex-1 h-0.5 mx-1 mt-[18px] rounded-full transition-colors duration-500 ${SEGMENT_CLASS[segmentProgress[i]]}`}
                   />
                 )}
               </div>
@@ -363,59 +420,79 @@ export function RunTimeline() {
       {expanded && (() => {
         const d = derived.find((x) => x.key === expanded);
         if (!d) return null;
+        const stageConfig = STAGES.find((s) => s.key === d.key)!;
+        const ac = AGENT_COLORS[d.key] ?? AGENT_COLORS.market;
         const isRunning = d.info.status === "running";
+        const isDone = d.info.status === "done";
         return (
           <div
             data-testid={`stage-${d.key}-details`}
-            className="mt-2 rounded-lg border border-slate-200 bg-white p-3 text-sm"
+            className="mt-2 rounded-xl border border-slate-700/50 bg-slate-900/60 backdrop-blur-sm p-4 text-sm animate-fade-in"
+            style={{ borderLeftColor: ac.base, borderLeftWidth: 2 }}
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-medium">
-                {d.label}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold"
+                  style={{ backgroundColor: ac.dim, color: ac.base }}
+                >
+                  {stageConfig.icon}
+                </span>
+                <div>
+                  <div className="font-semibold text-slate-200">
+                    {d.label}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium">{stageConfig.description}</div>
+                </div>
                 {d.info.node && (
-                  <span className="ml-2 text-xs text-slate-500 font-normal">
+                  <span className="ml-2 text-[10px] font-mono text-slate-500 bg-slate-800/60 px-2 py-0.5 rounded">
                     {d.info.node}
                   </span>
                 )}
               </div>
               <button
                 onClick={() => toggle(d.key)}
-                className="text-xs text-slate-500 hover:text-slate-800"
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
               >
                 Close
               </button>
             </div>
             {isRunning ? (
               d.info.thinkingLog.length > 0 ? (
-                <pre className="text-xs leading-relaxed text-slate-700 bg-slate-50 rounded p-2 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono">
+                <pre className="text-xs leading-relaxed text-slate-300 bg-slate-950/60 rounded-lg p-3 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono border border-slate-800/50">
                   {d.info.thinkingLog.join("\n")}
-                  <span className="inline-block w-1.5 h-3 bg-blue-500 animate-pulse ml-0.5 align-middle" />
+                  <span className="inline-block w-1.5 h-3 ml-0.5 align-middle rounded-sm" style={{ backgroundColor: ac.base }} />
                 </pre>
               ) : (
-                <div className="text-xs text-slate-500 italic">
-                  {d.info.node} is running…
+                <div className="flex items-center gap-2 text-xs text-slate-500 italic">
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: ac.base }} />
+                  {d.info.node ?? stageConfig.label} is thinking…
                 </div>
               )
-            ) : d.info.status === "done" ? (
+            ) : isDone ? (
               <div className="space-y-2">
                 {d.info.excerpt && (
-                  <div className="text-xs text-slate-700">{d.info.excerpt}</div>
+                  <div className="text-xs text-slate-400 leading-relaxed">{d.info.excerpt}</div>
                 )}
                 {d.info.fullText && (
-                  <pre className="text-xs leading-relaxed text-slate-800 bg-slate-50 rounded p-2 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono">
+                  <pre className="text-xs leading-relaxed text-slate-300 bg-slate-950/60 rounded-lg p-3 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono border border-slate-800/50">
                     {d.info.fullText}
                   </pre>
                 )}
                 {!d.info.excerpt && !d.info.fullText && (
-                  <div className="text-xs text-slate-500 italic">No report content.</div>
+                  <div className="text-xs text-slate-600 italic">No report content.</div>
                 )}
               </div>
             ) : d.info.status === "errored" ? (
-              <div className="text-xs text-rose-700">
+              <div className="flex items-center gap-2 text-xs text-red-400">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
                 This stage did not run because the run failed earlier.
               </div>
             ) : (
-              <div className="text-xs text-slate-500 italic">
+              <div className="flex items-center gap-2 text-xs text-slate-600 italic">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
                 Waiting for {d.label} to start…
               </div>
             )}

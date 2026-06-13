@@ -33,26 +33,35 @@ export function WatchlistRail() {
   }, [qc, clearLast]);
 
   return (
-    <aside className="w-64 border-r border-slate-200 p-2 h-screen overflow-y-auto">
-      <div className="text-xs uppercase tracking-wide text-slate-500 px-2 py-1">Watchlist</div>
-      {watchlist.map((row) => {
-        const price = (prices as any)[row.ticker] || {};
-        return (
-          <TickerRow
-            key={row.ticker}
-            ticker={row.ticker}
-            companyName={row.company_name}
-            lastDecision={row.last_decision}
-            sparkline={price.sparkline || []}
-            status={statusForTicker(row.ticker, row.last_decision, [])}
-            price={price.price}
-            changePct={price.change_pct}
-            stale={price.stale === true}
-            onRemove={handleRemove}
-          />
-        );
-      })}
-      <AddTickerCommand />
+    <aside className="w-64 border-r border-slate-800 bg-slate-900/50 backdrop-blur-sm flex flex-col h-screen overflow-hidden">
+      <div className="shrink-0 px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
+          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Watchlist</span>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+        {watchlist.map((row) => {
+          const price = (prices as any)[row.ticker] || {};
+          return (
+            <TickerRow
+              key={row.ticker}
+              ticker={row.ticker}
+              companyName={row.company_name}
+              lastDecision={row.last_decision}
+              sparkline={price.sparkline || []}
+              status={statusForTicker(row.ticker, row.last_decision, [])}
+              price={price.price}
+              changePct={price.change_pct}
+              stale={price.stale === true}
+              onRemove={handleRemove}
+            />
+          );
+        })}
+      </div>
+      <div className="shrink-0 border-t border-slate-800">
+        <AddTickerCommand />
+      </div>
     </aside>
   );
 }

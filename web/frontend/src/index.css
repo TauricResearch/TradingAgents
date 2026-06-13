@@ -2,16 +2,162 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  --border: 214 32% 91%;
-  --accent: 221 83% 53%;
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #1e293b transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #1e293b;
+    border-radius: 3px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: #334155;
+  }
+
+  ::selection {
+    background: rgba(56, 189, 248, 0.25);
+    color: #f1f5f9;
+  }
+
+  html {
+    background: #0a0e17;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: #0a0e17;
+    color: #f1f5f9;
+    font-family: 'Inter Tight', system-ui, sans-serif;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* Subtle noise texture over the entire app */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  input, select, button, textarea {
+    font-family: inherit;
+  }
 }
-body {
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: system-ui, -apple-system, sans-serif;
+
+@layer components {
+  .glass-panel {
+    @apply bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl shadow-lg shadow-black/20;
+  }
+
+  .glass-panel-hover {
+    @apply glass-panel hover:bg-slate-700/60 hover:border-slate-600/50 transition-all duration-200;
+  }
+
+  .card-gradient {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+  }
+
+  .btn-primary {
+    @apply px-3 py-1.5 text-sm font-medium rounded-lg 
+           bg-sky-500/20 text-sky-400 border border-sky-500/30
+           hover:bg-sky-500/30 hover:border-sky-500/50
+           disabled:opacity-40 disabled:cursor-not-allowed
+           transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply px-3 py-1.5 text-sm font-medium rounded-lg
+           bg-slate-700/50 text-slate-300 border border-slate-600/50
+           hover:bg-slate-600/50 hover:text-slate-200
+           disabled:opacity-40 disabled:cursor-not-allowed
+           transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply px-3 py-1.5 text-sm font-medium rounded-lg
+           bg-red-500/20 text-red-400 border border-red-500/30
+           hover:bg-red-500/30 hover:border-red-500/50
+           transition-all duration-200;
+  }
+
+  .tag {
+    @apply inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-md;
+  }
+
+  .tag-buy {
+    @apply tag bg-emerald-500/15 text-emerald-400 border border-emerald-500/25;
+  }
+
+  .tag-sell {
+    @apply tag bg-red-500/15 text-red-400 border border-red-500/25;
+  }
+
+  .tag-hold {
+    @apply tag bg-amber-500/15 text-amber-400 border border-amber-500/25;
+  }
+
+  .data-text {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  .section-header {
+    @apply text-xs font-semibold uppercase tracking-wider text-slate-500;
+  }
+
+  .progress-bar {
+    @apply h-1.5 rounded-full bg-slate-700 overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400 transition-all duration-500;
+  }
+
+  .agent-pulse {
+    animation: agentPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes agentPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .drawer-overlay {
+    @apply fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300;
+  }
+
+  .drawer-panel {
+    @apply fixed z-50 bg-slate-900 border-slate-700/50 
+           shadow-2xl shadow-black/40 transition-transform duration-300
+           backdrop-blur-sm;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-emerald-400;
+  }
+
+  .glow-sky {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
+  }
+
+  .glow-emerald {
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.15);
+  }
 }

@@ -32,10 +32,10 @@ export function SuccessFailurePlot({ data, xDomain }: SuccessFailurePlotProps) {
   }
 
   return (
-    <div className="h-40 border-b border-slate-200" data-testid="success-failure-plot">
+    <div className="h-40 border-b border-slate-800" data-testid="success-failure-plot">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 8 }}>
-          <CartesianGrid stroke="#e2e8f0" strokeDasharray="2 2" />
+          <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
           <XAxis
             dataKey="delta"
             type="number"
@@ -43,14 +43,14 @@ export function SuccessFailurePlot({ data, xDomain }: SuccessFailurePlotProps) {
             domain={xDomain ?? [Math.min(...data.map(p => p.delta)), Math.max(...data.map(p => p.delta))]}
             tickFormatter={fmtDelta}
             tick={{ fontSize: 10, fill: "#64748b" }}
-            stroke="#cbd5e1"
+            stroke="#334155"
             minTickGap={24}
           />
           <YAxis
             domain={[0, "auto"]}
             width={28}
             tick={{ fontSize: 10, fill: "#64748b" }}
-            stroke="#cbd5e1"
+            stroke="#334155"
             allowDecimals={false}
           />
           <Tooltip
@@ -58,33 +58,33 @@ export function SuccessFailurePlot({ data, xDomain }: SuccessFailurePlotProps) {
               if (!active || !payload?.length) return null;
               const p = payload[0].payload as ChartPoint;
               return (
-                <div className="bg-white border border-slate-200 rounded shadow-sm px-2 py-1 text-xs">
-                  <div className="font-medium text-slate-900">Δ {fmtDelta(p.delta)}</div>
-                  <div className="text-green-600">{p.success} succeeded</div>
-                  <div className="text-red-600">{p.failure} failed</div>
+                <div className="glass-panel px-3 py-2 text-xs">
+                  <div className="font-medium text-slate-100 mb-1">Δ {fmtDelta(p.delta)}</div>
+                  <div className="text-emerald-400">{p.success} succeeded</div>
+                  <div className="text-red-400">{p.failure} failed</div>
                 </div>
               );
             }}
           />
           <Legend
-            wrapperStyle={{ fontSize: 10, color: "#64748b" }}
+            wrapperStyle={{ fontSize: 10, color: "#94a3b8" }}
             iconType="plainline"
           />
           <Line
             type="monotone"
             dataKey="success"
-            stroke="#16a34a"
+            stroke="#10b981"
             strokeWidth={2}
-            dot={{ r: 3, fill: "#16a34a", strokeWidth: 0 }}
+            dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }}
             isAnimationActive={false}
             name="Successes"
           />
           <Line
             type="monotone"
             dataKey="failure"
-            stroke="#dc2626"
+            stroke="#ef4444"
             strokeWidth={2}
-            dot={{ r: 3, fill: "#dc2626", strokeWidth: 0 }}
+            dot={{ r: 3, fill: "#ef4444", strokeWidth: 0 }}
             isAnimationActive={false}
             name="Failures"
           />

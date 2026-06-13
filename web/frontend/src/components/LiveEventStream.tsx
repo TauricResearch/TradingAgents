@@ -1,19 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
+import { formatDuration } from "../lib/format";
 import type { WsEvent } from "../lib/events";
 
 const colorForType: Record<string, string> = {
-  analyst_started: "bg-blue-100 text-blue-900",
-  analyst_thinking: "bg-blue-50 text-blue-900",
-  analyst_completed: "bg-blue-50 text-blue-900",
-  tool_call: "bg-slate-100 text-slate-700",
-  tool_result: "bg-slate-50 text-slate-700",
-  debate_message: "bg-amber-50 text-amber-900",
-  risk_message: "bg-amber-50 text-amber-900",
-  decision: "bg-emerald-100 text-emerald-900",
-  run_failed: "bg-rose-100 text-rose-900",
-  run_finished: "bg-emerald-50 text-emerald-900",
-  server_notice: "bg-slate-100 text-slate-700",
+  analyst_started: "bg-sky-500/10 text-sky-300 border-l-sky-500",
+  analyst_thinking: "bg-sky-500/5 text-sky-300/80 border-l-sky-500/50",
+  analyst_completed: "bg-sky-500/8 text-sky-200 border-l-sky-400",
+  tool_call: "bg-slate-700/30 text-slate-400 border-l-slate-600",
+  tool_result: "bg-slate-700/20 text-slate-400 border-l-slate-600",
+  debate_message: "bg-amber-500/10 text-amber-300 border-l-amber-500",
+  risk_message: "bg-amber-500/10 text-amber-300 border-l-amber-500",
+  decision: "bg-emerald-500/10 text-emerald-300 border-l-emerald-500",
+  run_failed: "bg-red-500/10 text-red-300 border-l-red-500",
+  run_finished: "bg-emerald-500/8 text-emerald-300/80 border-l-emerald-400",
+  server_notice: "bg-slate-700/30 text-slate-400 border-l-slate-600",
 };
 
 type EventData = Record<string, unknown>;
@@ -67,9 +68,60 @@ export function LiveEventStream() {
     });
   };
 
+  // Derive live stats from events (mirrors CLI footer)
+  const stats = useMemo(() => {
+    const startedNodes = new Set<string>();
+    const completedNodes = new Set<string>();
+    let toolCalls = 0;
+    let llmCalls = 0;
+    let firstTs: number | null = null;
+    let lastTs: number | null = null;
+
+    for (const e of events) {
+      const ts = new Date(e.ts).getTime();
+      if (firstTs === null || ts < firstTs) firstTs = ts;
+      if (lastTs === null || ts > lastTs) lastTs = ts;
+
+      const data = e.data as EventData;
+      if (e.type === "analyst_started") {
+        const node = String(data.node ?? "");
+        if (node) startedNodes.add(node);
+      } else if (e.type === "analyst_completed") {
+        const node = String(data.node ?? "");
+        if (node) completedNodes.add(node);
+      } else if (e.type === "tool_call") {
+        toolCalls++;
+      } else if (e.type === "analyst_thinking") {
+        llmCalls++;
+      }
+    }
+
+    const elapsed =
+      firstTs != null && lastTs != null
+        ? formatDuration(lastTs - firstTs)
+        : "--";
+
+    return {
+      agentsDone: completedNodes.size,
+      agentsTotal: startedNodes.size,
+      llmCalls,
+      toolCalls,
+      elapsed,
+      hasRun: firstTs != null,
+    };
+  }, [events]);
+
   return (
-    <div ref={ref} className="h-96 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 space-y-2">
-      {events.length === 0 && <p className="text-sm text-slate-400">No events yet. Click "Run analysis" to start.</p>}
+    <div className="glass-panel" data-testid="live-event-stream">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50">
+        <span className="section-header flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_4px_rgba(56,189,248,0.5)] animate-pulse" />
+          Event Stream
+        </span>
+        <span className="text-[10px] font-mono text-slate-600">{events.length} events</span>
+      </div>
+      <div ref={ref} className="h-72 overflow-y-auto p-2 space-y-1">
+      {events.length === 0 && <p className="text-sm text-slate-600 text-center py-8">No events yet. Click "Run analysis" to start.</p>}
       {events.map((e) => {
         const key = (e.id ?? "") + ":" + e.ts;
         const data = e.data as EventData;
@@ -83,6 +135,27 @@ export function LiveEventStream() {
           />
         );
       })}
+      </div>
+      {stats.hasRun && (
+        <div className="flex items-center gap-4 px-3 py-1.5 border-t border-slate-700/50 bg-slate-900/60 text-[10px] font-mono text-slate-500">
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/60" />
+            <span className="text-emerald-400/80 font-semibold">{stats.agentsDone}</span>
+            <span className="text-slate-600">/</span>
+            <span className="text-slate-400">{stats.agentsTotal}</span>
+            <span className="text-slate-600">agents</span>
+          </span>
+          <span className="w-px h-3 bg-slate-700/50" />
+          <span className="text-slate-600">LLM</span>
+          <span className="text-sky-400/80">{stats.llmCalls}</span>
+          <span className="w-px h-3 bg-slate-700/50" />
+          <span className="text-slate-600">tools</span>
+          <span className="text-amber-400/80">{stats.toolCalls}</span>
+          <span className="w-px h-3 bg-slate-700/50" />
+          <span className="text-slate-600">elapsed</span>
+          <span className="text-slate-300">{stats.elapsed}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -97,15 +170,15 @@ function Bubble({ event, expanded, onToggle }: { event: WsEvent; expanded: boole
   return (
     <div
       data-testid={`event-${event.id ?? ""}`}
-      className={`text-xs px-2 py-1 rounded ${colorForType[event.type] ?? "bg-slate-100 text-slate-700"} ${
-        canExpand ? "cursor-pointer select-none" : ""
-      }`}
+      className={`text-xs px-3 py-1.5 rounded-md border-l-2 ${
+        colorForType[event.type] ?? "bg-slate-700/20 text-slate-400 border-l-slate-600"
+      } ${canExpand ? "cursor-pointer select-none hover:brightness-125" : ""} transition-all`}
       onClick={canExpand ? onToggle : undefined}
     >
-      <span className="text-slate-400 mr-2">{new Date(event.ts).toLocaleTimeString()}</span>
-      {text}
+      <span className="text-slate-600 mr-2 font-mono text-[10px]">{new Date(event.ts).toLocaleTimeString()}</span>
+      <span className="font-medium">{text}</span>
       {expanded && reportText && (
-        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-800 bg-white/60 rounded p-2 border border-slate-200 max-h-96 overflow-y-auto">
+        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-300 bg-slate-950/60 rounded-lg p-3 border border-slate-800/50 max-h-96 overflow-y-auto">
           {reportText}
         </pre>
       )}
