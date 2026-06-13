@@ -1,3 +1,4 @@
+import re
 import time
 import logging
 
@@ -12,6 +13,36 @@ from .utils import safe_ticker_component
 from .symbol_utils import normalize_symbol, NoMarketDataError
 
 logger = logging.getLogger(__name__)
+
+
+# Minimum number of valid bars required before an indicator's value is
+# considered statistically meaningful. stockstats will happily compute a
+# "200-day SMA" from 20 bars — we refuse to surface those values to the
+# LLM because they invite misinterpretation as if they were full-window.
+_BASE_MIN_BARS = {
+    "macd": 35, "macds": 35, "macdh": 35,
+    "rsi": 14,
+    "boll": 20, "boll_ub": 20, "boll_lb": 20,
+    "atr": 14,
+    "vwma": 20,
+    "mfi": 14,
+    # Added in indicator-catalog upgrade
+    "adx": 28,                 # 14-period DM + 14-period smoothing
+    "kdjk": 9, "kdjd": 9, "kdjj": 9,
+    "cci": 14,
+}
+
+def _min_bars_required(indicator: str) -> int:
+    """Return the minimum valid-bar count for an indicator's window to be
+    statistically meaningful. Parses windowed names like ``close_50_sma``
+    or ``close_200_sma`` from their numeric prefix; falls back to a small
+    mapping for fixed-window indicators like ``rsi`` and ``macd``."""
+    ind = indicator.lower().strip()
+    # Windowed indicators: close_<N>_sma, close_<N>_ema, etc.
+    m = re.search(r"_(\d+)_", ind)
+    if m:
+        return int(m.group(1))
+    return _BASE_MIN_BARS.get(ind, 0)
 
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
@@ -50,6 +81,10 @@ def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
 
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps."""
+    # Empty inputs short-circuit — the rename/parse/fillna steps below all
+    # assume at least one row exists and will raise KeyError on Date access.
+    if data.empty:
+        return data
     data = _ensure_date_column(data)
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     data = data.dropna(subset=["Date"])
@@ -156,10 +191,56 @@ class StockstatsUtils:
         curr_date_str = pd.to_datetime(curr_date).strftime("%Y-%m-%d")
 
         df[indicator]  # trigger stockstats to calculate the indicator
-        matching_rows = df[df["Date"].str.startswith(curr_date_str)]
 
+        # Detect "indicator never computed" — i.e. insufficient history for the
+        # rolling window — vs. "this specific date is a non-trading day".
+        # Returning structured ERROR_* tokens lets the LLM distinguish them
+        # and prevents silent fabrication of approximated values.
+        valid_series = df[indicator].dropna()
+        if valid_series.empty:
+            return (
+                f"ERROR_INSUFFICIENT_HISTORY: indicator '{indicator}' could not be "
+                f"computed for {symbol} as of {curr_date_str} — not enough historical "
+                f"bars before this date to satisfy the indicator's lookback window. "
+                f"Do NOT approximate; report the data gap explicitly."
+            )
+
+        # Strict-window guard: stockstats computes rolling indicators with
+        # whatever data is available, which means a "200-day SMA" can be
+        # silently returned after only 20 bars. Refuse to surface such values.
+        # load_ohlcv already filters the frame to ``<= curr_date`` so the
+        # row count IS the count of bars on or before curr_date.
+        min_bars = _min_bars_required(indicator)
+        bars_before_curr = int(len(df))
+        if min_bars and bars_before_curr < min_bars:
+            return (
+                f"ERROR_INSUFFICIENT_HISTORY: indicator '{indicator}' requires at "
+                f"least {min_bars} prior bars but only {bars_before_curr} are "
+                f"available for {symbol} on or before {curr_date_str}. "
+                f"Any value computed from a partial window is misleading. "
+                f"Do NOT approximate or treat partial-window values as valid; "
+                f"report the data gap explicitly."
+            )
+
+        matching_rows = df[df["Date"].str.startswith(curr_date_str)]
         if not matching_rows.empty:
             indicator_value = matching_rows[indicator].values[0]
+            if pd.isna(indicator_value):
+                last_valid_date = df.loc[df[indicator].notna(), "Date"].iloc[-1]
+                last_valid_value = valid_series.iloc[-1]
+                return (
+                    f"ERROR_VALUE_NAN: indicator '{indicator}' is NaN on "
+                    f"{curr_date_str}. Last valid value was {last_valid_value} on "
+                    f"{last_valid_date}. Do NOT approximate."
+                )
             return indicator_value
-        else:
-            return "N/A: Not a trading day (weekend or holiday)"
+
+        # Non-trading day: surface the most recent valid value so the agent has
+        # something concrete to use, but label it clearly.
+        last_valid_date = df.loc[df[indicator].notna(), "Date"].iloc[-1]
+        last_valid_value = valid_series.iloc[-1]
+        return (
+            f"ERROR_NON_TRADING_DAY: {curr_date_str} is not a trading day for "
+            f"{symbol}. Nearest prior valid '{indicator}' value: {last_valid_value} "
+            f"on {last_valid_date}."
+        )

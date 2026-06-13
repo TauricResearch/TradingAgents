@@ -165,10 +165,11 @@ def route_to_vendor(method: str, *args, **kwargs):
             last_no_data = e  # No data here; another vendor may have it
             continue
         except Exception as e:
-            # A fallback vendor failing for an incidental reason (e.g. no API
-            # key configured) must not crash the call when another vendor
-            # already determined the symbol simply has no data. Remember the
-            # first error so a genuine primary-vendor failure still surfaces.
+            # A fallback vendor failing for any incidental reason (no API key,
+            # unsupported indicator, network failure, etc.) must not crash the
+            # call when another vendor already determined the symbol simply
+            # has no data. Remember the first error so a genuine primary-vendor
+            # failure still surfaces if no later vendor reports clean "no data".
             if first_error is None:
                 first_error = e
             continue
@@ -192,5 +193,4 @@ def route_to_vendor(method: str, *args, **kwargs):
     # first real error (e.g. the primary vendor's network failure).
     if first_error is not None:
         raise first_error
-
     raise RuntimeError(f"No available vendor for '{method}'")

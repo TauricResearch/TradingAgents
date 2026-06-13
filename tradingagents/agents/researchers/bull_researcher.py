@@ -41,6 +41,11 @@ Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
+EVIDENCE INTEGRITY (strict):
+- When citing a numeric claim from any upstream report (market / sentiment / news / fundamentals), it must carry an inline `[source: ...]` attribution that ORIGINATED in that upstream report. If a number in the upstream report has no source tag, treat it as "unverified upstream claim" — you may mention it qualitatively, but do not let it anchor your conclusion.
+- Do NOT introduce new numeric claims (dollar amounts, percentages, flow figures, counts) that are not already present and sourced in the upstream reports.
+- Flag explicitly when your case depends on an unverified or unsourced upstream claim; never present such a claim as if it were established fact.
+
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
 """ + get_language_instruction()
 
