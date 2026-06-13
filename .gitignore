@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# OS metadata
+.DS_Store
+
 # C extensions
 *.so
 
@@ -217,7 +220,12 @@ __marimo__/
 
 # Cache
 **/data_cache/
+.cache/
 
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
 reports/
+
+# IndiaMarketAgents local/user-supplied research material
+data/india/filings/
+data/india/manual/

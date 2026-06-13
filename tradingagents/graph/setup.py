@@ -51,6 +51,13 @@ class GraphSetup:
             "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
             "news": lambda: create_news_analyst(self.quick_thinking_llm),
             "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
+            "india_market": lambda: create_india_market_analyst(self.quick_thinking_llm),
+            "india_fundamentals": lambda: create_india_fundamentals_analyst(self.quick_thinking_llm),
+            "india_news_filings": lambda: create_india_news_filings_analyst(self.quick_thinking_llm),
+            "india_macro_policy": lambda: create_india_macro_policy_analyst(self.quick_thinking_llm),
+            "india_flows": lambda: create_india_flows_analyst(self.quick_thinking_llm),
+            "india_sentiment": lambda: create_india_sentiment_analyst(self.quick_thinking_llm),
+            "india_compliance": lambda: create_india_compliance_risk_analyst(self.quick_thinking_llm),
         }
 
         # Create researcher and manager nodes

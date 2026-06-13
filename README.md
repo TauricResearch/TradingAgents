@@ -1,3 +1,49 @@
+> # IndiaMarketAgents
+>
+> This fork is being transformed into **IndiaMarketAgents**, an India-only institutional market research copilot for Indian listed equities, Indian indices, Indian macro context, exchange filings, and SEBI-style research guardrails.
+>
+> Start with [README_INDIA.md](README_INDIA.md). This project remains an India-focused fork of TauricResearch/TradingAgents under Apache 2.0; upstream attribution is preserved in [NOTICE](NOTICE).
+>
+> The highest-value practical use case is a first-pass India equity research pack for one NSE/BSE-listed company, starting with `RELIANCE.NS`. Use `indiamarketagents use-case` for the current recommendation and workflow commands.
+
+## IndiaMarketAgents Quick Start
+
+Use this section for the India-focused fork. The upstream TradingAgents README below is retained for attribution and framework background, but it may describe global/default workflows that are not the default scope of this fork.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -e ".[dev]"
+indiamarketagents init-env
+indiamarketagents use-case
+indiamarketagents provider-status
+indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05
+indiamarketagents doctor --ticker RELIANCE.NS
+indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05
+indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05
+indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05
+```
+
+After `first-run-check` passes, run the shallow `indiamarketagents analyze` command that it prints. Outputs are saved under `reports/RELIANCE.NS/2026-06-05/` and must be treated as research and education only, not investment advice.
+
+Key India docs:
+
+- [README_INDIA.md](README_INDIA.md)
+- [docs/USAGE_PLAYBOOK.md](docs/USAGE_PLAYBOOK.md)
+- [docs/FIRST_RUN_CHECKLIST.md](docs/FIRST_RUN_CHECKLIST.md)
+
+## India Fork Scope Notice
+
+Everything below this point is retained from upstream TradingAgents for attribution, architecture background, and compatibility context. Do not use the upstream examples below as the default run path for IndiaMarketAgents.
+
+For this fork:
+
+- Use the `indiamarketagents` commands above for the practical workflow.
+- Treat `README_INDIA.md`, `docs/USAGE_PLAYBOOK.md`, and `docs/FIRST_RUN_CHECKLIST.md` as the controlling user docs.
+- Default ticker scope is India-only; `AAPL`, `SPY`, `BTC-USD`, and other non-India symbols are rejected unless a legacy/global config escape hatch is explicitly enabled.
+- Run `indiamarketagents provider-status` and `indiamarketagents first-run-check` before any LLM-backed `analyze` run.
+- Outputs are research and education only, not investment advice or trade instructions.
+
 <p align="center">
   <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
 </p>
@@ -25,7 +71,7 @@
 
 ---
 
-# TradingAgents: Multi-Agents LLM Financial Trading Framework
+# Upstream TradingAgents Reference
 
 ## News
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening. See [CHANGELOG.md](CHANGELOG.md) for the full list.
@@ -85,7 +131,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 </p>
 
 ### Trader Agent
-- Composes reports from the analysts and researchers to make informed trading decisions, determining the timing and magnitude of trades.
+- In IndiaMarketAgents, composes analyst and researcher reports into a research-only model view. It does not place orders, route orders, or provide live execution instructions.
 
 <p align="center">
   <img src="assets/trader.png" width="70%" style="display: inline-block; margin: 0 2%;">
@@ -93,7 +139,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Risk Management and Portfolio Manager
 - Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
-- The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
+- In IndiaMarketAgents, the Portfolio Manager synthesizes a final research view for analyst review. No order is sent to a broker, simulated exchange, or execution venue.
 
 <p align="center">
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">

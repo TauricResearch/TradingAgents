@@ -7,19 +7,34 @@ from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.dataflows.india.calendar import IndiaCalendarError, resolve_india_analysis_date
+from tradingagents.dataflows.india.symbols import validate_india_symbol_or_raise
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
+TICKER_INPUT_EXAMPLES = "RELIANCE.NS, HDFCBANK.NS, SUNPHARMA.NS, CIPLA.NS"
 
-ANALYST_ORDER = [
+LEGACY_ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
     ("Sentiment Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
+
+INDIA_ANALYST_ORDER = [
+    ("India Market Technical Analyst", AnalystType.INDIA_MARKET),
+    ("India Fundamentals Analyst", AnalystType.INDIA_FUNDAMENTALS),
+    ("India News & Filings Analyst", AnalystType.INDIA_NEWS_FILINGS),
+    ("India Macro & Policy Analyst", AnalystType.INDIA_MACRO_POLICY),
+    ("India Flows & Positioning Analyst", AnalystType.INDIA_FLOWS),
+    ("India Compliance & Risk Guard", AnalystType.INDIA_COMPLIANCE),
+    ("India Sentiment Analyst", AnalystType.INDIA_SENTIMENT),
+]
+
+ANALYST_ORDER = INDIA_ANALYST_ORDER if DEFAULT_CONFIG.get("market_scope") == "india" else LEGACY_ANALYST_ORDER
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
 
@@ -36,7 +51,7 @@ def get_ticker() -> str:
         validate=lambda x: (
             not x.strip()
             or (all(ch.isalnum() or ch in "._-^" for ch in x.strip()) and len(x.strip()) <= 32)
-            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK."
+            or "Please enter a valid India ticker, e.g. RELIANCE.NS or RELIANCE.BO."
         ),
         style=questionary.Style(
             [
@@ -50,11 +65,13 @@ def get_ticker() -> str:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
-    return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
+    return normalize_ticker_symbol(ticker) if ticker.strip() else "RELIANCE.NS"
 
 
 def normalize_ticker_symbol(ticker: str) -> str:
     """Normalize ticker input while preserving exchange suffixes."""
+    if DEFAULT_CONFIG.get("market_scope") == "india":
+        return validate_india_symbol_or_raise(ticker, DEFAULT_CONFIG)
     return ticker.strip().upper()
 
 
@@ -106,6 +123,16 @@ def get_analysis_date() -> str:
     if not date:
         console.print("\n[red]No date provided. Exiting...[/red]")
         exit(1)
+
+    if DEFAULT_CONFIG.get("market_scope") == "india":
+        try:
+            resolved, warnings = resolve_india_analysis_date(date.strip())
+        except IndiaCalendarError as exc:
+            console.print(f"\n[red]{exc}[/red]")
+            exit(1)
+        for warning in warnings:
+            console.print(f"[yellow]{warning}[/yellow]")
+        return resolved
 
     return date.strip()
 

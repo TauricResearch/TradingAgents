@@ -19,6 +19,7 @@ from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.dataflows.india.symbols import validate_india_symbol_or_raise
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
@@ -40,6 +41,20 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.india_market_tools import (
+    get_india_stock_data,
+    get_india_technical_snapshot,
+    get_india_fundamentals,
+    get_india_financial_results,
+    get_india_shareholding_pattern,
+    get_india_corporate_announcements,
+    get_india_corporate_actions,
+    get_india_macro_context,
+    get_india_flows_context,
+    get_india_sector_context,
+    get_local_filing_notes,
+)
+from tradingagents.graph.analyst_execution import INDIA_DEFAULT_ANALYSTS
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -69,6 +84,11 @@ class TradingAgentsGraph:
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
+        if (
+            self.config.get("market_scope") == "india"
+            and selected_analysts == ["market", "social", "news", "fundamentals"]
+        ):
+            selected_analysts = INDIA_DEFAULT_ANALYSTS
         self.callbacks = callbacks or []
 
         # Update the interface's config
@@ -198,6 +218,51 @@ class TradingAgentsGraph:
                     get_income_statement,
                 ]
             ),
+            "india_market": ToolNode(
+                [
+                    get_india_stock_data,
+                    get_india_technical_snapshot,
+                ]
+            ),
+            "india_fundamentals": ToolNode(
+                [
+                    get_india_fundamentals,
+                    get_india_financial_results,
+                    get_india_shareholding_pattern,
+                    get_india_sector_context,
+                    get_local_filing_notes,
+                ]
+            ),
+            "india_news_filings": ToolNode(
+                [
+                    get_india_financial_results,
+                    get_india_corporate_announcements,
+                    get_india_corporate_actions,
+                    get_local_filing_notes,
+                ]
+            ),
+            "india_macro_policy": ToolNode(
+                [
+                    get_india_macro_context,
+                    get_india_sector_context,
+                ]
+            ),
+            "india_flows": ToolNode(
+                [
+                    get_india_flows_context,
+                ]
+            ),
+            "india_sentiment": ToolNode(
+                [
+                    get_india_corporate_announcements,
+                    get_local_filing_notes,
+                ]
+            ),
+            "india_compliance": ToolNode(
+                [
+                    get_india_sector_context,
+                ]
+            ),
         }
 
     def _resolve_benchmark(self, ticker: str) -> str:
@@ -323,6 +388,9 @@ class TradingAgentsGraph:
         a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
         """
+        if self.config.get("market_scope") == "india" and asset_type == "stock":
+            company_name = validate_india_symbol_or_raise(company_name, self.config)
+
         self.ticker = company_name
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
@@ -420,6 +488,13 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "india_market_report": final_state.get("india_market_report", ""),
+            "india_fundamentals_report": final_state.get("india_fundamentals_report", ""),
+            "india_news_filings_report": final_state.get("india_news_filings_report", ""),
+            "india_macro_policy_report": final_state.get("india_macro_policy_report", ""),
+            "india_flows_report": final_state.get("india_flows_report", ""),
+            "india_sentiment_report": final_state.get("india_sentiment_report", ""),
+            "india_compliance_report": final_state.get("india_compliance_report", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
@@ -446,7 +521,12 @@ class TradingAgentsGraph:
         # Save to file. Reject ticker values that would escape the
         # results directory when joined as a path component.
         safe_ticker = safe_ticker_component(self.ticker)
-        directory = Path(self.config["results_dir"]) / safe_ticker / "TradingAgentsStrategy_logs"
+        log_folder = (
+            "IndiaMarketAgentsStrategy_logs"
+            if self.config.get("market_scope") == "india"
+            else "TradingAgentsStrategy_logs"
+        )
+        directory = Path(self.config["results_dir"]) / safe_ticker / log_folder
         directory.mkdir(parents=True, exist_ok=True)
 
         log_path = directory / f"full_states_log_{trade_date}.json"

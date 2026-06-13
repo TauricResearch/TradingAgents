@@ -24,6 +24,18 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .symbol_utils import NoMarketDataError
+from .india.yfinance_india import (
+    get_india_stock_data,
+    get_india_indicator,
+    get_india_fundamentals,
+    get_india_balance_sheet,
+    get_india_cashflow,
+    get_india_income_statement,
+    get_india_news,
+    get_india_global_news,
+    get_india_insider_transactions,
+)
+from .india.symbols import validate_india_symbol_or_raise
 
 # Configuration and routing logic
 from .config import get_config
@@ -62,6 +74,7 @@ TOOLS_CATEGORIES = {
 }
 
 VENDOR_LIST = [
+    "india",
     "yfinance",
     "alpha_vantage",
 ]
@@ -70,44 +83,64 @@ VENDOR_LIST = [
 VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
+        "india": get_india_stock_data,
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
     },
     # technical_indicators
     "get_indicators": {
+        "india": get_india_indicator,
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
     },
     # fundamental_data
     "get_fundamentals": {
+        "india": get_india_fundamentals,
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
     },
     "get_balance_sheet": {
+        "india": get_india_balance_sheet,
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
     },
     "get_cashflow": {
+        "india": get_india_cashflow,
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
     },
     "get_income_statement": {
+        "india": get_india_income_statement,
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
     },
     # news_data
     "get_news": {
+        "india": get_india_news,
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
     },
     "get_global_news": {
+        "india": get_india_global_news,
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
+        "india": get_india_insider_transactions,
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
+}
+
+INDIA_SYMBOL_METHODS = {
+    "get_stock_data",
+    "get_indicators",
+    "get_fundamentals",
+    "get_balance_sheet",
+    "get_cashflow",
+    "get_income_statement",
+    "get_news",
+    "get_insider_transactions",
 }
 
 def get_category_for_method(method: str) -> str:
@@ -135,6 +168,13 @@ def get_vendor(category: str, method: str = None) -> str:
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
+    config = get_config()
+    if config.get("market_scope") == "india" and method in INDIA_SYMBOL_METHODS:
+        if not args:
+            raise ValueError(f"Method '{method}' requires a ticker symbol")
+        normalized_symbol = validate_india_symbol_or_raise(args[0], config)
+        args = (normalized_symbol, *args[1:])
+
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 

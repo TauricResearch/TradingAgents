@@ -28,6 +28,20 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
 
 
+def test_default_india_market_profile(monkeypatch):
+    dc = _reload_with_env(monkeypatch)
+    assert dc.DEFAULT_CONFIG["product_name"] == "IndiaMarketAgents"
+    assert dc.DEFAULT_CONFIG["market_scope"] == "india"
+    assert dc.DEFAULT_CONFIG["default_exchange"] == "NSE"
+    assert dc.DEFAULT_CONFIG["default_india_suffix"] == ".NS"
+    assert dc.DEFAULT_CONFIG["allow_non_india_tickers"] is False
+    assert dc.DEFAULT_CONFIG["india_base_currency"] == "INR"
+    assert dc.DEFAULT_CONFIG["india_timezone"] == "Asia/Kolkata"
+    assert dc.DEFAULT_CONFIG["india_default_benchmark"] == "^NSEI"
+    assert dc.DEFAULT_CONFIG["india_secondary_benchmark"] == "^BSESN"
+    assert dc.DEFAULT_CONFIG["data_vendors"]["core_stock_apis"] == "india,yfinance"
+
+
 def test_string_overrides(monkeypatch):
     dc = _reload_with_env(
         monkeypatch,
@@ -96,3 +110,17 @@ def test_unknown_env_var_is_ignored(monkeypatch):
         TRADINGAGENTS_NONEXISTENT_KEY="oops",
     )
     assert "nonexistent_key" not in dc.DEFAULT_CONFIG
+
+
+def test_indiamarketagents_env_overrides(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        INDIAMARKETAGENTS_DEFAULT_EXCHANGE="BSE",
+        INDIAMARKETAGENTS_DEFAULT_SUFFIX=".BO",
+        INDIAMARKETAGENTS_ALLOW_NON_INDIA_TICKERS="true",
+        INDIAMARKETAGENTS_BENCHMARK_TICKER="^BSESN",
+    )
+    assert dc.DEFAULT_CONFIG["default_exchange"] == "BSE"
+    assert dc.DEFAULT_CONFIG["default_india_suffix"] == ".BO"
+    assert dc.DEFAULT_CONFIG["allow_non_india_tickers"] is True
+    assert dc.DEFAULT_CONFIG["benchmark_ticker"] == "^BSESN"

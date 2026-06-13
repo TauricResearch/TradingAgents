@@ -1,0 +1,193 @@
+# First Run Checklist
+
+Use this checklist to get from a clean clone to the first usable IndiaMarketAgents research pack.
+
+## 1. Confirm The Right Use Case
+
+Best first use:
+
+- One Indian listed company.
+- NSE/BSE ticker, starting with `RELIANCE.NS`.
+- Research-pack generation for analyst review.
+- Local filings or notes added when available.
+
+Do not use the first run for broker execution, trade placement, investment advice, or real-time monitoring.
+
+## 2. Install And Check The Repo
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -e ".[dev]"
+python3 -m cli.main --help
+python3 -m cli.main init-env
+python3 -m cli.main use-case
+python3 -m cli.main provider-status
+python3 -m cli.main workflow-status --ticker RELIANCE.NS --date 2026-06-05
+python3 -m cli.main doctor --ticker RELIANCE.NS
+```
+
+Expected doctor result:
+
+- `ticker_validation` is `RELIANCE.NS`.
+- `package_import` is `True`.
+
+Expected provider-status result:
+
+- It shows the local `.env` path it is checking and whether that file exists.
+- It shows the configured provider from `TRADINGAGENTS_LLM_PROVIDER` or the default config, plus whether that provider is ready.
+- It checks OpenAI, Google, Anthropic, and Ollama without printing secrets or calling any endpoint.
+- It reports missing providers until one keyed provider or Ollama runtime path is configured.
+- It prints the next `first-run-check` command once a provider path is ready.
+
+Expected workflow-status result:
+
+- It shows the recommended workflow checks, saved-report bundle readiness, provider readiness including the configured-provider blocker, and the next unfinished step without live market, broker, or LLM calls.
+
+## 3. Configure Credentials Without Committing Them
+
+Create a local `.env` file:
+
+```bash
+indiamarketagents init-env
+```
+
+Add exactly one LLM provider key to start:
+
+```text
+OPENAI_API_KEY=<your key>
+TRADINGAGENTS_LLM_PROVIDER=openai
+```
+
+Alternative providers can use the matching key, for example:
+
+```text
+GOOGLE_API_KEY=<your key>
+TRADINGAGENTS_LLM_PROVIDER=google
+```
+
+or:
+
+```text
+ANTHROPIC_API_KEY=<your key>
+TRADINGAGENTS_LLM_PROVIDER=anthropic
+```
+
+For a local Ollama run, no API key is required, but the runtime still must be configured:
+
+```text
+TRADINGAGENTS_LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
+`first-run-check --provider ollama` validates that either the `ollama` command is on `PATH` or `OLLAMA_BASE_URL` is set. It does not print the endpoint value, call the endpoint, or verify model availability.
+
+Recheck provider readiness after editing `.env`:
+
+```bash
+python3 -m cli.main provider-status
+```
+
+Security rules:
+
+- Never commit `.env`.
+- Never paste keys into docs, prompts, reports, tests, or screenshots.
+- Keep generated reports under ignored `reports/`.
+- Keep local filings under ignored `data/india/filings/`.
+
+## 4. Optional Local Inputs
+
+Add notes or converted filing text before the run:
+
+```text
+data/india/filings/RELIANCE.NS/notes/
+data/india/filings/RELIANCE.NS/concall/
+data/india/filings/RELIANCE.NS/results/
+data/india/filings/RELIANCE.NS/investor_presentations/
+```
+
+Prefer `.md`, `.txt`, or `.csv` for the first run. PDF OCR is not enabled by default.
+
+## 5. Run The First Research Pack
+
+Optional no-key workflow rehearsal:
+
+```bash
+python3 -m cli.main sample-report \
+  --ticker RELIANCE.NS \
+  --date 2026-06-05
+```
+
+This writes a saved-report bundle under `reports/RELIANCE.NS/2026-06-05/` with every section marked sample/UNAVAILABLE. Use it to verify report saving and dashboard review before configuring an LLM key. Do not treat it as market research.
+
+Inspect the saved bundle without live calls:
+
+```bash
+python3 -m cli.main report-status \
+  --ticker RELIANCE.NS \
+  --date 2026-06-05
+```
+
+Expected report-status result:
+
+- It lists each required saved artifact as present or missing.
+- It summarizes `data_quality.json` and the count of unavailable sections.
+- It prints the first files to read before analyst review.
+
+Run the offline preflight first:
+
+```bash
+python3 -m cli.main first-run-check \
+  --ticker RELIANCE.NS \
+  --date 2026-06-05
+```
+
+This command does not call an LLM or live market data. When `--provider` is omitted, it auto-selects a ready provider if `provider-status` found one; pass `--provider openai`, `--provider google`, `--provider anthropic`, or `--provider ollama` to force a provider. It should pass ticker/date/report-path checks and show one clear `Provider readiness` failure with the configured-provider blocker and next setup step if no provider path is ready.
+
+When it passes, it prints the exact shallow analysis command to run next. Use a shallow run first to control cost. For the default OpenAI path, it should look like this:
+
+```bash
+indiamarketagents analyze \
+  --ticker RELIANCE.NS \
+  --date 2026-06-05 \
+  --provider openai \
+  --research-depth 1 \
+  --no-display \
+  --no-save-prompt
+```
+
+Expected output folder:
+
+```text
+reports/RELIANCE.NS/2026-06-05/
+```
+
+## 6. Review The Output
+
+Read in this order:
+
+1. `disclaimer.md`
+2. `data_quality.json`
+3. `sources.md`
+4. `complete_report.md`
+5. `trader_research_view.md`
+6. `9_portfolio_decision.md`
+
+Use the output as a research view only. Verify material claims against official filings, exchange disclosures, and your own notes before relying on them.
+
+## 7. Acceptance Check
+
+The repo is ready for practical use when:
+
+- `doctor` validates `RELIANCE.NS`.
+- Non-India tickers such as `AAPL` are rejected by default.
+- `sample-report` can generate an explicit sample/UNAVAILABLE saved-report bundle.
+- `report-status` confirms the saved-report bundle is complete before review.
+- `provider-status` shows at least one ready provider path.
+- `first-run-check` passes for the selected provider.
+- For keyed providers, at least one LLM key is detected locally.
+- For Ollama, either the local `ollama` command is available or `OLLAMA_BASE_URL` is set.
+- A `reports/RELIANCE.NS/2026-06-05/` bundle is generated.
+- The generated `data_quality.json` clearly shows missing or low-confidence sections instead of hiding gaps.
+
+This output is for research and education only. It is not investment advice, a recommendation, an offer, or a solicitation to buy or sell securities. IndiaMarketAgents is not a SEBI-registered investment adviser or research analyst. Verify all data with official exchange/company filings and consult a qualified adviser before acting.

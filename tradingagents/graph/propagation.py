@@ -66,6 +66,13 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "india_market_report": "",
+            "india_fundamentals_report": "",
+            "india_news_filings_report": "",
+            "india_macro_policy_report": "",
+            "india_flows_report": "",
+            "india_sentiment_report": "",
+            "india_compliance_report": "",
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:

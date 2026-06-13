@@ -23,8 +23,24 @@ def create_bear_researcher(llm):
             if asset_type == "stock"
             else "Asset fundamentals report (may be unavailable for crypto)"
         )
+        india_context = "\n".join(
+            part
+            for part in (
+                f"India macro/policy report: {state.get('india_macro_policy_report', '')}",
+                f"India flows/positioning report: {state.get('india_flows_report', '')}",
+                f"India compliance report: {state.get('india_compliance_report', '')}",
+            )
+            if part.split(": ", 1)[1]
+        )
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the {target_label}. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        prompt = f"""You are a Bear Analyst making the risk case against a constructive research view on the {target_label}. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+
+Compliance and data-quality rules:
+- This is research and education only, not investment advice.
+- Do not provide order-placement instructions or say execute trade now.
+- Treat every conclusion as a model/research view for further analyst review.
+- Do not fabricate unavailable exchange, filing, flow, shareholding, or macro data.
+- Explicitly cite data-quality gaps, UNAVAILABLE source notes, and low-confidence evidence.
 
 Key points to focus on:
 
@@ -41,9 +57,10 @@ Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
+{india_context}
 Conversation history of the debate: {history}
 Last bull argument: {current_response}
-Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the {target_label}.
+Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates risks and weaknesses in the constructive research view on the {target_label}.
 """ + get_language_instruction()
 
         response = llm.invoke(prompt)

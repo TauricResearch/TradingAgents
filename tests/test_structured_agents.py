@@ -26,6 +26,14 @@ from tradingagents.agents.schemas import (
     render_trader_proposal,
 )
 from tradingagents.agents.trader.trader import create_trader
+from tradingagents.dataflows.config import set_config
+
+
+@pytest.fixture(autouse=True)
+def _legacy_global_scope_for_structured_agent_tests():
+    set_config({"market_scope": "global"})
+    yield
+    set_config({"market_scope": "global"})
 
 
 # ---------------------------------------------------------------------------
@@ -40,9 +48,7 @@ class TestRenderTraderProposal:
         md = render_trader_proposal(p)
         assert "**Action**: Hold" in md
         assert "**Reasoning**: Balanced setup; no edge." in md
-        # The trailing FINAL TRANSACTION PROPOSAL line is preserved for the
-        # analyst stop-signal text and any external code that greps for it.
-        assert "FINAL TRANSACTION PROPOSAL: **HOLD**" in md
+        assert "FINAL MODEL VIEW: **HOLD**" in md
 
     def test_optional_fields_included_when_present(self):
         p = TraderProposal(
@@ -57,7 +63,7 @@ class TestRenderTraderProposal:
         assert "**Entry Price**: 189.5" in md
         assert "**Stop Loss**: 178.0" in md
         assert "**Position Sizing**: 6% of portfolio" in md
-        assert "FINAL TRANSACTION PROPOSAL: **BUY**" in md
+        assert "FINAL MODEL VIEW: **BUY**" in md
 
     def test_optional_fields_omitted_when_absent(self):
         p = TraderProposal(action=TraderAction.SELL, reasoning="Guidance cut.")
@@ -65,7 +71,7 @@ class TestRenderTraderProposal:
         assert "Entry Price" not in md
         assert "Stop Loss" not in md
         assert "Position Sizing" not in md
-        assert "FINAL TRANSACTION PROPOSAL: **SELL**" in md
+        assert "FINAL MODEL VIEW: **SELL**" in md
 
 
 @pytest.mark.unit
@@ -139,7 +145,7 @@ class TestTraderAgent:
         plan = result["trader_investment_plan"]
         assert "**Action**: Buy" in plan
         assert "**Entry Price**: 189.5" in plan
-        assert "FINAL TRANSACTION PROPOSAL: **BUY**" in plan
+        assert "FINAL MODEL VIEW: **BUY**" in plan
         # The same rendered markdown is also added to messages for downstream agents.
         assert plan in result["messages"][0].content
 
@@ -150,12 +156,12 @@ class TestTraderAgent:
         trader(_make_trader_state())
         # The investment plan is in the user message of the captured prompt.
         prompt = captured["prompt"]
-        assert any("Proposed Investment Plan" in m["content"] for m in prompt)
+        assert any("Proposed Research Plan" in m["content"] for m in prompt)
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (
             "**Action**: Sell\n\nGuidance cut hits margins.\n\n"
-            "FINAL TRANSACTION PROPOSAL: **SELL**"
+            "FINAL MODEL VIEW: **SELL**"
         )
         llm = MagicMock()
         llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")

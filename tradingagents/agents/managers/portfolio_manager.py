@@ -1,4 +1,4 @@
-"""Portfolio Manager: synthesises the risk-analyst debate into the final decision.
+"""Portfolio Manager: synthesises the risk-analyst debate into the final research view.
 
 Uses LangChain's ``with_structured_output`` so the LLM produces a typed
 ``PortfolioDecision`` directly, in a single call.  The result is rendered
@@ -19,6 +19,7 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.config import get_config
 
 
 def create_portfolio_manager(llm):
@@ -31,6 +32,22 @@ def create_portfolio_manager(llm):
         risk_debate_state = state["risk_debate_state"]
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
+        india_mode = get_config().get("market_scope") == "india"
+        rating_scale = (
+            "**India Rating Scale**: Strong Buy / Buy / Accumulate / Hold / Reduce / Sell / Avoid. "
+            "Use research view/model view language only; never say execute trade now. "
+            "Do not provide order-placement instructions or personalized investment advice. "
+            "Include time horizon, confidence, primary thesis, key evidence, key risks, "
+            "invalidation triggers, monitoring checklist, data quality, compliance note, "
+            "and not-financial-advice disclaimer."
+            if india_mode
+            else """**Rating Scale** (use exactly one):
+- **Buy**: Strong conviction to enter or add to position
+- **Overweight**: Favorable outlook, gradually increase exposure
+- **Hold**: Maintain current position, no action needed
+- **Underweight**: Reduce exposure, take partial profits
+- **Sell**: Exit position or avoid entry"""
+        )
 
         past_context = state.get("past_context", "")
         lessons_line = (
@@ -39,29 +56,24 @@ def create_portfolio_manager(llm):
             else ""
         )
 
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
+        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final research/model view.
 
 {instrument_context}
 
 ---
 
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
-- **Sell**: Exit position or avoid entry
+{rating_scale}
 
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
-- Trader's transaction proposal: **{trader_plan}**
+- Research proposal: **{trader_plan}**
 {lessons_line}
 **Risk Analysts Debate History:**
 {history}
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Be decisive and ground every conclusion in specific evidence from the analysts. Do not instruct the user to place orders or act immediately.{get_language_instruction()}"""
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tradingagents"
 version = "0.2.5"
-description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+description = "IndiaMarketAgents: India-only institutional market research copilot"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -21,6 +21,7 @@ dependencies = [
     "parsel>=1.10.0",
     "python-dotenv>=1.0.0",
     "pytz>=2025.2",
+    "pyyaml>=6.0.3",
     "questionary>=2.1.0",
     "redis>=6.2.0",
     "requests>=2.32.4",
@@ -42,6 +43,11 @@ dev = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
+indiamarketagents = "cli.main:app"
+
+[project.optional-dependencies]
+dashboard = ["streamlit>=1.41.0"]
+dev = ["pytest>=9.0.0"]
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]

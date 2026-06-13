@@ -1,0 +1,12 @@
+IndiaMarketAgents
+
+This product is built as an India-focused fork of TauricResearch/TradingAgents.
+The upstream project is licensed under the Apache License, Version 2.0.
+
+Upstream attribution:
+TauricResearch/TradingAgents
+https://github.com/TauricResearch/TradingAgents
+
+Modifications in this fork focus on Indian listed equities, Indian indices,
+Indian macro context, exchange filings, data-quality guardrails, and
+research-only compliance framing.

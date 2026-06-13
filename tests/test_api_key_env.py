@@ -76,9 +76,9 @@ def cli_utils(monkeypatch):
 
 
 def test_ensure_api_key_returns_existing(monkeypatch, cli_utils):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-already-set")
+    monkeypatch.setenv("OPENAI_API_KEY", "placeholder-already-set")
     result = cli_utils.ensure_api_key("openai")
-    assert result == "sk-already-set"
+    assert result == "placeholder-already-set"
 
 
 def test_ensure_api_key_no_op_for_ollama(monkeypatch, cli_utils):
@@ -102,16 +102,16 @@ def test_ensure_api_key_prompts_and_writes_to_env(monkeypatch, tmp_path, cli_uti
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.chdir(tmp_path)
 
-    fake_prompt = type("P", (), {"ask": staticmethod(lambda: "sk-deepseek-test")})()
+    fake_prompt = type("P", (), {"ask": staticmethod(lambda: "placeholder-deepseek-test")})()
     with patch.object(cli_utils.questionary, "password", return_value=fake_prompt):
         result = cli_utils.ensure_api_key("deepseek")
 
-    assert result == "sk-deepseek-test"
-    assert os.environ["DEEPSEEK_API_KEY"] == "sk-deepseek-test"
+    assert result == "placeholder-deepseek-test"
+    assert os.environ["DEEPSEEK_API_KEY"] == "placeholder-deepseek-test"
     env_file = tmp_path / ".env"
     assert env_file.exists()
     assert "DEEPSEEK_API_KEY" in env_file.read_text()
-    assert "sk-deepseek-test" in env_file.read_text()
+    assert "placeholder-deepseek-test" in env_file.read_text()
 
 
 def test_ensure_api_key_user_cancels_returns_none(monkeypatch, tmp_path, cli_utils):
@@ -137,13 +137,13 @@ def test_ensure_api_key_updates_existing_env_file(monkeypatch, tmp_path, cli_uti
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.chdir(tmp_path)
     env_file = tmp_path / ".env"
-    env_file.write_text("OPENAI_API_KEY=sk-existing\nOTHER=value\n")
+    env_file.write_text("OPENAI_API_KEY=placeholder-existing\nOTHER=value\n")
 
-    fake_prompt = type("P", (), {"ask": staticmethod(lambda: "sk-openrouter-new")})()
+    fake_prompt = type("P", (), {"ask": staticmethod(lambda: "placeholder-openrouter-new")})()
     with patch.object(cli_utils.questionary, "password", return_value=fake_prompt):
         cli_utils.ensure_api_key("openrouter")
 
     content = env_file.read_text()
-    assert "OPENAI_API_KEY" in content and "sk-existing" in content
+    assert "OPENAI_API_KEY" in content and "placeholder-existing" in content
     assert "OTHER=value" in content
-    assert "OPENROUTER_API_KEY" in content and "sk-openrouter-new" in content
+    assert "OPENROUTER_API_KEY" in content and "placeholder-openrouter-new" in content

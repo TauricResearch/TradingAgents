@@ -1,6 +1,9 @@
 from typing import Optional
 import os
 import datetime
+import json
+import shutil
+import shlex
 import typer
 import questionary
 from pathlib import Path
@@ -21,14 +24,23 @@ from rich import box
 from rich.align import Align
 from rich.rule import Rule
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.analyst_execution import (
+    INDIA_DEFAULT_ANALYSTS,
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
     get_initial_analyst_node,
     sync_analyst_tracker_from_chunk,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.dataflows.india.calendar import IndiaCalendarError, resolve_india_analysis_date
+from tradingagents.dataflows.india.symbols import (
+    IndiaSymbolError,
+    safe_india_ticker_component,
+    validate_india_symbol_or_raise,
+)
+from tradingagents.agents.analysts.india_compliance_risk_analyst import (
+    INDIA_COMPLIANCE_DISCLAIMER,
+)
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -36,9 +48,22 @@ from cli.stats_handler import StatsCallbackHandler
 
 console = Console()
 
+TradingAgentsGraph = None
+
+
+def get_trading_agents_graph_class():
+    """Lazy-load the graph so offline CLI commands stay cheap."""
+    global TradingAgentsGraph
+    if TradingAgentsGraph is None:
+        from tradingagents.graph.trading_graph import TradingAgentsGraph as graph_class
+
+        TradingAgentsGraph = graph_class
+    return TradingAgentsGraph
+
+
 app = typer.Typer(
-    name="TradingAgents",
-    help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
+    name="IndiaMarketAgents",
+    help="IndiaMarketAgents CLI: India-only institutional market research copilot",
     add_completion=True,  # Enable shell completion
 )
 
@@ -59,6 +84,13 @@ class MessageBuffer:
         "social": "Sentiment Analyst",
         "news": "News Analyst",
         "fundamentals": "Fundamentals Analyst",
+        "india_market": "India Market Technical Analyst",
+        "india_fundamentals": "India Fundamentals Analyst",
+        "india_news_filings": "India News & Filings Analyst",
+        "india_macro_policy": "India Macro & Policy Analyst",
+        "india_flows": "India Flows & Positioning Analyst",
+        "india_sentiment": "India Sentiment Analyst",
+        "india_compliance": "India Compliance & Risk Guard",
     }
 
     # Report section mapping: section -> (analyst_key for filtering, finalizing_agent)
@@ -69,6 +101,13 @@ class MessageBuffer:
         "sentiment_report": ("social", "Sentiment Analyst"),
         "news_report": ("news", "News Analyst"),
         "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
+        "india_market_report": ("india_market", "India Market Technical Analyst"),
+        "india_fundamentals_report": ("india_fundamentals", "India Fundamentals Analyst"),
+        "india_news_filings_report": ("india_news_filings", "India News & Filings Analyst"),
+        "india_macro_policy_report": ("india_macro_policy", "India Macro & Policy Analyst"),
+        "india_flows_report": ("india_flows", "India Flows & Positioning Analyst"),
+        "india_sentiment_report": ("india_sentiment", "India Sentiment Analyst"),
+        "india_compliance_report": ("india_compliance", "India Compliance & Risk Guard"),
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
@@ -177,6 +216,13 @@ class MessageBuffer:
                 "sentiment_report": "Social Sentiment",
                 "news_report": "News Analysis",
                 "fundamentals_report": "Fundamentals Analysis",
+                "india_market_report": "India Market Technical",
+                "india_fundamentals_report": "India Fundamentals",
+                "india_news_filings_report": "India News & Filings",
+                "india_macro_policy_report": "India Macro & Policy",
+                "india_flows_report": "India Flows & Positioning",
+                "india_sentiment_report": "India Sentiment",
+                "india_compliance_report": "India Compliance",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
@@ -192,7 +238,19 @@ class MessageBuffer:
         report_parts = []
 
         # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
+        analyst_sections = [
+            "market_report",
+            "sentiment_report",
+            "news_report",
+            "fundamentals_report",
+            "india_market_report",
+            "india_fundamentals_report",
+            "india_news_filings_report",
+            "india_macro_policy_report",
+            "india_flows_report",
+            "india_sentiment_report",
+            "india_compliance_report",
+        ]
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
             if self.report_sections.get("market_report"):
@@ -211,6 +269,18 @@ class MessageBuffer:
                 report_parts.append(
                     f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
                 )
+            india_titles = {
+                "india_market_report": "India Market Technical",
+                "india_fundamentals_report": "India Fundamentals",
+                "india_news_filings_report": "India News & Filings",
+                "india_macro_policy_report": "India Macro & Policy",
+                "india_flows_report": "India Flows & Positioning",
+                "india_sentiment_report": "India Sentiment",
+                "india_compliance_report": "India Compliance",
+            }
+            for section, title in india_titles.items():
+                if self.report_sections.get(section):
+                    report_parts.append(f"### {title}\n{self.report_sections[section]}")
 
         # Research Team Reports
         if self.report_sections.get("investment_plan"):
@@ -260,9 +330,9 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Header with welcome message
     layout["header"].update(
         Panel(
-            "[bold green]Welcome to TradingAgents CLI[/bold green]\n"
-            "[dim]© [Tauric Research](https://github.com/TauricResearch)[/dim]",
-            title="Welcome to TradingAgents",
+            "[bold green]Welcome to IndiaMarketAgents CLI[/bold green]\n"
+            "[dim]India-focused fork of TauricResearch/TradingAgents under Apache 2.0[/dim]",
+            title="Welcome to IndiaMarketAgents",
             border_style="green",
             padding=(1, 2),
             expand=True,
@@ -290,6 +360,13 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
             "Sentiment Analyst",
             "News Analyst",
             "Fundamentals Analyst",
+            "India Market Technical Analyst",
+            "India Fundamentals Analyst",
+            "India News & Filings Analyst",
+            "India Macro & Policy Analyst",
+            "India Flows & Positioning Analyst",
+            "India Sentiment Analyst",
+            "India Compliance & Risk Guard",
         ],
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
@@ -466,16 +543,18 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open(Path(__file__).parent / "static" / "welcome.txt", "r", encoding="utf-8") as f:
+    welcome_file = "india_welcome.txt" if DEFAULT_CONFIG.get("market_scope") == "india" else "welcome.txt"
+    with open(Path(__file__).parent / "static" / welcome_file, "r", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
     # Create welcome box content
     welcome_content = f"{welcome_ascii}\n"
-    welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
+    welcome_content += "[bold green]IndiaMarketAgents: India-only institutional market research copilot[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
-    welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
+    welcome_content += "I. India Analysts → II. Research Debate → III. Research View → IV. Risk Review → V. Portfolio Decision\n\n"
+    welcome_content += f"[yellow]{INDIA_COMPLIANCE_DISCLAIMER}[/yellow]\n\n"
     welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
+        "[dim]Built as an India-focused fork of TauricResearch/TradingAgents under Apache 2.0.[/dim]"
     )
 
     # Create and center the welcome box
@@ -483,8 +562,8 @@ def get_user_selections():
         welcome_content,
         border_style="green",
         padding=(1, 2),
-        title="Welcome to TradingAgents",
-        subtitle="Multi-Agents LLM Financial Trading Framework",
+        title="Welcome to IndiaMarketAgents",
+        subtitle="India-only research and education tooling",
     )
     console.print(Align.center(welcome_box))
     console.print()
@@ -506,8 +585,8 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
-            "SPY",
+            "Enter an NSE/BSE ticker. Use .NS for NSE and .BO for BSE (e.g. RELIANCE.NS).",
+            "RELIANCE.NS",
         )
     )
     selected_ticker = get_ticker()
@@ -688,6 +767,15 @@ def get_analysis_date():
             if analysis_date.date() > datetime.datetime.now().date():
                 console.print("[red]Error: Analysis date cannot be in the future[/red]")
                 continue
+            if DEFAULT_CONFIG.get("market_scope") == "india":
+                try:
+                    resolved, warnings = resolve_india_analysis_date(date_str)
+                except IndiaCalendarError as exc:
+                    console.print(f"[red]Error: {exc}[/red]")
+                    continue
+                for warning in warnings:
+                    console.print(f"[yellow]{warning}[/yellow]")
+                return resolved
             return date_str
         except ValueError:
             console.print(
@@ -695,111 +783,279 @@ def get_analysis_date():
             )
 
 
+SOURCE_COVERAGE_MARKERS = (
+    "source:",
+    "sources:",
+    "source coverage",
+    "data source",
+    "user-supplied",
+    "local filing",
+    "company filing",
+    "nse",
+    "bse",
+    "yahoo finance",
+    "yfinance",
+)
+DATA_QUALITY_MARKERS = (
+    "data quality",
+    "data-quality",
+    "coverage:",
+    "confidence:",
+    "limitation",
+    "warning",
+    "unavailable",
+    "low-confidence",
+)
+CONFIDENCE_MARKERS = (
+    "confidence:",
+    "confidence",
+    "low-confidence",
+    "high-confidence",
+)
+
+
+def _yes_no(value: bool) -> str:
+    return "Yes" if value else "No"
+
+
+def _contains_any_marker(content: str, markers: tuple[str, ...]) -> bool:
+    lowered = content.lower()
+    return any(marker in lowered for marker in markers)
+
+
+def _build_report_section_record(
+    filename: str,
+    title: str,
+    content: str,
+    produced: bool,
+) -> dict:
+    source_detected = _contains_any_marker(content, SOURCE_COVERAGE_MARKERS)
+    data_quality_detected = _contains_any_marker(content, DATA_QUALITY_MARKERS)
+    confidence_detected = _contains_any_marker(content, CONFIDENCE_MARKERS)
+    unavailable_detected = "unavailable" in content.lower()
+    warnings = []
+    if not produced:
+        warnings.append("Section was not produced in the current run.")
+    if not source_detected:
+        warnings.append("Section text does not include explicit source coverage.")
+    if not data_quality_detected:
+        warnings.append("Section text does not include explicit data-quality coverage.")
+    if not confidence_detected:
+        warnings.append("Section text does not include explicit confidence coverage.")
+
+    return {
+        "title": title,
+        "file": filename,
+        "status": "available" if produced else "unavailable",
+        "source_coverage_detected": source_detected,
+        "data_quality_detected": data_quality_detected,
+        "confidence_detected": confidence_detected,
+        "contains_unavailable_marker": unavailable_detected,
+        "warnings": warnings,
+    }
+
+
+def _format_report_quality_table(records: list[dict]) -> str:
+    rows = [
+        "| Section | File | Status | Source coverage | Data quality | Confidence | UNAVAILABLE marker |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for record in records:
+        rows.append(
+            "| {title} | {file} | {status} | {source} | {quality} | {confidence} | {unavailable} |".format(
+                title=record["title"],
+                file=record["file"],
+                status=record["status"],
+                source=_yes_no(record["source_coverage_detected"]),
+                quality=_yes_no(record["data_quality_detected"]),
+                confidence=_yes_no(record["confidence_detected"]),
+                unavailable=_yes_no(record["contains_unavailable_marker"]),
+            )
+        )
+    return "\n".join(rows)
+
+
+def _format_report_artifact_notes(record: dict) -> str:
+    warnings = record["warnings"] or ["No writer-level coverage gaps detected."]
+    warning_lines = "\n".join(f"- {warning}" for warning in warnings)
+    return "\n".join(
+        [
+            "## Report Artifact Notes",
+            "",
+            f"- Section status: {record['status']}",
+            f"- Source coverage detected in section text: {_yes_no(record['source_coverage_detected'])}",
+            f"- Data-quality coverage detected in section text: {_yes_no(record['data_quality_detected'])}",
+            f"- Confidence coverage detected in section text: {_yes_no(record['confidence_detected'])}",
+            f"- UNAVAILABLE marker present: {_yes_no(record['contains_unavailable_marker'])}",
+            "- Limitation: these are writer-level coverage checks only; they do not verify facts or fill missing data.",
+            "",
+            "### Coverage Warnings",
+            "",
+            warning_lines,
+        ]
+    )
+
+
+def _format_sources_markdown(records: list[dict]) -> str:
+    lines = [
+        "# Sources And Data Quality Coverage",
+        "",
+        "This artifact is a report-writer coverage index. It does not certify data accuracy, replace official NSE/BSE/company filings, or fill missing data.",
+        "",
+        _format_report_quality_table(records),
+        "",
+        "## Coverage Warnings",
+        "",
+    ]
+    for record in records:
+        if record["warnings"]:
+            lines.append(f"### {record['title']}")
+            lines.extend(f"- {warning}" for warning in record["warnings"])
+            lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
-    """Save complete analysis report to disk with organized subfolders."""
+    """Save complete analysis report to disk with organized IndiaMarketAgents files."""
+    safe_ticker = safe_india_ticker_component(ticker) if DEFAULT_CONFIG.get("market_scope") == "india" else ticker
     save_path.mkdir(parents=True, exist_ok=True)
-    sections = []
+    sections = [
+        f"# IndiaMarketAgents Research Report: {safe_ticker}",
+        "",
+        f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        f"Ticker/company: {safe_ticker}",
+        f"Date: {final_state.get('trade_date', 'unknown')}",
+        "",
+        "## Compliance Disclaimer",
+        INDIA_COMPLIANCE_DISCLAIMER,
+        "",
+        "## Data Quality And Source Coverage",
+        "The table below is generated by the report writer from section text markers. It does not verify facts or infer missing data.",
+    ]
 
-    # 1. Analysts
-    analysts_dir = save_path / "1_analysts"
-    analyst_parts = []
-    if final_state.get("market_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "market.md").write_text(final_state["market_report"], encoding="utf-8")
-        analyst_parts.append(("Market Analyst", final_state["market_report"]))
-    if final_state.get("sentiment_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
-        analyst_parts.append(("Sentiment Analyst", final_state["sentiment_report"]))
-    if final_state.get("news_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
-        analyst_parts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
-        analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
-    if analyst_parts:
-        content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
-        sections.append(f"## I. Analyst Team Reports\n\n{content}")
+    file_map = [
+        ("1_market_technical.md", "India Market Technical", final_state.get("india_market_report") or final_state.get("market_report")),
+        ("2_fundamentals.md", "India Fundamentals", final_state.get("india_fundamentals_report") or final_state.get("fundamentals_report")),
+        ("3_news_filings.md", "India News & Filings", final_state.get("india_news_filings_report") or final_state.get("news_report")),
+        ("4_macro_policy.md", "India Macro & Policy", final_state.get("india_macro_policy_report")),
+        ("5_flows_positioning.md", "India Flows & Positioning", final_state.get("india_flows_report")),
+        ("6_sentiment.md", "India Sentiment", final_state.get("india_sentiment_report") or final_state.get("sentiment_report")),
+        ("7_research_debate.md", "Research Debate", None),
+        ("trader_research_view.md", "Trader Research View", final_state.get("trader_investment_plan")),
+        ("8_risk.md", "Risk Review", None),
+        ("9_portfolio_decision.md", "Portfolio Research View", final_state.get("final_trade_decision")),
+        ("compliance.md", "Compliance Guard", final_state.get("india_compliance_report")),
+    ]
 
-    # 2. Research
-    if final_state.get("investment_debate_state"):
-        research_dir = save_path / "2_research"
-        debate = final_state["investment_debate_state"]
-        research_parts = []
-        if debate.get("bull_history"):
-            research_dir.mkdir(exist_ok=True)
-            (research_dir / "bull.md").write_text(debate["bull_history"], encoding="utf-8")
-            research_parts.append(("Bull Researcher", debate["bull_history"]))
-        if debate.get("bear_history"):
-            research_dir.mkdir(exist_ok=True)
-            (research_dir / "bear.md").write_text(debate["bear_history"], encoding="utf-8")
-            research_parts.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
-            research_dir.mkdir(exist_ok=True)
-            (research_dir / "manager.md").write_text(debate["judge_decision"], encoding="utf-8")
-            research_parts.append(("Research Manager", debate["judge_decision"]))
-        if research_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
-            sections.append(f"## II. Research Team Decision\n\n{content}")
+    debate = final_state.get("investment_debate_state") or {}
+    research_debate = "\n\n".join(
+        part
+        for part in (
+            f"### Bull Researcher\n{debate.get('bull_history', '')}" if debate.get("bull_history") else "",
+            f"### Bear Researcher\n{debate.get('bear_history', '')}" if debate.get("bear_history") else "",
+            f"### Research Manager\n{debate.get('judge_decision', '')}" if debate.get("judge_decision") else "",
+        )
+        if part
+    )
+    risk = final_state.get("risk_debate_state") or {}
+    risk_review = "\n\n".join(
+        part
+        for part in (
+            f"### Aggressive Risk Analyst\n{risk.get('aggressive_history', '')}" if risk.get("aggressive_history") else "",
+            f"### Conservative Risk Analyst\n{risk.get('conservative_history', '')}" if risk.get("conservative_history") else "",
+            f"### Neutral Risk Analyst\n{risk.get('neutral_history', '')}" if risk.get("neutral_history") else "",
+        )
+        if part
+    )
 
-    # 3. Trading
-    if final_state.get("trader_investment_plan"):
-        trading_dir = save_path / "3_trading"
-        trading_dir.mkdir(exist_ok=True)
-        (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"], encoding="utf-8")
-        sections.append(f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}")
+    resolved_file_map = []
+    section_records = []
+    for filename, title, content in file_map:
+        if filename == "7_research_debate.md":
+            content = research_debate
+        elif filename == "8_risk.md":
+            content = risk_review
+        produced = bool(content)
+        if not content:
+            content = "UNAVAILABLE: This section was not produced in the current run."
+        record = _build_report_section_record(filename, title, content, produced)
+        artifact_notes = _format_report_artifact_notes(record)
+        text = (
+            f"# {title}\n\n"
+            f"## Compliance Disclaimer\n\n{INDIA_COMPLIANCE_DISCLAIMER}\n\n"
+            f"## Report Section\n\n{content}\n\n"
+            f"{artifact_notes}\n"
+        )
+        (save_path / filename).write_text(text, encoding="utf-8")
+        resolved_file_map.append((title, content))
+        section_records.append(record)
 
-    # 4. Risk Management
-    if final_state.get("risk_debate_state"):
-        risk_dir = save_path / "4_risk"
-        risk = final_state["risk_debate_state"]
-        risk_parts = []
-        if risk.get("aggressive_history"):
-            risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "aggressive.md").write_text(risk["aggressive_history"], encoding="utf-8")
-            risk_parts.append(("Aggressive Analyst", risk["aggressive_history"]))
-        if risk.get("conservative_history"):
-            risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "conservative.md").write_text(risk["conservative_history"], encoding="utf-8")
-            risk_parts.append(("Conservative Analyst", risk["conservative_history"]))
-        if risk.get("neutral_history"):
-            risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "neutral.md").write_text(risk["neutral_history"], encoding="utf-8")
-            risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
-        if risk_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
-            sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
+    sections.append(_format_report_quality_table(section_records))
+    for title, content in resolved_file_map:
+        sections.extend(["", f"## {title}", content])
 
-        # 5. Portfolio Manager
-        if risk.get("judge_decision"):
-            portfolio_dir = save_path / "5_portfolio"
-            portfolio_dir.mkdir(exist_ok=True)
-            (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
-            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
-
-    # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
+    data_quality = {
+        "symbol": safe_ticker,
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "market_scope": DEFAULT_CONFIG.get("market_scope"),
+        "disclaimer_present": True,
+        "coverage_method": "writer_marker_detection_only",
+        "limitations": [
+            "Coverage flags are based on section text markers only.",
+            "The report writer does not verify facts, source freshness, or numerical accuracy.",
+            "Missing data must remain explicit as UNAVAILABLE or low-confidence in generated reports.",
+        ],
+        "sections": {record["title"]: record for record in section_records},
+    }
+    (save_path / "summary.json").write_text(
+        json.dumps(
+            {
+                "symbol": safe_ticker,
+                "date": final_state.get("trade_date"),
+                "sections": [t for t, _ in resolved_file_map],
+                "section_files": {record["title"]: record["file"] for record in section_records},
+                "disclaimer_file": "disclaimer.md",
+                "sources_file": "sources.md",
+                "data_quality_file": "data_quality.json",
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (save_path / "data_quality.json").write_text(json.dumps(data_quality, indent=2), encoding="utf-8")
+    (save_path / "sources.md").write_text(_format_sources_markdown(section_records), encoding="utf-8")
+    (save_path / "disclaimer.md").write_text(f"# Disclaimer\n\n{INDIA_COMPLIANCE_DISCLAIMER}\n", encoding="utf-8")
+    (save_path / "complete_report.md").write_text("\n".join(sections) + "\n", encoding="utf-8")
     return save_path / "complete_report.md"
 
 
 def display_complete_report(final_state):
     """Display the complete analysis report sequentially (avoids truncation)."""
     console.print()
-    console.print(Rule("Complete Analysis Report", style="bold green"))
+    console.print(Rule("IndiaMarketAgents Complete Research Report", style="bold green"))
+    console.print(Panel(INDIA_COMPLIANCE_DISCLAIMER, title="Compliance Disclaimer", border_style="yellow"))
 
     # I. Analyst Team Reports
     analysts = []
-    if final_state.get("market_report"):
+    if final_state.get("market_report") and not final_state.get("india_market_report"):
         analysts.append(("Market Analyst", final_state["market_report"]))
-    if final_state.get("sentiment_report"):
+    if final_state.get("sentiment_report") and not final_state.get("india_sentiment_report"):
         analysts.append(("Sentiment Analyst", final_state["sentiment_report"]))
-    if final_state.get("news_report"):
+    if final_state.get("news_report") and not final_state.get("india_news_filings_report"):
         analysts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
+    if final_state.get("fundamentals_report") and not final_state.get("india_fundamentals_report"):
         analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    india_sections = [
+        ("India Market Technical", final_state.get("india_market_report")),
+        ("India Fundamentals", final_state.get("india_fundamentals_report")),
+        ("India News & Filings", final_state.get("india_news_filings_report")),
+        ("India Macro & Policy", final_state.get("india_macro_policy_report")),
+        ("India Flows & Positioning", final_state.get("india_flows_report")),
+        ("India Sentiment", final_state.get("india_sentiment_report")),
+        ("India Compliance", final_state.get("india_compliance_report")),
+    ]
+    analysts.extend((title, content) for title, content in india_sections if content)
     if analysts:
         console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
         for title, content in analysts:
@@ -854,18 +1110,44 @@ def update_research_team_status(status):
 
 
 # Ordered list of analysts for status transitions
-ANALYST_ORDER = ["market", "social", "news", "fundamentals"]
+ANALYST_ORDER = [
+    "market",
+    "social",
+    "news",
+    "fundamentals",
+    "india_market",
+    "india_fundamentals",
+    "india_news_filings",
+    "india_macro_policy",
+    "india_flows",
+    "india_sentiment",
+    "india_compliance",
+]
 ANALYST_AGENT_NAMES = {
     "market": "Market Analyst",
     "social": "Sentiment Analyst",
     "news": "News Analyst",
     "fundamentals": "Fundamentals Analyst",
+    "india_market": "India Market Technical Analyst",
+    "india_fundamentals": "India Fundamentals Analyst",
+    "india_news_filings": "India News & Filings Analyst",
+    "india_macro_policy": "India Macro & Policy Analyst",
+    "india_flows": "India Flows & Positioning Analyst",
+    "india_sentiment": "India Sentiment Analyst",
+    "india_compliance": "India Compliance & Risk Guard",
 }
 ANALYST_REPORT_MAP = {
     "market": "market_report",
     "social": "sentiment_report",
     "news": "news_report",
     "fundamentals": "fundamentals_report",
+    "india_market": "india_market_report",
+    "india_fundamentals": "india_fundamentals_report",
+    "india_news_filings": "india_news_filings_report",
+    "india_macro_policy": "india_macro_policy_report",
+    "india_flows": "india_flows_report",
+    "india_sentiment": "india_sentiment_report",
+    "india_compliance": "india_compliance_report",
 }
 
 
@@ -1006,6 +1288,8 @@ def run_analysis(checkpoint: bool = False):
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
+    if config.get("market_scope") == "india" and selections["asset_type"] == "stock":
+        selections["ticker"] = validate_india_symbol_or_raise(selections["ticker"], config)
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1020,7 +1304,8 @@ def run_analysis(checkpoint: bool = False):
     analyst_wall_time_tracker = AnalystWallTimeTracker(analyst_execution_plan)
 
     # Initialize the graph with callbacks bound to LLMs
-    graph = TradingAgentsGraph(
+    graph_class = get_trading_agents_graph_class()
+    graph = graph_class(
         selected_analyst_keys,
         config=config,
         debug=True,
@@ -1034,7 +1319,8 @@ def run_analysis(checkpoint: bool = False):
     start_time = time.time()
 
     # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    safe_ticker = safe_india_ticker_component(selections["ticker"]) if config.get("market_scope") == "india" else selections["ticker"]
+    results_dir = Path(config["results_dir"]) / safe_ticker / selections["analysis_date"]
     results_dir.mkdir(parents=True, exist_ok=True)
     report_dir = results_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -1265,8 +1551,7 @@ def run_analysis(checkpoint: bool = False):
     # Prompt to save report
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
+        default_path = Path.cwd() / "reports" / safe_ticker / selections["analysis_date"]
         save_path_str = typer.prompt(
             "Save path (press Enter for default)",
             default=str(default_path)
@@ -1285,13 +1570,915 @@ def run_analysis(checkpoint: bool = False):
         display_complete_report(final_state)
 
 
+def _parse_analysts_option(analysts: Optional[str]) -> list[str]:
+    if not analysts:
+        return INDIA_DEFAULT_ANALYSTS if DEFAULT_CONFIG.get("market_scope") == "india" else ["market", "social", "news", "fundamentals"]
+    selected = [item.strip() for item in analysts.split(",") if item.strip()]
+    build_analyst_execution_plan(selected)
+    return selected
+
+
+def build_first_analysis_command(
+    *,
+    ticker: str,
+    analysis_date: str,
+    provider: str,
+    analysts: Optional[list[str]] = None,
+) -> str:
+    """Return the recommended shallow first-analysis command."""
+    command = [
+        "indiamarketagents",
+        "analyze",
+        "--ticker",
+        ticker,
+        "--date",
+        analysis_date,
+        "--provider",
+        provider,
+        "--research-depth",
+        "1",
+        "--no-display",
+        "--no-save-prompt",
+    ]
+    if analysts:
+        command.extend(["--analysts", ",".join(analysts)])
+    return shlex.join(command)
+
+
+def run_doctor_checks(ticker: str = "RELIANCE.NS") -> dict:
+    checks = {}
+    checks["python"] = True
+    checks["package_import"] = True
+    try:
+        normalized = validate_india_symbol_or_raise(ticker, DEFAULT_CONFIG)
+        checks["ticker_validation"] = normalized
+    except IndiaSymbolError as exc:
+        checks["ticker_validation"] = f"failed: {exc}"
+    cache_dir = Path(DEFAULT_CONFIG["data_cache_dir"])
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        probe = cache_dir / ".doctor_write_test"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        checks["cache_dir_writable"] = str(cache_dir)
+    except Exception as exc:  # noqa: BLE001 - health-check output should be readable.
+        checks["cache_dir_writable"] = f"failed: {exc}"
+    for provider, env_var in {
+        "openai": "OPENAI_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "alpha_vantage": "ALPHA_VANTAGE_API_KEY",
+    }.items():
+        checks[f"{provider}_key_present"] = bool(os.environ.get(env_var))
+    workflow_status = get_first_workflow_status(ticker=ticker)
+    provider_status = workflow_status["provider_status"]
+    report_status = workflow_status.get("report_status") or {}
+    checks["provider_ready"] = provider_status["ready"]
+    checks["preferred_provider"] = provider_status["preferred_provider"] or "none"
+    checks["provider_next_step"] = provider_status["recommended_next_step"]
+    checks["saved_report_bundle_ready"] = bool(report_status.get("ready"))
+    checks["first_workflow_ready"] = workflow_status["ready_for_analysis"]
+    checks["first_workflow_next_step"] = workflow_status["next_step"]
+    return checks
+
+
+def initialize_env_file(
+    env_path: Optional[Path] = None,
+    template_path: Optional[Path] = None,
+) -> dict:
+    """Create local .env from the India template without overwriting."""
+    env_path = env_path or (Path.cwd() / ".env")
+    template_path = template_path or (Path.cwd() / ".env.example.india")
+    if env_path.exists():
+        return {
+            "created": False,
+            "status": "exists",
+            "path": str(env_path),
+            "template_path": str(template_path),
+            "message": f"{env_path} already exists; leaving it unchanged.",
+            "next_step": "Run indiamarketagents provider-status.",
+        }
+    if not template_path.exists():
+        raise FileNotFoundError(f"{template_path} was not found.")
+    shutil.copyfile(template_path, env_path)
+    return {
+        "created": True,
+        "status": "created",
+        "path": str(env_path),
+        "template_path": str(template_path),
+        "message": f"Created {env_path} from {template_path}.",
+        "next_step": "Edit the local .env, then run indiamarketagents provider-status.",
+    }
+
+
+def get_provider_setup_status() -> dict:
+    """Return local provider readiness without network calls or secret values."""
+    env_file_path = Path.cwd() / ".env"
+    env_file_exists = env_file_path.exists()
+    env_file_next_step = (
+        f"Edit {env_file_path} locally; do not commit it."
+        if env_file_exists
+        else "Run indiamarketagents init-env, then add one provider setting."
+    )
+
+    providers = []
+    for provider, env_var in (
+        ("openai", "OPENAI_API_KEY"),
+        ("google", "GOOGLE_API_KEY"),
+        ("anthropic", "ANTHROPIC_API_KEY"),
+    ):
+        if os.environ.get(env_var):
+            providers.append(
+                {
+                    "provider": provider,
+                    "status": "ready",
+                    "detail": f"{env_var} is set",
+                    "next_step": (
+                        "Run "
+                        f"indiamarketagents first-run-check --ticker RELIANCE.NS "
+                        f"--date 2026-06-05 --provider {provider}"
+                    ),
+                }
+            )
+        else:
+            providers.append(
+                {
+                    "provider": provider,
+                    "status": "missing",
+                    "detail": f"{env_var} is not set",
+                    "next_step": f"Add {env_var}=<your key> to {env_file_path} or export it.",
+                }
+            )
+
+    ollama_base_url = os.environ.get("OLLAMA_BASE_URL")
+    ollama_command = shutil.which("ollama")
+    if ollama_base_url:
+        providers.append(
+            {
+                "provider": "ollama",
+                "status": "ready",
+                "detail": "OLLAMA_BASE_URL is set",
+                "next_step": (
+                    "Run indiamarketagents first-run-check --ticker RELIANCE.NS "
+                    "--date 2026-06-05 --provider ollama"
+                ),
+            }
+        )
+    elif ollama_command:
+        providers.append(
+            {
+                "provider": "ollama",
+                "status": "ready",
+                "detail": "ollama command is available on PATH",
+                "next_step": (
+                    "Start Ollama, pull the selected model, then run "
+                    "indiamarketagents first-run-check --ticker RELIANCE.NS "
+                    "--date 2026-06-05 --provider ollama"
+                ),
+            }
+        )
+    else:
+        providers.append(
+            {
+                "provider": "ollama",
+                "status": "missing",
+                "detail": "ollama command is not on PATH and OLLAMA_BASE_URL is not set",
+                "next_step": (
+                    "Install Ollama locally, set OLLAMA_BASE_URL=http://localhost:11434/v1, "
+                    "or use one keyed provider."
+                ),
+            }
+        )
+
+    ready_providers = [
+        item["provider"] for item in providers if item["status"] == "ready"
+    ]
+    provider_by_name = {item["provider"]: item for item in providers}
+    configured_provider_name = str(
+        os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+        or DEFAULT_CONFIG.get("llm_provider", "openai")
+        or "openai"
+    ).strip().lower() or "openai"
+    configured_source = (
+        "TRADINGAGENTS_LLM_PROVIDER"
+        if os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+        else "default config"
+    )
+    configured_provider_status = provider_by_name.get(configured_provider_name)
+    if configured_provider_status:
+        configured_provider = {
+            "provider": configured_provider_name,
+            "source": configured_source,
+            "status": configured_provider_status["status"],
+            "detail": configured_provider_status["detail"],
+            "next_step": configured_provider_status["next_step"],
+        }
+    else:
+        configured_provider = {
+            "provider": configured_provider_name,
+            "source": configured_source,
+            "status": "unsupported",
+            "detail": (
+                f"{configured_provider_name} is not covered by offline provider-status."
+            ),
+            "next_step": (
+                "Use openai, google, anthropic, or ollama for the first workflow, "
+                "or pass an explicit supported --provider to first-run-check."
+            ),
+        }
+
+    if "ollama" in ready_providers:
+        preferred_provider = "ollama"
+    elif ready_providers:
+        preferred_provider = ready_providers[0]
+    else:
+        preferred_provider = None
+
+    if preferred_provider:
+        recommended_next_step = (
+            "Run "
+            f"indiamarketagents first-run-check --ticker RELIANCE.NS "
+            "--date 2026-06-05"
+        )
+    else:
+        recommended_next_step = (
+            "Lowest-cost local path: configure Ollama with "
+            "OLLAMA_BASE_URL=http://localhost:11434/v1. Otherwise add exactly one "
+            "LLM API key to .env, then rerun provider-status."
+        )
+
+    return {
+        "env_file": {
+            "path": str(env_file_path),
+            "exists": env_file_exists,
+            "next_step": env_file_next_step,
+        },
+        "ready": bool(ready_providers),
+        "ready_providers": ready_providers,
+        "preferred_provider": preferred_provider,
+        "configured_provider": configured_provider,
+        "recommended_next_step": recommended_next_step,
+        "providers": providers,
+    }
+
+
+def format_provider_blocker_detail(provider_status: dict) -> str:
+    """Format a non-secret provider blocker for first-use readiness commands."""
+    configured_provider = provider_status["configured_provider"]
+    return (
+        "No LLM provider path is ready; configured provider "
+        f"{configured_provider['provider']} is {configured_provider['status']}: "
+        f"{configured_provider['detail']}"
+    )
+
+
+def run_first_run_checks(
+    ticker: str = "RELIANCE.NS",
+    analysis_date: str = "2026-06-05",
+    analysts: Optional[str] = None,
+    provider: Optional[str] = None,
+) -> dict:
+    """Return offline readiness checks for the recommended first research pack."""
+    config = DEFAULT_CONFIG.copy()
+    provider_source = "configured default"
+    provider_status = None
+    if provider:
+        config["llm_provider"] = provider.lower()
+        provider_source = "explicit"
+    else:
+        provider_status = get_provider_setup_status()
+        if provider_status["preferred_provider"]:
+            config["llm_provider"] = provider_status["preferred_provider"]
+            provider_source = "auto-selected ready provider"
+
+    checks = []
+
+    def add_check(name: str, status: str, detail: str, next_step: str = "") -> None:
+        checks.append(
+            {
+                "name": name,
+                "status": status,
+                "detail": detail,
+                "next_step": next_step,
+            }
+        )
+
+    normalized_ticker = None
+    try:
+        normalized_ticker = validate_india_symbol_or_raise(ticker, config)
+        add_check("Ticker", "pass", normalized_ticker)
+    except IndiaSymbolError as exc:
+        add_check(
+            "Ticker",
+            "fail",
+            str(exc),
+            "Use an India ticker such as RELIANCE.NS or RELIANCE.BO.",
+        )
+
+    resolved_date = None
+    try:
+        resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+        detail = resolved_date
+        if warnings:
+            detail = f"{resolved_date}; warnings: {'; '.join(warnings)}"
+        add_check("Analysis date", "pass", detail)
+    except IndiaCalendarError as exc:
+        add_check(
+            "Analysis date",
+            "fail",
+            str(exc),
+            "Use a valid India market date on or before today.",
+        )
+
+    selected_analysts = None
+    try:
+        selected_analysts = _parse_analysts_option(analysts)
+        add_check("Analyst selection", "pass", ", ".join(selected_analysts))
+    except ValueError as exc:
+        add_check(
+            "Analyst selection",
+            "fail",
+            str(exc),
+            "Use analyst keys such as india_market,india_fundamentals.",
+        )
+
+    provider_key = config["llm_provider"]
+    provider_readiness_missing = bool(
+        provider_status is not None and not provider_status["ready"]
+    )
+    provider_selection_detail = f"{provider_key} ({provider_source})"
+    if provider_readiness_missing:
+        provider_selection_detail = (
+            f"none (no ready provider; configured default is {provider_key})"
+        )
+    add_check("Provider selection", "pass", provider_selection_detail)
+    if provider_status is not None and not provider_status["ready"]:
+        add_check(
+            "Provider readiness",
+            "fail",
+            format_provider_blocker_detail(provider_status),
+            provider_status["recommended_next_step"],
+        )
+    key_env = get_api_key_env(provider_key)
+    if provider_readiness_missing:
+        pass
+    elif key_env is None:
+        if provider_key == "ollama":
+            add_check("LLM credentials", "pass", "ollama does not require an API key")
+            ollama_base_url = os.environ.get("OLLAMA_BASE_URL")
+            if ollama_base_url:
+                add_check(
+                    "Ollama runtime",
+                    "pass",
+                    "OLLAMA_BASE_URL is set",
+                    "Endpoint and model reachability are not checked offline.",
+                )
+            elif shutil.which("ollama"):
+                add_check(
+                    "Ollama runtime",
+                    "pass",
+                    "ollama command is available on PATH",
+                    "Start Ollama and pull the selected model before analyze.",
+                )
+            else:
+                add_check(
+                    "Ollama runtime",
+                    "fail",
+                    "ollama command is not on PATH and OLLAMA_BASE_URL is not set.",
+                    "Install Ollama locally, set OLLAMA_BASE_URL, or use a keyed provider.",
+                )
+        else:
+            add_check(
+                "LLM credentials",
+                "fail",
+                f"Unknown or unsupported provider '{provider_key}' for preflight.",
+                "Use --provider openai, google, anthropic, or ollama.",
+            )
+    elif os.environ.get(key_env):
+        add_check("LLM credentials", "pass", f"{key_env} is set")
+    else:
+        add_check(
+            "LLM credentials",
+            "fail",
+            f"{key_env} is not set for provider '{provider_key}'.",
+            "Add the key to .env or export it before running analyze.",
+        )
+
+    report_path = None
+    if normalized_ticker and resolved_date:
+        report_path = (
+            Path.cwd()
+            / "reports"
+            / safe_india_ticker_component(normalized_ticker)
+            / resolved_date
+        )
+        add_check("Report path", "pass", str(report_path))
+
+    ready = all(check["status"] == "pass" for check in checks)
+    next_command = None
+    if ready and normalized_ticker and resolved_date:
+        next_command = build_first_analysis_command(
+            ticker=normalized_ticker,
+            analysis_date=resolved_date,
+            provider=provider_key,
+            analysts=selected_analysts if analysts else None,
+        )
+
+    return {
+        "ready": ready,
+        "ticker": normalized_ticker,
+        "analysis_date": resolved_date,
+        "provider": provider_key,
+        "provider_source": provider_source,
+        "report_path": str(report_path) if report_path else None,
+        "next_command": next_command,
+        "checks": checks,
+    }
+
+
+def get_first_workflow_status(
+    ticker: str = "RELIANCE.NS",
+    analysis_date: str = "2026-06-05",
+) -> dict:
+    """Return offline status for the recommended first workflow."""
+    checks = []
+
+    def add_check(name: str, status: str, detail: str, next_step: str = "") -> None:
+        checks.append(
+            {
+                "name": name,
+                "status": status,
+                "detail": detail,
+                "next_step": next_step,
+            }
+        )
+
+    normalized_ticker = None
+    resolved_date = None
+    try:
+        normalized_ticker = validate_india_symbol_or_raise(ticker, DEFAULT_CONFIG)
+        resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+        detail = f"{normalized_ticker} on {resolved_date}"
+        if warnings:
+            detail = f"{detail}; warnings: {'; '.join(warnings)}"
+        add_check("Ticker/date", "pass", detail)
+    except (IndiaSymbolError, IndiaCalendarError) as exc:
+        add_check(
+            "Ticker/date",
+            "fail",
+            str(exc),
+            "Use an India ticker such as RELIANCE.NS and a valid market date.",
+        )
+
+    report_path = None
+    saved_report_ready = False
+    report_status = None
+    if normalized_ticker and resolved_date:
+        report_path = (
+            Path.cwd()
+            / "reports"
+            / safe_india_ticker_component(normalized_ticker)
+            / resolved_date
+        )
+        report_status = get_report_status(
+            ticker=normalized_ticker,
+            analysis_date=resolved_date,
+        )
+        saved_report_ready = report_status["ready"]
+        if saved_report_ready:
+            add_check("Saved report bundle", "pass", str(report_path))
+        else:
+            missing = ", ".join(report_status["missing_required"][:3])
+            if len(report_status["missing_required"]) > 3:
+                missing = f"{missing}, ..."
+            detail = str(report_path)
+            if missing:
+                detail = f"{detail}; missing: {missing}"
+            add_check(
+                "Saved report bundle",
+                "pending",
+                detail,
+                (
+                    f"Run indiamarketagents sample-report --ticker {normalized_ticker} "
+                    f"--date {resolved_date}, then rerun report-status."
+                ),
+            )
+
+    provider_status = get_provider_setup_status()
+    if provider_status["ready"]:
+        add_check(
+            "Provider",
+            "pass",
+            ", ".join(provider_status["ready_providers"]),
+            provider_status["recommended_next_step"],
+        )
+    else:
+        add_check(
+            "Provider",
+            "fail",
+            format_provider_blocker_detail(provider_status),
+            provider_status["recommended_next_step"],
+        )
+
+    preflight = None
+    if provider_status["preferred_provider"] and normalized_ticker and resolved_date:
+        preflight = run_first_run_checks(
+            ticker=normalized_ticker,
+            analysis_date=resolved_date,
+            provider=provider_status["preferred_provider"],
+        )
+        if preflight["ready"]:
+            add_check(
+                "First-run preflight",
+                "pass",
+                provider_status["preferred_provider"],
+                preflight["next_command"] or "",
+            )
+        else:
+            add_check(
+                "First-run preflight",
+                "fail",
+                provider_status["preferred_provider"],
+                (
+                    f"Run indiamarketagents first-run-check --ticker {normalized_ticker} "
+                    f"--date {resolved_date} --provider {provider_status['preferred_provider']}"
+                ),
+            )
+    else:
+        add_check(
+            "First-run preflight",
+            "pending",
+            "Waiting for provider readiness",
+            "Run indiamarketagents provider-status.",
+        )
+
+    if not saved_report_ready and normalized_ticker and resolved_date:
+        next_step = (
+            f"Run indiamarketagents sample-report --ticker {normalized_ticker} "
+            f"--date {resolved_date}"
+        )
+    elif not provider_status["ready"]:
+        next_step = provider_status["recommended_next_step"]
+    elif preflight and preflight["ready"] and preflight.get("next_command"):
+        next_step = preflight["next_command"]
+    elif provider_status["preferred_provider"] and normalized_ticker and resolved_date:
+        next_step = (
+            f"Run indiamarketagents first-run-check --ticker {normalized_ticker} "
+            f"--date {resolved_date} --provider {provider_status['preferred_provider']}"
+        )
+    else:
+        next_step = "Fix failed workflow checks, then rerun workflow-status."
+
+    ready_for_analysis = bool(
+        saved_report_ready and preflight and preflight.get("ready")
+    )
+
+    return {
+        "ready_for_analysis": ready_for_analysis,
+        "ticker": normalized_ticker,
+        "analysis_date": resolved_date,
+        "report_path": str(report_path) if report_path else None,
+        "report_status": report_status,
+        "provider_status": provider_status,
+        "first_run_check": preflight,
+        "next_step": next_step,
+        "checks": checks,
+    }
+
+
+REPORT_STATUS_ARTIFACTS = (
+    ("Complete", "complete_report.md", "markdown", ()),
+    ("Technical", "1_market_technical.md", "markdown", ()),
+    ("Fundamentals", "2_fundamentals.md", "markdown", ()),
+    ("News/Filings", "3_news_filings.md", "markdown", ()),
+    ("Macro/Policy", "4_macro_policy.md", "markdown", ()),
+    ("Flows", "5_flows_positioning.md", "markdown", ()),
+    ("Sentiment", "6_sentiment.md", "markdown", ()),
+    ("Research Debate", "7_research_debate.md", "markdown", ()),
+    ("Trader Research View", "trader_research_view.md", "markdown", ()),
+    ("Risk/Compliance", "8_risk.md", "markdown", ("compliance.md", "disclaimer.md")),
+    ("Portfolio Research View", "9_portfolio_decision.md", "markdown", ()),
+    ("Sources", "sources.md", "markdown", ()),
+    ("Data Quality", "data_quality.json", "data_quality_json", ()),
+)
+
+
+def _read_saved_report_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {
+            "status": "UNAVAILABLE",
+            "warning": "Saved JSON artifact could not be parsed.",
+        }
+
+
+def get_report_status(
+    ticker: str = "RELIANCE.NS",
+    analysis_date: str = "2026-06-05",
+) -> dict:
+    """Return saved-report bundle readiness without live calls or writes."""
+    normalized_ticker = validate_india_symbol_or_raise(ticker, DEFAULT_CONFIG)
+    resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+    report_path = (
+        Path.cwd()
+        / "reports"
+        / safe_india_ticker_component(normalized_ticker)
+        / resolved_date
+    )
+
+    artifacts = []
+    for label, filename, kind, companion_files in REPORT_STATUS_ARTIFACTS:
+        artifact_path = report_path / filename
+        artifacts.append(
+            {
+                "label": label,
+                "filename": filename,
+                "kind": kind,
+                "path": str(artifact_path),
+                "status": "present" if artifact_path.exists() else "missing",
+                "required": True,
+            }
+        )
+        for companion in companion_files:
+            companion_path = report_path / companion
+            artifacts.append(
+                {
+                    "label": f"{label} companion",
+                    "filename": companion,
+                    "kind": "companion",
+                    "path": str(companion_path),
+                    "status": "present" if companion_path.exists() else "missing",
+                    "required": True,
+                }
+            )
+
+    data_quality_path = report_path / "data_quality.json"
+    data_quality = _read_saved_report_json(data_quality_path)
+    sections = data_quality.get("sections") or {}
+    section_warnings = []
+    unavailable_sections = []
+    for title, record in sections.items():
+        if record.get("status") == "unavailable" or record.get("contains_unavailable_marker"):
+            unavailable_sections.append(title)
+        for warning in record.get("warnings") or []:
+            section_warnings.append(f"{title}: {warning}")
+
+    data_quality_summary = {
+        "available": data_quality_path.exists() and bool(data_quality),
+        "symbol": data_quality.get("symbol"),
+        "market_scope": data_quality.get("market_scope"),
+        "generated_at": data_quality.get("generated_at"),
+        "section_count": len(sections),
+        "unavailable_sections": unavailable_sections,
+        "warning_count": len(section_warnings),
+        "warnings": section_warnings[:5],
+    }
+    if data_quality.get("warning") and not section_warnings:
+        data_quality_summary["warnings"] = [data_quality["warning"]]
+        data_quality_summary["warning_count"] = 1
+
+    missing_required = [
+        artifact for artifact in artifacts if artifact["required"] and artifact["status"] == "missing"
+    ]
+    ready = not missing_required
+    if ready:
+        next_step = (
+            "Read disclaimer.md, data_quality.json, sources.md, and complete_report.md; "
+            "then verify material claims against official filings or user-supplied documents."
+        )
+    elif any(artifact["filename"] == "complete_report.md" for artifact in missing_required):
+        next_step = (
+            f"Run indiamarketagents sample-report --ticker {normalized_ticker} "
+            f"--date {resolved_date}, or run analyze after first-run-check passes."
+        )
+    else:
+        next_step = (
+            "Regenerate the saved report bundle, then rerun report-status before review."
+        )
+
+    return {
+        "ready": ready,
+        "ticker": normalized_ticker,
+        "analysis_date": resolved_date,
+        "report_path": str(report_path),
+        "warnings": warnings,
+        "artifacts": artifacts,
+        "missing_required": [artifact["filename"] for artifact in missing_required],
+        "data_quality": data_quality_summary,
+        "next_step": next_step,
+    }
+
+
+def _sample_section(title: str, symbol: str) -> str:
+    return (
+        "SAMPLE ONLY - UNAVAILABLE: This section was generated by the offline "
+        "`sample-report` workflow. It did not use live market data, official "
+        "exchange filings, local filings, or an LLM.\n\n"
+        f"Symbol: {symbol}\n\n"
+        "Source: IndiaMarketAgents offline sample placeholder\n"
+        "Data Quality: unavailable\n"
+        "Confidence: unavailable\n"
+        "Coverage: no factual market coverage\n"
+        "Limitations: use this artifact only to verify report saving, dashboard "
+        "review, and compliance/disclaimer workflow.\n\n"
+        f"Reviewer note: replace this placeholder with a real {title} section "
+        "only after running a credentialed analysis and verifying claims against "
+        "official filings or user-supplied documents."
+    )
+
+
+def build_sample_report_state(ticker: str, analysis_date: str) -> dict:
+    """Build an explicit no-data sample report state for workflow rehearsal."""
+    return {
+        "trade_date": analysis_date,
+        "india_market_report": _sample_section("market technical", ticker),
+        "india_fundamentals_report": _sample_section("fundamentals", ticker),
+        "india_news_filings_report": _sample_section("news and filings", ticker),
+        "india_macro_policy_report": _sample_section("macro and policy", ticker),
+        "india_flows_report": _sample_section("flows and positioning", ticker),
+        "india_compliance_report": _sample_section("compliance", ticker),
+        "india_sentiment_report": _sample_section("sentiment", ticker),
+        "trader_investment_plan": (
+            "SAMPLE MODEL VIEW - UNAVAILABLE: No model or analyst output was "
+            "used. This is not a trade instruction, recommendation, or "
+            "investment advice.\n\n"
+            "Source: IndiaMarketAgents offline sample placeholder\n"
+            "Data Quality: unavailable\n"
+            "Confidence: unavailable"
+        ),
+        "final_trade_decision": (
+            "SAMPLE PORTFOLIO RESEARCH VIEW - UNAVAILABLE: No portfolio "
+            "judgment was produced. Use this file only to verify saved-report "
+            "review workflow.\n\n"
+            "Source: IndiaMarketAgents offline sample placeholder\n"
+            "Data Quality: unavailable\n"
+            "Confidence: unavailable"
+        ),
+        "investment_debate_state": {
+            "bull_history": _sample_section("bull case", ticker),
+            "bear_history": _sample_section("bear case", ticker),
+            "judge_decision": _sample_section("research manager view", ticker),
+        },
+        "risk_debate_state": {
+            "aggressive_history": _sample_section("aggressive risk view", ticker),
+            "conservative_history": _sample_section("conservative risk view", ticker),
+            "neutral_history": _sample_section("neutral risk view", ticker),
+        },
+    }
+
+
+def generate_sample_report(
+    ticker: str = "RELIANCE.NS",
+    analysis_date: str = "2026-06-05",
+    save_path: Optional[Path] = None,
+) -> Path:
+    """Generate a sample saved-report bundle without LLM or market calls."""
+    normalized_ticker = validate_india_symbol_or_raise(ticker, DEFAULT_CONFIG)
+    resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+    for warning in warnings:
+        console.print(f"[yellow]{warning}[/yellow]")
+    final_state = build_sample_report_state(normalized_ticker, resolved_date)
+    target_path = save_path or (
+        Path.cwd()
+        / "reports"
+        / safe_india_ticker_component(normalized_ticker)
+        / resolved_date
+    )
+    return save_report_to_disk(final_state, normalized_ticker, target_path)
+
+
+def get_use_case_guidance() -> dict:
+    """Return the recommended practical first use case and next commands."""
+    return {
+        "best_use_case": (
+            "First-pass India equity research pack for an NSE/BSE-listed "
+            "company, starting with RELIANCE.NS."
+        ),
+        "why": [
+            "Exercises India-only ticker validation and report-path safety.",
+            "Covers market, fundamentals, filings/news, macro, flows, and compliance agents.",
+            "Produces saved artifacts for analyst review and dashboard rehearsal.",
+            "Keeps outputs research-only with explicit data-quality and source caveats.",
+        ],
+        "poor_fit": [
+            "Live trading, broker order execution, or personalized investment advice.",
+            "Real-time market monitoring.",
+            "Official NSE/BSE/FII/DII workflows before source/legal/access review.",
+        ],
+        "commands": [
+            "indiamarketagents sample-report --ticker RELIANCE.NS --date 2026-06-05",
+            "indiamarketagents report-status --ticker RELIANCE.NS --date 2026-06-05",
+            "indiamarketagents init-env",
+            "indiamarketagents provider-status",
+            "indiamarketagents workflow-status --ticker RELIANCE.NS --date 2026-06-05",
+            "indiamarketagents first-run-check --ticker RELIANCE.NS --date 2026-06-05",
+            "Run the indiamarketagents analyze command printed by first-run-check.",
+        ],
+        "notes": [
+            "init-env creates .env from .env.example.india only when .env is missing.",
+            "report-status checks saved report artifacts before analyst review.",
+            "Run provider-status before first-run-check to confirm one provider path is configured.",
+            "When --provider is omitted, first-run-check auto-selects a ready provider if one is available.",
+            "Run workflow-status to see the next unfinished setup or first-run step.",
+            "Run only the analyze command printed by first-run-check; it includes the selected provider.",
+        ],
+        "docs": [
+            "docs/USAGE_PLAYBOOK.md",
+            "docs/FIRST_RUN_CHECKLIST.md",
+            "README_INDIA.md",
+        ],
+    }
+
+
+def run_noninteractive_analysis(
+    *,
+    ticker: str,
+    analysis_date: str,
+    analysts: Optional[str],
+    provider: Optional[str],
+    quick_model: Optional[str],
+    deep_model: Optional[str],
+    research_depth: int,
+    checkpoint: bool,
+    save_path: Optional[Path],
+    no_display: bool,
+    no_save_prompt: bool,
+):
+    config = DEFAULT_CONFIG.copy()
+    config["checkpoint_enabled"] = checkpoint
+    config["max_debate_rounds"] = research_depth
+    config["max_risk_discuss_rounds"] = research_depth
+    if provider:
+        config["llm_provider"] = provider.lower()
+    if quick_model:
+        config["quick_think_llm"] = quick_model
+    if deep_model:
+        config["deep_think_llm"] = deep_model
+
+    normalized_ticker = validate_india_symbol_or_raise(ticker, config)
+    resolved_date, warnings = resolve_india_analysis_date(analysis_date)
+    for warning in warnings:
+        console.print(f"[yellow]{warning}[/yellow]")
+
+    selected_analysts = _parse_analysts_option(analysts)
+    key_env = get_api_key_env(config["llm_provider"])
+    if key_env and not os.environ.get(key_env):
+        raise ValueError(
+            f"{key_env} is not set for provider '{config['llm_provider']}'. "
+            "Add it to .env or export it before running analysis."
+        )
+    graph_class = get_trading_agents_graph_class()
+    graph = graph_class(selected_analysts, config=config, debug=False)
+    final_state, decision = graph.propagate(normalized_ticker, resolved_date)
+    final_state["trade_date"] = resolved_date
+
+    target_path = save_path or (Path.cwd() / "reports" / safe_india_ticker_component(normalized_ticker) / resolved_date)
+    report_file = save_report_to_disk(final_state, normalized_ticker, target_path)
+    console.print(f"[green]Report saved:[/green] {report_file.resolve()}")
+    if not no_display:
+        display_complete_report(final_state)
+    return decision
+
+
+@app.callback(invoke_without_command=True)
+def main_callback(ctx: typer.Context):
+    """Launch interactive analysis when no subcommand is provided."""
+    if ctx.invoked_subcommand is None:
+        run_analysis()
+
+
 @app.command()
 def analyze(
+    ticker: Optional[str] = typer.Option(
+        None,
+        "--ticker",
+        help="NSE/BSE ticker such as RELIANCE.NS. When omitted, launches the interactive beginner flow.",
+    ),
+    analysis_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="Analysis date in YYYY-MM-DD format. Future dates are rejected; India weekends roll back.",
+    ),
+    analysts: Optional[str] = typer.Option(
+        None,
+        "--analysts",
+        help="Comma-separated analyst keys, e.g. india_market,india_fundamentals,india_news_filings.",
+    ),
+    provider: Optional[str] = typer.Option(None, "--provider", help="LLM provider key, e.g. openai."),
+    quick_model: Optional[str] = typer.Option(None, "--quick-model", help="Quick-thinking model ID."),
+    deep_model: Optional[str] = typer.Option(None, "--deep-model", help="Deep-thinking model ID."),
+    research_depth: int = typer.Option(1, "--research-depth", help="Debate/risk rounds."),
     checkpoint: bool = typer.Option(
         False,
         "--checkpoint",
         help="Enable checkpoint/resume: save state after each node so a crashed run can resume.",
     ),
+    save_path: Optional[Path] = typer.Option(None, "--save-path", help="Directory for saved report files."),
+    no_display: bool = typer.Option(False, "--no-display", help="Do not print the final report."),
+    no_save_prompt: bool = typer.Option(False, "--no-save-prompt", help="Skip save prompts; non-interactive runs still save by default."),
     clear_checkpoints: bool = typer.Option(
         False,
         "--clear-checkpoints",
@@ -1302,7 +2489,362 @@ def analyze(
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
+    if ticker:
+        if not analysis_date:
+            raise typer.BadParameter("--date is required when --ticker is provided")
+        try:
+            run_noninteractive_analysis(
+                ticker=ticker,
+                analysis_date=analysis_date,
+                analysts=analysts,
+                provider=provider,
+                quick_model=quick_model,
+                deep_model=deep_model,
+                research_depth=research_depth,
+                checkpoint=checkpoint,
+                save_path=save_path,
+                no_display=no_display,
+                no_save_prompt=no_save_prompt,
+            )
+        except (IndiaSymbolError, IndiaCalendarError, ValueError) as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        return
     run_analysis(checkpoint=checkpoint)
+
+
+@app.command()
+def doctor(
+    ticker: str = typer.Option("RELIANCE.NS", "--ticker", help="Ticker to validate during health check."),
+):
+    """Run a local health check without live LLM calls."""
+    checks = run_doctor_checks(ticker)
+    table = Table(title="IndiaMarketAgents Doctor", box=box.SIMPLE_HEAD)
+    table.add_column("Check", style="cyan")
+    table.add_column("Result", style="green")
+    for key, value in checks.items():
+        table.add_row(key, str(value))
+    console.print(table)
+
+
+@app.command("first-run-check")
+def first_run_check(
+    ticker: str = typer.Option(
+        "RELIANCE.NS",
+        "--ticker",
+        help="Ticker for the first research pack.",
+    ),
+    analysis_date: str = typer.Option(
+        "2026-06-05",
+        "--date",
+        help="Analysis date in YYYY-MM-DD format.",
+    ),
+    provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        help="LLM provider key to validate. When omitted, auto-selects a ready provider when available.",
+    ),
+    analysts: Optional[str] = typer.Option(
+        None,
+        "--analysts",
+        help="Comma-separated analyst keys to preflight.",
+    ),
+):
+    """Check first-run readiness without live market, broker, or LLM calls."""
+    result = run_first_run_checks(
+        ticker=ticker,
+        analysis_date=analysis_date,
+        analysts=analysts,
+        provider=provider,
+    )
+    table = Table(title="IndiaMarketAgents First Run Check", box=box.SIMPLE_HEAD)
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Detail")
+    table.add_column("Next step")
+    for check in result["checks"]:
+        status = (
+            "[green]PASS[/green]"
+            if check["status"] == "pass"
+            else "[red]FAIL[/red]"
+        )
+        table.add_row(check["name"], status, check["detail"], check["next_step"])
+    console.print(table)
+    if result["ready"]:
+        console.print("[green]Ready for the first IndiaMarketAgents research run.[/green]")
+        if result.get("next_command"):
+            console.print(
+                Panel(
+                    result["next_command"],
+                    title="Next Analysis Command",
+                    border_style="green",
+                )
+            )
+        if result.get("report_path"):
+            console.print(f"[dim]Expected report path:[/dim] {result['report_path']}")
+    else:
+        console.print("[red]Not ready for the first research run. Fix failed checks first.[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("init-env")
+def init_env():
+    """Create local .env from .env.example.india without overwriting."""
+    try:
+        result = initialize_env_file()
+    except FileNotFoundError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    title = "Local .env Created" if result["created"] else "Local .env Exists"
+    console.print(
+        Panel(
+            f"{result['message']}\n{result['next_step']}",
+            title=title,
+            border_style="green" if result["created"] else "yellow",
+        )
+    )
+
+
+@app.command("provider-status")
+def provider_status():
+    """Show local LLM provider readiness without live calls or secret values."""
+    result = get_provider_setup_status()
+    env_file = result["env_file"]
+    env_status = "found" if env_file["exists"] else "not found"
+    console.print(
+        Panel(
+            f"{env_file['path']}\n{env_file['next_step']}",
+            title=f"Local .env ({env_status})",
+            border_style="green" if env_file["exists"] else "yellow",
+        )
+    )
+    configured_provider = result["configured_provider"]
+    configured_status = configured_provider["status"].upper()
+    console.print(
+        Panel(
+            (
+                f"{configured_provider['provider']} ({configured_provider['source']})\n"
+                f"Status: {configured_status}\n"
+                f"{configured_provider['detail']}\n"
+                f"{configured_provider['next_step']}"
+            ),
+            title="Configured Provider",
+            border_style=(
+                "green" if configured_provider["status"] == "ready" else "yellow"
+            ),
+        )
+    )
+    table = Table(title="IndiaMarketAgents Provider Status", box=box.SIMPLE_HEAD)
+    table.add_column("Provider", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Detail")
+    table.add_column("Next step")
+    for provider in result["providers"]:
+        status = (
+            "[green]READY[/green]"
+            if provider["status"] == "ready"
+            else "[red]MISSING[/red]"
+        )
+        table.add_row(
+            provider["provider"],
+            status,
+            provider["detail"],
+            provider["next_step"],
+        )
+    console.print(table)
+    console.print(
+        Panel(
+            result["recommended_next_step"],
+            title="Recommended Next Step",
+            border_style="green" if result["ready"] else "yellow",
+        )
+    )
+
+
+@app.command("workflow-status")
+def workflow_status(
+    ticker: str = typer.Option(
+        "RELIANCE.NS",
+        "--ticker",
+        help="Ticker for the recommended first workflow.",
+    ),
+    analysis_date: str = typer.Option(
+        "2026-06-05",
+        "--date",
+        help="Analysis date in YYYY-MM-DD format.",
+    ),
+):
+    """Show offline status for the recommended first workflow."""
+    result = get_first_workflow_status(ticker=ticker, analysis_date=analysis_date)
+    table = Table(title="IndiaMarketAgents Workflow Status", box=box.SIMPLE_HEAD)
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Detail")
+    table.add_column("Next step")
+    status_styles = {
+        "pass": "[green]PASS[/green]",
+        "pending": "[yellow]PENDING[/yellow]",
+        "fail": "[red]FAIL[/red]",
+    }
+    for check in result["checks"]:
+        table.add_row(
+            check["name"],
+            status_styles.get(check["status"], check["status"].upper()),
+            check["detail"],
+            check["next_step"],
+        )
+    console.print(table)
+    console.print(
+        Panel(
+            result["next_step"],
+            title="Next Step",
+            border_style="green" if result["ready_for_analysis"] else "yellow",
+        )
+    )
+
+
+@app.command("sample-report")
+def sample_report(
+    ticker: str = typer.Option(
+        "RELIANCE.NS",
+        "--ticker",
+        help="Ticker for the sample saved-report bundle.",
+    ),
+    analysis_date: str = typer.Option(
+        "2026-06-05",
+        "--date",
+        help="Analysis date in YYYY-MM-DD format.",
+    ),
+    save_path: Optional[Path] = typer.Option(
+        None,
+        "--save-path",
+        help="Directory for the generated sample report bundle.",
+    ),
+):
+    """Generate a no-data sample report bundle for dashboard/workflow review."""
+    try:
+        report_file = generate_sample_report(
+            ticker=ticker,
+            analysis_date=analysis_date,
+            save_path=save_path,
+        )
+    except (IndiaSymbolError, IndiaCalendarError) as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    console.print(f"[green]Sample report saved:[/green] {report_file.resolve()}")
+    console.print(
+        "[yellow]Sample only: no live market data, filings, broker access, or "
+        "LLM analysis was used.[/yellow]"
+    )
+
+
+@app.command("report-status")
+def report_status(
+    ticker: str = typer.Option(
+        "RELIANCE.NS",
+        "--ticker",
+        help="Ticker for the saved-report bundle.",
+    ),
+    analysis_date: str = typer.Option(
+        "2026-06-05",
+        "--date",
+        help="Analysis date in YYYY-MM-DD format.",
+    ),
+):
+    """Show saved-report artifact readiness without live calls or writes."""
+    try:
+        result = get_report_status(ticker=ticker, analysis_date=analysis_date)
+    except (IndiaSymbolError, IndiaCalendarError) as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    console.print(
+        Panel(
+            result["report_path"],
+            title=f"Saved Report Bundle: {result['ticker']} {result['analysis_date']}",
+            border_style="green" if result["ready"] else "yellow",
+        )
+    )
+    table = Table(title="IndiaMarketAgents Report Status", box=box.SIMPLE_HEAD)
+    table.add_column("Artifact", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("File")
+    for artifact in result["artifacts"]:
+        status = (
+            "[green]PRESENT[/green]"
+            if artifact["status"] == "present"
+            else "[yellow]MISSING[/yellow]"
+        )
+        table.add_row(artifact["label"], status, artifact["filename"])
+    console.print(table)
+
+    data_quality = result["data_quality"]
+    if data_quality["available"]:
+        summary = [
+            f"Symbol: {data_quality.get('symbol') or 'unknown'}",
+            f"Sections: {data_quality['section_count']}",
+            f"Unavailable sections: {len(data_quality['unavailable_sections'])}",
+            f"Warnings: {data_quality['warning_count']}",
+        ]
+    else:
+        summary = ["data_quality.json is missing or unavailable."]
+    console.print(
+        Panel(
+            "\n".join(summary),
+            title="Data Quality Summary",
+            border_style="green" if data_quality["available"] else "yellow",
+        )
+    )
+    if data_quality.get("warnings"):
+        warning_table = Table(title="Coverage Warnings", box=box.SIMPLE_HEAD)
+        warning_table.add_column("Warning", style="yellow")
+        for warning in data_quality["warnings"]:
+            warning_table.add_row(warning)
+        console.print(warning_table)
+    console.print(
+        Panel(
+            result["next_step"],
+            title="Next Review Step",
+            border_style="green" if result["ready"] else "yellow",
+        )
+    )
+
+
+@app.command("use-case")
+def use_case():
+    """Show the highest-value practical IndiaMarketAgents use case."""
+    guidance = get_use_case_guidance()
+    console.print(
+        Panel(
+            guidance["best_use_case"],
+            title="Highest-Value Use Case",
+            border_style="cyan",
+        )
+    )
+
+    fit_table = Table(title="Use-Case Fit", box=box.SIMPLE_HEAD)
+    fit_table.add_column("Best fit", style="green")
+    fit_table.add_column("Poor fit", style="red")
+    max_rows = max(len(guidance["why"]), len(guidance["poor_fit"]))
+    for index in range(max_rows):
+        fit_table.add_row(
+            guidance["why"][index] if index < len(guidance["why"]) else "",
+            guidance["poor_fit"][index] if index < len(guidance["poor_fit"]) else "",
+        )
+    console.print(fit_table)
+
+    command_table = Table(title="Recommended First Workflow", box=box.SIMPLE_HEAD)
+    command_table.add_column("Step", style="cyan")
+    command_table.add_column("Command")
+    for index, command in enumerate(guidance["commands"], start=1):
+        command_table.add_row(str(index), command)
+    console.print(command_table)
+    for note in guidance["notes"]:
+        console.print(f"[dim]{note}[/dim]")
+    console.print("Read: " + ", ".join(guidance["docs"]))
+    console.print(
+        "[yellow]Research and education only. Not investment advice or a trade instruction.[/yellow]"
+    )
 
 
 if __name__ == "__main__":
