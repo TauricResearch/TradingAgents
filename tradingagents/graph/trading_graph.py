@@ -28,10 +28,14 @@ from tradingagents.agents.utils.agent_utils import (
     resolve_instrument_identity,
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.config_validation import enforce_preflight
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.manifest import build_manifest
+from tradingagents.reporting import write_reports as _write_reports_tree
+from tradingagents.usage import UsageTrackingCallback
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -63,10 +67,31 @@ class TradingAgentsGraph:
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
-        self.callbacks = callbacks or []
+        self.callbacks = list(callbacks or [])
+        self.selected_analysts = list(selected_analysts)
+
+        # Per-run usage/cost accounting. Attached to every LLM (and tool) call so
+        # the run can report tokens in/out + an optional cost estimate. Reuses a
+        # caller-supplied tracker if one was passed in callbacks; otherwise one
+        # is created (unless disabled via config["track_usage"] = False).
+        self.usage = next(
+            (cb for cb in self.callbacks if isinstance(cb, UsageTrackingCallback)), None
+        )
+        if self.usage is None and self.config.get("track_usage", True):
+            self.usage = UsageTrackingCallback(model_prices=self.config.get("model_prices"))
+            self.callbacks.append(self.usage)
 
         # Update the interface's config
         set_config(self.config)
+
+        # Preflight: warn (or, when configured strict, fail) at second 0 if the
+        # selected analysts need data sources whose keys are absent — instead of
+        # discovering it minutes deep into a paid run.
+        self.preflight = enforce_preflight(
+            self.selected_analysts,
+            self.config,
+            strict=bool(self.config.get("preflight_strict", False)),
+        )
 
         # Create necessary directories
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
@@ -401,6 +426,26 @@ class TradingAgentsGraph:
         # Log state to disk.
         self._log_state(trade_date, final_state)
 
+        # Surface what the run consumed (tokens, calls, optional cost).
+        if self.usage is not None:
+            logger.info(self.usage.format_summary())
+
+        # Write the human-readable markdown report tree (parity with the CLI —
+        # programmatic callers previously only got the JSON blob above).
+        if self.config.get("write_reports", True):
+            try:
+                self.write_reports(trade_date=trade_date)
+            except Exception as e:  # never let reporting break a finished run
+                logger.warning("Failed to write report tree: %s", e)
+
+        # Write an auditable run manifest (model/provider, key-presence,
+        # data-source coverage, analysts, usage) alongside the results.
+        if self.config.get("write_manifest", True):
+            try:
+                self._write_manifest(trade_date)
+            except Exception as e:  # manifest is best-effort, never fatal
+                logger.warning("Failed to write run manifest: %s", e)
+
         # Store decision for deferred reflection on the next same-ticker run.
         self.memory_log.store_decision(
             ticker=company_name,
@@ -457,6 +502,46 @@ class TradingAgentsGraph:
         log_path = directory / f"full_states_log_{trade_date}.json"
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
+
+    def _run_output_dir(self, trade_date) -> Path:
+        """Per-run results directory: results_dir/<ticker>/<trade_date> (mirrors
+        the CLI layout)."""
+        safe_ticker = safe_ticker_component(self.ticker)
+        return Path(self.config["results_dir"]) / safe_ticker / str(trade_date)
+
+    def write_reports(self, out_dir=None, trade_date=None) -> Path:
+        """Write the markdown report tree for the most recent run.
+
+        Args:
+            out_dir: destination directory; defaults to
+                results_dir/<ticker>/<trade_date>/reports.
+            trade_date: the run's trade date; defaults to the current state's.
+
+        Returns:
+            Path to the consolidated complete_report.md.
+        """
+        if self.curr_state is None:
+            raise RuntimeError("No completed run to report on; call propagate() first.")
+        td = trade_date or self.curr_state.get("trade_date")
+        out = Path(out_dir) if out_dir else self._run_output_dir(td) / "reports"
+        return _write_reports_tree(self.curr_state, self.ticker, out)
+
+    def _write_manifest(self, trade_date) -> Path:
+        """Write the run manifest (model, key-presence, coverage, usage) as JSON."""
+        manifest = build_manifest(
+            self.config,
+            self.ticker,
+            trade_date,
+            self.selected_analysts,
+            preflight=getattr(self, "preflight", None),
+            usage=self.usage,
+        )
+        out_dir = self._run_output_dir(trade_date)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = out_dir / "manifest.json"
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
+        return manifest_path
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
