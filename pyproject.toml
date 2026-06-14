@@ -81,3 +81,8 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]   # intentional re-exports
+
+[tool.ruff.lint.isort]
+# Keep multiple aliased names from one module in a single combined import block
+# (e.g. the vendor re-exports in interface.py) instead of one statement per name.
+combine-as-imports = true

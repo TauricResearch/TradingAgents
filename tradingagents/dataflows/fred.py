@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 
 import requests
 
+from .errors import VendorNotConfiguredError
+
 logger = logging.getLogger(__name__)
 
 FRED_API_BASE = "https://api.stlouisfed.org/fred"
@@ -70,12 +72,12 @@ MACRO_SERIES = {
 }
 
 
-class FredNotConfiguredError(ValueError):
+class FredNotConfiguredError(VendorNotConfiguredError):
     """Raised when FRED is selected but no API key is configured.
 
-    Subclasses ValueError so callers already catching ValueError keep working,
-    while the routing layer can distinguish a "vendor unavailable" condition
-    from a genuine data error (same contract as AlphaVantageNotConfiguredError).
+    A VendorNotConfiguredError (and thus still a ValueError), so the routing
+    layer's "vendor unavailable" handling and existing ValueError callers both
+    keep working.
     """
 
 
