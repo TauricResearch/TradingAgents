@@ -1,9 +1,37 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import type { WsEvent } from "../lib/events";
+import { formatDuration } from "../lib/format";
 
 /* ─── agent-to-stage mapping (mirrors runner._STAGE_MAP + RunTimeline) ─── */
 
 const AGENT_TO_STAGE: Record<string, string> = {
+  "Market Analyst": "market",
+  "Sentiment Analyst": "sentiment",
+  "News Analyst": "news",
+  "Fundamentals Analyst": "fundamentals",
+  "Bull Researcher": "research",
+  "Bear Researcher": "research",
+  "Research Manager": "research",
+  "Trader": "trader",
+  "Aggressive Analyst": "risk",
+  "Conservative Analyst": "risk",
+  "Neutral Analyst": "risk",
+  "Portfolio Manager": "risk",
+};
+
+const STAGES: { key: string; label: string; icon: string }[] = [
+  { key: "market", label: "Market", icon: "M" },
+  { key: "sentiment", label: "Sentiment", icon: "S" },
+  { key: "news", label: "News", icon: "N" },
+  { key: "fundamentals", label: "Fundamentals", icon: "F" },
+  { key: "research", label: "Research", icon: "R" },
+  { key: "trader", label: "Trader", icon: "T" },
+  { key: "risk", label: "Risk", icon: "⚠" },
+];
+
+/* ─── agent-to-stage index for ordering ────────────────── */
+
+const NODE_TO_STAGE: Record<string, string> = {
   "Market Analyst": "market",
   "Sentiment Analyst": "sentiment",
   "News Analyst": "news",
@@ -54,6 +82,8 @@ interface TeamDef {
   agents: AgentDef[];
   color: string;
   bgDim: string;
+  /** Which timeline stage keys belong to this team, in order. */
+  stageKeys: string[];
 }
 
 const TEAMS: TeamDef[] = [
@@ -69,6 +99,7 @@ const TEAMS: TeamDef[] = [
     ],
     color: "#38bdf8",
     bgDim: "rgba(56,189,248,0.08)",
+    stageKeys: ["market", "sentiment", "news", "fundamentals"],
   },
   {
     id: "research",
@@ -81,6 +112,7 @@ const TEAMS: TeamDef[] = [
     ],
     color: "#fb923c",
     bgDim: "rgba(251,146,60,0.08)",
+    stageKeys: ["research"],
   },
   {
     id: "trader",
@@ -91,6 +123,7 @@ const TEAMS: TeamDef[] = [
     ],
     color: "#fbbf24",
     bgDim: "rgba(251,191,36,0.08)",
+    stageKeys: ["trader"],
   },
   {
     id: "risk",
@@ -103,6 +136,7 @@ const TEAMS: TeamDef[] = [
     ],
     color: "#ef4444",
     bgDim: "rgba(239,68,68,0.08)",
+    stageKeys: ["risk"],
   },
   {
     id: "portfolio",
@@ -113,10 +147,163 @@ const TEAMS: TeamDef[] = [
     ],
     color: "#a78bfa",
     bgDim: "rgba(167,139,250,0.08)",
+    stageKeys: ["risk"],  // shares risk stage events
   },
 ];
 
-/* ─── per-agent status derivation ──────────────────────── */
+/* ─── per-stage status derivation (from RunTimeline) ───── */
+
+type StageDerived = {
+  status: "idle" | "running" | "done" | "errored";
+  node?: string;
+  thinkingLog: string[];
+  duration_ms?: number;
+  excerpt?: string;
+  fullText?: string;
+};
+
+function deriveStage(stage: string, events: WsEvent[]): StageDerived {
+  const firstStartIdx = events.findIndex(
+    (e) => e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage,
+  );
+  const lastStartIdx = (() => {
+    for (let i = events.length - 1; i >= 0; i--) {
+      const e = events[i];
+      if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage) {
+        return i;
+      }
+    }
+    return -1;
+  })();
+
+  const hasReport = events.some((e) => {
+    if (e.type !== "analyst_completed") return false;
+    if ((e.data as any)?.stage !== stage) return false;
+    const d = e.data as Record<string, unknown>;
+    return !!(d.report_excerpt || d.report_text);
+  });
+  const lastReportEvent = (() => {
+    for (let i = events.length - 1; i >= 0; i--) {
+      const e = events[i];
+      if (e.type !== "analyst_completed") continue;
+      if ((e.data as any)?.stage !== stage) continue;
+      const d = e.data as Record<string, unknown>;
+      if (d.report_excerpt || d.report_text) return e;
+    }
+    return undefined;
+  })();
+
+  const hasFailed = events.some((e) => e.type === "run_failed");
+
+  if (hasReport && lastReportEvent) {
+    const d = lastReportEvent.data as Record<string, unknown>;
+    return {
+      status: "done",
+      excerpt: (d.report_excerpt as string) ?? undefined,
+      fullText: (d.report_text as string) ?? undefined,
+      duration_ms: typeof d.duration_ms === "number" ? d.duration_ms : undefined,
+      thinkingLog: [],
+    };
+  }
+
+  if (firstStartIdx === -1) {
+    return { status: hasFailed ? "errored" : "idle", thinkingLog: [] };
+  }
+
+  const upperBound = (() => {
+    for (let i = lastStartIdx + 1; i < events.length; i++) {
+      const e = events[i];
+      if (e.type === "analyst_started") {
+        const nodeStage = NODE_TO_STAGE[(e.data as any)?.node];
+        if (nodeStage && nodeStage !== stage) return i;
+      }
+    }
+    return events.length;
+  })();
+
+  const thinkingLog: string[] = [];
+  for (let i = firstStartIdx + 1; i < upperBound; i++) {
+    const e = events[i];
+    if (e.type === "analyst_thinking") {
+      const d = e.data as Record<string, unknown>;
+      const preview = d.text_preview as string | undefined;
+      const fragment = d.text_fragment as string | undefined;
+      if (preview) thinkingLog.push(`[ask] ${preview}`);
+      if (fragment) thinkingLog.push(fragment);
+    }
+  }
+
+  if (hasFailed) {
+    return {
+      status: "errored",
+      node: lastStartIdx !== -1 ? (events[lastStartIdx].data as any)?.node ?? undefined : undefined,
+      thinkingLog,
+    };
+  }
+
+  return {
+    status: "running",
+    node: lastStartIdx !== -1 ? (events[lastStartIdx].data as any)?.node ?? undefined : undefined,
+    thinkingLog,
+  };
+}
+
+/* ─── segment progress (from RunTimeline) ──────────────── */
+
+function deriveSegmentProgress(
+  stages: { status: StageDerived["status"] }[],
+  failed: boolean,
+): Array<"traversed" | "active" | "future" | "failed"> {
+  const out: Array<"traversed" | "active" | "future" | "failed"> = [];
+  for (let i = 0; i < stages.length - 1; i++) {
+    const cur = stages[i].status;
+    const nxt = stages[i + 1].status;
+    if (failed) {
+      out.push("failed");
+      continue;
+    }
+    if (cur === "done") {
+      out.push("traversed");
+    } else if (nxt === "running") {
+      out.push("active");
+    } else if (cur === "running" && nxt === "idle") {
+      out.push("active");
+    } else if (nxt === "errored" || cur === "errored") {
+      out.push("traversed");
+    } else {
+      out.push("future");
+    }
+  }
+  return out;
+}
+
+/* ─── per-stage agent colors ───────────────────────────── */
+
+const AGENT_COLORS: Record<string, { base: string; dim: string; ring: string }> = {
+  market:       { base: "#38bdf8", dim: "rgba(56,189,248,0.15)",  ring: "rgba(56,189,248,0.3)" },
+  sentiment:    { base: "#a78bfa", dim: "rgba(167,139,250,0.15)", ring: "rgba(167,139,250,0.3)" },
+  news:         { base: "#34d399", dim: "rgba(52,211,153,0.15)",  ring: "rgba(52,211,153,0.3)" },
+  fundamentals: { base: "#f472b6", dim: "rgba(244,114,182,0.15)", ring: "rgba(244,114,182,0.3)" },
+  research:     { base: "#fb923c", dim: "rgba(251,146,60,0.15)",  ring: "rgba(251,146,60,0.3)" },
+  risk:         { base: "#ef4444", dim: "rgba(239,68,68,0.15)",   ring: "rgba(239,68,68,0.3)" },
+  trader:       { base: "#fbbf24", dim: "rgba(251,191,36,0.15)",  ring: "rgba(251,191,36,0.3)" },
+};
+
+const STATUS_LABEL: Record<StageDerived["status"], string> = {
+  idle: "queued",
+  running: "running…",
+  done: "✓ done",
+  errored: "errored",
+};
+
+const SEGMENT_CLASS: Record<"traversed" | "active" | "future" | "failed", string> = {
+  traversed: "bg-emerald-400",
+  active: "bg-blue-400 animate-pulse",
+  future: "bg-slate-200",
+  failed: "bg-rose-400",
+};
+
+/* ─── per-agent status derivation (from PipelineFlow) ──── */
 
 type AgentStatus = "pending" | "in_progress" | "completed";
 
@@ -124,13 +311,11 @@ function deriveAgentStatus(agent: string, events: WsEvent[]): AgentStatus {
   const stage = AGENT_TO_STAGE[agent];
   if (!stage) return "pending";
 
-  // Has this agent started?
   const started = events.some(
     (e) => e.type === "analyst_started" && (e.data as any)?.node === agent,
   );
   if (!started) return "pending";
 
-  // How many completions have been emitted for this agent's stage lane?
   const stageCompletions = events.filter(
     (e) =>
       e.type === "analyst_completed" &&
@@ -140,8 +325,6 @@ function deriveAgentStatus(agent: string, events: WsEvent[]): AgentStatus {
   const order = AGENT_ORDER_IN_STAGE[agent] ?? 0;
   return stageCompletions > order ? "completed" : "in_progress";
 }
-
-/* ─── team-level status ────────────────────────────────── */
 
 type TeamStatus = "idle" | "active" | "done";
 
@@ -209,6 +392,51 @@ function formatElapsed(sec: number): string {
 }
 
 /* ─── sub-components ───────────────────────────────────── */
+
+function StageDot({
+  stage,
+  stageDerived,
+  onClick,
+  isExpanded,
+}: {
+  stage: { key: string; label: string; icon: string };
+  stageDerived: StageDerived;
+  onClick: () => void;
+  isExpanded: boolean;
+}) {
+  const { status } = stageDerived;
+  const ac = AGENT_COLORS[stage.key] ?? AGENT_COLORS.market;
+  const isRunning = status === "running";
+
+  const dynamicStyle: React.CSSProperties = {
+    borderColor: isRunning || status === "done" ? ac.base : "rgba(71,85,105,0.5)",
+    backgroundColor:
+      status === "done" ? ac.dim
+      : status === "running" ? ac.dim
+      : isExpanded ? "rgba(30,41,59,0.8)"
+      : "transparent",
+    color: status === "idle" ? "#64748b" : ac.base,
+    boxShadow: isRunning ? `0 0 12px ${ac.ring}` : status === "done" ? `0 0 6px ${ac.ring}` : "none",
+  };
+
+  return (
+    <button
+      type="button"
+      data-testid={`stage-${stage.key}`}
+      data-status={status}
+      data-expanded={isExpanded}
+      onClick={onClick}
+      aria-expanded={isExpanded}
+      aria-label={`${stage.label}: ${STATUS_LABEL[status]}`}
+      className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-market-DEFAULT shrink-0"
+      style={dynamicStyle}
+    >
+      <span className="text-[10px] font-bold leading-none">
+        {status === "done" ? "✓" : stage.icon}
+      </span>
+    </button>
+  );
+}
 
 function AgentRow({
   name,
@@ -357,9 +585,122 @@ function TeamCard({
   );
 }
 
-/* ─── main component ───────────────────────────────────── */
+/* ─── accordion detail panel (from RunTimeline) ─────────── */
+
+function StageDetailPanel({
+  stageKey,
+  stageDerived,
+  onClose,
+}: {
+  stageKey: string;
+  stageDerived: StageDerived;
+  onClose: () => void;
+}) {
+  const stageConfig = STAGES.find((s) => s.key === stageKey)!;
+  const ac = AGENT_COLORS[stageKey] ?? AGENT_COLORS.market;
+  const isRunning = stageDerived.status === "running";
+  const isDone = stageDerived.status === "done";
+
+  return (
+    <div
+      data-testid={`stage-${stageKey}-details`}
+      className="mt-3 rounded-xl border border-slate-700/50 bg-slate-900/60 backdrop-blur-sm p-4 text-sm animate-fade-in"
+      style={{ borderLeftColor: ac.base, borderLeftWidth: 2 }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold"
+            style={{ backgroundColor: ac.dim, color: ac.base }}
+          >
+            {stageConfig.icon}
+          </span>
+          <div>
+            <div className="font-semibold text-slate-200">{stageConfig.label}</div>
+            <div className="text-[10px] text-slate-500 font-medium capitalize">{stageDerived.status}</div>
+          </div>
+          {stageDerived.node && (
+            <span className="ml-2 text-[10px] font-mono text-slate-500 bg-slate-800/60 px-2 py-0.5 rounded">
+              {stageDerived.node}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+        >
+          Close
+        </button>
+      </div>
+
+      {isRunning ? (
+        stageDerived.thinkingLog.length > 0 ? (
+          <pre className="text-xs leading-relaxed text-slate-300 bg-slate-950/60 rounded-lg p-3 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono border border-slate-800/50">
+            {stageDerived.thinkingLog.join("\n")}
+            <span className="inline-block w-1.5 h-3 ml-0.5 align-middle rounded-sm" style={{ backgroundColor: ac.base }} />
+          </pre>
+        ) : (
+          <div className="flex items-center gap-2 text-xs text-slate-500 italic">
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: ac.base }} />
+            {stageDerived.node ?? stageConfig.label} is thinking…
+          </div>
+        )
+      ) : isDone ? (
+        <div className="space-y-2">
+          {stageDerived.excerpt && (
+            <div className="text-xs text-slate-400 leading-relaxed">{stageDerived.excerpt}</div>
+          )}
+          {stageDerived.fullText && (
+            <pre className="text-xs leading-relaxed text-slate-300 bg-slate-950/60 rounded-lg p-3 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono border border-slate-800/50">
+              {stageDerived.fullText}
+            </pre>
+          )}
+          {!stageDerived.excerpt && !stageDerived.fullText && (
+            <div className="text-xs text-slate-600 italic">No report content.</div>
+          )}
+        </div>
+      ) : stageDerived.status === "errored" ? (
+        <div className="flex items-center gap-2 text-xs text-red-400">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+          This stage did not run because the run failed earlier.
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-xs text-slate-600 italic">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+          Waiting for {stageConfig.label} to start…
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── main merged component ────────────────────────────── */
 
 export function PipelineFlow({ events }: { events: WsEvent[] }) {
+  const [expandedStage, setExpandedStage] = useState<string | null>(null);
+
+  // Derive per-stage status (from RunTimeline logic)
+  const stageDerivedMap = useMemo(() => {
+    const map = new Map<string, StageDerived>();
+    for (const s of STAGES) {
+      map.set(s.key, deriveStage(s.key, events));
+    }
+    return map;
+  }, [events]);
+  const stageDerivedList = useMemo(
+    () => STAGES.map((s) => ({ key: s.key, derived: stageDerivedMap.get(s.key)! })),
+    [STAGES, stageDerivedMap],
+  );
+
+  const failed = events.some((e) => e.type === "run_failed");
+  const segmentProgress = useMemo(
+    () => deriveSegmentProgress(stageDerivedList.map((s) => s.derived), failed),
+    [stageDerivedList, failed],
+  );
+
+  // Derive team-level status (from PipelineFlow logic)
   const derived = useMemo(() => {
     const teamStatuses = TEAMS.map((t) => ({
       team: t,
@@ -371,12 +712,79 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
   }, [events]);
 
   const { teamStatuses, stats } = derived;
-
   const doneCount = teamStatuses.filter((ts) => ts.status === "done").length;
 
+  const toggleStage = (key: string) =>
+    setExpandedStage((prev) => (prev === key ? null : key));
+
+  const TEAM_GROUPS = [
+    { label: "Analyst Team", indices: [0, 1, 2, 3], color: "#38bdf8" },
+    { label: "Research", indices: [4], color: "#fb923c" },
+    { label: "Trader", indices: [5], color: "#fbbf24" },
+    { label: "Risk Mgmt", indices: [6], color: "#ef4444" },
+  ] as const;
+
   return (
-    <div className="glass-panel px-3 py-2.5">
-      {/* Team cards row */}
+    <div className="glass-panel px-3 py-2.5" data-testid="pipeline-flow">
+      {/* Team grouping labels (from RunTimeline) */}
+      <div className="flex items-start mb-2 px-1">
+        {TEAM_GROUPS.map((group) => {
+          const groupStages = group.indices.map((i) => stageDerivedList[i].derived.status);
+          const allDone = groupStages.every((s) => s === "done");
+          const anyActive = groupStages.some((s) => s === "running");
+          return (
+            <div
+              key={group.label}
+              className="flex-1 last:flex-none text-center"
+              style={{ maxWidth: group.indices.length > 1 ? `${group.indices.length * 14}%` : "14%" }}
+            >
+              <span
+                className="text-[9px] font-semibold uppercase tracking-widest transition-colors duration-300"
+                style={{
+                  color: allDone ? group.color : anyActive ? `${group.color}99` : "#334155",
+                }}
+              >
+                {group.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Timeline dots row with segments (from RunTimeline) */}
+      <div className="flex items-start mb-3">
+        {stageDerivedList.map(({ key, derived }, i) => {
+          const isExpanded = expandedStage === key;
+          return (
+            <div key={key} className="flex items-start flex-1 last:flex-none">
+              <div className="flex flex-col items-center">
+                <StageDot
+                  stage={STAGES[i]}
+                  stageDerived={derived}
+                  onClick={() => toggleStage(key)}
+                  isExpanded={isExpanded}
+                />
+                <div className="mt-1 text-[10px] text-slate-500 text-center font-mono truncate max-w-[60px]">
+                  {derived.duration_ms != null
+                    ? formatDuration(derived.duration_ms)
+                    : STATUS_LABEL[derived.status]}
+                </div>
+              </div>
+              {/* Connecting segment */}
+              {i < stageDerivedList.length - 1 && (
+                <div
+                  data-testid="timeline-segment"
+                  data-progress={segmentProgress[i]}
+                  aria-hidden="true"
+                  className={`flex-1 h-0.5 mx-1 mt-[10px] rounded-full transition-colors duration-500 ${SEGMENT_CLASS[segmentProgress[i]]}`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Team cards row (from PipelineFlow) */}
       <div className="flex items-stretch gap-2">
         {teamStatuses.map(({ team, status, agentStatuses }, i) => (
           <div key={team.id} className="flex items-stretch flex-1 min-w-0">
@@ -411,7 +819,16 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
         ))}
       </div>
 
-      {/* Stats bar (mirrors CLI footer) */}
+      {/* Accordion detail panel (from RunTimeline) */}
+      {expandedStage && stageDerivedMap.has(expandedStage) && (
+        <StageDetailPanel
+          stageKey={expandedStage}
+          stageDerived={stageDerivedMap.get(expandedStage)!}
+          onClose={() => setExpandedStage(null)}
+        />
+      )}
+
+      {/* Stats bar (from PipelineFlow) */}
       {stats.hasRun && (
         <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-slate-700/30 text-[10px] font-mono text-slate-500">
           <span className="flex items-center gap-1">
