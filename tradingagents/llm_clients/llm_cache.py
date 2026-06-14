@@ -29,10 +29,10 @@ for repeated analyses of the same (ticker, date, config) combination.
 
 Design notes
 ------------
-* **Cache key** = SHA256 of ``(model, temperature, serialised messages)``.
-  Structured‑output calls embed tool definitions in the message list, so
-  free‑text and structured calls to the same logical content naturally
-  get different keys.
+* **Cache key** = SHA256 of ``(model, temperature, extra_params, serialised
+  messages)``.  *extra_params* captures invocation‑level settings such as
+  ``tools``, ``tool_choice``, and ``response_format``, preventing incorrect
+  cache hits when those differ despite identical messages.
 
 * **Provider filter** — ``llm_cache_providers`` in ``DEFAULT_CONFIG``
   lets you restrict caching to specific providers (e.g. only DeepSeek,
@@ -43,6 +43,9 @@ Design notes
 
 * **Hit/miss counters** — kept in memory for the lifetime of the cache
   instance, exposed via ``stats()`` for monitoring.
+
+* **Fault‑tolerant** — file‑system and serialisation errors are caught
+  and logged, never propagated.  Caching is strictly best‑effort.
 """
 
 from __future__ import annotations
@@ -66,12 +69,36 @@ logger = logging.getLogger(__name__)
 _NON_SERIALISABLE_RESPONSE_META_KEYS = frozenset({"headers", "raw_response"})
 
 
-def _serialise_messages(messages: list) -> str:
+def _normalise_input(messages: Any) -> list:
+    """Normalise a LangChain invoke input to a flat list of messages.
+
+    Accepts:
+    * ``str`` — treated as a single user message.
+    * Objects with a ``to_messages`` method (``ChatPromptValue``, ...).
+    * Lists of messages (passed through as‑is).
+    * Anything else — wrapped in a single‑element list.
+
+    This prevents iteration over a string from producing per‑character
+    messages, and handles ``PromptValue`` objects that are not directly
+    iterable (e.g. ``ChatPromptValue`` returned by a template).
+    """
+    if isinstance(messages, str):
+        return [messages]
+    if not isinstance(messages, list) and hasattr(messages, "to_messages"):
+        return messages.to_messages()
+    if not isinstance(messages, list):
+        return [messages]
+    return messages
+
+
+def _serialise_messages(messages: Any) -> str:
     """Deterministic JSON representation of a LangChain message list.
 
-    Handles ``BaseMessage`` objects, plain dicts, and raw strings.
+    Handles ``BaseMessage`` objects, plain dicts, raw strings, and
+    ``ChatPromptValue`` via ``_normalise_input()``.
     Keys are sorted so identical logical content yields identical JSON.
     """
+    messages = _normalise_input(messages)
     items: list[dict[str, Any]] = []
     for m in messages:
         if hasattr(m, "type") and hasattr(m, "content"):
@@ -93,10 +120,31 @@ def _serialise_messages(messages: list) -> str:
     return json.dumps(items, sort_keys=True, ensure_ascii=False)
 
 
-def _build_cache_key(model: str, messages: list, temperature: float = 0.0) -> str:
-    """Deterministic SHA256 cache key from model + temperature + messages."""
+def _build_cache_key(
+    model: str,
+    messages: Any,
+    temperature: float = 0.0,
+    **kwargs: Any,
+) -> str:
+    """Deterministic SHA256 cache key.
+
+    Incorporates *model*, *temperature*, invocation‑level *kwargs*
+    (``tools``, ``tool_choice``, ``response_format``), and the
+    serialised message list.  Different tool definitions or response
+    formats therefore produce different keys.
+    """
     msg_json = _serialise_messages(messages)
-    raw = f"{model}|{temperature}|{msg_json}"
+    # Collect invocation‑level parameters that affect the response.
+    extra_params: dict[str, Any] = {}
+    for key in ("tools", "tool_choice", "response_format"):
+        if key in kwargs and kwargs[key] is not None:
+            extra_params[key] = kwargs[key]
+    # Use default=str to guard against non‑serialisable objects.
+    try:
+        extra_json = json.dumps(extra_params, sort_keys=True, default=str)
+    except Exception:
+        extra_json = str(extra_params)
+    raw = f"{model}|{temperature}|{msg_json}|{extra_json}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -153,6 +201,10 @@ class LLMResponseCache:
     Thread‑safe for reads; concurrent writes to the same key are safe
     because the last writer wins (acceptable for this use case).
 
+    **All file‑system and serialisation errors are caught internally.**
+    Caching is strictly best‑effort — a broken cache never crashes the
+    main LLM invocation.
+
     Parameters
     ----------
     cache_dir:
@@ -166,7 +218,6 @@ class LLMResponseCache:
         self._root = Path(cache_dir) / "llm_responses"
         self._root.mkdir(parents=True, exist_ok=True)
         self._ttl_seconds = ttl_hours * 3600
-        # In‑memory hit/miss counters (lifetime of this instance).
         self.hits: int = 0
         self.misses: int = 0
 
@@ -187,22 +238,25 @@ class LLMResponseCache:
     def get(self, key: str) -> Optional[AIMessage]:
         """Look up *key*.
 
-        Returns the cached ``AIMessage`` or ``None`` on miss/expiry/corruption.
-        Stale entries are silently deleted.
+        Returns the cached ``AIMessage`` or ``None`` on miss/expiry/corruption
+        or file‑system error.  Stale and corrupt entries are silently deleted.
         """
         path = self._root / f"{key}.json"
-        if not path.exists():
-            self.misses += 1
-            return None
-
-        age = time.time() - path.stat().st_mtime
-        if age > self._ttl_seconds:
-            path.unlink(missing_ok=True)
-            logger.debug("Cache entry %s expired (age=%.1fs)", key, age)
-            self.misses += 1
-            return None
-
         try:
+            if not path.exists():
+                self.misses += 1
+                return None
+
+            age = time.time() - path.stat().st_mtime
+            if age > self._ttl_seconds:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError as e:
+                    logger.warning("Failed to delete expired cache file %s: %s", path, e)
+                logger.debug("Cache entry %s expired (age=%.1fs)", key, age)
+                self.misses += 1
+                return None
+
             data = json.loads(path.read_text(encoding="utf-8"))
             msg = _dict_to_aimessage(data)
             self.hits += 1
@@ -210,45 +264,58 @@ class LLMResponseCache:
             return msg
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
             logger.warning("Cache entry %s is corrupt (%s); removing", key, exc)
-            path.unlink(missing_ok=True)
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as e:
+                logger.warning("Failed to delete corrupt cache file %s: %s", path, e)
+            self.misses += 1
+            return None
+        except OSError as exc:
+            logger.warning("File system error reading cache entry %s: %s", key, exc)
             self.misses += 1
             return None
 
     def set(self, key: str, response: AIMessage) -> None:
-        """Store *response* under *key*."""
-        path = self._root / f"{key}.json"
-        data = _aimessage_to_dict(response)
-        path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        size_kb = path.stat().st_size / 1024
-        logger.debug("Cache SET  for key=%s (%.1f kB)", key, size_kb)
+        """Store *response* under *key*.
+
+        All errors (serialisation failures, disk full, permission denied)
+        are caught and logged — caching is best‑effort, never fatal.
+        """
+        try:
+            path = self._root / f"{key}.json"
+            data = _aimessage_to_dict(response)
+            path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+            size_kb = path.stat().st_size / 1024
+            logger.debug("Cache SET  for key=%s (%.1f kB)", key, size_kb)
+        except Exception as exc:
+            logger.warning("Failed to write cache entry for key %s: %s", key, exc)
 
     def clear_expired(self) -> int:
-        """Delete all expired cache entries.
-
-        Returns the number of files removed.
-        """
+        """Delete all expired cache entries. Returns count of removed files."""
         now = time.time()
         removed = 0
         for f in self._root.glob("*.json"):
             if now - f.stat().st_mtime > self._ttl_seconds:
-                f.unlink(missing_ok=True)
-                removed += 1
+                try:
+                    f.unlink(missing_ok=True)
+                    removed += 1
+                except OSError:
+                    pass
         if removed:
             logger.info("Cleared %d expired LLM cache entries", removed)
         return removed
 
     def clear_all(self) -> int:
-        """Delete **all** cache entries regardless of age.
-
-        Returns the number of files removed.
-        """
+        """Delete **all** cache entries regardless of age. Returns count removed."""
         removed = 0
         for f in self._root.glob("*.json"):
-            f.unlink(missing_ok=True)
-            removed += 1
+            try:
+                f.unlink(missing_ok=True)
+                removed += 1
+            except OSError:
+                pass
         if removed:
             logger.info("Cleared all %d LLM cache entries", removed)
-        # Reset hit/miss counters since the cache is now empty.
         self.hits = 0
         self.misses = 0
         return removed
@@ -325,12 +392,7 @@ def _get_cache() -> Optional[LLMResponseCache]:
 
 
 def should_cache_provider(provider_name: str) -> bool:
-    """Return ``True`` when *provider_name* should use the cache.
-
-    Behaviour is controlled by ``llm_cache_providers`` in the config:
-    an empty list means cache **all** providers; a non‑empty list is
-    matched case‑insensitively.
-    """
+    """Return ``True`` when *provider_name* should use the cache."""
     cfg = _get_config()
     allowed: list[str] = cfg.get("llm_cache_providers", [])
     if not allowed:
@@ -338,26 +400,37 @@ def should_cache_provider(provider_name: str) -> bool:
     return provider_name.lower() in [p.lower() for p in allowed]
 
 
-def check_cache(provider_name: str, model: str, messages: list) -> Optional[AIMessage]:
+def check_cache(
+    provider_name: str,
+    model: str,
+    messages: Any,
+    **kwargs: Any,
+) -> Optional[AIMessage]:
     """Look up a cached response.
 
-    Returns the cached ``AIMessage`` or ``None`` (miss / disabled /
-    provider not in filter list).
+    *messages* is the raw ``invoke`` input (list, string, PromptValue, …).
+    *kwargs* carries invocation‑level parameters (temperature, tools,
+    response_format, …) that are folded into the cache key.
+
+    Returns the cached ``AIMessage`` or ``None``.
     """
     cache = _get_cache()
     if cache is None or not should_cache_provider(provider_name):
         return None
-    key = _build_cache_key(model, messages)
+    key = _build_cache_key(model, messages, **kwargs)
     return cache.get(key)
 
 
-def store_cache(provider_name: str, model: str, messages: list, response: AIMessage) -> None:
-    """Store an LLM response in the cache.
-
-    Silently no‑ops when caching is disabled or the provider is filtered out.
-    """
+def store_cache(
+    provider_name: str,
+    model: str,
+    messages: Any,
+    response: AIMessage,
+    **kwargs: Any,
+) -> None:
+    """Store an LLM response in the cache. Silently no‑ops when disabled."""
     cache = _get_cache()
     if cache is None or not should_cache_provider(provider_name):
         return
-    key = _build_cache_key(model, messages)
+    key = _build_cache_key(model, messages, **kwargs)
     cache.set(key, response)

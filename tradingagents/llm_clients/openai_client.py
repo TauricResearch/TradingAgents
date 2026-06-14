@@ -44,15 +44,34 @@ class NormalizedChatOpenAI(ChatOpenAI):
     def invoke(self, input, config=None, **kwargs):
         # ── Check cache before making the real API call ────────────────
         if self.provider_name:
-            cached = check_cache(self.provider_name, self.model_name, input)
-            if cached is not None:
-                return cached
+            try:
+                # Resolve the effective temperature: per‑call override
+                # wins, otherwise fall back to the instance's default.
+                temp = kwargs.get("temperature") if "temperature" in kwargs else getattr(self, "temperature", 0.0)
+                if temp is None:
+                    temp = 0.0
+                # Forward all kwargs so tools/tool_choice/response_format
+                # are part of the cache key.
+                cache_kwargs = {**kwargs, "temperature": temp}
+                cached = check_cache(self.provider_name, self.model_name, input, **cache_kwargs)
+                if cached is not None:
+                    return cached
+            except Exception:
+                # Cache failures must never crash the invocation.
+                pass
 
         result = normalize_content(super().invoke(input, config, **kwargs))
 
         # ── Store in cache on the way out ──────────────────────────────
         if self.provider_name:
-            store_cache(self.provider_name, self.model_name, input, result)
+            try:
+                temp = kwargs.get("temperature") if "temperature" in kwargs else getattr(self, "temperature", 0.0)
+                if temp is None:
+                    temp = 0.0
+                cache_kwargs = {**kwargs, "temperature": temp}
+                store_cache(self.provider_name, self.model_name, input, result, **cache_kwargs)
+            except Exception:
+                pass
 
         return result
 

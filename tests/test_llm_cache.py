@@ -22,6 +22,7 @@ from tradingagents.llm_clients.llm_cache import (
     _aimessage_to_dict,
     _build_cache_key,
     _dict_to_aimessage,
+    _normalise_input,
     _safe_metadata,
     _serialise_messages,
 )
@@ -64,8 +65,36 @@ class TestSerialiseMessages:
         assert json.loads(result) == [{"role": "user", "content": "hello"}]
 
     def test_raw_string_input(self) -> None:
-        result = _serialise_messages(["raw string"])
-        assert json.loads(result) == [{"role": "", "content": "raw string"}]
+        # A bare string is normalised to a single‑message list, not per‑character.
+        result = _serialise_messages("raw string")
+        loaded = json.loads(result)
+        assert len(loaded) == 1
+        assert loaded[0]["role"] == ""
+        assert loaded[0]["content"] == "raw string"
+
+
+class TestNormaliseInput:
+    """``_normalise_input`` guards against string iteration and PromptValue errors."""
+
+    def test_string_becomes_single_element_list(self) -> None:
+        normalised = _normalise_input("hello")
+        assert normalised == ["hello"]
+
+    def test_list_passes_through(self) -> None:
+        normalised = _normalise_input(["a", "b"])
+        assert normalised == ["a", "b"]
+
+    def test_promptvalue_calls_to_messages(self) -> None:
+        class FakePromptValue:
+            def to_messages(self):
+                return [AIMessage(content="from prompt value")]
+        normalised = _normalise_input(FakePromptValue())
+        assert len(normalised) == 1
+        assert normalised[0].content == "from prompt value"
+
+    def test_other_object_wrapped_in_list(self) -> None:
+        normalised = _normalise_input(42)
+        assert normalised == [42]
 
 
 class TestBuildCacheKey:
@@ -92,6 +121,24 @@ class TestBuildCacheKey:
         key = _build_cache_key("m", [AIMessage(content="x")])
         assert len(key) == 64
         assert all(c in "0123456789abcdef" for c in key)
+
+    def test_different_tools_different_key(self) -> None:
+        msgs = [AIMessage(content="Test")]
+        k1 = _build_cache_key("m", msgs, tools=[{"type": "function", "function": {"name": "weather"}}])
+        k2 = _build_cache_key("m", msgs, tools=[{"type": "function", "function": {"name": "stock"}}])
+        assert k1 != k2
+
+    def test_different_response_format_different_key(self) -> None:
+        msgs = [AIMessage(content="Test")]
+        k1 = _build_cache_key("m", msgs, response_format={"type": "json_object"})
+        k2 = _build_cache_key("m", msgs, response_format={"type": "text"})
+        assert k1 != k2
+
+    def test_kwargs_none_ignored(self) -> None:
+        msgs = [AIMessage(content="Test")]
+        k1 = _build_cache_key("m", msgs, tools=None, tool_choice=None)
+        k2 = _build_cache_key("m", msgs)
+        assert k1 == k2
 
 
 class TestSafeMetadata:
@@ -274,6 +321,33 @@ class TestLLMResponseCache:
         (self.cache_dir / "ok.json").write_text("{bad json", encoding="utf-8")
         assert self.cache.get("ok") is None
         assert not (self.cache_dir / "ok.json").exists()
+
+    # -- fault tolerance -----------------------------------------------------
+
+    def test_get_handles_oserror(self, monkeypatch) -> None:
+        self.cache.set("ft1", AIMessage(content="test"))
+        # Simulate a permission error on read.
+        def _failing_read_text(*args, **kwargs):
+            raise OSError("Permission denied")
+        monkeypatch.setattr(Path, "read_text", _failing_read_text)
+        # Must not raise.
+        assert self.cache.get("ft1") is None
+
+    def test_set_handles_serialisation_error(self, monkeypatch) -> None:
+        # Simulate json.dumps failing.
+        import json as json_module
+        def _failing_dumps(*args, **kwargs):
+            raise TypeError("Cannot serialise")
+        monkeypatch.setattr(json_module, "dumps", _failing_dumps)
+        # Must not raise.
+        self.cache.set("ft2", AIMessage(content="test"))
+
+    def test_set_handles_oserror(self, monkeypatch) -> None:
+        def _failing_write_text(*args, **kwargs):
+            raise OSError("Disk full")
+        monkeypatch.setattr(Path, "write_text", _failing_write_text)
+        # Must not raise.
+        self.cache.set("ft3", AIMessage(content="test"))
 
 
 # ---------------------------------------------------------------------------
