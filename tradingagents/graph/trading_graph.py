@@ -131,7 +131,7 @@ class TradingAgentsGraph:
         # State tracking
         self.curr_state = None
         self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
+        self.log_states_dict = {}  # Maps date strings to full state dicts
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
