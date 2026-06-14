@@ -35,6 +35,10 @@ def test_registry_membership():
     ("minimax", "https://api.minimax.io/v1", MinimaxChatOpenAI, False),
     ("minimax-cn", "https://api.minimaxi.com/v1", MinimaxChatOpenAI, False),
     ("openrouter", "https://openrouter.ai/api/v1", NormalizedChatOpenAI, False),
+    ("mistral", "https://api.mistral.ai/v1", NormalizedChatOpenAI, False),
+    ("kimi", "https://api.moonshot.ai/v1", NormalizedChatOpenAI, False),
+    ("groq", "https://api.groq.com/openai/v1", NormalizedChatOpenAI, False),
+    ("nvidia", "https://integrate.api.nvidia.com/v1", NormalizedChatOpenAI, False),
     ("ollama", "http://localhost:11434/v1", NormalizedChatOpenAI, False),
 ])
 def test_registry_spec(provider, base_url, chat_class, responses):
