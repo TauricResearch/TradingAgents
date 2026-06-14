@@ -26,6 +26,9 @@ from tradingagents.agents.utils.news_data_tools import (
 from tradingagents.agents.utils.macro_data_tools import (
     get_macro_indicators
 )
+from tradingagents.agents.utils.prediction_markets_tools import (
+    get_prediction_markets
+)
 from tradingagents.agents.utils.market_data_validation_tools import (
     get_verified_market_snapshot
 )

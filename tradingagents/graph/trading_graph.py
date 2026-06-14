@@ -40,7 +40,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_insider_transactions,
     get_global_news,
-    get_macro_indicators
+    get_macro_indicators,
+    get_prediction_markets
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -194,6 +195,7 @@ class TradingAgentsGraph:
                     get_global_news,
                     get_insider_transactions,
                     get_macro_indicators,
+                    get_prediction_markets,
                 ]
             ),
             "fundamentals": ToolNode(

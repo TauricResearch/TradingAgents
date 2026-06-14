@@ -25,6 +25,7 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .fred import get_macro_data as get_fred_macro_data
+from .polymarket import get_prediction_markets as get_polymarket_prediction_markets
 from .symbol_utils import NoMarketDataError
 
 # Configuration and routing logic
@@ -68,12 +69,19 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_macro_indicators",
         ]
+    },
+    "prediction_markets": {
+        "description": "Market-implied probabilities for forward-looking events",
+        "tools": [
+            "get_prediction_markets",
+        ]
     }
 }
 
 VENDOR_LIST = [
     "yfinance",
     "fred",
+    "polymarket",
     "alpha_vantage",
 ]
 
@@ -122,6 +130,10 @@ VENDOR_METHODS = {
     # macro_data
     "get_macro_indicators": {
         "fred": get_fred_macro_data,
+    },
+    # prediction_markets
+    "get_prediction_markets": {
+        "polymarket": get_polymarket_prediction_markets,
     },
 }
 
