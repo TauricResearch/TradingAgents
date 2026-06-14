@@ -14,14 +14,17 @@ def get_YFin_data_online(
 ):
 
     datetime.strptime(start_date, "%Y-%m-%d")
-    datetime.strptime(end_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
     # Resolve broker/forex symbols to Yahoo's convention (XAUUSD+ -> GC=F).
     canonical = normalize_symbol(symbol)
     ticker = yf.Ticker(canonical)
 
-    # Fetch historical data for the specified date range
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    # yfinance treats ``end`` as EXCLUSIVE, so it would drop the requested
+    # end_date row (and the current day when end_date is today). Request one day
+    # past end_date so the requested range is actually inclusive (#986/#987).
+    end_inclusive = (end_dt + relativedelta(days=1)).strftime("%Y-%m-%d")
+    data = yf_retry(lambda: ticker.history(start=start_date, end=end_inclusive))
 
     # Empty result means the symbol is unknown/delisted. Raise a typed error
     # instead of returning prose: the routing layer turns it into a single

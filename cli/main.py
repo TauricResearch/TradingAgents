@@ -571,7 +571,9 @@ def get_user_selections():
     provider_from_env = bool(os.environ.get("TRADINGAGENTS_LLM_PROVIDER"))
     if provider_from_env:
         selected_llm_provider = DEFAULT_CONFIG["llm_provider"].lower()
-        backend_url = DEFAULT_CONFIG["backend_url"] or provider_default_url(selected_llm_provider)
+        backend_url = resolve_backend_url(
+            selected_llm_provider, env_url=DEFAULT_CONFIG["backend_url"]
+        )
         console.print(f"[green]✓ LLM provider from environment:[/green] {selected_llm_provider}")
         console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
         # Still confirm/persist the API key so the run doesn't fail later.
@@ -593,6 +595,17 @@ def get_user_selections():
             selected_llm_provider, backend_url = ask_minimax_region()
         elif selected_llm_provider == "glm":
             selected_llm_provider, backend_url = ask_glm_region()
+
+        # Honor an explicit env backend URL even when the provider was chosen
+        # interactively, so it isn't overwritten by the menu default (#978).
+        backend_url = resolve_backend_url(
+            selected_llm_provider, backend_url, env_url=DEFAULT_CONFIG["backend_url"]
+        )
+
+        # The generic OpenAI-compatible endpoint has no default; ask for it if
+        # neither the menu nor the environment supplied one.
+        if selected_llm_provider == "openai_compatible" and not backend_url:
+            backend_url = prompt_openai_compatible_url()
 
         # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
         # before model selection so it's obvious where we're connecting.
