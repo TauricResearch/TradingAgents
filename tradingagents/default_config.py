@@ -24,7 +24,12 @@ _ENV_OVERRIDES = {
 def _coerce(value: str, reference):
     """Coerce env-var string to the type of the existing default value."""
     if isinstance(reference, bool):
-        return value.strip().lower() in ("true", "1", "yes", "on")
+        raw = value.strip().lower()
+        if raw in ("true", "1", "yes", "on"):
+            return True
+        if raw in ("false", "0", "no", "off"):
+            return False
+        raise ValueError("expected one of true/false, 1/0, yes/no, or on/off")
     if isinstance(reference, int) and not isinstance(reference, bool):
         return int(value)
     if isinstance(reference, float):
@@ -38,7 +43,10 @@ def _apply_env_overrides(config: dict) -> dict:
         raw = os.environ.get(env_var)
         if raw is None or raw == "":
             continue
-        config[key] = _coerce(raw, config.get(key))
+        try:
+            config[key] = _coerce(raw, config.get(key))
+        except ValueError as exc:
+            raise ValueError(f"Invalid value for {env_var}: {raw!r} ({exc})") from exc
     return config
 
 

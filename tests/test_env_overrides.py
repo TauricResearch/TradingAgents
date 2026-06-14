@@ -82,11 +82,25 @@ def test_empty_env_value_is_passthrough(monkeypatch):
 def test_invalid_int_raises(monkeypatch):
     """Garbage int values should surface a ValueError at import, not silently misconfigure."""
     monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "not-a-number")
-    with pytest.raises(ValueError):
+    try:
+        with pytest.raises(ValueError):
+            importlib.reload(default_config_module)
+    finally:
+        # Restore module state for subsequent tests in this process
+        monkeypatch.delenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", raising=False)
         importlib.reload(default_config_module)
-    # Restore module state for subsequent tests in this process
-    monkeypatch.delenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", raising=False)
-    importlib.reload(default_config_module)
+
+
+def test_invalid_bool_raises(monkeypatch):
+    """Garbage bool values should not silently disable a boolean config flag."""
+    monkeypatch.setenv("TRADINGAGENTS_CHECKPOINT_ENABLED", "treu")
+    try:
+        with pytest.raises(ValueError, match="TRADINGAGENTS_CHECKPOINT_ENABLED"):
+            importlib.reload(default_config_module)
+    finally:
+        # Restore module state for subsequent tests in this process
+        monkeypatch.delenv("TRADINGAGENTS_CHECKPOINT_ENABLED", raising=False)
+        importlib.reload(default_config_module)
 
 
 def test_unknown_env_var_is_ignored(monkeypatch):
