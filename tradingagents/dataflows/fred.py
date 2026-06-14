@@ -10,6 +10,7 @@ the routing layer treats it as "unavailable" rather than a hard crash.
 """
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 
 import requests
@@ -31,6 +32,9 @@ DEFAULT_LOOKBACK_DAYS = 365
 # Rows cap for the rendered table: recent values matter most for a decision, and
 # daily series (yields, VIX) over a long window would otherwise flood context.
 MAX_ROWS = 40
+
+# FRED rejects series_id values longer than 25 alphanumeric characters.
+MAX_FRED_SERIES_ID_LEN = 25
 
 # Curated human-friendly aliases -> FRED series IDs. Anything not listed is used
 # verbatim as a raw FRED series ID, so power users are never limited to this set.
@@ -69,7 +73,23 @@ MACRO_SERIES = {
     "consumer_sentiment": "UMCSENT",
     "housing_starts": "HOUST",
     "retail_sales": "RSAFS",
+    # Common LLM paraphrases (not literal FRED IDs)
+    "interest_rate": "FEDFUNDS",
+    "policy_rate": "FEDFUNDS",
+    "fed_rate": "FEDFUNDS",
+    "inflation": "CPIAUCSL",
+    "consumer_price_index": "CPIAUCSL",
+    "price_index": "CPIAUCSL",
+    "jobs": "PAYEMS",
+    "jobless_claims": "ICSA",
+    "claims": "ICSA",
+    "bond_yield": "DGS10",
+    "treasury_yield": "DGS10",
+    "treasury": "DGS10",
+    "recession": "T10Y2Y",
 }
+
+_KNOWN_ALIASES_HELP = ", ".join(sorted(MACRO_SERIES))
 
 
 class FredNotConfiguredError(VendorNotConfiguredError):
@@ -92,14 +112,65 @@ def get_api_key() -> str:
     return api_key
 
 
-def _resolve_series_id(indicator: str) -> str:
-    """Map a friendly alias to a FRED series ID, or pass a raw ID through."""
-    key = indicator.strip().lower().replace(" ", "_").replace("-", "_")
+def _normalize_indicator_key(indicator: str) -> str:
+    """Collapse free-text / punctuation into a stable alias lookup key."""
+    key = indicator.strip().lower()
+    key = re.sub(r"[^a-z0-9]+", "_", key)
+    return key.strip("_")
+
+
+def _is_valid_fred_series_id(series_id: str) -> bool:
+    return (
+        bool(series_id)
+        and len(series_id) <= MAX_FRED_SERIES_ID_LEN
+        and series_id.isalnum()
+    )
+
+
+def _fuzzy_alias_lookup(key: str) -> str | None:
+    """Best-effort alias match when the LLM paraphrases an indicator name."""
     if key in MACRO_SERIES:
         return MACRO_SERIES[key]
-    # Not a known alias: treat the input as a raw FRED series ID (FRED IDs are
-    # conventionally uppercase, e.g. "DGS10", "CPIAUCSL").
-    return indicator.strip().upper()
+    # e.g. "us_core_pce_inflation" -> core_pce (prefer compound aliases over "inflation")
+    contained = [alias for alias in MACRO_SERIES if alias in key]
+    if contained:
+        best = max(contained, key=lambda alias: (alias.count("_"), len(alias)))
+        return MACRO_SERIES[best]
+    # e.g. "pce" -> pce (not core_pce when both match, prefer exact token)
+    token_matches = [alias for alias in MACRO_SERIES if key == alias or key in alias.split("_")]
+    if token_matches:
+        return MACRO_SERIES[min(token_matches, key=len)]
+    return None
+
+
+def _resolve_series_id(indicator: str) -> str:
+    """Map a friendly alias to a FRED series ID, or pass a raw ID through."""
+    raw = indicator.strip()
+    if not raw:
+        return ""
+    key = _normalize_indicator_key(raw)
+    resolved = _fuzzy_alias_lookup(key)
+    if resolved:
+        return resolved
+    # Pull embedded tokens such as "series CPIAUCSL" out of longer LLM strings.
+    for token in sorted(re.findall(r"[A-Za-z0-9]{1,25}", raw), key=len, reverse=True):
+        upper = token.upper()
+        if _is_valid_fred_series_id(upper) and upper in MACRO_SERIES.values():
+            return upper
+    # Not a known alias: treat short inputs as raw FRED series IDs.
+    return raw.upper()
+
+
+def _invalid_indicator_response(indicator: str, series_id: str, reason: str) -> str:
+    """Return a tool-visible message instead of crashing the research graph."""
+    return (
+        f"INVALID_FRED_INDICATOR: {reason}\n"
+        f"- Requested: {indicator!r}\n"
+        f"- Resolved series_id: {series_id!r}\n"
+        f"- Supported aliases: {_KNOWN_ALIASES_HELP}\n"
+        f"- Or pass a raw FRED series ID (≤{MAX_FRED_SERIES_ID_LEN} alphanumeric characters).\n"
+        f"Pick a supported alias and do not retry the same invalid indicator."
+    )
 
 
 def _request(path: str, params: dict) -> dict:
@@ -144,12 +215,28 @@ def get_macro_data(
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
     series_id = _resolve_series_id(indicator)
+    if not _is_valid_fred_series_id(series_id):
+        return _invalid_indicator_response(
+            indicator,
+            series_id,
+            "series_id must be at most 25 alphanumeric characters.",
+        )
 
-    meta = _request("series", {"series_id": series_id}).get("seriess") or []
+    try:
+        meta = _request("series", {"series_id": series_id}).get("seriess") or []
+    except ValueError as exc:
+        # LLM-chosen indicators should degrade gracefully; only config/network
+        # issues should bubble up and fail the whole research task.
+        message = str(exc)
+        if "series_id" in message.lower() or "fred request failed" in message.lower():
+            return _invalid_indicator_response(indicator, series_id, message)
+        raise
+
     if not meta:
-        raise ValueError(
-            f"FRED series '{series_id}' not found. Pass a known alias "
-            f"(e.g. 'cpi', 'unemployment') or a valid FRED series ID."
+        return _invalid_indicator_response(
+            indicator,
+            series_id,
+            f"FRED series '{series_id}' not found.",
         )
     info = meta[0]
     title = info.get("title", series_id)

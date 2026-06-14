@@ -99,11 +99,29 @@ class FredFormattingTests(unittest.TestCase):
             out = fred.get_macro_data("unemployment", "2025-09-30", 30)
         self.assertIn("No observations", out)
 
-    def test_unknown_series_raises(self):
+    def test_unknown_series_returns_invalid_indicator_message(self):
         no_series = {"seriess": []}
-        with mock.patch.object(fred, "_request", side_effect=_request_stub(meta=no_series)), \
-                self.assertRaises(ValueError):
-            fred.get_macro_data("totally_unknown_xyz", "2025-09-30", 30)
+        with mock.patch.object(fred, "_request", side_effect=_request_stub(meta=no_series)):
+            out = fred.get_macro_data("totally_unknown_xyz", "2025-09-30", 30)
+        self.assertIn("INVALID_FRED_INDICATOR", out)
+        self.assertIn("totally_unknown_xyz", out)
+
+    def test_overlong_indicator_does_not_call_fred_or_raise(self):
+        long_phrase = "manufacturing activity and base metal demand indicators"
+        with mock.patch.object(fred, "_request") as mock_request:
+            out = fred.get_macro_data(long_phrase, "2025-09-30", 30)
+        mock_request.assert_not_called()
+        self.assertIn("INVALID_FRED_INDICATOR", out)
+
+    def test_fuzzy_alias_resolves_paraphrased_indicator(self):
+        self.assertEqual(
+            fred._resolve_series_id("US core PCE inflation"),
+            "PCEPILFE",
+        )
+        self.assertEqual(
+            fred._resolve_series_id("consumer price index"),
+            "CPIAUCSL",
+        )
 
     def test_long_series_is_truncated_but_change_uses_full_range(self):
         # Build > MAX_ROWS observations deterministically.
@@ -156,6 +174,15 @@ class FredRoutingTests(unittest.TestCase):
         ):
             out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
         self.assertEqual(out, "MACRO_OK")
+
+    def test_invalid_indicator_surfaces_through_router_without_crashing(self):
+        set_config({"data_vendors": {"macro_data": "fred"}})
+        long_phrase = "manufacturing activity and base metal demand indicators"
+        with mock.patch.dict("os.environ", {"FRED_API_KEY": "test-key"}):
+            out = interface.route_to_vendor(
+                "get_macro_indicators", long_phrase, "2026-06-01", 365
+            )
+        self.assertIn("INVALID_FRED_INDICATOR", out)
 
     def test_not_configured_surfaces_through_router(self):
         # With only fred and no key, the router has no fallback and must surface
