@@ -2,7 +2,6 @@
 
 from .model_catalog import get_known_models
 
-
 # Providers whose model names are user-defined (local servers, relays, hosted
 # OpenAI-compatible endpoints serving many models), so any model string is
 # accepted without warning.

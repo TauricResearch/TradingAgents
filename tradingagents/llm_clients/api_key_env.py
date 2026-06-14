@@ -11,10 +11,7 @@ prompts for it automatically instead of failing on first API call.
 
 from __future__ import annotations
 
-from typing import Optional
-
-
-PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
+PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "openai":     "OPENAI_API_KEY",
     "anthropic":  "ANTHROPIC_API_KEY",
     "google":     "GOOGLE_API_KEY",
@@ -47,7 +44,7 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
 }
 
 
-def get_api_key_env(provider: str) -> Optional[str]:
+def get_api_key_env(provider: str) -> str | None:
     """Return the env var name for `provider`'s API key, or None if not applicable.
 
     Unknown providers also return None — callers should treat that as

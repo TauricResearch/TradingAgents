@@ -19,7 +19,8 @@ all three agents log the same warnings when fallback fires.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
-def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Optional[Any]:
+def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
     """Return ``llm.with_structured_output(schema)`` or ``None`` if unsupported.
 
     Logs a warning when the binding fails so the user understands the agent
@@ -46,7 +47,7 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Optional[Any]
 
 
 def invoke_structured_or_freetext(
-    structured_llm: Optional[Any],
+    structured_llm: Any | None,
     plain_llm: Any,
     prompt: Any,
     render: Callable[[T], str],

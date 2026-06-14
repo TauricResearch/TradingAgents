@@ -1,11 +1,11 @@
-from typing import Optional
 
 from .base_client import BaseLLMClient
+
 
 def create_llm_client(
     provider: str,
     model: str,
-    base_url: Optional[str] = None,
+    base_url: str | None = None,
     **kwargs,
 ) -> BaseLLMClient:
     """Create an LLM client for the specified provider.

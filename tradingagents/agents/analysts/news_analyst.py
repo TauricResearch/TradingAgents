@@ -1,13 +1,13 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
 from tradingagents.agents.utils.agent_utils import (
-    get_instrument_context_from_state,
     get_global_news,
+    get_instrument_context_from_state,
     get_language_instruction,
     get_macro_indicators,
     get_news,
     get_prediction_markets,
 )
-from tradingagents.dataflows.config import get_config
 
 
 def create_news_analyst(llm):
