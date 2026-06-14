@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 from typing import Any, Optional
 
 from langchain_core.messages import AIMessage
@@ -187,39 +188,56 @@ _PASSTHROUGH_KWARGS = (
     "api_key", "callbacks", "http_client", "http_async_client",
 )
 
-# Provider base URLs. API-key env vars live in api_key_env.PROVIDER_API_KEY_ENV
-# (one canonical mapping consulted by both this client and the CLI's
-# interactive key-prompt). Dual-region providers (qwen/glm/minimax) keep
-# separate endpoints because international and China accounts cannot share
-# credentials (#758).
-_PROVIDER_BASE_URL = {
-    "xai":        "https://api.x.ai/v1",
-    "deepseek":   "https://api.deepseek.com",
-    "qwen":       "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-    "qwen-cn":    "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "glm":        "https://api.z.ai/api/paas/v4/",
-    "glm-cn":     "https://open.bigmodel.cn/api/paas/v4/",
-    "minimax":    "https://api.minimax.io/v1",
-    "minimax-cn": "https://api.minimaxi.com/v1",
-    "openrouter": "https://openrouter.ai/api/v1",
-    "ollama":     "http://localhost:11434/v1",
+@dataclass(frozen=True)
+class ProviderSpec:
+    """Declarative config for one OpenAI-compatible provider.
+
+    The OpenAI-compatible family (OpenAI, xAI, DeepSeek, Qwen, GLM, MiniMax,
+    OpenRouter, Ollama, and any user endpoint) all speak the same Chat
+    Completions API and differ only by these fields — so one row here replaces
+    the former per-provider base-URL dict, auth handling, and client-class
+    branches. Native Anthropic / Google use their own clients (genuinely
+    different APIs) and are intentionally NOT in this registry.
+
+    The API-key env var stays in ``api_key_env.PROVIDER_API_KEY_ENV`` (the single
+    source consulted by both this client and the CLI prompt); only behavior that
+    is provider-specific (base URL, key optionality, wire-format quirks via
+    ``chat_class``) lives here.
+    """
+
+    chat_class: type = NormalizedChatOpenAI   # provider quirks live in the subclass
+    base_url: Optional[str] = None            # default endpoint (None -> SDK default)
+    base_url_env: Optional[str] = None        # env var that overrides base_url (e.g. OLLAMA_BASE_URL)
+    key_optional: bool = False                # don't require/prompt; send a placeholder if unset
+    placeholder_key: str = "EMPTY"            # sent when no key is available (keyless local servers)
+    require_base_url: bool = False            # error if no base_url is resolved (generic endpoint)
+    use_responses_api: bool = False           # native OpenAI Responses API
+
+
+# Single source of truth for the OpenAI-compatible provider family. Dual-region
+# providers (qwen/glm/minimax) keep separate endpoints because international and
+# China accounts cannot share credentials (#758).
+OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
+    "openai":     ProviderSpec(use_responses_api=True),
+    "xai":        ProviderSpec(base_url="https://api.x.ai/v1"),
+    "deepseek":   ProviderSpec(base_url="https://api.deepseek.com", chat_class=DeepSeekChatOpenAI),
+    "qwen":       ProviderSpec(base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
+    "qwen-cn":    ProviderSpec(base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"),
+    "glm":        ProviderSpec(base_url="https://api.z.ai/api/paas/v4/"),
+    "glm-cn":     ProviderSpec(base_url="https://open.bigmodel.cn/api/paas/v4/"),
+    "minimax":    ProviderSpec(base_url="https://api.minimax.io/v1", chat_class=MinimaxChatOpenAI),
+    "minimax-cn": ProviderSpec(base_url="https://api.minimaxi.com/v1", chat_class=MinimaxChatOpenAI),
+    "openrouter": ProviderSpec(base_url="https://openrouter.ai/api/v1"),
+    "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
+                               key_optional=True, placeholder_key="ollama"),
+    # Generic endpoint: user supplies base_url; key optional (keyless local).
+    "openai_compatible": ProviderSpec(require_base_url=True, key_optional=True),
 }
 
 
-def _resolve_provider_base_url(provider: str) -> Optional[str]:
-    """Default base URL for ``provider``, with env-var overrides where defined.
-
-    Currently only Ollama supports an env-var override (``OLLAMA_BASE_URL``),
-    matching the convention in the broader Ollama tooling ecosystem so users
-    can point at a remote ollama-serve without editing code. The check is
-    call-time, not import-time, so tests that monkeypatch the env after
-    import behave correctly.
-    """
-    if provider == "ollama":
-        env_url = os.environ.get("OLLAMA_BASE_URL")
-        if env_url:
-            return env_url
-    return _PROVIDER_BASE_URL.get(provider)
+def is_openai_compatible(provider: str) -> bool:
+    """Whether ``provider`` is served by the OpenAI-compatible registry."""
+    return provider.lower() in OPENAI_COMPATIBLE_PROVIDERS
 
 
 class OpenAIClient(BaseLLMClient):
@@ -242,28 +260,47 @@ class OpenAIClient(BaseLLMClient):
         self.provider = provider.lower()
 
     def get_llm(self) -> Any:
-        """Return configured ChatOpenAI instance."""
+        """Return a configured ChatOpenAI instance, driven by the provider registry."""
         self.warn_if_unknown_model()
         llm_kwargs = {"model": self.model, "max_retries": 0}
+        spec = OPENAI_COMPATIBLE_PROVIDERS.get(self.provider)
+        chat_cls = NormalizedChatOpenAI
 
-        # Provider-specific base URL and auth. An explicit base_url on the
-        # client (e.g. a corporate proxy) takes precedence over the
-        # provider default so users can route through their own gateway.
-        if self.provider in _PROVIDER_BASE_URL:
-            llm_kwargs["base_url"] = self.base_url or _resolve_provider_base_url(self.provider)
+        if spec is not None:
+            chat_cls = spec.chat_class
+
+            # base_url precedence: explicit client base_url (carries the config /
+            # TRADINGAGENTS_LLM_BACKEND_URL value) > provider env override (e.g.
+            # OLLAMA_BASE_URL) > provider default. None means use the SDK default.
+            env_base_url = os.environ.get(spec.base_url_env) if spec.base_url_env else None
+            base_url = self.base_url or env_base_url or spec.base_url
+            if spec.require_base_url and not base_url:
+                raise ValueError(
+                    f"Provider '{self.provider}' requires a base_url. Set it via "
+                    "backend_url / TRADINGAGENTS_LLM_BACKEND_URL to your endpoint, "
+                    "e.g. http://localhost:8000/v1 (vLLM) or http://localhost:1234/v1 "
+                    "(LM Studio)."
+                )
+            if base_url:
+                llm_kwargs["base_url"] = base_url
+
+            # API key: required unless key_optional; keyless local servers get a
+            # placeholder. The env-var name is the single source in api_key_env.
             api_key_env = get_api_key_env(self.provider)
-            if api_key_env:
-                api_key = os.environ.get(api_key_env)
-                if api_key:
-                    llm_kwargs["api_key"] = api_key
-                else:
-                    raise ValueError(
-                        f"API key for provider '{self.provider}' is not set. "
-                        f"Please set the {api_key_env} environment variable "
-                        f"(e.g. add {api_key_env}=your_key to your .env file)."
-                    )
-            else:
-                llm_kwargs["api_key"] = "ollama"
+            api_key = os.environ.get(api_key_env) if api_key_env else None
+            if api_key:
+                llm_kwargs["api_key"] = api_key
+            elif spec.key_optional:
+                llm_kwargs["api_key"] = spec.placeholder_key
+            elif api_key_env:
+                raise ValueError(
+                    f"API key for provider '{self.provider}' is not set. "
+                    f"Please set the {api_key_env} environment variable "
+                    f"(e.g. add {api_key_env}=your_key to your .env file)."
+                )
+
+            if spec.use_responses_api:
+                llm_kwargs["use_responses_api"] = True
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
@@ -280,15 +317,8 @@ class OpenAIClient(BaseLLMClient):
         if self.provider == "openai" and not self.base_url:
             llm_kwargs["use_responses_api"] = True
 
-        # Provider-specific quirks live in their own subclasses so the
-        # base NormalizedChatOpenAI stays free of provider branches.
-        if self.provider == "deepseek":
-            chat_cls = DeepSeekChatOpenAI
-        elif self.provider in ("minimax", "minimax-cn"):
-            chat_cls = MinimaxChatOpenAI
-        else:
-            chat_cls = NormalizedChatOpenAI
-
+        # Provider quirks come from the registry spec (spec.chat_class).
+        # No manual per-provider branch needed here.
         instance = chat_cls(**llm_kwargs)
 
         # Attach the response cache and retry policy (post-init) so the
