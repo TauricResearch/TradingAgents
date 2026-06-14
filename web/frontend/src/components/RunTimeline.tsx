@@ -19,8 +19,8 @@ const STAGES: StageConfig[] = [
   { key: "news", label: "News", icon: "N", agentColor: "agent-news", description: "Global news & macro analysis" },
   { key: "fundamentals", label: "Fundamentals", icon: "F", agentColor: "agent-fundamentals", description: "Financials & performance metrics" },
   { key: "research", label: "Research", icon: "R", agentColor: "agent-research", description: "Bull & Bear debate analysis" },
-  { key: "risk", label: "Risk", icon: "⚠", agentColor: "agent-risk", description: "Portfolio risk assessment" },
   { key: "trader", label: "Trader", icon: "T", agentColor: "agent-trader", description: "Execution & position sizing" },
+  { key: "risk", label: "Risk", icon: "⚠", agentColor: "agent-risk", description: "Portfolio risk assessment" },
 ] as const;
 
 /* Map node name -> stage key (mirrors runner._STAGE_MAP). */
@@ -343,8 +343,8 @@ export function RunTimeline() {
   const TEAM_GROUPS = [
     { label: "Analyst Team", indices: [0, 1, 2, 3], color: "#38bdf8" },
     { label: "Research", indices: [4], color: "#fb923c" },
-    { label: "Risk Mgmt", indices: [5], color: "#ef4444" },
-    { label: "Trader", indices: [6], color: "#fbbf24" },
+    { label: "Trader", indices: [5], color: "#fbbf24" },
+    { label: "Risk Mgmt", indices: [6], color: "#ef4444" },
   ] as const;
 
   return (
