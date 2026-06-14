@@ -8,7 +8,7 @@ import { useFocusedRunEvents } from "./hooks/useFocusedRunEvents";
 import { useRestoredRunEvents } from "./hooks/useRestoredRunEvents";
 import { WatchlistRail } from "./components/WatchlistRail";
 import { TickerHeader } from "./components/TickerHeader";
-import { RunTimeline } from "./components/RunTimeline";
+
 import { LiveEventStream } from "./components/LiveEventStream";
 import { ReportPanel } from "./components/ReportPanel";
 import { DecisionPanel } from "./components/DecisionPanel";
@@ -180,11 +180,10 @@ export default function App() {
               </div>
             )}
             <TickerHeader ticker={focused} price={price.price} changePct={price.change_pct} stale={priceStale} />
-            {/* Pipeline flow: 5-team workflow visualization */}
+            {/* Pipeline flow: merged timeline dots + team cards visualization */}
             <div className="mb-4">
               <PipelineFlow events={events} />
             </div>
-            <RunTimeline />
             <div className="flex items-center gap-0 mb-4">
               <button
                 onClick={() => handleSetTraceView("events")}
