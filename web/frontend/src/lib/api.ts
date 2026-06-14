@@ -67,7 +67,7 @@ export interface RunRow {
 }
 
 export interface LlmCallRow {
-  id: number;
+  id: string;
   run_id: string;
   ticker: string;
   node_name: string;

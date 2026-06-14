@@ -62,7 +62,7 @@ describe("fetchTickerRuns", () => {
 // Type-level sanity checks. These don't assert anything at runtime —
 // they just verify the public types compile with the expected fields.
 const _llmCallShape: LlmCallRow = {
-  id: 1,
+  id: "1",
   run_id: "NVDA:1",
   ticker: "NVDA",
   node_name: "Market Analyst",
