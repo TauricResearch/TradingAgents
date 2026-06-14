@@ -154,7 +154,7 @@ def llm_call_to_dict(c: dict) -> dict:
         "model": c.get("model", ""),
         "prompt_text": c.get("prompt_text", ""),
         "response_text": c.get("response_text", ""),
-        "tool_calls": c.get("tool_calls", []),
+        "tool_calls": c.get("tool_calls_json", []),
         "input_tokens": c.get("input_tokens", 0),
         "output_tokens": c.get("output_tokens", 0),
         "total_tokens": c.get("total_tokens", 0),

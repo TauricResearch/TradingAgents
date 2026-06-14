@@ -10,11 +10,14 @@ which is purely for human readability.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import tempfile
 import time
 from datetime import datetime, timezone
+
+log = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Any, Iterable, Optional
 from zoneinfo import ZoneInfo
@@ -334,7 +337,8 @@ def read_run(run_id: str) -> Optional[dict]:
 
 def read_run_dir(run_id: str) -> Optional[Path]:
     """Return the directory Path for ``run_id`` (cheap; no JSON parse)."""
-    for td in data_dir().iterdir():
+    dd = data_dir()
+    for td in dd.iterdir():
         if not td.is_dir():
             continue
         for sd in td.iterdir():
@@ -343,6 +347,11 @@ def read_run_dir(run_id: str) -> Optional[Path]:
             rj = read_json(sd / "run.json")
             if rj and rj.get("id") == run_id:
                 return sd
+    log.warning(
+        "read_run_dir: run %s not found under %s; ticker dirs: %s",
+        run_id, dd,
+        [str(td.name) for td in dd.iterdir() if td.is_dir()],
+    )
     return None
 
 
