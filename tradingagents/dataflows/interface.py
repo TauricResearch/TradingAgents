@@ -164,6 +164,14 @@ def get_vendor(category: str, method: str = None) -> str:
 # (e.g. macro_data) never aborts a run.
 DISABLED_VENDOR_SENTINELS = {"", "none", "off", "disabled"}
 
+# Categories whose data merely *enriches* a run rather than anchoring it. When
+# every configured vendor for one of these fails (missing key, network error),
+# the router returns an instructive sentinel instead of raising — a missing
+# optional source must never abort an expensive, near-complete run. Core
+# categories (price/indicators/fundamentals) still raise so a broken primary is
+# loud. Market data has its own NO_DATA sentinel path and is unaffected.
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
@@ -258,6 +266,19 @@ def route_to_vendor(method: str, *args, **kwargs):
     # No vendor returned data and none reported clean "no data" — surface the
     # first real error (e.g. the primary vendor's network failure).
     if first_error is not None:
+        # Enrichment categories degrade to a sentinel rather than aborting the
+        # run: a missing FRED_API_KEY (macro) or an unreachable Polymarket host
+        # should leave the analyst to proceed without that signal, not crash a
+        # graph that is dozens of paid LLM calls deep.
+        if category in OPTIONAL_CATEGORIES:
+            logger.warning(
+                "Optional data source for %s unavailable (%s); continuing without it.",
+                method, first_error,
+            )
+            return (
+                f"{method}: optional data source unavailable ({first_error}). "
+                f"Proceed without this signal — do not estimate or fabricate values."
+            )
         raise first_error
 
     raise RuntimeError(f"No available vendor for '{method}'")

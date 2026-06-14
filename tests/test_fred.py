@@ -157,9 +157,12 @@ class FredRoutingTests(unittest.TestCase):
             out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
         self.assertEqual(out, "MACRO_OK")
 
-    def test_not_configured_surfaces_through_router(self):
-        # With only fred and no key, the router has no fallback and must surface
-        # the real "not configured" failure rather than masking it.
+    def test_not_configured_degrades_gracefully_through_router(self):
+        # macro_data is an OPTIONAL (enrichment) category: with only fred and no
+        # key, the router must NOT abort the run — a missing optional key
+        # destroying an expensive, near-complete run is the worst failure mode.
+        # Instead it returns an instructive sentinel so the analyst proceeds
+        # without the macro signal (see interface.OPTIONAL_CATEGORIES).
         set_config({"data_vendors": {"macro_data": "fred"}})
 
         def _unconfigured(*a, **k):
@@ -169,8 +172,10 @@ class FredRoutingTests(unittest.TestCase):
             interface.VENDOR_METHODS,
             {"get_macro_indicators": {"fred": _unconfigured}},
             clear=False,
-        ), self.assertRaises(fred.FredNotConfiguredError):
-            interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
+        ):
+            out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
+        self.assertIn("optional data source unavailable", out.lower())
+        self.assertIn("FRED_API_KEY not set", out)
 
 
 if __name__ == "__main__":
