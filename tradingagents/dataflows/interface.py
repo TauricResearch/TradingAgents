@@ -24,6 +24,7 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .fred import get_macro_data as get_fred_macro_data
 from .symbol_utils import NoMarketDataError
 
 # Configuration and routing logic
@@ -61,11 +62,18 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
         ]
+    },
+    "macro_data": {
+        "description": "Macroeconomic indicators (rates, inflation, labor, growth)",
+        "tools": [
+            "get_macro_indicators",
+        ]
     }
 }
 
 VENDOR_LIST = [
     "yfinance",
+    "fred",
     "alpha_vantage",
 ]
 
@@ -110,6 +118,10 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    # macro_data
+    "get_macro_indicators": {
+        "fred": get_fred_macro_data,
     },
 }
 

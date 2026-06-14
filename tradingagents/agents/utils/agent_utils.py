@@ -23,6 +23,9 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.macro_data_tools import (
+    get_macro_indicators
+)
 from tradingagents.agents.utils.market_data_validation_tools import (
     get_verified_market_snapshot
 )
