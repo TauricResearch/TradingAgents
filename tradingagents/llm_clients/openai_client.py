@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Optional
 
@@ -7,7 +8,10 @@ from langchain_openai import ChatOpenAI
 from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
+from .llm_cache import check_cache, store_cache
 from .validators import validate_model
+
+logger = logging.getLogger(__name__)
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -27,10 +31,30 @@ class NormalizedChatOpenAI(ChatOpenAI):
     Provider-specific quirks beyond structured-output (e.g. DeepSeek's
     reasoning_content roundtrip) live in subclasses so this base class
     stays small.
+
+    .. attribute:: provider_name
+
+       Name of the LLM provider (e.g. ``"deepseek"``, ``"openai"``).
+       Set by ``OpenAIClient.get_llm()``; used by the cache layer to
+       decide whether the current provider should be cached.
     """
 
+    provider_name: str = ""
+
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        # ── Check cache before making the real API call ────────────────
+        if self.provider_name:
+            cached = check_cache(self.provider_name, self.model_name, input)
+            if cached is not None:
+                return cached
+
+        result = normalize_content(super().invoke(input, config, **kwargs))
+
+        # ── Store in cache on the way out ──────────────────────────────
+        if self.provider_name:
+            store_cache(self.provider_name, self.model_name, input, result)
+
+        return result
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)
@@ -240,7 +264,11 @@ class OpenAIClient(BaseLLMClient):
             chat_cls = MinimaxChatOpenAI
         else:
             chat_cls = NormalizedChatOpenAI
-        return chat_cls(**llm_kwargs)
+        llm = chat_cls(**llm_kwargs)
+        # Tag the LLM with the provider name so the cache layer can filter
+        # by provider (e.g. cache DeepSeek but skip Ollama).
+        llm.provider_name = self.provider
+        return llm
 
     def validate_model(self) -> bool:
         """Validate model for the provider."""

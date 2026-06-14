@@ -17,6 +17,10 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
+    # LLM response cache
+    "TRADINGAGENTS_LLM_CACHE_ENABLED":    "llm_cache_enabled",
+    "TRADINGAGENTS_LLM_CACHE_TTL_HOURS":  "llm_cache_ttl_hours",
+    "TRADINGAGENTS_LLM_CACHE_PROVIDERS":  "llm_cache_providers",
 }
 
 
@@ -28,6 +32,10 @@ def _coerce(value: str, reference):
         return int(value)
     if isinstance(reference, float):
         return float(value)
+    if isinstance(reference, list):
+        if not value.strip():
+            return []
+        return [item.strip() for item in value.split(",")]
     return value
 
 
@@ -75,6 +83,15 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
     "analyst_concurrency_limit": 1,
+    # LLM response cache — local file-based cache of LLM API responses.
+    # Enabled by default; set TRADINGAGENTS_LLM_CACHE_ENABLED=false to disable.
+    "llm_cache_enabled": True,
+    # Cache TTL in hours. After this, entries are lazily expired on read.
+    "llm_cache_ttl_hours": 24,
+    # List of providers to cache. Empty list = cache all providers.
+    # Set via TRADINGAGENTS_LLM_CACHE_PROVIDERS as comma-separated values,
+    # e.g. "deepseek,openai". Non-listed providers skip the cache entirely.
+    "llm_cache_providers": [],
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.
