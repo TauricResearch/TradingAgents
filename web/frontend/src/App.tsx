@@ -15,6 +15,7 @@ import { DecisionPanel } from "./components/DecisionPanel";
 import { HistoricalAnalysisDrawer } from "./components/HistoricalAnalysisDrawer";
 import { BackgroundRunsDrawer } from "./components/BackgroundRunsDrawer";
 import { PipelineFlow } from "./components/PipelineFlow";
+import { LlmTracePanel } from "./components/LlmTracePanel";
 
 export default function App() {
   const focused = useUi((s) => s.focusedTicker);
@@ -34,6 +35,7 @@ export default function App() {
   const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [dismissedStaleBanner, setDismissedStaleBanner] = useState<string | null>(null);
+  const [traceView, setTraceView] = useState<"events" | "llm">("events");
 
   useRunStream(runId);
   useGlobalStream();
@@ -55,6 +57,13 @@ export default function App() {
     enabled: focused != null && focusedRunId != null,
     staleTime: Infinity,
   });
+
+  const handleSetTraceView = useCallback((view: "events" | "llm") => {
+    setTraceView(view);
+    if (view === "llm" && focused && focusedRunId) {
+      qc.invalidateQueries({ queryKey: ["run-detail", focused, focusedRunId] });
+    }
+  }, [focused, focusedRunId, qc]);
 
   // Sync focusedTicker with the watchlist. This is the single source of
   // truth: the effect skips during refetches (when data may be stale) and
@@ -176,7 +185,43 @@ export default function App() {
               <PipelineFlow events={events} />
             </div>
             <RunTimeline />
-            <LiveEventStream />
+            <div className="flex items-center gap-0 mb-4">
+              <button
+                onClick={() => handleSetTraceView("events")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-l-lg border transition-all ${
+                  traceView === "events"
+                    ? "bg-sky-500/15 text-sky-300 border-sky-500/30 z-10"
+                    : "text-slate-500 border-slate-700/50 hover:text-slate-300"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${traceView === "events" ? "bg-sky-400 shadow-[0_0_4px_rgba(56,189,248,0.5)]" : "bg-slate-600"}`} />
+                  Event Stream
+                </span>
+              </button>
+              <button
+                onClick={() => handleSetTraceView("llm")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-r-lg border border-l-0 transition-all ${
+                  traceView === "llm"
+                    ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 z-10"
+                    : "text-slate-500 border-slate-700/50 hover:text-slate-300"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${traceView === "llm" ? "bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.5)]" : "bg-slate-600"}`} />
+                  LLM Trace
+                </span>
+              </button>
+            </div>
+            {traceView === "events" ? (
+              <LiveEventStream />
+            ) : (
+              <div className="glass-panel">
+                <div className="max-h-[400px] overflow-y-auto p-3">
+                  <LlmTracePanel calls={focusedRunDetail?.llm_calls ?? []} />
+                </div>
+              </div>
+            )}
             <ReportPanel />
             {decision && (
               <DecisionPanel
