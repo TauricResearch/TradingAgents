@@ -313,6 +313,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
+        ("OpenAI-compatible (vLLM, LM Studio, llama.cpp, custom relay)", "openai_compatible", None),
     ]
 
 
@@ -323,6 +324,33 @@ def provider_default_url(provider_key: str) -> str | None:
         if pk == key:
             return url
     return None
+
+
+def resolve_backend_url(
+    provider: str, menu_url: str | None = None, env_url: str | None = None
+) -> str | None:
+    """Resolve the backend URL with the correct precedence.
+
+    An explicit env override (``env_url``, from ``TRADINGAGENTS_LLM_BACKEND_URL``
+    via ``DEFAULT_CONFIG['backend_url']``) is honored regardless of how the
+    provider was chosen — interactively or from the environment (#978).
+    Otherwise the menu/region URL, then the provider's default.
+    """
+    return env_url or menu_url or provider_default_url(provider)
+
+
+def prompt_openai_compatible_url() -> str:
+    """Prompt for a custom OpenAI-compatible endpoint base URL."""
+    url = questionary.text(
+        "Enter the OpenAI-compatible base URL "
+        "(e.g. http://localhost:8000/v1 for vLLM, http://localhost:1234/v1 for LM Studio):",
+        validate=lambda x: x.strip().startswith(("http://", "https://"))
+        or "Enter a URL starting with http:// or https://",
+    ).ask()
+    if not url:
+        console.print("\n[red]No endpoint URL provided. Exiting...[/red]")
+        exit(1)
+    return url.strip()
 
 
 def select_llm_provider() -> tuple[str, str | None]:
@@ -537,6 +565,13 @@ def ensure_api_key(provider: str) -> Optional[str]:
     env_var = get_api_key_env(provider)
     if env_var is None:
         return None  # ollama / unknown — no key check possible
+
+    # Key-optional providers (generic OpenAI-compatible / local servers) read the
+    # key when present but must never force an interactive prompt.
+    from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
+    spec = OPENAI_COMPATIBLE_PROVIDERS.get(provider.lower())
+    if spec is not None and spec.key_optional:
+        return os.environ.get(env_var)
 
     existing = os.environ.get(env_var)
     if existing:

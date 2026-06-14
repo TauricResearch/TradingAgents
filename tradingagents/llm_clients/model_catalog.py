@@ -175,6 +175,12 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    # Generic OpenAI-compatible endpoint: the model is whatever the user's
+    # server serves, so only "Custom model ID" is offered.
+    "openai_compatible": {
+        "quick": [("Custom model ID", "custom")],
+        "deep": [("Custom model ID", "custom")],
+    },
 }
 
 
