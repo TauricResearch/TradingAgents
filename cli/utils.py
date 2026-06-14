@@ -196,6 +196,19 @@ def select_research_depth() -> int:
     return choice
 
 
+# Mainstream OpenRouter chat-LLM provider namespaces. We surface the newest
+# models from these rather than the universal-newest, which is dominated by
+# niche/experimental releases. These are the general-purpose chat providers;
+# more enterprise/specialised namespaces (nvidia, cohere, amazon, ...) tend to
+# ship research/safety variants as their newest, so they're left out of the
+# shortlist. Provider names are stable (unlike model IDs), so this rarely needs
+# touching; anything not here is still reachable via Custom ID.
+_OPENROUTER_MAINSTREAM = {
+    "openai", "anthropic", "google", "deepseek", "qwen", "mistralai",
+    "meta-llama", "x-ai", "z-ai", "minimax", "moonshotai",
+}
+
+
 def _fetch_openrouter_models() -> list[tuple[str, str]]:
     """Fetch available models from the OpenRouter API."""
     import requests
@@ -203,21 +216,54 @@ def _fetch_openrouter_models() -> list[tuple[str, str]]:
         resp = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
         resp.raise_for_status()
         models = resp.json().get("data", [])
+        # Newest first so the top-N shown really is the latest available — the
+        # API currently returns this order, but sort explicitly so the prompt's
+        # "latest available" label holds regardless of response ordering.
+        models.sort(key=lambda m: m.get("created") or 0, reverse=True)
         return [(m.get("name") or m["id"], m["id"]) for m in models]
     except Exception as e:
         console.print(f"\n[yellow]Could not fetch OpenRouter models: {e}[/yellow]")
         return []
 
 
-def select_openrouter_model() -> str:
-    """Select an OpenRouter model from the newest available, or enter a custom ID."""
-    models = _fetch_openrouter_models()
+def _require_text(message: str, hint: str) -> str:
+    """Prompt for a required value; exit cleanly if the user cancels.
 
-    choices = [questionary.Choice(name, value=mid) for name, mid in models[:5]]
+    ``questionary.text(...).ask()`` returns None on Ctrl-C/Esc; mirror the
+    exit-on-cancel behavior of the other required selections so a cancelled
+    prompt never returns an empty model/deployment that would fail downstream.
+    """
+    response = questionary.text(
+        message,
+        validate=lambda x: len(x.strip()) > 0 or hint,
+    ).ask()
+    if response is None:
+        console.print("\n[red]Cancelled. Exiting...[/red]")
+        exit(1)
+    return response.strip()
+
+
+def select_openrouter_model(mode: str) -> str:
+    """Select an OpenRouter model from the newest available, or enter a custom ID.
+
+    ``mode`` ("quick"/"deep") labels the prompt so the two consecutive
+    OpenRouter selections are distinguishable, like the other providers (#1000).
+    """
+    models = _fetch_openrouter_models()  # newest first
+    # Prefer the newest from mainstream providers so the shortlist isn't crowded
+    # out by niche/experimental releases; fall back to all if none match.
+    mainstream = [
+        (name, mid) for name, mid in models
+        if not mid.startswith("~")  # skip variant/alias duplicate routes
+        and mid.split("/", 1)[0] in _OPENROUTER_MAINSTREAM
+    ]
+    top = (mainstream or models)[:5]
+
+    choices = [questionary.Choice(name, value=mid) for name, mid in top]
     choices.append(questionary.Choice("Custom model ID", value="custom"))
 
     choice = questionary.select(
-        "Select OpenRouter Model (latest available):",
+        f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
         choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style([
@@ -227,33 +273,32 @@ def select_openrouter_model() -> str:
         ]),
     ).ask()
 
-    if choice is None or choice == "custom":
-        return questionary.text(
+    if choice is None:
+        console.print("\n[red]No model selected. Exiting...[/red]")
+        exit(1)
+    if choice == "custom":
+        return _require_text(
             "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
-            validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
-        ).ask().strip()
-
+            "Please enter a model ID.",
+        )
     return choice
 
 
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
-    return questionary.text(
-        "Enter model ID:",
-        validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
-    ).ask().strip()
+    return _require_text("Enter model ID:", "Please enter a model ID.")
 
 
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
     if provider.lower() == "openrouter":
-        return select_openrouter_model()
+        return select_openrouter_model(mode)
 
     if provider.lower() == "azure":
-        return questionary.text(
+        return _require_text(
             f"Enter Azure deployment name ({mode}-thinking):",
-            validate=lambda x: len(x.strip()) > 0 or "Please enter a deployment name.",
-        ).ask().strip()
+            "Please enter a deployment name.",
+        )
 
     choice = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
@@ -630,10 +675,14 @@ def ask_output_language() -> str:
         ]),
     ).ask()
 
+    # Output language has a sensible default, so a cancel falls back to English
+    # rather than exiting the run (unlike the required model/provider prompts).
+    if choice is None:
+        return "English"
     if choice == "custom":
-        return questionary.text(
+        return (questionary.text(
             "Enter language name (e.g. Turkish, Vietnamese, Thai, Indonesian):",
             validate=lambda x: len(x.strip()) > 0 or "Please enter a language name.",
-        ).ask().strip()
+        ).ask() or "").strip() or "English"
 
     return choice
