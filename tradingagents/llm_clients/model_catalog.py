@@ -193,6 +193,8 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "kimi": _CUSTOM_ONLY,
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
+    # Bedrock model IDs / cross-region inference profile IDs are user-specified.
+    "bedrock": _CUSTOM_ONLY,
 }
 
 

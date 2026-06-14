@@ -8,7 +8,7 @@ from .model_catalog import get_known_models
 # accepted without warning.
 _ANY_MODEL_PROVIDERS = (
     "ollama", "openrouter", "openai_compatible",
-    "mistral", "kimi", "groq", "nvidia",
+    "mistral", "kimi", "groq", "nvidia", "bedrock",
 )
 
 VALID_MODELS = {
