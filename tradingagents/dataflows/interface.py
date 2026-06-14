@@ -158,10 +158,26 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+# Configured vendor values that mean "this data source is turned off". Setting a
+# category to one of these skips the call gracefully instead of erroring, so an
+# optional/flaky source (e.g. prediction_markets) or one whose key is absent
+# (e.g. macro_data) never aborts a run.
+DISABLED_VENDOR_SENTINELS = {"", "none", "off", "disabled"}
+
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
+
+    # An explicit "off" switch: skip the source with an instructive sentinel
+    # rather than raising or fabricating data.
+    if vendor_config is None or str(vendor_config).strip().lower() in DISABLED_VENDOR_SENTINELS:
+        return (
+            f"{method}: this data source is disabled in configuration "
+            f"(data_vendors[{category!r}]). Proceed without it."
+        )
+
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:

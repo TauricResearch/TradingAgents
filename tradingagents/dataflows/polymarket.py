@@ -25,6 +25,11 @@ REQUEST_TIMEOUT = 30
 # Default number of markets to return, ranked by traded volume.
 DEFAULT_LIMIT = 6
 
+# Tripped once per process when the Gamma host is hard-unreachable (DNS failure,
+# connection refused). A dead host won't recover mid-run, so once tripped we skip
+# further lookups instead of re-hitting it for every topic the analyst queries.
+_HOST_UNREACHABLE = False
+
 
 def _request(path: str, params: dict) -> dict:
     response = requests.get(
@@ -79,12 +84,37 @@ def get_prediction_markets(topic: str, limit: int | None = None) -> str:
         each with its implied probability, traded volume, resolution date, and
         recent (1-week) move.
     """
+    global _HOST_UNREACHABLE
     if limit is None:
         limit = DEFAULT_LIMIT
 
+    if _HOST_UNREACHABLE:
+        # Breaker already tripped this session — don't re-hit a host we know is
+        # down. Stay silent (we logged once when it tripped) to avoid noise.
+        return (
+            f"Polymarket was unreachable earlier this session; skipping "
+            f"prediction-market signal for '{topic}'."
+        )
+
     try:
         data = _request("public-search", {"q": topic, "limit_per_type": 20})
+    except requests.ConnectionError as e:
+        # Hard network failure (DNS / refused / unreachable) — won't recover
+        # mid-run. Trip the breaker so subsequent topics skip the call, and log
+        # once instead of once-per-topic.
+        _HOST_UNREACHABLE = True
+        logger.warning(
+            "Polymarket host unreachable (%s); disabling prediction-market "
+            "lookups for the rest of this session.",
+            e,
+        )
+        return (
+            f"Polymarket data is currently unavailable (network error: {e}). "
+            f"Proceed without prediction-market signal for '{topic}'."
+        )
     except requests.RequestException as e:
+        # Transient failure (timeout / HTTP error) — may succeed for another
+        # topic, so keep trying; just report this one as unavailable.
         logger.warning("Polymarket search failed for %r: %s", topic, e)
         return (
             f"Polymarket data is currently unavailable (network error: {e}). "
