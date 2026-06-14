@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { WsEvent } from "../lib/events";
 import { formatDuration } from "../lib/format";
 
-/* ─── agent-to-stage mapping (mirrors runner._STAGE_MAP + RunTimeline) ─── */
+/* ─── agent-to-stage mapping ──────────────────────────── */
 
 const AGENT_TO_STAGE: Record<string, string> = {
   "Market Analyst": "market",
@@ -29,8 +29,6 @@ const STAGES: { key: string; label: string; icon: string }[] = [
   { key: "risk", label: "Risk", icon: "⚠" },
 ];
 
-/* ─── agent-to-stage index for ordering ────────────────── */
-
 const NODE_TO_STAGE: Record<string, string> = {
   "Market Analyst": "market",
   "Sentiment Analyst": "sentiment",
@@ -46,14 +44,6 @@ const NODE_TO_STAGE: Record<string, string> = {
   "Portfolio Manager": "risk",
 };
 
-/**
- * Per-agent position within the "shared" stage lanes.
- * Research agents share "research": 3 emit in order (Bull, Bear, Manager).
- * Risk agents + Portfolio Manager share "risk":  4 emit in order (Aggressive,
- * Conservative, Neutral, Portfolio Manager).
- * Agents with unique stages (market, sentiment, news, fundamentals, trader)
- * need just 1 completion.
- */
 const AGENT_ORDER_IN_STAGE: Record<string, number> = {
   "Market Analyst": 0,
   "Sentiment Analyst": 0,
@@ -82,7 +72,6 @@ interface TeamDef {
   agents: AgentDef[];
   color: string;
   bgDim: string;
-  /** Which timeline stage keys belong to this team, in order. */
   stageKeys: string[];
 }
 
@@ -147,11 +136,11 @@ const TEAMS: TeamDef[] = [
     ],
     color: "#a78bfa",
     bgDim: "rgba(167,139,250,0.08)",
-    stageKeys: ["risk"],  // shares risk stage events
+    stageKeys: ["risk"],
   },
 ];
 
-/* ─── per-stage status derivation (from RunTimeline) ───── */
+/* ─── per-stage status derivation ─────────────────────── */
 
 type StageDerived = {
   status: "idle" | "running" | "done" | "errored";
@@ -169,9 +158,7 @@ function deriveStage(stage: string, events: WsEvent[]): StageDerived {
   const lastStartIdx = (() => {
     for (let i = events.length - 1; i >= 0; i--) {
       const e = events[i];
-      if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage) {
-        return i;
-      }
+      if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage) return i;
     }
     return -1;
   })();
@@ -248,7 +235,7 @@ function deriveStage(stage: string, events: WsEvent[]): StageDerived {
   };
 }
 
-/* ─── segment progress (from RunTimeline) ──────────────── */
+/* ─── segment progress ────────────────────────────────── */
 
 function deriveSegmentProgress(
   stages: { status: StageDerived["status"] }[],
@@ -258,21 +245,12 @@ function deriveSegmentProgress(
   for (let i = 0; i < stages.length - 1; i++) {
     const cur = stages[i].status;
     const nxt = stages[i + 1].status;
-    if (failed) {
-      out.push("failed");
-      continue;
-    }
-    if (cur === "done") {
-      out.push("traversed");
-    } else if (nxt === "running") {
-      out.push("active");
-    } else if (cur === "running" && nxt === "idle") {
-      out.push("active");
-    } else if (nxt === "errored" || cur === "errored") {
-      out.push("traversed");
-    } else {
-      out.push("future");
-    }
+    if (failed) { out.push("failed"); continue; }
+    if (cur === "done") { out.push("traversed"); }
+    else if (nxt === "running") { out.push("active"); }
+    else if (cur === "running" && nxt === "idle") { out.push("active"); }
+    else if (nxt === "errored" || cur === "errored") { out.push("traversed"); }
+    else { out.push("future"); }
   }
   return out;
 }
@@ -303,25 +281,20 @@ const SEGMENT_CLASS: Record<"traversed" | "active" | "future" | "failed", string
   failed: "bg-rose-400",
 };
 
-/* ─── per-agent status derivation (from PipelineFlow) ──── */
+/* ─── per-agent status derivation ──────────────────────── */
 
 type AgentStatus = "pending" | "in_progress" | "completed";
 
 function deriveAgentStatus(agent: string, events: WsEvent[]): AgentStatus {
   const stage = AGENT_TO_STAGE[agent];
   if (!stage) return "pending";
-
   const started = events.some(
     (e) => e.type === "analyst_started" && (e.data as any)?.node === agent,
   );
   if (!started) return "pending";
-
   const stageCompletions = events.filter(
-    (e) =>
-      e.type === "analyst_completed" &&
-      (e.data as any)?.stage === stage,
+    (e) => e.type === "analyst_completed" && (e.data as any)?.stage === stage,
   ).length;
-
   const order = AGENT_ORDER_IN_STAGE[agent] ?? 0;
   return stageCompletions > order ? "completed" : "in_progress";
 }
@@ -332,7 +305,6 @@ function deriveTeamStatus(team: TeamDef, events: WsEvent[]): TeamStatus {
   const agentStatuses = team.agents.map((a) => deriveAgentStatus(a.name, events));
   const allPending = agentStatuses.every((s) => s === "pending");
   const allDone = agentStatuses.every((s) => s === "completed");
-
   if (allDone) return "done";
   if (allPending) return "idle";
   return "active";
@@ -355,34 +327,17 @@ function computeStats(events: WsEvent[]): LiveStats {
   for (const agent of allAgents) {
     if (deriveAgentStatus(agent, events) === "completed") agentsDone++;
   }
-
-  let toolCalls = 0;
-  let llmCalls = 0;
-  let firstTs: number | null = null;
-  let lastTs: number | null = null;
-
+  let toolCalls = 0, llmCalls = 0;
+  let firstTs: number | null = null, lastTs: number | null = null;
   for (const e of events) {
     const ts = new Date(e.ts).getTime();
     if (firstTs === null || ts < firstTs) firstTs = ts;
     if (lastTs === null || ts > lastTs) lastTs = ts;
-
     if (e.type === "tool_call") toolCalls++;
     else if (e.type === "analyst_thinking") llmCalls++;
   }
-
-  const elapsedSec =
-    firstTs != null && lastTs != null
-      ? Math.round((lastTs - firstTs) / 1000)
-      : 0;
-
-  return {
-    agentsDone,
-    agentsTotal: allAgents.length,
-    llmCalls,
-    toolCalls,
-    elapsedSec,
-    hasRun: firstTs != null,
-  };
+  const elapsedSec = firstTs != null && lastTs != null ? Math.round((lastTs - firstTs) / 1000) : 0;
+  return { agentsDone, agentsTotal: allAgents.length, llmCalls, toolCalls, elapsedSec, hasRun: firstTs != null };
 }
 
 function formatElapsed(sec: number): string {
@@ -391,22 +346,55 @@ function formatElapsed(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/* ─── helpers ──────────────────────────────────────────── */
+
+function lastStartedIsoFor(stage: string, events: WsEvent[]): string | undefined {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage) {
+      return (e.data as any)?.ts ?? undefined;
+    }
+  }
+  return undefined;
+}
+
+function stageElapsedSeconds(startedAtIso: string | undefined, status: string): number {
+  if (status !== "running" || !startedAtIso) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(startedAtIso).getTime()) / 1000));
+}
+
 /* ─── sub-components ───────────────────────────────────── */
 
 function StageDot({
   stage,
   stageDerived,
+  startedAtIso,
   onClick,
   isExpanded,
+  compact,
 }: {
   stage: { key: string; label: string; icon: string };
   stageDerived: StageDerived;
+  startedAtIso?: string;
   onClick: () => void;
   isExpanded: boolean;
+  compact: boolean;
 }) {
   const { status } = stageDerived;
   const ac = AGENT_COLORS[stage.key] ?? AGENT_COLORS.market;
   const isRunning = status === "running";
+
+  // Live elapsed timer (1 Hz tick)
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!isRunning || !startedAtIso) { setElapsed(0); return; }
+    const tick = () => setElapsed(stageElapsedSeconds(startedAtIso, status));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [isRunning, startedAtIso, status]);
+
+  const pillShape = isRunning && !compact ? "min-w-[3.25rem] h-9 px-3 rounded-full" : "w-7 h-7 rounded-full";
 
   const dynamicStyle: React.CSSProperties = {
     borderColor: isRunning || status === "done" ? ac.base : "rgba(71,85,105,0.5)",
@@ -428,59 +416,71 @@ function StageDot({
       onClick={onClick}
       aria-expanded={isExpanded}
       aria-label={`${stage.label}: ${STATUS_LABEL[status]}`}
-      className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-market-DEFAULT shrink-0"
+      title={stageDerived.duration_ms != null ? formatDuration(stageDerived.duration_ms) : undefined}
+      className={`flex items-center justify-center transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-market-DEFAULT shrink-0 ${pillShape}`}
       style={dynamicStyle}
     >
-      <span className="text-[10px] font-bold leading-none">
-        {status === "done" ? "✓" : stage.icon}
-      </span>
+      {isRunning && !compact ? (
+        <>
+          <svg className="animate-spin h-3 w-3 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" fill="none" />
+            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
+          </svg>
+          <span className="ml-1 text-[10px] font-mono font-semibold">{formatElapsedSec(elapsed)}</span>
+        </>
+      ) : (
+        <span className={`font-bold leading-none ${compact ? "text-[8px]" : "text-[10px]"}`}>
+          {status === "done" ? "✓" : stage.icon}
+        </span>
+      )}
     </button>
   );
+}
+
+function formatElapsedSec(s: number): string {
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}m ${r}s`;
 }
 
 function AgentRow({
   name,
   status,
   teamColor,
+  onClick,
 }: {
   name: string;
   status: AgentStatus;
   teamColor: string;
+  onClick?: () => void;
 }) {
   const dot =
     status === "completed" ? (
-      <svg
-        className="w-2.5 h-2.5 shrink-0"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={teamColor}
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke={teamColor} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
         <path d="m4.5 12.75 6 6 9-13.5" />
       </svg>
     ) : status === "in_progress" ? (
-      <span
-        className="block w-2 h-2 rounded-full shrink-0 animate-pulse"
-        style={{ backgroundColor: teamColor, boxShadow: `0 0 6px ${teamColor}60` }}
-      />
+      <span className="block w-2 h-2 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: teamColor, boxShadow: `0 0 6px ${teamColor}60` }} />
     ) : (
       <span className="block w-2 h-2 rounded-full shrink-0 bg-slate-700" />
     );
 
   return (
-    <div className="flex items-center gap-1.5 min-w-0">
+    <div
+      data-testid={`agent-row-${name}`}
+      className={`flex items-center gap-1.5 min-w-0 ${onClick ? "cursor-pointer hover:bg-slate-700/30 rounded px-1 -mx-1 transition-colors" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+    >
       {dot}
-      <span
-        className={`text-[11px] truncate transition-colors duration-300 ${
-          status === "completed"
-            ? "text-slate-300"
-            : status === "in_progress"
-              ? "text-slate-400"
-              : "text-slate-600"
-        }`}
-      >
+      <span className={`text-[11px] truncate transition-colors duration-300 ${
+        status === "completed" ? "text-slate-300"
+        : status === "in_progress" ? "text-slate-400"
+        : "text-slate-600"
+      }`}>
         {name}
       </span>
     </div>
@@ -491,10 +491,12 @@ function TeamCard({
   team,
   status,
   agentStatuses,
+  onAgentClick,
 }: {
   team: TeamDef;
   status: TeamStatus;
   agentStatuses: AgentStatus[];
+  onAgentClick: (agentName: string) => void;
 }) {
   const doneCount = agentStatuses.filter((s) => s === "completed").length;
   const total = agentStatuses.length;
@@ -504,73 +506,40 @@ function TeamCard({
     <div
       className="rounded-xl border min-w-0 flex-1 transition-all duration-300"
       style={{
-        borderColor:
-          status === "done"
-            ? `${team.color}50`
-            : status === "active"
-              ? `${team.color}30`
-              : "rgba(51,65,85,0.5)",
+        borderColor: status === "done" ? `${team.color}50` : status === "active" ? `${team.color}30` : "rgba(51,65,85,0.5)",
         backgroundColor: status === "done" || status === "active" ? team.bgDim : "rgba(15,23,42,0.4)",
       }}
     >
-      {/* Team header */}
       <div
         className="flex items-center justify-between px-2.5 py-1.5 rounded-t-xl border-b"
-        style={{
-          borderBottomColor:
-            status === "done"
-              ? `${team.color}30`
-              : "rgba(51,65,85,0.3)",
-        }}
+        style={{ borderBottomColor: status === "done" ? `${team.color}30` : "rgba(51,65,85,0.3)" }}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <span
-            className="text-sm leading-none"
-            style={{
-              filter: status === "idle" ? "grayscale(1) opacity(0.4)" : "none",
-            }}
-          >
+          <span className="text-sm leading-none" style={{ filter: status === "idle" ? "grayscale(1) opacity(0.4)" : "none" }}>
             {team.icon}
           </span>
           <span
             className="text-[11px] font-semibold truncate tracking-tight"
-            style={{
-              color:
-                status === "done"
-                  ? team.color
-                  : status === "active"
-                    ? `${team.color}cc`
-                    : "#475569",
-            }}
+            style={{ color: status === "done" ? team.color : status === "active" ? `${team.color}cc` : "#475569" }}
           >
             {team.label}
           </span>
         </div>
-        <span
-          className="text-[10px] font-mono font-semibold tabular-nums shrink-0 ml-1"
-          style={{
-            color: doneCount > 0 ? team.color : "#475569",
-          }}
-        >
+        <span className="text-[10px] font-mono font-semibold tabular-nums shrink-0 ml-1" style={{ color: doneCount > 0 ? team.color : "#475569" }}>
           {doneCount}/{total}
         </span>
       </div>
-
-      {/* Agents */}
       <div className="px-2.5 py-1.5 space-y-1">
         {team.agents.map((agent) => (
           <AgentRow
             key={agent.name}
             name={agent.name}
-            status={
-              agentStatuses[team.agents.indexOf(agent)] ?? "pending"
-            }
+            status={agentStatuses[team.agents.indexOf(agent)] ?? "pending"}
             teamColor={team.color}
+            onClick={() => onAgentClick(agent.name)}
           />
         ))}
       </div>
-
-      {/* Thin progress bar at bottom */}
       <div className="h-0.5 rounded-b-xl overflow-hidden bg-slate-700/50">
         <div
           className="h-full rounded-b-xl transition-all duration-500 ease-out"
@@ -585,7 +554,7 @@ function TeamCard({
   );
 }
 
-/* ─── accordion detail panel (from RunTimeline) ─────────── */
+/* ─── accordion detail panel ───────────────────────────── */
 
 function StageDetailPanel({
   stageKey,
@@ -609,10 +578,7 @@ function StageDetailPanel({
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span
-            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold"
-            style={{ backgroundColor: ac.dim, color: ac.base }}
-          >
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold" style={{ backgroundColor: ac.dim, color: ac.base }}>
             {stageConfig.icon}
           </span>
           <div>
@@ -625,12 +591,7 @@ function StageDetailPanel({
             </span>
           )}
         </div>
-        <button
-          onClick={onClose}
-          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-        >
-          Close
-        </button>
+        <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Close</button>
       </div>
 
       {isRunning ? (
@@ -647,9 +608,7 @@ function StageDetailPanel({
         )
       ) : isDone ? (
         <div className="space-y-2">
-          {stageDerived.excerpt && (
-            <div className="text-xs text-slate-400 leading-relaxed">{stageDerived.excerpt}</div>
-          )}
+          {stageDerived.excerpt && <div className="text-xs text-slate-400 leading-relaxed">{stageDerived.excerpt}</div>}
           {stageDerived.fullText && (
             <pre className="text-xs leading-relaxed text-slate-300 bg-slate-950/60 rounded-lg p-3 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono border border-slate-800/50">
               {stageDerived.fullText}
@@ -676,22 +635,35 @@ function StageDetailPanel({
   );
 }
 
-/* ─── main merged component ────────────────────────────── */
+/* ─── main component ───────────────────────────────────── */
 
 export function PipelineFlow({ events }: { events: WsEvent[] }) {
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
 
-  // Derive per-stage status (from RunTimeline logic)
+  // Detect narrow container → compact mode
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setCompact(entry.contentRect.width < 600);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Derive per-stage status
   const stageDerivedMap = useMemo(() => {
     const map = new Map<string, StageDerived>();
-    for (const s of STAGES) {
-      map.set(s.key, deriveStage(s.key, events));
-    }
+    for (const s of STAGES) map.set(s.key, deriveStage(s.key, events));
     return map;
   }, [events]);
   const stageDerivedList = useMemo(
     () => STAGES.map((s) => ({ key: s.key, derived: stageDerivedMap.get(s.key)! })),
-    [STAGES, stageDerivedMap],
+    [stageDerivedMap],
   );
 
   const failed = events.some((e) => e.type === "run_failed");
@@ -700,7 +672,7 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
     [stageDerivedList, failed],
   );
 
-  // Derive team-level status (from PipelineFlow logic)
+  // Derive team-level status
   const derived = useMemo(() => {
     const teamStatuses = TEAMS.map((t) => ({
       team: t,
@@ -714,8 +686,13 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
   const { teamStatuses, stats } = derived;
   const doneCount = teamStatuses.filter((ts) => ts.status === "done").length;
 
-  const toggleStage = (key: string) =>
-    setExpandedStage((prev) => (prev === key ? null : key));
+  const toggleStage = (key: string) => setExpandedStage((prev) => (prev === key ? null : key));
+
+  // Click an agent row → open its stage detail panel
+  const handleAgentClick = (agentName: string) => {
+    const stage = AGENT_TO_STAGE[agentName];
+    if (stage) toggleStage(stage);
+  };
 
   const TEAM_GROUPS = [
     { label: "Analyst Team", indices: [0, 1, 2, 3], color: "#38bdf8" },
@@ -724,35 +701,37 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
     { label: "Risk Mgmt", indices: [6], color: "#ef4444" },
   ] as const;
 
-  return (
-    <div className="glass-panel px-3 py-2.5" data-testid="pipeline-flow">
-      {/* Team grouping labels (from RunTimeline) */}
-      <div className="flex items-start mb-2 px-1">
-        {TEAM_GROUPS.map((group) => {
-          const groupStages = group.indices.map((i) => stageDerivedList[i].derived.status);
-          const allDone = groupStages.every((s) => s === "done");
-          const anyActive = groupStages.some((s) => s === "running");
-          return (
-            <div
-              key={group.label}
-              className="flex-1 last:flex-none text-center"
-              style={{ maxWidth: group.indices.length > 1 ? `${group.indices.length * 14}%` : "14%" }}
-            >
-              <span
-                className="text-[9px] font-semibold uppercase tracking-widest transition-colors duration-300"
-                style={{
-                  color: allDone ? group.color : anyActive ? `${group.color}99` : "#334155",
-                }}
-              >
-                {group.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+  // Map team connector index → stage segment index
+  const TEAM_SEGMENT_MAP = [3, 4, 5, 5];
 
-      {/* Timeline dots row with segments (from RunTimeline) */}
-      <div className="flex items-start mb-3">
+  return (
+    <div ref={containerRef} className="glass-panel px-3 py-2.5" data-testid="pipeline-flow">
+      {!compact && (
+        <div className="flex items-start mb-2 px-1">
+          {TEAM_GROUPS.map((group) => {
+            const groupStages = group.indices.map((i) => stageDerivedList[i].derived.status);
+            const allDone = groupStages.every((s) => s === "done");
+            const anyActive = groupStages.some((s) => s === "running");
+            return (
+              <div
+                key={group.label}
+                className="flex-1 last:flex-none text-center"
+                style={{ maxWidth: group.indices.length > 1 ? `${group.indices.length * 14}%` : "14%" }}
+              >
+                <span
+                  className="text-[9px] font-semibold uppercase tracking-widest transition-colors duration-300"
+                  style={{ color: allDone ? group.color : anyActive ? `${group.color}99` : "#334155" }}
+                >
+                  {group.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Timeline dots row with colored segments */}
+      <div className={`flex items-start ${compact ? "mb-2" : "mb-3"}`}>
         {stageDerivedList.map(({ key, derived }, i) => {
           const isExpanded = expandedStage === key;
           return (
@@ -761,22 +740,23 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
                 <StageDot
                   stage={STAGES[i]}
                   stageDerived={derived}
+                  startedAtIso={lastStartedIsoFor(key, events)}
                   onClick={() => toggleStage(key)}
                   isExpanded={isExpanded}
+                  compact={compact}
                 />
-                <div className="mt-1 text-[10px] text-slate-500 text-center font-mono truncate max-w-[60px]">
-                  {derived.duration_ms != null
-                    ? formatDuration(derived.duration_ms)
-                    : STATUS_LABEL[derived.status]}
-                </div>
+                {!compact && (
+                  <div className="mt-1 text-[10px] text-slate-500 text-center font-mono truncate max-w-[60px]">
+                    {derived.duration_ms != null ? formatDuration(derived.duration_ms) : STATUS_LABEL[derived.status]}
+                  </div>
+                )}
               </div>
-              {/* Connecting segment */}
               {i < stageDerivedList.length - 1 && (
                 <div
                   data-testid="timeline-segment"
                   data-progress={segmentProgress[i]}
                   aria-hidden="true"
-                  className={`flex-1 h-0.5 mx-1 mt-[10px] rounded-full transition-colors duration-500 ${SEGMENT_CLASS[segmentProgress[i]]}`}
+                  className={`flex-1 h-0.5 ${compact ? "mx-0.5 mt-[10px]" : "mx-1 mt-[10px]"} rounded-full transition-colors duration-500 ${SEGMENT_CLASS[segmentProgress[i]]}`}
                 />
               )}
             </div>
@@ -784,42 +764,31 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
         })}
       </div>
 
-      {/* Team cards row (from PipelineFlow) */}
-      <div className="flex items-stretch gap-2">
+      {/* Team cards row with colored segment connectors */}
+      <div className="flex items-stretch gap-0">
         {teamStatuses.map(({ team, status, agentStatuses }, i) => (
           <div key={team.id} className="flex items-stretch flex-1 min-w-0">
             <TeamCard
               team={team}
               status={status}
               agentStatuses={agentStatuses}
+              onAgentClick={handleAgentClick}
             />
-            {/* Connector arrow between teams */}
             {i < teamStatuses.length - 1 && (
-              <div className="flex items-center shrink-0 mx-1">
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={
-                    i < doneCount
-                      ? "rgba(52,211,153,0.5)"
-                      : i === doneCount && status !== "idle"
-                        ? "rgba(56,189,248,0.3)"
-                        : "rgba(51,65,85,0.4)"
-                  }
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
+              <div className="flex items-center shrink-0 px-1">
+                <div
+                  aria-hidden="true"
+                  className={`w-2 h-0.5 rounded-full transition-colors duration-500 ${
+                    SEGMENT_CLASS[segmentProgress[TEAM_SEGMENT_MAP[i] as keyof typeof SEGMENT_CLASS] ?? "future"]
+                  }`}
+                />
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {/* Accordion detail panel (from RunTimeline) */}
+      {/* Accordion detail panel */}
       {expandedStage && stageDerivedMap.has(expandedStage) && (
         <StageDetailPanel
           stageKey={expandedStage}
@@ -828,47 +797,25 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
         />
       )}
 
-      {/* Stats bar (from PipelineFlow) */}
+      {/* Stats bar */}
       {stats.hasRun && (
         <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-slate-700/30 text-[10px] font-mono text-slate-500">
           <span className="flex items-center gap-1">
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{
-                backgroundColor:
-                  stats.agentsDone === stats.agentsTotal
-                    ? "#34d399"
-                    : "#38bdf8",
-              }}
-            />
-            <span
-              className="font-semibold tabular-nums"
-              style={{
-                color:
-                  stats.agentsDone === stats.agentsTotal
-                    ? "#34d399"
-                    : "#94a3b8",
-              }}
-            >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: stats.agentsDone === stats.agentsTotal ? "#34d399" : "#38bdf8" }} />
+            <span className="font-semibold tabular-nums" style={{ color: stats.agentsDone === stats.agentsTotal ? "#34d399" : "#94a3b8" }}>
               {stats.agentsDone}
             </span>
             <span className="text-slate-600">/</span>
             <span className="text-slate-400">{stats.agentsTotal}</span>
             <span className="text-slate-600">agents</span>
           </span>
-
           <span className="w-px h-3 bg-slate-700/40" />
-
           <span className="text-slate-600">LLM</span>
           <span className="text-sky-400/80 tabular-nums">{stats.llmCalls}</span>
-
           <span className="w-px h-3 bg-slate-700/40" />
-
           <span className="text-slate-600">tools</span>
           <span className="text-amber-400/80 tabular-nums">{stats.toolCalls}</span>
-
           <span className="w-px h-3 bg-slate-700/40" />
-
           <span className="text-slate-600">elapsed</span>
           <span className="text-slate-300 tabular-nums">{formatElapsed(stats.elapsedSec)}</span>
         </div>
