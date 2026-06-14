@@ -31,8 +31,15 @@ _API_KEY_ENV_VARS = (
 
 @pytest.fixture(autouse=True)
 def _dummy_api_keys(monkeypatch):
+    # Use a placeholder when a key is absent OR present-but-empty. A real .env
+    # (commonly copied from .env.example, which ships blank key fields) is loaded
+    # on `import tradingagents`, leaving e.g. OPENAI_API_KEY="" in the
+    # environment. `os.environ.get(var, default)` returns "" for an existing
+    # empty var — not the default — so without the `or` these tests would see an
+    # empty key and fail, even though CI (no .env) passes. `or "placeholder"`
+    # treats empty as absent, which is correct: an empty key is no key.
     for env_var in _API_KEY_ENV_VARS:
-        monkeypatch.setenv(env_var, os.environ.get(env_var, "placeholder"))
+        monkeypatch.setenv(env_var, os.environ.get(env_var) or "placeholder")
 
 
 @pytest.fixture(autouse=True)
