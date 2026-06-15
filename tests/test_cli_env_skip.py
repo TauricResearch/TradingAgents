@@ -32,6 +32,38 @@ class TestProviderDefaultUrl(unittest.TestCase):
 
 @pytest.mark.unit
 class TestCliSkipsPromptsFromEnv(unittest.TestCase):
+    def test_research_depth_applies_without_round_env(self):
+        import cli.main as m
+
+        config = {
+            "max_debate_rounds": 4,
+            "max_risk_discuss_rounds": 5,
+        }
+
+        with mock.patch.dict(os.environ, {}, clear=True):
+            m._apply_research_depth(config, research_depth=2)
+
+        self.assertEqual(config["max_debate_rounds"], 2)
+        self.assertEqual(config["max_risk_discuss_rounds"], 2)
+
+    def test_research_depth_preserves_round_env(self):
+        import cli.main as m
+
+        config = {
+            "max_debate_rounds": 4,
+            "max_risk_discuss_rounds": 5,
+        }
+        env = {
+            "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "4",
+            "TRADINGAGENTS_MAX_RISK_ROUNDS": "5",
+        }
+
+        with mock.patch.dict(os.environ, env, clear=True):
+            m._apply_research_depth(config, research_depth=2)
+
+        self.assertEqual(config["max_debate_rounds"], 4)
+        self.assertEqual(config["max_risk_discuss_rounds"], 5)
+
     def test_env_config_skips_llm_prompts(self):
         import cli.main as m
 
