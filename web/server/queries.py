@@ -30,7 +30,7 @@ def read_watchlist() -> list[dict]:
 def _write_watchlist(rows: list[dict]) -> None:
     storage.write_json_atomic(
         storage.data_dir() / "watchlist.json",
-        {"version": 1, "tickers": rows},
+        {"version": 2, "tickers": rows},
     )
 
 
@@ -40,6 +40,7 @@ def add_ticker(ticker: str, company_name: str, exchange: str) -> dict:
     rows = read_watchlist()
     if any(r["ticker"] == safe for r in rows):
         raise DuplicateTicker(safe)
+    next_order = max((r.get("sort_order", i) for i, r in enumerate(rows)), default=0) + 1
     row = {
         "ticker": safe,
         "company_name": company_name,
@@ -48,6 +49,8 @@ def add_ticker(ticker: str, company_name: str, exchange: str) -> dict:
         "last_run_id": None,
         "last_decision": None,
         "last_decision_at": None,
+        "sort_order": next_order,
+        "group": None,
     }
     rows.append(row)
     _write_watchlist(rows)
@@ -78,7 +81,51 @@ def watchlist_to_dict(w: dict) -> dict:
         "last_run_id": w.get("last_run_id"),
         "last_decision": w.get("last_decision"),
         "last_decision_at": w.get("last_decision_at"),
+        "sort_order": w.get("sort_order"),
+        "group": w.get("group"),
     }
+
+
+def update_watchlist_item(ticker: str, group: str | None = None, sort_order: int | None = None) -> dict | None:
+    """Update group and/or sort_order for a single watchlist item. Returns the updated row or None."""
+    safe = safe_ticker_component(ticker).upper()
+    rows = read_watchlist()
+    for r in rows:
+        if r["ticker"] == safe:
+            if group is not None:
+                r["group"] = group if group else None
+            if sort_order is not None:
+                r["sort_order"] = sort_order
+            _write_watchlist(rows)
+            return r
+    return None
+
+
+def reorder_watchlist(tickers: list[str]) -> list[dict]:
+    """Reorder the watchlist array to match the given ticker order.
+
+    Items not in ``tickers`` are appended at the end in their current relative
+    order. This ensures deletions don't silently drop items.
+    """
+    safe_tickers = [safe_ticker_component(t).upper() for t in tickers]
+    rows = read_watchlist()
+    ordered = []
+    seen = set()
+    for t in safe_tickers:
+        for r in rows:
+            if r["ticker"] == t and t not in seen:
+                ordered.append(r)
+                seen.add(t)
+                break
+    # Append any remaining (e.g. newly added tickers not yet in the client)
+    for r in rows:
+        if r["ticker"] not in seen:
+            ordered.append(r)
+    # Re-assign sort_order to match the new array positions
+    for i, r in enumerate(ordered):
+        r["sort_order"] = i
+    _write_watchlist(ordered)
+    return ordered
 
 
 def update_last_decision(ticker: str, run_id: str, decision_text: str, at: datetime) -> None:
