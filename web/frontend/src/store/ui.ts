@@ -44,6 +44,9 @@ interface UiState {
   // explicit values trigger client-side resampling. PERSISTED so the
   // user's preferred candle size survives a refresh.
   candleResolution: CandleResolution;
+  // Per-group collapse/expand state for the watchlist. PERSISTED so
+  // group collapse survives a refresh.
+  watchlistCollapsedGroups: Record<string, boolean>;
 
   setFocusedTicker: (t: string | null) => void;
   setLastRunIdForTicker: (ticker: string, runId: string | null) => void;
@@ -61,6 +64,7 @@ interface UiState {
   setHoldThresholdPct: (pct: number) => void;
   setHistoryPollIntervalMs: (ms: HistoryPollInterval) => void;
   setCandleResolution: (r: CandleResolution) => void;
+  setWatchlistCollapsedGroup: (name: string, collapsed: boolean) => void;
 }
 
 export const useUi = create<UiState>()(
@@ -76,6 +80,7 @@ export const useUi = create<UiState>()(
       holdThresholdPct: 1.0,
       historyPollIntervalMs: 30_000,
       candleResolution: "auto",
+      watchlistCollapsedGroups: {},
       setFocusedTicker: (t) => set({ focusedTicker: t }),
       setLastRunIdForTicker: (ticker, runId) =>
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
@@ -121,6 +126,8 @@ export const useUi = create<UiState>()(
       setHoldThresholdPct: (pct) => set({ holdThresholdPct: pct }),
       setHistoryPollIntervalMs: (ms) => set({ historyPollIntervalMs: ms }),
       setCandleResolution: (r) => set({ candleResolution: r }),
+      setWatchlistCollapsedGroup: (name, collapsed) =>
+        set((s) => ({ watchlistCollapsedGroups: { ...s.watchlistCollapsedGroups, [name]: collapsed } })),
     }),
     {
       name: "tradingagents-ui",
@@ -140,6 +147,7 @@ export const useUi = create<UiState>()(
         holdThresholdPct: s.holdThresholdPct,
         historyPollIntervalMs: s.historyPollIntervalMs,
         candleResolution: s.candleResolution,
+        watchlistCollapsedGroups: s.watchlistCollapsedGroups,
       }),
     },
   ),

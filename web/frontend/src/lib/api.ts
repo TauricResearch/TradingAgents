@@ -32,6 +32,8 @@ export interface WatchlistRow {
   added_at: string | null;
   last_decision: string | null;
   last_decision_at: string | null;
+  sort_order: number | null;
+  group: string | null;
 }
 
 export type RunStatus =
@@ -110,6 +112,30 @@ export async function removeFromWatchlist(ticker: string): Promise<void> {
   if (!r.ok) {
     throw new ApiError(`remove ${r.status}`, r.status, await readJsonOrNull(r));
   }
+}
+
+export async function updateWatchlistItem(ticker: string, data: { group?: string | null }): Promise<WatchlistRow> {
+  const r = await fetch(`${base}/api/watchlist/${encodeURIComponent(ticker)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!r.ok) {
+    throw new ApiError(`update ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
+}
+
+export async function reorderWatchlist(tickers: string[]): Promise<WatchlistRow[]> {
+  const r = await fetch(`${base}/api/watchlist/reorder`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ tickers }),
+  });
+  if (!r.ok) {
+    throw new ApiError(`reorder ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
 }
 
 export async function fetchPrices(): Promise<Record<string, unknown>> {
