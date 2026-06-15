@@ -91,6 +91,21 @@ MACRO_SERIES = {
 
 _KNOWN_ALIASES_HELP = ", ".join(sorted(MACRO_SERIES))
 
+# Broad aliases that should lose to more specific indicators in fuzzy matching.
+_GENERIC_ALIASES = frozenset({
+    "inflation",
+    "price_index",
+    "interest_rate",
+    "policy_rate",
+    "fed_rate",
+    "bond_yield",
+    "treasury_yield",
+    "treasury",
+    "recession",
+    "claims",
+    "jobs",
+})
+
 
 class FredNotConfiguredError(VendorNotConfiguredError):
     """Raised when FRED is selected but no API key is configured.
@@ -134,7 +149,14 @@ def _fuzzy_alias_lookup(key: str) -> str | None:
     # e.g. "us_core_pce_inflation" -> core_pce (prefer compound aliases over "inflation")
     contained = [alias for alias in MACRO_SERIES if alias in key]
     if contained:
-        best = max(contained, key=lambda alias: (alias.count("_"), len(alias)))
+        best = max(
+            contained,
+            key=lambda alias: (
+                alias not in _GENERIC_ALIASES,
+                alias.count("_"),
+                len(alias),
+            ),
+        )
         return MACRO_SERIES[best]
     # e.g. "pce" -> pce (not core_pce when both match, prefer exact token)
     token_matches = [alias for alias in MACRO_SERIES if key == alias or key in alias.split("_")]

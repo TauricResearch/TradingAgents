@@ -122,6 +122,14 @@ class FredFormattingTests(unittest.TestCase):
             fred._resolve_series_id("consumer price index"),
             "CPIAUCSL",
         )
+        self.assertEqual(
+            fred._resolve_series_id("US PCE inflation"),
+            "PCEPI",
+        )
+        self.assertEqual(
+            fred._resolve_series_id("PCE price index"),
+            "PCEPI",
+        )
 
     def test_long_series_is_truncated_but_change_uses_full_range(self):
         # Build > MAX_ROWS observations deterministically.
