@@ -1,8 +1,7 @@
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem } from "../lib/api";
+import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem, addToWatchlist, ApiError } from "../lib/api";
 import { TickerRow } from "./TickerRow";
-import { AddTickerCommand } from "./AddTickerCommand";
 import { useUi } from "../store/ui";
 
 type RunStatus = "idle" | "queued" | "running" | "done" | "errored";
@@ -27,10 +26,14 @@ export function WatchlistRail() {
   const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: fetchWatchlist });
   const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices });
   const clearLast = useUi((s) => s.clearLastRunIdForTicker);
+  const setFocusedTicker = useUi((s) => s.setFocusedTicker);
   const collapsedGroups = useUi((s) => s.watchlistCollapsedGroups);
   const setCollapsedGroup = useUi((s) => s.setWatchlistCollapsedGroup);
 
   const [dragTicker, setDragTicker] = useState<string | null>(null);
+  const [filterTicker, setFilterTicker] = useState("");
+  const [addingTicker, setAddingTicker] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const handleRemove = useCallback(async (ticker: string) => {
     try {
@@ -82,21 +85,60 @@ export function WatchlistRail() {
     setDragTicker(null);
 
     try {
-      await reorderWatchlist(ordered);
+      const updated = await reorderWatchlist(ordered);
+      qc.setQueryData(["watchlist"], updated);
     } catch {
       return;
     }
-    qc.invalidateQueries({ queryKey: ["watchlist"] });
   }, [dragTicker, watchlist, qc]);
 
   const handleDragEnd = useCallback(() => {
     setDragTicker(null);
   }, []);
 
+  const handleAddFromFilter = useCallback(async () => {
+    const ticker = filterTicker.trim().toUpperCase();
+    if (!ticker) return;
+    setAddingTicker(true);
+    setAddError(null);
+    try {
+      await addToWatchlist(ticker, "", "");
+      setFilterTicker("");
+      setAddError(null);
+      qc.invalidateQueries({ queryKey: ["watchlist"] });
+    } catch (e) {
+      if (e instanceof ApiError) {
+        const detail = (e.body as { detail?: { error?: string } } | null)?.detail;
+        if (e.status === 400 && detail?.error === "ticker_not_found") {
+          setAddError(`"${ticker}" was not found on Yahoo Finance.`);
+        } else if (e.status === 409) {
+          setAddError(`"${ticker}" is already in the watchlist.`);
+          setFilterTicker("");
+        } else {
+          setAddError(`Could not add "${ticker}". Try again.`);
+        }
+      } else {
+        setAddError(`Could not add "${ticker}". Try again.`);
+      }
+    } finally {
+      setAddingTicker(false);
+    }
+  }, [filterTicker, qc]);
+
+  /* ---------- Filter ---------- */
+  const lowerFilter = filterTicker.toLowerCase();
+  const filteredWatchlist = filterTicker
+    ? watchlist.filter(
+        (r) =>
+          r.ticker.toLowerCase().includes(lowerFilter) ||
+          (r.company_name && r.company_name.toLowerCase().includes(lowerFilter)),
+      )
+    : watchlist;
+
   /* ---------- Group helpers ---------- */
   const grouped: Record<string, typeof watchlist> = {};
   const ungrouped: typeof watchlist = [];
-  for (const row of watchlist) {
+  for (const row of filteredWatchlist) {
     if (row.group) {
       if (!grouped[row.group]) grouped[row.group] = [];
       grouped[row.group].push(row);
@@ -140,7 +182,42 @@ export function WatchlistRail() {
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
           <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Watchlist</span>
-          <span className="text-[10px] text-slate-600 ml-auto">{watchlist.length}</span>
+          <span className="text-[10px] text-slate-600 ml-auto">
+            {filterTicker ? `${filteredWatchlist.length}/${watchlist.length}` : watchlist.length}
+          </span>
+        </div>
+        <div className="relative mt-2">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <input
+            type="text"
+            value={filterTicker}
+            onChange={(e) => { setFilterTicker(e.target.value); setAddError(null); }}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || !filterTicker) return;
+              if (filteredWatchlist.length === 1) {
+                setFocusedTicker(filteredWatchlist[0].ticker);
+                setFilterTicker("");
+                setAddError(null);
+              } else if (filteredWatchlist.length === 0 && watchlist.length > 0) {
+                handleAddFromFilter();
+              }
+            }}
+            placeholder="Search ticker…"
+            className="w-full bg-slate-800/60 border border-slate-700/50 rounded-md pl-7 pr-7 py-1.5 text-xs text-slate-300 placeholder-slate-500 outline-none focus:border-slate-600 focus:bg-slate-800 transition-colors"
+          />
+          {filterTicker && (
+            <button
+              type="button"
+              onClick={() => { setFilterTicker(""); setAddError(null); }}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
@@ -177,13 +254,30 @@ export function WatchlistRail() {
             {ungrouped.map(renderRow)}
           </div>
         )}
-        {watchlist.length === 0 && (
-          <p className="text-xs text-slate-600 text-center py-8">Add tickers to get started</p>
+        {filteredWatchlist.length === 0 && watchlist.length === 0 && (
+          <p className="text-xs text-slate-500 text-center py-8">Add tickers to get started</p>
+        )}
+        {filteredWatchlist.length === 0 && watchlist.length > 0 && filterTicker && (
+          <div className="flex flex-col items-center py-6 px-4">
+            <p className="text-xs text-slate-500 mb-3">
+              No tickers match &ldquo;{filterTicker}&rdquo;
+            </p>
+            <button
+              type="button"
+              disabled={addingTicker}
+              onClick={handleAddFromFilter}
+              className="flex items-center gap-1.5 text-xs font-medium text-sky-400 hover:text-sky-300 disabled:text-slate-600 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              {addingTicker ? "Adding…" : `Add ${filterTicker.toUpperCase()} to watchlist`}
+            </button>
+            {addError && <p className="text-xs text-red-400 mt-2 text-center" role="alert">{addError}</p>}
+          </div>
         )}
       </div>
-      <div className="shrink-0 border-t border-slate-800">
-        <AddTickerCommand />
-      </div>
+      
     </aside>
   );
 }
