@@ -77,12 +77,12 @@
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "npm.cmd",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": ["run", "dev", "--", "--host"],
       "cwd": "${workspaceFolder}/web/frontend",
       "console": "integratedTerminal",
       "serverReadyAction": {
-        "pattern": "Local:\\s+(https?):\\/\\/([a-zA-Z0-9.-]+):(\\d+)",
-        "uriFormat": "%s://%s:%d",
+        "pattern": "Local:\\s+http://localhost:([0-9]+)",
+        "uriFormat": "http://localhost:%s",
         "action": "openExternally"
       },
       "presentation": {
@@ -100,8 +100,8 @@
       "cwd": "${workspaceFolder}/web",
       "console": "integratedTerminal",
       "serverReadyAction": {
-        "pattern": "Local:\\s+(https?):\\/\\/([a-zA-Z0-9.-]+):(\\d+)",
-        "uriFormat": "%s://%s:%d",
+        "pattern": "Local:\\s+http://localhost:([0-9]+)",
+        "uriFormat": "http://localhost:%s",
         "action": "openExternally"
       },
       "presentation": {
