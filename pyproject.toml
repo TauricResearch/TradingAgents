@@ -32,6 +32,7 @@ dependencies = [
     "yfinance>=1.4.1",
     "fastapi>=0.110.0",
     "uvicorn>=0.28.0",
+    "pyjwt>=2.0.0",
 ]
 
 [project.scripts]

@@ -9,9 +9,19 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
     volumes:
       # Persist SQLite databases, caching, and logs on the host
       - tradingagents_data:/home/appuser/.tradingagents
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
     restart: unless-stopped
 
 volumes:

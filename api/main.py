@@ -4,6 +4,7 @@ import os
 import re
 import json
 import uuid
+import time
 import sqlite3
 import asyncio
 import logging
@@ -11,6 +12,10 @@ import datetime
 import threading
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
+
+import jwt
+import redis
+import redis.asyncio as aioredis
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +37,14 @@ DB_PATH = os.getenv("TRADINGAGENTS_SIGNALS_DB_PATH", DEFAULT_DB_PATH)
 
 # Ensure the database directory exists
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+# Redis Configuration
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+
+# JWT Configuration
+JWT_SECRET = os.getenv("PULSE_JWT_SECRET", os.getenv("JWT_SECRET", "pulse-secret-key"))
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 
 # ---------------------------------------------------------------------------
 # Pydantic Schemas for API Contracts
@@ -141,24 +154,24 @@ init_db()
 # SSE Pub/Sub Hub
 # ---------------------------------------------------------------------------
 
-class SSEHub:
-    """Manages active SSE streaming client queues."""
-    def __init__(self):
-        self.queues: List[asyncio.Queue] = []
+# ---------------------------------------------------------------------------
+# Redis SSE Pub/Sub Hub
+# ---------------------------------------------------------------------------
 
-    def register(self, queue: asyncio.Queue):
-        self.queues.append(queue)
-
-    def unregister(self, queue: asyncio.Queue):
-        if queue in self.queues:
-            self.queues.remove(queue)
+class RedisSSEHub:
+    """Broadcasts newly generated signals to Redis channel."""
+    def __init__(self, redis_url: str):
+        self.redis_url = redis_url
 
     def broadcast(self, signal: Dict[str, Any]):
-        for q in self.queues:
-            # Non-blocking put
-            q.put_nowait(signal)
+        try:
+            r = redis.from_url(self.redis_url, decode_responses=True)
+            r.publish("pulse:trading_signals", json.dumps(signal, default=str))
+            logger.info("Successfully published new signal to Redis channel 'pulse:trading_signals'")
+        except Exception as e:
+            logger.error(f"Failed to publish signal to Redis: {e}")
 
-sse_hub = SSEHub()
+sse_hub = RedisSSEHub(REDIS_URL)
 
 # Uptime tracker
 START_TIME = datetime.datetime.now()
@@ -166,6 +179,20 @@ START_TIME = datetime.datetime.now()
 # ---------------------------------------------------------------------------
 # Entitlement & Quota Verification Helper
 # ---------------------------------------------------------------------------
+
+def get_user_claims_from_token(token: str) -> tuple[str, str]:
+    """Decodes and validates JWT signature, returning (user_id, tier)."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("sub") or payload.get("user_id")
+        tier = payload.get("tier") or payload.get("role") or "free"
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token claims")
+        return str(user_id), str(tier).lower()
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Authentication token has expired")
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid authentication token: {e}")
 
 def get_user_claims(request: Request) -> tuple[str, str]:
     """Extracts user_id and subscription tier from request headers or auth JWT.
@@ -175,27 +202,21 @@ def get_user_claims(request: Request) -> tuple[str, str]:
       - X-User-Id / Authorization JWT claims
       - X-User-Tier / Subscription claims
     """
-    user_id = request.headers.get("x-user-id") or "anonymous"
-    tier = request.headers.get("x-user-tier") or "free"
+    user_id = request.headers.get("x-user-id")
+    tier = request.headers.get("x-user-tier")
+    if user_id and tier:
+        return user_id, tier.lower()
 
-    # Fallback to decode Authorization Bearer token without signature verification (for local integrations)
+    # Fallback to decode Authorization Bearer token with signature verification
     auth = request.headers.get("authorization")
     if auth and auth.startswith("Bearer "):
         token = auth[7:]
         try:
-            import base64
-            import json
-            parts = token.split(".")
-            if len(parts) == 3:
-                payload_b64 = parts[1]
-                payload_b64 += "=" * ((4 - len(payload_b64) % 4) % 4)
-                payload = json.loads(base64.b64decode(payload_b64).decode("utf-8"))
-                user_id = payload.get("sub") or payload.get("user_id") or user_id
-                tier = payload.get("tier") or payload.get("role") or tier
+            return get_user_claims_from_token(token)
         except Exception:
             pass
 
-    return user_id, tier.lower()
+    return user_id or "anonymous", (tier or "free").lower()
 
 def enforce_quota(user_id: str, tier: str, log_view: bool = False) -> EntitlementBlock:
     """Checks the user views quota against the DB and optionally logs a new view."""
@@ -206,8 +227,8 @@ def enforce_quota(user_id: str, tier: str, log_view: bool = False) -> Entitlemen
             locked=False
         )
 
-    # Free Tier quota check: 10 views per 24 hours
-    limit = 10
+    # Free Tier quota check: 3 views per 24 hours (configurable via environment)
+    limit = int(os.getenv("FREE_TIER_QUOTA_LIMIT", "3"))
     now = datetime.datetime.now()
     twenty_four_hours_ago = now - datetime.timedelta(hours=24)
 
@@ -772,18 +793,50 @@ def delete_watchlist_ticker(ticker: str):
         conn.close()
 
 @app.get("/signals-ms/stream")
-async def sse_live_stream(request: Request):
-    """SSE real-time stream. Sends newly generated trading signals immediately (Pro only)."""
-    user_id, tier = get_user_claims(request)
-    
-    # Enforce Pro entitlement for real-time SSE stream
-    if tier != "pro":
-        raise HTTPException(status_code=403, detail="SSE Live Stream is a Pro subscription feature.")
+async def sse_live_stream(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Query(None)
+):
+    """SSE real-time stream. Sends newly generated trading signals immediately (supports Pro and Free tiers)."""
+    # 1. JWT verification on SSE connection establishment (reject 401 before stream opens)
+    jwt_token = None
+    if authorization and authorization.startswith("Bearer "):
+        jwt_token = authorization[7:]
+    elif token:
+        jwt_token = token
 
-    client_queue = asyncio.Queue()
-    sse_hub.register(client_queue)
+    if not jwt_token:
+        raise HTTPException(status_code=401, detail="Authentication token required")
+
+    try:
+        user_id, tier = get_user_claims_from_token(jwt_token)
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid authentication token: {e}")
+
+    # 2. Check entitlement on connect
+    entitlement = enforce_quota(user_id, tier, log_view=False)
+    if entitlement.locked:
+        # If quota is exhausted, send a quota_exhausted event and close the stream
+        async def quota_exhausted_generator():
+            data = {
+                "tier": entitlement.tier,
+                "remaining_views": entitlement.remaining_views,
+                "reset_at": entitlement.reset_at.isoformat() if entitlement.reset_at else None,
+                "locked": entitlement.locked,
+                "cooldown_ends_at": entitlement.cooldown_ends_at.isoformat() if entitlement.cooldown_ends_at else None
+            }
+            yield f"event: quota_exhausted\ndata: {json.dumps(data)}\n\n"
+        return StreamingResponse(quota_exhausted_generator(), media_type="text/event-stream")
+
+    # 3. Replace in-memory broadcast hub with a Redis pub/sub backend
+    pubsub = redis_client.pubsub()
+    await pubsub.subscribe("pulse:trading_signals")
 
     async def event_generator():
+        last_heartbeat = time.time()
         try:
             # Send initial connection event
             yield "event: connection\ndata: Connected to real-time signals stream\n\n"
@@ -794,19 +847,60 @@ async def sse_live_stream(request: Request):
                     break
                 
                 try:
-                    # Wait for a new signal to be broadcasted
-                    signal = await asyncio.wait_for(client_queue.get(), timeout=20.0)
-                    
-                    # Format generated_at back to string
-                    if isinstance(signal.get("generated_at"), datetime.datetime):
-                        signal["generated_at"] = signal["generated_at"].isoformat()
-
-                    yield f"event: signal\ndata: {json.dumps(signal)}\n\n"
-                except asyncio.TimeoutError:
-                    # Keep-alive heartbeat
-                    yield "event: heartbeat\ndata: ping\n\n"
+                    # Read from Redis pubsub with timeout
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                    if message:
+                        data = message["data"]
+                        signal = json.loads(data)
+                        
+                        # Format generated_at back to string
+                        if "generated_at" in signal and isinstance(signal["generated_at"], datetime.datetime):
+                            signal["generated_at"] = signal["generated_at"].isoformat()
+                        
+                        # 4. Check entitlement on message
+                        if tier == "free":
+                            current_entitlement = enforce_quota(user_id, tier, log_view=False)
+                            if current_entitlement.locked:
+                                data = {
+                                    "tier": current_entitlement.tier,
+                                    "remaining_views": current_entitlement.remaining_views,
+                                    "reset_at": current_entitlement.reset_at.isoformat() if current_entitlement.reset_at else None,
+                                    "locked": current_entitlement.locked,
+                                    "cooldown_ends_at": current_entitlement.cooldown_ends_at.isoformat() if current_entitlement.cooldown_ends_at else None
+                                }
+                                yield f"event: quota_exhausted\ndata: {json.dumps(data)}\n\n"
+                                break
+                            
+                            # Yield signal to user
+                            yield f"event: signal\ndata: {json.dumps(signal)}\n\n"
+                            
+                            # Consume the view quota
+                            current_entitlement = enforce_quota(user_id, tier, log_view=True)
+                            if current_entitlement.locked:
+                                data = {
+                                    "tier": current_entitlement.tier,
+                                    "remaining_views": current_entitlement.remaining_views,
+                                    "reset_at": current_entitlement.reset_at.isoformat() if current_entitlement.reset_at else None,
+                                    "locked": current_entitlement.locked,
+                                    "cooldown_ends_at": current_entitlement.cooldown_ends_at.isoformat() if current_entitlement.cooldown_ends_at else None
+                                }
+                                yield f"event: quota_exhausted\ndata: {json.dumps(data)}\n\n"
+                                break
+                        else:
+                            # Pro tier gets unlimited stream signals
+                            yield f"event: signal\ndata: {json.dumps(signal)}\n\n"
+                    else:
+                        # Heartbeat keep-alive every 20 seconds
+                        if time.time() - last_heartbeat > 20:
+                            yield "event: heartbeat\ndata: ping\n\n"
+                            last_heartbeat = time.time()
+                except Exception as e:
+                    logger.error(f"Error in SSE stream generator: {e}")
+                    yield "event: error\ndata: Internal stream processing error\n\n"
+                    break
         finally:
-            sse_hub.unregister(client_queue)
+            await pubsub.unsubscribe("pulse:trading_signals")
+            await pubsub.close()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
