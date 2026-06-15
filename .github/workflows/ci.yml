@@ -46,30 +46,16 @@ jobs:
           python -c "import tradingagents, cli.main; print('clean-install import OK')"
 
   lint:
-    name: ruff (changed files, strict)
+    name: ruff (strict, full repo)
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install ruff
         run: pip install "ruff>=0.15"
-      - name: Lint only the Python files this PR changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          # Strict going-forward gate: the full-repo cleanup is deferred (see
-          # worklog 03/01), so we lint only files this PR adds or modifies.
-          files=$(git diff --name-only --diff-filter=ACM "$BASE_SHA"...HEAD -- '*.py' \
-                  | grep -vE '^(results|worklog)/' || true)
-          if [ -z "$files" ]; then
-            echo "No Python changes to lint."
-            exit 0
-          fi
-          echo "Linting changed files:"
-          echo "$files"
-          ruff check $files
+      - name: Lint the repository
+        # The repo is fully clean under the strict select, so we lint everything
+        # (results/ and worklog/ are excluded via pyproject extend-exclude).
+        run: ruff check .

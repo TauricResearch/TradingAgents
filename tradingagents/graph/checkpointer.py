@@ -9,9 +9,10 @@ import hashlib
 import json
 import logging
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator, Mapping
+from typing import Any, Mapping
 
 from langchain_core.load.serializable import Serializable
 from langchain_core.messages import BaseMessage

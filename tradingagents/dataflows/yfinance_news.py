@@ -1,9 +1,9 @@
 """yfinance-based news data fetching functions."""
 
-from typing import Optional
+import contextlib
+from datetime import datetime
 
 import yfinance as yf
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
@@ -28,10 +28,8 @@ def _extract_article_data(article: dict) -> dict:
         pub_date_str = content.get("pubDate", "")
         pub_date = None
         if pub_date_str:
-            try:
+            with contextlib.suppress(ValueError, AttributeError):
                 pub_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                pass
 
         return {
             "title": title,
@@ -47,10 +45,8 @@ def _extract_article_data(article: dict) -> dict:
         pub_date = None
         ts = article.get("providerPublishTime")
         if ts:
-            try:
+            with contextlib.suppress(ValueError, OSError, TypeError):
                 pub_date = datetime.fromtimestamp(ts)
-            except (ValueError, OSError, TypeError):
-                pass
         return {
             "title": article.get("title", "No title"),
             "summary": article.get("summary", ""),
@@ -131,8 +127,8 @@ def get_news_yfinance(
 
 def get_global_news_yfinance(
     curr_date: str,
-    look_back_days: Optional[int] = None,
-    limit: Optional[int] = None,
+    look_back_days: int | None = None,
+    limit: int | None = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.

@@ -1,6 +1,6 @@
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional
-import warnings
 
 from .cache import LLMResponseCache, make_cache_key
 from .retry import RetryPolicy, invoke_with_retry
@@ -97,7 +97,7 @@ def invoke_with_cache_and_retry(
 class BaseLLMClient(ABC):
     """Abstract base class for LLM clients."""
 
-    def __init__(self, model: str, base_url: Optional[str] = None, **kwargs):
+    def __init__(self, model: str, base_url: str | None = None, **kwargs):
         self.model = model
         self.base_url = base_url
         self.kwargs = kwargs

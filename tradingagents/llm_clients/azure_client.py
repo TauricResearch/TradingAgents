@@ -1,5 +1,5 @@
 import os
-from typing import Any, Optional
+from typing import Any
 
 from langchain_openai import AzureChatOpenAI
 
@@ -50,7 +50,7 @@ class AzureOpenAIClient(BaseLLMClient):
         OPENAI_API_VERSION: API version (e.g. 2025-03-01-preview)
     """
 
-    def __init__(self, model: str, base_url: Optional[str] = None, **kwargs):
+    def __init__(self, model: str, base_url: str | None = None, **kwargs):
         super().__init__(model, base_url, **kwargs)
 
     def get_llm(self) -> Any:

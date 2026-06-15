@@ -1,11 +1,11 @@
-from typing import Optional
 
 from .base_client import BaseLLMClient
+
 
 def create_llm_client(
     provider: str,
     model: str,
-    base_url: Optional[str] = None,
+    base_url: str | None = None,
     **kwargs,
 ) -> BaseLLMClient:
     """Create an LLM client for the specified provider.
@@ -42,6 +42,10 @@ def create_llm_client(
     if provider_lower == "azure":
         from .azure_client import AzureOpenAIClient
         return AzureOpenAIClient(model, base_url, **kwargs)
+
+    if provider_lower == "bedrock":
+        from .bedrock_client import BedrockClient
+        return BedrockClient(model, base_url, **kwargs)
 
     from .openai_client import OpenAIClient, is_openai_compatible
     if is_openai_compatible(provider_lower):

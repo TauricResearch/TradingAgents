@@ -27,7 +27,6 @@ from tradingagents.agents.schemas import (
 )
 from tradingagents.agents.trader.trader import create_trader
 
-
 # ---------------------------------------------------------------------------
 # Render functions
 # ---------------------------------------------------------------------------

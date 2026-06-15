@@ -4,7 +4,6 @@ Verifies the user-supplied base_url is required and honored, the key is optional
 (keyless local default), Chat Completions (not the Responses API) is used, any
 model name is accepted, and the env backend URL precedence (#978).
 """
-import os
 
 import pytest
 

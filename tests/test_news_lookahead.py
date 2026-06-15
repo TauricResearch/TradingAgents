@@ -6,7 +6,6 @@ news injected future articles), #993 (empty-after-filter returned a blank body).
 """
 import time
 from datetime import datetime
-from unittest import mock
 
 import pytest
 
