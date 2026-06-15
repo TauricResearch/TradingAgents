@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { LlmCallRow } from "../lib/api";
 
 interface Props {
@@ -57,6 +57,14 @@ export function LlmTracePanel({ calls }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showPrompts, setShowPrompts] = useState(true);
   const [showResponses, setShowResponses] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [agentFilter, setAgentFilter] = useState("");
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(searchQuery), 200);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
   if (calls.length === 0) {
     return (
@@ -66,9 +74,22 @@ export function LlmTracePanel({ calls }: Props) {
     );
   }
 
+  const filteredCalls = calls.filter((call) => {
+    if (agentFilter && (call.node_name || "unknown") !== agentFilter) return false;
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      return (
+        (call.prompt_text || "").toLowerCase().includes(q) ||
+        (call.response_text || "").toLowerCase().includes(q) ||
+        (call.node_name || "").toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
   // Group by node, preserving team order
   const grouped = new Map<string, LlmCallRow[]>();
-  for (const call of calls) {
+  for (const call of filteredCalls) {
     const node = call.node_name || "unknown";
     if (!grouped.has(node)) grouped.set(node, []);
     grouped.get(node)!.push(call);
@@ -80,6 +101,8 @@ export function LlmTracePanel({ calls }: Props) {
     if (ta !== tb) return ta - tb;
     return (NODE_COLORS[a] ?? "").localeCompare(NODE_COLORS[b] ?? "");
   });
+
+  const hasFilter = debouncedSearch || agentFilter;
 
   return (
     <div>
@@ -104,64 +127,151 @@ export function LlmTracePanel({ calls }: Props) {
           Show responses
         </label>
         <span className="ml-auto text-[10px] font-mono text-slate-600">
-          {calls.length} LLM calls
+          {filteredCalls.length}/{calls.length} LLM calls
         </span>
       </div>
 
-      {/* Per-node sections */}
-      <div className="space-y-3">
-        {sortedNodes.map(([node, nodeCalls]) => {
-          const color = nodeColor(node);
-          const totalTokens = nodeCalls.reduce((s, c) => s + (c.total_tokens || 0), 0);
-          const totalDuration = nodeCalls.reduce((s, c) => s + (c.duration_ms || 0), 0);
-
-          return (
-            <div key={node} className="rounded-lg border border-slate-700/50 bg-slate-900/60 overflow-hidden">
-              {/* Node header */}
-              <div
-                className="flex items-center gap-3 px-3 py-2 cursor-pointer select-none hover:bg-slate-800/40 transition-colors"
-                style={{ borderLeft: `3px solid ${color}` }}
-                onClick={() => setExpandedId(expandedId === node ? null : node)}
-              >
-                <svg
-                  className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${
-                    expandedId === node ? "rotate-90" : ""
-                  }`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
-                <span className="text-xs font-semibold text-slate-200 min-w-[140px]">{node}</span>
-                <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
-                  <span>{nodeCalls.length} calls</span>
-                  <span className="w-px h-3 bg-slate-700/50" />
-                  <span>{formatDuration(totalDuration)}</span>
-                  <span className="w-px h-3 bg-slate-700/50" />
-                  <span className="text-slate-400">{totalTokens} tokens</span>
-                </div>
-              </div>
-
-              {/* Expanded call details */}
-              {expandedId === node && (
-                <div className="border-t border-slate-700/50">
-                  {nodeCalls.map((call, i) => (
-                    <CallCard
-                      key={call.id}
-                      call={call}
-                      index={i}
-                      total={nodeCalls.length}
-                      showPrompt={showPrompts}
-                      showResponse={showResponses}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* Search & filter */}
+      <div className="flex items-center gap-2 px-1 mb-3">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search prompts, responses, agents..."
+          className="flex-1 px-3 py-1.5 text-xs font-mono bg-slate-800 border border-slate-700 rounded-lg text-slate-300 placeholder-slate-500 focus:outline-none focus:border-slate-600"
+        />
+        <select
+          value={agentFilter}
+          onChange={(e) => setAgentFilter(e.target.value)}
+          className="px-3 py-1.5 text-xs font-mono bg-slate-800 border border-slate-700 rounded-lg text-slate-300 focus:outline-none focus:border-slate-600"
+        >
+          <option value="">All agents</option>
+          {[...new Set(calls.map((c) => c.node_name || "unknown"))].map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
       </div>
+
+      {/* Per-node sections or no-results */}
+      {sortedNodes.length === 0 ? (
+        <div className="text-sm text-slate-500 text-center py-8">
+          {hasFilter ? (
+            <>
+              No results matching your filters.{" "}
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setDebouncedSearch("");
+                  setAgentFilter("");
+                }}
+                className="text-sky-500 hover:text-sky-400 underline"
+              >
+                Clear filters
+              </button>
+            </>
+          ) : (
+            "No LLM calls recorded yet."
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sortedNodes.map(([node, nodeCalls]) => {
+            const color = nodeColor(node);
+            const totalTokens = nodeCalls.reduce((s, c) => s + (c.total_tokens || 0), 0);
+            const totalDuration = nodeCalls.reduce((s, c) => s + (c.duration_ms || 0), 0);
+
+            return (
+              <div key={node} className="rounded-lg border border-slate-700/50 bg-slate-900/60 overflow-hidden">
+                {/* Node header */}
+                <div
+                  className="flex items-center gap-3 px-3 py-2 cursor-pointer select-none hover:bg-slate-800/40 transition-colors"
+                  style={{ borderLeft: `3px solid ${color}` }}
+                  onClick={() => setExpandedId(expandedId === node ? null : node)}
+                >
+                  <svg
+                    className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${
+                      expandedId === node ? "rotate-90" : ""
+                    }`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                  <span className="text-xs font-semibold text-slate-200 min-w-[140px]">{node}</span>
+                  <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
+                    <span>{nodeCalls.length} calls</span>
+                    <span className="w-px h-3 bg-slate-700/50" />
+                    <span>{formatDuration(totalDuration)}</span>
+                    <span className="w-px h-3 bg-slate-700/50" />
+                    <span className="text-slate-400">{totalTokens} tokens</span>
+                  </div>
+                </div>
+
+                {/* Expanded call details */}
+                {expandedId === node && (
+                  <div className="border-t border-slate-700/50">
+                    {nodeCalls.map((call, i) => (
+                      <CallCard
+                        key={call.id}
+                        call={call}
+                        index={i}
+                        total={nodeCalls.length}
+                        showPrompt={showPrompts}
+                        showResponse={showResponses}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
+}
+
+function highlightJson(json: string) {
+  const tokens: React.ReactNode[] = [];
+  const regex = /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b)|(\bnull\b)|([\[\]{}])|([,:])|(\s+)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(json)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push(<span key={lastIndex}>{json.slice(lastIndex, match.index)}</span>);
+    }
+
+    const [, keyStr, colonPart, num, bool, nullVal, bracket] = match;
+
+    if (keyStr) {
+      if (colonPart != null) {
+        tokens.push(<span key={match.index} className="text-sky-300">{keyStr}</span>);
+        tokens.push(<span key={`c${match.index}`}>{colonPart}</span>);
+      } else {
+        tokens.push(<span key={match.index} className="text-emerald-300">{keyStr}</span>);
+      }
+    } else if (num) {
+      tokens.push(<span key={match.index} className="text-amber-300">{num}</span>);
+    } else if (bool) {
+      tokens.push(<span key={match.index} className="text-purple-300">{bool}</span>);
+    } else if (nullVal) {
+      tokens.push(<span key={match.index} className="text-slate-500">{nullVal}</span>);
+    } else if (bracket) {
+      tokens.push(<span key={match.index} className="text-slate-400">{bracket}</span>);
+    } else {
+      tokens.push(<span key={match.index}>{match[0]}</span>);
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < json.length) {
+    tokens.push(<span key={lastIndex}>{json.slice(lastIndex)}</span>);
+  }
+
+  return tokens;
 }
 
 function CallCard({
@@ -275,8 +385,8 @@ function CallCard({
           <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/60 block mb-1">
             Tool calls
           </span>
-          <pre className="text-[11px] text-amber-300/80 font-mono whitespace-pre-wrap break-words">
-            {JSON.stringify(call.tool_calls, null, 2)}
+          <pre className="text-[11px] font-mono whitespace-pre-wrap break-words">
+            {highlightJson(JSON.stringify(call.tool_calls, null, 2))}
           </pre>
         </div>
       )}
