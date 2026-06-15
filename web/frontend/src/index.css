@@ -58,19 +58,53 @@
   input, select, button, textarea {
     font-family: inherit;
   }
+
+  /* ── Light theme overrides ───────────────────────────── */
+  [data-theme="light"] html,
+  [data-theme="light"] body {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+  [data-theme="light"] body::before { opacity: 0.01; }
+  [data-theme="light"] ::selection { background: rgba(56, 189, 248, 0.35); color: #0f172a; }
+  [data-theme="light"] ::-webkit-scrollbar-thumb { background-color: #cbd5e1; }
+  [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+  [data-theme="light"] a { color: #0369a1; }
 }
 
 @layer components {
   .glass-panel {
     @apply bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl shadow-lg shadow-black/20;
   }
-
-  .glass-panel-hover {
-    @apply glass-panel hover:bg-slate-700/60 hover:border-slate-600/50 transition-all duration-200;
+  [data-theme="light"] .glass-panel {
+    @apply bg-white/80 border-slate-200/80 shadow-slate-200/50 shadow-md;
   }
 
   .card-gradient {
     background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+  }
+  [data-theme="light"] .card-gradient {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%);
+  }
+
+  .drawer-panel {
+    @apply fixed z-50 bg-slate-900 border-slate-700/50 
+           shadow-2xl shadow-black/40 transition-transform duration-300
+           backdrop-blur-sm;
+  }
+  [data-theme="light"] .drawer-panel {
+    @apply bg-white border-slate-200 shadow-slate-300/50;
+  }
+
+  .drawer-overlay {
+    @apply fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300;
+  }
+  [data-theme="light"] .drawer-overlay {
+    @apply bg-slate-400/30;
+  }
+
+  .glass-panel-hover {
+    @apply glass-panel hover:bg-slate-700/60 hover:border-slate-600/50 transition-all duration-200;
   }
 
   .btn-primary {
@@ -137,14 +171,28 @@
     50% { opacity: 0.5; }
   }
 
-  .drawer-overlay {
-    @apply fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300;
+  [data-theme="light"] .btn-secondary {
+    @apply bg-slate-200/80 text-slate-700 border-slate-300/80 hover:bg-slate-300/80 hover:text-slate-800;
   }
 
-  .drawer-panel {
-    @apply fixed z-50 bg-slate-900 border-slate-700/50 
-           shadow-2xl shadow-black/40 transition-transform duration-300
-           backdrop-blur-sm;
+  [data-theme="light"] .section-header {
+    @apply text-slate-400;
+  }
+
+  [data-theme="light"] .progress-bar {
+    @apply bg-slate-200;
+  }
+
+  [data-theme="light"] .tag-buy {
+    @apply bg-emerald-100 text-emerald-700 border-emerald-200;
+  }
+
+  [data-theme="light"] .tag-sell {
+    @apply bg-red-100 text-red-700 border-red-200;
+  }
+
+  [data-theme="light"] .tag-hold {
+    @apply bg-amber-100 text-amber-700 border-amber-200;
   }
 }
 
