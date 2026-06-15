@@ -289,6 +289,14 @@ What does not vary anymore: the analyzed company identity is resolved determinis
 
 Backtest results are not guaranteed to match any published figure. Returns depend on the model, the temperature, the date range, data quality, and the sampling above. Treat the framework as a research scaffold for studying multi-agent analysis, not as a strategy with a fixed, replicable return.
 
+## Community Projects
+
+Projects built on TradingAgents by the community:
+
+| Project | Description |
+|---------|-------------|
+| [tradingagents-web-ui](https://github.com/ydhawesome/tradingagents-web-ui) | Streamlit web interface (Chinese/English UI) — fill in a ticker, watch agents run live, read rendered reports in-browser |
+
 ## Contributing
 
 Contributions are welcome: bug fixes, documentation, and feature ideas; past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
