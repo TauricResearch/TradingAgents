@@ -27,11 +27,16 @@ def is_valid_ticker_input(value: str) -> bool:
     """Whether a ticker entry is acceptable (charset + length).
 
     Allows the characters Yahoo symbols use, including ``=`` for futures/forex
-    like ``GC=F`` and ``EURUSD=X`` (#980), and ``^`` for indices. Empty input is
-    allowed (it defaults to SPY downstream).
+    like ``GC=F`` and ``EURUSD=X`` (#980), ``+`` for broker CFD symbols like
+    ``XAUUSD+``, and ``^`` for indices. Empty input is allowed (it defaults to
+    SPY downstream).
     """
     v = value.strip()
-    return not v or (all(ch.isalnum() or ch in "._-^=" for ch in v) and len(v) <= 32)
+    valid_chars = all(
+        ch.isalnum() or ch in "._-^=" or (ch == "+" and i == len(v) - 1 and i > 0)
+        for i, ch in enumerate(v)
+    )
+    return not v or (valid_chars and len(v) <= 32)
 
 
 def get_ticker() -> str:
@@ -45,7 +50,7 @@ def get_ticker() -> str:
         f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
         validate=lambda x: (
             is_valid_ticker_input(x)
-            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, GC=F."
+            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, GC=F, XAUUSD+."
         ),
         style=questionary.Style(
             [

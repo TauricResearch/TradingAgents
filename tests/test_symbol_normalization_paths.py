@@ -8,6 +8,7 @@ instrument instead of failing/mismatching.
 import pandas as pd
 
 import tradingagents.agents.utils.agent_utils as au
+import tradingagents.dataflows.yfinance_news as ynews
 import tradingagents.graph.trading_graph as tg
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -52,3 +53,22 @@ def test_fetch_returns_normalizes_symbol(monkeypatch):
     assert queried[0] == "GC=F"  # stock symbol normalized (#984)
     assert queried[1] == "SPY"   # benchmark left as the canonical symbol
     assert raw is not None and days is not None
+
+
+def test_yfinance_news_normalizes_symbol(monkeypatch):
+    seen = {}
+
+    class FakeTicker:
+        def __init__(self, symbol):
+            seen["symbol"] = symbol
+
+        def get_news(self, count):
+            return []
+
+    monkeypatch.setattr(ynews.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(ynews, "yf_retry", lambda fn: fn())
+
+    result = ynews.get_news_yfinance(" xauusd+ ", "2025-01-01", "2025-01-02")
+
+    assert seen["symbol"] == "GC=F"
+    assert "GC=F (from XAUUSD+)" in result

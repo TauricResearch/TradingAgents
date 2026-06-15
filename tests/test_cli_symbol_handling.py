@@ -17,6 +17,7 @@ from tradingagents.dataflows.symbol_utils import normalize_symbol
     ("BTC-USDT", "BTC-USD"),
     ("BTC-USDC", "BTC-USD"),
     ("ethusdt", "ETH-USD"),
+    ("XAUUSD+", "GC=F"),
     # non-crypto must be untouched
     ("AAPL", "AAPL"),
     ("GC=F", "GC=F"),
@@ -33,9 +34,12 @@ def test_normalize_symbol_crypto_and_passthrough(raw, expected):
     ("EURUSD=X", True),
     ("AAPL", True),
     ("0700.HK", True),
+    ("XAUUSD+", True),
     ("^GSPC", True),
     ("", True),                 # empty -> defaults to SPY downstream
     ("bad symbol!", False),     # space + '!' rejected
+    ("A+APL", False),           # broker CFD marker is only meaningful as a suffix
+    ("+", False),               # single plus is not a valid symbol
     ("A" * 40, False),          # too long
 ])
 def test_ticker_input_validation(value, ok):
@@ -58,5 +62,5 @@ def test_detect_asset_type(raw, expected):
 
 def test_cli_normalize_delegates_to_data_layer():
     # CLI must produce the same canonical symbol the data path will price.
-    for raw in ("XAUUSD", "BTCUSD", "btc-usdt", "AAPL"):
+    for raw in ("XAUUSD", "XAUUSD+", "BTCUSD", "btc-usdt", "AAPL"):
         assert normalize_ticker_symbol(raw) == normalize_symbol(raw)
