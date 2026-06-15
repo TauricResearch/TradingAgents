@@ -32,6 +32,24 @@ class TestProviderDefaultUrl(unittest.TestCase):
 
 @pytest.mark.unit
 class TestCliSkipsPromptsFromEnv(unittest.TestCase):
+    def test_checkpoint_flag_omitted_preserves_env_config(self):
+        import cli.main as m
+
+        config = {"checkpoint_enabled": True}
+
+        m._apply_checkpoint_config(config, checkpoint=None)
+
+        self.assertIs(config["checkpoint_enabled"], True)
+
+    def test_checkpoint_flag_overrides_env_config_when_explicit(self):
+        import cli.main as m
+
+        config = {"checkpoint_enabled": True}
+
+        m._apply_checkpoint_config(config, checkpoint=False)
+
+        self.assertIs(config["checkpoint_enabled"], False)
+
     def test_env_config_skips_llm_prompts(self):
         import cli.main as m
 
