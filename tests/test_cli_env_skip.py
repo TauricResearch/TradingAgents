@@ -64,6 +64,24 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         self.assertEqual(config["max_debate_rounds"], 4)
         self.assertEqual(config["max_risk_discuss_rounds"], 5)
 
+    def test_research_depth_preserves_partial_round_env(self):
+        import cli.main as m
+
+        config = {
+            "max_debate_rounds": 4,
+            "max_risk_discuss_rounds": 5,
+        }
+
+        with mock.patch.dict(
+            os.environ,
+            {"TRADINGAGENTS_MAX_DEBATE_ROUNDS": "4"},
+            clear=True,
+        ):
+            m._apply_research_depth(config, research_depth=2)
+
+        self.assertEqual(config["max_debate_rounds"], 4)
+        self.assertEqual(config["max_risk_discuss_rounds"], 2)
+
     def test_env_config_skips_llm_prompts(self):
         import cli.main as m
 
