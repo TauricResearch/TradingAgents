@@ -182,17 +182,17 @@ def create_app() -> FastAPI:
         queries.remove_ticker(ticker)
         return Response(status_code=204)
 
+    @app.patch("/api/watchlist/reorder")
+    def reorder_watchlist(body: WatchlistReorderIn) -> list[dict]:
+        queries.reorder_watchlist(body.tickers)
+        return [queries.watchlist_to_dict(r) for r in queries.read_watchlist()]
+
     @app.patch("/api/watchlist/{ticker}")
     def update_watchlist_item(ticker: str, body: WatchlistUpdateIn) -> dict:
         row = queries.update_watchlist_item(ticker, group=body.group)
         if row is None:
             raise HTTPException(status_code=404, detail="ticker not found")
         return queries.watchlist_to_dict(row)
-
-    @app.patch("/api/watchlist/reorder")
-    def reorder_watchlist(body: WatchlistReorderIn) -> list[dict]:
-        queries.reorder_watchlist(body.tickers)
-        return [queries.watchlist_to_dict(r) for r in queries.read_watchlist()]
 
     @app.post("/api/runs", status_code=202)
     async def start_run(body: RunIn) -> dict:

@@ -40,6 +40,7 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
   const [pending, setPending] = useState(false);
   const [showGroupInput, setShowGroupInput] = useState(false);
   const [groupInput, setGroupInput] = useState(group ?? "");
+  const [isDragOver, setDragOver] = useState(false);
 
   const sparkPath = sparkline.length > 1
     ? sparkline.map((v, i) => `${i === 0 ? "M" : "L"} ${i * 4} ${20 - v}`).join(" ")
@@ -63,6 +64,17 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
 
   const gc = groupColor ?? GROUP_COLORS[0];
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only hide when actually leaving this element (not entering a child)
+    if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOver(false);
+    }
+  };
+
   return (
     <div
       role="button"
@@ -72,18 +84,31 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
       data-focused={isFocused}
       draggable={dragHandleProps?.draggable ?? false}
       onDragStart={dragHandleProps?.onDragStart}
-      onDragOver={dragHandleProps?.onDragOver}
-      onDrop={onDrop}
-      onDragEnd={dragHandleProps?.onDragEnd}
+      onDragOver={(e) => {
+        dragHandleProps?.onDragOver?.(e);
+        setDragOver(true);
+      }}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={(e) => {
+        setDragOver(false);
+        onDrop?.(e);
+      }}
+      onDragEnd={(e) => {
+        setDragOver(false);
+        dragHandleProps?.onDragEnd?.(e);
+      }}
       className={`relative group w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-150 cursor-pointer ${
         isFocused
           ? "bg-sky-500/10 ring-1 ring-sky-500/30 shadow-[0_0_12px_rgba(56,189,248,0.08)]"
-          : "hover:bg-slate-800/60"
-      } ${dragHandleProps?.draggable ? "opacity-100" : ""}`}
+          : isDragOver
+            ? "bg-sky-500/5"
+            : "hover:bg-slate-800/60"
+      } ${dragHandleProps?.draggable ? "opacity-100" : ""} ${isDragOver ? "shadow-[inset_0_2px_0_0_rgba(56,189,248,0.4)]" : ""}`}
     >
       {/* Drag handle */}
       <span
-        className="shrink-0 flex flex-col gap-0.5 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-40 hover:opacity-60 transition-opacity px-0.5"
+        className="shrink-0 flex flex-col gap-0.5 cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-70 hover:opacity-100 transition-opacity px-0.5"
         onMouseDown={(e) => e.stopPropagation()}
         aria-label={`Drag ${ticker} to reorder`}
       >

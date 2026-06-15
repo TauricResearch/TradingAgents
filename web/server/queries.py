@@ -20,11 +20,13 @@ class DuplicateTicker(Exception):
 # ---- watchlist ----
 
 def read_watchlist() -> list[dict]:
-    """Return the watchlist rows, sorted by added_at ascending."""
+    """Return the watchlist rows, sorted by sort_order then added_at."""
     rows = storage.read_json(storage.data_dir() / "watchlist.json")
     if not rows:
         return []
-    return rows.get("tickers", [])
+    items: list[dict] = rows.get("tickers", [])
+    items.sort(key=lambda r: (r.get("sort_order") if r.get("sort_order") is not None else float("inf"), r.get("added_at", "")))
+    return items
 
 
 def _write_watchlist(rows: list[dict]) -> None:

@@ -34,4 +34,33 @@ describe("WatchlistRail", () => {
     wrap(<WatchlistRail />);
     await waitFor(() => expect(screen.getByText(/add/i)).toBeInTheDocument());
   });
+
+  it("filters tickers by input", async () => {
+    wrap(<WatchlistRail />);
+    await waitFor(() => expect(screen.getByText("NVDA")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Search ticker…");
+    fireEvent.change(input, { target: { value: "aapl" } });
+
+    expect(screen.getByText("AAPL")).toBeInTheDocument();
+    expect(screen.queryByText("NVDA")).not.toBeInTheDocument();
+    expect(screen.getByText("1/2")).toBeInTheDocument();
+  });
+
+  it("clears the filter via the X button", async () => {
+    wrap(<WatchlistRail />);
+    await waitFor(() => expect(screen.getByText("NVDA")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Search ticker…");
+    fireEvent.change(input, { target: { value: "aapl" } });
+
+    // Find the clear button — it's the only button rendered inside the
+    // filter input wrapper that isn't a ticker row or the Add button.
+    const clearBtn = input.parentElement!.querySelector("button")!;
+    fireEvent.click(clearBtn);
+
+    expect(screen.getByText("NVDA")).toBeInTheDocument();
+    expect(screen.getByText("AAPL")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
 });
