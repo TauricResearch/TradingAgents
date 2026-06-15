@@ -20,14 +20,14 @@ class TestRouteToVendorLogging(unittest.TestCase):
             return "FALLBACK_DATA"
 
         patched = {"boomvendor": primary_boom, "okvendor": fallback_ok}
-        with mock.patch.object(interface, "get_vendor", return_value="boomvendor,okvendor"), \
-                mock.patch.dict(
-                    interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
-                ):
-            with self.assertLogs(interface.logger, level="WARNING") as cm:
-                result = interface.route_to_vendor(
-                    "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
-                )
+        with (
+            mock.patch.object(interface, "get_vendor", return_value="boomvendor,okvendor"),
+            mock.patch.dict(interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False),
+            self.assertLogs(interface.logger, level="WARNING") as cm,
+        ):
+            result = interface.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
 
         # The fallback's data is still returned (no behavior change)...
         self.assertEqual(result, "FALLBACK_DATA")
@@ -37,6 +37,29 @@ class TestRouteToVendorLogging(unittest.TestCase):
         self.assertIn("get_stock_data", joined)
         self.assertIn("configured primary", joined)
         self.assertTrue(any(record.exc_info for record in cm.records))
+
+    def test_primary_rate_limit_is_logged_but_fallback_result_returned(self):
+        def primary_rate_limited(*a, **k):
+            raise interface.VendorRateLimitError("slow down")
+
+        def fallback_ok(*a, **k):
+            return "FALLBACK_DATA"
+
+        patched = {"slowvendor": primary_rate_limited, "okvendor": fallback_ok}
+        with (
+            mock.patch.object(interface, "get_vendor", return_value="slowvendor,okvendor"),
+            mock.patch.dict(interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False),
+            self.assertLogs(interface.logger, level="WARNING") as cm,
+        ):
+            result = interface.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
+
+        self.assertEqual(result, "FALLBACK_DATA")
+        joined = "\n".join(cm.output)
+        self.assertIn("slowvendor", joined)
+        self.assertIn("rate-limited", joined)
+        self.assertIn("configured primary", joined)
 
 
 if __name__ == "__main__":
