@@ -37,15 +37,24 @@ const formatBubble: Record<string, Formatter> = {
   analyst_completed: (d) =>
     `analyst_completed: ${d.stage ?? d.node ?? "(unknown stage)"}` +
     (d.summary ? ` — ${String(d.summary)}` : ""),
-  debate_message: (d) => `${d.side}: ${d.text}`,
-  risk_message: (d) => `${d.side}: ${d.text}`,
+  debate_message: (d) => {
+    const side = String(d.side ?? "debate");
+    const text = String(d.text ?? "");
+    const turn = d.turn != null ? ` [#${d.turn}]` : "";
+    return `${side}${turn}: ${text.slice(0, 120)}`;
+  },
+  risk_message: (d) => {
+    const side = String(d.side ?? "risk");
+    const text = String(d.text ?? "");
+    return `${side}: ${text.slice(0, 120)}`;
+  },
   decision: (d) => {
     const action = d.action ?? "(none)";
     const target = d.target;
     return target == null ? `DECISION: ${action}` : `DECISION: ${action} @ ${target}`;
   },
-  tool_call: (d) => `tool: ${d.tool}`,
-  tool_result: (d) => `result: ${String(d.summary ?? "").slice(0, 60)}`,
+  tool_call: (d) => `tool: ${d.tool}${d.description ? ` — ${d.description}` : ""}`,
+  tool_result: (d) => `result: ${String(d.summary ?? "").slice(0, 60)}${d.error ? ` ⚠ ${d.error}` : ""}`,
   tool_call_warning: (d) => `warning: ${d.message ?? "(no message)"}`,
   run_failed: formatRunFailed,
 };
@@ -126,12 +135,14 @@ export function LiveEventStream() {
         const key = (e.id ?? "") + ":" + e.ts;
         const data = e.data as EventData;
         const hasReport = !!data.report_text;
+        const hasText = !!(data.text || data.summary || data.message);
+        const canExpand = hasReport || hasText || e.type === "debate_message" || e.type === "risk_message";
         return (
           <Bubble
             key={key}
             event={e}
             expanded={expanded.has(key)}
-            onToggle={hasReport ? () => toggleExpand(key) : undefined}
+            onToggle={canExpand ? () => toggleExpand(key) : undefined}
           />
         );
       })}
@@ -165,7 +176,47 @@ function Bubble({ event, expanded, onToggle }: { event: WsEvent; expanded: boole
   const formatter = formatBubble[event.type];
   const text = formatter ? formatter(data) : event.type;
   const reportText = data.report_text as string | undefined;
+  const fullText = data.text as string | undefined;
+  const fullSummary = data.summary as string | undefined;
+  const fullMessage = data.message as string | undefined;
+  const toolName = data.tool as string | undefined;
+  const toolArgs = data.args as string | undefined;
   const canExpand = !!onToggle;
+
+  let expandContent: React.ReactNode = null;
+  if (expanded) {
+    if (reportText) {
+      expandContent = (
+        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-300 bg-slate-950/60 rounded-lg p-3 border border-slate-800/50 max-h-96 overflow-y-auto">
+          {reportText}
+        </pre>
+      );
+    } else if (fullText) {
+      expandContent = (
+        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-300 bg-slate-950/60 rounded-lg p-3 border border-slate-800/50 max-h-96 overflow-y-auto">
+          {fullText}
+        </pre>
+      );
+    } else if (event.type === "tool_call" && toolArgs) {
+      expandContent = (
+        <div className="mt-2 text-xs text-slate-300 bg-slate-950/60 rounded-lg p-3 border border-slate-800/50 max-h-96 overflow-y-auto font-mono whitespace-pre-wrap">
+          {typeof toolArgs === "string" ? toolArgs : JSON.stringify(toolArgs, null, 2)}
+        </div>
+      );
+    } else if (fullSummary) {
+      expandContent = (
+        <div className="mt-2 text-xs text-slate-400 bg-slate-950/40 rounded-lg p-2 border border-slate-800/50">
+          {fullSummary}
+        </div>
+      );
+    } else if (fullMessage) {
+      expandContent = (
+        <div className="mt-2 text-xs text-slate-400 bg-slate-950/40 rounded-lg p-2 border border-slate-800/50">
+          {fullMessage}
+        </div>
+      );
+    }
+  }
 
   return (
     <div
@@ -176,12 +227,23 @@ function Bubble({ event, expanded, onToggle }: { event: WsEvent; expanded: boole
       onClick={canExpand ? onToggle : undefined}
     >
       <span className="text-slate-600 mr-2 font-mono text-[10px]">{new Date(event.ts).toLocaleTimeString()}</span>
-      <span className="font-medium">{text}</span>
-      {expanded && reportText && (
-        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-300 bg-slate-950/60 rounded-lg p-3 border border-slate-800/50 max-h-96 overflow-y-auto">
-          {reportText}
-        </pre>
+      {event.type === "debate_message" && (
+        <svg className="w-3 h-3 inline mr-1 -mt-0.5 text-amber-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z" />
+        </svg>
       )}
+      {event.type === "risk_message" && (
+        <svg className="w-3 h-3 inline mr-1 -mt-0.5 text-red-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+        </svg>
+      )}
+      {event.type === "tool_call" && (
+        <svg className="w-3 h-3 inline mr-1 -mt-0.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+        </svg>
+      )}
+      <span className="font-medium">{text}</span>
+      {expandContent}
     </div>
   );
 }
