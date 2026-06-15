@@ -25,7 +25,7 @@ describe("AddTickerCommand", () => {
       }),
     );
     render(<AddTickerCommand />, { wrapper: createWrapper() });
-    fireEvent.click(screen.getByText("+ Add ticker"));
+    fireEvent.click(screen.getByText("Add ticker"));
     const input = screen.getByPlaceholderText(/Ticker symbol/i);
     fireEvent.change(input, { target: { value: "BADX" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -42,7 +42,7 @@ describe("AddTickerCommand", () => {
       new ApiError("add 409", 409, { detail: { error: "already_in_watchlist" } }),
     );
     render(<AddTickerCommand />, { wrapper: createWrapper() });
-    fireEvent.click(screen.getByText("+ Add ticker"));
+    fireEvent.click(screen.getByText("Add ticker"));
     const input = screen.getByPlaceholderText(/Ticker symbol/i);
     fireEvent.change(input, { target: { value: "NVDA" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -54,7 +54,7 @@ describe("AddTickerCommand", () => {
   it("falls back to a generic message for unknown errors", async () => {
     vi.spyOn(api, "addToWatchlist").mockRejectedValueOnce(new Error("network down"));
     render(<AddTickerCommand />, { wrapper: createWrapper() });
-    fireEvent.click(screen.getByText("+ Add ticker"));
+    fireEvent.click(screen.getByText("Add ticker"));
     const input = screen.getByPlaceholderText(/Ticker symbol/i);
     fireEvent.change(input, { target: { value: "NVDA" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -66,7 +66,7 @@ describe("AddTickerCommand", () => {
   it("closes the form and clears the error on a successful add", async () => {
     vi.spyOn(api, "addToWatchlist").mockResolvedValueOnce(undefined);
     const { container } = render(<AddTickerCommand />, { wrapper: createWrapper() });
-    fireEvent.click(screen.getByText("+ Add ticker"));
+    fireEvent.click(screen.getByText("Add ticker"));
     const input = screen.getByPlaceholderText(/Ticker symbol/i) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "NVDA" } });
     fireEvent.keyDown(input, { key: "Enter" });

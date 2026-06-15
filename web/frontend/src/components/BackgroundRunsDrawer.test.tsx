@@ -73,7 +73,8 @@ describe("BackgroundRunsDrawer active job card", () => {
   it("renders ticker, range, and progress", async () => {
     mockFetchBackgroundRuns([makeState()]);
     renderDrawer();
-    expect(await screen.findByText(/2024-01-01 -> 2024-06-30/)).toBeInTheDocument();
+    expect(await screen.findByText(/2024-01-01/)).toBeInTheDocument();
+    expect(screen.getByText(/2024-06-30/)).toBeInTheDocument();
     expect(screen.getByText(/12 \/ 130/)).toBeInTheDocument();
   });
 
@@ -101,7 +102,7 @@ describe("BackgroundRunsDrawer active job card", () => {
     const cancel = vi.spyOn(api, "cancelBackgroundRun").mockResolvedValue({ status: "ok" });
     const pause = vi.spyOn(api, "pauseBackgroundRun").mockResolvedValue({ status: "ok" });
     renderDrawer();
-    await screen.findByText(/2024-01-01 -> 2024-06-30/);
+    await screen.findByText(/2024-01-01/);
     await userEvent.click(screen.getByRole("button", { name: /pause/i }));
     await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(pause).toHaveBeenCalledWith("bgr_TEST");
