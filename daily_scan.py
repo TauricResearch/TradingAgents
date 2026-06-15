@@ -35,22 +35,29 @@ POSITION_HIGH_CONVICTION = 5_000   # Buy signal with strong debate
 POSITION_STARTER = 2_000      # Overweight — build slowly
 POSITION_MAX = 6_000          # hard cap per position
 
-# Watchlist — US stocks with best data quality on yfinance
-# Rotate through these; don't run all 10 every day (cost + time)
+# Full personal watchlist (25 tickers across US, EU, HK, and crypto)
 WATCHLIST_ALL = [
-    "NVDA", "MSFT", "AAPL", "META",
-    "TSLA", "AMD", "GOOGL", "AMZN",
-    "JPM", "LLY",
+    # US stocks
+    "TSLA", "FSLR", "QCOM", "ADBE", "C",
+    "MET", "MRK", "PLAB", "HRMY", "PBF", "ET", "BABA",
+    # US ETFs & commodities
+    "SPY", "DIA", "HDV", "GLD",
+    # European-listed ETFs (XETRA & LSE)
+    "TRET.DE", "SXR8.DE", "IDEM.L", "CNDX.L", "IJPE.L",
+    # Hong Kong-listed
+    "9618.HK", "1211.HK",
+    # Crypto
+    "BTC-USD", "ETH-USD",
 ]
 
-# Default daily subset — rotate daily to manage API cost
-# Mon: tech, Tue: growth, Wed: big tech, Thu: financials+health, Fri: full
+# 5-group thematic rotation — 5 tickers per day keeps cost and runtime manageable
+# Override at runtime: python daily_scan.py TSLA QCOM
 DAILY_ROTATION = {
-    0: ["NVDA", "AMD", "MSFT"],        # Monday
-    1: ["TSLA", "META", "PLTR"],       # Tuesday
-    2: ["AAPL", "GOOGL", "AMZN"],      # Wednesday
-    3: ["JPM", "LLY", "MSFT"],         # Thursday
-    4: ["NVDA", "AAPL", "META", "AMD"],# Friday
+    0: ["TSLA", "FSLR", "QCOM", "ADBE", "C"],           # Monday   — US growth & tech
+    1: ["SPY", "DIA", "HDV", "GLD", "MET"],              # Tuesday  — US ETFs & commodities
+    2: ["PBF", "ET", "MRK", "PLAB", "HRMY"],             # Wednesday— US energy, pharma, small-cap
+    3: ["TRET.DE", "SXR8.DE", "IDEM.L", "IJPE.L", "CNDX.L"],  # Thursday — European/UK ETFs
+    4: ["BTC-USD", "ETH-USD", "9618.HK", "1211.HK", "BABA"],   # Friday   — Crypto, HK & China
 }
 
 # ---------------------------------------------------------------------------
