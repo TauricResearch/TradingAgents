@@ -1,9 +1,9 @@
 import threading
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.outputs import LLMResult
 from langchain_core.messages import AIMessage
+from langchain_core.outputs import LLMResult
 
 
 class StatsCallbackHandler(BaseCallbackHandler):
@@ -19,8 +19,8 @@ class StatsCallbackHandler(BaseCallbackHandler):
 
     def on_llm_start(
         self,
-        serialized: Dict[str, Any],
-        prompts: List[str],
+        serialized: dict[str, Any],
+        prompts: list[str],
         **kwargs: Any,
     ) -> None:
         """Increment LLM call counter when an LLM starts."""
@@ -29,8 +29,8 @@ class StatsCallbackHandler(BaseCallbackHandler):
 
     def on_chat_model_start(
         self,
-        serialized: Dict[str, Any],
-        messages: List[List[Any]],
+        serialized: dict[str, Any],
+        messages: list[list[Any]],
         **kwargs: Any,
     ) -> None:
         """Increment LLM call counter when a chat model starts."""
@@ -57,7 +57,7 @@ class StatsCallbackHandler(BaseCallbackHandler):
 
     def on_tool_start(
         self,
-        serialized: Dict[str, Any],
+        serialized: dict[str, Any],
         input_str: str,
         **kwargs: Any,
     ) -> None:
@@ -65,7 +65,7 @@ class StatsCallbackHandler(BaseCallbackHandler):
         with self._lock:
             self.tool_calls += 1
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return current statistics."""
         with self._lock:
             return {

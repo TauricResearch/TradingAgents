@@ -18,7 +18,6 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-
 StructuredMethod = Literal[
     "function_calling",  # uses tools; respects supports_tool_choice
     "json_mode",         # uses response_format={"type":"json_object"}

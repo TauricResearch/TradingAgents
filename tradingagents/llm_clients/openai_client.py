@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
+from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
@@ -123,7 +124,7 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
         outgoing = payload.get("messages", [])
-        for message_dict, message in zip(outgoing, _input_to_messages(input_)):
+        for message_dict, message in zip(outgoing, _input_to_messages(input_), strict=False):
             if not isinstance(message, AIMessage):
                 continue
             reasoning = message.additional_kwargs.get("reasoning_content")
@@ -141,7 +142,7 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
             )
         )
         for generation, choice in zip(
-            chat_result.generations, response_dict.get("choices", [])
+            chat_result.generations, response_dict.get("choices", []), strict=False
         ):
             reasoning = choice.get("message", {}).get("reasoning_content")
             if reasoning is not None:
@@ -206,8 +207,8 @@ class ProviderSpec:
     """
 
     chat_class: type = NormalizedChatOpenAI   # provider quirks live in the subclass
-    base_url: Optional[str] = None            # default endpoint (None -> SDK default)
-    base_url_env: Optional[str] = None        # env var that overrides base_url (e.g. OLLAMA_BASE_URL)
+    base_url: str | None = None            # default endpoint (None -> SDK default)
+    base_url_env: str | None = None        # env var that overrides base_url (e.g. OLLAMA_BASE_URL)
     key_optional: bool = False                # don't require/prompt; send a placeholder if unset
     placeholder_key: str = "EMPTY"            # sent when no key is available (keyless local servers)
     require_base_url: bool = False            # error if no base_url is resolved (generic endpoint)
@@ -244,6 +245,22 @@ def is_openai_compatible(provider: str) -> bool:
     return provider.lower() in OPENAI_COMPATIBLE_PROVIDERS
 
 
+def _is_native_openai_base_url(base_url: str | None) -> bool:
+    """True when ``base_url`` is unset or points at api.openai.com.
+
+    The Responses API (/v1/responses) only exists on native OpenAI. A custom
+    base_url on the ``openai`` provider (a proxy, gateway, or local server)
+    speaks only Chat Completions, so the Responses API must stay off there even
+    though the provider spec enables it (#1024).
+    """
+    if not base_url:
+        return True
+    if "://" not in base_url:
+        base_url = "https://" + base_url
+    host = urlparse(base_url).hostname or ""
+    return host == "api.openai.com" or host.endswith(".openai.com")
+
+
 class OpenAIClient(BaseLLMClient):
     """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
 
@@ -256,7 +273,7 @@ class OpenAIClient(BaseLLMClient):
     def __init__(
         self,
         model: str,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         provider: str = "openai",
         **kwargs,
     ):
@@ -303,7 +320,10 @@ class OpenAIClient(BaseLLMClient):
                     f"(e.g. add {api_key_env}=your_key to your .env file)."
                 )
 
-            if spec.use_responses_api:
+            # The Responses API only exists on native OpenAI; if the user points
+            # the openai provider at a custom base_url (proxy/gateway/local), it
+            # only speaks Chat Completions, so keep Responses off there (#1024).
+            if spec.use_responses_api and _is_native_openai_base_url(base_url):
                 llm_kwargs["use_responses_api"] = True
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url

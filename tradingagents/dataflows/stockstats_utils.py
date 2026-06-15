@@ -1,17 +1,23 @@
-import time
 import logging
+import os
+import time
+from typing import Annotated
 
 import pandas as pd
 import yfinance as yf
-from yfinance.exceptions import YFRateLimitError
 from stockstats import wrap
-from typing import Annotated
-import os
+from yfinance.exceptions import YFRateLimitError
+
 from .config import get_config
+from .symbol_utils import NoMarketDataError, normalize_symbol
 from .utils import safe_ticker_component
-from .symbol_utils import normalize_symbol, NoMarketDataError
 
 logger = logging.getLogger(__name__)
+
+# A vendor's latest OHLCV row this many calendar days before the requested date
+# is treated as stale. Generous enough to span long holiday weekends, tight
+# enough to catch the year-old frames yfinance occasionally returns (#1021).
+MAX_OHLCV_STALE_DAYS = 10
 
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
@@ -60,6 +66,60 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     data[price_cols] = data[price_cols].ffill().bfill()
 
     return data
+
+
+def _coerce_ohlcv_dates(data: pd.DataFrame) -> pd.Series:
+    """Return parsed dates from an OHLCV frame, whether Date is a column or the index."""
+    if "Date" in data.columns:
+        return pd.to_datetime(data["Date"], errors="coerce").dropna()
+    # yfinance keeps the dates in the index (a DatetimeIndex, sometimes unnamed).
+    if isinstance(data.index, pd.DatetimeIndex):
+        return pd.Series(pd.to_datetime(data.index, errors="coerce")).dropna()
+    # Fallback: expose the index and look for any date-like column.
+    df = data.reset_index()
+    for col in ("Date", "Datetime", "date", "index"):
+        if col in df.columns:
+            parsed = pd.to_datetime(df[col], errors="coerce").dropna()
+            if not parsed.empty:
+                return parsed
+    return pd.Series(dtype="datetime64[ns]")
+
+
+def _assert_ohlcv_not_stale(
+    data: pd.DataFrame,
+    curr_date: str,
+    symbol: str,
+    canonical: str | None = None,
+    *,
+    max_stale_days: int = MAX_OHLCV_STALE_DAYS,
+) -> None:
+    """Reject OHLCV whose latest row is far older than curr_date.
+
+    Raises NoMarketDataError (with a stale-specific detail) so the router treats
+    it like any other "no usable data from this vendor" — try the next vendor,
+    then emit one clear unavailable signal. Empty frames are left to the
+    caller's existing no-data handling; this guards only the dangerous case of
+    present-but-stale rows (a vendor returning a year-old frame that would
+    otherwise feed wrong prices to the agent, #1021).
+    """
+    if data is None or data.empty:
+        return
+    requested = pd.to_datetime(curr_date, errors="coerce")
+    if pd.isna(requested):
+        return
+    requested = requested.normalize()
+    dates = _coerce_ohlcv_dates(data)
+    if dates.empty:
+        return
+    latest = dates.max().normalize()
+    stale_days = (requested - latest).days
+    if stale_days > max_stale_days:
+        raise NoMarketDataError(
+            symbol,
+            canonical,
+            f"latest row is {latest.date()}, {stale_days} days before the "
+            f"requested {requested.date()} (stale) — refusing to use it",
+        )
 
 
 def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
@@ -124,6 +184,10 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
 
     # Filter to curr_date to prevent look-ahead bias in backtesting
     data = data[data["Date"] <= curr_date_dt]
+
+    # Reject a stale frame (latest row far older than curr_date) rather than
+    # feeding year-old prices into indicators (#1021).
+    _assert_ohlcv_not_stale(data, curr_date, symbol, canonical)
 
     return data
 

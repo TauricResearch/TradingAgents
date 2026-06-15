@@ -1,9 +1,12 @@
-import os
-import requests
-import pandas as pd
 import json
+import os
 from datetime import datetime
 from io import StringIO
+
+import pandas as pd
+import requests
+
+from .errors import VendorNotConfiguredError, VendorRateLimitError
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
@@ -12,12 +15,12 @@ API_BASE_URL = "https://www.alphavantage.co/query"
 REQUEST_TIMEOUT = 30
 
 
-class AlphaVantageNotConfiguredError(ValueError):
+class AlphaVantageNotConfiguredError(VendorNotConfiguredError):
     """Raised when Alpha Vantage is selected but no API key is configured.
 
-    Subclasses ValueError for backward compatibility with callers that
-    already catch ValueError, while letting the routing layer distinguish a
-    "vendor unavailable" condition from a genuine data error.
+    A VendorNotConfiguredError (and thus still a ValueError), so the routing
+    layer's "vendor unavailable" handling and existing ValueError callers both
+    keep working.
     """
     pass
 
@@ -46,19 +49,19 @@ def format_datetime_for_api(date_input) -> str:
                 dt = datetime.strptime(date_input, "%Y-%m-%d %H:%M")
                 return dt.strftime("%Y%m%dT%H%M")
             except ValueError:
-                raise ValueError(f"Unsupported date format: {date_input}")
+                raise ValueError(f"Unsupported date format: {date_input}") from None
     elif isinstance(date_input, datetime):
         return date_input.strftime("%Y%m%dT%H%M")
     else:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
-class AlphaVantageRateLimitError(Exception):
-    """Exception raised when Alpha Vantage API rate limit is exceeded."""
+class AlphaVantageRateLimitError(VendorRateLimitError):
+    """Raised when the Alpha Vantage API rate limit is exceeded."""
     pass
 
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
-    
+
     Raises:
         AlphaVantageRateLimitError: When API rate limit is exceeded
     """
@@ -69,17 +72,17 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         "apikey": get_api_key(),
         "source": "trading_agents",
     })
-    
+
     # Handle entitlement parameter if present in params or global variable
     current_entitlement = globals().get('_current_entitlement')
     entitlement = api_params.get("entitlement") or current_entitlement
-    
+
     if entitlement:
         api_params["entitlement"] = entitlement
     elif "entitlement" in api_params:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
-    
+
     response = requests.get(API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
 

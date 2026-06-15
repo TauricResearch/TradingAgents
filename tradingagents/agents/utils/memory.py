@@ -1,8 +1,7 @@
 """Append-only markdown decision log for TradingAgents."""
 
-from typing import List, Optional
-from pathlib import Path
 import re
+from pathlib import Path
 
 from tradingagents.agents.utils.rating import parse_rating
 
@@ -51,7 +50,7 @@ class TradingMemoryLog:
 
     # --- Read path (Phase A) ---
 
-    def load_entries(self) -> List[dict]:
+    def load_entries(self) -> list[dict]:
         """Parse all entries from log. Returns list of dicts."""
         if not self._log_path or not self._log_path.exists():
             return []
@@ -64,7 +63,7 @@ class TradingMemoryLog:
                 entries.append(parsed)
         return entries
 
-    def get_pending_entries(self) -> List[dict]:
+    def get_pending_entries(self) -> list[dict]:
         """Return entries with outcome:pending (for Phase B)."""
         return [e for e in self.load_entries() if e.get("pending")]
 
@@ -162,7 +161,7 @@ class TradingMemoryLog:
         tmp_path.write_text(new_text, encoding="utf-8")
         tmp_path.replace(self._log_path)
 
-    def batch_update_with_outcomes(self, updates: List[dict]) -> None:
+    def batch_update_with_outcomes(self, updates: list[dict]) -> None:
         """Apply multiple outcome updates in a single read + atomic write.
 
         Each element of updates must have keys: ticker, trade_date,
@@ -218,7 +217,7 @@ class TradingMemoryLog:
 
     # --- Helpers ---
 
-    def _apply_rotation(self, blocks: List[str]) -> List[str]:
+    def _apply_rotation(self, blocks: list[str]) -> list[str]:
         """Drop oldest resolved blocks when their count exceeds max_entries.
 
         Pending blocks are always kept (they represent unprocessed work).
@@ -247,7 +246,7 @@ class TradingMemoryLog:
             return blocks
 
         to_drop = resolved_count - self._max_entries
-        kept: List[str] = []
+        kept: list[str] = []
         for block, is_resolved in decisions:
             if is_resolved and to_drop > 0:
                 to_drop -= 1
@@ -255,7 +254,7 @@ class TradingMemoryLog:
             kept.append(block)
         return kept
 
-    def _parse_entry(self, raw: str) -> Optional[dict]:
+    def _parse_entry(self, raw: str) -> dict | None:
         lines = raw.strip().splitlines()
         if not lines:
             return None
