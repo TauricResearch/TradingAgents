@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   LineChart, Line, BarChart, Bar as BarRect, Cell, Customized,
-  XAxis, YAxis, CartesianGrid, Tooltip,
+  XAxis, YAxis, CartesianGrid, Tooltip, Area,
   ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from "recharts";
 import type { Bar, RunLike, Verdict } from "../verdicts";
@@ -52,6 +52,84 @@ function isoToMs(iso: string): number {
 const CANDLE_WIDTH = 6;
 const UP_COLOR = "#16a34a";   // green-600
 const DOWN_COLOR = "#dc2626"; // red-600
+
+// ── Technical indicator helpers ────────────────────────────────────────
+
+/**
+ * Simple Moving Average over closing prices.
+ * Returns an array aligned with `data`; entries before the warmup window are null.
+ */
+function computeSMA(data: ChartRow[], period: number): (number | null)[] {
+  const result: (number | null)[] = new Array(data.length).fill(null);
+  if (data.length < period) return result;
+  for (let i = period - 1; i < data.length; i++) {
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      sum += data[j].c;
+    }
+    result[i] = sum / period;
+  }
+  return result;
+}
+
+/**
+ * Bollinger Bands (population std-dev).
+ * Returns { upper, middle, lower } arrays aligned with `data`.
+ * `middle` is the SMA over the given period.
+ */
+function computeBB(
+  data: ChartRow[], period: number, stdDev: number,
+): { upper: (number | null)[]; middle: (number | null)[]; lower: (number | null)[] } {
+  const middle = computeSMA(data, period);
+  const upper: (number | null)[] = new Array(data.length).fill(null);
+  const lower: (number | null)[] = new Array(data.length).fill(null);
+  for (let i = period - 1; i < data.length; i++) {
+    const m = middle[i];
+    if (m == null) continue;
+    let sqSum = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      const diff = data[j].c - m;
+      sqSum += diff * diff;
+    }
+    const std = Math.sqrt(sqSum / period);
+    upper[i] = m + stdDev * std;
+    lower[i] = m - stdDev * std;
+  }
+  return { upper, middle, lower };
+}
+
+/**
+ * Wilder's RSI (default period 14).
+ * Returns values aligned with `data`; entries before the warmup are null.
+ */
+function computeRSI(data: ChartRow[], period = 14): (number | null)[] {
+  const result: (number | null)[] = new Array(data.length).fill(null);
+  if (data.length < period + 1) return result;
+  // First differences
+  const gains: number[] = [];
+  const losses: number[] = [];
+  for (let i = 1; i < data.length; i++) {
+    const change = data[i].c - data[i - 1].c;
+    gains.push(Math.max(change, 0));
+    losses.push(Math.max(-change, 0));
+  }
+  // Initial smoothed averages (simple mean over first `period` values)
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 0; i < period; i++) {
+    avgGain += gains[i];
+    avgLoss += losses[i];
+  }
+  avgGain /= period;
+  avgLoss /= period;
+  result[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  // Wilder's smoothing for the rest
+  for (let i = period; i < gains.length; i++) {
+    avgGain = (avgGain * (period - 1) + gains[i]) / period;
+    avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
+    result[i + 1] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+  return result;
+}
 
 /**
  * Custom recharts renderer that draws one OHLC candle per data point.
@@ -162,6 +240,11 @@ export function HistoryChart(props: HistoryChartProps) {
     : (resolution === "1h" || resolution === "4h") ? "h"
     : "m";
 
+  // ── Indicator toggles ───────────────────────────────────────────────
+  const [showMA, setShowMA] = useState(false);
+  const [showBB, setShowBB] = useState(false);
+  const [showRSI, setShowRSI] = useState(false);
+
   const chartData: ChartRow[] = useMemo(
     () =>
       downsample(bars).map((b) => {
@@ -178,11 +261,34 @@ export function HistoryChart(props: HistoryChartProps) {
     [bars],
   );
 
+  // ── Technical indicator computations ─────────────────────────────────
+  const sma20 = useMemo(() => computeSMA(chartData, 20), [chartData]);
+  const sma50 = useMemo(() => computeSMA(chartData, 50), [chartData]);
+  const bb = useMemo(() => computeBB(chartData, 20, 2), [chartData]);
+  const rsi = useMemo(() => computeRSI(chartData, 14), [chartData]);
+
+  // Merged data for the price chart (extends ChartRow with indicator fields)
+  const priceChartData = useMemo(
+    () => chartData.map((row, i) => ({
+      ...row,
+      sma20: sma20[i],
+      sma50: sma50[i],
+      bbUpper: bb.upper[i],
+      bbMiddle: bb.middle[i],
+      bbLower: bb.lower[i],
+    })),
+    [chartData, sma20, sma50, bb],
+  );
+
+  // Standalone data for the RSI sub-chart
+  const rsiChartData = useMemo(
+    () => chartData.map((row, i) => ({ t: row.t, rsi: rsi[i] })),
+    [chartData, rsi],
+  );
+
   // Auto-scale the price y-axis to the candle highs/lows (with a small
-  // pad so edge candles aren't clipped). Recharts' `["auto","auto"]`
-  // would do this, but with <Customized> rendering (no <Line>) the
-  // built-in auto-scale has no dataKey to anchor to, so we drive it
-  // explicitly here.
+  // pad so edge candles aren't clipped). Also expands for BB bands
+  // when the indicator is visible.
   const yDomain: [number, number] = useMemo(() => {
     if (chartData.length === 0) return [0, 1];
     let min = Infinity, max = -Infinity;
@@ -190,9 +296,18 @@ export function HistoryChart(props: HistoryChartProps) {
       if (row.l < min) min = row.l;
       if (row.h > max) max = row.h;
     }
+    // Expand y-axis to show Bollinger Band extremities when visible
+    if (showBB) {
+      for (let i = 0; i < chartData.length; i++) {
+        const u = bb.upper[i];
+        const l = bb.lower[i];
+        if (u != null && u > max) max = u;
+        if (l != null && l < min) min = l;
+      }
+    }
     const pad = (max - min) * 0.05 || 1;
     return [min - pad, max + pad];
-  }, [chartData]);
+  }, [chartData, showBB, bb]);
 
   const rangeStartMs = isoToMs(rangeStartIso);
   const rangeEndMs = isoToMs(rangeEndIso);
@@ -259,11 +374,45 @@ export function HistoryChart(props: HistoryChartProps) {
   );
 
   return (
-    <div className="w-full h-72" data-testid="history-chart">
+    <div className={`w-full ${showRSI ? 'h-[348px]' : 'h-72'}`} data-testid="history-chart">
       <div className="flex flex-col h-full">
+        {/* Indicator toggle bar */}
+        <div className="flex items-center gap-0 px-3 pt-1 pb-0.5 shrink-0">
+          <button
+            onClick={() => setShowMA(v => !v)}
+            className={`px-3 py-1 text-xs font-semibold rounded-l-lg border transition-all ${
+              showMA
+                ? "bg-violet-500/15 text-violet-300 border-violet-500/30 z-10"
+                : "text-slate-500 border-slate-700/50 hover:text-slate-300"
+            }`}
+          >
+            MA
+          </button>
+          <button
+            onClick={() => setShowBB(v => !v)}
+            className={`px-3 py-1 text-xs font-semibold border border-l-0 transition-all ${
+              showBB
+                ? "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30 z-10"
+                : "text-slate-500 border-slate-700/50 hover:text-slate-300"
+            }`}
+          >
+            BB
+          </button>
+          <button
+            onClick={() => setShowRSI(v => !v)}
+            className={`px-3 py-1 text-xs font-semibold rounded-r-lg border border-l-0 transition-all ${
+              showRSI
+                ? "bg-amber-500/15 text-amber-300 border-amber-500/30 z-10"
+                : "text-slate-500 border-slate-700/50 hover:text-slate-300"
+            }`}
+          >
+            RSI
+          </button>
+        </div>
+        {/* Price chart */}
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            <LineChart data={priceChartData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
               <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
               <XAxis
                 dataKey="t"
@@ -280,6 +429,21 @@ export function HistoryChart(props: HistoryChartProps) {
                 stroke="#334155"
               />
               <Customized component={BoundCandleRenderer} />
+              {/* SMA lines */}
+              {showMA && (
+                <>
+                  <Line dataKey="sma20" stroke="#a78bfa" strokeWidth={1} dot={false} connectNulls isAnimationActive={false} name="SMA20" />
+                  <Line dataKey="sma50" stroke="#f472b6" strokeWidth={1} dot={false} connectNulls isAnimationActive={false} name="SMA50" />
+                </>
+              )}
+              {/* Bollinger Bands */}
+              {showBB && (
+                <>
+                  <Area dataKey="bbUpper" fill="#c084fc" fillOpacity={0.08} stroke="none" isAnimationActive={false} />
+                  <Area dataKey="bbLower" fill="#c084fc" fillOpacity={0.08} stroke="none" isAnimationActive={false} />
+                  <Line dataKey="bbMiddle" stroke="#c084fc" strokeWidth={1} dot={false} connectNulls isAnimationActive={false} name="BB Middle" />
+                </>
+              )}
               {/* Hidden line — gives the <Tooltip> a real series to
                   source its payload from. <Customized> alone doesn't
                   register as a series, so without this the tooltip
@@ -373,6 +537,7 @@ export function HistoryChart(props: HistoryChartProps) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+        {/* Volume chart */}
         <div className="h-14 shrink-0 border-t border-slate-800">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 8, left: 8 }}>
@@ -412,6 +577,40 @@ export function HistoryChart(props: HistoryChartProps) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        {/* RSI sub-chart */}
+        {showRSI && (
+          <div className="h-[60px] shrink-0 border-t border-slate-800">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={rsiChartData} margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
+                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="t"
+                  type="number"
+                  domain={[rangeStartMs, rangeEndMs]}
+                  scale="time"
+                  hide
+                />
+                <YAxis domain={[0, 100]} hide width={50} />
+                <ReferenceLine y={70} stroke="#dc2626" strokeDasharray="2 2" strokeWidth={0.5} />
+                <ReferenceLine y={30} stroke="#16a34a" strokeDasharray="2 2" strokeWidth={0.5} />
+                <Line dataKey="rsi" stroke="#f59e0b" strokeWidth={1} dot={false} connectNulls isAnimationActive={false} name="RSI" />
+                <Tooltip
+                  cursor={{ stroke: "#475569", strokeDasharray: "3 3" }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload as { t: number; rsi: number | null };
+                    return (
+                      <div className="glass-panel px-3 py-2 text-xs" data-testid="rsi-tooltip">
+                        <div className="text-slate-500 font-mono text-[10px]">{fmtTime(d.t, scale)}</div>
+                        <div className="data-text font-semibold text-amber-300 text-sm mt-0.5">RSI {d.rsi != null ? d.rsi.toFixed(1) : '\u2014'}</div>
+                      </div>
+                    );
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </div>
   );
