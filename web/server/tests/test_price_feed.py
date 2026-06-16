@@ -74,7 +74,7 @@ async def test_poll_once_exception_marks_stale(monkeypatch):
     ticker.fast_info = fast_info
     monkeypatch.setattr("web.server.price_feed.yf.Ticker", lambda _t: ticker)
 
-    snap = price_feed.PriceSnapshot(price=200.0, prev_close=200.0, change_pct=0.0, sparkline=[])
+    snap = price_feed.PriceSnapshot(price=200.0, prev_close=200.0, change_pct=None, sparkline=[])
     state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
 
     await price_feed._poll_once(state, broadcast=lambda e: None)
@@ -189,22 +189,22 @@ class TestComputeChangePct:
         assert len(calls) == 1
         assert calls[0]["data"]["change_pct"] == pytest.approx(3.0)
 
-    def test_change_pct_is_zero_when_previous_close_is_zero(self, monkeypatch):
+    def test_change_pct_is_none_when_previous_close_is_zero(self, monkeypatch):
         _patch_fast_info(monkeypatch, last_price=103.0, previous_close=0.0)
         state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
         calls, broadcast = _make_broadcast()
 
         asyncio.run(price_feed._poll_once(state, broadcast))
-        assert calls[0]["data"]["change_pct"] == 0.0
+        assert calls[0]["data"]["change_pct"] is None
 
-    def test_change_pct_is_zero_when_price_is_zero(self, monkeypatch):
+    def test_change_pct_is_none_when_price_is_zero(self, monkeypatch):
         _patch_fast_info(monkeypatch, last_price=0.0, previous_close=100.0)
         state = price_feed.PriceState(snapshots={}, tickers=lambda: ["NVDA"])
         calls, broadcast = _make_broadcast()
 
         asyncio.run(price_feed._poll_once(state, broadcast))
         assert calls[0]["data"]["stale"] is True
-        assert calls[0]["data"]["change_pct"] == 0.0
+        assert calls[0]["data"]["change_pct"] is None
 
     def test_change_pct_handles_negative_change(self, monkeypatch):
         _patch_fast_info(monkeypatch, last_price=97.0, previous_close=100.0)
@@ -298,7 +298,7 @@ def test_poll_once_does_not_traceback_on_bad_symbol(monkeypatch, caplog):
     snap = state.snapshots["TA125"]
     assert snap.stale is True
     assert snap.price == 0.0
-    assert snap.change_pct == 0.0
+    assert snap.change_pct is None
 
     # Broadcast still happens so the frontend can show "unavailable".
     assert len(calls) == 1

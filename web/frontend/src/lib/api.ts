@@ -44,6 +44,18 @@ export type RunStatus =
   | "cancelled"
   | "superseded";
 
+export interface ConfigModels {
+  llm_provider: string | null;
+  deep_think_model: string | null;
+  quick_think_model: string | null;
+}
+
+export async function fetchConfigModels(): Promise<ConfigModels> {
+  const r = await fetch(`${base}/api/config/models`);
+  if (!r.ok) throw new ApiError(`config ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
 export interface RunRow {
   id: string;
   slug: string;
@@ -288,6 +300,47 @@ export function resumeBackgroundRun(jobId: string): Promise<{ status: string }> 
   return postJson(`/api/background-runs/${encodeURIComponent(jobId)}/resume`, {});
 }
 
+// ---- App Configuration (env-based) ----
+
+export interface AppConfig {
+  TRADINGAGENTS_LLM_PROVIDER: string;
+  TRADINGAGENTS_DEEP_THINK_LLM: string;
+  TRADINGAGENTS_QUICK_THINK_LLM: string;
+  TRADINGAGENTS_LLM_BACKEND_URL: string;
+  TRADINGAGENTS_OUTPUT_LANGUAGE: string;
+  TRADINGAGENTS_MAX_DEBATE_ROUNDS: string;
+  TRADINGAGENTS_MAX_RISK_ROUNDS: string;
+  TRADINGAGENTS_TEMPERATURE: string;
+  TRADINGAGENTS_BENCHMARK_TICKER: string;
+  TRADINGAGENTS_CHECKPOINT_ENABLED: string;
+  TRADINGAGENTS_LLM_CACHE_ENABLED: string;
+}
+
+export interface ConfigResponse {
+  config: AppConfig;
+  api_keys: Record<string, boolean>;
+}
+
+export async function fetchConfig(): Promise<ConfigResponse> {
+  const r = await fetch(`${base}/api/config`);
+  if (!r.ok) {
+    throw new ApiError(`config ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
+}
+
+export async function saveConfig(updates: Partial<AppConfig> | Record<string, string>): Promise<ConfigResponse> {
+  const r = await fetch(`${base}/api/config`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!r.ok) {
+    throw new ApiError(`save-config ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
+}
+
 export async function getTickerHistory(
   ticker: string,
   range: HistoryRange = "auto",
@@ -299,4 +352,151 @@ export async function getTickerHistory(
     throw new ApiError(`history ${r.status}`, r.status, await readJsonOrNull(r));
   }
   return r.json();
+}
+
+// ---- Free LLM Keys (from alistaitsacle/free-llm-api-keys) ----
+
+export type FreeKeyStatus = "working" | "low_balance" | "no_access" | "rate_limited" | "error" | "unknown";
+
+export interface FreeLlmKey {
+  key: string;
+  masked_key: string;
+  model: string;
+  provider: string;
+  budget: string;
+  rate_limit: string;
+  expires: string;
+  description: string;
+  status: FreeKeyStatus;
+  test_response: string | null;
+  error_message: string | null;
+}
+
+export interface FreeLlmKeysResponse {
+  keys: FreeLlmKey[];
+  base_url: string;
+}
+
+export async function fetchFreeLlmKeys(): Promise<FreeLlmKeysResponse> {
+  const r = await fetch(`${base}/api/free-llm-keys/fetch`, { method: "POST" });
+  if (!r.ok) {
+    throw new ApiError(`free-keys ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
+}
+
+// ── Free Keys Disk Cache ──
+
+export interface FreeLlmKeysCache {
+  saved_at: string;
+  keys: FreeLlmKey[];
+  base_url: string;
+}
+
+/** Trigger a background refresh: fetch, test all keys, and populate the disk cache. */
+export async function refreshFreeKeysCache(): Promise<{ status: string; count: number }> {
+  const r = await fetch(`${base}/api/free-llm-keys/refresh-cache`, { method: "POST" });
+  if (!r.ok) throw new ApiError(`refresh-cache ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+/** Read previously-fetched free keys from the server-side disk cache. */
+export async function fetchCachedFreeKeys(): Promise<FreeLlmKeysCache | null> {
+  const r = await fetch(`${base}/api/free-llm-keys/cached`);
+  if (r.status === 404) return null;
+  if (!r.ok) throw new ApiError(`cached-keys ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+/**
+ * Streaming version of ``fetchFreeLlmKeys``.
+ *
+ * Reads a Server-Sent Events (SSE) stream from the backend and invokes the
+ * supplied callbacks as each key result arrives, so the UI can render
+ * progress in real time.
+ *
+ * Callbacks (all optional):
+ *   - ``onMeta`` – called once with ``{ total, base_url }``.
+ *   - ``onKeyResult`` – called for each tested key as soon as it completes.
+ *   - ``onProgress`` – called after each key with ``{ tested, total }``.
+ *   - ``onDone`` – called once when all tests finish, with the final sorted
+ *     key list and ``base_url``.
+ *   - ``onError`` – called on stream error.
+ */
+export async function fetchFreeLlmKeysStream(callbacks: {
+  onMeta?: (meta: { total: number; base_url: string }) => void;
+  onKeyResult?: (key: FreeLlmKey) => void;
+  onProgress?: (tested: number, total: number) => void;
+  onDone?: (keys: FreeLlmKey[], base_url: string) => void;
+  onError?: (error: string) => void;
+}): Promise<void> {
+  const r = await fetch(`${base}/api/free-llm-keys/fetch`, { method: "POST" });
+  if (!r.ok) {
+    const body = await readJsonOrNull(r);
+    const detail =
+      body && typeof body === "object" && "detail" in body
+        ? String((body as Record<string, unknown>).detail)
+        : `HTTP ${r.status}`;
+    callbacks.onError?.(detail);
+    return;
+  }
+
+  const reader = r.body?.getReader();
+  if (!reader) {
+    callbacks.onError?.("Response has no body");
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let currentEvent = "";
+  let currentData = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+      if (line.startsWith("event: ")) {
+        currentEvent = line.slice(7).trim();
+      } else if (line.startsWith("data: ")) {
+        currentData = line.slice(6).trim();
+      } else if (line === "") {
+        if (currentEvent && currentData) {
+          try {
+            const data: Record<string, unknown> = JSON.parse(currentData);
+            switch (currentEvent) {
+              case "meta":
+                callbacks.onMeta?.(data as { total: number; base_url: string });
+                break;
+              case "key_result":
+                callbacks.onKeyResult?.(data as unknown as FreeLlmKey);
+                break;
+              case "progress":
+                callbacks.onProgress?.(
+                  Number(data.tested),
+                  Number(data.total),
+                );
+                break;
+              case "done":
+                callbacks.onDone?.(
+                  (data.keys ?? []) as FreeLlmKey[],
+                  String(data.base_url ?? ""),
+                );
+                break;
+            }
+          } catch {
+            // skip
+          }
+        }
+        currentEvent = "";
+        currentData = "";
+      }
+    }
+  }
 }

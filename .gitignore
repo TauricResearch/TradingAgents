@@ -223,6 +223,9 @@ __marimo__/
 .tmp_wiring_cache/
 .superpowers/
 
+# OpenCode/AI agent session continuation state (internal, not meaningful in version control)
+.omo/run-continuation/
+
 # Env file backups/copies (secrets)
 .env.backup
 .env copy

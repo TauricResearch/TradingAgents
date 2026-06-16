@@ -290,9 +290,9 @@ async def enqueue(
 
     info = storage.create_run_dir(
         ticker_u,
-        llm_provider=DEFAULT_CONFIG.get("llm_provider"),
-        deep_think_model=DEFAULT_CONFIG.get("deep_think_llm"),
-        quick_think_model=DEFAULT_CONFIG.get("quick_think_llm"),
+        llm_provider=os.environ.get("TRADINGAGENTS_LLM_PROVIDER") or DEFAULT_CONFIG.get("llm_provider"),
+        deep_think_model=os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM") or DEFAULT_CONFIG.get("deep_think_llm"),
+        quick_think_model=os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or DEFAULT_CONFIG.get("quick_think_llm"),
         start_price=start_price,
         start_price_at=start_price_at,
     )
@@ -391,6 +391,29 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
             "trade_date": date_str,
             "checkpoint_enabled": True,
         }
+        # Pick up user-saved model/provider from .env (loaded into
+        # os.environ at server startup so it survives restarts).
+        # Sync ALL env-var-driven config keys at runtime, not just the
+        # model/provider trinity.  Without this, a model or backend URL
+        # changed via the dashboard Settings panel or the Free LLM Keys
+        # "Apply" button is visible in the API response but silently
+        # ignored by the trading graph on every subsequent run.
+        for cfg_key, env_var in (
+            ("llm_provider",           "TRADINGAGENTS_LLM_PROVIDER"),
+            ("deep_think_llm",         "TRADINGAGENTS_DEEP_THINK_LLM"),
+            ("quick_think_llm",        "TRADINGAGENTS_QUICK_THINK_LLM"),
+            ("backend_url",            "TRADINGAGENTS_LLM_BACKEND_URL"),
+            ("output_language",        "TRADINGAGENTS_OUTPUT_LANGUAGE"),
+            ("max_debate_rounds",      "TRADINGAGENTS_MAX_DEBATE_ROUNDS"),
+            ("max_risk_discuss_rounds","TRADINGAGENTS_MAX_RISK_ROUNDS"),
+            ("temperature",            "TRADINGAGENTS_TEMPERATURE"),
+            ("benchmark_ticker",       "TRADINGAGENTS_BENCHMARK_TICKER"),
+            ("llm_cache_enabled",      "TRADINGAGENTS_LLM_CACHE_ENABLED"),
+            ("llm_cache_ttl_seconds",  "TRADINGAGENTS_LLM_CACHE_TTL"),
+        ):
+            val = os.environ.get(env_var)
+            if val:
+                config[cfg_key] = val
         graph = build_graph(config, callbacks=[stream_handler, capture_handler])
 
         # Per-node timing for structured stage progress logs.
