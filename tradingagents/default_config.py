@@ -99,10 +99,34 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "core_stock_apis": "fmp,alpha_vantage,marketstack,yfinance",
+        "technical_indicators": "yfinance,alpha_vantage",
+        "fundamental_data": "fmp,alpha_vantage,finnhub,yfinance",
+        "news_data": "finnhub,fmp,alpha_vantage,yfinance",
+    },
+    # Non-overlapping vendor data that can enrich analyst prompts without
+    # replacing core price, fundamental, or news data.
+    "enrichment_sources": {
+        "finnhub": [
+            "earnings_calendar",
+            "insider_transactions",
+            "usa_spending",
+            "uspto_patents",
+            "h1b_visas",
+        ],
+        "fmp": [
+            "analyst_estimates",
+            "price_targets",
+            "ratings",
+            "sec_filings",
+            "transcripts",
+            "congress_trading",
+        ],
+        "marketstack": [
+            "splits",
+            "dividends",
+            "exchange_metadata",
+        ],
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
