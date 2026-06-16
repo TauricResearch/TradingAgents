@@ -46,28 +46,42 @@ MACRO_SERIES = {
     "yield_curve": "T10Y2Y",
     # Inflation
     "cpi": "CPIAUCSL",
+    "headline_cpi": "CPIAUCSL",
+    "inflation": "CPIAUCSL",
     "core_cpi": "CPILFESL",
     "pce": "PCEPI",
     "core_pce": "PCEPILFE",
     "inflation_expectations": "T10YIE",
     # Growth & output
     "real_gdp": "GDPC1",
+    "gdp_growth": "GDPC1",
+    "economic_growth": "GDPC1",
     "gdp": "GDP",
     "industrial_production": "INDPRO",
+    "factory_output": "INDPRO",
     # Labor
     "unemployment_rate": "UNRATE",
     "unemployment": "UNRATE",
     "nonfarm_payrolls": "PAYEMS",
     "payrolls": "PAYEMS",
+    "jobs": "PAYEMS",
+    "nfp": "PAYEMS",
     "initial_claims": "ICSA",
+    "jobless_claims": "ICSA",
     # Money & markets
     "m2": "M2SL",
     "money_supply": "M2SL",
     "vix": "VIXCLS",
     "dollar_index": "DTWEXBGS",
+    "dxy": "DTWEXBGS",
+    "us_dollar": "DTWEXBGS",
     # Sentiment & housing
     "consumer_sentiment": "UMCSENT",
+    "consumer_confidence": "UMCSENT",
+    "umich_sentiment": "UMCSENT",
     "housing_starts": "HOUST",
+    "building_permits": "PERMIT",
+    "housing_permits": "PERMIT",
     "retail_sales": "RSAFS",
 }
 
@@ -93,13 +107,25 @@ def get_api_key() -> str:
 
 
 def _resolve_series_id(indicator: str) -> str:
-    """Map a friendly alias to a FRED series ID, or pass a raw ID through."""
+    """Map a friendly alias to a FRED series ID, or pass a raw ID through.
+
+    Validates that the resolved ID conforms to FRED's rules (1-25 alphanumeric
+    characters) so an LLM-generated descriptive name fails fast with a clear
+    message instead of producing an opaque FRED 400 error.
+    """
     key = indicator.strip().lower().replace(" ", "_").replace("-", "_")
-    if key in MACRO_SERIES:
-        return MACRO_SERIES[key]
     # Not a known alias: treat the input as a raw FRED series ID (FRED IDs are
     # conventionally uppercase, e.g. "DGS10", "CPIAUCSL").
-    return indicator.strip().upper()
+    series_id = MACRO_SERIES[key] if key in MACRO_SERIES else indicator.strip().upper()
+
+    if not (1 <= len(series_id) <= 25 and series_id.isalnum()):
+        raise ValueError(
+            f"Invalid FRED series ID '{series_id}'. Series IDs must be 1-25 "
+            f"alphanumeric characters. Use a supported alias (e.g. 'cpi', "
+            f"'unemployment', 'fed_funds_rate', '10y_treasury') or a valid raw "
+            f"FRED series ID."
+        )
+    return series_id
 
 
 def _request(path: str, params: dict) -> dict:
@@ -143,13 +169,22 @@ def get_macro_data(
 
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
-    series_id = _resolve_series_id(indicator)
+    try:
+        series_id = _resolve_series_id(indicator)
+    except ValueError as e:
+        return (
+            f"ERROR: {e}\n\n"
+            f"Use a supported alias (e.g. 'cpi', 'unemployment', "
+            f"'fed_funds_rate', '10y_treasury', 'yield_curve') or a valid raw "
+            f"FRED series ID."
+        )
 
     meta = _request("series", {"series_id": series_id}).get("seriess") or []
     if not meta:
         raise ValueError(
             f"FRED series '{series_id}' not found. Pass a known alias "
-            f"(e.g. 'cpi', 'unemployment') or a valid FRED series ID."
+            f"(e.g. 'cpi', 'unemployment', 'fed_funds_rate') or a valid raw "
+            f"FRED series ID."
         )
     info = meta[0]
     title = info.get("title", series_id)
