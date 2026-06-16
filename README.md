@@ -175,6 +175,22 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+### Web UI
+
+TradingAgents also provides a browser-based Web UI powered by Streamlit:
+
+```bash
+# Install with webui extra
+pip install ".[webui]"
+
+# Launch Web UI
+tradingagents-webui
+# or
+streamlit run webui/app.py
+```
+
+The browser opens `http://localhost:8501` automatically. Configure ticker, date, LLM provider, and analysts in the sidebar, then click **Run Analysis** to start.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
