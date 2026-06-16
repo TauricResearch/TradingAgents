@@ -97,15 +97,20 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "oil commodities supply chain energy",
     ],
     # Data vendor configuration
-    # Category-level configuration (default for all tools in category)
+    # Category-level configuration (default for all tools in category).
+    # The configured value is the exact vendor chain — requests are NOT silently
+    # routed to vendors you didn't choose. For ordered fallback, list several,
+    # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
     "data_vendors": {
         "core_stock_apis": "fmp,alpha_vantage,marketstack,yfinance",
         "technical_indicators": "yfinance,alpha_vantage",
         "fundamental_data": "fmp,alpha_vantage,finnhub,yfinance",
         "news_data": "finnhub,fmp,alpha_vantage,yfinance",
+        "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
+        "prediction_markets": "polymarket",  # Options: polymarket (keyless)
     },
     # Non-overlapping vendor data that can enrich analyst prompts without
-    # replacing core price, fundamental, or news data.
+    # replacing core price, fundamental, news, macro, or prediction data.
     "enrichment_sources": {
         "finnhub": [
             "earnings_calendar",

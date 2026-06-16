@@ -2,15 +2,17 @@ import os
 
 import requests
 
+from .errors import VendorNotConfiguredError, VendorRateLimitError
+
 
 API_BASE_URL = "https://api.marketstack.com/v1"
 
 
-class MarketstackNotConfiguredError(ValueError):
+class MarketstackNotConfiguredError(VendorNotConfiguredError):
     pass
 
 
-class MarketstackRateLimitError(Exception):
+class MarketstackRateLimitError(VendorRateLimitError):
     pass
 
 

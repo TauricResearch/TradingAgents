@@ -2,15 +2,17 @@ import os
 
 import requests
 
+from .errors import VendorNotConfiguredError, VendorRateLimitError
+
 
 API_BASE_URL = "https://finnhub.io/api/v1"
 
 
-class FinnhubNotConfiguredError(ValueError):
+class FinnhubNotConfiguredError(VendorNotConfiguredError):
     pass
 
 
-class FinnhubRateLimitError(Exception):
+class FinnhubRateLimitError(VendorRateLimitError):
     pass
 
 

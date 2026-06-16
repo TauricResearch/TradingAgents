@@ -1,9 +1,9 @@
 """yfinance-based news data fetching functions."""
 
-from typing import Optional
+import contextlib
+from datetime import datetime
 
 import yfinance as yf
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
@@ -28,10 +28,8 @@ def _extract_article_data(article: dict) -> dict:
         pub_date_str = content.get("pubDate", "")
         pub_date = None
         if pub_date_str:
-            try:
+            with contextlib.suppress(ValueError, AttributeError):
                 pub_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                pass
 
         return {
             "title": title,
@@ -41,14 +39,35 @@ def _extract_article_data(article: dict) -> dict:
             "pub_date": pub_date,
         }
     else:
-        # Fallback for flat structure
+        # Fallback for flat structure. Parse the epoch publish time so flat
+        # articles are date-filterable too (otherwise they bypass the
+        # historical window and leak future news, #992/#1007).
+        pub_date = None
+        ts = article.get("providerPublishTime")
+        if ts:
+            with contextlib.suppress(ValueError, OSError, TypeError):
+                pub_date = datetime.fromtimestamp(ts)
         return {
             "title": article.get("title", "No title"),
             "summary": article.get("summary", ""),
             "publisher": article.get("publisher", "Unknown"),
             "link": article.get("link", ""),
-            "pub_date": None,
+            "pub_date": pub_date,
         }
+
+
+def _in_news_window(pub_date, start_dt, end_dt) -> bool:
+    """Whether an article belongs in the [start_dt, end_dt] window.
+
+    Dated articles are kept only if they fall in the window. An undated article
+    is kept only when the window reaches the present (live run) — in a
+    historical/backtest window it's excluded, since we can't prove it isn't
+    future news (look-ahead safety, #992/#1007).
+    """
+    if pub_date is not None:
+        naive = pub_date.replace(tzinfo=None) if hasattr(pub_date, "replace") else pub_date
+        return start_dt <= naive <= end_dt + relativedelta(days=1)
+    return end_dt >= datetime.now() - relativedelta(days=1)
 
 
 def get_news_yfinance(
@@ -85,11 +104,9 @@ def get_news_yfinance(
         for article in news:
             data = _extract_article_data(article)
 
-            # Filter by date if publish time is available
-            if data["pub_date"]:
-                pub_date_naive = data["pub_date"].replace(tzinfo=None)
-                if not (start_dt <= pub_date_naive <= end_dt + relativedelta(days=1)):
-                    continue
+            # Keep only articles within the requested window (look-ahead safe).
+            if not _in_news_window(data["pub_date"], start_dt, end_dt):
+                continue
 
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
             if data["summary"]:
@@ -110,8 +127,8 @@ def get_news_yfinance(
 
 def get_global_news_yfinance(
     curr_date: str,
-    look_back_days: Optional[int] = None,
-    limit: Optional[int] = None,
+    look_back_days: int | None = None,
+    limit: int | None = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
@@ -170,31 +187,25 @@ def get_global_news_yfinance(
         start_date = start_dt.strftime("%Y-%m-%d")
 
         news_str = ""
+        kept = 0
         for article in all_news[:limit]:
-            # Handle both flat and nested structures
-            if "content" in article:
-                data = _extract_article_data(article)
-                # Skip articles published after curr_date (look-ahead guard)
-                if data.get("pub_date"):
-                    pub_naive = data["pub_date"].replace(tzinfo=None) if hasattr(data["pub_date"], "replace") else data["pub_date"]
-                    if pub_naive > curr_dt + relativedelta(days=1):
-                        continue
-                title = data["title"]
-                publisher = data["publisher"]
-                link = data["link"]
-                summary = data["summary"]
-            else:
-                title = article.get("title", "No title")
-                publisher = article.get("publisher", "Unknown")
-                link = article.get("link", "")
-                summary = ""
-
-            news_str += f"### {title} (source: {publisher})\n"
-            if summary:
-                news_str += f"{summary}\n"
-            if link:
-                news_str += f"Link: {link}\n"
+            # Extract uniformly (flat + nested) and apply the same look-ahead-safe
+            # window filter, so flat articles can't leak future news (#1007).
+            data = _extract_article_data(article)
+            if not _in_news_window(data["pub_date"], start_dt, curr_dt):
+                continue
+            news_str += f"### {data['title']} (source: {data['publisher']})\n"
+            if data["summary"]:
+                news_str += f"{data['summary']}\n"
+            if data["link"]:
+                news_str += f"Link: {data['link']}\n"
             news_str += "\n"
+            kept += 1
+
+        # All candidates fell outside the window -> say so rather than return an
+        # empty-bodied report (#993).
+        if kept == 0:
+            return f"No global news found between {start_date} and {curr_date}"
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 

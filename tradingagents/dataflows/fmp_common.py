@@ -2,15 +2,17 @@ import os
 
 import requests
 
+from .errors import VendorNotConfiguredError, VendorRateLimitError
+
 
 API_BASE_URL = "https://financialmodelingprep.com/stable"
 
 
-class FMPNotConfiguredError(ValueError):
+class FMPNotConfiguredError(VendorNotConfiguredError):
     pass
 
 
-class FMPRateLimitError(Exception):
+class FMPRateLimitError(VendorRateLimitError):
     pass
 
 

@@ -111,7 +111,7 @@ cd TradingAgents
 
 Create a virtual environment in any of your favorite environment managers:
 ```bash
-conda create -n tradingagents python=3.13
+conda create -n tradingagents python=3.12
 conda activate tradingagents
 ```
 
@@ -147,15 +147,19 @@ export DASHSCOPE_API_KEY=...       # Qwen — International (dashscope-intl.aliy
 export DASHSCOPE_CN_API_KEY=...    # Qwen — China (dashscope.aliyuncs.com)
 export ZHIPU_API_KEY=...           # GLM via Z.AI (international)
 export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
-export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io, M2.x, 204K ctx)
-export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com, M2.x, 204K ctx)
+export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io)
+export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
-For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
+For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
+
+For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-4-8-v1:0`.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
+
+For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
@@ -223,7 +227,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
+config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp, ...)
 config["deep_think_llm"] = "gpt-5.5"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2

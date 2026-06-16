@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
 
 from langgraph.checkpoint.sqlite import SqliteSaver
 
