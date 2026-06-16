@@ -1,0 +1,46 @@
+Plan ulepszenia skryptu `advanced_agent.py` w celu ciągłej analizy rynku, wyszukiwania nowych opcji i nauki z historii transakcji:
+
+### 1. Wprowadzenie Pętli Ciągłej (Continuous Execution)
+Obecnie skrypt działa jednorazowo (uruchamia się i kończy). Aby agent działał nieprzerwanie, należy wprowadzić harmonogram (np. za pomocą bibliotek `schedule`, `APScheduler` lub prostej pętli `while True` z `time.sleep()`).
+* **Implementacja:** Uruchamianie agenta w określonych interwałach (np. co godzinę lub codziennie po otwarciu/zamknięciu rynku), aby oszczędzać zasoby i unikać limitów API.
+* **Zarządzanie sesją:** Skrypt powinien obsługiwać bezpieczne zamykanie i zapisywanie stanu (np. poprzez przechwytywanie sygnałów `SIGINT`).
+
+### 2. Rozszerzony Skaner Rynku (Szukanie nowych opcji)
+Zamiast wybierać akcje tylko na podstawie aktualnego portfela (funkcja `select_top_stocks`), agent powinien analizować szerszy rynek.
+* **Integracja z API giełdowym:** Użycie zewnętrznego API (np. Yahoo Finance, Alpaca, Polygon) do pobierania list "Top Gainers/Losers", popularnych sektorów lub najczęściej komentowanych spółek (np. sentyment z wiadomości/X/Reddita).
+* **Modyfikacja Promptu:** LLM powinien otrzymywać zarówno listę posiadanych akcji (portfolio), jak i zestawienie najciekawszych nowych spółek rynkowych, aby mógł zdecydować, czy lepiej bronić obecnych pozycji, czy wejść w zupełnie nowe aktywa.
+
+### 3. Zaawansowana Analiza Historii (Refleksja i Uczenie się)
+Aktualnie skrypt przekazuje tylko 3 ostatnie decyzje w celach kontekstowych. Można to znacznie rozbudować:
+* **Ewaluacja przeszłych decyzji (Reflection):** Agent co jakiś czas (np. raz w tygodniu) przegląda swoje poprzednie decyzje, weryfikuje jakie były rzeczywiste ceny po zakupie i ocenia, czy podjął dobrą, czy złą decyzję. Wynik tej refleksji (tzw. "lessons learned") zapisuje w pamięci.
+* **Wykorzystanie bazy wektorowej (RAG):** Jeśli historia staje się duża, można użyć bazy wektorowej (np. ChromaDB, FAISS). Agent przed podjęciem decyzji dla danej spółki wyszukuje podobne sytuacje z przeszłości (np. "Jak zachowałem się ostatnio podczas dużej zmienności na spółkach technologicznych?").
+* **Większy kontekst z przeszłości:** Agent uczy się swoich błędów, dodając informację o ROI (zwrocie z inwestycji) z poszczególnych "zagrań" do przyszłych promptów.
+
+### 4. Dynamiczne Aktualizowanie Portfela (Real-Time Data)
+* **Zastąpienie "sample_portfolio":** Zamiast twardo zakodowanego `sample_portfolio`, na początku każdej pętli agent powinien pobierać aktualny stan konta i posiadane akcje bezpośrednio z konta brokerskiego przez API (np. Alpaca, Interactive Brokers) lub bazy danych.
+
+### 5. Lepsze Zarządzanie Stanem i Logowanie
+* Zastąpienie pliku JSON `advanced_agent_history.json` bazą danych (np. SQLite lub PostgreSQL), aby łatwiej wyciągać i analizować historię transakcji z podziałem na spółki i daty.
+* Zapisywanie tzw. "Confidence Score" do każdej decyzji, by w przyszłości analizować, dlaczego agent czuł się pewnie i jak to wpłynęło na zysk.
+
+### Podsumowanie (Jak to by wyglądało w kodzie):
+```python
+def start_continuous_trading():
+    while True:
+        # 1. Pobranie aktualnego stanu portfela z brokera
+        portfolio = get_real_portfolio() 
+        
+        # 2. Pobranie rynkowych "hot stocks" z API
+        market_trends = get_market_trends() 
+        
+        # 3. Przeprowadzenie analizy wyciągając naukę z przeszłości (baza danych)
+        past_lessons = retrieve_relevant_history() 
+        
+        # 4. Uruchomienie agenta 
+        agent = AdvancedTradingAgent()
+        agent.run(portfolio, market_trends, past_lessons)
+        
+        # 5. Odczekanie np. 60 minut przed kolejną analizą
+        time.sleep(3600)
+```
+Taki plan pozwoli agentowi płynnie ewoluować, stale śledzić rynek niezależnie od człowieka i samodoskonalić się na własnych błędach.

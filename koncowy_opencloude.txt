@@ -1,0 +1,439 @@
+# Finalny plan OpenClaude: ciągły analityk giełdowy dla advanced_agent.py
+
+## 1. Ocena planu Gemini
+
+### Mocne strony
+
+1. **Dobrze definiuje główną zmianę**
+   - Plan jasno mówi, że `advanced_agent.py` ma przejść od jednorazowego działania do ciągłej analizy rynku.
+   - To jest właściwy kierunek zgodny z celem: agent ma stale skanować rynek i uczyć się z historii.
+
+2. **Uwzględnia praktyczne źródła danych**
+   - Proponuje integrację z zewnętrznymi API, np. Yahoo Finance, Alpaca, Polygon.
+   - Wskazuje na możliwość pobierania top gainerów/loserów, sektorów i sygnałów sentymentu.
+
+3. **Zwraca uwagę na historię decyzji**
+   - Plan poprawnie identyfikuje, że obecna historia jest zbyt uboga.
+   - Proponuje refleksję nad wcześniejszymi decyzjami, ocenę ROI i zapisywanie wniosków.
+
+4. **Ma ambitną wizję uczenia się**
+   - Pomysł użycia RAG/ChromaDB/FAISS jest ciekawy, jeśli historia decyzji stanie się duża.
+   - Może pozwolić agentowi wyszukiwać podobne sytuacje rynkowe z przeszłości.
+
+5. **Proponuje lepsze zarządzanie stanem**
+   - Zamiana JSON-a na SQLite/PostgreSQL może być sensowna przy większej liczbie decyzji.
+   - Confidence Score może ułatwić późniejszą analizę jakości decyzji.
+
+### Słabe strony
+
+1. **Za mało konkretów technicznych**
+   - Plan mówi ogólnie: „użyj API”, „pobierz hot stocks”, „zapisuj w bazie”.
+   - Brakuje dokładnego przepływu danych, struktury rekordów i kolejności implementacji.
+
+2. **Zbyt szybko przechodzi do automatycznego tradingu**
+   - Przykład `start_continuous_trading()` sugeruje ciągłe uruchamianie agenta z aktualnym portfelem.
+   - Brakuje wyraźnego zabezpieczenia, że pierwsza wersja nie powinna samodzielnie składać zleceń.
+
+3. **RAG i baza wektorowa są przedwczesne**
+   - ChromaDB/FAISS może być przydatne później, ale jako pierwszy krok komplikuje MVP.
+   - Na początku wystarczy uporządkowana historia JSON/SQLite i proste wyszukiwanie po tickerze/sygnałach.
+
+4. **Brakuje modułowego podziału odpowiedzialności**
+   - Plan nie opisuje osobnych komponentów typu Market Watcher, Opportunity Scanner, Risk Guard, Report Writer.
+   - To zwiększa ryzyko, że logika zostanie dopisana do jednego pliku i stanie się trudna do testowania.
+
+5. **Brakuje kryteriów wyboru kandydatów**
+   - Plan mówi o „ciekawych spółkach”, ale nie precyzuje, jak oceniać, które tickery są warte głębszej analizy.
+   - Bez skanera okazji agent może analizować za dużo tickerów albo wybierać przypadkowo.
+
+6. **Brakuje raportów operacyjnych**
+   - Nie ma propozycji plików typu watch log, opportunities, decisions, performance review, daily summary.
+   - Użytkownik będzie miał trudniej zrozumieć, co agent faktycznie zrobił w każdym cyklu.
+
+### Wniosek
+
+Plan Gemini jest dobry jako wizja kierunku, ale zbyt ogólny i zbyt ambitny na pierwszy krok. Najbardziej wartościowe elementy to: ciągła pętla, szerszy skan rynku, analiza historii i uczenie się z decyzji. Należy jednak zejść do prostszego MVP bez automatycznego tradingu i bez zaawansowanego RAG.
+
+---
+
+## 2. Ocena planu OpenClaude
+
+### Mocne strony
+
+1. **Bardzo dobry zakres MVP**
+   - Plan jasno ogranicza pierwszą wersję do „continuous market analyst”, a nie pełnego bota tradingowego.
+   - To zmniejsza ryzyko operacyjne i finansowe.
+
+2. **Konkretna architektura**
+   - Rozbija system na Market Watcher, Opportunity Scanner, Portfolio Memory, Risk Guard i Report Writer.
+   - Każdy komponent ma jasną odpowiedzialność, co ułatwi implementację i testowanie.
+
+3. **Dobrze opisany przepływ pracy**
+   - Plan pokazuje pełny cykl: pobranie danych, wybór kandydatów, analiza, porównanie z historią, decyzja, zapis raportów.
+   - To pozwala implementować krok po kroku bez mieszania odpowiedzialności.
+
+4. **Uwzględnia bezpieczeństwo i kontrolę ryzyka**
+   - Risk Guard jest ważny, nawet jeśli na początku tylko oznacza decyzje jako safe/watch/risky/blocked_by_risk.
+   - Plan nie wymaga automatycznego składania zleceń.
+
+5. **Propozycja konkretnych raportów**
+   - `watch_log.jsonl`, `opportunities.jsonl`, `decisions.jsonl`, `performance_review.jsonl`, `daily_summary.md`, `memory.json` to praktyczny zestaw.
+   - Użytkownik będzie mógł łatwo podejrzeć decyzje i historię agenta.
+
+6. **Realistyczne CLI**
+   - `--watch`, `--interval-minutes`, `--watchlist`, `--max-candidates` są wystarczające do pierwszego użycia.
+   - Można testować lokalnie na małej watchliście.
+
+### Słabe strony
+
+1. **Plan jest dość obszerny**
+   - Zawiera wiele komponentów, co może być przytłaczające przy pierwszej implementacji.
+   - Warto zachować MVP, ale pilnować, aby nie rozbudowywać wszystkiego naraz.
+
+2. **Risk Guard może być niedoprecyzowany**
+   - Plan wymienia wiele reguł ryzyka, ale nie określa, które mają być obowiązkowe w MVP.
+   - Na start wystarczy kilka prostych kontroli: koncentracja, zmienność, liczba pozycji, stop-loss/target.
+
+3. **Portfolio Memory jest opisana szerzej niż potrzebne**
+   - Struktura historii jest dobra, ale implementacja powinna zacząć od prostego JSON/JSONL.
+   - Dopiero później warto rozważyć SQLite lub RAG.
+
+4. **Brakuje dokładnej strategii aktualizacji wyników po czasie**
+   - Plan mówi o ocenie wcześniejszych decyzji, ale nie precyzuje, jak często i na jakiej podstawie.
+   - Warto ustalić prostą regułę: np. raz dziennie porównać entry price do aktualnej ceny i zapisać ROI.
+
+5. **Nie precyzuje dokładnie, skąd brać benchmark**
+   - Plan wspomina SPY/QQQ, ale nie wskazuje domyślnej konfiguracji.
+   - Warto przyjąć domyślnie SPY jako benchmark rynku i opcjonalnie QQQ jako drugi benchmark.
+
+### Wniosek
+
+Plan OpenClaude jest lepszym planem implementacyjnym: konkretny, modularny i bezpieczny. Należy go przyjąć jako bazę, ale uprościć MVP, dodać prostą ocenę wyników po czasie oraz zachować RAG/SQLite jako etap późniejszy.
+
+---
+
+## 3. Finalny plan
+
+### Cel
+
+Zmodyfikować `/home/patryk/Dokumenty/trading_ai/TradingAgents/advanced_agent.py` tak, aby działał jako ciągły analityk rynku. Agent ma regularnie skanować rynek, wybierać najlepsze tickery do głębszej analizy, uruchamiać istniejące mechanizmy TradingAgents, zapisywać decyzje i raporty oraz stopniowo uczyć się z historii własnych decyzji.
+
+Pierwsza wersja nie powinna automatycznie składać zleceń. Ma być to **continuous market analyst**, który daje użytkownikowi sygnały, raporty i historię decyzji.
+
+---
+
+## 4. Zakres MVP
+
+### MVP powinno zawierać
+
+1. Tryb ciągły w `advanced_agent.py`:
+   - `python advanced_agent.py --watch`
+   - `--interval-minutes`
+   - `--watchlist`
+   - `--max-candidates`
+
+2. Market Watcher oparty o `yfinance`:
+   - pobiera dane dla portfela,
+   - pobiera dane dla watchlisty,
+   - pobiera benchmark, domyślnie SPY,
+   - zapisuje snapshot rynku.
+
+3. Opportunity Scanner:
+   - wybiera top 3-5 kandydatów,
+   - uwzględnia zmianę ceny,
+   - zmianę wolumenu,
+   - odchylenie od średniej ceny,
+   - porównanie do SPY,
+   - opcjonalnie niezrealizowany zysk/stratę w portfelu.
+
+4. Portfolio Memory:
+   - zapisuje decyzje do ustrukturyzowanego JSON/JSONL,
+   - przechowuje ticker, datę, powód analizy, snapshot rynku, decyzję, uzasadnienie, entry/target/stop-loss, wynik po czasie i wnioski,
+   - przekazuje ostatnie decyzje do promptu końcowego.
+
+5. Report Writer:
+   - zapisuje raporty do `reports/continuous/`,
+   - tworzy `watch_log.jsonl`,
+   - tworzy `opportunities.jsonl`,
+   - tworzy `decisions.jsonl`,
+   - tworzy `performance_review.jsonl`,
+   - tworzy `daily_summary.md`,
+   - tworzy `memory.json`.
+
+6. Prosta ocena wyników po czasie:
+   - raz dziennie lub przy kolejnym cyklu porównuje entry price z aktualną ceną,
+   - zapisuje ROI,
+   - zapisuje prosty review score,
+   - zapisuje krótką lekcję, jeśli jest wystarczająco dużo danych.
+
+7. Risk Guard:
+   - oznacza decyzje jako `safe`, `watch`, `risky` lub `blocked_by_risk`,
+   - sprawdza podstawowe limity koncentracji,
+   - sprawdza zmienność,
+   - sprawdza liczbę pozycji,
+   - nie blokuje automatycznie zleceń, bo MVP nie wykonuje transakcji.
+
+### MVP nie powinno zawierać
+
+1. Automatycznego składania zleceń.
+2. Integracji z brokerem jako warunku działania.
+3. Pełnego backtestu.
+4. Machine learningu.
+5. RAG/ChromaDB/FAISS.
+6. Zaawansowanego zarządzania kapitałem.
+7. Pełnej analizy fundamentalnej dla całego rynku.
+
+---
+
+## 5. Docelowa architektura
+
+```text
+advanced_agent.py
+├── AdvancedTradingAgent
+│   ├── select_top_stocks()
+│   ├── run()
+│   ├── run_watch_loop()
+│   └── analyze_candidates()
+│
+├── MarketWatcher
+│   ├── load_watchlist()
+│   ├── fetch_market_data()
+│   └── build_market_snapshot()
+│
+├── OpportunityScanner
+│   ├── score_opportunities()
+│   └── select_candidates()
+│
+├── PortfolioMemory
+│   ├── load_history()
+│   ├── save_decision()
+│   ├── review_past_decisions()
+│   └── build_learning_context()
+│
+├── RiskGuard
+│   ├── evaluate_decision()
+│   └── summarize_risk_flags()
+│
+└── ReportWriter
+    ├── append_jsonl()
+    ├── save_daily_summary()
+    └── save_watch_snapshot()
+```
+
+---
+
+## 6. Przepływ pracy
+
+### Pojedynczy cykl obserwacji
+
+1. Wczytaj portfel i konfigurację.
+2. Wczytaj watchlistę z argumentów CLI albo konfiguracji.
+3. Pobierz dane rynkowe dla watchlisty i benchmarku SPY.
+4. Zbuduj snapshot rynku.
+5. Zapisz snapshot do `watch_log.jsonl`.
+6. Opportunity Scanner ocenia tickery i wybiera kandydatów.
+7. Zapisz kandydatów do `opportunities.jsonl`.
+8. Dla każdego kandydata:
+   - uruchom `TradingAgentsGraph`,
+   - wczytaj historię dotyczącą tickera,
+   - dodaj historię do promptu końcowego,
+   - wygeneruj decyzję,
+   - uruchom Risk Guard,
+   - zapisz decyzję do `decisions.jsonl` i `memory.json`.
+9. Co określony czas oceń wcześniejsze decyzje:
+   - pobierz aktualną cenę,
+   - porównaj z entry price,
+   - zapisz ROI i review score do `performance_review.jsonl`,
+   - zaktualizuj `memory.json`.
+10. Poczekaj do następnego cyklu.
+
+---
+
+## 7. Struktura danych
+
+### Decision record
+
+```json
+{
+  "timestamp": "2026-06-16T10:00:00",
+  "ticker": "NVDA",
+  "reason": "volume_breakout",
+  "market_snapshot": {
+    "price": 120.5,
+    "volume": 52000000,
+    "spy_change_pct": 0.8
+  },
+  "decision": "hold_and_watch",
+  "risk_status": "safe",
+  "rationale": "Momentum is strong, but valuation risk is elevated.",
+  "entry_price": null,
+  "exit_price": null,
+  "stop_loss": null,
+  "target": null,
+  "later_result": null,
+  "review_score": null,
+  "lesson": null
+}
+```
+
+### Opportunity record
+
+```json
+{
+  "timestamp": "2026-06-16T10:00:00",
+  "ticker": "NVDA",
+  "signals": ["volume_breakout", "outperforming_spy"],
+  "score": 8.2,
+  "reason": "Volume is 2.4x above average and price is outperforming SPY."
+}
+```
+
+### Watch log record
+
+```json
+{
+  "timestamp": "2026-06-16T10:00:00",
+  "watchlist": ["SPY", "QQQ", "NVDA", "AAPL", "TSLA"],
+  "benchmark": {
+    "ticker": "SPY",
+    "change_pct": 0.42
+  },
+  "candidates_count": 3,
+  "decisions_count": 2
+}
+```
+
+---
+
+## 8. Reguły skanowania okazji
+
+Opportunity Scanner powinien w MVP liczyć prosty score dla każdego tickera.
+
+### Sygnały
+
+1. Zmiana ceny względem poprzedniej sesji.
+2. Zmiana ceny względem średniej z kilku ostatnich sesji.
+3. Wolumen względem średniego wolumenu.
+4. Porównanie wyniku tickera do SPY.
+5. Zmienność z ostatnich sesji.
+6. Obecność w portfelu.
+7. Czas od ostatniej analizy.
+
+### Przykładowy scoring
+
+```text
++3 punkty: wolumen >= 2x średniej
++2 punkty: cena >= 3% powyżej średniej z ostatnich sesji
++2 punkty: ticker outperformuje SPY o co najmniej 2%
++1 punkt: ticker jest w portfelu
++1 punkt: ticker nie był analizowany od wielu cykli
+-2 punkty: bardzo wysoka zmienność bez silnego trendu
+```
+
+### Wybór kandydatów
+
+- Domyślnie wybierać maksymalnie 3-5 tickerów.
+- Odrzucać tickery bez wystarczających danych.
+- Odrzucać tickery z bardzo niskim wolumenem.
+- Priorytetowo traktować tickery z portfolio, jeśli mają silny sygnał.
+
+---
+
+## 9. Risk Guard
+
+Risk Guard w MVP nie wykonuje transakcji. Oznacza jedynie decyzję.
+
+### Statusy
+
+1. `safe` — decyzja mieści się w prostych limitach ryzyka.
+2. `watch` — decyzja jest potencjalnie dobra, ale wymaga ostrożności.
+3. `risky` — decyzja ma istotne czynniki ryzyka.
+4. `blocked_by_risk` — decyzja łamie jasne limity, ale bez automatycznego blokowania zlecenia.
+
+### Kontrole
+
+1. Koncentracja: czy ticker jest już zbyt dużą częścią portfela.
+2. Liczba pozycji: czy portfel nie jest zbyt rozdrobniony lub zbyt skoncentrowany.
+3. Zmienność: czy ticker lub rynek jest wyjątkowo zmienny.
+4. Stop-loss/target: czy decyzja ma jasny poziom ryzyka, jeśli sugeruje wejście.
+5. Seria strat: czy agent ostatnio generował dużo negatywnych decyzji.
+
+---
+
+## 10. Raporty
+
+### `reports/continuous/watch_log.jsonl`
+
+Każdy cykl obserwacji rynku.
+
+### `reports/continuous/opportunities.jsonl`
+
+Kandydaci wybrani przez Opportunity Scanner wraz ze score i sygnałami.
+
+### `reports/continuous/decisions.jsonl`
+
+Decyzje agenta dla wybranych tickerów.
+
+### `reports/continuous/performance_review.jsonl`
+
+Ocena wcześniejszych decyzji po czasie.
+
+### `reports/continuous/daily_summary.md`
+
+Czytelne podsumowanie dnia:
+- liczba cykli,
+- liczba kandydatów,
+- najważniejsze okazje,
+- najważniejsze decyzje,
+- wyniki wcześniejszych decyzji,
+- ryzyka.
+
+### `reports/continuous/memory.json`
+
+Ustrukturyzowana pamięć agenta:
+- ostatnie decyzje,
+- wnioski,
+- statystyki skuteczności,
+- tickerowe konteksty.
+
+---
+
+## 11. Kolejność implementacji
+
+1. Zbadać obecny `advanced_agent.py`, strukturę `AdvancedTradingAgent` i sposób działania `TradingAgentsGraph`.
+2. Dodać konfigurację CLI:
+   - `--watch`,
+   - `--interval-minutes`,
+   - `--watchlist`,
+   - `--max-candidates`.
+3. Dodać `ReportWriter` dla `reports/continuous/`.
+4. Dodać `MarketWatcher` oparty o `yfinance`.
+5. Dodać `OpportunityScanner` z prostym scoringiem.
+6. Dodać `PortfolioMemory` i migrację dotychczasowej historii do nowej struktury.
+7. Dodać `RiskGuard`.
+8. Dodać `run_watch_loop()` do `AdvancedTradingAgent`.
+9. Zintegrować historię z promptem końcowym.
+10. Dodać prostą ocenę wyników po czasie.
+11. Uruchomić test na małej watchliście i krótkim interwale.
+12. Sprawdzić raporty w `reports/continuous/`.
+
+---
+
+## 12. Etapy późniejsze
+
+Po działającym MVP można rozważyć:
+
+1. SQLite zamiast JSON/JSONL.
+2. Integrację z prawdziwym portfelem brokera.
+3. RAG na historii decyzji.
+4. Zaawansowane limity ryzyka.
+5. Backtesting strategii.
+6. Automatyczne zlecenia, ale tylko po osobnej zgodzie użytkownika i dodatkowych zabezpieczeniach.
+
+---
+
+## 13. Rekomendacja końcowa
+
+Najlepszy pierwszy krok: przyjąć plan OpenClaude jako bazę, ale uprościć go do bezpiecznego MVP. Należy dodać tryb `--watch`, Market Watcher, Opportunity Scanner, Portfolio Memory, Risk Guard i Report Writer, bez automatycznego tradingu.
+
+To da użytkownikowi ciągłą analizę rynku, wyszukiwanie nowych okazji, wykorzystanie istniejących agentów TradingAgents, historię decyzji i raporty, a jednocześnie nie zwiększy ryzyka finansowego przez automatyczne zlecenia.

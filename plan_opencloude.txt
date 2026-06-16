@@ -1,0 +1,326 @@
+# Plan OpenClaude: ciągły analityk giełdowy dla advanced_agent.py
+
+## Cel
+
+Ulepszyć skrypt `advanced_agent.py` w folderze `/home/patryk/Dokumenty/trading_ai/TradingAgents`, żeby działał jako ciągły analityk rynku. Agent powinien regularnie skanować rynek, szukać nowych okazji inwestycyjnych, analizować sytuację rynkową, korzystać z historii własnych decyzji/transakcji i zapisywać nowe obserwacje oraz decyzje do lokalnych raportów.
+
+To nie musi być od razu w pełni autonomiczny bot wykonujący transakcje. Bezpieczniejszą i łatwiejszą pierwszą wersją jest **continuous market analyst**:
+
+- stale obserwuje rynek,
+- wybiera najlepsze tickery do głębszej analizy,
+- uruchamia istniejące mechanizmy TradingAgents,
+- zapisuje historię decyzji,
+- ocenia skuteczność wcześniejszych decyzji,
+- nie wykonuje automatycznie zleceń bez osobnej zgody użytkownika.
+
+## Obecny stan `advanced_agent.py`
+
+Obecny `AdvancedTradingAgent` robi głównie:
+
+1. wybiera 1 ticker z portfela,
+2. uruchamia `TradingAgentsGraph.propagate(...)`,
+3. zapisuje historię decyzji do `results/advanced_agent_history.json`,
+4. nie działa jako ciągły proces,
+5. nie skanuje całego rynku,
+6. nie wybiera nowych kandydatów na podstawie danych rynkowych,
+7. nie zapisuje wyników po czasie,
+8. nie tworzy cyklicznych raportów.
+
+## Proponowany kierunek
+
+### 1. Market Watcher
+
+Dodać moduł, który co określony czas pobiera aktualny stan rynku.
+
+Powinien analizować:
+
+- tickery już obecne w portfelu,
+- dodatkowe tickery z konfiguracji,
+- opcjonalnie szeroką listę popularnych tickerów,
+- dane cenowe,
+- wolumen,
+- zmienność,
+- proste wskaźniki techniczne,
+- zmianę ceny względem poprzednich sesji,
+- ogólny stan rynku, np. SPY/QQQ jako benchmark.
+
+Celem Market Watcher nie jest jeszcze pełna decyzja inwestycyjna, tylko wykrycie, które aktywa zasługują na głębszą analizę.
+
+### 2. Opportunity Scanner
+
+Dodać skaner okazji, który tworzy krótką listę kandydatów, np. top 3-5 tickerów.
+
+Kandydaci mogą być wybierani na podstawie sygnałów takich jak:
+
+- breakout powyżej ostatniego oporu,
+- spadek poniżej wybranej wyceny lub poziomu wsparcia,
+- nietypowo wysoki wolumen,
+- silna zmiana sentymentu,
+- duża zmiana ceny względem rynku,
+- korelacja z SPY/QQQ,
+- niezrealizowany zysk lub strata w portfelu,
+- zbyt duża koncentracja pozycji,
+- ticker wymagający ponownej analizy po upływie określonego czasu.
+
+Skaner powinien filtrować słabe sygnały, żeby agent nie analizował wszystkiego naraz i nie generował zbyt wielu kosztownych zapytań do LLM.
+
+### 3. Deep Analysis Loop
+
+Dla najlepszych kandydatów uruchamiać istniejący `TradingAgentsGraph`.
+
+Przepływ:
+
+1. Market Watcher pobiera dane.
+2. Opportunity Scanner wybiera kandydatów.
+3. `TradingAgentsGraph` analizuje każdego kandydata.
+4. Agent porównuje wynik z historią decyzji.
+5. Finalny model podejmuje decyzję: obserwować, kupić, sprzedać, trzymać, zmniejszyć pozycję, zwiększyć pozycję lub poczekać.
+6. Wynik jest zapisywany do historii i raportów.
+
+### 4. Portfolio Memory
+
+Historia nie powinna być tylko tekstem decyzji. Powinna być strukturą, którą można analizować po czasie.
+
+Każdy wpis powinien zawierać:
+
+- data i czas,
+- ticker,
+- powód analizy,
+- stan portfela,
+- ceny lub dane rynkowe użyte do decyzji,
+- decyzja,
+- uzasadnienie,
+- poziom wejścia, jeśli znany,
+- poziom wyjścia, jeśli znany,
+- stop-loss lub target, jeśli został wskazany,
+- wynik po czasie,
+- ocena skuteczności decyzji,
+- wnioski dla przyszłych analiz.
+
+Przykładowa struktura:
+
+```json
+{
+  "timestamp": "2026-06-16T10:00:00",
+  "ticker": "NVDA",
+  "reason": "volume_breakout",
+  "market_snapshot": {
+    "price": 120.5,
+    "volume": 52000000,
+    "spy_change_pct": 0.8
+  },
+  "decision": "hold_and_watch",
+  "rationale": "Momentum is strong, but valuation risk is elevated.",
+  "entry_price": null,
+  "exit_price": null,
+  "stop_loss": null,
+  "target": null,
+  "later_result": null,
+  "review_score": null,
+  "lesson": null
+}
+```
+
+### 5. Scheduler
+
+Dodać tryb ciągły dla `advanced_agent.py`, na przykład:
+
+```bash
+python advanced_agent.py --watch
+```
+
+Opcjonalne parametry:
+
+```bash
+python advanced_agent.py --watch --interval-minutes 60
+python advanced_agent.py --watch --watchlist SPY,QQQ,NVDA,AAPL,TSLA
+python advanced_agent.py --watch --max-candidates 5
+```
+
+Najprostszy scheduler może działać jako pętla:
+
+1. pobierz dane,
+2. wybierz kandydatów,
+3. uruchom analizę,
+4. zapisz raport,
+5. poczekaj określony interwał,
+6. powtórz.
+
+Alternatywa produkcyjna:
+
+- systemd service,
+- cron,
+- Docker Compose,
+- osobny worker proces.
+
+Na pierwszą wersję wystarczy wbudowana pętla `--watch`.
+
+### 6. Risk Guard
+
+Przed zapisaniem decyzji dodać warstwę kontroli ryzyka.
+
+Risk Guard powinien sprawdzać:
+
+- maksymalny rozmiar jednej pozycji,
+- maksymalną ekspozycję na jeden sektor,
+- dopuszczalną liczbę pozycji,
+- stop-loss,
+- target,
+- poziom zmienności rynku,
+- czy agent nie kupuje po serii strat,
+- czy decyzja nie zwiększa zbyt mocno koncentracji portfela,
+- czy ticker nie jest już zbyt duży w portfelu.
+
+Risk Guard nie musi automatycznie blokować decyzji. W pierwszej wersji może oznaczać decyzję jako:
+
+- `safe`,
+- `watch`,
+- `risky`,
+- `blocked_by_risk`.
+
+### 7. Raporty
+
+Zapisywać wyniki do folderu `reports/continuous/`.
+
+Proponowane pliki:
+
+1. `watch_log.jsonl`
+   - każdy cykl obserwacji rynku.
+
+2. `opportunities.jsonl`
+   - znalezione okazje i powody ich wyboru.
+
+3. `decisions.jsonl`
+   - decyzje agenta dla wybranych tickerów.
+
+4. `performance_review.jsonl`
+   - ocena wcześniejszych decyzji po czasie.
+
+5. `daily_summary.md`
+   - czytelne podsumowanie dnia.
+
+6. `memory.json`
+   - ustrukturyzowana pamięć agenta.
+
+Przykład wpisu do `opportunities.jsonl`:
+
+```json
+{
+  "timestamp": "2026-06-16T10:00:00",
+  "ticker": "NVDA",
+  "signals": ["volume_breakout", "outperforming_spy"],
+  "score": 8.2,
+  "reason": "Volume is 2.4x above average and price is outperforming SPY."
+}
+```
+
+## Architektura
+
+Najlepszy podział odpowiedzialności:
+
+```text
+advanced_agent.py
+├── AdvancedTradingAgent
+│   ├── select_top_stocks()
+│   ├── run()
+│   └── run_watch_loop()
+│
+├── MarketWatcher
+│   ├── load_watchlist()
+│   ├── fetch_market_data()
+│   └── build_market_snapshot()
+│
+├── OpportunityScanner
+│   ├── score_opportunities()
+│   └── select_candidates()
+│
+├── PortfolioMemory
+│   ├── load_history()
+│   ├── save_decision()
+│   ├── review_past_decisions()
+│   └── build_learning_context()
+│
+├── RiskGuard
+│   ├── evaluate_decision()
+│   └── enforce_position_limits()
+│
+└── ReportWriter
+    ├── append_jsonl()
+    ├── save_daily_summary()
+    └── save_watch_snapshot()
+```
+
+## Przepływ danych
+
+### Pojedynczy cykl pracy
+
+1. Wczytaj portfel i konfigurację.
+2. Pobierz dane rynkowe dla watchlisty.
+3. Zbuduj snapshot rynku.
+4. Oceń tickery i wybierz kandydatów.
+5. Dla każdego kandydata:
+   - uruchom `TradingAgentsGraph`,
+   - wczytaj historię dotyczącą tego tickera,
+   - dodaj historię do promptu,
+   - wygeneruj decyzję.
+6. Uruchom Risk Guard.
+7. Zapisz decyzję do pamięci i raportów.
+8. Co określony czas oceniaj wcześniejsze decyzje.
+9. Poczekaj do następnego cyklu.
+
+## Minimalna implementacja MVP
+
+Pierwsza wersja powinna być prosta i możliwa do przetestowania lokalnie.
+
+### MVP powinno zawierać:
+
+- `--watch` w `advanced_agent.py`,
+- `--interval-minutes`,
+- konfigurację watchlisty,
+- prosty Market Watcher oparty o `yfinance`,
+- Opportunity Scanner z podstawowymi sygnałami:
+  - zmiana ceny,
+  - zmiana wolumenu,
+  - odchylenie od średniej ceny,
+  - porównanie do SPY,
+- zapis decyzji do `results/advanced_agent_history.json`,
+- zapis raportów do `reports/continuous/`,
+- przekazywanie ostatnich decyzji do promptu końcowego.
+
+### MVP nie powinno zawierać:
+
+- automatycznego składania zleceń,
+- pełnego backtestu,
+- skomplikowanego machine learningu,
+- integracji z brokerem,
+- zaawansowanego zarządzania kapitałem,
+- pełnej analizy fundamentalnej dla całej giełdy.
+
+## Rekomendacja
+
+Najlepszy pierwszy krok: dodać tryb `--watch` do `advanced_agent.py`, bez automatycznego tradingu.
+
+To daje użytkownikowi:
+
+- ciągłą analizę rynku,
+- wyszukiwanie nowych okazji,
+- wykorzystanie istniejących agentów TradingAgents,
+- historię decyzji,
+- raporty,
+- możliwość późniejszego dodania automatycznych zleceń.
+
+## Kolejne kroki po akceptacji planu
+
+1. Dodać konfigurację watchlisty i interwału.
+2. Dodać Market Watcher.
+3. Dodać Opportunity Scanner.
+4. Dodać Portfolio Memory.
+5. Dodać Report Writer.
+6. Dodać `run_watch_loop()`.
+7. Dodać argumenty CLI:
+   - `--watch`,
+   - `--interval-minutes`,
+   - `--watchlist`,
+   - `--max-candidates`.
+8. Uruchomić test z małą watchlistą i krótkim interwałem.
+9. Sprawdzić raporty w `reports/continuous/`.

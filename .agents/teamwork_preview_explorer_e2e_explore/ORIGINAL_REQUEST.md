@@ -1,0 +1,2 @@
+## 2026-06-16T10:19:20Z
+Analyze `advanced_agent.py` and the existing test files in `tests/` to understand how the agent is structured and how tests are written. Recommend how to structure E2E tests for the continuous trading analyst MVP, focusing on how to mock LLM interactions, database/file logging, and continuous event loops. Save your findings in a handoff report at `/home/patryk/Dokumenty/trading_ai/TradingAgents/.agents/teamwork_preview_explorer_e2e_explore/handoff.md` and send a message back with the path and summary.

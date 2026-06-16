@@ -1,0 +1,68 @@
+# Analiza planów rozbudowy advanced_agent.py
+
+## 1. Plan Gemini (plan_gemini.txt)
+
+**Mocne strony:**
+*   **Wektorowa baza danych (RAG):** Wykorzystanie ChromaDB/FAISS do przypominania podobnych sytuacji rynkowych z przeszłości to doskonały sposób na wzmocnienie zdolności analitycznych LLM.
+*   **Refleksja (Self-Reflection):** Wbudowany mechanizm oceny przeszłych decyzji i budowania "lessons learned".
+*   **Prostota i zwięzłość:** Skupia się na głównych innowacjach bez narzutu architektonicznego.
+
+**Słabe strony:**
+*   Brak zdefiniowanej struktury katalogów i logiki podziału kodu (modułowości).
+*   Pomija kwestie zarządzania ryzykiem przed podjęciem decyzji.
+*   Brak zdefiniowanego MVP, plan od razu zakłada skomplikowane integracje.
+
+## 2. Plan OpenClaude (plan_opencloude.txt)
+
+**Mocne strony:**
+*   **Świetna architektura:** Bardzo dobry, logiczny podział na komponenty (Market Watcher, Opportunity Scanner, Risk Guard, Report Writer).
+*   **Zarządzanie ryzykiem:** Wprowadzenie "Risk Guard" jako filtra bezpieczeństwa przed realizacją lub rekomendacją decyzji.
+*   **Ustrukturyzowane raportowanie i pamięć:** Zdefiniowane jasne struktury danych (JSON) ułatwiające analizę.
+*   **Podejście iteracyjne:** Jasno oddzielona faza MVP od docelowego rozwiązania produkcyjnego.
+
+**Słabe strony:**
+*   Polega głównie na ustrukturyzowanych danych i logach, nie wykorzystuje pełni potencjału LLM (brak RAG do przeszukiwania historii pod kątem podobnych schematów).
+*   Dużo komponentów na start, co może nieco spowolnić początkową implementację (nawet w MVP).
+
+---
+
+# FINALNY PLAN (Hybryda)
+
+Połączenie najlepszych cech obu podejść zaowocuje stworzeniem wysoce autonomicznego i "myślącego" analityka rynkowego.
+
+## Architektura i Moduły:
+
+1.  **Continuous Scheduler (CLI: `--watch`):**
+    *   Prosta pętla (np. asynchroniczna) z określonym interwałem (np. co godzinę), uruchamiająca procesy obserwacji i analizy bez narzutu skomplikowanych bibliotek na start.
+
+2.  **Market Watcher & Opportunity Scanner (ze strefy OpenClaude):**
+    *   **Market Watcher:** Monitoruje przypisane tickery oraz globalne indeksy (SPY/QQQ) w celu ustalenia reżimu rynkowego.
+    *   **Opportunity Scanner:** API wyciągające sygnały (wolumen, top gainers/losers) i podrzucające agentowi odfiltrowaną listę max. 3-5 najlepszych nowych tickerów do analizy, aby zminimalizować koszty LLM.
+
+3.  **Deep Analysis & Risk Guard:**
+    *   Uruchomienie obecnego `TradingAgentsGraph` dla wyselekcjonowanych kandydatów.
+    *   **Risk Guard:** Moduł nakładający twarde reguły (maksymalna alokacja, stop-loss, limit sektorowy) na rekomendacje LLM przed ich zatwierdzeniem.
+
+4.  **Hybrid Portfolio Memory (Połączenie RAG z JSON):**
+    *   Zapisywanie decyzji w ustrukturyzowanym formacie JSON (jak w planie OpenClaude) dla łatwego raportowania.
+    *   **Dodatek z Gemini:** Implementacja bazy wektorowej dla tekstu `rationale` i `lessons`. Przed analizą nowej spółki, system zapyta bazę o podobne sytuacje z przeszłości i poda agentowi kontekst.
+    *   **Refleksja:** Moduł uruchamiany cyklicznie (np. raz dziennie po sesji), oceniający po czasie, czy rekomendacje były słuszne, modyfikując wagi i zapisując "lessons learned".
+
+5.  **Raportowanie:**
+    *   Logi w formacie `jsonl` oraz codzienne podsumowania Markdown `daily_summary.md` dla użytkownika.
+
+## Etapy Wdrożenia:
+
+**Krok 1 (MVP):**
+*   Dodanie argumentów `--watch` i pętli z interwałem do `advanced_agent.py`.
+*   Implementacja podstawowego Market Watchera (z `yfinance`) dla predefiniowanej watchlisty.
+*   Zapis strukturalny decyzji (JSON) do pliku pamięci agenta.
+*   Prosty Risk Guard w formie modułu ostrzegawczego przed podjęciem finalnej decyzji.
+
+**Krok 2 (Inteligencja):**
+*   Wdrożenie Opportunity Scannera poszukującego okazji poza watchlistą na podstawie obrotu/zmienności.
+*   Podłączenie modułu Refleksji i pamięci wektorowej (RAG), aby agent analizował przeszłe błędy i na ich podstawie generował przemyślenia dla nowych promptów.
+
+**Krok 3 (Automatyzacja):**
+*   Integracja z API brokera w celu rzeczywistego śledzenia własnego portfolio zamiast pliku testowego.
+*   Rozszerzenie Risk Guard o twarde blokady przed wdrożeniem ewentualnego modułu składania prawdziwych zleceń.

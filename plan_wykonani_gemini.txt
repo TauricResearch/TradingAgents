@@ -1,0 +1,67 @@
+# Finalny Plan Wykonania: Continuous Trading Analyst
+Dokument opisujący architekturę i kroki wdrożeniowe dla zespołu agentów AI.
+
+## Cel Projektu
+Modyfikacja skryptu `advanced_agent.py` w celu stworzenia autonomicznego analityka rynkowego, działającego w trybie ciągłym. Agent będzie regularnie skanował rynek, wybierał optymalne tickery, analizował je za pomocą istniejącego `TradingAgentsGraph`, zarządzał ryzykiem, oceniał swoje wcześniejsze decyzje i raportował wyniki. MVP ma działać w trybie "read-only" (bez automatycznego tradingu) i opierać się na ustrukturyzowanych plikach JSON, z możliwością późniejszej rozbudowy o bazę wektorową (RAG).
+
+## 1. Architektura Systemu i Główne Komponenty
+
+Projekt wymaga podziału na modułowe komponenty:
+
+*   **AdvancedTradingAgent (Główny Orkiestrator):**
+    *   Dodanie pętli asynchronicznej/ciągłej (`run_watch_loop`).
+    *   Obsługa nowych parametrów CLI: `--watch`, `--interval-minutes`, `--watchlist`, `--max-candidates`.
+*   **MarketWatcher:**
+    *   Integracja z API (np. `yfinance`).
+    *   Pobieranie danych dla watchlisty i benchmarku (np. SPY).
+    *   Tworzenie zrzutu stanu rynku (Market Snapshot).
+*   **OpportunityScanner:**
+    *   Wyszukiwanie okazji (z watchlisty i szerszego rynku, np. skanowanie top gainers/volume).
+    *   Prosty system punktowy (scoring) wybierający 3-5 najlepszych kandydatów do analizy, aby zoptymalizować zużycie tokenów i koszty LLM.
+*   **Deep Analysis (Istniejący `TradingAgentsGraph`):**
+    *   Analiza wyselekcjonowanych kandydatów, zasilana o wnioski z `PortfolioMemory`.
+*   **RiskGuard:**
+    *   Oznaczanie poziomu ryzyka (safe, watch, risky, blocked_by_risk).
+    *   Sprawdzanie koncentracji portfela, zmienności, limitów stop-loss.
+    *   W fazie MVP pełni funkcję wyłącznie raportującą/ostrzegawczą.
+*   **PortfolioMemory & Reflection:**
+    *   Zapis decyzji w formacie JSON/JSONL z uzasadnieniem i snapshotem.
+    *   Mechanizm okresowej weryfikacji wcześniejszych prognoz (porównanie przewidywań z rzeczywistą ceną po czasie).
+    *   Dodawanie kontekstu historycznego do promptów dla kolejnych analiz.
+    *   *Docelowo (faza 2):* Integracja z bazą wektorową (RAG - ChromaDB/FAISS) dla wyszukiwania "lessons learned" ze starych analiz.
+*   **ReportWriter:**
+    *   Generowanie logów zdarzeń do oddzielnego katalogu (np. `reports/continuous/watch_log.jsonl`, `opportunities.jsonl`, `decisions.jsonl`, `performance_review.jsonl`).
+    *   Tworzenie zwięzłego i czytelnego pliku `daily_summary.md` dla użytkownika.
+
+## 2. Kolejność Implementacji (Fazy dla Zespołu Agentów AI)
+
+### Faza 1: Rozbudowa CLI i Fundamenty Raportowania
+1. Przeanalizować obecny plik `advanced_agent.py` i strukturę przepływu w `TradingAgentsGraph`.
+2. Dodać parametry uruchomieniowe (CLI): `--watch`, `--interval-minutes`, `--watchlist`, `--max-candidates`.
+3. Stworzyć moduł `ReportWriter` odpowiedzialny za tworzenie i nadpisywanie/rozszerzanie logów strukturalnych (.jsonl).
+
+### Faza 2: Skanowanie Rynku i Okazji
+4. Zbudować `MarketWatcher` pobierający dane bieżące i generujący Market Snapshot.
+5. Zaimplementować `OpportunityScanner` – napisać prosty algorytm oceniający (scoring) na bazie dynamiki ceny względem wczorajszej sesji, średniej, obrotu i siły wobec benchmarku (SPY).
+
+### Faza 3: Pamięć i Ocena Ryzyka
+6. Utworzyć moduł `PortfolioMemory` do zapisywania konkretnych decyzji, uzasadnień i snapshotów (struktura JSON).
+7. Przygotować `RiskGuard` implementujący podstawowe twarde reguły ryzyka (bez fizycznego blokowania transakcji giełdowych, jedynie flagowanie ryzyka).
+8. Dodać prosty moduł ewaluacyjny (Performance Review), który w nowym cyklu sprawdzi, jak poradziły sobie tickery rekomendowane i analizowane w poprzednich dniach/cyklach, wyliczając proste ROI.
+
+### Faza 4: Integracja w Główną Pętlę
+9. Złożyć wyżej stworzone komponenty w jedną pętlę ciągłą (`run_watch_loop`) w klasie `AdvancedTradingAgent`.
+10. Dostosować końcowe prompty LLM, aby uwzględniały dane i kontekst pobrany z `PortfolioMemory` (kontekst przeszłych trafień/pomyłek oraz lekcje na przyszłość).
+11. Zintegrować cykliczny zapis raportów (w tym `daily_summary.md` podsumowującego dany dzień działania skryptu).
+
+### Faza 5: Testy i Stabilizacja MVP
+12. Uruchomić skrypt w środowisku testowym (dry-run) z krótką watchlistą i w krótkim interwale.
+13. Zweryfikować generowane pliki w katalogu `reports/continuous/` i poprawność przyznawanego score'u przez `OpportunityScanner`.
+
+## 3. Ograniczenia i Założenia dla MVP
+*   **BRAK AUTOMATYCZNEGO HANDLU:** System nie składa żadnych rzeczywistych zleceń u brokerów. Zapewnia to bezpieczeństwo pierwszej wersji.
+*   **PROSTOTA BAZY:** Na start wystarczy plik JSON/JSONL. Baza wektorowa i SQL to kroki implementacyjne dopiero na etapy post-MVP.
+*   **BEZPIECZEŃSTWO API:** Narzucić limity zapytań do API (np. interwał minimum co 15-60 minut lub odpowiednie sleep'y) w pętli `watch_loop`.
+
+---
+Ten plan stanowi gotową "mapę drogową" dla agentów AI – określa komponenty do stworzenia oraz jasną kolejność ich integracji, minimalizując ryzyko powstania "spaghetti code" i ułatwiając jednoczesne testowanie.

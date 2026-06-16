@@ -1,0 +1,330 @@
+# Plan wykonania OpenClaude: ciągły analityk rynkowy dla TradingAgents
+
+## Cel
+
+Przygotować finalny plan dla zespołu agentów AI, którzy mają zbudować skrypt `advanced_agent.py` jako ciągły analityk rynku. System ma regularnie skanować rynek, wybierać najlepsze tickery do głębszej analizy, uruchamiać istniejące mechanizmy `TradingAgentsGraph`, zapisywać decyzje i raporty oraz stopniowo uczyć się z historii własnych decyzji.
+
+Pierwsza wersja ma być bezpiecznym **continuous market analyst**, a nie botem do automatycznego tradingu. Nie powinna samodzielnie składać zleceń ani wymagać integracji z brokerem.
+
+## Źródła
+
+- `Dokumenty/trading_ai/TradingAgents/koncowy_gemini.txt`
+- `Dokumenty/trading_ai/TradingAgents/koncowy_opencloude.txt`
+
+## Najważniejsze decyzje projektowe
+
+1. **Przyjąć plan OpenClaude jako bazę.** Jest bardziej konkretny, modularny i bezpieczny.
+2. **Zachować najważniejsze elementy planu Gemini:** ciągłą pętlę, szerszy skan rynku, historię decyzji, refleksję oraz kierunek w stronę RAG w późniejszych etapach.
+3. **Nie wdrażać RAG/ChromaDB/FAISS w MVP.** Na start wystarczy uporządkowana pamięć JSON/JSONL i proste wyszukiwanie po tickerze oraz historii decyzji.
+4. **Nie wdrażać automatycznych zleceń.** Risk Guard może oznaczać decyzje jako ryzykowne, ale nie blokuje ani nie wykonuje transakcji w MVP.
+5. **Domyślnie używać SPY jako benchmarku rynku**, opcjonalnie QQQ jako drugi benchmark w późniejszym etapie.
+
+## Zakres MVP
+
+MVP powinno zawierać:
+
+1. Tryb ciągły w `advanced_agent.py`:
+   - `python advanced_agent.py --watch`
+   - `--interval-minutes`
+   - `--watchlist`
+   - `--max-candidates`
+
+2. `MarketWatcher` oparty o `yfinance`:
+   - pobiera dane dla portfela,
+   - pobiera dane dla watchlisty,
+   - pobiera benchmark, domyślnie `SPY`,
+   - zapisuje snapshot rynku.
+
+3. `OpportunityScanner`:
+   - wybiera top 3-5 kandydatów,
+   - uwzględnia zmianę ceny,
+   - zmianę wolumenu,
+   - odchylenie od średniej ceny,
+   - porównanie do `SPY`,
+   - opcjonalnie niezrealizowany zysk/stratę w portfelu.
+
+4. `PortfolioMemory`:
+   - zapisuje decyzje do ustrukturyzowanego JSON/JSONL,
+   - przechowuje ticker, datę, powód analizy, snapshot rynku, decyzję, uzasadnienie, entry/target/stop-loss, wynik po czasie i wnioski,
+   - przekazuje ostatnie decyzje do promptu końcowego.
+
+5. `ReportWriter`:
+   - zapisuje raporty do `reports/continuous/`,
+   - tworzy `watch_log.jsonl`,
+   - tworzy `opportunities.jsonl`,
+   - tworzy `decisions.jsonl`,
+   - tworzy `performance_review.jsonl`,
+   - tworzy `daily_summary.md`,
+   - tworzy `memory.json`.
+
+6. Prosta ocena wyników po czasie:
+   - raz dziennie lub przy kolejnym cyklu porównuje `entry_price` z aktualną ceną,
+   - zapisuje ROI,
+   - zapisuje prosty `review_score`,
+   - zapisuje krótką lekcję, jeśli jest wystarczająco dużo danych.
+
+7. `RiskGuard`:
+   - oznacza decyzje jako `safe`, `watch`, `risky` lub `blocked_by_risk`,
+   - sprawdza podstawowe limity koncentracji,
+   - sprawdza zmienność,
+   - sprawdza liczbę pozycji,
+   - nie wykonuje transakcji.
+
+MVP nie powinno zawierać:
+
+1. Automatycznego składania zleceń.
+2. Integracji z brokerem jako warunku działania.
+3. Pełnego backtestu.
+4. Machine learningu.
+5. RAG/ChromaDB/FAISS.
+6. Zaawansowanego zarządzania kapitałem.
+7. Pełnej analizy fundamentalnej dla całego rynku.
+
+## Docelowa architektura
+
+```text
+advanced_agent.py
+├── AdvancedTradingAgent
+│   ├── select_top_stocks()
+│   ├── run()
+│   ├── run_watch_loop()
+│   └── analyze_candidates()
+│
+├── MarketWatcher
+│   ├── load_watchlist()
+│   ├── fetch_market_data()
+│   └── build_market_snapshot()
+│
+├── OpportunityScanner
+│   ├── score_opportunities()
+│   └── select_candidates()
+│
+├── PortfolioMemory
+│   ├── load_history()
+│   ├── save_decision()
+│   ├── review_past_decisions()
+│   └── build_learning_context()
+│
+├── RiskGuard
+│   ├── evaluate_decision()
+│   └── summarize_risk_flags()
+│
+└── ReportWriter
+    ├── append_jsonl()
+    ├── save_daily_summary()
+    └── save_watch_snapshot()
+```
+
+## Przepływ pracy jednego cyklu obserwacji
+
+1. Wczytaj portfel i konfigurację.
+2. Wczytaj watchlistę z argumentów CLI albo konfiguracji.
+3. Pobierz dane rynkowe dla watchlisty i benchmarku `SPY`.
+4. Zbuduj snapshot rynku.
+5. Zapisz snapshot do `reports/continuous/watch_log.jsonl`.
+6. `OpportunityScanner` ocenia tickery i wybiera kandydatów.
+7. Zapisz kandydatów do `reports/continuous/opportunities.jsonl`.
+8. Dla każdego kandydata:
+   - uruchom istniejący `TradingAgentsGraph`,
+   - wczytaj historię dotyczącą tickera,
+   - dodaj historię do promptu końcowego,
+   - wygeneruj decyzję,
+   - uruchom `RiskGuard`,
+   - zapisz decyzję do `reports/continuous/decisions.jsonl` i `reports/continuous/memory.json`.
+9. Co określony czas oceń wcześniejsze decyzje:
+   - pobierz aktualną cenę,
+   - porównaj z `entry_price`,
+   - zapisz ROI i `review_score` do `reports/continuous/performance_review.jsonl`,
+   - zaktualizuj `reports/continuous/memory.json`.
+10. Poczekaj do następnego cyklu.
+
+## Struktury danych
+
+### Decision record
+
+```json
+{
+  "timestamp": "2026-06-16T10:00:00",
+  "ticker": "NVDA",
+  "reason": "volume_breakout",
+  "market_snapshot": {
+    "price": 120.5,
+    "volume": 52000000,
+    "spy_change_pct": 0.8
+  },
+  "decision": "hold_and_watch",
+  "risk_status": "safe",
+  "rationale": "Momentum is strong, but valuation risk is elevated.",
+  "entry_price": null,
+  "exit_price": null,
+  "stop_loss": null,
+  "target": null,
+  "later_result": null,
+  "review_score": null,
+  "lesson": null
+}
+```
+
+### Opportunity record
+
+```json
+{
+  "timestamp": "2026-06-16T10:00:00",
+  "ticker": "NVDA",
+  "signals": ["volume_breakout", "outperforming_spy"],
+  "score": 8.2,
+  "reason": "Volume is 2.4x above average and price is outperforming SPY."
+}
+```
+
+### Watch log record
+
+```json
+{
+  "timestamp": "2026-06-16T10:00:00",
+  "watchlist": ["SPY", "QQQ", "NVDA", "AAPL", "TSLA"],
+  "benchmark": {
+    "ticker": "SPY",
+    "change_pct": 0.42
+  },
+  "candidates_count": 3,
+  "decisions_count": 2
+}
+```
+
+## Reguły skanowania okazji
+
+`OpportunityScanner` powinien w MVP liczyć prosty score dla każdego tickera.
+
+Sygnały:
+
+1. Zmiana ceny względem poprzedniej sesji.
+2. Zmiana ceny względem średniej z kilku ostatnich sesji.
+3. Wolumen względem średniego wolumenu.
+4. Porównanie wyniku tickera do `SPY`.
+5. Zmienność z ostatnich sesji.
+6. Obecność w portfelu.
+7. Czas od ostatniej analizy.
+
+Przykładowy scoring:
+
+```text
++3 punkty: wolumen >= 2x średniej
++2 punkty: cena >= 3% powyżej średniej z ostatnich sesji
++2 punkty: ticker outperformuje SPY o co najmniej 2%
++1 punkt: ticker jest w portfelu
++1 punkt: ticker nie był analizowany od wielu cykli
+-2 punkty: bardzo wysoka zmienność bez silnego trendu
+```
+
+Wybór kandydatów:
+
+- domyślnie wybierać maksymalnie 3-5 tickerów,
+- odrzucać tickery bez wystarczających danych,
+- odrzucać tickery z bardzo niskim wolumenem,
+- priorytetowo traktować tickery z portfolio, jeśli mają silny sygnał.
+
+## Risk Guard
+
+`RiskGuard` w MVP nie wykonuje transakcji. Oznacza jedynie decyzję.
+
+Statusy:
+
+1. `safe` - decyzja mieści się w prostych limitach ryzyka.
+2. `watch` - decyzja jest potencjalnie dobra, ale wymaga ostrożności.
+3. `risky` - decyzja ma istotne czynniki ryzyka.
+4. `blocked_by_risk` - decyzja łamie jasne limity, ale bez automatycznego blokowania zlecenia.
+
+Kontrole:
+
+1. Koncentracja: czy ticker jest już zbyt dużą częścią portfela.
+2. Liczba pozycji: czy portfel nie jest zbyt rozdrobniony lub zbyt skoncentrowany.
+3. Zmienność: czy ticker lub rynek jest wyjątkowo zmienny.
+4. Stop-loss/target: czy decyzja ma jasny poziom ryzyka, jeśli sugeruje wejście.
+5. Seria strat: czy agent ostatnio generował dużo negatywnych decyzji.
+
+## Raporty
+
+### `reports/continuous/watch_log.jsonl`
+
+Każdy cykl obserwacji rynku.
+
+### `reports/continuous/opportunities.jsonl`
+
+Kandydaci wybrani przez `OpportunityScanner` wraz ze score i sygnałami.
+
+### `reports/continuous/decisions.jsonl`
+
+Decyzje agenta dla wybranych tickerów.
+
+### `reports/continuous/performance_review.jsonl`
+
+Ocena wcześniejszych decyzji po czasie.
+
+### `reports/continuous/daily_summary.md`
+
+Czytelne podsumowanie dnia:
+
+- liczba cykli,
+- liczba kandydatów,
+- najważniejsze okazje,
+- najważniejsze decyzje,
+- wyniki wcześniejszych decyzji,
+- ryzyka.
+
+### `reports/continuous/memory.json`
+
+Ustrukturyzowana pamięć agenta:
+
+- ostatnie decyzje,
+- wnioski,
+- statystyki skuteczności,
+- tickerowe konteksty.
+
+## Kolejność implementacji
+
+1. Zbadać obecny `advanced_agent.py`, strukturę `AdvancedTradingAgent` i sposób działania `TradingAgentsGraph`.
+2. Dodać konfigurację CLI:
+   - `--watch`,
+   - `--interval-minutes`,
+   - `--watchlist`,
+   - `--max-candidates`.
+3. Dodać `ReportWriter` dla `reports/continuous/`.
+4. Dodać `MarketWatcher` oparty o `yfinance`.
+5. Dodać `OpportunityScanner` z prostym scoringiem.
+6. Dodać `PortfolioMemory` i migrację dotychczasowej historii do nowej struktury.
+7. Dodać `RiskGuard`.
+8. Dodać `run_watch_loop()` do `AdvancedTradingAgent`.
+9. Zintegrować historię z promptem końcowym.
+10. Dodać prostą ocenę wyników po czasie.
+11. Uruchomić test na małej watchliście i krótkim interwale.
+12. Sprawdzić raporty w `reports/continuous/`.
+
+## Etapy późniejsze
+
+Po działającym MVP można rozważyć:
+
+1. SQLite zamiast JSON/JSONL.
+2. Integrację z prawdziwym portfelem brokera.
+3. RAG na historii decyzji.
+4. Zaawansowane limity ryzyka.
+5. Backtesting strategii.
+6. Automatyczne zlecenia, ale tylko po osobnej zgodzie użytkownika i dodatkowych zabezpieczeniach.
+
+## Kryteria akceptacji
+
+1. `python advanced_agent.py --watch --interval-minutes 1 --watchlist AAPL,NVDA --max-candidates 2` uruchamia ciągły tryb bez błędów.
+2. Każdy cykl zapisuje snapshot do `reports/continuous/watch_log.jsonl`.
+3. Kandydaci są zapisywani do `reports/continuous/opportunities.jsonl`.
+4. Decyzje są zapisywane do `reports/continuous/decisions.jsonl`.
+5. `memory.json` zawiera ostatnie decyzje i podstawowe statystyki.
+6. `daily_summary.md` jest czytelny dla użytkownika.
+7. `RiskGuard` oznacza decyzje jednym ze statusów: `safe`, `watch`, `risky`, `blocked_by_risk`.
+8. System nie wykonuje automatycznych zleceń w MVP.
+9. Test na krótkim interwale potwierdza, że dane, raporty i pamięć są aktualizowane.
+
+## Rekomendacja końcowa
+
+Najlepszy pierwszy krok: przyjąć plan OpenClaude jako bazę, ale uprościć go do bezpiecznego MVP. Należy dodać tryb `--watch`, `MarketWatcher`, `OpportunityScanner`, `PortfolioMemory`, `RiskGuard` i `ReportWriter`, bez automatycznego tradingu.
+
+To da użytkownikowi ciągłą analizę rynku, wyszukiwanie nowych okazji, wykorzystanie istniejących agentów TradingAgents, historię decyzji i raporty, a jednocześnie nie zwiększy ryzyka finansowego przez automatyczne zlecenia.
