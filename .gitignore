@@ -221,3 +221,6 @@ __marimo__/
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
 reports/
+
+# Claude Code local (machine-specific) settings — not published
+.claude/settings.local.json

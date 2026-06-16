@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Run inside Claude Code (subscription-powered, no API-key spend).** A new
+  local MCP server (`tradingagents-data-mcp`, `pip install ".[mcp]"`) exposes
+  the data layer (16 tools: market, technical, fundamentals, news, macro/FRED,
+  prediction markets, StockTwits, Reddit, instrument identity, realized return)
+  while making no LLM calls. Twelve role subagents (`.claude/agents/`), a
+  deterministic orchestration workflow (`.claude/workflows/trade-decision.js`),
+  and a `/trade` slash command let **Claude itself play every agent** through
+  the full pipeline (analysts → bull/bear debate → trader → risk debate →
+  portfolio manager), producing the 5-tier decision with zero LLM API-key spend.
+  Decisions are logged in the existing `trading_memory.md` format via
+  `tradingagents-memory`, and prior decisions are reflected on with realized
+  returns on the next run. See [docs/CLAUDE_CODE.md](docs/CLAUDE_CODE.md). The
+  native LangGraph CLI and Python API are unchanged.
+
 ## [0.2.5] — 2026-05-11
 
 ### Added

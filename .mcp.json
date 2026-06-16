@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "tradingagents-data": {
+      "type": "stdio",
+      "command": "tradingagents-data-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}

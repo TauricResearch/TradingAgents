@@ -44,9 +44,18 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Local data MCP server (Model Context Protocol) that exposes the dataflows
+# layer as tools for Claude Code / Claude Desktop. The server itself makes no
+# LLM calls — Claude (the client) does all reasoning — so this extra only adds
+# the MCP SDK on top of the data dependencies already in the base install.
+mcp = [
+    "mcp>=1.2.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-data-mcp = "tradingagents.mcp.data_server:main"
+tradingagents-memory = "tradingagents.mcp.memory_cli:main"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]

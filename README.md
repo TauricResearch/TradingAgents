@@ -27,6 +27,16 @@
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
+> **Derivative notice.** This repository is a fork of
+> [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents),
+> distributed under the Apache License 2.0. Modifications in this fork: a
+> **Claude Code integration layer** that runs the full multi-agent pipeline using
+> a Claude subscription with no LLM API-key spend — a local data MCP server, role
+> subagents, and an orchestration workflow (see
+> [docs/CLAUDE_CODE.md](docs/CLAUDE_CODE.md) and the *Unreleased* entry in
+> [CHANGELOG.md](CHANGELOG.md)). The original framework, CLI, and Python API are
+> unchanged. All original copyright and attribution are retained.
+
 ## News
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-04] **TradingAgents v0.2.4** released with structured-output agents (Research Manager, Trader, Portfolio Manager), LangGraph checkpoint resume, persistent decision log, DeepSeek/Qwen/GLM/Azure provider support, Docker, and a Windows UTF-8 encoding fix.
@@ -198,6 +208,33 @@ An interface will appear showing results as they load, letting you track the age
 <p align="center">
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
+
+## Run inside Claude Code (subscription-powered, no API-key spend)
+
+You can drive the full multi-agent pipeline from **Claude Code**, letting
+**Claude itself play every agent** (analysts → bull/bear debate → trader → risk
+debate → portfolio manager) using your Claude subscription. The framework's data
+layer is exposed as a local [MCP](https://modelcontextprotocol.io) server while
+Claude does all the reasoning, so the whole pipeline runs locally with **zero LLM
+API-key spend** — only the (mostly free/keyless) data sources are hit.
+
+```bash
+pip install -e ".[mcp]"
+claude mcp add --transport stdio tradingagents-data --scope project -- tradingagents-data-mcp
+cd /path/to/TradingAgents && claude
+```
+
+Then in Claude Code:
+
+```
+/trade NVDA 2026-01-15
+```
+
+This runs the deterministic `trade-decision` workflow (`.claude/workflows/`)
+over the 12 role subagents (`.claude/agents/`), produces a 5-tier
+Buy/Overweight/Hold/Underweight/Sell decision, and logs it for future
+reflection. See **[docs/CLAUDE_CODE.md](docs/CLAUDE_CODE.md)** for full setup,
+arguments, and usage/cost notes.
 
 ## TradingAgents Package
 
