@@ -121,9 +121,7 @@ def _resolve_series_id(indicator: str) -> str:
     if not (1 <= len(series_id) <= 25 and series_id.isalnum()):
         raise ValueError(
             f"Invalid FRED series ID '{series_id}'. Series IDs must be 1-25 "
-            f"alphanumeric characters. Use a supported alias (e.g. 'cpi', "
-            f"'unemployment', 'fed_funds_rate', '10y_treasury') or a valid raw "
-            f"FRED series ID."
+            f"alphanumeric characters."
         )
     return series_id
 
