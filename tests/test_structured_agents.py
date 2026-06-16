@@ -27,6 +27,7 @@ from tradingagents.agents.schemas import (
 )
 from tradingagents.agents.trader.trader import create_trader
 
+
 # ---------------------------------------------------------------------------
 # Render functions
 # ---------------------------------------------------------------------------
@@ -349,10 +350,13 @@ class TestSentimentAnalystAgent:
         llm.invoke.return_value = MagicMock(content=plain)
         assert create_sentiment_analyst(llm)(_make_sentiment_state())["sentiment_report"] == plain
 
-    def test_falls_back_to_freetext_when_structured_call_fails(self):
+    def test_falls_back_to_freetext_when_structured_returns_none(self):
+        # LangChain PydanticToolsParser silently returns None when a thinking
+        # model skips the tool call instead of raising an exception.  The None
+        # guard in invoke_structured_or_freetext must trigger the fallback.
         plain = "Fallback free-text sentiment."
         structured = MagicMock()
-        structured.invoke.side_effect = ValueError("bad JSON from model")
+        structured.invoke.return_value = None
         llm = MagicMock()
         llm.with_structured_output.return_value = structured
         llm.invoke.return_value = MagicMock(content=plain)
