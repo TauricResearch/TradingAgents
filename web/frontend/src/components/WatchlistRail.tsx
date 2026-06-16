@@ -24,7 +24,7 @@ function groupColor(name: string): string {
 export function WatchlistRail() {
   const qc = useQueryClient();
   const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: fetchWatchlist });
-  const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices });
+  const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices, refetchInterval: 2_000 });
   const clearLast = useUi((s) => s.clearLastRunIdForTicker);
   const setFocusedTicker = useUi((s) => s.setFocusedTicker);
   const collapsedGroups = useUi((s) => s.watchlistCollapsedGroups);

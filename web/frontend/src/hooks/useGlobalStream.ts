@@ -5,7 +5,7 @@ import { EventType, type WsEvent } from "../lib/events";
 
 interface PriceData {
   price: number;
-  change_pct: number;
+  change_pct: number | null;
   sparkline: number[];
   stale: boolean;
 }
@@ -32,7 +32,7 @@ export function useGlobalStream() {
 
           const priceData: PriceData = {
             price: Number(price) || 0,
-            change_pct: Number(change_pct) || 0,
+            change_pct: change_pct != null ? Number(change_pct) : null,
             sparkline: Array.isArray(sparkline)
               ? sparkline.map(Number)
               : [],

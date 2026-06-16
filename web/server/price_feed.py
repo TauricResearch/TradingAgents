@@ -56,7 +56,7 @@ def validate_ticker_exists(ticker: str) -> None:
 class PriceSnapshot:
     price: float = 0.0
     prev_close: float = 0.0
-    change_pct: float = 0.0
+    change_pct: Optional[float] = None
     sparkline: list[float] = field(default_factory=list)
     stale: bool = False
 
@@ -119,13 +119,26 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
                         or info.get("previousClose")
                         or info.get("previous_close")
                     )
+                    # Retry once: yfinance sometimes returns None on the
+                    # first fast_info call for a symbol that has valid
+                    # previous-close data.
+                    if prev_close is None:
+                        try:
+                            info = yf.Ticker(ticker).fast_info
+                            prev_close = (
+                                info.get("regularMarketPreviousClose")
+                                or info.get("previousClose")
+                                or info.get("previous_close")
+                            )
+                        except Exception:
+                            pass
                     if prev_close is not None:
                         snap.prev_close = float(prev_close)
 
                 if snap.prev_close > 0:
                     snap.change_pct = (snap.price - snap.prev_close) / snap.prev_close * 100.0
                 else:
-                    snap.change_pct = 0.0
+                    snap.change_pct = None
                 snap.stale = False
             else:
                 snap.stale = True

@@ -8,7 +8,7 @@ interface Props {
   sparkline: number[];
   status: "idle" | "queued" | "running" | "done" | "errored";
   price?: number;
-  changePct?: number;
+  changePct?: number | null;
   stale?: boolean;
   onRemove?: (ticker: string) => void | Promise<void>;
   group?: string | null;
@@ -152,11 +152,13 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
           <span className="text-xs text-slate-600 truncate">
             {stale ? "Price data unavailable" : companyName || lastDecision || "—"}
           </span>
-          {!stale && showChange && (
+          {!stale && showChange ? (
             <span className={`text-xs data-text font-medium ${changeColor}`}>
               {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
             </span>
-          )}
+          ) : !stale ? (
+            <span className="text-xs data-text font-medium text-slate-500">N/A</span>
+          ) : null}
         </div>
       </div>
       <svg width="40" height="20" className="opacity-40 shrink-0" aria-hidden="true">
