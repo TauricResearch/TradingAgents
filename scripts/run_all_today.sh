@@ -35,7 +35,18 @@ CONCURRENCY="${CONCURRENCY:-5}"                # 5 ran clean; 20 tripped HTTP 42
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs}"
 mkdir -p "$LOGDIR"
 
-ALL_TICKERS=(SPY QQQ SOXX SPCX)
+# --- discover the target ticker universe ---------------------------------
+if [ "$#" -gt 0 ]; then
+  ALL_TICKERS=("$@")
+else
+  ALL_TICKERS=()
+  for d in docs/*/; do
+    t="$(basename "$d")"
+    [ "$t" = "stylesheets" ] && continue
+    [ "$t" = "archive" ] && continue
+    ALL_TICKERS+=("$t")
+  done
+fi
 
 # --- a ticker is "missing" if it has no docs/<T>/<DATESLUG>_*/ folder ------
 missing_tickers() {
@@ -83,6 +94,14 @@ fi
 echo "Pass 1: ${#TODO[@]} ticker(s) missing for ${DATE}, concurrency=${CONCURRENCY}"
 echo "  ${TODO[*]}"
 run_pass "$CONCURRENCY" "${TODO[@]}"
+
+# --- pass 2: retry whatever is still missing, at the safe concurrency -----
+read_into STILL < <(missing_tickers)
+if [ "${#STILL[@]}" -gt 0 ]; then
+  echo "Pass 2 (retry): ${#STILL[@]} still missing, concurrency=${CONCURRENCY}"
+  echo "  ${STILL[*]}"
+  run_pass "$CONCURRENCY" "${STILL[@]}"
+fi
 
 # --- final report ---------------------------------------------------------
 read_into FAILED < <(missing_tickers)
