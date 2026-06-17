@@ -1,0 +1,12 @@
+Zmiany wprowadzone przez asystenta Jules w celu integracji z TradingAgentsGraph (Punkt 1 z koncowy_opencloude.txt)
+
+Plik: opencloude_agent/run.py
+
+1. Importy:
+Dodano import klasy `TradingAgentsGraph` z modułu `tradingagents.graph.trading_graph`.
+
+2. Klasa OpenClaudeContinuousAgent:
+- Zmodyfikowano metodę `__init__`, aby inicjalizowała sztuczną inteligencję (utworzono atrybut `self.agent_graph = TradingAgentsGraph(...)`).
+- Zmodyfikowano metodę `_make_paper_decisions`. Zastąpiono starą i twardo zakodowaną logikę oceny `action = "buy" if opportunity.score >= 60 else "hold"`.
+Obecnie funkcja iteracyjnie wywołuje sztuczną inteligencję komendą `agent_state, signal = self.agent_graph.propagate(ticker, str(utc_now().date()))` dla każdej wykrytej szansy rynkowej.
+Jeśli LLM zwróci sygnał rynkowy sugerujący zakupy (np. "bullish"), decyduje się na "buy". Kod wykorzystuje również wygenerowane przez agenta uzasadnienie i zapisuje je w strukturach decyzji. Dodano zabezpieczenie try-except jako fallback w przypadku błędu LLM.
