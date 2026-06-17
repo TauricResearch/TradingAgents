@@ -44,6 +44,13 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Scheduled-runner support: headless daily driver + Telegram delivery.
+# ``pyyaml`` is the watchlist parser; ``fpdf2`` renders the Portfolio
+# Manager ``decision.md`` to a PDF that Telegram can render inline.
+scheduled = [
+    "pyyaml>=6.0",
+    "fpdf2>=2.7",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

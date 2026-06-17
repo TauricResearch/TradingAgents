@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Scheduled runs + Telegram delivery.** A new headless driver
+  (`scripts/run_daily.py`) iterates over `config/watchlist.yaml`, runs
+  `propagate()` for each ticker, persists the canonical
+  `reports/<TICKER>_<TS>/` folder, renders the Portfolio Manager
+  `decision.md` to a PDF, and delivers both a short Markdown message
+  and the PDF to a configured Telegram chat. New
+  `tradingagents.notifications.telegram` module owns the Bot API
+  integration; new `tradingagents.reports.exporter` centralises the
+  report-folder layout and the `decision.md` parsing that both the
+  CLI and the runner share. `scripts/install_launchd.sh` registers a
+  Mon–Fri 07:00 launchd job on macOS; `scripts/uninstall_launchd.sh`
+  removes it. Install with `pip install ".[scheduled]"` (pulls
+  `pyyaml` and `fpdf2`).
+
 ## [0.2.5] — 2026-05-11
 
 ### Added

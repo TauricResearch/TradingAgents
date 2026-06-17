@@ -1,0 +1,23 @@
+# TradingAgents scheduled-runner watchlist.
+#
+# Each entry tells the headless runner (`scripts/run_daily.py`) which symbol
+# to analyze, which asset pipeline to use, and which analyst teams to enable.
+#
+# The runner reads this file on every invocation. You can:
+#   - add a stock by appending a new `symbol:` block and setting asset_type
+#     to "stock" (or omitting it — the default is "stock")
+#   - add a crypto pair with asset_type: crypto
+#   - override the analyst set; the runner falls back to the project's
+#     DEFAULT_CONFIG selection if `analysts` is missing
+#
+# The file is read from the path in TRADINGAGENTS_WATCHLIST_PATH
+# (default: config/watchlist.yaml).
+
+tickers:
+  - symbol: BTC-USD
+    asset_type: crypto
+    # analysts: [market, social, news]   # optional override
+  # - symbol: ETH-USD
+  #   asset_type: crypto
+  # - symbol: NVDA
+  #   asset_type: stock
