@@ -70,7 +70,7 @@ export default function App() {
     queryFn: fetchWatchlist,
     enabled: serverReady,
   });
-  const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices, refetchInterval: 2_000, enabled: serverReady });
+  const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices, enabled: serverReady });
   const { data: configModels } = useQuery<ConfigModels>({ queryKey: ["config-models"], queryFn: fetchConfigModels, staleTime: Infinity, enabled: serverReady });
   const { data: cachedKeys } = useQuery({
     queryKey: ["cached-free-keys"],
