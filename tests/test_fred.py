@@ -103,7 +103,16 @@ class FredFormattingTests(unittest.TestCase):
         no_series = {"seriess": []}
         with mock.patch.object(fred, "_request", side_effect=_request_stub(meta=no_series)), \
                 self.assertRaises(ValueError):
-            fred.get_macro_data("totally_unknown_xyz", "2025-09-30", 30)
+            fred.get_macro_data("TOTALLYUNKNOWNXYZ", "2025-09-30", 30)
+
+    def test_invalid_series_id_returns_error_message(self):
+        # LLM-generated descriptive names often contain spaces, dashes, or are
+        # too long to be valid FRED series IDs. These should fail fast and
+        # return an instructive message instead of propagating a FRED 400 error.
+        out = fred.get_macro_data("bank of japan rate", "2025-09-30", 30)
+        self.assertIn("ERROR:", out)
+        self.assertIn("1-25 alphanumeric", out)
+        self.assertIn("supported alias", out)
 
     def test_long_series_is_truncated_but_change_uses_full_range(self):
         # Build > MAX_ROWS observations deterministically.
