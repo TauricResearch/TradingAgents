@@ -13,6 +13,8 @@ from typing import Any, Iterable
 import pandas as pd
 import yfinance as yf
 
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+
 
 DEFAULT_WATCHLIST = ["AAPL", "MSFT", "NVDA", "TSLA", "SPY"]
 
@@ -305,6 +307,10 @@ class OpenClaudeContinuousAgent:
         self.scanner = OpportunityScanner(max_candidates=max_candidates)
         self.risk_guard = RiskGuard()
         self.report_writer = ReportWriter(self.results_dir)
+        self.agent_graph = TradingAgentsGraph(
+            selected_analysts=("market", "social", "news", "fundamentals"),
+            debug=False,
+        )
 
     def run_once(self) -> dict[str, Any]:
         snapshot = self.market_watcher.snapshot(self.watchlist)
@@ -342,13 +348,41 @@ class OpenClaudeContinuousAgent:
             price = snapshot[ticker].get("close")
             if not price:
                 continue
-            action = "buy" if opportunity.score >= 60 else "hold"
+
+            # Use AI agent for the decision
+            trade_date = str(utc_now().date())
+            try:
+                agent_state, signal = self.agent_graph.propagate(ticker, trade_date)
+            except Exception as e:
+                # Fallback if there's an error in AI graph
+                signal = {"signal": "error"}
+                agent_state = {}
+
+            # Assuming the signal output handles 'bullish'/'bearish'/'neutral' strings or dicts
+            action = "hold"
+            rationale = opportunity.reason
+
+            if isinstance(signal, str):
+                if "bullish" in signal.lower():
+                    action = "buy"
+            elif isinstance(signal, dict):
+                s = signal.get("signal", "").lower()
+                if "bull" in s or "buy" in s:
+                    action = "buy"
+
             quantity = 0
             value = 0.0
             if action == "buy":
                 allocation = max(self.portfolio.cash_usd * 0.10, 1000.0)
                 quantity = int(allocation // float(price))
                 value = self.portfolio.simulate_buy(ticker, quantity, float(price))
+
+            if agent_state:
+                # Add AI specific rationale if available
+                ai_rationale = agent_state.get("final_trade_decision", {}).get("reasoning")
+                if ai_rationale:
+                    rationale = f"{opportunity.reason} | AI: {ai_rationale}"
+
             decisions.append(
                 {
                     "ticker": ticker,
@@ -356,7 +390,7 @@ class OpenClaudeContinuousAgent:
                     "quantity": quantity,
                     "estimated_price": float(price),
                     "estimated_value_usd": value,
-                    "rationale": opportunity.reason,
+                    "rationale": rationale,
                     "risk_level": "paper_only",
                     "timestamp": utc_now().isoformat() + "Z",
                 }
