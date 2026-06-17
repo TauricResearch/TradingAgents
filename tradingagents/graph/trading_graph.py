@@ -491,23 +491,29 @@ class TradingAgentsGraph:
             # state matches what graph.invoke() yields in the non-debug path.
             final_state = {}
             for chunk in trace:
+                # Debug-mode chunks are full state dicts ("values" mode), not
+                # {node_name: delta}. Extract the first state-change key as a
+                # best-effort label for callbacks; empty chunks are impossible
+                # here (trace only contains chunks with messages).
+                first_key = next(iter(chunk)) if chunk else "debug"
                 if event_callback is not None:
                     try:
                         event_callback(
                             "node_entered",
-                            {"node": next(iter(chunk)), "ts": _now_iso()},
+                            {"node": first_key, "ts": _now_iso()},
                         )
                     except Exception:  # callbacks must never break the run
                         logger.exception("event_callback raised; continuing")
                 final_state.update(chunk)
                 if event_callback is not None:
                     try:
+                        delta_val = chunk.get(first_key)
                         event_callback(
                             "node_exited",
                             {
-                                "node": next(iter(chunk)),
+                                "node": first_key,
                                 "ts": _now_iso(),
-                                "delta": next(iter(chunk.values())),
+                                "delta": delta_val,
                             },
                         )
                     except Exception:  # callbacks must never break the run
@@ -523,23 +529,30 @@ class TradingAgentsGraph:
                 init_agent_state,
                 **{**args, "stream_mode": "updates"},
             ):
+                # Empty chunks (e.g. from __interrupt__ or edge events) must
+                # never crash the run. Skip them silently (#1208).
+                if not chunk:
+                    continue
+                # stream_mode="updates" yields {node_name: delta_dict} per node.
+                node_name = next(iter(chunk))
+                delta = chunk[node_name]
                 if event_callback is not None:
                     try:
                         event_callback(
                             "node_entered",
-                            {"node": next(iter(chunk)), "ts": _now_iso()},
+                            {"node": node_name, "ts": _now_iso()},
                         )
                     except Exception:  # callbacks must never break the run
                         logger.exception("event_callback raised; continuing")
-                final_state.update(next(iter(chunk.values())))
+                final_state.update(delta)
                 if event_callback is not None:
                     try:
                         event_callback(
                             "node_exited",
                             {
-                                "node": next(iter(chunk)),
+                                "node": node_name,
                                 "ts": _now_iso(),
-                                "delta": next(iter(chunk.values())),
+                                "delta": delta,
                             },
                         )
                     except Exception:  # callbacks must never break the run
