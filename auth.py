@@ -16,7 +16,11 @@ async set/get races with Streamlit reruns (cookies set during one rerun
 weren't readable on the next refresh).
 
 Configuration (read from environment / .env):
-    ALLOWED_EMAILS    Comma-separated whitelist (case-insensitive).
+    ALLOWED_EMAILS    Comma-separated whitelist (case-insensitive). Merged
+                      with ALLOWED_EMAILS_FILE, which is re-read on every
+                      login so users can be added without a restart.
+    ALLOWED_EMAILS_FILE  Path to a whitelist file (one email per line);
+                      defaults to ~/.tradingagents/allowed_emails.txt.
     SMTP_HOST/PORT/USER/PASS/FROM   SMTP for sending OTP.
     AUTH_DEV_FALLBACK Set to "1" to write OTPs to /tmp/tradingagents_otp.log
                       instead of mailing.
@@ -84,9 +88,37 @@ _DEV_LOG = Path("/tmp/tradingagents_otp.log")
 
 
 # ─── Whitelist + SMTP config ───
+def _whitelist_file() -> Path:
+    """Path to the dynamic whitelist file (re-read on every login attempt).
+
+    Lives under the home data dir (not the repo) so it survives deploys and
+    is shared by every process running as this user.
+    """
+    p = os.getenv("ALLOWED_EMAILS_FILE")
+    if p:
+        return Path(p).expanduser()
+    return Path.home() / ".tradingagents" / "allowed_emails.txt"
+
+
 def _get_whitelist() -> set[str]:
-    raw = os.getenv("ALLOWED_EMAILS", "")
-    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+    """Authorized emails: union of the ``ALLOWED_EMAILS`` env var and the
+    whitelist file. The file is read fresh on every call, so adding or
+    removing a user takes effect immediately — no service restart needed.
+
+    File format: one email per line (commas also accepted); blank lines and
+    ``#`` comments are ignored.
+    """
+    emails = {e.strip().lower()
+              for e in os.getenv("ALLOWED_EMAILS", "").split(",") if e.strip()}
+    try:
+        text = _whitelist_file().read_text(encoding="utf-8")
+    except OSError:
+        text = ""
+    for line in text.splitlines():
+        for e in line.split("#", 1)[0].split(","):
+            if e.strip():
+                emails.add(e.strip().lower())
+    return emails
 
 
 def _smtp_configured() -> bool:
@@ -300,7 +332,7 @@ def sign_out(st_module) -> None:
 _LABELS = {
     "en": {
         "caption": "Restricted access. Enter your email to receive a one-time code.",
-        "no_whitelist": "ALLOWED_EMAILS is not configured. Edit .env to add authorized emails.",
+        "no_whitelist": "No authorized emails configured. Add emails to ~/.tradingagents/allowed_emails.txt.",
         "email_label": "Email address",
         "email_required": "Please enter an email.",
         "send_code": "Send code",
@@ -312,7 +344,7 @@ _LABELS = {
     },
     "zh": {
         "caption": "受限访问。请输入邮箱以接收一次性验证码。",
-        "no_whitelist": "ALLOWED_EMAILS 尚未配置，请在 .env 中加入允许的邮箱。",
+        "no_whitelist": "尚未配置允许的邮箱，请在 ~/.tradingagents/allowed_emails.txt 中加入。",
         "email_label": "邮箱地址",
         "email_required": "请输入邮箱。",
         "send_code": "发送验证码",

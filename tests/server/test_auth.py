@@ -33,6 +33,23 @@ def test_verify_sets_cookie_and_me_works(client, monkeypatch):
     assert me.status_code == 200 and me.json()["email"] == "a@b.com"
 
 
+def test_whitelist_file_no_restart(client, env):
+    """A user added to the whitelist file is accepted immediately — the file
+    is re-read on every request, so no app reload/restart is needed."""
+    # Not in ALLOWED_EMAILS env (only a@b.com is) → rejected.
+    assert client.post("/api/auth/request-otp",
+                       json={"email": "fresh@x.com"}).status_code == 403
+
+    # Append to ~/.tradingagents/allowed_emails.txt under the sandboxed HOME.
+    wl = env / ".tradingagents" / "allowed_emails.txt"
+    wl.parent.mkdir(parents=True, exist_ok=True)
+    wl.write_text("# comment\nFresh@X.com\n", encoding="utf-8")
+
+    # Same long-lived client/app — now accepted (case-insensitive), no restart.
+    assert client.post("/api/auth/request-otp",
+                       json={"email": "fresh@x.com"}).status_code == 200
+
+
 def test_logout_clears_session(auth_client):
     assert auth_client.get("/api/auth/me").status_code == 200
     auth_client.post("/api/auth/logout")
