@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export class MockWebSocket {
   static instances: MockWebSocket[] = [];
   url: string;

@@ -98,6 +98,12 @@ function RunPanel({ runId }: { runId: string }) {
     enabled: !!runId,
   });
 
+  const report = useMemo(
+    () => (detail ? lastReportExcerpt(detail.events ?? []) : null),
+    [detail],
+  );
+  const events = detail?.events ?? [];
+
   /* ── loading state ── */
   if (isLoading) {
     return (
@@ -131,12 +137,6 @@ function RunPanel({ runId }: { runId: string }) {
       : "text-slate-400 bg-slate-700/30 border-slate-600/50";
   const confidence = detail.decision_confidence ?? 0;
   const pct = Math.max(0, Math.min(1, confidence)) * 100;
-
-  const report = useMemo(
-    () => lastReportExcerpt(detail.events ?? []),
-    [detail.events],
-  );
-  const events = detail.events ?? [];
 
   return (
     <div className="space-y-3">

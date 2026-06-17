@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { ReportPanel } from "../components/ReportPanel";
 
 // ReportPanel depends on hooks that read from Zustand store.

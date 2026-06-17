@@ -28,6 +28,7 @@ function formatTotalDuration(s: number | null | undefined): string | null {
   return formatDuration(s * 1000);
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function runLabel(r: RunRow): string {
   const when = formatStartedAt(r.started_at);
   const action = r.decision_action ? ` — ${r.decision_action}` : "";

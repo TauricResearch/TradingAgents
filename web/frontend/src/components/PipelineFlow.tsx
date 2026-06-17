@@ -153,19 +153,19 @@ type StageDerived = {
 
 function deriveStage(stage: string, events: WsEvent[]): StageDerived {
   const firstStartIdx = events.findIndex(
-    (e) => e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage,
+    (e) => e.type === "analyst_started" && NODE_TO_STAGE[(e.data as Record<string, unknown>)?.node] === stage,
   );
   const lastStartIdx = (() => {
     for (let i = events.length - 1; i >= 0; i--) {
       const e = events[i];
-      if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage) return i;
+      if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as Record<string, unknown>)?.node] === stage) return i;
     }
     return -1;
   })();
 
   const hasReport = events.some((e) => {
     if (e.type !== "analyst_completed") return false;
-    if ((e.data as any)?.stage !== stage) return false;
+    if ((e.data as Record<string, unknown>)?.stage !== stage) return false;
     const d = e.data as Record<string, unknown>;
     return !!(d.report_excerpt || d.report_text);
   });
@@ -173,7 +173,7 @@ function deriveStage(stage: string, events: WsEvent[]): StageDerived {
     for (let i = events.length - 1; i >= 0; i--) {
       const e = events[i];
       if (e.type !== "analyst_completed") continue;
-      if ((e.data as any)?.stage !== stage) continue;
+      if ((e.data as Record<string, unknown>)?.stage !== stage) continue;
       const d = e.data as Record<string, unknown>;
       if (d.report_excerpt || d.report_text) return e;
     }
@@ -201,7 +201,7 @@ function deriveStage(stage: string, events: WsEvent[]): StageDerived {
     for (let i = lastStartIdx + 1; i < events.length; i++) {
       const e = events[i];
       if (e.type === "analyst_started") {
-        const nodeStage = NODE_TO_STAGE[(e.data as any)?.node];
+        const nodeStage = NODE_TO_STAGE[(e.data as Record<string, unknown>)?.node];
         if (nodeStage && nodeStage !== stage) return i;
       }
     }
@@ -223,14 +223,14 @@ function deriveStage(stage: string, events: WsEvent[]): StageDerived {
   if (hasFailed) {
     return {
       status: "errored",
-      node: lastStartIdx !== -1 ? (events[lastStartIdx].data as any)?.node ?? undefined : undefined,
+      node: lastStartIdx !== -1 ? (events[lastStartIdx].data as Record<string, unknown>)?.node ?? undefined : undefined,
       thinkingLog,
     };
   }
 
   return {
     status: "running",
-    node: lastStartIdx !== -1 ? (events[lastStartIdx].data as any)?.node ?? undefined : undefined,
+    node: lastStartIdx !== -1 ? (events[lastStartIdx].data as Record<string, unknown>)?.node ?? undefined : undefined,
     thinkingLog,
   };
 }
@@ -289,11 +289,11 @@ function deriveAgentStatus(agent: string, events: WsEvent[]): AgentStatus {
   const stage = AGENT_TO_STAGE[agent];
   if (!stage) return "pending";
   const started = events.some(
-    (e) => e.type === "analyst_started" && (e.data as any)?.node === agent,
+    (e) => e.type === "analyst_started" && (e.data as Record<string, unknown>)?.node === agent,
   );
   if (!started) return "pending";
   const stageCompletions = events.filter(
-    (e) => e.type === "analyst_completed" && (e.data as any)?.stage === stage,
+    (e) => e.type === "analyst_completed" && (e.data as Record<string, unknown>)?.stage === stage,
   ).length;
   const order = AGENT_ORDER_IN_STAGE[agent] ?? 0;
   return stageCompletions > order ? "completed" : "in_progress";
@@ -351,8 +351,8 @@ function formatElapsed(sec: number): string {
 function lastStartedIsoFor(stage: string, events: WsEvent[]): string | undefined {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i];
-    if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as any)?.node] === stage) {
-      return (e.data as any)?.ts ?? undefined;
+    if (e.type === "analyst_started" && NODE_TO_STAGE[(e.data as Record<string, unknown>)?.node] === stage) {
+      return (e.data as Record<string, unknown>)?.ts ?? undefined;
     }
   }
   return undefined;
@@ -387,7 +387,11 @@ function StageDot({
   // Live elapsed timer (1 Hz tick)
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
-    if (!isRunning || !startedAtIso) { setElapsed(0); return; }
+    if (!isRunning || !startedAtIso) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setElapsed(0);
+      return;
+    }
     const tick = () => setElapsed(stageElapsedSeconds(startedAtIso, status));
     tick();
     const id = window.setInterval(tick, 1000);
@@ -718,7 +722,6 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
   }, [events]);
 
   const { teamStatuses, stats } = derived;
-  const doneCount = teamStatuses.filter((ts) => ts.status === "done").length;
 
   const toggleStage = (key: string) => setExpandedStage((prev) => (prev === key ? null : key));
 

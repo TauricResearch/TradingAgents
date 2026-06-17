@@ -29,6 +29,7 @@ export function useFreeKeysAutoRefresh() {
 
   useEffect(() => {
     if (!enabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCountdown(0);
       setNextRefreshAt(null);
       return;

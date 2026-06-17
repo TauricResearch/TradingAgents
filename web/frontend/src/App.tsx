@@ -147,12 +147,13 @@ export default function App() {
     qc.invalidateQueries({ queryKey: ["watchlist"] });
   }, [focused, clearLast, qc]);
 
-  const price = focused ? (prices as any)[focused] || {} : {};
+  const price = focused ? (prices[focused] as Record<string, unknown>) ?? {} : {};
   const priceStale = price.stale === true;
   // Re-show the banner whenever the user navigates to a different stale
   // ticker (don't let a dismissal on a previous one persist).
   useEffect(() => {
     if (!priceStale && dismissedStaleBanner === focused) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDismissedStaleBanner(null);
     }
   }, [priceStale, focused, dismissedStaleBanner]);
