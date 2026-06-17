@@ -48,10 +48,16 @@ EXIT_BAD_WATCHLIST = 2
 
 def _configure_logging(verbose: bool) -> None:
     level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    # Stream to stdout so logs land in run_daily.out.log under launchd
+    # (basicConfig defaults to stderr, which only populates run_daily.err.log).
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     )
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.handlers.clear()
+    root.addHandler(handler)
 
 
 def _run_one(
@@ -65,6 +71,8 @@ def _run_one(
     Returns a dict ``{"report_dir", "decision_md", "pdf", "summary"}`` on
     success or ``None`` on failure (with the failure already logged).
     """
+    import time
+
     symbol = entry.symbol
     asset_type = entry.asset_type
     config = _default_config.DEFAULT_CONFIG.copy()
@@ -72,33 +80,54 @@ def _run_one(
     timestamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     report_dir = reports_root / f"{symbol}_{timestamp}"
     report_dir.mkdir(parents=True, exist_ok=True)
-    logger.info("Analyzing %s (%s) on %s -> %s", symbol, asset_type, analysis_date, report_dir)
+    logger.info(
+        "[%s] start: asset_type=%s analysts=%s date=%s out=%s",
+        symbol,
+        asset_type,
+        entry.analysts or "default(all)",
+        analysis_date,
+        report_dir.name,
+    )
 
     graph_kwargs: dict[str, Any] = {"debug": False, "config": config}
     if entry.analysts is not None:
         graph_kwargs["selected_analysts"] = entry.analysts
 
+    t0 = time.monotonic()
     try:
+        logger.info("[%s] building graph", symbol)
         graph = TradingAgentsGraph(**graph_kwargs)
+        logger.info("[%s] running propagate() ...", symbol)
         final_state, _decision = graph.propagate(symbol, analysis_date, asset_type=asset_type)
     except Exception:
-        logger.exception("propagate() failed for %s", symbol)
+        logger.exception("[%s] propagate() failed after %.1fs", symbol, time.monotonic() - t0)
         return None
+    logger.info("[%s] propagate() done in %.1fs", symbol, time.monotonic() - t0)
 
     save_report_to_disk(final_state, symbol, report_dir)
+    logger.info("[%s] report saved to %s", symbol, report_dir)
     decision_md_path = report_dir / "5_portfolio" / "decision.md"
     if not decision_md_path.exists():
-        logger.error("decision.md missing for %s at %s", symbol, decision_md_path)
+        logger.error("[%s] decision.md missing at %s", symbol, decision_md_path)
         return None
 
     decision_text = decision_md_path.read_text(encoding="utf-8")
     summary = extract_decision_summary(decision_text)
+    logger.info(
+        "[%s] parsed decision: rating=%s target=%s horizon=%s",
+        symbol,
+        summary.rating,
+        summary.price_target,
+        summary.time_horizon,
+    )
 
     pdf_path = markdown_to_pdf(decision_md_path)
     if pdf_path is None:
         logger.warning(
-            "PDF conversion failed for %s; Telegram will fall back to .md attachment", symbol
+            "[%s] PDF conversion failed; Telegram will fall back to .md attachment", symbol
         )
+    else:
+        logger.info("[%s] PDF rendered: %s", symbol, pdf_path.name)
 
     return {
         "report_dir": report_dir,
@@ -133,6 +162,18 @@ def run(
     reports_root: Path,
     watchlist_path: Path | None = None,
 ) -> int:
+    import time
+
+    started_at = time.monotonic()
+
+    logger.info("=" * 60)
+    logger.info("run_daily START")
+    logger.info("  analysis_date   : %s", analysis_date)
+    logger.info("  watchlist       : %s", watchlist_path or "default (TRADINGAGENTS_WATCHLIST_PATH or config/watchlist.yaml)")
+    logger.info("  reports_root    : %s", reports_root)
+    logger.info("  telegram        : %s", "configured" if telegram_mod.TelegramConfig.from_env() else "not configured (skipping delivery)")
+    logger.info("=" * 60)
+
     try:
         entries = load_watchlist(watchlist_path)
     except Exception:
@@ -143,7 +184,7 @@ def run(
         logger.warning("Watchlist is empty; nothing to do")
         return EXIT_OK
 
-    logger.info("Running scheduled analysis for %d ticker(s)", len(entries))
+    logger.info("Loaded %d ticker(s): %s", len(entries), ", ".join(e.symbol for e in entries))
     reports_root.mkdir(parents=True, exist_ok=True)
 
     successes = 0
@@ -157,13 +198,21 @@ def run(
             continue
         delivered = _deliver(entry, result)
         suffix = "delivered" if delivered else "telegram not delivered"
-        logger.info("Done %s: report=%s (%s)", entry.symbol, result["report_dir"], suffix)
+        logger.info("[%s] DONE: report=%s (%s)", entry.symbol, result["report_dir"], suffix)
         successes += 1
 
+    elapsed = time.monotonic() - started_at
+    logger.info("=" * 60)
     if successes == 0:
-        logger.error("All tickers failed; aborting with non-zero exit")
+        logger.error("run_daily END: all %d ticker(s) failed after %.1fs", len(entries), elapsed)
         return EXIT_ALL_FAILED
-    logger.info("Scheduled run complete: %d/%d succeeded", successes, len(entries))
+    logger.info(
+        "run_daily END: %d/%d succeeded in %.1fs",
+        successes,
+        len(entries),
+        elapsed,
+    )
+    logger.info("=" * 60)
     return EXIT_OK
 
 
