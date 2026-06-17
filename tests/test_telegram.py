@@ -160,3 +160,28 @@ class TestPostEnvelope:
             pytest.raises(telegram.TelegramError, match="non-JSON"),
         ):
             telegram._post(cfg, "sendMessage", data={"chat_id": "c"})
+
+
+# Characters Telegram's MarkdownV2 parser reserves per
+# https://core.telegram.org/bots/api#markdownv2-style. The escape helper
+# must backslash-escape every one of these or the Bot API rejects the
+# request with "can't parse entities".
+_MARKDOWNV2_RESERVED = "_*[]()~`>#+-=|{}.!"
+
+
+@pytest.mark.unit
+class TestEscapeMarkdownV2:
+    def test_escapes_every_reserved_character(self):
+        for ch in _MARKDOWNV2_RESERVED:
+            assert telegram.escape_markdown_v2(ch) == f"\\{ch}", (
+                f"MarkdownV2 reserved char {ch!r} must be backslash-escaped"
+            )
+
+    def test_escapes_curly_braces(self):
+        """Regression: Gemini's review flagged { and } as missing — they're not."""
+        assert telegram.escape_markdown_v2("{x}") == "\\{x\\}"
+        assert telegram.escape_markdown_v2("a|b") == "a\\|b"
+        assert telegram.escape_markdown_v2("a~b") == "a\\~b"
+
+    def test_passes_through_unreserved_text(self):
+        assert telegram.escape_markdown_v2("plain text 123") == "plain text 123"
