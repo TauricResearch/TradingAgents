@@ -278,6 +278,16 @@ def create_app() -> FastAPI:
         storage.mark_run_status(run_id, cancel_requested=True)
         return queries.run_to_dict(storage.read_run(run_id))
 
+    @app.post("/api/runs/{run_id}/resume", status_code=202)
+    async def resume_run(run_id: str) -> dict:
+        try:
+            new_run_id = await runner.resume_run(run_id, price_state=app.state.price_state)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"run_not_found: {run_id}")
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        return {"run_id": new_run_id, "previous_run_id": run_id}
+
     @app.delete("/api/runs/{run_id}")
     def delete_run(run_id: str) -> dict:
         rj = storage.read_run(run_id)

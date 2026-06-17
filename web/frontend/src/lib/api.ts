@@ -177,6 +177,15 @@ export async function cancelRun(runId: string): Promise<void> {
   }
 }
 
+export async function resumeRun(runId: string): Promise<{ run_id: string; previous_run_id: string }> {
+  const r = await fetch(`${base}/api/runs/${encodeURIComponent(runId)}/resume`, { method: "POST" });
+  if (!r.ok) {
+    const detail = await r.json().catch(() => ({ detail: r.statusText }));
+    throw new ApiError(`resume ${r.status}`, r.status, detail);
+  }
+  return r.json();
+}
+
 export async function deleteRun(runId: string): Promise<void> {
   const r = await fetch(`${base}/api/runs/${runId}`, { method: "DELETE" });
   if (!r.ok) {

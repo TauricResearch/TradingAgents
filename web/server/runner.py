@@ -302,6 +302,49 @@ async def enqueue(
     return run_id
 
 
+async def resume_run(
+    run_id: str,
+    *,
+    price_state: "price_feed.PriceState | None" = None,
+) -> str:
+    """Resume a previously failed or cancelled run.
+
+    Reads the existing run metadata (ticker, original trade date), then
+    enqueues a *new* run for the same ticker+date with ``force=False``.
+    Because the LangGraph checkpoint key is ``sha256(ticker:date_str)``,
+    the framework picks up its persisted state from the previous run and
+    resumes from the last completed node — no manual checkpoint plumbing
+    required.
+
+    The original (failed) run is left intact for audit trail purposes.
+    """
+    from web.server import price_feed as _pf  # local import to match enqueue pattern
+
+    rj = storage.read_run(run_id)
+    if rj is None:
+        raise KeyError(f"run not found: {run_id}")
+
+    ticker = rj.get("ticker", "")
+    if not ticker:
+        raise ValueError(f"run {run_id} has no ticker field")
+
+    status = rj.get("status", "")
+    if status not in ("failed", "cancelled", "running", "superseded"):
+        raise ValueError(
+            f"run {run_id} has status '{status}' — cannot resume "
+            f"(only failed / cancelled / running / superseded)"
+        )
+
+    started_at = rj.get("started_at", "")
+    date_str = started_at[:10] if started_at else storage.today_utc_iso()
+
+    log.info("resume_run: rid=%s ticker=%s date=%s (previous status=%s)", run_id, ticker, date_str, status)
+
+    new_run_id = await enqueue(ticker, date_str, force=False, price_state=price_state)
+    log.info("resume_run: rid=%s -> new rid=%s", run_id, new_run_id)
+    return new_run_id
+
+
 async def start(num_workers: int = 1) -> None:
     global _WORK_QUEUE, _sem
     _WORK_QUEUE = asyncio.Queue()
