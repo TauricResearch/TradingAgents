@@ -29,11 +29,21 @@ from tradingagents.dataflows.utils import safe_ticker_component
 # so tests can monkeypatch a temp dir before any storage call.
 _settings = {"data_dir": "", "cache_dir": ""}
 
+# Cache mapping run_id → run directory path, avoiding O(n) directory walks.
+# Populated lazily by ``_find_run_dir``.
+_run_dir_cache: dict[str, Path] = {}
+
+
+def clear_run_dir_cache() -> None:
+    """Drop the run directory cache.  Tests use this between scenarios."""
+    _run_dir_cache.clear()
+
 
 def init_settings(*, data_dir: str, cache_dir: str) -> None:
     """Configure storage paths. Called from app lifespan / conftest."""
     _settings["data_dir"] = data_dir
     _settings["cache_dir"] = cache_dir
+    _run_dir_cache.clear()
     Path(data_dir).mkdir(parents=True, exist_ok=True)
     Path(cache_dir).mkdir(parents=True, exist_ok=True)
 
@@ -287,6 +297,7 @@ def create_run_dir(
     run_dir.mkdir(parents=True)
     (run_dir / "stages").mkdir()
     run_id = run_id_for(ticker, started_at)
+    _run_dir_cache[run_id] = run_dir
     run_json = {
         "id": run_id,
         "ticker": safe_ticker_component(ticker).upper(),
@@ -321,8 +332,20 @@ def read_run(run_id: str) -> Optional[dict]:
     """Find and parse run.json for ``run_id``.
 
     Walks all ticker dirs to locate the dir whose run.json's id matches.
-    Returns ``None`` if not found.
+    Returns ``None`` if not found.  Results are cached so subsequent
+    lookups avoid the directory walk.
     """
+    rd = _find_run_dir(run_id)
+    if rd is None:
+        return None
+    return read_json(rd / "run.json")
+
+
+def _find_run_dir(run_id: str) -> Optional[Path]:
+    """Locate the run directory for ``run_id``, using and populating the cache."""
+    cached = _run_dir_cache.get(run_id)
+    if cached is not None and cached.exists():
+        return cached
     for td in data_dir().iterdir():
         if not td.is_dir():
             continue
@@ -331,22 +354,17 @@ def read_run(run_id: str) -> Optional[dict]:
                 continue
             rj = read_json(sd / "run.json")
             if rj and rj.get("id") == run_id:
-                return rj
+                _run_dir_cache[run_id] = sd
+                return sd
     return None
 
 
 def read_run_dir(run_id: str) -> Optional[Path]:
-    """Return the directory Path for ``run_id`` (cheap; no JSON parse)."""
+    """Return the directory Path for ``run_id`` (results cached after first lookup)."""
+    rd = _find_run_dir(run_id)
+    if rd is not None:
+        return rd
     dd = data_dir()
-    for td in dd.iterdir():
-        if not td.is_dir():
-            continue
-        for sd in td.iterdir():
-            if not sd.is_dir():
-                continue
-            rj = read_json(sd / "run.json")
-            if rj and rj.get("id") == run_id:
-                return sd
     log.warning(
         "read_run_dir: run %s not found under %s; ticker dirs: %s",
         run_id, dd,
