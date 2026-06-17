@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchWatchlist, fetchPrices, removeFromWatchlist, fetchRunDetail, fetchConfigModels, fetchCachedFreeKeys, type ConfigModels, type RunDetail } from "./lib/api";
+import { fetchWatchlist, fetchPrices, removeFromWatchlist, fetchRunDetail, fetchConfigModels, type ConfigModels, type RunDetail } from "./lib/api";
 import { useUi } from "./store/ui";
 import { useRunStream } from "./hooks/useRunStream";
 import { useGlobalStream } from "./hooks/useGlobalStream";
@@ -8,7 +8,6 @@ import { useFocusedRunEvents } from "./hooks/useFocusedRunEvents";
 import { useRestoredRunEvents } from "./hooks/useRestoredRunEvents";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useRunNotifications } from "./hooks/useRunNotifications";
-import { useFreeKeysAutoRefresh } from "./hooks/useFreeKeysAutoRefresh";
 import { useTheme } from "./hooks/useTheme";
 import { WatchlistRail } from "./components/WatchlistRail";
 import { TickerHeader } from "./components/TickerHeader";
@@ -72,13 +71,6 @@ export default function App() {
   });
   const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices, enabled: serverReady });
   const { data: configModels } = useQuery<ConfigModels>({ queryKey: ["config-models"], queryFn: fetchConfigModels, staleTime: Infinity, enabled: serverReady });
-  const { data: cachedKeys } = useQuery({
-    queryKey: ["cached-free-keys"],
-    queryFn: fetchCachedFreeKeys,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-    enabled: serverReady,
-  });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [dismissedStaleBanner, setDismissedStaleBanner] = useState<string | null>(null);
   const [traceView, setTraceView] = useState<"events" | "llm">("events");
@@ -89,12 +81,6 @@ export default function App() {
   useRestoredRunEvents(focused);
   useKeyboardShortcuts();
   useRunNotifications();
-  const {
-    enabled: autoRefreshEnabled,
-    countdown: autoRefreshCountdown,
-    toggle: toggleAutoRefresh,
-    resetCountdown: resetAutoRefreshCountdown,
-  } = useFreeKeysAutoRefresh();
   const { theme, toggleTheme } = useTheme();
 
   // The run detail for the currently focused run (historical pick or
@@ -160,41 +146,6 @@ export default function App() {
   const showStaleBanner =
     !!focused && priceStale && dismissedStaleBanner !== focused;
 
-  // ── All useMemo/useCallback/useEffect hooks are above the early   ──
-  // ── returns. Only derived variables and conditional JSX below.    ──
-  const keySummary = useMemo(() => {
-    const keys = cachedKeys?.keys;
-    if (!keys?.length) return null;
-    const working = keys.filter((k) => k.status === "working");
-    const drained = keys.filter((k) => k.status === "low_balance");
-    const errors = keys.filter(
-      (k) => k.status === "no_access" || k.status === "error",
-    );
-
-    const statusParts: string[] = [];
-    if (working.length) statusParts.push(`${working.length} working`);
-    if (drained.length) statusParts.push(`${drained.length} drained`);
-    if (errors.length) statusParts.push(`${errors.length} error`);
-
-    const providerSummary = [...new Set(keys.map((k) => k.provider))]
-      .map((p) => {
-        const ok = keys.some(
-          (k) => k.provider === p && k.status === "working",
-        );
-        return `${p} ${ok ? "✓" : "✗"}`;
-      })
-      .join(" · ");
-
-    return {
-      working: working.length,
-      drained: drained.length,
-      errors: errors.length,
-      healthy: working.length > 0 && drained.length === 0 && errors.length === 0,
-      hasWorking: working.length > 0,
-      tooltip: `${statusParts.join(" · ")} — ${providerSummary}`,
-    };
-  }, [cachedKeys]);
-
   // ── Conditional rendering ──────────────────────────────────────
   if (!serverReady) {
     return (
@@ -256,56 +207,6 @@ export default function App() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {autoRefreshEnabled && (
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono text-sky-400/70 bg-sky-500/5 border border-sky-500/15 rounded-md hover:bg-sky-500/10 transition-colors"
-                title={keySummary?.tooltip ?? "Free keys auto-refresh is on"}
-              >
-                <span className="relative flex w-1.5 h-1.5">
-                  <span
-                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-40 ${
-                      keySummary
-                        ? keySummary.healthy
-                          ? "bg-emerald-400"
-                          : keySummary.hasWorking
-                            ? "bg-amber-400"
-                            : "bg-red-400"
-                        : "bg-sky-400"
-                    }`}
-                  />
-                  <span
-                    className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
-                      keySummary
-                        ? keySummary.healthy
-                          ? "bg-emerald-400"
-                          : keySummary.hasWorking
-                            ? "bg-amber-400"
-                            : "bg-red-400"
-                        : "bg-sky-400"
-                    }`}
-                  />
-                </span>
-
-                <span className="flex items-center gap-1.5">
-                  {keySummary ? (
-                    <>
-                      <span className="text-emerald-400 font-semibold">{keySummary.working}✓</span>
-                      {keySummary.drained > 0 && (
-                        <span className="text-amber-400 font-semibold">{keySummary.drained}⚠</span>
-                      )}
-                      {keySummary.errors > 0 && (
-                        <span className="text-red-400 font-semibold">{keySummary.errors}✗</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-sky-400/70">Keys</span>
-                  )}
-                </span>
-
-                <span className="text-sky-500/40 ml-1">⟳{formatCountdown(autoRefreshCountdown)}</span>
-              </button>
-            )}
             <button
               onClick={() => setSettingsOpen(true)}
               className="btn-secondary text-xs"
@@ -430,18 +331,9 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         theme={theme}
         toggleTheme={toggleTheme}
-        autoRefreshEnabled={autoRefreshEnabled}
-        autoRefreshCountdown={autoRefreshCountdown}
-        onAutoRefreshToggle={toggleAutoRefresh}
-        onAutoRefreshNow={resetAutoRefreshCountdown}
       />
     </div>
   );
 }
 
-function formatCountdown(ms: number): string {
-  const totalSec = Math.ceil(ms / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  return `${min}:${sec.toString().padStart(2, "0")}`;
-}
+

@@ -4,10 +4,7 @@ import {
   fetchConfig,
   saveConfig,
   fetchConfigDefaults,
-  fetchCachedFreeKeys,
-  fetchFreeLlmKeysStream,
   type AppConfig,
-  type FreeLlmKey,
 } from "../lib/api";
 
 interface Props {
@@ -15,10 +12,6 @@ interface Props {
   onClose: () => void;
   theme: "dark" | "light";
   toggleTheme: () => void;
-  autoRefreshEnabled: boolean;
-  autoRefreshCountdown: number;
-  onAutoRefreshToggle: () => void;
-  onAutoRefreshNow?: () => void;
 }
 
 const LABELS: Record<keyof AppConfig, string> = {
@@ -33,7 +26,6 @@ const LABELS: Record<keyof AppConfig, string> = {
   TRADINGAGENTS_BENCHMARK_TICKER: "Benchmark Ticker",
   TRADINGAGENTS_CHECKPOINT_ENABLED: "Checkpoint Enabled",
   TRADINGAGENTS_LLM_CACHE_ENABLED: "LLM Cache Enabled",
-  TRADINGAGENTS_FREE_KEYS_ENABLED: "Fetch Free Keys on Startup",
 };
 
 const PROVIDER_OPTIONS = [
@@ -42,15 +34,10 @@ const PROVIDER_OPTIONS = [
   "ollama", "openai_compatible", "bedrock",
 ];
 
-export function SettingsPanel({ open, onClose, theme, toggleTheme, autoRefreshEnabled, autoRefreshCountdown, onAutoRefreshToggle, onAutoRefreshNow }: Props) {
+export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
   const qc = useQueryClient();
   const [dirty, setDirty] = useState<Partial<AppConfig>>({});
   const [saved, setSaved] = useState(false);
-  const [freeKeys, setFreeKeys] = useState<FreeLlmKey[]>([]);
-  const [freeKeysTotal, setFreeKeysTotal] = useState(0);
-  const [freeKeysLoading, setFreeKeysLoading] = useState(false);
-  const [freeKeysError, setFreeKeysError] = useState<string | null>(null);
-  const [freeKeysCachedAt, setFreeKeysCachedAt] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["app-config"],
@@ -94,112 +81,12 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme, autoRefreshEn
     }
   }, [mutation]);
 
-  const handleFetchFreeKeys = useCallback(async () => {
-    setFreeKeysLoading(true);
-    setFreeKeysError(null);
-    setFreeKeys([]);
-    setFreeKeysTotal(0);
-    setFreeKeysCachedAt(null);
-
-    let completed = false;
-
-    await fetchFreeLlmKeysStream({
-      onMeta: (meta) => {
-        setFreeKeysTotal(meta.total);
-      },
-      onKeyResult: (key) => {
-        setFreeKeys((prev) => [...prev, key]);
-      },
-      onDone: (keys) => {
-        completed = true;
-        setFreeKeys(keys);
-        setFreeKeysLoading(false);
-      },
-      onError: (err) => {
-        completed = true;
-        setFreeKeysError(err);
-        setFreeKeysLoading(false);
-      },
-    });
-
-    // If the stream ended without a terminal event, release loading state.
-    if (!completed) setFreeKeysLoading(false);
-  }, []);
-
-  const handleAutoRefreshNow = useCallback(async () => {
-    onAutoRefreshNow?.();
-    setFreeKeysLoading(true);
-    setFreeKeysError(null);
-    setFreeKeys([]);
-    setFreeKeysTotal(0);
-    setFreeKeysCachedAt(null);
-
-    let completed = false;
-
-    await fetchFreeLlmKeysStream({
-      onMeta: (meta) => {
-        setFreeKeysTotal(meta.total);
-      },
-      onKeyResult: (key) => {
-        setFreeKeys((prev) => [...prev, key]);
-      },
-      onDone: (keys) => {
-        completed = true;
-        setFreeKeys(keys);
-        setFreeKeysLoading(false);
-      },
-      onError: (err) => {
-        completed = true;
-        setFreeKeysError(err);
-        setFreeKeysLoading(false);
-      },
-    });
-
-    // If the stream ended without a terminal event, release loading state.
-    if (!completed) setFreeKeysLoading(false);
-  }, [onAutoRefreshNow]);
-
-  const handleApplyFreeKey = useCallback(
-    (entry: FreeLlmKey) => {
-      const updates: Record<string, string> = {
-        TRADINGAGENTS_LLM_PROVIDER: "openai_compatible",
-        TRADINGAGENTS_LLM_BACKEND_URL: "https://aiapiv2.pekpik.com/v1",
-        TRADINGAGENTS_DEEP_THINK_LLM: entry.model,
-        TRADINGAGENTS_QUICK_THINK_LLM: entry.model,
-        OPENAI_COMPATIBLE_API_KEY: entry.key,
-      };
-      setDirty(updates);
-      mutation.mutate(updates);
-    },
-    [mutation],
-  );
-
   useEffect(() => {
     if (!open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDirty({});
       setSaved(false);
-      setFreeKeys([]);
-      setFreeKeysTotal(0);
-      setFreeKeysError(null);
-      setFreeKeysCachedAt(null);
     }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    fetchCachedFreeKeys()
-      .then((cache) => {
-        if (cancelled || !cache) return;
-        setFreeKeys(cache.keys);
-        setFreeKeysTotal(cache.keys.length);
-        setFreeKeysCachedAt(cache.saved_at);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
   }, [open]);
 
   if (!open) return null;
@@ -323,133 +210,6 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme, autoRefreshEn
                     >
                       Reset to Defaults
                     </button>
-                  </div>
-                </section>
-
-                {/* ── Free LLM Keys ── */}
-                <section>
-                  <h3 className="section-header flex items-center gap-2 mb-3">
-                    <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
-                    </svg>
-                    Free LLM Keys
-                  </h3>
-                  <div className="glass-panel p-3 space-y-3">
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      Fetch free API keys from{" "}
-                      <a href="https://github.com/alistaitsacle/free-llm-api-keys" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">alistaitsacle/free-llm-api-keys</a>.
-                      Keys are tested automatically. Click a working key to apply &amp; save.
-                    </p>
-
-                    <button
-                      onClick={autoRefreshEnabled && !freeKeysLoading ? handleAutoRefreshNow : handleFetchFreeKeys}
-                      disabled={freeKeysLoading}
-                      className="btn-primary text-xs w-full flex items-center justify-center gap-1.5 relative overflow-hidden"
-                    >
-                      {freeKeysLoading ? (
-                        <>
-                          <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" className="opacity-25" />
-                            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                          </svg>
-                          {autoRefreshEnabled
-                            ? "Refreshing..."
-                            : freeKeysTotal > 0
-                              ? `Testing ${freeKeys.length}/${freeKeysTotal}...`
-                              : "Testing keys..."}
-                        </>
-                      ) : autoRefreshEnabled ? (
-                        <>
-                          <div
-                            className="absolute inset-0 rounded-lg transition-all duration-1000 ease-linear"
-                            style={{
-                              width: `${(autoRefreshCountdown / 600_000) * 100}%`,
-                              background: "linear-gradient(90deg, rgba(56,189,248,0.12), rgba(56,189,248,0.22))",
-                            }}
-                          />
-                          <span className="relative z-10 flex items-center gap-1.5">
-                            <svg className="w-3 h-3 text-sky-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
-                            </svg>
-                            Next refresh in {formatCountdown(autoRefreshCountdown)}
-                          </span>
-                        </>
-                      ) : (
-                        "Fetch Free Keys"
-                      )}
-                    </button>
-
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] text-slate-500">Auto-refresh every 10m</span>
-                      <button
-                        onClick={onAutoRefreshToggle}
-                        className={`relative w-9 h-4 rounded-full transition-colors ${
-                          autoRefreshEnabled ? "bg-sky-500" : "bg-slate-600"
-                        }`}
-                        role="switch"
-                        aria-checked={autoRefreshEnabled}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${
-                            autoRefreshEnabled ? "translate-x-5" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-500">Fetch on startup</span>
-                      <span className="text-[9px] text-slate-600 mr-auto ml-2">(auto-skipped for Ollama)</span>
-                      <button
-                        onClick={() => {
-                          const v = current("TRADINGAGENTS_FREE_KEYS_ENABLED");
-                          set("TRADINGAGENTS_FREE_KEYS_ENABLED", (!v || v === "false") ? "true" : "false");
-                        }}
-                        className={`relative w-9 h-4 rounded-full transition-colors ${
-                          isFreeKeysEnabled(current("TRADINGAGENTS_FREE_KEYS_ENABLED")) ? "bg-sky-500" : "bg-slate-600"
-                        }`}
-                        role="switch"
-                        aria-checked={isFreeKeysEnabled(current("TRADINGAGENTS_FREE_KEYS_ENABLED"))}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${
-                            isFreeKeysEnabled(current("TRADINGAGENTS_FREE_KEYS_ENABLED")) ? "translate-x-5" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {freeKeysError && (
-                      <div className="text-xs text-red-400 bg-red-900/20 rounded-lg px-2.5 py-2">
-                        {freeKeysError}
-                      </div>
-                    )}
-
-                    {!freeKeysLoading && freeKeys.length === 0 && (
-                      <div className="text-xs text-slate-500 text-center py-2">
-                        No keys found in repo.
-                      </div>
-                    )}
-
-                    {freeKeys.length > 0 && (
-                      <div className="space-y-1 max-h-64 overflow-y-auto">
-                        <div className="text-[10px] font-medium text-slate-600 uppercase tracking-wider px-1 flex items-center gap-2">
-                          <span>{freeKeys.filter((k) => k.status === "working").length} working / {freeKeysTotal || freeKeys.length} total</span>
-                          {freeKeysCachedAt && !freeKeysLoading && (
-                            <span className="text-[9px] font-normal text-slate-500 bg-slate-800/50 px-1.5 py-0.5 rounded-full">
-                              Cached {formatTimeAgo(freeKeysCachedAt)}
-                            </span>
-                          )}
-                        </div>
-                        {freeKeys.map((entry, i) => (
-                          <FreeKeyRow
-                            key={i}
-                            entry={entry}
-                            onApply={handleApplyFreeKey}
-                          />
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </section>
 
@@ -642,140 +402,4 @@ function ConfigToggle({
   );
 }
 
-/* ── Free Key Row ── */
 
-const STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
-  working: { dot: "bg-emerald-400", label: "Working" },
-  low_balance: { dot: "bg-amber-400", label: "Drained" },
-  no_access: { dot: "bg-red-400", label: "No Access" },
-  rate_limited: { dot: "bg-orange-400", label: "Rate Limited" },
-  error: { dot: "bg-slate-500", label: "Error" },
-  unknown: { dot: "bg-slate-500", label: "Unknown" },
-};
-
-function FreeKeyRow({
-  entry,
-  onApply,
-}: {
-  entry: FreeLlmKey;
-  onApply: (e: FreeLlmKey) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const cfg = STATUS_CONFIG[entry.status] ?? STATUS_CONFIG.unknown;
-
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(entry.key);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard may be unavailable
-    }
-  }, [entry.key]);
-
-  return (
-    <div
-      className={`rounded-lg border px-2.5 py-2 text-xs transition-colors ${
-        entry.status === "working"
-          ? "border-emerald-700/40 bg-emerald-900/10"
-          : "border-slate-700/30 bg-slate-800/30"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
-          <span className="font-medium text-slate-300 truncate" title={entry.model}>
-            {entry.provider}
-          </span>
-          <span className="text-slate-500 truncate hidden sm:inline" title={entry.model}>
-            {entry.model}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {entry.status === "working" ? (
-            <button
-              onClick={() => onApply(entry)}
-              className="text-[10px] font-medium text-emerald-400 hover:text-emerald-300 px-1.5 py-0.5 rounded hover:bg-emerald-900/20 transition-colors"
-              title="Apply this key to config"
-            >
-              Apply
-            </button>
-          ) : (
-            <span className="text-[10px] text-slate-600">{cfg.label}</span>
-          )}
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-slate-600 hover:text-slate-400 transition-colors"
-          >
-            <svg
-              className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="mt-2 pt-2 border-t border-slate-700/30 space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <code className="text-[10px] font-mono text-slate-400 truncate">{entry.masked_key}</code>
-            <button
-              onClick={handleCopy}
-              className="text-[10px] text-sky-400 hover:text-sky-300 shrink-0"
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
-          </div>
-          {entry.status === "working" && (
-            <div className="flex gap-2 text-[10px] text-slate-500">
-              <span>Budget: {entry.budget}</span>
-              <span>Expires: {entry.expires}</span>
-              <span>RPM: {entry.rate_limit}</span>
-            </div>
-          )}
-          {entry.test_response && (
-            <div className="text-[10px] text-emerald-500/70">
-              Test: "{entry.test_response}"
-            </div>
-          )}
-          {entry.error_message && (
-            <div className="text-[10px] text-slate-500 truncate" title={entry.error_message}>
-              {entry.error_message}
-            </div>
-          )}
-          <div className="text-[10px] text-slate-600">
-            <span className="font-mono">OPENAI_COMPATIBLE_API_KEY</span> = full key above
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Treat empty/unset as "true" to match the backend default (free_keys_enabled: True). */
-function isFreeKeysEnabled(v: string): boolean {
-  return !v || v === "true" || v === "1";
-}
-
-function formatTimeAgo(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(diffMs / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-function formatCountdown(ms: number): string {
-  const totalSec = Math.ceil(ms / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  return `${min}:${sec.toString().padStart(2, "0")}`;
-}
