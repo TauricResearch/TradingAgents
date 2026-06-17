@@ -6,7 +6,6 @@ import json
 import uuid
 import time
 import sqlite3
-import asyncio
 import logging
 import datetime
 import threading
@@ -19,7 +18,7 @@ import redis.asyncio as aioredis
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 # Import TradingAgentsGraph and configuration
@@ -555,8 +554,6 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
-
-from fastapi.responses import RedirectResponse
 
 @app.get("/", include_in_schema=False)
 def root_redirect():
