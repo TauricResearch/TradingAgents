@@ -4,6 +4,7 @@ import { startRun, cancelRun, fetchTickerRuns, type RunRow } from "../lib/api";
 import { useUi } from "../store/ui";
 import { formatDuration } from "../lib/format";
 import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
+import { RunHistoryMenu } from "./RunHistoryMenu";
 
 interface Props {
   ticker: string;
@@ -101,10 +102,9 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
   const cancel = useMutation({
     mutationFn: () => cancelRun(activeRunId!),
     onSuccess: () => {
-      // Optimistic clear: the server's run_failed will arrive over the
-      // WS and is handled by useRunStream, but we don't want to leave
-      // the UI showing "running" while that propagates.
       clearActiveRunForTicker(ticker);
+      qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
+      qc.invalidateQueries({ queryKey: ["runs", "list"] });
     },
   });
 
@@ -164,23 +164,13 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
       </div>
       <div className="flex items-center gap-2">
         {hasAnyRuns && (
-          <select
-            aria-label="Run history"
-            value={historicalRunId ?? "latest"}
-            onChange={(e) => {
-              const v = e.target.value;
-              onSelectHistorical(v === "latest" ? null : v);
-            }}
-            className="px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-300 
-                       focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30"
-          >
-            <option value="latest">Latest (live)</option>
-            {(Array.isArray(tickerRuns.data) ? tickerRuns.data : []).map((r) => (
-              <option key={r.id} value={r.id}>
-                {runLabel(r)}
-              </option>
-            ))}
-          </select>
+          <RunHistoryMenu
+            ticker={ticker}
+            runs={Array.isArray(tickerRuns.data) ? tickerRuns.data : []}
+            selectedRunId={historicalRunId}
+            onSelect={onSelectHistorical}
+            disabled={isRunning}
+          />
         )}
         <button
           disabled={isRunning || start.isPending}
@@ -197,10 +187,17 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
         </button>
         {isRunning && (
           <button
+            disabled={cancel.isPending}
             onClick={() => cancel.mutate()}
             className="btn-secondary"
           >
-            Cancel
+            {cancel.isPending && (
+              <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" className="opacity-25" />
+                <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            )}
+            {cancel.isPending ? "Cancelling…" : "Cancel"}
           </button>
         )}
       </div>

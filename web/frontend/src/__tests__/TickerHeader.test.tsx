@@ -153,6 +153,7 @@ describe("TickerHeader — run history dropdown", () => {
       ],
     });
     wrap(<TickerHeader ticker="NVDA" />);
+    fireEvent.click(screen.getByRole("button", { name: /latest/i }));
     await waitFor(() => {
       expect(screen.getByText(/2026-06-01/)).toBeInTheDocument();
       expect(screen.getByText(/2026-05-30/)).toBeInTheDocument();
@@ -171,7 +172,8 @@ describe("TickerHeader — run history dropdown", () => {
     });
     // No 'NVDA' key in lastRunIdByTicker and the response was empty — dropdown hidden.
     await waitFor(() => {
-      expect(screen.queryByRole("combobox", { name: /run history/i })).not.toBeInTheDocument();
+      // RunHistoryMenu is not rendered when there are no runs and no history
+      expect(screen.queryByText(/latest \(live\)/i)).not.toBeInTheDocument();
     });
   });
 
@@ -184,13 +186,11 @@ describe("TickerHeader — run history dropdown", () => {
       ],
     });
     wrap(<TickerHeader ticker="NVDA" />);
+    fireEvent.click(screen.getByRole("button", { name: /latest/i }));
     await waitFor(() => {
       expect(screen.getByText(/2026-05-30/)).toBeInTheDocument();
     });
-    // <select> in jsdom requires fireEvent.change on the element,
-    // not fireEvent.click on the option text.
-    const select = screen.getByLabelText(/run history/i) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: "NVDA:3" } });
+    fireEvent.click(screen.getByText(/2026-05-30/));
     expect(useUi.getState().historicalRunIdByTicker["NVDA"]).toBe("NVDA:3");
   });
 
@@ -206,10 +206,13 @@ describe("TickerHeader — run history dropdown", () => {
     });
     wrap(<TickerHeader ticker="NVDA" />);
     await waitFor(() => {
-      expect(screen.getByText(/latest \(live\)/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /nvda:3/i })).toBeInTheDocument();
     });
-    const select = screen.getByLabelText(/run history/i) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: "latest" } });
+    fireEvent.click(screen.getByRole("button", { name: /nvda:3/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: /latest/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("radio", { name: /latest/i }));
     expect(useUi.getState().historicalRunIdByTicker["NVDA"]).toBeNull();
   });
 });
