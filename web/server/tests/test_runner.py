@@ -53,7 +53,10 @@ def test_enqueue_writes_model_fields_from_default_config(data_root):
 
 
 def test_enqueue_writes_start_price_from_snapshot(data_root):
-    snap = price_feed.PriceSnapshot(price=123.45, prev_close=120.0, change_pct=2.875, sparkline=[])
+    snap = price_feed.PriceSnapshot(
+        price=123.45, prev_close=120.0, change_pct=2.875, sparkline=[],
+        fetched_at="2026-06-17T21:00:00.000000Z",
+    )
     state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
     asyncio.run(runner.start(num_workers=0))
     run_id = asyncio.run(runner.enqueue(

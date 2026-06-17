@@ -59,6 +59,7 @@ class PriceSnapshot:
     change_pct: Optional[float] = None
     sparkline: list[float] = field(default_factory=list)
     stale: bool = False
+    fetched_at: Optional[str] = None
 
 
 @dataclass
@@ -71,9 +72,7 @@ def snapshot_price(state: PriceState, ticker: str) -> tuple[Optional[float], Opt
     snap = state.snapshots.get(ticker.upper())
     if snap is None or snap.stale or snap.price <= 0:
         return (None, None)
-    now = datetime.now(timezone.utc)
-    iso = now.isoformat().replace("+00:00", "Z")
-    return (snap.price, iso)
+    return (snap.price, snap.fetched_at)
 
 
 async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], None]]) -> None:
@@ -98,6 +97,7 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
 
             if price is not None and float(price) > 0:
                 snap.price = float(price)
+                snap.fetched_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
                 # Previous close — fetch once and cache in the snapshot so
                 # subsequent polls avoid an extra API round-trip.

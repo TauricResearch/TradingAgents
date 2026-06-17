@@ -339,13 +339,16 @@ def test_poll_once_does_not_re_log_bad_symbol_each_poll(monkeypatch, caplog):
 
 def test_snapshot_price_returns_price_and_timestamp():
     """When a fresh snapshot exists, snapshot_price returns the price + an ISO timestamp."""
-    snap = price_feed.PriceSnapshot(price=150.0, prev_close=145.0, change_pct=3.45)
+    snap = price_feed.PriceSnapshot(
+        price=150.0, prev_close=145.0, change_pct=3.45,
+        fetched_at="2026-06-17T21:00:00.000000Z",
+    )
     state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
 
     price, price_at = price_feed.snapshot_price(state, "NVDA")
 
     assert price == 150.0
-    assert price_at is not None
+    assert price_at == "2026-06-17T21:00:00.000000Z"
     assert price_at.endswith("Z")
     from datetime import datetime
     parsed = datetime.fromisoformat(price_at.replace("Z", "+00:00"))
@@ -386,10 +389,10 @@ def test_snapshot_price_returns_none_for_zero_price():
 
 def test_snapshot_price_uppercases_ticker():
     """snapshot_price uppercases the ticker before lookup."""
-    snap = price_feed.PriceSnapshot(price=150.0)
+    snap = price_feed.PriceSnapshot(price=150.0, fetched_at="2026-06-17T21:00:00.000000Z")
     state = price_feed.PriceState(snapshots={"NVDA": snap}, tickers=lambda: ["NVDA"])
 
     price, price_at = price_feed.snapshot_price(state, "nvda")
 
     assert price == 150.0
-    assert price_at is not None
+    assert price_at == "2026-06-17T21:00:00.000000Z"
