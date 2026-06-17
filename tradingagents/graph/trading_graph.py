@@ -33,6 +33,7 @@ from tradingagents.agents.utils.agent_utils import (
     resolve_instrument_identity,
     get_stock_data,
     get_indicators,
+    get_verified_market_snapshot,
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
@@ -117,6 +118,7 @@ class TradingAgentsGraph:
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
+            analyst_concurrency_limit=self.config.get("analyst_concurrency_limit", 1),
         )
 
         self.propagator = Propagator()
@@ -164,6 +166,10 @@ class TradingAgentsGraph:
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
+                    # Deterministic verification snapshot (bound to the analyst
+                    # LLM and required by its prompt; must be executable here or
+                    # the call fails and the model reports it "unavailable").
+                    get_verified_market_snapshot,
                 ]
             ),
             "social": ToolNode(
@@ -216,14 +222,17 @@ class TradingAgentsGraph:
         (None, None, None) if price data is unavailable (too recent, delisted,
         or network error).
         """
+        from tradingagents.dataflows.symbol_utils import normalize_symbol
+
         try:
             start = datetime.strptime(trade_date, "%Y-%m-%d")
             end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
             end_str = end.strftime("%Y-%m-%d")
 
-            stock = yf.Ticker(to_yfinance_symbol(ticker)).history(
-                start=trade_date, end=end_str
-            )
+            # Normalize so the realized-return lookup hits the same instrument
+            # the analysis priced (e.g. XAUUSD -> GC=F) (#984). The benchmark is
+            # already a canonical Yahoo symbol from ``_resolve_benchmark``.
+            stock = yf.Ticker(normalize_symbol(ticker)).history(start=trade_date, end=end_str)
             bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
 
             if len(stock) < 2 or len(bench) < 2:

@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple, Dict
 from dotenv import find_dotenv, set_key
 from rich.console import Console
 
-from cli.models import AnalystType
+from cli.models import AnalystType, AssetType
 from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
@@ -23,11 +23,25 @@ ANALYST_ORDER = [
 ]
 
 
+def is_valid_ticker_input(value: str) -> bool:
+    """Whether a ticker entry is acceptable (charset + length).
+
+    Allows the characters Yahoo symbols use, including ``=`` for futures/forex
+    like ``GC=F`` and ``EURUSD=X`` (#980), and ``^`` for indices. Empty input is
+    allowed (it defaults to SPY downstream).
+    """
+    v = value.strip()
+    return not v or (all(ch.isalnum() or ch in "._-^=" for ch in v) and len(v) <= 32)
+
+
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol."""
     ticker = questionary.text(
         f"请输入要分析的股票代码（{TICKER_INPUT_EXAMPLES}）：",
-        validate=lambda x: len(x.strip()) > 0 or "请输入有效的股票代码。",
+        validate=lambda x: (
+            is_valid_ticker_input(x)
+            or "请输入有效的股票代码，例如 AAPL、002636、GC=F。"
+        ),
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -40,7 +54,48 @@ def get_ticker() -> str:
         console.print("\n[red]未提供股票代码，已退出。[/red]")
         exit(1)
 
-    return normalize_ticker_symbol(ticker)
+    return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
+
+
+def normalize_ticker_symbol(ticker: str) -> str:
+    """Resolve user input to its canonical Yahoo symbol (single source of truth).
+
+    First infers A-share exchange suffixes for bare six-digit codes (e.g.
+    ``002636`` -> ``002636.SZ``), then delegates to the data layer's
+    ``normalize_symbol`` for commodity/forex/crypto resolution (e.g.
+    ``BTCUSD`` -> ``BTC-USD``, ``XAUUSD`` -> ``GC=F``).
+    """
+    try:
+        from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol as _infer_a_share
+        from tradingagents.dataflows.symbol_utils import normalize_symbol
+
+        return normalize_symbol(_infer_a_share(ticker))
+    except Exception:
+        return ticker.strip().upper()
+
+
+CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC")
+
+
+def detect_asset_type(ticker: str) -> AssetType:
+    """Classify on the canonical symbol so e.g. BTCUSD and BTC-USDT both read as
+    crypto (#981/#982), matching what the data path will actually fetch."""
+    canonical = normalize_ticker_symbol(ticker)
+    if canonical.endswith(CRYPTO_SUFFIXES):
+        return AssetType.CRYPTO
+    return AssetType.STOCK
+
+
+def filter_analysts_for_asset_type(
+    analysts: List[AnalystType], asset_type: AssetType
+) -> List[AnalystType]:
+    if asset_type != AssetType.CRYPTO:
+        return analysts
+    return [
+        analyst
+        for analyst in analysts
+        if analyst != AnalystType.FUNDAMENTALS
+    ]
 
 
 def get_analysis_date() -> str:

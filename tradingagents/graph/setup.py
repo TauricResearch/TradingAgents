@@ -7,6 +7,7 @@ from langgraph.prebuilt import ToolNode
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
 
+from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
 
 
@@ -19,12 +20,14 @@ class GraphSetup:
         deep_thinking_llm: Any,
         tool_nodes: Dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
+        analyst_concurrency_limit: int = 1,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
+        self.analyst_concurrency_limit = analyst_concurrency_limit
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -38,58 +41,28 @@ class GraphSetup:
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
         """
-        if len(selected_analysts) == 0:
-            raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
+        plan = build_analyst_execution_plan(
+            selected_analysts,
+            concurrency_limit=self.analyst_concurrency_limit,
+        )
 
-        # Create analyst nodes
-        analyst_nodes = {}
-        delete_nodes = {}
-        tool_nodes = {}
-
-        if "market" in selected_analysts:
-            analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["market"] = create_msg_delete()
-            tool_nodes["market"] = self.tool_nodes["market"]
-
-        if "social" in selected_analysts:
-            # "social" selector key preserved for back-compat with existing
-            # user configs; the underlying agent has been renamed to
-            # sentiment_analyst (the old name advertised social-media data
-            # the agent never had access to — see issue #557).
-            analyst_nodes["social"] = create_sentiment_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["social"] = create_msg_delete()
-            tool_nodes["social"] = self.tool_nodes["social"]
-
-        if "news" in selected_analysts:
-            analyst_nodes["news"] = create_news_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["news"] = create_msg_delete()
-            tool_nodes["news"] = self.tool_nodes["news"]
-
-        if "fundamentals" in selected_analysts:
-            analyst_nodes["fundamentals"] = create_fundamentals_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["fundamentals"] = create_msg_delete()
-            tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
+        # "social" key preserved for back-compat; the underlying agent has been
+        # renamed to sentiment_analyst (see issue #557).
+        analyst_factories = {
+            "market": lambda: create_market_analyst(self.quick_thinking_llm),
+            "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
+            "news": lambda: create_news_analyst(self.quick_thinking_llm),
+            "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
+        }
 
         # Create workflow
         workflow = StateGraph(AgentState)
 
         # Add analyst nodes to the graph
-        # Display-name map: "social" key → "Sentiment" label (v0.2.5 rename).
-        _analyst_label = {"social": "Sentiment"}
-
-        for analyst_type, node in analyst_nodes.items():
-            label = _analyst_label.get(analyst_type, analyst_type.capitalize())
-            workflow.add_node(f"{label} Analyst", node)
-            workflow.add_node(f"Msg Clear {label}", delete_nodes[analyst_type])
-            workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
+        for spec in plan.specs:
+            workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
+            workflow.add_node(spec.clear_node, create_msg_delete())
+            workflow.add_node(spec.tool_node, self.tool_nodes[spec.key])
 
         # Create researcher, trader, risk, and manager nodes
         evidence_steward_node = create_evidence_steward()
@@ -115,29 +88,25 @@ class GraphSetup:
 
         # Define edges
         # Start with the first analyst
-        first_label = _analyst_label.get(selected_analysts[0], selected_analysts[0].capitalize())
-        workflow.add_edge(START, f"{first_label} Analyst")
+        workflow.add_edge(START, plan.specs[0].agent_node)
 
         # Connect analysts in sequence
-        for i, analyst_type in enumerate(selected_analysts):
-            label = _analyst_label.get(analyst_type, analyst_type.capitalize())
-            current_analyst = f"{label} Analyst"
-            current_tools = f"tools_{analyst_type}"
-            current_clear = f"Msg Clear {label}"
+        for i, spec in enumerate(plan.specs):
+            current_analyst = spec.agent_node
+            current_tools = spec.tool_node
+            current_clear = spec.clear_node
 
             # Add conditional edges for current analyst
             workflow.add_conditional_edges(
                 current_analyst,
-                getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
+                getattr(self.conditional_logic, f"should_continue_{spec.key}"),
                 [current_tools, current_clear],
             )
             workflow.add_edge(current_tools, current_analyst)
 
             # Connect to next analyst or to Evidence Steward if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_key = selected_analysts[i + 1]
-                next_label = _analyst_label.get(next_key, next_key.capitalize())
-                workflow.add_edge(current_clear, f"{next_label} Analyst")
+            if i < len(plan.specs) - 1:
+                workflow.add_edge(current_clear, plan.specs[i + 1].agent_node)
             else:
                 workflow.add_edge(current_clear, "Evidence Steward")
 
