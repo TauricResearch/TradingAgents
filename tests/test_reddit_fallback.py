@@ -129,7 +129,10 @@ class TestRss429Backoff:
              patch.object(reddit.time, "sleep") as slept:
             posts = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         assert op.call_count == 2          # original + exactly one retry
-        slept.assert_called_once()         # backed off before retrying
+        # sleep is called: _pace_request() before each call + 429 backoff
+        assert slept.call_count == 3
+        # one of the calls is the 429 backoff (default 5.0s when no Retry-After)
+        slept.assert_any_call(5.0)
         assert len(posts) == 2
 
     def test_429_twice_gives_up_after_one_retry(self):
@@ -145,7 +148,9 @@ class TestRss429Backoff:
         with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]), \
              patch.object(reddit.time, "sleep") as slept:
             reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
-        slept.assert_called_once_with(12.0)
+        # sleep is called 3 times: _pace_request() before each call + Retry-After
+        assert slept.call_count == 3
+        slept.assert_any_call(12.0)
 
 
 @pytest.mark.unit
@@ -173,7 +178,7 @@ class TestFormatterHandlesRssPosts:
             "selftext": "great quarter", "source": "rss",
         }]
         with patch.object(reddit, "_fetch_subreddit", return_value=rss_posts):
-            out = reddit.fetch_reddit_posts("NVDA", subreddits=("stocks",), inter_request_delay=0)
+            out = reddit.fetch_reddit_posts("NVDA", subreddits=("stocks",))
         assert "via RSS feed" in out
         assert "↑" not in out  # no fake score arrow
         assert "NVDA pops" in out
@@ -186,7 +191,7 @@ class TestFormatterHandlesRssPosts:
             "selftext": "",
         }]
         with patch.object(reddit, "_fetch_subreddit", return_value=json_posts):
-            out = reddit.fetch_reddit_posts("NVDA", subreddits=("stocks",), inter_request_delay=0)
+            out = reddit.fetch_reddit_posts("NVDA", subreddits=("stocks",))
         assert "1234↑" in out
         assert "56c" in out
         assert "via RSS" not in out
