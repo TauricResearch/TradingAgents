@@ -177,6 +177,31 @@ export async function cancelRun(runId: string): Promise<void> {
   }
 }
 
+export async function deleteRun(runId: string): Promise<void> {
+  const r = await fetch(`${base}/api/runs/${runId}`, { method: "DELETE" });
+  if (!r.ok) {
+    throw new ApiError(`delete ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+}
+
+export interface DeleteBulkResponse {
+  results: Array<{ run_id: string; deleted: boolean; error?: string; ticker?: string }>;
+  total: number;
+  deleted: number;
+}
+
+export async function deleteRuns(runIds: string[]): Promise<DeleteBulkResponse> {
+  const r = await fetch(`${base}/api/runs/delete-bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ run_ids: runIds }),
+  });
+  if (!r.ok) {
+    throw new ApiError(`delete-bulk ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
+}
+
 export async function fetchRunDetail(runId: string): Promise<RunDetail> {
   const r = await fetch(`${base}/api/runs/${runId}`);
   if (!r.ok) {
