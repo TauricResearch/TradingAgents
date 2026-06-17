@@ -246,12 +246,12 @@ def validate_homepage(
     home_text = index_path.read_text(encoding="utf-8", errors="replace")
     rows = decision_summary_rows(home_text, normalized)
 
-    if len(rows) != len(selected):
+    if len(rows) < len(selected):
         raise WorkflowError(
-            f"Homepage summary has {len(rows)} row(s); expected {len(selected)}."
+            f"Homepage summary has {len(rows)} row(s); expected at least {len(selected)}."
         )
 
-    seen: set[str] = set()
+    seen_selected: set[str] = set()
     for row in rows:
         if "n/a" in row.lower():
             raise WorkflowError(f"Homepage summary row contains n/a: {row}")
@@ -265,24 +265,18 @@ def validate_homepage(
             raise WorkflowError(f"Homepage link label/ticker mismatch: {row}")
         if ticker not in selected:
             raise WorkflowError(f"Homepage summary has unexpected ticker: {ticker}")
-        if ticker in seen:
-            raise WorkflowError(f"Homepage summary has duplicate ticker: {ticker}")
         if not folder.startswith(f"{key}_"):
             raise WorkflowError(
                 f"Homepage link for {ticker} must start with {key}_: {folder}"
-            )
-        if folder != selected[ticker].folder_name:
-            expected = selected[ticker].folder_name
-            raise WorkflowError(
-                f"Homepage link for {ticker} points to {folder}; expected {expected}."
             )
 
         linked_report = DOCS / ticker / folder / "complete_report.md"
         if not linked_report.is_file():
             raise WorkflowError(f"Homepage report link is missing: {linked_report}")
-        seen.add(ticker)
+        if folder == selected[ticker].folder_name:
+            seen_selected.add(ticker)
 
-    missing = sorted(set(selected) - seen)
+    missing = sorted(set(selected) - seen_selected)
     if missing:
         raise WorkflowError(
             "Homepage summary is missing selected tickers: " + ", ".join(missing)

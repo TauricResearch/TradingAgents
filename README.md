@@ -170,6 +170,7 @@ Setting any of the LLM-routing env vars in `.env` makes the CLI skip the corresp
 - `TRADINGAGENTS_LLM_PROVIDER` — must be a registered provider key (`anthropic`, `openai`, `google`, `xai`, `deepseek`, `qwen`/`qwen-cn`, `glm`/`glm-cn`, `minimax`/`minimax-cn`, `openrouter`, `azure`, `ollama`).
 - `TRADINGAGENTS_DEEP_THINK_LLM`, `TRADINGAGENTS_QUICK_THINK_LLM` — model IDs.
 - `TRADINGAGENTS_LLM_BACKEND_URL` — base URL.
+- `TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT=0` — skip Reddit fetches in the Sentiment Analyst when public Reddit endpoints are blocked or rate-limited.
 
 For an Anthropic-compatible proxy (internal LLM gateways, Bedrock-fronting gateways, etc.), use `TRADINGAGENTS_LLM_PROVIDER=anthropic` plus `TRADINGAGENTS_LLM_BACKEND_URL=<gateway-root>` and `ANTHROPIC_API_KEY=<gateway-key>`. The Anthropic SDK appends `/v1/messages` to the base URL, so set the gateway *root* (no trailing `/v1`).
 
@@ -280,7 +281,7 @@ TradingAgents is LLM-driven, so two runs of the same ticker and date can differ.
 
 Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-5.x family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
 
-Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now".
+Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now". Set `TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT=0` to omit Reddit from sentiment runs when Reddit blocks or rate-limits the public endpoints.
 
 To reduce variation you can lower the sampling temperature. Set `temperature` in your config (or `TRADINGAGENTS_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable. Reasoning models largely ignore temperature, so for tighter reproducibility pair a low temperature with a non-reasoning model such as `gpt-4.1`.
 

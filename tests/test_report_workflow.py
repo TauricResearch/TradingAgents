@@ -139,6 +139,7 @@ def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch):
     workflow = load_workflow()
     docs = tmp_path / "docs"
     run_dir = make_run(docs, "AAPL", "20260602_opus_20260602_101010")
+    make_run(docs, "AAPL", "20260602_gpt-5.5_20260602_111111")
     run = workflow.site.parse_run_folder(run_dir.parent, run_dir)
     assert run is not None
     monkeypatch.setattr(workflow, "DOCS", docs)
@@ -150,19 +151,20 @@ def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch):
             '<nav class="daily-summary-rail" aria-label="Analysis dates">\n'
             "<h3>Dates</h3>\n"
             "<ul>\n"
-            '<li><a class="daily-summary-date" href="#2026-06-03-decision-summary">2026-06-03</a><span>1 ticker</span></li>\n'
-            '<li><a class="daily-summary-date daily-summary-date--active" href="#2026-06-02-decision-summary">2026-06-02</a><span>1 ticker</span></li>\n'
+            '<li><a class="daily-summary-date" href="#2026-06-03-decision-summary">2026-06-03</a><span>1 report</span></li>\n'
+            '<li><a class="daily-summary-date daily-summary-date--active" href="#2026-06-02-decision-summary">2026-06-02</a><span>2 reports</span></li>\n'
             "</ul>\n"
             "</nav>\n\n"
             '<div class="daily-summary-tables" markdown="1">\n\n'
             "## 2026-06-03 Decision Summary\n\n"
-            "| Ticker | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
-            "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
-            "| [MSFT](./MSFT/20260603_opus_20260603_101010/complete_report.md) | Hold / Neutral | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n\n"
+            "| Ticker | Model | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
+            "| [MSFT](./MSFT/20260603_opus_20260603_101010/complete_report.md) | `opus` | Hold / Neutral | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n\n"
             "## 2026-06-02 Decision Summary\n\n"
-            "| Ticker | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
-            "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
-            "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n\n"
+            "| Ticker | Model | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
+            "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | `opus` | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n"
+            "| [AAPL](./AAPL/20260602_gpt-5.5_20260602_111111/complete_report.md) | `gpt-5.5` | Hold / Neutral | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n\n"
             "</div>\n\n"
             "</div>\n\n"
             "## Regeneration Skill\n"
@@ -178,22 +180,22 @@ def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch):
     ("row", "create_report", "error_match"),
     [
         (
-            "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | Buy / Overweight | n/a | $12.00 | +20.0% | +40.0% | High | 6m |",
+            "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | `opus` | Buy / Overweight | n/a | $12.00 | +20.0% | +40.0% | High | 6m |",
             True,
             "n/a",
         ),
         (
-            "| [AAPL](./AAPL/20260602_opus_20260602_101010/not_report.md) | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |",
+            "| [AAPL](./AAPL/20260602_opus_20260602_101010/not_report.md) | `opus` | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |",
             True,
             "report link",
         ),
         (
-            "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |",
+            "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | `opus` | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |",
             False,
             "missing",
         ),
         (
-            "| [AAPL](./AAPL/20260601_opus_20260601_101010/complete_report.md) | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |",
+            "| [AAPL](./AAPL/20260601_opus_20260601_101010/complete_report.md) | `opus` | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |",
             True,
             "20260602_",
         ),
@@ -222,8 +224,8 @@ def test_homepage_validation_rejects_bad_rows(
         (
             "# TradingAgents Reports\n\n"
             "## 2026-06-02 Decision Summary\n\n"
-            "| Ticker | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
-            "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
+            "| Ticker | Model | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
             f"{row}\n\n"
             "## Regeneration Skill\n"
         ),

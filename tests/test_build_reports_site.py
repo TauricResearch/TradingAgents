@@ -15,9 +15,16 @@ def load_builder():
     return module
 
 
-def summary_row(builder, ticker: str, folder: str, action: str = "Buy"):
+def summary_row(
+    builder,
+    ticker: str,
+    folder: str,
+    action: str = "Buy",
+    model: str = "opus",
+):
     return builder.SummaryRow(
         ticker=ticker,
+        model=model,
         report_link=f"./{ticker}/{folder}/complete_report.md",
         rating="Overweight",
         action=action,
@@ -31,7 +38,7 @@ def summary_row(builder, ticker: str, folder: str, action: str = "Buy"):
 
 
 @pytest.mark.unit
-def test_latest_runs_can_filter_to_analysis_date():
+def test_latest_runs_can_filter_to_analysis_date_and_keeps_model_variants():
     builder = load_builder()
     runs = {
         "AAPL": [
@@ -41,14 +48,16 @@ def test_latest_runs_can_filter_to_analysis_date():
         "QCOM": [
             builder.Run("QCOM", "2026-06-01", "opus", "2026-06-02 00:08:03", "qcom-early"),
             builder.Run("QCOM", "2026-06-01", "opus", "2026-06-02 09:28:30", "qcom-late"),
+            builder.Run("QCOM", "2026-06-01", "gpt-5.5", "2026-06-02 08:28:30", "qcom-gpt"),
         ],
     }
 
     selected = builder.latest_runs(runs, analysis_date="20260601")
 
-    assert {run.ticker: run.folder_name for run in selected} == {
-        "AAPL": "aapl-0601",
-        "QCOM": "qcom-late",
+    assert {(run.ticker, run.model): run.folder_name for run in selected} == {
+        ("AAPL", "opus"): "aapl-0601",
+        ("QCOM", "opus"): "qcom-late",
+        ("QCOM", "gpt-5.5"): "qcom-gpt",
     }
 
 
@@ -59,6 +68,7 @@ def test_build_daily_summaries_groups_dates_and_selects_latest_run(monkeypatch):
         "AAPL": [
             builder.Run("AAPL", "2026-06-01", "opus", "2026-06-01 20:12:03", "aapl-early"),
             builder.Run("AAPL", "2026-06-01", "opus", "2026-06-02 09:28:30", "aapl-late"),
+            builder.Run("AAPL", "2026-06-01", "gpt-5.5", "2026-06-02 08:28:30", "aapl-gpt"),
             builder.Run("AAPL", "2026-06-02", "opus", "2026-06-02 11:01:33", "aapl-0602"),
         ],
         "MSFT": [
@@ -79,7 +89,7 @@ def test_build_daily_summaries_groups_dates_and_selects_latest_run(monkeypatch):
         "2026-06-02",
         "2026-06-01",
     ]
-    assert selected_folders == ["aapl-0602", "aapl-late", "msft-0601"]
+    assert selected_folders == ["aapl-0602", "aapl-gpt", "aapl-late", "msft-0601"]
     assert "aapl-early" not in selected_folders
 
 
@@ -97,6 +107,8 @@ def test_daily_decision_summaries_render_newest_first_with_left_rail():
     assert 'class="daily-summary-date daily-summary-date--active"' in text
     assert "#2026-06-02-decision-summary" in text
     assert "#2026-06-01-decision-summary" in text
+    assert "| Ticker | Model | Suggestion |" in text
+    assert "| [AAPL](./AAPL/aapl-0602/complete_report.md) | `opus` | Buy / Overweight |" in text
     assert text.index("## 2026-06-02 Decision Summary") < text.index(
         "## 2026-06-01 Decision Summary"
     )

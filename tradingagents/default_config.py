@@ -21,6 +21,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_LLM_TIMEOUT":          "llm_timeout",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_LLM_RPM":              "llm_requests_per_minute",
+    "TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT": "sentiment_include_reddit",
 }
 
 
@@ -119,6 +120,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
     ],
+    # Reddit's public endpoints are heavily rate-limited and may reject batch
+    # runs. Keep the source enabled by default, but allow bulk workflows to
+    # disable it with TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT=0.
+    "sentiment_include_reddit": True,
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {

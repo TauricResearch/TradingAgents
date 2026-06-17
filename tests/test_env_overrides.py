@@ -26,6 +26,7 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["backend_url"] is None
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
+    assert dc.DEFAULT_CONFIG["sentiment_include_reddit"] is True
 
 
 def test_string_overrides(monkeypatch):
@@ -73,6 +74,14 @@ def test_llm_rpm_override(monkeypatch):
     (_build_rate_limiter) coerces, same as TRADINGAGENTS_TEMPERATURE."""
     dc = _reload_with_env(monkeypatch, TRADINGAGENTS_LLM_RPM="30")
     assert dc.DEFAULT_CONFIG["llm_requests_per_minute"] == "30"
+
+
+def test_sentiment_include_reddit_override(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT="0",
+    )
+    assert dc.DEFAULT_CONFIG["sentiment_include_reddit"] is False
 
 
 def test_empty_env_value_is_passthrough(monkeypatch):

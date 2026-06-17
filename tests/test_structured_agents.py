@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
+from tradingagents.agents.analysts import sentiment_analyst as sentiment_module
 from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
@@ -26,6 +27,7 @@ from tradingagents.agents.schemas import (
     render_trader_proposal,
 )
 from tradingagents.agents.trader.trader import create_trader
+from tradingagents.dataflows.config import get_config, set_config
 
 
 # ---------------------------------------------------------------------------
@@ -319,6 +321,27 @@ def _structured_sentiment_llm(captured: dict, report: SentimentReport | None = N
 
 @pytest.mark.unit
 class TestSentimentAnalystAgent:
+    @pytest.fixture(autouse=True)
+    def _stub_prefetch_sources(self, monkeypatch):
+        saved_config = get_config()
+        monkeypatch.setattr(
+            sentiment_module.get_news,
+            "func",
+            lambda *args, **kwargs: "news block",
+        )
+        monkeypatch.setattr(
+            sentiment_module,
+            "fetch_stocktwits_messages",
+            lambda *args, **kwargs: "stocktwits block",
+        )
+        monkeypatch.setattr(
+            sentiment_module,
+            "fetch_reddit_posts",
+            lambda *args, **kwargs: "reddit block",
+        )
+        yield
+        set_config(saved_config)
+
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}
         report = SentimentReport(
@@ -342,6 +365,25 @@ class TestSentimentAnalystAgent:
         captured = {}
         create_sentiment_analyst(_structured_sentiment_llm(captured))(_make_sentiment_state())
         assert any("NVDA" in str(m) for m in captured["prompt"])
+
+    def test_reddit_fetch_runs_by_default(self, monkeypatch):
+        captured = {}
+        reddit_fetch = MagicMock(return_value="reddit data")
+        monkeypatch.setattr(sentiment_module, "fetch_reddit_posts", reddit_fetch)
+        create_sentiment_analyst(_structured_sentiment_llm(captured))(_make_sentiment_state())
+        reddit_fetch.assert_called_once_with("NVDA")
+        assert any("Reddit posts — r/wallstreetbets" in str(m) for m in captured["prompt"])
+
+    def test_reddit_fetch_skipped_when_config_disabled(self, monkeypatch):
+        set_config({"sentiment_include_reddit": False})
+        captured = {}
+        reddit_fetch = MagicMock(return_value="reddit data")
+        monkeypatch.setattr(sentiment_module, "fetch_reddit_posts", reddit_fetch)
+        create_sentiment_analyst(_structured_sentiment_llm(captured))(_make_sentiment_state())
+        reddit_fetch.assert_not_called()
+        prompt_text = "\n".join(str(m) for m in captured["prompt"])
+        assert "Reddit posts — skipped by configuration" in prompt_text
+        assert "<reddit skipped: disabled by sentiment_include_reddit config>" in prompt_text
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain = "**Overall Sentiment:** **Bearish** (Score: 3.0/10)\n**Confidence:** Low\n\nLimited data."

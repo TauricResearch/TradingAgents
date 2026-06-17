@@ -70,6 +70,7 @@ class Run(NamedTuple):
 
 class SummaryRow(NamedTuple):
     ticker: str
+    model: str
     report_link: str
     rating: str
     action: str
@@ -322,6 +323,7 @@ def build_summary_row(run: Run) -> SummaryRow:
 
     return SummaryRow(
         ticker=run.ticker,
+        model=run.model,
         report_link=f"./{run.ticker}/{run.folder_name}/complete_report.md",
         rating=field(decision_text, "Rating") or "n/a",
         action=field(trader_text, "Action") or "n/a",
@@ -337,21 +339,29 @@ def build_summary_row(run: Run) -> SummaryRow:
 def latest_runs(
     by_ticker: dict[str, list[Run]], analysis_date: str | None = None
 ) -> list[Run]:
+    """Return the newest run per ticker/model pair.
+
+    The homepage should include parallel model evaluations for the same
+    ticker and analysis date, while still collapsing reruns of the same
+    ticker/model to the newest run-start timestamp.
+    """
     analysis_date = normalize_analysis_date(analysis_date)
-    runs = []
+    latest_by_ticker_model: dict[tuple[str, str], Run] = {}
     for ticker_runs in by_ticker.values():
         if analysis_date:
             ticker_runs = [r for r in ticker_runs if r.analysis_date == analysis_date]
-        if not ticker_runs:
-            continue
-        runs.append(
-            sorted(
-                ticker_runs,
-                key=lambda r: (r.analysis_date, r.run_started),
-                reverse=True,
-            )[0]
-        )
-    return runs
+        for run in ticker_runs:
+            key = (run.ticker, run.model)
+            existing = latest_by_ticker_model.get(key)
+            if existing is None or (run.analysis_date, run.run_started) > (
+                existing.analysis_date,
+                existing.run_started,
+            ):
+                latest_by_ticker_model[key] = run
+    return sorted(
+        latest_by_ticker_model.values(),
+        key=lambda r: (r.ticker, r.model),
+    )
 
 
 def analysis_dates(by_ticker: dict[str, list[Run]]) -> list[str]:
@@ -373,11 +383,13 @@ def build_daily_summaries(by_ticker: dict[str, list[Run]]) -> list[DailySummary]
     return summaries
 
 
-def summary_sort_key(row: SummaryRow) -> tuple[int, float]:
+def summary_sort_key(row: SummaryRow) -> tuple[int, float, str, str]:
     action_rank = {"Buy": 0, "Hold": 1, "Sell": 2}
     return (
         action_rank.get(row.action, 9),
         -(row.target_uplift if row.target_uplift is not None else -999.0),
+        row.ticker,
+        row.model,
     )
 
 
@@ -422,22 +434,22 @@ def build_decision_summary(
         else "## Latest Decision Summary"
     )
     note = (
-        f"_Uses the latest {analysis_date} run folder for each ticker. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
+        f"_Uses the latest {analysis_date} run folder for each ticker/model pair. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
         if analysis_date
-        else "_Uses the latest run folder for each ticker. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
+        else "_Uses the latest run folder for each ticker/model pair. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
     )
     lines = [
         heading,
         "",
         note,
         "",
-        "| Ticker | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |",
-        "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |",
+        "| Ticker | Model | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     for row in sorted(rows, key=summary_sort_key):
         suggestion = f"{row.action} / {row.rating}"
         lines.append(
-            f"| [{row.ticker}]({row.report_link}) | {suggestion} | "
+            f"| [{row.ticker}]({row.report_link}) | `{row.model}` | {suggestion} | "
             f"{format_price(row.current_price)} | {format_price(row.price_target)} | "
             f"{format_percent(row.target_uplift)} | {format_percent(row.annualized_uplift)} | "
             f"{row.confidence} | {short_horizon(row.horizon)} |"
@@ -461,8 +473,8 @@ def build_daily_decision_summaries(
         "<ul>",
     ]
     for summary in summaries:
-        ticker_count = len(summary.rows)
-        suffix = "ticker" if ticker_count == 1 else "tickers"
+        report_count = len(summary.rows)
+        suffix = "report" if report_count == 1 else "reports"
         classes = ["daily-summary-date"]
         if focus_analysis_date == summary.analysis_date:
             classes.append("daily-summary-date--active")
@@ -474,7 +486,7 @@ def build_daily_decision_summaries(
                     f'href="#{decision_summary_anchor(summary.analysis_date)}">'
                     f"{summary.analysis_date}</a>"
                 ),
-                f"<span>{ticker_count} {suffix}</span>",
+                f"<span>{report_count} {suffix}</span>",
                 "</li>",
             ]
         )
@@ -512,7 +524,7 @@ def build_regeneration_skill() -> list[str]:
         "4. Review `docs/index.md` and the affected `docs/<TICKER>/index.md` files in `git diff`.",
         "5. If a row has a missing value, check that the new report includes `**Rating**`, `**Price Target**`, `**Time Horizon**`, `**Action**`, and a latest close/current price line in the market report.",
         "",
-        "The generator groups summaries by analysis date and chooses the newest run per ticker by run-start timestamp within each date.",
+        "The generator groups summaries by analysis date and chooses the newest run per ticker/model pair by run-start timestamp within each date.",
         "",
     ]
 
