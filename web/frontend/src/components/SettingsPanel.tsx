@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchConfig,
   saveConfig,
+  fetchConfigDefaults,
   fetchCachedFreeKeys,
   fetchFreeLlmKeysStream,
   type AppConfig,
@@ -32,6 +33,7 @@ const LABELS: Record<keyof AppConfig, string> = {
   TRADINGAGENTS_BENCHMARK_TICKER: "Benchmark Ticker",
   TRADINGAGENTS_CHECKPOINT_ENABLED: "Checkpoint Enabled",
   TRADINGAGENTS_LLM_CACHE_ENABLED: "LLM Cache Enabled",
+  TRADINGAGENTS_FREE_KEYS_ENABLED: "Fetch Free Keys on Startup",
 };
 
 const PROVIDER_OPTIONS = [
@@ -81,6 +83,16 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme, autoRefreshEn
     if (Object.keys(dirty).length === 0) return;
     mutation.mutate(dirty);
   }, [dirty, mutation]);
+
+  const handleResetLlmDefaults = useCallback(async () => {
+    try {
+      const { defaults } = await fetchConfigDefaults();
+      setDirty(defaults);
+      mutation.mutate(defaults);
+    } catch {
+      // If the defaults endpoint fails, silently do nothing.
+    }
+  }, [mutation]);
 
   const handleFetchFreeKeys = useCallback(async () => {
     setFreeKeysLoading(true);
@@ -303,6 +315,13 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme, autoRefreshEn
                       onChange={(v) => set("TRADINGAGENTS_LLM_BACKEND_URL", v)}
                       placeholder="https://api.openai.com/v1"
                     />
+                    <button
+                      onClick={handleResetLlmDefaults}
+                      disabled={mutation.isPending}
+                      className="w-full mt-1 text-[11px] font-medium text-slate-500 hover:text-sky-400 border border-slate-700/50 hover:border-sky-500/30 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-40"
+                    >
+                      Reset to Defaults
+                    </button>
                   </div>
                 </section>
 
@@ -372,6 +391,28 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme, autoRefreshEn
                         <span
                           className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${
                             autoRefreshEnabled ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-500">Fetch on startup</span>
+                      <span className="text-[9px] text-slate-600 mr-auto ml-2">(auto-skipped for Ollama)</span>
+                      <button
+                        onClick={() => {
+                          const v = current("TRADINGAGENTS_FREE_KEYS_ENABLED");
+                          set("TRADINGAGENTS_FREE_KEYS_ENABLED", (!v || v === "false") ? "true" : "false");
+                        }}
+                        className={`relative w-9 h-4 rounded-full transition-colors ${
+                          isFreeKeysEnabled(current("TRADINGAGENTS_FREE_KEYS_ENABLED")) ? "bg-sky-500" : "bg-slate-600"
+                        }`}
+                        role="switch"
+                        aria-checked={isFreeKeysEnabled(current("TRADINGAGENTS_FREE_KEYS_ENABLED"))}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${
+                            isFreeKeysEnabled(current("TRADINGAGENTS_FREE_KEYS_ENABLED")) ? "translate-x-5" : "translate-x-0"
                           }`}
                         />
                       </button>
@@ -714,6 +755,11 @@ function FreeKeyRow({
       )}
     </div>
   );
+}
+
+/** Treat empty/unset as "true" to match the backend default (free_keys_enabled: True). */
+function isFreeKeysEnabled(v: string): boolean {
+  return !v || v === "true" || v === "1";
 }
 
 function formatTimeAgo(iso: string): string {

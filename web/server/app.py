@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import storage, queries, events, llm_calls, runner, settings as settings_mod
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.default_config import DEFAULT_CONFIG, _ENV_OVERRIDES
 
 
 log = logging.getLogger(__name__)
@@ -134,7 +134,14 @@ async def lifespan(app: FastAPI):
     # Warm the free-keys cache asynchronously so it's fresh when the
     # user opens the settings panel — runs in background, doesn't
     # block server startup.
-    asyncio.create_task(_warm_free_keys_cache())
+    # Skip when:
+    #   - TRADINGAGENTS_FREE_KEYS_ENABLED is explicitly "false"/"0"
+    #   - TRADINGAGENTS_LLM_PROVIDER is "ollama" (local provider needs no remote keys)
+    _free_keys_enabled = os.environ.get("TRADINGAGENTS_FREE_KEYS_ENABLED", "false")
+    _provider = os.environ.get("TRADINGAGENTS_LLM_PROVIDER", "")
+    _skip_free_keys = _free_keys_enabled.lower() in ("false", "0", "no", "off") or _provider.lower() == "ollama"
+    if not _skip_free_keys:
+        asyncio.create_task(_warm_free_keys_cache())
 
     yield
     # Stop the price feed (if it was started) before the runner so any
@@ -535,7 +542,16 @@ def create_app() -> FastAPI:
         "TRADINGAGENTS_BENCHMARK_TICKER",
         "TRADINGAGENTS_CHECKPOINT_ENABLED",
         "TRADINGAGENTS_LLM_CACHE_ENABLED",
+        "TRADINGAGENTS_FREE_KEYS_ENABLED",
     ]
+    # Factory defaults sourced from tradingagents/default_config.py.
+    # Built dynamically so changes to default_config.py are picked up
+    # without updating this file.
+    _CONFIG_DEFAULTS: dict[str, str] = {}
+    for _env_var, _cfg_key in _ENV_OVERRIDES.items():
+        if _env_var in _CONFIG_KEYS:
+            _val = DEFAULT_CONFIG.get(_cfg_key)
+            _CONFIG_DEFAULTS[_env_var] = "" if _val is None else str(_val)
     _API_KEY_ENVS = [
         "OPENAI_API_KEY",
         "GOOGLE_API_KEY",
@@ -621,6 +637,10 @@ def create_app() -> FastAPI:
         for key in _CONFIG_KEYS:
             cfg[key] = os.environ.get(key) or env.get(key, "")
         return {"config": cfg, "status": "saved"}
+
+    @app.get("/api/config/defaults")
+    def get_config_defaults():
+        return {"defaults": _CONFIG_DEFAULTS}
 
     # ── Free LLM Keys Fetcher ─────────────────────────────────────
 

@@ -314,6 +314,7 @@ export interface AppConfig {
   TRADINGAGENTS_BENCHMARK_TICKER: string;
   TRADINGAGENTS_CHECKPOINT_ENABLED: string;
   TRADINGAGENTS_LLM_CACHE_ENABLED: string;
+  TRADINGAGENTS_FREE_KEYS_ENABLED: string;
 }
 
 export interface ConfigResponse {
@@ -321,10 +322,22 @@ export interface ConfigResponse {
   api_keys: Record<string, boolean>;
 }
 
+export interface ConfigDefaultsResponse {
+  defaults: Partial<AppConfig>;
+}
+
 export async function fetchConfig(): Promise<ConfigResponse> {
   const r = await fetch(`${base}/api/config`);
   if (!r.ok) {
     throw new ApiError(`config ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
+}
+
+export async function fetchConfigDefaults(): Promise<ConfigDefaultsResponse> {
+  const r = await fetch(`${base}/api/config/defaults`);
+  if (!r.ok) {
+    throw new ApiError(`config-defaults ${r.status}`, r.status, await readJsonOrNull(r));
   }
   return r.json();
 }
