@@ -40,7 +40,7 @@ DB_PATH = os.getenv("TRADINGAGENTS_SIGNALS_DB_PATH", DEFAULT_DB_PATH)
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # Redis Configuration
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
 
 # JWT Configuration
@@ -579,8 +579,8 @@ class SignalScheduler:
             conn.execute(
                 """
                 INSERT INTO trading_signals (
-                    id, ticker, asset_type, signal_type, confidence, time_horizon, 
-                    price_target, entry_price, stop_loss, position_sizing, 
+                    id, ticker, asset_type, signal_type, confidence, time_horizon,
+                    price_target, entry_price, stop_loss, position_sizing,
                     reasoning_summary, generated_at, source_run_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -802,7 +802,7 @@ def get_tracked_tickers(request: Request):
     conn = get_db_connection()
     try:
         query = """
-            SELECT w.ticker, w.asset_type, w.added_at, 
+            SELECT w.ticker, w.asset_type, w.added_at,
                    COUNT(s.id) as signals_count, MAX(s.generated_at) as last_signal_at
             FROM watchlist_tickers w
             LEFT JOIN trading_signals s ON w.ticker = s.ticker

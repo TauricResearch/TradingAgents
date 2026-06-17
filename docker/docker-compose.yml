@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${TRADING_SIGNALS_PORT:-8050}:8000"
+      - "127.0.0.1:${TRADING_SIGNALS_PORT:-8050}:8000"
     depends_on:
       redis:
         condition: service_healthy
@@ -19,8 +19,22 @@ services:
       - trading-signals-data:/home/appuser/.tradingagents
     networks:
       - pulse-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/signals-ms/health', timeout=5).getcode()==200 else 1)"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/signals-ms/health', timeout=5).getcode()==200 else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -41,12 +55,24 @@ services:
       pulse-network:
         aliases:
           - pulse-trading-signals-redis
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --bind 127.0.0.1 --protected-mode yes
 
 volumes:
   trading-signals-data:
