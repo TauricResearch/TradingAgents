@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWatchlist, fetchPrices, removeFromWatchlist, fetchRunDetail, fetchConfigModels, fetchCachedFreeKeys, type ConfigModels, type RunDetail } from "./lib/api";
 import { useUi } from "./store/ui";
@@ -33,17 +33,51 @@ export default function App() {
   // and re-opens when focus or the underlying run id changes.
   const runId = useUi((s) => (focused ? s.activeRunIdByTicker[focused] ?? null : null));
   const events = useFocusedRunEvents();
+
+  // ── Backend ready gate ─────────────────────────────────────────
+  // The Python backend (uvicorn) takes ~2 s to import and start up.
+  // Without this gate, the first N <api calls fail with ECONNREFUSED,
+  // React Query retries once (~2 s), and the user stares at the
+  // loading spinner.  Poll /api/health first, then let queries fire.
+  const [serverReady, setServerReady] = useState(false);
+  const healthAttempt = useRef(0);
+  useEffect(() => {
+    if (serverReady) return;
+    let cancelled = false;
+    const poll = () => {
+      if (cancelled) return;
+      fetch("/api/health")
+        .then((r) => {
+          if (cancelled) return;
+          if (r.ok) { setServerReady(true); return; }
+          const delay = Math.min(1000 * 2 ** (healthAttempt.current++), 8000);
+          setTimeout(poll, delay);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          const delay = Math.min(1000 * 2 ** (healthAttempt.current++), 8000);
+          setTimeout(poll, delay);
+        });
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, [serverReady]);
+
+  // All hooks MUST be called unconditionally (rules of hooks).
+  // Use `enabled` on useQuery + conditional rendering instead of early returns.
   const { data: watchlist = [], isLoading: watchlistLoading, isFetching: watchlistFetching } = useQuery({
     queryKey: ["watchlist"],
     queryFn: fetchWatchlist,
+    enabled: serverReady,
   });
-  const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices, refetchInterval: 2_000 });
-  const { data: configModels } = useQuery<ConfigModels>({ queryKey: ["config-models"], queryFn: fetchConfigModels, staleTime: Infinity });
+  const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices, refetchInterval: 2_000, enabled: serverReady });
+  const { data: configModels } = useQuery<ConfigModels>({ queryKey: ["config-models"], queryFn: fetchConfigModels, staleTime: Infinity, enabled: serverReady });
   const { data: cachedKeys } = useQuery({
     queryKey: ["cached-free-keys"],
     queryFn: fetchCachedFreeKeys,
     staleTime: 30_000,
     refetchInterval: 60_000,
+    enabled: serverReady,
   });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [dismissedStaleBanner, setDismissedStaleBanner] = useState<string | null>(null);
@@ -125,29 +159,8 @@ export default function App() {
   const showStaleBanner =
     !!focused && priceStale && dismissedStaleBanner !== focused;
 
-  if (watchlistLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-market-DEFAULT">
-        <div className="text-center animate-fade-in">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
-          <p className="text-sm text-slate-500 font-medium">Loading watchlist…</p>
-        </div>
-      </div>
-    );
-  }
-
-  const decisionEvent = [...events].reverse().find((e) => e.type === "decision");
-  const decision = decisionEvent?.data as { action: string; target: number; rationale: string; confidence: number } | undefined;
-
-  const currentModelSummary = configModels
-    ? [
-        configModels.deep_think_model ? `Deep: ${configModels.deep_think_model}` : null,
-        configModels.quick_think_model ? `Quick: ${configModels.quick_think_model}` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : null;
-
+  // ── All useMemo/useCallback/useEffect hooks are above the early   ──
+  // ── returns. Only derived variables and conditional JSX below.    ──
   const keySummary = useMemo(() => {
     const keys = cachedKeys?.keys;
     if (!keys?.length) return null;
@@ -180,6 +193,42 @@ export default function App() {
       tooltip: `${statusParts.join(" · ")} — ${providerSummary}`,
     };
   }, [cachedKeys]);
+
+  // ── Conditional rendering ──────────────────────────────────────
+  if (!serverReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-market-DEFAULT">
+        <div className="text-center animate-fade-in">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Connecting to server…</p>
+          <p className="text-xs text-slate-600 mt-2">Waiting for backend to start</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (watchlistLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-market-DEFAULT">
+        <div className="text-center animate-fade-in">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading watchlist…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const decisionEvent = [...events].reverse().find((e) => e.type === "decision");
+  const decision = decisionEvent?.data as { action: string; target: number; rationale: string; confidence: number } | undefined;
+
+  const currentModelSummary = configModels
+    ? [
+        configModels.deep_think_model ? `Deep: ${configModels.deep_think_model}` : null,
+        configModels.quick_think_model ? `Quick: ${configModels.quick_think_model}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
 
   return (
     <div className="min-h-screen flex bg-market-DEFAULT relative">
