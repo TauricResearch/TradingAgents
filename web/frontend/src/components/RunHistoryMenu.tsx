@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteRun, deleteRuns, type RunRow } from "../lib/api";
+import { deleteRun, deleteRuns, resumeRun, type RunRow } from "../lib/api";
 import { runLabel } from "./TickerHeader";
 import { useUi } from "../store/ui";
 
@@ -56,6 +56,10 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
       : selectedRunId.slice(0, 16)
     : "Latest (live)";
 
+  const setActiveRunIdForTicker = useUi((s) => s.setActiveRunIdForTicker);
+  const setLastRunIdForTicker = useUi((s) => s.setLastRunIdForTicker);
+  const clearBuffer = useUi((s) => s.clearBuffer);
+
   const delOne = useMutation({
     mutationFn: (runId: string) => deleteRun(runId),
     onSuccess: () => {
@@ -68,6 +72,19 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
     onSuccess: () => {
       invalidateAfterDelete();
       setChecked(new Set());
+    },
+  });
+
+  const resume = useMutation({
+    mutationFn: (runId: string) => resumeRun(runId),
+    onSuccess: ({ run_id }) => {
+      clearBuffer();
+      clearHistoricalRunForTicker(ticker);
+      setActiveRunIdForTicker(ticker, run_id);
+      setLastRunIdForTicker(ticker, run_id);
+      closeAndReset();
+      qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
+      qc.invalidateQueries({ queryKey: ["runs", "list"] });
     },
   });
 
@@ -179,6 +196,24 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                     )}
                   </span>
 
+                  {/* Per-row resume button for failed/cancelled runs */}
+                  {(r.status === "failed" || r.status === "cancelled") && (
+                    <button
+                      disabled={resume.isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        resume.mutate(r.id);
+                      }}
+                      className="shrink-0 opacity-0 group-hover:opacity-100 text-sky-400 hover:text-sky-300 
+                                  disabled:opacity-30 transition-all text-base leading-none p-1"
+                      title="Resume this run"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  )}
+
                   {/* Per-row delete button */}
                   <button
                     disabled={delOne.isPending}
@@ -187,7 +222,7 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                       delOne.mutate(r.id);
                     }}
                     className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 
-                               disabled:opacity-30 transition-all text-base leading-none px-1"
+                                disabled:opacity-30 transition-all text-base leading-none px-1"
                     title="Delete this run"
                   >
                     ×
