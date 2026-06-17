@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -384,7 +385,24 @@ class OpenClaudeContinuousAgent:
 
             if agent_state:
                 # Add AI specific rationale if available
-                ai_rationale = agent_state.get("final_trade_decision", {}).get("reasoning")
+                decision_obj = agent_state.get("final_trade_decision", "")
+                ai_rationale = ""
+
+                if isinstance(decision_obj, dict):
+                    ai_rationale = decision_obj.get("reasoning", "")
+                elif isinstance(decision_obj, str):
+                    thesis_match = re.search(r'\*\*Investment Thesis\*\*:\s*(.*?)(?=\n\*\*|$)', decision_obj, re.DOTALL)
+                    if thesis_match:
+                        ai_rationale = thesis_match.group(1).strip()
+                    else:
+                        reasoning_match = re.search(r'\*\*Reasoning\*\*:\s*(.*?)(?=\n\*\*|$)', decision_obj, re.DOTALL)
+                        if reasoning_match:
+                            ai_rationale = reasoning_match.group(1).strip()
+                        elif decision_obj:
+                            # Shorten if very long
+                            clean_str = decision_obj.replace('\n', ' ')
+                            ai_rationale = clean_str if len(clean_str) < 150 else clean_str[:147] + "..."
+
                 if ai_rationale:
                     rationale = f"{opportunity.reason} | AI: {ai_rationale}"
 
