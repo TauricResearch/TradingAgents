@@ -22,7 +22,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 _log = logging.getLogger(__name__)
 
 
-def _broadcast_via_events(run_id: int) -> Callable[[dict], None]:
+def _broadcast_via_events(run_id: str) -> Callable[[dict], None]:
     """Build a broadcast callable that goes through ``events.emit``.
 
     Used in production wiring (runner.py) so all emissions land in the
@@ -37,7 +37,7 @@ def _broadcast_via_events(run_id: int) -> Callable[[dict], None]:
 class StreamingCallbackHandler(BaseCallbackHandler):
     """Maps LangChain's per-step callbacks to WsEvent payloads."""
 
-    def __init__(self, *, run_id: int, broadcast: Optional[Callable[[dict], None]] = None) -> None:
+    def __init__(self, *, run_id: str, broadcast: Optional[Callable[[dict], None]] = None) -> None:
         self.run_id = run_id
         self._broadcast = broadcast or _broadcast_via_events(run_id)
 
@@ -103,7 +103,7 @@ class CaptureCallbackHandler(BaseCallbackHandler):
     def __init__(
         self,
         *,
-        run_id: int,
+        run_id: str,
         ticker: str,
         save_call: Optional[Callable[[dict], None]] = None,
     ) -> None:
