@@ -1,0 +1,36 @@
+minimum_pre_commit_version: "3.7.0"
+default_language_version:
+  python: python3.13
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: debug-statements
+      - id: detect-private-key
+      - id: mixed-line-ending
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: Ruff check
+        entry: ruff check --fix
+        language: python
+        additional_dependencies: ["ruff==0.11.13"]
+        types_or: [python]
+        files: ^api/
+
+      - id: ruff-format
+        name: Ruff format
+        entry: ruff format
+        language: python
+        additional_dependencies: ["ruff==0.11.13"]
+        types_or: [python]
+        files: ^api/
