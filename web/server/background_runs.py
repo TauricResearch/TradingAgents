@@ -617,6 +617,9 @@ def cancel(job_id: str) -> None:
             raise KeyError(job_id) from None
         if state.status in ("done", "cancelled", "error"):
             return
+        state.status = "cancelled"
+        state.finished_at = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        state.persist()
         return
     h.cancel_event.set()
 
