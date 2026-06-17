@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ResilientWs, buildRunUrl } from "../lib/ws";
 import { useUi } from "../store/ui";
 
@@ -6,6 +7,7 @@ export type WsStatus = "idle" | "connecting" | "open" | "reconnecting" | "closed
 
 export function useRunStream(runId: string | null) {
   const appendEvent = useUi((s) => s.appendEvent);
+  const qc = useQueryClient();
   const [status, setStatus] = useState<WsStatus>("idle");
   const lastIdRef = useRef<string | null>(null);
   const clientRef = useRef<ResilientWs | null>(null);
@@ -35,6 +37,11 @@ export function useRunStream(runId: string | null) {
           for (const [ticker, activeId] of Object.entries(state.activeRunIdByTicker)) {
             if (activeId === runId) {
               state.clearActiveRunForTicker(ticker);
+              // The run.json was updated with decision_action etc. on disk.
+              // Invalidate the React Query cache so the ticker runs dropdown
+              // and run list pick up the final action / target / confidence.
+              qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
+              qc.invalidateQueries({ queryKey: ["runs", "list"] });
               break;
             }
           }
@@ -48,7 +55,7 @@ export function useRunStream(runId: string | null) {
       client.stop();
       clientRef.current = null;
     };
-  }, [runId, appendEvent]);
+  }, [runId, appendEvent, qc]);
 
   return { status };
 }
