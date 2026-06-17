@@ -27,7 +27,9 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.rating import parse_rating
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 logger = logging.getLogger("pulse-trading-signals-service")
 
 # Resolve database path
@@ -49,12 +51,20 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 # Pydantic Schemas for API Contracts
 # ---------------------------------------------------------------------------
 
+
 class EntitlementBlock(BaseModel):
     tier: str = Field(description="Subscribed tier: 'free' or 'pro'")
-    remaining_views: int = Field(description="Number of views remaining in the current 24h window")
-    reset_at: Optional[datetime.datetime] = Field(None, description="ISO timestamp when the view count resets")
+    remaining_views: int = Field(
+        description="Number of views remaining in the current 24h window"
+    )
+    reset_at: Optional[datetime.datetime] = Field(
+        None, description="ISO timestamp when the view count resets"
+    )
     locked: bool = Field(description="True if the user has exhausted their views")
-    cooldown_ends_at: Optional[datetime.datetime] = Field(None, description="ISO timestamp when cooldown lock expires")
+    cooldown_ends_at: Optional[datetime.datetime] = Field(
+        None, description="ISO timestamp when cooldown lock expires"
+    )
+
 
 class SignalPayload(BaseModel):
     id: str
@@ -71,9 +81,11 @@ class SignalPayload(BaseModel):
     generated_at: datetime.datetime
     source_run_id: Optional[str] = None
 
+
 class SignalsResponse(BaseModel):
     signals: List[SignalPayload]
     entitlement: EntitlementBlock
+
 
 class TickerStats(BaseModel):
     ticker: str
@@ -82,9 +94,11 @@ class TickerStats(BaseModel):
     signals_count: int
     last_signal_at: Optional[datetime.datetime] = None
 
+
 class TickersResponse(BaseModel):
     tickers: List[TickerStats]
     entitlement: EntitlementBlock
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -94,14 +108,17 @@ class HealthResponse(BaseModel):
     deep_model: str
     quick_model: str
 
+
 # ---------------------------------------------------------------------------
 # SQLite Database Integration & Connection Helpers
 # ---------------------------------------------------------------------------
+
 
 def get_db_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_db():
     """Verify that tables exist and initialize schema if needed."""
@@ -146,6 +163,7 @@ def init_db():
     finally:
         conn.close()
 
+
 # Initialize DB on import/start
 init_db()
 
@@ -157,8 +175,10 @@ init_db()
 # Redis SSE Pub/Sub Hub
 # ---------------------------------------------------------------------------
 
+
 class RedisSSEHub:
     """Broadcasts newly generated signals to Redis channel."""
+
     def __init__(self, redis_url: str):
         self.redis_url = redis_url
 
@@ -166,9 +186,12 @@ class RedisSSEHub:
         try:
             r = redis.from_url(self.redis_url, decode_responses=True)
             r.publish("pulse:trading_signals", json.dumps(signal, default=str))
-            logger.info("Successfully published new signal to Redis channel 'pulse:trading_signals'")
+            logger.info(
+                "Successfully published new signal to Redis channel 'pulse:trading_signals'"
+            )
         except Exception as e:
             logger.error(f"Failed to publish signal to Redis: {e}")
+
 
 sse_hub = RedisSSEHub(REDIS_URL)
 
@@ -179,6 +202,7 @@ START_TIME = datetime.datetime.now()
 # Entitlement & Quota Verification Helper
 # ---------------------------------------------------------------------------
 
+
 def get_user_claims_from_token(token: str) -> tuple[str, str]:
     """Decodes and validates JWT signature, returning (user_id, tier)."""
     try:
@@ -186,16 +210,21 @@ def get_user_claims_from_token(token: str) -> tuple[str, str]:
         user_id = payload.get("sub") or payload.get("user_id")
         tier = payload.get("tier") or payload.get("role") or "free"
         if not user_id:
-            raise HTTPException(status_code=401, detail="User ID not found in token claims")
+            raise HTTPException(
+                status_code=401, detail="User ID not found in token claims"
+            )
         return str(user_id), str(tier).lower()
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Authentication token has expired")
     except jwt.InvalidTokenError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid authentication token: {e}")
+        raise HTTPException(
+            status_code=401, detail=f"Invalid authentication token: {e}"
+        )
+
 
 def get_user_claims(request: Request) -> tuple[str, str]:
     """Extracts user_id and subscription tier from request headers or auth JWT.
-    
+
     If the authentication service handles checking signatures and routing,
     our service simply reads standard headers:
       - X-User-Id / Authorization JWT claims
@@ -217,14 +246,11 @@ def get_user_claims(request: Request) -> tuple[str, str]:
 
     return user_id or "anonymous", (tier or "free").lower()
 
+
 def enforce_quota(user_id: str, tier: str, log_view: bool = False) -> EntitlementBlock:
     """Checks the user views quota against the DB and optionally logs a new view."""
     if tier == "pro":
-        return EntitlementBlock(
-            tier="pro",
-            remaining_views=999999,
-            locked=False
-        )
+        return EntitlementBlock(tier="pro", remaining_views=999999, locked=False)
 
     # Free Tier quota check: 3 views per 24 hours (configurable via environment)
     limit = int(os.getenv("FREE_TIER_QUOTA_LIMIT", "3"))
@@ -236,14 +262,14 @@ def enforce_quota(user_id: str, tier: str, log_view: bool = False) -> Entitlemen
         # Fetch views count in last 24 hours
         cursor = conn.execute(
             "SELECT COUNT(*) as cnt FROM user_quota_logs WHERE user_id = ? AND viewed_at >= ?",
-            (user_id, twenty_four_hours_ago.strftime("%Y-%m-%d %H:%M:%S"))
+            (user_id, twenty_four_hours_ago.strftime("%Y-%m-%d %H:%M:%S")),
         )
         count = cursor.fetchone()["cnt"]
 
         # Fetch oldest log in the active 24h window to calculate cooldown reset
         cursor = conn.execute(
             "SELECT viewed_at FROM user_quota_logs WHERE user_id = ? AND viewed_at >= ? ORDER BY viewed_at ASC LIMIT 1",
-            (user_id, twenty_four_hours_ago.strftime("%Y-%m-%d %H:%M:%S"))
+            (user_id, twenty_four_hours_ago.strftime("%Y-%m-%d %H:%M:%S")),
         )
         oldest_row = cursor.fetchone()
 
@@ -251,7 +277,9 @@ def enforce_quota(user_id: str, tier: str, log_view: bool = False) -> Entitlemen
         cooldown_ends_at = None
 
         if oldest_row:
-            oldest_time = datetime.datetime.strptime(oldest_row["viewed_at"], "%Y-%m-%d %H:%M:%S")
+            oldest_time = datetime.datetime.strptime(
+                oldest_row["viewed_at"], "%Y-%m-%d %H:%M:%S"
+            )
             reset_at = oldest_time + datetime.timedelta(hours=24)
             cooldown_ends_at = reset_at
 
@@ -260,7 +288,7 @@ def enforce_quota(user_id: str, tier: str, log_view: bool = False) -> Entitlemen
         if not locked and log_view:
             conn.execute(
                 "INSERT INTO user_quota_logs (user_id, viewed_at) VALUES (?, ?)",
-                (user_id, now.strftime("%Y-%m-%d %H:%M:%S"))
+                (user_id, now.strftime("%Y-%m-%d %H:%M:%S")),
             )
             conn.commit()
             count += 1
@@ -272,10 +300,11 @@ def enforce_quota(user_id: str, tier: str, log_view: bool = False) -> Entitlemen
             remaining_views=remaining_views,
             reset_at=reset_at,
             locked=locked,
-            cooldown_ends_at=cooldown_ends_at if locked else None
+            cooldown_ends_at=cooldown_ends_at if locked else None,
         )
     finally:
         conn.close()
+
 
 def mask_signal(signal: SignalPayload) -> SignalPayload:
     """Masks all proprietary recommendation and reasoning details for locked Free users."""
@@ -292,19 +321,21 @@ def mask_signal(signal: SignalPayload) -> SignalPayload:
         position_sizing="Locked",
         reasoning_summary="Upgrade to Pro to view this trading signal details.",
         generated_at=signal.generated_at,
-        source_run_id=None
+        source_run_id=None,
     )
+
 
 # ---------------------------------------------------------------------------
 # Signal Normalization Helpers
 # ---------------------------------------------------------------------------
+
 
 def parse_markdown_fields(text: str) -> Dict[str, str]:
     """Extract key-value fields from agent rendered markdown."""
     fields = {}
     current_key = None
     current_value = []
-    
+
     for line in text.splitlines():
         line_stripped = line.strip()
         if not line_stripped:
@@ -319,13 +350,16 @@ def parse_markdown_fields(text: str) -> Dict[str, str]:
         else:
             if current_key:
                 current_value.append(line_stripped)
-                
+
     if current_key:
         fields[current_key] = "\n".join(current_value).strip()
-        
+
     return fields
 
-def normalize_signal(ticker: str, asset_type: str, final_state: Dict[str, Any]) -> Dict[str, Any]:
+
+def normalize_signal(
+    ticker: str, asset_type: str, final_state: Dict[str, Any]
+) -> Dict[str, Any]:
     """Transforms raw multi-agent final state output into a canonical signal payload."""
     pm_decision_text = final_state.get("final_trade_decision", "")
     trader_plan_text = final_state.get("trader_investment_plan", "")
@@ -335,7 +369,7 @@ def normalize_signal(ticker: str, asset_type: str, final_state: Dict[str, Any]) 
 
     # Parse PM fields (price_target, time_horizon, executive_summary)
     pm_fields = parse_markdown_fields(pm_decision_text)
-    
+
     # Parse Trader fields (entry_price, stop_loss, position_sizing)
     trader_fields = parse_markdown_fields(trader_plan_text)
 
@@ -364,7 +398,11 @@ def normalize_signal(ticker: str, asset_type: str, final_state: Dict[str, Any]) 
             pass
 
     position_sizing = trader_fields.get("position_sizing")
-    reasoning_summary = pm_fields.get("executive_summary") or pm_fields.get("investment_thesis") or "Thesis generated by Portfolio Manager."
+    reasoning_summary = (
+        pm_fields.get("executive_summary")
+        or pm_fields.get("investment_thesis")
+        or "Thesis generated by Portfolio Manager."
+    )
 
     # Heuristic v1 for confidence score (decisiveness and alignment)
     # Buy/Sell = 0.8, Overweight/Underweight = 0.6, Hold = 0.4
@@ -377,9 +415,11 @@ def normalize_signal(ticker: str, asset_type: str, final_state: Dict[str, Any]) 
     # Add alignment boost (does the PM rating align with Trader action direction?)
     trader_action = trader_fields.get("action", "").lower()
     alignment_boost = 0.0
-    if (rating in ("buy", "overweight") and trader_action == "buy") or \
-       (rating in ("sell", "underweight") and trader_action == "sell") or \
-       (rating == "hold" and trader_action == "hold"):
+    if (
+        (rating in ("buy", "overweight") and trader_action == "buy")
+        or (rating in ("sell", "underweight") and trader_action == "sell")
+        or (rating == "hold" and trader_action == "hold")
+    ):
         alignment_boost = 0.15
 
     confidence = min(0.98, max(0.1, base_confidence + alignment_boost))
@@ -397,20 +437,25 @@ def normalize_signal(ticker: str, asset_type: str, final_state: Dict[str, Any]) 
         "position_sizing": position_sizing,
         "reasoning_summary": reasoning_summary,
         "generated_at": datetime.datetime.now(),
-        "source_run_id": str(uuid.uuid4())
+        "source_run_id": str(uuid.uuid4()),
     }
+
 
 # ---------------------------------------------------------------------------
 # Background Agent Runner & Scheduler Thread
 # ---------------------------------------------------------------------------
 
+
 class SignalScheduler:
     """Manages watchlist execution cadence and invokes TradingAgentsGraph."""
+
     def __init__(self):
         self._thread: Optional[threading.Thread] = None
         self._running = False
         # default cadence: check every 60s, run tickers if last run is > 24 hours (1440 mins)
-        self.check_interval_seconds = int(os.getenv("TRADING_SIGNALS_CHECK_INTERVAL_SECONDS", "60"))
+        self.check_interval_seconds = int(
+            os.getenv("TRADING_SIGNALS_CHECK_INTERVAL_SECONDS", "60")
+        )
         self.run_cadence_hours = int(os.getenv("TRADING_SIGNALS_CADENCE_HOURS", "24"))
 
     def start(self):
@@ -430,13 +475,14 @@ class SignalScheduler:
                 self.run_scheduler_cycle()
             except Exception as e:
                 logger.error(f"Error in scheduler execution loop: {e}")
-            
+
             # Sleep in increments so we can exit quickly
             for _ in range(self.check_interval_seconds):
                 if not self._running:
                     break
                 # Synchronous sleep inside thread
                 import time
+
                 time.sleep(1)
 
     def run_scheduler_cycle(self, force_ticker: Optional[str] = None):
@@ -445,12 +491,17 @@ class SignalScheduler:
         tickers = []
         try:
             if force_ticker:
-                cursor = conn.execute("SELECT ticker, asset_type FROM watchlist_tickers WHERE ticker = ?", (force_ticker.upper(),))
+                cursor = conn.execute(
+                    "SELECT ticker, asset_type FROM watchlist_tickers WHERE ticker = ?",
+                    (force_ticker.upper(),),
+                )
                 row = cursor.fetchone()
                 if row:
                     tickers = [dict(row)]
             else:
-                cursor = conn.execute("SELECT ticker, asset_type FROM watchlist_tickers")
+                cursor = conn.execute(
+                    "SELECT ticker, asset_type FROM watchlist_tickers"
+                )
                 tickers = [dict(r) for r in cursor.fetchall()]
         finally:
             conn.close()
@@ -465,12 +516,19 @@ class SignalScheduler:
             try:
                 cursor = conn.execute(
                     "SELECT generated_at, signal_type, reasoning_summary FROM trading_signals WHERE ticker = ? ORDER BY generated_at DESC LIMIT 1",
-                    (ticker,)
+                    (ticker,),
                 )
                 latest_sig = cursor.fetchone()
                 if latest_sig:
-                    last_run_time = datetime.datetime.strptime(latest_sig["generated_at"], "%Y-%m-%d %H:%M:%S" if "." not in latest_sig["generated_at"] else "%Y-%m-%d %H:%M:%S.%f")
-                    if not force_ticker and (datetime.datetime.now() - last_run_time) < datetime.timedelta(hours=self.run_cadence_hours):
+                    last_run_time = datetime.datetime.strptime(
+                        latest_sig["generated_at"],
+                        "%Y-%m-%d %H:%M:%S"
+                        if "." not in latest_sig["generated_at"]
+                        else "%Y-%m-%d %H:%M:%S.%f",
+                    )
+                    if not force_ticker and (
+                        datetime.datetime.now() - last_run_time
+                    ) < datetime.timedelta(hours=self.run_cadence_hours):
                         run_needed = False
             finally:
                 conn.close()
@@ -482,29 +540,37 @@ class SignalScheduler:
                 except Exception as e:
                     logger.error(f"Failed analysis run for {ticker}: {e}")
 
-    def execute_agent_run(self, ticker: str, asset_type: str, latest_sig: Optional[sqlite3.Row] = None):
+    def execute_agent_run(
+        self, ticker: str, asset_type: str, latest_sig: Optional[sqlite3.Row] = None
+    ):
         """Initializes and runs the multi-agent graph, then saves and broadcasts the signal."""
         # Initialize graph using DEFAULT_CONFIG + Environment
         config = DEFAULT_CONFIG.copy()
-        
+
         # Override output_language for normalized parsing
         config["output_language"] = "English"
-        
+
         # Instantiate graph (disable debug prints to prevent stdout noise in logs)
         graph = TradingAgentsGraph(config=config, debug=False)
-        
+
         # Run propagate for current date
         trade_date = datetime.datetime.now().strftime("%Y-%m-%d")
-        final_state, decision = graph.propagate(ticker, trade_date, asset_type=asset_type)
+        final_state, decision = graph.propagate(
+            ticker, trade_date, asset_type=asset_type
+        )
 
         # Normalize outputs to canonical schema
         signal_dict = normalize_signal(ticker, asset_type, final_state)
 
         # Deduplication check: Ticker + Signal Type + Reasoning within 24h
         if latest_sig:
-            if latest_sig["signal_type"] == signal_dict["signal_type"] and \
-               latest_sig["reasoning_summary"] == signal_dict["reasoning_summary"]:
-                logger.info(f"Skipping duplicate signal insert for {ticker} (thesis unchanged).")
+            if (
+                latest_sig["signal_type"] == signal_dict["signal_type"]
+                and latest_sig["reasoning_summary"] == signal_dict["reasoning_summary"]
+            ):
+                logger.info(
+                    f"Skipping duplicate signal insert for {ticker} (thesis unchanged)."
+                )
                 return
 
         # Save to DB
@@ -519,26 +585,38 @@ class SignalScheduler:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    signal_dict["id"], signal_dict["ticker"], signal_dict["asset_type"],
-                    signal_dict["signal_type"], signal_dict["confidence"], signal_dict["time_horizon"],
-                    signal_dict["price_target"], signal_dict["entry_price"], signal_dict["stop_loss"],
-                    signal_dict["position_sizing"], signal_dict["reasoning_summary"],
-                    signal_dict["generated_at"].strftime("%Y-%m-%d %H:%M:%S.%f"), signal_dict["source_run_id"]
-                )
+                    signal_dict["id"],
+                    signal_dict["ticker"],
+                    signal_dict["asset_type"],
+                    signal_dict["signal_type"],
+                    signal_dict["confidence"],
+                    signal_dict["time_horizon"],
+                    signal_dict["price_target"],
+                    signal_dict["entry_price"],
+                    signal_dict["stop_loss"],
+                    signal_dict["position_sizing"],
+                    signal_dict["reasoning_summary"],
+                    signal_dict["generated_at"].strftime("%Y-%m-%d %H:%M:%S.%f"),
+                    signal_dict["source_run_id"],
+                ),
             )
             conn.commit()
-            logger.info(f"New signal successfully generated & saved for {ticker}: {signal_dict['signal_type'].upper()}")
+            logger.info(
+                f"New signal successfully generated & saved for {ticker}: {signal_dict['signal_type'].upper()}"
+            )
         finally:
             conn.close()
 
         # Broadcast real-time signal via SSE pub/sub
         sse_hub.broadcast(signal_dict)
 
+
 scheduler = SignalScheduler()
 
 # ---------------------------------------------------------------------------
 # FastAPI Lifespan & App Setup
 # ---------------------------------------------------------------------------
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -548,17 +626,20 @@ async def lifespan(app: FastAPI):
     # Stop background thread
     scheduler.stop()
 
+
 app = FastAPI(
     title="Pulse Trading Signals Microservice",
     description="Standalone signals microservice wrapping the TradingAgents multi-agent framework.",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
+
 
 @app.get("/", include_in_schema=False)
 def root_redirect():
     """Redirects base requests to the interactive Swagger documentation."""
     return RedirectResponse(url="/docs")
+
 
 # CORS configuration to connect with the dashboard frontend origin
 app.add_middleware(
@@ -573,19 +654,26 @@ app.add_middleware(
 # API Endpoints
 # ---------------------------------------------------------------------------
 
+
 @app.get("/signals-ms/signals", response_model=SignalsResponse)
 def get_signals_feed(
     request: Request,
     ticker: Optional[str] = Query(None, description="Filter by ticker (e.g. AAPL)"),
-    signal_type: Optional[str] = Query(None, description="Filter by signal (buy/sell/hold)"),
-    start_date: Optional[str] = Query(None, description="Filter by start ISO date (YYYY-MM-DD)"),
-    end_date: Optional[str] = Query(None, description="Filter by end ISO date (YYYY-MM-DD)"),
+    signal_type: Optional[str] = Query(
+        None, description="Filter by signal (buy/sell/hold)"
+    ),
+    start_date: Optional[str] = Query(
+        None, description="Filter by start ISO date (YYYY-MM-DD)"
+    ),
+    end_date: Optional[str] = Query(
+        None, description="Filter by end ISO date (YYYY-MM-DD)"
+    ),
     limit: int = Query(20, ge=1, le=100, description="Pagination limit"),
-    offset: int = Query(0, ge=0, description="Pagination offset")
+    offset: int = Query(0, ge=0, description="Pagination offset"),
 ):
     """Retrieves paginated signal feed, enforcing Free user view quotas."""
     user_id, tier = get_user_claims(request)
-    
+
     # Check current quota and increment view log if not locked
     entitlement = enforce_quota(user_id, tier, log_view=True)
 
@@ -618,7 +706,9 @@ def get_signals_feed(
         for row in rows:
             # Parse DATETIME string
             gen_at_str = row["generated_at"]
-            fmt = "%Y-%m-%d %H:%M:%S" if "." not in gen_at_str else "%Y-%m-%d %H:%M:%S.%f"
+            fmt = (
+                "%Y-%m-%d %H:%M:%S" if "." not in gen_at_str else "%Y-%m-%d %H:%M:%S.%f"
+            )
             gen_at = datetime.datetime.strptime(gen_at_str, fmt)
 
             sig = SignalPayload(
@@ -634,7 +724,7 @@ def get_signals_feed(
                 position_sizing=row["position_sizing"],
                 reasoning_summary=row["reasoning_summary"],
                 generated_at=gen_at,
-                source_run_id=row["source_run_id"]
+                source_run_id=row["source_run_id"],
             )
 
             # Mask signal details if the free user's views are exhausted
@@ -645,6 +735,7 @@ def get_signals_feed(
         return SignalsResponse(signals=signals, entitlement=entitlement)
     finally:
         conn.close()
+
 
 @app.get("/signals-ms/signals/latest", response_model=SignalsResponse)
 def get_latest_signals(request: Request):
@@ -670,7 +761,9 @@ def get_latest_signals(request: Request):
         signals = []
         for row in rows:
             gen_at_str = row["generated_at"]
-            fmt = "%Y-%m-%d %H:%M:%S" if "." not in gen_at_str else "%Y-%m-%d %H:%M:%S.%f"
+            fmt = (
+                "%Y-%m-%d %H:%M:%S" if "." not in gen_at_str else "%Y-%m-%d %H:%M:%S.%f"
+            )
             gen_at = datetime.datetime.strptime(gen_at_str, fmt)
 
             sig = SignalPayload(
@@ -686,7 +779,7 @@ def get_latest_signals(request: Request):
                 position_sizing=row["position_sizing"],
                 reasoning_summary=row["reasoning_summary"],
                 generated_at=gen_at,
-                source_run_id=row["source_run_id"]
+                source_run_id=row["source_run_id"],
             )
 
             if entitlement.locked:
@@ -697,11 +790,14 @@ def get_latest_signals(request: Request):
     finally:
         conn.close()
 
+
 @app.get("/signals-ms/tickers", response_model=TickersResponse)
 def get_tracked_tickers(request: Request):
     """Retrieves the list of tracked tickers on the watchlist with basic execution statistics."""
     user_id, tier = get_user_claims(request)
-    entitlement = enforce_quota(user_id, tier, log_view=False) # viewing tickers metadata doesn't burn view log
+    entitlement = enforce_quota(
+        user_id, tier, log_view=False
+    )  # viewing tickers metadata doesn't burn view log
 
     conn = get_db_connection()
     try:
@@ -720,55 +816,77 @@ def get_tracked_tickers(request: Request):
         for row in rows:
             # Parse Added Date
             added_at_str = row["added_at"]
-            fmt_added = "%Y-%m-%d %H:%M:%S" if "." not in added_at_str else "%Y-%m-%d %H:%M:%S.%f"
+            fmt_added = (
+                "%Y-%m-%d %H:%M:%S"
+                if "." not in added_at_str
+                else "%Y-%m-%d %H:%M:%S.%f"
+            )
             added_at = datetime.datetime.strptime(added_at_str, fmt_added)
 
             # Parse Last Signal Date
             last_signal_at = None
             if row["last_signal_at"]:
                 last_sig_str = row["last_signal_at"]
-                fmt_sig = "%Y-%m-%d %H:%M:%S" if "." not in last_sig_str else "%Y-%m-%d %H:%M:%S.%f"
+                fmt_sig = (
+                    "%Y-%m-%d %H:%M:%S"
+                    if "." not in last_sig_str
+                    else "%Y-%m-%d %H:%M:%S.%f"
+                )
                 last_signal_at = datetime.datetime.strptime(last_sig_str, fmt_sig)
 
-            tickers.append(TickerStats(
-                ticker=row["ticker"],
-                asset_type=row["asset_type"],
-                added_at=added_at,
-                signals_count=row["signals_count"],
-                last_signal_at=last_signal_at
-            ))
+            tickers.append(
+                TickerStats(
+                    ticker=row["ticker"],
+                    asset_type=row["asset_type"],
+                    added_at=added_at,
+                    signals_count=row["signals_count"],
+                    last_signal_at=last_signal_at,
+                )
+            )
 
         return TickersResponse(tickers=tickers, entitlement=entitlement)
     finally:
         conn.close()
+
 
 # Pydantic schema for adding a ticker
 class WatchlistAddPayload(BaseModel):
     ticker: str = Field(..., description="Ticker symbol to track (e.g., MSFT, ETH-USD)")
     asset_type: str = Field("stocks", description="Asset type: 'stocks' or 'crypto'")
 
+
 @app.post("/signals-ms/tickers", status_code=201)
 def add_watchlist_ticker(payload: WatchlistAddPayload):
     """Adds a ticker to the watchlist database table."""
     ticker_upper = payload.ticker.strip().upper()
     asset_type = payload.asset_type.strip().lower()
-    
+
     if asset_type not in ("stocks", "crypto"):
-        raise HTTPException(status_code=400, detail="asset_type must be either 'stocks' or 'crypto'")
-        
+        raise HTTPException(
+            status_code=400, detail="asset_type must be either 'stocks' or 'crypto'"
+        )
+
     conn = get_db_connection()
     try:
         conn.execute(
             "INSERT OR IGNORE INTO watchlist_tickers (ticker, asset_type, added_at) VALUES (?, ?, ?)",
-            (ticker_upper, asset_type, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            (
+                ticker_upper,
+                asset_type,
+                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
         )
         conn.commit()
         logger.info(f"Watchlist: added ticker {ticker_upper} ({asset_type})")
-        return {"status": "success", "message": f"Ticker {ticker_upper} added to watchlist."}
+        return {
+            "status": "success",
+            "message": f"Ticker {ticker_upper} added to watchlist.",
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
 
 @app.delete("/signals-ms/tickers/{ticker}")
 def delete_watchlist_ticker(ticker: str):
@@ -776,12 +894,19 @@ def delete_watchlist_ticker(ticker: str):
     ticker_upper = ticker.strip().upper()
     conn = get_db_connection()
     try:
-        cursor = conn.execute("DELETE FROM watchlist_tickers WHERE ticker = ?", (ticker_upper,))
+        cursor = conn.execute(
+            "DELETE FROM watchlist_tickers WHERE ticker = ?", (ticker_upper,)
+        )
         conn.commit()
         if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail=f"Ticker {ticker_upper} not found in watchlist.")
+            raise HTTPException(
+                status_code=404, detail=f"Ticker {ticker_upper} not found in watchlist."
+            )
         logger.info(f"Watchlist: deleted ticker {ticker_upper}")
-        return {"status": "success", "message": f"Ticker {ticker_upper} removed from watchlist."}
+        return {
+            "status": "success",
+            "message": f"Ticker {ticker_upper} removed from watchlist.",
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -789,11 +914,12 @@ def delete_watchlist_ticker(ticker: str):
     finally:
         conn.close()
 
+
 @app.get("/signals-ms/stream")
 async def sse_live_stream(
     request: Request,
     authorization: Optional[str] = Header(None),
-    token: Optional[str] = Query(None)
+    token: Optional[str] = Query(None),
 ):
     """SSE real-time stream. Sends newly generated trading signals immediately (supports Pro and Free tiers)."""
     # 1. JWT verification on SSE connection establishment (reject 401 before stream opens)
@@ -811,7 +937,9 @@ async def sse_live_stream(
     except HTTPException as he:
         raise he
     except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Invalid authentication token: {e}")
+        raise HTTPException(
+            status_code=401, detail=f"Invalid authentication token: {e}"
+        )
 
     # 2. Check entitlement on connect
     entitlement = enforce_quota(user_id, tier, log_view=False)
@@ -821,12 +949,19 @@ async def sse_live_stream(
             data = {
                 "tier": entitlement.tier,
                 "remaining_views": entitlement.remaining_views,
-                "reset_at": entitlement.reset_at.isoformat() if entitlement.reset_at else None,
+                "reset_at": entitlement.reset_at.isoformat()
+                if entitlement.reset_at
+                else None,
                 "locked": entitlement.locked,
-                "cooldown_ends_at": entitlement.cooldown_ends_at.isoformat() if entitlement.cooldown_ends_at else None
+                "cooldown_ends_at": entitlement.cooldown_ends_at.isoformat()
+                if entitlement.cooldown_ends_at
+                else None,
             }
             yield f"event: quota_exhausted\ndata: {json.dumps(data)}\n\n"
-        return StreamingResponse(quota_exhausted_generator(), media_type="text/event-stream")
+
+        return StreamingResponse(
+            quota_exhausted_generator(), media_type="text/event-stream"
+        )
 
     # 3. Replace in-memory broadcast hub with a Redis pub/sub backend
     pubsub = redis_client.pubsub()
@@ -837,49 +972,65 @@ async def sse_live_stream(
         try:
             # Send initial connection event
             yield "event: connection\ndata: Connected to real-time signals stream\n\n"
-            
+
             while True:
                 # Disconnect if client leaves
                 if await request.is_disconnected():
                     break
-                
+
                 try:
                     # Read from Redis pubsub with timeout
-                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                    message = await pubsub.get_message(
+                        ignore_subscribe_messages=True, timeout=1.0
+                    )
                     if message:
                         data = message["data"]
                         signal = json.loads(data)
-                        
+
                         # Format generated_at back to string
-                        if "generated_at" in signal and isinstance(signal["generated_at"], datetime.datetime):
+                        if "generated_at" in signal and isinstance(
+                            signal["generated_at"], datetime.datetime
+                        ):
                             signal["generated_at"] = signal["generated_at"].isoformat()
-                        
+
                         # 4. Check entitlement on message
                         if tier == "free":
-                            current_entitlement = enforce_quota(user_id, tier, log_view=False)
+                            current_entitlement = enforce_quota(
+                                user_id, tier, log_view=False
+                            )
                             if current_entitlement.locked:
                                 data = {
                                     "tier": current_entitlement.tier,
                                     "remaining_views": current_entitlement.remaining_views,
-                                    "reset_at": current_entitlement.reset_at.isoformat() if current_entitlement.reset_at else None,
+                                    "reset_at": current_entitlement.reset_at.isoformat()
+                                    if current_entitlement.reset_at
+                                    else None,
                                     "locked": current_entitlement.locked,
-                                    "cooldown_ends_at": current_entitlement.cooldown_ends_at.isoformat() if current_entitlement.cooldown_ends_at else None
+                                    "cooldown_ends_at": current_entitlement.cooldown_ends_at.isoformat()
+                                    if current_entitlement.cooldown_ends_at
+                                    else None,
                                 }
                                 yield f"event: quota_exhausted\ndata: {json.dumps(data)}\n\n"
                                 break
-                            
+
                             # Yield signal to user
                             yield f"event: signal\ndata: {json.dumps(signal)}\n\n"
-                            
+
                             # Consume the view quota
-                            current_entitlement = enforce_quota(user_id, tier, log_view=True)
+                            current_entitlement = enforce_quota(
+                                user_id, tier, log_view=True
+                            )
                             if current_entitlement.locked:
                                 data = {
                                     "tier": current_entitlement.tier,
                                     "remaining_views": current_entitlement.remaining_views,
-                                    "reset_at": current_entitlement.reset_at.isoformat() if current_entitlement.reset_at else None,
+                                    "reset_at": current_entitlement.reset_at.isoformat()
+                                    if current_entitlement.reset_at
+                                    else None,
                                     "locked": current_entitlement.locked,
-                                    "cooldown_ends_at": current_entitlement.cooldown_ends_at.isoformat() if current_entitlement.cooldown_ends_at else None
+                                    "cooldown_ends_at": current_entitlement.cooldown_ends_at.isoformat()
+                                    if current_entitlement.cooldown_ends_at
+                                    else None,
                                 }
                                 yield f"event: quota_exhausted\ndata: {json.dumps(data)}\n\n"
                                 break
@@ -901,6 +1052,7 @@ async def sse_live_stream(
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+
 @app.get("/signals-ms/health", response_model=HealthResponse)
 def get_service_health():
     """Service health check detailing active models and DB connection."""
@@ -914,24 +1066,27 @@ def get_service_health():
         database_status = "error"
 
     uptime_seconds = (datetime.datetime.now() - START_TIME).total_seconds()
-    
+
     return HealthResponse(
         status="healthy",
         database=database_status,
         uptime=round(uptime_seconds, 2),
         provider=DEFAULT_CONFIG.get("llm_provider", "openai"),
         deep_model=DEFAULT_CONFIG.get("deep_think_llm", ""),
-        quick_model=DEFAULT_CONFIG.get("quick_think_llm", "")
+        quick_model=DEFAULT_CONFIG.get("quick_think_llm", ""),
     )
+
 
 @app.post("/signals-ms/generate")
 def force_generate_signals(
     background_tasks: BackgroundTasks,
-    ticker: Optional[str] = Query(None, description="Force generation for a specific ticker")
+    ticker: Optional[str] = Query(
+        None, description="Force generation for a specific ticker"
+    ),
 ):
     """Triggers the background execution of the TradingAgents analysis immediately."""
     background_tasks.add_task(scheduler.run_scheduler_cycle, ticker)
     return {
         "status": "triggered",
-        "message": f"Signal generation cycle started for: {ticker or 'all watchlist tickers'}."
+        "message": f"Signal generation cycle started for: {ticker or 'all watchlist tickers'}.",
     }
