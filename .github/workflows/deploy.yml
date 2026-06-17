@@ -1,0 +1,196 @@
+name: Deploy Pulse Trading Signals Service
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+concurrency:
+  group: pulse-trading-signals-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Cache pip packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install ruff
+        run: pip install "ruff==0.11.13"
+
+      - name: Lint (Ruff)
+        run: ruff check api/
+
+      - name: Format check (Ruff)
+        run: ruff format --check api/
+
+  build-scan-and-push:
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint]
+    environment: production
+    timeout-minutes: 25
+    env:
+      REGISTRY_URL: registry.pulsenow.io
+      IMAGE_NAME: pulse/trading-signals-service
+      IMAGE_TAG: latest
+      TRIVY_VERSION: "0.71.0"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Log in to Registry
+        run: |
+          echo "${{ secrets.DOCKER_PASS }}" | docker login "${{ env.REGISTRY_URL }}" -u "${{ secrets.DOCKER_USER }}" --password-stdin
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "${{ env.REGISTRY_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" \
+            -f Dockerfile .
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin "v${{ env.TRIVY_VERSION }}"
+
+      - name: Trivy image scan
+        run: |
+          trivy image \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --scanners vuln \
+            "${{ env.REGISTRY_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+
+      - name: Push to Registry
+        run: |
+          docker push "${{ env.REGISTRY_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+
+  deploy:
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-scan-and-push]
+    environment: production
+    timeout-minutes: 15
+    env:
+      REGISTRY_URL: registry.pulsenow.io
+      IMAGE_NAME: pulse/trading-signals-service
+      IMAGE_TAG: latest
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Prepare remote directory
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ env.DEPLOY_PORT }}
+          script: |
+            set -euo pipefail
+            mkdir -p "${{ secrets.DEPLOY_PATH }}"
+
+      - name: Copy docker-compose file to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ env.DEPLOY_PORT }}
+          source: "docker/docker-compose.yml"
+          target: "${{ secrets.DEPLOY_PATH }}"
+          strip_components: 1
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ env.DEPLOY_PORT }}
+          script: |
+            set -euo pipefail
+            DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
+            COMPOSE_FILE="$DEPLOY_PATH/docker-compose.yml"
+
+            cd "$DEPLOY_PATH"
+
+            echo "${{ secrets.DOCKER_PASS }}" | docker login "${{ env.REGISTRY_URL }}" -u "${{ secrets.DOCKER_USER }}" --password-stdin
+
+            if [ ! -f "$COMPOSE_FILE" ]; then
+              echo "Compose file not found: $COMPOSE_FILE" >&2
+              exit 14
+            fi
+
+            if [ ! -f "$DEPLOY_PATH/.env" ]; then
+              echo "ERROR: .env file not found at $DEPLOY_PATH/.env" >&2
+              exit 15
+            fi
+
+            docker network inspect pulse-network >/dev/null 2>&1 || docker network create pulse-network
+
+            docker compose -f "$COMPOSE_FILE" pull
+            docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
+
+            CONTAINER_ID="$(docker compose -f "$COMPOSE_FILE" ps -q pulse-trading-signals-service)"
+            if [ -z "$CONTAINER_ID" ]; then
+              echo "Failed to resolve pulse-trading-signals-service container ID." >&2
+              docker compose -f "$COMPOSE_FILE" ps
+              exit 16
+            fi
+
+            echo "Waiting for container to start..."
+            timeout 60 bash -c "until docker inspect -f '{{.State.Running}}' \"$CONTAINER_ID\" | grep -q true; do sleep 2; done" || {
+              docker compose -f "$COMPOSE_FILE" logs pulse-trading-signals-service
+              exit 1
+            }
+
+            echo "Waiting for health check (model load takes ~60s)..."
+            timeout 120 bash -c "until docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \"$CONTAINER_ID\" | grep -q healthy; do sleep 3; done" || {
+              docker compose -f "$COMPOSE_FILE" logs pulse-trading-signals-service
+              exit 1
+            }
+
+            HOST_PORT="$(docker compose -f "$COMPOSE_FILE" port pulse-trading-signals-service 8000 | awk -F: 'NR==1 {print $NF}')"
+            if [ -z "$HOST_PORT" ]; then
+              HOST_PORT="8050"
+            fi
+
+            curl --fail "http://localhost:${HOST_PORT}/signals-ms/health" || {
+              docker compose -f "$COMPOSE_FILE" logs pulse-trading-signals-service
+              exit 1
+            }
+
+            echo "Deployment successful."

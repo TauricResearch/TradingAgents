@@ -221,3 +221,6 @@ __marimo__/
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
 reports/
+
+# Understand Anything knowledge graphs (local analysis output)
+.understand-anything/

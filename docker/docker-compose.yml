@@ -1,0 +1,60 @@
+services:
+  pulse-trading-signals-service:
+    image: registry.pulsenow.io/pulse/trading-signals-service:latest
+    container_name: pulse-trading-signals-service
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    env_file:
+      - .env
+    ports:
+      - "${TRADING_SIGNALS_PORT:-8050}:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - trading-signals-data:/home/appuser/.tradingagents
+    networks:
+      - pulse-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/signals-ms/health', timeout=5).getcode()==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    container_name: pulse-trading-signals-redis
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
+    volumes:
+      - trading-signals-redis-data:/data
+    networks:
+      - pulse-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+volumes:
+  trading-signals-data:
+    driver: local
+    name: pulse-trading-signals-data
+  trading-signals-redis-data:
+    driver: local
+    name: pulse-trading-signals-redis-data
+
+networks:
+  pulse-network:
+    external: true
+    name: pulse-network
