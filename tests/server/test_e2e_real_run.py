@@ -3,7 +3,9 @@
 Opt-in (network + tokens): run with TA_E2E=1. Exercises the entire backend
 chain a browser would hit — auth cookie → /api/analysis/start → real
 TradingAgentsGraph in a worker subprocess → NDJSON streamed back → snapshot
-shows real reports + a real BUY/SELL/HOLD decision. Uses qwen (DASHSCOPE).
+shows real reports + a real BUY/SELL/HOLD decision. Runs on Doubao (ARK),
+which the backend now forces regardless of the request body, and uses all
+four analysts to exercise the concurrent analyst phase.
 """
 from __future__ import annotations
 
@@ -43,10 +45,11 @@ def test_real_analysis_run_streams_to_decision(real_client):
     body = {
         "ticker": "NVDA",
         "trade_date": _recent_weekday(),
-        "provider": os.getenv("TA_E2E_PROVIDER", "qwen"),
-        "deep_model": os.getenv("TA_E2E_DEEP", "qwen-plus"),
-        "quick_model": os.getenv("TA_E2E_QUICK", "qwen-turbo"),
-        "selected_analysts": ["market"],
+        # Backend forces Doubao; these are ignored but kept for schema validity.
+        "provider": "doubao",
+        "deep_model": "doubao-1-5-pro-32k-250115",
+        "quick_model": "doubao-seed-1-6-flash-250828",
+        "selected_analysts": ["market", "social", "news", "fundamentals"],
         "max_debate_rounds": 1,
         "max_risk_discuss_rounds": 1,
         "output_language": "English",

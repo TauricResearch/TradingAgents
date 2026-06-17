@@ -100,9 +100,12 @@ class RunRegistry:
     def _build_config(self, email: str, req: AnalysisStartReq) -> dict:
         home = user_prefs.user_home(email)
         cfg = DEFAULT_CONFIG.copy()
-        cfg["llm_provider"] = req.provider
-        cfg["deep_think_llm"] = req.deep_model
-        cfg["quick_think_llm"] = req.quick_model
+        # Doubao only. We intentionally ignore req.provider/deep_model/quick_model
+        # (the UI no longer offers a choice; old prefs may still say "qwen").
+        # Deep model is the non-reasoning Doubao 1.5 Pro for speed.
+        cfg["llm_provider"] = "doubao"
+        cfg["deep_think_llm"] = "doubao-1-5-pro-32k-250115"
+        cfg["quick_think_llm"] = "doubao-seed-1-6-flash-250828"
         cfg["max_debate_rounds"] = req.max_debate_rounds
         cfg["max_risk_discuss_rounds"] = req.max_risk_discuss_rounds
         cfg["output_language"] = req.output_language

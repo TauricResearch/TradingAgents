@@ -6,9 +6,10 @@ def test_providers_requires_auth(client):
     assert client.get("/api/providers").status_code == 401
 
 
-def test_providers_lists_known(auth_client):
+def test_providers_doubao_only(auth_client):
+    # Doubao is the only provider offered now — other providers were removed.
     data = auth_client.get("/api/providers").json()
-    assert "doubao" in data and "qwen" in data
+    assert set(data.keys()) == {"doubao"}
     assert "models" in data["doubao"] and "key_present" in data["doubao"]
 
 

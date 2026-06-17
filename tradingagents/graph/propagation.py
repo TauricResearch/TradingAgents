@@ -27,15 +27,21 @@ class Propagator:
         # (e.g. Qwen on DashScope) treat a bare ticker symbol as a topic to
         # free-write about and skip the data tools entirely. Phrasing it as a
         # directive plus "use the tools" reliably triggers function-calling.
+        seed = (
+            "human",
+            f"Analyze {company_name} for trading on {trade_date}. "
+            f"Use the available data tools to gather real, current "
+            f"information before writing your report.",
+        )
         return {
-            "messages": [
-                (
-                    "human",
-                    f"Analyze {company_name} for trading on {trade_date}. "
-                    f"Use the available data tools to gather real, current "
-                    f"information before writing your report.",
-                )
-            ],
+            # Each analyst reads its own channel; they run in parallel so we
+            # seed all four with the same directive. ``messages`` stays seeded
+            # too for any downstream agent that appends to it.
+            "messages": [seed],
+            "market_messages": [seed],
+            "social_messages": [seed],
+            "news_messages": [seed],
+            "fundamentals_messages": [seed],
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "past_context": past_context,

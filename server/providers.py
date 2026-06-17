@@ -3,17 +3,11 @@ from __future__ import annotations
 
 import os
 
+# Doubao only. Deep model is fixed to the non-reasoning Doubao 1.5 Pro and the
+# quick model to Seed 1.6 Flash in server/runs.py; the UI no longer offers a
+# provider/model choice. This map remains for key-presence reporting.
 PROVIDER_MODELS: dict[str, list[str]] = {
-    "doubao": ["doubao-seed-1-6-flash-250828", "doubao-seed-1-6-250615", "doubao-1-5-pro-32k-250115"],
-    "qwen": ["qwen-plus", "qwen-turbo", "qwen-max"],
-    "google": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro",
-               "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-3.1-pro-preview"],
-    "openai": ["gpt-5.4-mini", "gpt-5.4", "gpt-5"],
-    "anthropic": ["claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-7"],
-    "deepseek": ["deepseek-chat", "deepseek-reasoner"],
-    "glm": ["glm-4-plus", "glm-4.5"],
-    "xai": ["grok-4", "grok-4-mini"],
-    "openrouter": ["openai/gpt-5", "anthropic/claude-sonnet-4-6"],
+    "doubao": ["doubao-1-5-pro-32k-250115", "doubao-seed-1-6-flash-250828"],
 }
 
 PROVIDER_KEY_ENV: dict[str, str] = {

@@ -85,30 +85,19 @@ ANALYST_PREAMBLE = (
 )
 
 
-def create_msg_delete():
+def create_msg_delete(messages_key: str = "messages"):
+    """Build a node that clears one analyst's tool-loop message channel.
+
+    Analysts now run in parallel, each with its own isolated channel
+    (``market_messages`` etc.), so we just empty the channel once the analyst
+    has produced its report — nothing reads it afterward, and dropping the
+    (potentially large) tool history keeps the streamed state small. The old
+    "inject a Continue placeholder" trick is gone: it only mattered when
+    analysts shared one channel sequentially.
+    """
     def delete_messages(state):
-        """Clear messages and replace with a directive that compels the next
-        analyst to actually use its tools instead of free-writing from memory.
-
-        A bare "Continue" placeholder was insufficient for weaker tool-callers
-        (Qwen): they treated it as ambient text and skipped tool invocation.
-        Re-stating the ticker plus an imperative reliably triggers function
-        calls on every analyst node.
-        """
-        messages = state["messages"]
-        ticker = state.get("company_of_interest", "the company")
-        trade_date = state.get("trade_date", "today")
-
-        removal_operations = [RemoveMessage(id=m.id) for m in messages]
-        placeholder = HumanMessage(
-            content=(
-                f"Continue the analysis of {ticker} for trading on "
-                f"{trade_date}. Use the available data tools to fetch real "
-                f"information before writing your report."
-            )
-        )
-
-        return {"messages": removal_operations + [placeholder]}
+        messages = state.get(messages_key, [])
+        return {messages_key: [RemoveMessage(id=m.id) for m in messages]}
 
     return delete_messages
 

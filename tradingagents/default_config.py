@@ -11,9 +11,11 @@ DEFAULT_CONFIG = {
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
-    # LLM settings
+    # LLM settings — Doubao only. The deep model is intentionally the
+    # NON-reasoning Doubao 1.5 Pro (not Seed 1.6's adaptive-thinking model):
+    # reasoning latency was the dominant cost in a ~400s run.
     "llm_provider": "doubao",
-    "deep_think_llm": "doubao-seed-1-6-250615",
+    "deep_think_llm": "doubao-1-5-pro-32k-250115",
     "quick_think_llm": "doubao-seed-1-6-flash-250828",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).

@@ -55,7 +55,7 @@ Briefly justify why each chosen indicator fits the current market context. Write
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state["market_messages"])
 
         report = ""
 
@@ -63,7 +63,7 @@ Briefly justify why each chosen indicator fits the current market context. Write
             report = result.content
 
         return {
-            "messages": [result],
+            "market_messages": [result],
             "market_report": report,
         }
 

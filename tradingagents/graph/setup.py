@@ -50,28 +50,28 @@ class GraphSetup:
             analyst_nodes["market"] = create_market_analyst(
                 self.quick_thinking_llm
             )
-            delete_nodes["market"] = create_msg_delete()
+            delete_nodes["market"] = create_msg_delete("market_messages")
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
             analyst_nodes["social"] = create_social_media_analyst(
                 self.quick_thinking_llm
             )
-            delete_nodes["social"] = create_msg_delete()
+            delete_nodes["social"] = create_msg_delete("social_messages")
             tool_nodes["social"] = self.tool_nodes["social"]
 
         if "news" in selected_analysts:
             analyst_nodes["news"] = create_news_analyst(
                 self.quick_thinking_llm
             )
-            delete_nodes["news"] = create_msg_delete()
+            delete_nodes["news"] = create_msg_delete("news_messages")
             tool_nodes["news"] = self.tool_nodes["news"]
 
         if "fundamentals" in selected_analysts:
             analyst_nodes["fundamentals"] = create_fundamentals_analyst(
                 self.quick_thinking_llm
             )
-            delete_nodes["fundamentals"] = create_msg_delete()
+            delete_nodes["fundamentals"] = create_msg_delete("fundamentals_messages")
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
         # Create researcher and manager nodes
@@ -97,6 +97,15 @@ class GraphSetup:
             )
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
+        # Deferred join: barrier between the parallel analysts and the
+        # sequential debate. Analyst branches have uneven lengths (a tool-less
+        # analyst finishes in one step; one with several tool calls takes
+        # many), so a plain fan-in edge would fire the debate once per arriving
+        # branch and run the downstream chain multiple times (concurrent writes
+        # to risk_debate_state → InvalidUpdateError). ``defer=True`` makes this
+        # node wait until every analyst branch has settled, then run once.
+        workflow.add_node("Analysts Synced", lambda state: {}, defer=True)
+
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
@@ -108,17 +117,19 @@ class GraphSetup:
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
-        # Start with the first analyst
-        first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
-
-        # Connect analysts in sequence
-        for i, analyst_type in enumerate(selected_analysts):
+        # Run every selected analyst CONCURRENTLY: each has its own isolated
+        # tool-loop message channel, so fanning out from START lets LangGraph
+        # execute their LLM/tool calls in parallel. They all converge on the
+        # Bull Researcher, which acts as a barrier — LangGraph waits for every
+        # analyst's "Msg Clear" branch before the (sequential) debate begins.
+        for analyst_type in selected_analysts:
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
             current_clear = f"Msg Clear {analyst_type.capitalize()}"
 
-            # Add conditional edges for current analyst
+            workflow.add_edge(START, current_analyst)
+
+            # Tool loop: analyst → (tools → analyst)* → clear
             workflow.add_conditional_edges(
                 current_analyst,
                 getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
@@ -126,12 +137,11 @@ class GraphSetup:
             )
             workflow.add_edge(current_tools, current_analyst)
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                workflow.add_edge(current_clear, next_analyst)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+            # Fan-in: every analyst converges on the deferred sync barrier.
+            workflow.add_edge(current_clear, "Analysts Synced")
+
+        # Barrier → start the sequential debate exactly once.
+        workflow.add_edge("Analysts Synced", "Bull Researcher")
 
         # Add remaining edges
         workflow.add_conditional_edges(

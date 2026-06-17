@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import {
   NGrid, NGi, NCard, NForm, NFormItem, NInput, NDatePicker, NSelect, NCheckbox,
   NCheckboxGroup, NSpace, NButton, NInputNumber, NSwitch, NTag, NText, NStatistic,
@@ -14,29 +14,22 @@ const { t } = useI18n()
 const store = useAnalysisStore()
 const message = useMessage()
 
-type ProviderTable = Record<string, { models: string[]; key_present: boolean; key_env: string | null }>
-const providers = ref<ProviderTable>({})
+// Model selection was removed: the backend runs Doubao only (deep =
+// non-reasoning Doubao 1.5 Pro, quick = Seed 1.6 Flash) and ignores these,
+// but the request schema still expects the fields, so we send fixed values.
+const PROVIDER = 'doubao'
+const DEEP_MODEL = 'doubao-1-5-pro-32k-250115'
+const QUICK_MODEL = 'doubao-seed-1-6-flash-250828'
 
 const raw = ref('NVDA')
 const resolved = ref('')
 const resolveMsg = ref('')
 const tradeDateTs = ref<number>(Date.now() - 86400000)
-const provider = ref('doubao')
-const deepModel = ref('')
-const quickModel = ref('')
 const analysts = ref<string[]>(['market'])
 const debateRounds = ref(1)
 const riskRounds = ref(1)
 const outputLang = ref('中文')
 const checkpoint = ref(false)
-
-const providerOptions = computed(() =>
-  Object.keys(providers.value).map((p) => ({ label: p, value: p })),
-)
-const modelOptions = computed(() =>
-  (providers.value[provider.value]?.models ?? []).map((m) => ({ label: m, value: m })),
-)
-const keyInfo = computed(() => providers.value[provider.value])
 
 const langOptions = [
   { label: '中文', value: '中文' },
@@ -48,12 +41,6 @@ const analystOptions = [
   { label: () => t('cfg.news'), value: 'news' },
   { label: () => t('cfg.fundamentals'), value: 'fundamentals' },
 ]
-
-watch(provider, () => {
-  const models = providers.value[provider.value]?.models ?? []
-  quickModel.value = models[0] ?? ''
-  deepModel.value = models[Math.min(2, models.length - 1)] ?? ''
-})
 
 let resolveTimer: number | undefined
 watch(raw, (q) => {
@@ -104,17 +91,13 @@ async function run() {
     message.warning('Select at least one analyst')
     return
   }
-  if (keyInfo.value && !keyInfo.value.key_present) {
-    message.error(t('cfg.keyMissing', { env: keyInfo.value.key_env }))
-    return
-  }
   try {
     await store.start({
       ticker: resolved.value || raw.value.toUpperCase(),
       trade_date: fmtDate(tradeDateTs.value),
-      provider: provider.value,
-      deep_model: deepModel.value,
-      quick_model: quickModel.value,
+      provider: PROVIDER,
+      deep_model: DEEP_MODEL,
+      quick_model: QUICK_MODEL,
       selected_analysts: analysts.value,
       max_debate_rounds: debateRounds.value,
       max_risk_discuss_rounds: riskRounds.value,
@@ -126,12 +109,6 @@ async function run() {
   }
 }
 
-onMounted(async () => {
-  providers.value = await api.get<ProviderTable>('/api/providers')
-  const models = providers.value[provider.value]?.models ?? []
-  quickModel.value = models[0] ?? ''
-  deepModel.value = models[Math.min(2, models.length - 1)] ?? ''
-})
 onUnmounted(() => window.clearInterval(elapsedTimer))
 </script>
 
@@ -150,20 +127,6 @@ onUnmounted(() => window.clearInterval(elapsedTimer))
 
           <n-form-item :label="t('cfg.date')">
             <n-date-picker v-model:value="tradeDateTs" type="date" style="width: 100%" />
-          </n-form-item>
-
-          <n-form-item :label="t('cfg.provider')">
-            <n-select v-model:value="provider" :options="providerOptions" />
-          </n-form-item>
-          <n-text v-if="keyInfo?.key_env" :type="keyInfo.key_present ? 'success' : 'error'" style="font-size: 12px">
-            {{ keyInfo.key_present ? t('cfg.keyLoaded', { env: keyInfo.key_env }) : t('cfg.keyMissing', { env: keyInfo.key_env }) }}
-          </n-text>
-
-          <n-form-item :label="t('cfg.deepModel')">
-            <n-select v-model:value="deepModel" :options="modelOptions" />
-          </n-form-item>
-          <n-form-item :label="t('cfg.quickModel')">
-            <n-select v-model:value="quickModel" :options="modelOptions" />
           </n-form-item>
 
           <n-form-item :label="t('cfg.analysts')">
