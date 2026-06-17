@@ -63,7 +63,12 @@ def invoke_structured_or_freetext(
     if structured_llm is not None:
         try:
             result = structured_llm.invoke(prompt)
-            return render(result)
+            if result is not None:
+                return render(result)
+            logger.warning(
+                "%s: structured-output returned None; falling back to free text",
+                agent_name,
+            )
         except Exception as exc:
             logger.warning(
                 "%s: structured-output invocation failed (%s); retrying once as free text",
