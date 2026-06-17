@@ -115,8 +115,8 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   });
 
   const data = query.data;
-  const runs: RunDetail[] = data?.runs ?? [];
-  const bars: Bar[] = data?.bars ?? [];
+  const runs: RunDetail[] = useMemo(() => data?.runs ?? [], [data?.runs]);
+  const bars: Bar[] = useMemo(() => data?.bars ?? [], [data?.bars]);
   const apiResolution = (data?.resolution ?? "1h") as "1m" | "1h" | "1d";
   const rangeStartIso = data?.range_start ?? tick.nowIso;
   const rangeEndIso = data?.range_end ?? tick.nowIso;

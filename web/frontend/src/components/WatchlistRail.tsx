@@ -149,7 +149,7 @@ export function WatchlistRail() {
   const groupNames = Object.keys(grouped).sort();
 
   const renderRow = useCallback((row: (typeof watchlist)[number]) => {
-    const price = (prices as any)[row.ticker] || {};
+    const price = (prices[row.ticker] as Record<string, unknown>) ?? {};
     return (
       <TickerRow
         key={row.ticker}

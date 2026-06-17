@@ -157,7 +157,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme, autoRefreshEn
 
     // If the stream ended without a terminal event, release loading state.
     if (!completed) setFreeKeysLoading(false);
-  }, []);
+  }, [onAutoRefreshNow]);
 
   const handleApplyFreeKey = useCallback(
     (entry: FreeLlmKey) => {
@@ -176,6 +176,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme, autoRefreshEn
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDirty({});
       setSaved(false);
       setFreeKeys([]);

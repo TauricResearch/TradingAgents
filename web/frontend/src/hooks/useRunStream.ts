@@ -12,6 +12,7 @@ export function useRunStream(runId: string | null) {
 
   useEffect(() => {
     if (runId == null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus("idle");
       return;
     }

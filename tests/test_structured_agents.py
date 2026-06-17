@@ -7,7 +7,7 @@ behavior we added for the Trader, Research Manager, and Sentiment Analyst
 so they share the same deterministic output shape.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
@@ -318,6 +318,21 @@ def _structured_sentiment_llm(captured: dict, report: SentimentReport | None = N
 
 @pytest.mark.unit
 class TestSentimentAnalystAgent:
+    @pytest.fixture(autouse=True)
+    def _mock_network_calls(self):
+        """Mock all external network calls in create_sentiment_analyst so
+        tests do not hang on real HTTP requests (StockTwits, Reddit, news)."""
+        with (
+            patch("tradingagents.agents.analysts.sentiment_analyst.fetch_stocktwits_messages",
+                  return_value="Mocked StockTwits — 75% bullish."),
+            patch("tradingagents.agents.analysts.sentiment_analyst.fetch_reddit_posts",
+                  return_value="Mocked Reddit — overall constructive."),
+        ):
+            mock_news = MagicMock()
+            mock_news.func.return_value = "Mocked news — tailwinds intact."
+            with patch("tradingagents.agents.analysts.sentiment_analyst.get_news", mock_news):
+                yield
+
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}
         report = SentimentReport(

@@ -234,7 +234,7 @@ export function LlmTracePanel({ calls }: Props) {
 
 function highlightJson(json: string) {
   const tokens: React.ReactNode[] = [];
-  const regex = /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b)|(\bnull\b)|([\[\]{}])|([,:])|(\s+)/g;
+  const regex = /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b)|(\bnull\b)|([[\]{}])|([,:])|(\s+)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 

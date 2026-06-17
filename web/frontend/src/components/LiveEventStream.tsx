@@ -179,7 +179,6 @@ function Bubble({ event, expanded, onToggle }: { event: WsEvent; expanded: boole
   const fullText = data.text as string | undefined;
   const fullSummary = data.summary as string | undefined;
   const fullMessage = data.message as string | undefined;
-  const toolName = data.tool as string | undefined;
   const toolArgs = data.args as string | undefined;
   const canExpand = !!onToggle;
 
@@ -249,6 +248,7 @@ function Bubble({ event, expanded, onToggle }: { event: WsEvent; expanded: boole
 }
 
 /** Extract full report text grouped by stage from analyst_completed events. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useStageReports(events: WsEvent[]): { stage: string; text: string }[] {
   const seen = new Set<string>();
   const reports: { stage: string; text: string }[] = [];

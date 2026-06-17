@@ -1,8 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useUi } from "../store/ui";
 
-const NOTIFICATION_KEY = "tradingagents-notifications-granted";
-
 export function useRunNotifications() {
   const eventBuffer = useUi((s) => s.eventBuffer);
   const notifiedRef = useRef<Set<string>>(new Set());
