@@ -170,6 +170,24 @@ class TestMarkdownToPdf:
         # Should not raise on diacritics
         assert out.stat().st_size > 200
 
+    def test_renders_markdown_lists(self, tmp_path):
+        """Regression: the list-item bullet must be latin-1 or fpdf2 raises
+        FPDFUnicodeEncodingException on any decision.md containing a list."""
+        md = tmp_path / "doc.md"
+        md.write_text(
+            "**Rating**: Overweight\n\n"
+            "Catalysts:\n\n"
+            "- ETF approval in Q3\n"
+            "- Halving supply shock\n"
+            "- Institutional inflows\n",
+            encoding="utf-8",
+        )
+        out = tmp_path / "doc.pdf"
+        result = markdown_to_pdf(md, out)
+        assert result is not None
+        assert out.exists()
+        assert out.read_bytes()[:4] == b"%PDF"
+
     def test_missing_file_raises(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             markdown_to_pdf(tmp_path / "absent.md")
