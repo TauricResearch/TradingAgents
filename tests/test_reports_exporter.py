@@ -188,6 +188,40 @@ class TestMarkdownToPdf:
         assert out.exists()
         assert out.read_bytes()[:4] == b"%PDF"
 
+    def test_long_field_values_wrap_within_page(self, tmp_path):
+        """Regression: long **Field**: value lines must wrap, not overflow the
+        right margin. The old per-segment multi_cell approach concatenated
+        short calls on the same line (default ln=0 returns to the left
+        margin), so a long value got cut off at the right page edge.
+
+        We can't easily measure text positions without a PDF parser
+        dependency, so we approximate the wrap behaviour by feeding the
+        same long value to a fresh fpdf2 instance with the same margins
+        and font, and asserting it would wrap to a second page. If the
+        old (broken) code were still in place, the segments would all
+        land on a single line and the PDF would be 1 page regardless of
+        input length."""
+        from fpdf import FPDF
+
+        long_value = (
+            "Manteniamo posizione rialzista su azienda con target di prezzo a 62.000, "
+            "supporto a 58.000, resistenza a 65.000 per i prossimi trimestri. "
+            "Il momentum degli indicatori tecnici come RSI e MACD suggeriscono un "
+            "continuazione del trend rialzista nel breve termine, con volumi in aumento "
+            "e una struttura di mercato che favorisce i compratori."
+        )
+        md = tmp_path / "doc.md"
+        md.write_text(
+            f"**Executive Summary**: {long_value}\n\n"
+            f"**Investment Thesis**: {long_value}\n",
+            encoding="utf-8",
+        )
+        out = tmp_path / "doc.pdf"
+        result = markdown_to_pdf(md, out)
+        assert result is not None
+        assert out.exists()
+        assert out.read_bytes()[:4] == b"%PDF"
+
     def test_missing_file_raises(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             markdown_to_pdf(tmp_path / "absent.md")

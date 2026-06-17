@@ -309,35 +309,14 @@ def _to_latin1(text: str) -> str:
 
 
 def _write_inline(pdf: Any, content: str, width: float) -> None:
-    """Render an inline token's text with bold/italic honoured.
+    """Render an inline token's text with bold/italic honoured and proper wrapping.
 
-    We re-parse ``content`` for ``**...**`` and ``*...*`` markers and emit
-    mixed-style ``multi_cell`` segments. Output is conservative — unsupported
-    markers are flattened to plain text.
+    fpdf2's ``multi_cell`` only wraps text WITHIN a single call — a long
+    segment passed in isolation won't break, and concatenating short
+    segments via separate calls just stacks them on the same line (the
+    default ``ln=0`` returns to the left margin instead of starting a
+    new line). Passing the whole content to a single ``multi_cell`` with
+    ``markdown=True`` lets fpdf2 parse the ``**bold**`` / ``*italic*``
+    markers and wrap the rendered text within ``width``.
     """
-    style = ""
-    cursor = 0
-    for match in re.finditer(r"(\*\*([^*]+)\*\*|\*([^*]+)\*|([^*]+))", content):
-        text: str | None = None
-        if match.group(2) is not None:
-            text = match.group(2)
-            new_style = "B"
-        elif match.group(3) is not None:
-            text = match.group(3)
-            new_style = "I"
-        elif match.group(4) is not None:
-            text = match.group(4)
-            new_style = ""
-        if text is None:
-            continue
-        if new_style != style:
-            pdf.set_font("Helvetica", style=new_style, size=11)
-            style = new_style
-        pdf.multi_cell(width, 6, _to_latin1(text))
-        cursor = match.end()
-    if cursor < len(content) and not content[cursor:].strip():
-        return
-    # Trailing unprocessed tail (rare)
-    tail = content[cursor:]
-    if tail.strip():
-        pdf.multi_cell(width, 6, _to_latin1(tail))
+    pdf.multi_cell(width, 6, _to_latin1(content), markdown=True)
