@@ -47,10 +47,6 @@ interface UiState {
   // Per-group collapse/expand state for the watchlist. PERSISTED so
   // group collapse survives a refresh.
   watchlistCollapsedGroups: Record<string, boolean>;
-  // Whether the free LLM keys background auto-refresh is enabled.
-  // PERSISTED.
-  freeKeysAutoRefresh: boolean;
-
   setFocusedTicker: (t: string | null) => void;
   setLastRunIdForTicker: (ticker: string, runId: string | null) => void;
   setActiveRunIdForTicker: (ticker: string, runId: string | null) => void;
@@ -68,7 +64,6 @@ interface UiState {
   setHistoryPollIntervalMs: (ms: HistoryPollInterval) => void;
   setCandleResolution: (r: CandleResolution) => void;
   setWatchlistCollapsedGroup: (name: string, collapsed: boolean) => void;
-  setFreeKeysAutoRefresh: (enabled: boolean) => void;
 }
 
 export const useUi = create<UiState>()(
@@ -85,7 +80,6 @@ export const useUi = create<UiState>()(
       historyPollIntervalMs: 30_000,
       candleResolution: "auto",
       watchlistCollapsedGroups: {},
-      freeKeysAutoRefresh: true,
       setFocusedTicker: (t) => set({ focusedTicker: t }),
       setLastRunIdForTicker: (ticker, runId) =>
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
@@ -133,7 +127,6 @@ export const useUi = create<UiState>()(
       setCandleResolution: (r) => set({ candleResolution: r }),
       setWatchlistCollapsedGroup: (name, collapsed) =>
         set((s) => ({ watchlistCollapsedGroups: { ...s.watchlistCollapsedGroups, [name]: collapsed } })),
-      setFreeKeysAutoRefresh: (enabled) => set({ freeKeysAutoRefresh: enabled }),
     }),
     {
       name: "tradingagents-ui",
@@ -154,7 +147,6 @@ export const useUi = create<UiState>()(
         historyPollIntervalMs: s.historyPollIntervalMs,
         candleResolution: s.candleResolution,
         watchlistCollapsedGroups: s.watchlistCollapsedGroups,
-        freeKeysAutoRefresh: s.freeKeysAutoRefresh,
       }),
     },
   ),
