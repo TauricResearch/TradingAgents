@@ -63,7 +63,8 @@ def _load_with_suppressed_beta(raw: Any) -> Any:
     ``tradingagents/__init__.py``.
     """
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=DeprecationWarning)
+        from langchain_core._api import LangChainBetaWarning
+        warnings.simplefilter("ignore", category=LangChainBetaWarning)
         from langchain_core.load import load as _lc_load
         return _lc_load(raw, allowed_objects="messages")
 
