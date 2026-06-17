@@ -145,6 +145,21 @@ def update_last_decision(ticker: str, run_id: str, decision_text: str, at: datet
         _write_watchlist(rows)
 
 
+def clear_last_run_if_matches(ticker: str, run_id: str) -> None:
+    """If the watchlist's last_run_id for ``ticker`` matches ``run_id``, clear it."""
+    safe = safe_ticker_component(ticker).upper()
+    rows = read_watchlist()
+    changed = False
+    for r in rows:
+        if r["ticker"] == safe and r.get("last_run_id") == run_id:
+            r["last_run_id"] = None
+            r["last_decision"] = None
+            r["last_decision_at"] = None
+            changed = True
+    if changed:
+        _write_watchlist(rows)
+
+
 # ---- run queries (shape persisted run.json + events.jsonl for the API) ----
 
 def run_to_dict(r: dict) -> dict:

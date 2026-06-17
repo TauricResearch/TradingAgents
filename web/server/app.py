@@ -438,6 +438,35 @@ def create_app() -> FastAPI:
         storage.mark_run_status(run_id, cancel_requested=True)
         return queries.run_to_dict(storage.read_run(run_id))
 
+    @app.delete("/api/runs/{run_id}")
+    def delete_run(run_id: str) -> dict:
+        rj = storage.read_run(run_id)
+        if rj is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        ticker = rj.get("ticker", "")
+        deleted = storage.delete_run(run_id)
+        if ticker:
+            queries.clear_last_run_if_matches(ticker, run_id)
+        return {"deleted": deleted, "run_id": run_id, "ticker": ticker}
+
+    class DeleteRunsIn(BaseModel):
+        run_ids: list[str]
+
+    @app.post("/api/runs/delete-bulk")
+    def delete_runs_bulk(body: DeleteRunsIn) -> dict:
+        results: list[dict] = []
+        for run_id in body.run_ids:
+            rj = storage.read_run(run_id)
+            if rj is None:
+                results.append({"run_id": run_id, "deleted": False, "error": "not_found"})
+                continue
+            ticker = rj.get("ticker", "")
+            deleted = storage.delete_run(run_id)
+            if ticker:
+                queries.clear_last_run_if_matches(ticker, run_id)
+            results.append({"run_id": run_id, "deleted": deleted, "ticker": ticker})
+        return {"results": results, "total": len(results), "deleted": sum(1 for r in results if r["deleted"])}
+
     @app.websocket("/ws/runs/{run_id}")
     async def ws_run(ws: WebSocket, run_id: str, since: Optional[str] = None) -> None:
         await ws.accept()

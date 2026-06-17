@@ -419,6 +419,22 @@ def find_resumable_run(ticker: str, today_iso: str) -> Optional[dict]:
     return None
 
 
+def delete_run(run_id: str) -> bool:
+    """Remove the on-disk directory for ``run_id``.
+
+    Returns ``True`` if the directory was found and removed, ``False`` if
+    the run did not exist (so callers can treat missing runs as success
+    without raising).
+    """
+    rd = _find_run_dir(run_id)
+    if rd is None or not rd.exists():
+        return False
+    shutil.rmtree(rd)
+    _run_dir_cache.pop(run_id, None)
+    log.info("deleted run dir for %s: %s", run_id, rd)
+    return True
+
+
 def mark_run_status(run_id: str, **fields) -> None:
     """Update fields on run.json in place. Raises if the run is missing."""
     rd = read_run_dir(run_id)
