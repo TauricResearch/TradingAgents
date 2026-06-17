@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.default_config import DEFAULT_CONFIG, _coerce
 from tradingagents.graph.checkpointer import (
     clear_checkpoint,
     thread_id as framework_thread_id,
@@ -413,7 +413,7 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
         ):
             val = os.environ.get(env_var)
             if val:
-                config[cfg_key] = val
+                config[cfg_key] = _coerce(val, config.get(cfg_key))
         graph = build_graph(config, callbacks=[stream_handler, capture_handler])
 
         # Per-node timing for structured stage progress logs.
