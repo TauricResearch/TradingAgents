@@ -2,18 +2,15 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
-import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-import httpx
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -131,18 +128,6 @@ async def lifespan(app: FastAPI):
     from web.server import background_runs
     background_runs._load_existing_jobs()
 
-    # Warm the free-keys cache asynchronously so it's fresh when the
-    # user opens the settings panel — runs in background, doesn't
-    # block server startup.
-    # Skip when:
-    #   - TRADINGAGENTS_FREE_KEYS_ENABLED is explicitly "false"/"0"
-    #   - TRADINGAGENTS_LLM_PROVIDER is "ollama" (local provider needs no remote keys)
-    _free_keys_enabled = os.environ.get("TRADINGAGENTS_FREE_KEYS_ENABLED", "false")
-    _provider = os.environ.get("TRADINGAGENTS_LLM_PROVIDER", "")
-    _skip_free_keys = _free_keys_enabled.lower() in ("false", "0", "no", "off") or _provider.lower() == "ollama"
-    if not _skip_free_keys:
-        asyncio.create_task(_warm_free_keys_cache())
-
     yield
     # Stop the price feed (if it was started) before the runner so any
     # in-flight poll iteration can complete without racing shutdown.
@@ -150,151 +135,6 @@ async def lifespan(app: FastAPI):
     if feed is not None:
         await feed.stop()
     await runner.stop()
-
-
-# ── Free LLM Keys Fetcher (module-level helpers shared by multiple routes) ──
-
-_FREE_KEYS_README_URL = "https://raw.githubusercontent.com/alistaitsacle/free-llm-api-keys/main/README.md"
-_FREE_KEYS_API_BASE = "https://aiapiv2.pekpik.com/v1"
-
-
-def _parse_free_key_tables(text: str) -> list[dict]:
-    entries: list[dict] = []
-    current_section = None
-    in_table_body = False
-
-    for line in text.split("\n"):
-        m = re.match(r'^###\s+(.+?)\s+`(.+?)`\s*$', line)
-        if m:
-            current_section = m.group(1).strip()
-            in_table_body = False
-            continue
-
-        if line.strip().startswith("| Key | Model | Status |"):
-            in_table_body = True
-            continue
-        if line.strip().startswith("|---"):
-            continue
-
-        if in_table_body and line.strip().startswith("|"):
-            m2 = re.match(
-                r'\|\s*`(sk-[a-zA-Z0-9]+)`\s*\|\s*(.+?)\s*\|\s*.+?\s*\|\s*\$?(\d+)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.*?)\s*\|',
-                line,
-            )
-            if m2 and current_section:
-                entries.append({
-                    "key": m2.group(1).strip(),
-                    "model": m2.group(2).strip(),
-                    "provider": current_section,
-                    "budget": f"${m2.group(3).strip()}",
-                    "rate_limit": m2.group(4).strip(),
-                    "expires": m2.group(5).strip(),
-                    "description": m2.group(6).strip(),
-                    "masked_key": "",
-                    "status": "unknown",
-                    "test_response": None,
-                    "error_message": None,
-                })
-        else:
-            in_table_body = False
-
-    return entries
-
-
-async def _test_one_key(entry: dict, base_url: str) -> dict:
-    """Test a single free key. Returns the entry with status / test fields populated."""
-    result = dict(entry)
-    try:
-        payload = {
-            "model": entry["model"],
-            "messages": [{"role": "user", "content": "Say hi"}],
-            "max_tokens": 5,
-        }
-        async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(
-                f"{base_url}/chat/completions",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {entry['key']}",
-                },
-                json=payload,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                c = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
-                result["status"] = "working"
-                result["test_response"] = (c or "")[:50]
-            else:
-                try:
-                    err_body = resp.json()
-                    msg = ""
-                    if isinstance(err_body, dict):
-                        err = err_body.get("error") or {}
-                        raw = err.get("message") if isinstance(err, dict) else str(err_body)
-                        msg = str(raw) if raw else ""
-                    result["error_message"] = msg[:200]
-                    lower = msg.lower() if msg else ""
-                    if any(kw in lower for kw in ("credit balance", "insufficient credit", "can only afford", "never purchased")):
-                        result["status"] = "low_balance"
-                    elif any(kw in lower for kw in ("no access", "suspended")):
-                        result["status"] = "no_access"
-                    elif "rate limit" in lower:
-                        result["status"] = "rate_limited"
-                    else:
-                        result["status"] = "error"
-                except Exception:
-                    result["status"] = "error"
-                    result["error_message"] = f"HTTP {resp.status_code}"
-    except Exception as e:
-        result["status"] = "error"
-        result["error_message"] = str(e)[:100]
-    return result
-
-
-def _cache_free_keys(results: list[dict]) -> None:
-    """Write the sorted key list + timestamp to the disk cache."""
-    cache_path = storage.data_dir() / "free_llm_keys_cache.json"
-    storage.write_json_atomic(cache_path, {
-        "saved_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "keys": results,
-        "base_url": _FREE_KEYS_API_BASE,
-    })
-
-
-async def _warm_free_keys_cache() -> None:
-    """Fetch, test, and cache free keys in the background at startup."""
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(_FREE_KEYS_README_URL)
-            resp.raise_for_status()
-            text = resp.text
-    except Exception:
-        log.warning("free-keys warm: failed to fetch README, skipping")
-        return
-
-    entries = _parse_free_key_tables(text)
-    if not entries:
-        _cache_free_keys([])
-        return
-
-    results: list[dict] = []
-    sem = asyncio.Semaphore(10)
-
-    async def _test_and_mask(entry: dict) -> dict:
-        async with sem:
-            r = await _test_one_key(entry, _FREE_KEYS_API_BASE)
-        k = r["key"]
-        r["masked_key"] = f"{k[:10]}...{k[-4:]}" if len(k) > 14 else k
-        return r
-
-    tasks = [_test_and_mask(e) for e in entries]
-    for coro in asyncio.as_completed(tasks):
-        results.append(await coro)
-
-    status_rank = {"working": 0, "low_balance": 1, "rate_limited": 2, "no_access": 3, "error": 4, "unknown": 5}
-    results.sort(key=lambda r: (status_rank.get(r["status"], 99), r["provider"], r["model"]))
-    _cache_free_keys(results)
-    log.info("free-keys warm: cached %d keys (%d working)", len(results), sum(1 for r in results if r["status"] == "working"))
 
 
 def create_app() -> FastAPI:
@@ -571,7 +411,6 @@ def create_app() -> FastAPI:
         "TRADINGAGENTS_BENCHMARK_TICKER",
         "TRADINGAGENTS_CHECKPOINT_ENABLED",
         "TRADINGAGENTS_LLM_CACHE_ENABLED",
-        "TRADINGAGENTS_FREE_KEYS_ENABLED",
     ]
     # Factory defaults sourced from tradingagents/default_config.py.
     # Built dynamically so changes to default_config.py are picked up
@@ -670,92 +509,6 @@ def create_app() -> FastAPI:
     @app.get("/api/config/defaults")
     def get_config_defaults():
         return {"defaults": _CONFIG_DEFAULTS}
-
-    # ── Free LLM Keys Fetcher ─────────────────────────────────────
-
-    @app.post("/api/free-llm-keys/fetch")
-    async def fetch_free_llm_keys():
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(_FREE_KEYS_README_URL)
-                resp.raise_for_status()
-                text = resp.text
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Failed to fetch keys list: {e}")
-
-        entries = _parse_free_key_tables(text)
-
-        async def event_stream():
-            if not entries:
-                yield f"event: done\ndata: {json.dumps({'keys': [], 'base_url': _FREE_KEYS_API_BASE})}\n\n"
-                return
-
-            yield f"event: meta\ndata: {json.dumps({'total': len(entries), 'base_url': _FREE_KEYS_API_BASE})}\n\n"
-
-            results: list[dict] = []
-            sem = asyncio.Semaphore(10)
-
-            async def _test_and_mask(entry: dict) -> dict:
-                async with sem:
-                    r = await _test_one_key(entry, _FREE_KEYS_API_BASE)
-                k = r["key"]
-                r["masked_key"] = f"{k[:10]}...{k[-4:]}" if len(k) > 14 else k
-                return r
-
-            tasks = [_test_and_mask(e) for e in entries]
-            for coro in asyncio.as_completed(tasks):
-                result = await coro
-                results.append(result)
-                yield f"event: key_result\ndata: {json.dumps(result)}\n\n"
-                yield f"event: progress\ndata: {json.dumps({'tested': len(results), 'total': len(entries)})}\n\n"
-
-            status_rank = {"working": 0, "low_balance": 1, "rate_limited": 2, "no_access": 3, "error": 4, "unknown": 5}
-            results.sort(key=lambda r: (status_rank.get(r["status"], 99), r["provider"], r["model"]))
-            yield f"event: done\ndata: {json.dumps({'keys': results, 'base_url': _FREE_KEYS_API_BASE})}\n\n"
-
-            _cache_free_keys(results)
-
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
-
-    @app.post("/api/free-llm-keys/refresh-cache")
-    async def refresh_free_keys_cache():
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(_FREE_KEYS_README_URL)
-                resp.raise_for_status()
-                text = resp.text
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Failed to fetch keys list: {e}")
-
-        entries = _parse_free_key_tables(text)
-        results: list[dict] = []
-        if entries:
-            sem = asyncio.Semaphore(10)
-
-            async def _test_and_mask(entry: dict) -> dict:
-                async with sem:
-                    r = await _test_one_key(entry, _FREE_KEYS_API_BASE)
-                k = r["key"]
-                r["masked_key"] = f"{k[:10]}...{k[-4:]}" if len(k) > 14 else k
-                return r
-
-            tasks = [_test_and_mask(e) for e in entries]
-            for coro in asyncio.as_completed(tasks):
-                results.append(await coro)
-
-            status_rank = {"working": 0, "low_balance": 1, "rate_limited": 2, "no_access": 3, "error": 4, "unknown": 5}
-            results.sort(key=lambda r: (status_rank.get(r["status"], 99), r["provider"], r["model"]))
-
-        _cache_free_keys(results)
-        return {"status": "ok", "count": len(results)}
-
-    @app.get("/api/free-llm-keys/cached")
-    def get_cached_free_llm_keys():
-        cache_path = storage.data_dir() / "free_llm_keys_cache.json"
-        data = storage.read_json(cache_path)
-        if data is None:
-            raise HTTPException(status_code=404, detail="no cached keys")
-        return data
 
     # static mount (only if build dir exists)
     settings = settings_mod.get_settings()

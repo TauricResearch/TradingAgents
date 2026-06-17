@@ -24,10 +24,6 @@ _ENV_OVERRIDES = {
     # free-tier rate limits during development.
     "TRADINGAGENTS_LLM_CACHE_ENABLED":    "llm_cache_enabled",
     "TRADINGAGENTS_LLM_CACHE_TTL":        "llm_cache_ttl_seconds",
-    # Free LLM API keys fetcher (sources from alistaitsacle/free-llm-api-keys).
-    # Set to "false" to skip the startup fetch (e.g. when using a local
-    # provider like Ollama that doesn't need remote API keys).
-    "TRADINGAGENTS_FREE_KEYS_ENABLED":    "free_keys_enabled",
     # Retry-with-backoff policy. ``max_retries`` is the *additional*
     # attempts after the first; 5 is the default and absorbs a 1-2
     # minute upstream hiccup without aborting a 16-call graph run.
@@ -92,10 +88,6 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # are evicted only when the user clears the cache directory.
     "llm_cache_enabled": True,
     "llm_cache_ttl_seconds": None,
-    # When True, the dashboard fetches free LLM API keys from the community
-    # repo at startup. Set to False when using a local provider (Ollama,
-    # openai_compatible with a local endpoint) to skip the network fetch.
-    "free_keys_enabled": True,
     # Retry-with-backoff policy (see ``tradingagents.llm_clients.retry``).
     # Five retries with exponential backoff and Retry-After honoring is
     # the difference between "one 429 fails the whole run" and "the
