@@ -27,8 +27,8 @@ beforeEach(() => {
 describe("App", () => {
   it("renders the shell with an empty-state message when the watchlist is empty", async () => {
     wrap();
-    await waitFor(() => expect(screen.getByRole("button", { name: /add ticker/i })).toBeInTheDocument());
-    expect(screen.getByText(/watchlist is empty/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/your watchlist is empty/i)).toBeInTheDocument());
+    expect(screen.getByText(/add tickers to get started/i)).toBeInTheDocument();
     expect(screen.queryByText(/Loading watchlist/i)).not.toBeInTheDocument();
   });
 
