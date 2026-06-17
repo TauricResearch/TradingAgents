@@ -23,6 +23,13 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+# JSON Schema structural keys that some reasoning models emit inside tool-call
+# args — these are never legitimate field values, so any dict containing one
+# is a schema-wrapper fragment and should be coerced to None.
+_JSON_SCHEMA_KEYS: frozenset[str] = frozenset({
+    "anyOf", "oneOf", "allOf", "$ref",
+})
+
 # ---------------------------------------------------------------------------
 # Shared rating types
 # ---------------------------------------------------------------------------
@@ -107,19 +114,21 @@ class ResearchPlan(BaseModel):
         structured output) emit tool-call args that echo the JSON schema
         definition of a field instead of an actual value, e.g.
         ``{"price_target": {"type": "null"}}`` or
-        ``{"rationale": {"description": "...", "type": "string"}}``. Pydantic
-        then fails because the dict cannot be coerced to the declared scalar
-        type. The heuristic here catches those cases and treats them as
-        missing values, which is the right call: the model has not provided
-        a usable value, and ``Optional`` fields with ``default=None`` accept
-        the resulting ``None`` cleanly.
+        ``{"rationale": {"description": "...", "type": "string"}}`` or
+        ``{"rationale": {"anyOf": [{"type": "string"}, {"type": "null"}]}}``.
+        Pydantic then fails because the dict cannot be coerced to the
+        declared scalar type. The heuristic here catches those cases and
+        treats them as missing values, which is the right call: the model
+        has not provided a usable value, and ``Optional`` fields with
+        ``default=None`` accept the resulting ``None`` cleanly.
         """
         if not isinstance(data, dict):
             return data
         out: dict[str, Any] = {}
         for k, v in data.items():
-            if isinstance(v, dict) and "type" in v and len(v) <= 4:
-                # Looks like a JSON schema type fragment, not an actual value.
+            if isinstance(v, dict) and (
+                ("type" in v and len(v) <= 4) or _JSON_SCHEMA_KEYS & v.keys()
+            ):
                 out[k] = None
             else:
                 out[k] = v
@@ -273,7 +282,9 @@ class PortfolioDecision(BaseModel):
             return data
         out: dict[str, Any] = {}
         for k, v in data.items():
-            if isinstance(v, dict) and "type" in v and len(v) <= 4:
+            if isinstance(v, dict) and (
+                ("type" in v and len(v) <= 4) or _JSON_SCHEMA_KEYS & v.keys()
+            ):
                 out[k] = None
             else:
                 out[k] = v
