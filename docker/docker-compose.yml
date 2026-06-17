@@ -38,7 +38,9 @@ services:
     volumes:
       - trading-signals-redis-data:/data
     networks:
-      - pulse-network
+      pulse-network:
+        aliases:
+          - pulse-trading-signals-redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
