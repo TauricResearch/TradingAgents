@@ -60,15 +60,16 @@ def get_ticker() -> str:
 def normalize_ticker_symbol(ticker: str) -> str:
     """Resolve user input to its canonical Yahoo symbol (single source of truth).
 
-    Delegates to the data layer's ``normalize_symbol`` so the symbol the CLI
-    passes through the pipeline is exactly the one the data path will price
-    (e.g. ``BTCUSD`` -> ``BTC-USD``, ``XAUUSD`` -> ``GC=F``). Falls back to the
-    plain upper-case if the data layer is unavailable.
+    First infers A-share exchange suffixes for bare six-digit codes (e.g.
+    ``002636`` -> ``002636.SZ``), then delegates to the data layer's
+    ``normalize_symbol`` for commodity/forex/crypto resolution (e.g.
+    ``BTCUSD`` -> ``BTC-USD``, ``XAUUSD`` -> ``GC=F``).
     """
     try:
+        from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol as _infer_a_share
         from tradingagents.dataflows.symbol_utils import normalize_symbol
 
-        return normalize_symbol(ticker)
+        return normalize_symbol(_infer_a_share(ticker))
     except Exception:
         return ticker.strip().upper()
 

@@ -109,7 +109,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             progress=False,
             auto_adjust=True,
         ))
-        data = _ensure_date_column(data.reset_index())
+        data = _ensure_date_column(downloaded.reset_index())
         # Only cache real data — never persist an empty frame.
         if data.empty or "Close" not in data.columns:
             raise NoMarketDataError(
