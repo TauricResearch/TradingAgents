@@ -351,16 +351,21 @@ class OpenClaudeContinuousAgent:
 
             # Use AI agent for the decision
             trade_date = str(utc_now().date())
+            self.report_writer.append_text("signal.txt", f"{utc_now().time()   }\n")
             try:
                 agent_state, signal = self.agent_graph.propagate(ticker, trade_date)
             except Exception as e:
                 # Fallback if there's an error in AI graph
                 signal = {"signal": "error"}
                 agent_state = {}
+                self.report_writer.append_text("signal.txt", f"{e}\n")
+
 
             # Assuming the signal output handles 'bullish'/'bearish'/'neutral' strings or dicts
             action = "hold"
             rationale = opportunity.reason
+            print(f"Signal: {signal}")
+            self.report_writer.append_text("signal.txt", f"{signal}\n")
 
             if isinstance(signal, str):
                 if "bullish" in signal.lower():

@@ -12,3 +12,10 @@ Decision: MSFT hold 0 @ $393.83 - MSFT: 20d return -7.01%; relative strength -8.
 2026-06-17T00:01:09.421098+00:00Z cycle_id=20260617T000109Z risk=safe opportunities=1 decisions=1
 Opportunity: AAPL score=52.85802491463794 AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
 Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+2026-06-17T02:18:07.034087+00:00Z cycle_id=20260617T021807Z risk=safe opportunities=3 decisions=3
+Opportunity: SPY score=55.790631035654975 SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Opportunity: AAPL score=52.85802491463794 AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Opportunity: TSLA score=50.38037233281154 TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+Decision: SPY hold 0 @ $750.33 - SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Decision: TSLA hold 0 @ $404.66 - TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771

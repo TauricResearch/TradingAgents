@@ -7,3 +7,45 @@ Opportunity: TSLA score=50.38037233281154 TSLA: 20d return -1.30%; relative stre
 Decision: SPY hold 0 @ $750.33 - SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
 Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
 Decision: TSLA hold 0 @ $404.66 - TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+2026-06-17T01:57:51.002451+00:00Z cycle_id=20260617T015751Z risk=safe opportunities=3 decisions=3
+Opportunity: SPY score=55.790631035654975 SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Opportunity: AAPL score=52.85802491463794 AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Opportunity: TSLA score=50.38037233281154 TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+Decision: SPY hold 0 @ $750.33 - SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Decision: TSLA hold 0 @ $404.66 - TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+2026-06-17T02:06:52.496624+00:00Z cycle_id=20260617T020652Z risk=safe opportunities=3 decisions=3
+Opportunity: SPY score=55.790631035654975 SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Opportunity: AAPL score=52.85802491463794 AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Opportunity: TSLA score=50.38037233281154 TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+Decision: SPY hold 0 @ $750.33 - SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Decision: TSLA hold 0 @ $404.66 - TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+2026-06-17T02:17:18.091569+00:00Z cycle_id=20260617T021718Z risk=safe opportunities=3 decisions=3
+Opportunity: SPY score=55.790631035654975 SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Opportunity: AAPL score=52.85802491463794 AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Opportunity: TSLA score=50.38037233281154 TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+Decision: SPY hold 0 @ $750.33 - SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Decision: TSLA hold 0 @ $404.66 - TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+2026-06-17T02:35:45.259710+00:00Z cycle_id=20260617T023545Z risk=safe opportunities=3 decisions=3
+Opportunity: SPY score=55.790631035654975 SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Opportunity: AAPL score=52.85802491463794 AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Opportunity: TSLA score=50.38037233281154 TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+Decision: SPY hold 0 @ $750.33 - SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Decision: TSLA hold 0 @ $404.66 - TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+2026-06-17T03:45:51.254125+00:00Z cycle_id=20260617T034551Z risk=safe opportunities=3 decisions=3
+Opportunity: SPY score=55.790631035654975 SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Opportunity: AAPL score=52.85802491463794 AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Opportunity: TSLA score=50.38037233281154 TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+Decision: SPY hold 0 @ $750.33 - SPY: 20d return 1.58%; relative strength 0.00%; volume 61,314,537
+Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 37,342,135
+Decision: TSLA hold 0 @ $404.66 - TSLA: 20d return -1.30%; relative strength -2.88%; volume 39,116,771
+2026-06-17T09:23:01.692445+00:00Z cycle_id=20260617T092301Z risk=safe opportunities=3 decisions=3
+Opportunity: SPY score=55.790631035654975 SPY: 20d return 1.58%; relative strength 0.00%; volume 67,013,200
+Opportunity: AAPL score=53.10685141463794 AAPL: 20d return 0.47%; relative strength -1.11%; volume 39,830,400
+Opportunity: TSLA score=50.483165232811544 TSLA: 20d return -1.30%; relative strength -2.88%; volume 40,144,700
+Decision: SPY hold 0 @ $750.33 - SPY: 20d return 1.58%; relative strength 0.00%; volume 67,013,200
+Decision: AAPL hold 0 @ $299.24 - AAPL: 20d return 0.47%; relative strength -1.11%; volume 39,830,400
+Decision: TSLA hold 0 @ $404.66 - TSLA: 20d return -1.30%; relative strength -2.88%; volume 40,144,700
