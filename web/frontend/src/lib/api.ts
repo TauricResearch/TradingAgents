@@ -114,7 +114,7 @@ export async function addToWatchlist(ticker: string, company_name: string, excha
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ticker, company_name, exchange }),
   });
-  if (!r.ok && r.status !== 201) {
+  if (!r.ok) {
     throw new ApiError(`add ${r.status}`, r.status, await readJsonOrNull(r));
   }
 }
@@ -191,10 +191,6 @@ export async function fetchTickerRuns(ticker: string): Promise<RunRow[]> {
     throw new ApiError(`ticker-runs ${r.status}`, r.status, await readJsonOrNull(r));
   }
   return r.json();
-}
-
-export function buildRunId(ticker: string, startedAtIso: string): string {
-  return `${ticker}:${startedAtIso}`;
 }
 
 // ---- Historical analysis chart ----
