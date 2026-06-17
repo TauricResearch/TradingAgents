@@ -68,6 +68,33 @@ _last_request_time: float = 0.0
 _min_request_gap: float = _MIN_REQUEST_GAP
 _rate_lock = threading.Lock()
 
+# -- In-memory TTL cache ----------------------------------------------------
+# Reddit RSS is per-IP rate limited.  Cache results per (ticker, sub) so
+# repeated analysis runs for the same ticker skip the HTTP request entirely —
+# dramatically reducing 429s when multiple tickers run concurrently.
+_CACHE_TTL = 3600.0
+_cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
+_cache_lock = threading.Lock()
+
+
+def _cache_get(ticker: str, sub: str) -> list[dict] | None:
+    """Return cached posts for ``(ticker, sub)`` or ``None`` if stale/missing."""
+    with _cache_lock:
+        entry = _cache.get((ticker.upper(), sub))
+        if entry is None:
+            return None
+        ts, results = entry
+        if time.monotonic() - ts > _CACHE_TTL:
+            del _cache[(ticker.upper(), sub)]
+            return None
+        return results
+
+
+def _cache_set(ticker: str, sub: str, results: list[dict]) -> None:
+    """Store ``results`` for ``(ticker, sub)`` with the current timestamp."""
+    with _cache_lock:
+        _cache[(ticker.upper(), sub)] = (time.monotonic(), results)
+
 
 def _pace_request() -> None:
     """Block until the minimum gap since the last Reddit request has elapsed."""
@@ -242,13 +269,21 @@ def _fetch_subreddit(
     limit: int,
     timeout: float,
 ) -> list[dict]:
-    """Fetch one subreddit, RSS-first.
+    """Fetch one subreddit, RSS-first, with a TTL cache.
 
     The JSON search endpoint is reliably WAF-blocked (403) for public clients,
     so we go straight to the RSS feed — which serves our identified User-Agent
     reliably — halving our request volume against Reddit's per-IP rate limit.
+
+    Results are cached in-memory for ``_CACHE_TTL`` seconds by ``(ticker, sub)``
+    so repeated analysis runs for the same ticker skip the HTTP request.
     """
-    return _fetch_subreddit_rss(ticker, sub, limit, timeout)
+    cached = _cache_get(ticker, sub)
+    if cached is not None:
+        return cached
+    results = _fetch_subreddit_rss(ticker, sub, limit, timeout)
+    _cache_set(ticker, sub, results)
+    return results
 
 
 def fetch_reddit_posts(
