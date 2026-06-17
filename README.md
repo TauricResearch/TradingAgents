@@ -28,6 +28,7 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
+- [2026-06] **Scheduled runs + Telegram delivery.** A new headless driver (`scripts/run_daily.py`) reads a `config/watchlist.yaml` watchlist, persists the canonical `reports/<TICKER>_<TS>/` folder, renders the Portfolio Manager `decision.md` to a PDF, and delivers both a short message and the PDF to a Telegram chat. `scripts/install_launchd.sh` registers a Mon–Fri 07:00 launchd job on macOS. Install with `pip install ".[scheduled]"`.
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-04] **TradingAgents v0.2.4** released with structured-output agents (Research Manager, Trader, Portfolio Manager), LangGraph checkpoint resume, persistent decision log, DeepSeek/Qwen/GLM/Azure provider support, Docker, and a Windows UTF-8 encoding fix.
 - [2026-03] **TradingAgents v0.2.3** released with multi-language support, GPT-5.4 family models, unified model catalog, backtesting date fidelity, and proxy support.
@@ -51,7 +52,7 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | ⏰ [Scheduled Runs](#scheduled-runs) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -118,6 +119,11 @@ conda activate tradingagents
 Install the package and its dependencies:
 ```bash
 pip install .
+```
+
+For the headless daily runner (watchlist + Telegram PDF delivery, see [Scheduled runs](#scheduled-runs)), also install the optional `[scheduled]` extra:
+```bash
+pip install ".[scheduled]"
 ```
 
 ### Docker
@@ -288,6 +294,120 @@ config["temperature"] = 0.0
 What does not vary anymore: the analyzed company identity is resolved deterministically from the ticker before any agent runs, and the market analyst grounds exact price and indicator claims in a verified data snapshot. Earlier reports of "different companies" or fabricated price levels across runs are addressed by these two mechanisms.
 
 Backtest results are not guaranteed to match any published figure. Returns depend on the model, the temperature, the date range, data quality, and the sampling above. Treat the framework as a research scaffold for studying multi-agent analysis, not as a strategy with a fixed, replicable return.
+
+## Scheduled runs
+
+The interactive CLI is great for ad-hoc analyses, but you can also drive
+TradingAgents headlessly on a schedule and have the Portfolio Manager
+decision delivered to a Telegram chat every morning. The pieces:
+
+| File | Purpose |
+| ---- | ------- |
+| `config/watchlist.yaml` | List of `(symbol, asset_type, analysts?)` entries to analyze each run. |
+| `scripts/run_daily.py` | Headless driver — runs `propagate()` for each entry, saves the report, sends Telegram. |
+| `tradingagents/notifications/telegram.py` | Sends the short message + PDF via the Telegram Bot API. |
+| `tradingagents/reports/exporter.py` | Persists the canonical `reports/<TICKER>_<TS>/` folder and parses `decision.md`. |
+| `scripts/install_launchd.sh` | Installs a Mon–Fri 07:00 launchd job pointing at `scripts/run_daily.py`. |
+| `scripts/uninstall_launchd.sh` | Removes the launchd job. |
+
+### One-time setup
+
+1. Install the optional dependencies (PyYAML for the watchlist, fpdf2 for
+   the PDF attachment):
+
+   ```bash
+   .venv/bin/pip install -e ".[scheduled]"
+   ```
+
+2. Edit `config/watchlist.yaml` to list the tickers you want analyzed
+   each morning. The default ships with `BTC-USD` as a worked example.
+
+   ```yaml
+   tickers:
+     - symbol: BTC-USD
+       asset_type: crypto
+     - symbol: NVDA
+       asset_type: stock
+   ```
+
+   `analysts` is optional per entry — when omitted the runner uses the
+   project's default selection (market, social, news, fundamentals).
+
+3. (Optional) Create a Telegram bot and capture its token plus your chat
+   id, then put both in `.env`:
+
+   ```bash
+   # Talk to @BotFather, send /newbot, copy the token it gives you.
+   TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+   # Send any message to your new bot, then open
+   # https://api.telegram.org/bot<TOKEN>/getUpdates
+   # and read message.chat.id from the JSON response.
+   TELEGRAM_CHAT_ID=987654321
+   ```
+
+   When either variable is missing, the runner logs at info level and
+   skips delivery — the analysis still runs and the report is still
+   written to disk.
+
+4. Install the launchd job:
+
+   ```bash
+   bash scripts/install_launchd.sh
+   ```
+
+   The script generates `~/Library/LaunchAgents/com.tradingagents.daily.plist`
+   with a `StartCalendarInterval` for Monday through Friday at 07:00
+   local time, and runs `plutil -lint` on the result before `launchctl
+   load`. Re-running the script is safe — it unloads any prior copy and
+   rewrites the plist.
+
+### Verifying the install
+
+```bash
+launchctl list | grep com.tradingagents.daily
+tail -f ~/Library/Logs/tradingagents/run_daily.out.log
+```
+
+To fire the job immediately (without waiting until 07:00):
+
+```bash
+launchctl start com.tradingagents.daily
+```
+
+### What gets delivered to Telegram
+
+For every ticker in the watchlist, the runner sends:
+
+1. A short Markdown message with rating, price target, time horizon, and
+   the first ~240 chars of the executive summary.
+2. A PDF attachment built from the Portfolio Manager's `decision.md`
+   (rendered via fpdf2). If the PDF conversion fails for any reason the
+   runner falls back to attaching the raw `.md` file.
+
+### Manual one-off run
+
+You can invoke the same code path the launchd job uses, which is handy
+for smoke testing changes to the watchlist or Telegram credentials:
+
+```bash
+.venv/bin/python scripts/run_daily.py --verbose
+.venv/bin/python scripts/run_daily.py --date 2026-06-12
+.venv/bin/python scripts/run_daily.py --watchlist /path/to/other-watchlist.yaml
+```
+
+### Exit codes
+
+| Code | Meaning |
+| ---- | ------- |
+| `0`  | At least one ticker analyzed successfully (Telegram delivery is best-effort). |
+| `1`  | Every ticker failed during `propagate()`. Inspect `run_daily.err.log`. |
+| `2`  | The watchlist file was unreadable (missing required fields, invalid YAML, etc.). |
+
+### Removing the scheduled job
+
+```bash
+bash scripts/uninstall_launchd.sh
+```
 
 ## Contributing
 

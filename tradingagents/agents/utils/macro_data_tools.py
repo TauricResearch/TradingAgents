@@ -9,9 +9,12 @@ from tradingagents.dataflows.interface import route_to_vendor
 def get_macro_indicators(
     indicator: Annotated[
         str,
-        "Macro indicator: a friendly alias such as 'cpi', 'core_pce', "
-        "'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve', "
-        "'real_gdp', 'vix', or a raw FRED series ID such as 'CPIAUCSL'.",
+        "Macro indicator: a supported friendly alias such as 'cpi', 'core_cpi', "
+        "'core_pce', 'unemployment', 'fed_funds_rate', '10y_treasury', "
+        "'yield_curve', 'real_gdp', 'gdp', 'industrial_production', 'payrolls', "
+        "'initial_claims', 'm2', 'vix', 'dollar_index', 'consumer_sentiment', "
+        "'housing_starts', 'retail_sales', or a raw FRED series ID such as "
+        "'CPIAUCSL'. Avoid descriptive names like 'bank of japan rate'.",
     ],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format; the end of the window"],
     look_back_days: Annotated[
