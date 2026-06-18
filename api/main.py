@@ -206,93 +206,80 @@ START_TIME = datetime.datetime.now()
 # ---------------------------------------------------------------------------
 
 
-def get_user_claims_from_token(token: str) -> tuple[str, str]:
-    """Extracts user_id from JWT without signature verification.
+async def _resolve_identity_from_auth_service(token: str) -> tuple[str, str]:
+    """Validates token via auth service and returns (user_id, tier).
 
-    Token authenticity is validated by the auth service call in
-    _fetch_tier_from_auth_service — no need to duplicate key management here.
+    Auth service is the single source of truth — we never trust unverified JWT
+    claims. user_id is read from the JWT only AFTER the auth service confirms
+    the token is valid (200 OK). Caches (user_id, tier) in Redis for 60s.
     """
-    try:
-        payload = jwt.decode(token, options={"verify_signature": False})
-        user_id = payload.get("sub") or payload.get("user_id")
-        if not user_id:
-            raise HTTPException(
-                status_code=401, detail="User ID not found in token claims"
-            )
-        return str(user_id), "free"
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Authentication token has expired")
-    except jwt.InvalidTokenError as e:
-        raise HTTPException(
-            status_code=401, detail=f"Invalid authentication token: {e}"
-        )
+    import urllib.error as _ue
+    import urllib.request as _ur
 
-
-async def _fetch_tier_from_auth_service(token: str, user_id: str) -> str:
-    """Calls the auth service entitlements endpoint; caches result in Redis for 60s."""
-    cache_key = f"tier:{user_id}"
+    # Check cache by token prefix (first 32 chars are unique enough for cache key)
+    cache_key = f"identity:{token[:32]}"
     try:
         cached = await redis_client.get(cache_key)
         if cached:
-            return cached
+            user_id, tier = cached.split(":", 1)
+            return user_id, tier
     except Exception:
         pass
 
+    # Call auth service — this validates the token signature
     try:
-        import urllib.error as _ue
-        import urllib.request as _ur
-
         req = _ur.Request(
             f"{AUTH_SERVICE_URL}/auth-ms/me/entitlements",
             headers={"Authorization": f"Bearer {token}"},
         )
-        with _ur.urlopen(req, timeout=3) as resp:
+        with _ur.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())
         tier = "pro" if data.get("is_pro") else "free"
     except _ue.HTTPError as e:
         if e.code == 401:
             raise HTTPException(status_code=401, detail="Invalid or expired token")
-        tier = "free"
+        # Auth service unreachable — fail closed, don't grant access
+        raise HTTPException(status_code=503, detail="Auth service unavailable")
     except Exception:
-        tier = "free"
+        raise HTTPException(status_code=503, detail="Auth service unavailable")
+
+    # Token is now confirmed valid — safe to read sub from JWT
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_id = str(payload.get("sub") or payload.get("user_id") or "")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID missing from token")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Malformed token")
 
     try:
-        await redis_client.setex(cache_key, 60, tier)
+        await redis_client.setex(cache_key, 60, f"{user_id}:{tier}")
     except Exception:
         pass
 
-    return tier
-
-
-async def get_user_claims_async(request: Request) -> tuple[str, str]:
-    """Extracts user_id and resolves real tier from auth service."""
-    auth = request.headers.get("authorization", "")
-    if not auth.startswith("Bearer "):
-        return "anonymous", "free"
-
-    token = auth[7:]
-    user_id, _ = get_user_claims_from_token(token)
-    tier = await _fetch_tier_from_auth_service(token, user_id)
     return user_id, tier
 
 
-def get_user_claims(request: Request) -> tuple[str, str]:
-    """Sync wrapper — returns user_id and tier from JWT only (no auth service call).
-    Used only in sync contexts; prefer get_user_claims_async in async endpoints."""
-    user_id = request.headers.get("x-user-id")
-    tier = request.headers.get("x-user-tier")
-    if user_id and tier:
-        return user_id, tier.lower()
-
+async def get_user_claims_async(request: Request) -> tuple[str, str]:
+    """Validates bearer token via auth service and returns (user_id, tier)."""
     auth = request.headers.get("authorization", "")
-    if auth.startswith("Bearer "):
-        token = auth[7:]
-        try:
-            return get_user_claims_from_token(token)
-        except Exception:
-            pass
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    return await _resolve_identity_from_auth_service(auth[7:])
 
-    return user_id or "anonymous", (tier or "free").lower()
+
+def get_user_claims(request: Request) -> tuple[str, str]:
+    """Sync fallback for non-quota paths (SSE stream). Does not resolve tier."""
+    auth = request.headers.get("authorization", "")
+    if not auth.startswith("Bearer "):
+        return "anonymous", "free"
+    try:
+        payload = jwt.decode(auth[7:], JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return str(payload.get("sub") or "anonymous"), "free"
+    except Exception:
+        return "anonymous", "free"
 
 
 def enforce_quota(user_id: str, tier: str, log_view: bool = False) -> EntitlementBlock:
@@ -980,14 +967,7 @@ async def sse_live_stream(
     if not jwt_token:
         raise HTTPException(status_code=401, detail="Authentication token required")
 
-    try:
-        user_id, tier = get_user_claims_from_token(jwt_token)
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        raise HTTPException(
-            status_code=401, detail=f"Invalid authentication token: {e}"
-        )
+    user_id, tier = await _resolve_identity_from_auth_service(jwt_token)
 
     # 2. Check entitlement on connect
     entitlement = enforce_quota(user_id, tier, log_view=False)
