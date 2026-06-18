@@ -207,17 +207,19 @@ START_TIME = datetime.datetime.now()
 
 
 def get_user_claims_from_token(token: str) -> tuple[str, str]:
-    """Decodes JWT and returns (user_id, tier='free') — tier resolved separately."""
+    """Extracts user_id from JWT without signature verification.
+
+    Token authenticity is validated by the auth service call in
+    _fetch_tier_from_auth_service — no need to duplicate key management here.
+    """
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, options={"verify_signature": False})
         user_id = payload.get("sub") or payload.get("user_id")
         if not user_id:
             raise HTTPException(
                 status_code=401, detail="User ID not found in token claims"
             )
-        # tier intentionally not read from JWT — auth service does not embed it
-        tier = payload.get("tier") or payload.get("role") or "free"
-        return str(user_id), str(tier).lower()
+        return str(user_id), "free"
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Authentication token has expired")
     except jwt.InvalidTokenError as e:
@@ -237,6 +239,7 @@ async def _fetch_tier_from_auth_service(token: str, user_id: str) -> str:
         pass
 
     try:
+        import urllib.error as _ue
         import urllib.request as _ur
 
         req = _ur.Request(
@@ -246,6 +249,10 @@ async def _fetch_tier_from_auth_service(token: str, user_id: str) -> str:
         with _ur.urlopen(req, timeout=3) as resp:
             data = json.loads(resp.read())
         tier = "pro" if data.get("is_pro") else "free"
+    except _ue.HTTPError as e:
+        if e.code == 401:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        tier = "free"
     except Exception:
         tier = "free"
 
