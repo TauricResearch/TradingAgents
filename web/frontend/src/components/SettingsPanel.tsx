@@ -98,9 +98,9 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
         onClick={onClose}
         aria-hidden
       />
-      <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-8 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 md:pt-12 pb-8 overflow-y-auto">
         <div
-          className="glass-panel w-full max-w-lg mx-4 animate-slide-up overflow-hidden"
+          className="glass-panel w-full max-w-lg mx-2 md:mx-4 animate-slide-up overflow-hidden"
           role="dialog"
           aria-label="Settings"
         >

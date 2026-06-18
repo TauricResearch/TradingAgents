@@ -126,7 +126,7 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 min-w-[360px] max-w-[480px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[280px] sm:min-w-[360px] max-w-[90vw] sm:max-w-[480px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/60">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -204,7 +204,7 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                         e.stopPropagation();
                         resume.mutate(r.id);
                       }}
-                      className="shrink-0 opacity-0 group-hover:opacity-100 text-sky-400 hover:text-sky-300 
+                      className="shrink-0 sm:opacity-0 sm:group-hover:opacity-100 text-sky-400 hover:text-sky-300 
                                   disabled:opacity-30 transition-all text-base leading-none p-1"
                       title="Resume this run"
                     >
@@ -221,7 +221,7 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                       e.stopPropagation();
                       delOne.mutate(r.id);
                     }}
-                    className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 
+                    className="shrink-0 sm:opacity-0 sm:group-hover:opacity-100 text-slate-500 hover:text-red-400 
                                 disabled:opacity-30 transition-all text-base leading-none px-1"
                     title="Delete this run"
                   >

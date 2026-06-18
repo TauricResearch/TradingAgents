@@ -47,6 +47,8 @@ interface UiState {
   // Per-group collapse/expand state for the watchlist. PERSISTED so
   // group collapse survives a refresh.
   watchlistCollapsedGroups: Record<string, boolean>;
+  // Mobile sidebar drawer open/closed.
+  mobileSidebarOpen: boolean;
   setFocusedTicker: (t: string | null) => void;
   setLastRunIdForTicker: (ticker: string, runId: string | null) => void;
   setActiveRunIdForTicker: (ticker: string, runId: string | null) => void;
@@ -64,6 +66,7 @@ interface UiState {
   setHistoryPollIntervalMs: (ms: HistoryPollInterval) => void;
   setCandleResolution: (r: CandleResolution) => void;
   setWatchlistCollapsedGroup: (name: string, collapsed: boolean) => void;
+  setMobileSidebarOpen: (open: boolean) => void;
 }
 
 export const useUi = create<UiState>()(
@@ -80,7 +83,8 @@ export const useUi = create<UiState>()(
       historyPollIntervalMs: 30_000,
       candleResolution: "auto",
       watchlistCollapsedGroups: {},
-      setFocusedTicker: (t) => set({ focusedTicker: t }),
+      mobileSidebarOpen: false,
+      setFocusedTicker: (t) => { set({ focusedTicker: t, mobileSidebarOpen: false }); },
       setLastRunIdForTicker: (ticker, runId) =>
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
       setActiveRunIdForTicker: (ticker, runId) =>
@@ -127,6 +131,7 @@ export const useUi = create<UiState>()(
       setCandleResolution: (r) => set({ candleResolution: r }),
       setWatchlistCollapsedGroup: (name, collapsed) =>
         set((s) => ({ watchlistCollapsedGroups: { ...s.watchlistCollapsedGroups, [name]: collapsed } })),
+      setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
     }),
     {
       name: "tradingagents-ui",

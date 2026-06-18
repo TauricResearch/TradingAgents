@@ -134,10 +134,10 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
   };
 
   return (
-    <div className="flex items-center justify-between mb-5">
-      <div>
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-display font-semibold text-slate-100 tracking-tight">{ticker}</h2>
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 md:mb-5">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-display font-semibold text-slate-100 tracking-tight">{ticker}</h2>
           {agentProgress && (
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-mono font-semibold rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse shadow-[0_0_4px_rgba(56,189,248,0.4)]" />
@@ -162,7 +162,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
             </span>
           )}
         </div>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-xs md:text-sm text-slate-500 mt-0.5 md:mt-1">
           {stale ? (
             <span className="text-amber-400/60">Unavailable on Yahoo Finance</span>
           ) : (
@@ -173,7 +173,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
           )}
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
         {hasAnyRuns && (
           <RunHistoryMenu
             ticker={ticker}
@@ -186,7 +186,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
         <button
           disabled={isRunning || start.isPending}
           onClick={() => { if (!isRunning) start.mutate(); }}
-          className="btn-primary"
+          className="btn-primary text-xs md:text-sm whitespace-nowrap"
         >
           {(isRunning || start.isPending) && (
             <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -206,7 +206,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
           <button
             disabled={cancel.isPending}
             onClick={() => cancel.mutate()}
-            className="btn-secondary"
+            className="btn-secondary text-xs md:text-sm whitespace-nowrap"
           >
             {cancel.isPending && (
               <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">

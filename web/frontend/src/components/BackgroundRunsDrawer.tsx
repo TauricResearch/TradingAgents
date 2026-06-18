@@ -263,7 +263,7 @@ function NewJobForm({ tickers, defaultTicker }: { tickers: string[]; defaultTick
         </span>
       </summary>
       <form
-        className="mt-3 grid grid-cols-2 gap-2 text-sm"
+        className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           mutation.mutate({ ticker, date_from: dateFrom, date_to: dateTo, every, parallel });
