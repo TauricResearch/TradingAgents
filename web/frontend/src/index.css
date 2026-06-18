@@ -3,7 +3,18 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Safe-area / environment variables ──────────────── */
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+  }
+
+  /* Prevent callout / selection on touch drags */
   * {
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
     scrollbar-width: thin;
     scrollbar-color: #1e293b transparent;
   }
@@ -91,6 +102,13 @@
     @apply fixed z-50 bg-slate-900 border-slate-700/50 
            shadow-2xl shadow-black/40 transition-transform duration-300
            backdrop-blur-sm;
+  }
+
+  /* Full-screen drawers on mobile */
+  @screen md {
+    .drawer-panel.md\:h-auto {
+      height: auto !important;
+    }
   }
   [data-theme="light"] .drawer-panel {
     @apply bg-white border-slate-200 shadow-slate-300/50;
@@ -207,5 +225,46 @@
 
   .glow-emerald {
     box-shadow: 0 0 20px rgba(52, 211, 153, 0.15);
+  }
+
+  /* ── Mobile-safe padding for notched phones ────────── */
+  .safe-area-top { padding-top: var(--sat); }
+  .safe-area-bottom { padding-bottom: var(--sab); }
+  .safe-area-left { padding-left: var(--sal); }
+  .safe-area-right { padding-right: var(--sar); }
+  .safe-area-inset { padding: var(--sat) var(--sar) var(--sab) var(--sal); }
+
+  /* ── Touch-friendly minimum tap target size ────────── */
+  .touch-target {
+    @apply relative;
+  }
+  .touch-target::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+
+  /* ── Hide scrollbar on mobile but keep scrollable ──── */
+  .scrollable-mobile {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+  .scrollable-mobile::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollable-mobile {
+    scrollbar-width: none;
+  }
+
+  /* ── Responsive text truncation ────────────────────── */
+  .truncate-mobile {
+    @apply truncate;
+  }
+  @screen md {
+    .truncate-mobile {
+      overflow: visible;
+      white-space: normal;
+    }
   }
 }

@@ -32,7 +32,7 @@ export function SuccessFailurePlot({ data, xDomain }: SuccessFailurePlotProps) {
   }
 
   return (
-    <div className="h-40 border-b border-slate-800" data-testid="success-failure-plot">
+    <div className="h-32 md:h-40 border-b border-slate-800" data-testid="success-failure-plot">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 8 }}>
           <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />

@@ -180,7 +180,7 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
 
   return (
     <div
-      className="fixed inset-y-0 right-0 w-[28rem] max-w-full bg-slate-900 border-l border-slate-700/50 shadow-2xl shadow-black/40 z-20 flex flex-col backdrop-blur-sm"
+      className="fixed inset-y-0 right-0 w-full md:w-[28rem] md:max-w-full bg-slate-900 border-l border-slate-700/50 shadow-2xl shadow-black/40 z-20 flex flex-col backdrop-blur-sm"
       data-testid="history-drawer"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">

@@ -31,7 +31,7 @@ export function AccuracyPlot({ data, xDomain }: AccuracyPlotProps) {
   }
 
   return (
-    <div className="h-48 border-b border-slate-800" data-testid="accuracy-plot">
+    <div className="h-36 md:h-48 border-b border-slate-800" data-testid="accuracy-plot">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 8 }}>
           <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />

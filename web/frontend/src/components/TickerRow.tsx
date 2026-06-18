@@ -108,7 +108,7 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
     >
       {/* Drag handle */}
       <span
-        className="shrink-0 flex flex-col gap-0.5 cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-70 hover:opacity-100 transition-opacity px-0.5"
+        className="shrink-0 flex flex-col gap-0.5 cursor-grab active:cursor-grabbing opacity-30 md:group-hover:opacity-70 hover:opacity-100 transition-opacity px-0.5"
         onMouseDown={(e) => e.stopPropagation()}
         aria-label={`Drag ${ticker} to reorder`}
       >
@@ -196,7 +196,7 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
           type="button"
           onClick={(e) => { e.stopPropagation(); setPending(true); }}
           aria-label={`Remove ${ticker} from watchlist`}
-          className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 text-sm px-1 shrink-0 transition-opacity"
+          className="md:opacity-0 md:group-hover:opacity-100 text-slate-500 hover:text-red-400 text-sm px-2 py-2 shrink-0 transition-opacity"
         >
           ×
         </button>

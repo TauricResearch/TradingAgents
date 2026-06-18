@@ -129,7 +129,7 @@ export function LiveEventStream() {
         </span>
         <span className="text-[10px] font-mono text-slate-600">{events.length} events</span>
       </div>
-      <div ref={ref} className="h-72 overflow-y-auto p-2 space-y-1">
+      <div ref={ref} className="h-48 md:h-72 overflow-y-auto p-2 space-y-1">
       {events.length === 0 && <p className="text-sm text-slate-600 text-center py-8">No events yet. Click "Run analysis" to start.</p>}
       {events.map((e) => {
         const key = (e.id ?? "") + ":" + e.ts;
@@ -148,7 +148,7 @@ export function LiveEventStream() {
       })}
       </div>
       {stats.hasRun && (
-        <div className="flex items-center gap-4 px-3 py-1.5 border-t border-slate-700/50 bg-slate-900/60 text-[10px] font-mono text-slate-500">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1.5 border-t border-slate-700/50 bg-slate-900/60 text-[10px] font-mono text-slate-500">
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/60" />
             <span className="text-emerald-400/80 font-semibold">{stats.agentsDone}</span>

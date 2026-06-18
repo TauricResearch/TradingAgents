@@ -374,7 +374,7 @@ export function HistoryChart(props: HistoryChartProps) {
   );
 
   return (
-    <div className={`w-full ${showRSI ? 'h-[348px]' : 'h-72'}`} data-testid="history-chart">
+    <div className={`w-full ${showRSI ? 'h-60 md:h-[348px]' : 'h-48 md:h-72'}`} data-testid="history-chart">
       <div className="flex flex-col h-full">
         {/* Indicator toggle bar */}
         <div className="flex items-center gap-0 px-3 pt-1 pb-0.5 shrink-0">

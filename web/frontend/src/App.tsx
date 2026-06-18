@@ -82,6 +82,8 @@ export default function App() {
   useKeyboardShortcuts();
   useRunNotifications();
   const { theme, toggleTheme } = useTheme();
+  const mobileSidebarOpen = useUi((s) => s.mobileSidebarOpen);
+  const setMobileSidebarOpen = useUi((s) => s.setMobileSidebarOpen);
 
   // The run detail for the currently focused run (historical pick or
   // latest). Used to power the DecisionPanel's "incomplete" hint. The
@@ -190,23 +192,43 @@ export default function App() {
         <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full bg-emerald-500/5 blur-[150px]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-sky-400/3 blur-[200px]" />
       </div>
+
+      {/* Mobile sidebar backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+          aria-hidden
+        />
+      )}
+
       <WatchlistRail />
-      <main className="flex-1 p-6 relative z-10">
-        <header className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-display font-semibold text-slate-100 tracking-tight">
+      <main className="flex-1 p-3 md:p-6 relative z-10 min-w-0">
+        <header className="flex flex-wrap items-start justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="md:hidden btn-secondary text-xs shrink-0"
+              aria-label="Open watchlist"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
+            <h1 className="text-base md:text-lg font-display font-semibold text-slate-100 tracking-tight shrink-0">
               TradingAgents
             </h1>
-            <span className="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-widest bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-md">
+            <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-widest bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-md">
               Loaded models:
             </span>
             {currentModelSummary && (
-              <span className="px-2 py-0.5 text-[10px] font-mono font-semibold rounded-md bg-gradient-to-r from-sky-500/15 via-slate-900/80 to-emerald-500/15 text-slate-100 border border-slate-700/70 shadow-[0_0_20px_rgba(56,189,248,0.12)]">
+              <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-mono font-semibold rounded-md bg-gradient-to-r from-sky-500/15 via-slate-900/80 to-emerald-500/15 text-slate-100 border border-slate-700/70 shadow-[0_0_20px_rgba(56,189,248,0.12)] truncate max-w-[200px] md:max-w-none">
                 {currentModelSummary}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             <button
               onClick={() => setSettingsOpen(true)}
               className="btn-secondary text-xs"
@@ -233,19 +255,19 @@ export default function App() {
               <div
                 data-testid="stale-ticker-banner"
                 role="alert"
-                className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm px-4 py-3 text-sm text-amber-300"
+                className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm px-3 sm:px-4 py-3 text-xs sm:text-sm text-amber-300"
               >
                 <span>
                   <strong className="font-semibold text-amber-200">{focused}</strong> is not available
                   on Yahoo Finance — price and history are unavailable.
                 </span>
-                <span className="flex items-center gap-3 shrink-0">
+                <span className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
                   <button
                     onClick={handleRemoveFocused}
                     data-testid="stale-ticker-remove"
                     className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-300 border border-amber-500/20 hover:bg-amber-500/30 transition-colors"
                   >
-                    Remove from watchlist
+                    Remove
                   </button>
                   <button
                     onClick={() => setDismissedStaleBanner(focused)}
@@ -273,7 +295,8 @@ export default function App() {
               >
                 <span className="flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${traceView === "events" ? "bg-sky-400 shadow-[0_0_4px_rgba(56,189,248,0.5)]" : "bg-slate-600"}`} />
-                  Event Stream
+                  <span className="hidden sm:inline">Event Stream</span>
+                  <span className="sm:hidden">Events</span>
                 </span>
               </button>
               <button

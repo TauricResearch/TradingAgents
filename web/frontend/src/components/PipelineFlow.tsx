@@ -657,10 +657,10 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
 
   return (
     <div className="glass-panel px-3 py-2.5" data-testid="pipeline-flow">
-      {/* Team cards row */}
-      <div className="flex items-stretch gap-0">
+      {/* Team cards row - horizontal scroll on mobile */}
+      <div className="flex items-stretch gap-0 overflow-x-auto scrollable-mobile -mx-3 px-3 md:mx-0 md:px-0 md:overflow-visible">
         {teamStatuses.map(({ team, status, agentStatuses, timing }, i) => (
-          <div key={team.id} className="flex items-stretch flex-1 min-w-0">
+          <div key={team.id} className="flex items-stretch flex-1 min-w-[200px] md:min-w-0">
             <TeamCard
               team={team}
               status={status}
