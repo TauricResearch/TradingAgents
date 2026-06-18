@@ -216,8 +216,9 @@ async def _resolve_identity_from_auth_service(token: str) -> tuple[str, str]:
     import urllib.error as _ue
     import urllib.request as _ur
 
-    # Check cache by token prefix (first 32 chars are unique enough for cache key)
-    cache_key = f"identity:{token[:32]}"
+    import hashlib
+
+    cache_key = f"identity:{hashlib.sha256(token.encode()).hexdigest()}"
     try:
         cached = await redis_client.get(cache_key)
         if cached:
