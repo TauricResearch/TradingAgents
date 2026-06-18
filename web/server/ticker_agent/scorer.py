@@ -6,7 +6,6 @@ Reuses the same verdict logic as the existing frontend verdicts.ts.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
