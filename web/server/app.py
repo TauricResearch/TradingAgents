@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from . import storage, queries, events, llm_calls, runner, settings as settings_mod
 from tradingagents.default_config import DEFAULT_CONFIG, _ENV_OVERRIDES
+from web.server.ticker_agent.router import router as ticker_agent_router
 
 
 log = logging.getLogger(__name__)
@@ -128,6 +129,10 @@ async def lifespan(app: FastAPI):
     from web.server import background_runs
     background_runs._load_existing_jobs()
 
+    # Start the ticker accuracy agent background loop.
+    from web.server.ticker_agent import orchestrator as _agent
+    _agent.start_background_loop()
+
     yield
     # Stop the price feed (if it was started) before the runner so any
     # in-flight poll iteration can complete without racing shutdown.
@@ -135,6 +140,7 @@ async def lifespan(app: FastAPI):
     if feed is not None:
         await feed.stop()
     await runner.stop()
+    _agent.stop_background_loop()
 
 
 def create_app() -> FastAPI:
@@ -405,6 +411,9 @@ def create_app() -> FastAPI:
         except KeyError:
             raise HTTPException(status_code=404, detail=f"job_not_found: {job_id}") from None
         return {"status": "ok"}
+
+    # --- Ticker Accuracy Agent ---
+    app.include_router(ticker_agent_router)
 
     # --- Config (read/write .env) ---
     _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
