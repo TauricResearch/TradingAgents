@@ -134,11 +134,12 @@ describe("TickerHeader — action button", () => {
     expect(JSON.parse(init!.body as string)).toEqual({ ticker: "NVDA", force: true });
   });
 
-  it("the action button is disabled while a run is active", () => {
+  it("the action button shows running state with elapsed time while a run is active", () => {
     useUi.setState({ activeRunIdByTicker: { NVDA: "NVDA:99" } });
     mockFetch({});
     wrap(<TickerHeader ticker="NVDA" />);
-    const btn = screen.getByRole("button", { name: /run analysis/i });
+    const btn = screen.getByRole("button", { name: /running/i });
+    expect(btn).toBeInTheDocument();
     expect(btn).toBeDisabled();
   });
 });

@@ -187,9 +187,10 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     last_no_data: NoMarketDataError | None = None
     first_error: Exception | None = None
-    for vendor in vendor_chain:
+    for idx, vendor in enumerate(vendor_chain):
         vendor_impl = VENDOR_METHODS[method][vendor]
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
+        has_next = idx < len(vendor_chain) - 1
 
         try:
             return impl_func(*args, **kwargs)
@@ -197,7 +198,16 @@ def route_to_vendor(method: str, *args, **kwargs):
             logger.warning("Vendor %r rate-limited for %s; trying next vendor.", vendor, method)
             continue
         except VendorNotConfiguredError as e:
-            logger.warning("Vendor %r not configured for %s; trying next vendor.", vendor, method)
+            if has_next:
+                logger.warning(
+                    "Vendor %r not configured for %s; trying next vendor.",
+                    vendor, method,
+                )
+            else:
+                logger.warning(
+                    "Vendor %r not configured for %s — no remaining vendors.",
+                    vendor, method,
+                )
             if first_error is None:
                 first_error = e  # Surface it if no other vendor can serve the call.
             continue
