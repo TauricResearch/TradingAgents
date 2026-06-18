@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useUi } from "../store/ui";
+import { useQuery } from "@tanstack/react-query";
+import { getAccuracyLeaderboard } from "../lib/api";
 
 interface Props {
   ticker: string;
@@ -41,6 +43,15 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
   const [showGroupInput, setShowGroupInput] = useState(false);
   const [groupInput, setGroupInput] = useState(group ?? "");
   const [isDragOver, setDragOver] = useState(false);
+
+  const { data: leaderboardData } = useQuery({
+    queryKey: ["ticker-agent", "leaderboard"],
+    queryFn: getAccuracyLeaderboard,
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
+  const tickerAccuracy = leaderboardData?.scores?.[ticker];
+  const accuracyPct = tickerAccuracy?.accuracy_pct;
 
   const sparkPath = sparkline.length > 1
     ? sparkline.map((v, i) => `${i === 0 ? "M" : "L"} ${i * 4} ${20 - v}`).join(" ")
@@ -125,6 +136,15 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5">
           <span className="text-sm font-semibold text-slate-100">{ticker}</span>
+          {accuracyPct !== null && accuracyPct !== undefined && (
+            <span className={`tag text-[10px] px-1 py-0.5 ${
+              accuracyPct >= 70 ? "tag-buy" :
+              accuracyPct >= 40 ? "tag-hold" :
+              "tag-sell"
+            }`}>
+              {accuracyPct.toFixed(0)}%
+            </span>
+          )}
           {group && (
             <span
               className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md border cursor-pointer hover:brightness-125"
