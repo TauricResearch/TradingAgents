@@ -17,6 +17,7 @@ import { ReportPanel } from "./components/ReportPanel";
 import { DecisionPanel } from "./components/DecisionPanel";
 import { HistoricalAnalysisDrawer } from "./components/HistoricalAnalysisDrawer";
 import { BackgroundRunsDrawer } from "./components/BackgroundRunsDrawer";
+import { TickerAgentDrawer } from "./components/TickerAgentDrawer";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PipelineFlow } from "./components/PipelineFlow";
 import { LlmTracePanel } from "./components/LlmTracePanel";
@@ -84,6 +85,8 @@ export default function App() {
   const { theme, toggleTheme } = useTheme();
   const mobileSidebarOpen = useUi((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useUi((s) => s.setMobileSidebarOpen);
+  const tickerAgentDrawerOpen = useUi((s) => s.tickerAgentDrawerOpen);
+  const setTickerAgentDrawerOpen = useUi((s) => s.setTickerAgentDrawerOpen);
 
   // The run detail for the currently focused run (historical pick or
   // latest). Used to power the DecisionPanel's "incomplete" hint. The
@@ -244,6 +247,13 @@ export default function App() {
             >
               Past Runs
             </button>
+            <button
+              onClick={() => setTickerAgentDrawerOpen(true)}
+              className="btn-secondary text-xs"
+              title="Ticker Accuracy Agent"
+            >
+              Agent
+            </button>
             {focused && (
               <button onClick={() => setHistoryOpen(true)} className="btn-secondary text-xs">History</button>
             )}
@@ -347,6 +357,12 @@ export default function App() {
       </main>
       {focused && historyOpen && (
         <HistoricalAnalysisDrawer ticker={focused} onClose={() => setHistoryOpen(false)} />
+      )}
+      {tickerAgentDrawerOpen && (
+        <TickerAgentDrawer
+          open={tickerAgentDrawerOpen}
+          onClose={() => setTickerAgentDrawerOpen(false)}
+        />
       )}
       <BackgroundRunsDrawer focusedTicker={focused ?? "AAPL"} />
       <SettingsPanel
