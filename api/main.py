@@ -47,6 +47,9 @@ redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
 JWT_SECRET = os.getenv("PULSE_JWT_SECRET", os.getenv("JWT_SECRET", "pulse-secret-key"))
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 
+# Auth service entitlements URL
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "https://staging-backend.pulsenow.io")
+
 # ---------------------------------------------------------------------------
 # Pydantic Schemas for API Contracts
 # ---------------------------------------------------------------------------
@@ -204,15 +207,16 @@ START_TIME = datetime.datetime.now()
 
 
 def get_user_claims_from_token(token: str) -> tuple[str, str]:
-    """Decodes and validates JWT signature, returning (user_id, tier)."""
+    """Decodes JWT and returns (user_id, tier='free') — tier resolved separately."""
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         user_id = payload.get("sub") or payload.get("user_id")
-        tier = payload.get("tier") or payload.get("role") or "free"
         if not user_id:
             raise HTTPException(
                 status_code=401, detail="User ID not found in token claims"
             )
+        # tier intentionally not read from JWT — auth service does not embed it
+        tier = payload.get("tier") or payload.get("role") or "free"
         return str(user_id), str(tier).lower()
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Authentication token has expired")
@@ -222,22 +226,59 @@ def get_user_claims_from_token(token: str) -> tuple[str, str]:
         )
 
 
-def get_user_claims(request: Request) -> tuple[str, str]:
-    """Extracts user_id and subscription tier from request headers or auth JWT.
+async def _fetch_tier_from_auth_service(token: str, user_id: str) -> str:
+    """Calls the auth service entitlements endpoint; caches result in Redis for 60s."""
+    cache_key = f"tier:{user_id}"
+    try:
+        cached = await redis_client.get(cache_key)
+        if cached:
+            return cached
+    except Exception:
+        pass
 
-    If the authentication service handles checking signatures and routing,
-    our service simply reads standard headers:
-      - X-User-Id / Authorization JWT claims
-      - X-User-Tier / Subscription claims
-    """
+    try:
+        import urllib.request as _ur
+
+        req = _ur.Request(
+            f"{AUTH_SERVICE_URL}/auth-ms/me/entitlements",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        with _ur.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read())
+        tier = "pro" if data.get("is_pro") else "free"
+    except Exception:
+        tier = "free"
+
+    try:
+        await redis_client.setex(cache_key, 60, tier)
+    except Exception:
+        pass
+
+    return tier
+
+
+async def get_user_claims_async(request: Request) -> tuple[str, str]:
+    """Extracts user_id and resolves real tier from auth service."""
+    auth = request.headers.get("authorization", "")
+    if not auth.startswith("Bearer "):
+        return "anonymous", "free"
+
+    token = auth[7:]
+    user_id, _ = get_user_claims_from_token(token)
+    tier = await _fetch_tier_from_auth_service(token, user_id)
+    return user_id, tier
+
+
+def get_user_claims(request: Request) -> tuple[str, str]:
+    """Sync wrapper — returns user_id and tier from JWT only (no auth service call).
+    Used only in sync contexts; prefer get_user_claims_async in async endpoints."""
     user_id = request.headers.get("x-user-id")
     tier = request.headers.get("x-user-tier")
     if user_id and tier:
         return user_id, tier.lower()
 
-    # Fallback to decode Authorization Bearer token with signature verification
-    auth = request.headers.get("authorization")
-    if auth and auth.startswith("Bearer "):
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
         token = auth[7:]
         try:
             return get_user_claims_from_token(token)
@@ -656,7 +697,7 @@ app.add_middleware(
 
 
 @app.get("/signals-ms/signals", response_model=SignalsResponse)
-def get_signals_feed(
+async def get_signals_feed(
     request: Request,
     ticker: Optional[str] = Query(None, description="Filter by ticker (e.g. AAPL)"),
     signal_type: Optional[str] = Query(
@@ -672,7 +713,7 @@ def get_signals_feed(
     offset: int = Query(0, ge=0, description="Pagination offset"),
 ):
     """Retrieves paginated signal feed, enforcing Free user view quotas."""
-    user_id, tier = get_user_claims(request)
+    user_id, tier = await get_user_claims_async(request)
 
     # Check current quota and increment view log if not locked
     entitlement = enforce_quota(user_id, tier, log_view=True)
@@ -738,9 +779,9 @@ def get_signals_feed(
 
 
 @app.get("/signals-ms/signals/latest", response_model=SignalsResponse)
-def get_latest_signals(request: Request):
+async def get_latest_signals(request: Request):
     """Retrieves the most recent signal for each tracked ticker."""
-    user_id, tier = get_user_claims(request)
+    user_id, tier = await get_user_claims_async(request)
     entitlement = enforce_quota(user_id, tier, log_view=True)
 
     conn = get_db_connection()
@@ -792,9 +833,9 @@ def get_latest_signals(request: Request):
 
 
 @app.get("/signals-ms/tickers", response_model=TickersResponse)
-def get_tracked_tickers(request: Request):
+async def get_tracked_tickers(request: Request):
     """Retrieves the list of tracked tickers on the watchlist with basic execution statistics."""
-    user_id, tier = get_user_claims(request)
+    user_id, tier = await get_user_claims_async(request)
     entitlement = enforce_quota(
         user_id, tier, log_view=False
     )  # viewing tickers metadata doesn't burn view log
