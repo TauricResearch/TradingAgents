@@ -330,6 +330,104 @@ export function resumeBackgroundRun(jobId: string): Promise<{ status: string }> 
   return postJson(`/api/background-runs/${encodeURIComponent(jobId)}/resume`, {});
 }
 
+// --- Ticker Accuracy Agent ---
+
+export interface TickerAgentStatus {
+  status: "idle" | "running" | "paused";
+  last_run_at: string | null;
+  next_scheduled_at: string | null;
+  current_cycle_ticker: string | null;
+}
+
+export interface AgentActivityEntry {
+  timestamp: string;
+  message: string;
+  ticker?: string;
+}
+
+export interface AccuracyEntry {
+  total_runs: number;
+  correct: number;
+  incorrect: number;
+  unknown: number;
+  accuracy_pct: number | null;
+}
+
+export interface ApiCapability {
+  name: string;
+  available: boolean;
+}
+
+export interface MissingCapability {
+  name: string;
+  logged_at: string;
+  context_ticker?: string;
+}
+
+export async function getTickerAgentStatus(): Promise<TickerAgentStatus> {
+  const r = await fetch("/api/ticker-agent/status");
+  if (!r.ok) throw new Error(`ticker-agent status ${r.status}`);
+  return r.json();
+}
+
+export async function runTickerAgentCycle(): Promise<Record<string, unknown>> {
+  const r = await fetch("/api/ticker-agent/run-now", { method: "POST" });
+  if (!r.ok) throw new Error(`ticker-agent run ${r.status}`);
+  return r.json();
+}
+
+export async function pauseTickerAgent(): Promise<{ status: string }> {
+  const r = await fetch("/api/ticker-agent/pause", { method: "POST" });
+  if (!r.ok) throw new Error(`ticker-agent pause ${r.status}`);
+  return r.json();
+}
+
+export async function resumeTickerAgent(): Promise<{ status: string }> {
+  const r = await fetch("/api/ticker-agent/resume", { method: "POST" });
+  if (!r.ok) throw new Error(`ticker-agent resume ${r.status}`);
+  return r.json();
+}
+
+export async function getAccuracyLeaderboard(): Promise<{ scores: Record<string, AccuracyEntry>; last_evaluated: string | null }> {
+  const r = await fetch("/api/ticker-agent/accuracy-leaderboard");
+  if (!r.ok) throw new Error(`ticker-agent leaderboard ${r.status}`);
+  return r.json();
+}
+
+export async function getActivityLog(limit = 10): Promise<{ entries: AgentActivityEntry[] }> {
+  const r = await fetch(`/api/ticker-agent/activity-log?limit=${limit}`);
+  if (!r.ok) throw new Error(`ticker-agent activity ${r.status}`);
+  return r.json();
+}
+
+export async function getMissingCapabilities(): Promise<{ capabilities: MissingCapability[] }> {
+  const r = await fetch("/api/ticker-agent/missing-capabilities");
+  if (!r.ok) throw new Error(`ticker-agent missing-caps ${r.status}`);
+  return r.json();
+}
+
+export async function getCapabilities(): Promise<{ capabilities: ApiCapability[] }> {
+  const r = await fetch("/api/ticker-agent/capabilities");
+  if (!r.ok) throw new Error(`ticker-agent capabilities ${r.status}`);
+  return r.json();
+}
+
+export async function getAgentConfig(): Promise<Record<string, unknown>> {
+  const r = await fetch("/api/ticker-agent/config");
+  if (!r.ok) throw new Error(`ticker-agent config ${r.status}`);
+  return r.json();
+}
+
+export async function updateAgentConfig(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const r = await fetch("/api/ticker-agent/config", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`ticker-agent config save ${r.status}`);
+  return r.json();
+}
+
 // ---- App Configuration (env-based) ----
 
 export interface AppConfig {

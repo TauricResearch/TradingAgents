@@ -49,7 +49,10 @@ interface UiState {
   watchlistCollapsedGroups: Record<string, boolean>;
   // Mobile sidebar drawer open/closed.
   mobileSidebarOpen: boolean;
+  // Ticker Accuracy Agent drawer open/closed.
+  tickerAgentDrawerOpen: boolean;
   setFocusedTicker: (t: string | null) => void;
+  setTickerAgentDrawerOpen: (open: boolean) => void;
   setLastRunIdForTicker: (ticker: string, runId: string | null) => void;
   setActiveRunIdForTicker: (ticker: string, runId: string | null) => void;
   clearActiveRunForTicker: (ticker: string) => void;
@@ -84,7 +87,9 @@ export const useUi = create<UiState>()(
       candleResolution: "auto",
       watchlistCollapsedGroups: {},
       mobileSidebarOpen: false,
+      tickerAgentDrawerOpen: false,
       setFocusedTicker: (t) => { set({ focusedTicker: t, mobileSidebarOpen: false }); },
+      setTickerAgentDrawerOpen: (open) => set({ tickerAgentDrawerOpen: open }),
       setLastRunIdForTicker: (ticker, runId) =>
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
       setActiveRunIdForTicker: (ticker, runId) =>
@@ -152,6 +157,7 @@ export const useUi = create<UiState>()(
         historyPollIntervalMs: s.historyPollIntervalMs,
         candleResolution: s.candleResolution,
         watchlistCollapsedGroups: s.watchlistCollapsedGroups,
+        tickerAgentDrawerOpen: s.tickerAgentDrawerOpen,
       }),
     },
   ),
