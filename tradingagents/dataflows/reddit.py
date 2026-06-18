@@ -10,6 +10,12 @@ off once (honouring ``Retry-After``). RSS lacks score / comment counts, so those
 posts are marked and the formatter omits the metrics rather than printing fake
 zeros.
 
+Optional PRAW OAuth path: when ``REDDIT_CLIENT_ID`` (and optionally
+``REDDIT_CLIENT_SECRET``, ``REDDIT_USERNAME``, ``REDDIT_PASSWORD``) are set,
+PRAW is used for the OAuth JSON endpoint which provides full score/comment
+counts and dramatically higher rate limits (~60 req/min vs ~10 for RSS).
+Install PRAW with: pip install praw
+
 A module-level rate limiter (``_last_request_time`` / ``_min_request_gap``)
 paces requests across subreddits so a burst of N sub-reddit fetches doesn't
 trip Reddit's per-IP rate limit. The gap starts at 1.0 s and doubles on every
@@ -27,6 +33,7 @@ import html
 import http.client
 import json
 import logging
+import os
 import re
 import threading
 import time
@@ -48,6 +55,95 @@ _RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
+# -- PRAW OAuth support -----------------------------------------------------
+# Reddit's OAuth API gives ~60 req/min for authenticated requests vs ~10 for
+# unauthenticated RSS. When REDDIT_CLIENT_ID (+ optionally REDDIT_CLIENT_SECRET)
+# are set, we use PRAW for the richer JSON response (score / comment counts).
+# Script apps also need REDDIT_USERNAME / REDDIT_PASSWORD.
+# Without credentials the existing RSS fallback continues to work as before.
+_reddit_client = None
+
+
+def _has_praw_credentials() -> bool:
+    """True when sufficient Reddit OAuth credentials are configured."""
+    client_id = os.getenv("REDDIT_CLIENT_ID", "").strip()
+    return bool(client_id)
+
+
+def _get_praw_client():
+    """Lazily create a PRAW Reddit instance authenticated via OAuth.
+
+    Falls back to None if PRAW is not installed or credentials are missing.
+    """
+    global _reddit_client
+    if _reddit_client is not None:
+        return _reddit_client
+    if not _has_praw_credentials():
+        return None
+    try:
+        import praw
+    except ImportError:
+        logger.debug("PRAW not installed; Reddit OAuth unavailable.")
+        return None
+    client_id = os.getenv("REDDIT_CLIENT_ID", "").strip()
+    client_secret = os.getenv("REDDIT_CLIENT_SECRET", "").strip() or None
+    username = os.getenv("REDDIT_USERNAME", "").strip() or None
+    password = os.getenv("REDDIT_PASSWORD", "").strip() or None
+    try:
+        _reddit_client = praw.Reddit(
+            client_id=client_id,
+            client_secret=client_secret,
+            username=username,
+            password=password,
+            user_agent=_UA,
+        )
+        # Verify the client works by checking the rate limit endpoint.
+        # PRAW 7+ raises on auth failure here rather than on first search.
+        try:
+            _ = _reddit_client.auth.scopes()
+        except AttributeError:
+            pass  # Older PRAW versions don't have scopes(); that's fine
+        logger.info("Reddit: PRAW OAuth initialized (user=%s).", username or "<anonymous>")
+        return _reddit_client
+    except Exception as exc:
+        logger.warning("Reddit PRAW OAuth init failed: %s — falling back to RSS.", exc)
+        _reddit_client = None
+        return None
+
+
+def _fetch_subreddit_praw(
+    ticker: str,
+    sub: str,
+    limit: int,
+) -> list[dict]:
+    """Fetch via PRAW OAuth JSON endpoint (provides score / comment counts).
+
+    Requires ``REDDIT_CLIENT_ID`` env var (and ``REDDIT_CLIENT_SECRET`` for
+    script apps; anonymous read-only apps only need the client ID).
+    Falls back to the RSS path on any error so callers always get a result.
+    """
+    client = _get_praw_client()
+    if client is None:
+        return []  # Will trigger RSS fallback in _fetch_subreddit
+
+    try:
+        subreddit = client.subreddit(sub)
+        posts = []
+        for submission in subreddit.search(ticker, sort="new", time_filter="week", limit=limit):
+            posts.append({
+                "title": submission.title or "",
+                "score": submission.score,
+                "num_comments": submission.num_comments,
+                "created_utc": submission.created_utc,
+                "selftext": submission.selftext or "",
+                "source": "praw",
+            })
+        logger.debug("PRAW fetched %d posts for r/%s · %s", len(posts), sub, ticker)
+        return posts
+    except Exception as exc:
+        logger.debug("PRAW fetch failed for r/%s · %s: %s — falling back to RSS.", sub, ticker, exc)
+        return []  # Trigger RSS fallback
+
 # Default subreddits ordered roughly by signal density for ticker-specific
 # discussion. wallstreetbets has the most volume but most noise; stocks /
 # investing trend more measured. Caller can override.
@@ -67,6 +163,13 @@ _DECAY_AFTER = 30.0          # quiet period before resetting gap to baseline
 _last_request_time: float = 0.0
 _min_request_gap: float = _MIN_REQUEST_GAP
 _rate_lock = threading.Lock()
+
+# Track whether we've confirmed persistent rate limiting (429 on retry).
+# Set by _fetch_subreddit_rss when the retry also gets a 429, read by
+# fetch_reddit_posts to skip remaining subreddits rather than wasting
+# backoff time on requests that will also be throttled.
+_confirmed_rate_limited: bool = False
+_confirmed_rate_lock = threading.Lock()
 
 # -- In-memory TTL cache ----------------------------------------------------
 # Reddit RSS is per-IP rate limited.  Cache results per (ticker, sub) so
@@ -201,12 +304,17 @@ def _fetch_subreddit_rss(
             _on_rate_limited()
             if _retry:
                 wait = _retry_after_seconds(exc) or 5.0
-                logger.warning(
+                logger.debug(
                     "Reddit RSS 429 for r/%s · %s — backing off %.1fs then retrying once",
                     sub, ticker, wait,
                 )
                 time.sleep(wait)
                 return _fetch_subreddit_rss(ticker, sub, limit, timeout, _retry=False)
+            # Retry also failed with 429 — Reddit is actively throttling us.
+            # Signal fetch_reddit_posts to skip remaining subreddits rather
+            # than retrying each one (they will all fail).
+            with _confirmed_rate_lock:
+                _confirmed_rate_limited = True
         logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
         return []
     except (OSError, http.client.HTTPException, ET.ParseError) as exc:
@@ -269,11 +377,11 @@ def _fetch_subreddit(
     limit: int,
     timeout: float,
 ) -> list[dict]:
-    """Fetch one subreddit, RSS-first, with a TTL cache.
+    """Fetch one subreddit with TTL cache.
 
-    The JSON search endpoint is reliably WAF-blocked (403) for public clients,
-    so we go straight to the RSS feed — which serves our identified User-Agent
-    reliably — halving our request volume against Reddit's per-IP rate limit.
+    Tries PRAW OAuth first when credentials are set (higher rate limits,
+    richer data with score/comment counts). Falls back to RSS on any error
+    or when PRAW is unavailable, so callers always get a result.
 
     Results are cached in-memory for ``_CACHE_TTL`` seconds by ``(ticker, sub)``
     so repeated analysis runs for the same ticker skip the HTTP request.
@@ -281,6 +389,18 @@ def _fetch_subreddit(
     cached = _cache_get(ticker, sub)
     if cached is not None:
         return cached
+
+    # Try PRAW OAuth first — provides score/comment counts and ~60 req/min
+    # vs ~10 for unauthenticated RSS. Still uses _pace_request for safety.
+    if _has_praw_credentials():
+        _decay_gap_if_quiet()
+        _pace_request()
+        results = _fetch_subreddit_praw(ticker, sub, limit)
+        if results:
+            _cache_set(ticker, sub, results)
+            return results
+        # PRAW returned empty (auth failed or rate limited) — fall through to RSS
+
     results = _fetch_subreddit_rss(ticker, sub, limit, timeout)
     _cache_set(ticker, sub, results)
     return results
@@ -301,7 +421,21 @@ def fetch_reddit_posts(
     """
     blocks = []
     total_posts = 0
+    # Reset the confirmed-rate-limited flag so a new ticker's fetch gets a
+    # fresh chance — rate limiting may have subsided between calls.
+    with _confirmed_rate_lock:
+        _confirmed_rate_limited = False
     for sub in subreddits:
+        # If a previous subreddit confirmed persistent rate limiting (429
+        # on retry), skip remaining subreddits — they will also be throttled
+        # and each wastes 5+ seconds on a doomed retry.
+        with _confirmed_rate_lock:
+            if _confirmed_rate_limited:
+                blocks.append(
+                    f"r/{sub}: <skipped due to Reddit rate limiting — "
+                    f"use a smaller subreddit list or wait before retrying>"
+                )
+                continue
         posts = _fetch_subreddit(ticker, sub, limit_per_sub, timeout)
         total_posts += len(posts)
         if not posts:

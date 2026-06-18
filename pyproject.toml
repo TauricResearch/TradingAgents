@@ -50,6 +50,12 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Reddit PRAW OAuth support. Install with: pip install "tradingagents[reddit]"
+# for higher rate limits (~60 req/min vs ~10 for unauthenticated RSS) and
+# richer data with score/comment counts.
+reddit = [
+    "praw>=7.7.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

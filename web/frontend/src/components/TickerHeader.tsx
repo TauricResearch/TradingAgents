@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { startRun, cancelRun, fetchTickerRuns, type RunRow } from "../lib/api";
 import { useUi } from "../store/ui";
@@ -63,6 +63,23 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
     return { done: completed.size, total: started.size };
   }, [events, activeRunId]);
 
+  // Elapsed time for the active run (derived from the run_started event timestamp)
+  // Uses global eventBuffer directly so it works even when the user is viewing a different run.
+  const globalBuffer = useUi((s) => s.eventBuffer);
+  const runStartMs = useMemo(() => {
+    if (!activeRunId) return null;
+    const ev = globalBuffer.find((e) => e.type === "run_started" && e.run_id === activeRunId);
+    return ev?.ts ? new Date(ev.ts).getTime() : null;
+  }, [globalBuffer, activeRunId]);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    if (runStartMs == null) return;
+    const tick = () => setElapsedMs(Date.now() - runStartMs);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [runStartMs]);
+
   const setActiveRunIdForTicker = useUi((s) => s.setActiveRunIdForTicker);
   const setLastRunIdForTicker = useUi((s) => s.setLastRunIdForTicker);
   const setHistoricalRunForTicker = useUi((s) => s.setHistoricalRunForTicker);
@@ -116,12 +133,6 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
     }
   };
 
-  const actionLabel = start.isPending
-    ? "Starting…"
-    : hasHistoryForButton
-    ? "Re-run analysis"
-    : "Run analysis";
-
   return (
     <div className="flex items-center justify-between mb-5">
       <div>
@@ -156,8 +167,8 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
             <span className="text-amber-400/60">Unavailable on Yahoo Finance</span>
           ) : (
             <span className="data-text text-slate-400">
-              {price != null ? `$${price.toFixed(2)}` : "—"}
-              {' · '}USD
+              {price != null ? `$${price.toFixed(2)}` : "\u2014"}
+              {' \u00b7 '}USD
             </span>
           )}
         </p>
@@ -169,21 +180,27 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
             runs={Array.isArray(tickerRuns.data) ? tickerRuns.data : []}
             selectedRunId={historicalRunId}
             onSelect={onSelectHistorical}
-            disabled={isRunning}
+            disabled={false}
           />
         )}
         <button
           disabled={isRunning || start.isPending}
-          onClick={() => start.mutate()}
+          onClick={() => { if (!isRunning) start.mutate(); }}
           className="btn-primary"
         >
-          {start.isPending && (
+          {(isRunning || start.isPending) && (
             <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" className="opacity-25" />
               <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
           )}
-          {actionLabel}
+          {isRunning
+            ? `Running ${formatDuration(elapsedMs)}`
+            : start.isPending
+            ? "Starting..."
+            : hasHistoryForButton
+            ? "Re-run analysis"
+            : "Run analysis"}
         </button>
         {isRunning && (
           <button
@@ -197,7 +214,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
                 <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
               </svg>
             )}
-            {cancel.isPending ? "Cancelling…" : "Cancel"}
+            {cancel.isPending ? "Cancelling..." : "Cancel"}
           </button>
         )}
       </div>

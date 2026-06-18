@@ -80,6 +80,14 @@ class FredNotConfiguredError(VendorNotConfiguredError):
     keep working.
     """
 
+    def __init__(self, message: str | None = None):
+        hint = (
+            "FRED_API_KEY is not set. Get a free key at "
+            "https://fred.stlouisfed.org/docs/api/api_key.html, then set the "
+            "FRED_API_KEY environment variable (or add it to your .env file)."
+        )
+        super().__init__(message or hint)
+
 
 def get_api_key() -> str:
     """Retrieve the FRED API key from the environment."""
