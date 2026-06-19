@@ -346,8 +346,11 @@ def _write_memory(context: dict, llm_response: dict, execution_result: dict, sco
     if not conclusions:
         conclusions = [f"Cycle analyzed {execution_result.get('scheduled', [])} tickers"]
 
+    with _lock:
+        next_cycle = _cycles_completed + 1
+
     entry = {
-        "cycle": _cycles_completed + 1,
+        "cycle": next_cycle,
         "timestamp": _now_iso(),
         "conclusions": conclusions,
         "strategies_validated": llm_response.get("sectors_to_watch", []),
@@ -361,9 +364,9 @@ def _write_memory(context: dict, llm_response: dict, execution_result: dict, sco
         scheduled_count = len(execution_result.get("scheduled", []))
         _activity_log.append({
             "timestamp": _last_cycle_at or _now_iso(),
-            "message": f"Cycle {_cycles_completed + 1}: {llm_response.get('reasoning_summary', '')} "
+            "message": f"Cycle {next_cycle}: {llm_response.get('reasoning_summary', '')} "
                        f"[{scheduled_count} backtests scheduled]",
-            "cycle": _cycles_completed + 1,
+            "cycle": next_cycle,
             "tickers_analyzed": len(context.get("universe", [])),
             "backtests_scheduled": scheduled_count,
         })

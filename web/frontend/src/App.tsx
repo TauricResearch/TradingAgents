@@ -358,12 +358,10 @@ export default function App() {
       {focused && historyOpen && (
         <HistoricalAnalysisDrawer ticker={focused} onClose={() => setHistoryOpen(false)} />
       )}
-      {tickerAgentDrawerOpen && (
-        <TickerAgentDrawer
-          open={tickerAgentDrawerOpen}
-          onClose={() => setTickerAgentDrawerOpen(false)}
-        />
-      )}
+      <TickerAgentDrawer
+        open={tickerAgentDrawerOpen}
+        onClose={() => setTickerAgentDrawerOpen(false)}
+      />
       <BackgroundRunsDrawer focusedTicker={focused ?? "AAPL"} />
       <SettingsPanel
         open={settingsOpen}

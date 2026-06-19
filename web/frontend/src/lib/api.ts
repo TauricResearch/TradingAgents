@@ -370,8 +370,8 @@ export interface AgentActivityEntry {
 
 export interface AccuracyEntry {
   total_runs: number;
-  correct: number;
-  incorrect: number;
+  right: number;
+  wrong: number;
   unknown: number;
   accuracy_pct: number | null;
 }

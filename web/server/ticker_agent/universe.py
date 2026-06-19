@@ -95,8 +95,12 @@ def _fetch_sp500_tickers() -> Optional[list[str]]:
     """Fetch S&P 500 constituents from Wikipedia via pandas."""
     try:
         import pandas as pd
-        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        tables = pd.read_html(url)
+        import requests
+        from io import StringIO
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        resp = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", headers=headers, timeout=15)
+        resp.raise_for_status()
+        tables = pd.read_html(StringIO(resp.text))
         df = tables[0]
         tickers = df["Symbol"].tolist()
         return [t.strip().upper() for t in tickers if t.strip()]

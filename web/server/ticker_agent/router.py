@@ -1,6 +1,8 @@
 """FastAPI router for the ticker accuracy agent."""
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -52,7 +54,6 @@ def get_accuracy_leaderboard():
     state_path = storage.ticker_agent_path("agent_state.json")
     if not state_path.exists():
         return {"scores": {}, "last_evaluated": None}
-    import json
     try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
         scores = state.get("scores", {})
