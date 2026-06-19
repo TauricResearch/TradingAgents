@@ -149,6 +149,11 @@ def get_stock_stats_indicators_window(
             "Usage: Identify overbought (>80) or oversold (<20) conditions and confirm the strength of trends or reversals. "
             "Tips: Use alongside RSI or MACD to confirm signals; divergence between price and MFI can indicate potential reversals."
         ),
+        "stochrsi": (
+            "StochRSI: Stochastic RSI is a momentum oscillator that measures the level of RSI relative to its high-low range. "
+            "Usage: Identify overbought (>0.8) and oversold (<0.2) conditions; values oscillate between 0 and 1. "
+            "Tips: Combine with trend analysis to avoid false signals in strong trends."
+        ),
     }
 
     if indicator not in best_ind_params:
