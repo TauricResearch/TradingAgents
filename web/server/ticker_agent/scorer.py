@@ -96,8 +96,11 @@ def compute_score_for_ticker(ticker: str, runs: list[dict]) -> TickerScore | Non
 
         confidence = run.get("decision_confidence")
         if confidence is not None:
-            total_confidence += float(confidence)
-            confidence_count += 1
+            try:
+                total_confidence += float(confidence)
+                confidence_count += 1
+            except (ValueError, TypeError):
+                pass
 
         target = run.get("decision_target")
         if target is not None and outcome in ("right", "wrong"):

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  getTickerHistory, type HistoryRange, type RunDetail, type Bar,
+  getTickerHistory, getAccuracyLeaderboard, type HistoryRange, type RunDetail, type Bar,
 } from "../lib/api";
 import { useUi, type HistoryPollInterval } from "../store/ui";
 import {
@@ -106,6 +106,18 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   const setCandleResolution = useUi((s) => s.setCandleResolution);
   const tick = useTickingNow(1000);
 
+  const { data: accuracyData } = useQuery({
+    queryKey: ["ticker-agent", "leaderboard"],
+    queryFn: getAccuracyLeaderboard,
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
+
+  const tickerAccuracy = accuracyData?.scores?.[ticker] as
+    | { accuracy_pct?: number; total_runs?: number; win_rate?: number }
+    | undefined;
+  const accuracyPct = tickerAccuracy?.accuracy_pct ?? (tickerAccuracy?.win_rate != null ? tickerAccuracy.win_rate * 100 : null);
+
   const query = useQuery({
     queryKey: ["ticker-history", ticker, range],
     queryFn: () => getTickerHistory(ticker, range),
@@ -186,6 +198,15 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
         <div className="flex items-center gap-2">
           <h3 className="font-display font-semibold text-slate-200">{ticker}</h3>
+          {accuracyPct != null && (
+            <span className={`tag text-[10px] px-1.5 py-0.5 ${
+              accuracyPct >= 70 ? "tag-buy" :
+              accuracyPct >= 40 ? "tag-hold" :
+              "tag-sell"
+            }`}>
+              {accuracyPct.toFixed(0)}% accuracy
+            </span>
+          )}
           <select
             data-testid="range-select"
             value={range}

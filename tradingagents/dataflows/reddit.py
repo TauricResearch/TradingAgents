@@ -179,6 +179,22 @@ _CACHE_TTL = 3600.0
 _cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
 _cache_lock = threading.Lock()
 
+# -- Per-(ticker, sub) deduplication locks ----------------------------------
+# When multiple threads (e.g. background run parallel workers) fetch the same
+# (ticker, sub) simultaneously, only one thread makes the HTTP request; the
+# others wait for the lock, then find the result already cached.
+_fetch_dedup_locks: dict[tuple[str, str], threading.Lock] = {}
+_fetch_dedup_locks_lock = threading.Lock()
+
+
+def _dedup_lock(ticker: str, sub: str) -> threading.Lock:
+    """Return or create a deduplication lock for ``(ticker, sub)``."""
+    key = (ticker.upper(), sub)
+    with _fetch_dedup_locks_lock:
+        if key not in _fetch_dedup_locks:
+            _fetch_dedup_locks[key] = threading.Lock()
+        return _fetch_dedup_locks[key]
+
 
 def _cache_get(ticker: str, sub: str) -> list[dict] | None:
     """Return cached posts for ``(ticker, sub)`` or ``None`` if stale/missing."""
@@ -377,7 +393,7 @@ def _fetch_subreddit(
     limit: int,
     timeout: float,
 ) -> list[dict]:
-    """Fetch one subreddit with TTL cache.
+    """Fetch one subreddit with TTL cache and thread deduplication.
 
     Tries PRAW OAuth first when credentials are set (higher rate limits,
     richer data with score/comment counts). Falls back to RSS on any error
@@ -385,25 +401,33 @@ def _fetch_subreddit(
 
     Results are cached in-memory for ``_CACHE_TTL`` seconds by ``(ticker, sub)``
     so repeated analysis runs for the same ticker skip the HTTP request.
+
+    A per-(ticker, sub) deduplication lock ensures that when multiple threads
+    (e.g. background run parallel workers) request the same pair concurrently,
+    only one thread makes the HTTP request — the rest wait for the lock, then
+    find the result already cached.
     """
     cached = _cache_get(ticker, sub)
     if cached is not None:
         return cached
 
-    # Try PRAW OAuth first — provides score/comment counts and ~60 req/min
-    # vs ~10 for unauthenticated RSS. Still uses _pace_request for safety.
-    if _has_praw_credentials():
-        _decay_gap_if_quiet()
-        _pace_request()
-        results = _fetch_subreddit_praw(ticker, sub, limit)
-        if results:
-            _cache_set(ticker, sub, results)
-            return results
-        # PRAW returned empty (auth failed or rate limited) — fall through to RSS
+    lock = _dedup_lock(ticker, sub)
+    with lock:
+        cached = _cache_get(ticker, sub)
+        if cached is not None:
+            return cached
 
-    results = _fetch_subreddit_rss(ticker, sub, limit, timeout)
-    _cache_set(ticker, sub, results)
-    return results
+        if _has_praw_credentials():
+            _decay_gap_if_quiet()
+            _pace_request()
+            results = _fetch_subreddit_praw(ticker, sub, limit)
+            if results:
+                _cache_set(ticker, sub, results)
+                return results
+
+        results = _fetch_subreddit_rss(ticker, sub, limit, timeout)
+        _cache_set(ticker, sub, results)
+        return results
 
 
 def fetch_reddit_posts(

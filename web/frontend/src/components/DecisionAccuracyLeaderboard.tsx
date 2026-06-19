@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchWatchlist, fetchPrices } from "../lib/api";
-import { useUi } from "../store/ui";
-import type { WsEvent } from "../lib/events";
+import { fetchWatchlist, getAccuracyLeaderboard } from "../lib/api";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -12,50 +10,29 @@ interface DecisionAccuracyLeaderboardProps {
   onClose?: () => void;
 }
 
-interface PriceData {
-  price: number;
-  change_pct: number;
-  sparkline: number[];
-  stale: boolean;
-}
-
-interface DecisionData {
-  action: string;
-  target: number;
-  rationale: string;
-  confidence: number;
-}
-
 interface TickerAccuracy {
   rank: number;
   ticker: string;
   companyName: string;
-  totalDecisions: number;
-  wins: number;
-  losses: number;
-  winRate: number | null;
-  avgConfidence: number | null;
+  total_runs: number;
+  right: number;
+  wrong: number;
+  win_rate: number | null;
+  accuracy_pct: number | null;
+  avg_confidence: number | null;
+  trending_accuracy: number | null;
+  last_evaluated: string | null;
 }
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Classify a single decision outcome based on price movement. */
-function classifyOutcome(
-  action: string,
-  changePct: number,
-): "win" | "loss" | "neutral" {
-  if (action === "BUY") return changePct > 0 ? "win" : "loss";
-  if (action === "SELL") return changePct < 0 ? "win" : "loss";
-  return "neutral";
-}
-
-/** Tailwind text color class for a given win-rate value. */
-function winRateColor(rate: number | null): string {
-  if (rate == null) return "text-slate-500";
-  if (rate >= 70) return "text-emerald-400";
-  if (rate >= 40) return "text-amber-400";
+/** Tailwind text color class for a given accuracy percentage. */
+function accuracyColor(pct: number | null): string {
+  if (pct == null) return "text-slate-500";
+  if (pct >= 80) return "text-emerald-400";
+  if (pct >= 50) return "text-amber-400";
   return "text-red-400";
 }
 
@@ -70,82 +47,43 @@ export function DecisionAccuracyLeaderboard({
     queryKey: ["watchlist"],
     queryFn: fetchWatchlist,
   });
-  const { data: prices = {}, isLoading: pricesLoading } = useQuery({
-    queryKey: ["prices"],
-    queryFn: fetchPrices,
+
+  const { data: agentData, isLoading: agentLoading, isError: agentError } = useQuery({
+    queryKey: ["ticker-agent", "leaderboard"],
+    queryFn: getAccuracyLeaderboard,
+    refetchInterval: 30000,
   });
-  const eventBuffer = useUi((s) => s.eventBuffer);
-  const lastRunIdByTicker = useUi((s) => s.lastRunIdByTicker);
 
   const rows = useMemo(() => {
-    const pxMap = prices as Record<string, PriceData>;
+    if (!agentData?.scores) return [];
 
-    // -- Per-ticker accuracy computation --
-    const accuracies: TickerAccuracy[] = watchlist
-      .map((row) => {
-        const runId = lastRunIdByTicker[row.ticker] ?? null;
-        const px = pxMap[row.ticker];
+    const watchlistMap = new Map(watchlist.map((w) => [w.ticker, w.company_name]));
+    const scores = agentData.scores as Record<string, Record<string, unknown>>;
 
-        // All decision events for this ticker's last run
-        const decisions = eventBuffer.filter(
-          (e: WsEvent) => e.type === "decision" && e.run_id === runId,
-        );
+    return Object.entries(scores)
+      .filter(([, s]) => s && typeof s === "object")
+      .map(([ticker, s], i) => ({
+        rank: i + 1,
+        ticker,
+        companyName: watchlistMap.get(ticker) ?? "",
+        total_runs: (s.total_runs as number) ?? 0,
+        right: (s.right as number) ?? 0,
+        wrong: (s.wrong as number) ?? 0,
+        win_rate: (s.win_rate as number | null) ?? null,
+        accuracy_pct: (s.accuracy_pct as number | null) ?? null,
+        avg_confidence: (s.avg_confidence as number | null) ?? null,
+        trending_accuracy: (s.trending_accuracy as number | null) ?? null,
+        last_evaluated: (s.last_evaluated as string | null) ?? null,
+      }))
+      .sort((a, b) => {
+        const aPct = a.accuracy_pct ?? -1;
+        const bPct = b.accuracy_pct ?? -1;
+        if (bPct !== aPct) return bPct - aPct;
+        return b.total_runs - a.total_runs;
+      });
+  }, [agentData, watchlist]);
 
-        const totalDecisions = decisions.length;
-        if (totalDecisions === 0) return null;
-
-        let wins = 0;
-        let losses = 0;
-        let totalConfidence = 0;
-        let confidenceCount = 0;
-
-        for (const dec of decisions) {
-          const d = dec.data as DecisionData;
-
-          if (typeof d.confidence === "number") {
-            totalConfidence += d.confidence;
-            confidenceCount++;
-          }
-
-          if (px && typeof px.change_pct === "number") {
-            const outcome = classifyOutcome(d.action, px.change_pct);
-            if (outcome === "win") wins++;
-            else if (outcome === "loss") losses++;
-          }
-        }
-
-        const winRate =
-          wins + losses > 0 ? (wins / (wins + losses)) * 100 : null;
-        const avgConfidence =
-          confidenceCount > 0 ? totalConfidence / confidenceCount : null;
-
-        return {
-          rank: 0,
-          ticker: row.ticker,
-          companyName: row.company_name,
-          totalDecisions,
-          wins,
-          losses,
-          winRate,
-          avgConfidence,
-        };
-      })
-      .filter((t): t is TickerAccuracy => t !== null);
-
-    // Sort by win rate descending (null rates sink to the bottom)
-    accuracies.sort((a, b) => {
-      const aRate = a.winRate ?? -1;
-      const bRate = b.winRate ?? -1;
-      if (bRate !== aRate) return bRate - aRate;
-      // Tiebreaker: total decisions descending
-      return b.totalDecisions - a.totalDecisions;
-    });
-
-    // Assign ordinal ranks
-    return accuracies.map((t, i) => ({ ...t, rank: i + 1 }));
-  }, [watchlist, prices, eventBuffer, lastRunIdByTicker]);
-
-  const isLoading = watchlistLoading || pricesLoading;
+  const isLoading = watchlistLoading || agentLoading;
 
   return (
     <div className="glass-panel">
@@ -171,9 +109,13 @@ export function DecisionAccuracyLeaderboard({
         <div className="flex items-center justify-center py-12">
           <div className="w-8 h-8 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
         </div>
+      ) : agentError ? (
+        <div className="text-center py-12">
+          <p className="text-sm text-red-400">Failed to load agent accuracy data.</p>
+        </div>
       ) : rows.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-sm text-slate-500">No decision data yet.</p>
+          <p className="text-sm text-slate-500">No accuracy data yet. Run the Ticker Accuracy Agent to populate.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -182,12 +124,13 @@ export function DecisionAccuracyLeaderboard({
               <tr className="border-b border-slate-800/60 text-slate-500 font-medium uppercase tracking-wider">
                 <th className="px-4 py-2.5 text-left w-10">#</th>
                 <th className="px-4 py-2.5 text-left">Ticker</th>
-                <th className="px-4 py-2.5 text-left">Company Name</th>
-                <th className="px-4 py-2.5 text-right">Decisions</th>
+                <th className="px-4 py-2.5 text-left">Company</th>
+                <th className="px-4 py-2.5 text-right">Runs</th>
                 <th className="px-4 py-2.5 text-right">Wins</th>
                 <th className="px-4 py-2.5 text-right">Losses</th>
-                <th className="px-4 py-2.5 text-right">Win Rate</th>
-                <th className="px-4 py-2.5 text-right">Avg Confidence</th>
+                <th className="px-4 py-2.5 text-right">Accuracy</th>
+                <th className="px-4 py-2.5 text-right">Trending</th>
+                <th className="px-4 py-2.5 text-right">Confidence</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/40">
@@ -202,33 +145,38 @@ export function DecisionAccuracyLeaderboard({
                       {row.ticker}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-slate-400 truncate max-w-[200px]">
-                    {row.companyName}
+                  <td className="px-4 py-2.5 text-slate-400 truncate max-w-[160px]">
+                    {row.companyName || "—"}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="data-text text-slate-300">
-                      {row.totalDecisions}
+                      {row.total_runs}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="data-text text-emerald-400">
-                      {row.wins}
+                      {row.right}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="data-text text-red-400">
-                      {row.losses}
+                      {row.wrong}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <span className={`data-text ${winRateColor(row.winRate)}`}>
-                      {row.winRate != null ? `${row.winRate.toFixed(0)}%` : "—"}
+                    <span className={`data-text ${accuracyColor(row.accuracy_pct)}`}>
+                      {row.accuracy_pct != null ? `${row.accuracy_pct.toFixed(1)}%` : "—"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <span className={`data-text ${accuracyColor(row.trending_accuracy)}`}>
+                      {row.trending_accuracy != null ? `${row.trending_accuracy.toFixed(1)}%` : "—"}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="data-text text-sky-400">
-                      {row.avgConfidence != null
-                        ? `${(row.avgConfidence * 100).toFixed(0)}%`
+                      {row.avg_confidence != null
+                        ? `${(row.avg_confidence * 100).toFixed(0)}%`
                         : "—"}
                     </span>
                   </td>

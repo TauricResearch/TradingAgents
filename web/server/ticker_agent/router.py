@@ -55,9 +55,22 @@ def get_accuracy_leaderboard():
     import json
     try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
-        return {"scores": state.get("scores", {}), "last_evaluated": state.get("last_evaluated")}
+        scores = state.get("scores", {})
+        for ticker, entry in scores.items():
+            if isinstance(entry, dict):
+                if "accuracy_pct" not in entry and "win_rate" in entry:
+                    wr = entry.get("win_rate")
+                    entry["accuracy_pct"] = round((wr or 0) * 100, 1) if wr is not None else None
+                if "trending_accuracy" in entry and isinstance(entry["trending_accuracy"], float) and entry["trending_accuracy"] < 1:
+                    entry["trending_accuracy"] = round(entry["trending_accuracy"] * 100, 1)
+        return {"scores": scores, "last_evaluated": state.get("last_evaluated")}
     except (json.JSONDecodeError, OSError):
         return {"scores": {}, "last_evaluated": None}
+
+
+@router.get("/live-events")
+def get_live_events(since: int = 0):
+    return orchestrator.live_events(since=since)
 
 
 @router.get("/activity-log")
@@ -67,12 +80,30 @@ def get_activity_log(limit: int = 10):
 
 @router.get("/missing-capabilities")
 def get_missing_capabilities():
-    return {"capabilities": [vars(c) for c in read_missing()]}
+    return {"capabilities": [
+        {
+            "name": c.name,
+            "description": c.description,
+            "suggested_endpoint": c.suggested_endpoint,
+            "logged_at": c.logged_at,
+            "message": c.description,
+        }
+        for c in read_missing()
+    ]}
 
 
 @router.get("/capabilities")
 def get_capabilities():
-    return {"capabilities": [vars(c) for c in discover_api_capabilities()]}
+    return {"capabilities": [
+        {
+            "name": c.path.split("/")[-1].replace("{", "").replace("}", "") if c.path != "/api/health" else "health",
+            "path": c.path,
+            "method": c.method,
+            "purpose": c.purpose,
+            "available": c.available,
+        }
+        for c in discover_api_capabilities()
+    ]}
 
 
 @router.get("/config")

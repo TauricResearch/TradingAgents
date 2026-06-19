@@ -1,3 +1,4 @@
+import { useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getTickerAgentStatus,
@@ -8,7 +9,20 @@ import {
   getActivityLog,
   getCapabilities,
   getMissingCapabilities,
+  getTickerAgentLiveEvents,
 } from "../lib/api";
+import type { AgentLiveEvent } from "../lib/api";
+
+const STEP_LABELS = [
+  "Idle",
+  "Read Memory",
+  "Gather Context",
+  "LLM Strategy",
+  "Execute",
+  "Rank & Reflect",
+  "Write Memory",
+  "Self-Improvement",
+];
 
 interface TickerAgentDrawerProps {
   open: boolean;
@@ -30,13 +44,82 @@ function accuracyColor(pct: number | null): string {
   return "text-red-400";
 }
 
+function StepProgressBar({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="space-y-1">
+      {STEP_LABELS.map((label, i) => {
+        if (i === 0) return null;
+        const done = i < currentStep;
+        const active = i === currentStep;
+        return (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <div className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${
+              done
+                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
+                : active
+                ? "bg-sky-500/20 border-sky-400/60 text-sky-300 animate-pulse"
+                : "bg-slate-800/50 border-slate-700/50 text-slate-600"
+            }`}>
+              {done ? "✓" : i}
+            </div>
+            <span className={`${
+              active ? "text-sky-300 font-medium" : done ? "text-slate-400" : "text-slate-600"
+            }`}>
+              {label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LiveEventFeed({ events, currentStep }: { events: AgentLiveEvent[]; currentStep: number }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [events.length]);
+
+  if (currentStep === 0) return null;
+
+  return (
+    <div className="space-y-0.5 max-h-28 overflow-y-auto text-[11px] font-mono">
+      {events.length === 0 && (
+        <div className="text-slate-600 italic">Waiting for events...</div>
+      )}
+      {events.map((ev) => (
+        <div key={ev.id} className="flex items-start gap-1.5 text-slate-400">
+          <span className="shrink-0 text-slate-600">
+            {ev.timestamp.slice(11, 19)}
+          </span>
+          <span className="shrink-0 text-sky-600">[{ev.step}/7]</span>
+          <span className="truncate">{ev.message}</span>
+        </div>
+      ))}
+      <div ref={bottomRef} />
+    </div>
+  );
+}
+
 export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
+  if (!open) return null;
+
   const qc = useQueryClient();
 
   const { data: status, isLoading: statusLoading } = useQuery({
     queryKey: ["ticker-agent", "status"],
     queryFn: getTickerAgentStatus,
     refetchInterval: 5000,
+  });
+
+  const currentStatus = status?.status ?? "idle";
+
+  const { data: liveData } = useQuery({
+    queryKey: ["ticker-agent", "live-events"],
+    queryFn: () => getTickerAgentLiveEvents(0),
+    refetchInterval: currentStatus === "running" ? 1000 : 30000,
+    enabled: currentStatus === "running",
   });
 
   const { data: leaderboard, isLoading: lbLoading, isError: lbError, error: lbErrorObj, refetch: lbRefetch } = useQuery({
@@ -82,7 +165,10 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
     },
   });
 
-  const currentStatus = status?.status ?? "idle";
+  const steps = useMemo(() => STEP_LABELS, []);
+
+  const currentStep = liveData?.current_step ?? status?.current_step ?? 0;
+  const events = liveData?.events ?? [];
 
   let statusLabel: string;
   let statusDot: string;
@@ -129,9 +215,9 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusBadgeColor(currentStatus)}`}>
                   {statusLabel}
                 </span>
-                {currentStatus === "running" && status?.current_cycle_ticker && (
+                {currentStatus === "running" && currentStep > 0 && (
                   <span className="text-xs text-slate-500 ml-auto">
-                    Processing <span className="font-mono text-slate-300">{status.current_cycle_ticker}</span>
+                    Step <span className="font-mono text-sky-400">{currentStep}/7</span>
                   </span>
                 )}
               </div>
@@ -160,6 +246,12 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
                 </button>
               </div>
 
+              {currentStep > 0 && (
+                <div className="text-xs text-sky-400">
+                  Current: <span className="font-medium">{steps[currentStep]}</span>
+                </div>
+              )}
+
               {status?.last_run_at && (
                 <div className="text-xs text-slate-500">
                   Last run: <span className="text-slate-400">{new Date(status.last_run_at).toLocaleString()}</span>
@@ -174,7 +266,23 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           )}
         </div>
 
-        {/* Section 2: Accuracy Leaderboard */}
+        {/* Section 2: Step Progress (only during running) */}
+        {currentStatus === "running" && (
+          <div className="glass-panel p-3 space-y-2">
+            <span className="section-header">Step Progress</span>
+            <StepProgressBar currentStep={currentStep} />
+          </div>
+        )}
+
+        {/* Section 3: Live Activity Feed (only during running) */}
+        {currentStatus === "running" && (
+          <div className="glass-panel p-3 space-y-2">
+            <span className="section-header">Live Activity</span>
+            <LiveEventFeed events={events} currentStep={currentStep} />
+          </div>
+        )}
+
+        {/* Section 4: Accuracy Leaderboard */}
         <div className="glass-panel p-3 space-y-2">
           <span className="section-header">Accuracy Leaderboard</span>
           {lbLoading ? (
@@ -207,7 +315,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           )}
         </div>
 
-        {/* Section 3: Activity Log */}
+        {/* Section 5: Enhanced Activity Log */}
         <div className="glass-panel p-3 space-y-2">
           <span className="section-header">Activity Log</span>
           {logLoading ? (
@@ -222,10 +330,26 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           ) : activityLog && activityLog.entries.length > 0 ? (
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {activityLog.entries.map((entry, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs py-1 border-b border-slate-800 last:border-0">
-                  <span className="text-slate-600 shrink-0 whitespace-nowrap">{new Date(entry.timestamp).toLocaleString()}</span>
-                  <span className="text-slate-400">{entry.message}</span>
-                </div>
+                <details key={i} className="group text-xs border-b border-slate-800 last:border-0 py-1">
+                  <summary className="flex items-start gap-2 cursor-pointer text-slate-400 hover:text-slate-300">
+                    <span className="text-slate-600 shrink-0 whitespace-nowrap">{new Date(entry.timestamp).toLocaleString()}</span>
+                    <span className="line-clamp-1">{entry.message}</span>
+                  </summary>
+                  <div className="mt-1 ml-0 space-y-0.5 text-[11px] text-slate-500 pl-0">
+                    {"tickers_analyzed" in entry && entry.tickers_analyzed != null && (
+                      <div>Tickers analyzed: {entry.tickers_analyzed}</div>
+                    )}
+                    {"backtests_scheduled" in entry && entry.backtests_scheduled != null && (
+                      <div>Backtests scheduled: {entry.backtests_scheduled}</div>
+                    )}
+                    {"cycle" in entry && entry.cycle != null && (
+                      <div>Cycle: {entry.cycle}</div>
+                    )}
+                    {"reasoning" in entry && entry.reasoning && (
+                      <div>Reasoning: {entry.reasoning}</div>
+                    )}
+                  </div>
+                </details>
               ))}
             </div>
           ) : (
@@ -233,15 +357,16 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           )}
         </div>
 
-        {/* Section 4: Capabilities & Missing */}
+        {/* Section 6: Capabilities & Missing */}
         <div className="glass-panel p-3 space-y-2">
           <span className="section-header">Capabilities</span>
           {caps && caps.capabilities.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-1 max-h-40 overflow-y-auto">
               {caps.capabilities.filter((c) => c.available).map((c) => (
-                <div key={c.name} className="flex items-center gap-2 text-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="text-slate-300">{c.name}</span>
+                <div key={c.path || c.name} className="flex items-center gap-2 text-xs">
+                  <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[10px] font-mono uppercase text-emerald-500 shrink-0">{c.method}</span>
+                  <span className="text-slate-400 truncate" title={c.path}>{c.path}</span>
                 </div>
               ))}
             </div>
@@ -252,12 +377,12 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
               <div className="space-y-1">
                 {missingCaps.capabilities.map((c) => (
                   <div key={c.name} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      <span className="text-slate-400">{c.name}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-slate-400 truncate">{c.description || c.name}</span>
                     </div>
                     <button
-                      className="btn-secondary text-[10px] px-2 py-0.5"
+                      className="btn-secondary text-[10px] px-2 py-0.5 shrink-0"
                       onClick={() => console.log("Implement", c.name)}
                     >
                       Implement →

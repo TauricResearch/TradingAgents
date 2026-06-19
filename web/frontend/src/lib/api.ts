@@ -330,13 +330,36 @@ export function resumeBackgroundRun(jobId: string): Promise<{ status: string }> 
   return postJson(`/api/background-runs/${encodeURIComponent(jobId)}/resume`, {});
 }
 
+export function deleteBackgroundRun(jobId: string): Promise<{ status: string }> {
+  return fetch(`/api/background-runs/${encodeURIComponent(jobId)}`, { method: "DELETE" }).then((r) => {
+    if (!r.ok) throw new Error(`delete background-run ${r.status}`);
+    return r.json();
+  });
+}
+
 // --- Ticker Accuracy Agent ---
 
 export interface TickerAgentStatus {
   status: "idle" | "running" | "paused";
   last_run_at: string | null;
   next_scheduled_at: string | null;
-  current_cycle_ticker: string | null;
+  cycles_completed: number;
+  current_step: number;
+  current_step_name: string;
+}
+
+export interface AgentLiveEvent {
+  id: number;
+  step: number;
+  step_name: string;
+  message: string;
+  timestamp: string;
+}
+
+export interface LiveEventsResponse {
+  events: AgentLiveEvent[];
+  current_step: number;
+  current_step_name: string;
 }
 
 export interface AgentActivityEntry {
@@ -397,6 +420,12 @@ export async function getAccuracyLeaderboard(): Promise<{ scores: Record<string,
 export async function getActivityLog(limit = 10): Promise<{ entries: AgentActivityEntry[] }> {
   const r = await fetch(`/api/ticker-agent/activity-log?limit=${limit}`);
   if (!r.ok) throw new Error(`ticker-agent activity ${r.status}`);
+  return r.json();
+}
+
+export async function getTickerAgentLiveEvents(since = 0): Promise<LiveEventsResponse> {
+  const r = await fetch(`/api/ticker-agent/live-events?since=${since}`);
+  if (!r.ok) throw new Error(`ticker-agent live-events ${r.status}`);
   return r.json();
 }
 

@@ -340,6 +340,112 @@ class TestHasDoneRun:
         assert _has_done_run("NVDA", "2024-02-04") is False
 
 
+class TestRangesOverlap:
+    def test_exact_same_range(self):
+        from web.server.background_runs import _ranges_overlap
+        assert _ranges_overlap("2024-01-01", "2024-01-05", "2024-01-01", "2024-01-05") is True
+
+    def test_partial_overlap(self):
+        from web.server.background_runs import _ranges_overlap
+        assert _ranges_overlap("2024-01-01", "2024-01-10", "2024-01-05", "2024-01-15") is True
+
+    def test_first_contains_second(self):
+        from web.server.background_runs import _ranges_overlap
+        assert _ranges_overlap("2024-01-01", "2024-01-31", "2024-01-10", "2024-01-20") is True
+
+    def test_no_overlap(self):
+        from web.server.background_runs import _ranges_overlap
+        assert _ranges_overlap("2024-01-01", "2024-01-10", "2024-01-11", "2024-01-20") is False
+
+    def test_adjacent_not_overlapping(self):
+        from web.server.background_runs import _ranges_overlap
+        assert _ranges_overlap("2024-01-01", "2024-01-05", "2024-01-06", "2024-01-10") is False
+
+
+class TestHasOverlappingJob:
+    def _make_state(self, root, job_id, ticker, status, date_from="2024-01-01", date_to="2024-01-10"):
+        from web.server.background_runs import job_dir, BackgroundRunState
+        d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+        state = BackgroundRunState(
+            job_id=job_id, ticker=ticker, date_from=date_from,
+            date_to=date_to, every="1d", parallel=1, total=2,
+        )
+        state.status = status
+        state.persist()
+        return state
+
+    def _clean_jobs(self):
+        from web.server.background_runs import _jobs
+        _jobs.clear()
+
+    def test_overlapping_running_in_memory(self, tmp_path, monkeypatch):
+        self._clean_jobs()
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import register_handle, _has_overlapping_job
+        register_handle("bgr_OV1", "NVDA", "2024-01-01", "2024-01-10", "1d", 1, 2)
+        found, jid, st = _has_overlapping_job("NVDA", "2024-01-05", "2024-01-15")
+        assert found is True
+        assert jid == "bgr_OV1"
+        assert st == "running"
+
+    def test_non_overlapping_in_memory(self, tmp_path, monkeypatch):
+        self._clean_jobs()
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import register_handle, _has_overlapping_job
+        register_handle("bgr_OV2", "NVDA", "2024-01-01", "2024-01-10", "1d", 1, 2)
+        found, _, _ = _has_overlapping_job("NVDA", "2024-01-11", "2024-01-20")
+        assert found is False
+
+    def test_no_active_job_returns_false(self):
+        self._clean_jobs()
+        from web.server.background_runs import _has_overlapping_job
+        found, _, _ = _has_overlapping_job("ZZZZ", "2024-01-01", "2024-01-10")
+        assert found is False
+
+    def test_overlapping_running_on_disk(self, tmp_path, monkeypatch):
+        self._clean_jobs()
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import _has_overlapping_job
+        self._make_state(tmp_path, "bgr_OV3", "NVDA", "running", "2024-01-01", "2024-01-10")
+        found, jid, st = _has_overlapping_job("NVDA", "2024-01-05", "2024-01-15")
+        assert found is True
+        assert jid == "bgr_OV3"
+        assert st == "running"
+
+    def test_non_overlapping_on_disk(self, tmp_path, monkeypatch):
+        self._clean_jobs()
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import _has_overlapping_job
+        self._make_state(tmp_path, "bgr_OV4", "NVDA", "running", "2024-01-01", "2024-01-10")
+        found, _, _ = _has_overlapping_job("NVDA", "2024-01-11", "2024-01-20")
+        assert found is False
+
+    def test_terminal_on_disk_not_overlapping(self, tmp_path, monkeypatch):
+        self._clean_jobs()
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import _has_overlapping_job
+        self._make_state(tmp_path, "bgr_OV5", "NVDA", "done", "2024-01-01", "2024-01-10")
+        found, _, _ = _has_overlapping_job("NVDA", "2024-01-05", "2024-01-15")
+        assert found is False
+
+    def test_case_insensitive_ticker_match(self, tmp_path, monkeypatch):
+        self._clean_jobs()
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import register_handle, _has_overlapping_job
+        register_handle("bgr_OV6", "NVDA", "2024-01-01", "2024-01-10", "1d", 1, 2)
+        found, _, _ = _has_overlapping_job("nvda", "2024-01-05", "2024-01-15")
+        assert found is True
+
+    def test_overlapping_paused_on_disk(self, tmp_path, monkeypatch):
+        self._clean_jobs()
+        monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
+        from web.server.background_runs import _has_overlapping_job
+        self._make_state(tmp_path, "bgr_OV7", "MU", "paused", "2024-02-01", "2024-02-10")
+        found, _, st = _has_overlapping_job("MU", "2024-02-05", "2024-02-08")
+        assert found is True
+        assert st == "paused"
+
+
 class TestRecordIterationError:
     def test_records_error_to_json(self, tmp_path, monkeypatch):
         from web.server.background_runs import _record_iteration_error, iteration_errors_path
@@ -505,7 +611,12 @@ class TestLoadExistingJobs:
 
 
 class TestStart:
+    def _clean_jobs(self):
+        from web.server.background_runs import _jobs
+        _jobs.clear()
+
     def test_start_creates_job_and_returns_id(self, tmp_path, monkeypatch, fake_propagate):
+        self._clean_jobs()
         _setup_test_storage(tmp_path, monkeypatch)
         job_id = background_runs.start(
             ticker="NVDA", date_from="2024-05-01", date_to="2024-05-03",
@@ -525,6 +636,7 @@ class TestStart:
         assert handle.state.current_index == 3
 
     def test_start_rejects_invalid_inputs(self, tmp_path, monkeypatch):
+        self._clean_jobs()
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
         with pytest.raises(ValueError, match="date_from"):
             background_runs.start("NVDA", "2024-06-30", "2024-01-01", "1d", 1)
@@ -537,9 +649,52 @@ class TestStart:
         with pytest.raises(ValueError, match="ticker"):
             background_runs.start("lowercase", "2024-01-01", "2024-01-05", "1d", 1)
 
+    def test_start_rejects_overlapping_range(self, tmp_path, monkeypatch, fake_propagate):
+        """Starting a second job for the same ticker with overlapping range raises."""
+        self._clean_jobs()
+        _setup_test_storage(tmp_path, monkeypatch)
+        jid1 = background_runs.start("NVDA", "2024-05-01", "2024-05-10", "1d", 1)
+        with pytest.raises(ValueError, match="already running"):
+            background_runs.start("NVDA", "2024-05-05", "2024-05-15", "1d", 1)
+        h = background_runs.get_handle(jid1)
+        if h and h.thread:
+            h.thread.join(timeout=5.0)
+
+    def test_start_allows_non_overlapping_same_ticker(self, tmp_path, monkeypatch, fake_propagate):
+        """Same ticker with non-overlapping date range is fine while first runs."""
+        self._clean_jobs()
+        _setup_test_storage(tmp_path, monkeypatch)
+        jid1 = background_runs.start("NVDA", "2024-05-01", "2024-05-10", "1d", 1)
+        jid2 = background_runs.start("NVDA", "2024-06-01", "2024-06-10", "1d", 1)
+        assert jid2.startswith("bgr_")
+        assert jid1.startswith("bgr_")
+        for jid in (jid1, jid2):
+            h = background_runs.get_handle(jid)
+            if h and h.thread:
+                h.thread.join(timeout=5.0)
+
+    def test_start_allows_overlapping_after_job_finishes(self, tmp_path, monkeypatch, fake_propagate):
+        """After a job finishes, overlapping range for same ticker is fine."""
+        self._clean_jobs()
+        _setup_test_storage(tmp_path, monkeypatch)
+        jid1 = background_runs.start("NVDA", "2024-05-01", "2024-05-03", "1d", 1)
+        h1 = background_runs.get_handle(jid1)
+        if h1 and h1.thread:
+            h1.thread.join(timeout=5.0)
+        jid2 = background_runs.start("NVDA", "2024-05-01", "2024-05-03", "1d", 1)
+        assert jid2 != jid1
+        h2 = background_runs.get_handle(jid2)
+        if h2 and h2.thread:
+            h2.thread.join(timeout=5.0)
+
 
 class TestGetAndList:
+    def _clean_jobs(self):
+        from web.server.background_runs import _jobs
+        _jobs.clear()
+
     def test_get_returns_state_dict(self, tmp_path, monkeypatch, fake_propagate):
+        self._clean_jobs()
         _setup_test_storage(tmp_path, monkeypatch)
         job_id = background_runs.start("MU", "2024-05-06", "2024-05-06", "1d", 1)
         h = background_runs.get_handle(job_id)
@@ -556,6 +711,7 @@ class TestGetAndList:
             background_runs.get("bgr_DOES_NOT_EXIST")
 
     def test_list_jobs_returns_recent_first(self, tmp_path, monkeypatch, fake_propagate):
+        self._clean_jobs()
         _setup_test_storage(tmp_path, monkeypatch)
         id1 = background_runs.start("AAPL", "2024-05-06", "2024-05-06", "1d", 1)
         h1 = background_runs.get_handle(id1)

@@ -288,6 +288,44 @@ def _has_done_run(ticker: str, date_iso: str) -> bool:
     return False
 
 
+def _ranges_overlap(a_from: str, a_to: str, b_from: str, b_to: str) -> bool:
+    """Return True if the two date ranges [from, to] overlap (inclusive)."""
+    return a_from <= b_to and a_to >= b_from
+
+
+def _has_overlapping_job(ticker: str, date_from: str, date_to: str) -> tuple[bool, str, str]:
+    """Check if there is an active (running/paused) background job for the
+    given ticker whose date range overlaps with ``[date_from, date_to]``.
+
+    Returns ``(True, job_id, status)`` if found, ``(False, "", "")`` otherwise.
+
+    Checks both in-memory handles and on-disk state files so that stale
+    state.json entries left after a crash are also detected.
+    """
+    ticker_upper = ticker.upper()
+    for jid, h in list(_jobs.items()):
+        s = h.state
+        if (s.ticker.upper() == ticker_upper and s.status in ("running", "paused")
+                and _ranges_overlap(date_from, date_to, s.date_from, s.date_to)):
+            return True, jid, s.status
+    bg_base = DATA_ROOT / "background_runs"
+    if bg_base.exists():
+        for d in sorted(bg_base.iterdir()):
+            if not d.is_dir():
+                continue
+            sp = d / "state.json"
+            if not sp.exists():
+                continue
+            try:
+                state = BackgroundRunState.load(d.name)
+            except (OSError, ValueError, KeyError):
+                continue
+            if (state.ticker.upper() == ticker_upper and state.status in ("running", "paused")
+                    and _ranges_overlap(date_from, date_to, state.date_from, state.date_to)):
+                return True, d.name, state.status
+    return False, "", ""
+
+
 def _record_iteration_error(state: BackgroundRunState, date_iso: str, error: str) -> None:
     p = iteration_errors_path(state.job_id)
     errors: dict[str, str] = {}
@@ -664,6 +702,16 @@ def _new_job_id(ticker: str) -> str:
 
 def start(ticker: str, date_from: str, date_to: str, every: str = "1d", parallel: int = 1) -> str:
     f, t = _validate_inputs(ticker, date_from, date_to, every, parallel)
+    found, existing_id, existing_status = _has_overlapping_job(ticker, date_from, date_to)
+    if found:
+        existing = get(existing_id)
+        raise ValueError(
+            f"A background run for {ticker} is already {existing_status} "
+            f"(job_id: {existing_id}) with date range "
+            f"{existing.get('date_from', '?')}..{existing.get('date_to', '?')}. "
+            f"Cancel or wait for it to complete before starting a new one "
+            f"with an overlapping range."
+        )
     date_list = dates(date_from, date_to, every)
     if not date_list:
         raise ValueError(f"date range {date_from}..{date_to} with every={every} produced no dates")
@@ -713,3 +761,14 @@ def list_jobs(limit: int = 50) -> list[dict]:
         if len(out) >= limit:
             break
     return out
+
+
+def delete_job(job_id: str) -> None:
+    h = get_handle(job_id)
+    if h is not None:
+        h.cancel_event.set()
+        unregister_handle(job_id)
+    d = job_dir(job_id)
+    if d.exists():
+        import shutil
+        shutil.rmtree(d)

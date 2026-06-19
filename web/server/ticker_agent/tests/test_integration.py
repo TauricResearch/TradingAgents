@@ -121,6 +121,16 @@ class TestIntegration:
         data = r.json()
         assert "capabilities" in data
 
+    def test_live_events_endpoint(self, client):
+        """GET /api/ticker-agent/live-events returns step tracking."""
+        r = client.get("/api/ticker-agent/live-events?since=0")
+        assert r.status_code == 200
+        data = r.json()
+        assert "events" in data
+        assert "current_step" in data
+        assert "current_step_name" in data
+        assert isinstance(data["events"], list)
+
     def test_activity_log_endpoint(self, client):
         """GET /api/ticker-agent/activity-log returns entries."""
         r = client.get("/api/ticker-agent/activity-log?limit=5")
@@ -129,10 +139,14 @@ class TestIntegration:
         assert "entries" in data
         assert isinstance(data["entries"], list)
 
+    @patch("web.server.ticker_agent.orchestrator.discover_universe")
+    @patch("web.server.ticker_agent.orchestrator._get_sector_performance")
     @patch("web.server.ticker_agent.orchestrator._execute_plan")
     @patch("web.server.ticker_agent.orchestrator._call_llm_strategy")
-    def test_run_now_cycle(self, mock_llm, mock_execute, client, seed_runs):
+    def test_run_now_cycle(self, mock_llm, mock_execute, mock_sector, mock_universe, client, seed_runs):
         """POST /api/ticker-agent/run-now executes a full agent cycle."""
+        mock_sector.return_value = ""
+        mock_universe.return_value = ["AAPL", "NVDA", "GOOGL"]
         mock_llm.return_value = {
             "investigation_plan": [],
             "sectors_to_watch": ["Technology"],
@@ -152,7 +166,18 @@ class TestIntegration:
         r2 = client.post("/api/ticker-agent/resume")
         assert r2.status_code == 200
 
-    def test_run_now_when_running(self, client):
-        """POST /api/ticker-agent/run-now while running returns result."""
+    @patch("web.server.ticker_agent.orchestrator.discover_universe")
+    @patch("web.server.ticker_agent.orchestrator._get_sector_performance")
+    @patch("web.server.ticker_agent.orchestrator._execute_plan")
+    @patch("web.server.ticker_agent.orchestrator._call_llm_strategy")
+    def test_run_now_when_running(self, mock_llm, mock_execute, mock_sector, mock_universe, client):
+        """POST /api/ticker-agent/run-now returns result."""
+        mock_llm.return_value = {
+            "investigation_plan": [],
+            "sectors_to_watch": ["Technology"],
+            "reasoning_summary": "test",
+            "conclusions": ["ok"],
+        }
+        mock_execute.return_value = {"scheduled": []}
         r = client.post("/api/ticker-agent/run-now")
-        assert r.status_code in (200, 500)
+        assert r.status_code == 200
