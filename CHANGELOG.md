@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Engine host / embedding APIs.** `TradingAgentsGraph.stream_run()` yields each
+  whole-state snapshot as the graph advances — a streaming sibling of
+  `propagate()` for live-progress hosts — while preserving the same state-log and
+  decision side effects. `resolve_pending_entries(ticker)` and
+  `resolve_all_pending()` expose outcome resolution as public entry points, so a
+  host can realize previously-pending decisions on a schedule without a full run.
+  Setting `TRADINGAGENTS_NO_DOTENV=1` skips the package-import `.env` load for
+  hosts that inject secrets themselves.
+
 ## [0.3.0] — 2026-06-22
 
 Stabilization and extensibility release: a CI gate, a unified verified
