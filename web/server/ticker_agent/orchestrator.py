@@ -479,7 +479,7 @@ def run_cycle() -> dict:
             _current_step = 0
             _cycles_completed += 1
             _current_status = "idle"
-            _emit_live(0, "Cycle complete.")
+        _emit_live(0, "Cycle complete.")
 
         return {"status": "completed", "cycles_completed": _cycles_completed}
 

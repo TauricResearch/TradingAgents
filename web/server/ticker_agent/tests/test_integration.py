@@ -6,6 +6,7 @@ and storage paths to avoid side effects.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -139,11 +140,12 @@ class TestIntegration:
         assert "entries" in data
         assert isinstance(data["entries"], list)
 
+    @patch("web.server.ticker_agent.orchestrator._self_improve")
     @patch("web.server.ticker_agent.orchestrator.discover_universe")
     @patch("web.server.ticker_agent.orchestrator._get_sector_performance")
     @patch("web.server.ticker_agent.orchestrator._execute_plan")
     @patch("web.server.ticker_agent.orchestrator._call_llm_strategy")
-    def test_run_now_cycle(self, mock_llm, mock_execute, mock_sector, mock_universe, client, seed_runs):
+    def test_run_now_cycle(self, mock_llm, mock_execute, mock_sector, mock_universe, mock_self_improve, client, seed_runs):
         """POST /api/ticker-agent/run-now executes a full agent cycle."""
         mock_sector.return_value = ""
         mock_universe.return_value = ["AAPL", "NVDA", "GOOGL"]
@@ -166,11 +168,12 @@ class TestIntegration:
         r2 = client.post("/api/ticker-agent/resume")
         assert r2.status_code == 200
 
+    @patch("web.server.ticker_agent.orchestrator._self_improve")
     @patch("web.server.ticker_agent.orchestrator.discover_universe")
     @patch("web.server.ticker_agent.orchestrator._get_sector_performance")
     @patch("web.server.ticker_agent.orchestrator._execute_plan")
     @patch("web.server.ticker_agent.orchestrator._call_llm_strategy")
-    def test_run_now_when_running(self, mock_llm, mock_execute, mock_sector, mock_universe, client):
+    def test_run_now_when_running(self, mock_llm, mock_execute, mock_sector, mock_universe, mock_self_improve, client):
         """POST /api/ticker-agent/run-now returns result."""
         mock_llm.return_value = {
             "investigation_plan": [],
