@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 @dataclass
 class AgentConfig:
     min_samples: int = 3
-    schedule_interval_h: int = 6
-    max_tickers_per_cycle: int = 20
+    schedule_interval_h: int = 1
+    max_tickers_per_cycle: int = 4
     sp500_enabled: bool = True
     yahoo_sectors_enabled: bool = True
     custom_universe_path: str | None = None
