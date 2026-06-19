@@ -659,6 +659,11 @@ def cancel(job_id: str) -> None:
         state.finished_at = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         state.persist()
         return
+    # Immediately update in-memory state AND persist to disk so list_jobs()
+    # (which reads from disk) reflects the change right away.
+    h.state.status = "cancelled"
+    h.state.finished_at = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    h.state.persist()
     h.cancel_event.set()
 
 

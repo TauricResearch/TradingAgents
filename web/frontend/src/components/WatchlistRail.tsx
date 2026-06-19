@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem, addToWatchlist, getAccuracyLeaderboard, ApiError } from "../lib/api";
 import { TickerRow } from "./TickerRow";
@@ -44,6 +44,7 @@ export function WatchlistRail() {
 
   const [dragTicker, setDragTicker] = useState<string | null>(null);
   const [dragGroup, setDragGroup] = useState<string | null>(null);
+  const pressStartRef = useRef(0);
   const [filterTicker, setFilterTicker] = useState("");
   const [addingTicker, setAddingTicker] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -501,14 +502,21 @@ export function WatchlistRail() {
                       <button type="button" onClick={() => setEditingGroup(null)} className="text-[10px] text-slate-500 hover:text-slate-300">Cancel</button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleStartRename(name)}
-                      className="flex-1 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors truncate"
-                      title="Click to rename group"
+                    <span
+                      onPointerDown={() => { pressStartRef.current = Date.now(); }}
+                      onPointerUp={() => {
+                        if (Date.now() - pressStartRef.current >= 500) {
+                          setEditingGroup(name);
+                          setEditName(name);
+                        } else {
+                          setCollapsedGroup(name, !collapsed);
+                        }
+                      }}
+                      className="flex-1 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors truncate cursor-pointer"
+                      title="Short click: toggle group | Long press: rename"
                     >
                       {name}
-                    </button>
+                    </span>
                   )}
 
                   {/* Count */}
