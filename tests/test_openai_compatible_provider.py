@@ -6,6 +6,7 @@ model name is accepted, and the env backend URL precedence (#978).
 """
 
 import pytest
+from pydantic import BaseModel
 
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.factory import create_llm_client
@@ -36,13 +37,33 @@ def test_keyless_local_uses_placeholder_and_chat_completions(monkeypatch):
     llm = create_llm_client(
         provider="openai_compatible", model="qwen2.5", base_url="http://localhost:8000/v1"
     ).get_llm()
-    assert type(llm).__name__ == "NormalizedChatOpenAI"
+    assert type(llm).__name__ == "LocalCompatibleChatOpenAI"
     assert str(llm.openai_api_base) == "http://localhost:8000/v1"
     # keyless local servers: a placeholder key is sent
     key = llm.openai_api_key.get_secret_value() if hasattr(llm.openai_api_key, "get_secret_value") else llm.openai_api_key
     assert key == "EMPTY"
     # must use Chat Completions, not OpenAI's Responses API
     assert getattr(llm, "use_responses_api", False) in (False, None)
+
+
+@pytest.mark.unit
+def test_local_structured_output_suppresses_object_tool_choice(monkeypatch):
+    class Pick(BaseModel):
+        action: str
+
+    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
+    llm = create_llm_client(
+        provider="openai_compatible", model="qwen3-coder-30b", base_url="http://localhost:1234/v1"
+    ).get_llm()
+    bound = llm.with_structured_output(Pick)
+    first = bound.steps[0] if hasattr(bound, "steps") else bound
+    kwargs = getattr(first, "kwargs", {})
+
+    assert kwargs.get("tool_choice") is None or "tool_choice" not in kwargs
+    assert any(
+        tool.get("function", {}).get("name") == "Pick"
+        for tool in kwargs.get("tools", [])
+    ), f"schema not bound: {kwargs.get('tools', [])}"
 
 
 @pytest.mark.unit

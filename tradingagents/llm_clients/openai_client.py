@@ -50,6 +50,22 @@ class NormalizedChatOpenAI(ChatOpenAI):
         return super().with_structured_output(schema, method=method, **kwargs)
 
 
+class LocalCompatibleChatOpenAI(NormalizedChatOpenAI):
+    """OpenAI-compatible local servers that reject object-form tool_choice.
+
+    Generic local endpoints such as LM Studio can accept function tools but
+    reject LangChain's function-spec object as ``tool_choice``. Suppress that
+    forced choice by default while still binding the schema as a tool.
+    """
+
+    def with_structured_output(self, schema, *, method=None, **kwargs):
+        caps = get_capabilities(self.model_name)
+        resolved_method = method or caps.preferred_structured_method
+        if resolved_method == "function_calling":
+            kwargs.setdefault("tool_choice", None)
+        return super().with_structured_output(schema, method=method, **kwargs)
+
+
 def _input_to_messages(input_: Any) -> list:
     """Normalise a langchain LLM input to a list of message objects.
 
@@ -197,7 +213,11 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
-    "openai_compatible": ProviderSpec(require_base_url=True, key_optional=True),
+    "openai_compatible": ProviderSpec(
+        chat_class=LocalCompatibleChatOpenAI,
+        require_base_url=True,
+        key_optional=True,
+    ),
 }
 
 
