@@ -47,6 +47,10 @@ interface UiState {
   // Per-group collapse/expand state for the watchlist. PERSISTED so
   // group collapse survives a refresh.
   watchlistCollapsedGroups: Record<string, boolean>;
+  // User-selected custom colors per group name. PERSISTED.
+  customGroupColors: Record<string, string>;
+  // Group display order. PERSISTED.
+  groupOrder: string[];
   // Mobile sidebar drawer open/closed.
   mobileSidebarOpen: boolean;
   // Ticker Accuracy Agent drawer open/closed.
@@ -69,6 +73,9 @@ interface UiState {
   setHistoryPollIntervalMs: (ms: HistoryPollInterval) => void;
   setCandleResolution: (r: CandleResolution) => void;
   setWatchlistCollapsedGroup: (name: string, collapsed: boolean) => void;
+  setCustomGroupColor: (name: string, color: string) => void;
+  removeCustomGroupColor: (name: string) => void;
+  setGroupOrder: (order: string[]) => void;
   setMobileSidebarOpen: (open: boolean) => void;
 }
 
@@ -86,6 +93,8 @@ export const useUi = create<UiState>()(
       historyPollIntervalMs: 30_000,
       candleResolution: "auto",
       watchlistCollapsedGroups: {},
+      customGroupColors: {},
+      groupOrder: [],
       mobileSidebarOpen: false,
       tickerAgentDrawerOpen: false,
       setFocusedTicker: (t) => { set({ focusedTicker: t, mobileSidebarOpen: false }); },
@@ -136,6 +145,15 @@ export const useUi = create<UiState>()(
       setCandleResolution: (r) => set({ candleResolution: r }),
       setWatchlistCollapsedGroup: (name, collapsed) =>
         set((s) => ({ watchlistCollapsedGroups: { ...s.watchlistCollapsedGroups, [name]: collapsed } })),
+      setCustomGroupColor: (name, color) =>
+        set((s) => ({ customGroupColors: { ...s.customGroupColors, [name]: color } })),
+      removeCustomGroupColor: (name) =>
+        set((s) => {
+          const next = { ...s.customGroupColors };
+          delete next[name];
+          return { customGroupColors: next };
+        }),
+      setGroupOrder: (order) => set({ groupOrder: order }),
       setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
     }),
     {
@@ -157,6 +175,8 @@ export const useUi = create<UiState>()(
         historyPollIntervalMs: s.historyPollIntervalMs,
         candleResolution: s.candleResolution,
         watchlistCollapsedGroups: s.watchlistCollapsedGroups,
+        customGroupColors: s.customGroupColors,
+        groupOrder: s.groupOrder,
         tickerAgentDrawerOpen: s.tickerAgentDrawerOpen,
       }),
     },

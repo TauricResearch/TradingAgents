@@ -33,6 +33,7 @@ _DEFINED_CAPABILITIES: list[ApiCapability] = [
     ApiCapability("/api/background-runs/{job_id}/cancel", "POST", "Cancel a background job"),
     ApiCapability("/api/background-runs/{job_id}/pause", "POST", "Pause a background job"),
     ApiCapability("/api/background-runs/{job_id}/resume", "POST", "Resume a paused background job"),
+    ApiCapability("/api/background-runs/{job_id}", "DELETE", "Delete a background run job"),
     ApiCapability("/api/config", "GET", "Get app configuration"),
     ApiCapability("/api/config", "PUT", "Update app configuration"),
     ApiCapability("/api/config/models", "GET", "Get current LLM model configuration"),

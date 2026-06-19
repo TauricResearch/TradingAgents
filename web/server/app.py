@@ -388,6 +388,14 @@ def create_app() -> FastAPI:
         except KeyError:
             raise HTTPException(status_code=404, detail=f"job_not_found: {job_id}") from None
 
+    @app.delete("/api/background-runs/{job_id}")
+    def delete_background_run(job_id: str):
+        try:
+            background_runs.delete_job(job_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"job_not_found: {job_id}") from None
+        return {"status": "ok"}
+
     @app.post("/api/background-runs/{job_id}/cancel")
     def post_background_run_cancel(job_id: str):
         try:

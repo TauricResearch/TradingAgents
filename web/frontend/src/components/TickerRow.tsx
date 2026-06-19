@@ -40,8 +40,6 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
   const setFocused = useUi((s) => s.setFocusedTicker);
   const isFocused = focused === ticker;
   const [pending, setPending] = useState(false);
-  const [showGroupInput, setShowGroupInput] = useState(false);
-  const [groupInput, setGroupInput] = useState(group ?? "");
   const [isDragOver, setDragOver] = useState(false);
 
   const { data: leaderboardData } = useQuery({
@@ -66,12 +64,6 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
 
   const showChange = changePct != null && !isNaN(changePct);
   const changeColor = showChange ? (changePct >= 0 ? "text-emerald-600" : "text-rose-600") : "text-slate-400";
-
-  const handleGroupSubmit = () => {
-    const newGroup = groupInput.trim() || null;
-    onGroupChange?.(ticker, newGroup);
-    setShowGroupInput(false);
-  };
 
   const gc = groupColor ?? GROUP_COLORS[0];
 
@@ -145,16 +137,6 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
               {accuracyPct.toFixed(0)}%
             </span>
           )}
-          {group && (
-            <span
-              className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md border cursor-pointer hover:brightness-125"
-              style={{ backgroundColor: `${gc}18`, color: gc, borderColor: `${gc}40` }}
-              onClick={(e) => { e.stopPropagation(); setShowGroupInput(!showGroupInput); }}
-              title="Click to change group"
-            >
-              {group}
-            </span>
-          )}
           {stale ? (
             <span
               data-testid={`ticker-row-${ticker}-unavailable`}
@@ -184,33 +166,6 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
       <svg width="40" height="20" className="opacity-40 shrink-0" aria-hidden="true">
         {sparkPath && <path d={sparkPath} stroke={isFocused ? "#38bdf8" : "#475569"} strokeWidth="1.5" fill="none" />}
       </svg>
-      {showGroupInput && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-0.5 mx-2" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 shadow-xl">
-            <input
-              autoFocus
-              type="text"
-              value={groupInput}
-              onChange={(e) => setGroupInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleGroupSubmit(); if (e.key === "Escape") setShowGroupInput(false); }}
-              placeholder="Group name or empty to remove"
-              className="w-full px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/50"
-            />
-            <div className="flex justify-end gap-1 mt-1.5">
-              <button
-                type="button"
-                onClick={() => { setGroupInput(group ?? ""); setShowGroupInput(false); }}
-                className="text-[10px] text-slate-500 hover:text-slate-300 px-2 py-0.5"
-              >Cancel</button>
-              <button
-                type="button"
-                onClick={handleGroupSubmit}
-                className="text-[10px] text-sky-400 hover:text-sky-300 px-2 py-0.5 font-medium"
-              >Save</button>
-            </div>
-          </div>
-        </div>
-      )}
       {!pending ? (
         <button
           type="button"

@@ -4,9 +4,9 @@ import {
   startBackgroundRun,
   getBackgroundRuns,
   cancelBackgroundRun,
-  pauseBackgroundRun,
-  resumeBackgroundRun,
+  deleteBackgroundRun,
   fetchWatchlist,
+  addToWatchlist,
   type StartBackgroundRunRequest,
   type BackgroundEvery,
   type BackgroundRunState,
@@ -131,28 +131,6 @@ function JobCard({ job, onChanged }: { job: BackgroundRunState; onChanged: () =>
         {showEta && <span className="ml-2 text-slate-600">ETA: {etaText}</span>}
       </div>
       <div className="mt-2 flex gap-2">
-        {job.status === "running" && (
-          <button
-            onClick={async () => {
-              await pauseBackgroundRun(job.job_id);
-              onChanged();
-            }}
-            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/20 hover:bg-amber-500/30 transition-colors"
-          >
-            Pause
-          </button>
-        )}
-        {job.status === "paused" && (
-          <button
-            onClick={async () => {
-              await resumeBackgroundRun(job.job_id);
-              onChanged();
-            }}
-            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/20 hover:bg-sky-500/30 transition-colors"
-          >
-            Resume
-          </button>
-        )}
         <button
           onClick={async () => {
             await cancelBackgroundRun(job.job_id);
@@ -196,6 +174,7 @@ function StatusPill({ status }: { status: BackgroundRunState["status"] }) {
 }
 
 function PastJobs() {
+  const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ["background-runs"],
     queryFn: () => getBackgroundRuns(),
@@ -203,6 +182,10 @@ function PastJobs() {
   const past = (data?.jobs ?? []).filter(
     (j) => j.status === "done" || j.status === "cancelled" || j.status === "error"
   );
+  const delMutation = useMutation({
+    mutationFn: (jobId: string) => deleteBackgroundRun(jobId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["background-runs"] }),
+  });
   if (past.length === 0) return null;
   return (
     <section>
@@ -226,6 +209,14 @@ function PastJobs() {
               <span className="text-xs data-text text-slate-600">
                 {j.current_index}/{j.total}
               </span>
+              <button
+                disabled={delMutation.isPending}
+                onClick={() => delMutation.mutate(j.job_id)}
+                className="ml-auto shrink-0 text-slate-500 hover:text-red-400 disabled:opacity-30 transition-colors text-base leading-none px-1"
+                title="Delete this past run"
+              >
+                &times;
+              </button>
             </li>
           ))}
         </ul>
@@ -236,15 +227,24 @@ function PastJobs() {
 
 function NewJobForm({ tickers, defaultTicker }: { tickers: string[]; defaultTicker: string }) {
   const qc = useQueryClient();
-  const [ticker, setTicker] = useState(defaultTicker);
+  const [selected, setSelected] = useState(defaultTicker);
+  const [customTicker, setCustomTicker] = useState("");
   const [dateFrom, setDateFrom] = useState(daysAgoIso(30));
   const [dateTo, setDateTo] = useState(todayIso());
   const [every, setEvery] = useState<BackgroundEvery>("1d");
   const [parallel, setParallel] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const isCustom = selected === "__custom__";
+  const resolvedTicker = isCustom ? customTicker.toUpperCase() : selected;
 
   const mutation = useMutation({
-    mutationFn: (body: StartBackgroundRunRequest) => startBackgroundRun(body),
+    mutationFn: async (body: StartBackgroundRunRequest) => {
+      if (!tickers.includes(body.ticker)) {
+        await addToWatchlist(body.ticker, "", "");
+        qc.invalidateQueries({ queryKey: ["watchlist"] });
+      }
+      return startBackgroundRun(body);
+    },
     onSuccess: () => {
       setError(null);
       qc.invalidateQueries({ queryKey: ["background-runs"] });
@@ -266,21 +266,35 @@ function NewJobForm({ tickers, defaultTicker }: { tickers: string[]; defaultTick
         className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
-          mutation.mutate({ ticker, date_from: dateFrom, date_to: dateTo, every, parallel });
+          mutation.mutate({ ticker: resolvedTicker, date_from: dateFrom, date_to: dateTo, every, parallel });
         }}
       >
         <label className="flex flex-col gap-0.5">
           <span className="text-[10px] font-medium text-slate-600 uppercase tracking-wider">Ticker</span>
           <select
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
+            value={selected}
+            onChange={(e) => {
+              setSelected(e.target.value);
+              setError(null);
+            }}
             className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30"
             aria-label="Ticker"
           >
             {tickers.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
+            <option value="__custom__">Custom ticker…</option>
           </select>
+          {isCustom && (
+            <input
+              value={customTicker}
+              onChange={(e) => setCustomTicker(e.target.value.toUpperCase())}
+              placeholder="Type ticker…"
+              className="mt-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+              aria-label="Custom ticker input"
+              autoFocus
+            />
+          )}
         </label>
         <label className="flex flex-col gap-0.5">
           <span className="text-[10px] font-medium text-slate-600 uppercase tracking-wider">From</span>

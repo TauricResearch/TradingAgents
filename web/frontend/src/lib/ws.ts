@@ -24,7 +24,9 @@ export class ResilientWs {
 
   stop() {
     this.closedByUser = true;
-    this.ws?.close();
+    if (this.ws && this.ws.readyState !== WebSocket.CONNECTING) {
+      this.ws.close();
+    }
     this.ws = null;
     this.opts.onStatus?.("closed");
   }
@@ -35,6 +37,10 @@ export class ResilientWs {
     const ws = new WebSocket(url);
     this.ws = ws;
     ws.onopen = () => {
+      if (this.closedByUser || this.ws !== ws) {
+        ws.close();
+        return;
+      }
       this.attempt = 0;
       this.opts.onStatus?.("open");
     };
