@@ -47,9 +47,9 @@ export function DecisionTrace({ events }: { events: WsEvent[] }) {
   }
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-0" data-testid="decision-trace">
       {nodes.map((n, i) => (
-        <div key={n.stage}>
+        <div key={`${n.stage}-${i}`}>
           <button
             onClick={() => setExpanded(expanded === n.stage ? null : n.stage)}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-slate-800/30 transition-colors border-l-2 border-slate-700 hover:border-sky-500">
