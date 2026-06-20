@@ -208,7 +208,10 @@ def fetch_reddit_posts(
         posts = _fetch_subreddit(ticker, sub, limit_per_sub, timeout)
         total_posts += len(posts)
         if not posts:
-            blocks.append(f"r/{sub}: <no posts found mentioning {ticker.upper()} in the past 7 days>")
+            blocks.append(
+                f"r/{sub}: no Reddit posts returned for {ticker.upper()} "
+                "(the public RSS feed may be rate-limited or temporarily unavailable)."
+            )
             continue
 
         via_rss = any(p.get("source") == "rss" for p in posts)
@@ -239,7 +242,7 @@ def fetch_reddit_posts(
 
     if total_posts == 0:
         return (
-            f"<no Reddit posts found mentioning {ticker.upper()} across "
-            f"{', '.join(f'r/{s}' for s in subreddits)} in the past 7 days>"
+            f"No Reddit discussion posts were available for {ticker.upper()}. "
+            "Reddit JSON/RSS endpoints may be blocked, rate-limited, or temporarily unavailable."
         )
     return "\n\n".join(blocks)
