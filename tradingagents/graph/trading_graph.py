@@ -27,6 +27,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_verified_market_snapshot,
     resolve_instrument_identity,
 )
+from tradingagents.agents.utils.audit_log import AuditLog
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
@@ -96,6 +97,7 @@ class TradingAgentsGraph:
         self.quick_thinking_llm = quick_client.get_llm()
 
         self.memory_log = TradingMemoryLog(self.config)
+        self.audit_log = AuditLog(self.config)
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -318,7 +320,48 @@ class TradingAgentsGraph:
         identity = resolve_instrument_identity(ticker)
         return build_instrument_context(ticker, asset_type, identity)
 
-    def propagate(self, company_name, trade_date, asset_type: str = "stock"):
+    def resolve_original_thesis(self, company_name: str) -> str:
+        """Build the re-check comparison context from the most recent initial run.
+
+        Reads ``audit_log.jsonl`` for the latest ``run_purpose="initial"``
+        entry for this ticker and returns a formatted string suitable for
+        injection into the Portfolio Manager prompt: the original investment
+        plan and the original final decision (which carries the investment
+        thesis, rating, price target, and time horizon).
+
+        Returns an empty string when no prior initial run exists for the
+        ticker — caller decides whether that is a hard error (the CLI
+        ``--recheck`` flag treats it as one) or a soft skip (a programmatic
+        caller may choose to fall through to a fresh initial run).
+        """
+        record = self.audit_log.latest_initial_for_ticker(company_name)
+        if record is None:
+            return ""
+        decision = record.get("decision", {})
+        original_plan = decision.get("investment_plan", "")
+        original_decision = decision.get("final_trade_decision", "")
+        original_date = record.get("trade_date", "an earlier date")
+        return (
+            f"**Original initial-run thesis (from {original_date})**\n\n"
+            f"This is a re-check, not a fresh analysis. The Portfolio Manager "
+            f"must evaluate whether the reasoning below still holds, given "
+            f"today's data and debate.\n\n"
+            f"--- Original Research Manager investment plan ---\n"
+            f"{original_plan}\n\n"
+            f"--- Original Portfolio Manager final decision ---\n"
+            f"{original_decision}"
+        )
+
+    def propagate(
+        self,
+        company_name,
+        trade_date,
+        asset_type: str = "stock",
+        position_size_gbp: float | None = None,
+        run_purpose: str = "initial",
+        persist: bool = True,
+        original_thesis: str | None = None,
+    ):
         """Run the trading agents graph for a company on a specific date.
 
         ``asset_type`` selects between the stock pipeline (default) and the
@@ -327,11 +370,42 @@ class TradingAgentsGraph:
         ``checkpoint_enabled`` is set in config, the graph is recompiled with
         a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
+
+        ``position_size_gbp`` is the user's current holding in this name in
+        £ (``None`` for no position). Threaded into the agent state so the
+        Trader and Portfolio Manager can frame their output against the
+        user's actual position rather than a generic new-entry recommendation.
+
+        ``run_purpose`` is ``"initial"`` (default) or ``"recheck"``. It is
+        threaded into the audit log so the Step 3 re-check workflow can
+        retrieve the most recent initial run for a ticker by purpose.
+
+        ``persist`` controls whether the run is written to the persistent
+        sinks (per-ticker JSON state log, ``trading_memory.md``, and the
+        flat ``audit_log.jsonl``). Set to ``False`` for practice or
+        exploratory runs that should leave no trace. The CLI asks the user
+        at run end and passes the answer through to this flag.
+
+        ``original_thesis`` is the re-check comparison context. When
+        ``run_purpose="recheck"`` and this is not explicitly supplied, it
+        is auto-resolved from the audit log via
+        ``resolve_original_thesis``. Pass a non-empty string to override,
+        or an empty string to suppress auto-resolution.
         """
         self.ticker = company_name
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
         self._resolve_pending_entries(company_name)
+
+        # Re-check mode: auto-resolve the original thesis from the audit log
+        # when the caller didn't pass one explicitly. Empty string falls
+        # through unchanged so the PM is told it is a re-check but treats it
+        # like an initial run if no prior thesis exists.
+        if original_thesis is None:
+            if run_purpose == "recheck":
+                original_thesis = self.resolve_original_thesis(company_name)
+            else:
+                original_thesis = ""
 
         # Recompile with a checkpointer if the user opted in.
         if self.config.get("checkpoint_enabled"):
@@ -352,14 +426,31 @@ class TradingAgentsGraph:
                 logger.info("Starting fresh for %s on %s", company_name, trade_date)
 
         try:
-            return self._run_graph(company_name, trade_date, asset_type=asset_type)
+            return self._run_graph(
+                company_name,
+                trade_date,
+                asset_type=asset_type,
+                position_size_gbp=position_size_gbp,
+                run_purpose=run_purpose,
+                persist=persist,
+                original_thesis=original_thesis,
+            )
         finally:
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
 
-    def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
+    def _run_graph(
+        self,
+        company_name,
+        trade_date,
+        asset_type: str = "stock",
+        position_size_gbp: float | None = None,
+        run_purpose: str = "initial",
+        persist: bool = True,
+        original_thesis: str = "",
+    ):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents.
@@ -371,6 +462,8 @@ class TradingAgentsGraph:
             asset_type=asset_type,
             past_context=past_context,
             instrument_context=instrument_context,
+            position_size_gbp=position_size_gbp,
+            original_thesis=original_thesis,
         )
         args = self.propagator.get_graph_args()
 
@@ -398,15 +491,16 @@ class TradingAgentsGraph:
         # Store current state for reflection.
         self.curr_state = final_state
 
-        # Log state to disk.
-        self._log_state(trade_date, final_state)
-
-        # Store decision for deferred reflection on the next same-ticker run.
-        self.memory_log.store_decision(
-            ticker=company_name,
-            trade_date=trade_date,
-            final_trade_decision=final_state["final_trade_decision"],
-        )
+        # Unified persistence (per-ticker JSON + memory log + audit log).
+        # When persist=False (practice runs), everything below is skipped so
+        # the run leaves no trace.
+        if persist:
+            self.finalize_run(
+                final_state,
+                trade_date,
+                run_purpose=run_purpose,
+                position_size_gbp=position_size_gbp,
+            )
 
         # Clear checkpoint on successful completion to avoid stale state.
         if self.config.get("checkpoint_enabled"):
@@ -415,6 +509,58 @@ class TradingAgentsGraph:
             )
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
+
+    def finalize_run(
+        self,
+        final_state: dict[str, Any],
+        trade_date,
+        *,
+        run_purpose: str = "initial",
+        position_size_gbp: float | None = None,
+    ) -> None:
+        """Write a confirmed run to every persistent sink, in order.
+
+        Single chokepoint shared by the programmatic ``_run_graph`` path and
+        the interactive CLI's post-stream block. Splits the previously inline
+        ``_log_state`` + ``store_decision`` pair and adds the new audit-log
+        append, so every run — regardless of entry point — produces the same
+        set of logs.
+
+        Order matters: ``_log_state`` populates ``self.log_states_dict`` and
+        writes the per-ticker JSON; the audit-log append re-uses that same
+        payload so each JSONL record holds the full run state.
+        """
+        # Self-heal a missing self.ticker by reading it from the run's final
+        # state. The programmatic ``propagate`` path sets self.ticker eagerly,
+        # but the CLI streams the graph directly without going through
+        # ``propagate`` — so a future path that forgets to set it doesn't
+        # blow up at persist time.
+        if not self.ticker:
+            self.ticker = final_state.get("company_of_interest")
+
+        # 1. Per-ticker JSON state log (existing).
+        self._log_state(trade_date, final_state)
+
+        # 2. Memory log (existing) — deferred reflection on next same-ticker run.
+        self.memory_log.store_decision(
+            ticker=self.ticker,
+            trade_date=trade_date,
+            final_trade_decision=final_state["final_trade_decision"],
+        )
+
+        # 3. Audit log (new) — one JSONL line per confirmed run, queryable
+        # with jq, used by the Step 3 re-check workflow to retrieve a prior
+        # initial-run's investment_plan / investment_thesis.
+        self.audit_log.append(
+            ticker=self.ticker,
+            trade_date=trade_date,
+            run_purpose=run_purpose,
+            position_size_gbp=position_size_gbp,
+            llm_provider=self.config.get("llm_provider"),
+            deep_think_llm=self.config.get("deep_think_llm"),
+            quick_think_llm=self.config.get("quick_think_llm"),
+            decision_payload=self.log_states_dict[str(trade_date)],
+        )
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""

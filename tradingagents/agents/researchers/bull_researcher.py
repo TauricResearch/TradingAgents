@@ -30,6 +30,7 @@ Key points to focus on:
 - Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
 - Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
 - Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
+- Nature and Duration of the Opportunity: Be explicit about whether your bull case is a near-term catalyst (a specific event, earnings beat, or re-rating expected within roughly a quarter) or a multi-year structural story (sustained margin expansion, compounding market share, secular tailwind). Do not blur the two — say which kind of opportunity you are arguing for and roughly over what period the thesis is expected to play out, including the option of "no fixed horizon, as long as condition X persists" when that is the honest answer. This shapes how a holder should think about patience versus action.
 - Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
 - Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
 

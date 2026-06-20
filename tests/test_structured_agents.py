@@ -46,16 +46,18 @@ class TestRenderTraderProposal:
     def test_optional_fields_included_when_present(self):
         p = TraderProposal(
             action=TraderAction.BUY,
-            reasoning="Strong technicals + fundamentals.",
+            reasoning="Stop anchored at the prior structural low.",
             entry_price=189.5,
             stop_loss=178.0,
-            position_sizing="6% of portfolio",
+            take_profit=240.0,
+            position_sizing="£200 initial position",
         )
         md = render_trader_proposal(p)
         assert "**Action**: Buy" in md
         assert "**Entry Price**: 189.5" in md
         assert "**Stop Loss**: 178.0" in md
-        assert "**Position Sizing**: 6% of portfolio" in md
+        assert "**Take Profit**: 240.0" in md
+        assert "**Position Sizing**: £200 initial position" in md
         assert "FINAL TRANSACTION PROPOSAL: **BUY**" in md
 
     def test_optional_fields_omitted_when_absent(self):
@@ -63,6 +65,7 @@ class TestRenderTraderProposal:
         md = render_trader_proposal(p)
         assert "Entry Price" not in md
         assert "Stop Loss" not in md
+        assert "Take Profit" not in md
         assert "Position Sizing" not in md
         assert "FINAL TRANSACTION PROPOSAL: **SELL**" in md
 
@@ -73,11 +76,13 @@ class TestRenderResearchPlan:
         p = ResearchPlan(
             recommendation=PortfolioRating.OVERWEIGHT,
             rationale="Bull case carried; tailwinds intact.",
+            time_horizon="Multi-year structural — hold while margins keep expanding.",
             strategic_actions="Build position over two weeks; cap at 5%.",
         )
         md = render_research_plan(p)
         assert "**Recommendation**: Overweight" in md
         assert "**Rationale**: Bull case carried" in md
+        assert "**Time Horizon**: Multi-year structural" in md
         assert "**Strategic Actions**: Build position" in md
 
     def test_all_5_tier_ratings_render(self):
@@ -85,10 +90,19 @@ class TestRenderResearchPlan:
             p = ResearchPlan(
                 recommendation=rating,
                 rationale="r",
+                time_horizon="t",
                 strategic_actions="s",
             )
             md = render_research_plan(p)
             assert f"**Recommendation**: {rating.value}" in md
+
+    def test_time_horizon_is_required(self):
+        with pytest.raises(ValidationError):
+            ResearchPlan(
+                recommendation=PortfolioRating.HOLD,
+                rationale="r",
+                strategic_actions="s",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +202,7 @@ def _structured_rm_llm(captured: dict, plan: ResearchPlan | None = None):
         plan = ResearchPlan(
             recommendation=PortfolioRating.HOLD,
             rationale="Balanced view across both sides.",
+            time_horizon="No fixed horizon — reassess after the next earnings release.",
             strategic_actions="Hold current position; reassess after earnings.",
         )
     structured = MagicMock()
@@ -206,6 +221,7 @@ class TestResearchManagerAgent:
         plan = ResearchPlan(
             recommendation=PortfolioRating.OVERWEIGHT,
             rationale="Bull case is stronger; AI tailwind intact.",
+            time_horizon="Multi-year structural — AI capex cycle still expanding.",
             strategic_actions="Build position gradually over two weeks.",
         )
         llm = _structured_rm_llm(captured, plan)

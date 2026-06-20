@@ -31,6 +31,7 @@ from cli.utils import (
     confirm_ollama_endpoint,
     detect_asset_type,
     ensure_api_key,
+    get_position_holding,
     get_ticker,
     prompt_openai_compatible_url,
     resolve_backend_url,
@@ -534,6 +535,23 @@ def get_user_selections():
             f"[green]Detected asset type:[/green] {asset_type.value}"
         )
 
+    # Step 1b: Current position. Threaded into agent state so the
+    # Trader and Portfolio Manager frame their output against actual
+    # position status rather than as a generic new-entry recommendation.
+    console.print(
+        create_question_box(
+            "Step 1b: Current Position",
+            f"Do you currently hold a position in {selected_ticker}? (y/n, then £ if yes)",
+        )
+    )
+    position_size_gbp = get_position_holding()
+    if position_size_gbp is None:
+        console.print("[green]Current position:[/green] none")
+    else:
+        console.print(
+            f"[green]Current position:[/green] ~£{position_size_gbp:,.0f}"
+        )
+
     # Step 2: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
     console.print(
@@ -690,6 +708,7 @@ def get_user_selections():
     return {
         "ticker": selected_ticker,
         "asset_type": asset_type.value,
+        "position_size_gbp": position_size_gbp,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
@@ -1019,9 +1038,15 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
-def run_analysis(checkpoint: bool = False):
+def run_analysis(checkpoint: bool = False, recheck: bool = False):
     # First get all user selections
     selections = get_user_selections()
+
+    # Re-check setup must reach the user BEFORE the heavy run begins, so a
+    # missing prior thesis bails out immediately rather than after a full
+    # pipeline. The actual original_thesis string is resolved further down,
+    # once the graph (and its AuditLog) is constructed.
+    run_purpose = "recheck" if recheck else "initial"
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
@@ -1057,6 +1082,29 @@ def run_analysis(checkpoint: bool = False):
         debug=True,
         callbacks=[stats_handler],
     )
+    # The programmatic path's TradingAgentsGraph.propagate() sets this
+    # attribute itself; the CLI bypasses propagate() and streams the graph
+    # directly, so finalize_run() and friends would otherwise see ticker=None
+    # and crash at persist time.
+    graph.ticker = selections["ticker"]
+
+    # Re-check mode: look up the original thesis BEFORE the Live alt-screen
+    # starts, so an early bail-out message is actually visible (any console
+    # output inside Live is lost when the alt-screen tears down on exit).
+    original_thesis = ""
+    if recheck:
+        original_thesis = graph.resolve_original_thesis(selections["ticker"])
+        if not original_thesis:
+            console.print(
+                f"[red]--recheck failed:[/red] no prior initial run found for "
+                f"{selections['ticker']} in the audit log "
+                f"({graph.audit_log.path}). Run the initial analysis first."
+            )
+            raise typer.Exit(code=1)
+        console.print(
+            f"[green]Re-check mode:[/green] comparing against the "
+            f"original thesis logged at {original_thesis.splitlines()[0]}"
+        )
 
     # Initialize message buffer with selected analysts
     message_buffer.init_for_analysis(selected_analyst_keys)
@@ -1151,11 +1199,20 @@ def run_analysis(checkpoint: bool = False):
         instrument_context = graph.resolve_instrument_context(
             selections["ticker"], selections["asset_type"]
         )
+        # Also resolve any pending memory-log entries here — the CLI bypasses
+        # propagate() which is where this normally runs, so without this call
+        # the reflection feature never fires on the CLI path.
+        graph._resolve_pending_entries(selections["ticker"])
+
+        # original_thesis was resolved above (before Live started) so a
+        # missing prior run could exit cleanly. Empty string on initial runs.
         init_agent_state = graph.propagator.create_initial_state(
             selections["ticker"],
             selections["analysis_date"],
             asset_type=selections["asset_type"],
             instrument_context=instrument_context,
+            position_size_gbp=selections.get("position_size_gbp"),
+            original_thesis=original_thesis,
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
@@ -1291,7 +1348,31 @@ def run_analysis(checkpoint: bool = False):
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
-    # Prompt to save report
+    # Persist confirmation. Anything skipped here leaves NO trace — no
+    # per-ticker JSON state log, no memory-log entry (so the next same-ticker
+    # run won't see this one in past_context), no audit-log line. Use this for
+    # practice / exploratory runs that shouldn't pollute the track record.
+    # The optional markdown report-bundle save (next prompt) is independent.
+    persist_choice = typer.prompt(
+        "Persist this run to the logs (memory + audit + per-ticker JSON)?",
+        default="Y",
+    ).strip().upper()
+    if persist_choice in ("Y", "YES", ""):
+        graph.finalize_run(
+            final_state,
+            selections["analysis_date"],
+            run_purpose=run_purpose,
+            position_size_gbp=selections.get("position_size_gbp"),
+        )
+        console.print("[green]✓ Run persisted to logs.[/green]")
+    else:
+        console.print(
+            "[yellow]Run NOT persisted — no audit log, memory log, or "
+            "per-ticker JSON written.[/yellow]"
+        )
+
+    # Prompt to save report (independent of persistence — the report bundle
+    # is a one-off markdown export, not part of the standing track record).
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1326,12 +1407,24 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    recheck: bool = typer.Option(
+        False,
+        "--recheck",
+        help=(
+            "Re-check an existing position against the original thesis logged "
+            "for that ticker. The pipeline runs end-to-end as normal, but the "
+            "Portfolio Manager is shown the original investment plan and "
+            "decision and asked to judge whether the reasoning is intact, "
+            "weakening, or broken. Fails immediately if no prior initial run "
+            "exists for the ticker."
+        ),
+    ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    run_analysis(checkpoint=checkpoint)
+    run_analysis(checkpoint=checkpoint, recheck=recheck)
 
 
 if __name__ == "__main__":

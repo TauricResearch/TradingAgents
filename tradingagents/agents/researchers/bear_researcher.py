@@ -31,6 +31,7 @@ Key points to focus on:
 - Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
 - Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
 - Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
+- Nature and Duration of the Risk: Be explicit about whether the bear case is a near-term catalyst risk (a specific event, earnings disappointment, or de-rating expected within roughly a quarter) or a multi-year structural decline (eroding moat, secular headwind, deteriorating unit economics). Do not blur the two — say which kind of risk you are arguing for and roughly over what period it would play out, including the option of "no fixed horizon, as long as condition X persists" when that is the honest answer. This shapes whether the response is patience versus exit.
 - Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
 - Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
 

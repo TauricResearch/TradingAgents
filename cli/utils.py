@@ -62,6 +62,62 @@ def get_ticker() -> str:
     return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
 
 
+def _is_valid_position_amount(value: str) -> bool:
+    """Whether a £ position-size entry parses as a positive number."""
+    v = value.strip().lstrip("£").replace(",", "")
+    if not v:
+        return False
+    try:
+        return float(v) > 0
+    except ValueError:
+        return False
+
+
+def get_position_holding() -> float | None:
+    """Ask whether the user currently holds a position in the ticker.
+
+    Returns the approximate £ amount held (positive float) when they do,
+    or ``None`` when they don't. Threaded into ``AgentState`` so the
+    Trader and Portfolio Manager can frame their output against the
+    user's actual position status rather than as a generic new-entry
+    recommendation.
+    """
+    holds = questionary.confirm(
+        "Do you currently hold a position in this ticker?",
+        default=False,
+        style=questionary.Style(
+            [
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if holds is None:
+        # Treat cancellation as "no position" rather than aborting the run.
+        return None
+    if not holds:
+        return None
+
+    raw = questionary.text(
+        "Approximately how much do you hold? (£, e.g. 250 or 1500):",
+        validate=lambda x: (
+            _is_valid_position_amount(x)
+            or "Please enter a positive number, e.g. 250 or 1500."
+        ),
+        style=questionary.Style(
+            [
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if raw is None:
+        return None
+    return float(raw.strip().lstrip("£").replace(",", ""))
+
+
 def normalize_ticker_symbol(ticker: str) -> str:
     """Resolve user input to its canonical Yahoo symbol (single source of truth).
 

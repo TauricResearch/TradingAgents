@@ -51,6 +51,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
+    # Flat JSONL audit log: every confirmed run appended as one line. Distinct
+    # from trading_memory.md (which is for same-ticker reflection) and from the
+    # per-ticker JSON state log (which lives under results_dir). Queryable with
+    # jq for ad-hoc cross-ticker review and used by the re-check workflow to
+    # retrieve a prior initial-run's investment_plan / investment_thesis.
+    "audit_log_path": os.getenv("TRADINGAGENTS_AUDIT_LOG_PATH", os.path.join(_TRADINGAGENTS_HOME, "audit_log.jsonl")),
     # LLM settings
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.5",

@@ -22,6 +22,8 @@ class Propagator:
         asset_type: str = "stock",
         past_context: str = "",
         instrument_context: str = "",
+        position_size_gbp: float | None = None,
+        original_thesis: str = "",
     ) -> dict[str, Any]:
         """Create the initial state for the agent graph.
 
@@ -30,6 +32,19 @@ class Propagator:
         ``TradingAgentsGraph.resolve_instrument_context``). When empty, agents
         fall back to ticker-only context via
         ``get_instrument_context_from_state``.
+
+        ``position_size_gbp`` is the approximate £ value the user currently
+        holds in this name (``None`` when there is no position). The Trader
+        and Portfolio Manager read this from state to frame their output
+        against the user's actual position status rather than as a generic
+        new-entry recommendation.
+
+        ``original_thesis`` is the re-check workflow's comparison context:
+        the rendered investment_plan and final decision from the prior
+        ``run_purpose="initial"`` audit log entry. When non-empty, the
+        Portfolio Manager is told it is in re-check mode and must judge
+        whether the original reasoning is intact / weakening / broken.
+        Always empty on initial runs.
         """
         return {
             "messages": [("human", company_name)],
@@ -38,6 +53,8 @@ class Propagator:
             "instrument_context": instrument_context,
             "trade_date": str(trade_date),
             "past_context": past_context,
+            "position_size_gbp": position_size_gbp,
+            "original_thesis": original_thesis,
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",

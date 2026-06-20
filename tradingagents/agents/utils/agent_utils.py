@@ -187,6 +187,42 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
     )
 
 
+def get_position_context_from_state(state: Mapping[str, Any]) -> str:
+    """Return a human-readable position-status line for prompt injection.
+
+    The Trader and Portfolio Manager drop this into their prompts so the
+    output is framed against the user's actual position (initiate, add,
+    maintain, trim, exit) rather than as a generic new-entry recommendation.
+    ``None`` means no position; a numeric value is the approximate £ held.
+    """
+    raw = state.get("position_size_gbp")
+    if raw is None:
+        return (
+            "**Current position**: the user does NOT currently hold a position "
+            "in this name. Frame any recommendation as initiate / do-not-initiate, "
+            "not as add / hold / exit."
+        )
+    try:
+        amount = float(raw)
+    except (TypeError, ValueError):
+        return (
+            "**Current position**: the user does NOT currently hold a position "
+            "in this name. Frame any recommendation as initiate / do-not-initiate, "
+            "not as add / hold / exit."
+        )
+    if amount <= 0:
+        return (
+            "**Current position**: the user does NOT currently hold a position "
+            "in this name. Frame any recommendation as initiate / do-not-initiate, "
+            "not as add / hold / exit."
+        )
+    return (
+        f"**Current position**: the user currently holds approximately £{amount:,.0f} "
+        f"in this name. Frame any recommendation in terms of that existing position — "
+        f"add to it, maintain it, trim it, or exit — not as a fresh entry."
+    )
+
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add a context-anchored placeholder.

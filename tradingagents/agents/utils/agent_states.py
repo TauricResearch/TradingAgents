@@ -74,3 +74,5 @@ class AgentState(MessagesState):
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]
+    position_size_gbp: Annotated[float | None, "Approximate £ value currently held by the user in this name (None = no position)"]
+    original_thesis: Annotated[str, "Re-check mode only: rendered original investment_plan + final decision from the prior initial run, used by the PM to judge whether the thesis is intact / weakening / broken. Empty string on initial runs."]

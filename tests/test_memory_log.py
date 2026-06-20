@@ -93,6 +93,7 @@ def _structured_pm_llm(captured: dict, decision: PortfolioDecision | None = None
             rating=PortfolioRating.HOLD,
             executive_summary="Hold the position; await catalyst.",
             investment_thesis="Balanced view; neither side carried the debate.",
+            time_horizon="No fixed horizon — reassess after the next earnings release.",
         )
     structured = MagicMock()
     structured.invoke.side_effect = lambda prompt: (
@@ -850,22 +851,101 @@ class TestLegacyRemoval:
                 "current_neutral_response": "", "count": 1, "latest_speaker": "",
             },
         }
+        from tradingagents.agents.utils.audit_log import AuditLog
+
         mock_graph = MagicMock()
         mock_graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "mem.md")})
+        # The unified finalize_run() also writes the audit log, so the mock
+        # graph needs a real AuditLog bound for the test to exercise the
+        # full persistence path.
+        mock_graph.audit_log = AuditLog({"audit_log_path": str(tmp_path / "audit.jsonl")})
         mock_graph.log_states_dict = {}
         mock_graph.debug = False
-        mock_graph.config = {"results_dir": str(tmp_path)}
+        mock_graph.config = {
+            "results_dir": str(tmp_path),
+            "llm_provider": "deepseek",
+            "deep_think_llm": "deepseek-v4-pro",
+            "quick_think_llm": "deepseek-v4-flash",
+        }
         mock_graph.graph.invoke.return_value = fake_state
         mock_graph.propagator.create_initial_state.return_value = fake_state
         mock_graph.propagator.get_graph_args.return_value = {}
         mock_graph.signal_processor.process_signal.return_value = "Buy"
-        # Bind the real _run_graph so propagate's call to self._run_graph executes
-        # the actual write path instead of the auto-MagicMock.
+        # Bind the real _run_graph + finalize_run so propagate's call into
+        # them executes the actual write path instead of the auto-MagicMock.
         mock_graph._run_graph = functools.partial(
             TradingAgentsGraph._run_graph, mock_graph
+        )
+        mock_graph.finalize_run = functools.partial(
+            TradingAgentsGraph.finalize_run, mock_graph
+        )
+        mock_graph._log_state = functools.partial(
+            TradingAgentsGraph._log_state, mock_graph
         )
         TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
         entries = mock_graph.memory_log.load_entries()
         assert len(entries) == 1
         assert entries[0]["ticker"] == "NVDA"
         assert entries[0]["pending"] is True
+        # The audit log gets the same run.
+        assert len(mock_graph.audit_log.load_all()) == 1
+
+    def test_persist_false_leaves_no_trace(self, tmp_path):
+        """propagate(persist=False) skips every persistent sink — practice runs
+        must not pollute the memory log or the audit log."""
+        import functools
+
+        from tradingagents.agents.utils.audit_log import AuditLog
+
+        fake_state = {
+            "final_trade_decision": "Rating: Buy\nBuy NVDA.",
+            "company_of_interest": "NVDA",
+            "trade_date": "2026-01-10",
+            "market_report": "",
+            "sentiment_report": "",
+            "news_report": "",
+            "fundamentals_report": "",
+            "investment_debate_state": {
+                "bull_history": "", "bear_history": "", "history": "",
+                "current_response": "", "judge_decision": "",
+            },
+            "investment_plan": "",
+            "trader_investment_plan": "",
+            "risk_debate_state": {
+                "aggressive_history": "", "conservative_history": "",
+                "neutral_history": "", "history": "", "judge_decision": "",
+                "current_aggressive_response": "", "current_conservative_response": "",
+                "current_neutral_response": "", "count": 1, "latest_speaker": "",
+            },
+        }
+        mock_graph = MagicMock()
+        mock_graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "mem.md")})
+        mock_graph.audit_log = AuditLog({"audit_log_path": str(tmp_path / "audit.jsonl")})
+        mock_graph.log_states_dict = {}
+        mock_graph.debug = False
+        mock_graph.config = {
+            "results_dir": str(tmp_path),
+            "llm_provider": "deepseek",
+            "deep_think_llm": "deepseek-v4-pro",
+            "quick_think_llm": "deepseek-v4-flash",
+        }
+        mock_graph.graph.invoke.return_value = fake_state
+        mock_graph.propagator.create_initial_state.return_value = fake_state
+        mock_graph.propagator.get_graph_args.return_value = {}
+        mock_graph.signal_processor.process_signal.return_value = "Buy"
+        mock_graph._run_graph = functools.partial(
+            TradingAgentsGraph._run_graph, mock_graph
+        )
+        mock_graph.finalize_run = functools.partial(
+            TradingAgentsGraph.finalize_run, mock_graph
+        )
+        mock_graph._log_state = functools.partial(
+            TradingAgentsGraph._log_state, mock_graph
+        )
+
+        TradingAgentsGraph.propagate(
+            mock_graph, "NVDA", "2026-01-10", persist=False,
+        )
+        assert mock_graph.memory_log.load_entries() == []
+        assert mock_graph.audit_log.load_all() == []
+        assert not (tmp_path / "NVDA").exists()

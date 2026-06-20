@@ -81,6 +81,19 @@ class ResearchPlan(BaseModel):
             "Speak naturally, as if to a teammate."
         ),
     )
+    time_horizon: str = Field(
+        description=(
+            "Address the duration question explicitly, based on what kind of "
+            "opportunity the debate concluded this is. Either a rough date-style "
+            "estimate (e.g. 'near-term catalyst, likely resolves within a "
+            "quarter') OR a condition-based answer (e.g. 'no fixed horizon — "
+            "hold while gross margins keep expanding; reassess if that reverses') "
+            "is a complete answer. A condition-based response is not a fallback; "
+            "it is the honest answer when the thesis is structural rather than "
+            "catalyst-driven. Do not fabricate a date when the thesis does not "
+            "warrant one."
+        ),
+    )
     strategic_actions: str = Field(
         description=(
             "Concrete steps for the trader to implement the recommendation, "
@@ -95,6 +108,8 @@ def render_research_plan(plan: ResearchPlan) -> str:
         f"**Recommendation**: {plan.recommendation.value}",
         "",
         f"**Rationale**: {plan.rationale}",
+        "",
+        f"**Time Horizon**: {plan.time_horizon}",
         "",
         f"**Strategic Actions**: {plan.strategic_actions}",
     ])
@@ -120,7 +135,10 @@ class TraderProposal(BaseModel):
     reasoning: str = Field(
         description=(
             "The case for this action, anchored in the analysts' reports and "
-            "the research plan. Two to four sentences."
+            "the research plan. Must explicitly justify the chosen stop_loss "
+            "level — what it is anchored to (technical support, the price at "
+            "which the bull thesis is invalidated, etc.) and why ordinary "
+            "volatility for this specific name won't trip it. Two to five sentences."
         ),
     )
     entry_price: float | None = Field(
@@ -129,11 +147,35 @@ class TraderProposal(BaseModel):
     )
     stop_loss: float | None = Field(
         default=None,
-        description="Optional stop-loss price in the instrument's quote currency.",
+        description=(
+            "Stop-loss price in the instrument's quote currency. Anchor it to a "
+            "real level — a technical support, a prior structural low, or the "
+            "price at which the bull thesis would be invalidated — not a flat "
+            "percentage. Size it so ordinary day-to-day volatility for this "
+            "specific name does not trigger it. Leave null only when no action "
+            "is being taken (Hold with no position)."
+        ),
+    )
+    take_profit: float | None = Field(
+        default=None,
+        description=(
+            "Optional take-profit price in the instrument's quote currency. "
+            "Anchor it to a thesis-realisation level (e.g. price target implied "
+            "by the bull case, prior resistance to scale out at) rather than a "
+            "round percentage. Leave null when the thesis is open-ended or no "
+            "obvious target exists."
+        ),
     )
     position_sizing: str | None = Field(
         default=None,
-        description="Optional sizing guidance, e.g. '5% of portfolio'.",
+        description=(
+            "Sizing guidance in concrete £ terms suited to a retail satellite "
+            "portfolio (£100 for most positions, up to ~£2,000 for high-conviction "
+            "ideas) — e.g. '£200 initial position' or 'add £150 to existing £600 "
+            "holding'. Do not phrase as a percentage of portfolio. If the user "
+            "already holds the name, frame in terms of adding to, trimming, or "
+            "maintaining that position."
+        ),
     )
 
 
@@ -153,6 +195,8 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         parts.extend(["", f"**Entry Price**: {proposal.entry_price}"])
     if proposal.stop_loss is not None:
         parts.extend(["", f"**Stop Loss**: {proposal.stop_loss}"])
+    if proposal.take_profit is not None:
+        parts.extend(["", f"**Take Profit**: {proposal.take_profit}"])
     if proposal.position_sizing:
         parts.extend(["", f"**Position Sizing**: {proposal.position_sizing}"])
     parts.extend([
@@ -184,8 +228,13 @@ class PortfolioDecision(BaseModel):
     )
     executive_summary: str = Field(
         description=(
-            "A concise action plan covering entry strategy, position sizing, "
-            "key risk levels, and time horizon. Two to four sentences."
+            "A concise action plan, two to four sentences. The opening sentence "
+            "must anchor in the user's actual position status as supplied in the "
+            "prompt context: if they already hold the name, frame as add / "
+            "maintain / trim / exit; if they hold nothing, frame as initiate or "
+            "do-not-initiate. Cover sizing in £ terms (suited to a £100–£2,000 "
+            "retail satellite position, never as a % of portfolio), key risk "
+            "levels, and the time-horizon framing."
         ),
     )
     investment_thesis: str = Field(
@@ -199,9 +248,17 @@ class PortfolioDecision(BaseModel):
         default=None,
         description="Optional target price in the instrument's quote currency.",
     )
-    time_horizon: str | None = Field(
-        default=None,
-        description="Optional recommended holding period, e.g. '3-6 months'.",
+    time_horizon: str = Field(
+        description=(
+            "Address the duration question explicitly. Either a rough date-style "
+            "estimate (e.g. 'near-term catalyst, likely resolves within a "
+            "quarter') OR a condition-based answer (e.g. 'no fixed horizon — "
+            "hold while gross margins keep expanding; reassess if that reverses') "
+            "is a complete answer. A condition-based response is not a fallback; "
+            "it is the honest answer when the thesis is structural rather than "
+            "catalyst-driven. Do not fabricate a date when the thesis does not "
+            "warrant one."
+        ),
     )
 
 
@@ -222,8 +279,7 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     ]
     if decision.price_target is not None:
         parts.extend(["", f"**Price Target**: {decision.price_target}"])
-    if decision.time_horizon:
-        parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
+    parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)
 
 

@@ -39,6 +39,10 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
 
 ---
 
+**Time Horizon** — populate this honestly. Based on what kind of opportunity the debate concluded this is, either a date-style estimate ("near-term catalyst, resolves within a quarter") or a condition-based answer ("no fixed horizon — hold while margins keep expanding; reassess if that reverses") is a complete and valid response. A condition-based answer is not a fallback; it is the right answer when the thesis is structural rather than catalyst-driven. Do not fabricate a date when the thesis does not warrant one.
+
+---
+
 **Debate History:**
 {history}""" + get_language_instruction()
 
