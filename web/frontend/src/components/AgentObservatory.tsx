@@ -1,0 +1,74 @@
+import { useState } from "react";
+import type { WsEvent } from "../lib/events";
+import { ObservatoryDag } from "./ObservatoryDag";
+import { ThinkingStream } from "./ThinkingStream";
+import { ToolTimeline } from "./ToolTimeline";
+import { DebateFlow } from "./DebateFlow";
+import { DecisionTrace } from "./DecisionTrace";
+
+type Tab = "dag" | "thinking" | "tools" | "debate" | "risk" | "decision";
+
+interface AgentObservatoryProps {
+  events: WsEvent[];
+}
+
+export function AgentObservatory({ events }: AgentObservatoryProps) {
+  const [tab, setTab] = useState<Tab>("dag");
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "dag", label: "Flow" },
+    { key: "thinking", label: "Thinking" },
+    { key: "tools", label: "Tools" },
+    { key: "debate", label: "Debate" },
+    { key: "risk", label: "Risk" },
+    { key: "decision", label: "Trace" },
+  ];
+
+  return (
+    <div className="space-y-3" data-testid="agent-observatory">
+      <div className="flex items-center gap-1 border-b border-slate-700/50 pb-1">
+        {tabs.map(t => (
+          <button key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-1.5 text-xs rounded-t-lg transition-colors ${
+              tab === t.key
+                ? "bg-sky-500/15 text-sky-300 border-b-2 border-sky-400"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "dag" && (
+        <ObservatoryDag events={events} onNodeClick={(name) => { setSelectedAgent(name); setTab("thinking"); }} />
+      )}
+      {tab === "thinking" && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-1">
+            {["Market Analyst", "Sentiment Analyst", "News Analyst", "Fundamentals Analyst",
+              "Bull Researcher", "Bear Researcher", "Research Manager", "Trader",
+              "Aggressive Analyst", "Conservative Analyst", "Neutral Analyst", "Portfolio Manager"].map(name => (
+              <button key={name} onClick={() => setSelectedAgent(name)}
+                className={`px-2 py-1 text-[10px] rounded-full border transition-colors ${
+                  selectedAgent === name
+                    ? "bg-sky-500/20 text-sky-300 border-sky-500/30"
+                    : "text-slate-500 border-slate-700/50 hover:text-slate-300"
+                }`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          {selectedAgent && <ThinkingStream events={events} agentName={selectedAgent} />}
+        </div>
+      )}
+      {tab === "tools" && <ToolTimeline events={events} />}
+      {tab === "debate" && <DebateFlow events={events} type="debate" />}
+      {tab === "risk" && <DebateFlow events={events} type="risk" />}
+      {tab === "decision" && <DecisionTrace events={events} />}
+    </div>
+  );
+}

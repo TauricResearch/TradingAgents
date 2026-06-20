@@ -21,6 +21,7 @@ import { TickerAgentDrawer } from "./components/TickerAgentDrawer";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PipelineFlow } from "./components/PipelineFlow";
 import { LlmTracePanel } from "./components/LlmTracePanel";
+import { AgentObservatory } from "./components/AgentObservatory";
 
 export default function App() {
   const focused = useUi((s) => s.focusedTicker);
@@ -76,6 +77,7 @@ export default function App() {
   const [dismissedStaleBanner, setDismissedStaleBanner] = useState<string | null>(null);
   const [traceView, setTraceView] = useState<"events" | "llm">("events");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [observatoryOpen, setObservatoryOpen] = useState(false);
 
   useRunStream(runId);
   useGlobalStream();
@@ -254,13 +256,22 @@ export default function App() {
             >
               Agent
             </button>
+            <button
+              onClick={() => setObservatoryOpen((prev) => !prev)}
+              className="btn-secondary text-xs"
+            >
+              🔭 Observatory
+            </button>
             {focused && (
               <button onClick={() => setHistoryOpen(true)} className="btn-secondary text-xs">History</button>
             )}
           </div>
         </header>
         {focused ? (
-          <>
+          observatoryOpen ? (
+            <AgentObservatory events={events} />
+          ) : (
+            <>
             {showStaleBanner && (
               <div
                 data-testid="stale-ticker-banner"
@@ -343,6 +354,7 @@ export default function App() {
               />
             )}
           </>
+          )
         ) : (
           <div className="mt-24 text-center animate-fade-in">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-800/60 border border-slate-700/50 mb-4">
