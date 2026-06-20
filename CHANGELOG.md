@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Fixed
+
+- **Local OpenAI-compatible servers no longer 400 on structured output.**
+  LM Studio, llama.cpp, older vLLM, and Ollama reject the function-spec
+  `tool_choice` object that langchain's `function_calling` path sends by
+  default. Because these servers run arbitrary, user-named models the
+  per-model capability table can't key off, the client now suppresses
+  `tool_choice` at the endpoint level for the local/generic `openai_compatible`
+  and `ollama` providers. The schema is still bound as a tool, matching the
+  existing DeepSeek/MiniMax handling, so structured output keeps working. (#1057)
+
 ## [0.2.5] — 2026-05-11
 
 ### Added
