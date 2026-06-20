@@ -12,12 +12,15 @@ Each cycle:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+from fastapi import WebSocket
 
 from web.server.ticker_agent import scorer
 from web.server.ticker_agent.universe import discover_universe, UniverseConfig
@@ -59,19 +62,48 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _emit_live(step: int, message: str) -> None:
+_ws_subscribers: set[WebSocket] = set()
+
+
+async def ws_broadcast(event: dict) -> None:
+    dead = set()
+    for ws in _ws_subscribers:
+        try:
+            await ws.send_json(event)
+        except Exception:
+            dead.add(ws)
+    _ws_subscribers -= dead
+
+
+def ws_subscribe(ws: WebSocket) -> None:
+    _ws_subscribers.add(ws)
+
+
+def ws_unsubscribe(ws: WebSocket) -> None:
+    _ws_subscribers.discard(ws)
+
+
+def _emit_event(step: int, message: str, event_type: str = "ticker_step", detail: dict | None = None) -> None:
     global _event_id_counter
     with _lock:
         _event_id_counter += 1
-        _live_events.append({
+        ev = {
             "id": _event_id_counter,
             "step": step,
             "step_name": STEP_NAMES[step] if 0 <= step < len(STEP_NAMES) else "Unknown",
             "message": message,
             "timestamp": _now_iso(),
-        })
+            "event_type": event_type,
+            "detail": detail or {},
+        }
+        _live_events.append(ev)
         if len(_live_events) > 200:
             _live_events[:50] = []
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(ws_broadcast(ev))
+    except RuntimeError:
+        pass
 
 
 def status() -> dict:
@@ -304,6 +336,24 @@ def _execute_plan(plan: dict) -> dict:
     return {"scheduled": scheduled}
 
 
+def _fetch_close_price_for_date(ticker: str, date_iso: str) -> tuple[Optional[float], Optional[str]]:
+    """Fetch the closing price for (ticker, date_iso) from market data.
+
+    Returns ``(None, None)`` on any failure.
+    """
+    try:
+        from tradingagents.dataflows.stockstats_utils import load_ohlcv
+        from tradingagents.dataflows.symbol_utils import NoMarketDataError
+        df = load_ohlcv(ticker, date_iso)
+        if df is not None and not df.empty and "Close" in df.columns:
+            close = float(df["Close"].iloc[-1])
+            ts = f"{date_iso}T20:00:00Z"
+            return close, ts
+    except Exception:
+        pass
+    return None, None
+
+
 def _rank_and_store(context: dict) -> dict:
     """Recompute accuracy scores from all existing runs and store them."""
     runs_by_ticker = context.get("runs_by_ticker")
@@ -314,6 +364,16 @@ def _rank_and_store(context: dict) -> dict:
             runs = list(storage.list_ticker_runs(ticker, limit=_RUN_LIMIT_PER_TICKER))
             if runs:
                 runs_by_ticker[ticker] = runs
+
+    for ticker, runs in runs_by_ticker.items():
+        for run in runs:
+            if run.get("end_price") is None and run.get("start_price") is not None:
+                trade_date = run.get("trade_date")
+                if trade_date:
+                    next_date = (datetime.fromisoformat(trade_date) + timedelta(days=1)).date().isoformat()
+                    ep, _ = _fetch_close_price_for_date(ticker, next_date)
+                    if ep is not None:
+                        run["end_price"] = ep
 
     cfg = load_config()
     scores = scorer.compute_ticker_scores(runs_by_ticker, min_samples=cfg.min_samples)
@@ -421,15 +481,6 @@ Return JSON:
     return []
 
 
-_FALLBACK_CAPABILITIES = [
-    ("sector_etf_flows", "Track ETF capital inflows per sector for sector rotation detection", "/api/sectors/flows"),
-    ("options_flow", "Monitor unusual options activity as a leading indicator", "/api/options/unusual"),
-    ("insider_trading_aggregator", "Aggregate insider trading patterns across tickers", "/api/insider/aggregate"),
-    ("earnings_calendar", "Earnings dates and surprise history for event-driven analysis", "/api/calendar/earnings"),
-    ("sector_performance_api", "Real-time sector performance data (XLK, XLF, etc.)", "/api/sectors/performance"),
-]
-
-
 def _self_improve(context: dict) -> None:
     """Ask what would make the agent better and log missing capabilities."""
     caps = discover_api_capabilities()
@@ -440,8 +491,6 @@ def _self_improve(context: dict) -> None:
     ) if caps else "No API capabilities discovered."
 
     suggestions = _ask_llm_for_missing_capabilities(caps_text)
-    if not suggestions:
-        suggestions = _FALLBACK_CAPABILITIES
 
     for name, description, endpoint in suggestions:
         if endpoint not in available_paths:
@@ -456,33 +505,45 @@ def run_cycle() -> dict:
         _current_status = "running"
         _current_step = 1
         _last_cycle_at = _now_iso()
-    _emit_live(1, "Reading past conclusions from memory...")
+    _emit_event(1, "Reading past conclusions from memory...", "ticker_step_started", {"step": 1})
 
     try:
-        _emit_live(2, "Gathering context: watchlist, universe, accuracy scores...")
+        _emit_event(2, "Gathering context: watchlist, universe, accuracy scores...", "ticker_step_started", {"step": 2})
         context = _gather_context()
+        _emit_event(2, "Context gathered", "ticker_step_completed", {
+            "step": 2,
+            "universe_size": context.get("universe_size", 0),
+            "watchlist_size": context.get("watchlist_size", 0),
+            "scored_tickers": context.get("scored_tickers", 0),
+            "coverage_gaps": len(context.get("coverage_gaps", [])),
+        })
 
-        _emit_live(3, "Calling LLM for strategy plan...")
+        _emit_event(3, "Calling LLM for strategy plan...", "ticker_step_started", {"step": 3})
         prompt = _build_strategy_prompt(context)
         llm_response = _call_llm_strategy(prompt)
+        _emit_event(3, "LLM strategy response received", "ticker_llm_call", {
+            "prompt_preview": prompt[:200],
+            "response": json.dumps(llm_response)[:500],
+            "model": "",
+        })
 
-        _emit_live(4, "Scheduling execution for planned tickers...")
         execution_result = _execute_plan(llm_response)
+        _emit_event(4, "Scheduling execution for planned tickers...", "ticker_step_completed", {"step": 4, "scheduled": execution_result.get("scheduled", [])})
 
-        _emit_live(5, "Ranking accuracy scores from completed runs...")
         scores_result = _rank_and_store(context)
+        _emit_event(5, "Ranking accuracy scores from completed runs...", "ticker_step_completed", {"step": 5, "scored": scores_result.get("scored", 0), "top_ticker": scores_result.get("top_ticker")})
 
-        _emit_live(6, "Writing learning conclusions to memory...")
+        _emit_event(6, "Writing learning conclusions to memory...", "ticker_step_completed", {"step": 6})
         _write_memory(context, llm_response, execution_result, scores_result)
 
-        _emit_live(7, "Checking for missing capabilities...")
+        _emit_event(7, "Checking for missing capabilities...", "ticker_step_completed", {"step": 7})
         _self_improve(context)
 
         with _lock:
             _current_step = 0
             _cycles_completed += 1
             _current_status = "idle"
-        _emit_live(0, "Cycle complete.")
+        _emit_event(0, "Cycle complete.", "ticker_cycle_completed", {"cycles_completed": _cycles_completed})
 
         return {"status": "completed", "cycles_completed": _cycles_completed}
 
@@ -491,7 +552,7 @@ def run_cycle() -> dict:
         with _lock:
             _current_step = 0
             _current_status = "error"
-        _emit_live(0, f"Cycle failed: {e}")
+        _emit_event(0, f"Cycle failed: {e}", "ticker_cycle_completed", {"cycles_completed": _cycles_completed})
         return {"status": "error", "error": str(e)}
 
 

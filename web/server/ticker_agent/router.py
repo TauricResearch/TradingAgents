@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from web.server.ticker_agent import orchestrator
@@ -67,6 +67,17 @@ def get_accuracy_leaderboard():
         return {"scores": scores, "last_evaluated": state.get("last_evaluated")}
     except (json.JSONDecodeError, OSError):
         return {"scores": {}, "last_evaluated": None}
+
+
+@router.websocket("/ws")
+async def ticker_agent_ws(ws: WebSocket):
+    await ws.accept()
+    orchestrator.ws_subscribe(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        orchestrator.ws_unsubscribe(ws)
 
 
 @router.get("/live-events")
