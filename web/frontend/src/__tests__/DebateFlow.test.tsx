@@ -1,10 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { DebateFlow } from "../components/DebateFlow";
-
-beforeEach(() => {
-  Element.prototype.scrollIntoView = vi.fn();
-});
 
 const mockDebate: any[] = [
   { id: "1", type: "debate_message", ts: "2024-01-01T00:00:00Z", run_id: "r1", data: { side: "Bull Researcher", text: "I think this is a buy", turn: 1 } },

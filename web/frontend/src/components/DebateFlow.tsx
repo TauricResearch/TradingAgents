@@ -28,7 +28,7 @@ export function DebateFlow({ events, type }: DebateFlowProps) {
   }
 
   return (
-    <div className="space-y-2 max-h-96 overflow-y-auto">
+    <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="debate-flow">
       {messages.map((e, i) => {
         const d = e.data as any;
         const side = d.side || "unknown";
