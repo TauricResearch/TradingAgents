@@ -62,6 +62,148 @@ def get_ticker() -> str:
     return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
 
 
+def _split_ticker_list(raw: str) -> list[str]:
+    """Split a free-form ticker list on commas/whitespace.
+
+    Used by the multi-ticker prompt. Empty/blank entries are dropped.
+    """
+    parts: list[str] = []
+    for chunk in raw.replace(",", " ").split():
+        chunk = chunk.strip()
+        if chunk:
+            parts.append(chunk)
+    return parts
+
+
+def _validate_ticker_list_input(value: str) -> bool:
+    """Whether a multi-ticker entry is acceptable.
+
+    Empty input is rejected (the multi-ticker prompt is only reached when the
+    user explicitly asked for it; falling back to SPY here would be silently
+    wrong). Each token must pass the same charset check as a single ticker.
+    """
+    parts = _split_ticker_list(value)
+    if not parts:
+        return False
+    return all(is_valid_ticker_input(p) for p in parts)
+
+
+def get_tickers() -> list[str]:
+    """Prompt for one or more ticker symbols, comma/space separated.
+
+    Returns a deduped, order-preserving list of canonical Yahoo symbols. Reuses
+    ``normalize_ticker_symbol`` so each entry is the exact symbol the data path
+    will price. Use ``get_ticker`` for the strictly single-ticker path.
+    """
+    raw = questionary.text(
+        "Enter one or more ticker symbols, comma or space separated "
+        f"(e.g. {TICKER_INPUT_EXAMPLES}):",
+        validate=lambda x: (
+            _validate_ticker_list_input(x)
+            or "Enter at least one valid ticker, e.g. NVDA, AAPL, 0700.HK."
+        ),
+        style=questionary.Style(
+            [
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if raw is None:
+        console.print("\n[red]No tickers provided. Exiting...[/red]")
+        exit(1)
+
+    seen: set[str] = set()
+    tickers: list[str] = []
+    for part in _split_ticker_list(raw):
+        canonical = normalize_ticker_symbol(part)
+        if canonical not in seen:
+            seen.add(canonical)
+            tickers.append(canonical)
+    return tickers
+
+
+def parse_watchlist(path: Path) -> list[tuple[str, float | None]]:
+    """Parse a watchlist file into ``[(ticker, position_size_gbp_or_None), ...]``.
+
+    Format: one entry per line. ``#`` introduces a comment (rest of line ignored).
+    Blank lines are skipped. Each non-blank line is ``TICKER`` or ``TICKER AMOUNT``
+    where AMOUNT is a £ figure (``£`` and ``,`` tolerated, e.g. ``£1,200``).
+    Tickers are normalized to canonical Yahoo symbols and deduped in order;
+    a duplicated ticker keeps the first occurrence (and its amount).
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"Watchlist file not found: {path}")
+
+    entries: list[tuple[str, float | None]] = []
+    seen: set[str] = set()
+    with open(path, encoding="utf-8") as f:
+        for line_num, raw_line in enumerate(f, start=1):
+            line = raw_line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            tokens = line.split()
+            ticker_raw = tokens[0]
+            amount: float | None = None
+            if len(tokens) >= 2:
+                amount_str = " ".join(tokens[1:]).strip().lstrip("£").replace(",", "")
+                try:
+                    parsed = float(amount_str)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"{path}:{line_num}: could not parse position size "
+                        f"{tokens[1]!r} for {ticker_raw} (expected a number)"
+                    ) from exc
+                if parsed <= 0:
+                    raise ValueError(
+                        f"{path}:{line_num}: position size for {ticker_raw} "
+                        f"must be positive, got {parsed}"
+                    )
+                amount = parsed
+            if not is_valid_ticker_input(ticker_raw):
+                raise ValueError(
+                    f"{path}:{line_num}: invalid ticker symbol {ticker_raw!r}"
+                )
+            canonical = normalize_ticker_symbol(ticker_raw)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            entries.append((canonical, amount))
+    if not entries:
+        raise ValueError(f"{path}: no tickers found")
+    return entries
+
+
+def get_position_for_ticker(ticker: str) -> float | None:
+    """Compact per-ticker position prompt for multi-ticker mode.
+
+    The single-ticker flow uses the more verbose ``get_position_holding``
+    (confirm + amount). For watchlists of 5–15 names a single one-liner per
+    ticker is less tedious. Empty/0 means "no position".
+    """
+    raw = questionary.text(
+        f"{ticker} — approx £ held (Enter or 0 if none):",
+        default="",
+        validate=lambda x: (
+            x.strip() == ""
+            or x.strip() == "0"
+            or _is_valid_position_amount(x)
+            or "Enter a positive number, 0, or leave blank."
+        ),
+        style=questionary.Style(
+            [
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if raw is None or not raw.strip() or raw.strip() == "0":
+        return None
+    return float(raw.strip().lstrip("£").replace(",", ""))
+
+
 def _is_valid_position_amount(value: str) -> bool:
     """Whether a £ position-size entry parses as a positive number."""
     v = value.strip().lstrip("£").replace(",", "")

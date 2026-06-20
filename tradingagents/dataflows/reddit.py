@@ -22,6 +22,7 @@ import http.client
 import json
 import logging
 import re
+import threading
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
@@ -31,6 +32,43 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
+
+# Process-wide gate for Reddit RSS calls. ``fetch_reddit_posts`` is invoked
+# from one Sentiment Analyst per ticker, and the multi-ticker CLI runs several
+# tickers in parallel — without coordination, 3 workers each hitting
+# r/wallstreetbets + r/stocks + r/investing means ~9 concurrent unauthenticated
+# RSS requests, which reliably trips Reddit's per-IP 429 limit. The lock plus
+# minimum-interval pacing serializes all RSS calls through this module so the
+# global request cadence stays within Reddit's tolerance regardless of how many
+# workers are running.
+_REDDIT_GATE_LOCK = threading.Lock()
+_REDDIT_LAST_CALL = 0.0
+_REDDIT_MIN_INTERVAL = 1.2  # seconds between any two RSS calls, globally
+
+# Process-wide serialization lock for ``fetch_reddit_posts``: only one ticker's
+# Sentiment Analyst hits Reddit at a time. The per-call ``_wait_global_rss_slot``
+# gate isn't enough on its own — Reddit's WAF rejects even modestly bursty
+# unauthenticated traffic, so 3 tickers each fetching 3 subreddits at 1.2s
+# spacing still trips a wall of 429s. Serializing the whole per-ticker batch
+# adds wall time but keeps the sentiment report from being empty for every
+# ticker in a multi-ticker run.
+_REDDIT_BATCH_LOCK = threading.Lock()
+
+
+def _wait_global_rss_slot() -> None:
+    """Block until at least ``_REDDIT_MIN_INTERVAL`` seconds have elapsed
+    since the previous Reddit RSS call from *any* thread, then claim the slot.
+
+    Held briefly across the sleep so two threads can't both decide the slot is
+    free at the same moment.
+    """
+    global _REDDIT_LAST_CALL
+    with _REDDIT_GATE_LOCK:
+        now = time.monotonic()
+        gap = now - _REDDIT_LAST_CALL
+        if gap < _REDDIT_MIN_INTERVAL:
+            time.sleep(_REDDIT_MIN_INTERVAL - gap)
+        _REDDIT_LAST_CALL = time.monotonic()
 
 _API = "https://www.reddit.com/r/{sub}/search.json?{qs}"
 _RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
@@ -104,6 +142,11 @@ def _fetch_subreddit_rss(
     """
     url = _RSS.format(sub=sub, qs=_search_qs(ticker, limit))
     req = Request(url, headers={"User-Agent": _UA})
+    # Global gate: ensure at least ``_REDDIT_MIN_INTERVAL`` since the previous
+    # RSS call from any worker. Required when several Sentiment Analysts run
+    # in parallel under the multi-ticker CLI, since the per-call pacing in
+    # ``fetch_reddit_posts`` only spaces requests within one ticker.
+    _wait_global_rss_slot()
     try:
         with urlopen(req, timeout=timeout) as resp:
             root = ET.fromstring(resp.read())
@@ -199,7 +242,26 @@ def fetch_reddit_posts(
     ``inter_request_delay`` paces the (now RSS-only) per-subreddit requests to
     stay under Reddit's public per-IP rate limit; combined with the RSS-first
     path it makes 429s rare even when several analyses run back-to-back.
+
+    Serialized process-wide via ``_REDDIT_BATCH_LOCK``: only one ticker's
+    sentiment analyst fetches at a time. This adds wall-clock time in
+    multi-ticker runs (subreddit fetches no longer overlap across tickers)
+    but the per-call gate alone wasn't enough to keep Reddit's WAF from
+    returning 429 for every fetch in a burst.
     """
+    with _REDDIT_BATCH_LOCK:
+        return _fetch_reddit_posts_impl(
+            ticker, subreddits, limit_per_sub, timeout, inter_request_delay,
+        )
+
+
+def _fetch_reddit_posts_impl(
+    ticker: str,
+    subreddits: Iterable[str],
+    limit_per_sub: int,
+    timeout: float,
+    inter_request_delay: float,
+) -> str:
     blocks = []
     total_posts = 0
     for i, sub in enumerate(subreddits):

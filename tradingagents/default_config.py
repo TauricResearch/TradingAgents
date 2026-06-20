@@ -18,6 +18,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    "TRADINGAGENTS_MAX_PARALLEL_TICKERS": "max_parallel_tickers",
 }
 
 
@@ -87,6 +88,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
     "analyst_concurrency_limit": 1,
+    # Cap on tickers analyzed in parallel when the CLI is run with a multi-ticker
+    # list or --watchlist. Each worker spins its own TradingAgentsGraph, so this
+    # also caps concurrent provider RPS. 3 is a safe default for DeepSeek-style
+    # quotas; tune via TRADINGAGENTS_MAX_PARALLEL_TICKERS.
+    "max_parallel_tickers": 3,
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.

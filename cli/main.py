@@ -31,8 +31,11 @@ from cli.utils import (
     confirm_ollama_endpoint,
     detect_asset_type,
     ensure_api_key,
+    get_position_for_ticker,
     get_position_holding,
     get_ticker,
+    get_tickers,
+    parse_watchlist,
     prompt_openai_compatible_url,
     resolve_backend_url,
     select_analysts,
@@ -479,8 +482,19 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def get_user_selections():
-    """Get all user selections before starting the analysis display."""
+def get_user_selections(
+    preset_entries: list[tuple[str, float | None]] | None = None,
+):
+    """Get all user selections before starting the analysis display.
+
+    ``preset_entries`` lets the multi-ticker path skip Steps 1 + 1b (ticker
+    symbol and per-ticker position holding) since those are resolved up front
+    from the inline list or watchlist. When provided, the asset type for the
+    analyst menu is derived from the first entry (mixed watchlists fall back
+    to per-ticker filtering inside the worker, see ``cli/multi_runner.py``),
+    and the returned dict carries ``tickers`` (list) instead of ``ticker``
+    (str). Position size is captured per ticker in the entries list.
+    """
     # Display ASCII art welcome message
     with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
         welcome_ascii = f.read()
@@ -518,39 +532,66 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Ticker symbol
-    console.print(
-        create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
-            "SPY",
-        )
-    )
-    selected_ticker = get_ticker()
-    asset_type = detect_asset_type(selected_ticker)
-    # Only announce when it's not the default stock path, to avoid printing
-    # "stock" on every run.
-    if asset_type.value != "stock":
+    # Step 1 + 1b are either prompted interactively (single-ticker path) or
+    # supplied up front by the multi-ticker entry point (--watchlist or inline
+    # comma-separated list). When supplied, we still surface what was resolved
+    # so the user can confirm before the run starts.
+    if preset_entries is None:
+        # Step 1: Ticker symbol
         console.print(
-            f"[green]Detected asset type:[/green] {asset_type.value}"
+            create_question_box(
+                "Step 1: Ticker Symbol",
+                "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
+                "SPY",
+            )
         )
+        selected_ticker = get_ticker()
+        asset_type = detect_asset_type(selected_ticker)
+        # Only announce when it's not the default stock path, to avoid printing
+        # "stock" on every run.
+        if asset_type.value != "stock":
+            console.print(
+                f"[green]Detected asset type:[/green] {asset_type.value}"
+            )
 
-    # Step 1b: Current position. Threaded into agent state so the
-    # Trader and Portfolio Manager frame their output against actual
-    # position status rather than as a generic new-entry recommendation.
-    console.print(
-        create_question_box(
-            "Step 1b: Current Position",
-            f"Do you currently hold a position in {selected_ticker}? (y/n, then £ if yes)",
-        )
-    )
-    position_size_gbp = get_position_holding()
-    if position_size_gbp is None:
-        console.print("[green]Current position:[/green] none")
-    else:
+        # Step 1b: Current position. Threaded into agent state so the
+        # Trader and Portfolio Manager frame their output against actual
+        # position status rather than as a generic new-entry recommendation.
         console.print(
-            f"[green]Current position:[/green] ~£{position_size_gbp:,.0f}"
+            create_question_box(
+                "Step 1b: Current Position",
+                f"Do you currently hold a position in {selected_ticker}? (y/n, then £ if yes)",
+            )
         )
+        position_size_gbp = get_position_holding()
+        if position_size_gbp is None:
+            console.print("[green]Current position:[/green] none")
+        else:
+            console.print(
+                f"[green]Current position:[/green] ~£{position_size_gbp:,.0f}"
+            )
+        preset_tickers_list: list[str] | None = None
+    else:
+        # Multi-ticker mode: ticker + position were resolved before this call.
+        # asset_type for the analyst menu is the first ticker's; the worker
+        # re-detects per-ticker so a mixed watchlist still works.
+        selected_ticker = preset_entries[0][0]
+        position_size_gbp = preset_entries[0][1]
+        asset_type = detect_asset_type(selected_ticker)
+        preset_tickers_list = [t for t, _ in preset_entries]
+        if len(preset_entries) > 1:
+            console.print(
+                f"[green]Selected tickers ({len(preset_entries)}):[/green] "
+                + ", ".join(
+                    f"{t}{(' £' + format(p, ',.0f')) if p else ''}"
+                    for t, p in preset_entries
+                )
+            )
+        else:
+            t, p = preset_entries[0]
+            console.print(f"[green]Selected ticker:[/green] {t}")
+            if p:
+                console.print(f"[green]Current position:[/green] ~£{p:,.0f}")
 
     # Step 2: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -707,6 +748,7 @@ def get_user_selections():
 
     return {
         "ticker": selected_ticker,
+        "tickers": preset_tickers_list,
         "asset_type": asset_type.value,
         "position_size_gbp": position_size_gbp,
         "analysis_date": analysis_date,
@@ -893,11 +935,16 @@ def display_complete_report(final_state):
             console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
 
-def update_research_team_status(status):
-    """Update status for research team members (not Trader)."""
+def update_research_team_status(status, buffer=None):
+    """Update status for research team members (not Trader).
+
+    ``buffer`` lets the multi-ticker path target its own per-ticker MessageBuffer
+    instead of the module-level singleton used by the single-ticker rich UI.
+    """
+    target = buffer if buffer is not None else message_buffer
     research_team = ["Bull Researcher", "Bear Researcher", "Research Manager"]
     for agent in research_team:
-        message_buffer.update_agent_status(agent, status)
+        target.update_agent_status(agent, status)
 
 
 # Ordered list of analysts for status transitions
@@ -1031,6 +1078,132 @@ def classify_message_type(message) -> tuple[str, str | None]:
     return ("System", content)
 
 
+def _stage_from_buffer(buffer) -> str:
+    """Coarse pipeline stage derived from the buffer's agent_status.
+
+    Used by the single-ticker viewer hook, where the stream emits per-node
+    deltas (not cumulative state) so multi_runner's chunk-based derivation
+    doesn't apply. Walks the pipeline in order and returns the latest stage
+    with any agent past "pending".
+    """
+    status = buffer.agent_status
+    if status.get("Portfolio Manager") == "completed":
+        return "done"
+    if any(status.get(a) in ("in_progress", "completed") for a in
+           ("Aggressive Analyst", "Neutral Analyst", "Conservative Analyst", "Portfolio Manager")):
+        return "risk_debate"
+    if status.get("Trader") in ("in_progress", "completed"):
+        return "trader"
+    if any(status.get(a) in ("in_progress", "completed") for a in
+           ("Bull Researcher", "Bear Researcher", "Research Manager")):
+        return "research_debate"
+    if any(status.get(a) in ("in_progress", "completed") for a in
+           ("Market Analyst", "Sentiment Analyst", "News Analyst", "Fundamentals Analyst")):
+        return "analysts"
+    return "queued"
+
+
+def process_chunk_into_buffer(buffer, chunk, wall_time_tracker=None):
+    """Apply one streamed chunk's updates into the given ``MessageBuffer``.
+
+    This is the exact sequence ``run_analysis`` used to inline inside its
+    ``graph.stream`` loop, lifted out so the multi-ticker workers in
+    ``cli/multi_runner.py`` can drive a *per-ticker* MessageBuffer with the
+    same semantics — agent status transitions, report sections, and message /
+    tool-call accumulation. Behaviour for the single-ticker rich UI is
+    unchanged; it now just delegates to this helper.
+    """
+    # Process all messages in chunk, deduplicating by message ID
+    for message in chunk.get("messages", []):
+        msg_id = getattr(message, "id", None)
+        if msg_id is not None:
+            if msg_id in buffer._processed_message_ids:
+                continue
+            buffer._processed_message_ids.add(msg_id)
+
+        msg_type, content = classify_message_type(message)
+        if content and content.strip():
+            buffer.add_message(msg_type, content)
+
+        if hasattr(message, "tool_calls") and message.tool_calls:
+            for tool_call in message.tool_calls:
+                if isinstance(tool_call, dict):
+                    buffer.add_tool_call(tool_call["name"], tool_call["args"])
+                else:
+                    buffer.add_tool_call(tool_call.name, tool_call.args)
+
+    # Update analyst statuses based on accumulated report state.
+    update_analyst_statuses(buffer, chunk, wall_time_tracker=wall_time_tracker)
+
+    # Research Team — investment debate transitions.
+    if chunk.get("investment_debate_state"):
+        debate_state = chunk["investment_debate_state"]
+        bull_hist = debate_state.get("bull_history", "").strip()
+        bear_hist = debate_state.get("bear_history", "").strip()
+        judge = debate_state.get("judge_decision", "").strip()
+        if bull_hist or bear_hist:
+            update_research_team_status("in_progress", buffer=buffer)
+        if bull_hist:
+            buffer.update_report_section(
+                "investment_plan", f"### Bull Researcher Analysis\n{bull_hist}"
+            )
+        if bear_hist:
+            buffer.update_report_section(
+                "investment_plan", f"### Bear Researcher Analysis\n{bear_hist}"
+            )
+        if judge:
+            buffer.update_report_section(
+                "investment_plan", f"### Research Manager Decision\n{judge}"
+            )
+            update_research_team_status("completed", buffer=buffer)
+            buffer.update_agent_status("Trader", "in_progress")
+
+    # Trading Team.
+    if chunk.get("trader_investment_plan"):
+        buffer.update_report_section(
+            "trader_investment_plan", chunk["trader_investment_plan"]
+        )
+        if buffer.agent_status.get("Trader") != "completed":
+            buffer.update_agent_status("Trader", "completed")
+            buffer.update_agent_status("Aggressive Analyst", "in_progress")
+
+    # Risk Management Team — risk debate transitions.
+    if chunk.get("risk_debate_state"):
+        risk_state = chunk["risk_debate_state"]
+        agg_hist = risk_state.get("aggressive_history", "").strip()
+        con_hist = risk_state.get("conservative_history", "").strip()
+        neu_hist = risk_state.get("neutral_history", "").strip()
+        judge = risk_state.get("judge_decision", "").strip()
+
+        if agg_hist:
+            if buffer.agent_status.get("Aggressive Analyst") != "completed":
+                buffer.update_agent_status("Aggressive Analyst", "in_progress")
+            buffer.update_report_section(
+                "final_trade_decision", f"### Aggressive Analyst Analysis\n{agg_hist}"
+            )
+        if con_hist:
+            if buffer.agent_status.get("Conservative Analyst") != "completed":
+                buffer.update_agent_status("Conservative Analyst", "in_progress")
+            buffer.update_report_section(
+                "final_trade_decision", f"### Conservative Analyst Analysis\n{con_hist}"
+            )
+        if neu_hist:
+            if buffer.agent_status.get("Neutral Analyst") != "completed":
+                buffer.update_agent_status("Neutral Analyst", "in_progress")
+            buffer.update_report_section(
+                "final_trade_decision", f"### Neutral Analyst Analysis\n{neu_hist}"
+            )
+        if judge and buffer.agent_status.get("Portfolio Manager") != "completed":
+            buffer.update_agent_status("Portfolio Manager", "in_progress")
+            buffer.update_report_section(
+                "final_trade_decision", f"### Portfolio Manager Decision\n{judge}"
+            )
+            buffer.update_agent_status("Aggressive Analyst", "completed")
+            buffer.update_agent_status("Conservative Analyst", "completed")
+            buffer.update_agent_status("Neutral Analyst", "completed")
+            buffer.update_agent_status("Portfolio Manager", "completed")
+
+
 def format_tool_args(args, max_length=80) -> str:
     """Format tool arguments for terminal display."""
     result = str(args)
@@ -1038,9 +1211,246 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
-def run_analysis(checkpoint: bool = False, recheck: bool = False):
-    # First get all user selections
-    selections = get_user_selections()
+def _resolve_multi_entries(watchlist: Path | None) -> list[tuple[str, float | None]]:
+    """Build the ``[(ticker, position_size_gbp_or_None), ...]`` list.
+
+    Either parsed from ``--watchlist`` or prompted interactively:
+    first a comma/space-separated ticker list, then one compact position
+    prompt per ticker (Enter to skip).
+    """
+    if watchlist is not None:
+        entries = parse_watchlist(watchlist)
+        console.print(
+            f"[green]Loaded {len(entries)} ticker(s) from {watchlist}[/green]"
+        )
+        return entries
+
+    console.print(
+        Panel(
+            "[bold]Step 1: Tickers[/bold]\n"
+            "[dim]Enter one or more ticker symbols, comma or space separated. "
+            "Single entry = the standard interactive run; multiple entries = a "
+            "parallel multi-ticker run.[/dim]",
+            border_style="blue",
+            padding=(1, 2),
+        )
+    )
+    tickers = get_tickers()
+
+    if len(tickers) == 1:
+        # Single ticker — fall back to the existing single-ticker flow's
+        # position prompt for the richer y/n + amount UX.
+        return [(tickers[0], get_position_holding())]
+
+    console.print(
+        Panel(
+            "[bold]Step 1b: Current Positions[/bold]\n"
+            "[dim]For each ticker, enter the approximate £ amount currently "
+            "held, or press Enter (or 0) if you do not hold a position.[/dim]",
+            border_style="blue",
+            padding=(1, 2),
+        )
+    )
+    return [(t, get_position_for_ticker(t)) for t in tickers]
+
+
+def _build_config_from_selections(selections: dict, checkpoint: bool) -> dict:
+    """Apply user selections to a fresh DEFAULT_CONFIG copy.
+
+    Shared between the single-ticker and multi-ticker entry points so both
+    paths produce identical config dicts modulo the per-run knobs.
+    """
+    config = DEFAULT_CONFIG.copy()
+    config["max_debate_rounds"] = selections["research_depth"]
+    config["max_risk_discuss_rounds"] = selections["research_depth"]
+    config["quick_think_llm"] = selections["shallow_thinker"]
+    config["deep_think_llm"] = selections["deep_thinker"]
+    config["backend_url"] = selections["backend_url"]
+    config["llm_provider"] = selections["llm_provider"].lower()
+    config["google_thinking_level"] = selections.get("google_thinking_level")
+    config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
+    config["anthropic_effort"] = selections.get("anthropic_effort")
+    config["output_language"] = selections.get("output_language", "English")
+    config["checkpoint_enabled"] = checkpoint
+    return config
+
+
+def run_multi_analysis(
+    entries: list[tuple[str, float | None]],
+    checkpoint: bool = False,
+    recheck: bool = False,
+    viewer=None,
+):
+    """Parallel multi-ticker entry point.
+
+    Resolves the shared run settings (provider, models, analysts, depth,
+    language) once, then fans tickers out to a ThreadPoolExecutor and shows a
+    compact per-ticker status board instead of the single-run rich panel.
+    Persist / save / display are asked once for the whole batch at the end.
+    """
+    from cli.multi_runner import run_tickers
+
+    selections = get_user_selections(preset_entries=entries)
+    if viewer is not None:
+        # Open the tab now that the prompts are done — see run_analysis
+        # for the same reasoning.
+        viewer.open_browser()
+    run_purpose = "recheck" if recheck else "initial"
+    config = _build_config_from_selections(selections, checkpoint)
+
+    selected_set = {analyst.value for analyst in selections["analysts"]}
+    selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
+
+    console.print(
+        f"\n[bold cyan]Running {len(entries)} ticker(s) in parallel "
+        f"(max workers: {config.get('max_parallel_tickers', 3)})[/bold cyan]\n"
+    )
+
+    results = run_tickers(
+        entries=entries,
+        analysis_date=selections["analysis_date"],
+        selected_analyst_keys=selected_analyst_keys,
+        selections=selections,
+        config=config,
+        run_purpose=run_purpose,
+        console=console,
+        viewer=viewer,
+    )
+
+    # Per-ticker summary table.
+    summary_table = Table(
+        show_header=True, header_style="bold magenta", box=box.SIMPLE_HEAD, padding=(0, 2)
+    )
+    summary_table.add_column("Ticker", style="cyan")
+    summary_table.add_column("Status", style="green")
+    summary_table.add_column("Duration", style="yellow", justify="right")
+    summary_table.add_column("LLM calls", style="white", justify="right")
+    summary_table.add_column("Result / Error")
+    for r in results:
+        duration_str = f"{int(r.duration // 60):02d}:{int(r.duration % 60):02d}"
+        if r.error:
+            status_cell = "[red]failed[/red]"
+            result_cell = f"[red]{r.error}[/red]"
+        else:
+            status_cell = "[green]done[/green]"
+            result_cell = (r.final_state or {}).get("final_trade_decision", "").splitlines()
+            result_cell = result_cell[0][:80] if result_cell else "—"
+        llm_calls = str((r.stats or {}).get("llm_calls", "—"))
+        summary_table.add_row(r.ticker, status_cell, duration_str, llm_calls, result_cell)
+
+    console.print()
+    console.print(Rule("Batch summary", style="bold green"))
+    console.print(summary_table)
+
+    successful = [r for r in results if r.error is None and r.final_state is not None]
+    failed = [r for r in results if r.error is not None]
+    if not successful:
+        console.print(
+            "[yellow]No tickers completed successfully — skipping persist / save / display.[/yellow]"
+        )
+        if failed:
+            console.print(
+                f"[red]Failed: {', '.join(r.ticker for r in failed)}[/red]"
+            )
+        return
+
+    # Batch-level persist.
+    persist_choice = typer.prompt(
+        f"Persist {len(successful)} successful run(s) to the logs "
+        "(memory + audit + per-ticker JSON)?",
+        default="Y",
+    ).strip().upper()
+    if persist_choice in ("Y", "YES", ""):
+        for r in successful:
+            r.graph.finalize_run(
+                r.final_state,
+                selections["analysis_date"],
+                run_purpose=run_purpose,
+                position_size_gbp=r.position_size_gbp,
+            )
+        console.print(f"[green]✓ Persisted {len(successful)} run(s).[/green]")
+    else:
+        console.print("[yellow]Runs NOT persisted.[/yellow]")
+
+    # Batch-level save.
+    save_choice = typer.prompt(
+        "Save report bundles for the successful runs?", default="Y"
+    ).strip().upper()
+    if save_choice in ("Y", "YES", ""):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        bundle_dir = Path.cwd() / "reports" / f"_multi_{timestamp}"
+        bundle_dir.mkdir(parents=True, exist_ok=True)
+        index_lines = [
+            f"# Multi-ticker run — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            "",
+            f"Analysis date: {selections['analysis_date']}",
+            f"Run purpose: {run_purpose}",
+            "",
+            "| Ticker | Status | Duration | Report |",
+            "| --- | --- | --- | --- |",
+        ]
+        for r in results:
+            duration_str = f"{int(r.duration // 60):02d}:{int(r.duration % 60):02d}"
+            if r.error:
+                index_lines.append(f"| {r.ticker} | failed | {duration_str} | — |")
+                continue
+            save_path = bundle_dir / r.ticker
+            try:
+                report_file = save_report_to_disk(r.final_state, r.ticker, save_path)
+                index_lines.append(
+                    f"| {r.ticker} | done | {duration_str} | "
+                    f"[{report_file.name}]({r.ticker}/{report_file.name}) |"
+                )
+            except Exception as exc:  # noqa: BLE001
+                index_lines.append(
+                    f"| {r.ticker} | save-failed | {duration_str} | {exc} |"
+                )
+        (bundle_dir / "summary.md").write_text("\n".join(index_lines), encoding="utf-8")
+        console.print(f"[green]✓ Report bundle:[/green] {bundle_dir.resolve()}")
+    else:
+        console.print("[yellow]Reports NOT saved.[/yellow]")
+
+    # Optional display — dumping N full reports on screen is unhelpful, so
+    # this is opt-in per ticker rather than a y/n for the whole batch.
+    display_choice = typer.prompt(
+        "Display a full report on screen? Enter ticker(s) comma-separated, or blank to skip",
+        default="",
+    ).strip()
+    if display_choice:
+        wanted = {t.strip().upper() for t in display_choice.split(",") if t.strip()}
+        for r in successful:
+            if r.ticker.upper() in wanted:
+                console.print(Rule(f"Full report — {r.ticker}", style="bold green"))
+                display_complete_report(r.final_state)
+
+
+def run_analysis(
+    checkpoint: bool = False,
+    recheck: bool = False,
+    preset_ticker: str | None = None,
+    preset_position_size_gbp: float | None = None,
+    viewer=None,
+):
+    # First get all user selections. When the ticker (and optionally position)
+    # was already resolved by the analyze() entry point (single-ticker case of
+    # the unified Step 1 prompt), pass it through as a one-element preset so
+    # the inner prompts skip Steps 1 + 1b. Multi-ticker runs use
+    # run_multi_analysis(), not this function.
+    if preset_ticker is not None:
+        selections = get_user_selections(
+            preset_entries=[(preset_ticker, preset_position_size_gbp)],
+        )
+        # The preset flow returns a "tickers" list field; the single-ticker
+        # path downstream only reads "ticker" / "position_size_gbp", which are
+        # already set correctly.
+    else:
+        selections = get_user_selections()
+
+    # Now that the user has finished every prompt, open the viewer tab —
+    # opening it earlier would have parked a blank page while the user worked
+    # through provider / model / analyst selection.
+    if viewer is not None:
+        viewer.open_browser()
 
     # Re-check setup must reach the user BEFORE the heavy run begins, so a
     # missing prior thesis bails out immediately rather than after a full
@@ -1108,6 +1518,15 @@ def run_analysis(checkpoint: bool = False, recheck: bool = False):
 
     # Initialize message buffer with selected analysts
     message_buffer.init_for_analysis(selected_analyst_keys)
+
+    if viewer is not None:
+        viewer.register(
+            selections["ticker"],
+            selections["asset_type"],
+            selections.get("position_size_gbp"),
+            selected_analyst_keys,
+        )
+        viewer.update(selections["ticker"], message_buffer, stage="analysts")
 
     # Track start time for elapsed display
     start_time = time.time()
@@ -1221,106 +1640,19 @@ def run_analysis(checkpoint: bool = False, recheck: bool = False):
         # Stream the analysis
         trace = []
         for chunk in graph.graph.stream(init_agent_state, **args):
-            # Process all messages in chunk, deduplicating by message ID
-            for message in chunk.get("messages", []):
-                msg_id = getattr(message, "id", None)
-                if msg_id is not None:
-                    if msg_id in message_buffer._processed_message_ids:
-                        continue
-                    message_buffer._processed_message_ids.add(msg_id)
-
-                msg_type, content = classify_message_type(message)
-                if content and content.strip():
-                    message_buffer.add_message(msg_type, content)
-
-                if hasattr(message, "tool_calls") and message.tool_calls:
-                    for tool_call in message.tool_calls:
-                        if isinstance(tool_call, dict):
-                            message_buffer.add_tool_call(tool_call["name"], tool_call["args"])
-                        else:
-                            message_buffer.add_tool_call(tool_call.name, tool_call.args)
-
-            # Update analyst statuses based on report state (runs on every chunk)
-            update_analyst_statuses(
+            process_chunk_into_buffer(
                 message_buffer,
                 chunk,
                 wall_time_tracker=analyst_wall_time_tracker,
             )
-
-            # Research Team - Handle Investment Debate State
-            if chunk.get("investment_debate_state"):
-                debate_state = chunk["investment_debate_state"]
-                bull_hist = debate_state.get("bull_history", "").strip()
-                bear_hist = debate_state.get("bear_history", "").strip()
-                judge = debate_state.get("judge_decision", "").strip()
-
-                # Only update status when there's actual content
-                if bull_hist or bear_hist:
-                    update_research_team_status("in_progress")
-                if bull_hist:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### Bull Researcher Analysis\n{bull_hist}"
-                    )
-                if bear_hist:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### Bear Researcher Analysis\n{bear_hist}"
-                    )
-                if judge:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### Research Manager Decision\n{judge}"
-                    )
-                    update_research_team_status("completed")
-                    message_buffer.update_agent_status("Trader", "in_progress")
-
-            # Trading Team
-            if chunk.get("trader_investment_plan"):
-                message_buffer.update_report_section(
-                    "trader_investment_plan", chunk["trader_investment_plan"]
-                )
-                if message_buffer.agent_status.get("Trader") != "completed":
-                    message_buffer.update_agent_status("Trader", "completed")
-                    message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
-
-            # Risk Management Team - Handle Risk Debate State
-            if chunk.get("risk_debate_state"):
-                risk_state = chunk["risk_debate_state"]
-                agg_hist = risk_state.get("aggressive_history", "").strip()
-                con_hist = risk_state.get("conservative_history", "").strip()
-                neu_hist = risk_state.get("neutral_history", "").strip()
-                judge = risk_state.get("judge_decision", "").strip()
-
-                if agg_hist:
-                    if message_buffer.agent_status.get("Aggressive Analyst") != "completed":
-                        message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### Aggressive Analyst Analysis\n{agg_hist}"
-                    )
-                if con_hist:
-                    if message_buffer.agent_status.get("Conservative Analyst") != "completed":
-                        message_buffer.update_agent_status("Conservative Analyst", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### Conservative Analyst Analysis\n{con_hist}"
-                    )
-                if neu_hist:
-                    if message_buffer.agent_status.get("Neutral Analyst") != "completed":
-                        message_buffer.update_agent_status("Neutral Analyst", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### Neutral Analyst Analysis\n{neu_hist}"
-                    )
-                if judge and message_buffer.agent_status.get("Portfolio Manager") != "completed":
-                    message_buffer.update_agent_status("Portfolio Manager", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### Portfolio Manager Decision\n{judge}"
-                    )
-                    message_buffer.update_agent_status("Aggressive Analyst", "completed")
-                    message_buffer.update_agent_status("Conservative Analyst", "completed")
-                    message_buffer.update_agent_status("Neutral Analyst", "completed")
-                    message_buffer.update_agent_status("Portfolio Manager", "completed")
-
             # Update the display
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
-
             trace.append(chunk)
+            if viewer is not None:
+                viewer.update(
+                    selections["ticker"], message_buffer,
+                    stage=_stage_from_buffer(message_buffer),
+                )
 
         # Streamed chunks are per-node deltas, not full state. Merge them
         # so every report field populated across the run is present.
@@ -1343,6 +1675,11 @@ def run_analysis(checkpoint: bool = False, recheck: bool = False):
                 message_buffer.update_report_section(section, final_state[section])
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
+        if viewer is not None:
+            viewer.update(
+                selections["ticker"], message_buffer,
+                stage="done", finished=True,
+            )
 
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
@@ -1419,12 +1756,67 @@ def analyze(
             "exists for the ticker."
         ),
     ),
+    watchlist: Path | None = typer.Option(  # noqa: B008 — Typer idiom
+        None,
+        "--watchlist",
+        help=(
+            "Path to a watchlist file (one ticker per line, optional position "
+            "size in £, # comments). Runs every ticker in parallel; --recheck "
+            "is applied per ticker."
+        ),
+    ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    run_analysis(checkpoint=checkpoint, recheck=recheck)
+
+    if watchlist is not None:
+        entries = _resolve_multi_entries(watchlist)
+    else:
+        entries = _resolve_multi_entries(None)
+
+    # Live browser viewer runs for every analysis. Single-ticker runs also get
+    # the existing rich terminal panel; multi-ticker runs skip the terminal
+    # grid (which is unreadable for several tickers at once) and point the
+    # user at the viewer link.
+    from cli.viewer import Viewer
+    viewer_instance = Viewer()
+    url = viewer_instance.start()
+    console.print(f"[green]Live report viewer:[/green] {url}")
+
+    try:
+        if len(entries) == 1:
+            ticker, position = entries[0]
+            run_analysis(
+                checkpoint=checkpoint,
+                recheck=recheck,
+                preset_ticker=ticker,
+                preset_position_size_gbp=position,
+                viewer=viewer_instance,
+            )
+        else:
+            console.print(
+                "[dim]Multi-ticker run: open the viewer link above to follow "
+                "each ticker's reports live; the terminal will only print a "
+                "one-line update per completion.[/dim]"
+            )
+            run_multi_analysis(
+                entries, checkpoint=checkpoint, recheck=recheck,
+                viewer=viewer_instance,
+            )
+    finally:
+        # Keep the server alive after the run so the browser tab stays
+        # readable; Enter stops it.
+        try:
+            console.print(
+                f"[dim]Viewer still serving at {viewer_instance.url} — "
+                f"press Enter to stop.[/dim]"
+            )
+            input()
+        except (EOFError, KeyboardInterrupt):
+            pass
+        viewer_instance.stop()
 
 
 if __name__ == "__main__":

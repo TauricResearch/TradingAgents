@@ -123,9 +123,15 @@ class TestJsonPathFallsBackToRss:
 
 @pytest.mark.unit
 class TestRss429Backoff:
+    # ``_wait_global_rss_slot`` adds a process-wide pacing sleep before every
+    # RSS call. These tests assert on the 429-backoff sleep specifically, so
+    # we patch the gate to a no-op to keep ``time.sleep`` calls attributable
+    # to the retry logic under test.
+
     def test_429_then_success_retries_once(self):
         err = HTTPError("url", 429, "Too Many Requests", {}, None)
         with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]) as op, \
+             patch.object(reddit, "_wait_global_rss_slot"), \
              patch.object(reddit.time, "sleep") as slept:
             posts = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         assert op.call_count == 2          # original + exactly one retry
@@ -135,6 +141,7 @@ class TestRss429Backoff:
     def test_429_twice_gives_up_after_one_retry(self):
         err = HTTPError("url", 429, "Too Many Requests", {}, None)
         with patch.object(reddit, "urlopen", side_effect=[err, err]) as op, \
+             patch.object(reddit, "_wait_global_rss_slot"), \
              patch.object(reddit.time, "sleep"):
             posts = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         assert op.call_count == 2          # one retry, then gives up cleanly
@@ -143,9 +150,37 @@ class TestRss429Backoff:
     def test_retry_after_header_is_honoured(self):
         err = HTTPError("url", 429, "Too Many Requests", {"Retry-After": "12"}, None)
         with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]), \
+             patch.object(reddit, "_wait_global_rss_slot"), \
              patch.object(reddit.time, "sleep") as slept:
             reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         slept.assert_called_once_with(12.0)
+
+
+@pytest.mark.unit
+class TestGlobalRssGate:
+    """The process-wide RSS gate keeps concurrent Sentiment Analysts from
+    hammering Reddit when the multi-ticker CLI runs several workers in
+    parallel. See ``_wait_global_rss_slot`` in ``tradingagents.dataflows.reddit``."""
+
+    def setup_method(self):
+        # Reset module-level state so tests are order-independent.
+        reddit._REDDIT_LAST_CALL = 0.0
+
+    def test_first_call_does_not_sleep(self):
+        with patch.object(reddit.time, "sleep") as slept:
+            reddit._wait_global_rss_slot()
+        slept.assert_not_called()
+
+    def test_back_to_back_calls_sleep_to_pace(self):
+        # First call primes the timestamp; second call within MIN_INTERVAL
+        # must sleep for ~ the remaining gap.
+        with patch.object(reddit.time, "sleep") as slept:
+            reddit._wait_global_rss_slot()
+            reddit._wait_global_rss_slot()
+        # First call: no sleep. Second call: one sleep, < MIN_INTERVAL.
+        assert slept.call_count == 1
+        ((slept_for,), _kwargs) = slept.call_args
+        assert 0 < slept_for <= reddit._REDDIT_MIN_INTERVAL
 
 
 @pytest.mark.unit
