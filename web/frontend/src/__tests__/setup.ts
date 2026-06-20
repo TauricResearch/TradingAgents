@@ -10,6 +10,11 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   } as unknown as typeof ResizeObserver;
 }
 
+// jsdom does not implement scrollIntoView; stub it unconditionally
+if (typeof Element !== "undefined") {
+  Element.prototype.scrollIntoView = function () {};
+}
+
 // recharts' ResponsiveContainer also reads getBoundingClientRect to size
 // the chart; jsdom's default returns {0,0}, which recharts rejects. Stub
 // a non-zero rect unconditionally so the surface mounts and reference
