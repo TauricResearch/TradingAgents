@@ -18,20 +18,20 @@ log = logging.getLogger(__name__)
 class EventType(str, Enum):
     """All 14 event types. String values are part of the WS protocol."""
 
-    RUN_QUEUED = "run_queued"
     RUN_STARTED = "run_started"
-    RUN_DONE = "run_done"
     RUN_FAILED = "run_failed"
-    RUN_CANCELLED = "run_cancelled"
+    RUN_FINISHED = "run_finished"
     ANALYST_STARTED = "analyst_started"
     ANALYST_THINKING = "analyst_thinking"
-    ANALYST_MESSAGE = "analyst_message"
-    ANALYST_TOOL_CALL = "analyst_tool_call"
-    ANALYST_TOOL_RESULT = "analyst_tool_result"
     ANALYST_COMPLETED = "analyst_completed"
-    STAGE_COMPLETED = "stage_completed"
-    LLM_CALL = "llm_call"
-    TOKEN_USAGE = "token_usage"
+    TOOL_CALL = "tool_call"
+    TOOL_RESULT = "tool_result"
+    TOOL_CALL_WARNING = "tool_call_warning"
+    DEBATE_MESSAGE = "debate_message"
+    RISK_MESSAGE = "risk_message"
+    DECISION = "decision"
+    PRICE_UPDATE = "price_update"
+    SERVER_NOTICE = "server_notice"
 
 
 def make_event(run_id: str, type_: EventType, data: Dict[str, Any]) -> Dict[str, Any]:
