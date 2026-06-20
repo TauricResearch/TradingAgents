@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from . import storage, queries, events, llm_calls, runner, settings as settings_mod
 from tradingagents.default_config import DEFAULT_CONFIG, _ENV_OVERRIDES
+from web.server.ticker_agent import orchestrator
 from web.server.ticker_agent.router import router as ticker_agent_router
 
 
@@ -84,6 +85,7 @@ async def lifespan(app: FastAPI):
     # updates from inside a run silently never fire — the UI only
     # updated on reconnect (replay from events.jsonl).
     events.set_event_loop(asyncio.get_running_loop())
+    orchestrator.set_event_loop(asyncio.get_running_loop())
     # Silence yfinance's own ERROR-level noise for delisted/foreign symbols
     # (e.g. "TA125: possibly delisted"). Without this, the dashboard log
     # fills with yfinance-internal tracebacks every poll for every bad
