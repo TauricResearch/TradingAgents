@@ -157,18 +157,18 @@ def _parse_pm_decision(final_state: dict, final_signal: str) -> dict:
 
 
 _NODE_STATE_KEY = {
-    "market_analyst": "market_report",
-    "social_analyst": "sentiment_report",
-    "news_analyst": "news_report",
-    "fundamentals_analyst": "fundamentals_report",
-    "bull_researcher": "investment_debate_state.bull_history",
-    "bear_researcher": "investment_debate_state.bear_history",
-    "research_manager": "investment_plan",
-    "trader": "trader_investment_plan",
-    "risky_analyst": "risk_debate_state.risky_history",
-    "safe_analyst": "risk_debate_state.safe_history",
-    "neutral_analyst": "risk_debate_state.neutral_history",
-    "risk_manager": "final_trade_decision",
+    "Market Analyst": "market_report",
+    "Sentiment Analyst": "sentiment_report",
+    "News Analyst": "news_report",
+    "Fundamentals Analyst": "fundamentals_report",
+    "Bull Researcher": "investment_debate_state.bull_history",
+    "Bear Researcher": "investment_debate_state.bear_history",
+    "Research Manager": "investment_plan",
+    "Trader": "trader_investment_plan",
+    "Aggressive Analyst": "risk_debate_state.aggressive_history",
+    "Conservative Analyst": "risk_debate_state.conservative_history",
+    "Neutral Analyst": "risk_debate_state.neutral_history",
+    "Portfolio Manager": "final_trade_decision",
 }
 
 
