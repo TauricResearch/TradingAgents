@@ -7,7 +7,7 @@ from typing import Callable, Optional
 
 import pytest
 
-from web.server import runner, storage
+from web.server import events, runner, storage
 from web.server import price_feed
 from tradingagents.default_config import DEFAULT_CONFIG
 
@@ -149,3 +149,87 @@ def test_success_path_writes_total_duration_s(monkeypatch, data_root):
     assert rj["decision_action"] == "HOLD"
     assert rj["total_duration_s"] is not None
     assert rj["total_duration_s"] > 0
+
+
+# ---------------------------------------------------------------------------
+# Task 2: debate_message and risk_message events from graph callbacks
+# ---------------------------------------------------------------------------
+
+
+def test_emits_debate_and_risk_messages_from_node_exited(monkeypatch, data_root):
+    """When node_exited deltas contain investment_debate_state or
+    risk_debate_state, debate_message and risk_message events are emitted."""
+    captured = []
+
+    original_emit = events.emit
+    def _capture(rid, type_, data):
+        captured.append((type_, data))
+        original_emit(rid, type_, data)
+    monkeypatch.setattr(events, "emit", _capture)
+
+    final_state = {
+        "final_trade_decision": "## Plan\nTarget 250.",
+    }
+
+    class _FakeGraph:
+        def __init__(self, callbacks=None):
+            pass
+
+        def propagate(
+            self, ticker: str, trade_date: str, *, event_callback: Optional[Callable] = None
+        ):
+            import time as _time
+            # Simulate Bull Researcher exit
+            event_callback("node_exited", {
+                "node": "Bull Researcher",
+                "delta": {
+                    "investment_debate_state": {
+                        "current_response": "Bull Analyst: Strong upside potential!",
+                        "count": 1,
+                    }
+                }
+            })
+            # Simulate Bear Researcher exit
+            event_callback("node_exited", {
+                "node": "Bear Researcher",
+                "delta": {
+                    "investment_debate_state": {
+                        "current_response": "Bear Analyst: Too risky to ignore risks!",
+                        "count": 2,
+                    }
+                }
+            })
+            # Simulate Aggressive Analyst exit
+            event_callback("node_exited", {
+                "node": "Aggressive Analyst",
+                "delta": {
+                    "risk_debate_state": {
+                        "latest_speaker": "Aggressive",
+                        "current_aggressive_response": "Aggressive Analyst: Go all in!",
+                        "current_conservative_response": "",
+                        "current_neutral_response": "",
+                        "count": 1,
+                    }
+                }
+            })
+            _time.sleep(0.05)
+            return final_state, "Hold"
+
+    def _fake_build_graph(config=None, *, callbacks=None):
+        return _FakeGraph(callbacks=callbacks)
+    monkeypatch.setattr(runner, "build_graph", _fake_build_graph)
+
+    asyncio.run(runner.start(num_workers=0))
+    state = price_feed.PriceState(snapshots={}, tickers=lambda: [])
+    run_id = asyncio.run(runner.enqueue("NVDA", "2026-06-04", force=False, price_state=state))
+    runner_dir = storage.read_run_dir(run_id)
+    asyncio.run(runner._run_one(run_id, "NVDA", "2026-06-04", runner_dir, _FakeSem()))
+
+    debate_msgs = [(t, d) for t, d in captured if t == "debate_message"]
+    risk_msgs = [(t, d) for t, d in captured if t == "risk_message"]
+
+    assert len(debate_msgs) == 2
+    assert debate_msgs[0][1] == {"side": "Bull Researcher", "text": "Bull Analyst: Strong upside potential!", "turn": 1}
+    assert debate_msgs[1][1] == {"side": "Bear Researcher", "text": "Bear Analyst: Too risky to ignore risks!", "turn": 2}
+    assert len(risk_msgs) == 1
+    assert risk_msgs[0][1] == {"side": "Aggressive Analyst", "text": "Aggressive Analyst: Go all in!", "turn": 1}

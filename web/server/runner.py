@@ -478,6 +478,52 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
                 )
                 if stage is None:
                     return
+
+                # Emit debate_message from investment_debate_state deltas
+                delta = payload.get("delta", {})
+                debate_state = delta.get("investment_debate_state")
+                if debate_state:
+                    current_response = debate_state.get("current_response", "")
+                    if current_response.startswith("Bull"):
+                        side = "Bull Researcher"
+                    elif current_response.startswith("Bear"):
+                        side = "Bear Researcher"
+                    else:
+                        side = None
+                    if side:
+                        count = debate_state.get("count", 0)
+                        turn = count // 2 + 1
+                        events.emit(run_id, "debate_message", {
+                            "side": side,
+                            "text": current_response,
+                            "turn": turn,
+                        })
+
+                # Emit risk_message from risk_debate_state deltas
+                risk_state = delta.get("risk_debate_state")
+                if risk_state:
+                    count = risk_state.get("count", 0)
+                    turn = count // 3 + 1
+                    latest_speaker = risk_state.get("latest_speaker", "")
+                    if latest_speaker == "Aggressive":
+                        side = "Aggressive Analyst"
+                        text = risk_state.get("current_aggressive_response", "")
+                    elif latest_speaker == "Conservative":
+                        side = "Conservative Analyst"
+                        text = risk_state.get("current_conservative_response", "")
+                    elif latest_speaker == "Neutral":
+                        side = "Neutral Analyst"
+                        text = risk_state.get("current_neutral_response", "")
+                    else:
+                        side = None
+                        text = ""
+                    if side and text:
+                        events.emit(run_id, "risk_message", {
+                            "side": side,
+                            "text": text,
+                            "turn": turn,
+                        })
+
                 # Compute the per-stage duration so it can ride on the WS
                 # event (the timeline renders it under the stage label).
                 t_enter_for_event = node_enter_t.get(payload.get("node", ""))
