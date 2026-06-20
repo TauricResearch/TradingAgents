@@ -225,3 +225,4 @@ reports/
 # TradingAgents run output directories (numbered pipeline stages)
 [0-9]_*/
 complete_report.md
+CLAUDE.md
