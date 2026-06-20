@@ -31,6 +31,15 @@ class NormalizedChatOpenAI(ChatOpenAI):
     stays small.
     """
 
+    # Force-suppress the object-form ``tool_choice`` in structured-output
+    # binding, regardless of the per-model capability table. Set by the client
+    # for local/generic OpenAI-compatible servers (LM Studio, llama.cpp, older
+    # vLLM, Ollama): those run arbitrary, user-named models that the per-model
+    # table can't key off, and they 400 on the function-spec ``tool_choice``
+    # object (#1057). Declared as a field so langchain treats it as a known
+    # init kwarg, not an extra model param forwarded to the API.
+    suppress_tool_choice: bool = False
+
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
 
@@ -42,10 +51,13 @@ class NormalizedChatOpenAI(ChatOpenAI):
                 f"agent factories will fall back to free-text generation."
             )
         method = method or caps.preferred_structured_method
-        # When the model rejects tool_choice, suppress langchain's hardcoded
-        # value. The schema is still bound as a tool — exactly what
-        # DeepSeek's official tool-calling examples do.
-        if method == "function_calling" and not caps.supports_tool_choice:
+        # Suppress langchain's hardcoded tool_choice when either the model
+        # (capability table) or the endpoint (local server, suppress_tool_choice)
+        # rejects the object form. The schema is still bound as a tool — exactly
+        # what DeepSeek's official tool-calling examples do.
+        if method == "function_calling" and (
+            self.suppress_tool_choice or not caps.supports_tool_choice
+        ):
             kwargs.setdefault("tool_choice", None)
         return super().with_structured_output(schema, method=method, **kwargs)
 
@@ -201,6 +213,14 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
 }
 
 
+# Providers that represent a *local or self-hosted* OpenAI-compatible server:
+# the generic ``openai_compatible`` endpoint (LM Studio, llama.cpp, older vLLM)
+# and Ollama. They speak Chat Completions but run arbitrary, user-named models
+# and reject the function-spec ``tool_choice`` object, so the client forces
+# tool_choice suppression for them regardless of model name (#1057).
+LOCAL_OPENAI_COMPATIBLE_PROVIDERS: frozenset[str] = frozenset({"ollama", "openai_compatible"})
+
+
 def is_openai_compatible(provider: str) -> bool:
     """Whether ``provider`` is served by the OpenAI-compatible registry."""
     return provider.lower() in OPENAI_COMPATIBLE_PROVIDERS
@@ -250,6 +270,13 @@ class OpenAIClient(BaseLLMClient):
 
         if spec is not None:
             chat_cls = spec.chat_class
+
+            # Local/generic OpenAI-compatible servers reject the object-form
+            # tool_choice; force suppression at the endpoint level since the
+            # per-model capability table can't key off arbitrary local model
+            # names (#1057).
+            if self.provider in LOCAL_OPENAI_COMPATIBLE_PROVIDERS:
+                llm_kwargs["suppress_tool_choice"] = True
 
             # base_url precedence: explicit client base_url (carries the config /
             # TRADINGAGENTS_LLM_BACKEND_URL value) > provider env override (e.g.
