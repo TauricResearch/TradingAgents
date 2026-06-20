@@ -3,8 +3,9 @@ path's degradation (#862), and chunked-transfer error handling (#1024)."""
 
 from __future__ import annotations
 
-import http.client
-from unittest.mock import patch
+import json
+import unittest
+from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 
 import pytest
@@ -190,3 +191,102 @@ class TestFormatterHandlesRssPosts:
         assert "1234↑" in out
         assert "56c" in out
         assert "via RSS" not in out
+
+
+# =========================================================================
+# Edge cases imported from test_final_push.py
+# =========================================================================
+
+
+@pytest.mark.unit
+class RedditFetchSubredditTests(unittest.TestCase):
+    """JSON success path, empty children, and RSS fallback."""
+
+    def test_json_success_path_returns_formatted_posts(self):
+        from tradingagents.dataflows.reddit import fetch_reddit_posts
+
+        payload = json.dumps({
+            "data": {
+                "children": [
+                    {"data": {"title": "AAPL is great", "score": 100, "num_comments": 20,
+                              "created_utc": 1700000000, "selftext": "Really good quarter"}},
+                    {"data": {"title": "Bearish on AAPL", "score": 50, "num_comments": 10,
+                              "created_utc": 1700000000, "selftext": ""}},
+                ]
+            }
+        }).encode("utf-8")
+
+        mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.read.return_value = payload
+
+        with patch("tradingagents.dataflows.reddit.urlopen", return_value=mock_resp), \
+             patch("tradingagents.dataflows.reddit.time.gmtime", return_value=(2024, 11, 14, 16, 53, 20, 3, 319, 0)), \
+             patch("tradingagents.dataflows.reddit.time.sleep"):
+            result = fetch_reddit_posts("AAPL", subreddits=("stocks",), limit_per_sub=5,
+                                        inter_request_delay=0)
+        self.assertIn("AAPL is great", result)
+        self.assertIn("Bearish on AAPL", result)
+
+    def test_json_empty_children_returns_no_posts_message(self):
+        from tradingagents.dataflows.reddit import fetch_reddit_posts
+
+        payload = json.dumps({"data": {"children": []}}).encode("utf-8")
+        mock_resp = MagicMock()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.read.return_value = payload
+
+        with patch("tradingagents.dataflows.reddit.urlopen", return_value=mock_resp), \
+             patch("tradingagents.dataflows.reddit.time.sleep"):
+            result = fetch_reddit_posts("UNKNOWN", subreddits=("stocks",), limit_per_sub=5,
+                                        inter_request_delay=0)
+        self.assertIn("no Reddit posts found", result)
+
+    def test_json_fallback_to_rss_on_failure(self):
+        from tradingagents.dataflows.reddit import fetch_reddit_posts
+
+        with patch("tradingagents.dataflows.reddit._fetch_subreddit_rss") as mock_rss, \
+             patch("tradingagents.dataflows.reddit.urlopen") as mock_urlopen, \
+             patch("tradingagents.dataflows.reddit.time.sleep"):
+            mock_urlopen.side_effect = HTTPError("url", 429, "Too Many Requests", {}, None)
+            mock_rss.return_value = [{"title": "From RSS", "score": None, "num_comments": None,
+                                        "created_utc": 1700000000, "selftext": "", "source": "rss"}]
+            result = fetch_reddit_posts("AAPL", subreddits=("stocks",), limit_per_sub=5,
+                                        inter_request_delay=0)
+        self.assertIn("From RSS", result)
+
+
+# =========================================================================
+# Reddit edge cases imported from test_llm_and_minor.py
+# =========================================================================
+
+
+@pytest.mark.unit
+class TestRedditEdgeCases(unittest.TestCase):
+
+    def test_search_qs(self):
+        from tradingagents.dataflows.reddit import _search_qs
+        qs = _search_qs("AAPL", 5)
+        self.assertIn("q=AAPL", qs)
+        self.assertIn("limit=5", qs)
+        self.assertIn("sort=new", qs)
+        self.assertIn("t=week", qs)
+
+    def test_strip_html_no_sc_markers(self):
+        from tradingagents.dataflows.reddit import _strip_html
+        raw = "<p>Simple <b>HTML</b> without markers</p>"
+        result = _strip_html(raw)
+        self.assertEqual(result, "Simple HTML without markers")
+
+    def test_total_posts_zero(self):
+        from tradingagents.dataflows.reddit import fetch_reddit_posts
+        with patch("tradingagents.dataflows.reddit._fetch_subreddit", return_value=[]):
+            result = fetch_reddit_posts("UNKNOWN", subreddits=("stocks",), inter_request_delay=0)
+        self.assertIn("no Reddit posts found", result)
+        self.assertIn("UNKNOWN", result)
+
+    def test_single_empty_subreddit_returns_total_message(self):
+        from tradingagents.dataflows.reddit import fetch_reddit_posts
+        with patch("tradingagents.dataflows.reddit._fetch_subreddit", return_value=[]):
+            result = fetch_reddit_posts("NVDA", subreddits=("stocks",), inter_request_delay=0, limit_per_sub=5)
+        self.assertIn("<no Reddit posts found", result)

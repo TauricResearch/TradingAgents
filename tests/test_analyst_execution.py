@@ -1,5 +1,7 @@
 import unittest
 
+import pytest
+
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
@@ -8,6 +10,7 @@ from tradingagents.graph.analyst_execution import (
 )
 
 
+@pytest.mark.unit
 class AnalystExecutionPlanTests(unittest.TestCase):
     def test_build_plan_preserves_selected_order(self):
         plan = build_analyst_execution_plan(["news", "market"], concurrency_limit=2)
@@ -44,8 +47,12 @@ class AnalystExecutionPlanTests(unittest.TestCase):
         self.assertEqual(spec.key, "social")
         self.assertEqual(spec.agent_node, "Sentiment Analyst")
         self.assertEqual(spec.report_key, "sentiment_report")
+    def test_rejects_empty_analyst_list(self):
+        with self.assertRaises(ValueError):
+            build_analyst_execution_plan([])
 
 
+@pytest.mark.unit
 class AnalystWallTimeTrackerTests(unittest.TestCase):
     def test_records_wall_time_when_analyst_completes(self):
         plan = build_analyst_execution_plan(["market", "news"])
@@ -93,3 +100,38 @@ class AnalystWallTimeTrackerTests(unittest.TestCase):
             tracker.get_wall_times(),
             {"market": 3.0, "news": 5.0},
         )
+
+
+@pytest.mark.unit
+class AnalystWallTimeTrackerEdgeTests(unittest.TestCase):
+    def test_mark_started_unknown_key(self):
+        plan = build_analyst_execution_plan(["market"])
+        tracker = AnalystWallTimeTracker(plan)
+        with self.assertRaises(ValueError):
+            tracker.mark_started("unknown")
+
+    def test_mark_completed_unknown_key(self):
+        plan = build_analyst_execution_plan(["market"])
+        tracker = AnalystWallTimeTracker(plan)
+        with self.assertRaises(ValueError):
+            tracker.mark_completed("unknown")
+
+    def test_mark_completed_idempotent(self):
+        plan = build_analyst_execution_plan(["market"])
+        tracker = AnalystWallTimeTracker(plan)
+        tracker.mark_started("market", started_at=10.0)
+        tracker.mark_completed("market", completed_at=12.0)
+        self.assertEqual(tracker.get_wall_times(), {"market": 2.0})
+        tracker.mark_completed("market", completed_at=15.0)
+        self.assertEqual(tracker.get_wall_times(), {"market": 2.0})
+
+    def test_mark_completed_no_start_no_op(self):
+        plan = build_analyst_execution_plan(["market"])
+        tracker = AnalystWallTimeTracker(plan)
+        tracker.mark_completed("market", completed_at=15.0)
+        self.assertEqual(tracker.get_wall_times(), {})
+
+    def test_format_summary_pending(self):
+        plan = build_analyst_execution_plan(["market"])
+        tracker = AnalystWallTimeTracker(plan)
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: pending")

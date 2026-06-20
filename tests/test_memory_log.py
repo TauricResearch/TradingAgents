@@ -31,8 +31,10 @@ DECISION_NO_RATING = (
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-def make_log(tmp_path, filename="trading_memory.md"):
+def make_log(tmp_path, filename="trading_memory.md", max_entries=None):
     config = {"memory_log_path": str(tmp_path / filename)}
+    if max_entries is not None:
+        config["memory_log_max_entries"] = max_entries
     return TradingMemoryLog(config)
 
 
@@ -307,12 +309,10 @@ class TestTradingMemoryLogCore:
             "memory_log_path": str(tmp_path / "trading_memory.md"),
             "memory_log_max_entries": 3,
         })
-        # Resolve 5 entries; rotation should keep only the 3 most recent.
         for i in range(5):
             _resolve_entry(log, "NVDA", f"2026-01-{i+1:02d}", DECISION_BUY, f"Lesson {i}.")
         entries = log.load_entries()
         assert len(entries) == 3
-        # Confirm the OLDEST were dropped, not the newest.
         dates = [e["date"] for e in entries]
         assert dates == ["2026-01-03", "2026-01-04", "2026-01-05"]
 
@@ -322,12 +322,10 @@ class TestTradingMemoryLogCore:
             "memory_log_path": str(tmp_path / "trading_memory.md"),
             "memory_log_max_entries": 2,
         })
-        # 3 resolved + 2 pending. With cap=2, only 2 resolved survive; both pending stay.
         for i in range(3):
             _resolve_entry(log, "NVDA", f"2026-01-{i+1:02d}", DECISION_BUY, f"Resolved {i}.")
         log.store_decision("NVDA", "2026-02-01", DECISION_BUY)
         log.store_decision("NVDA", "2026-02-02", DECISION_OVERWEIGHT)
-        # Trigger rotation by resolving one more entry — pending entries must stay.
         _resolve_entry(log, "NVDA", "2026-01-04", DECISION_BUY, "Resolved 3.")
         entries = log.load_entries()
         pending = [e for e in entries if e["pending"]]
@@ -502,7 +500,7 @@ class TestDeferredReflection:
         assert days == 5
 
     def test_fetch_returns_too_recent(self):
-        """Only 1 data point available → returns (None, None, None), no crash."""
+        """Only 1 data point available -> returns (None, None, None), no crash."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         with patch("yfinance.Ticker") as mock_ticker_cls:
             m = MagicMock()
@@ -512,7 +510,7 @@ class TestDeferredReflection:
         assert raw is None and alpha is None and days is None
 
     def test_fetch_returns_delisted(self):
-        """Empty DataFrame → returns (None, None, None), no crash."""
+        """Empty DataFrame -> returns (None, None, None), no crash."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         with patch("yfinance.Ticker") as mock_ticker_cls:
             m = MagicMock()
@@ -565,8 +563,7 @@ class TestDeferredReflection:
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "AZN.L") == "^FTSE"
 
     def test_resolve_benchmark_china_a_shares(self):
-        """A-share tickers route to their exchange composite (uses the real
-        default benchmark_map, since A-share support relies on it)."""
+        """A-share tickers route to their exchange composite."""
         from tradingagents.default_config import DEFAULT_CONFIG
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.config = {"benchmark_ticker": None,
@@ -705,6 +702,57 @@ class TestPortfolioManagerInjection:
         pm_node(state)
         assert "Lessons from prior decisions" not in captured["prompt"]
 
+    def test_pm_prompt_includes_verified_snapshot(self, monkeypatch):
+        """Regression for #bug-2026-06-06-price-hallucination: the PM is now
+        fed the same verified snapshot the Trader sees, and the decision
+        requirements explicitly tell it to reject any entry / stop the
+        Trader quoted that differs from the snapshot by more than ~25%."""
+        captured = {}
+        llm = _structured_pm_llm(captured)
+        pm_node = create_portfolio_manager(llm)
+        state = _make_pm_state()
+        state["trade_date"] = "2026-06-06"
+
+        fake_snapshot = (
+            "## Verified market data snapshot for NVDA\n\n"
+            "### Latest verified OHLCV row\n\n"
+            "| Field | Value |\n|---|---:|\n"
+            "| Open | 188.10 |\n| High | 191.50 |\n| Low | 187.20 |\n"
+            "| Close | 189.50 |\n| Volume | 250000000 |\n"
+        )
+        monkeypatch.setattr(
+            "tradingagents.agents.managers.portfolio_manager.build_verified_market_snapshot",
+            lambda symbol, curr_date: fake_snapshot,
+        )
+        pm_node(state)
+        prompt = captured["prompt"]
+        assert "Verified Market Snapshot" in prompt
+        assert "Latest verified OHLCV row" in prompt
+        assert "differs from the snapshot" in prompt
+        assert "leave entry_price and stop_loss as null" in prompt
+
+    def test_pm_prompt_handles_unavailable_snapshot(self, monkeypatch):
+        """When the snapshot vendor fails inside the PM, the prompt must
+        still render a stub block that tells the PM to treat any
+        Trader-quoted number as suspect — not silently let it through."""
+        captured = {}
+        llm = _structured_pm_llm(captured)
+        pm_node = create_portfolio_manager(llm)
+        state = _make_pm_state()
+        state["trade_date"] = "2026-06-06"
+
+        def _raise(symbol, curr_date):
+            raise RuntimeError("vendor offline")
+
+        monkeypatch.setattr(
+            "tradingagents.agents.managers.portfolio_manager.build_verified_market_snapshot",
+            _raise,
+        )
+        pm_node(state)
+        prompt = captured["prompt"]
+        assert "Verified market data is unavailable" in prompt
+        assert "Trader-quoted entry / stop as suspect" in prompt
+
     def test_pm_returns_rendered_markdown_with_rating(self):
         """The structured PortfolioDecision is rendered to markdown that
         downstream consumers (memory log, signal processor, CLI display)
@@ -762,7 +810,7 @@ class TestPortfolioManagerInjection:
         assert "Exit position immediately." not in result
 
     def test_n_same_limit_respected(self, tmp_path):
-        """More than 5 same-ticker completed entries → only 5 injected."""
+        """More than 5 same-ticker completed entries -> only 5 injected."""
         log = make_log(tmp_path)
         for i in range(7):
             _resolve_entry(log, "NVDA", f"2026-01-{i+1:02d}", DECISION_BUY, f"Lesson {i}.")
@@ -771,7 +819,7 @@ class TestPortfolioManagerInjection:
         assert lessons_present == 5
 
     def test_n_cross_limit_respected(self, tmp_path):
-        """More than 3 cross-ticker completed entries → only 3 injected."""
+        """More than 3 cross-ticker completed entries -> only 3 injected."""
         log = make_log(tmp_path)
         tickers = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOG"]
         for i, ticker in enumerate(tickers):
@@ -780,10 +828,10 @@ class TestPortfolioManagerInjection:
         cross_count = sum(result.count(f"{t} lesson.") for t in tickers)
         assert cross_count == 3
 
-    # Full A→B→C integration cycle
+    # Full A->B->C integration cycle
 
     def test_full_cycle_store_resolve_inject(self, tmp_path):
-        """store pending → resolve with outcome → past_context non-empty for PM."""
+        """store pending -> resolve with outcome -> past_context non-empty for PM."""
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-05", DECISION_BUY)
         assert len(log.get_pending_entries()) == 1
@@ -859,8 +907,6 @@ class TestLegacyRemoval:
         mock_graph.propagator.create_initial_state.return_value = fake_state
         mock_graph.propagator.get_graph_args.return_value = {}
         mock_graph.signal_processor.process_signal.return_value = "Buy"
-        # Bind the real _run_graph so propagate's call to self._run_graph executes
-        # the actual write path instead of the auto-MagicMock.
         mock_graph._run_graph = functools.partial(
             TradingAgentsGraph._run_graph, mock_graph
         )
@@ -869,3 +915,396 @@ class TestLegacyRemoval:
         assert len(entries) == 1
         assert entries[0]["ticker"] == "NVDA"
         assert entries[0]["pending"] is True
+
+
+# ---------------------------------------------------------------------------
+# Concurrent safety: thread-level parallelism
+# ---------------------------------------------------------------------------
+
+class TestConcurrentMemoryLog:
+
+    def test_concurrent_store_decision_no_corruption(self, tmp_path):
+        """Multiple threads appending simultaneously must not lose or interleave entries."""
+        log = make_log(tmp_path)
+        tickers = [f"T{i}" for i in range(10)]
+
+        def worker(ticker):
+            log.store_decision(ticker, "2026-01-10", DECISION_BUY)
+
+        threads = [threading.Thread(target=worker, args=(t,)) for t in tickers]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        entries = log.load_entries()
+        assert len(entries) == 10
+        found_tickers = {e["ticker"] for e in entries}
+        assert found_tickers == set(tickers)
+        raw = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+        assert raw.count("<!-- ENTRY_END -->") == 10
+
+    def test_concurrent_batch_update_no_lost_writes(self, tmp_path):
+        """Concurrent batch_update_with_outcomes must resolve all entries without Last-Write-Wins loss."""
+        log = make_log(tmp_path)
+        tickers = [f"T{i}" for i in range(5)]
+        for t in tickers:
+            log.store_decision(t, "2026-01-10", DECISION_BUY)
+
+        def worker(ticker, idx):
+            log.batch_update_with_outcomes([
+                {
+                    "ticker": ticker,
+                    "trade_date": "2026-01-10",
+                    "raw_return": 0.01 * idx,
+                    "alpha_return": 0.005 * idx,
+                    "holding_days": 5,
+                    "reflection": f"Correct {ticker}.",
+                }
+            ])
+
+        threads = [threading.Thread(target=worker, args=(t, i)) for i, t in enumerate(tickers)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        entries = log.load_entries()
+        assert len(entries) == 5
+        assert all(not e["pending"] for e in entries)
+        reflections = {e["reflection"] for e in entries}
+        expected = {f"Correct {t}." for t in tickers}
+        assert reflections == expected
+
+    def test_concurrent_mixed_store_and_update(self, tmp_path):
+        """Interleaved store_decision and update_with_outcome calls must remain consistent."""
+        log = make_log(tmp_path)
+        tickers = [f"T{i}" for i in range(5)]
+
+        def store_worker(ticker):
+            log.store_decision(ticker, "2026-01-10", DECISION_BUY)
+
+        def update_worker(ticker):
+            for _ in range(10):
+                log.update_with_outcome(ticker, "2026-01-10", 0.05, 0.02, 5, "Good call.")
+                if not any(e["pending"] for e in log.load_entries() if e["ticker"] == ticker):
+                    break
+                import time
+                time.sleep(0.01)
+
+        store_threads = [threading.Thread(target=store_worker, args=(t,)) for t in tickers]
+        update_threads = [threading.Thread(target=update_worker, args=(t,)) for t in tickers]
+        for t in store_threads:
+            t.start()
+        for t in update_threads:
+            t.start()
+        for t in store_threads:
+            t.join()
+        for t in update_threads:
+            t.join()
+
+        entries = log.load_entries()
+        assert len(entries) == 5
+        assert all(not e["pending"] for e in entries)
+
+
+# ---------------------------------------------------------------------------
+# _apply_rotation — edge cases (coverage)
+# ---------------------------------------------------------------------------
+
+class TestApplyRotation:
+
+    def test_rotation_zero_max_entries_noop(self, tmp_path):
+        """max_entries=0 disables rotation (<= 0 check)."""
+        log = make_log(tmp_path, max_entries=0)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        assert len(log.load_entries()) == 1
+
+    def test_rotation_negative_max_entries_noop(self, tmp_path):
+        """max_entries=-1 also disables rotation."""
+        log = make_log(tmp_path, max_entries=-1)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        assert len(log.load_entries()) == 1
+
+    def test_rotation_with_empty_blocks(self, tmp_path):
+        """Rotation handles empty/whitespace blocks in the middle."""
+        log = make_log(tmp_path, max_entries=2)
+        log.store_decision("NVDA", "2026-01-01", DECISION_BUY)
+        log.store_decision("NVDA", "2026-01-02", DECISION_BUY)
+        log.store_decision("NVDA", "2026-01-03", DECISION_BUY)
+        raw = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+        raw = _SEP + raw
+        (tmp_path / "trading_memory.md").write_text(raw, encoding="utf-8")
+        log.update_with_outcome("NVDA", "2026-01-01", 0.05, 0.02, 5, "Correct")
+        assert len(log.load_entries()) == 3
+
+
+# ---------------------------------------------------------------------------
+# update_with_outcome — entry not found (coverage)
+# ---------------------------------------------------------------------------
+
+class TestUpdateWithOutcomeNoop:
+
+    def test_update_no_match_returns_early(self, tmp_path):
+        """update_with_outcome when no pending entry matches is a no-op."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        log.update_with_outcome("AAPL", "2026-01-10", 0.05, 0.02, 5, "Nope")
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["pending"] is True
+
+    def test_update_no_match_wrong_date(self, tmp_path):
+        """update_with_outcome with a non-matching date is a no-op."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        log.update_with_outcome("NVDA", "2026-01-11", 0.05, 0.02, 5, "Nope")
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["pending"] is True
+
+
+# ---------------------------------------------------------------------------
+# batch_update_with_outcomes — empty / no-op guards (coverage)
+# ---------------------------------------------------------------------------
+
+class TestBatchUpdateNoop:
+
+    def test_batch_update_empty_list_noop(self, tmp_path):
+        """Passing an empty updates list does nothing."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        log.batch_update_with_outcomes([])
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["pending"] is True
+
+    def test_batch_update_no_log_path_noop(self):
+        """batch_update_with_outcomes with no log path is a no-op."""
+        log = TradingMemoryLog(config=None)
+        log.batch_update_with_outcomes([{"ticker": "NVDA", "trade_date": "2026-01-10",
+                                          "raw_return": 0.05, "alpha_return": 0.02,
+                                          "holding_days": 5, "reflection": "Nope"}])
+
+    def test_batch_update_no_match_skips(self, tmp_path):
+        """Entries in batch update that don't match any pending are silently skipped."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        log.batch_update_with_outcomes([
+            {"ticker": "AAPL", "trade_date": "2026-01-10",
+             "raw_return": 0.03, "alpha_return": 0.01, "holding_days": 3,
+             "reflection": "Mismatch"}
+        ])
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["pending"] is True
+
+
+# ---------------------------------------------------------------------------
+# _parse_entry — edge cases (coverage)
+# ---------------------------------------------------------------------------
+
+class TestParseEntryEdgeCases:
+
+    def test_parse_empty_content(self, tmp_path):
+        """Empty content after stripping returns None."""
+        log = make_log(tmp_path)
+        with open(tmp_path / "trading_memory.md", "a", encoding="utf-8") as f:
+            f.write(f"   {_SEP}")
+        entries = log.load_entries()
+        assert len(entries) == 0
+
+    def test_parse_empty_content_direct(self, tmp_path):
+        """Direct _parse_entry call with whitespace-only content returns None."""
+        log = make_log(tmp_path)
+        assert log._parse_entry("   ") is None
+
+    def test_parse_malformed_tag_no_bracket(self, tmp_path):
+        """Tag line without brackets returns None."""
+        log = make_log(tmp_path)
+        with open(tmp_path / "trading_memory.md", "a", encoding="utf-8") as f:
+            f.write(f"2026-01-10 | NVDA | Buy | pending{_SEP}")
+        entries = log.load_entries()
+        assert len(entries) == 0
+
+    def test_parse_malformed_tag_no_close_bracket(self, tmp_path):
+        """Tag line without closing bracket returns None."""
+        log = make_log(tmp_path)
+        with open(tmp_path / "trading_memory.md", "a", encoding="utf-8") as f:
+            f.write(f"[2026-01-10 | NVDA | Buy | pending{_SEP}")
+        entries = log.load_entries()
+        assert len(entries) == 0
+
+    def test_parse_too_few_fields(self, tmp_path):
+        """Tag with fewer than 4 fields returns None."""
+        log = make_log(tmp_path)
+        with open(tmp_path / "trading_memory.md", "a", encoding="utf-8") as f:
+            f.write(f"[2026-01-10 | NVDA]{_SEP}")
+        entries = log.load_entries()
+        assert len(entries) == 0
+
+    def test_parse_missing_decision_section(self, tmp_path):
+        """Entry with no DECISION: section returns empty decision string."""
+        log = make_log(tmp_path)
+        with open(tmp_path / "trading_memory.md", "a", encoding="utf-8") as f:
+            f.write("[2026-01-10 | NVDA | Buy | +5.0% | +2.0% | 5d]\n\nSome stray text" + _SEP)
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["decision"] == ""
+
+    def test_parse_missing_reflection_section(self, tmp_path):
+        """Entry with no REFLECTION: section returns empty reflection string."""
+        log = make_log(tmp_path)
+        with open(tmp_path / "trading_memory.md", "a", encoding="utf-8") as f:
+            entry = "[2026-01-10 | NVDA | Buy | +5.0% | +2.0% | 5d]\n\nDECISION:\nBuy NVDA"
+            f.write(entry + _SEP)
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["reflection"] == ""
+        assert entries[0]["decision"] == "Buy NVDA"
+
+    def test_parse_exactly_4_fields(self, tmp_path):
+        """Pending entry with exactly 4 fields sets raw/alpha/holding to None."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["raw"] is None
+        assert entries[0]["alpha"] is None
+        assert entries[0]["holding"] is None
+
+    def test_parse_6_fields_resolved(self, tmp_path):
+        """Resolved entry has all 6 fields populated."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        log.update_with_outcome("NVDA", "2026-01-10", 0.05, 0.02, 5, "Good call.")
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["raw"] == "+5.0%"
+        assert entries[0]["alpha"] == "+2.0%"
+        assert entries[0]["holding"] == "5d"
+
+
+# ---------------------------------------------------------------------------
+# _format_full — all variants (coverage)
+# ---------------------------------------------------------------------------
+
+class TestFormatFull:
+
+    def test_format_full_with_reflection(self, tmp_path):
+        """_format_full produces correct output with reflection present."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        log.update_with_outcome("NVDA", "2026-01-10", 0.05, 0.02, 5, "Great call.")
+        ctx = log.get_past_context("NVDA")
+        assert "DECISION:\nRating: Buy" in ctx
+        assert "REFLECTION:\nGreat call." in ctx
+
+    def test_format_full_pending_entry(self, tmp_path):
+        """_format_full on a pending entry shows 'n/a' for raw/alpha/holding."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        entries = log.load_entries()
+        e = entries[0]
+        result = log._format_full(e)
+        assert "n/a" in result
+        assert "DECISION:\nRating: Buy" in result
+
+
+# ---------------------------------------------------------------------------
+# _format_reflection_only — edge cases (coverage)
+# ---------------------------------------------------------------------------
+
+class TestFormatReflectionOnly:
+
+    def test_reflection_only_with_reflection(self, tmp_path):
+        """When reflection exists, it's shown directly."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "AAPL", "2026-01-05", "Buy AAPL", "Good pick.")
+        ctx = log.get_past_context("NVDA")
+        assert "Good pick." in ctx
+        assert "Buy AAPL" not in ctx
+
+    def test_reflection_only_no_reflection_short(self, tmp_path):
+        """When reflection is empty, first 300 chars of decision are shown."""
+        log = make_log(tmp_path)
+        short_text = "Short decision text."
+        _seed_completed(tmp_path, "AAPL", "2026-01-05", short_text, "")
+        entries = [e for e in log.load_entries() if not e["pending"]]
+        result = log._format_reflection_only(entries[0])
+        assert short_text in result
+        assert "..." not in result
+
+    def test_reflection_only_no_reflection_long(self, tmp_path):
+        """When reflection is empty and decision > 300 chars, it's truncated."""
+        log = make_log(tmp_path)
+        long_text = "Word " * 200
+        _seed_completed(tmp_path, "AAPL", "2026-01-05", long_text.strip(), "")
+        entries = [e for e in log.load_entries() if not e["pending"]]
+        result = log._format_reflection_only(entries[0])
+        assert "..." in result
+        assert len(result.split("\n")[-1]) <= 303
+
+    def test_reflection_only_no_reflection_no_decision(self, tmp_path):
+        """When both reflection and decision are empty, shows empty string."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "AAPL", "2026-01-05", "", "")
+        entries = [e for e in log.load_entries() if not e["pending"]]
+        result = log._format_reflection_only(entries[0])
+        assert "\n\n" not in result
+
+
+# ---------------------------------------------------------------------------
+# get_past_context — n_same=0 / n_cross=0 (coverage)
+# ---------------------------------------------------------------------------
+
+class TestGetPastContextEdgeCases:
+
+    def test_past_context_zero_limits(self, tmp_path):
+        """Both n_same=0 and n_cross=0 returns empty string."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "NVDA", "2026-01-05", "Buy NVDA", "Correct.")
+        ctx = log.get_past_context("NVDA", n_same=0, n_cross=0)
+        assert ctx == ""
+
+    def test_past_context_no_same_only_cross(self, tmp_path):
+        """Only cross-ticker entries: no 'Past analyses' header."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "AAPL", "2026-01-05", "Buy AAPL", "Correct.")
+        ctx = log.get_past_context("NVDA", n_same=0)
+        assert "Past analyses of NVDA" not in ctx
+        assert "Recent cross-ticker lessons" in ctx
+
+    def test_past_context_no_cross_only_same(self, tmp_path):
+        """Only same-ticker entries: no 'cross-ticker' header."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "NVDA", "2026-01-05", "Buy NVDA", "Correct.")
+        ctx = log.get_past_context("NVDA", n_cross=0)
+        assert "Past analyses of NVDA" in ctx
+        assert "Recent cross-ticker lessons" not in ctx
+
+
+# ---------------------------------------------------------------------------
+# store_decision — additional idempotency edge cases (coverage)
+# ---------------------------------------------------------------------------
+
+class TestStoreDecisionEdgeCases:
+
+    def test_store_idempotent_no_rating_in_decision(self, tmp_path):
+        """Idempotency guard works even when decision has no explicit rating."""
+        log = make_log(tmp_path)
+        text = "Executive Summary: No clear signal."
+        log.store_decision("NVDA", "2026-01-10", text)
+        log.store_decision("NVDA", "2026-01-10", text)
+        assert len(log.load_entries()) == 1
+
+    def test_store_idempotent_after_update(self, tmp_path):
+        """After update, a re-store with same ticker/date creates a NEW entry (old is resolved)."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        log.update_with_outcome("NVDA", "2026-01-10", 0.05, 0.02, 5, "Done.")
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        entries = log.load_entries()
+        assert len(entries) == 2
+        assert entries[0]["pending"] is False
+        assert entries[1]["pending"] is True

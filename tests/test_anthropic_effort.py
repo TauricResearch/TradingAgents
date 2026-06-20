@@ -6,7 +6,12 @@ forward-compat regex so future ``claude-{opus,sonnet}-X-Y`` releases
 inherit support automatically.
 """
 
+import unittest
+from unittest.mock import MagicMock, patch
+
 import pytest
+
+pytestmark = pytest.mark.unit
 
 from tradingagents.llm_clients import anthropic_client as mod
 
@@ -82,3 +87,104 @@ class TestEffortGate:
         assert captured["kwargs"]["max_tokens"] == 1024
         assert captured["kwargs"]["timeout"] == 30
         assert "effort" not in captured["kwargs"]
+
+
+# =========================================================================
+# Tests merged from test_final_push.py and test_llm_and_minor.py
+# =========================================================================
+
+
+class AnthropicClientEdgeTests(unittest.TestCase):
+    """Lines 44 (NormalizedChatAnthropic.invoke), 60 (base_url)."""
+
+    def test_normalized_chat_anthropic_invoke(self):
+        from tradingagents.llm_clients.anthropic_client import NormalizedChatAnthropic
+
+        client = NormalizedChatAnthropic(model="claude-sonnet-4-5", api_key="test")
+        raw_response = MagicMock()
+        raw_response.content = "normalized result"
+        with patch.object(NormalizedChatAnthropic, "invoke", wraps=client.invoke) as wrapped, \
+             patch("langchain_anthropic.ChatAnthropic.invoke", return_value=raw_response), \
+             patch("tradingagents.llm_clients.anthropic_client.normalize_content",
+                   return_value=raw_response) as mock_norm:
+            result = client.invoke("hello")
+        self.assertEqual(result.content, "normalized result")
+
+    def test_get_llm_with_base_url(self):
+        from tradingagents.llm_clients.anthropic_client import AnthropicClient
+        import tradingagents.llm_clients.anthropic_client as mod
+
+        captured = {}
+        with patch.object(mod, "NormalizedChatAnthropic", lambda **kwargs: captured.__setitem__("kwargs", kwargs)):
+            client = AnthropicClient(model="claude-sonnet-4-5", base_url="https://custom.anthropic.com", api_key="test")
+            client.get_llm()
+        self.assertEqual(captured["kwargs"]["base_url"], "https://custom.anthropic.com")
+
+    def test_get_llm_without_base_url(self):
+        from tradingagents.llm_clients.anthropic_client import AnthropicClient
+        import tradingagents.llm_clients.anthropic_client as mod
+
+        captured = {}
+        with patch.object(mod, "NormalizedChatAnthropic", lambda **kwargs: captured.__setitem__("kwargs", kwargs)):
+            client = AnthropicClient(model="claude-sonnet-4-5", api_key="test")
+            client.get_llm()
+        self.assertNotIn("base_url", captured["kwargs"])
+
+    def test_get_llm_missing_model_raises(self):
+        from tradingagents.llm_clients.anthropic_client import AnthropicClient
+        client = AnthropicClient("", api_key="test")
+        with self.assertRaises(ValueError):
+            client.get_llm()
+
+    def test_get_llm_effort_skipped_for_haiku(self):
+        from tradingagents.llm_clients.anthropic_client import AnthropicClient
+        import tradingagents.llm_clients.anthropic_client as mod
+
+        captured = {}
+        with patch.object(mod, "NormalizedChatAnthropic", lambda **kwargs: captured.__setitem__("kwargs", kwargs)):
+            client = AnthropicClient(model="claude-haiku-4-5", effort="high", api_key="test")
+            client.get_llm()
+        self.assertNotIn("effort", captured["kwargs"])
+
+
+class TestAnthropicClient(unittest.TestCase):
+
+    def test_validate_model(self):
+        """Line 72–73: validate_model delegates."""
+        from tradingagents.llm_clients.anthropic_client import AnthropicClient
+
+        with patch(
+            "tradingagents.llm_clients.anthropic_client.validate_model",
+            return_value=True,
+        ):
+            client = AnthropicClient("claude-sonnet-4-5")
+            self.assertTrue(client.validate_model())
+
+    def test_get_llm_with_base_url(self):
+        """Line 60: base_url passed through to NormalizedChatAnthropic."""
+        from tradingagents.llm_clients.anthropic_client import AnthropicClient
+
+        with patch(
+            "tradingagents.llm_clients.anthropic_client.NormalizedChatAnthropic"
+        ) as mock_cls:
+            client = AnthropicClient(
+                "claude-sonnet-4-5",
+                base_url="https://custom.example.com",
+                api_key="x",
+            )
+            client.get_llm()
+        call_kwargs = mock_cls.call_args[1]
+        self.assertIn("base_url", call_kwargs)
+        self.assertEqual(call_kwargs["base_url"], "https://custom.example.com")
+
+    def test_supports_effort_exact_match(self):
+        """_supports_effort exact match."""
+        from tradingagents.llm_clients.anthropic_client import _supports_effort
+
+        self.assertTrue(_supports_effort("claude-mythos-preview"))
+
+    def test_supports_effort_case_insensitive(self):
+        """_supports_effort is case-insensitive."""
+        from tradingagents.llm_clients.anthropic_client import _supports_effort
+
+        self.assertTrue(_supports_effort("CLAUDE-OPUS-4-5"))
