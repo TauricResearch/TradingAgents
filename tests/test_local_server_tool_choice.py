@@ -77,9 +77,9 @@ class TestLocalServerToolChoiceSuppression:
             t.get("function", {}).get("name") == "_Sample" for t in tools
         ), f"schema not bound as a tool: {tools}"
 
-    def test_hosted_provider_still_sends_tool_choice(self):
+    def test_hosted_provider_still_sends_tool_choice(self, monkeypatch):
         """Suppression must not leak to hosted OpenAI-compatible providers
         (e.g. xAI) that accept the object-form tool_choice."""
-        os.environ.setdefault("XAI_API_KEY", "placeholder")
+        monkeypatch.setenv("XAI_API_KEY", "placeholder")
         bound = self._structured(model="grok-2", provider="xai")
         assert _bound_kwargs(bound).get("tool_choice") is not None
