@@ -36,7 +36,7 @@ def _write_watchlist(rows: list[dict]) -> None:
     )
 
 
-def add_ticker(ticker: str, company_name: str, exchange: str) -> dict:
+def add_ticker(ticker: str, company_name: str, exchange: str, source: str = "user") -> dict:
     """Add a ticker to the watchlist. Raises DuplicateTicker if present."""
     safe = safe_ticker_component(ticker).upper()
     rows = read_watchlist()
@@ -53,11 +53,38 @@ def add_ticker(ticker: str, company_name: str, exchange: str) -> dict:
         "last_decision_at": None,
         "sort_order": next_order,
         "group": None,
+        "source": source,
     }
     rows.append(row)
     _write_watchlist(rows)
     # Make sure the ticker data dir exists so the next /api/runs call
     # can drop its run subdir in there.
+    storage.ticker_dir(safe)
+    return row
+
+
+def ensure_agent_ticker(ticker: str, company_name: str = "", exchange: str = "") -> dict | None:
+    """Add a ticker with source='agent' if not already on the watchlist. No-op if present."""
+    safe = safe_ticker_component(ticker).upper()
+    rows = read_watchlist()
+    for r in rows:
+        if r["ticker"] == safe:
+            return None  # already present
+    next_order = max((r.get("sort_order", i) for i, r in enumerate(rows)), default=0) + 1
+    row = {
+        "ticker": safe,
+        "company_name": company_name or safe,
+        "exchange": exchange,
+        "added_at": storage.utc_iso(storage.now_utc()),
+        "last_run_id": None,
+        "last_decision": None,
+        "last_decision_at": None,
+        "sort_order": next_order,
+        "group": None,
+        "source": "agent",
+    }
+    rows.append(row)
+    _write_watchlist(rows)
     storage.ticker_dir(safe)
     return row
 
@@ -85,6 +112,7 @@ def watchlist_to_dict(w: dict) -> dict:
         "last_decision_at": w.get("last_decision_at"),
         "sort_order": w.get("sort_order"),
         "group": w.get("group"),
+        "source": w.get("source", "user"),
     }
 
 

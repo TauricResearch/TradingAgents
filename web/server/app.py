@@ -35,6 +35,7 @@ class WatchlistIn(BaseModel):
     ticker: str
     company_name: str = ""
     exchange: str = ""
+    source: str = "user"
 
 
 class WatchlistReorderIn(BaseModel):
@@ -195,7 +196,7 @@ def create_app() -> FastAPI:
             detail = {"error": "ticker_not_found", "ticker": body.ticker, "reason": exc.reason}
             raise HTTPException(status_code=400, detail=detail)
         try:
-            row = queries.add_ticker(body.ticker, body.company_name, body.exchange)
+            row = queries.add_ticker(body.ticker, body.company_name, body.exchange, source=body.source)
         except queries.DuplicateTicker:
             raise HTTPException(status_code=409, detail="ticker already on watchlist")
         return queries.watchlist_to_dict(row)

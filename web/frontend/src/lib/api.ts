@@ -34,6 +34,7 @@ export interface WatchlistRow {
   last_decision_at: string | null;
   sort_order: number | null;
   group: string | null;
+  source?: string;
 }
 
 export type RunStatus =

@@ -146,34 +146,38 @@ def get_macro_data(
         A markdown report with the series title, units, frequency, the latest
         value, the change over the window, and a recent observation table.
     """
-    if look_back_days is None:
-        look_back_days = DEFAULT_LOOKBACK_DAYS
+    try:
+        if look_back_days is None:
+            look_back_days = DEFAULT_LOOKBACK_DAYS
 
-    end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-    start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
-    series_id = _resolve_series_id(indicator)
+        logger.info("FRED request: indicator=%r, curr_date=%r, look_back_days=%d", indicator, curr_date, look_back_days)
 
-    meta = _request("series", {"series_id": series_id}).get("seriess") or []
-    if not meta:
-        raise ValueError(
-            f"FRED series '{series_id}' not found. Pass a known alias "
-            f"(e.g. 'cpi', 'unemployment') or a valid FRED series ID."
-        )
-    info = meta[0]
-    title = info.get("title", series_id)
-    units = info.get("units_short") or info.get("units", "")
-    frequency = info.get("frequency", "")
-    seasonal = info.get("seasonal_adjustment_short", "")
+        end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+        start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
+        series_id = _resolve_series_id(indicator)
+        logger.info("FRED resolved: indicator=%r -> series_id=%r", indicator, series_id)
 
-    observations = _request(
-        "series/observations",
-        {
-            "series_id": series_id,
-            "observation_start": start_date,
-            "observation_end": curr_date,
-            "sort_order": "asc",
-        },
-    ).get("observations", [])
+        meta = _request("series", {"series_id": series_id}).get("seriess") or []
+        if not meta:
+            raise ValueError(
+                f"FRED series '{series_id}' not found. Pass a known alias "
+                f"(e.g. 'cpi', 'unemployment') or a valid FRED series ID."
+            )
+        info = meta[0]
+        title = info.get("title", series_id)
+        units = info.get("units_short") or info.get("units", "")
+        frequency = info.get("frequency", "")
+        seasonal = info.get("seasonal_adjustment_short", "")
+
+        observations = _request(
+            "series/observations",
+            {
+                "series_id": series_id,
+                "observation_start": start_date,
+                "observation_end": curr_date,
+                "sort_order": "asc",
+            },
+        ).get("observations", [])
 
     # FRED encodes a missing observation as ".".
     points = [
