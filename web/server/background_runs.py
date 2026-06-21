@@ -76,21 +76,28 @@ def dates(date_from: str, date_to: str, every: str) -> list[str]:
         raise ValueError(f"every must be one of {sorted(_EVERY_OPTIONS)}, got {every!r}")
 
     out: list[date] = []
-    cur = f
+    # Ensure target_day is defined for monthly cadence.
+    target_day: int = f.day
     if every == "1d":
         step = timedelta(days=1)
         skip_weekends = True
     elif every == "1w":
+        # Align to the first Monday on or after the start date.
+        if f.weekday() != 0:
+            f = f + timedelta(days=(7 - f.weekday()))
         step = timedelta(weeks=1)
-        skip_weekends = True
+        skip_weekends = False
     elif every == "2w":
+        # Align to the first Monday on or after the start date.
+        if f.weekday() != 0:
+            f = f + timedelta(days=(7 - f.weekday()))
         step = timedelta(weeks=2)
-        skip_weekends = True
+        skip_weekends = False
     else:  # "1mo"
         step = None
         skip_weekends = False
         target_day = f.day
-
+    cur = f
     while cur <= t:
         if not (skip_weekends and cur.weekday() >= 5):
             out.append(cur)
@@ -574,7 +581,7 @@ def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s
         })
 
     # Emit the decision event so the dashboard can display it.
-    _events.emit(run_id, "decision", {
+    _events.emit(run_id, _events.EventType.DECISION, {
         "action": dec.get("action"),
         "target": dec.get("target"),
         "rationale": dec.get("rationale"),
@@ -587,7 +594,7 @@ def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s
         report = (final_state.get(field) or "")
         if report:
             summary_by_stage[s] = report[:200]
-    _events.emit(run_id, "run_finished", {
+    _events.emit(run_id, _events.EventType.RUN_FINISHED, {
         "duration_s": duration_s,
         "summary_by_stage": summary_by_stage,
     })
