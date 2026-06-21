@@ -530,7 +530,7 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
                 duration_ms_event = (
                     int((time.monotonic() - t_enter_for_event) * 1000) if t_enter_for_event else 0
                 )
-                data: dict = {"stage": stage, "summary": summary, "duration_ms": duration_ms_event}
+                data: dict = {"stage": stage, "summary": summary, "duration_ms": duration_ms_event, "node": payload.get("node", "")}
                 if excerpt:
                     data["report_excerpt"] = excerpt
                 if full_text:
