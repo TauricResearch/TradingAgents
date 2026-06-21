@@ -255,6 +255,10 @@ export function WatchlistRail() {
     }
   }, [filterTicker, qc]);
 
+  /* ---------- Split by source ---------- */
+  const userTickersBase = useMemo(() => watchlist.filter((r) => r.source !== "agent"), [watchlist]);
+  const agentTickersBase = useMemo(() => watchlist.filter((r) => r.source === "agent"), [watchlist]);
+
   /* ---------- Filter & Sort ---------- */
   const lowerFilter = filterTicker.toLowerCase();
   const scoreMap = useMemo(() => {
@@ -268,12 +272,20 @@ export function WatchlistRail() {
   }, [accuracyData]);
 
   let filteredWatchlist = filterTicker
-    ? watchlist.filter(
+    ? userTickersBase.filter(
         (r) =>
           r.ticker.toLowerCase().includes(lowerFilter) ||
           (r.company_name && r.company_name.toLowerCase().includes(lowerFilter)),
       )
-    : [...watchlist];
+    : [...userTickersBase];
+
+  let filteredAgentTickers = filterTicker
+    ? agentTickersBase.filter(
+        (r) =>
+          r.ticker.toLowerCase().includes(lowerFilter) ||
+          (r.company_name && r.company_name.toLowerCase().includes(lowerFilter)),
+      )
+    : [...agentTickersBase];
 
   if (sortMode === "accuracy") {
     filteredWatchlist.sort((a, b) => {
@@ -283,7 +295,7 @@ export function WatchlistRail() {
     });
   }
 
-  /* ---------- Group helpers ---------- */
+  /* ---------- Group helpers (user tickers) ---------- */
   const grouped: Record<string, typeof watchlist> = {};
   const ungrouped: typeof watchlist = [];
   for (const row of filteredWatchlist) {
@@ -379,7 +391,9 @@ export function WatchlistRail() {
               {sortMode === "accuracy" ? "By Accuracy" : "Default"}
             </button>
             <span className="text-[10px] text-slate-600 ml-auto">
-              {filterTicker ? `${filteredWatchlist.length}/${watchlist.length}` : watchlist.length}
+              {filterTicker
+                ? `${filteredWatchlist.length + filteredAgentTickers.length}/${watchlist.length}`
+                : `${userTickersBase.length}M ${agentTickersBase.length}A`}
             </span>
           </div>
           <div className="relative mt-2">
@@ -586,10 +600,24 @@ export function WatchlistRail() {
             </div>
           )}
 
-          {filteredWatchlist.length === 0 && watchlist.length === 0 && (
+          {/* Agent Tickers section */}
+          <div className="border-t border-slate-700/30 pt-2 mt-2">
+            <div className="flex items-center gap-1.5 px-1 py-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.5)]" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Agent Tickers</span>
+              <span className="text-[10px] text-slate-600 ml-auto">{filteredAgentTickers.length}</span>
+            </div>
+            {filteredAgentTickers.length > 0 ? (
+              filteredAgentTickers.map(renderRow)
+            ) : (
+              <p className="text-[10px] text-slate-600 italic px-2 py-1">No agent tickers yet</p>
+            )}
+          </div>
+
+          {filteredWatchlist.length === 0 && watchlist.length === 0 && agentTickersBase.length === 0 && (
             <p className="text-xs text-slate-500 text-center py-8">Add tickers to get started</p>
           )}
-          {filteredWatchlist.length === 0 && watchlist.length > 0 && filterTicker && (
+          {filteredWatchlist.length === 0 && filteredAgentTickers.length === 0 && (userTickersBase.length > 0 || agentTickersBase.length > 0) && filterTicker && (
             <div className="flex flex-col items-center py-6 px-4">
               <p className="text-xs text-slate-500 mb-3">
                 No tickers match &ldquo;{filterTicker}&rdquo;

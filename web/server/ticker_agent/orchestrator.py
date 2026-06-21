@@ -367,7 +367,7 @@ def _call_llm_strategy(prompt: str) -> dict:
 
 def _execute_plan(plan: dict) -> dict:
     """Schedule background runs for tickers in the investigation plan."""
-    from web.server import background_runs
+    from web.server import background_runs, queries
     from datetime import date, timedelta
 
     cfg = load_config()
@@ -395,6 +395,11 @@ def _execute_plan(plan: dict) -> dict:
                 every="1d",
                 parallel=min(backtests_needed, 4),
             )
+            # Add to watchlist as agent ticker if not already present
+            try:
+                queries.ensure_agent_ticker(ticker)
+            except Exception:
+                log.debug("Could not add agent ticker %s to watchlist", ticker)
             scheduled.append(ticker)
         except (ValueError, KeyError) as e:
             log.warning("Failed to schedule background run for %s: %s", ticker, e)
