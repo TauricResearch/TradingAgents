@@ -4,29 +4,46 @@
 
 The Agent Observatory provides comprehensive real-time visibility into all agent actions across the TradingAgents system. It unifies the main trading graph pipeline (market analysts → researchers → trader → risk → PM) with the Ticker Accuracy Agent into a single observability layer.
 
-## Problem
+## Current Implementation Status
 
-The current system has:
-- **5 visibility gaps**: Agent thinking process, tool execution detail, agent-to-agent communication, decision traceability, ticker agent visibility
-- **6+ bugs in agent flow**: debate/risk messages never emitted, `_NODE_STATE_KEY` broken, `EventType` enum 64% dead code with mismatches, frontend↔backend event enums out of sync, duplicate imports
+### ✅ Event Protocol Fixes (Implemented in runner.py)
+| Bug | Status | Implementation |
+|-----|--------|----------------|
+| `debate_message` never emitted | ✅ Fixed | Emitted from `event_callback("node_exited")` in runner.py:482-500 |
+| `risk_message` never emitted | ✅ Fixed | Emitted from `event_callback("node_exited")` in runner.py:502-525 |
+| `_NODE_STATE_KEY` wrong keys | ✅ Correct | Already correct in runner.py:159-172 |
+| `EventType` enum mismatches | ✅ Correct | Already correct in events.py:18-34 |
+| Duplicate import | ✅ Not an issue | `create_llm_client` imports in different contexts are intentional |
+
+### ✅ Ticker Agent Orchestrator Enhancements (Implemented in orchestrator.py)
+- `ticker_cycle_started` event emitted at cycle start
+- All 7 steps emit `ticker_step_started` and `ticker_step_completed` events
+- Step 1 (Read Memory) now properly emits completion event
+- `ticker_llm_call` includes full prompt_text, response_text, model, tokens, duration_ms
+- `ticker_data_fetch` events emitted for yfinance sector calls
+- All steps include wall-clock timing (duration_ms)
+
+### ✅ Frontend Ticker Agent Panel (Implemented)
+- New `TickerAgentPanel.tsx` component for Observatory tab
+- Added "Ticker" tab to `AgentObservatory.tsx`
+- Panel shows: Cycle Overview, Timeline with timing, LLM Call viewer, Data Fetches, Leaderboard, Event log
+
+### ✅ Observer Backend Enhancements (Implemented in observer.py)
+- `Observer` class with `enrich()` method for main graph events
+- New `ticker_enrich()` method for ticker agent events
+- Tracks step timing for ticker agent events
 
 ## Architecture
 
 ### Observer Backend Module (`web/server/observer.py`)
-New module that sits between graph execution and the frontend:
-- Subscribes to both the main graph `event_callback` and ticker agent lifecycle
-- Enriches raw events with timing, full payloads, cross-agent correlations
-- Fixes broken event emissions (debate, risk, correct state keys)
-- Broadcasts enriched events via WebSocket
+Enriches raw events with timing, full payloads, and correlations:
+- Adds `observer_seq` and `observer_ts` to all events
+- Tracks `duration_ms` for tool calls and analyst completions
+- `ticker_enrich()` adds timing for ticker agent step transitions
 
-### Event Protocol Fixes
-| Bug | Fix |
-|-----|-----|
-| `debate_message` never emitted | Emit from `event_callback("node_exited")` when delta contains `investment_debate_state` |
-| `risk_message` never emitted | Emit from `event_callback("node_exited")` when delta contains `risk_debate_state` |
-| `_NODE_STATE_KEY` wrong keys | Correct keys to match actual node names, fix field names |
-| `EventType` enum mismatches | Update backend enum to match actual emissions; delete dead members |
-| Duplicate import | Remove duplicate `create_llm_client` import in `trading_graph.py` |
+### Event Protocol
+The main graph events flow through `runner.py` → `events.emit()` → WebSocket broadcast.
+Ticker agent events flow through `orchestrator._emit_event()` → WebSocket broadcast.
 
 ### Ticker Agent WebSocket
 New `/ws/ticker-agent` endpoint pushes live events (step transitions, LLM calls, data fetches). The existing polling endpoints remain as fallback.

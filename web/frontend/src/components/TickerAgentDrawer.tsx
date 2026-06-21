@@ -10,6 +10,8 @@ import {
   getCapabilities,
   getMissingCapabilities,
   getTickerAgentLiveEvents,
+  getAgentConfig,
+  updateAgentConfig,
 } from "../lib/api";
 import { connectTickerAgentWs, type AgentLiveEvent } from "../lib/api";
 
@@ -74,29 +76,57 @@ function StepProgressBar({ currentStep }: { currentStep: number }) {
   );
 }
 
-function LiveEventFeed({ events, currentStep }: { events: AgentLiveEvent[]; currentStep: number }) {
+function LiveEventFeed({ events }: { events: AgentLiveEvent[] }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [events.length]);
 
-  if (currentStep === 0) return null;
+  if (events.length === 0) return null;
 
   return (
-    <div className="space-y-0.5 max-h-28 overflow-y-auto text-[11px] font-mono">
-      {events.length === 0 && (
-        <div className="text-slate-600 italic">Waiting for events...</div>
-      )}
-      {events.map((ev) => (
-        <div key={ev.id} className="flex items-start gap-1.5 text-slate-400">
-          <span className="shrink-0 text-slate-600">
-            {ev.timestamp.slice(11, 19)}
-          </span>
-          <span className="shrink-0 text-sky-600">[{ev.step}/7]</span>
-          <span className="truncate">{ev.message}</span>
-        </div>
-      ))}
+    <div className="space-y-2 max-h-96 overflow-y-auto text-[11px] font-mono">
+      {events.toReversed().map((ev) => {
+        const isStarted = ev.event_type === "ticker_step_started";
+        const isCompleted = ev.event_type === "ticker_step_completed";
+        const dotColor = isStarted ? "bg-amber-400" : isCompleted ? "bg-emerald-400" : "bg-sky-400";
+        return (
+          <div key={ev.id} className="bg-slate-800/40 rounded border border-slate-700/30 px-2 py-1.5 space-y-1">
+            <div className="flex items-start gap-1.5 text-slate-400">
+              <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+              <span className="shrink-0 text-slate-600">{ev.timestamp.slice(11, 19)}</span>
+              <span className="shrink-0 text-sky-600">[{ev.step}/7]</span>
+              {ev.message && <span className="text-slate-300 truncate">{ev.message}</span>}
+              {ev.detail && Object.keys(ev.detail).filter(k => k !== "step" && k !== "duration_ms").length > 0 && (
+                <span className="text-slate-600 shrink-0 ml-auto">
+                  {Object.entries(ev.detail)
+                    .filter(([k]) => k !== "step" && k !== "duration_ms")
+                    .filter(([, v]) => typeof v === "number" || typeof v === "boolean" || (typeof v === "string" && v.length < 40))
+                    .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
+                    .join(" | ")}
+                </span>
+              )}
+            </div>
+            {ev.detail && Object.entries(ev.detail).filter(([k]) => k !== "step" && k !== "duration_ms").some(([, v]) => typeof v !== "number" && typeof v !== "boolean" && !(typeof v === "string" && v.length < 40)) && (
+              <div className="ml-4 space-y-1">
+                {Object.entries(ev.detail).filter(([k]) => k !== "step" && k !== "duration_ms").filter(([, v]) => typeof v !== "number" && typeof v !== "boolean" && !(typeof v === "string" && v.length < 40)).map(([k, v]) => (
+                  <div key={k}>
+                    <span className="text-slate-600 text-[10px] uppercase tracking-wider">{k.replace(/_/g, " ")}</span>
+                    <div className="bg-slate-950/60 rounded p-1.5 mt-0.5 border border-slate-800/50 max-h-48 overflow-y-auto">
+                      {typeof v === "string" ? (
+                        <pre className="text-slate-300 whitespace-pre-wrap font-mono text-[10px] leading-relaxed">{v}</pre>
+                      ) : (
+                        <pre className="text-slate-300 whitespace-pre-wrap font-mono text-[10px] leading-relaxed">{JSON.stringify(v, null, 2)}</pre>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
       <div ref={bottomRef} />
     </div>
   );
@@ -119,7 +149,6 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
     queryKey: ["ticker-agent", "live-events"],
     queryFn: () => getTickerAgentLiveEvents(0),
     refetchInterval: currentStatus === "running" ? 1000 : 30000,
-    enabled: currentStatus === "running",
   });
 
   const { data: leaderboard, isLoading: lbLoading, isError: lbError, error: lbErrorObj, refetch: lbRefetch } = useQuery({
@@ -144,10 +173,16 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
     queryFn: getMissingCapabilities,
   });
 
-  const runMutation = useMutation({
-    mutationFn: runTickerAgentCycle,
+  const { data: config } = useQuery({
+    queryKey: ["ticker-agent", "config"],
+    queryFn: getAgentConfig,
+  });
+
+  const configMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) => updateAgentConfig(body),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ticker-agent"] });
+      qc.invalidateQueries({ queryKey: ["ticker-agent", "config"] });
+      qc.invalidateQueries({ queryKey: ["ticker-agent", "status"] });
     },
   });
 
@@ -165,12 +200,33 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
     },
   });
 
+  const runMutation = useMutation({
+    mutationFn: runTickerAgentCycle,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ticker-agent"] });
+    },
+  });
+
   const steps = useMemo(() => STEP_LABELS, []);
 
   const currentStep = liveData?.current_step ?? status?.current_step ?? 0;
-  const events = liveData?.events ?? [];
+  const restEvents = liveData?.events ?? [];
 
   const [wsEvents, setWsEvents] = useState<AgentLiveEvent[]>([]);
+
+  // Merge REST and WS events, deduplicating by id
+  const events = useMemo(() => {
+    const seen = new Set<number>();
+    const merged = [...restEvents];
+    merged.forEach(e => seen.add(e.id));
+    for (const ev of wsEvents) {
+      if (!seen.has(ev.id)) merged.push(ev);
+    }
+    merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return merged;
+  }, [restEvents, wsEvents]);
+
+  const [countdown, setCountdown] = useState("");
 
   useEffect(() => {
     const cleanup = connectTickerAgentWs((ev) => {
@@ -178,6 +234,24 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
     });
     return cleanup;
   }, []);
+
+  useEffect(() => {
+    const intervalH = config?.schedule_interval_h;
+    const lastRun = status?.last_run_at;
+    if (!intervalH || intervalH === 0 || !lastRun || currentStatus === "paused") { setCountdown(""); return; }
+    const tick = () => {
+      const nextRun = new Date(lastRun).getTime() + intervalH * 3600000;
+      const diff = nextRun - Date.now();
+      if (diff <= 0) { setCountdown("now"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [config?.schedule_interval_h, status?.last_run_at, currentStatus]);
 
   const cycleTrace = useMemo(() => {
     const started = wsEvents.filter(e => e.event_type === "ticker_step_started");
@@ -227,7 +301,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
         <h3 className="font-display font-semibold text-slate-200">Ticker Accuracy Agent</h3>
-        <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Close</button>
+        <button onClick={onClose} aria-label="Close" className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Close</button>
       </div>
 
       {/* Body */}
@@ -256,27 +330,40 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
               </div>
 
               <div className="flex items-center gap-1.5">
-                <button
-                  className="btn-primary text-xs"
-                  disabled={currentStatus === "running" || runMutation.isPending}
-                  onClick={() => runMutation.mutate()}
+                <span className="text-xs text-slate-500">Schedule:</span>
+                <select
+                  className="bg-slate-800 text-xs text-slate-200 border border-slate-600 rounded px-1.5 py-1"
+                  value={config?.schedule_interval_h ?? 1}
+                  onChange={(e) => configMutation.mutate({ schedule_interval_h: parseInt(e.target.value) })}
+                  disabled={configMutation.isPending}
                 >
-                  {runMutation.isPending ? "Starting…" : "Run Now"}
-                </button>
-                <button
-                  className="btn-secondary text-xs"
-                  disabled={currentStatus !== "running" || pauseMutation.isPending}
-                  onClick={() => pauseMutation.mutate()}
-                >
-                  Pause
-                </button>
-                <button
-                  className="btn-secondary text-xs"
-                  disabled={currentStatus !== "paused" || resumeMutation.isPending}
-                  onClick={() => resumeMutation.mutate()}
-                >
-                  Resume
-                </button>
+                  <option value={0}>Off (manual only)</option>
+                  <option value={1}>Every 1h</option>
+                  <option value={2}>Every 2h</option>
+                  <option value={4}>Every 4h</option>
+                  <option value={6}>Every 6h</option>
+                  <option value={8}>Every 8h</option>
+                  <option value={12}>Every 12h</option>
+                  <option value={24}>Every 24h</option>
+                </select>
+                {(currentStatus === "paused" || currentStatus === "idle") && (
+                  <button
+                    className="btn-primary text-xs"
+                    disabled={runMutation.isPending}
+                    onClick={() => runMutation.mutate()}
+                  >
+                    {runMutation.isPending ? "Starting…" : "Run Now"}
+                  </button>
+                )}
+                {currentStatus === "running" && (
+                  <button
+                    className="btn-secondary text-xs"
+                    disabled={pauseMutation.isPending}
+                    onClick={() => pauseMutation.mutate()}
+                  >
+                    Pause
+                  </button>
+                )}
               </div>
 
               {currentStep > 0 && (
@@ -290,55 +377,20 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
                   Last run: <span className="text-slate-400">{new Date(status.last_run_at).toLocaleString()}</span>
                 </div>
               )}
-              {status?.next_scheduled_at && (
+              {countdown && (
                 <div className="text-xs text-slate-500">
-                  Next scheduled: <span className="text-slate-400">{new Date(status.next_scheduled_at).toLocaleString()}</span>
+                  Next run in: <span className={`font-mono ${countdown === "now" ? "text-emerald-400" : "text-sky-400"}`}>{countdown}</span>
                 </div>
               )}
             </>
           )}
         </div>
 
-        {/* Section 2: Step Progress (only during running) */}
-        {currentStatus === "running" && (
-          <div className="glass-panel p-3 space-y-2">
-            <span className="section-header">Step Progress</span>
-            <StepProgressBar currentStep={currentStep} />
-          </div>
-        )}
-
-        {/* Step Details */}
-        {wsEvents.filter(e => e.event_type?.startsWith("ticker_step")).length > 0 && (
-          <div className="glass-panel p-3 space-y-2">
-            <span className="section-header">Step Details</span>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              {wsEvents.filter(e => e.event_type?.startsWith("ticker_step"))
-                .map((ev, i) => (
-                  <details key={i} className="text-xs border-b border-slate-800 last:border-0 py-1">
-                    <summary className="cursor-pointer text-slate-400 hover:text-slate-300">
-                      Step {ev.step}: {ev.step_name}
-                    </summary>
-                    <div className="mt-1 text-slate-500 space-y-0.5 pl-2">
-                      {ev.detail && Object.entries(ev.detail).map(([k, v]) => (
-                        <div key={k} className="flex gap-2">
-                          <span className="text-slate-600 shrink-0">{k}:</span>
-                          <span className="text-slate-400 truncate">{JSON.stringify(v)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Section 3: Live Activity Feed (only during running) */}
-        {currentStatus === "running" && (
-          <div className="glass-panel p-3 space-y-2">
-            <span className="section-header">Live Activity</span>
-            <LiveEventFeed events={events} currentStep={currentStep} />
-          </div>
-        )}
+        {/* Live Activity Feed */}
+        <div className="glass-panel p-3 space-y-2">
+          <span className="section-header">Live Activity</span>
+          <LiveEventFeed events={events.filter(e => e.event_type?.startsWith("ticker_step"))} />
+        </div>
 
         {/* Cycle Timeline: ticker agent 7-step orchestration with timing */}
         {cycleTrace.steps.length > 0 && (
@@ -500,7 +552,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
                     </div>
                     <button
                       className="btn-secondary text-[10px] px-2 py-0.5 shrink-0"
-                      onClick={() => console.log("Implement", c.name)}
+                      onClick={() => {}}
                     >
                       Implement →
                     </button>

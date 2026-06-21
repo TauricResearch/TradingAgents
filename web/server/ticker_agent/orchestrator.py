@@ -83,7 +83,22 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _timestamp_ms() -> float:
+    return time.monotonic()
+
+
+def _emit_ticker_data_fetch(source: str, ticker: str | None, duration_ms: int, success: bool, summary: str) -> None:
+    _emit_event(0, f"{source} {'✓' if success else '✗'}", "ticker_data_fetch", {
+        "source": source,
+        "ticker": ticker,
+        "duration_ms": duration_ms,
+        "success": success,
+        "summary": summary,
+    })
+
+
 _ws_subscribers: set[WebSocket] = set()
+_step_timing: dict[int, float] = {}
 
 
 async def ws_broadcast(event: dict) -> None:
@@ -183,11 +198,15 @@ def _get_sector_performance() -> str:
         }
         lines = ["Sector performance (5d return):"]
         for etf, label in sector_etfs.items():
+            t0 = _timestamp_ms()
             ticker = yf.Ticker(etf)
             hist = ticker.history(period="5d")
-            if len(hist) >= 2:
+            duration_ms = int((_timestamp_ms() - t0) * 1000)
+            success = len(hist) >= 2
+            if success:
                 ret = ((hist["Close"].iloc[-1] - hist["Close"].iloc[0]) / hist["Close"].iloc[0]) * 100
                 lines.append(f"  {label} ({etf}): {ret:+.1f}%")
+            _emit_ticker_data_fetch("yfinance", etf, duration_ms, success, f"{label} sector" if success else "fetch failed")
         return "\n".join(lines)
     except Exception as e:
         log.warning("Failed to fetch sector performance: %s", e)
@@ -302,17 +321,24 @@ def _call_llm_strategy(prompt: str) -> dict:
     """Call the quick-thinking LLM for a strategy decision.
 
     Falls back to empty plan on LLM failure.
+    Returns dict with 'response', 'model', and 'tokens' keys.
     """
     import re
+    result = {
+        "response": {"investigation_plan": [], "sectors_to_watch": [], "reasoning_summary": "LLM call failed", "conclusions": []},
+        "model": "unknown",
+        "tokens": 0,
+    }
     try:
         from tradingagents.llm_clients import create_llm_client
         from tradingagents.default_config import DEFAULT_CONFIG
 
         llm_config = DEFAULT_CONFIG.copy()
+        model_name = llm_config.get("quick_think_llm", "gpt-4o-mini")
 
         client = create_llm_client(
             provider=llm_config.get("llm_provider", "openai"),
-            model=llm_config.get("quick_think_llm", "gpt-4o-mini"),
+            model=model_name,
             base_url=llm_config.get("backend_url") or None,
         )
         llm = client.get_llm()
@@ -322,11 +348,21 @@ def _call_llm_strategy(prompt: str) -> dict:
 
         json_match = re.search(r'\{.*\}', text, re.DOTALL)
         if json_match:
-            return json.loads(json_match.group())
+            result["response"] = json.loads(json_match.group())
+
+        tokens = 0
+        try:
+            llm_output = getattr(response, "llm_output", None) or {}
+            usage = llm_output.get("token_usage", {}) or {}
+            tokens = usage.get("total_tokens", usage.get("completion_tokens", 0))
+        except Exception:
+            pass
+        result["model"] = model_name
+        result["tokens"] = tokens
     except Exception as e:
         log.warning("LLM strategy call failed: %s", e)
 
-    return {"investigation_plan": [], "sectors_to_watch": [], "reasoning_summary": "LLM call failed", "conclusions": []}
+    return result
 
 
 def _execute_plan(plan: dict) -> dict:
@@ -531,47 +567,96 @@ def run_cycle() -> dict:
     """Execute one full agent cycle."""
     global _current_status, _current_step, _last_cycle_at, _cycles_completed
 
+    _step_timing.clear()
     with _lock:
         _current_status = "running"
         _current_step = 1
         _last_cycle_at = _now_iso()
+        _cycles_completed += 1
+        cycle_num = _cycles_completed
+    _emit_event(0, f"Starting cycle {cycle_num}", "ticker_cycle_started", {
+        "cycle_number": cycle_num,
+        "timestamp": _last_cycle_at,
+    })
     _emit_event(1, "Reading past conclusions from memory...", "ticker_step_started", {"step": 1})
+    _step_timing[1] = _timestamp_ms()
 
     try:
+        memory_data = read_memory(limit=10)
+        step1_duration = int((_timestamp_ms() - _step_timing[1]) * 1000)
+        _emit_event(1, f"Read {len(memory_data)} memory entries", "ticker_step_completed", {
+            "step": 1,
+            "memory_entries": len(memory_data),
+            "duration_ms": step1_duration,
+        })
+
         _emit_event(2, "Gathering context: watchlist, universe, accuracy scores...", "ticker_step_started", {"step": 2})
+        _step_timing[2] = _timestamp_ms()
         context = _gather_context()
+        step2_duration = int((_timestamp_ms() - _step_timing[2]) * 1000)
         _emit_event(2, "Context gathered", "ticker_step_completed", {
             "step": 2,
             "universe_size": context.get("universe_size", 0),
             "watchlist_size": context.get("watchlist_size", 0),
             "scored_tickers": context.get("scored_tickers", 0),
             "coverage_gaps": len(context.get("coverage_gaps", [])),
+            "duration_ms": step2_duration,
         })
 
         _emit_event(3, "Calling LLM for strategy plan...", "ticker_step_started", {"step": 3})
+        _step_timing[3] = _timestamp_ms()
         prompt = _build_strategy_prompt(context)
-        llm_response = _call_llm_strategy(prompt)
+        llm_result = _call_llm_strategy(prompt)
+        step3_duration = int((_timestamp_ms() - _step_timing[3]) * 1000)
+        llm_response = llm_result["response"]
         _emit_event(3, "LLM strategy response received", "ticker_llm_call", {
-            "prompt_preview": prompt[:200],
-            "response": json.dumps(llm_response)[:500],
-            "model": "",
+            "step": 3,
+            "prompt_text": prompt,
+            "response_text": json.dumps(llm_response),
+            "model": llm_result.get("model", "unknown"),
+            "tokens": llm_result.get("tokens", 0),
+            "duration_ms": step3_duration,
+        })
+        _emit_event(3, "LLM strategy response received", "ticker_step_completed", {
+            "step": 3,
+            "duration_ms": step3_duration,
         })
 
         execution_result = _execute_plan(llm_response)
-        _emit_event(4, "Scheduling execution for planned tickers...", "ticker_step_completed", {"step": 4, "scheduled": execution_result.get("scheduled", [])})
+        _step_timing[4] = _timestamp_ms()
+        _emit_event(4, "Scheduling execution for planned tickers...", "ticker_step_started", {"step": 4})
+        step4_duration = int((_timestamp_ms() - _step_timing[4]) * 1000)
+        _emit_event(4, f"Scheduled {len(execution_result.get('scheduled', []))} tickers", "ticker_step_completed", {
+            "step": 4,
+            "scheduled": execution_result.get("scheduled", []),
+            "duration_ms": step4_duration,
+        })
 
+        _step_timing[5] = _timestamp_ms()
+        _emit_event(5, "Ranking accuracy scores from completed runs...", "ticker_step_started", {"step": 5})
         scores_result = _rank_and_store(context)
-        _emit_event(5, "Ranking accuracy scores from completed runs...", "ticker_step_completed", {"step": 5, "scored": scores_result.get("scored", 0), "top_ticker": scores_result.get("top_ticker")})
+        step5_duration = int((_timestamp_ms() - _step_timing[5]) * 1000)
+        _emit_event(5, "Ranking complete", "ticker_step_completed", {
+            "step": 5,
+            "scored": scores_result.get("scored", 0),
+            "top_ticker": scores_result.get("top_ticker"),
+            "duration_ms": step5_duration,
+        })
 
-        _emit_event(6, "Writing learning conclusions to memory...", "ticker_step_completed", {"step": 6})
+        _step_timing[6] = _timestamp_ms()
+        _emit_event(6, "Writing learning conclusions to memory...", "ticker_step_started", {"step": 6})
         _write_memory(context, llm_response, execution_result, scores_result)
+        step6_duration = int((_timestamp_ms() - _step_timing[6]) * 1000)
+        _emit_event(6, "Memory written", "ticker_step_completed", {"step": 6, "duration_ms": step6_duration})
 
-        _emit_event(7, "Checking for missing capabilities...", "ticker_step_completed", {"step": 7})
+        _step_timing[7] = _timestamp_ms()
+        _emit_event(7, "Checking for missing capabilities...", "ticker_step_started", {"step": 7})
         _self_improve(context)
+        step7_duration = int((_timestamp_ms() - _step_timing[7]) * 1000)
+        _emit_event(7, "Capabilities checked", "ticker_step_completed", {"step": 7, "duration_ms": step7_duration})
 
         with _lock:
             _current_step = 0
-            _cycles_completed += 1
             _current_status = "idle"
         _emit_event(0, "Cycle complete.", "ticker_cycle_completed", {"cycles_completed": _cycles_completed})
 

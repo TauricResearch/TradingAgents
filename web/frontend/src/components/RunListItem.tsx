@@ -40,6 +40,7 @@ export function RunListItem({ run, verdict, selected, scale, onClick }: RunListI
     <button
       type="button"
       onClick={onClick}
+      aria-label={`Run from ${run.started_at ? new Date(run.started_at).toLocaleString() : 'unknown time'} - ${verdict.status}`}
       data-testid={`run-row-${run.id}`}
       className={`w-full text-left px-3 py-2.5 border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors ${
         selected ? "bg-sky-500/8 border-l-2 border-l-sky-500" : "border-l-2 border-l-transparent"

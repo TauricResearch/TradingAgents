@@ -37,6 +37,7 @@ dependencies = [
     "uvicorn[standard]>=0.27.0",
     "websockets>=12.0",
     "python-multipart>=0.0.9",
+    "ruff>=0.15.17",
 ]
 
 [project.optional-dependencies]
