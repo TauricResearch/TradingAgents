@@ -321,13 +321,14 @@ def _call_llm_strategy(prompt: str) -> dict:
     """Call the quick-thinking LLM for a strategy decision.
 
     Falls back to empty plan on LLM failure.
-    Returns dict with 'response', 'model', and 'tokens' keys.
+    Returns dict with 'response', 'model', 'tokens', and 'error' keys.
     """
     import re
     result = {
         "response": {"investigation_plan": [], "sectors_to_watch": [], "reasoning_summary": "LLM call failed", "conclusions": []},
         "model": "unknown",
         "tokens": 0,
+        "error": None,
     }
     try:
         from tradingagents.llm_clients import create_llm_client
@@ -361,6 +362,7 @@ def _call_llm_strategy(prompt: str) -> dict:
         result["tokens"] = tokens
     except Exception as e:
         log.warning("LLM strategy call failed: %s", e)
+        result["error"] = str(e)
 
     return result
 
@@ -478,7 +480,7 @@ def _write_memory(context: dict, llm_response: dict, execution_result: dict, sco
         conclusions = [f"Cycle analyzed {execution_result.get('scheduled', [])} tickers"]
 
     with _lock:
-        next_cycle = _cycles_completed + 1
+        next_cycle = _cycles_completed
 
     entry = {
         "cycle": next_cycle,
@@ -614,15 +616,17 @@ def run_cycle() -> dict:
         llm_result = _call_llm_strategy(prompt)
         step3_duration = int((_timestamp_ms() - _step_timing[3]) * 1000)
         llm_response = llm_result["response"]
-        _emit_event(3, "LLM strategy response received", "ticker_llm_call", {
+        llm_failed = llm_response.get("reasoning_summary") == "LLM call failed"
+        _emit_event(3, "LLM strategy response received" if not llm_failed else "LLM call failed, using fallback plan", "ticker_llm_call", {
             "step": 3,
             "prompt_text": prompt,
             "response_text": json.dumps(llm_response),
             "model": llm_result.get("model", "unknown"),
             "tokens": llm_result.get("tokens", 0),
             "duration_ms": step3_duration,
+            "error": llm_result.get("error"),
         })
-        _emit_event(3, "LLM strategy response received", "ticker_step_completed", {
+        _emit_event(3, "LLM strategy response received" if not llm_failed else "LLM call failed, using fallback plan", "ticker_step_completed", {
             "step": 3,
             "duration_ms": step3_duration,
         })
