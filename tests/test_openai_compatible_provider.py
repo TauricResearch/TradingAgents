@@ -36,7 +36,7 @@ def test_keyless_local_uses_placeholder_and_chat_completions(monkeypatch):
     llm = create_llm_client(
         provider="openai_compatible", model="qwen2.5", base_url="http://localhost:8000/v1"
     ).get_llm()
-    assert type(llm).__name__ == "NormalizedChatOpenAI"
+    assert type(llm).__name__ == "LocalCompatibleChatOpenAI"
     assert str(llm.openai_api_base) == "http://localhost:8000/v1"
     # keyless local servers: a placeholder key is sent
     key = llm.openai_api_key.get_secret_value() if hasattr(llm.openai_api_key, "get_secret_value") else llm.openai_api_key
@@ -72,3 +72,29 @@ def test_env_backend_url_precedence():
     assert resolve_backend_url("openai", "https://api.openai.com/v1", env_url="http://proxy/v1") == "http://proxy/v1"
     assert resolve_backend_url("openai", "https://api.openai.com/v1", env_url=None) == "https://api.openai.com/v1"
     assert resolve_backend_url("deepseek", None, None) == "https://api.deepseek.com"
+
+
+@pytest.mark.unit
+def test_structured_output_suppresses_object_tool_choice(monkeypatch):
+    # LM Studio / vLLM reject the object-form tool_choice langchain sends for
+    # function-calling structured output (#1057). The generic provider binds the
+    # schema as a tool but must not force tool_choice.
+    from langchain_openai import ChatOpenAI
+    from pydantic import BaseModel
+
+    class Schema(BaseModel):
+        x: int
+
+    captured = {}
+    monkeypatch.setattr(
+        ChatOpenAI,
+        "with_structured_output",
+        lambda self, schema, method=None, **kw: captured.update({"method": method, **kw}) or "BOUND",
+    )
+    llm = create_llm_client(
+        provider="openai_compatible", model="local-llm-30b", base_url="http://localhost:1234/v1"
+    ).get_llm()
+    out = llm.with_structured_output(Schema)
+    assert out == "BOUND"
+    assert captured["method"] == "function_calling"
+    assert captured["tool_choice"] is None  # not the object form
