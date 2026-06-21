@@ -160,9 +160,10 @@ class BackgroundRunState:
             self.started_at = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def record_duration(self, duration_s: float) -> None:
-        self.durations_s.append(duration_s)
-        self.avg_duration_s = sum(self.durations_s) / len(self.durations_s)
-        self._recompute_eta()
+        with self._persist_lock:
+            self.durations_s.append(duration_s)
+            self.avg_duration_s = sum(self.durations_s) / len(self.durations_s)
+            self._recompute_eta()
 
     def _recompute_eta(self) -> None:
         remaining = self.total - self.current_index

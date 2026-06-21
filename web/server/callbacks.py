@@ -40,17 +40,21 @@ class StreamingCallbackHandler(BaseCallbackHandler):
     def __init__(self, *, run_id: str, broadcast: Optional[Callable[[dict], None]] = None) -> None:
         self.run_id = run_id
         self._broadcast = broadcast or _broadcast_via_events(run_id)
+        self.current_node: Optional[str] = None
 
     def _emit(self, type_: str, data: dict) -> None:
+        if self.current_node is not None:
+            data["node"] = self.current_node
         self._broadcast({"v": 1, "type": type_, "ts": "", "run_id": self.run_id, "data": data})
 
     # ---- LLM -----------------------------------------------------------
 
     def on_chat_model_start(self, serialized: dict, messages: list, **kw) -> None:
         prompt_preview = _extract_last_user_text(messages)
-        self._emit("analyst_thinking", {
-            "text_preview": (prompt_preview[:200] if prompt_preview else None),
-        })
+        if prompt_preview:
+            self._emit("analyst_thinking", {
+                "text_preview": prompt_preview[:200],
+            })
 
     def on_llm_end(self, response: Any, **kw) -> None:
         try:

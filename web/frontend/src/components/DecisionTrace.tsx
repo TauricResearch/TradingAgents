@@ -49,18 +49,21 @@ export function DecisionTrace({ events }: { events: WsEvent[] }) {
   return (
     <div className="space-y-0" data-testid="decision-trace">
       {nodes.map((n, i) => (
-        <div key={`${n.stage}-${i}`}>
+        <div key={`${n.stage}-${n.agent}`}>
           <button
-            onClick={() => setExpanded(expanded === n.stage ? null : n.stage)}
+            onClick={() => {
+              const key = `${n.stage}-${n.agent}`;
+              setExpanded(expanded === key ? null : key);
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-slate-800/30 transition-colors border-l-2 border-slate-700 hover:border-sky-500">
             <span>{n.icon}</span>
             <div className="min-w-0 flex-1">
               <div className="text-slate-300 font-medium truncate">{n.agent}</div>
               <div className="text-slate-500 text-[10px] truncate">{n.summary}</div>
             </div>
-            <span className="text-slate-600">{expanded === n.stage ? "▲" : "▼"}</span>
+            <span className="text-slate-600">{expanded === `${n.stage}-${n.agent}` ? "▲" : "▼"}</span>
           </button>
-          {expanded === n.stage && n.fullText && (
+          {expanded === `${n.stage}-${n.agent}` && n.fullText && (
             <pre className="ml-6 mr-2 mb-2 p-3 bg-slate-950/60 rounded-lg text-xs text-slate-300 whitespace-pre-wrap font-mono border border-slate-800/50 max-h-64 overflow-y-auto">
               {n.fullText}
             </pre>

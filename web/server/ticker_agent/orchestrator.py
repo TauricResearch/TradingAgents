@@ -17,6 +17,7 @@ import json
 import logging
 import threading
 import time
+from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -43,7 +44,7 @@ _next_cycle_at: str | None = None
 _cycles_completed = 0
 _activity_log: list[dict] = []
 _current_step: int = 0
-_live_events: list[dict] = []
+_live_events: deque[dict] = deque(maxlen=200)
 _event_id_counter: int = 0
 
 # Captured main event loop reference for WS broadcast from background thread
@@ -133,8 +134,6 @@ def _emit_event(step: int, message: str, event_type: str = "ticker_step", detail
             "detail": detail or {},
         }
         _live_events.append(ev)
-        if len(_live_events) > 200:
-            _live_events[:50] = []
 
     main_loop = _get_event_loop()
     if main_loop is not None:

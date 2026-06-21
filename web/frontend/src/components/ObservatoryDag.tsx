@@ -23,12 +23,12 @@ const AGENTS = [
 ];
 
 function statusForAgent(name: string, events: WsEvent[]): DagNode["status"] {
-  const started = events.some(e => e.type === "analyst_started" && (e.data as any)?.node === name);
   const completed = events.some(e => e.type === "analyst_completed" && (e.data as any)?.node === name);
   const failed = events.some(e => e.type === "run_failed");
+  const started = events.some(e => e.type === "analyst_started" && (e.data as any)?.node === name);
   if (completed) return "completed";
-  if (started && !failed) return "running";
-  if (failed && started) return "errored";
+  if (failed) return "errored";
+  if (started) return "running";
   return "pending";
 }
 

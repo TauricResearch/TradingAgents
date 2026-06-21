@@ -75,9 +75,8 @@ export default function App() {
   const { data: configModels } = useQuery<ConfigModels>({ queryKey: ["config-models"], queryFn: fetchConfigModels, staleTime: Infinity, enabled: serverReady });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [dismissedStaleBanner, setDismissedStaleBanner] = useState<string | null>(null);
-  const [traceView, setTraceView] = useState<"events" | "llm">("events");
+  const [traceView, setTraceView] = useState<"events" | "llm" | "observatory">("events");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [observatoryOpen, setObservatoryOpen] = useState(false);
 
   useRunStream(runId);
   useGlobalStream();
@@ -107,7 +106,7 @@ export default function App() {
     staleTime: Infinity,
   });
 
-  const handleSetTraceView = useCallback((view: "events" | "llm") => {
+  const handleSetTraceView = useCallback((view: "events" | "llm" | "observatory") => {
     setTraceView(view);
     if (view === "llm" && focused && focusedRunId) {
       qc.invalidateQueries({ queryKey: ["run-detail", focused, focusedRunId] });
@@ -256,22 +255,13 @@ export default function App() {
             >
               Agent
             </button>
-            <button
-              onClick={() => setObservatoryOpen((prev) => !prev)}
-              className="btn-secondary text-xs"
-            >
-              🔭 Observatory
-            </button>
             {focused && (
               <button onClick={() => setHistoryOpen(true)} className="btn-secondary text-xs">History</button>
             )}
           </div>
         </header>
         {focused ? (
-          observatoryOpen ? (
-            <AgentObservatory events={events} onClose={() => setObservatoryOpen(false)} />
-          ) : (
-            <>
+          <>
             {showStaleBanner && (
               <div
                 data-testid="stale-ticker-banner"
@@ -321,6 +311,19 @@ export default function App() {
                 </span>
               </button>
               <button
+                onClick={() => handleSetTraceView("observatory")}
+                className={`px-3 py-1.5 text-xs font-semibold border border-l-0 transition-all ${
+                  traceView === "observatory"
+                    ? "bg-sky-500/15 text-sky-300 border-sky-500/30 z-10"
+                    : "text-slate-500 border-slate-700/50 hover:text-slate-300"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${traceView === "observatory" ? "bg-sky-400 shadow-[0_0_4px_rgba(56,189,248,0.5)]" : "bg-slate-600"}`} />
+                  🔭 Observatory
+                </span>
+              </button>
+              <button
                 onClick={() => handleSetTraceView("llm")}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-r-lg border border-l-0 transition-all ${
                   traceView === "llm"
@@ -336,6 +339,8 @@ export default function App() {
             </div>
             {traceView === "events" ? (
               <LiveEventStream />
+            ) : traceView === "observatory" ? (
+              <AgentObservatory events={events} />
             ) : (
               <div className="glass-panel">
                 <div className="max-h-[400px] overflow-y-auto p-3">
@@ -354,7 +359,6 @@ export default function App() {
               />
             )}
           </>
-          )
         ) : (
           <div className="mt-24 text-center animate-fade-in">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-800/60 border border-slate-700/50 mb-4">

@@ -48,7 +48,7 @@ class TestOnChatModelStart:
             {"name": "ChatOpenAI"},
             [[AIMessage(content="no user input here")]],
         )
-        assert events[0]["data"]["text_preview"] is None
+        assert len(events) == 0
 
 
 @pytest.mark.unit
