@@ -93,13 +93,26 @@ def get_api_key() -> str:
 
 
 def _resolve_series_id(indicator: str) -> str:
-    """Map a friendly alias to a FRED series ID, or pass a raw ID through."""
+    """Map a friendly alias to a FRED series ID, or pass a raw ID through.
+
+    Raises ``ValueError`` when the input is neither a known alias nor a plausible
+    series ID — typically a descriptive phrase the LLM passed instead (e.g.
+    "bank of japan rate"). FRED IDs are short and alphanumeric, so this rejects
+    it up front with guidance rather than letting it 400 the API.
+    """
     key = indicator.strip().lower().replace(" ", "_").replace("-", "_")
     if key in MACRO_SERIES:
         return MACRO_SERIES[key]
-    # Not a known alias: treat the input as a raw FRED series ID (FRED IDs are
-    # conventionally uppercase, e.g. "DGS10", "CPIAUCSL").
-    return indicator.strip().upper()
+    candidate = indicator.strip().upper()
+    # FRED series IDs never contain whitespace and are short; reject anything
+    # else (a descriptive phrase the LLM passed) rather than 400ing the API.
+    if not candidate or len(candidate) > 30 or any(c.isspace() for c in candidate):
+        raise ValueError(
+            f"'{indicator}' is not a known macro alias or a valid FRED series ID. "
+            f"Use an alias (e.g. 'cpi', 'unemployment', '10y_treasury') or a raw "
+            f"FRED series ID (e.g. 'CPIAUCSL')."
+        )
+    return candidate
 
 
 def _request(path: str, params: dict) -> dict:
@@ -143,11 +156,18 @@ def get_macro_data(
 
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
-    series_id = _resolve_series_id(indicator)
+
+    # Invalid LLM-supplied indicator: return guidance rather than raising, so a
+    # bad argument doesn't abort the run (the routing layer also degrades macro
+    # data, but a specific message is more useful to the analyst).
+    try:
+        series_id = _resolve_series_id(indicator)
+    except ValueError as e:
+        return f"FRED: {e}"
 
     meta = _request("series", {"series_id": series_id}).get("seriess") or []
     if not meta:
-        raise ValueError(
+        return (
             f"FRED series '{series_id}' not found. Pass a known alias "
             f"(e.g. 'cpi', 'unemployment') or a valid FRED series ID."
         )

@@ -84,6 +84,13 @@ VENDOR_LIST = [
     "alpha_vantage",
 ]
 
+# Optional enrichment categories. These add macro/event context to the news
+# analyst but are not core to a decision, so a vendor failure here degrades to a
+# sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
+# key, or a network blip should not crash an analysis over flavour data). Core
+# categories (prices, fundamentals, news) still raise so a broken primary is loud.
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
     # core_stock_apis
@@ -240,8 +247,16 @@ def route_to_vendor(method: str, *args, **kwargs):
         )
 
     # No vendor returned data and none reported clean "no data" — surface the
-    # first real error (e.g. the primary vendor's network failure).
+    # first real error (e.g. the primary vendor's network failure). Optional
+    # enrichment categories degrade to a sentinel instead, so flavour data can't
+    # abort the run.
     if first_error is not None:
+        if category in OPTIONAL_CATEGORIES:
+            logger.warning("Optional %s unavailable for %s: %s", category, method, first_error)
+            return (
+                f"DATA_UNAVAILABLE: optional {category} could not be retrieved "
+                f"({first_error}). Proceed without it; do not fabricate values."
+            )
         raise first_error
 
     raise RuntimeError(f"No available vendor for '{method}'")

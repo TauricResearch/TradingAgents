@@ -96,6 +96,28 @@ class VendorRoutingTests(unittest.TestCase):
             result = interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
         self.assertEqual(result, "AV_DATA")
 
+    def _route_method(self, method, vendors):
+        return mock.patch.dict(interface.VENDOR_METHODS, {method: vendors}, clear=False)
+
+    def test_optional_category_degrades_instead_of_raising(self):
+        # An optional enrichment vendor (FRED macro) that raises must NOT abort
+        # the run — the router returns a sentinel so the analysis proceeds.
+        set_config({"data_vendors": {"macro_data": "fred"}})
+        with self._route_method(
+            "get_macro_indicators", {"fred": _raises(ValueError("FRED 400: bad series"))}
+        ):
+            result = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-01-01")
+        self.assertIn("DATA_UNAVAILABLE", result)
+        self.assertIn("macro_data", result)
+
+    def test_core_category_still_raises_on_error(self):
+        # A core category (single configured vendor) propagates the error so a
+        # broken primary is loud, not silently degraded.
+        set_config({"data_vendors": {"core_stock_apis": "yfinance"}})
+        with self._route({"yfinance": _raises(ValueError("boom"))}), \
+                self.assertRaises(ValueError):
+            interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+
 
 if __name__ == "__main__":
     unittest.main()
