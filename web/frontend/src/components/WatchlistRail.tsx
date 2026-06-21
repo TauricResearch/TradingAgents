@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem, addToWatchlist, getAccuracyLeaderboard, ApiError } from "../lib/api";
 import { TickerRow } from "./TickerRow";
@@ -301,10 +301,11 @@ export function WatchlistRail() {
     return [...ordered, ...rest];
   }, [rawGroupNames, groupOrder]);
 
-  // Initialize groupOrder if empty
-  if (groupOrder.length === 0 && rawGroupNames.length > 0) {
-    setGroupOrder(rawGroupNames.sort());
-  }
+  useEffect(() => {
+    if (groupOrder.length === 0 && rawGroupNames.length > 0) {
+      setGroupOrder(rawGroupNames.sort());
+    }
+  }, [groupOrder.length, rawGroupNames.length]);
 
   const renderRow = useCallback((row: (typeof watchlist)[number]) => {
     const price = (prices[row.ticker] as Record<string, unknown>) ?? {};

@@ -31,7 +31,11 @@ def test_build_strategy_prompt_includes_context():
 @patch("web.server.ticker_agent.orchestrator._self_improve")
 def test_run_cycle_full_flow(mock_improve, mock_memory, mock_rank, mock_execute, mock_context, mock_llm, mock_emit):
     mock_context.return_value = {"test": "context"}
-    mock_llm.return_value = {"investigation_plan": [], "sectors_to_watch": [], "reasoning_summary": "test", "conclusions": []}
+    mock_llm.return_value = {
+        "response": {"investigation_plan": [], "sectors_to_watch": [], "reasoning_summary": "test", "conclusions": []},
+        "model": "gpt-4o-mini",
+        "tokens": 100,
+    }
     mock_execute.return_value = {"scheduled": []}
     mock_rank.return_value = {"scored": 0, "top_ticker": None}
 
@@ -43,7 +47,7 @@ def test_run_cycle_full_flow(mock_improve, mock_memory, mock_rank, mock_execute,
     mock_rank.assert_called_once()
     mock_memory.assert_called_once()
     mock_improve.assert_called_once()
-    assert mock_emit.call_count == 10  # 7 steps × start + some have completed + final cycle complete
+    assert mock_emit.call_count == 17
     assert result["status"] == "completed"
 
 
@@ -70,7 +74,11 @@ def test_step_names_length():
 def test_live_events_populated(mock_improve, mock_memory, mock_rank, mock_execute, mock_context, mock_llm, mock_emit):
     from web.server.ticker_agent.orchestrator import _live_events
     mock_context.return_value = {"test": "context"}
-    mock_llm.return_value = {"investigation_plan": [], "sectors_to_watch": [], "reasoning_summary": "test", "conclusions": []}
+    mock_llm.return_value = {
+        "response": {"investigation_plan": [], "sectors_to_watch": [], "reasoning_summary": "test", "conclusions": []},
+        "model": "gpt-4o-mini",
+        "tokens": 100,
+    }
     mock_execute.return_value = {"scheduled": []}
     mock_rank.return_value = {"scored": 0, "top_ticker": None}
 

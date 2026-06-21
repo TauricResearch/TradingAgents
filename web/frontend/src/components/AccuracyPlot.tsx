@@ -39,7 +39,9 @@ export function AccuracyPlot({ data, xDomain }: AccuracyPlotProps) {
             dataKey="delta"
             type="number"
             scale="log"
-            domain={xDomain ?? [Math.min(...data.map(p => p.delta)), Math.max(...data.map(p => p.delta))]}
+            domain={xDomain ?? (data.length > 0
+              ? [Math.min(...data.map(p => p.delta)), Math.max(...data.map(p => p.delta))]
+              : [0, 1])}
             tickFormatter={fmtDelta}
             tick={{ fontSize: 10, fill: "#64748b" }}
             stroke="#334155"

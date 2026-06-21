@@ -132,7 +132,7 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Run history ({runs.length})
             </span>
-            <button onClick={closeAndReset} className="text-slate-500 hover:text-slate-300 text-lg leading-none px-1">&times;</button>
+            <button onClick={closeAndReset} aria-label="Close" className="text-slate-500 hover:text-slate-300 text-lg leading-none px-1">&times;</button>
           </div>
 
           {/* Run list */}

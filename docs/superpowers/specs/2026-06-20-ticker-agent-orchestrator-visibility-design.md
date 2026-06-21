@@ -2,18 +2,26 @@
 
 ## Overview
 
-The Ticker Accuracy Agent runs autonomously on a schedule, executing a 7-step cycle. Currently it has minimal visibility: polling-based status, vague step messages ("Gathering context..."), and no LLM call detail. This spec adds real-time observability to the orchestrator.
+The Ticker Accuracy Agent runs autonomously on a schedule, executing a 7-step cycle. This spec adds real-time observability to the orchestrator.
 
-## Current Gaps
+## Implementation Status
 
-| Area | Current State | Problem |
-|------|---------------|---------|
-| **Event delivery** | HTTP polling (every 1-5s via `live_events`) | Stale data, no push, race conditions |
-| **Step detail** | Single-line messages like "Gathering context..." | No structured per-step payload |
-| **LLM visibility** | No prompt/response shown | Strategy reasoning is completely opaque |
-| **Tool/data fetches** | No events | yfinance calls, scorer computation invisible |
-| **Step timing** | No timing data | Can't see which steps are slow |
-| **Memory operations** | No events | Read/write memory is invisible |
+### ✅ All Event Types Implemented in orchestrator.py
+
+| Event | Status | Details |
+|-------|--------|---------|
+| `ticker_cycle_started` | ✅ Implemented | Emitted at cycle start with cycle_number, timestamp |
+| `ticker_step_started` | ✅ Implemented | All 7 steps emit start event with step, step_name |
+| `ticker_step_completed` | ✅ Implemented | All steps emit completion with duration_ms, summaries |
+| `ticker_llm_call` | ✅ Implemented | Full prompt_text, response_text, model, tokens, duration_ms |
+| `ticker_data_fetch` | ✅ Implemented | yfinance sector calls emit source, ticker, duration_ms, success, summary |
+| `ticker_cycle_completed` | ✅ Implemented | Emitted on success with cycles_completed |
+| `ticker_cycle_failed` | ✅ Implemented | Emitted in exception handler with error, traceback |
+
+### ✅ WebSocket Infrastructure
+- `/ws/ticker-agent` endpoint in router.py
+- `ws_broadcast()`, `ws_subscribe()`, `ws_unsubscribe()` in orchestrator.py
+- `_emit_event()` persists to `_live_events` AND broadcasts via WebSocket
 
 ## Architecture
 
