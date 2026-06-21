@@ -13,7 +13,7 @@ interface AgentObservatoryProps {
   events: WsEvent[];
 }
 
-export function AgentObservatory({ events }: AgentObservatoryProps) {
+export function AgentObservatory({ events, onClose }: AgentObservatoryProps & { onClose?: () => void }) {
   const [tab, setTab] = useState<Tab>("dag");
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
 
@@ -30,6 +30,13 @@ export function AgentObservatory({ events }: AgentObservatoryProps) {
   return (
     <div className="space-y-3" data-testid="agent-observatory">
       <div className="flex items-center gap-1 border-b border-slate-700/50 pb-1">
+        <button
+          onClick={onClose}
+          className="text-slate-500 hover:text-slate-300 transition-colors text-lg leading-none mr-2"
+          title="Close Observatory"
+        >
+          ×
+        </button>
         {tabs.map(t => (
           <button key={t.key}
             onClick={() => setTab(t.key)}

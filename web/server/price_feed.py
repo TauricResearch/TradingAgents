@@ -9,6 +9,8 @@ from typing import Callable, Optional
 
 import yfinance as yf
 
+from tradingagents.dataflows.symbol_utils import normalize_symbol
+
 from web.server import events
 
 
@@ -44,7 +46,7 @@ def validate_ticker_exists(ticker: str) -> None:
     would mark the snapshot stale on the next poll also fails this probe.
     """
     try:
-        info = yf.Ticker(ticker).fast_info
+        info = yf.Ticker(normalize_symbol(ticker)).fast_info
         price = info.get("lastPrice") or info.get("last_price")
     except Exception as e:
         raise TickerNotFound(ticker, reason=type(e).__name__) from e

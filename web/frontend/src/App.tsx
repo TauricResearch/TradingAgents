@@ -269,7 +269,7 @@ export default function App() {
         </header>
         {focused ? (
           observatoryOpen ? (
-            <AgentObservatory events={events} />
+            <AgentObservatory events={events} onClose={() => setObservatoryOpen(false)} />
           ) : (
             <>
             {showStaleBanner && (

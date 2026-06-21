@@ -410,7 +410,7 @@ export function WatchlistRail() {
                   setFocusedTicker(filteredWatchlist[0].ticker);
                   setFilterTicker("");
                   setAddError(null);
-                } else if (filteredWatchlist.length === 0 && watchlist.length > 0) {
+                } else if (filteredWatchlist.length === 0) {
                   handleAddFromFilter();
                 }
               }}
@@ -617,7 +617,7 @@ export function WatchlistRail() {
           {filteredWatchlist.length === 0 && watchlist.length === 0 && agentTickersBase.length === 0 && (
             <p className="text-xs text-slate-500 text-center py-8">Add tickers to get started</p>
           )}
-          {filteredWatchlist.length === 0 && filteredAgentTickers.length === 0 && (userTickersBase.length > 0 || agentTickersBase.length > 0) && filterTicker && (
+          {filteredWatchlist.length === 0 && filteredAgentTickers.length === 0 && filterTicker && (
             <div className="flex flex-col items-center py-6 px-4">
               <p className="text-xs text-slate-500 mb-3">
                 No tickers match &ldquo;{filterTicker}&rdquo;
