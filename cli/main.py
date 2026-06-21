@@ -481,11 +481,17 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
-        welcome_ascii = f.read()
+    welcome_ascii = ""
+    welcome_path = Path(__file__).parent / "static" / "welcome.txt"
+    try:
+        if welcome_path.exists():
+            with open(welcome_path, encoding="utf-8") as f:
+                welcome_ascii = f.read()
+    except OSError:
+        pass  # Fall back to no ASCII art if file is unavailable
 
     # Create welcome box content
-    welcome_content = f"{welcome_ascii}\n"
+    welcome_content = f"{welcome_ascii}\n" if welcome_ascii else ""
     welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
     welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"

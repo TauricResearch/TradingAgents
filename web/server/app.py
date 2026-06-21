@@ -134,7 +134,6 @@ async def lifespan(app: FastAPI):
 
     # Start the ticker accuracy agent background loop.
     from web.server.ticker_agent import orchestrator as _agent
-    # _agent.start_background_loop()
 
     yield
     # Stop the price feed (if it was started) before the runner so any

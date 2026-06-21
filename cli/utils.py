@@ -104,11 +104,17 @@ def get_analysis_date() -> str:
     import re
     from datetime import datetime
 
+    MIN_DATE = datetime.strptime("2000-01-01", "%Y-%m-%d")
+
     def validate_date(date_str: str) -> bool:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
             return False
         try:
-            datetime.strptime(date_str, "%Y-%m-%d")
+            date = datetime.strptime(date_str, "%Y-%m-%d")
+            if date.date() > datetime.now().date():
+                return False
+            if date < MIN_DATE:
+                return False
             return True
         except ValueError:
             return False
