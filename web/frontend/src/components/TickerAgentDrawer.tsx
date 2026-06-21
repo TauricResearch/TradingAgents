@@ -12,6 +12,8 @@ import {
   getTickerAgentLiveEvents,
 } from "../lib/api";
 import { connectTickerAgentWs, type AgentLiveEvent } from "../lib/api";
+import { useUi } from "../store/ui";
+import type { WsEvent } from "../lib/events";
 
 const STEP_LABELS = [
   "Idle",
@@ -179,6 +181,36 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
     return cleanup;
   }, []);
 
+  const globalEvents = useUi(s => s.eventBuffer);
+  const focusedTicker = useUi(s => s.focusedTicker);
+
+  const traceAgents = useMemo(() => {
+    if (!focusedTicker) return { agents: [], totalDurationS: null };
+    const tickerEvents = globalEvents.filter(e => e.run_id?.startsWith(focusedTicker));
+    const runStarted = [...tickerEvents].reverse().find(e => e.type === "run_started");
+    if (!runStarted) return { agents: [], totalDurationS: null };
+    const runId = runStarted.run_id;
+    const runEvts = globalEvents.filter(e => e.run_id === runId);
+    const started = runEvts.filter(e => e.type === "analyst_started");
+    const completed = runEvts.filter(e => e.type === "analyst_completed");
+    const agents: { node: string; stage: string; durationMs: number; status: string }[] = [];
+    for (const ev of completed) {
+      const node = ev.data?.node;
+      if (!node) continue;
+      agents.push({ node, stage: ev.data?.stage ?? "", durationMs: ev.data?.duration_ms ?? 0, status: "completed" });
+    }
+    for (const ev of started) {
+      const node = ev.data?.node;
+      if (!node) continue;
+      if (!agents.find(a => a.node === node)) {
+        agents.push({ node, stage: "", durationMs: 0, status: "running" });
+      }
+    }
+    const runFinished = runEvts.find(e => e.type === "run_finished");
+    const totalDurationS = runFinished?.data?.duration_s ?? null;
+    return { agents, totalDurationS };
+  }, [globalEvents, focusedTicker]);
+
   let statusLabel: string;
   let statusDot: string;
   switch (currentStatus) {
@@ -313,6 +345,43 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           <div className="glass-panel p-3 space-y-2">
             <span className="section-header">Live Activity</span>
             <LiveEventFeed events={events} currentStep={currentStep} />
+          </div>
+        )}
+
+        {/* Orchestration Trace: main pipeline agents (not ticker agent) */}
+        {traceAgents && traceAgents.agents.length > 0 && (
+          <div className="glass-panel p-3 space-y-2">
+            <span className="section-header">Orchestration Trace</span>
+            <div className="space-y-[1px] max-h-48 overflow-y-auto">
+              {traceAgents.agents.map((a, i) => {
+                const stageColor: Record<string, string> = {
+                  market: "bg-sky-500/20 text-sky-300 border-sky-500/30",
+                  sentiment: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                  news: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                  fundamentals: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                  research: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                  trader: "bg-orange-500/20 text-orange-300 border-orange-500/30",
+                  risk: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+                };
+                const color = stageColor[a.stage] ?? "bg-slate-600/30 text-slate-400 border-slate-600/30";
+                return (
+                  <div key={a.node} className="flex items-center gap-2 text-[11px] py-0.5">
+                    <span className={`px-1.5 py-[1px] rounded text-[10px] font-medium border ${color} shrink-0 leading-tight`}>
+                      {a.stage || "?"}
+                    </span>
+                    <span className="text-slate-400 truncate min-w-0 flex-1">{a.node}</span>
+                    <span className="text-slate-500 font-mono shrink-0 w-12 text-right">{a.durationMs}ms</span>
+                    <span className="shrink-0">{a.status === "completed" ? "✓" : "…"}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {traceAgents.totalDurationS != null && (
+              <div className="text-xs text-slate-500 pt-1 border-t border-slate-700/50 flex justify-between">
+                <span>Total</span>
+                <span className="font-mono text-slate-400">{traceAgents.totalDurationS.toFixed(1)}s</span>
+              </div>
+            )}
           </div>
         )}
 
