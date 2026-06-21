@@ -21,7 +21,7 @@ class TestGoogleApiKeyStandardization(unittest.TestCase):
         for msg, kwargs, expected_key in test_cases:
             with self.subTest(msg=msg):
                 mock_chat.reset_mock()
-                client = GoogleClient("gemini-2.5-flash", **kwargs)
+                client = GoogleClient("gemini-3.5-flash", **kwargs)
                 client.get_llm()
                 call_kwargs = mock_chat.call_args[1]
                 self.assertEqual(call_kwargs.get("google_api_key"), expected_key)
