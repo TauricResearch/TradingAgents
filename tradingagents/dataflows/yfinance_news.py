@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 from .config import get_config
 from .stockstats_utils import yf_retry
+from .symbol_utils import normalize_symbol
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -87,12 +88,17 @@ def get_news_yfinance(
         Formatted string containing news articles
     """
     article_limit = get_config()["news_article_limit"]
+    # Query Yahoo with the canonical symbol, like every other yfinance path —
+    # a raw broker/forex/crypto alias (XAUUSD, BTCUSD) otherwise silently
+    # returns no news. Keep the user's ticker in the report header.
+    canonical = normalize_symbol(ticker)
+    resolved = "" if canonical == ticker else f" (resolved to {canonical})"
     try:
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(canonical)
         news = yf_retry(lambda: stock.get_news(count=article_limit))
 
         if not news:
-            return f"No news found for {ticker}"
+            return f"No news found for {ticker}{resolved}"
 
         # Parse date range for filtering
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -117,9 +123,9 @@ def get_news_yfinance(
             filtered_count += 1
 
         if filtered_count == 0:
-            return f"No news found for {ticker} between {start_date} and {end_date}"
+            return f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
 
-        return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
+        return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
 
     except Exception as e:
         return f"Error fetching news for {ticker}: {str(e)}"
