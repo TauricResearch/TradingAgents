@@ -119,6 +119,11 @@ class TradingAgentsGraph:
         if llm_retry is not None:
             llm_kwargs["retry_policy"] = llm_retry
 
+        # LLM timeout (seconds) prevents indefinite hangs. None uses provider default.
+        llm_timeout = self.config.get("llm_timeout_seconds")
+        if llm_timeout is not None and llm_timeout != "":
+            llm_kwargs["timeout"] = float(llm_timeout)
+
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["deep_think_llm"],

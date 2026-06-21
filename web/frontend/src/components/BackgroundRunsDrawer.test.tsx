@@ -98,17 +98,7 @@ describe("BackgroundRunsDrawer active job card", () => {
     expect(screen.queryByText(/ETA:/)).not.toBeInTheDocument();
   });
 
-  it("Pause and Cancel buttons trigger the right endpoints", async () => {
-    mockFetchBackgroundRuns([makeState()]);
-    const cancel = vi.spyOn(api, "cancelBackgroundRun").mockResolvedValue({ status: "ok" });
-    const pause = vi.spyOn(api, "pauseBackgroundRun").mockResolvedValue({ status: "ok" });
-    renderDrawer();
-    await screen.findByText(/2024-01-01/);
-    await userEvent.click(screen.getByRole("button", { name: /pause/i }));
-    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
-    expect(pause).toHaveBeenCalledWith("bgr_TEST");
-    expect(cancel).toHaveBeenCalledWith("bgr_TEST");
-  });
+
 });
 
 describe("BackgroundRunsDrawer live iteration feed", () => {

@@ -9,10 +9,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from . import storage, queries, events, llm_calls, runner, settings as settings_mod
 from tradingagents.default_config import DEFAULT_CONFIG, _ENV_OVERRIDES
@@ -22,6 +25,10 @@ from web.server.ticker_agent.router import router as ticker_agent_router
 
 log = logging.getLogger(__name__)
 
+limiter = Limiter(key_func=get_remote_address)
+
+_API_RATE_LIMIT = "10000/minute" if os.environ.get("TESTING") else "10/minute"
+_BG_RATE_LIMIT = "10000/minute" if os.environ.get("TESTING") else "5/minute"
 
 # Set of currently-open WebSocket objects. Tracked so the lifespan teardown
 # can force-close them; otherwise a handler stuck in `ws.receive()` will keep
@@ -158,6 +165,8 @@ def create_app() -> FastAPI:
                 os.environ.setdefault(_k.strip(), _v.strip())
 
     app = FastAPI(title="TradingAgents Dashboard", lifespan=lifespan)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     @app.get("/api/config/models")
     def config_models():
@@ -218,7 +227,8 @@ def create_app() -> FastAPI:
         return queries.watchlist_to_dict(row)
 
     @app.post("/api/runs", status_code=202)
-    async def start_run(body: RunIn) -> dict:
+    @limiter.limit(_API_RATE_LIMIT)
+    async def start_run(request: Request, body: RunIn) -> dict:
         ticker = body.ticker.upper()
         if ticker not in {r["ticker"] for r in queries.read_watchlist()}:
             raise HTTPException(status_code=404, detail="ticker not on watchlist")
@@ -366,7 +376,8 @@ def create_app() -> FastAPI:
     from web.server import background_runs
 
     @app.post("/api/background-runs", status_code=201)
-    def post_background_run(body: dict):
+    @limiter.limit(_BG_RATE_LIMIT)
+    def post_background_run(request: Request, body: dict):
         try:
             job_id = background_runs.start(
                 ticker=body["ticker"],

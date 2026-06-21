@@ -62,6 +62,6 @@ describe("WatchlistRail", () => {
 
     expect(screen.getByText("NVDA")).toBeInTheDocument();
     expect(screen.getByText("AAPL")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("2M 0A")).toBeInTheDocument();
   });
 });

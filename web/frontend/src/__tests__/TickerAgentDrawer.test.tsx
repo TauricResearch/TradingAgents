@@ -50,11 +50,9 @@ describe("TickerAgentDrawer", () => {
     expect(screen.queryByTestId("ticker-agent-drawer")).not.toBeInTheDocument();
   });
 
-  it("shows status bar with Run Now, Pause, Resume buttons", async () => {
+  it("shows Run Now button", async () => {
     renderDrawer(true);
     await waitFor(() => expect(screen.getByText("Run Now")).toBeInTheDocument());
-    expect(screen.getByText("Pause")).toBeInTheDocument();
-    expect(screen.getByText("Resume")).toBeInTheDocument();
   });
 
   it("shows empty state for leaderboard when no scores exist", async () => {

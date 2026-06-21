@@ -30,6 +30,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_LLM_RETRY_MAX":        "llm_retry_max_retries",
     "TRADINGAGENTS_LLM_RETRY_BASE":       "llm_retry_base_delay_seconds",
     "TRADINGAGENTS_LLM_RETRY_MAX_DELAY":  "llm_retry_max_delay_seconds",
+    "TRADINGAGENTS_LLM_TIMEOUT":          "llm_timeout_seconds",
 }
 
 
@@ -95,9 +96,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "llm_retry_max_retries": 5,
     "llm_retry_base_delay_seconds": 1.0,
     "llm_retry_max_delay_seconds": 60.0,
+    # LLM timeout (seconds). Prevents indefinite hangs on slow/unresponsive
+    # providers. None disables the timeout (use provider default).
+    "llm_timeout_seconds": 60 * 3,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
-    "checkpoint_enabled": False,
+    "checkpoint_enabled": True,
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",

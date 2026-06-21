@@ -78,7 +78,9 @@ export function WatchlistRail() {
   }, [qc]);
 
   /* ---------- DnD (reorder) ---------- */
-  const handleDragStart = useCallback((_e: React.DragEvent, ticker: string) => {
+  const handleDragStart = useCallback((e: React.DragEvent, ticker: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", ticker);
     setDragTicker(ticker);
   }, []);
 
@@ -87,7 +89,9 @@ export function WatchlistRail() {
     e.dataTransfer.dropEffect = "move";
   }, []);
 
-  const handleDrop = useCallback(async (_e: React.DragEvent, targetTicker: string) => {
+  const handleDrop = useCallback(async (e: React.DragEvent, targetTicker: string) => {
+    e.preventDefault();
+    e.stopPropagation();
     const sourceTicker = dragTicker;
     if (!sourceTicker || sourceTicker === targetTicker) {
       setDragTicker(null);
@@ -131,9 +135,10 @@ export function WatchlistRail() {
   }, [dragTicker, handleGroupChange]);
 
   /* ---------- Group drag-reorder ---------- */
-  const handleGroupDragStart = useCallback((_e: React.DragEvent, name: string) => {
+  const handleGroupDragStart = useCallback((e: React.DragEvent, name: string) => {
     setDragGroup(name);
-    _e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", name);
   }, []);
 
   const handleGroupReorder = useCallback((source: string, target: string) => {

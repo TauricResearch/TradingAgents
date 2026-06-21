@@ -16,6 +16,8 @@ from web.server import events
 
 log = logging.getLogger(__name__)
 
+# Timeout for yfinance fast_info calls to prevent indefinite hangs
+_YFINANCE_TIMEOUT_S = 30.0
 
 # Symbols whose yfinance fetch has raised a non-transient error (most
 # commonly delisted/foreign indices where yfinance's ``last_price``
@@ -91,7 +93,10 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
     for ticker in tickers:
         snap = state.snapshots.get(ticker) or PriceSnapshot()
         try:
-            info = yf.Ticker(ticker).fast_info
+            info = await asyncio.wait_for(
+                asyncio.to_thread(lambda t=ticker: yf.Ticker(t).fast_info),
+                timeout=_YFINANCE_TIMEOUT_S,
+            )
 
             # Real-time last-trade price.  fast_info.get() accepts both
             # camelCase and snake_case keys.
@@ -126,7 +131,10 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
                     # previous-close data.
                     if prev_close is None:
                         try:
-                            info = yf.Ticker(ticker).fast_info
+                            info = await asyncio.wait_for(
+                                asyncio.to_thread(lambda t=ticker: yf.Ticker(t).fast_info),
+                                timeout=_YFINANCE_TIMEOUT_S,
+                            )
                             prev_close = (
                                 info.get("regularMarketPreviousClose")
                                 or info.get("previousClose")
