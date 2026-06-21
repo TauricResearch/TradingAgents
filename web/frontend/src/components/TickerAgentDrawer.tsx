@@ -12,8 +12,6 @@ import {
   getTickerAgentLiveEvents,
 } from "../lib/api";
 import { connectTickerAgentWs, type AgentLiveEvent } from "../lib/api";
-import { useUi } from "../store/ui";
-import type { WsEvent } from "../lib/events";
 
 const STEP_LABELS = [
   "Idle",
@@ -181,35 +179,29 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
     return cleanup;
   }, []);
 
-  const globalEvents = useUi(s => s.eventBuffer);
-  const focusedTicker = useUi(s => s.focusedTicker);
-
-  const traceAgents = useMemo(() => {
-    if (!focusedTicker) return { agents: [], totalDurationS: null };
-    const tickerEvents = globalEvents.filter(e => e.run_id?.startsWith(focusedTicker));
-    const runStarted = [...tickerEvents].reverse().find(e => e.type === "run_started");
-    if (!runStarted) return { agents: [], totalDurationS: null };
-    const runId = runStarted.run_id;
-    const runEvts = globalEvents.filter(e => e.run_id === runId);
-    const started = runEvts.filter(e => e.type === "analyst_started");
-    const completed = runEvts.filter(e => e.type === "analyst_completed");
-    const agents: { node: string; stage: string; durationMs: number; status: string }[] = [];
-    for (const ev of completed) {
-      const node = ev.data?.node;
-      if (!node) continue;
-      agents.push({ node, stage: ev.data?.stage ?? "", durationMs: ev.data?.duration_ms ?? 0, status: "completed" });
-    }
-    for (const ev of started) {
-      const node = ev.data?.node;
-      if (!node) continue;
-      if (!agents.find(a => a.node === node)) {
-        agents.push({ node, stage: "", durationMs: 0, status: "running" });
+  const cycleTrace = useMemo(() => {
+    const started = wsEvents.filter(e => e.event_type === "ticker_step_started");
+    const completed = wsEvents.filter(e => e.event_type === "ticker_step_completed");
+    const cycleDone = wsEvents.find(e => e.event_type === "ticker_cycle_completed");
+    const steps: { step: number; name: string; durationMs: number; status: string }[] = [];
+    for (let s = 1; s <= 7; s++) {
+      const startEv = [...started].reverse().find(e => e.step === s);
+      const endEv = [...completed].reverse().find(e => e.step === s);
+      if (!startEv && !endEv) continue;
+      let durationMs = 0;
+      if (startEv && endEv) {
+        durationMs = new Date(endEv.timestamp).getTime() - new Date(startEv.timestamp).getTime();
       }
+      steps.push({
+        step: s,
+        name: endEv?.step_name ?? startEv?.step_name ?? STEP_LABELS[s] ?? "",
+        durationMs: Math.max(durationMs, 0),
+        status: endEv ? "completed" : "running",
+      });
     }
-    const runFinished = runEvts.find(e => e.type === "run_finished");
-    const totalDurationS = runFinished?.data?.duration_s ?? null;
-    return { agents, totalDurationS };
-  }, [globalEvents, focusedTicker]);
+    const totalMs = steps.reduce((s, st) => s + st.durationMs, 0);
+    return { steps, totalMs };
+  }, [wsEvents]);
 
   let statusLabel: string;
   let statusDot: string;
@@ -348,38 +340,32 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           </div>
         )}
 
-        {/* Orchestration Trace: main pipeline agents (not ticker agent) */}
-        {traceAgents && traceAgents.agents.length > 0 && (
+        {/* Cycle Timeline: ticker agent 7-step orchestration with timing */}
+        {cycleTrace.steps.length > 0 && (
           <div className="glass-panel p-3 space-y-2">
-            <span className="section-header">Orchestration Trace</span>
-            <div className="space-y-[1px] max-h-48 overflow-y-auto">
-              {traceAgents.agents.map((a, i) => {
-                const stageColor: Record<string, string> = {
-                  market: "bg-sky-500/20 text-sky-300 border-sky-500/30",
-                  sentiment: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-                  news: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                  fundamentals: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-                  research: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                  trader: "bg-orange-500/20 text-orange-300 border-orange-500/30",
-                  risk: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-                };
-                const color = stageColor[a.stage] ?? "bg-slate-600/30 text-slate-400 border-slate-600/30";
+            <span className="section-header">Cycle Timeline</span>
+            <div className="space-y-1">
+              {cycleTrace.steps.map((st) => {
+                const pct = cycleTrace.totalMs > 0 ? (st.durationMs / cycleTrace.totalMs) * 100 : 0;
                 return (
-                  <div key={a.node} className="flex items-center gap-2 text-[11px] py-0.5">
-                    <span className={`px-1.5 py-[1px] rounded text-[10px] font-medium border ${color} shrink-0 leading-tight`}>
-                      {a.stage || "?"}
-                    </span>
-                    <span className="text-slate-400 truncate min-w-0 flex-1">{a.node}</span>
-                    <span className="text-slate-500 font-mono shrink-0 w-12 text-right">{a.durationMs}ms</span>
-                    <span className="shrink-0">{a.status === "completed" ? "✓" : "…"}</span>
+                  <div key={st.step} className="text-[11px]">
+                    <div className="flex items-center justify-between text-slate-400 mb-0.5">
+                      <span className="font-medium text-slate-300 truncate mr-2">{st.step}. {st.name}</span>
+                      <span className="font-mono text-slate-500 shrink-0">{st.durationMs}ms</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-300 ${
+                        st.status === "completed" ? "bg-emerald-500" : "bg-sky-400 animate-pulse"
+                      }`} style={{ width: `${Math.max(pct, 2)}%` }} />
+                    </div>
                   </div>
                 );
               })}
             </div>
-            {traceAgents.totalDurationS != null && (
+            {cycleTrace.totalMs > 0 && (
               <div className="text-xs text-slate-500 pt-1 border-t border-slate-700/50 flex justify-between">
-                <span>Total</span>
-                <span className="font-mono text-slate-400">{traceAgents.totalDurationS.toFixed(1)}s</span>
+                <span>Cycle total</span>
+                <span className="font-mono text-slate-400">{(cycleTrace.totalMs / 1000).toFixed(1)}s</span>
               </div>
             )}
           </div>

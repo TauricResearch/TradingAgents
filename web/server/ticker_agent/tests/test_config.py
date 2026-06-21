@@ -8,8 +8,8 @@ def test_load_config_defaults(tmp_path):
     f = tmp_path / "agent_config.json"
     cfg = load_config(file_path=str(f))
     assert cfg.min_samples == 3
-    assert cfg.schedule_interval_h == 6
-    assert cfg.max_tickers_per_cycle == 20
+    assert cfg.schedule_interval_h == 1
+    assert cfg.max_tickers_per_cycle == 4
     assert cfg.sp500_enabled is True
     assert cfg.yahoo_sectors_enabled is True
 

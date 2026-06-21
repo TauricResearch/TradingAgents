@@ -108,7 +108,7 @@ def get_missing_capabilities():
 def get_capabilities():
     return {"capabilities": [
         {
-            "name": c.path.split("/")[-1].replace("{", "").replace("}", "") if c.path != "/api/health" else "health",
+            "name": f"{c.method} {c.path.split('/')[-1].replace('{', '').replace('}', '')}",
             "path": c.path,
             "method": c.method,
             "purpose": c.purpose,

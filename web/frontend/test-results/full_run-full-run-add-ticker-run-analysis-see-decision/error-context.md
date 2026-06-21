@@ -49,7 +49,7 @@ Call log:
   - button "🔭 Observatory"
   - button "History"
   - heading "NVDA" [level=2]
-  - text: 0/3 agents
+  - text: 1/3 agents
   - img
   - text: +2.95%
   - paragraph: $210.69 · USD
@@ -61,7 +61,7 @@ Call log:
     - img
     - text: Running 1m 59s
   - button "Cancel"
-  - text: 📊 Analyst Team 1m 53s 1/4
+  - text: 📊 Analyst Team 1m 6s 1/4
   - button "Market Analyst":
     - img
     - text: Market Analyst
@@ -80,10 +80,10 @@ Call log:
   - button "Neutral Analyst"
   - text: 📋 Portfolio Mgmt 0/1
   - button "Portfolio Manager"
-  - text: 1 / 12 agents LLM 5 tools 0 elapsed 01:08
+  - text: 1 / 12 agents LLM 5 tools 0 elapsed 01:54
   - button "Event Stream"
   - button "LLM Trace"
-  - text: "Event Stream 15 events 12:09:06 AMrun_started 12:09:08 AMthinking 12:09:12 AManalyst_started: Market Analyst 12:09:12 AManalyst_completed: market — completed 12:09:13 AManalyst_started: tools_market 12:09:13 AMthinking 12:09:21 AManalyst_started: Market Analyst 12:09:21 AManalyst_completed: market — completed 12:09:22 AManalyst_started: tools_market 12:09:22 AMthinking 12:10:13 AMthinking 12:10:13 AManalyst_started: Market Analyst 12:10:13 AManalyst_completed: market — completed 12:10:13 AManalyst_started: Msg Clear Market 12:10:14 AMthinking 0 / 3 agents LLM 5 tools 0 elapsed 1m 7s"
+  - text: "Event Stream 15 events 5:44:07 AMrun_started 5:44:56 AMthinking 5:45:00 AManalyst_started: Market Analyst 5:45:00 AManalyst_completed: market — completed 5:45:00 AManalyst_started: tools_market 5:45:00 AMthinking 5:45:10 AManalyst_started: Market Analyst 5:45:10 AManalyst_completed: market — completed 5:45:10 AManalyst_started: tools_market 5:45:10 AMthinking 5:45:49 AMthinking 5:45:49 AManalyst_started: Market Analyst 5:45:49 AManalyst_completed: market — completed 5:45:49 AManalyst_started: Msg Clear Market 5:46:01 AMthinking 1 / 3 agents LLM 5 tools 0 elapsed 1m 54s"
 - dialog "Background past runs":
   - banner:
     - img
@@ -97,9 +97,9 @@ Call log:
       - option "NVDA" [selected]
       - option "Custom ticker…"
     - text: From
-    - textbox "From": 2026-05-21
+    - textbox "From": 2026-05-22
     - text: To
-    - textbox "To": 2026-06-20
+    - textbox "To": 2026-06-21
     - text: Every
     - combobox "Every":
       - option "1d" [selected]
