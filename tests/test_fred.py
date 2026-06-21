@@ -61,6 +61,19 @@ class FredResolutionTests(unittest.TestCase):
         self.assertEqual(fred._resolve_series_id("dgs30"), "DGS30")
         self.assertEqual(fred._resolve_series_id("MyCustomSeries"), "MYCUSTOMSERIES")
 
+    def test_descriptive_phrase_is_rejected(self):
+        # An LLM phrase (spaces / too long) is not a series ID — reject up front
+        # with guidance rather than 400ing the API.
+        for bad in ("bank of japan rate", "the unemployment number", "X" * 31):
+            with self.assertRaises(ValueError):
+                fred._resolve_series_id(bad)
+
+    def test_get_macro_data_returns_guidance_on_bad_indicator(self):
+        # Invalid indicator -> actionable message, not a crash (no API call).
+        out = fred.get_macro_data("bank of japan rate", "2026-01-01")
+        self.assertIn("FRED", out)
+        self.assertIn("not a known macro alias", out)
+
 
 @pytest.mark.unit
 class FredConfigTests(unittest.TestCase):
@@ -99,11 +112,13 @@ class FredFormattingTests(unittest.TestCase):
             out = fred.get_macro_data("unemployment", "2025-09-30", 30)
         self.assertIn("No observations", out)
 
-    def test_unknown_series_raises(self):
+    def test_unknown_series_returns_not_found_message(self):
+        # A well-formed but unknown series ID returns guidance, not a crash, so
+        # the run is not aborted over an optional macro lookup.
         no_series = {"seriess": []}
-        with mock.patch.object(fred, "_request", side_effect=_request_stub(meta=no_series)), \
-                self.assertRaises(ValueError):
-            fred.get_macro_data("totally_unknown_xyz", "2025-09-30", 30)
+        with mock.patch.object(fred, "_request", side_effect=_request_stub(meta=no_series)):
+            out = fred.get_macro_data("totally_unknown_xyz", "2025-09-30", 30)
+        self.assertIn("not found", out)
 
     def test_long_series_is_truncated_but_change_uses_full_range(self):
         # Build > MAX_ROWS observations deterministically.
@@ -157,9 +172,10 @@ class FredRoutingTests(unittest.TestCase):
             out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
         self.assertEqual(out, "MACRO_OK")
 
-    def test_not_configured_surfaces_through_router(self):
-        # With only fred and no key, the router has no fallback and must surface
-        # the real "not configured" failure rather than masking it.
+    def test_not_configured_degrades_gracefully(self):
+        # macro_data is optional: with only fred and no key, the router degrades
+        # to a sentinel instead of aborting the run — a missing optional key must
+        # not crash an analysis.
         set_config({"data_vendors": {"macro_data": "fred"}})
 
         def _unconfigured(*a, **k):
@@ -169,8 +185,9 @@ class FredRoutingTests(unittest.TestCase):
             interface.VENDOR_METHODS,
             {"get_macro_indicators": {"fred": _unconfigured}},
             clear=False,
-        ), self.assertRaises(fred.FredNotConfiguredError):
-            interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
+        ):
+            out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
+        self.assertIn("DATA_UNAVAILABLE", out)
 
 
 if __name__ == "__main__":
