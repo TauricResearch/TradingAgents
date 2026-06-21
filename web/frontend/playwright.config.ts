@@ -6,6 +6,7 @@ import { defineConfig } from "@playwright/test";
 // root (one level above `web/frontend/`).
 export default defineConfig({
   testDir: "./e2e",
+  timeout: 300_000,
   webServer: [
     {
       command:

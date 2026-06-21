@@ -46,6 +46,27 @@ _current_step: int = 0
 _live_events: list[dict] = []
 _event_id_counter: int = 0
 
+# Captured main event loop reference for WS broadcast from background thread
+_loop: Optional[asyncio.AbstractEventLoop] = None
+_loop_lock = threading.Lock()
+
+
+def set_event_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Capture the main event loop reference. Called from app lifespan."""
+    global _loop
+    with _loop_lock:
+        _loop = loop
+
+
+def _get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
+    """Return the captured loop, or None if not set / closed."""
+    if _loop is None:
+        return None
+    if _loop.is_closed():
+        return None
+    return _loop
+
+
 STEP_NAMES = [
     "Idle",
     "Read Memory",
@@ -99,11 +120,20 @@ def _emit_event(step: int, message: str, event_type: str = "ticker_step", detail
         _live_events.append(ev)
         if len(_live_events) > 200:
             _live_events[:50] = []
+
+    main_loop = _get_event_loop()
+    if main_loop is not None:
+        try:
+            asyncio.run_coroutine_threadsafe(ws_broadcast(ev), main_loop)
+            return
+        except RuntimeError:
+            return
+
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(ws_broadcast(ev))
     except RuntimeError:
-        pass
+        return
+    loop.create_task(ws_broadcast(ev))
 
 
 def status() -> dict:

@@ -474,6 +474,12 @@ def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s
     # live price feed, so we look up the historical close).
     start_price, start_price_at = _fetch_close_price(ticker, date_iso)
 
+    # Fetch end_price: the close price of the next trading day, used to
+    # evaluate whether BUY/SELL decisions were correct.
+    from dateutil.relativedelta import relativedelta
+    next_date_iso = (datetime.fromisoformat(date_iso) + relativedelta(days=1)).date().isoformat()
+    end_price, _ = _fetch_close_price(ticker, next_date_iso)
+
     run_info = storage.create_run_dir(
         ticker,
         started_at=trade_dt,
@@ -501,6 +507,7 @@ def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s
     data["decision_target"] = dec.get("target")
     data["decision_rationale"] = dec.get("rationale")
     data["decision_confidence"] = dec.get("confidence")
+    data["end_price"] = end_price
 
     fd, tmp = tempfile.mkstemp(dir=run_dir, prefix=".run-", suffix=".json.tmp")
     try:
@@ -701,7 +708,7 @@ def resume(job_id: str) -> None:
 
 
 def _new_job_id(ticker: str) -> str:
-    ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+    ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H-%M-%S-%fZ")
     return f"bgr_{ts}_{ticker}"
 
 

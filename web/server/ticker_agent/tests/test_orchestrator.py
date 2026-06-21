@@ -43,7 +43,7 @@ def test_run_cycle_full_flow(mock_improve, mock_memory, mock_rank, mock_execute,
     mock_rank.assert_called_once()
     mock_memory.assert_called_once()
     mock_improve.assert_called_once()
-    assert mock_emit.call_count >= 9  # 7 steps with structured events
+    assert mock_emit.call_count == 10  # 7 steps × start + some have completed + final cycle complete
     assert result["status"] == "completed"
 
 

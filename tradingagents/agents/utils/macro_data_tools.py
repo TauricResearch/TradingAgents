@@ -3,6 +3,7 @@ from typing import Annotated
 from langchain_core.tools import tool
 
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.errors import VendorNotConfiguredError
 
 
 @tool
@@ -33,4 +34,13 @@ def get_macro_indicators(
     Returns:
         str: A formatted markdown report of the macro series
     """
-    return route_to_vendor("get_macro_indicators", indicator, curr_date, look_back_days)
+    try:
+        return route_to_vendor("get_macro_indicators", indicator, curr_date, look_back_days)
+    except VendorNotConfiguredError:
+        return (
+            "FRED macro data is not available because FRED_API_KEY is not configured. "
+            "To enable macro indicators, get a free API key at "
+            "https://fred.stlouisfed.org/docs/api/api_key.html and set the "
+            "FRED_API_KEY environment variable (or add it to your .env file). "
+            "Macro commentary will proceed without FRED data."
+        )

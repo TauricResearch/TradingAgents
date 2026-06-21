@@ -128,6 +128,9 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
   const onSelectHistorical = (id: string | null) => {
     if (id == null) {
       clearHistoricalRunForTicker(ticker);
+      if (lastRunId == null && Array.isArray(tickerRuns.data) && tickerRuns.data.length > 0) {
+        setLastRunIdForTicker(ticker, tickerRuns.data[0].id);
+      }
     } else {
       setHistoricalRunForTicker(ticker, id);
     }
