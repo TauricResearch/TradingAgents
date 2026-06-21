@@ -46,6 +46,7 @@ def make_event(run_id: str, type_: EventType, data: Dict[str, Any]) -> Dict[str,
 
 
 _subscribers: Dict[str, Set[WebSocket]] = {}
+_subscribers_lock = threading.Lock()
 
 # Reference to the main event loop, captured by the app lifespan.
 # ``events.emit()`` is called from worker threads (graph nodes run
@@ -85,7 +86,8 @@ def _get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
 
 def _subscriber_count(run_id: str) -> int:
     """Total number of WS subscribers (per-run + global). For debug logging."""
-    return len(_subscribers.get(run_id, set())) + len(_subscribers.get("*", set()))
+    with _subscribers_lock:
+        return len(_subscribers.get(run_id, set())) + len(_subscribers.get("*", set()))
 
 
 async def _broadcast(event: Dict[str, Any]) -> None:
@@ -94,9 +96,10 @@ async def _broadcast(event: Dict[str, Any]) -> None:
     # Copy target list so subscribe/unsubscribe during the await doesn't
     # race with this iteration.
     targets: List[WebSocket] = []
-    if rid and rid in _subscribers:
-        targets.extend(_subscribers[rid])
-    targets.extend(_subscribers.get("*", []))
+    with _subscribers_lock:
+        if rid and rid in _subscribers:
+            targets.extend(_subscribers[rid])
+        targets.extend(_subscribers.get("*", []))
 
     log.debug(
         "broadcast: rid=%s type=%s id=%s subscribers=%d",
@@ -163,25 +166,29 @@ def emit(run_id: str, type_: EventType, data: Dict[str, Any]) -> None:
 
 
 def subscribe(run_id: str, ws: WebSocket) -> None:
-    _subscribers.setdefault(run_id, set()).add(ws)
+    with _subscribers_lock:
+        _subscribers.setdefault(run_id, set()).add(ws)
 
 
 def unsubscribe(run_id: str, ws: WebSocket) -> None:
-    if run_id in _subscribers:
-        _subscribers[run_id].discard(ws)
-        if not _subscribers[run_id]:
-            del _subscribers[run_id]
+    with _subscribers_lock:
+        if run_id in _subscribers:
+            _subscribers[run_id].discard(ws)
+            if not _subscribers[run_id]:
+                del _subscribers[run_id]
 
 
 def subscribe_global(ws: WebSocket) -> None:
-    _subscribers.setdefault("*", set()).add(ws)
+    with _subscribers_lock:
+        _subscribers.setdefault("*", set()).add(ws)
 
 
 def unsubscribe_global(ws: WebSocket) -> None:
-    if "*" in _subscribers:
-        _subscribers["*"].discard(ws)
-        if not _subscribers["*"]:
-            del _subscribers["*"]
+    with _subscribers_lock:
+        if "*" in _subscribers:
+            _subscribers["*"].discard(ws)
+            if not _subscribers["*"]:
+                del _subscribers["*"]
 
 
 def reset_for_tests() -> None:

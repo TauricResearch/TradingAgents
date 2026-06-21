@@ -5,7 +5,7 @@ const STEP_LABELS = [
   "Idle",
   "Read Memory",
   "Gather Context",
-  "LLM Strategy",
+  "LLM Strategy Call",
   "Execute",
   "Rank & Reflect",
   "Write Memory",

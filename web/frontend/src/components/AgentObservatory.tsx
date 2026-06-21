@@ -30,13 +30,15 @@ export function AgentObservatory({ events, onClose }: AgentObservatoryProps & { 
   return (
     <div className="space-y-3" data-testid="agent-observatory">
       <div className="flex items-center gap-1 border-b border-slate-700/50 pb-1">
-        <button
-          onClick={onClose}
-          className="text-slate-500 hover:text-slate-300 transition-colors text-lg leading-none mr-2"
-          title="Close Observatory"
-        >
-          ×
-        </button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-300 transition-colors text-lg leading-none mr-2"
+            title="Close Observatory"
+          >
+            ×
+          </button>
+        )}
         {tabs.map(t => (
           <button key={t.key}
             onClick={() => setTab(t.key)}
@@ -78,7 +80,7 @@ export function AgentObservatory({ events, onClose }: AgentObservatoryProps & { 
       {tab === "debate" && <DebateFlow events={events} type="debate" />}
       {tab === "risk" && <DebateFlow events={events} type="risk" />}
       {tab === "decision" && <DecisionTrace events={events} />}
-      {tab === "ticker" && <TickerAgentPanel />}
+      {tab === "ticker" && <TickerAgentPanel onClose={onClose} />}
     </div>
   );
 }

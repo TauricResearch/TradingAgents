@@ -470,6 +470,7 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
                 node = payload.get("node", node_name)
                 node_enter_t[node] = time.monotonic()
                 capture_handler.current_node = node
+                stream_handler.current_node = node
                 log.info("runner: node_entered rid=%s node=%s", run_id, node)
                 events.emit(run_id, "analyst_started", {"node": node, **payload})
             elif node_name == "node_exited":

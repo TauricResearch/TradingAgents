@@ -4,6 +4,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_openai import ChatOpenAI
 
 from .api_key_env import get_api_key_env
@@ -61,6 +62,36 @@ class NormalizedChatOpenAI(ChatOpenAI):
         # because they only override ``_get_request_payload`` /
         # ``_create_chat_result``, not ``invoke``.
         self._base_invoke = ChatOpenAI.invoke.__get__(self, type(self))
+
+    def _create_chat_result(self, response, generation_info=None):
+        try:
+            return super()._create_chat_result(response, generation_info)
+        except (KeyError, TypeError) as e:
+            error_msg = str(e)
+            if "choices" not in error_msg:
+                raise
+            response_dict = (
+                response
+                if isinstance(response, dict)
+                else response.model_dump(
+                    exclude={"choices": {"__all__": {"message": {"parsed"}}}}
+                )
+            )
+            detail_parts = []
+            for key in (
+                "base_resp", "error", "input_sensitive",
+                "input_sensitive_type", "output_sensitive",
+                "output_sensitive_int", "output_sensitive_type",
+            ):
+                val = response_dict.get(key)
+                if val is not None:
+                    detail_parts.append(f"{key}={val}")
+            detail = f" ({', '.join(detail_parts)})" if detail_parts else ""
+            content = (
+                "The API returned a response without valid content choices. "
+                f"This may be due to content moderation or an API error.{detail}"
+            )
+            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=content))])
 
     def invoke(self, input, config=None, **kwargs):
         cache = getattr(self, "_llm_cache", None)
@@ -141,8 +172,11 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
                 exclude={"choices": {"__all__": {"message": {"parsed"}}}}
             )
         )
+        choices = response_dict.get("choices")
+        if not choices:
+            return chat_result
         for generation, choice in zip(
-            chat_result.generations, response_dict.get("choices", []), strict=False
+            chat_result.generations, choices, strict=False
         ):
             reasoning = choice.get("message", {}).get("reasoning_content")
             if reasoning is not None:
