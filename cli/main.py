@@ -523,6 +523,20 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
+    def thinking_value_or_prompt(env_var, config_key, label, box_title, box_body, prompt_fn):
+        """Return the env-configured reasoning/thinking value, or prompt for it.
+
+        When ``env_var`` is set the interactive choice is skipped and the value
+        the env overlay placed on DEFAULT_CONFIG is used — mirroring the
+        env-precedence rule applied to the other selection steps.
+        """
+        if os.environ.get(env_var):
+            value = DEFAULT_CONFIG[config_key]
+            console.print(f"[green]✓ {label} from environment:[/green] {value}")
+            return value
+        console.print(create_question_box(box_title, box_body))
+        return prompt_fn()
+
     # Step 1: Ticker symbol
     console.print(
         create_question_box(
@@ -577,13 +591,27 @@ def get_user_selections():
         f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
 
-    # Step 5: Research depth
-    console.print(
-        create_question_box(
-            "Step 5: Research Depth", "Select your research depth level"
-        )
+    # Step 5: Research depth (skipped when both round counts are set via env).
+    # Research depth maps to the debate + risk round counts; when both are
+    # supplied through TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS we keep
+    # the run non-interactive and honor the env values (#977).
+    depth_from_env = bool(os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")) and bool(
+        os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS")
     )
-    selected_research_depth = select_research_depth()
+    if depth_from_env:
+        selected_research_depth = DEFAULT_CONFIG["max_debate_rounds"]
+        console.print(
+            f"[green]✓ Research depth from environment:[/green] "
+            f"{DEFAULT_CONFIG['max_debate_rounds']} debate / "
+            f"{DEFAULT_CONFIG['max_risk_discuss_rounds']} risk rounds"
+        )
+    else:
+        console.print(
+            create_question_box(
+                "Step 5: Research Depth", "Select your research depth level"
+            )
+        )
+        selected_research_depth = select_research_depth()
 
     # Step 6: LLM Provider (skipped when set via TRADINGAGENTS_LLM_PROVIDER).
     # The backend URL comes from TRADINGAGENTS_LLM_BACKEND_URL when set,
@@ -655,43 +683,38 @@ def get_user_selections():
         selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
         selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
-    # Step 8: Provider-specific thinking configuration
+    # Step 8: Provider-specific reasoning/thinking configuration. Each knob is
+    # settable via its TRADINGAGENTS_* env var; when that var is set (or the
+    # provider itself came from env) the prompt is skipped and the configured
+    # value is used — same env-precedence rule as the steps above. None = each
+    # provider's own default.
     thinking_level = None
     reasoning_effort = None
     anthropic_effort = None
 
     provider_lower = selected_llm_provider.lower()
-    # When the provider is configured via environment we keep the run fully
-    # non-interactive and use the config defaults (None = each provider's own
-    # default reasoning/thinking behavior) instead of prompting.
     if provider_from_env:
         thinking_level = DEFAULT_CONFIG["google_thinking_level"]
         reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
         anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
     elif provider_lower == "google":
-        console.print(
-            create_question_box(
-                "Step 8: Thinking Mode",
-                "Configure Gemini thinking mode"
-            )
+        thinking_level = thinking_value_or_prompt(
+            "TRADINGAGENTS_GOOGLE_THINKING_LEVEL", "google_thinking_level",
+            "Gemini thinking mode", "Step 8: Thinking Mode",
+            "Configure Gemini thinking mode", ask_gemini_thinking_config,
         )
-        thinking_level = ask_gemini_thinking_config()
     elif provider_lower == "openai":
-        console.print(
-            create_question_box(
-                "Step 8: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
-            )
+        reasoning_effort = thinking_value_or_prompt(
+            "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
+            "Reasoning effort", "Step 8: Reasoning Effort",
+            "Configure OpenAI reasoning effort level", ask_openai_reasoning_effort,
         )
-        reasoning_effort = ask_openai_reasoning_effort()
     elif provider_lower == "anthropic":
-        console.print(
-            create_question_box(
-                "Step 8: Effort Level",
-                "Configure Claude effort level"
-            )
+        anthropic_effort = thinking_value_or_prompt(
+            "TRADINGAGENTS_ANTHROPIC_EFFORT", "anthropic_effort",
+            "Claude effort", "Step 8: Effort Level",
+            "Configure Claude effort level", ask_anthropic_effort,
         )
-        anthropic_effort = ask_anthropic_effort()
 
     return {
         "ticker": selected_ticker,
@@ -1025,14 +1048,20 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
-def run_analysis(checkpoint: bool = False):
-    # First get all user selections
-    selections = get_user_selections()
+def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
+    """Assemble the run config from interactive selections, honoring env precedence.
 
-    # Create config with selected research depth
+    Round counts and checkpoint follow "explicit env/flag wins": an env-applied
+    value on DEFAULT_CONFIG is preserved unless the user overrode it on the CLI.
+    """
     config = DEFAULT_CONFIG.copy()
-    config["max_debate_rounds"] = selections["research_depth"]
-    config["max_risk_discuss_rounds"] = selections["research_depth"]
+    # Research depth sets both round counts, but an explicit env override
+    # (TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
+    # interactive selection — leave the env-applied value in place (#977).
+    if not os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS"):
+        config["max_debate_rounds"] = selections["research_depth"]
+    if not os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"):
+        config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
@@ -1042,7 +1071,18 @@ def run_analysis(checkpoint: bool = False):
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
-    config["checkpoint_enabled"] = checkpoint
+    # --checkpoint/--no-checkpoint overrides only when explicitly given; omitting
+    # the flag preserves TRADINGAGENTS_CHECKPOINT_ENABLED / the default (#976).
+    if checkpoint is not None:
+        config["checkpoint_enabled"] = checkpoint
+    return config
+
+
+def run_analysis(checkpoint: bool | None = None):
+    # First get all user selections
+    selections = get_user_selections()
+
+    config = _build_run_config(selections, checkpoint)
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1322,10 +1362,11 @@ def run_analysis(checkpoint: bool = False):
 
 @app.command()
 def analyze(
-    checkpoint: bool = typer.Option(
-        False,
-        "--checkpoint",
-        help="Enable checkpoint/resume: save state after each node so a crashed run can resume.",
+    checkpoint: bool | None = typer.Option(
+        None,
+        "--checkpoint/--no-checkpoint",
+        help="Enable/disable checkpoint-resume (save state after each node so a "
+        "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
     ),
     clear_checkpoints: bool = typer.Option(
         False,

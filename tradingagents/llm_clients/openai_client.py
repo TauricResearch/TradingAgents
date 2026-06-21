@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -223,6 +224,18 @@ _PASSTHROUGH_KWARGS = (
     "api_key", "callbacks", "http_client", "http_async_client",
 )
 
+# OpenAI's ``reasoning_effort`` is only accepted by reasoning models — the GPT-5
+# family and the o-series. Non-reasoning models (gpt-4.1, gpt-4o, ...) 400 with
+# "Unsupported parameter: 'reasoning.effort' is not supported with this model".
+# Drop the kwarg for those rather than crash the run.
+_OPENAI_REASONING_MODEL = re.compile(r"^(gpt-5|o[1-9])")
+
+
+def _supports_reasoning_effort(model: str) -> bool:
+    """Whether the (native OpenAI) model accepts ``reasoning_effort``."""
+    return bool(_OPENAI_REASONING_MODEL.match(model.lower().strip()))
+
+
 @dataclass(frozen=True)
 class ProviderSpec:
     """Declarative config for one OpenAI-compatible provider.
@@ -364,8 +377,11 @@ class OpenAIClient(BaseLLMClient):
 
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:
-            if key in self.kwargs:
-                llm_kwargs[key] = self.kwargs[key]
+            if key not in self.kwargs:
+                continue
+            if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
+                continue
+            llm_kwargs[key] = self.kwargs[key]
 
         # Native OpenAI (no custom base_url): use Responses API for
         # consistent behavior across all model families. When a custom

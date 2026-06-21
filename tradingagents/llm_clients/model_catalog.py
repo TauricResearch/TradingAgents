@@ -84,7 +84,6 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.4 Mini - Fast, strong coding and tool use", "gpt-5.4-mini"),
             ("GPT-5.4 Nano - Cheapest, high-volume tasks", "gpt-5.4-nano"),
             ("GPT-5.5 - Latest frontier, 1M context", "gpt-5.5"),
-            ("GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
         ],
         "deep": [
             ("GPT-5.5 - Latest frontier, 1M context", "gpt-5.5"),
@@ -97,7 +96,6 @@ MODEL_OPTIONS: ProviderModeOptions = {
         "quick": [
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
             ("Claude Haiku 4.5 - Fastest with near-frontier intelligence", "claude-haiku-4-5"),
-            ("Claude Sonnet 4.5 - High-performance for agents and coding", "claude-sonnet-4-5"),
         ],
         "deep": [
             ("Claude Opus 4.8 - Latest frontier, agentic coding and reasoning", "claude-opus-4-8"),
@@ -109,15 +107,11 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "google": {
         "quick": [
             ("Gemini 3.5 Flash - Latest, frontier agentic + coding (GA)", "gemini-3.5-flash"),
-            ("Gemini 3.1 Flash Lite - Most cost-efficient (GA)", "gemini-3.1-flash-lite"),
-            ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
-            ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
+            ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite"),
         ],
         "deep": [
             ("Gemini 3.1 Pro - Reasoning-first, complex workflows (preview)", "gemini-3.1-pro-preview"),
             ("Gemini 3.5 Flash - Latest GA, strong agentic + coding", "gemini-3.5-flash"),
-            ("Gemini 2.5 Pro - Stable pro model", "gemini-2.5-pro"),
-            ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
         ],
     },
     "xai": {
