@@ -227,6 +227,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
   }, [restEvents, wsEvents]);
 
   const [countdown, setCountdown] = useState("");
+  const hasTriggeredRun = useRef(false);
 
   useEffect(() => {
     const cleanup = connectTickerAgentWs((ev) => {
@@ -236,13 +237,24 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
   }, []);
 
   useEffect(() => {
+    hasTriggeredRun.current = false;
+  }, [config?.schedule_interval_h, status?.last_run_at, currentStatus]);
+
+  useEffect(() => {
     const intervalH = config?.schedule_interval_h;
     const lastRun = status?.last_run_at;
     if (!intervalH || intervalH === 0 || !lastRun || currentStatus === "paused") { setCountdown(""); return; }
     const tick = () => {
       const nextRun = new Date(lastRun).getTime() + intervalH * 3600000;
       const diff = nextRun - Date.now();
-      if (diff <= 0) { setCountdown("now"); return; }
+      if (diff <= 0) {
+        setCountdown("now");
+        if (!hasTriggeredRun.current) {
+          hasTriggeredRun.current = true;
+          runMutation.mutate();
+        }
+        return;
+      }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
@@ -251,7 +263,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [config?.schedule_interval_h, status?.last_run_at, currentStatus]);
+  }, [config?.schedule_interval_h, status?.last_run_at, currentStatus, runMutation]);
 
   const cycleTrace = useMemo(() => {
     const started = wsEvents.filter(e => e.event_type === "ticker_step_started");
