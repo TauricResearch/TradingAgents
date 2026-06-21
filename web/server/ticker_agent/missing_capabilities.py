@@ -51,20 +51,25 @@ def log_missing(
 
 
 def read_missing(file_path: str | None = None) -> list[MissingCapability]:
-    """Read all logged missing capabilities, most recent first."""
+    """Read all logged missing capabilities, most recent first, deduplicated by name."""
     path = Path(file_path or _default_path())
     if not path.exists():
         return []
     try:
         lines = path.read_text(encoding="utf-8").strip().splitlines()
+        seen: set[str] = set()
         entries: list[MissingCapability] = []
         for line in lines:
             if not line.strip():
                 continue
             try:
                 data = json.loads(line)
+                name = data.get("name", "unknown")
+                if name in seen:
+                    continue
+                seen.add(name)
                 entries.append(MissingCapability(
-                    name=data.get("name", "unknown"),
+                    name=name,
                     description=data.get("description", ""),
                     suggested_endpoint=data.get("suggested_endpoint"),
                     logged_at=data.get("logged_at"),
