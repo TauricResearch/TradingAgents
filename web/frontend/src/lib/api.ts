@@ -354,6 +354,8 @@ export interface AgentLiveEvent {
   step_name: string;
   message: string;
   timestamp: string;
+  event_type?: string;
+  detail?: Record<string, unknown>;
 }
 
 export interface LiveEventsResponse {
@@ -378,11 +380,15 @@ export interface AccuracyEntry {
 
 export interface ApiCapability {
   name: string;
+  path: string;
+  method: string;
   available: boolean;
 }
 
 export interface MissingCapability {
   name: string;
+  path?: string;
+  description?: string;
   logged_at: string;
   context_ticker?: string;
 }
@@ -427,6 +433,22 @@ export async function getTickerAgentLiveEvents(since = 0): Promise<LiveEventsRes
   const r = await fetch(`/api/ticker-agent/live-events?since=${since}`);
   if (!r.ok) throw new Error(`ticker-agent live-events ${r.status}`);
   return r.json();
+}
+
+export function connectTickerAgentWs(
+  onEvent: (event: AgentLiveEvent) => void,
+): () => void {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const ws = new WebSocket(`${protocol}//${window.location.host}/api/ticker-agent/ws`);
+  ws.onmessage = (msg) => {
+    try {
+      onEvent(JSON.parse(msg.data));
+    } catch { /* ignore parse errors */ }
+  };
+  ws.onclose = () => {
+    setTimeout(() => connectTickerAgentWs(onEvent), 3000);
+  };
+  return () => ws.close();
 }
 
 export async function getMissingCapabilities(): Promise<{ capabilities: MissingCapability[] }> {

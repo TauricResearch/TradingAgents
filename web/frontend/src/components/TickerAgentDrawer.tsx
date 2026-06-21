@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getTickerAgentStatus,
@@ -11,7 +11,7 @@ import {
   getMissingCapabilities,
   getTickerAgentLiveEvents,
 } from "../lib/api";
-import type { AgentLiveEvent } from "../lib/api";
+import { connectTickerAgentWs, type AgentLiveEvent } from "../lib/api";
 
 const STEP_LABELS = [
   "Idle",
@@ -170,6 +170,15 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
   const currentStep = liveData?.current_step ?? status?.current_step ?? 0;
   const events = liveData?.events ?? [];
 
+  const [wsEvents, setWsEvents] = useState<AgentLiveEvent[]>([]);
+
+  useEffect(() => {
+    const cleanup = connectTickerAgentWs((ev) => {
+      setWsEvents(prev => [...prev.slice(-200), ev]);
+    });
+    return cleanup;
+  }, []);
+
   let statusLabel: string;
   let statusDot: string;
   switch (currentStatus) {
@@ -274,11 +283,64 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           </div>
         )}
 
+        {/* Step Details */}
+        {wsEvents.filter(e => e.event_type?.startsWith("ticker_step")).length > 0 && (
+          <div className="glass-panel p-3 space-y-2">
+            <span className="section-header">Step Details</span>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {wsEvents.filter(e => e.event_type?.startsWith("ticker_step"))
+                .map((ev, i) => (
+                  <details key={i} className="text-xs border-b border-slate-800 last:border-0 py-1">
+                    <summary className="cursor-pointer text-slate-400 hover:text-slate-300">
+                      Step {ev.step}: {ev.step_name}
+                    </summary>
+                    <div className="mt-1 text-slate-500 space-y-0.5 pl-2">
+                      {ev.detail && Object.entries(ev.detail).map(([k, v]) => (
+                        <div key={k} className="flex gap-2">
+                          <span className="text-slate-600 shrink-0">{k}:</span>
+                          <span className="text-slate-400 truncate">{JSON.stringify(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+            </div>
+          </div>
+        )}
+
         {/* Section 3: Live Activity Feed (only during running) */}
         {currentStatus === "running" && (
           <div className="glass-panel p-3 space-y-2">
             <span className="section-header">Live Activity</span>
             <LiveEventFeed events={events} currentStep={currentStep} />
+          </div>
+        )}
+
+        {/* LLM Strategy Call */}
+        {wsEvents.filter(e => e.event_type === "ticker_llm_call").length > 0 && (
+          <div className="glass-panel p-3 space-y-2">
+            <span className="section-header">LLM Strategy Call</span>
+            {wsEvents.filter(e => e.event_type === "ticker_llm_call").map((ev, i) => (
+              <details key={i} className="text-xs">
+                <summary className="cursor-pointer text-sky-400 hover:text-sky-300">
+                  Strategy Call #{i + 1}
+                </summary>
+                <div className="mt-2 space-y-2">
+                  <div>
+                    <div className="text-slate-500 font-medium mb-1">Prompt:</div>
+                    <pre className="bg-slate-950/60 rounded p-2 text-slate-300 whitespace-pre-wrap font-mono max-h-48 overflow-y-auto border border-slate-800/50">
+                      {ev.detail?.prompt_preview || "(no prompt)"}
+                    </pre>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 font-medium mb-1">Response:</div>
+                    <pre className="bg-slate-950/60 rounded p-2 text-slate-300 whitespace-pre-wrap font-mono max-h-48 overflow-y-auto border border-slate-800/50">
+                      {JSON.stringify(ev.detail?.response, null, 2) || "(no response)"}
+                    </pre>
+                  </div>
+                </div>
+              </details>
+            ))}
           </div>
         )}
 
@@ -362,8 +424,8 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           <span className="section-header">Capabilities</span>
           {caps && caps.capabilities.length > 0 && (
             <div className="space-y-1 max-h-40 overflow-y-auto">
-              {caps.capabilities.filter((c) => c.available).map((c) => (
-                <div key={c.path || c.name} className="flex items-center gap-2 text-xs">
+              {caps.capabilities.filter((c) => c.available).map((c, i) => (
+                <div key={`${i}-${c.path || c.name}`} className="flex items-center gap-2 text-xs">
                   <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span className="text-[10px] font-mono uppercase text-emerald-500 shrink-0">{c.method}</span>
                   <span className="text-slate-400 truncate" title={c.path}>{c.path}</span>
@@ -375,8 +437,8 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
             <>
               <span className="section-header block pt-1">Missing</span>
               <div className="space-y-1">
-                {missingCaps.capabilities.map((c) => (
-                  <div key={c.name} className="flex items-center justify-between text-xs">
+                {missingCaps.capabilities.map((c, i) => (
+                  <div key={`missing-${i}-${c.name}`} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
                       <span className="text-slate-400 truncate">{c.description || c.name}</span>
