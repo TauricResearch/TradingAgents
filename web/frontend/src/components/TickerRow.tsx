@@ -88,12 +88,15 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
       draggable={dragHandleProps?.draggable ?? false}
       onDragStart={dragHandleProps?.onDragStart}
       onDragOver={(e) => {
+        e.preventDefault();
         dragHandleProps?.onDragOver?.(e);
         setDragOver(true);
       }}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
         setDragOver(false);
         onDrop?.(e);
       }}
@@ -101,7 +104,7 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
         setDragOver(false);
         dragHandleProps?.onDragEnd?.(e);
       }}
-      className={`relative group w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-150 cursor-pointer ${
+      className={`relative group w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2 transition-colors duration-150 cursor-pointer ${
         isFocused
           ? "bg-sky-500/10 ring-1 ring-sky-500/30 shadow-[0_0_12px_rgba(56,189,248,0.08)]"
           : isDragOver

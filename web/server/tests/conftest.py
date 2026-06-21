@@ -1,3 +1,6 @@
+import os
+os.environ["TESTING"] = "1"
+
 import pytest
 from web.server import storage
 
@@ -9,11 +12,6 @@ def data_root(tmp_path, monkeypatch):
     cache = tmp_path / "cache"
     monkeypatch.setenv("TRADINGAGENTS_DATA_DIR", str(data))
     monkeypatch.setenv("TRADINGAGENTS_CACHE_DIR", str(cache))
-    # Keep the lifespan's background PriceFeed (yfinance poll loop) off
-    # during tests — the feed is unit-tested in test_price_feed.py and
-    # would otherwise hit the network / make tests non-deterministic.
-    # ``PriceState`` is still created so /api/prices is reachable and
-    # testable in isolation.
     monkeypatch.setenv("TRADINGAGENTS_DASHBOARD_DISABLE_PRICE_FEED", "1")
     storage.init_settings(data_dir=str(data), cache_dir=str(cache))
     return data
