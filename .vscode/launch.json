@@ -44,7 +44,8 @@
         // behave consistently. Add TRADINGAGENTS_* overrides here if
         // you need to swap LLM providers / endpoints for this session.
         "TRADINGAGENTS_DASHBOARD_HOST": "127.0.0.1",
-        "TRADINGAGENTS_DASHBOARD_PORT": "8000"
+        "TRADINGAGENTS_DASHBOARD_PORT": "8000",
+        "AUTH_DISABLED": "true"
       },
       "presentation": {
         "group": "backend",
