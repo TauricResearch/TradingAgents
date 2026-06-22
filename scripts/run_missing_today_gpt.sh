@@ -31,16 +31,39 @@ ROOT="$(pwd)"
 
 DATE="${TRADINGAGENTS_DATE:-$(date +%F)}"
 DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder prefix)
+PROVIDER="openai"
+BACKEND_URL="https://api.openai.com/v1"
+DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-gpt-5.5}"
+QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-gpt-5.4-mini}"
+ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"
+DEPTH="${TRADINGAGENTS_DEPTH:-5}"
+model_slug() {
+  local slug="$1"
+  slug="${slug//\//-}"
+  slug="${slug//:/-}"
+  slug="${slug//./-}"
+  printf '%s\n' "$slug"
+}
+MODEL_SLUG="$(model_slug "$DEEP_MODEL")"
+REPORT_GLOB="${DATE_SLUG}_${MODEL_SLUG}_*"
 CONCURRENCY="${CONCURRENCY:-5}"                # 5 ran clean; 20 tripped HTTP 429 ("Current limit: 50")
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs}"
 mkdir -p "$LOGDIR"
 
-ALL_TICKERS=(SPY QQQ SOXX SPCX)
+DEFAULT_TICKERS=(SPY QQQ SOXX SPCX CRM MSFT META AAPL NVDA MU INTC AVGO GOOGL)
+ALL_TICKERS=()
+if [ "$#" -gt 0 ]; then
+  for t in "$@"; do
+    ALL_TICKERS+=("$(printf '%s' "$t" | tr '[:lower:]' '[:upper:]')")
+  done
+else
+  ALL_TICKERS=("${DEFAULT_TICKERS[@]}")
+fi
 
-# --- a ticker is "missing" if it has no docs/<T>/<DATESLUG>_*/ folder ------
+# --- a ticker is "missing" if it has no docs/<T>/<DATESLUG>_<MODEL_SLUG>_*/ folder ------
 missing_tickers() {
   for t in "${ALL_TICKERS[@]}"; do
-    if [ -z "$(find "docs/$t" -maxdepth 1 -type d -name "${DATE_SLUG}_*" 2>/dev/null | head -1)" ]; then
+    if [ -z "$(find "docs/$t" -maxdepth 1 -type d -name "$REPORT_GLOB" 2>/dev/null | head -1)" ]; then
       printf '%s\n' "$t"
     fi
   done
@@ -51,18 +74,23 @@ missing_tickers() {
 run_pass() {
   local conc="$1"; shift
   printf '%s\n' "$@" | xargs -n1 -P"$conc" -I{} bash -c '
-      t="$1"; DATE="$2"; LOGDIR="$3"
+      t="$1"; DATE="$2"; LOGDIR="$3"; PROVIDER="$4"; BACKEND_URL="$5"; DEEP_MODEL="$6"; QUICK_MODEL="$7"; ANALYSTS="$8"; DEPTH="$9"
       echo "[START $t] $(date +%T)"
+      TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT="${TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT:-0}" \
+      TRADINGAGENTS_LLM_PROVIDER="$PROVIDER" \
+      TRADINGAGENTS_LLM_BACKEND_URL="$BACKEND_URL" \
+      TRADINGAGENTS_DEEP_THINK_LLM="$DEEP_MODEL" \
+      TRADINGAGENTS_QUICK_THINK_LLM="$QUICK_MODEL" \
       uv run python -m cli.main run \
         --ticker "$t" --date "$DATE" \
-        --analysts market,social,news,fundamentals \
-        --depth 5 --language English \
-        --provider anthropic \
-        --deep-model claude-opus-4-8 --quick-model claude-kaiku-4-5 \
+        --analysts "$ANALYSTS" \
+        --depth "$DEPTH" --language English \
+        --provider "$PROVIDER" \
+        --deep-model "$DEEP_MODEL" --quick-model "$QUICK_MODEL" \
         --checkpoint --clear-checkpoints \
         > "${LOGDIR}/${t}.log" 2>&1 \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"
-    ' _ {} "$DATE" "$LOGDIR"
+    ' _ {} "$DATE" "$LOGDIR" "$PROVIDER" "$BACKEND_URL" "$DEEP_MODEL" "$QUICK_MODEL" "$ANALYSTS" "$DEPTH"
 }
 
 # Portable (bash 3.2 / macOS) array-from-lines; sets the named global array.
@@ -77,17 +105,17 @@ read_into() {  # read_into ARRAYNAME < input
 # --- pass 1: everything missing, at the safe concurrency ------------------
 read_into TODO < <(missing_tickers)
 if [ "${#TODO[@]}" -eq 0 ]; then
-  echo "Nothing to run — all ${#ALL_TICKERS[@]} tickers already have a ${DATE_SLUG} report."
+  echo "Nothing to run — all ${#ALL_TICKERS[@]} tickers already have a ${REPORT_GLOB} report."
   exit 0
 fi
-echo "Pass 1: ${#TODO[@]} ticker(s) missing for ${DATE}, concurrency=${CONCURRENCY}"
+echo "Pass 1: ${#TODO[@]} ticker(s) missing for ${DATE} ${MODEL_SLUG}, concurrency=${CONCURRENCY}"
 echo "  ${TODO[*]}"
 run_pass "$CONCURRENCY" "${TODO[@]}"
 
 # --- final report ---------------------------------------------------------
 read_into FAILED < <(missing_tickers)
 DONE=$(( ${#ALL_TICKERS[@]} - ${#FAILED[@]} ))
-echo "=== DONE: ${DONE}/${#ALL_TICKERS[@]} have a ${DATE_SLUG} report ==="
+echo "=== DONE: ${DONE}/${#ALL_TICKERS[@]} have a ${REPORT_GLOB} report ==="
 if [ "${#FAILED[@]}" -gt 0 ]; then
   echo "STILL FAILING (check ${LOGDIR}/<TICKER>.log): ${FAILED[*]}"
   exit 1

@@ -73,6 +73,49 @@ def test_incomplete_target_date_coverage_fails_with_missing_tickers(tmp_path):
 
 
 @pytest.mark.unit
+def test_run_workflow_can_allow_incomplete_target_date(monkeypatch):
+    workflow = load_workflow()
+    current = workflow.site.Run(
+        "AAPL",
+        "2026-06-02",
+        "opus",
+        "2026-06-02 10:10:10",
+        "20260602_opus_20260602_101010",
+    )
+    previous = workflow.site.Run(
+        "MSFT",
+        "2026-06-01",
+        "opus",
+        "2026-06-01 10:10:10",
+        "20260601_opus_20260601_101010",
+    )
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        workflow,
+        "discover_runs",
+        lambda docs_dir: {"AAPL": [current], "MSFT": [previous]},
+    )
+    monkeypatch.setattr(
+        workflow,
+        "process_selected_runs",
+        lambda selected: calls.append(",".join(sorted(selected))),
+    )
+    monkeypatch.setattr(workflow, "build_reports_site", lambda date: calls.append(date))
+    monkeypatch.setattr(
+        workflow,
+        "validate_homepage",
+        lambda date, selected, **kwargs: calls.append(
+            f"validated:{','.join(sorted(selected))}"
+        ),
+    )
+
+    workflow.run_workflow(analysis_date="20260602", require_coverage=False)
+
+    assert calls == ["AAPL", "2026-06-02", "validated:AAPL"]
+
+
+@pytest.mark.unit
 def test_missing_complete_report_is_reassembled_from_stage_files(tmp_path, monkeypatch):
     workflow = load_workflow()
     docs = tmp_path / "docs"
@@ -237,6 +280,29 @@ def test_homepage_validation_rejects_bad_rows(
 
 
 @pytest.mark.unit
+def test_homepage_validation_can_allow_summary_na(tmp_path, monkeypatch):
+    workflow = load_workflow()
+    docs = tmp_path / "docs"
+    run_dir = make_run(docs, "AAPL", "20260602_opus_20260602_101010")
+    run = workflow.site.parse_run_folder(run_dir.parent, run_dir)
+    assert run is not None
+    monkeypatch.setattr(workflow, "DOCS", docs)
+    (docs / "index.md").write_text(
+        (
+            "# TradingAgents Reports\n\n"
+            "## 2026-06-02 Decision Summary\n\n"
+            "| Ticker | Model | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
+            "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | `opus` | Buy / Overweight | n/a | $12.00 | n/a | n/a | High | 6m |\n\n"
+            "## Regeneration Skill\n"
+        ),
+        encoding="utf-8",
+    )
+
+    workflow.validate_homepage("2026-06-02", {"AAPL": run}, allow_na=True)
+
+
+@pytest.mark.unit
 def test_workflow_command_order_is_process_build_validate(monkeypatch):
     workflow = load_workflow()
     run = workflow.site.Run(
@@ -252,7 +318,11 @@ def test_workflow_command_order_is_process_build_validate(monkeypatch):
     monkeypatch.setattr(workflow, "require_full_coverage", lambda runs, selected, date: None)
     monkeypatch.setattr(workflow, "process_selected_runs", lambda selected: calls.append("process"))
     monkeypatch.setattr(workflow, "build_reports_site", lambda date: calls.append("build_reports_site"))
-    monkeypatch.setattr(workflow, "validate_homepage", lambda date, selected: calls.append("validate_homepage"))
+    monkeypatch.setattr(
+        workflow,
+        "validate_homepage",
+        lambda date, selected, **kwargs: calls.append("validate_homepage"),
+    )
 
     workflow.run_workflow(analysis_date="20260602")
 
@@ -267,7 +337,7 @@ def test_dry_run_uses_copied_docs_and_restores_repo_paths(tmp_path, monkeypatch)
     observed: dict[str, Path | str] = {}
     monkeypatch.setattr(workflow, "DOCS", docs)
 
-    def fake_run_workflow(analysis_date):
+    def fake_run_workflow(analysis_date, **kwargs):
         observed["analysis_date"] = analysis_date
         observed["docs"] = workflow.DOCS
         assert workflow.DOCS != docs

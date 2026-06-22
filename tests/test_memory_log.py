@@ -5,7 +5,11 @@ import pandas as pd
 from unittest.mock import MagicMock, patch
 
 from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+from tradingagents.agents.schemas import (
+    PortfolioDecision,
+    PortfolioRating,
+    render_pm_decision,
+)
 from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.propagation import Propagator
@@ -62,6 +66,7 @@ def _make_pm_state(past_context=""):
     """Minimal AgentState dict for portfolio_manager_node."""
     return {
         "company_of_interest": "NVDA",
+        "trade_date": "2026-01-10",
         "past_context": past_context,
         "risk_debate_state": {
             "history": "Risk debate history.",
@@ -671,6 +676,13 @@ class TestDeferredReflection:
 
 class TestPortfolioManagerInjection:
 
+    @pytest.fixture(autouse=True)
+    def _stub_current_price(self, monkeypatch):
+        monkeypatch.setattr(
+            "tradingagents.agents.managers.portfolio_manager.latest_close_on_or_before",
+            lambda symbol, trade_date: 189.5,
+        )
+
     # past_context in initial state
 
     def test_past_context_in_initial_state(self):
@@ -704,6 +716,17 @@ class TestPortfolioManagerInjection:
         pm_node(state)
         assert "Lessons from prior decisions" not in captured["prompt"]
 
+    def test_render_pm_decision_formats_required_price_lines(self):
+        decision = PortfolioDecision(
+            rating=PortfolioRating.HOLD,
+            executive_summary="Wait for confirmation.",
+            investment_thesis="Risk/reward is balanced.",
+        )
+        md = render_pm_decision(decision, current_price=189.5)
+        assert "**Rating**: Hold" in md
+        assert "**Current Price**: $189.50" in md
+        assert "**Price Target**: n/a" in md
+
     def test_pm_returns_rendered_markdown_with_rating(self):
         """The structured PortfolioDecision is rendered to markdown that
         downstream consumers (memory log, signal processor, CLI display)
@@ -721,9 +744,10 @@ class TestPortfolioManagerInjection:
         result = pm_node(_make_pm_state())
         md = result["final_trade_decision"]
         assert "**Rating**: Overweight" in md
+        assert "**Current Price**: $189.50" in md
+        assert "**Price Target**: $215.00" in md
         assert "**Executive Summary**: Build position gradually" in md
         assert "**Investment Thesis**: AI capex cycle" in md
-        assert "**Price Target**: 215.0" in md
         assert "**Time Horizon**: 3-6 months" in md
 
     def test_pm_falls_back_to_freetext_when_structured_unavailable(self):
@@ -736,7 +760,11 @@ class TestPortfolioManagerInjection:
         llm.invoke.return_value = MagicMock(content=plain_response)
         pm_node = create_portfolio_manager(llm)
         result = pm_node(_make_pm_state())
-        assert result["final_trade_decision"] == plain_response
+        md = result["final_trade_decision"]
+        assert "**Rating**: Sell" in md
+        assert "**Current Price**: $189.50" in md
+        assert "**Price Target**: n/a" in md
+        assert "Exit ahead of guidance." in md
 
     # get_past_context ordering and limits
 

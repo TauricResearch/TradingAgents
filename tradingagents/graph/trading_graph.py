@@ -20,6 +20,7 @@ from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.dataflows.stockstats_utils import yf_retry, yfinance_timeout
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
@@ -277,8 +278,18 @@ class TradingAgentsGraph:
             end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
             end_str = end.strftime("%Y-%m-%d")
 
-            stock = yf.Ticker(ticker).history(start=trade_date, end=end_str)
-            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
+            stock_ticker = yf.Ticker(ticker)
+            bench_ticker = yf.Ticker(benchmark)
+            stock = yf_retry(lambda: stock_ticker.history(
+                start=trade_date,
+                end=end_str,
+                timeout=yfinance_timeout(),
+            ))
+            bench = yf_retry(lambda: bench_ticker.history(
+                start=trade_date,
+                end=end_str,
+                timeout=yfinance_timeout(),
+            ))
 
             if len(stock) < 2 or len(bench) < 2:
                 return None, None, None

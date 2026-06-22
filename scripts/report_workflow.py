@@ -237,6 +237,8 @@ def decision_summary_rows(home_text: str, analysis_date: str) -> list[str]:
 def validate_homepage(
     analysis_date: str,
     selected: dict[str, site.Run],
+    *,
+    allow_na: bool = False,
 ) -> None:
     normalized = normalize_analysis_date(analysis_date)
     if normalized is None:
@@ -253,7 +255,7 @@ def validate_homepage(
 
     seen_selected: set[str] = set()
     for row in rows:
-        if "n/a" in row.lower():
+        if not allow_na and "n/a" in row.lower():
             raise WorkflowError(f"Homepage summary row contains n/a: {row}")
 
         match = SUMMARY_LINK_RE.search(row)
@@ -283,24 +285,35 @@ def validate_homepage(
         )
 
 
-def run_workflow(analysis_date: str | None = None) -> None:
+def run_workflow(
+    analysis_date: str | None = None,
+    *,
+    require_coverage: bool = True,
+    allow_na: bool = False,
+) -> None:
     runs_by_ticker = discover_runs(DOCS)
     target_date = normalize_analysis_date(analysis_date) if analysis_date else latest_analysis_date(runs_by_ticker)
     if target_date is None:
         raise WorkflowError("analysis date is required")
 
     selected = select_target_runs(runs_by_ticker, target_date)
-    require_full_coverage(runs_by_ticker, selected, target_date)
+    if require_coverage:
+        require_full_coverage(runs_by_ticker, selected, target_date)
     process_selected_runs(selected)
     build_reports_site(target_date)
-    validate_homepage(target_date, selected)
+    validate_homepage(target_date, selected, allow_na=allow_na)
     print(
         f"Refreshed {len(selected)} report(s) for {target_date}; "
         "pre-commit compiles _site."
     )
 
 
-def run_dry_run(analysis_date: str | None = None) -> None:
+def run_dry_run(
+    analysis_date: str | None = None,
+    *,
+    require_coverage: bool = True,
+    allow_na: bool = False,
+) -> None:
     global DOCS
 
     with tempfile.TemporaryDirectory(prefix="report-workflow-") as tmp:
@@ -312,7 +325,11 @@ def run_dry_run(analysis_date: str | None = None) -> None:
         old_docs = DOCS
         DOCS = tmp_docs
         try:
-            run_workflow(analysis_date)
+            run_workflow(
+                analysis_date,
+                require_coverage=require_coverage,
+                allow_na=allow_na,
+            )
         finally:
             DOCS = old_docs
 
@@ -330,6 +347,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Run against a temporary copy of docs/ and compile a temporary _site.",
     )
+    parser.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help=(
+            "Allow the target analysis date to include only the tickers that "
+            "have runs for that date."
+        ),
+    )
+    parser.add_argument(
+        "--allow-summary-na",
+        action="store_true",
+        help="Allow n/a fields in homepage summary rows.",
+    )
     args = parser.parse_args(argv)
     try:
         args.analysis_date = normalize_analysis_date(args.analysis_date)
@@ -342,9 +372,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         if args.dry_run:
-            run_dry_run(args.analysis_date)
+            run_dry_run(
+                args.analysis_date,
+                require_coverage=not args.allow_incomplete,
+                allow_na=args.allow_summary_na,
+            )
         else:
-            run_workflow(args.analysis_date)
+            run_workflow(
+                args.analysis_date,
+                require_coverage=not args.allow_incomplete,
+                allow_na=args.allow_summary_na,
+            )
     except WorkflowError as exc:
         print(str(exc), file=sys.stderr)
         return 1

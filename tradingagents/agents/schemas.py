@@ -18,6 +18,7 @@ so that:
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Literal, Optional
 
@@ -198,7 +199,11 @@ class PortfolioDecision(BaseModel):
     )
     price_target: Optional[float] = Field(
         default=None,
-        description="Optional target price in the instrument's quote currency.",
+        description=(
+            "Optional numeric target price in the instrument's quote currency. "
+            "Provide this whenever the decision has a distinct target; omit it "
+            "only when no numeric target is justified."
+        ),
     )
     time_horizon: Optional[str] = Field(
         default=None,
@@ -206,7 +211,95 @@ class PortfolioDecision(BaseModel):
     )
 
 
-def render_pm_decision(decision: PortfolioDecision) -> str:
+def format_pm_price(value: Optional[float]) -> str:
+    """Render a portfolio price field using the report's stable wire format."""
+    if value is None:
+        return "n/a"
+    return f"${float(value):,.2f}"
+
+
+def _parse_pm_price(value: str) -> Optional[float]:
+    value = value.strip().replace(",", "")
+    match = re.search(r"\$?\s*([0-9]+(?:\.\d+)?)", value)
+    if match is None:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+def _pm_field_re(field_name: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"^\s*\*{{0,2}}{re.escape(field_name)}\*{{0,2}}\s*:\s*(?P<value>.+?)\s*$",
+        flags=re.I,
+    )
+
+
+def _extract_pm_price_field(markdown: str, field_name: str) -> Optional[float]:
+    pattern = _pm_field_re(field_name)
+    for line in markdown.splitlines():
+        match = pattern.match(line)
+        if match:
+            return _parse_pm_price(match.group("value"))
+    return None
+
+
+def ensure_pm_price_fields(
+    markdown: str,
+    *,
+    current_price: Optional[float],
+    price_target: Optional[float] = None,
+) -> str:
+    """Ensure PM markdown has deterministic Current Price and Price Target lines.
+
+    Structured output already renders the canonical shape, but providers that
+    fall back to free text still need the same machine-readable lines before
+    the decision is saved to disk or memory.
+    """
+    target = price_target
+    if target is None:
+        target = _extract_pm_price_field(markdown, "Price Target")
+
+    field_patterns = (
+        _pm_field_re("Current Price"),
+        _pm_field_re("Price Target"),
+    )
+    body_lines = [
+        line
+        for line in markdown.splitlines()
+        if not any(pattern.match(line) for pattern in field_patterns)
+    ]
+
+    price_lines = [
+        f"**Current Price**: {format_pm_price(current_price)}",
+        "",
+        f"**Price Target**: {format_pm_price(target)}",
+    ]
+
+    rating_re = re.compile(r"^\s*\*{0,2}Rating\*{0,2}\s*:", flags=re.I)
+    for idx, line in enumerate(body_lines):
+        if rating_re.match(line):
+            before = body_lines[: idx + 1]
+            after = body_lines[idx + 1 :]
+            while after and not after[0].strip():
+                after.pop(0)
+            parts = before + [""] + price_lines
+            if after:
+                parts += [""] + after
+            return "\n".join(parts).strip()
+
+    body = "\n".join(body_lines).strip()
+    if not body:
+        return "\n".join(price_lines)
+    return "\n".join(price_lines + ["", body])
+
+
+def render_pm_decision(
+    decision: PortfolioDecision,
+    *,
+    current_price: Optional[float] = None,
+) -> str:
     """Render a PortfolioDecision back to the markdown shape the rest of the system expects.
 
     Memory log, CLI display, and saved report files all read this markdown,
@@ -217,12 +310,14 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     parts = [
         f"**Rating**: {decision.rating.value}",
         "",
+        f"**Current Price**: {format_pm_price(current_price)}",
+        "",
+        f"**Price Target**: {format_pm_price(decision.price_target)}",
+        "",
         f"**Executive Summary**: {decision.executive_summary}",
         "",
         f"**Investment Thesis**: {decision.investment_thesis}",
     ]
-    if decision.price_target is not None:
-        parts.extend(["", f"**Price Target**: {decision.price_target}"])
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)

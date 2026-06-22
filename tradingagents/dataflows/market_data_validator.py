@@ -61,6 +61,15 @@ def _fmt(value) -> str:
     return str(value)
 
 
+def latest_close_on_or_before(symbol: str, curr_date: str) -> Optional[float]:
+    """Latest close on or before curr_date, using the verified no-lookahead rows."""
+    df = _verified_rows(symbol, curr_date)
+    close = df.iloc[-1].get("Close")
+    if close is None or pd.isna(close):
+        return None
+    return float(close)
+
+
 def build_verified_market_snapshot(
     symbol: str,
     curr_date: str,

@@ -12,7 +12,7 @@ _Derived from the daily decision summaries in [index.md](./index.md) across the 
 | Ticker | 05-31 | 06-01 | 06-02 | 06-03 | Buy count | Avg uplift |
 | --- | ---: | ---: | ---: | ---: | :---: | ---: |
 | [NU](./NU/index.md) | +21.9% | +21.9% | +30.9% | +42.5% | 4 / 4 | +29.3% |
-| [ORCL](./ORCL/index.md) | +19.6% | +21.8% | +20.9% | +16.5% | 4 / 4 | +19.7% |
+| ORCL | +19.6% | +21.8% | +20.9% | +16.5% | 4 / 4 | +19.7% |
 | [MSFT](./MSFT/index.md) | +18.8% | +8.2% | +20.5% | +25.8% | 4 / 4 | +18.3% |
 | [GOOGL](./GOOGL/index.md) | +18.3% | +15.4% | +13.8% | +16.1% | 4 / 4 | +15.9% |
 | [AVGO](./AVGO/index.md) | +9.7% | +9.7% | +15.2% | +14.3% | 4 / 4 | +12.2% |
@@ -24,7 +24,7 @@ _Derived from the daily decision summaries in [index.md](./index.md) across the 
 | [TCEHY](./TCEHY/index.md) | +31.9% (B) | +24.6% (H) | +26.6% (B) | +21.7% (B) | 3 / 4 | +26.2% |
 | [NVDA](./NVDA/index.md) | +23.1% (B) | +30.2% (B) | +4.7% (H) | +23.4% (B) | 3 / 4 | +20.4% |
 | [META](./META/index.md) | +7.5% (H) | +8.8% (B) | +24.9% (B) | +23.8% (B) | 3 / 4 | +16.3% |
-| [LLY](./LLY/index.md) | +17.6% (B) | +17.6% (B) | -4.2% (H) | +8.0% (B) | 3 / 4 | +9.8% |
+| LLY | +17.6% (B) | +17.6% (B) | -4.2% (H) | +8.0% (B) | 3 / 4 | +9.8% |
 
 _B = Buy / Overweight, H = Hold on that date._
 

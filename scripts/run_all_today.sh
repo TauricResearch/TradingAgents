@@ -64,12 +64,14 @@ run_pass() {
   printf '%s\n' "$@" | xargs -n1 -P"$conc" -I{} bash -c '
       t="$1"; DATE="$2"; LOGDIR="$3"
       echo "[START $t] $(date +%T)"
+      TRADINGAGENTS_ANTHROPIC_CACHE="${TRADINGAGENTS_ANTHROPIC_CACHE:-0}" \
       uv run python -m cli.main run \
         --ticker "$t" --date "$DATE" \
         --analysts market,social,news,fundamentals \
         --depth 5 --language English \
         --provider anthropic \
-        --deep-model claude-opus-4-8 --quick-model claude-kaiku-4-5 \
+        --deep-model claude-opus-4-8 --quick-model claude-sonnet-4-6 \
+        --anthropic-effort low \
         --checkpoint --clear-checkpoints \
         > "${LOGDIR}/${t}.log" 2>&1 \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"

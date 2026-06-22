@@ -22,6 +22,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_LLM_RPM":              "llm_requests_per_minute",
     "TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT": "sentiment_include_reddit",
+    "TRADINGAGENTS_EXECUTION_MODE":       "execution_mode",
 }
 
 
@@ -94,6 +95,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # provider quota themselves: TRADINGAGENTS_LLM_RPM = quota / concurrency.
     # The reactive 429 retry in llm_clients/retry.py remains the backstop.
     "llm_requests_per_minute": None,
+    "execution_mode": "sync",
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

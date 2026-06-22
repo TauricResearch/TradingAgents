@@ -7,7 +7,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
-from .stockstats_utils import yf_retry
+from .stockstats_utils import yf_retry, yfinance_timeout
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -69,8 +69,13 @@ def get_news_yfinance(
     """
     article_limit = get_config()["news_article_limit"]
     try:
-        stock = yf.Ticker(ticker)
-        news = yf_retry(lambda: stock.get_news(count=article_limit))
+        search = yf_retry(lambda: yf.Search(
+            query=ticker,
+            news_count=article_limit,
+            enable_fuzzy_query=True,
+            timeout=yfinance_timeout(),
+        ))
+        news = search.news
 
         if not news:
             return f"No news found for {ticker}"
@@ -142,6 +147,7 @@ def get_global_news_yfinance(
                 query=q,
                 news_count=limit,
                 enable_fuzzy_query=True,
+                timeout=yfinance_timeout(),
             ))
 
             if search.news:

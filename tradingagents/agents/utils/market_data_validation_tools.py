@@ -1,8 +1,14 @@
+import os
 from typing import Annotated
 
 from langchain_core.tools import tool
 
 from tradingagents.dataflows.market_data_validator import build_verified_market_snapshot
+
+
+def _bounded_lookback(look_back_days: int) -> int:
+    max_days = int(os.getenv("TRADINGAGENTS_TOOL_MAX_SNAPSHOT_DAYS", "30"))
+    return max(1, min(int(look_back_days), max_days))
 
 
 @tool
@@ -20,4 +26,5 @@ def get_verified_market_snapshot(
     price levels, Bollinger bands, RSI, MACD, moving averages, support /
     resistance, or historical comparisons, and treat it as the source of truth.
     """
+    look_back_days = _bounded_lookback(look_back_days)
     return build_verified_market_snapshot(symbol, curr_date, look_back_days)

@@ -1,4 +1,5 @@
 from typing import Optional
+import json
 import os
 import datetime
 import os
@@ -24,6 +25,7 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.batch import BatchRunner
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
@@ -45,6 +47,8 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+batch_app = typer.Typer(help="Submit, inspect, and collect provider batch runs.")
+app.add_typer(batch_app, name="batch")
 
 
 # Create a deque to store recent messages with a maximum length
@@ -699,6 +703,11 @@ def get_analysis_date():
             )
 
 
+def report_model_slug(model_id: str) -> str:
+    """Return the filesystem slug used in report run-folder names."""
+    return model_id.strip().replace("/", "-").replace(":", "-").replace(".", "-")
+
+
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
     """Save complete analysis report to disk with organized subfolders."""
     save_path.mkdir(parents=True, exist_ok=True)
@@ -1319,10 +1328,11 @@ def run_analysis(
         # The per-ticker parent folder is what the Just-the-Docs site uses
         # as a nav group; the run-folder name keeps date → model → ts so
         # repeated runs of the same combination don't collide. Sanitize
-        # ``:`` (ollama tags) and ``/`` (openrouter slugs like
+        # ``:`` (ollama tags), ``/`` (openrouter slugs like
         # ``google/gemma``) to filesystem-safe ``-``; compact the analysis
-        # date so the slug stays cleanly underscore-delimited.
-        model_slug = config["deep_think_llm"].replace("/", "-").replace(":", "-")
+        # date so the slug stays cleanly underscore-delimited. Dots are also
+        # normalized so GPT model IDs like ``gpt-5.5`` become ``gpt-5-5``.
+        model_slug = report_model_slug(config["deep_think_llm"])
         date_slug = selections["analysis_date"].replace("-", "")
         default_path = (
             reports_root
@@ -1394,6 +1404,187 @@ _PROVIDER_DEFAULT_BACKENDS = {
 }
 
 
+def _split_tickers(value: str) -> list[str]:
+    tickers = [normalize_ticker_symbol(t) for t in value.replace(" ", "").split(",") if t.strip()]
+    if not tickers:
+        raise typer.BadParameter("--tickers must contain at least one ticker")
+    return tickers
+
+
+def _parse_analysis_date(value: str | None) -> str:
+    analysis_date = (value or datetime.datetime.now().strftime("%Y-%m-%d")).strip()
+    try:
+        parsed = datetime.datetime.strptime(analysis_date, "%Y-%m-%d")
+    except ValueError as exc:
+        raise typer.BadParameter("--date must be YYYY-MM-DD") from exc
+    if parsed.date() > datetime.datetime.now().date():
+        raise typer.BadParameter("--date cannot be in the future")
+    return analysis_date
+
+
+def _parse_batch_analysts(analysts: str, asset_types: dict[str, AssetType]) -> list[str]:
+    keys = [k.strip().lower() for k in analysts.split(",") if k.strip()]
+    if not keys:
+        raise typer.BadParameter("--analysts cannot be empty")
+    analyst_objs: list[AnalystType] = []
+    for key in keys:
+        try:
+            analyst_objs.append(AnalystType(key))
+        except ValueError as exc:
+            valid = ", ".join(a.value for a in AnalystType)
+            raise typer.BadParameter(f"unknown analyst {key!r}; valid: {valid}") from exc
+    if any(asset_type == AssetType.CRYPTO for asset_type in asset_types.values()):
+        analyst_objs = filter_analysts_for_asset_type(analyst_objs, AssetType.CRYPTO)
+    selected = {analyst.value for analyst in analyst_objs}
+    return [key for key in ANALYST_ORDER if key in selected]
+
+
+def _batch_config(
+    *,
+    provider: str,
+    deep_model: str | None,
+    quick_model: str | None,
+    depth: int,
+    language: str,
+    openai_reasoning_effort: str | None,
+    anthropic_effort: str | None,
+) -> dict:
+    provider_key = provider.strip().lower()
+    if provider_key not in ("openai", "anthropic"):
+        raise typer.BadParameter("batch provider must be openai or anthropic")
+    config = DEFAULT_CONFIG.copy()
+    config["llm_provider"] = provider_key
+    config["backend_url"] = _PROVIDER_DEFAULT_BACKENDS[provider_key]
+    if provider_key == "anthropic":
+        config["deep_think_llm"] = deep_model or "claude-opus-4-8"
+        config["quick_think_llm"] = quick_model or "claude-sonnet-4-6"
+    else:
+        config["deep_think_llm"] = deep_model or config["deep_think_llm"]
+        config["quick_think_llm"] = quick_model or config["quick_think_llm"]
+    config["max_debate_rounds"] = depth
+    config["max_risk_discuss_rounds"] = depth
+    config["output_language"] = language
+    if openai_reasoning_effort is not None:
+        config["openai_reasoning_effort"] = openai_reasoning_effort
+    if anthropic_effort is not None:
+        config["anthropic_effort"] = anthropic_effort
+    return config
+
+
+def _create_batch_runner(
+    *,
+    provider: str,
+    tickers: list[str],
+    analysis_date: str,
+    analysts: str,
+    depth: int,
+    language: str,
+    deep_model: str | None,
+    quick_model: str | None,
+    openai_reasoning_effort: str | None,
+    anthropic_effort: str | None,
+) -> BatchRunner:
+    asset_enums = {ticker: detect_asset_type(ticker) for ticker in tickers}
+    selected_analysts = _parse_batch_analysts(analysts, asset_enums)
+    if not selected_analysts:
+        raise typer.BadParameter("no analysts remain after asset-type filtering")
+    config = _batch_config(
+        provider=provider,
+        deep_model=deep_model,
+        quick_model=quick_model,
+        depth=depth,
+        language=language,
+        openai_reasoning_effort=openai_reasoning_effort,
+        anthropic_effort=anthropic_effort,
+    )
+    ensure_api_key(config["llm_provider"])
+    return BatchRunner.create(
+        provider=config["llm_provider"],
+        tickers=tickers,
+        trade_date=analysis_date,
+        asset_types={ticker: asset.value for ticker, asset in asset_enums.items()},
+        selected_analysts=selected_analysts,
+        config=config,
+    )
+
+
+def _save_batch_reports(runner: BatchRunner) -> list[Path]:
+    saved: list[Path] = []
+    reports_root = Path(runner.manifest.config["reports_dir"])
+    reports_root.mkdir(parents=True, exist_ok=True)
+    model_slug = report_model_slug(runner.manifest.config["deep_think_llm"])
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    for ticker, state in runner.completed_states().items():
+        run = runner.manifest.runs[ticker]
+        if run.report_path:
+            continue
+        date_slug = run.trade_date.replace("-", "")
+        save_path = reports_root / ticker / f"{date_slug}_{model_slug}_{timestamp}"
+        report_file = save_report_to_disk(state, ticker, save_path)
+        run.report_path = str(report_file)
+        saved.append(report_file)
+    runner.save()
+    return saved
+
+
+@batch_app.command("submit")
+def batch_submit(
+    tickers: str = typer.Option(..., "--tickers", "-t", help="Comma-separated tickers."),
+    date: str = typer.Option(None, "--date", "-d", help="Analysis date YYYY-MM-DD."),
+    analysts: str = typer.Option("market,social,news,fundamentals", "--analysts", "-a"),
+    depth: int = typer.Option(1, "--depth"),
+    language: str = typer.Option("English", "--language", "-l"),
+    provider: str = typer.Option("openai", "--provider", "-p", help="openai or anthropic."),
+    deep_model: str = typer.Option(None, "--deep-model"),
+    quick_model: str = typer.Option(None, "--quick-model"),
+    openai_reasoning_effort: str = typer.Option(None, "--openai-reasoning-effort"),
+    anthropic_effort: str = typer.Option(None, "--anthropic-effort"),
+):
+    runner = _create_batch_runner(
+        provider=provider,
+        tickers=_split_tickers(tickers),
+        analysis_date=_parse_analysis_date(date),
+        analysts=analysts,
+        depth=depth,
+        language=language,
+        deep_model=deep_model,
+        quick_model=quick_model,
+        openai_reasoning_effort=openai_reasoning_effort,
+        anthropic_effort=anthropic_effort,
+    )
+    path = runner.submit()
+    console.print(f"[green]Batch run submitted:[/green] {runner.manifest.run_id}")
+    console.print(f"[dim]Manifest:[/dim] {path}")
+    console.print(json.dumps(runner.status_summary(), indent=2, sort_keys=True))
+
+
+@batch_app.command("status")
+def batch_status(run_id: str = typer.Argument(...)):
+    runner = BatchRunner.load(config=DEFAULT_CONFIG, run_id=run_id)
+    console.print(json.dumps(runner.status_summary(), indent=2, sort_keys=True))
+
+
+@batch_app.command("collect")
+def batch_collect(
+    run_id: str = typer.Argument(...),
+    save_reports: bool = typer.Option(True, "--save-reports/--no-save-reports"),
+):
+    runner = BatchRunner.load(config=DEFAULT_CONFIG, run_id=run_id)
+    runner.collect()
+    saved = _save_batch_reports(runner) if save_reports else []
+    console.print(json.dumps(runner.status_summary(), indent=2, sort_keys=True))
+    for path in saved:
+        console.print(f"[green]Saved report:[/green] {path}")
+
+
+@batch_app.command("retry")
+def batch_retry(run_id: str = typer.Argument(...)):
+    runner = BatchRunner.load(config=DEFAULT_CONFIG, run_id=run_id)
+    runner.retry_failed()
+    runner.save()
+    console.print(json.dumps(runner.status_summary(), indent=2, sort_keys=True))
+
+
 @app.command()
 def run(
     ticker: str = typer.Option(..., "--ticker", "-t", help="Ticker symbol, e.g. SPY, 0700.HK, BTC-USD."),
@@ -1431,6 +1622,7 @@ def run(
     google_thinking_level: str = typer.Option(None, "--google-thinking-level", help="Gemini thinking mode: high|minimal."),
     openai_reasoning_effort: str = typer.Option(None, "--openai-reasoning-effort", help="OpenAI reasoning effort: low|medium|high."),
     anthropic_effort: str = typer.Option(None, "--anthropic-effort", help="Claude effort level: low|medium|high."),
+    execution: str = typer.Option("sync", "--execution", help="sync or batch-wait."),
     checkpoint: bool = typer.Option(False, "--checkpoint", help="Enable checkpoint/resume."),
     clear_checkpoints: bool = typer.Option(False, "--clear-checkpoints", help="Delete saved checkpoints before running."),
 ):
@@ -1517,6 +1709,29 @@ def run(
         "anthropic_effort": anthropic_effort,
         "output_language": language,
     }
+
+    if execution != "sync":
+        if execution != "batch-wait":
+            console.print("[red]--execution must be sync or batch-wait.[/red]")
+            raise typer.Exit(1)
+        runner = _create_batch_runner(
+            provider=provider_key,
+            tickers=[norm_ticker],
+            analysis_date=analysis_date,
+            analysts=",".join(a.value for a in analyst_objs),
+            depth=depth,
+            language=language,
+            deep_model=deep_model,
+            quick_model=quick_model,
+            openai_reasoning_effort=openai_reasoning_effort,
+            anthropic_effort=anthropic_effort,
+        )
+        runner.wait(poll_seconds=60.0)
+        saved = _save_batch_reports(runner)
+        console.print(f"[green]Batch run completed:[/green] {runner.manifest.run_id}")
+        for path in saved:
+            console.print(f"[green]Saved report:[/green] {path}")
+        return
 
     run_analysis(
         checkpoint=checkpoint,

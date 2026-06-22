@@ -4,7 +4,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, td_setup_by_timeframe, format_td_setup_block, zscore_by_timeframe, format_zscore_block, compute_obv, supertrend_by_timeframe, format_supertrend_block
+from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, td_setup_by_timeframe, format_td_setup_block, zscore_by_timeframe, format_zscore_block, compute_obv, supertrend_by_timeframe, format_supertrend_block, yfinance_timeout
 from .indicator_registry import effective_params, get_spec, resolve_column
 from .symbol_utils import normalize_symbol, NoMarketDataError
 
@@ -22,7 +22,11 @@ def get_YFin_data_online(
     ticker = yf.Ticker(canonical)
 
     # Fetch historical data for the specified date range
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    data = yf_retry(lambda: ticker.history(
+        start=start_date,
+        end=end_date,
+        timeout=yfinance_timeout(),
+    ))
 
     # Empty result means the symbol is unknown/delisted. Raise a typed error
     # instead of returning prose: the routing layer turns it into a single

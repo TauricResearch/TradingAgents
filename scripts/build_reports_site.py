@@ -41,6 +41,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
 
 TICKER_DIR_RE = re.compile(r"^[A-Za-z0-9.\-]+$")
+NON_TICKER_DIRS = {"archive", "assets", "stylesheets"}
 
 # Run folder name is <DATE>_<MODEL>[_<RUN_DATE>_<RUN_TIME>]. The optional
 # RUN_DATE/RUN_TIME tail records when the run started (vs. the analysis
@@ -225,6 +226,10 @@ CURRENT_PRICE_FALLBACK_PATTERNS = [
 
 def extract_current_price(report_text: str, decision_text: str, trader_text: str) -> float | None:
     # Current means the report-time latest close, not a live quote.
+    decision_value = field(decision_text, "Current Price")
+    if decision_value:
+        return parse_money(decision_value)
+
     market_text = report_text.split("### Sentiment Analyst", 1)[0]
     for pattern in CURRENT_PRICE_PATTERNS:
         m = re.search(pattern, market_text[:35000], flags=re.I)
@@ -383,14 +388,8 @@ def build_daily_summaries(by_ticker: dict[str, list[Run]]) -> list[DailySummary]
     return summaries
 
 
-def summary_sort_key(row: SummaryRow) -> tuple[int, float, str, str]:
-    action_rank = {"Buy": 0, "Hold": 1, "Sell": 2}
-    return (
-        action_rank.get(row.action, 9),
-        -(row.target_uplift if row.target_uplift is not None else -999.0),
-        row.ticker,
-        row.model,
-    )
+def summary_sort_key(row: SummaryRow) -> tuple[str, str]:
+    return (row.ticker, row.model)
 
 
 def format_price(value: float | None) -> str:
@@ -522,7 +521,7 @@ def build_regeneration_skill() -> list[str]:
         "2. Run `python scripts/build_reports_site.py` from the repository root.",
         "3. To refresh only the homepage summary block while focusing a date, run `python scripts/build_reports_site.py --summary-analysis-date YYYYMMDD --summary-only`.",
         "4. Review `docs/index.md` and the affected `docs/<TICKER>/index.md` files in `git diff`.",
-        "5. If a row has a missing value, check that the new report includes `**Rating**`, `**Price Target**`, `**Time Horizon**`, `**Action**`, and a latest close/current price line in the market report.",
+        "5. If a row has a missing value, check that the new report includes `**Rating**`, `**Current Price**`, `**Price Target**`, `**Time Horizon**`, and `**Action**`.",
         "",
         "The generator groups summaries by analysis date and chooses the newest run per ticker/model pair by run-start timestamp within each date.",
         "",
@@ -599,6 +598,31 @@ def build_ticker_hub(ticker: str, runs: list[Run]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def remove_stale_ticker_hubs(active_tickers: set[str]) -> int:
+    removed = 0
+    for ticker_dir in sorted(DOCS_DIR.iterdir()):
+        if not ticker_dir.is_dir():
+            continue
+        if ticker_dir.name in NON_TICKER_DIRS:
+            continue
+        if not TICKER_DIR_RE.match(ticker_dir.name):
+            continue
+        if ticker_dir.name.upper() in active_tickers:
+            continue
+
+        hub_path = ticker_dir / "index.md"
+        if hub_path.is_file():
+            hub_path.unlink()
+            removed += 1
+
+        try:
+            ticker_dir.rmdir()
+        except OSError:
+            pass
+
+    return removed
+
+
 def strip_legacy_front_matter(run: Run) -> bool:
     """Drop any legacy Jekyll/just-the-docs front matter from a run report."""
     path = DOCS_DIR / run.ticker / run.folder_name / "complete_report.md"
@@ -658,6 +682,7 @@ def main(argv: list[str] | None = None) -> int:
     by_ticker: dict[str, list[Run]] = defaultdict(list)
     for r in runs:
         by_ticker[r.ticker].append(r)
+    removed_stale_hubs = remove_stale_ticker_hubs(set(by_ticker))
 
     daily_summaries = build_daily_summaries(by_ticker)
     if not daily_summaries:
@@ -716,7 +741,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"Wrote docs/index.md, {len(by_ticker)} ticker hubs, and stripped "
-        f"legacy front matter from {rewritten} of {len(runs)} run reports."
+        f"legacy front matter from {rewritten} of {len(runs)} run reports. "
+        f"Removed {removed_stale_hubs} stale ticker hub(s)."
     )
     return 0
 

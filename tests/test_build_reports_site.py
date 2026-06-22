@@ -115,6 +115,21 @@ def test_daily_decision_summaries_render_newest_first_with_left_rail():
 
 
 @pytest.mark.unit
+def test_decision_summary_rows_sort_by_ticker_alphabetically():
+    builder = load_builder()
+    rows = [
+        summary_row(builder, "MSFT", "msft-0602", action="Buy"),
+        summary_row(builder, "AAPL", "aapl-0602", action="Sell"),
+        summary_row(builder, "GOOG", "goog-0602", action="Hold"),
+    ]
+
+    text = "\n".join(builder.build_decision_summary(rows, "20260602"))
+
+    assert text.index("| [AAPL]") < text.index("| [GOOG]")
+    assert text.index("| [GOOG]") < text.index("| [MSFT]")
+
+
+@pytest.mark.unit
 def test_replace_decision_summary_leaves_other_homepage_sections():
     builder = load_builder()
     home = (
@@ -208,6 +223,16 @@ def test_current_price_parser_handles_remaining_report_phrasings():
     builder = load_builder()
 
     assert builder.extract_current_price(
+        "Last Close: $999.00\n",
+        "**Current Price**: $123.45\n",
+        "",
+    ) == 123.45
+    assert builder.extract_current_price(
+        "Last Close: $999.00\n",
+        "**Current Price**: n/a\n",
+        "",
+    ) is None
+    assert builder.extract_current_price(
         "The stock has since declined sharply again, closing at **$124.22 on May 29**.",
         "",
         "",
@@ -244,3 +269,31 @@ def test_decision_parser_handles_table_style_final_plan():
     assert builder.field(decision, "Rating") == "Overweight"
     assert builder.extract_price_target(decision) == 487.0
     assert builder.extract_time_horizon(decision) == "60d"
+
+
+@pytest.mark.unit
+def test_main_removes_stale_generated_ticker_hubs(tmp_path, monkeypatch):
+    builder = load_builder()
+    docs = tmp_path / "docs"
+    run_dir = docs / "AAPL" / "20260602_opus_20260602_101010"
+    run_dir.mkdir(parents=True)
+    (run_dir / "complete_report.md").write_text(
+        "# Trading Analysis Report: AAPL\n\n"
+        "### Portfolio Manager Decision\n"
+        "**Rating**: Overweight\n"
+        "**Action**: Buy\n"
+        "**Current Price**: $10.00\n"
+        "**Price Target**: $12.00\n"
+        "**Confidence**: High\n"
+        "**Time Horizon**: 6m\n",
+        encoding="utf-8",
+    )
+    stale_dir = docs / "AMAT"
+    stale_dir.mkdir()
+    (stale_dir / "index.md").write_text("stale generated hub\n", encoding="utf-8")
+
+    monkeypatch.setattr(builder, "DOCS_DIR", docs)
+
+    assert builder.main(["--summary-analysis-date", "20260602"]) == 0
+    assert not (stale_dir / "index.md").exists()
+    assert not stale_dir.exists()

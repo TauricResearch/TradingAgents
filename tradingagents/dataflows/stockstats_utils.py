@@ -1,5 +1,7 @@
 import time
 import logging
+import queue
+import threading
 
 import pandas as pd
 import yfinance as yf
@@ -14,6 +16,39 @@ from .symbol_utils import normalize_symbol, NoMarketDataError
 logger = logging.getLogger(__name__)
 
 
+def yfinance_timeout() -> float:
+    """Timeout in seconds for Yahoo Finance requests."""
+    return float(os.getenv("TRADINGAGENTS_YFINANCE_TIMEOUT", "20"))
+
+
+class YFinanceTimeoutError(TimeoutError):
+    """Raised when a yfinance call exceeds the configured hard deadline."""
+
+
+def _call_with_timeout(func, timeout: float):
+    result_queue = queue.Queue(maxsize=1)
+
+    def run():
+        try:
+            result_queue.put((True, func()))
+        except BaseException as exc:
+            result_queue.put((False, exc))
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    worker.join(timeout)
+
+    if worker.is_alive():
+        raise YFinanceTimeoutError(
+            f"Yahoo Finance request exceeded {timeout:.0f}s"
+        )
+
+    ok, value = result_queue.get_nowait()
+    if ok:
+        return value
+    raise value
+
+
 def yf_retry(func, max_retries=3, base_delay=2.0):
     """Execute a yfinance call with exponential backoff on rate limits.
 
@@ -21,9 +56,10 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
     retry them internally. This wrapper adds retry logic specifically
     for rate limits. Other exceptions propagate immediately.
     """
+    timeout = yfinance_timeout()
     for attempt in range(max_retries + 1):
         try:
-            return func()
+            return _call_with_timeout(func, timeout)
         except YFRateLimitError:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
@@ -107,6 +143,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             multi_level_index=False,
             progress=False,
             auto_adjust=True,
+            timeout=yfinance_timeout(),
         ))
         downloaded = _ensure_date_column(downloaded.reset_index())
         # Only cache real data — never persist an empty frame.

@@ -10,7 +10,13 @@ back gracefully to free-text generation.
 
 from __future__ import annotations
 
-from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
+import logging
+
+from tradingagents.agents.schemas import (
+    PortfolioDecision,
+    ensure_pm_price_fields,
+    render_pm_decision,
+)
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
@@ -19,6 +25,27 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.market_data_validator import latest_close_on_or_before
+
+
+logger = logging.getLogger(__name__)
+
+
+def _current_price_for_state(state) -> float | None:
+    symbol = state.get("company_of_interest")
+    trade_date = state.get("trade_date")
+    if not symbol or not trade_date:
+        return None
+    try:
+        return latest_close_on_or_before(symbol, str(trade_date))
+    except Exception as exc:  # noqa: BLE001 - price metadata should not block a decision
+        logger.warning(
+            "Portfolio Manager: could not resolve current price for %s on %s: %s",
+            symbol,
+            trade_date,
+            exc,
+        )
+        return None
 
 
 def create_portfolio_manager(llm):
@@ -26,6 +53,7 @@ def create_portfolio_manager(llm):
 
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
+        current_price = _current_price_for_state(state)
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -67,8 +95,15 @@ Be decisive and ground every conclusion in specific evidence from the analysts.{
             structured_llm,
             llm,
             prompt,
-            render_pm_decision,
+            lambda decision: render_pm_decision(
+                decision,
+                current_price=current_price,
+            ),
             "Portfolio Manager",
+        )
+        final_trade_decision = ensure_pm_price_fields(
+            final_trade_decision,
+            current_price=current_price,
         )
 
         new_risk_debate_state = {
