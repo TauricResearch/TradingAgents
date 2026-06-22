@@ -106,9 +106,11 @@ class PolymarketResilienceTests(unittest.TestCase):
 class PolymarketRoutingTests(unittest.TestCase):
     def setUp(self):
         config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+        interface.reset_circuit_breaker()
 
     def tearDown(self):
         config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+        interface.reset_circuit_breaker()
 
     def test_category_routes_to_polymarket(self):
         self.assertEqual(
