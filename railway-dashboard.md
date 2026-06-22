@@ -1,0 +1,32 @@
+- generic [ref=e1] [box=0,0,824,726]:
+  - dialog "Cookie Consent Banner" [ref=e15] [box=0,611,824,131]:
+    - generic [ref=e16] [box=24,645,512,60]:
+      - generic [ref=e17] [box=24,645,493,58]: This website utilizes technologies such as cookies to enable essential site functionality, as well as for analytics, personalization, and marketing.
+      - link "Privacy Policy" [ref=e18] [cursor=pointer] [box=103,685,100,20]:
+        - /url: https://railway.com/legal/privacy
+    - generic [ref=e19] [box=544,635,256,83]:
+      - button "Accept" [ref=e20] [cursor=pointer] [box=552,639,240,33]
+      - button "Deny Non-Essential" [ref=e21] [cursor=pointer] [box=552,681,240,33]
+  - generic [ref=e2] [box=0,0,824,726]:
+    - banner [ref=e4] [box=16,0,792,56]:
+      - link [ref=e22] [cursor=pointer] [box=16,16,24,24]:
+        - /url: /
+        - img [ref=e23] [box=16,16,24,24]
+      - navigation [ref=e11] [box=771,18,37,20]:
+        - button [ref=e24] [cursor=pointer] [box=771,18,37,20]: Login
+    - main [ref=e14] [box=0,56,824,670]
+  - dialog "Login" [active] [ref=e26] [box=222,104,380,454]:
+    - heading "Login" [level=3] [ref=e28] [box=222,104,1,26]
+    - generic [ref=e29] [box=222,104,1,1]:
+      - button "Dismiss" [box=222,123,0,0]
+    - generic [ref=e31] [box=222,104,380,428]:
+      - generic [ref=e32] [box=222,104,380,394]:
+        - generic [ref=e38] [box=223,105,379,319]:
+          - img "Railway Logo" [ref=e40] [box=380,197,64,64]
+          - generic [ref=e43] [box=273,277,278,55]:
+            - paragraph [ref=e44] [box=326,277,173,27]: Welcome to Railway
+            - paragraph [ref=e45] [box=273,308,278,24]: Instant deployments, effortless scale
+        - button "Continue with GitHub" [ref=e47] [cursor=pointer] [box=255,423,315,42]:
+          - img [ref=e49] [box=325,434,20,20]
+          - generic [ref=e51] [box=357,434,143,20]: Continue with GitHub
+      - button "Log in using email" [ref=e52] [cursor=pointer] [box=222,514,380,18]
