@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import threading
 import uuid
@@ -12,22 +11,22 @@ from typing import Set
 from fastapi import WebSocket
 
 
-class LogPublisher:
-    """Custom logging.Handler that broadcasts log records to WebSocket subscribers."""
+class LogPublisher(logging.Handler):
+    """Custom logging.Handler that broadcasts records to WebSocket subscribers."""
 
     def __init__(self, min_level: int = logging.INFO) -> None:
-        self._min_level = min_level
+        super().__init__(level=min_level)
         self._subscribers: Set[WebSocket] = set()
         self._lock = threading.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
 
     @property
     def min_level(self) -> int:
-        return self._min_level
+        return self.level
 
     @min_level.setter
     def min_level(self, value: int) -> None:
-        self._min_level = value
+        self.setLevel(value)
 
     def subscribe(self, ws: WebSocket) -> None:
         with self._lock:
@@ -38,14 +37,14 @@ class LogPublisher:
             self._subscribers.discard(ws)
 
     def emit(self, record: logging.LogRecord) -> None:
-        if record.levelno < self._min_level:
+        if record.levelno < self.level:
             return
         entry = {
             "id": str(uuid.uuid4()),
             "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "level": logging.getLevelName(record.levelno),
+            "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": self.format(record),
             "source": "server",
         }
         targets: list[WebSocket] = []
@@ -64,8 +63,9 @@ class LogPublisher:
             except Exception:
                 pass
 
-    def handle(self, record: logging.LogRecord) -> None:
+    def handle(self, record: logging.LogRecord) -> bool:
         self.emit(record)
+        return True
 
 
 _log_publisher: LogPublisher | None = None
