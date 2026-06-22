@@ -52,7 +52,7 @@ def _fmt(value) -> str:
         return value.strftime("%Y-%m-%d")
     if isinstance(value, bool):
         return str(value)
-    if isinstance(value, (int,)):
+    if isinstance(value, int):
         return str(value)
     if isinstance(value, float):
         return f"{value:.2f}"
