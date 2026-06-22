@@ -502,9 +502,18 @@ def walk_data_dir() -> Iterable[Path]:
     dd = data_dir()
     if not dd.exists():
         return
-    for td in dd.iterdir():
-        if td.is_dir():
-            yield td
+    try:
+        entries = list(dd.iterdir())
+    except PermissionError:
+        return
+    for td in entries:
+        if td.name == "lost+found" or not td.is_dir():
+            continue
+        try:
+            td.iterdir()
+        except PermissionError:
+            continue
+        yield td
 
 
 TICKER_AGENT_DIR = "ticker_agent"

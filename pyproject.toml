@@ -39,6 +39,8 @@ dependencies = [
     "python-multipart>=0.0.9",
     "slowapi>=0.1.9",
     "ruff>=0.15.17",
+    "httpx>=0.28.0",
+    "itsdangerous>=2.2.0",
 ]
 
 [project.optional-dependencies]

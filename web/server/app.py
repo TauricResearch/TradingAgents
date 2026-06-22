@@ -21,6 +21,7 @@ from . import storage, queries, events, llm_calls, runner, settings as settings_
 from tradingagents.default_config import DEFAULT_CONFIG, _ENV_OVERRIDES
 from web.server.ticker_agent import orchestrator
 from web.server.ticker_agent.router import router as ticker_agent_router
+from .auth import router as auth_router, read_session, read_session_from_ws
 
 
 log = logging.getLogger(__name__)
@@ -101,9 +102,11 @@ async def lifespan(app: FastAPI):
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)
     # Mark any previously-running runs as failed (process restart recovery).
     for td in storage.walk_data_dir():
-        for sd in td.iterdir():
-            if not sd.is_dir():
-                continue
+        try:
+            subdirs = [sd for sd in td.iterdir() if sd.is_dir()]
+        except PermissionError:
+            continue
+        for sd in subdirs:
             rj = storage.read_json(sd / "run.json")
             if rj and rj.get("status") == "running":
                 storage.mark_run_status(
@@ -164,9 +167,23 @@ def create_app() -> FastAPI:
                 _k, _, _v = _s.partition("=")
                 os.environ.setdefault(_k.strip(), _v.strip())
 
+    from fastapi.responses import JSONResponse
+
     app = FastAPI(title="TradingAgents Dashboard", lifespan=lifespan)
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    @app.middleware("http")
+    async def auth_middleware(request: Request, call_next):
+        path = request.url.path
+        if path.startswith("/api/") and not path.startswith("/api/auth/"):
+            session = read_session(request)
+            if not session:
+                return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+            request.state.user = session
+        return await call_next(request)
+
+    app.include_router(auth_router)
 
     @app.get("/api/config/models")
     def config_models():
@@ -229,17 +246,23 @@ def create_app() -> FastAPI:
     @app.post("/api/runs", status_code=202)
     @limiter.limit(_API_RATE_LIMIT)
     async def start_run(request: Request, body: RunIn) -> dict:
-        ticker = body.ticker.upper()
-        if ticker not in {r["ticker"] for r in queries.read_watchlist()}:
-            raise HTTPException(status_code=404, detail="ticker not on watchlist")
-        date_str = storage.today_utc_iso()
-        run_id = await runner.enqueue(
-            ticker,
-            date_str,
-            force=bool(body.force),
-            price_state=app.state.price_state,
-        )
-        return {"run_id": run_id}
+        try:
+            ticker = body.ticker.upper()
+            if ticker not in {r["ticker"] for r in queries.read_watchlist()}:
+                raise HTTPException(status_code=404, detail="ticker not on watchlist")
+            date_str = storage.today_utc_iso()
+            run_id = await runner.enqueue(
+                ticker,
+                date_str,
+                force=bool(body.force),
+                price_state=app.state.price_state,
+            )
+            return {"run_id": run_id}
+        except HTTPException:
+            raise
+        except Exception:
+            log.exception("start_run failed for ticker=%s", body.ticker)
+            raise HTTPException(status_code=500, detail="start_run failed") from None
 
     @app.get("/api/tickers/{ticker}/runs")
     def list_ticker_runs(ticker: str, limit: int = 50) -> list[dict]:
@@ -337,6 +360,10 @@ def create_app() -> FastAPI:
 
     @app.websocket("/ws/runs/{run_id}")
     async def ws_run(ws: WebSocket, run_id: str, since: Optional[str] = None) -> None:
+        session = read_session_from_ws(ws)
+        if not session:
+            await ws.close(code=4001)
+            return
         await ws.accept()
         _active_ws.add(ws)
         rj = storage.read_run(run_id)
@@ -360,6 +387,10 @@ def create_app() -> FastAPI:
 
     @app.websocket("/ws/global")
     async def ws_global(ws: WebSocket) -> None:
+        session = read_session_from_ws(ws)
+        if not session:
+            await ws.close(code=4001)
+            return
         await ws.accept()
         _active_ws.add(ws)
         events.subscribe_global(ws)
@@ -451,6 +482,7 @@ def create_app() -> FastAPI:
         "TRADINGAGENTS_BENCHMARK_TICKER",
         "TRADINGAGENTS_CHECKPOINT_ENABLED",
         "TRADINGAGENTS_LLM_CACHE_ENABLED",
+        "AUTH_DISABLED",
     ]
     # Factory defaults sourced from tradingagents/default_config.py.
     # Built dynamically so changes to default_config.py are picked up

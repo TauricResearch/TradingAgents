@@ -46,6 +46,7 @@ const LABELS: Record<keyof AppConfig, string> = {
   TRADINGAGENTS_BENCHMARK_TICKER: "Benchmark Ticker",
   TRADINGAGENTS_CHECKPOINT_ENABLED: "Checkpoint Enabled",
   TRADINGAGENTS_LLM_CACHE_ENABLED: "LLM Cache Enabled",
+  AUTH_DISABLED: "Disable OAuth (dev only)",
 };
 
 const PROVIDER_OPTIONS = [
@@ -314,6 +315,11 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                       label={LABELS.TRADINGAGENTS_LLM_CACHE_ENABLED}
                       value={current("TRADINGAGENTS_LLM_CACHE_ENABLED")}
                       onChange={(v) => set("TRADINGAGENTS_LLM_CACHE_ENABLED", v)}
+                    />
+                    <ConfigToggle
+                      label={LABELS.AUTH_DISABLED}
+                      value={current("AUTH_DISABLED")}
+                      onChange={(v) => set("AUTH_DISABLED", v)}
                     />
                     <div className="text-xs text-slate-600 pt-1">
                       Changes are saved to <code className="text-slate-500 bg-slate-800 px-1 rounded">.env</code> and apply
