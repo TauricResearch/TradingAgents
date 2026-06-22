@@ -25,6 +25,7 @@ dependencies = [
     "redis>=6.2.0",
     "requests>=2.32.4",
     "rich>=14.0.0",
+    "textual>=0.80",
     "typer>=0.21.0",
     "setuptools>=80.9.0",
     "stockstats>=0.6.5",
@@ -52,7 +53,7 @@ tradingagents = "cli.main:app"
 include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
-cli = ["static/*"]
+cli = ["static/*", "*.tcss"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

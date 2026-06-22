@@ -1,0 +1,51 @@
+/* TradingAgents Textual layout. Mirrors the classic Rich Live panel colors:
+   cyan for progress, blue for messages, green for current report. */
+
+Screen {
+    background: $surface;
+}
+
+#body {
+    height: 1fr;
+}
+
+#left {
+    width: 3fr;
+}
+
+#report-scroll {
+    width: 5fr;
+}
+
+#progress-scroll {
+    height: 2fr;
+    border: round cyan;
+    padding: 0 1;
+}
+
+#messages-scroll {
+    height: 3fr;
+    border: round blue;
+    padding: 0 1;
+}
+
+#report-scroll {
+    border: round green;
+    padding: 0 1;
+}
+
+#footer-stats {
+    height: 1;
+    background: $panel;
+    color: $text-muted;
+    text-align: center;
+    padding: 0 2;
+}
+
+#progress, #messages {
+    width: 100%;
+}
+
+Markdown {
+    margin: 0 1;
+}
