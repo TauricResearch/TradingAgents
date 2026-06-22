@@ -1,0 +1,49 @@
+- generic [ref=e3]:
+  - complementary [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e12]: Watchlist
+        - button "Default" [ref=e13] [cursor=pointer]
+        - generic [ref=e14]: 0M 0A
+      - generic [ref=e15]:
+        - img
+        - textbox "Search ticker…" [ref=e16]
+    - generic [ref=e17]:
+      - button "Add group" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+        - text: Add group
+      - generic [ref=e21]:
+        - generic [ref=e22]
+        - paragraph [ref=e26]: No agent tickers yet
+      - paragraph [ref=e27]: Add tickers to get started
+  - main [ref=e28]:
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - heading "TradingAgents" [level=1] [ref=e31]
+        - generic [ref=e32]: "Loaded models:"
+        - generic [ref=e33]: "Deep: MiniMax-M3 · Quick: MiniMax-M3"
+      - generic [ref=e34]:
+        - button "Settings" [ref=e35] [cursor=pointer]
+        - button "Past Runs" [ref=e38] [cursor=pointer]
+        - button "Agent" [ref=e39] [cursor=pointer]
+    - generic [ref=e40]:
+      - img [ref=e42]
+      - paragraph [ref=e44]: Your watchlist is empty
+      - paragraph [ref=e45]: Add tickers using the "+ Add ticker" button in the sidebar.
+  - dialog "Background past runs" [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e48]:
+        - img [ref=e49]
+        - heading "Background Past Runs" [level=2] [ref=e51]
+      - button "Close" [ref=e52] [cursor=pointer]:
+        - img [ref=e53]
+    - group [ref=e56]:
+      - generic "New job" [ref=e57] [cursor=pointer]:
+        - generic [ref=e58]
+      - generic [ref=e61]:
+        - generic [ref=e62]
+        - generic [ref=e65]
+        - generic [ref=e68]
+        - generic [ref=e71]
+        - generic [ref=e74]
+        - button "Start" [ref=e78] [cursor=pointer]

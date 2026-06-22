@@ -1,0 +1,235 @@
+- generic [ref=e3]:
+  - complementary [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e12]: Watchlist
+        - button "Default" [ref=e13] [cursor=pointer]
+        - generic [ref=e14]: 12M 13A
+      - generic [ref=e15]:
+        - img
+        - textbox "Search ticker…" [ref=e16]
+    - generic [ref=e17]:
+      - button "Add group" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+        - text: Add group
+      - generic [ref=e21]:
+        - button "Drag SPY to reorder SPY $746.74 — +0.78% Remove SPY from watchlist" [ref=e22] [cursor=pointer]:
+          - generic "Drag SPY to reorder" [ref=e23]
+          - generic [ref=e32]
+          - img [ref=e39]
+          - button "Remove SPY from watchlist" [ref=e41]: ×
+        - button "Drag QQQ to reorder QQQ $740.62 — +2.51% Remove QQQ from watchlist" [ref=e42] [cursor=pointer]:
+          - generic "Drag QQQ to reorder" [ref=e43]
+          - generic [ref=e52]
+          - img [ref=e59]
+          - button "Remove QQQ from watchlist" [ref=e61]: ×
+        - button "Drag IBIT to reorder IBIT 60% $35.62 SELL @ 30.0 -2.04% Remove IBIT from watchlist" [ref=e62] [cursor=pointer]:
+          - generic "Drag IBIT to reorder" [ref=e63]
+          - generic [ref=e72]
+          - img [ref=e80]
+          - button "Remove IBIT from watchlist" [ref=e82]: ×
+        - button "Drag SATL to reorder SATL 60% $6.03 — -2.27% Remove SATL from watchlist" [ref=e83] [cursor=pointer]:
+          - generic "Drag SATL to reorder" [ref=e84]
+          - generic [ref=e93]
+          - img [ref=e101]
+          - button "Remove SATL from watchlist" [ref=e103]: ×
+        - button "Drag WULF to reorder WULF 43% $28.98 SELL @ 22.0 +4.02% Remove WULF from watchlist" [ref=e104] [cursor=pointer]:
+          - generic "Drag WULF to reorder" [ref=e105]
+          - generic [ref=e114]
+          - img [ref=e122]
+          - button "Remove WULF from watchlist" [ref=e124]: ×
+        - button "Drag NOK to reorder NOK $13.49 — -2.46% Remove NOK from watchlist" [ref=e125] [cursor=pointer]:
+          - generic "Drag NOK to reorder" [ref=e126]
+          - generic [ref=e135]
+          - img [ref=e142]
+          - button "Remove NOK from watchlist" [ref=e144]: ×
+        - button "Drag BCHPY to reorder BCHPY $4.75 — -0.88% Remove BCHPY from watchlist" [ref=e145] [cursor=pointer]:
+          - generic "Drag BCHPY to reorder" [ref=e146]
+          - generic [ref=e155]
+          - img [ref=e162]
+          - button "Remove BCHPY from watchlist" [ref=e163]: ×
+        - button "Drag MRVL to reorder MRVL 50% $310.58 — +7.27% Remove MRVL from watchlist" [ref=e164] [cursor=pointer]:
+          - generic "Drag MRVL to reorder" [ref=e165]
+          - generic [ref=e174]
+          - img [ref=e182]
+          - button "Remove MRVL from watchlist" [ref=e184]: ×
+        - button "Drag INTL to reorder INTL $31.35 — +1.10% Remove INTL from watchlist" [ref=e185] [cursor=pointer]:
+          - generic "Drag INTL to reorder" [ref=e186]
+          - generic [ref=e195]
+          - img [ref=e202]
+          - button "Remove INTL from watchlist" [ref=e204]: ×
+        - button "Drag DELL to reorder DELL $409.50 — -2.34% Remove DELL from watchlist" [ref=e205] [cursor=pointer]:
+          - generic "Drag DELL to reorder" [ref=e206]
+          - generic [ref=e215]
+          - img [ref=e222]
+          - button "Remove DELL from watchlist" [ref=e224]: ×
+        - button "Drag AAPL to reorder AAPL 50% $298.01 — +0.70% Remove AAPL from watchlist" [ref=e225] [cursor=pointer]:
+          - generic "Drag AAPL to reorder" [ref=e226]
+          - generic [ref=e235]
+          - img [ref=e243]
+          - button "Remove AAPL from watchlist" [ref=e245]: ×
+        - button "Drag ESLT to reorder ESLT 50% $788.23 — -4.09% Remove ESLT from watchlist" [ref=e246] [cursor=pointer]:
+          - generic "Drag ESLT to reorder" [ref=e247]
+          - generic [ref=e256]
+          - img [ref=e264]
+          - button "Remove ESLT from watchlist" [ref=e266]: ×
+      - generic [ref=e267]:
+        - generic [ref=e268]:
+          - generic [ref=e270]: Agent Tickers
+          - generic [ref=e271]: "13"
+        - button "Drag AMD to reorder AMD 60% $537.37 AMD +4.86% Remove AMD from watchlist" [ref=e272] [cursor=pointer]:
+          - generic "Drag AMD to reorder" [ref=e273]
+          - generic [ref=e282]
+          - img [ref=e290]
+          - button "Remove AMD from watchlist" [ref=e292]: ×
+        - button "Drag GOOGL to reorder GOOGL 0% $368.03 GOOGL +1.17% Remove GOOGL from watchlist" [ref=e293] [cursor=pointer]:
+          - generic "Drag GOOGL to reorder" [ref=e294]
+          - generic [ref=e303]
+          - img [ref=e311]
+          - button "Remove GOOGL from watchlist" [ref=e313]: ×
+        - button "Drag ADBE to reorder ADBE 40% $195.16 ADBE -0.57% Remove ADBE from watchlist" [ref=e314] [cursor=pointer]:
+          - generic "Drag ADBE to reorder" [ref=e315]
+          - generic [ref=e324]
+          - img [ref=e332]
+          - button "Remove ADBE from watchlist" [ref=e334]: ×
+        - button "Drag AMZN to reorder AMZN 50% $244.39 AMZN +2.90% Remove AMZN from watchlist" [ref=e335] [cursor=pointer]:
+          - generic "Drag AMZN to reorder" [ref=e336]
+          - generic [ref=e345]
+          - img [ref=e353]
+          - button "Remove AMZN from watchlist" [ref=e355]: ×
+        - button "Drag GOOG to reorder GOOG 50% $367.46 GOOG +1.48% Remove GOOG from watchlist" [ref=e356] [cursor=pointer]:
+          - generic "Drag GOOG to reorder" [ref=e357]
+          - generic [ref=e366]
+          - img [ref=e374]
+          - button "Remove GOOG from watchlist" [ref=e376]: ×
+        - button "Drag ACN to reorder ACN 29% $127.98 ACN -17.97% Remove ACN from watchlist" [ref=e377] [cursor=pointer]:
+          - generic "Drag ACN to reorder" [ref=e378]
+          - generic [ref=e387]
+          - img [ref=e395]
+          - button "Remove ACN from watchlist" [ref=e397]: ×
+        - button "Drag MMM to reorder MMM 20% $160.60 MMM +0.86% Remove MMM from watchlist" [ref=e398] [cursor=pointer]:
+          - generic "Drag MMM to reorder" [ref=e399]
+          - generic [ref=e408]
+          - img [ref=e416]
+          - button "Remove MMM from watchlist" [ref=e418]: ×
+        - button "Drag AKAM to reorder AKAM 60% $124.91 AKAM -2.31% Remove AKAM from watchlist" [ref=e419] [cursor=pointer]:
+          - generic "Drag AKAM to reorder" [ref=e420]
+          - generic [ref=e429]
+          - img [ref=e437]
+          - button "Remove AKAM from watchlist" [ref=e439]: ×
+        - button "Drag AOS to reorder AOS 25% $58.22 AOS +0.59% Remove AOS from watchlist" [ref=e440] [cursor=pointer]:
+          - generic "Drag AOS to reorder" [ref=e441]
+          - generic [ref=e450]
+          - img [ref=e458]
+          - button "Remove AOS from watchlist" [ref=e460]: ×
+        - button "Drag ALLE to reorder ALLE 17% $133.57 ALLE +2.60% Remove ALLE from watchlist" [ref=e461] [cursor=pointer]:
+          - generic "Drag ALLE to reorder" [ref=e462]
+          - generic [ref=e471]
+          - img [ref=e479]
+          - button "Remove ALLE from watchlist" [ref=e481]: ×
+        - button "Drag AMCR to reorder AMCR 0% $41.08 AMCR +0.76% Remove AMCR from watchlist" [ref=e482] [cursor=pointer]:
+          - generic "Drag AMCR to reorder" [ref=e483]
+          - generic [ref=e492]
+          - img [ref=e500]
+          - button "Remove AMCR from watchlist" [ref=e502]: ×
+        - button "Drag AFL to reorder AFL 50% $115.47 AFL -0.66% Remove AFL from watchlist" [ref=e503] [cursor=pointer]:
+          - generic "Drag AFL to reorder" [ref=e504]
+          - generic [ref=e513]
+          - img [ref=e521]
+          - button "Remove AFL from watchlist" [ref=e523]: ×
+        - button "Drag AXP to reorder AXP 50% $338.00 AXP -0.75% Remove AXP from watchlist" [ref=e524] [cursor=pointer]:
+          - generic "Drag AXP to reorder" [ref=e525]
+          - generic [ref=e534]
+          - img [ref=e542]
+          - button "Remove AXP from watchlist" [ref=e544]: ×
+  - main [ref=e545]:
+    - generic [ref=e546]:
+      - generic [ref=e547]:
+        - heading "TradingAgents" [level=1] [ref=e548]
+        - generic [ref=e549]: "Loaded models:"
+        - generic [ref=e550]: "Deep: MiniMax-M3 · Quick: MiniMax-M3"
+      - generic [ref=e551]:
+        - button "Settings" [ref=e552] [cursor=pointer]:
+          - img [ref=e553]
+        - button "Past Runs" [ref=e555] [cursor=pointer]
+        - button "Agent" [ref=e556] [cursor=pointer]
+        - button "History" [ref=e557] [cursor=pointer]
+    - generic [ref=e558]:
+      - generic [ref=e559]:
+        - generic [ref=e560]:
+          - heading "SPY" [level=2] [ref=e561]
+          - generic [ref=e562]
+        - paragraph [ref=e565]:
+          - generic [ref=e566]: $746.74 · USD
+      - button "Run analysis" [ref=e568] [cursor=pointer]
+    - generic [ref=e571]:
+      - generic [ref=e573]:
+        - generic [ref=e574]:
+          - generic [ref=e575]
+          - generic [ref=e579]: 0/4
+        - generic [ref=e580]:
+          - button "Market Analyst" [ref=e581] [cursor=pointer]
+          - button "Sentiment Analyst" [ref=e584] [cursor=pointer]
+          - button "News Analyst" [ref=e587] [cursor=pointer]
+          - button "Fundamentals Analyst" [ref=e590] [cursor=pointer]
+      - generic [ref=e597]:
+        - generic [ref=e598]:
+          - generic [ref=e599]
+          - generic [ref=e603]: 0/3
+        - generic [ref=e604]:
+          - button "Bull Researcher" [ref=e605] [cursor=pointer]
+          - button "Bear Researcher" [ref=e608] [cursor=pointer]
+          - button "Research Manager" [ref=e611] [cursor=pointer]
+      - generic [ref=e618]:
+        - generic [ref=e619]:
+          - generic [ref=e620]
+          - generic [ref=e624]: 0/1
+        - button "Trader" [ref=e626] [cursor=pointer]:
+          - generic [ref=e628]: Trader
+      - generic [ref=e633]:
+        - generic [ref=e634]:
+          - generic [ref=e635]
+          - generic [ref=e639]: 0/3
+        - generic [ref=e640]:
+          - button "Aggressive Analyst" [ref=e641] [cursor=pointer]
+          - button "Conservative Analyst" [ref=e644] [cursor=pointer]
+          - button "Neutral Analyst" [ref=e647] [cursor=pointer]
+      - generic [ref=e654]:
+        - generic [ref=e655]:
+          - generic [ref=e656]
+          - generic [ref=e660]: 0/1
+        - button "Portfolio Manager" [ref=e662] [cursor=pointer]:
+          - generic [ref=e664]: Portfolio Manager
+    - generic [ref=e666]:
+      - button "Event Stream" [ref=e667] [cursor=pointer]:
+        - generic [ref=e670]: Event Stream
+      - button "🔭 Observatory" [ref=e671] [cursor=pointer]:
+        - generic [ref=e672]: 🔭 Observatory
+      - button "LLM Trace" [ref=e674] [cursor=pointer]:
+        - generic [ref=e675]: LLM Trace
+    - generic [ref=e677]:
+      - generic [ref=e678]:
+        - generic [ref=e679]: Event Stream
+        - generic [ref=e681]: 0 events
+      - paragraph [ref=e683]: No events yet. Click "Run analysis" to start.
+  - dialog "Background past runs" [ref=e684]:
+    - banner [ref=e685]:
+      - generic [ref=e686]:
+        - img [ref=e687]
+        - heading "Background Past Runs" [level=2] [ref=e689]
+      - button "Close" [ref=e690] [cursor=pointer]:
+        - img [ref=e691]
+    - generic [ref=e693]:
+      - group [ref=e694]:
+        - generic "New job" [ref=e695] [cursor=pointer]:
+          - generic [ref=e696]
+        - generic [ref=e699]:
+          - generic [ref=e700]
+          - generic [ref=e703]
+          - generic [ref=e706]
+          - generic [ref=e709]
+          - generic [ref=e712]
+          - button "Start" [ref=e716] [cursor=pointer]
+      - group [ref=e718]:
+        - generic "Past jobs (last 10)" [ref=e719] [cursor=pointer]:
+          - generic [ref=e720]

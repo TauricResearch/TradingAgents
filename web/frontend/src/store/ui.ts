@@ -23,6 +23,11 @@ interface UiState {
   // events (run_finished / run_failed). Drives `useRunStream` so the
   // hook only opens a WS for the focused ticker while it's still live.
   activeRunIdByTicker: Record<string, string | null>;
+  // Wall-clock ms timestamp when each active run started. Set when the
+  // run is enqueued (in the start-mutation success handler), so it is
+  // available before the run_started WS event arrives. Cleared when
+  // the run finishes or fails.
+  runStartedAtByTicker: Record<string, number | null>;
   // Global event buffer, bounded to the last 1000 events. Events are
   // already tagged with `run_id` by the server, so display components
   // filter by the focused ticker's run id.
@@ -86,6 +91,7 @@ export const useUi = create<UiState>()(
       lastRunIdByTicker: {},
       historicalRunIdByTicker: {},
       activeRunIdByTicker: {},
+      runStartedAtByTicker: {},
       eventBuffer: [],
       historyOpenByTicker: {},
       backgroundRunsOpen: false,
@@ -103,6 +109,8 @@ export const useUi = create<UiState>()(
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
       setActiveRunIdForTicker: (ticker, runId) =>
         set((s) => ({ activeRunIdByTicker: { ...s.activeRunIdByTicker, [ticker]: runId } })),
+      setRunStartedAtForTicker: (ticker, startedAt) =>
+        set((s) => ({ runStartedAtByTicker: { ...s.runStartedAtByTicker, [ticker]: startedAt } })),
       clearActiveRunForTicker: (ticker) =>
         set((s) => ({ activeRunIdByTicker: { ...s.activeRunIdByTicker, [ticker]: null } })),
       setHistoricalRunForTicker: (ticker, runId) =>

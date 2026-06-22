@@ -494,6 +494,7 @@ export interface AppConfig {
   TRADINGAGENTS_BENCHMARK_TICKER: string;
   TRADINGAGENTS_CHECKPOINT_ENABLED: string;
   TRADINGAGENTS_LLM_CACHE_ENABLED: string;
+  AUTH_DISABLED: string;
 }
 
 export interface ConfigResponse {

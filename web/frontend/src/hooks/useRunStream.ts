@@ -37,6 +37,8 @@ export function useRunStream(runId: string | null) {
           for (const [ticker, activeId] of Object.entries(state.activeRunIdByTicker)) {
             if (activeId === runId) {
               state.clearActiveRunForTicker(ticker);
+              state.setLastRunIdForTicker(ticker, runId);
+              state.setRunStartedAtForTicker(ticker, null);
               // The run.json was updated with decision_action etc. on disk.
               // Invalidate the React Query cache so the ticker runs dropdown
               // and run list pick up the final action / target / confidence.

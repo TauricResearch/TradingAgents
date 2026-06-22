@@ -63,14 +63,20 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
     return { done: completed.size, total: started.size };
   }, [events, activeRunId]);
 
-  // Elapsed time for the active run (derived from the run_started event timestamp)
-  // Uses global eventBuffer directly so it works even when the user is viewing a different run.
+  // Elapsed time for the active run. Tries the run_started WS event
+  // first; falls back to runStartedAtByTicker (set when the run was
+  // enqueued) in case the WS event hasn't arrived yet (replay window).
   const globalBuffer = useUi((s) => s.eventBuffer);
+  const runStartedAtByTicker = useUi((s) => s.runStartedAtByTicker);
   const runStartMs = useMemo(() => {
     if (!activeRunId) return null;
+    // Fallback: use the start time set when the run was initiated, in
+    // case the run_started WS event hasn't been replayed yet.
+    const fromStore = runStartedAtByTicker?.[ticker];
+    if (fromStore != null) return fromStore;
     const ev = globalBuffer.find((e) => e.type === "run_started" && e.run_id === activeRunId);
     return ev?.ts ? new Date(ev.ts).getTime() : null;
-  }, [globalBuffer, activeRunId]);
+  }, [globalBuffer, activeRunId, runStartedAtByTicker, ticker]);
   const [elapsedMs, setElapsedMs] = useState(0);
   useEffect(() => {
     if (runStartMs == null) return;
@@ -81,6 +87,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
   }, [runStartMs]);
 
   const setActiveRunIdForTicker = useUi((s) => s.setActiveRunIdForTicker);
+  const setRunStartedAtForTicker = useUi((s) => s.setRunStartedAtForTicker);
   const setLastRunIdForTicker = useUi((s) => s.setLastRunIdForTicker);
   const setHistoricalRunForTicker = useUi((s) => s.setHistoricalRunForTicker);
   const clearActiveRunForTicker = useUi((s) => s.clearActiveRunForTicker);
@@ -110,7 +117,11 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
       // run live, not the older one they had selected.
       clearHistoricalRunForTicker(ticker);
       setActiveRunIdForTicker(ticker, run_id);
-      setLastRunIdForTicker(ticker, run_id);
+      setRunStartedAtForTicker(ticker, Date.now());
+      // Don't update lastRunIdByTicker here — it still points to the
+      // last COMPLETED run so useRestoredRunEvents can restore its
+      // events while the new run streams in. It will be bumped to the
+      // new run id when a terminal WS event fires in useRunStream.
       qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
       qc.invalidateQueries({ queryKey: ["runs", "list"] });
     },
@@ -120,6 +131,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
     mutationFn: () => cancelRun(activeRunId!),
     onSuccess: () => {
       clearActiveRunForTicker(ticker);
+      setRunStartedAtForTicker(ticker, null);
       qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
       qc.invalidateQueries({ queryKey: ["runs", "list"] });
     },

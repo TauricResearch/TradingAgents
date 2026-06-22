@@ -71,6 +71,11 @@ def get_accuracy_leaderboard():
 
 @router.websocket("/ws")
 async def ticker_agent_ws(ws: WebSocket):
+    from web.server.auth import read_session_from_ws
+    session = read_session_from_ws(ws)
+    if not session:
+        await ws.close(code=4001)
+        return
     await ws.accept()
     orchestrator.ws_subscribe(ws)
     try:
