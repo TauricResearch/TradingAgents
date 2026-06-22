@@ -745,3 +745,50 @@ class TestBackgroundRunsEndpoints:
         job_id = r.json()["job_id"]
         assert client.post(f"/api/background-runs/{job_id}/pause").status_code == 200
         assert client.post(f"/api/background-runs/{job_id}/resume").status_code == 200
+
+
+def test_download_single_ticker(client):
+    from datetime import datetime, timezone
+    from web.server import storage
+    run = storage.create_run_dir("TSLA", started_at=datetime(2024, 4, 1, 12, 0, 0, tzinfo=timezone.utc))
+    storage.append_run_event(run["run_id"], {"type": "test", "data": {}})
+    r = client.get("/api/tickers/TSLA/download")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/zip"
+    assert "TSLA-data.zip" in r.headers["content-disposition"]
+    import zipfile, io
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    names = z.namelist()
+    assert any(n == "summary.csv" for n in names)
+    assert any("events.jsonl" in n for n in names)
+
+
+def test_download_single_ticker_unknown_ticker(client):
+    """Unknown ticker returns 200 with empty ZIP (no data dir exists)."""
+    r = client.get("/api/tickers/UNKNOWN/download")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/zip"
+    import zipfile, io
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    assert "summary.csv" in z.namelist()
+
+
+def test_download_multiple_tickers(client):
+    from datetime import datetime, timezone
+    from web.server import storage
+    storage.create_run_dir("META", started_at=datetime(2024, 5, 1, 10, 0, 0, tzinfo=timezone.utc))
+    storage.create_run_dir("AMZN", started_at=datetime(2024, 5, 2, 10, 0, 0, tzinfo=timezone.utc))
+    r = client.post("/api/tickers/download", json={"tickers": ["META", "AMZN"]})
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/zip"
+    assert "tickers-bundle.zip" in r.headers["content-disposition"]
+    import zipfile, io
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    names = z.namelist()
+    assert any("META-data.zip" in n for n in names)
+    assert any("AMZN-data.zip" in n for n in names)
+
+
+def test_download_multiple_tickers_empty_list(client):
+    r = client.post("/api/tickers/download", json={"tickers": []})
+    assert r.status_code == 400

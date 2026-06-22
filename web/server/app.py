@@ -2,16 +2,18 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 import os
 import uuid
+import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -58,6 +60,10 @@ class WatchlistUpdateIn(BaseModel):
 class RunIn(BaseModel):
     ticker: str
     force: bool = False
+
+
+class DownloadTickersIn(BaseModel):
+    tickers: list[str]
 
 
 # --------- lifespan ---------
@@ -279,6 +285,39 @@ def create_app() -> FastAPI:
         if status != 200:
             raise HTTPException(status_code=status, detail=body)
         return body
+
+    @app.get("/api/tickers/{ticker}/download")
+    def download_ticker(ticker: str):
+        from . import download as _download
+        safe = storage.safe_ticker_component(ticker).upper()
+        buf = _download.generate_ticker_zip(ticker)
+        return StreamingResponse(
+            buf,
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={safe}-data.zip"},
+        )
+
+    @app.post("/api/tickers/download")
+    def download_tickers(body: DownloadTickersIn):
+        from . import download as _download
+
+        if not body.tickers:
+            raise HTTPException(status_code=400, detail="tickers list cannot be empty")
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for ticker in body.tickers:
+                ticker_buf = _download.generate_ticker_zip(ticker)
+                safe = storage.safe_ticker_component(ticker).upper()
+                filename = f"{safe}-data.zip"
+                zf.writestr(filename, ticker_buf.getvalue())
+
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type="application/zip",
+            headers={"Content-Disposition": "attachment; filename=tickers-bundle.zip"},
+        )
 
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: str) -> dict:

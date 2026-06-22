@@ -23,6 +23,7 @@ import { DecisionPanel } from "./components/DecisionPanel";
 import { HistoricalAnalysisDrawer } from "./components/HistoricalAnalysisDrawer";
 import { BackgroundRunsDrawer } from "./components/BackgroundRunsDrawer";
 import { TickerAgentDrawer } from "./components/TickerAgentDrawer";
+import BatchDownloadDialog from "./components/BatchDownloadDialog";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PipelineFlow } from "./components/PipelineFlow";
 import { LlmTracePanel } from "./components/LlmTracePanel";
@@ -82,6 +83,7 @@ export default function App() {
   const [dismissedStaleBanner, setDismissedStaleBanner] = useState<string | null>(null);
   const [traceView, setTraceView] = useState<"events" | "llm" | "observatory">("events");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
 
   useRunStream(runId);
   useGlobalStream();
@@ -243,6 +245,15 @@ export default function App() {
             >
               Agent
             </button>
+            <button
+              onClick={() => setBatchDialogOpen(true)}
+              className="btn-secondary text-xs"
+              title="Download ticker data"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
             {focused && (
               <button onClick={() => setHistoryOpen(true)} className="btn-secondary text-xs">History</button>
             )}
@@ -392,6 +403,12 @@ export default function App() {
         theme={theme}
         toggleTheme={toggleTheme}
       />
+      {batchDialogOpen && (
+        <BatchDownloadDialog
+          tickers={watchlist.map((w) => w.ticker)}
+          onClose={() => setBatchDialogOpen(false)}
+        />
+      )}
     </div>
   );
 
