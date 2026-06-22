@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
 import logging
 import os
 import uuid
@@ -64,6 +65,7 @@ class RunIn(BaseModel):
 
 class DownloadTickersIn(BaseModel):
     tickers: list[str]
+    format: str = "zip"
 
 
 # --------- lifespan ---------
@@ -287,15 +289,34 @@ def create_app() -> FastAPI:
         return body
 
     @app.get("/api/tickers/{ticker}/download")
-    def download_ticker(ticker: str):
+    def download_ticker(ticker: str, format: str = "zip"):
         from . import download as _download
+
         safe = storage.safe_ticker_component(ticker).upper()
-        buf = _download.generate_ticker_zip(ticker)
-        return StreamingResponse(
-            buf,
-            media_type="application/zip",
-            headers={"Content-Disposition": f"attachment; filename={safe}-data.zip"},
-        )
+
+        if format == "json":
+            data = _download.generate_ticker_json(ticker)
+            buf = io.BytesIO(json.dumps(data, indent=2).encode("utf-8"))
+            return StreamingResponse(
+                buf,
+                media_type="application/json",
+                headers={"Content-Disposition": f"attachment; filename={safe}-data.json"},
+            )
+        elif format == "csv":
+            csv_data = _download.generate_full_csv(ticker)
+            buf = io.BytesIO(csv_data.encode("utf-8"))
+            return StreamingResponse(
+                buf,
+                media_type="text/csv",
+                headers={"Content-Disposition": f"attachment; filename={safe}-data.csv"},
+            )
+        else:
+            buf = _download.generate_ticker_zip(ticker)
+            return StreamingResponse(
+                buf,
+                media_type="application/zip",
+                headers={"Content-Disposition": f"attachment; filename={safe}-data.zip"},
+            )
 
     @app.post("/api/tickers/download")
     def download_tickers(body: DownloadTickersIn):
@@ -304,20 +325,52 @@ def create_app() -> FastAPI:
         if not body.tickers:
             raise HTTPException(status_code=400, detail="tickers list cannot be empty")
 
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            for ticker in body.tickers:
-                ticker_buf = _download.generate_ticker_zip(ticker)
-                safe = storage.safe_ticker_component(ticker).upper()
-                filename = f"{safe}-data.zip"
-                zf.writestr(filename, ticker_buf.getvalue())
+        fmt = body.format or "zip"
+        if fmt not in ("zip", "csv", "json"):
+            raise HTTPException(status_code=400, detail="format must be zip, csv, or json")
 
-        buf.seek(0)
-        return StreamingResponse(
-            buf,
-            media_type="application/zip",
-            headers={"Content-Disposition": "attachment; filename=tickers-bundle.zip"},
-        )
+        buf = io.BytesIO()
+
+        if fmt == "json":
+            for ticker in body.tickers:
+                data = _download.generate_ticker_json(ticker)
+                safe = storage.safe_ticker_component(ticker).upper()
+                filename = f"{safe}-data.json"
+                buf.write(json.dumps({filename: data}, indent=2).encode("utf-8"))
+                buf.write(b"\n")
+            buf.seek(0)
+            return StreamingResponse(
+                buf,
+                media_type="application/json",
+                headers={"Content-Disposition": "attachment; filename=tickers-bundle.json"},
+            )
+        elif fmt == "csv":
+            for ticker in body.tickers:
+                csv_data = _download.generate_full_csv(ticker)
+                safe = storage.safe_ticker_component(ticker).upper()
+                filename = f"{safe}-data.csv"
+                buf.write(f"=== {filename} ===\n".encode("utf-8"))
+                buf.write(csv_data.encode("utf-8"))
+                buf.write(b"\n")
+            buf.seek(0)
+            return StreamingResponse(
+                buf,
+                media_type="text/csv",
+                headers={"Content-Disposition": "attachment; filename=tickers-bundle.csv"},
+            )
+        else:
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for ticker in body.tickers:
+                    ticker_buf = _download.generate_ticker_zip(ticker)
+                    safe = storage.safe_ticker_component(ticker).upper()
+                    filename = f"{safe}-data.zip"
+                    zf.writestr(filename, ticker_buf.getvalue())
+            buf.seek(0)
+            return StreamingResponse(
+                buf,
+                media_type="application/zip",
+                headers={"Content-Disposition": "attachment; filename=tickers-bundle.zip"},
+            )
 
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: str) -> dict:

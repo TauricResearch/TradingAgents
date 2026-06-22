@@ -547,9 +547,9 @@ export async function getTickerHistory(
   return r.json();
 }
 
-export async function downloadSingleTicker(ticker: string): Promise<void> {
+export async function downloadSingleTicker(ticker: string, format: string = "zip"): Promise<void> {
   const safe = encodeURIComponent(ticker);
-  const r = await fetch(`${base}/api/tickers/${safe}/download`);
+  const r = await fetch(`${base}/api/tickers/${safe}/download?format=${encodeURIComponent(format)}`);
   if (!r.ok) {
     throw new ApiError(`download ${r.status}`, r.status, await readJsonOrNull(r));
   }
@@ -557,18 +557,18 @@ export async function downloadSingleTicker(ticker: string): Promise<void> {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${ticker.toUpperCase()}-data.zip`;
+  a.download = `${ticker.toUpperCase()}-data.${format}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   window.URL.revokeObjectURL(url);
 }
 
-export async function downloadTickers(tickers: string[]): Promise<void> {
+export async function downloadTickers(tickers: string[], format: string = "zip"): Promise<void> {
   const r = await fetch(`${base}/api/tickers/download`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ tickers }),
+    body: JSON.stringify({ tickers, format }),
   });
   if (!r.ok) {
     throw new ApiError(`download ${r.status}`, r.status, await readJsonOrNull(r));
@@ -577,7 +577,8 @@ export async function downloadTickers(tickers: string[]): Promise<void> {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "tickers-bundle.zip";
+  const ext = format === "zip" ? "zip" : format === "csv" ? "csv" : "json";
+  a.download = `tickers-bundle.${ext}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
