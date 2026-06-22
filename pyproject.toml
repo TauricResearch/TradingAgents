@@ -44,12 +44,23 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# HTTP/SSE server for the TradingDesk macOS app's Docker backend. Installed in
+# the backend image (pip install ".[server]"); not needed for the CLI/library.
+server = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+# Host glue for the native macOS app (TradingDesk): NDJSON run streaming,
+# capabilities introspection, and the resolve-only pass. See desk_adapter/.
+desk-adapter = "desk_adapter.__main__:main"
+# Backend HTTP/SSE server run inside the TradingDesk Docker container.
+desk-server = "desk_server.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "desk_adapter*", "desk_server*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]

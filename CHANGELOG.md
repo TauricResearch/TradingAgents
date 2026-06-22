@@ -18,6 +18,17 @@ Breaking changes within the 0.x line are called out explicitly.
   host can realize previously-pending decisions on a schedule without a full run.
   Setting `TRADINGAGENTS_NO_DOTENV=1` skips the package-import `.env` load for
   hosts that inject secrets themselves.
+- **TradingDesk backend (`desk_server/`, `desk_adapter/`).** A FastAPI + SSE
+  server, packaged into the engine's Docker image (`pip install ".[server]"`,
+  `desk-server` entrypoint), that drives the engine for a host UI: it streams a
+  run's events over SSE (`POST /runs`, `GET /runs/{id}/events`,
+  `POST /runs/{id}/cancel`) and exposes `/health`, `/capabilities`, `/journal`,
+  `/reports`, `/search`, `/prices`, `/openrouter/models`, and connectivity tests
+  (`/test`, `/test_fred`). `desk_adapter/` is the host glue that diffs the
+  engine's `stream_run` snapshots into a typed NDJSON event stream and
+  introspects provider/model capabilities. Runs on loopback only
+  (`127.0.0.1:8765`); secrets are injected by the host, never read from disk
+  (`TRADINGAGENTS_NO_DOTENV=1`).
 
 ## [0.3.0] — 2026-06-22
 

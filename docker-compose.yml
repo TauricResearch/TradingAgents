@@ -2,11 +2,53 @@ services:
   tradingagents:
     build: .
     env_file:
-      - .env
+      # Optional so a fresh clone (no .env) can still load the compose file —
+      # e.g. `docker compose build/up desk-server`, which the macOS app runs on
+      # launch. Without `required: false`, Compose validates every service's
+      # env_file at load time and aborts when .env is absent.
+      - path: .env
+        required: false
     volumes:
       - tradingagents_data:/home/appuser/.tradingagents
     tty: true
     stdin_open: true
+
+  # Backend for the TradingDesk macOS app. The app starts this on launch and
+  # talks to it at http://127.0.0.1:8765 over SSE. Built locally for dev; for
+  # release the image is shipped inside the .app and docker-loaded on first run.
+  # API keys are injected at runtime by the app (not via env_file), so no key
+  # configuration is needed here.
+  desk-server:
+    build: .
+    image: tradingdesk-engine:dev
+    entrypoint: ["desk-server"]
+    environment:
+      DESK_SERVER_HOST: 0.0.0.0
+      DESK_SERVER_PORT: "8765"
+      DESK_BASE_DIR: /home/appuser/.tradingagents
+      TRADINGAGENTS_NO_DOTENV: "1"
+      # Provider/data keys are injected by the host (the macOS app sets these
+      # from the Keychain before `compose up`; in dev they come from the shell
+      # or a sourced .env). Unset keys interpolate to empty and are ignored.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
 
   ollama:
     image: ollama/ollama:latest
@@ -18,7 +60,12 @@ services:
   tradingagents-ollama:
     build: .
     env_file:
-      - .env
+      # Optional so a fresh clone (no .env) can still load the compose file —
+      # e.g. `docker compose build/up desk-server`, which the macOS app runs on
+      # launch. Without `required: false`, Compose validates every service's
+      # env_file at load time and aborts when .env is absent.
+      - path: .env
+        required: false
     environment:
       - TRADINGAGENTS_LLM_PROVIDER=ollama
       - OLLAMA_BASE_URL=http://ollama:11434/v1

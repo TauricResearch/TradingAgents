@@ -1,0 +1,38 @@
+# Pruned dependency set for the bundled macOS app interpreter (TradingDesk).
+#
+# This is the runtime tree shipped inside <App>.app/Contents/Resources/python.
+# It deliberately OMITS dependencies that the analysis run path never imports,
+# to keep the signed/notarized bundle smaller:
+#   - backtrader  (declared in pyproject for the standalone backtesting CLI;
+#                  grep-verified: not imported anywhere under tradingagents/ or
+#                  cli/ on the run path)
+#   - redis       (declared but unused on the run path)
+#
+# Pinning is delegated to uv against uv.lock at bundle-build time; the M0
+# packaging job runs `uv pip install` with these names so the resolver brings
+# the exact locked versions. langchain-aws is added only for a Bedrock build.
+#
+# Verify after populating site-packages:
+#   grep -rl "import backtrader\|import redis" <site-packages>   # -> empty
+#   python -m desk_adapter capabilities                          # -> valid JSON
+
+langchain-core>=0.3.81
+langchain-anthropic>=0.3.15
+langchain-experimental>=0.3.4
+langchain-google-genai>=4.0.0
+langchain-openai>=0.3.23
+langgraph>=0.4.8
+langgraph-checkpoint-sqlite>=2.0.0
+pandas>=2.3.0
+parsel>=1.10.0
+python-dotenv>=1.0.0
+pytz>=2025.2
+questionary>=2.1.0
+requests>=2.32.4
+rich>=14.0.0
+typer>=0.21.0
+setuptools>=80.9.0
+stockstats>=0.6.5
+tqdm>=4.67.1
+typing-extensions>=4.14.0
+yfinance>=1.4.1
