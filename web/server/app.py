@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,7 +18,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from . import storage, queries, events, llm_calls, runner, settings as settings_mod
+from . import storage, queries, events, llm_calls, runner, settings as settings_mod, log_publisher as lp_module
 from tradingagents.default_config import DEFAULT_CONFIG, _ENV_OVERRIDES
 from web.server.ticker_agent import orchestrator
 from web.server.ticker_agent.router import router as ticker_agent_router
@@ -94,6 +95,7 @@ async def lifespan(app: FastAPI):
     # updates from inside a run silently never fire — the UI only
     # updated on reconnect (replay from events.jsonl).
     events.set_event_loop(asyncio.get_running_loop())
+    lp_module.setup_log_publisher(asyncio.get_running_loop(), min_level=getattr(logging, s.log_level, logging.INFO))
     orchestrator.set_event_loop(asyncio.get_running_loop())
     # Silence yfinance's own ERROR-level noise for delisted/foreign symbols
     # (e.g. "TA125: possibly delisted"). Without this, the dashboard log
@@ -152,6 +154,7 @@ async def lifespan(app: FastAPI):
     if feed is not None:
         await feed.stop()
     await runner.stop()
+    lp_module.teardown_log_publisher()
     _agent.stop_background_loop()
 
 
@@ -402,6 +405,30 @@ def create_app() -> FastAPI:
         finally:
             events.unsubscribe_global(ws)
             _active_ws.discard(ws)
+
+    @app.websocket("/ws/logs")
+    async def ws_logs(ws: WebSocket) -> None:
+        session = read_session_from_ws(ws)
+        if not session:
+            await ws.close(code=4001)
+            return
+        await ws.accept()
+        lp = lp_module.log_publisher
+        if lp:
+            lp.subscribe(ws)
+        try:
+            await ws.send_json({
+                "type": "connected",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "id": str(uuid.uuid4()),
+            })
+            while True:
+                await ws.receive_text()
+        except WebSocketDisconnect:
+            pass
+        finally:
+            if lp:
+                lp.unsubscribe(ws)
 
     # --- Background Past Runs ---
     from web.server import background_runs
