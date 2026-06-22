@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pulse — Trading Signals (Live)</title>
+  <style>
+    :root {
+      --bg: #080908;
+      --surface: #0f1510;
+      --card: #111a13;
+      --border: #1e2d20;
+      --green: #16B97E;
+      --green-dim: rgba(22,185,126,0.12);
+      --red: #e05252;
+      --red-dim: rgba(224,82,82,0.12);
+      --yellow: #E0B33A;
+      --text: #e4ede5;
+      --muted: #5a7060;
+      --subtext: #8fa892;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; min-height: 100vh; }
+
+    /* Auth bar */
+    #auth-bar {
+      background: #0a120b;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #auth-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    #token-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: monospace;
+    }
+    #token-input:focus { outline: none; border-color: var(--green); }
+    .btn {
+      background: var(--green);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+    #api-url-input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--subtext);
+      font-size: 12px;
+      width: 280px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--green);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon svg { width: 18px; height: 18px; }
+    h1 { font-size: 18px; font-weight: 700; }
+    h1 span { color: var(--green); }
+    .live-dot {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--muted);
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted);
+    }
+    .dot.live { background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Stats bar */
+    #stats-bar {
+      display: flex;
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-card {
+      flex: 1;
+      background: var(--surface);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat-value { font-size: 24px; font-weight: 700; }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.yellow { color: var(--yellow); }
+
+    /* Controls */
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 14px;
+      color: var(--subtext);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .filter-btn.active {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-dim);
+    }
+    #status-msg {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    #status-msg.error { color: var(--red); }
+
+    /* Signals grid */
+    #signals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      padding: 0;
+    }
+
+    /* Signal card */
+    .signal-card {
+      background: var(--card);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: background 0.15s;
+    }
+    .signal-card:hover { background: #131e15; }
+
+    /* Card header */
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .ticker-info { display: flex; flex-direction: column; gap: 2px; }
+    .ticker-sym { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+    .ticker-name { font-size: 12px; color: var(--muted); }
+    .badge-row { display: flex; align-items: center; gap: 6px; }
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge.buy { background: var(--green-dim); color: var(--green); border: 1px solid rgba(22,185,126,0.3); }
+    .badge.sell { background: var(--red-dim); color: var(--red); border: 1px solid rgba(224,82,82,0.3); }
+    .badge.hold { background: rgba(224,179,58,0.12); color: var(--yellow); border: 1px solid rgba(224,179,58,0.3); }
+    .badge.overweight { background: var(--green-dim); color: var(--green); border: 1px solid rgba(22,185,126,0.3); }
+    .badge.underweight { background: var(--red-dim); color: var(--red); border: 1px solid rgba(224,82,82,0.3); }
+    .badge.locked { background: rgba(90,112,96,0.15); color: var(--muted); border: 1px solid var(--border); }
+    .grade-badge {
+      font-size: 13px;
+      font-weight: 800;
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .grade-A { background: rgba(22,185,126,0.2); color: var(--green); }
+    .grade-B { background: rgba(22,185,126,0.1); color: #5fd4a0; }
+    .grade-C { background: rgba(224,179,58,0.1); color: var(--yellow); }
+    .grade-D { background: rgba(224,82,82,0.1); color: var(--red); }
+
+    /* Confidence bar */
+    .confidence-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .confidence-label { font-size: 11px; color: var(--muted); width: 72px; }
+    .bar-track {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--green);
+      transition: width 0.5s ease;
+    }
+    .bar-fill.red { background: var(--red); }
+    .bar-fill.yellow { background: var(--yellow); }
+    .confidence-pct { font-size: 12px; font-weight: 700; color: var(--green); width: 36px; text-align: right; }
+
+    /* Price ladder */
+    .price-ladder {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .price-item { display: flex; flex-direction: column; gap: 2px; }
+    .price-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .price-value { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .price-value.green { color: var(--green); }
+    .price-value.red { color: var(--red); }
+    .price-value.dim { color: var(--subtext); }
+
+    /* Agent votes */
+    .votes-section { display: flex; flex-direction: column; gap: 6px; }
+    .votes-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .vote-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .vote-name { font-size: 11px; color: var(--subtext); width: 88px; }
+    .vote-bar-track {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .vote-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+    .vote-bull { background: var(--green); }
+    .vote-bear { background: var(--red); }
+    .vote-neutral { background: var(--yellow); }
+    .vote-tag {
+      font-size: 10px;
+      font-weight: 600;
+      width: 52px;
+      text-align: right;
+      text-transform: capitalize;
+    }
+    .vote-tag.bull { color: var(--green); }
+    .vote-tag.bear { color: var(--red); }
+    .vote-tag.neutral { color: var(--yellow); }
+
+    /* R/R and horizon */
+    .meta-row {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--muted);
+      padding-top: 4px;
+      border-top: 1px solid var(--border);
+    }
+    .meta-item span { color: var(--subtext); font-weight: 600; }
+
+    /* Reasoning snippet */
+    .reasoning {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+      border-left: 2px solid var(--border);
+      padding-left: 10px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Empty state */
+    #empty-state {
+      grid-column: 1 / -1;
+      padding: 80px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+    #empty-state h3 { font-size: 18px; margin-bottom: 8px; color: var(--subtext); }
+    #empty-state p { font-size: 14px; }
+
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, var(--card) 25%, var(--surface) 50%, var(--card) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Sentinel notice */
+    .sentinel {
+      padding: 6px 12px;
+      background: rgba(22,185,126,0.06);
+      border: 1px solid rgba(22,185,126,0.15);
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--green);
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth bar -->
+<div id="auth-bar">
+  <label>API:</label>
+  <input id="api-url-input" type="text" value="https://api.pulsenow.io" />
+  <label>JWT:</label>
+  <input id="token-input" type="password" placeholder="Paste your Bearer token here…" />
+  <button class="btn" onclick="load()">Load Signals</button>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 18 18" fill="none">
+        <path d="M2 9h4l3-6 4 12 3-6 2 0" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>Pulse <span>Signals</span></h1>
+  </div>
+  <div class="live-dot">
+    <div class="dot" id="sse-dot"></div>
+    <span id="sse-label">Not connected</span>
+  </div>
+</header>
+
+<!-- Stats bar -->
+<div id="stats-bar">
+  <div class="stat-card">
+    <div class="stat-label">Signals Today</div>
+    <div class="stat-value" id="stat-today">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Buy</div>
+    <div class="stat-value green" id="stat-buy">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Sell</div>
+    <div class="stat-value red" id="stat-sell">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Hold</div>
+    <div class="stat-value yellow" id="stat-hold">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Avg Confidence</div>
+    <div class="stat-value green" id="stat-conf">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Watchlist</div>
+    <div class="stat-value" id="stat-watchlist">—</div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <span style="font-size:13px;font-weight:600;color:var(--subtext)">Filter:</span>
+  <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">All</button>
+  <button class="filter-btn" data-filter="buy" onclick="setFilter('buy',this)">Buy</button>
+  <button class="filter-btn" data-filter="sell" onclick="setFilter('sell',this)">Sell</button>
+  <button class="filter-btn" data-filter="hold" onclick="setFilter('hold',this)">Hold</button>
+  <span id="status-msg">Enter your JWT token above and click Load.</span>
+</div>
+
+<!-- Signals grid -->
+<div id="signals-grid">
+  <div id="empty-state">
+    <h3>No signals loaded</h3>
+    <p>Enter your JWT and click Load Signals.</p>
+  </div>
+</div>
+
+<script>
+  let allSignals = [];
+  let activeFilter = 'all';
+  let sseSource = null;
+  let token = '';
+  let apiBase = '';
+
+  function getToken() {
+    return document.getElementById('token-input').value.trim();
+  }
+  function getBase() {
+    return document.getElementById('api-url-input').value.trim().replace(/\/$/, '');
+  }
+
+  function setStatus(msg, isError) {
+    const el = document.getElementById('status-msg');
+    el.textContent = msg;
+    el.className = isError ? 'error' : '';
+  }
+
+  function setFilter(f, btn) {
+    activeFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderGrid();
+  }
+
+  async function load() {
+    token = getToken();
+    apiBase = getBase();
+    if (!token) { setStatus('JWT required.', true); return; }
+
+    setStatus('Loading…');
+    await Promise.all([fetchStats(), fetchLatest()]);
+    connectSSE();
+  }
+
+  async function fetchStats() {
+    try {
+      const r = await fetch(`${apiBase}/signals-ms/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const d = await r.json();
+      document.getElementById('stat-today').textContent = d.signals_today;
+      document.getElementById('stat-buy').textContent = d.buy_signals;
+      document.getElementById('stat-sell').textContent = d.sell_signals;
+      document.getElementById('stat-hold').textContent = d.hold_signals;
+      document.getElementById('stat-conf').textContent = d.avg_confidence ? (d.avg_confidence * 100).toFixed(0) + '%' : '—';
+      document.getElementById('stat-watchlist').textContent = d.active_watchlist;
+    } catch (e) {
+      console.warn('stats error', e);
+    }
+  }
+
+  async function fetchLatest() {
+    try {
+      const r = await fetch(`${apiBase}/signals-ms/signals/latest`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({ detail: r.statusText }));
+        setStatus(`Error ${r.status}: ${body.detail || r.statusText}`, true);
+        return;
+      }
+      const data = await r.json();
+      allSignals = data.signals || [];
+      setStatus(`${allSignals.length} signal${allSignals.length !== 1 ? 's' : ''} loaded  ·  tier: ${data.entitlement?.tier || '?'}`);
+      renderGrid();
+    } catch (e) {
+      setStatus(`Network error: ${e.message}`, true);
+    }
+  }
+
+  function connectSSE() {
+    if (sseSource) sseSource.close();
+    const dot = document.getElementById('sse-dot');
+    const label = document.getElementById('sse-label');
+    try {
+      sseSource = new EventSource(`${apiBase}/signals-ms/stream?token=${encodeURIComponent(token)}`);
+      sseSource.addEventListener('connection', () => {
+        dot.className = 'dot live';
+        label.textContent = 'Live';
+      });
+      sseSource.addEventListener('signal', (e) => {
+        const sig = JSON.parse(e.data);
+        const idx = allSignals.findIndex(s => s.ticker === sig.ticker);
+        if (idx >= 0) allSignals[idx] = sig;
+        else allSignals.unshift(sig);
+        renderGrid();
+        fetchStats();
+      });
+      sseSource.addEventListener('heartbeat', () => {
+        dot.className = 'dot live';
+      });
+      sseSource.onerror = () => {
+        dot.className = 'dot';
+        label.textContent = 'Reconnecting…';
+      };
+    } catch (e) {
+      console.warn('SSE not available:', e);
+    }
+  }
+
+  function fmt(n) {
+    if (n == null) return '—';
+    if (n >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function signalClass(s) {
+    if (['buy', 'overweight'].includes(s)) return 'buy';
+    if (['sell', 'underweight'].includes(s)) return 'sell';
+    if (s === 'locked') return 'locked';
+    return 'hold';
+  }
+
+  function voteClass(v) {
+    if (v === 'bullish') return 'bull';
+    if (v === 'bearish') return 'bear';
+    return 'neutral';
+  }
+
+  function buildVoteRows(votes) {
+    if (!votes) return '<div style="font-size:11px;color:var(--muted)">Agent votes not yet available</div>';
+    const agents = ['fundamental','technical','sentiment','risk'];
+    const labels = { fundamental: 'Fundamental', technical: 'Technical', sentiment: 'Sentiment', risk: 'Risk Mgmt' };
+    return agents.map(a => {
+      const v = votes[a] || { vote: 'neutral', score: 50 };
+      const cls = voteClass(v.vote);
+      return `
+        <div class="vote-row">
+          <div class="vote-name">${labels[a]}</div>
+          <div class="vote-bar-track"><div class="vote-bar-fill vote-${cls}" style="width:${v.score}%"></div></div>
+          <div class="vote-tag ${cls}">${v.vote}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function buildCard(sig) {
+    const sc = signalClass(sig.signal_type);
+    const conf = sig.confidence > 0 ? sig.confidence : null;
+    const confPct = conf ? Math.round(conf * 100) : 0;
+    const confColor = conf >= 0.75 ? '' : (conf >= 0.55 ? 'yellow' : 'red');
+    const grade = sig.grade || '—';
+    const gradeCls = `grade-${grade !== '—' ? grade : 'D'}`;
+
+    const isLocked = sig.signal_type === 'locked';
+
+    const priceBlock = isLocked
+      ? `<div style="font-size:12px;color:var(--muted);padding:8px 0">Upgrade to Pro to view price levels.</div>`
+      : `
+        <div class="price-ladder">
+          <div class="price-item">
+            <div class="price-label">Entry</div>
+            <div class="price-value dim">${fmt(sig.entry_price)}</div>
+          </div>
+          <div class="price-item">
+            <div class="price-label">Target</div>
+            <div class="price-value green">${fmt(sig.price_target)}</div>
+          </div>
+          <div class="price-item">
+            <div class="price-label">Stop</div>
+            <div class="price-value red">${fmt(sig.stop_loss)}</div>
+          </div>
+        </div>`;
+
+    return `
+      <div class="signal-card">
+        <div class="card-header">
+          <div class="ticker-info">
+            <div class="ticker-sym">${sig.ticker.replace('-USD','')}</div>
+            <div class="ticker-name">${sig.name || sig.ticker}</div>
+          </div>
+          <div class="badge-row">
+            <div class="badge ${sc}">${sig.signal_type.replace('overweight','O/W').replace('underweight','U/W')}</div>
+            ${!isLocked ? `<div class="grade-badge ${gradeCls}">${grade}</div>` : ''}
+          </div>
+        </div>
+
+        ${conf ? `
+        <div class="confidence-row">
+          <div class="confidence-label">Confidence</div>
+          <div class="bar-track"><div class="bar-fill ${confColor}" style="width:${confPct}%"></div></div>
+          <div class="confidence-pct" style="${confColor === 'red' ? 'color:var(--red)' : confColor === 'yellow' ? 'color:var(--yellow)' : ''}">${confPct}%</div>
+        </div>` : ''}
+
+        ${priceBlock}
+
+        ${!isLocked ? `
+        <div class="votes-section">
+          <div class="votes-label">Agent Votes</div>
+          ${buildVoteRows(sig.agent_votes)}
+        </div>` : ''}
+
+        <div class="meta-row">
+          ${sig.time_horizon ? `<span>Horizon: <span>${sig.time_horizon}</span></span>` : ''}
+          ${sig.rr != null ? `<span>R/R: <span>${sig.rr}x</span></span>` : ''}
+          ${sig.sentiment_band ? `<span>Sentiment: <span>${sig.sentiment_band}</span></span>` : ''}
+        </div>
+
+        ${sig.reasoning_summary ? `<div class="reasoning">${escHtml(sig.reasoning_summary)}</div>` : ''}
+      </div>`;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('signals-grid');
+    let filtered = allSignals;
+    if (activeFilter !== 'all') {
+      filtered = allSignals.filter(s => {
+        if (activeFilter === 'buy') return ['buy','overweight'].includes(s.signal_type);
+        if (activeFilter === 'sell') return ['sell','underweight'].includes(s.signal_type);
+        if (activeFilter === 'hold') return s.signal_type === 'hold';
+        return true;
+      });
+    }
+    if (!filtered.length) {
+      grid.innerHTML = `<div id="empty-state"><h3>${allSignals.length ? 'No signals match this filter' : 'No signals loaded'}</h3><p>${allSignals.length ? 'Try "All" filter.' : 'Enter your JWT and click Load Signals.'}</p></div>`;
+      return;
+    }
+    grid.innerHTML = filtered.map(buildCard).join('');
+  }
+
+  // Load token from localStorage if previously saved
+  window.addEventListener('load', () => {
+    const saved = localStorage.getItem('pulse_jwt');
+    if (saved) document.getElementById('token-input').value = saved;
+    document.getElementById('token-input').addEventListener('change', () => {
+      localStorage.setItem('pulse_jwt', document.getElementById('token-input').value.trim());
+    });
+  });
+</script>
+</body>
+</html>
