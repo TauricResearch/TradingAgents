@@ -1,3 +1,22 @@
+# macOS
+.DS_Store
+
+# Swift / SwiftPM (TradingDesk app under macos/)
+.build/
+*.xcuserstate
+.swiftpm/
+*.app/
+
+# TradingDesk branding — exploratory icon WIP (only the shipped TradingDesk-*.svg/.icns/.png are tracked)
+macos/branding/icon/v*/
+macos/branding/icon/png/
+macos/branding/icon/*.iconset/
+macos/branding/icon/AppIcon.appiconset/
+macos/branding/icon/*-1024.png
+
+# Local AI-assistant state (machine-specific paths — never publish)
+.claude/settings.local.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

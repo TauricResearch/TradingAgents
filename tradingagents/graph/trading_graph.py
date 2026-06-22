@@ -288,12 +288,22 @@ class TradingAgentsGraph:
             )
             if raw is None:
                 continue  # price not available yet — try again next run
-            reflection = self.reflector.reflect_on_final_decision(
-                final_decision=entry.get("decision", ""),
-                raw_return=raw,
-                alpha_return=alpha,
-                benchmark_name=benchmark,
-            )
+            try:
+                reflection = self.reflector.reflect_on_final_decision(
+                    final_decision=entry.get("decision", ""),
+                    raw_return=raw,
+                    alpha_return=alpha,
+                    benchmark_name=benchmark,
+                )
+            except Exception:  # noqa: BLE001
+                # One transient reflection (LLM) failure must not abort the caller —
+                # this also runs at the start of propagate()/stream_run(), so a blip
+                # here would otherwise kill a brand-new analysis. Leave the entry
+                # pending and retry it next run.
+                logger.warning(
+                    "Reflection failed for %s %s; leaving pending", ticker, entry["date"], exc_info=True
+                )
+                continue
             updates.append({
                 "ticker": ticker,
                 "trade_date": entry["date"],
@@ -305,6 +315,34 @@ class TradingAgentsGraph:
 
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
+
+    def resolve_pending_entries(self, ticker: str) -> None:
+        """Public entry point to realize pending decisions for ``ticker``.
+
+        Fetches realized returns + alpha and writes reflections for any pending
+        memory-log entries on ``ticker`` without running a full analysis. Hosts
+        (e.g. a UI's periodic "refresh outcomes" action) call this on a schedule
+        so decisions that were too recent to score at analysis time get resolved
+        later. Thin wrapper over :meth:`_resolve_pending_entries`.
+        """
+        self._resolve_pending_entries(ticker)
+
+    def resolve_all_pending(self) -> list[str]:
+        """Resolve pending entries for every ticker that has any.
+
+        Returns the sorted list of tickers that were successfully resolved. One
+        ticker's failure (e.g. a transient LLM error) does not abort the batch —
+        the rest are still processed and the failed ticker is retried next run.
+        """
+        tickers = sorted({e["ticker"] for e in self.memory_log.get_pending_entries()})
+        resolved = []
+        for ticker in tickers:
+            try:
+                self._resolve_pending_entries(ticker)
+                resolved.append(ticker)
+            except Exception:  # noqa: BLE001 - one ticker must not poison the batch
+                logger.warning("Could not resolve pending for %s; will retry next run", ticker, exc_info=True)
+        return resolved
 
     def resolve_instrument_context(self, ticker: str, asset_type: str = "stock") -> str:
         """Resolve ticker identity once and return the full instrument context.
@@ -373,6 +411,54 @@ class TradingAgentsGraph:
                 / f"{safe_ticker_component(ticker)}_{stamp}"
             )
         return write_report_tree(final_state, ticker, save_path)
+
+    def stream_run(self, company_name, trade_date, asset_type: str = "stock"):
+        """Streaming sibling of :meth:`propagate` for live host UIs.
+
+        Yields each whole-state snapshot from ``graph.stream(stream_mode="values")``
+        as it is produced, while preserving the same side effects ``_run_graph``
+        performs: it resolves prior pending outcomes before the run and writes the
+        state log + decision entry after the final snapshot. ``propagate`` remains
+        the blocking one-shot path; this one exists so a host can render progress
+        as the graph advances.
+
+        Checkpoint/resume is intentionally not enabled on this path in v1 (the
+        SqliteSaver recompile flow is owned by ``propagate``); callers needing
+        resume should use ``propagate``.
+        """
+        self.ticker = company_name
+
+        # Realize prior pending outcomes first (parity with propagate()).
+        self._resolve_pending_entries(company_name)
+
+        past_context = self.memory_log.get_past_context(company_name)
+        instrument_context = self.resolve_instrument_context(company_name, asset_type)
+        init_agent_state = self.propagator.create_initial_state(
+            company_name,
+            trade_date,
+            asset_type=asset_type,
+            past_context=past_context,
+            instrument_context=instrument_context,
+        )
+        # Pass the graph's callbacks so tool-execution stats are tracked, mirroring
+        # the CLI streaming path (LLM stats come via the LLM constructor callbacks).
+        args = self.propagator.get_graph_args(callbacks=self.callbacks or None)
+
+        final_state: dict[str, Any] = {}
+        for chunk in self.graph.stream(init_agent_state, **args):
+            # stream_mode="values" yields the full accumulated state each step.
+            final_state = chunk
+            yield chunk
+
+        self.curr_state = final_state
+
+        # Side effects the raw stream path would otherwise skip (see _run_graph).
+        self._log_state(trade_date, final_state)
+        self.memory_log.store_decision(
+            ticker=company_name,
+            trade_date=trade_date,
+            final_trade_decision=final_state["final_trade_decision"],
+        )
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
         """Execute the graph and write the resulting state to disk and memory log."""

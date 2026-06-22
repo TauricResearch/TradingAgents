@@ -1,0 +1,41 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ground" x1="512" y1="40" x2="512" y2="984" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1A2029"/>
+      <stop offset="0.52" stop-color="#0E121A"/>
+      <stop offset="1" stop-color="#070A0F"/>
+    </linearGradient>
+    <radialGradient id="bloom" cx="0.5" cy="0.62" r="0.62" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#12B978" stop-opacity="0.42"/>
+      <stop offset="0.45" stop-color="#10A36C" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#0B8A5A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="stroke" x1="300" y1="700" x2="760" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0FAE70"/>
+      <stop offset="0.55" stop-color="#1FC885"/>
+      <stop offset="1" stop-color="#46EFB6"/>
+    </linearGradient>
+    <radialGradient id="node" cx="0.36" cy="0.32" r="0.85">
+      <stop offset="0" stop-color="#A9F8DC"/>
+      <stop offset="0.5" stop-color="#52EBB6"/>
+      <stop offset="1" stop-color="#16C788"/>
+    </radialGradient>
+    <radialGradient id="topglow" cx="0.5" cy="0.04" r="0.78" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hair" x1="512" y1="20" x2="512" y2="1004" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="20" width="984" height="984" rx="228" fill="url(#ground)"/>
+  <rect x="20" y="20" width="984" height="984" rx="228" fill="url(#bloom)"/>
+  <rect x="20" y="20" width="984" height="984" rx="228" fill="url(#topglow)"/>
+  <g transform="translate(8,-12)">
+    <path d="M 300 552 L 432 686 L 744 318" fill="none" stroke="url(#stroke)" stroke-width="108" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 470 660 L 716 368" fill="none" stroke="#FFFFFF" stroke-opacity="0.15" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="744" cy="206" r="56" fill="url(#node)"/>
+  </g>
+  <rect x="22.5" y="22.5" width="979" height="979" rx="225.5" fill="none" stroke="url(#hair)" stroke-width="3"/>
+</svg>

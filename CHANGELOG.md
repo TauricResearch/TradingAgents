@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Engine host / embedding APIs.** `TradingAgentsGraph.stream_run()` yields each
+  whole-state snapshot as the graph advances — a streaming sibling of
+  `propagate()` for live-progress hosts — while preserving the same state-log and
+  decision side effects. `resolve_pending_entries(ticker)` and
+  `resolve_all_pending()` expose outcome resolution as public entry points, so a
+  host can realize previously-pending decisions on a schedule without a full run.
+  Setting `TRADINGAGENTS_NO_DOTENV=1` skips the package-import `.env` load for
+  hosts that inject secrets themselves.
+- **TradingDesk backend (`desk_server/`, `desk_adapter/`).** A FastAPI + SSE
+  server, packaged into the engine's Docker image (`pip install ".[server]"`,
+  `desk-server` entrypoint), that drives the engine for a host UI: it streams a
+  run's events over SSE (`POST /runs`, `GET /runs/{id}/events`,
+  `POST /runs/{id}/cancel`) and exposes `/health`, `/capabilities`, `/journal`,
+  `/reports`, `/search`, `/prices`, `/openrouter/models`, and connectivity tests
+  (`/test`, `/test_fred`). `desk_adapter/` is the host glue that diffs the
+  engine's `stream_run` snapshots into a typed NDJSON event stream and
+  introspects provider/model capabilities. Runs on loopback only
+  (`127.0.0.1:8765`); secrets are injected by the host, never read from disk
+  (`TRADINGAGENTS_NO_DOTENV=1`).
+- **TradingDesk — native macOS app (`macos/TradingDesk/`).** A SwiftUI app
+  (macOS 14+) that drives the engine through the Dockerized `desk-server`
+  backend and reconceives the CLI as a persistent research workspace: a live
+  watchlist backed by the decisions journal, per-ticker run documents and a
+  Library, a Live Monitor whose Agent Theater streams every agent step / tool
+  call / debate turn over SSE, a ⌘K command palette over tickers + runs +
+  decisions, and Settings with provider/model selection, per-provider Keychain
+  keys, and connectivity tests. Build/run instructions in
+  [`docs/TRADINGDESK.md`](docs/TRADINGDESK.md). Engine graph unchanged.
+
 ## [0.3.0] — 2026-06-22
 
 Stabilization and extensibility release: a CI gate, a unified verified
