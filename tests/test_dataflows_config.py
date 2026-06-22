@@ -2,6 +2,7 @@
 
 import copy
 import unittest
+from types import MappingProxyType
 
 import pytest
 
@@ -14,14 +15,22 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
     def setUp(self):
         set_config(copy.deepcopy(default_config.DEFAULT_CONFIG))
 
-    def test_get_config_returns_deep_copy(self):
+    def test_get_config_returns_read_only_view(self):
         cfg = get_config()
-        cfg["data_vendors"]["core_stock_apis"] = "alpha_vantage"
-        cfg["tool_vendors"]["get_stock_data"] = "alpha_vantage"
+        # Must be a MappingProxyType — mutations raise TypeError
+        self.assertIsInstance(cfg, MappingProxyType)
 
-        fresh = get_config()
-        self.assertEqual(fresh["data_vendors"]["core_stock_apis"], "yfinance")
-        self.assertNotIn("get_stock_data", fresh["tool_vendors"])
+        # The nested dict values are also frozen
+        self.assertIsInstance(cfg["data_vendors"], MappingProxyType)
+        self.assertIsInstance(cfg["tool_vendors"], MappingProxyType)
+
+        # Top-level mutation must raise
+        with self.assertRaises(TypeError):
+            cfg["output_language"] = "Chinese"
+
+        # Nested dict mutation must also raise
+        with self.assertRaises(TypeError):
+            cfg["data_vendors"]["core_stock_apis"] = "alpha_vantage"
 
     def test_set_config_does_not_alias_caller_nested_dicts(self):
         custom = copy.deepcopy(default_config.DEFAULT_CONFIG)
