@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Changed
+
+- Constrained package metadata to the CI-supported Python range
+  `>=3.10,<3.14` and added a checked-in `.python-version` for local `uv`
+  environments.
+
+### Fixed
+
+- Ignored `.gitignore.local` so local override files no longer dirty the
+  working tree.
+
+### Removed
+
+- Removed the unreferenced `requirements.txt` shim and obsolete root-level
+  manual `test.py` smoke script.
+
 ## [0.3.0] — 2026-06-22
 
 Stabilization and extensibility release: a CI gate, a unified verified
