@@ -119,6 +119,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "geopolitical risk trade war sanctions",
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
+        "Malaysia economy GDP trade ringgit",
+        "Bursa Malaysia KLSE index stocks",
+        "Bank Negara Malaysia interest rate OPR policy",
+        "ASEAN Southeast Asia economic outlook trade",
     ],
     # Data vendor configuration
     # Category-level configuration (default for all tools in category).
@@ -129,9 +133,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
-        "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
-        "prediction_markets": "polymarket",  # Options: polymarket (keyless)
+        "news_data": "google_news",           # Options: yfinance, google_news, alpha_vantage
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
@@ -145,15 +147,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # while non-US tickers get their regional index automatically.
     "benchmark_ticker": None,
     "benchmark_map": {
-        ".NS":  "^NSEI",       # NSE India (Nifty 50)
-        ".BO":  "^BSESN",      # BSE India (Sensex)
-        ".T":   "^N225",       # Tokyo (Nikkei 225)
-        ".HK":  "^HSI",        # Hong Kong (Hang Seng)
-        ".L":   "^FTSE",       # London (FTSE 100)
-        ".TO":  "^GSPTSE",     # Toronto (TSX Composite)
-        ".AX":  "^AXJO",       # Australia (ASX 200)
-        ".SS":  "000001.SS",   # Shanghai (SSE Composite)
-        ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
-        "":     "SPY",         # default for US-listed tickers (no suffix)
+        ".NS":  "^NSEI",    # NSE India (Nifty 50)
+        ".BO":  "^BSESN",   # BSE India (Sensex)
+        ".T":   "^N225",    # Tokyo (Nikkei 225)
+        ".HK":  "^HSI",     # Hong Kong (Hang Seng)
+        ".KL":  "^KLSE",    # Malaysia (FTSE Bursa Malaysia KLCI)
+        ".L":   "^FTSE",    # London (FTSE 100)
+        ".TO":  "^GSPTSE",  # Toronto (TSX Composite)
+        ".AX":  "^AXJO",    # Australia (ASX 200)
+        "":     "SPY",      # default for US-listed tickers (no suffix)
     },
 })
