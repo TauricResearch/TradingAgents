@@ -38,6 +38,7 @@ _running = False
 _stop_event = threading.Event()
 _thread: threading.Thread | None = None
 _lock = threading.Lock()
+_cycle_sem = threading.Semaphore(1)
 _current_status = "idle"
 _last_cycle_at: str | None = None
 _next_cycle_at: str | None = None
@@ -348,7 +349,14 @@ def _call_llm_strategy(prompt: str) -> dict:
 
         json_match = re.search(r'\{.*\}', text, re.DOTALL)
         if json_match:
-            result["response"] = json.loads(json_match.group())
+            try:
+                result["response"] = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                try:
+                    import ast
+                    result["response"] = json.loads(json.dumps(ast.literal_eval(json_match.group())))
+                except Exception:
+                    pass
 
         tokens = 0
         try:
@@ -541,7 +549,14 @@ Return JSON:
 
         json_match = re.search(r'\{.*\}', text, re.DOTALL)
         if json_match:
-            data = json.loads(json_match.group())
+            try:
+                data = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                try:
+                    import ast
+                    data = json.loads(json.dumps(ast.literal_eval(json_match.group())))
+                except Exception:
+                    data = {}
             suggestions = data.get("suggested_capabilities", [])
             return [
                 (s.get("name", "unknown"), s.get("description", ""), s.get("suggested_endpoint", ""))
@@ -573,110 +588,114 @@ def run_cycle() -> dict:
     """Execute one full agent cycle."""
     global _current_status, _current_step, _last_cycle_at, _cycles_completed
 
-    _step_timing.clear()
-    with _lock:
-        _current_status = "running"
-        _current_step = 1
-        _last_cycle_at = _now_iso()
-        _cycles_completed += 1
-        cycle_num = _cycles_completed
-    _emit_event(0, f"Starting cycle {cycle_num}", "ticker_cycle_started", {
-        "cycle_number": cycle_num,
-        "timestamp": _last_cycle_at,
-    })
-    _emit_event(1, "Reading past conclusions from memory...", "ticker_step_started", {"step": 1})
-    _step_timing[1] = _timestamp_ms()
-
+    _cycle_sem.acquire()
     try:
-        memory_data = read_memory(limit=10)
-        step1_duration = int((_timestamp_ms() - _step_timing[1]) * 1000)
-        _emit_event(1, f"Read {len(memory_data)} memory entries", "ticker_step_completed", {
-            "step": 1,
-            "memory_entries": len(memory_data),
-            "duration_ms": step1_duration,
-        })
-
-        _emit_event(2, "Gathering context: watchlist, universe, accuracy scores...", "ticker_step_started", {"step": 2})
-        _step_timing[2] = _timestamp_ms()
-        context = _gather_context()
-        step2_duration = int((_timestamp_ms() - _step_timing[2]) * 1000)
-        _emit_event(2, "Context gathered", "ticker_step_completed", {
-            "step": 2,
-            "universe_size": context.get("universe_size", 0),
-            "watchlist_size": context.get("watchlist_size", 0),
-            "scored_tickers": context.get("scored_tickers", 0),
-            "coverage_gaps": len(context.get("coverage_gaps", [])),
-            "duration_ms": step2_duration,
-        })
-
-        _emit_event(3, "Calling LLM for strategy plan...", "ticker_step_started", {"step": 3})
-        _step_timing[3] = _timestamp_ms()
-        prompt = _build_strategy_prompt(context)
-        llm_result = _call_llm_strategy(prompt)
-        step3_duration = int((_timestamp_ms() - _step_timing[3]) * 1000)
-        llm_response = llm_result["response"]
-        llm_failed = llm_response.get("reasoning_summary") == "LLM call failed"
-        _emit_event(3, "LLM strategy response received" if not llm_failed else "LLM call failed, using fallback plan", "ticker_llm_call", {
-            "step": 3,
-            "prompt_text": prompt,
-            "response_text": json.dumps(llm_response),
-            "model": llm_result.get("model", "unknown"),
-            "tokens": llm_result.get("tokens", 0),
-            "duration_ms": step3_duration,
-            "error": llm_result.get("error"),
-        })
-        _emit_event(3, "LLM strategy response received" if not llm_failed else "LLM call failed, using fallback plan", "ticker_step_completed", {
-            "step": 3,
-            "duration_ms": step3_duration,
-        })
-
-        execution_result = _execute_plan(llm_response)
-        _step_timing[4] = _timestamp_ms()
-        _emit_event(4, "Scheduling execution for planned tickers...", "ticker_step_started", {"step": 4})
-        step4_duration = int((_timestamp_ms() - _step_timing[4]) * 1000)
-        _emit_event(4, f"Scheduled {len(execution_result.get('scheduled', []))} tickers", "ticker_step_completed", {
-            "step": 4,
-            "scheduled": execution_result.get("scheduled", []),
-            "duration_ms": step4_duration,
-        })
-
-        _step_timing[5] = _timestamp_ms()
-        _emit_event(5, "Ranking accuracy scores from completed runs...", "ticker_step_started", {"step": 5})
-        scores_result = _rank_and_store(context)
-        step5_duration = int((_timestamp_ms() - _step_timing[5]) * 1000)
-        _emit_event(5, "Ranking complete", "ticker_step_completed", {
-            "step": 5,
-            "scored": scores_result.get("scored", 0),
-            "top_ticker": scores_result.get("top_ticker"),
-            "duration_ms": step5_duration,
-        })
-
-        _step_timing[6] = _timestamp_ms()
-        _emit_event(6, "Writing learning conclusions to memory...", "ticker_step_started", {"step": 6})
-        _write_memory(context, llm_response, execution_result, scores_result)
-        step6_duration = int((_timestamp_ms() - _step_timing[6]) * 1000)
-        _emit_event(6, "Memory written", "ticker_step_completed", {"step": 6, "duration_ms": step6_duration})
-
-        _step_timing[7] = _timestamp_ms()
-        _emit_event(7, "Checking for missing capabilities...", "ticker_step_started", {"step": 7})
-        _self_improve(context)
-        step7_duration = int((_timestamp_ms() - _step_timing[7]) * 1000)
-        _emit_event(7, "Capabilities checked", "ticker_step_completed", {"step": 7, "duration_ms": step7_duration})
-
+        _step_timing.clear()
         with _lock:
-            _current_step = 0
-            _current_status = "idle"
-        _emit_event(0, "Cycle complete.", "ticker_cycle_completed", {"cycles_completed": _cycles_completed})
+            _current_status = "running"
+            _current_step = 1
+            _last_cycle_at = _now_iso()
+            _cycles_completed += 1
+            cycle_num = _cycles_completed
+        _emit_event(0, f"Starting cycle {cycle_num}", "ticker_cycle_started", {
+            "cycle_number": cycle_num,
+            "timestamp": _last_cycle_at,
+        })
+        _emit_event(1, "Reading past conclusions from memory...", "ticker_step_started", {"step": 1})
+        _step_timing[1] = _timestamp_ms()
 
-        return {"status": "completed", "cycles_completed": _cycles_completed}
+        try:
+            memory_data = read_memory(limit=10)
+            step1_duration = int((_timestamp_ms() - _step_timing[1]) * 1000)
+            _emit_event(1, f"Read {len(memory_data)} memory entries", "ticker_step_completed", {
+                "step": 1,
+                "memory_entries": len(memory_data),
+                "duration_ms": step1_duration,
+            })
 
-    except Exception as e:
-        log.exception("Agent cycle failed")
-        with _lock:
-            _current_step = 0
-            _current_status = "error"
-        _emit_event(0, f"Cycle failed: {e}", "ticker_cycle_completed", {"cycles_completed": _cycles_completed})
-        return {"status": "error", "error": str(e)}
+            _emit_event(2, "Gathering context: watchlist, universe, accuracy scores...", "ticker_step_started", {"step": 2})
+            _step_timing[2] = _timestamp_ms()
+            context = _gather_context()
+            step2_duration = int((_timestamp_ms() - _step_timing[2]) * 1000)
+            _emit_event(2, "Context gathered", "ticker_step_completed", {
+                "step": 2,
+                "universe_size": context.get("universe_size", 0),
+                "watchlist_size": context.get("watchlist_size", 0),
+                "scored_tickers": context.get("scored_tickers", 0),
+                "coverage_gaps": len(context.get("coverage_gaps", [])),
+                "duration_ms": step2_duration,
+            })
+
+            _emit_event(3, "Calling LLM for strategy plan...", "ticker_step_started", {"step": 3})
+            _step_timing[3] = _timestamp_ms()
+            prompt = _build_strategy_prompt(context)
+            llm_result = _call_llm_strategy(prompt)
+            step3_duration = int((_timestamp_ms() - _step_timing[3]) * 1000)
+            llm_response = llm_result["response"]
+            llm_failed = llm_response.get("reasoning_summary") == "LLM call failed"
+            _emit_event(3, "LLM strategy response received" if not llm_failed else "LLM call failed, using fallback plan", "ticker_llm_call", {
+                "step": 3,
+                "prompt_text": prompt,
+                "response_text": json.dumps(llm_response),
+                "model": llm_result.get("model", "unknown"),
+                "tokens": llm_result.get("tokens", 0),
+                "duration_ms": step3_duration,
+                "error": llm_result.get("error"),
+            })
+            _emit_event(3, "LLM strategy response received" if not llm_failed else "LLM call failed, using fallback plan", "ticker_step_completed", {
+                "step": 3,
+                "duration_ms": step3_duration,
+            })
+
+            execution_result = _execute_plan(llm_response)
+            _step_timing[4] = _timestamp_ms()
+            _emit_event(4, "Scheduling execution for planned tickers...", "ticker_step_started", {"step": 4})
+            step4_duration = int((_timestamp_ms() - _step_timing[4]) * 1000)
+            _emit_event(4, f"Scheduled {len(execution_result.get('scheduled', []))} tickers", "ticker_step_completed", {
+                "step": 4,
+                "scheduled": execution_result.get("scheduled", []),
+                "duration_ms": step4_duration,
+            })
+
+            _step_timing[5] = _timestamp_ms()
+            _emit_event(5, "Ranking accuracy scores from completed runs...", "ticker_step_started", {"step": 5})
+            scores_result = _rank_and_store(context)
+            step5_duration = int((_timestamp_ms() - _step_timing[5]) * 1000)
+            _emit_event(5, "Ranking complete", "ticker_step_completed", {
+                "step": 5,
+                "scored": scores_result.get("scored", 0),
+                "top_ticker": scores_result.get("top_ticker"),
+                "duration_ms": step5_duration,
+            })
+
+            _step_timing[6] = _timestamp_ms()
+            _emit_event(6, "Writing learning conclusions to memory...", "ticker_step_started", {"step": 6})
+            _write_memory(context, llm_response, execution_result, scores_result)
+            step6_duration = int((_timestamp_ms() - _step_timing[6]) * 1000)
+            _emit_event(6, "Memory written", "ticker_step_completed", {"step": 6, "duration_ms": step6_duration})
+
+            _step_timing[7] = _timestamp_ms()
+            _emit_event(7, "Checking for missing capabilities...", "ticker_step_started", {"step": 7})
+            _self_improve(context)
+            step7_duration = int((_timestamp_ms() - _step_timing[7]) * 1000)
+            _emit_event(7, "Capabilities checked", "ticker_step_completed", {"step": 7, "duration_ms": step7_duration})
+
+            with _lock:
+                _current_step = 0
+                _current_status = "idle"
+            _emit_event(0, "Cycle complete.", "ticker_cycle_completed", {"cycles_completed": _cycles_completed})
+
+            return {"status": "completed", "cycles_completed": _cycles_completed}
+
+        except Exception as e:
+            log.exception("Agent cycle failed")
+            with _lock:
+                _current_step = 0
+                _current_status = "error"
+            _emit_event(0, f"Cycle failed: {e}", "ticker_cycle_completed", {"cycles_completed": _cycles_completed})
+            return {"status": "error", "error": str(e)}
+    finally:
+        _cycle_sem.release()
 
 
 def _background_loop() -> None:
