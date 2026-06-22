@@ -792,3 +792,55 @@ def test_download_multiple_tickers(client):
 def test_download_multiple_tickers_empty_list(client):
     r = client.post("/api/tickers/download", json={"tickers": []})
     assert r.status_code == 400
+
+
+def test_download_single_ticker_csv(client):
+    from datetime import datetime, timezone
+    from web.server import storage
+    run = storage.create_run_dir("IBM", started_at=datetime(2024, 6, 1, 10, 0, 0, tzinfo=timezone.utc))
+    r = client.get("/api/tickers/IBM/download?format=csv")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "text/csv; charset=utf-8"
+    assert "IBM-data.csv" in r.headers["content-disposition"]
+    lines = r.text.strip().split("\n")
+    assert lines[0].split(",")[0] == "run_id"
+    assert any("IBM:" in line for line in lines[1:])
+
+
+def test_download_single_ticker_json(client):
+    from datetime import datetime, timezone
+    from web.server import storage
+    run = storage.create_run_dir("ORCL", started_at=datetime(2024, 6, 2, 10, 0, 0, tzinfo=timezone.utc))
+    r = client.get("/api/tickers/ORCL/download?format=json")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/json"
+    assert "ORCL-data.json" in r.headers["content-disposition"]
+    data = r.json()
+    assert "ticker" in data
+    assert "runs" in data
+    assert data["ticker"] == "ORCL"
+
+
+def test_download_multiple_tickers_csv_format(client):
+    from datetime import datetime, timezone
+    from web.server import storage
+    storage.create_run_dir("V", started_at=datetime(2024, 7, 1, 10, 0, 0, tzinfo=timezone.utc))
+    r = client.post("/api/tickers/download", json={"tickers": ["V"], "format": "csv"})
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "text/csv; charset=utf-8"
+    assert "tickers-bundle.csv" in r.headers["content-disposition"]
+
+
+def test_download_multiple_tickers_json_format(client):
+    from datetime import datetime, timezone
+    from web.server import storage
+    storage.create_run_dir("MA", started_at=datetime(2024, 7, 2, 10, 0, 0, tzinfo=timezone.utc))
+    r = client.post("/api/tickers/download", json={"tickers": ["MA"], "format": "json"})
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/json"
+    assert "tickers-bundle.json" in r.headers["content-disposition"]
+
+
+def test_download_invalid_format(client):
+    r = client.post("/api/tickers/download", json={"tickers": ["AAPL"], "format": "pdf"})
+    assert r.status_code == 400

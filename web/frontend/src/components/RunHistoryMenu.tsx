@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteRun, deleteRuns, resumeRun, downloadSingleTicker, type RunRow } from "../lib/api";
+import { deleteRun, deleteRuns, resumeRun, type RunRow } from "../lib/api";
 import { runLabel } from "./TickerHeader";
 import { useUi } from "../store/ui";
+import DownloadFormatDialog from "./DownloadFormatDialog";
 
 interface Props {
   ticker: string;
@@ -15,6 +16,7 @@ interface Props {
 export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [formatDialogOpen, setFormatDialogOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
 
@@ -134,7 +136,7 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => downloadSingleTicker(ticker)}
+                onClick={() => setFormatDialogOpen(true)}
                 title="Download all data for this ticker"
                 className="text-slate-400 hover:text-sky-400 transition-colors"
                 aria-label="Download ticker data"
@@ -258,6 +260,10 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
             </div>
           )}
         </div>
+      )}
+
+      {formatDialogOpen && (
+        <DownloadFormatDialog ticker={ticker} onClose={() => setFormatDialogOpen(false)} />
       )}
     </div>
   );

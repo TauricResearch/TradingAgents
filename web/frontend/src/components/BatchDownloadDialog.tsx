@@ -6,8 +6,17 @@ interface Props {
   onClose: () => void;
 }
 
+type Format = "zip" | "csv" | "json";
+
+const formats: { value: Format; label: string }[] = [
+  { value: "zip", label: "ZIP" },
+  { value: "csv", label: "CSV" },
+  { value: "json", label: "JSON" },
+];
+
 export default function BatchDownloadDialog({ tickers, onClose }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [format, setFormat] = useState<Format>("zip");
   const [loading, setLoading] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -56,7 +65,7 @@ export default function BatchDownloadDialog({ tickers, onClose }: Props) {
     if (selected.size === 0) return;
     setLoading(true);
     try {
-      await downloadTickers(Array.from(selected));
+      await downloadTickers(Array.from(selected), format);
       onClose();
     } catch (err) {
       console.error("Download failed:", err);
@@ -94,7 +103,7 @@ export default function BatchDownloadDialog({ tickers, onClose }: Props) {
           </label>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-2 py-2 space-y-1 min-h-[120px] max-h-[300px]">
+        <div className="overflow-y-auto flex-1 px-2 py-2 space-y-1 min-h-[120px] max-h-[200px]">
           {tickers.length === 0 && (
             <div className="text-sm text-slate-500 text-center py-8">No tickers available</div>
           )}
@@ -114,6 +123,32 @@ export default function BatchDownloadDialog({ tickers, onClose }: Props) {
           ))}
         </div>
 
+        <div className="px-4 py-2 border-t border-slate-700/40">
+          <div className="text-xs text-slate-500 mb-1.5 font-medium">Format</div>
+          <div className="flex gap-3">
+            {formats.map((f) => (
+              <label
+                key={f.value}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer border text-xs transition-colors ${
+                  format === f.value
+                    ? "bg-sky-500/10 border-sky-500/40 text-sky-300"
+                    : "border-transparent text-slate-400 hover:bg-slate-700/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="format"
+                  value={f.value}
+                  checked={format === f.value}
+                  onChange={() => setFormat(f.value)}
+                  className="accent-sky-500 shrink-0"
+                />
+                {f.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700/60">
           <span className="text-xs text-slate-500">{selected.size} selected</span>
           <div className="flex gap-2">
@@ -128,7 +163,7 @@ export default function BatchDownloadDialog({ tickers, onClose }: Props) {
               disabled={selected.size === 0 || loading}
               className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Preparing…" : `Download (${selected.size})`}
+              {loading ? "Preparing…" : `Download ${format.toUpperCase()} (${selected.size})`}
             </button>
           </div>
         </div>
