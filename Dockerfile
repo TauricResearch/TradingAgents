@@ -3,9 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /build
-COPY pyproject.toml .
-COPY tradingagents/ tradingagents/
-COPY web/ web/
+COPY . .
 RUN pip install --no-cache-dir .
 
 FROM python:3.12-slim
