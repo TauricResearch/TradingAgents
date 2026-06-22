@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 import jwt
 import redis
 import redis.asyncio as aioredis
+import yfinance as yf
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,6 +52,40 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "https://staging-backend.pulsenow.io")
 
 # ---------------------------------------------------------------------------
+# Ticker Universe (12-ticker global watchlist matching the design)
+# ---------------------------------------------------------------------------
+
+TICKER_NAMES: Dict[str, str] = {
+    "BTC": "Bitcoin",
+    "ETH": "Ethereum",
+    "SOL": "Solana",
+    "AVAX": "Avalanche",
+    "LINK": "Chainlink",
+    "ARB": "Arbitrum",
+    "DOGE": "Dogecoin",
+    "NVDA": "NVIDIA Corp",
+    "TSLA": "Tesla Inc",
+    "AMD": "AMD Corp",
+    "AAPL": "Apple Inc",
+    "MSFT": "Microsoft Corp",
+}
+
+GLOBAL_TICKERS: List[tuple] = [
+    ("BTC", "crypto"),
+    ("ETH", "crypto"),
+    ("SOL", "crypto"),
+    ("AVAX", "crypto"),
+    ("LINK", "crypto"),
+    ("ARB", "crypto"),
+    ("DOGE", "crypto"),
+    ("NVDA", "stocks"),
+    ("TSLA", "stocks"),
+    ("AMD", "stocks"),
+    ("AAPL", "stocks"),
+    ("MSFT", "stocks"),
+]
+
+# ---------------------------------------------------------------------------
 # Pydantic Schemas for API Contracts
 # ---------------------------------------------------------------------------
 
@@ -73,6 +108,7 @@ class SignalPayload(BaseModel):
     id: str
     ticker: str
     asset_type: str
+    name: Optional[str] = None
     signal_type: str
     confidence: float
     time_horizon: Optional[str] = None
@@ -83,11 +119,26 @@ class SignalPayload(BaseModel):
     reasoning_summary: str
     generated_at: datetime.datetime
     source_run_id: Optional[str] = None
+    grade: Optional[str] = None
+    rr: Optional[float] = None
+    agent_votes: Optional[Dict[str, Any]] = None
+    sentiment_score: Optional[float] = None
+    sentiment_band: Optional[str] = None
 
 
 class SignalsResponse(BaseModel):
     signals: List[SignalPayload]
     entitlement: EntitlementBlock
+
+
+class StatsResponse(BaseModel):
+    signals_today: int
+    buy_signals: int
+    sell_signals: int
+    hold_signals: int
+    avg_confidence: float
+    active_watchlist: int
+    win_rate_30d: Optional[float] = None
 
 
 class TickerStats(BaseModel):
@@ -149,7 +200,13 @@ def init_db():
                 position_sizing VARCHAR(50),
                 reasoning_summary TEXT NOT NULL,
                 generated_at DATETIME NOT NULL,
-                source_run_id VARCHAR(100)
+                source_run_id VARCHAR(100),
+                name TEXT,
+                grade TEXT,
+                rr FLOAT,
+                agent_votes TEXT,
+                sentiment_score FLOAT,
+                sentiment_band TEXT
             );
         """)
         conn.execute("""
@@ -159,6 +216,30 @@ def init_db():
                 viewed_at DATETIME NOT NULL
             );
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_watchlist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id VARCHAR(100) NOT NULL,
+                ticker VARCHAR(10) NOT NULL,
+                asset_type VARCHAR(10) NOT NULL,
+                added_at DATETIME NOT NULL,
+                UNIQUE(user_id, ticker)
+            );
+        """)
+        # Migrations: add new columns to existing tables (safe — ignored if column exists)
+        _new_signal_cols = [
+            ("name", "TEXT"),
+            ("grade", "TEXT"),
+            ("rr", "FLOAT"),
+            ("agent_votes", "TEXT"),
+            ("sentiment_score", "FLOAT"),
+            ("sentiment_band", "TEXT"),
+        ]
+        for col, col_type in _new_signal_cols:
+            try:
+                conn.execute(f"ALTER TABLE trading_signals ADD COLUMN {col} {col_type}")
+            except Exception:
+                pass  # column already exists
         conn.commit()
         logger.info(f"Database successfully verified at: {DB_PATH}")
     except Exception as e:
@@ -169,6 +250,48 @@ def init_db():
 
 # Initialize DB on import/start
 init_db()
+
+
+def seed_global_watchlist():
+    """Inserts the 12 canonical tickers into watchlist_tickers if not already present."""
+    conn = get_db_connection()
+    try:
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for ticker, asset_type in GLOBAL_TICKERS:
+            conn.execute(
+                "INSERT OR IGNORE INTO watchlist_tickers (ticker, asset_type, added_at) VALUES (?, ?, ?)",
+                (ticker, asset_type, now),
+            )
+        conn.commit()
+        logger.info("Global watchlist seeded with %d tickers.", len(GLOBAL_TICKERS))
+    finally:
+        conn.close()
+
+
+def _yf_symbol(ticker: str, asset_type: str) -> str:
+    if asset_type == "crypto" and not ticker.endswith("-USD"):
+        return f"{ticker}-USD"
+    return ticker
+
+
+def get_live_price(ticker: str, asset_type: str) -> Optional[float]:
+    try:
+        sym = _yf_symbol(ticker, asset_type)
+        return float(yf.Ticker(sym).fast_info.last_price)
+    except Exception:
+        return None
+
+
+def validate_price(
+    price: Optional[float], live_price: Optional[float]
+) -> Optional[float]:
+    if price is None or live_price is None or live_price == 0:
+        return price
+    ratio = price / live_price
+    if ratio > 10 or ratio < 0.1:
+        return None
+    return price
+
 
 # ---------------------------------------------------------------------------
 # SSE Pub/Sub Hub
@@ -348,6 +471,7 @@ def mask_signal(signal: SignalPayload) -> SignalPayload:
         id=signal.id,
         ticker=signal.ticker,
         asset_type=signal.asset_type,
+        name=signal.name,
         signal_type="locked",
         confidence=0.0,
         time_horizon="Locked",
@@ -358,6 +482,11 @@ def mask_signal(signal: SignalPayload) -> SignalPayload:
         reasoning_summary="Upgrade to Pro to view this trading signal details.",
         generated_at=signal.generated_at,
         source_run_id=None,
+        grade=None,
+        rr=None,
+        agent_votes=None,
+        sentiment_score=None,
+        sentiment_band=None,
     )
 
 
@@ -393,12 +522,89 @@ def parse_markdown_fields(text: str) -> Dict[str, str]:
     return fields
 
 
+def _extract_sentiment(sentiment_report: str) -> tuple:
+    """Parse sentiment band and score from rendered SentimentReport markdown.
+    Format: **Overall Sentiment:** **Bullish** (Score: 7.2/10)
+    """
+    m = re.search(
+        r"\*\*Overall Sentiment:\*\*\s+\*\*([^*]+)\*\*.*?Score:\s*([\d.]+)",
+        sentiment_report,
+    )
+    if m:
+        band = m.group(1).strip()
+        try:
+            score = float(m.group(2))
+        except Exception:
+            score = None
+        return band, score
+    return None, None
+
+
+def _vote_from_keywords(text: str, default_vote: str) -> tuple:
+    """Derive vote (bullish/bearish/neutral) and score (0-100) from report text."""
+    t = text.lower()
+    bull = sum(
+        t.count(w)
+        for w in ["bullish", "buy", "overweight", "upside", "positive", "outperform"]
+    )
+    bear = sum(
+        t.count(w)
+        for w in [
+            "bearish",
+            "sell",
+            "underweight",
+            "downside",
+            "negative",
+            "underperform",
+        ]
+    )
+    if bull > bear:
+        return "bullish", min(90, 50 + bull * 5)
+    if bear > bull:
+        return "bearish", min(90, 50 + bear * 5)
+    return default_vote, 50
+
+
+def _compute_rr(
+    signal_type: str,
+    entry: Optional[float],
+    target: Optional[float],
+    stop: Optional[float],
+) -> Optional[float]:
+    if entry is None or target is None or stop is None:
+        return None
+    if signal_type in ("buy", "overweight"):
+        denom = entry - stop
+        return round((target - entry) / denom, 2) if denom > 0 else None
+    if signal_type in ("sell", "underweight"):
+        denom = stop - entry
+        return round((entry - target) / denom, 2) if denom > 0 else None
+    return None
+
+
+def _compute_grade(confidence: float) -> str:
+    if confidence >= 0.85:
+        return "A"
+    if confidence >= 0.70:
+        return "B"
+    if confidence >= 0.55:
+        return "C"
+    return "D"
+
+
 def normalize_signal(
     ticker: str, asset_type: str, final_state: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Transforms raw multi-agent final state output into a canonical signal payload."""
     pm_decision_text = final_state.get("final_trade_decision", "")
     trader_plan_text = final_state.get("trader_investment_plan", "")
+    sentiment_report = final_state.get("sentiment_report", "")
+    market_report = final_state.get("market_report", "")
+    fundamentals_report = final_state.get("fundamentals_report", "")
+    risk_debate = final_state.get("risk_debate_state", {})
+    risk_judge = (
+        risk_debate.get("judge_decision", "") if isinstance(risk_debate, dict) else ""
+    )
 
     # Parse rating (Buy, Overweight, Hold, Underweight, Sell)
     rating = parse_rating(pm_decision_text).lower()
@@ -409,30 +615,43 @@ def normalize_signal(
     # Parse Trader fields (entry_price, stop_loss, position_sizing)
     trader_fields = parse_markdown_fields(trader_plan_text)
 
-    # Extract target values
+    # Fetch live price for magnitude validation
+    live_price = get_live_price(ticker, asset_type)
+
+    # Extract and validate prices
     price_target = None
     if pm_fields.get("price_target"):
         try:
-            price_target = float(re.findall(r"[\d\.]+", pm_fields["price_target"])[0])
+            price_target = validate_price(
+                float(re.findall(r"[\d\.]+", pm_fields["price_target"])[0]), live_price
+            )
         except Exception:
             pass
-
-    time_horizon = pm_fields.get("time_horizon")
 
     entry_price = None
     if trader_fields.get("entry_price"):
         try:
-            entry_price = float(re.findall(r"[\d\.]+", trader_fields["entry_price"])[0])
+            entry_price = validate_price(
+                float(re.findall(r"[\d\.]+", trader_fields["entry_price"])[0]),
+                live_price,
+            )
         except Exception:
             pass
 
     stop_loss = None
     if trader_fields.get("stop_loss"):
         try:
-            stop_loss = float(re.findall(r"[\d\.]+", trader_fields["stop_loss"])[0])
+            stop_loss = validate_price(
+                float(re.findall(r"[\d\.]+", trader_fields["stop_loss"])[0]), live_price
+            )
         except Exception:
             pass
 
+    # Fall back to live price as entry if LLM price failed validation
+    if entry_price is None and live_price is not None:
+        entry_price = round(live_price, 2)
+
+    time_horizon = pm_fields.get("time_horizon")
     position_sizing = trader_fields.get("position_sizing")
     reasoning_summary = (
         pm_fields.get("executive_summary")
@@ -440,15 +659,13 @@ def normalize_signal(
         or "Thesis generated by Portfolio Manager."
     )
 
-    # Heuristic v1 for confidence score (decisiveness and alignment)
-    # Buy/Sell = 0.8, Overweight/Underweight = 0.6, Hold = 0.4
+    # Confidence: decisiveness + PM/Trader alignment
     base_confidence = 0.4
     if rating in ("buy", "sell"):
         base_confidence = 0.8
     elif rating in ("overweight", "underweight"):
         base_confidence = 0.6
 
-    # Add alignment boost (does the PM rating align with Trader action direction?)
     trader_action = trader_fields.get("action", "").lower()
     alignment_boost = 0.0
     if (
@@ -460,10 +677,47 @@ def normalize_signal(
 
     confidence = min(0.98, max(0.1, base_confidence + alignment_boost))
 
+    # Sentiment from structured report
+    sentiment_band, sentiment_score = _extract_sentiment(sentiment_report)
+
+    # Agent votes derived from each report's keyword density
+    default_vote = (
+        "bullish"
+        if rating in ("buy", "overweight")
+        else ("bearish" if rating in ("sell", "underweight") else "neutral")
+    )
+    tech_vote, tech_score = _vote_from_keywords(market_report, default_vote)
+    fund_vote, fund_score = _vote_from_keywords(fundamentals_report, default_vote)
+    risk_vote, risk_score = _vote_from_keywords(risk_judge, default_vote)
+
+    if sentiment_band:
+        band_lower = sentiment_band.lower()
+        sent_vote = (
+            "bullish"
+            if "bullish" in band_lower
+            else ("bearish" if "bearish" in band_lower else "neutral")
+        )
+        sent_score = round((sentiment_score / 10) * 100) if sentiment_score else 50
+    else:
+        sent_vote, sent_score = default_vote, 50
+
+    agent_votes = {
+        "fundamental": {"vote": fund_vote, "score": fund_score},
+        "technical": {"vote": tech_vote, "score": tech_score},
+        "sentiment": {"vote": sent_vote, "score": sent_score},
+        "risk": {"vote": risk_vote, "score": risk_score},
+    }
+
+    rr = _compute_rr(rating, entry_price, price_target, stop_loss)
+    grade = _compute_grade(confidence)
+    display_ticker = ticker.upper().replace("-USD", "")
+    name = TICKER_NAMES.get(display_ticker, display_ticker)
+
     return {
         "id": str(uuid.uuid4()),
         "ticker": ticker.upper(),
         "asset_type": asset_type.lower(),
+        "name": name,
         "signal_type": rating,
         "confidence": round(confidence, 2),
         "time_horizon": time_horizon,
@@ -474,6 +728,11 @@ def normalize_signal(
         "reasoning_summary": reasoning_summary,
         "generated_at": datetime.datetime.now(),
         "source_run_id": str(uuid.uuid4()),
+        "grade": grade,
+        "rr": rr,
+        "agent_votes": agent_votes,
+        "sentiment_score": sentiment_score,
+        "sentiment_band": sentiment_band,
     }
 
 
@@ -617,8 +876,9 @@ class SignalScheduler:
                 INSERT INTO trading_signals (
                     id, ticker, asset_type, signal_type, confidence, time_horizon,
                     price_target, entry_price, stop_loss, position_sizing,
-                    reasoning_summary, generated_at, source_run_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    reasoning_summary, generated_at, source_run_id,
+                    name, grade, rr, agent_votes, sentiment_score, sentiment_band
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     signal_dict["id"],
@@ -634,6 +894,14 @@ class SignalScheduler:
                     signal_dict["reasoning_summary"],
                     signal_dict["generated_at"].strftime("%Y-%m-%d %H:%M:%S.%f"),
                     signal_dict["source_run_id"],
+                    signal_dict.get("name"),
+                    signal_dict.get("grade"),
+                    signal_dict.get("rr"),
+                    json.dumps(signal_dict.get("agent_votes"))
+                    if signal_dict.get("agent_votes")
+                    else None,
+                    signal_dict.get("sentiment_score"),
+                    signal_dict.get("sentiment_band"),
                 ),
             )
             conn.commit()
@@ -656,10 +924,9 @@ scheduler = SignalScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Start background scheduler thread
+    seed_global_watchlist()
     scheduler.start()
     yield
-    # Stop background thread
     scheduler.stop()
 
 
@@ -675,6 +942,49 @@ app = FastAPI(
 def root_redirect():
     """Redirects base requests to the interactive Swagger documentation."""
     return RedirectResponse(url="/docs")
+
+
+def _row_to_signal(row) -> SignalPayload:
+    """Convert a DB row to SignalPayload, handling new optional columns."""
+    gen_at_str = row["generated_at"]
+    fmt = "%Y-%m-%d %H:%M:%S" if "." not in gen_at_str else "%Y-%m-%d %H:%M:%S.%f"
+    gen_at = datetime.datetime.strptime(gen_at_str, fmt)
+
+    agent_votes = None
+    try:
+        if row["agent_votes"]:
+            agent_votes = json.loads(row["agent_votes"])
+    except Exception:
+        pass
+
+    # Backfill name from TICKER_NAMES if DB column is empty
+    name = (
+        row["name"]
+        if row["name"]
+        else TICKER_NAMES.get(row["ticker"].replace("-USD", ""), row["ticker"])
+    )
+
+    return SignalPayload(
+        id=row["id"],
+        ticker=row["ticker"],
+        asset_type=row["asset_type"],
+        name=name,
+        signal_type=row["signal_type"],
+        confidence=row["confidence"],
+        time_horizon=row["time_horizon"],
+        price_target=row["price_target"],
+        entry_price=row["entry_price"],
+        stop_loss=row["stop_loss"],
+        position_sizing=row["position_sizing"],
+        reasoning_summary=row["reasoning_summary"],
+        generated_at=gen_at,
+        source_run_id=row["source_run_id"],
+        grade=row["grade"],
+        rr=row["rr"],
+        agent_votes=agent_votes,
+        sentiment_score=row["sentiment_score"],
+        sentiment_band=row["sentiment_band"],
+    )
 
 
 # CORS configuration to connect with the dashboard frontend origin
@@ -740,30 +1050,7 @@ async def get_signals_feed(
 
         signals = []
         for row in rows:
-            # Parse DATETIME string
-            gen_at_str = row["generated_at"]
-            fmt = (
-                "%Y-%m-%d %H:%M:%S" if "." not in gen_at_str else "%Y-%m-%d %H:%M:%S.%f"
-            )
-            gen_at = datetime.datetime.strptime(gen_at_str, fmt)
-
-            sig = SignalPayload(
-                id=row["id"],
-                ticker=row["ticker"],
-                asset_type=row["asset_type"],
-                signal_type=row["signal_type"],
-                confidence=row["confidence"],
-                time_horizon=row["time_horizon"],
-                price_target=row["price_target"],
-                entry_price=row["entry_price"],
-                stop_loss=row["stop_loss"],
-                position_sizing=row["position_sizing"],
-                reasoning_summary=row["reasoning_summary"],
-                generated_at=gen_at,
-                source_run_id=row["source_run_id"],
-            )
-
-            # Mask signal details if the free user's views are exhausted
+            sig = _row_to_signal(row)
             if entitlement.locked:
                 sig = mask_signal(sig)
             signals.append(sig)
@@ -781,7 +1068,6 @@ async def get_latest_signals(request: Request):
 
     conn = get_db_connection()
     try:
-        # Query latest signal per ticker
         query = """
             SELECT s1.* FROM trading_signals s1
             INNER JOIN (
@@ -796,28 +1082,7 @@ async def get_latest_signals(request: Request):
 
         signals = []
         for row in rows:
-            gen_at_str = row["generated_at"]
-            fmt = (
-                "%Y-%m-%d %H:%M:%S" if "." not in gen_at_str else "%Y-%m-%d %H:%M:%S.%f"
-            )
-            gen_at = datetime.datetime.strptime(gen_at_str, fmt)
-
-            sig = SignalPayload(
-                id=row["id"],
-                ticker=row["ticker"],
-                asset_type=row["asset_type"],
-                signal_type=row["signal_type"],
-                confidence=row["confidence"],
-                time_horizon=row["time_horizon"],
-                price_target=row["price_target"],
-                entry_price=row["entry_price"],
-                stop_loss=row["stop_loss"],
-                position_sizing=row["position_sizing"],
-                reasoning_summary=row["reasoning_summary"],
-                generated_at=gen_at,
-                source_run_id=row["source_run_id"],
-            )
-
+            sig = _row_to_signal(row)
             if entitlement.locked:
                 sig = mask_signal(sig)
             signals.append(sig)
@@ -1080,6 +1345,135 @@ async def sse_live_stream(
             await pubsub.close()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.get("/signals-ms/stats", response_model=StatsResponse)
+async def get_signals_stats(request: Request):
+    """Dashboard summary stats: signals today, buy/sell/hold counts, avg confidence, active watchlist."""
+    await get_user_claims_async(request)  # auth required but no quota cost
+
+    today = datetime.datetime.now().date().isoformat()
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute(
+            "SELECT signal_type, confidence FROM trading_signals WHERE generated_at >= ?",
+            (today,),
+        )
+        rows = cursor.fetchall()
+
+        signals_today = len(rows)
+        buy_signals = sum(1 for r in rows if r["signal_type"] in ("buy", "overweight"))
+        sell_signals = sum(
+            1 for r in rows if r["signal_type"] in ("sell", "underweight")
+        )
+        hold_signals = sum(1 for r in rows if r["signal_type"] == "hold")
+        avg_confidence = (
+            round(sum(r["confidence"] for r in rows) / signals_today, 2)
+            if signals_today
+            else 0.0
+        )
+
+        active_watchlist = conn.execute(
+            "SELECT COUNT(*) as cnt FROM watchlist_tickers"
+        ).fetchone()["cnt"]
+    finally:
+        conn.close()
+
+    return StatsResponse(
+        signals_today=signals_today,
+        buy_signals=buy_signals,
+        sell_signals=sell_signals,
+        hold_signals=hold_signals,
+        avg_confidence=avg_confidence,
+        active_watchlist=active_watchlist,
+    )
+
+
+@app.get("/signals-ms/watchlist")
+async def get_user_watchlist(request: Request):
+    """Returns the authenticated user's personal watchlist."""
+    user_id, _ = await get_user_claims_async(request)
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT ticker, asset_type, added_at FROM user_watchlist WHERE user_id = ? ORDER BY added_at DESC",
+            (user_id,),
+        ).fetchall()
+        return {"watchlist": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+class UserWatchlistPayload(BaseModel):
+    ticker: str
+    asset_type: str = "stocks"
+
+
+@app.post("/signals-ms/watchlist", status_code=201)
+async def add_to_user_watchlist(payload: UserWatchlistPayload, request: Request):
+    """Adds a ticker to the authenticated user's personal watchlist."""
+    user_id, _ = await get_user_claims_async(request)
+    ticker = payload.ticker.strip().upper()
+    asset_type = payload.asset_type.strip().lower()
+    if asset_type not in ("stocks", "crypto"):
+        raise HTTPException(
+            status_code=400, detail="asset_type must be 'stocks' or 'crypto'"
+        )
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO user_watchlist (user_id, ticker, asset_type, added_at) VALUES (?, ?, ?, ?)",
+            (
+                user_id,
+                ticker,
+                asset_type,
+                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
+        )
+        conn.commit()
+        return {"status": "success", "ticker": ticker}
+    finally:
+        conn.close()
+
+
+@app.delete("/signals-ms/watchlist/{ticker}")
+async def remove_from_user_watchlist(ticker: str, request: Request):
+    """Removes a ticker from the authenticated user's personal watchlist."""
+    user_id, _ = await get_user_claims_async(request)
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM user_watchlist WHERE user_id = ? AND ticker = ?",
+            (user_id, ticker.upper()),
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(
+                status_code=404, detail=f"{ticker.upper()} not in your watchlist"
+            )
+        return {"status": "success"}
+    finally:
+        conn.close()
+
+
+@app.post("/signals-ms/analyze")
+async def analyze_on_demand(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    ticker: str = Query(..., description="Ticker to analyze (e.g. AAPL, BTC)"),
+    asset_type: str = Query("stocks", description="'stocks' or 'crypto'"),
+):
+    """Triggers an immediate on-demand signal generation for any ticker (Pro only)."""
+    user_id, tier = await get_user_claims_async(request)
+    if tier != "pro":
+        raise HTTPException(
+            status_code=403, detail="On-demand analysis requires Pro tier"
+        )
+    ticker_upper = ticker.strip().upper()
+    background_tasks.add_task(
+        scheduler.execute_agent_run, ticker_upper, asset_type.lower(), None
+    )
+    return {"status": "triggered", "ticker": ticker_upper, "asset_type": asset_type}
 
 
 @app.get("/signals-ms/health", response_model=HealthResponse)
