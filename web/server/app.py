@@ -505,7 +505,7 @@ def create_app() -> FastAPI:
             await ws.close(code=4001)
             return
         await ws.accept()
-        lp = lp_module.log_publisher
+        lp = lp_module.log_publisher()
         if lp:
             lp.subscribe(ws)
         try:
