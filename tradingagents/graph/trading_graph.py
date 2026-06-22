@@ -156,6 +156,17 @@ class TradingAgentsGraph:
         if temperature is not None and temperature != "":
             kwargs["temperature"] = float(temperature)
 
+        # Resilience knobs (cross-provider): per-request HTTP timeout and the retry
+        # budget. max_retries also drives NormalizedChatOpenAI's invoke-level retry
+        # of transient parse/timeout failures. Coerced here so env-string values
+        # ("2", "120") work the same as programmatic ints/floats.
+        max_retries = self.config.get("llm_max_retries")
+        if max_retries is not None and max_retries != "":
+            kwargs["max_retries"] = int(max_retries)
+        timeout = self.config.get("llm_timeout")
+        if timeout is not None and timeout != "":
+            kwargs["timeout"] = float(timeout)
+
         return kwargs
 
     def _create_tool_nodes(self) -> dict[str, ToolNode]:

@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Engine: a 2xx response with an undecodable JSON body is retried instead of
+  aborting the run.** The OpenAI SDK already retries the connection / timeout /
+  5xx / 429 family internally, but it parses each response body only once —
+  *after* that retry loop — so a successful 2xx whose `application/json` body is
+  truncated or garbled (`json.JSONDecodeError`) would propagate out of a node and
+  crash a long graph run (checkpointing bounds the loss, it doesn't prevent the
+  crash). `NormalizedChatOpenAI.invoke` now retries that one case, bounded by
+  `max_retries` (default 2) with capped exponential backoff; the HTTP-transient
+  family is left to the SDK (so retries aren't multiplied) and permanent 4xx
+  errors still fail fast. New config knobs `llm_max_retries` / `llm_timeout` (env
+  `TRADINGAGENTS_LLM_MAX_RETRIES` / `TRADINGAGENTS_LLM_TIMEOUT`). (Malformed LLM
+  *structured-output* content is a separate layer, recovered by the per-agent
+  free-text fallback.)
+
 ## [0.3.0] — 2026-06-22
 
 Stabilization and extensibility release: a CI gate, a unified verified

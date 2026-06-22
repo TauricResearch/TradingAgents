@@ -268,6 +268,21 @@ ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 ```
 
+### Transient-failure retries
+
+The OpenAI SDK already retries dropped connections, timeouts, and 5xx/429 — but it
+parses each response body only once, *after* that retry loop, so a successful 2xx
+whose `application/json` body is truncated or garbled (`json.JSONDecodeError`) would
+otherwise abort a whole run. `NormalizedChatOpenAI.invoke` retries that one case,
+bounded by `max_retries` with capped exponential backoff; the HTTP-transient family
+is left to the SDK (no multiplied retries) and permanent errors (auth, bad request)
+still fail fast. Tune it with `llm_max_retries` / `llm_timeout` in your config, or
+`TRADINGAGENTS_LLM_MAX_RETRIES` / `TRADINGAGENTS_LLM_TIMEOUT` in `.env` (defaults: 2
+retries, no explicit timeout). (A model emitting malformed structured-output content
+is handled separately, by the per-agent free-text fallback.) This complements
+`--checkpoint`: checkpointing limits how much you lose on a crash; this prevents the
+crash in the first place.
+
 ## Reproducibility
 
 TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.

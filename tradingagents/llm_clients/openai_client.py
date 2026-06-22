@@ -1,5 +1,8 @@
+import json
+import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -11,6 +14,23 @@ from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
 from .validators import validate_model
+
+logger = logging.getLogger(__name__)
+
+# At the invoke level we retry only the one transient failure the OpenAI SDK
+# does NOT: a successful 2xx whose application/json body fails to decode
+# (json.JSONDecodeError). The SDK already retries the connection / timeout /
+# 5xx / 429 family internally (up to max_retries) but parses the body only
+# once, after that retry loop — so a truncated or garbled body would otherwise
+# propagate out of a node and abort the whole graph run (checkpointing bounds
+# the loss, it doesn't prevent the crash). The HTTP-transient family is left to
+# the SDK so retries aren't multiplied, and permanent 4xx errors (auth, bad
+# request) still fail fast.
+#
+# Not handled here (different layer): a model emitting malformed *structured-
+# output* content surfaces in the downstream parser, outside invoke, and is
+# recovered by the agents' free-text fallback (agents/utils/structured.py).
+_TRANSIENT_LLM_ERRORS: tuple[type[Exception], ...] = (json.JSONDecodeError,)
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -33,7 +53,23 @@ class NormalizedChatOpenAI(ChatOpenAI):
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        # Retry an undecodable-JSON response body instead of letting it abort the
+        # graph (see _TRANSIENT_LLM_ERRORS). `max_retries` (the ChatOpenAI field,
+        # default 2) bounds the attempts and `timeout` bounds each request; both
+        # come from the `llm_max_retries` / `llm_timeout` config keys (TRADINGAGENTS_LLM_*).
+        attempts = max(self.max_retries or 0, 0) + 1
+        for attempt in range(attempts):
+            try:
+                return normalize_content(super().invoke(input, config, **kwargs))
+            except _TRANSIENT_LLM_ERRORS as exc:
+                if attempt + 1 >= attempts:
+                    raise
+                delay = min(2.0 ** attempt, 8.0)
+                logger.warning(
+                    "transient %s on attempt %d/%d; retrying in %.0fs",
+                    type(exc).__name__, attempt + 1, attempts, delay,
+                )
+                time.sleep(delay)
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)
