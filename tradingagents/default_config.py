@@ -17,13 +17,36 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
+    "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    # Provider-specific reasoning/thinking knobs (None = each provider's own
+    # default). Settable here for non-interactive runs; the CLI also offers an
+    # interactive choice, which is skipped when the matching var is set.
+    "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
+    "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
+    "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
 }
 
 
+_BOOL_TRUE = ("true", "1", "yes", "on")
+_BOOL_FALSE = ("false", "0", "no", "off")
+
+
 def _coerce(value: str, reference):
-    """Coerce env-var string to the type of the existing default value."""
+    """Coerce env-var string to the type of the existing default value.
+
+    Invalid values raise ``ValueError`` rather than silently falling back to a
+    default — a misspelled boolean (e.g. ``treu``) or non-numeric int should fail
+    loudly at startup, not quietly misconfigure an unattended run.
+    """
     if isinstance(reference, bool):
-        return value.strip().lower() in ("true", "1", "yes", "on")
+        normalized = value.strip().lower()
+        if normalized in _BOOL_TRUE:
+            return True
+        if normalized in _BOOL_FALSE:
+            return False
+        raise ValueError(
+            f"expected a boolean ({'/'.join(_BOOL_TRUE + _BOOL_FALSE)}), got {value!r}"
+        )
     if isinstance(reference, int) and not isinstance(reference, bool):
         return int(value)
     if isinstance(reference, float):
@@ -37,7 +60,10 @@ def _apply_env_overrides(config: dict) -> dict:
         raw = os.environ.get(env_var)
         if raw is None or raw == "":
             continue
-        config[key] = _coerce(raw, config.get(key))
+        try:
+            config[key] = _coerce(raw, config.get(key))
+        except ValueError as exc:
+            raise ValueError(f"Invalid value for {env_var}: {exc}") from exc
     return config
 
 
@@ -52,7 +78,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "memory_log_max_entries": None,
     # LLM settings
     "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.4",
+    "deep_think_llm": "gpt-5.5",
     "quick_think_llm": "gpt-5.4-mini",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
@@ -64,6 +90,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    # Sampling temperature, forwarded to every provider when set. None leaves
+    # each provider at its own default. Lower values reduce run-to-run
+    # variation on models that honor it; reasoning models largely ignore it
+    # and no setting makes LLM output bit-identical across runs (see README).
+    "temperature": None,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
@@ -94,7 +125,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "ASEAN Southeast Asia economic outlook trade",
     ],
     # Data vendor configuration
-    # Category-level configuration (default for all tools in category)
+    # Category-level configuration (default for all tools in category).
+    # The configured value is the exact vendor chain — requests are NOT silently
+    # routed to vendors you didn't choose. For ordered fallback, list several,
+    # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
     "data_vendors": {
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance

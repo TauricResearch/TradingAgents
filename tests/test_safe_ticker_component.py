@@ -14,6 +14,11 @@ class TestSafeTickerComponent(unittest.TestCase):
         for ticker in ("AAPL", "BRK-B", "BRK.A", "0700.HK", "7203.T", "BHP.AX", "^GSPC"):
             self.assertEqual(safe_ticker_component(ticker), ticker)
 
+    def test_accepts_futures_and_forex_formats(self):
+        # Futures use '=' (GC=F gold, CL=F crude), forex/CFD symbols use '+'.
+        for ticker in ("GC=F", "CL=F", "ES=F", "XAUUSD+", "EURUSD+"):
+            self.assertEqual(safe_ticker_component(ticker), ticker)
+
     def test_rejects_path_separators(self):
         for bad in (".", "..", "../etc", "a/b", "a\\b", "/abs", "..\\..\\x"):
             with self.assertRaises(ValueError):
