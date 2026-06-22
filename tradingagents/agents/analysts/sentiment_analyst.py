@@ -41,6 +41,7 @@ from tradingagents.agents.utils.structured import (
 )
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
+from tradingagents.dataflows.akshare_utils import is_a_share, fetch_guba_posts
 
 
 def _seven_days_back(trade_date: str) -> str:
@@ -63,12 +64,21 @@ def create_sentiment_analyst(llm):
         start_date = _seven_days_back(end_date)
         instrument_context = get_instrument_context_from_state(state)
 
-        # Pre-fetch all three sources. Each fetcher degrades gracefully and
-        # returns a string (no exceptions surface from here), so the LLM
-        # always sees something — either real data or a clear placeholder.
+        # Pre-fetch all sources. Each fetcher degrades gracefully so the LLM
+        # always sees something — real data or a clear placeholder.
         news_block = get_news.func(ticker, start_date, end_date)
-        stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
-        reddit_block = fetch_reddit_posts(ticker)
+
+        if is_a_share(ticker):
+            # For Chinese A-shares substitute domestic sentiment sources:
+            # 东方财富 heat-rank replaces StockTwits; already included in news.
+            stocktwits_block = fetch_guba_posts(ticker)
+            reddit_block = (
+                "<Reddit is not applicable for Chinese A-share stocks. "
+                "社交情绪数据已通过东方财富热度排行提供（见上方数据块）。>"
+            )
+        else:
+            stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
+            reddit_block = fetch_reddit_posts(ticker)
 
         system_message = _build_system_message(
             ticker=ticker,
@@ -86,8 +96,8 @@ def create_sentiment_analyst(llm):
                     "You are a helpful AI assistant, collaborating with other assistants."
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " Today's date is {current_date}; treat it as 'now' for all analysis and tool-call date ranges. {instrument_context}"
-                    "\n{system_message}",
+                    "\n{system_message}\n"
+                    "For your reference, the current date is {current_date}. {instrument_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
