@@ -9,6 +9,9 @@ import { useRestoredRunEvents } from "./hooks/useRestoredRunEvents";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useRunNotifications } from "./hooks/useRunNotifications";
 import { useTheme } from "./hooks/useTheme";
+import { LogPanel } from "./components/LogPanel";
+import "./lib/console-capture"; // side-effect: wraps console on import
+
 import { AuthGate } from "./components/AuthGate";
 import { useAuthStore } from "./stores/authStore";
 import { WatchlistRail } from "./components/WatchlistRail";
@@ -395,6 +398,7 @@ export default function App() {
   return (
     <AuthGate>
       {appContent}
+      <LogPanel />
     </AuthGate>
   );
 }
