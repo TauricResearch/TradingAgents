@@ -1,0 +1,6 @@
+{
+  "build": {
+    "builder": "dockerfile",
+    "dockerfile": "Dockerfile.web"
+  }
+}

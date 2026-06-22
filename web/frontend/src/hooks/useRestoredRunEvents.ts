@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useUi } from "../store/ui";
 import { fetchRunDetail, type RunDetail } from "../lib/api";
@@ -17,7 +17,6 @@ export function useRestoredRunEvents(focused: string | null): void {
   const restoreEvents = useUi((s) => s.restoreEvents);
   const clearLast = useUi((s) => s.clearLastRunIdForTicker);
   const clearHistorical = useUi((s) => s.clearHistoricalRunForTicker);
-  const lastFetchedRunIdRef = useRef<string | null>(null);
 
   const { data } = useQuery<RunDetail | null>({
     queryKey: ["run-detail", focused, runId],
@@ -49,8 +48,6 @@ export function useRestoredRunEvents(focused: string | null): void {
   useEffect(() => {
     if (!data || !focused) return;
     if (data.status === "running" || data.status === "queued") return;
-    if (lastFetchedRunIdRef.current === data.id) return;
-    lastFetchedRunIdRef.current = data.id;
     restoreEvents(data.id, data.events);
   }, [data, focused, restoreEvents]);
 }

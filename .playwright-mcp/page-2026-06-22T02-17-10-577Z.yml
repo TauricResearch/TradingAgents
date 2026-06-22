@@ -1,0 +1,7 @@
+- generic [ref=e2]:
+  - banner [ref=e4]:
+    - link "Railway Logo" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - img "Railway Logo" [ref=e8]
+    - navigation [ref=e11]
+  - main [ref=e14]

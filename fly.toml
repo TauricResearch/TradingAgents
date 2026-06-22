@@ -1,0 +1,19 @@
+app = "tradingagents"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile.web"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+[[mounts]]
+  source = "tradingagents_data"
+  destination = "/home/appuser/.tradingagents"
+
+[env]
+  TRADINGAGENTS_DASHBOARD_HOST = "0.0.0.0"

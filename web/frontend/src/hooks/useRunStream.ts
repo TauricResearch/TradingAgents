@@ -42,6 +42,10 @@ export function useRunStream(runId: string | null) {
               // and run list pick up the final action / target / confidence.
               qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
               qc.invalidateQueries({ queryKey: ["runs", "list"] });
+              // Also invalidate the run-detail cache so useRestoredRunEvents
+              // fetches the completed run's events instead of stale "running"
+              // data when the user switches back to this ticker.
+              qc.invalidateQueries({ queryKey: ["run-detail", ticker] });
               break;
             }
           }

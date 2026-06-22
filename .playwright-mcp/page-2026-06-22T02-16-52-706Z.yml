@@ -1,0 +1,24 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e5]
+      - heading "Application failed to respond" [level=1] [ref=e8]
+    - generic [ref=e9]:
+      - paragraph [ref=e10]: This error appears to be caused by the application.
+      - paragraph [ref=e11]:
+        - text: If this is your project, check out your
+        - link "deploy logs" [ref=e12] [cursor=pointer]:
+          - /url: https://docs.railway.com/guides/logs
+        - text: to see what went wrong. Refer to our
+        - link "docs on Fixing Common Errors" [ref=e13] [cursor=pointer]:
+          - /url: https://docs.railway.com/guides/fixing-common-errors
+        - text: for help, or reach out over our
+        - link "Help Station" [ref=e14] [cursor=pointer]:
+          - /url: https://station.railway.com
+        - text: .
+      - paragraph [ref=e15]: If you are a visitor, please contact the application owner or try again later.
+      - paragraph [ref=e17]:
+        - text: "Request ID:"
+        - text: DzsC2XDcTwqFH4ix-_9nXA
+      - link "Go to Railway" [ref=e19] [cursor=pointer]:
+        - /url: https://railway.com
