@@ -70,6 +70,17 @@ class PriceSnapshot:
 class PriceState:
     snapshots: dict[str, PriceSnapshot]
     tickers: Callable[[], list[str]]
+    _watchlist_cache: list[str] = field(default_factory=list)
+    _watchlist_cache_time: float = 0.0
+    _cache_ttl: float = 5.0
+
+    def get_tickers(self) -> list[str]:
+        import time
+        now = time.monotonic()
+        if not self._watchlist_cache or (now - self._watchlist_cache_time) > self._cache_ttl:
+            self._watchlist_cache = list(self.tickers())
+            self._watchlist_cache_time = now
+        return self._watchlist_cache
 
 
 def snapshot_price(state: PriceState, ticker: str) -> tuple[Optional[float], Optional[str]]:
@@ -86,7 +97,7 @@ async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], Non
     ``fast_info`` API which returns the last-trade price.  Sparkline/history
     data is fetched separately by ``_update_sparklines`` every ~60s.
     """
-    tickers = list(state.tickers())
+    tickers = list(state.get_tickers())
     if not tickers:
         return
 
@@ -195,7 +206,7 @@ async def _update_sparklines(state: PriceState) -> None:
     ``yf.download(interval="1m")`` is a heavy multi-ticker request; we
     only run it every ~60 seconds.
     """
-    tickers = list(state.tickers())
+    tickers = list(state.get_tickers())
     if not tickers:
         return
 
