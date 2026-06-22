@@ -6,6 +6,72 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [0.3.0] — 2026-06-22
+
+Stabilization and extensibility release: a CI gate, a unified verified
+data-access contract, a provider and data-vendor registry, and a maintenance
+sweep that hardened config precedence, the model catalog, data resilience, and
+structured output.
+
+### Added
+
+- **CI gate.** GitHub Actions runs the pytest suite across Python 3.10-3.13,
+  strict `ruff`, and a clean-install smoke that imports the package and CLI to
+  catch undeclared dependencies. (#994, #197)
+- **Provider registry.** OpenAI-compatible providers register as a single spec,
+  and a generic `openai_compatible` endpoint covers vLLM, LM Studio, and relays.
+  Adds NVIDIA NIM, Kimi, Groq, Mistral, and a native Amazon Bedrock client.
+- **Macro and prediction-market vendors.** FRED macro indicators and Polymarket
+  event probabilities, surfaced to the news and macro analysts.
+- **Programmatic report output.** `TradingAgentsGraph.save_reports()` writes the
+  same report tree the CLI produces, for headless and API runs. (#1037)
+- **Env-configurable reasoning depth** via `TRADINGAGENTS_OPENAI_REASONING_EFFORT`,
+  `TRADINGAGENTS_GOOGLE_THINKING_LEVEL`, and `TRADINGAGENTS_ANTHROPIC_EFFORT`,
+  each gated to the models that accept it.
+
+### Changed
+
+- **Verified data-access contract.** Symbol normalization on every vendor path
+  (identity, returns, CLI, news); the configured vendor list is the exact
+  resolution chain with no silent fallback to unselected vendors; a typed
+  `VendorError` taxonomy; look-ahead-safe news windows; stale-OHLCV rejection;
+  inclusive yfinance date ranges.
+- **Config precedence.** An explicit `TRADINGAGENTS_*` value or CLI flag now wins
+  over interactive defaults for debate and risk round counts,
+  `--checkpoint / --no-checkpoint`, and the Docker provider profile; invalid
+  boolean env values fail loudly. (#975, #976, #977)
+- **Current-generation model catalog.** Refreshed provider lineups; retired
+  `gpt-4.1`, Claude Sonnet 4.5, and the Gemini 2.5 line.
+- **Optional vendors degrade** instead of aborting a run: a failed macro or
+  prediction-market lookup returns a no-data sentinel.
+- **Analyst prompts lead with the current date** so tool-call date ranges anchor
+  to the run date rather than the model's training cutoff. (#836)
+
+### Fixed
+
+- **Instrument identity.** Deterministic ticker-to-company resolution prevents
+  wrong-company hallucination, and a verified market-data snapshot grounds price
+  and indicator claims. (#814, #830)
+- **Social and market data sources.** Reddit RSS-first with 429 backoff,
+  StockTwits transport hardening, and Alpha Vantage timeout plus
+  key-versus-rate-limit handling.
+- **Structured output.** Local OpenAI-compatible servers no longer reject
+  object-form `tool_choice`; a thinking model that returns no parsed result falls
+  back to free text; null-ish strings in optional price fields coerce to `None`.
+  (#1038, #1051, #1057)
+
+### Removed
+
+- The no-op `analyst_concurrency_limit` config knob; parallel analyst execution
+  is planned for a later release. (#979)
+- The unused committed `uv.lock`. (#1030)
+
+### Contributors
+
+Thanks to everyone who shaped this release through code, design, and reports:
+
+[@CadeYu](https://github.com/CadeYu), [@Zavianx](https://github.com/Zavianx), [@weijianz-opc](https://github.com/weijianz-opc), [@naltun](https://github.com/naltun), [@brahmasky](https://github.com/brahmasky), [@nik2208](https://github.com/nik2208), [@thieucong98](https://github.com/thieucong98), [@Derekko-web](https://github.com/Derekko-web), [@LukiPrince](https://github.com/LukiPrince), [@Eddieargenal](https://github.com/Eddieargenal), [@Ghraven](https://github.com/Ghraven), [@ms32035](https://github.com/ms32035), [@yting27](https://github.com/yting27), [@nyxst4ck](https://github.com/nyxst4ck), [@KenCheung-AIxFinance](https://github.com/KenCheung-AIxFinance), [@yangyusheng2n](https://github.com/yangyusheng2n), [@fareloj](https://github.com/fareloj), [@haosenwang1018](https://github.com/haosenwang1018), [@octo-patch](https://github.com/octo-patch), [@seifenk](https://github.com/seifenk), [@CaoYuhaoCarl](https://github.com/CaoYuhaoCarl), [@mihailnica10](https://github.com/mihailnica10), [@Dado-hash](https://github.com/Dado-hash), [@Handsomemikezzz](https://github.com/Handsomemikezzz), [@ydhawesome](https://github.com/ydhawesome), [@macd2](https://github.com/macd2), [@AyushKar2005](https://github.com/AyushKar2005), [@wildhuman](https://github.com/wildhuman), [@robert23kim](https://github.com/robert23kim), [@bngness](https://github.com/bngness), [@tedix-rodrigo](https://github.com/tedix-rodrigo), [@malaccan](https://github.com/malaccan), [@rfalken78](https://github.com/rfalken78), [@dengli1971-droid](https://github.com/dengli1971-droid), [@proofconcept39](https://github.com/proofconcept39), [@prasta1](https://github.com/prasta1), [@liximin](https://github.com/liximin), [@jeffhuen](https://github.com/jeffhuen), [@mazar](https://github.com/mazar), [@soyangelromero](https://github.com/soyangelromero), [@CNQQC](https://github.com/CNQQC), [@dovetaill](https://github.com/dovetaill), [@fperdigon](https://github.com/fperdigon), [@gyx09212214-prog](https://github.com/gyx09212214-prog), [@RSXLX](https://github.com/RSXLX).
+
 ## [0.2.5] — 2026-05-11
 
 ### Added
