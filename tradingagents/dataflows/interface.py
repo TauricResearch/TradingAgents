@@ -168,8 +168,9 @@ def route_to_vendor(method: str, *args, **kwargs):
     # first without requiring users to change their vendor configuration.
     ticker_arg = args[0] if args else kwargs.get("symbol", kwargs.get("ticker", ""))
     if isinstance(ticker_arg, str) and is_a_share(ticker_arg):
-        if "akshare" not in primary_vendors:
-            primary_vendors = ["akshare"] + primary_vendors
+        if "akshare" in primary_vendors:
+            primary_vendors.remove("akshare")
+        primary_vendors = ["akshare"] + primary_vendors
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")

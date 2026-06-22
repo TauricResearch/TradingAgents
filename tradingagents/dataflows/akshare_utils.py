@@ -36,7 +36,7 @@ def _to_akshare_code(ticker: str) -> str:
 
 def _em_prefix(code: str) -> str:
     """Return the 东方财富 market prefix used by hot-rank: 'SH600519'."""
-    return ("SH" if code.startswith("6") or code.startswith("688") else "SZ") + code
+    return ("SH" if code.startswith("6") else "SZ") + code
 
 
 def _fmt_date_ak(date_str: str) -> str:
@@ -90,7 +90,7 @@ def get_stock_data_akshare(
         return header + df.to_csv(index=False)
     except Exception as e:
         logger.warning("AKShare price fetch failed for %s: %s", ticker, e)
-        return f"<A-share price data unavailable for {ticker}: {type(e).__name__}>"
+        raise
 
 
 # ── Technical indicators ───────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ def get_indicators_akshare(
         )
     except Exception as e:
         logger.warning("AKShare indicators failed for %s/%s: %s", ticker, indicator, e)
-        return f"<A-share indicator '{indicator}' unavailable for {ticker}: {type(e).__name__}>"
+        raise
 
 
 # ── News (eastmoney search API) ───────────────────────────────────────────────
@@ -218,7 +218,7 @@ def _fetch_em_news(query: str, n: int = 25) -> list[dict]:
         return articles or []
     except Exception as exc:
         logger.warning("东方财富 news fetch failed (query=%r): %s", query, exc)
-        return []
+        raise
 
 
 def get_news_akshare(ticker: str, start_date: str, end_date: str) -> str:

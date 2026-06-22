@@ -97,8 +97,6 @@ class AShareAutoRoutingTests(unittest.TestCase):
             interface.VENDOR_METHODS,
             {"get_stock_data": {"akshare": fake_akshare, "yfinance": fake_yfinance}},
         ):
-            # Default config lists yfinance first for US equities
-            interface.set_config = lambda cfg: None  # no-op; default vendor order is used
             result = interface.route_to_vendor("get_stock_data", "AAPL", "2025-01-01", "2026-01-01")
 
         assert result == "yfinance_data"
