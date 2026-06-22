@@ -547,4 +547,41 @@ export async function getTickerHistory(
   return r.json();
 }
 
+export async function downloadSingleTicker(ticker: string): Promise<void> {
+  const safe = encodeURIComponent(ticker);
+  const r = await fetch(`${base}/api/tickers/${safe}/download`);
+  if (!r.ok) {
+    throw new ApiError(`download ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  const blob = await r.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${ticker.toUpperCase()}-data.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function downloadTickers(tickers: string[]): Promise<void> {
+  const r = await fetch(`${base}/api/tickers/download`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ tickers }),
+  });
+  if (!r.ok) {
+    throw new ApiError(`download ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  const blob = await r.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "tickers-bundle.zip";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 

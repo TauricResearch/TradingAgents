@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteRun, deleteRuns, resumeRun, type RunRow } from "../lib/api";
+import { deleteRun, deleteRuns, resumeRun, downloadSingleTicker, type RunRow } from "../lib/api";
 import { runLabel } from "./TickerHeader";
 import { useUi } from "../store/ui";
 
@@ -132,7 +132,19 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Run history ({runs.length})
             </span>
-            <button onClick={closeAndReset} aria-label="Close" className="text-slate-500 hover:text-slate-300 text-lg leading-none px-1">&times;</button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadSingleTicker(ticker)}
+                title="Download all data for this ticker"
+                className="text-slate-400 hover:text-sky-400 transition-colors"
+                aria-label="Download ticker data"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+              <button onClick={closeAndReset} aria-label="Close" className="text-slate-500 hover:text-slate-300 text-lg leading-none px-1">&times;</button>
+            </div>
           </div>
 
           {/* Run list */}
