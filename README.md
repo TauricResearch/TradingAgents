@@ -290,6 +290,28 @@ What does not vary anymore: the analyzed company identity is resolved determinis
 
 Backtest results are not guaranteed to match any published figure. Returns depend on the model, the temperature, the date range, data quality, and the sampling above. Treat the framework as a research scaffold for studying multi-agent analysis, not as a strategy with a fixed, replicable return.
 
+## TradingDesk — native macOS app
+
+[`macos/TradingDesk/`](macos/TradingDesk/) is a native macOS app (SwiftUI, macOS 14+) that drives this engine **without modifying the agent graph**. It reconceives the CLI's one-shot wizard as a persistent research workspace: a watchlist of tracked tickers, runs as permanent documents, a decisions journal that closes the loop with realized alpha, and a live "watch the agents work" theater. The app talks to the engine through the Dockerized [`desk-server`](desk_server/) backend over SSE on `127.0.0.1:8765`; provider keys live in the macOS Keychain and are injected per run.
+
+See [`docs/TRADINGDESK.md`](docs/TRADINGDESK.md) for the full architecture and design notes.
+
+**Prerequisites:** macOS 14+, Xcode 26 / Swift 6 toolchain, and Docker Desktop (for the backend).
+
+**Quick start (dev), from the repo root:**
+
+```bash
+# 1. Build the backend image (engine + FastAPI server)
+docker compose build desk-server
+
+# 2. Build and launch the preview app (compiles the SwiftPM target, assembles the .app)
+macos/TradingDesk/scripts/make-preview-app.sh
+open macos/TradingDesk/.build/TradingDesk.app
+# (or `swift build` / `swift run` from macos/TradingDesk/)
+```
+
+The app starts and health-checks the backend container on launch. See the doc's "Build & run" section for the optional one-time dev signing identity that avoids repeated Keychain prompts.
+
 ## Contributing
 
 Contributions are welcome: bug fixes, documentation, and feature ideas; past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).

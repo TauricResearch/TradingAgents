@@ -29,6 +29,15 @@ Breaking changes within the 0.x line are called out explicitly.
   introspects provider/model capabilities. Runs on loopback only
   (`127.0.0.1:8765`); secrets are injected by the host, never read from disk
   (`TRADINGAGENTS_NO_DOTENV=1`).
+- **TradingDesk — native macOS app (`macos/TradingDesk/`).** A SwiftUI app
+  (macOS 14+) that drives the engine through the Dockerized `desk-server`
+  backend and reconceives the CLI as a persistent research workspace: a live
+  watchlist backed by the decisions journal, per-ticker run documents and a
+  Library, a Live Monitor whose Agent Theater streams every agent step / tool
+  call / debate turn over SSE, a ⌘K command palette over tickers + runs +
+  decisions, and Settings with provider/model selection, per-provider Keychain
+  keys, and connectivity tests. Build/run instructions in
+  [`docs/TRADINGDESK.md`](docs/TRADINGDESK.md). Engine graph unchanged.
 
 ## [0.3.0] — 2026-06-22
 
