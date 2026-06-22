@@ -272,6 +272,54 @@ def test_decision_parser_handles_table_style_final_plan():
 
 
 @pytest.mark.unit
+def test_decision_parser_accepts_target_price_alias():
+    builder = load_builder()
+
+    assert builder.extract_price_target("**Target Price**: $212.50\n") == 212.5
+    assert builder.extract_price_target("| **Fair Value** | **$198** |\n") == 198.0
+
+
+@pytest.mark.unit
+def test_summary_row_uses_current_price_when_target_missing(tmp_path, monkeypatch):
+    builder = load_builder()
+    docs = tmp_path / "docs"
+    run_dir = docs / "AAPL" / "20260621_gpt-5-5_20260621_123508"
+    (run_dir / "5_portfolio").mkdir(parents=True)
+    (run_dir / "3_trading").mkdir()
+    (run_dir / "5_portfolio" / "decision.md").write_text(
+        "**Rating**: Hold\n\n"
+        "**Current Price**: $298.01\n\n"
+        "**Price Target**: n/a\n\n"
+        "**Time Horizon**: 3-6 months\n",
+        encoding="utf-8",
+    )
+    (run_dir / "3_trading" / "trader.md").write_text(
+        "**Action**: Hold\n",
+        encoding="utf-8",
+    )
+    (run_dir / "complete_report.md").write_text(
+        "**Confidence:** Medium\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(builder, "DOCS_DIR", docs)
+
+    row = builder.build_summary_row(
+        builder.Run(
+            "AAPL",
+            "2026-06-21",
+            "gpt-5-5",
+            "2026-06-21 12:35:08",
+            "20260621_gpt-5-5_20260621_123508",
+        )
+    )
+
+    assert row.current_price == 298.01
+    assert row.price_target == 298.01
+    assert row.target_uplift == 0.0
+    assert row.annualized_uplift == 0.0
+
+
+@pytest.mark.unit
 def test_main_removes_stale_generated_ticker_hubs(tmp_path, monkeypatch):
     builder = load_builder()
     docs = tmp_path / "docs"

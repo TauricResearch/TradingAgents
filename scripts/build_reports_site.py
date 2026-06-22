@@ -147,7 +147,15 @@ def parse_money(value: str) -> float | None:
 
 
 def extract_price_target(decision_text: str) -> float | None:
-    for name in ("Price Target", "Near-term target", "Medium-term target"):
+    for name in (
+        "Price Target",
+        "Target Price",
+        "Near-term target",
+        "Medium-term target",
+        "Base-case target",
+        "Fair Value",
+        "Valuation Target",
+    ):
         value = field(decision_text, name)
         if value:
             return parse_money(value)
@@ -317,10 +325,12 @@ def build_summary_row(run: Run) -> SummaryRow:
 
     current = extract_current_price(report_text, decision_text, trader_text)
     target = extract_price_target(decision_text)
+    if target is None and current is not None:
+        target = current
     horizon = extract_time_horizon(decision_text)
     target_uplift = None
     annualized_uplift = None
-    if current and target:
+    if current is not None and target is not None and current != 0:
         target_uplift = target / current - 1.0
         months = horizon_months(horizon)
         if months and months > 0 and 1.0 + target_uplift > 0:

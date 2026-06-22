@@ -706,6 +706,7 @@ class TestPortfolioManagerInjection:
         pm_node(state)
         assert "Lessons from prior decisions and outcomes" in captured["prompt"]
         assert "Great call." in captured["prompt"]
+        assert "Always provide a numeric price target" in captured["prompt"]
 
     def test_pm_no_past_context_no_section(self):
         """PM prompt omits the lessons section entirely when past_context is empty."""
@@ -725,7 +726,7 @@ class TestPortfolioManagerInjection:
         md = render_pm_decision(decision, current_price=189.5)
         assert "**Rating**: Hold" in md
         assert "**Current Price**: $189.50" in md
-        assert "**Price Target**: n/a" in md
+        assert "**Price Target**: $189.50" in md
 
     def test_pm_returns_rendered_markdown_with_rating(self):
         """The structured PortfolioDecision is rendered to markdown that
@@ -763,7 +764,7 @@ class TestPortfolioManagerInjection:
         md = result["final_trade_decision"]
         assert "**Rating**: Sell" in md
         assert "**Current Price**: $189.50" in md
-        assert "**Price Target**: n/a" in md
+        assert "**Price Target**: $189.50" in md
         assert "Exit ahead of guidance." in md
 
     # get_past_context ordering and limits

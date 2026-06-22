@@ -80,6 +80,12 @@ def create_portfolio_manager(llm):
 - **Underweight**: Reduce exposure, take partial profits
 - **Sell**: Exit position or avoid entry
 
+**Price Target Requirement:**
+- Always provide a numeric price target for the stated decision horizon.
+- For Buy/Overweight, use a conservative upside target supported by the debate.
+- For Underweight/Sell, use a downside or reduce-risk target supported by the debate.
+- For Hold with no distinct upside/downside case, use the current price as the neutral target.
+
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**

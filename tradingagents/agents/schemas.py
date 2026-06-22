@@ -200,9 +200,10 @@ class PortfolioDecision(BaseModel):
     price_target: Optional[float] = Field(
         default=None,
         description=(
-            "Optional numeric target price in the instrument's quote currency. "
-            "Provide this whenever the decision has a distinct target; omit it "
-            "only when no numeric target is justified."
+            "Numeric target price in the instrument's quote currency. Provide "
+            "a concrete target for the decision horizon whenever possible. For "
+            "Hold decisions with no distinct upside/downside target, use the "
+            "current price as the neutral target instead of omitting this."
         ),
     )
     time_horizon: Optional[str] = Field(
@@ -245,6 +246,22 @@ def _extract_pm_price_field(markdown: str, field_name: str) -> Optional[float]:
     return None
 
 
+def _extract_pm_target_price(markdown: str) -> Optional[float]:
+    for field_name in (
+        "Price Target",
+        "Target Price",
+        "Near-term target",
+        "Medium-term target",
+        "Base-case target",
+        "Fair Value",
+        "Valuation Target",
+    ):
+        target = _extract_pm_price_field(markdown, field_name)
+        if target is not None:
+            return target
+    return None
+
+
 def ensure_pm_price_fields(
     markdown: str,
     *,
@@ -259,11 +276,19 @@ def ensure_pm_price_fields(
     """
     target = price_target
     if target is None:
-        target = _extract_pm_price_field(markdown, "Price Target")
+        target = _extract_pm_target_price(markdown)
+    if target is None:
+        target = current_price
 
     field_patterns = (
         _pm_field_re("Current Price"),
         _pm_field_re("Price Target"),
+        _pm_field_re("Target Price"),
+        _pm_field_re("Near-term target"),
+        _pm_field_re("Medium-term target"),
+        _pm_field_re("Base-case target"),
+        _pm_field_re("Fair Value"),
+        _pm_field_re("Valuation Target"),
     )
     body_lines = [
         line
@@ -307,12 +332,16 @@ def render_pm_decision(
     ``**Executive Summary**``, ``**Investment Thesis**``) that downstream
     parsers and the report writers already handle.
     """
+    price_target = decision.price_target
+    if price_target is None:
+        price_target = current_price
+
     parts = [
         f"**Rating**: {decision.rating.value}",
         "",
         f"**Current Price**: {format_pm_price(current_price)}",
         "",
-        f"**Price Target**: {format_pm_price(decision.price_target)}",
+        f"**Price Target**: {format_pm_price(price_target)}",
         "",
         f"**Executive Summary**: {decision.executive_summary}",
         "",
