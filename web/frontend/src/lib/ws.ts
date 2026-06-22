@@ -77,3 +77,8 @@ export function buildGlobalUrl(): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   return `${proto}//${location.host}/ws/global`;
 }
+
+export function buildLogsUrl(): string {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${location.host}/ws/logs`;
+}
