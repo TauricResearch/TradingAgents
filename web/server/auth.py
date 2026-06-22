@@ -21,7 +21,10 @@ _allowed_emails: list[str] = []
 
 
 def is_auth_disabled() -> bool:
-    return os.environ.get("AUTH_DISABLED", "").lower() in ("true", "1", "yes")
+    import os
+    val = os.environ.get("AUTH_DISABLED", "")
+    print(f"[DEBUG] AUTH_DISABLED={val!r}")
+    return val.lower() in ("true", "1", "yes")
 
 
 def _get_serializer() -> URLSafeTimedSerializer | None:
