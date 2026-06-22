@@ -88,5 +88,10 @@ def teardown_log_publisher() -> None:
         _log_publisher = None
 
 
+def get_log_publisher() -> LogPublisher | None:
+    return _log_publisher
+
+
 # Module-level singleton accessor for use in app.py
-log_publisher = _log_publisher
+def log_publisher() -> LogPublisher | None:
+    return _log_publisher
