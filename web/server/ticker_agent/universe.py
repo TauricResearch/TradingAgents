@@ -28,7 +28,8 @@ class UniverseConfig:
 
 
 # -- On-disk cache --
-_CACHE_TTL_S = 3600  # 1 hour
+_CACHE_TTL_S = 3600  # 1 hour for S&P 500
+_CACHE_TTL_SECTOR_HOLDINGS = 86400  # 24 hours for sector ETF holdings (they change rarely)
 _cache_lock = threading.Lock()
 
 # Sector ETFs to pull top holdings from
@@ -109,21 +110,28 @@ def _fetch_sp500_tickers() -> Optional[list[str]]:
         return None
 
 
-def _fetch_sector_holdings(etf_symbol: str) -> Optional[list[str]]:
-    """Fetch top holdings for a sector ETF via yfinance."""
-    try:
-        import yfinance as yf
-        ticker = yf.Ticker(etf_symbol)
-        holdings = ticker.funds_data.top_holdings
-        if holdings is not None and not holdings.empty:
-            if "Symbol" in holdings.columns:
-                return [s.upper().strip() for s in holdings["Symbol"].tolist() if s]
-            if "Ticker" in holdings.columns:
-                return [s.upper().strip() for s in holdings["Ticker"].tolist() if s]
-        return None
-    except Exception as e:
-        log.warning("Failed to fetch holdings for %s: %s", etf_symbol, e)
-        return None
+def _fetch_sector_holdings(etf_symbol: str, retries: int = 2, backoff: float = 2.0) -> Optional[list[str]]:
+    """Fetch top holdings for a sector ETF via yfinance with retry on rate limit."""
+    import time as _time
+    for attempt in range(retries + 1):
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(etf_symbol)
+            holdings = ticker.funds_data.top_holdings
+            if holdings is not None and not holdings.empty:
+                if "Symbol" in holdings.columns:
+                    return [s.upper().strip() for s in holdings["Symbol"].tolist() if s]
+                if "Ticker" in holdings.columns:
+                    return [s.upper().strip() for s in holdings["Ticker"].tolist() if s]
+            return None
+        except Exception as e:
+            if attempt < retries:
+                wait = backoff ** attempt
+                log.info("Retrying fetch for %s after %.1fs (attempt %d/%d)", etf_symbol, wait, attempt + 1, retries)
+                _time.sleep(wait)
+            else:
+                log.warning("Failed to fetch holdings for %s after %d attempts: %s", etf_symbol, retries, e)
+    return None
 
 
 def _get_sp500_tickers() -> list[str]:
@@ -165,6 +173,8 @@ def _get_sector_etf_tickers() -> list[str]:
                 cache[cached_key] = fetched
                 holdings = fetched
                 any_fetched = True
+            elif cached_val is None:
+                time.sleep(0.5)
 
         if holdings is not None:
             for t in holdings:

@@ -704,6 +704,12 @@ def resume(job_id: str) -> None:
     h = get_handle(job_id)
     if h is None:
         raise KeyError(job_id)
+
+    h.cancel_event.set()
+    if h.thread:
+        h.thread.join(timeout=5.0)
+    h.cancel_event.clear()
+
     h.pause_event.clear()
     h.state.status = "running"
     dp = iteration_dates_path(job_id)
