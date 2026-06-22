@@ -89,11 +89,6 @@ if [ "$dry_run" -eq 1 ]; then
   workflow_args+=(--dry-run)
 fi
 
-if [ "$dry_run" -eq 0 ]; then
-  echo "==> Reassembling complete reports from existing stage files"
-  "$PY" scripts/reassemble_complete_reports.py
-fi
-
 echo "==> Refreshing and validating report docs without model calls"
 "$PY" scripts/report_workflow.py "${workflow_args[@]}"
 
@@ -101,9 +96,6 @@ if [ "$dry_run" -eq 1 ]; then
   echo "==> Dry run complete; _site was not rebuilt and gh-pages was not pushed."
   exit 0
 fi
-
-echo "==> Building MkDocs site into _site"
-"$MK" build --strict --site-dir _site
 
 if [ "$build_only" -eq 1 ]; then
   echo "==> Build complete; gh-pages was not pushed."

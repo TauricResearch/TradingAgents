@@ -15,6 +15,7 @@ import logging
 from tradingagents.agents.schemas import (
     PortfolioDecision,
     ensure_pm_price_fields,
+    format_pm_price,
     render_pm_decision,
 )
 from tradingagents.agents.utils.agent_utils import (
@@ -66,6 +67,19 @@ def create_portfolio_manager(llm):
             if past_context
             else ""
         )
+        if current_price is None:
+            current_price_line = (
+                "Resolved current price for the analysis date: unavailable. "
+                "You must still choose one numeric Price Target from the "
+                "analyst/trader levels in context or a conservative base-case estimate."
+            )
+        else:
+            current_price_line = (
+                "Resolved current price for the analysis date: "
+                f"**{format_pm_price(current_price)}**. Use this exact price as "
+                "the neutral Price Target for Hold decisions when the debate does "
+                "not justify a distinct upside/downside target."
+            )
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
@@ -81,12 +95,16 @@ def create_portfolio_manager(llm):
 - **Sell**: Exit position or avoid entry
 
 **Price Target Requirement:**
-- Always provide a numeric price target for the stated decision horizon.
+- Always provide a numeric price target for the stated decision horizon as one single base-case Price Target.
+- Do not output `n/a`, `null`, `unknown`, `TBD`, a blank value, or only a range for Price Target.
+- Use a single base-case number. If the debate gives a range, choose the midpoint or the most defensible endpoint and explain that choice.
 - For Buy/Overweight, use a conservative upside target supported by the debate.
 - For Underweight/Sell, use a downside or reduce-risk target supported by the debate.
 - For Hold with no distinct upside/downside case, use the current price as the neutral target.
+- If evidence is thin, still provide a conservative numeric estimate anchored to the resolved current price, support/resistance, fair value, or trader levels.
 
 **Context:**
+- {current_price_line}
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
 {lessons_line}

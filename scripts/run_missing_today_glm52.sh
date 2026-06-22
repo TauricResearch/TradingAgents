@@ -2,23 +2,14 @@
 # Run the skill.md "heavy run" for every ticker that has NOT been analyzed
 # today, with safe concurrency and an automatic retry pass for failures.
 #
-# Learnings baked in (from the 2026-06-01 bulk run):
-#   * Targets are the ticker folders under docs/ (minus stylesheets). A ticker
-#     counts as "done today" when docs/<TICKER>/<YYYYMMDD>_*/ already exists.
-#   * CONCURRENCY=5 ran clean end to end. CONCURRENCY=20 tripped the API key's
-#     request rate limit (HTTP 429, "Current limit: 50") in a burst at launch
-#     and silently dropped 2 tickers. Keep the default low; only raise it if
-#     the gateway quota is known to be higher.
-#   * Two tickers failed on that 429 and needed a manual re-run, so this script
-#     does a second low-concurrency pass over whatever is still missing.
-#   * `export -f` does NOT survive into `xargs -> bash -c`, so the run command
-#     is inlined into the bash -c string below.
+# GLM/Zhipu variant of run_missing_today_opus.sh. The repo loads .env from the
+# project root at Python package import; provider "glm" reads ZHIPU_API_KEY.
 #
 # Usage:
-#   bash scripts/run_missing_today.sh                  # all missing tickers, 5-wide
-#   CONCURRENCY=8 bash scripts/run_missing_today.sh    # override concurrency
-#   TRADINGAGENTS_DATE=2026-06-01 bash scripts/run_missing_today.sh
-#   bash scripts/run_missing_today.sh NVDA AMD TSLA    # explicit ticker list
+#   bash scripts/run_missing_today_glm52.sh                  # all missing tickers, 5-wide
+#   CONCURRENCY=8 bash scripts/run_missing_today_glm52.sh    # override concurrency
+#   TRADINGAGENTS_DATE=2026-06-01 bash scripts/run_missing_today_glm52.sh
+#   bash scripts/run_missing_today_glm52.sh NVDA AMD TSLA    # explicit ticker list
 #
 # Rate-limit pacing: export TRADINGAGENTS_LLM_RPM=$((QUOTA / CONCURRENCY)) to
 # divide the provider's request quota across the parallel workers (each run
@@ -31,10 +22,10 @@ ROOT="$(pwd)"
 
 DATE="${TRADINGAGENTS_DATE:-$(date +%F)}"
 DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder prefix)
-PROVIDER="openai"
-BACKEND_URL="https://api.openai.com/v1"
-DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-gpt-5.5}"
-QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-gpt-5.4-mini}"
+PROVIDER="glm"
+BACKEND_URL="https://api.z.ai/api/paas/v4/"
+DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-glm-5.2}"
+QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-glm-5.2}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"
 DEPTH="${TRADINGAGENTS_DEPTH:-5}"
 model_slug() {
@@ -46,7 +37,7 @@ model_slug() {
 }
 MODEL_SLUG="$(model_slug "$DEEP_MODEL")"
 REPORT_GLOB="${DATE_SLUG}_${MODEL_SLUG}_*"
-CONCURRENCY="${CONCURRENCY:-5}"                # 5 ran clean; 20 tripped HTTP 429 ("Current limit: 50")
+CONCURRENCY="${CONCURRENCY:-5}"                # keep conservative unless the Zhipu quota is known higher
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs}"
 mkdir -p "$LOGDIR"
 
@@ -70,7 +61,7 @@ missing_tickers() {
 }
 
 # --- run one heavy-run pass over a list of tickers ------------------------
-# Mirrors the skill.md "heavy run" one-liner exactly.
+# Mirrors the skill.md "heavy run" one-liner, using the OpenAI-compatible GLM provider.
 run_pass() {
   local conc="$1"; shift
   printf '%s\n' "$@" | xargs -n1 -P"$conc" -I{} bash -c '
@@ -105,7 +96,7 @@ read_into() {  # read_into ARRAYNAME < input
 # --- pass 1: everything missing, at the safe concurrency ------------------
 read_into TODO < <(missing_tickers)
 if [ "${#TODO[@]}" -eq 0 ]; then
-  echo "Nothing to run — all ${#ALL_TICKERS[@]} tickers already have a ${REPORT_GLOB} report."
+  echo "Nothing to run - all ${#ALL_TICKERS[@]} tickers already have a ${REPORT_GLOB} report."
   exit 0
 fi
 echo "Pass 1: ${#TODO[@]} ticker(s) missing for ${DATE} ${MODEL_SLUG}, concurrency=${CONCURRENCY}"

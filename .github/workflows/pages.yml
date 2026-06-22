@@ -40,12 +40,7 @@ jobs:
       - name: Regenerate derived report artifacts
         # complete_report.md, docs/index.md, and ticker hubs are gitignored;
         # rebuild them from the committed stage files before the strict build.
-        run: |
-          python scripts/reassemble_complete_reports.py
-          python scripts/build_reports_site.py
-
-      - name: Build with MkDocs
-        run: mkdocs build --strict --site-dir _site
+        run: python scripts/report_workflow.py --allow-incomplete --allow-summary-na
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

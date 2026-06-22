@@ -97,6 +97,7 @@ def _structured_pm_llm(captured: dict, decision: PortfolioDecision | None = None
             rating=PortfolioRating.HOLD,
             executive_summary="Hold the position; await catalyst.",
             investment_thesis="Balanced view; neither side carried the debate.",
+            price_target=189.5,
         )
     structured = MagicMock()
     structured.invoke.side_effect = lambda prompt: (
@@ -707,6 +708,8 @@ class TestPortfolioManagerInjection:
         assert "Lessons from prior decisions and outcomes" in captured["prompt"]
         assert "Great call." in captured["prompt"]
         assert "Always provide a numeric price target" in captured["prompt"]
+        assert "Resolved current price for the analysis date: **$189.50**" in captured["prompt"]
+        assert "Do not output `n/a`, `null`, `unknown`, `TBD`" in captured["prompt"]
 
     def test_pm_no_past_context_no_section(self):
         """PM prompt omits the lessons section entirely when past_context is empty."""
@@ -722,6 +725,7 @@ class TestPortfolioManagerInjection:
             rating=PortfolioRating.HOLD,
             executive_summary="Wait for confirmation.",
             investment_thesis="Risk/reward is balanced.",
+            price_target=189.5,
         )
         md = render_pm_decision(decision, current_price=189.5)
         assert "**Rating**: Hold" in md

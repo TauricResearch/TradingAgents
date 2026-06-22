@@ -34,7 +34,7 @@ DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder p
 PROVIDER="anthropic"
 BACKEND_URL="https://api.anthropic.com/"
 DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-claude-opus-4-8}"
-QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-claude-sonnet-4-6}"
+QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-claude-haiku-4-5}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"
 DEPTH="${TRADINGAGENTS_DEPTH:-5}"
 model_slug() {
@@ -123,13 +123,11 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   exit 1
 fi
 
-# --- regenerate docs indices + build the static site (per skill.md) -------
+# --- refresh generated docs + build the static site -----------------------
 if [ "${TA_BUILD_SITE:-1}" = "1" ]; then
-  echo "Rebuilding reports site..."
-  # Backfill complete_report.md for any run interrupted after its stages were
-  # written but before consolidation; otherwise the index links a missing file
-  # and `mkdocs build --strict` fails.
-  uv run python scripts/reassemble_complete_reports.py \
-    && uv run python scripts/build_reports_site.py \
-    && uv run mkdocs build --clean
+  echo "Refreshing report docs and building site..."
+  uv run python scripts/report_workflow.py \
+    --analysis-date "$DATE" \
+    --allow-incomplete \
+    --allow-summary-na
 fi

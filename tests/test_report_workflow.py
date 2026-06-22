@@ -99,20 +99,23 @@ def test_run_workflow_can_allow_incomplete_target_date(monkeypatch):
     monkeypatch.setattr(
         workflow,
         "process_selected_runs",
-        lambda selected: calls.append(",".join(sorted(selected))),
+        lambda selected: calls.append(
+            ",".join(f"{ticker}/{model}" for ticker, model in sorted(selected))
+        ),
     )
     monkeypatch.setattr(workflow, "build_reports_site", lambda date: calls.append(date))
     monkeypatch.setattr(
         workflow,
         "validate_homepage",
         lambda date, selected, **kwargs: calls.append(
-            f"validated:{','.join(sorted(selected))}"
+            "validated:"
+            + ",".join(f"{ticker}/{model}" for ticker, model in sorted(selected))
         ),
     )
 
     workflow.run_workflow(analysis_date="20260602", require_coverage=False)
 
-    assert calls == ["AAPL", "2026-06-02", "validated:AAPL"]
+    assert calls == ["AAPL/opus", "2026-06-02", "validated:AAPL/opus"]
 
 
 @pytest.mark.unit
@@ -182,9 +185,11 @@ def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch):
     workflow = load_workflow()
     docs = tmp_path / "docs"
     run_dir = make_run(docs, "AAPL", "20260602_opus_20260602_101010")
-    make_run(docs, "AAPL", "20260602_gpt-5.5_20260602_111111")
+    gpt_run_dir = make_run(docs, "AAPL", "20260602_gpt-5.5_20260602_111111")
     run = workflow.site.parse_run_folder(run_dir.parent, run_dir)
+    gpt_run = workflow.site.parse_run_folder(gpt_run_dir.parent, gpt_run_dir)
     assert run is not None
+    assert gpt_run is not None
     monkeypatch.setattr(workflow, "DOCS", docs)
     (docs / "index.md").write_text(
         (
@@ -215,7 +220,10 @@ def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    workflow.validate_homepage("2026-06-02", {"AAPL": run})
+    workflow.validate_homepage(
+        "2026-06-02",
+        {("AAPL", "opus"): run, ("AAPL", "gpt-5.5"): gpt_run},
+    )
 
 
 @pytest.mark.unit
@@ -276,7 +284,7 @@ def test_homepage_validation_rejects_bad_rows(
     )
 
     with pytest.raises(workflow.WorkflowError, match=error_match):
-        workflow.validate_homepage("2026-06-02", {"AAPL": run})
+        workflow.validate_homepage("2026-06-02", {("AAPL", "opus"): run})
 
 
 @pytest.mark.unit
@@ -299,7 +307,7 @@ def test_homepage_validation_can_allow_summary_na(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    workflow.validate_homepage("2026-06-02", {"AAPL": run}, allow_na=True)
+    workflow.validate_homepage("2026-06-02", {("AAPL", "opus"): run}, allow_na=True)
 
 
 @pytest.mark.unit
@@ -314,7 +322,11 @@ def test_workflow_command_order_is_process_build_validate(monkeypatch):
     )
     calls: list[str] = []
     monkeypatch.setattr(workflow, "discover_runs", lambda docs_dir: {"AAPL": [run]})
-    monkeypatch.setattr(workflow, "select_target_runs", lambda runs, date: {"AAPL": run})
+    monkeypatch.setattr(
+        workflow,
+        "select_target_runs",
+        lambda runs, date: {("AAPL", "opus"): run},
+    )
     monkeypatch.setattr(workflow, "require_full_coverage", lambda runs, selected, date: None)
     monkeypatch.setattr(workflow, "process_selected_runs", lambda selected: calls.append("process"))
     monkeypatch.setattr(workflow, "build_reports_site", lambda date: calls.append("build_reports_site"))

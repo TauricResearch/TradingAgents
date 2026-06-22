@@ -114,13 +114,11 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   exit 1
 fi
 
-# --- regenerate docs indices + build the static site (per skill.md) -------
+# --- refresh generated docs + build the static site -----------------------
 if [ "${TA_BUILD_SITE:-1}" = "1" ]; then
-  echo "Rebuilding reports site..."
-  # Backfill complete_report.md for any run interrupted after its stages were
-  # written but before consolidation; otherwise the index links a missing file
-  # and `mkdocs build --strict` fails.
-  uv run python scripts/reassemble_complete_reports.py \
-    && uv run python scripts/build_reports_site.py \
-    && uv run mkdocs build --clean
+  echo "Refreshing report docs and building site..."
+  uv run python scripts/report_workflow.py \
+    --analysis-date "$DATE" \
+    --allow-incomplete \
+    --allow-summary-na
 fi

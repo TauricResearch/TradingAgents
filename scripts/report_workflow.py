@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from collections import defaultdict
@@ -83,29 +84,30 @@ def latest_analysis_date(runs_by_ticker: dict[str, list[site.Run]]) -> str:
 def select_target_runs(
     runs_by_ticker: dict[str, list[site.Run]],
     analysis_date: str,
-) -> dict[str, site.Run]:
+) -> dict[tuple[str, str], site.Run]:
     normalized = normalize_analysis_date(analysis_date)
     if normalized is None:
         raise WorkflowError("analysis date is required")
 
-    selected: dict[str, site.Run] = {}
+    selected: dict[tuple[str, str], site.Run] = {}
     for ticker, runs in runs_by_ticker.items():
-        matching = [run for run in runs if run.analysis_date == normalized]
-        if matching:
-            selected[ticker] = sorted(
-                matching,
-                key=lambda run: (run.analysis_date, run.run_started),
-                reverse=True,
-            )[0]
+        for run in runs:
+            if run.analysis_date != normalized:
+                continue
+            key = (ticker, run.model)
+            existing = selected.get(key)
+            if existing is None or run.run_started > existing.run_started:
+                selected[key] = run
     return selected
 
 
 def require_full_coverage(
     runs_by_ticker: dict[str, list[site.Run]],
-    selected: dict[str, site.Run],
+    selected: dict[tuple[str, str], site.Run],
     analysis_date: str,
 ) -> None:
-    missing = sorted(ticker for ticker in runs_by_ticker if ticker not in selected)
+    selected_tickers = {ticker for ticker, _ in selected}
+    missing = sorted(ticker for ticker in runs_by_ticker if ticker not in selected_tickers)
     if missing:
         tickers = ", ".join(missing)
         raise WorkflowError(
@@ -180,13 +182,12 @@ def strip_run_trailing_whitespace(run: site.Run) -> int:
     return changed
 
 
-def process_selected_runs(selected: dict[str, site.Run]) -> None:
+def process_selected_runs(selected: dict[tuple[str, str], site.Run]) -> None:
     reassembled = 0
     normalized = 0
     stripped = 0
     whitespace_stripped = 0
-    for ticker in sorted(selected):
-        run = selected[ticker]
+    for run in sorted(selected.values(), key=lambda r: (r.ticker, r.model, r.run_started)):
         if ensure_complete_report(run):
             reassembled += 1
         if normalize_report(run):
@@ -214,6 +215,25 @@ def build_reports_site(analysis_date: str) -> None:
         raise WorkflowError("scripts/build_reports_site.py failed")
 
 
+def build_static_site(work_root: Path = ROOT, site_dir: Path | None = None) -> None:
+    output_dir = site_dir if site_dir is not None else work_root / "_site"
+    cmd = [
+        sys.executable,
+        "-m",
+        "mkdocs",
+        "build",
+        "--strict",
+        "--site-dir",
+        str(output_dir),
+    ]
+    try:
+        subprocess.run(cmd, cwd=work_root, check=True)
+    except FileNotFoundError as exc:
+        raise WorkflowError("mkdocs is not available on PATH") from exc
+    except subprocess.CalledProcessError as exc:
+        raise WorkflowError(f"mkdocs build failed with exit code {exc.returncode}") from exc
+
+
 def decision_summary_rows(home_text: str, analysis_date: str) -> list[str]:
     heading = f"## {normalize_analysis_date(analysis_date)} Decision Summary"
     pattern = re.compile(
@@ -236,7 +256,7 @@ def decision_summary_rows(home_text: str, analysis_date: str) -> list[str]:
 
 def validate_homepage(
     analysis_date: str,
-    selected: dict[str, site.Run],
+    selected: dict[tuple[str, str], site.Run],
     *,
     allow_na: bool = False,
 ) -> None:
@@ -253,6 +273,8 @@ def validate_homepage(
             f"Homepage summary has {len(rows)} row(s); expected at least {len(selected)}."
         )
 
+    selected_tickers = {run.ticker for run in selected.values()}
+    selected_folders = {run.folder_name for run in selected.values()}
     seen_selected: set[str] = set()
     for row in rows:
         if not allow_na and "n/a" in row.lower():
@@ -265,23 +287,24 @@ def validate_homepage(
         label, ticker, folder = match.groups()
         if label != ticker:
             raise WorkflowError(f"Homepage link label/ticker mismatch: {row}")
-        if ticker not in selected:
+        if ticker not in selected_tickers:
             raise WorkflowError(f"Homepage summary has unexpected ticker: {ticker}")
         if not folder.startswith(f"{key}_"):
             raise WorkflowError(
                 f"Homepage link for {ticker} must start with {key}_: {folder}"
             )
+        if folder not in selected_folders:
+            raise WorkflowError(f"Homepage summary has unexpected report folder: {folder}")
 
         linked_report = DOCS / ticker / folder / "complete_report.md"
         if not linked_report.is_file():
             raise WorkflowError(f"Homepage report link is missing: {linked_report}")
-        if folder == selected[ticker].folder_name:
-            seen_selected.add(ticker)
+        seen_selected.add(folder)
 
-    missing = sorted(set(selected) - seen_selected)
+    missing = sorted(selected_folders - seen_selected)
     if missing:
         raise WorkflowError(
-            "Homepage summary is missing selected tickers: " + ", ".join(missing)
+            "Homepage summary is missing selected report folders: " + ", ".join(missing)
         )
 
 
@@ -290,6 +313,8 @@ def run_workflow(
     *,
     require_coverage: bool = True,
     allow_na: bool = False,
+    work_root: Path = ROOT,
+    site_dir: Path | None = None,
 ) -> None:
     runs_by_ticker = discover_runs(DOCS)
     target_date = normalize_analysis_date(analysis_date) if analysis_date else latest_analysis_date(runs_by_ticker)
@@ -302,9 +327,10 @@ def run_workflow(
     process_selected_runs(selected)
     build_reports_site(target_date)
     validate_homepage(target_date, selected, allow_na=allow_na)
+    build_static_site(work_root, site_dir)
     print(
         f"Refreshed {len(selected)} report(s) for {target_date}; "
-        "pre-commit compiles _site."
+        f"compiled {display_path(site_dir or (work_root / '_site'))}."
     )
 
 
@@ -329,6 +355,8 @@ def run_dry_run(
                 analysis_date,
                 require_coverage=require_coverage,
                 allow_na=allow_na,
+                work_root=tmp_root,
+                site_dir=tmp_root / "_site",
             )
         finally:
             DOCS = old_docs

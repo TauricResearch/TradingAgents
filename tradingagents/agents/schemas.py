@@ -197,13 +197,13 @@ class PortfolioDecision(BaseModel):
             "incorporate them; otherwise rely solely on the current analysis."
         ),
     )
-    price_target: Optional[float] = Field(
-        default=None,
+    price_target: float = Field(
         description=(
-            "Numeric target price in the instrument's quote currency. Provide "
-            "a concrete target for the decision horizon whenever possible. For "
-            "Hold decisions with no distinct upside/downside target, use the "
-            "current price as the neutral target instead of omitting this."
+            "Required numeric target price in the instrument's quote currency. "
+            "Never omit this field and never return null, n/a, unknown, TBD, or "
+            "only a range. Use a single base-case price for the decision horizon. "
+            "For Hold decisions with no distinct upside/downside target, use the "
+            "resolved current price as the neutral target."
         ),
     )
     time_horizon: Optional[str] = Field(

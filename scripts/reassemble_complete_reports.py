@@ -3,9 +3,8 @@
 When a run is interrupted after its agent stages are written to disk but
 before the consolidated report is assembled, the run folder ends up with
 ``1_analysts/``, ``2_research/`` ... ``5_portfolio/`` populated but no
-``complete_report.md``. ``scripts/build_reports_site.py`` then links the
-ticker's latest run to a file that doesn't exist, breaking
-``mkdocs build --strict``.
+``complete_report.md``. The report workflow links the ticker's latest run to
+a file that doesn't exist, breaking ``mkdocs build --strict``.
 
 This script rebuilds ``complete_report.md`` from the stage files, mirroring
 the section layout and heading normalization of ``save_report_to_disk`` in
@@ -14,7 +13,7 @@ generated ones.
 
 Run locally:
 
-    python scripts/reassemble_complete_reports.py
+    python scripts/report_workflow.py
 
 Idempotent and non-destructive: only writes ``complete_report.md`` for run
 folders that are missing it but have at least one stage file. Existing
