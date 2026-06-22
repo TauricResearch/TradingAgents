@@ -73,6 +73,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 - Sentiment Analyst: Aggregates news headlines, StockTwits, and Reddit chatter into a single sentiment read to gauge short-term market mood.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
+- ESG Analyst: Reviews sustainability scores and ESG-related news for environmental, social, governance, and controversy risks. For historical analysis dates, current ESG scores are withheld when point-in-time ratings are unavailable to avoid look-ahead bias.
 
 <p align="center">
   <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
