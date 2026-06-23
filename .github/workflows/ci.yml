@@ -19,42 +19,39 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install (with dev extras)
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: uv sync --extra dev
       - name: Run test suite
-        run: pytest -q
+        run: uv run pytest -q
 
   smoke-install:
     name: clean-install smoke
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"
       - name: Fresh install (no dev extras) and import
         run: |
-          python -m pip install --upgrade pip
-          pip install .
-          python -c "import tradingagents, cli.main; print('clean-install import OK')"
+          uv sync
+          uv run python -c "import tradingagents, cli.main; print('clean-install import OK')"
 
   lint:
     name: ruff (strict, full repo)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: pip install "ruff>=0.15"
+        run: uv sync --extra dev
       - name: Lint the repository
-        run: ruff check .
+        run: uv run ruff check .
 
   deploy:
     name: deploy to railway
