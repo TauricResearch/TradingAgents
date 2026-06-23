@@ -14,4 +14,4 @@ uv run pytest tests/
 
 ## Storage/Database data location:
 
-data located here: C:\Users\Ido\.tradingagents\data
+data located here: ~/.tradingagents/data (or %USERPROFILE%\.tradingagents\data on Windows)

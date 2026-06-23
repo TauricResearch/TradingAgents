@@ -1337,9 +1337,15 @@ def _run_past_list():
     table.add_column("Status")
     table.add_column("Progress", justify="right")
     for j in jobs:
-        progress = f"{j['current_index']} / {j['total']}"
-        range_ = f"{j['date_from']} -> {j['date_to']}"
-        table.add_row(j["job_id"], j["ticker"], range_, j["status"], progress)
+        progress = f"{j.get('current_index', 0)} / {j.get('total', 0)}"
+        range_ = f"{j.get('date_from', 'N/A')} -> {j.get('date_to', 'N/A')}"
+        table.add_row(
+            j.get("job_id", "N/A"),
+            j.get("ticker", "N/A"),
+            range_,
+            j.get("status", "N/A"),
+            progress,
+        )
     console.print(table)
 
 
@@ -1352,16 +1358,24 @@ def _run_past_status(job_id: str):
     except KeyError:
         console.print(f"[red]job not found: {job_id}[/red]")
         raise typer.Exit(code=1)
-    pct = (s["current_index"] / s["total"] * 100) if s["total"] else 0.0
-    console.print(f"job_id:    {s['job_id']}")
-    console.print(f"ticker:    {s['ticker']}")
-    console.print(f"range:     {s['date_from']} -> {s['date_to']} ({s['every']}, parallel={s['parallel']})")
-    console.print(f"status:    {s['status']}")
-    console.print(f"progress:  {s['current_index']} / {s['total']}  ({pct:.1f}%)")
-    console.print(f"avg:       {s['avg_duration_s']:.1f}s")
-    if s["status"] == "running":
-        console.print(f"eta:       {s['eta_s']}s")
-    console.print(f"started:   {s['started_at']}")
+    current = s.get("current_index", 0) or 0
+    total = s.get("total", 0) or 0
+    pct = (current / total * 100) if total else 0.0
+    avg_dur = s.get("avg_duration_s")
+    avg_str = f"{avg_dur:.1f}s" if avg_dur is not None else "N/A"
+    console.print(f"job_id:    {s.get('job_id')}")
+    console.print(f"ticker:    {s.get('ticker')}")
+    console.print(f"range:     {s.get('date_from')} -> {s.get('date_to')} ({s.get('every')}, parallel={s.get('parallel')})")
+    console.print(f"status:    {s.get('status')}")
+    console.print(f"progress:  {current} / {total}  ({pct:.1f}%)")
+    console.print(f"avg:       {avg_str}")
+    if s.get("status") == "running":
+        eta = s.get("eta_s")
+        if eta is not None:
+            console.print(f"eta:       {eta}s")
+    started = s.get("started_at")
+    if started:
+        console.print(f"started:   {started}")
     if s.get("finished_at"):
         console.print(f"finished:  {s['finished_at']}")
 

@@ -25,5 +25,6 @@ COPY --from=python-builder --chown=appuser:appuser /build .
 COPY --from=frontend-builder --chown=appuser:appuser /app/dist web/frontend/dist/
 COPY --chown=appuser:appuser entrypoint.sh /home/appuser/app/
 RUN chmod +x /home/appuser/app/entrypoint.sh
+USER appuser
 EXPOSE 8080
 ENTRYPOINT ["/home/appuser/app/entrypoint.sh"]
