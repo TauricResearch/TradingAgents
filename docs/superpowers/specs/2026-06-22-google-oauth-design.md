@@ -43,10 +43,10 @@ Add Google OAuth login so only authorized users can access the dashboard. Curren
 ### Railway Env Vars
 | Variable | Value |
 |----------|-------|
-| `GOOGLE_CLIENT_ID` | `474009787186-4ev1vgpd7flvng5q92oilgi8p9a0cl53.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | `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` |
+| `GOOGLE_CLIENT_ID` | `<your-google-client-id>.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | `<your-google-client-secret>` |
 | `AUTH_SECRET` | random 32+ char string |
-| `ALLOWED_EMAILS` | `idshapira051@gmail.com` |
+| `ALLOWED_EMAILS` | `you@gmail.com` |
 
 ## Unprotected Routes
 - `/api/auth/login` — must be open to initiate login

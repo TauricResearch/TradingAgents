@@ -440,11 +440,11 @@ git commit -m "feat: add frontend auth gate with login page"
 - [ ] **Step 1: Set Railway environment variables**
 
 ```bash
-railway env set GOOGLE_CLIENT_ID=474009787186-4ev1vgpd7flvng5q92oilgi8p9a0cl53.apps.googleusercontent.com
-railway env set GOOGLE_CLIENT_SECRET=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
+railway env set GOOGLE_CLIENT_ID=<your-google-client-id>.apps.googleusercontent.com
+railway env set GOOGLE_CLIENT_SECRET=<your-google-client-secret>
 railway env set AUTH_SECRET=<random 32-char string>
-railway env set ALLOWED_EMAILS=idshapira051@gmail.com
-railway env set OAUTH_REDIRECT_URI=https://gleaming-light-production-9a16.up.railway.app/api/auth/callback
+railway env set ALLOWED_EMAILS=you@gmail.com
+railway env set OAUTH_REDIRECT_URI=https://your-app.up.railway.app/api/auth/callback
 ```
 
 - [ ] **Step 2: Update pyproject.toml install to include new deps**
