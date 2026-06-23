@@ -121,6 +121,23 @@ class NormalizedChatOpenAI(ChatOpenAI):
         return super().with_structured_output(schema, method=method, **kwargs)
 
 
+class LocalCompatibleChatOpenAI(NormalizedChatOpenAI):
+    """OpenAI-compatible client for arbitrary local servers (LM Studio, vLLM,
+    llama.cpp via the generic ``openai_compatible`` provider).
+
+    Their tool-calling support varies, and many reject the object-form
+    ``tool_choice`` langchain sends for function-calling structured output. Bind
+    the schema as a tool but don't force tool_choice, so structured output works
+    across local servers regardless of the model ID's capabilities (#1057).
+    """
+
+    def with_structured_output(self, schema, *, method=None, **kwargs):
+        resolved = method or get_capabilities(self.model_name).preferred_structured_method
+        if resolved == "function_calling":
+            kwargs.setdefault("tool_choice", None)
+        return super().with_structured_output(schema, method=method, **kwargs)
+
+
 def _input_to_messages(input_: Any) -> list:
     """Normalise a langchain LLM input to a list of message objects.
 
@@ -283,7 +300,9 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
-    "openai_compatible": ProviderSpec(require_base_url=True, key_optional=True),
+    "openai_compatible": ProviderSpec(
+        require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI
+    ),
 }
 
 

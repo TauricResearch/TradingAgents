@@ -32,8 +32,8 @@ _API_KEY_ENV_VARS = (
 @pytest.fixture(autouse=True)
 def _dummy_api_keys(monkeypatch):
     for env_var in _API_KEY_ENV_VARS:
-        # Use `or` so that empty-string env vars (e.g. XAI_API_KEY= from .env
-        # loaded by tradingagents/__init__.py) are replaced with a placeholder.
+        # `or` not a .get default: an env var present but empty (e.g. a key left
+        # blank in a .env copied from .env.example) must still get the placeholder.
         monkeypatch.setenv(env_var, os.environ.get(env_var) or "placeholder")
 
 
