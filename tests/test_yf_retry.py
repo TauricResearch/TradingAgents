@@ -3,7 +3,6 @@
 Covers the enhanced exponential backoff with jitter, max retry limits,
 and proper exception propagation.
 """
-import time
 from unittest.mock import patch
 
 import pytest
@@ -75,9 +74,11 @@ class TestYfRetry:
         def fail():
             raise YFRateLimitError()
 
-        with patch("time.sleep", side_effect=lambda d: delays_seen.append(d)):
-            with pytest.raises(YFRateLimitError):
-                yf_retry(fail, max_retries=3, base_delay=1.0, max_delay=10.0)
+        with (
+            patch("time.sleep", side_effect=lambda d: delays_seen.append(d)),
+            pytest.raises(YFRateLimitError),
+        ):
+            yf_retry(fail, max_retries=3, base_delay=1.0, max_delay=10.0)
 
         assert len(delays_seen) == 3  # 3 retries
         # With base_delay=1, max_delay=10:
@@ -95,9 +96,11 @@ class TestYfRetry:
         def fail():
             raise YFRateLimitError()
 
-        with patch("time.sleep", side_effect=lambda d: delays_seen.append(d)):
-            with pytest.raises(YFRateLimitError):
-                yf_retry(fail, max_retries=10, base_delay=2.0, max_delay=5.0)
+        with (
+            patch("time.sleep", side_effect=lambda d: delays_seen.append(d)),
+            pytest.raises(YFRateLimitError),
+        ):
+            yf_retry(fail, max_retries=10, base_delay=2.0, max_delay=5.0)
 
         # After a few doublings, delay should be capped at 5.0 + jitter
         for d in delays_seen[2:]:  # Check the later retries which should be capped
@@ -139,8 +142,7 @@ class TestYfRetry:
         def always_fail():
             raise YFRateLimitError()
 
-        with patch("time.sleep"):
-            with pytest.raises(YFRateLimitError):
-                yf_retry(always_fail, max_retries=1)
+        with patch("time.sleep"), pytest.raises(YFRateLimitError):
+            yf_retry(always_fail, max_retries=1)
 
         assert "persisted after 1 retries" in caplog.text
