@@ -412,16 +412,29 @@
 <script>
   let allSignals = [];
   let activeFilter = 'all';
-  let sseSource = null;
+  let sseAbort = null;
   let token = '';
   let apiBase = '';
 
-  function getToken() {
-    return document.getElementById('token-input').value.trim();
+  // Escape all API-supplied strings before inserting into innerHTML
+  function h(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-  function getBase() {
-    return document.getElementById('api-url-input').value.trim().replace(/\/$/, '');
+
+  // Whitelist CSS class tokens derived from API data (prevents class-injection)
+  function signalClass(s) {
+    return { buy:'buy', overweight:'buy', sell:'sell', underweight:'sell', locked:'locked' }[s] ?? 'hold';
   }
+  function voteClass(v) {
+    return { bullish:'bull', bearish:'bear' }[v] ?? 'neutral';
+  }
+  // Only A/B/C/D are valid grades
+  function safeGrade(g) {
+    return ['A','B','C','D'].includes(g) ? g : null;
+  }
+
+  function getToken() { return document.getElementById('token-input').value.trim(); }
+  function getBase()  { return document.getElementById('api-url-input').value.trim().replace(/\/$/, ''); }
 
   function setStatus(msg, isError) {
     const el = document.getElementById('status-msg');
@@ -440,7 +453,6 @@
     token = getToken();
     apiBase = getBase();
     if (!token) { setStatus('JWT required.', true); return; }
-
     setStatus('Loading…');
     await Promise.all([fetchStats(), fetchLatest()]);
     connectSSE();
@@ -483,33 +495,59 @@
     }
   }
 
-  function connectSSE() {
-    if (sseSource) sseSource.close();
+  // SSE via fetch() so the JWT stays in the Authorization header, not the URL
+  async function connectSSE() {
+    if (sseAbort) sseAbort.abort();
+    sseAbort = new AbortController();
     const dot = document.getElementById('sse-dot');
     const label = document.getElementById('sse-label');
     try {
-      sseSource = new EventSource(`${apiBase}/signals-ms/stream?token=${encodeURIComponent(token)}`);
-      sseSource.addEventListener('connection', () => {
-        dot.className = 'dot live';
-        label.textContent = 'Live';
+      const resp = await fetch(`${apiBase}/signals-ms/stream`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: sseAbort.signal,
       });
-      sseSource.addEventListener('signal', (e) => {
-        const sig = JSON.parse(e.data);
-        const idx = allSignals.findIndex(s => s.ticker === sig.ticker);
-        if (idx >= 0) allSignals[idx] = sig;
-        else allSignals.unshift(sig);
-        renderGrid();
-        fetchStats();
-      });
-      sseSource.addEventListener('heartbeat', () => {
-        dot.className = 'dot live';
-      });
-      sseSource.onerror = () => {
-        dot.className = 'dot';
-        label.textContent = 'Reconnecting…';
-      };
+      if (!resp.ok || !resp.body) return;
+      dot.className = 'dot live';
+      label.textContent = 'Live';
+
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      let evtType = 'message';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            evtType = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            const data = line.slice(5).trim();
+            if (evtType === 'signal') {
+              try {
+                const sig = JSON.parse(data);
+                const idx = allSignals.findIndex(s => s.ticker === sig.ticker);
+                if (idx >= 0) allSignals[idx] = sig; else allSignals.unshift(sig);
+                renderGrid();
+                fetchStats();
+              } catch (_) {}
+            } else if (evtType === 'connection' || evtType === 'heartbeat') {
+              dot.className = 'dot live';
+              if (evtType === 'connection') label.textContent = 'Live';
+            }
+          } else if (line === '') {
+            evtType = 'message';
+          }
+        }
+      }
     } catch (e) {
-      console.warn('SSE not available:', e);
+      if (e.name !== 'AbortError') {
+        dot.className = 'dot';
+        label.textContent = 'Disconnected';
+      }
     }
   }
 
@@ -519,19 +557,6 @@
     return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  function signalClass(s) {
-    if (['buy', 'overweight'].includes(s)) return 'buy';
-    if (['sell', 'underweight'].includes(s)) return 'sell';
-    if (s === 'locked') return 'locked';
-    return 'hold';
-  }
-
-  function voteClass(v) {
-    if (v === 'bullish') return 'bull';
-    if (v === 'bearish') return 'bear';
-    return 'neutral';
-  }
-
   function buildVoteRows(votes) {
     if (!votes) return '<div style="font-size:11px;color:var(--muted)">Agent votes not yet available</div>';
     const agents = ['fundamental','technical','sentiment','risk'];
@@ -539,11 +564,12 @@
     return agents.map(a => {
       const v = votes[a] || { vote: 'neutral', score: 50 };
       const cls = voteClass(v.vote);
+      const score = Math.min(100, Math.max(0, Number(v.score) || 50));
       return `
         <div class="vote-row">
           <div class="vote-name">${labels[a]}</div>
-          <div class="vote-bar-track"><div class="vote-bar-fill vote-${cls}" style="width:${v.score}%"></div></div>
-          <div class="vote-tag ${cls}">${v.vote}</div>
+          <div class="vote-bar-track"><div class="vote-bar-fill vote-${cls}" style="width:${score}%"></div></div>
+          <div class="vote-tag ${cls}">${h(v.vote)}</div>
         </div>`;
     }).join('');
   }
@@ -553,69 +579,60 @@
     const conf = sig.confidence > 0 ? sig.confidence : null;
     const confPct = conf ? Math.round(conf * 100) : 0;
     const confColor = conf >= 0.75 ? '' : (conf >= 0.55 ? 'yellow' : 'red');
-    const grade = sig.grade || '—';
-    const gradeCls = `grade-${grade !== '—' ? grade : 'D'}`;
-
+    const grade = safeGrade(sig.grade);
+    const gradeCls = `grade-${grade || 'D'}`;
     const isLocked = sig.signal_type === 'locked';
+
+    // Safe display values — all from API, all escaped
+    const tickerDisplay = h(sig.ticker.replace(/-USD$/i, ''));
+    const nameDisplay = h(sig.name || sig.ticker);
+    const signalDisplay = h(
+      sig.signal_type === 'overweight' ? 'O/W' :
+      sig.signal_type === 'underweight' ? 'U/W' :
+      sig.signal_type
+    );
 
     const priceBlock = isLocked
       ? `<div style="font-size:12px;color:var(--muted);padding:8px 0">Upgrade to Pro to view price levels.</div>`
-      : `
-        <div class="price-ladder">
-          <div class="price-item">
-            <div class="price-label">Entry</div>
-            <div class="price-value dim">${fmt(sig.entry_price)}</div>
-          </div>
-          <div class="price-item">
-            <div class="price-label">Target</div>
-            <div class="price-value green">${fmt(sig.price_target)}</div>
-          </div>
-          <div class="price-item">
-            <div class="price-label">Stop</div>
-            <div class="price-value red">${fmt(sig.stop_loss)}</div>
-          </div>
+      : `<div class="price-ladder">
+          <div class="price-item"><div class="price-label">Entry</div><div class="price-value dim">${fmt(sig.entry_price)}</div></div>
+          <div class="price-item"><div class="price-label">Target</div><div class="price-value green">${fmt(sig.price_target)}</div></div>
+          <div class="price-item"><div class="price-label">Stop</div><div class="price-value red">${fmt(sig.stop_loss)}</div></div>
         </div>`;
+
+    const metaParts = [
+      sig.time_horizon ? `<span>Horizon: <span>${h(sig.time_horizon)}</span></span>` : '',
+      sig.rr != null  ? `<span>R/R: <span>${fmt(sig.rr)}x</span></span>` : '',
+      sig.sentiment_band ? `<span>Sentiment: <span>${h(sig.sentiment_band)}</span></span>` : '',
+    ].filter(Boolean).join('');
 
     return `
       <div class="signal-card">
         <div class="card-header">
           <div class="ticker-info">
-            <div class="ticker-sym">${sig.ticker.replace('-USD','')}</div>
-            <div class="ticker-name">${sig.name || sig.ticker}</div>
+            <div class="ticker-sym">${tickerDisplay}</div>
+            <div class="ticker-name">${nameDisplay}</div>
           </div>
           <div class="badge-row">
-            <div class="badge ${sc}">${sig.signal_type.replace('overweight','O/W').replace('underweight','U/W')}</div>
-            ${!isLocked ? `<div class="grade-badge ${gradeCls}">${grade}</div>` : ''}
+            <div class="badge ${sc}">${signalDisplay}</div>
+            ${!isLocked && grade ? `<div class="grade-badge ${gradeCls}">${grade}</div>` : ''}
           </div>
         </div>
-
         ${conf ? `
         <div class="confidence-row">
           <div class="confidence-label">Confidence</div>
           <div class="bar-track"><div class="bar-fill ${confColor}" style="width:${confPct}%"></div></div>
           <div class="confidence-pct" style="${confColor === 'red' ? 'color:var(--red)' : confColor === 'yellow' ? 'color:var(--yellow)' : ''}">${confPct}%</div>
         </div>` : ''}
-
         ${priceBlock}
-
         ${!isLocked ? `
         <div class="votes-section">
           <div class="votes-label">Agent Votes</div>
           ${buildVoteRows(sig.agent_votes)}
         </div>` : ''}
-
-        <div class="meta-row">
-          ${sig.time_horizon ? `<span>Horizon: <span>${sig.time_horizon}</span></span>` : ''}
-          ${sig.rr != null ? `<span>R/R: <span>${sig.rr}x</span></span>` : ''}
-          ${sig.sentiment_band ? `<span>Sentiment: <span>${sig.sentiment_band}</span></span>` : ''}
-        </div>
-
-        ${sig.reasoning_summary ? `<div class="reasoning">${escHtml(sig.reasoning_summary)}</div>` : ''}
+        ${metaParts ? `<div class="meta-row">${metaParts}</div>` : ''}
+        ${sig.reasoning_summary ? `<div class="reasoning">${h(sig.reasoning_summary)}</div>` : ''}
       </div>`;
-  }
-
-  function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   function renderGrid() {
@@ -623,7 +640,7 @@
     let filtered = allSignals;
     if (activeFilter !== 'all') {
       filtered = allSignals.filter(s => {
-        if (activeFilter === 'buy') return ['buy','overweight'].includes(s.signal_type);
+        if (activeFilter === 'buy')  return ['buy','overweight'].includes(s.signal_type);
         if (activeFilter === 'sell') return ['sell','underweight'].includes(s.signal_type);
         if (activeFilter === 'hold') return s.signal_type === 'hold';
         return true;
@@ -636,12 +653,12 @@
     grid.innerHTML = filtered.map(buildCard).join('');
   }
 
-  // Load token from localStorage if previously saved
+  // sessionStorage: cleared when tab closes; never persists across sessions
   window.addEventListener('load', () => {
-    const saved = localStorage.getItem('pulse_jwt');
+    const saved = sessionStorage.getItem('pulse_jwt');
     if (saved) document.getElementById('token-input').value = saved;
     document.getElementById('token-input').addEventListener('change', () => {
-      localStorage.setItem('pulse_jwt', document.getElementById('token-input').value.trim());
+      sessionStorage.setItem('pulse_jwt', document.getElementById('token-input').value.trim());
     });
   });
 </script>
