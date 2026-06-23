@@ -78,6 +78,25 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 }
 
 
+# Atlas Cloud serves many vendor-prefixed model IDs through one OpenAI-compatible
+# endpoint. A few current picks are surfaced for convenience; "Custom model ID"
+# reaches any model the account has access to. Full list: atlascloud.ai/models.
+_ATLASCLOUD_MODELS: dict[str, list[ModelOption]] = {
+    "quick": [
+        ("DeepSeek V4 Flash - Fast, thinking + non-thinking", "deepseek-ai/deepseek-v4-flash"),
+        ("GLM-5 - Flagship, 204K ctx", "zai-org/glm-5"),
+        ("Qwen3 235B A22B Instruct", "Qwen/Qwen3-235B-A22B-Instruct-2507"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("DeepSeek V4 Pro - Latest flagship reasoning", "deepseek-ai/deepseek-v4-pro"),
+        ("DeepSeek V4 Flash - Fast, supports thinking", "deepseek-ai/deepseek-v4-flash"),
+        ("Kimi K2.6 - Long-context reasoning", "moonshotai/kimi-k2.6"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
+
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
@@ -186,6 +205,9 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "kimi": _CUSTOM_ONLY,
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
+    # Atlas Cloud: vendor-prefixed IDs across many model families; a few current
+    # picks plus "Custom model ID" for anything else the account can reach.
+    "atlascloud": _ATLASCLOUD_MODELS,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
 }

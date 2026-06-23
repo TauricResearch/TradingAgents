@@ -224,6 +224,10 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
+    # Atlas Cloud: one OpenAI-compatible endpoint fronting many model families
+    # (DeepSeek, Qwen, GLM, Kimi, MiniMax, ...). Model IDs are vendor-prefixed
+    # (e.g. deepseek-ai/deepseek-v4-pro), so the model is user-specified.
+    "atlascloud": ProviderSpec(base_url="https://api.atlascloud.ai/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
