@@ -359,6 +359,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("Kimi (Moonshot)", "kimi", "https://api.moonshot.ai/v1"),
         ("Groq", "groq", "https://api.groq.com/openai/v1"),
         ("NVIDIA NIM", "nvidia", "https://integrate.api.nvidia.com/v1"),
+        ("Atlas Cloud", "atlascloud", "https://api.atlascloud.ai/v1"),
         ("Azure OpenAI", "azure", None),
         ("Amazon Bedrock", "bedrock", None),
         ("Ollama", "ollama", ollama_url),

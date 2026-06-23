@@ -35,6 +35,8 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "kimi":       "MOONSHOT_API_KEY",
     "groq":       "GROQ_API_KEY",
     "nvidia":     "NVIDIA_API_KEY",
+    # atlascloud -> Atlas Cloud (one OpenAI-compatible API for many model families).
+    "atlascloud": "ATLASCLOUD_API_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
     # Generic OpenAI-compatible endpoint: the client reads this when set (keyed
