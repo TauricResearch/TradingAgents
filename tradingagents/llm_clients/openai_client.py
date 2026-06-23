@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -46,6 +47,23 @@ class NormalizedChatOpenAI(ChatOpenAI):
         # value. The schema is still bound as a tool — exactly what
         # DeepSeek's official tool-calling examples do.
         if method == "function_calling" and not caps.supports_tool_choice:
+            kwargs.setdefault("tool_choice", None)
+        return super().with_structured_output(schema, method=method, **kwargs)
+
+
+class LocalCompatibleChatOpenAI(NormalizedChatOpenAI):
+    """OpenAI-compatible client for arbitrary local servers (LM Studio, vLLM,
+    llama.cpp via the generic ``openai_compatible`` provider).
+
+    Their tool-calling support varies, and many reject the object-form
+    ``tool_choice`` langchain sends for function-calling structured output. Bind
+    the schema as a tool but don't force tool_choice, so structured output works
+    across local servers regardless of the model ID's capabilities (#1057).
+    """
+
+    def with_structured_output(self, schema, *, method=None, **kwargs):
+        resolved = method or get_capabilities(self.model_name).preferred_structured_method
+        if resolved == "function_calling":
             kwargs.setdefault("tool_choice", None)
         return super().with_structured_output(schema, method=method, **kwargs)
 
@@ -150,6 +168,18 @@ _PASSTHROUGH_KWARGS = (
     "api_key", "callbacks", "http_client", "http_async_client",
 )
 
+# OpenAI's ``reasoning_effort`` is only accepted by reasoning models — the GPT-5
+# family and the o-series. Non-reasoning models (gpt-4.1, gpt-4o, ...) 400 with
+# "Unsupported parameter: 'reasoning.effort' is not supported with this model".
+# Drop the kwarg for those rather than crash the run.
+_OPENAI_REASONING_MODEL = re.compile(r"^(gpt-5|o[1-9])")
+
+
+def _supports_reasoning_effort(model: str) -> bool:
+    """Whether the (native OpenAI) model accepts ``reasoning_effort``."""
+    return bool(_OPENAI_REASONING_MODEL.match(model.lower().strip()))
+
+
 @dataclass(frozen=True)
 class ProviderSpec:
     """Declarative config for one OpenAI-compatible provider.
@@ -197,7 +227,9 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
-    "openai_compatible": ProviderSpec(require_base_url=True, key_optional=True),
+    "openai_compatible": ProviderSpec(
+        require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI
+    ),
 }
 
 
@@ -291,8 +323,11 @@ class OpenAIClient(BaseLLMClient):
 
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:
-            if key in self.kwargs:
-                llm_kwargs[key] = self.kwargs[key]
+            if key not in self.kwargs:
+                continue
+            if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
+                continue
+            llm_kwargs[key] = self.kwargs[key]
 
         # The subclass (provider quirks) comes from the registry spec.
         return chat_cls(**llm_kwargs)

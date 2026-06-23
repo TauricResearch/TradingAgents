@@ -12,20 +12,27 @@ _PASSTHROUGH_KWARGS = (
 )
 
 # Anthropic's extended-thinking ``effort`` parameter is accepted by Opus 4.5+
-# and Sonnet 4.5+ only. Haiku (any version shipped to date) 400s with
-# ``"This model does not support the effort parameter"`` (#831). Future
-# ``claude-{opus,sonnet}-X-Y`` releases inherit effort support via the
-# forward-compat pattern below; future Haiku stays excluded by default.
+# and Sonnet 4.6+ only. Sonnet 4.5 and any Haiku version 400 with
+# ``"This model does not support the effort parameter"`` (#831). The per-family
+# minimum version below is forward-compatible: future ``claude-{opus,sonnet}-X-Y``
+# releases inherit support automatically, while Sonnet 4.5 and Haiku stay excluded.
 _EFFORT_EXACT = {
     "claude-mythos-preview",  # non-standard preview name; effort-capable
 }
-_EFFORT_PATTERN = re.compile(r"^claude-(opus|sonnet)-\d+-\d+$")
+_EFFORT_MODEL = re.compile(r"^claude-(opus|sonnet)-(\d+)-(\d+)$")
+_EFFORT_MIN_VERSION = {"opus": (4, 5), "sonnet": (4, 6)}
 
 
 def _supports_effort(model: str) -> bool:
     """Whether Anthropic accepts the ``effort`` parameter for this model."""
     model_lc = model.lower()
-    return model_lc in _EFFORT_EXACT or bool(_EFFORT_PATTERN.match(model_lc))
+    if model_lc in _EFFORT_EXACT:
+        return True
+    match = _EFFORT_MODEL.match(model_lc)
+    if not match:
+        return False
+    family, major, minor = match.group(1), int(match.group(2)), int(match.group(3))
+    return (major, minor) >= _EFFORT_MIN_VERSION[family]
 
 
 class NormalizedChatAnthropic(ChatAnthropic):
