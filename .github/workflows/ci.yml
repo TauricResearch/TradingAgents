@@ -41,8 +41,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
-          # Catches undeclared runtime deps (e.g. #994 python-dotenv): a bare
-          # install must import the package and the CLI module.
           python -c "import tradingagents, cli.main; print('clean-install import OK')"
 
   lint:
@@ -56,6 +54,16 @@ jobs:
       - name: Install ruff
         run: pip install "ruff>=0.15"
       - name: Lint the repository
-        # The repo is fully clean under the strict select, so we lint everything
-        # (results/ and worklog/ are excluded via pyproject extend-exclude).
         run: ruff check .
+
+  deploy:
+    name: deploy to railway
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test, lint, smoke-install]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Railway
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
