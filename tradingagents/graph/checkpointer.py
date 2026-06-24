@@ -69,7 +69,8 @@ def clear_all_checkpoints(data_dir: str | Path) -> int:
         return 0
     dbs = list(cp_dir.glob("*.db"))
     for db in dbs:
-        db.unlink()
+        for path in (db, db.with_name(f"{db.name}-wal"), db.with_name(f"{db.name}-shm")):
+            path.unlink(missing_ok=True)
     return len(dbs)
 
 
