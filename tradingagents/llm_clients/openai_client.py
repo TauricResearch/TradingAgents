@@ -297,6 +297,7 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
+    "puter":      ProviderSpec(base_url="https://api.puter.com/puterai/openai/v1/"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
     # Generic endpoint: user supplies base_url; key optional (keyless local).

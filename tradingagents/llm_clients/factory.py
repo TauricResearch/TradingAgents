@@ -1,5 +1,8 @@
+import logging
 
 from .base_client import BaseLLMClient
+
+logger = logging.getLogger(__name__)
 
 
 def create_llm_client(
@@ -14,18 +17,60 @@ def create_llm_client(
     factory (e.g. during test collection) does not pull in heavy LLM SDKs
     or fail when their API keys are absent.
 
+    To enable provider fallback, set the ``fallback_provider`` kwarg::
+
+        create_llm_client(
+            provider="openai", model="gpt-4o",
+            fallback_provider="puter", fallback_model="gpt-4o-mini",
+            ...
+        )
+
     Args:
         provider: LLM provider name
         model: Model name/identifier
         base_url: Optional base URL for API endpoint
-        **kwargs: Additional provider-specific arguments
+        **kwargs: Additional provider-specific arguments. If
+            ``fallback_provider`` is set, a ``FallbackLLMClient`` is returned
+            that tries the primary provider first and the fallback on failure.
 
     Returns:
-        Configured BaseLLMClient instance
+        Configured BaseLLMClient instance (or FallbackLLMClient when
+        a fallback provider is configured).
 
     Raises:
         ValueError: If provider is not supported
     """
+    fallback_provider = kwargs.pop("fallback_provider", None)
+    fallback_model = kwargs.pop("fallback_model", None)
+    fallback_base_url = kwargs.pop("fallback_base_url", None)
+
+    primary = _create_single_client(provider, model, base_url, **kwargs)
+
+    if fallback_provider:
+        from .fallback import FallbackLLMClient
+
+        secondary = _create_single_client(
+            fallback_provider,
+            fallback_model or model,
+            fallback_base_url or base_url,
+            **kwargs,
+        )
+        logger.info(
+            "LLM fallback enabled: primary=%s/%s, fallback=%s/%s",
+            provider, model, fallback_provider, fallback_model or model,
+        )
+        return FallbackLLMClient(primary, secondary)
+
+    return primary
+
+
+def _create_single_client(
+    provider: str,
+    model: str,
+    base_url: str | None = None,
+    **kwargs,
+) -> BaseLLMClient:
+    """Create a single (non-fallback) LLM client."""
     provider_lower = provider.lower()
 
     # Native (non-OpenAI) APIs are matched first so their string check doesn't

@@ -188,6 +188,10 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "kimi": _CUSTOM_ONLY,
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
+    # Puter: 500+ models via Puter's OpenAI-compatible endpoint.
+    # Users authenticate with their Puter auth token (PUTER_AUTH_TOKEN).
+    # Models include GPT, Claude, Gemini, Grok, DeepSeek, Qwen, and many more.
+    "puter": _CUSTOM_ONLY,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
 }

@@ -37,6 +37,9 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    # LLM provider fallback — when set, the pipeline tries the primary
+    # provider first and falls back to this one on failure.
+    "TRADINGAGENTS_LLM_FALLBACK_PROVIDER":   "llm_fallback_provider",
 }
 
 
@@ -123,6 +126,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "llm_retry_max_delay_seconds": 60.0,
     # LLM timeout (seconds). Prevents indefinite hangs on slow/unresponsive
     # providers. None disables the timeout (use provider default).
+    # LLM provider fallback. When set, the pipeline tries the primary
+    # provider first; on failure, it retries the request using the fallback
+    # provider. Useful for resilience — e.g. primary="openai",
+    # fallback="puter" means Puter's OpenAI-compatible API serves as backup
+    # when the primary is rate-limited or unavailable.
+    "llm_fallback_provider": None,
+    "llm_fallback_model": None,
+    "llm_fallback_base_url": None,
     "llm_timeout_seconds": 60 * 3,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.

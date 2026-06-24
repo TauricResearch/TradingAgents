@@ -125,6 +125,17 @@ class TradingAgentsGraph:
         if llm_timeout is not None and llm_timeout != "":
             llm_kwargs["timeout"] = float(llm_timeout)
 
+        # Provider fallback config (None = no fallback).
+        fallback_provider = self.config.get("llm_fallback_provider")
+        if fallback_provider:
+            llm_kwargs["fallback_provider"] = fallback_provider
+            llm_kwargs["fallback_model"] = (
+                self.config.get("llm_fallback_model")
+            )
+            llm_kwargs["fallback_base_url"] = (
+                self.config.get("llm_fallback_base_url")
+            )
+
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["deep_think_llm"],

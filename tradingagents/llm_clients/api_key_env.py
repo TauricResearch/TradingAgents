@@ -35,6 +35,7 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "kimi":       "MOONSHOT_API_KEY",
     "groq":       "GROQ_API_KEY",
     "nvidia":     "NVIDIA_API_KEY",
+    "puter":      "PUTER_AUTH_TOKEN",
     # Local runtimes do not authenticate.
     "ollama":     None,
     # Generic OpenAI-compatible endpoint: the client reads this when set (keyed
