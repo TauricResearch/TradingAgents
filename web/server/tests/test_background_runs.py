@@ -123,7 +123,7 @@ class TestBackgroundRunState:
 
 class TestJobHandleRegistry:
     def test_register_and_get_handle(self):
-        from web.server.background_runs import _jobs, register_handle, get_handle
+        from web.server.background_runs import _jobs, get_handle, register_handle
         h = register_handle(
             job_id="bgr_REG1", ticker="X", date_from="2024-01-01",
             date_to="2024-01-02", every="1d", parallel=1, total=2,
@@ -251,7 +251,8 @@ class TestCancel:
         def _trigger():
             time.sleep(0.12)
             handle.cancel_event.set()
-        t = threading.Thread(target=_trigger); t.start()
+        t = threading.Thread(target=_trigger)
+        t.start()
         background_runs._run(handle, [f"2024-01-{i:02d}" for i in range(1, 11)])
         t.join()
         assert handle.state.current_index < 10
@@ -364,8 +365,9 @@ class TestRangesOverlap:
 
 class TestHasOverlappingJob:
     def _make_state(self, root, job_id, ticker, status, date_from="2024-01-01", date_to="2024-01-10"):
-        from web.server.background_runs import job_dir, BackgroundRunState
-        d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+        from web.server.background_runs import BackgroundRunState, job_dir
+        d = job_dir(job_id)
+        d.mkdir(parents=True, exist_ok=True)
         state = BackgroundRunState(
             job_id=job_id, ticker=ticker, date_from=date_from,
             date_to=date_to, every="1d", parallel=1, total=2,
@@ -381,7 +383,7 @@ class TestHasOverlappingJob:
     def test_overlapping_running_in_memory(self, tmp_path, monkeypatch):
         self._clean_jobs()
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        from web.server.background_runs import register_handle, _has_overlapping_job
+        from web.server.background_runs import _has_overlapping_job, register_handle
         register_handle("bgr_OV1", "NVDA", "2024-01-01", "2024-01-10", "1d", 1, 2)
         found, jid, st = _has_overlapping_job("NVDA", "2024-01-05", "2024-01-15")
         assert found is True
@@ -391,7 +393,7 @@ class TestHasOverlappingJob:
     def test_non_overlapping_in_memory(self, tmp_path, monkeypatch):
         self._clean_jobs()
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        from web.server.background_runs import register_handle, _has_overlapping_job
+        from web.server.background_runs import _has_overlapping_job, register_handle
         register_handle("bgr_OV2", "NVDA", "2024-01-01", "2024-01-10", "1d", 1, 2)
         found, _, _ = _has_overlapping_job("NVDA", "2024-01-11", "2024-01-20")
         assert found is False
@@ -431,7 +433,7 @@ class TestHasOverlappingJob:
     def test_case_insensitive_ticker_match(self, tmp_path, monkeypatch):
         self._clean_jobs()
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
-        from web.server.background_runs import register_handle, _has_overlapping_job
+        from web.server.background_runs import _has_overlapping_job, register_handle
         register_handle("bgr_OV6", "NVDA", "2024-01-01", "2024-01-10", "1d", 1, 2)
         found, _, _ = _has_overlapping_job("nvda", "2024-01-05", "2024-01-15")
         assert found is True
@@ -448,8 +450,12 @@ class TestHasOverlappingJob:
 
 class TestRecordIterationError:
     def test_records_error_to_json(self, tmp_path, monkeypatch):
-        from web.server.background_runs import _record_iteration_error, iteration_errors_path
-        from web.server.background_runs import BackgroundRunState, job_dir
+        from web.server.background_runs import (
+            BackgroundRunState,
+            _record_iteration_error,
+            iteration_errors_path,
+            job_dir,
+        )
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
         state = BackgroundRunState(
             job_id="bgr_ERR1", ticker="X", date_from="2024-01-01",
@@ -461,8 +467,12 @@ class TestRecordIterationError:
         assert data["2024-01-01"] == "RuntimeError: boom"
 
     def test_appends_to_existing_errors(self, tmp_path, monkeypatch):
-        from web.server.background_runs import _record_iteration_error, iteration_errors_path
-        from web.server.background_runs import BackgroundRunState, job_dir
+        from web.server.background_runs import (
+            BackgroundRunState,
+            _record_iteration_error,
+            iteration_errors_path,
+            job_dir,
+        )
         monkeypatch.setattr(background_runs, "DATA_ROOT", tmp_path)
         state = BackgroundRunState(
             job_id="bgr_ERR2", ticker="X", date_from="2024-01-01",
@@ -516,10 +526,14 @@ class TestLoadExistingJobs:
     def test_resumes_running_job(self, tmp_path, monkeypatch, fake_propagate):
         _setup_test_storage(tmp_path, monkeypatch)
         from web.server.background_runs import (
-            job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
+            BackgroundRunState,
+            _load_existing_jobs,
+            iteration_dates_path,
+            job_dir,
         )
         job_id = "bgr_RESUME1"
-        d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+        d = job_dir(job_id)
+        d.mkdir(parents=True, exist_ok=True)
         state = BackgroundRunState(
             job_id=job_id, ticker="NVDA", date_from="2024-03-01",
             date_to="2024-03-05", every="1d", parallel=1, total=5,
@@ -542,7 +556,10 @@ class TestLoadExistingJobs:
     def test_resume_skips_already_done_dates(self, tmp_path, monkeypatch, fake_propagate):
         _setup_test_storage(tmp_path, monkeypatch)
         from web.server.background_runs import (
-            job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
+            BackgroundRunState,
+            _load_existing_jobs,
+            iteration_dates_path,
+            job_dir,
         )
         run_dir = background_runs.DATA_ROOT / "NVDA" / "done_run"
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -551,7 +568,8 @@ class TestLoadExistingJobs:
         )
 
         job_id = "bgr_RESUME2"
-        d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+        d = job_dir(job_id)
+        d.mkdir(parents=True, exist_ok=True)
         state = BackgroundRunState(
             job_id=job_id, ticker="NVDA", date_from="2024-03-01",
             date_to="2024-03-05", every="1d", parallel=1, total=5,
@@ -572,10 +590,14 @@ class TestLoadExistingJobs:
     def test_does_not_resume_paused_job(self, tmp_path, monkeypatch, fake_propagate):
         _setup_test_storage(tmp_path, monkeypatch)
         from web.server.background_runs import (
-            job_dir, iteration_dates_path, BackgroundRunState, _load_existing_jobs,
+            BackgroundRunState,
+            _load_existing_jobs,
+            iteration_dates_path,
+            job_dir,
         )
         job_id = "bgr_RESUME3"
-        d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+        d = job_dir(job_id)
+        d.mkdir(parents=True, exist_ok=True)
         state = BackgroundRunState(
             job_id=job_id, ticker="NVDA", date_from="2024-04-01",
             date_to="2024-04-03", every="1d", parallel=1, total=3,
@@ -594,10 +616,11 @@ class TestLoadExistingJobs:
 
     def test_does_not_resume_terminal_jobs(self, tmp_path, monkeypatch, fake_propagate):
         _setup_test_storage(tmp_path, monkeypatch)
-        from web.server.background_runs import job_dir, BackgroundRunState, _load_existing_jobs
+        from web.server.background_runs import BackgroundRunState, _load_existing_jobs, job_dir
         for terminal_status in ("done", "cancelled", "error"):
             job_id = f"bgr_TERM_{terminal_status}"
-            d = job_dir(job_id); d.mkdir(parents=True, exist_ok=True)
+            d = job_dir(job_id)
+            d.mkdir(parents=True, exist_ok=True)
             state = BackgroundRunState(
                 job_id=job_id, ticker="NVDA", date_from="2024-01-01",
                 date_to="2024-01-01", every="1d", parallel=1, total=1,

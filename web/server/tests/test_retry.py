@@ -4,8 +4,6 @@ from __future__ import annotations
 import random
 from datetime import datetime, timezone
 
-import pytest
-
 from web.server.retry import compute_backoff, detect_rate_limit, parse_retry_after
 
 

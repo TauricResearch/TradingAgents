@@ -6,11 +6,11 @@ import json
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
+from web.server import storage
 from web.server.ticker_agent import orchestrator
 from web.server.ticker_agent.capabilities import discover_api_capabilities
+from web.server.ticker_agent.config import config_to_dict, load_config, save_config
 from web.server.ticker_agent.missing_capabilities import read_missing
-from web.server.ticker_agent.config import AgentConfig, load_config, save_config, config_to_dict
-from web.server import storage
 
 router = APIRouter(prefix="/api/ticker-agent", tags=["ticker-agent"])
 
@@ -57,7 +57,7 @@ def get_accuracy_leaderboard():
     try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
         scores = state.get("scores", {})
-        for ticker, entry in scores.items():
+        for _ticker, entry in scores.items():
             if isinstance(entry, dict):
                 if "accuracy_pct" not in entry and "win_rate" in entry:
                     wr = entry.get("win_rate")

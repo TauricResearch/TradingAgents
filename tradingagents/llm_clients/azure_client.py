@@ -6,7 +6,6 @@ from langchain_openai import AzureChatOpenAI
 from .base_client import BaseLLMClient, invoke_with_cache_and_retry, normalize_content
 from .cache import LLMResponseCache
 from .retry import RetryPolicy
-from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "api_key", "reasoning_effort", "temperature",

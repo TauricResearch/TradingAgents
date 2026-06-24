@@ -7,9 +7,7 @@ import pandas as pd
 import pytest
 import yfinance as yf
 
-from web.server import history
-from web.server import storage
-
+from web.server import history, storage
 
 _NOW = datetime(2026, 6, 7, 19, 0, 0, tzinfo=timezone.utc)
 

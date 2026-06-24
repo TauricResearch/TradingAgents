@@ -9,13 +9,10 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import yfinance as yf
 
-from web.server import queries
-from web.server import storage as _storage
-
+from web.server import queries, storage as _storage
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +37,7 @@ def now_utc() -> datetime:
 def resolve_range(
     preset: str,
     *,
-    earliest_started_at: Optional[datetime],
+    earliest_started_at: datetime | None,
 ) -> tuple[datetime, datetime, str]:
     """Translate a user preset into a concrete (start, end, interval).
 
@@ -104,8 +101,8 @@ _CACHE_TTL_S: dict[str, int] = {
 def fetch_history_bars(
     ticker: str,
     *,
-    start: Optional[datetime],
-    end: Optional[datetime],
+    start: datetime | None,
+    end: datetime | None,
     interval: str,
 ) -> list[dict]:
     """Return OHLCV bars for ``ticker`` between ``start`` and ``end``.
@@ -157,15 +154,13 @@ def _df_to_bars(df) -> list[dict]:
     elif hasattr(idx, "tz_localize"):
         idx = idx.tz_localize("UTC")
     ts_iso = [t.isoformat().replace("+00:00", "Z") for t in idx]
-    if "Volume" in df.columns:
-        volumes = df["Volume"].tolist()
-    else:
-        volumes = [0.0] * len(df)
+    volumes = df["Volume"].tolist() if "Volume" in df.columns else [0.0] * len(df)
     return [
-        {"t": t, "o": float(o), "h": float(h), "l": float(l), "c": float(c), "v": float(v)}
-        for t, o, h, l, c, v in zip(
+        {"t": t, "o": float(o), "h": float(h), "l": float(low_val), "c": float(c), "v": float(v)}
+        for t, o, h, low_val, c, v in zip(
             ts_iso, df["Open"].tolist(), df["High"].tolist(),
             df["Low"].tolist(), df["Close"].tolist(), volumes,
+            strict=True,
         )
     ]
 

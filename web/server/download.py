@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 import os
 import zipfile
 from pathlib import Path
@@ -109,7 +108,6 @@ def generate_full_csv(ticker: str) -> str:
 def generate_ticker_json(ticker: str) -> dict[str, Any]:
     """Return a JSON dict with all runs and their full data for a ticker."""
     safe = storage.safe_ticker_component(ticker).upper()
-    ticker_path = storage.data_dir() / safe
     runs_data: list[dict[str, Any]] = []
 
     for r in storage.list_ticker_runs(ticker.upper(), limit=500):

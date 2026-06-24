@@ -1,7 +1,10 @@
 import os
+
 os.environ["TESTING"] = "1"
+os.environ["AUTH_DISABLED"] = "true"
 
 import pytest
+
 from web.server import storage
 
 
@@ -21,6 +24,7 @@ def data_root(tmp_path, monkeypatch):
 def client(data_root):
     """FastAPI TestClient with the file-backed storage configured."""
     from fastapi.testclient import TestClient
+
     from web.server.app import create_app
     with TestClient(create_app()) as c:
         yield c

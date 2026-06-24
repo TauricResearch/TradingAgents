@@ -9,22 +9,21 @@ import hashlib
 import json
 import logging
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from langchain_core.load.serializable import Serializable
 from langchain_core.messages import BaseMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import (
     ChannelVersions,
     Checkpoint,
     CheckpointMetadata,
-    get_checkpoint_metadata,
     get_serializable_checkpoint_metadata,
 )
 from langgraph.checkpoint.sqlite import SqliteSaver
-from langchain_core.runnables import RunnableConfig
 
 from tradingagents.dataflows.utils import safe_ticker_component
 
@@ -134,7 +133,6 @@ class _JsonSafeSqliteSaver(SqliteSaver):
         # ``get_checkpoint_metadata`` here mirrors the upstream call so the
         # row layout matches what a future langgraph fix would produce. We
         # then swap in our safe variant for the JSON encode step.
-        from langgraph.checkpoint.sqlite import JsonPlusSerializer  # local: avoid cycles
 
         # The checkpointer's own serializer is used for the *checkpoint* blob;
         # the metadata blob is a plain JSON string built by upstream. We

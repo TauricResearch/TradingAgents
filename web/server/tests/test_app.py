@@ -1,10 +1,11 @@
 import asyncio
-import pytest
 import logging
+
+import pytest
 from fastapi.testclient import TestClient
 
-from web.server.app import create_app
 from web.server import events, llm_calls, runner, storage
+from web.server.app import create_app
 
 
 @pytest.fixture
@@ -169,6 +170,7 @@ class TestForceRerun:
         """The runner's enqueue() must honor ``force=True`` to supersede
         today's partial run and create a new one."""
         from unittest.mock import AsyncMock, MagicMock
+
         from web.server import runner
         # Replace the queue with an AsyncMock so the put() call is awaitable
         # but the worker never actually runs.
@@ -486,8 +488,8 @@ class TestTransparencyEndpoints:
         import json as _json
         lines = ev_path.read_text(encoding="utf-8").splitlines()
         lines = [
-            l for l in lines
-            if _json.loads(l).get("type") != "analyst_completed"
+            _line for _line in lines
+            if _json.loads(_line).get("type") != "analyst_completed"
         ]
         ev_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         r2 = client.get(f"/api/runs/{rid}/health").json()
@@ -528,7 +530,7 @@ class TestTransparencyEndpoints:
     def test_health_stale_running_run_flips_is_stale(self, client, data_root):
         """A 'running' run whose last event is older than the staleness
         threshold is reported as stale so the UI can warn the user."""
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
         rid = self._seed_run(data_root)
         # Backdate the run + last event to > 5 minutes ago.
         old_start = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat().replace("+00:00", "Z")
@@ -584,10 +586,13 @@ class TestHistoryEndpoint:
 
     def test_history_200_returns_bars_and_runs(self, client, data_root, monkeypatch):
         from datetime import datetime, timezone
-        from web.server.tests.fixtures.fake_yfinance import (
-            make_fake_ticker_with_history, make_history_df,
-        )
+
         import yfinance as _yf
+
+        from web.server.tests.fixtures.fake_yfinance import (
+            make_fake_ticker_with_history,
+            make_history_df,
+        )
 
         rid = storage.create_run_dir("MU")["run_id"]
         storage.mark_run_status(
@@ -652,10 +657,13 @@ class TestHistoryEndpoint:
 
     def test_history_default_range_is_auto(self, client, data_root, monkeypatch):
         from datetime import datetime, timezone
-        from web.server.tests.fixtures.fake_yfinance import (
-            make_fake_ticker_with_history, make_history_df,
-        )
+
         import yfinance as _yf
+
+        from web.server.tests.fixtures.fake_yfinance import (
+            make_fake_ticker_with_history,
+            make_history_df,
+        )
 
         rid = storage.create_run_dir("MU")["run_id"]
         storage.mark_run_status(
@@ -749,6 +757,7 @@ class TestBackgroundRunsEndpoints:
 
 def test_download_single_ticker(client):
     from datetime import datetime, timezone
+
     from web.server import storage
     run = storage.create_run_dir("TSLA", started_at=datetime(2024, 4, 1, 12, 0, 0, tzinfo=timezone.utc))
     storage.append_run_event(run["run_id"], {"type": "test", "data": {}})
@@ -756,7 +765,8 @@ def test_download_single_ticker(client):
     assert r.status_code == 200
     assert r.headers["content-type"] == "application/zip"
     assert "TSLA-data.zip" in r.headers["content-disposition"]
-    import zipfile, io
+    import io
+    import zipfile
     z = zipfile.ZipFile(io.BytesIO(r.content))
     names = z.namelist()
     assert any(n == "summary.csv" for n in names)
@@ -768,13 +778,15 @@ def test_download_single_ticker_unknown_ticker(client):
     r = client.get("/api/tickers/UNKNOWN/download")
     assert r.status_code == 200
     assert r.headers["content-type"] == "application/zip"
-    import zipfile, io
+    import io
+    import zipfile
     z = zipfile.ZipFile(io.BytesIO(r.content))
     assert "summary.csv" in z.namelist()
 
 
 def test_download_multiple_tickers(client):
     from datetime import datetime, timezone
+
     from web.server import storage
     storage.create_run_dir("META", started_at=datetime(2024, 5, 1, 10, 0, 0, tzinfo=timezone.utc))
     storage.create_run_dir("AMZN", started_at=datetime(2024, 5, 2, 10, 0, 0, tzinfo=timezone.utc))
@@ -782,7 +794,8 @@ def test_download_multiple_tickers(client):
     assert r.status_code == 200
     assert r.headers["content-type"] == "application/zip"
     assert "tickers-bundle.zip" in r.headers["content-disposition"]
-    import zipfile, io
+    import io
+    import zipfile
     z = zipfile.ZipFile(io.BytesIO(r.content))
     names = z.namelist()
     assert any("META-data.zip" in n for n in names)
@@ -796,8 +809,9 @@ def test_download_multiple_tickers_empty_list(client):
 
 def test_download_single_ticker_csv(client):
     from datetime import datetime, timezone
+
     from web.server import storage
-    run = storage.create_run_dir("IBM", started_at=datetime(2024, 6, 1, 10, 0, 0, tzinfo=timezone.utc))
+    storage.create_run_dir("IBM", started_at=datetime(2024, 6, 1, 10, 0, 0, tzinfo=timezone.utc))
     r = client.get("/api/tickers/IBM/download?format=csv")
     assert r.status_code == 200
     assert r.headers["content-type"] == "text/csv; charset=utf-8"
@@ -809,8 +823,9 @@ def test_download_single_ticker_csv(client):
 
 def test_download_single_ticker_json(client):
     from datetime import datetime, timezone
+
     from web.server import storage
-    run = storage.create_run_dir("ORCL", started_at=datetime(2024, 6, 2, 10, 0, 0, tzinfo=timezone.utc))
+    storage.create_run_dir("ORCL", started_at=datetime(2024, 6, 2, 10, 0, 0, tzinfo=timezone.utc))
     r = client.get("/api/tickers/ORCL/download?format=json")
     assert r.status_code == 200
     assert r.headers["content-type"] == "application/json"
@@ -823,6 +838,7 @@ def test_download_single_ticker_json(client):
 
 def test_download_multiple_tickers_csv_format(client):
     from datetime import datetime, timezone
+
     from web.server import storage
     storage.create_run_dir("V", started_at=datetime(2024, 7, 1, 10, 0, 0, tzinfo=timezone.utc))
     r = client.post("/api/tickers/download", json={"tickers": ["V"], "format": "csv"})
@@ -833,6 +849,7 @@ def test_download_multiple_tickers_csv_format(client):
 
 def test_download_multiple_tickers_json_format(client):
     from datetime import datetime, timezone
+
     from web.server import storage
     storage.create_run_dir("MA", started_at=datetime(2024, 7, 2, 10, 0, 0, tzinfo=timezone.utc))
     r = client.post("/api/tickers/download", json={"tickers": ["MA"], "format": "json"})

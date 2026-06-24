@@ -6,32 +6,10 @@ import os
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yfinance as yf
 from langgraph.prebuilt import ToolNode
-
-from tradingagents.agents import (
-    create_aggressive_debator,
-    create_bear_researcher,
-    create_bull_researcher,
-    create_conservative_debator,
-    create_fundamentals_analyst,
-    create_market_analyst,
-    create_neutral_debator,
-    create_news_analyst,
-    create_portfolio_manager,
-    create_research_manager,
-    create_sentiment_analyst,
-    create_trader,
-)
-from tradingagents.agents.utils.agent_states import (
-    AgentState,
-    InvestDebateState,
-    RiskDebateState,
-)
-from tradingagents.llm_clients.cache import LLMResponseCache
-from tradingagents.llm_clients.retry import RetryPolicy
 
 # Import the abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -55,6 +33,8 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.llm_clients.cache import LLMResponseCache
+from tradingagents.llm_clients.retry import RetryPolicy
 from tradingagents.reporting import write_report_tree
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -214,7 +194,7 @@ class TradingAgentsGraph:
 
         return kwargs
 
-    def _build_llm_cache(self) -> Optional[LLMResponseCache]:
+    def _build_llm_cache(self) -> LLMResponseCache | None:
         """Build the LLM response cache from config, or return None when disabled.
 
         ``None`` is the contract for "no caching" — the chat-class
@@ -231,7 +211,7 @@ class TradingAgentsGraph:
         # the consumer".)
         ttl_raw = self.config.get("llm_cache_ttl_seconds")
         if ttl_raw in (None, ""):
-            ttl: Optional[int] = None
+            ttl: int | None = None
         else:
             try:
                 ttl = int(ttl_raw)
@@ -247,7 +227,7 @@ class TradingAgentsGraph:
             enabled=True,
         )
 
-    def _build_retry_policy(self) -> Optional[RetryPolicy]:
+    def _build_retry_policy(self) -> RetryPolicy | None:
         """Build the retry-with-backoff policy from config, or None when disabled.
 
         ``max_retries=0`` is the explicit escape hatch — useful for

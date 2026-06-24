@@ -2,14 +2,12 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import pytest
 
-from web.server import events, runner, storage
-from web.server import price_feed
 from tradingagents.default_config import DEFAULT_CONFIG
+from web.server import events, price_feed, runner, storage
 
 
 @pytest.fixture
@@ -124,7 +122,7 @@ def test_success_path_writes_total_duration_s(monkeypatch, data_root):
 
     class _FakeGraph:
         def propagate(
-            self, ticker: str, trade_date: str, *, event_callback: Optional[Callable] = None
+            self, ticker: str, trade_date: str, *, event_callback: Callable | None = None
         ):
             # Sleep briefly so the runner's monotonic-clock duration is
             # measurable (otherwise it rounds to 0.0 on fast machines).
@@ -176,7 +174,7 @@ def test_emits_debate_and_risk_messages_from_node_exited(monkeypatch, data_root)
             pass
 
         def propagate(
-            self, ticker: str, trade_date: str, *, event_callback: Optional[Callable] = None
+            self, ticker: str, trade_date: str, *, event_callback: Callable | None = None
         ):
             import time as _time
             # Simulate Bull Researcher exit

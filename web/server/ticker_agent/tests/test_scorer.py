@@ -1,9 +1,10 @@
 """Tests for the accuracy scorer."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from pathlib import Path
-from web.server.ticker_agent.scorer import compute_ticker_scores, compute_score_for_ticker, TickerScore
+from web.server.ticker_agent.scorer import (
+    compute_score_for_ticker,
+    compute_ticker_scores,
+)
 
 
 def _fake_run(ticker: str, date: str, status: str, action: str, start_price: float, end_price: float) -> dict:

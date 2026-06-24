@@ -8,7 +8,6 @@ also covered here because that's the user-facing contract.
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,7 +15,7 @@ from langchain_core.messages import AIMessage
 from openai import RateLimitError
 
 from tradingagents.llm_clients import create_llm_client
-from tradingagents.llm_clients.cache import LLMResponseCache, make_cache_key
+from tradingagents.llm_clients.cache import LLMResponseCache
 from tradingagents.llm_clients.retry import RetryPolicy
 
 
@@ -144,9 +143,8 @@ class TestOpenAIClientWiring:
         def always_429(input, config=None, **kwargs):
             raise _make_429("1")
 
-        with patch.object(chat, "_base_invoke", side_effect=always_429):
-            with pytest.raises(RateLimitError):
-                chat.invoke([("system", "s"), ("human", "perm-429")])
+        with patch.object(chat, "_base_invoke", side_effect=always_429), pytest.raises(RateLimitError):
+            chat.invoke([("system", "s"), ("human", "perm-429")])
         cache.clear()
 
     def test_non_retryable_propagates_immediately(self, monkeypatch):
@@ -168,8 +166,7 @@ class TestOpenAIClientWiring:
             calls.append(input)
             raise ValueError("config bug")
 
-        with patch.object(chat, "_base_invoke", side_effect=value_error):
-            with pytest.raises(ValueError):
-                chat.invoke([("system", "s"), ("human", "bad")])
+        with patch.object(chat, "_base_invoke", side_effect=value_error), pytest.raises(ValueError):
+            chat.invoke([("system", "s"), ("human", "bad")])
         assert len(calls) == 1  # no retry
         cache.clear()

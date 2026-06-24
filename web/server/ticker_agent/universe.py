@@ -14,7 +14,6 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -92,12 +91,13 @@ def _save_cache() -> None:
             log.warning("Failed to save universe cache: %s", e)
 
 
-def _fetch_sp500_tickers() -> Optional[list[str]]:
+def _fetch_sp500_tickers() -> list[str] | None:
     """Fetch S&P 500 constituents from Wikipedia via pandas."""
     try:
+        from io import StringIO
+
         import pandas as pd
         import requests
-        from io import StringIO
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
         resp = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", headers=headers, timeout=15)
         resp.raise_for_status()
@@ -110,7 +110,7 @@ def _fetch_sp500_tickers() -> Optional[list[str]]:
         return None
 
 
-def _fetch_sector_holdings(etf_symbol: str, retries: int = 2, backoff: float = 2.0) -> Optional[list[str]]:
+def _fetch_sector_holdings(etf_symbol: str, retries: int = 2, backoff: float = 2.0) -> list[str] | None:
     """Fetch top holdings for a sector ETF via yfinance with retry on rate limit."""
     import time as _time
     for attempt in range(retries + 1):
@@ -162,7 +162,7 @@ def _get_sector_etf_tickers() -> list[str]:
     for etf in _SECTOR_ETFS:
         cached_key = f"sector_holdings_{etf}"
         cached_val = cache.get(cached_key)
-        holdings: Optional[list[str]] = None
+        holdings: list[str] | None = None
 
         if isinstance(cached_val, list):
             holdings = cached_val
@@ -217,7 +217,7 @@ def merge_and_dedup(sources: dict[str, list[str]]) -> list[str]:
     """Merge multiple ticker sources, dedup by uppercase ticker."""
     seen: set[str] = set()
     merged: list[str] = []
-    for source_name, tickers in sources.items():
+    for _source_name, tickers in sources.items():
         for t in tickers:
             upper = t.upper().strip()
             if upper and upper not in seen:

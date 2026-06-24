@@ -1357,7 +1357,7 @@ def _run_past_status(job_id: str):
         s = background_runs.get(job_id)
     except KeyError:
         console.print(f"[red]job not found: {job_id}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     current = s.get("current_index", 0) or 0
     total = s.get("total", 0) or 0
     pct = (current / total * 100) if total else 0.0
@@ -1388,7 +1388,7 @@ def _run_past_cancel(job_id: str):
         background_runs.cancel(job_id)
     except KeyError:
         console.print(f"[red]job not found: {job_id}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     console.print(f"[green]OK[/green] cancelled: {job_id}")
 
 
@@ -1400,7 +1400,7 @@ def _run_past_pause(job_id: str):
         background_runs.pause(job_id)
     except KeyError:
         console.print(f"[red]job not found: {job_id}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     console.print(f"[green]OK[/green] paused: {job_id}")
 
 
@@ -1412,7 +1412,7 @@ def _run_past_resume(job_id: str):
         background_runs.resume(job_id)
     except KeyError:
         console.print(f"[red]job not found: {job_id}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     console.print(f"[green]OK[/green] resumed: {job_id}")
 
 

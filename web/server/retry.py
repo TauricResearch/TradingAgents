@@ -11,8 +11,6 @@ import random
 import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Optional
-
 
 # Substrings (case-insensitive) that identify a rate-limit exception class.
 # Order doesn't matter — first match wins.
@@ -50,10 +48,7 @@ def detect_rate_limit(exc: BaseException) -> bool:
         if needle in cls_name:
             return True
     msg = str(exc)
-    for pattern in _RATE_LIMIT_STRING_PATTERNS:
-        if re.search(pattern, msg, re.IGNORECASE):
-            return True
-    return False
+    return any(re.search(pattern, msg, re.IGNORECASE) for pattern in _RATE_LIMIT_STRING_PATTERNS)
 
 
 # Cap provider hints that are unreasonably large (>1 hour). When a
@@ -84,8 +79,8 @@ _GENERIC_RETRY_RE = re.compile(
 
 
 def parse_retry_after(
-    exc: BaseException, *, now: Optional[datetime] = None
-) -> Optional[float]:
+    exc: BaseException, *, now: datetime | None = None
+) -> float | None:
     """Seconds the provider asked us to wait, or None if not determinable.
 
     Recognised formats, in priority order:
@@ -126,7 +121,7 @@ def parse_retry_after(
     return None
 
 
-def _clamp_or_none(seconds: float) -> Optional[float]:
+def _clamp_or_none(seconds: float) -> float | None:
     """Return seconds if 0 < seconds <= 3600, else None."""
     if 0 < seconds <= _MAX_RETRY_AFTER_S:
         return seconds

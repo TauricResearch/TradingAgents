@@ -19,7 +19,7 @@ so that:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -92,7 +92,7 @@ class ResearchPlan(BaseModel):
     # a field instead of an actual value) to ``None`` for the same reason.
     # The render helpers fall back to placeholder text when a field is None
     # so downstream consumers always see a complete markdown document.
-    recommendation: Optional[PortfolioRating] = Field(
+    recommendation: PortfolioRating | None = Field(
         default=None,
         description=(
             "The investment recommendation. Exactly one of Buy / Overweight / "
@@ -101,7 +101,7 @@ class ResearchPlan(BaseModel):
             "the side with the stronger arguments."
         ),
     )
-    rationale: Optional[str] = Field(
+    rationale: str | None = Field(
         default=None,
         description=(
             "Conversational summary of the key points from both sides of the "
@@ -109,7 +109,7 @@ class ResearchPlan(BaseModel):
             "Speak naturally, as if to a teammate."
         ),
     )
-    strategic_actions: Optional[str] = Field(
+    strategic_actions: str | None = Field(
         default=None,
         description=(
             "Concrete steps for the trader to implement the recommendation, "
@@ -257,21 +257,21 @@ class PortfolioDecision(BaseModel):
     downstream consumers always see a complete markdown document.
     """
 
-    rating: Optional[PortfolioRating] = Field(
+    rating: PortfolioRating | None = Field(
         default=None,
         description=(
             "The final position rating. Exactly one of Buy / Overweight / Hold / "
             "Underweight / Sell, picked based on the analysts' debate."
         ),
     )
-    executive_summary: Optional[str] = Field(
+    executive_summary: str | None = Field(
         default=None,
         description=(
             "A concise action plan covering entry strategy, position sizing, "
             "key risk levels, and time horizon. Two to four sentences."
         ),
     )
-    investment_thesis: Optional[str] = Field(
+    investment_thesis: str | None = Field(
         default=None,
         description=(
             "Detailed reasoning anchored in specific evidence from the analysts' "

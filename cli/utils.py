@@ -113,9 +113,7 @@ def get_analysis_date() -> str:
             date = datetime.strptime(date_str, "%Y-%m-%d")
             if date.date() > datetime.now().date():
                 return False
-            if date < MIN_DATE:
-                return False
-            return True
+            return not date < MIN_DATE
         except ValueError:
             return False
 

@@ -1,6 +1,7 @@
 """In-memory replacement for yfinance for tests."""
 from __future__ import annotations
-from typing import Iterable
+
+from collections.abc import Iterable
 
 import pandas as pd
 
@@ -17,11 +18,11 @@ class _FakeSeries:
         # support .loc["Close"] and .iloc[-1] style access; return self
         return self
 
-    def dropna(self) -> "_FakeSeries":
+    def dropna(self) -> _FakeSeries:
         # fake has no NaN values; return a copy
         return _FakeSeries(self._prices)
 
-    def tail(self, n: int) -> "_FakeSeries":
+    def tail(self, n: int) -> _FakeSeries:
         return _FakeSeries(self._prices[-n:])
 
     def __iter__(self):

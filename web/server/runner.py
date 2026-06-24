@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import re
@@ -10,7 +11,7 @@ import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from tradingagents.default_config import DEFAULT_CONFIG, _coerce
 from tradingagents.graph.checkpointer import (
@@ -18,11 +19,11 @@ from tradingagents.graph.checkpointer import (
     thread_id as framework_thread_id,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-
-from web.server import events, storage
-from web.server import queries as queries_module
+from web.server import events, queries as queries_module, storage
 from web.server.retry import compute_backoff, detect_rate_limit
 
+if TYPE_CHECKING:
+    from web.server import price_feed
 
 log = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ _TARGET_PATTERNS = (
 )
 
 
-def _extract_target(markdown: str) -> Optional[float]:
+def _extract_target(markdown: str) -> float | None:
     """Pull a numeric target price out of the PM's rendered markdown.
 
     Tries the structured ``**Price Target**: X`` field first, then
@@ -229,7 +230,7 @@ async def enqueue(
     date_str: str,
     force: bool = False,
     *,
-    price_state: Optional["price_feed.PriceState"] = None,
+    price_state: price_feed.PriceState | None = None,
 ) -> str:
     """Resolve today's run for ``ticker`` and either resume or start fresh.
 
@@ -253,7 +254,7 @@ async def enqueue(
             ``start_price_at`` in ``run.json`` are left as ``None``.
     """
     ticker_u = ticker.upper()
-    from web.server import price_feed as _pf  # local import to avoid cycles at import time
+    from web.server import price_feed
 
     existing = storage.find_resumable_run(ticker_u, date_str)
     if existing and not force:
@@ -283,10 +284,10 @@ async def enqueue(
 
     # Snapshot the live poller's price (or None) so historical runs
     # record the price the user was looking at when they hit "Run".
-    start_price: Optional[float] = None
-    start_price_at: Optional[str] = None
+    start_price: float | None = None
+    start_price_at: str | None = None
     if price_state is not None:
-        start_price, start_price_at = _pf.snapshot_price(price_state, ticker_u)
+        start_price, start_price_at = price_feed.snapshot_price(price_state, ticker_u)
 
     info = storage.create_run_dir(
         ticker_u,
@@ -305,7 +306,7 @@ async def enqueue(
 async def resume_run(
     run_id: str,
     *,
-    price_state: "price_feed.PriceState | None" = None,
+    price_state: price_feed.PriceState | None = None,
 ) -> str:
     """Resume a previously failed or cancelled run.
 
@@ -318,7 +319,6 @@ async def resume_run(
 
     The original (failed) run is left intact for audit trail purposes.
     """
-    from web.server import price_feed as _pf  # local import to match enqueue pattern
 
     rj = storage.read_run(run_id)
     if rj is None:
@@ -357,10 +357,8 @@ async def stop() -> None:
     for w in _workers:
         w.cancel()
     for w in _workers:
-        try:
+        with contextlib.suppress(BaseException):
             await w
-        except BaseException:
-            pass
     _workers.clear()
 
 

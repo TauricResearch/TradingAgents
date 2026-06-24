@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 from web.server.ticker_agent.universe import (
-    UniverseConfig,
-    merge_and_dedup,
     load_custom_universe,
+    merge_and_dedup,
 )
 
 

@@ -29,6 +29,7 @@ raising, so callers never special-case missing data.
 
 from __future__ import annotations
 
+import contextlib
 import html
 import http.client
 import json
@@ -99,10 +100,8 @@ def _get_praw_client():
         )
         # Verify the client works by checking the rate limit endpoint.
         # PRAW 7+ raises on auth failure here rather than on first search.
-        try:
+        with contextlib.suppress(AttributeError):
             _ = _reddit_client.auth.scopes()
-        except AttributeError:
-            pass  # Older PRAW versions don't have scopes(); that's fine
         logger.info("Reddit: PRAW OAuth initialized (user=%s).", username or "<anonymous>")
         return _reddit_client
     except Exception as exc:
@@ -243,10 +242,9 @@ def _decay_gap_if_quiet() -> None:
     """If no request was made for ``_DECAY_AFTER`` seconds, reset to baseline."""
     global _min_request_gap
     with _rate_lock:
-        if time.monotonic() - _last_request_time >= _DECAY_AFTER:
-            if _min_request_gap > _MIN_REQUEST_GAP:
-                _min_request_gap = _MIN_REQUEST_GAP
-                logger.info("Reddit rate-limiter decayed back to %.1fs", _min_request_gap)
+        if time.monotonic() - _last_request_time >= _DECAY_AFTER and _min_request_gap > _MIN_REQUEST_GAP:
+            _min_request_gap = _MIN_REQUEST_GAP
+            logger.info("Reddit rate-limiter decayed back to %.1fs", _min_request_gap)
 
 
 def _search_qs(ticker: str, limit: int) -> str:

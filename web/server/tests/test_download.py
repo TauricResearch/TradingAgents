@@ -23,7 +23,7 @@ def data_root(tmp_path, monkeypatch):
 def test_generate_summary_csv_empty(data_root):
     """Ticker with no runs → CSV with only headers."""
     csv_text = generate_summary_csv("FAKE")
-    lines = [l for l in csv_text.strip().split("\n") if l]
+    lines = [line for line in csv_text.strip().split("\n") if line]
     assert lines[0].split(",")[0] == "run_id"
     assert len(lines) == 1
 
@@ -52,7 +52,7 @@ def test_generate_summary_csv_with_data(data_root):
     storage.write_json_atomic(run2["run_dir"] / "run.json", r2)
 
     csv_text = generate_summary_csv("AAPL")
-    lines = [l for l in csv_text.strip().split("\n") if l]
+    lines = [line for line in csv_text.strip().split("\n") if line]
     assert len(lines) == 3  # header + 2 rows
     # Row 1 (newest first – list_ticker_runs is newest first)
     assert "AAPL:2024-01-02T10:00:00" in lines[1]

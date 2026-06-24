@@ -1,12 +1,9 @@
 """Tests for missing capabilities tracking."""
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from web.server.ticker_agent.missing_capabilities import (
     log_missing,
     read_missing,
-    MissingCapability,
 )
 
 

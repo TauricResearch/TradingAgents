@@ -1,13 +1,12 @@
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
-from web.server.events import EventType, emit, make_event
 from web.server import storage
+from web.server.events import EventType, emit, make_event
 from web.server.runner import _NODE_STATE_KEY
-
 
 EXPECTED_EVENT_TYPES = {
     "run_started",

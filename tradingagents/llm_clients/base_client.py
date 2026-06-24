@@ -1,6 +1,7 @@
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from .cache import LLMResponseCache, make_cache_key
 from .retry import RetryPolicy, invoke_with_retry
@@ -32,8 +33,8 @@ def invoke_with_cache_and_retry(
     config: Any,
     kwargs: dict,
     *,
-    cache: Optional[LLMResponseCache] = None,
-    retry_policy: Optional[RetryPolicy] = None,
+    cache: LLMResponseCache | None = None,
+    retry_policy: RetryPolicy | None = None,
 ) -> Any:
     """Wrap a base chat ``invoke`` call with cache lookup and retry-with-backoff.
 

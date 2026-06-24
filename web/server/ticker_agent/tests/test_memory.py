@@ -1,7 +1,7 @@
 """Tests for agent memory."""
 from __future__ import annotations
 
-from web.server.ticker_agent.memory import read_memory, append_memory
+from web.server.ticker_agent.memory import append_memory, read_memory
 
 
 def test_append_and_read_memory(tmp_path):

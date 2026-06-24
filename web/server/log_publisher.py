@@ -6,7 +6,6 @@ import logging
 import threading
 import uuid
 from datetime import datetime, timezone
-from typing import Set
 
 from fastapi import WebSocket
 
@@ -16,7 +15,7 @@ class LogPublisher(logging.Handler):
 
     def __init__(self, min_level: int = logging.INFO) -> None:
         super().__init__(level=min_level)
-        self._subscribers: Set[WebSocket] = set()
+        self._subscribers: set[WebSocket] = set()
         self._lock = threading.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
 

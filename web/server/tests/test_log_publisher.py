@@ -1,6 +1,6 @@
-import pytest
 import logging
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
+
 from web.server.log_publisher import LogPublisher, setup_log_publisher, teardown_log_publisher
 
 
