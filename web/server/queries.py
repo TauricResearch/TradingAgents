@@ -6,10 +6,8 @@ keeps the low-level IO testable independently of the API.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from tradingagents.dataflows.utils import safe_ticker_component
-
 from web.server import storage
 
 
@@ -34,6 +32,8 @@ def _write_watchlist(rows: list[dict]) -> None:
         storage.data_dir() / "watchlist.json",
         {"version": 2, "tickers": rows},
     )
+    from web.server.cloud_persistence import backup_watchlist
+    backup_watchlist(storage.data_dir())
 
 
 def add_ticker(ticker: str, company_name: str, exchange: str, source: str = "user") -> dict:
@@ -192,7 +192,7 @@ def clear_last_run_if_matches(ticker: str, run_id: str) -> None:
 
 def run_to_dict(r: dict) -> dict:
     """Shape a stored run.json for the API. Keeps the wire format stable."""
-    elapsed_s: Optional[float] = None
+    elapsed_s: float | None = None
     started_at = _parse_iso_z(r.get("started_at") or "")
     if started_at is not None:
         finished_str = r.get("finished_at")
@@ -263,7 +263,7 @@ _RUN_STALE_AFTER_S = 300.0
 
 
 def build_trace(run_id: str, *, since: str = "", limit: int = 500,
-                kinds: Optional[set[str]] = None) -> dict:
+                kinds: set[str] | None = None) -> dict:
     """Merge a run's events + stages + llm calls into one chronological timeline.
 
     Items are sorted ascending by timestamp (events have ``ts``; stages
@@ -366,7 +366,7 @@ def build_health(run_id: str) -> dict:
     # ``now_utc`` is not imported here; use datetime for portability.
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
-    age_s: Optional[float] = None
+    age_s: float | None = None
     if last_ts is not None:
         age_s = (now - last_ts).total_seconds()
 
@@ -374,7 +374,7 @@ def build_health(run_id: str) -> dict:
     # seen an analyst_completed for. The runner emits these in matched
     # pairs per node, so a ``analyst_started`` whose matching
     # ``analyst_completed`` is later in the log is in-flight.
-    current_node: Optional[str] = None
+    current_node: str | None = None
     in_flight_nodes: list[str] = []
     completed_nodes: list[str] = []
     for ev in events_list:
@@ -419,7 +419,7 @@ def build_health(run_id: str) -> dict:
     started_at = _parse_iso_z(rj.get("started_at") or "")
     finished_at = _parse_iso_z(rj.get("finished_at") or "")
     end_ts = finished_at or (now if status == "running" else None)
-    duration_s: Optional[float] = None
+    duration_s: float | None = None
     if started_at is not None and end_ts is not None:
         duration_s = round((end_ts - started_at).total_seconds(), 2)
 
