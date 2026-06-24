@@ -62,8 +62,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Railway CLI
         run: npm install -g @railway/cli
-      - name: Login to Railway
-        run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
       - name: Deploy to Railway
         run: railway up --detach --environment production --service gleaming-light
         env:
@@ -78,8 +76,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Railway CLI
         run: npm install -g @railway/cli
-      - name: Login to Railway
-        run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
       - name: Deploy to Railway
         run: railway up --detach --environment production --service gleaming-light
         env:
