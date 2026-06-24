@@ -49,7 +49,10 @@ async def get_tracked_tickers(request: Request):
 
 
 @router.post("/signals-ms/tickers", status_code=201)
-def add_watchlist_ticker(payload: WatchlistAddPayload):
+async def add_watchlist_ticker(payload: WatchlistAddPayload, request: Request):
+    _, tier = await get_user_claims_async(request)
+    if tier != "pro":
+        raise HTTPException(status_code=403, detail="Admin/Pro required")
     ticker = payload.ticker.strip().upper()
     asset_type = payload.asset_type.strip().lower()
     if asset_type not in ("stocks", "crypto"):
@@ -71,7 +74,10 @@ def add_watchlist_ticker(payload: WatchlistAddPayload):
 
 
 @router.delete("/signals-ms/tickers/{ticker}")
-def delete_watchlist_ticker(ticker: str):
+async def delete_watchlist_ticker(ticker: str, request: Request):
+    _, tier = await get_user_claims_async(request)
+    if tier != "pro":
+        raise HTTPException(status_code=403, detail="Admin/Pro required")
     ticker = ticker.strip().upper()
     conn = get_db_connection()
     try:
