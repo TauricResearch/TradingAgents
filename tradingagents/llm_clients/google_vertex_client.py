@@ -1,10 +1,12 @@
 import os
+import warnings
 from typing import Any
 
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
 
 _GOOGLE_VERTEX_CLASS = None
+_DEFAULT_LOCATION = "global"
 
 
 def _vertex_class():
@@ -27,6 +29,9 @@ def _vertex_class():
 
         def invoke(self, input, config=None, **kwargs):
             return normalize_content(super().invoke(input, config, **kwargs))
+
+        async def ainvoke(self, input, config=None, **kwargs):
+            return normalize_content(await super().ainvoke(input, config, **kwargs))
 
     _GOOGLE_VERTEX_CLASS = NormalizedChatVertexAI
     return _GOOGLE_VERTEX_CLASS
@@ -55,9 +60,13 @@ class GoogleVertexClient(BaseLLMClient):
 
         llm_kwargs = {"model": self.model}
 
+        if self.base_url:
+            llm_kwargs["api_endpoint"] = self.base_url
+
         project = _first_present(
             self.kwargs.get("project"),
             self.kwargs.get("vertex_project"),
+            os.environ.get("TRADINGAGENTS_VERTEX_PROJECT"),
             os.environ.get("GOOGLE_CLOUD_PROJECT"),
             os.environ.get("VERTEXAI_PROJECT"),
         )
@@ -67,11 +76,20 @@ class GoogleVertexClient(BaseLLMClient):
         location = _first_present(
             self.kwargs.get("location"),
             self.kwargs.get("vertex_location"),
+            os.environ.get("TRADINGAGENTS_VERTEX_LOCATION"),
             os.environ.get("GOOGLE_CLOUD_LOCATION"),
             os.environ.get("VERTEXAI_LOCATION"),
         )
-        if location:
-            llm_kwargs["location"] = location
+        if not location:
+            location = _DEFAULT_LOCATION
+            warnings.warn(
+                "Google Vertex AI location is not configured; defaulting to 'global'. "
+                "Set TRADINGAGENTS_VERTEX_LOCATION, GOOGLE_CLOUD_LOCATION, or "
+                "pass location=... to use a regional endpoint.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        llm_kwargs["location"] = location
 
         for key in (
             "credentials",

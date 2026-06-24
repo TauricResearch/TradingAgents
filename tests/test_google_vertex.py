@@ -1,4 +1,8 @@
+import asyncio
 import os
+import sys
+import types
+import warnings
 from unittest import mock
 
 import pytest
@@ -51,6 +55,8 @@ def test_google_vertex_client_uses_google_cloud_env_fallbacks(monkeypatch):
         "tradingagents.llm_clients.google_vertex_client._vertex_class",
         lambda: FakeChatVertexAI,
     )
+    monkeypatch.delenv("TRADINGAGENTS_VERTEX_PROJECT", raising=False)
+    monkeypatch.delenv("TRADINGAGENTS_VERTEX_LOCATION", raising=False)
     monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "env-project")
     monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "europe-west4")
 
@@ -58,6 +64,105 @@ def test_google_vertex_client_uses_google_cloud_env_fallbacks(monkeypatch):
 
     assert captured["project"] == "env-project"
     assert captured["location"] == "europe-west4"
+
+
+@pytest.mark.unit
+def test_google_vertex_client_uses_tradingagents_env_fallbacks(monkeypatch):
+    from tradingagents.llm_clients.google_vertex_client import GoogleVertexClient
+
+    captured = {}
+
+    class FakeChatVertexAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.google_vertex_client._vertex_class",
+        lambda: FakeChatVertexAI,
+    )
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT", raising=False)
+    monkeypatch.delenv("GOOGLE_CLOUD_LOCATION", raising=False)
+    monkeypatch.setenv("TRADINGAGENTS_VERTEX_PROJECT", "framework-project")
+    monkeypatch.setenv("TRADINGAGENTS_VERTEX_LOCATION", "asia-east1")
+
+    GoogleVertexClient("gemini-3.5-flash").get_llm()
+
+    assert captured["project"] == "framework-project"
+    assert captured["location"] == "asia-east1"
+
+
+@pytest.mark.unit
+def test_google_vertex_client_defaults_location_to_global_with_warning(monkeypatch):
+    from tradingagents.llm_clients.google_vertex_client import GoogleVertexClient
+
+    captured = {}
+
+    class FakeChatVertexAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.google_vertex_client._vertex_class",
+        lambda: FakeChatVertexAI,
+    )
+    for env_var in (
+        "TRADINGAGENTS_VERTEX_LOCATION",
+        "GOOGLE_CLOUD_LOCATION",
+        "VERTEXAI_LOCATION",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+
+    with pytest.warns(RuntimeWarning, match="defaulting to 'global'"):
+        GoogleVertexClient("gemini-3.5-flash").get_llm()
+
+    assert captured["location"] == "global"
+
+
+@pytest.mark.unit
+def test_google_vertex_client_does_not_warn_when_location_is_configured(monkeypatch):
+    from tradingagents.llm_clients.google_vertex_client import GoogleVertexClient
+
+    captured = {}
+
+    class FakeChatVertexAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.google_vertex_client._vertex_class",
+        lambda: FakeChatVertexAI,
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        GoogleVertexClient("gemini-3.5-flash", location="us-central1").get_llm()
+
+    assert list(caught) == []
+    assert captured["location"] == "us-central1"
+
+
+@pytest.mark.unit
+def test_google_vertex_client_maps_base_url_to_api_endpoint(monkeypatch):
+    from tradingagents.llm_clients.google_vertex_client import GoogleVertexClient
+
+    captured = {}
+
+    class FakeChatVertexAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.google_vertex_client._vertex_class",
+        lambda: FakeChatVertexAI,
+    )
+
+    GoogleVertexClient(
+        "gemini-3.5-flash",
+        base_url="https://us-central1-aiplatform.googleapis.com",
+    ).get_llm()
+
+    assert captured["api_endpoint"] == "https://us-central1-aiplatform.googleapis.com"
+    assert "base_url" not in captured
 
 
 @pytest.mark.unit
@@ -75,6 +180,21 @@ def test_google_vertex_factory_route(monkeypatch):
     assert isinstance(client, GoogleVertexClient)
     assert client.kwargs["project"] == "vertex-project"
     assert client.kwargs["location"] == "us-central1"
+
+
+@pytest.mark.unit
+def test_google_vertex_factory_preserves_backend_url_as_base_url(monkeypatch):
+    from tradingagents.llm_clients.factory import create_llm_client
+    from tradingagents.llm_clients.google_vertex_client import GoogleVertexClient
+
+    client = create_llm_client(
+        provider="google_vertex",
+        model="gemini-3.5-flash",
+        base_url="https://private-aiplatform.example.com",
+    )
+
+    assert isinstance(client, GoogleVertexClient)
+    assert client.base_url == "https://private-aiplatform.example.com"
 
 
 @pytest.mark.unit
@@ -135,6 +255,31 @@ def test_google_vertex_client_does_not_forward_thinking_level(monkeypatch):
 
     assert "thinking_level" not in captured
     assert "thinking_budget" not in captured
+
+
+@pytest.mark.unit
+def test_google_vertex_ainvoke_normalizes_typed_content(monkeypatch):
+    from tradingagents.llm_clients import google_vertex_client
+
+    class FakeResponse:
+        content = [
+            {"type": "reasoning", "text": "hidden"},
+            {"type": "text", "text": "visible"},
+        ]
+
+    class FakeChatVertexAI:
+        async def ainvoke(self, input, config=None, **kwargs):
+            return FakeResponse()
+
+    fake_module = types.ModuleType("langchain_google_vertexai")
+    fake_module.ChatVertexAI = FakeChatVertexAI
+    monkeypatch.setitem(sys.modules, "langchain_google_vertexai", fake_module)
+    monkeypatch.setattr(google_vertex_client, "_GOOGLE_VERTEX_CLASS", None)
+
+    chat_cls = google_vertex_client._vertex_class()
+    response = asyncio.run(chat_cls().ainvoke("hello"))
+
+    assert response.content == "visible"
 
 
 @pytest.mark.unit

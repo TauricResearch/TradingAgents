@@ -168,7 +168,7 @@ For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill i
 
 For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-4-8-v1:0`.
 
-For Google Vertex AI, install the extra with `pip install ".[vertex]"`, set `llm_provider: "google_vertex"`, authenticate with Google Application Default Credentials (`gcloud auth application-default login`, `GOOGLE_APPLICATION_CREDENTIALS`, or an attached service account), and optionally set `TRADINGAGENTS_VERTEX_PROJECT` plus `TRADINGAGENTS_VERTEX_LOCATION` (for example `us-central1`). Vertex uses Gemini model IDs such as `gemini-3.5-flash` and does not require `GOOGLE_API_KEY`.
+For Google Vertex AI, install the extra with `pip install ".[vertex]"`, set `llm_provider: "google_vertex"`, authenticate with Google Application Default Credentials (`gcloud auth application-default login`, `GOOGLE_APPLICATION_CREDENTIALS`, or an attached service account), and optionally set `TRADINGAGENTS_VERTEX_PROJECT` plus `TRADINGAGENTS_VERTEX_LOCATION`. When no location is configured, TradingAgents defaults Vertex AI to `global`, the safest choice for the newest Gemini models. Vertex uses Gemini model IDs such as `gemini-3.5-flash` and does not require `GOOGLE_API_KEY`.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
