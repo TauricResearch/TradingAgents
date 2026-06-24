@@ -45,6 +45,12 @@ bedrock = [
     "langchain-aws>=1.5.0",
 ]
 
+[project.optional-dependencies]
+scheduler = [
+    "reportlab>=4.0.0",
+    "schedule>=1.2.0",
+]
+
 [project.scripts]
 tradingagents = "cli.main:app"
 
