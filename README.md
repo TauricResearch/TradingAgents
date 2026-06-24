@@ -15,7 +15,7 @@ pip install .
 
 > [!TIP]
 > **VS Code / Pylance "Import could not be resolved" Warning:**
-> If your IDE displays import errors for `fastapi` or `pydantic`, it is because the editor is using the global system Python instead of your virtual environment. 
+> If your IDE displays import errors for `fastapi` or `pydantic`, it is because the editor is using the global system Python instead of your virtual environment.
 > To resolve this in VS Code, open the Command Palette (`Cmd+Shift+P`), select **"Python: Select Interpreter"**, and choose the python path located at `~/pulse-trading-agent/bin/python`.
 
 ### 2. Configure Environment Variables
@@ -292,7 +292,7 @@ The backend is designed to decapsulate JWT claims directly for authorization con
    * Since native browser `EventSource` does not support custom headers, you should pass the JWT token as a query parameter `?token=...`:
      ```javascript
      const eventSource = new EventSource(`/signals-ms/stream?token=${userToken}`);
-     
+
      // Listen for incoming trading signals
      eventSource.addEventListener('signal', (event) => {
        const newSignal = JSON.parse(event.data);

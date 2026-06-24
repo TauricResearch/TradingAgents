@@ -26,7 +26,7 @@ COPY --from=builder /opt/venv /opt/venv
 RUN useradd --create-home appuser \
  && install -d -m 0755 -o appuser -g appuser /home/appuser/.tradingagents \
  && install -d -m 0755 -o appuser -g appuser /home/appuser/app
- 
+
 USER appuser
 WORKDIR /home/appuser/app
 
