@@ -147,16 +147,20 @@ class AShareAutoRoutingTests(unittest.TestCase):
         assert akshare_called == []
 
     def test_shenzhen_ticker_uses_akshare(self):
-        """000001.SZ (SZ suffix) must also route to akshare."""
+        """000001.SZ (SZ suffix) must also route to akshare first."""
         seen = []
 
         def fake_akshare(symbol, *a, **k):
             seen.append(("akshare", symbol))
             return "ok"
 
+        def fake_yfinance(symbol, *a, **k):
+            seen.append(("yfinance", symbol))
+            return "yfinance_data"
+
         with mock.patch.dict(
             interface.VENDOR_METHODS,
-            {"get_stock_data": {"akshare": fake_akshare}},
+            {"get_stock_data": {"akshare": fake_akshare, "yfinance": fake_yfinance}},
         ):
             result = interface.route_to_vendor("get_stock_data", "000001.SZ", "2025-01-01", "2026-01-01")
 

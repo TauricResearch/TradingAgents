@@ -39,9 +39,9 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.akshare_utils import fetch_guba_posts, is_a_share
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
-from tradingagents.dataflows.akshare_utils import is_a_share, fetch_guba_posts
 
 
 def _seven_days_back(trade_date: str) -> str:
@@ -64,13 +64,14 @@ def create_sentiment_analyst(llm):
         start_date = _seven_days_back(end_date)
         instrument_context = get_instrument_context_from_state(state)
 
-        # Pre-fetch all sources. Each fetcher degrades gracefully so the LLM
-        # always sees something — real data or a clear placeholder.
+        # Pre-fetch all three sources. Each fetcher degrades gracefully and
+        # returns a string (no exceptions surface from here), so the LLM
+        # always sees something — either real data or a clear placeholder.
         news_block = get_news.func(ticker, start_date, end_date)
-
         if is_a_share(ticker):
-            # For Chinese A-shares substitute domestic sentiment sources:
-            # 东方财富 heat-rank replaces StockTwits; already included in news.
+            # Chinese A-shares: StockTwits/Reddit have no coverage. Substitute
+            # 东方财富 heat-rank as the retail-sentiment proxy; news (already
+            # fetched above) comes from domestic sources via the akshare vendor.
             stocktwits_block = fetch_guba_posts(ticker)
             reddit_block = (
                 "<Reddit is not applicable for Chinese A-share stocks. "
@@ -96,8 +97,8 @@ def create_sentiment_analyst(llm):
                     "You are a helpful AI assistant, collaborating with other assistants."
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    "\n{system_message}\n"
-                    "For your reference, the current date is {current_date}. {instrument_context}",
+                    " Today's date is {current_date}; treat it as 'now' for all analysis and tool-call date ranges. {instrument_context}"
+                    "\n{system_message}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]

@@ -17,7 +17,6 @@ import os
 import re
 import urllib.request
 from datetime import datetime, timedelta
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -178,9 +177,8 @@ def get_indicators_akshare(
 ) -> str:
     """Technical indicators for an A-share computed from AKShare OHLCV data."""
     try:
-        from stockstats import wrap
-        import pandas as pd
         from dateutil.relativedelta import relativedelta
+        from stockstats import wrap
 
         data = _load_ohlcv_akshare(ticker, curr_date)
         df = wrap(data)
@@ -293,8 +291,8 @@ def get_news_akshare(ticker: str, start_date: str, end_date: str) -> str:
 
 def get_global_news_akshare(
     curr_date: str,
-    lookback_days: Optional[int] = None,
-    limit: Optional[int] = None,
+    lookback_days: int | None = None,
+    limit: int | None = None,
 ) -> str:
     """Broad Chinese market news from 东方财富."""
     n = limit or 20
@@ -318,7 +316,7 @@ def get_global_news_akshare(
 
 # ── Fundamentals (同花顺 financial abstract) ──────────────────────────────────
 
-def _get_financial_abstract(ticker: str) -> "pd.DataFrame":
+def _get_financial_abstract(ticker: str):
     import akshare as ak
     code = _to_akshare_code(ticker)
     return ak.stock_financial_abstract_ths(symbol=code, indicator="按报告期")
