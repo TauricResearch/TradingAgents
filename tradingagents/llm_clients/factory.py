@@ -39,6 +39,10 @@ def create_llm_client(
         from .google_client import GoogleClient
         return GoogleClient(model, base_url, **kwargs)
 
+    if provider_lower == "google_vertex":
+        from .google_vertex_client import GoogleVertexClient
+        return GoogleVertexClient(model, base_url, **kwargs)
+
     if provider_lower == "azure":
         from .azure_client import AzureOpenAIClient
         return AzureOpenAIClient(model, base_url, **kwargs)

@@ -74,10 +74,14 @@ def test_reasoning_thinking_overrides(monkeypatch):
         monkeypatch,
         TRADINGAGENTS_OPENAI_REASONING_EFFORT="high",
         TRADINGAGENTS_GOOGLE_THINKING_LEVEL="minimal",
+        TRADINGAGENTS_VERTEX_PROJECT="vertex-project",
+        TRADINGAGENTS_VERTEX_LOCATION="us-central1",
         TRADINGAGENTS_ANTHROPIC_EFFORT="low",
     )
     assert dc.DEFAULT_CONFIG["openai_reasoning_effort"] == "high"
     assert dc.DEFAULT_CONFIG["google_thinking_level"] == "minimal"
+    assert dc.DEFAULT_CONFIG["vertex_project"] == "vertex-project"
+    assert dc.DEFAULT_CONFIG["vertex_location"] == "us-central1"
     assert dc.DEFAULT_CONFIG["anthropic_effort"] == "low"
 
 
@@ -86,6 +90,8 @@ def test_reasoning_effort_defaults_to_none(monkeypatch):
     dc = _reload_with_env(monkeypatch)
     assert dc.DEFAULT_CONFIG["openai_reasoning_effort"] is None
     assert dc.DEFAULT_CONFIG["google_thinking_level"] is None
+    assert dc.DEFAULT_CONFIG["vertex_project"] is None
+    assert dc.DEFAULT_CONFIG["vertex_location"] is None
     assert dc.DEFAULT_CONFIG["anthropic_effort"] is None
 
 

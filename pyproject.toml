@@ -44,6 +44,9 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+vertex = [
+    "langchain-google-vertexai>=3.0.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
