@@ -106,9 +106,6 @@ async def lifespan(app: FastAPI):
         except OSError as exc:
             log.error("failed to remove legacy DB: %s", exc)
     storage.init_settings(data_dir=s.data_dir, cache_dir=s.cache_dir)
-    from web.server.pg_backup import init as init_pg_backup
-
-    init_pg_backup(s.data_dir)
     from web.server.cloud_persistence import restore_watchlist
 
     restore_watchlist(s.data_dir)

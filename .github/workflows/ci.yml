@@ -53,12 +53,22 @@ jobs:
       - name: Lint the repository
         run: uv run ruff check .
 
-  deploy:
-    name: deploy to render
+  deploy-dev:
+    name: deploy to dev (PR preview)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [test, lint, smoke-install]
+    steps:
+      - name: Trigger Dev Railway deploy
+        run: |
+          curl -s -X POST "${{ secrets.RAILWAY_DEPLOY_HOOK_URL_DEV }}"
+
+  deploy-prod:
+    name: deploy to production
     runs-on: ubuntu-latest
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/main-with-dashboard') && github.event_name == 'push'
     needs: [test, lint, smoke-install]
     steps:
-      - name: Trigger Render deploy
+      - name: Trigger Production Railway deploy
         run: |
-          curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          curl -s -X POST "${{ secrets.RAILWAY_DEPLOY_HOOK_URL_PROD }}"

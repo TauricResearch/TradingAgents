@@ -35,10 +35,6 @@ _settings = {"data_dir": "", "cache_dir": ""}
 # Populated lazily by ``_find_run_dir``.
 _run_dir_cache: dict[str, Path] = {}
 
-# Write hook: called after every file write with the file path.
-# Used by cloud backup (S3, etc.) to sync files to persistent storage.
-_write_hook: Any = None
-
 
 def clear_run_dir_cache() -> None:
     """Drop the run directory cache.  Tests use this between scenarios."""
@@ -144,8 +140,6 @@ def write_json_atomic(path: Path | str, data: Any) -> None:
         with contextlib.suppress(OSError):
             os.unlink(tmp)
         raise
-    if _write_hook is not None:
-        _write_hook(path)
 
 
 def read_json(path: Path | str) -> Any | None:
@@ -185,8 +179,6 @@ def append_jsonl(path: Path | str, obj: Any) -> None:
     with open(path, "a", encoding="utf-8") as f:
         f.write(line + "\n")
         f.flush()
-    if _write_hook is not None:
-        _write_hook(path)
 
 
 def read_jsonl(path: Path | str) -> list[Any]:
