@@ -136,6 +136,29 @@ class TraderProposal(BaseModel):
             "the research plan. Two to four sentences."
         ),
     )
+    bull_case: str = Field(
+        description=(
+            "Bull case: the 2-4 strongest arguments FOR upside / taking this "
+            "position, each grounded in specific evidence (fundamentals, "
+            "technicals, sentiment, catalysts)."
+        ),
+    )
+    bear_case: str = Field(
+        description=(
+            "Bear case: the 2-4 strongest arguments AGAINST the position / "
+            "pointing to downside, each grounded in specific evidence. Be "
+            "genuinely critical; do not strawman the opposing view."
+        ),
+    )
+    win_probability: float = Field(
+        ge=0.0,
+        le=100.0,
+        description=(
+            "Win probability (0-100): your estimated likelihood that the "
+            "directional thesis plays out, weighing the bull case against the "
+            "bear case. Do not default to 50 — commit to a considered estimate."
+        ),
+    )
     entry_price: float | None = Field(
         default=None,
         description="Optional entry price target in the instrument's quote currency.",
@@ -144,15 +167,67 @@ class TraderProposal(BaseModel):
         default=None,
         description="Optional stop-loss price in the instrument's quote currency.",
     )
+    target_price: float | None = Field(
+        default=None,
+        description=(
+            "Optional take-profit / target price in the instrument's quote "
+            "currency, used to compute the risk/reward ratio. Provide whenever "
+            "the action is Buy or Sell."
+        ),
+    )
     position_sizing: str | None = Field(
         default=None,
         description="Optional sizing guidance, e.g. '5% of portfolio'.",
     )
 
-    @field_validator("entry_price", "stop_loss", mode="before")
+    @field_validator("entry_price", "stop_loss", "target_price", mode="before")
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+
+def _render_trade_review(proposal: TraderProposal) -> str:
+    """Probability + risk/reward + expected-value review.
+
+    The win probability comes from the model; the risk/reward ratio, expected
+    value (in R-multiples), and breakeven win-rate are computed here from the
+    entry / stop / target levels so the numbers stay arithmetically consistent
+    rather than being hallucinated by the LLM.
+    """
+    lines = ["### Probability & Risk/Reward"]
+    prob = proposal.win_probability
+    lines.append(f"- **Win Probability**: {prob:.0f}%")
+
+    rr = None
+    if (
+        proposal.entry_price is not None
+        and proposal.stop_loss is not None
+        and proposal.target_price is not None
+    ):
+        reward = abs(proposal.target_price - proposal.entry_price)
+        risk = abs(proposal.entry_price - proposal.stop_loss)
+        if risk > 0:
+            rr = reward / risk
+            lines.append(
+                f"- **Risk/Reward Ratio**: {rr:.2f} : 1 "
+                f"(potential +{reward:.2f} vs risk -{risk:.2f})"
+            )
+
+    if rr is not None:
+        p = prob / 100.0
+        ev_r = p * rr - (1.0 - p)  # expected value in units of risk (R-multiple)
+        breakeven = 100.0 / (1.0 + rr)
+        verdict = "favorable" if ev_r > 0 else "unfavorable"
+        lines.append(f"- **Expected Value**: {ev_r:+.2f}R ({verdict})")
+        lines.append(
+            f"- **Breakeven Win-Rate**: {breakeven:.0f}% "
+            f"(current {prob:.0f}% is {'above' if prob > breakeven else 'below'} breakeven)"
+        )
+    else:
+        lines.append(
+            "- **Risk/Reward Ratio**: n/a (needs entry / stop / target prices)"
+        )
+    return "\n".join(lines)
 
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
@@ -166,13 +241,20 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         f"**Action**: {proposal.action.value}",
         "",
         f"**Reasoning**: {proposal.reasoning}",
+        "",
+        f"**Bull Case**: {proposal.bull_case}",
+        "",
+        f"**Bear Case**: {proposal.bear_case}",
     ]
     if proposal.entry_price is not None:
         parts.extend(["", f"**Entry Price**: {proposal.entry_price}"])
     if proposal.stop_loss is not None:
         parts.extend(["", f"**Stop Loss**: {proposal.stop_loss}"])
+    if proposal.target_price is not None:
+        parts.extend(["", f"**Target Price**: {proposal.target_price}"])
     if proposal.position_sizing:
         parts.extend(["", f"**Position Sizing**: {proposal.position_sizing}"])
+    parts.extend(["", _render_trade_review(proposal)])
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
