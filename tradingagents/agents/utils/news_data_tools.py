@@ -58,3 +58,39 @@ def get_insider_transactions(
         str: A report of insider transaction data
     """
     return route_to_vendor("get_insider_transactions", ticker)
+
+@tool
+async def fetch_recent_news(query: str, time_range: str = "7d", limit: int = 5) -> str:
+    """
+    Fetches recent news articles and their full extracted text based on a search query.
+    Use this tool to gather real-time financial news, market sentiment, or company updates.
+    
+    Args:
+        query: The specific search query (e.g., "NVIDIA stock earnings", "Federal Reserve interest rates").
+        time_range: The lookback period (e.g., "1d" for 1 day, "7d" for 7 days). Default is 7d.
+        limit: The maximum number of articles to retrieve.
+    """
+    try:
+        from tradingagents.dataflows.google_news import get_google_news
+        # Call your new async dataflow
+        articles = await get_google_news(query=query, time_range=time_range, limit=limit)
+        
+        if not articles:
+            return f"No news found for query: '{query}' in the last {time_range}."
+            
+        # Format the structured Pydantic models into a clean string for the LLM
+        formatted_results = []
+        for i, article in enumerate(articles, 1):
+            status = "[Full Text Extracted]" if article.scraped else "[RSS Summary Only]"
+            formatted_results.append(
+                f"### Article {i}: {article.title}\n"
+                f"**Source:** {article.source} {status}\n"
+                f"**Date:** {article.published_date}\n"
+                f"**URL:** {article.url}\n"
+                f"**Content:**\n{article.full_text}\n"
+            )
+            
+        return "\n\n---\n\n".join(formatted_results)
+        
+    except Exception as e:
+        return f"Error fetching news for '{query}': {str(e)}"
