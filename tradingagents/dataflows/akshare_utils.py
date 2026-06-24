@@ -13,12 +13,44 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+
+# Chinese domestic data hosts must NOT be routed through a VPN/proxy. A foreign
+# proxy node (e.g. Clash on 127.0.0.1:7897) corrupts the TLS stream to these
+# servers, surfacing as `SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC`. requests /
+# urllib3 honor NO_PROXY by host-suffix, and akshare itself uses bare
+# `requests.get` internally — so extending NO_PROXY here transparently makes
+# both akshare's calls and ours bypass the proxy for domestic endpoints.
+# (Note: this cannot defeat a system-wide TUN/transparent proxy, which
+# intercepts below the application layer — that must be fixed in the VPN.)
+_DOMESTIC_HOSTS = (
+    "eastmoney.com", "10jqka.com.cn", "sina.com.cn", "hexun.com",
+    "sse.com.cn", "szse.cn", "cninfo.com.cn",
+)
+
+
+def _ensure_domestic_no_proxy() -> None:
+    for var in ("NO_PROXY", "no_proxy"):
+        existing = [h for h in os.environ.get(var, "").split(",") if h]
+        for host in _DOMESTIC_HOSTS:
+            if host not in existing:
+                existing.append(host)
+        os.environ[var] = ",".join(existing)
+
+
+_ensure_domestic_no_proxy()
+
+
+def _no_proxy_dict() -> dict:
+    """Explicit per-call proxy override for libraries that ignore NO_PROXY."""
+    return {"http": None, "https": None}
 
 
 # ── Ticker helpers ────────────────────────────────────────────────────────────
@@ -207,7 +239,8 @@ def _fetch_em_news(query: str, n: int = 25) -> list[dict]:
             "referer": f"https://so.eastmoney.com/news/s?keyword={query}",
             "user-agent": "Mozilla/5.0",
         }
-        r = cffi_req.get(url, params=params, headers=headers, timeout=10, impersonate="chrome110")
+        r = cffi_req.get(url, params=params, headers=headers, timeout=10,
+                         impersonate="chrome110", proxies=_no_proxy_dict())
         m = re.search(r"^[^(]+\((.*)\)$", r.text.strip(), re.DOTALL)
         if not m:
             return []
@@ -370,7 +403,9 @@ def get_insider_transactions_akshare(ticker: str) -> str:
             f"&client_source=web&stock_list={code}"
         )
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=10) as r:
+        # Domestic host: force a direct (no-proxy) opener so a VPN can't break it.
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(req, timeout=10) as r:
             data = json.loads(r.read())
 
         items = (data.get("data") or {}).get("list") or []

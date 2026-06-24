@@ -2,6 +2,7 @@
 the akshare vendor first, while non-A-share tickers keep the configured path.
 """
 import copy
+import os
 import unittest
 from unittest import mock
 
@@ -10,7 +11,11 @@ import pytest
 import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
 from tradingagents.dataflows import interface
-from tradingagents.dataflows.akshare_utils import is_a_share
+from tradingagents.dataflows.akshare_utils import (
+    _DOMESTIC_HOSTS,
+    _ensure_domestic_no_proxy,
+    is_a_share,
+)
 
 
 def _reset_config():
@@ -45,6 +50,42 @@ class IsAShareTests(unittest.TestCase):
 
     def test_crypto_not_a_share(self):
         assert is_a_share("BTC-USD") is False
+
+
+@pytest.mark.unit
+class DomesticNoProxyTests(unittest.TestCase):
+    """Chinese data hosts must be added to NO_PROXY so a VPN/proxy that mangles
+    TLS to domestic endpoints (SSL bad-record-mac) is bypassed for A-share data.
+    """
+
+    def setUp(self):
+        self._saved = {k: os.environ.get(k) for k in ("NO_PROXY", "no_proxy")}
+
+    def tearDown(self):
+        for k, v in self._saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def test_adds_domestic_hosts_when_empty(self):
+        os.environ.pop("NO_PROXY", None)
+        os.environ.pop("no_proxy", None)
+        _ensure_domestic_no_proxy()
+        for host in _DOMESTIC_HOSTS:
+            assert host in os.environ["NO_PROXY"]
+
+    def test_preserves_existing_entries(self):
+        os.environ["NO_PROXY"] = "example.com"
+        _ensure_domestic_no_proxy()
+        assert "example.com" in os.environ["NO_PROXY"]
+        assert "eastmoney.com" in os.environ["NO_PROXY"]
+
+    def test_idempotent_no_duplicates(self):
+        os.environ["NO_PROXY"] = ""
+        _ensure_domestic_no_proxy()
+        _ensure_domestic_no_proxy()
+        assert os.environ["NO_PROXY"].split(",").count("eastmoney.com") == 1
 
 
 @pytest.mark.unit
