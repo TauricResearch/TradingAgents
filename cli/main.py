@@ -887,20 +887,12 @@ def extract_content_string(content):
     """Extract string content from various message formats.
     Returns None if no meaningful text content is found.
     """
-    import ast
-
     def is_empty(val):
         """Check if value is empty using Python's truthiness."""
         if val is None or val == '':
             return True
         if isinstance(val, str):
-            s = val.strip()
-            if not s:
-                return True
-            try:
-                return not bool(ast.literal_eval(s))
-            except (ValueError, SyntaxError):
-                return False  # Can't parse = real text
+            return not val.strip()
         return not bool(val)
 
     if is_empty(content):
