@@ -1,3 +1,4 @@
+import csv
 import datetime
 import os
 import time
@@ -32,6 +33,7 @@ from cli.utils import (
     detect_asset_type,
     ensure_api_key,
     get_ticker,
+    normalize_ticker_symbol,
     prompt_openai_compatible_url,
     resolve_backend_url,
     select_analysts,
@@ -41,6 +43,7 @@ from cli.utils import (
     select_shallow_thinking_agent,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
@@ -988,6 +991,209 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
+_BATCH_DEPTHS = {
+    "shallow": 1,
+    "medium": 3,
+    "deep": 5,
+}
+
+
+def _parse_batch_depth(value: str) -> int:
+    """Parse a batch research-depth label or explicit positive round count."""
+    normalized = str(value).strip().lower()
+    if normalized in _BATCH_DEPTHS:
+        return _BATCH_DEPTHS[normalized]
+    try:
+        rounds = int(normalized)
+    except ValueError as exc:
+        raise ValueError(
+            "depth must be one of shallow, medium, deep, or a positive integer"
+        ) from exc
+    if rounds < 1:
+        raise ValueError("depth must be a positive integer")
+    return rounds
+
+
+def _parse_batch_analysts(value: str) -> list[str]:
+    """Parse all or a comma-separated analyst-key list in canonical order."""
+    normalized = str(value).strip().lower()
+    if normalized == "all":
+        return list(ANALYST_ORDER)
+
+    requested = [part.strip().lower() for part in normalized.split(",") if part.strip()]
+    if not requested:
+        raise ValueError("at least one analyst must be provided")
+
+    unknown = [analyst for analyst in requested if analyst not in ANALYST_ORDER]
+    if unknown:
+        allowed = ", ".join(["all", *ANALYST_ORDER])
+        raise ValueError(f"unknown analyst(s): {', '.join(unknown)}. Allowed: {allowed}")
+
+    return [analyst for analyst in ANALYST_ORDER if analyst in set(requested)]
+
+
+def _split_batch_ticker_text(value: str) -> list[str]:
+    normalized = value.replace("\r", "\n").replace(",", "\n")
+    return [part.strip() for part in normalized.splitlines() if part.strip()]
+
+
+def _parse_batch_tickers(tickers: str | None, tickers_file: Path | None) -> list[str]:
+    """Parse CLI ticker sources and normalize symbols through the existing CLI helper."""
+    raw_tickers: list[str] = []
+    if tickers:
+        raw_tickers.extend(_split_batch_ticker_text(tickers))
+    if tickers_file:
+        if not tickers_file.exists():
+            raise ValueError(f"tickers file does not exist: {tickers_file}")
+        raw_tickers.extend(_split_batch_ticker_text(tickers_file.read_text(encoding="utf-8")))
+
+    if not raw_tickers:
+        raise ValueError("provide --tickers, --tickers-file, or both")
+
+    parsed = []
+    for raw in raw_tickers:
+        ticker = normalize_ticker_symbol(raw)
+        safe_ticker_component(ticker)
+        parsed.append(ticker)
+    return parsed
+
+
+def _parse_batch_analysis_date(value: str | None) -> str:
+    date_str = value or datetime.datetime.now().strftime("%Y-%m-%d")
+    try:
+        analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError("analysis date must use YYYY-MM-DD format") from exc
+    if analysis_date > datetime.datetime.now().date():
+        raise ValueError("analysis date cannot be in the future")
+    return date_str
+
+
+def _build_batch_selections(
+    *,
+    provider: str,
+    model: str | None,
+    quick_model: str | None,
+    deep_model: str | None,
+    depth: str,
+) -> dict:
+    """Build the non-interactive selection dict consumed by _build_run_config."""
+    selected_provider = (
+        DEFAULT_CONFIG["llm_provider"].lower()
+        if os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+        else provider.lower()
+    )
+    selected_quick_model = (
+        DEFAULT_CONFIG["quick_think_llm"]
+        if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM")
+        else quick_model or model or DEFAULT_CONFIG["quick_think_llm"]
+    )
+    selected_deep_model = (
+        DEFAULT_CONFIG["deep_think_llm"]
+        if os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM")
+        else deep_model or model or DEFAULT_CONFIG["deep_think_llm"]
+    )
+
+    return {
+        "research_depth": _parse_batch_depth(depth),
+        "shallow_thinker": selected_quick_model,
+        "deep_thinker": selected_deep_model,
+        "backend_url": resolve_backend_url(
+            selected_provider,
+            env_url=DEFAULT_CONFIG["backend_url"],
+        ),
+        "llm_provider": selected_provider,
+        "google_thinking_level": DEFAULT_CONFIG["google_thinking_level"],
+        "openai_reasoning_effort": DEFAULT_CONFIG["openai_reasoning_effort"],
+        "anthropic_effort": DEFAULT_CONFIG["anthropic_effort"],
+        "output_language": DEFAULT_CONFIG["output_language"],
+    }
+
+
+def _summary_cell(value) -> str:
+    text = "" if value is None else str(value)
+    return text.replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+
+
+def _write_batch_summary(rows: list[dict], batch_dir: Path) -> tuple[Path, Path]:
+    csv_path = batch_dir / "summary.csv"
+    md_path = batch_dir / "summary.md"
+    fieldnames = ["ticker", "status", "analysis_date", "signal", "report_path", "error"]
+
+    with csv_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    lines = [
+        "# Batch Analysis Summary",
+        "",
+        "| Ticker | Status | Analysis Date | Signal | Report Path | Error |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        lines.append(
+            "| "
+            + " | ".join(_summary_cell(row.get(field)) for field in fieldnames)
+            + " |"
+        )
+    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return csv_path, md_path
+
+
+def _run_batch_analysis(
+    *,
+    tickers: list[str],
+    analysis_date: str,
+    analyst_keys: list[str],
+    config: dict,
+    batch_dir: Path,
+) -> list[dict]:
+    """Run a headless sequential batch and return summary rows."""
+    batch_dir.mkdir(parents=True, exist_ok=True)
+    rows = []
+
+    for index, ticker in enumerate(tickers, start=1):
+        console.print(f"[cyan]({index}/{len(tickers)}) Analyzing {ticker}...[/cyan]")
+        row = {
+            "ticker": ticker,
+            "status": "failed",
+            "analysis_date": analysis_date,
+            "signal": "",
+            "report_path": "",
+            "error": "",
+        }
+        try:
+            graph = TradingAgentsGraph(
+                analyst_keys,
+                config=config.copy(),
+                debug=False,
+            )
+            asset_type = detect_asset_type(ticker).value
+            final_state, signal = graph.propagate(
+                ticker,
+                analysis_date,
+                asset_type=asset_type,
+            )
+            report_dir = batch_dir / safe_ticker_component(ticker)
+            report_file = graph.save_reports(final_state, ticker, save_path=report_dir)
+            row.update(
+                {
+                    "status": "success",
+                    "signal": signal,
+                    "report_path": str(report_file),
+                }
+            )
+            console.print(f"[green]Completed {ticker}: {signal}[/green]")
+        except Exception as exc:
+            row["error"] = str(exc)
+            console.print(f"[red]Failed {ticker}: {exc}[/red]")
+        rows.append(row)
+
+    _write_batch_summary(rows, batch_dir)
+    return rows
+
+
 def run_analysis(checkpoint: bool | None = None):
     # First get all user selections
     selections = get_user_selections()
@@ -1286,6 +1492,100 @@ def analyze(
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     run_analysis(checkpoint=checkpoint)
+
+
+@app.command("batch-analyze")
+def batch_analyze(
+    tickers: str | None = typer.Option(
+        None,
+        "--tickers",
+        help="Comma-separated ticker symbols, e.g. AAPL,MSFT,NVDA.",
+    ),
+    tickers_file: Path | None = typer.Option(
+        None,
+        "--tickers-file",
+        help="Text file containing ticker symbols separated by commas or newlines.",
+    ),
+    analysis_date: str | None = typer.Option(
+        None,
+        "--analysis-date",
+        help="Analysis date in YYYY-MM-DD format. Defaults to today.",
+    ),
+    analysts: str = typer.Option(
+        "all",
+        "--analysts",
+        help="all or comma-separated analyst keys: market,social,news,fundamentals.",
+    ),
+    depth: str = typer.Option(
+        "shallow",
+        "--depth",
+        help="Research depth: shallow, medium, deep, or a positive integer round count.",
+    ),
+    provider: str = typer.Option(
+        DEFAULT_CONFIG["llm_provider"],
+        "--provider",
+        help="LLM provider key, e.g. openrouter.",
+    ),
+    model: str | None = typer.Option(
+        None,
+        "--model",
+        help="Model ID to use for both quick and deep thinking.",
+    ),
+    quick_model: str | None = typer.Option(
+        None,
+        "--quick-model",
+        help="Model ID for quick-thinking agents. Overrides --model for quick thinking.",
+    ),
+    deep_model: str | None = typer.Option(
+        None,
+        "--deep-model",
+        help="Model ID for deep-thinking agents. Overrides --model for deep thinking.",
+    ),
+    checkpoint: bool | None = typer.Option(
+        None,
+        "--checkpoint/--no-checkpoint",
+        help="Enable/disable checkpoint-resume. Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
+    ),
+):
+    """Run the same non-interactive analysis settings over multiple tickers."""
+    try:
+        parsed_tickers = _parse_batch_tickers(tickers, tickers_file)
+        parsed_date = _parse_batch_analysis_date(analysis_date)
+        analyst_keys = _parse_batch_analysts(analysts)
+        selections = _build_batch_selections(
+            provider=provider,
+            model=model,
+            quick_model=quick_model,
+            deep_model=deep_model,
+            depth=depth,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    config = _build_run_config(selections, checkpoint)
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    batch_dir = Path(config["results_dir"]) / "batch" / stamp
+
+    console.print(
+        f"[bold cyan]Batch analysis[/bold cyan]: {len(parsed_tickers)} ticker(s), "
+        f"provider={config['llm_provider']}, quick={config['quick_think_llm']}, "
+        f"deep={config['deep_think_llm']}"
+    )
+    rows = _run_batch_analysis(
+        tickers=parsed_tickers,
+        analysis_date=parsed_date,
+        analyst_keys=analyst_keys,
+        config=config,
+        batch_dir=batch_dir,
+    )
+
+    failures = sum(1 for row in rows if row["status"] != "success")
+    summary_csv = batch_dir / "summary.csv"
+    summary_md = batch_dir / "summary.md"
+    console.print(f"[green]Batch summary CSV:[/green] {summary_csv.resolve()}")
+    console.print(f"[green]Batch summary Markdown:[/green] {summary_md.resolve()}")
+    if failures:
+        console.print(f"[yellow]{failures} ticker(s) failed; see summary for details.[/yellow]")
 
 
 if __name__ == "__main__":
