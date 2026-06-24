@@ -139,6 +139,14 @@ class TradingAgentsGraph:
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
 
+        elif provider == "google_vertex":
+            vertex_project = self.config.get("vertex_project")
+            if vertex_project:
+                kwargs["project"] = vertex_project
+            vertex_location = self.config.get("vertex_location")
+            if vertex_location:
+                kwargs["location"] = vertex_location
+
         elif provider == "openai":
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:

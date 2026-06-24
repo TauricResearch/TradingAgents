@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## Unreleased
+
+### Added
+
+- Google Vertex AI provider support via `llm_provider: "google_vertex"`, using
+  Application Default Credentials plus optional `TRADINGAGENTS_VERTEX_PROJECT`
+  and `TRADINGAGENTS_VERTEX_LOCATION` configuration.
+
 ## [0.3.0] — 2026-06-22
 
 Stabilization and extensibility release: a CI gate, a unified verified

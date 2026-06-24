@@ -78,6 +78,18 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 }
 
 
+_GOOGLE_GEMINI_MODELS: dict[str, list[ModelOption]] = {
+    "quick": [
+        ("Gemini 3.5 Flash - Latest, frontier agentic + coding (GA)", "gemini-3.5-flash"),
+        ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite"),
+    ],
+    "deep": [
+        ("Gemini 3.1 Pro - Reasoning-first, complex workflows (preview)", "gemini-3.1-pro-preview"),
+        ("Gemini 3.5 Flash - Latest GA, strong agentic + coding", "gemini-3.5-flash"),
+    ],
+}
+
+
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
@@ -104,16 +116,8 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
         ],
     },
-    "google": {
-        "quick": [
-            ("Gemini 3.5 Flash - Latest, frontier agentic + coding (GA)", "gemini-3.5-flash"),
-            ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite"),
-        ],
-        "deep": [
-            ("Gemini 3.1 Pro - Reasoning-first, complex workflows (preview)", "gemini-3.1-pro-preview"),
-            ("Gemini 3.5 Flash - Latest GA, strong agentic + coding", "gemini-3.5-flash"),
-        ],
-    },
+    "google": _GOOGLE_GEMINI_MODELS,
+    "google_vertex": _GOOGLE_GEMINI_MODELS,
     "xai": {
         "quick": [
             ("Grok 4.3 - Latest flagship, fast with built-in reasoning", "grok-4.3"),
