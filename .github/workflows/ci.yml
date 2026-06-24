@@ -59,9 +59,15 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: [test, lint, smoke-install]
     steps:
-      - name: Trigger Dev Railway deploy
-        run: |
-          curl -s -X POST "${{ secrets.RAILWAY_DEPLOY_HOOK_URL_DEV }}"
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Login to Railway
+        run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
+      - name: Deploy to Railway
+        run: railway up --detach --environment production --service gleaming-light
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   deploy-prod:
     name: deploy to production
@@ -69,6 +75,12 @@ jobs:
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/main-with-dashboard') && github.event_name == 'push'
     needs: [test, lint, smoke-install]
     steps:
-      - name: Trigger Production Railway deploy
-        run: |
-          curl -s -X POST "${{ secrets.RAILWAY_DEPLOY_HOOK_URL_PROD }}"
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Login to Railway
+        run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
+      - name: Deploy to Railway
+        run: railway up --detach --environment production --service gleaming-light
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
