@@ -1,0 +1,27 @@
+{
+  "tickers": ["SPY"],
+  "analysis_days": ["Monday", "Thursday"],
+  "run_time_local": "18:30",
+  "output_language": "English",
+  "selected_analysts": ["market", "news"],
+  "llm_provider": "openai",
+  "quick_think_llm": "gpt-5.4-mini",
+  "deep_think_llm": "gpt-5.4-mini",
+  "max_debate_rounds": 1,
+  "max_risk_discuss_rounds": 1,
+  "checkpoint_enabled": true,
+  "results_root": "reports/scheduled",
+  "ticker_aliases": {
+    "SPY": {
+      "data_symbol": "SPY",
+      "display_name": "SPDR S&P 500 ETF Trust"
+    }
+  },
+  "risk": {
+    "atr_period": 14,
+    "stop_atr_multiple": 1.5,
+    "take_profit_atr_multiple": 2.5,
+    "min_reward_risk": 1.5,
+    "portfolio_state": "unknown"
+  }
+}
