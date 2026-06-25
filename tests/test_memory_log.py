@@ -9,7 +9,7 @@ from tradingagents.agents.managers.portfolio_manager import create_portfolio_man
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.graph.propagation import Propagator
-from tradingagents.graph.reflection import Reflector
+from tradingagents.graph.reflection import Reflector, extract_expected_return
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 _SEP = TradingMemoryLog._SEPARATOR
@@ -123,6 +123,15 @@ class TestTradingMemoryLogCore:
         assert len(entries) == 2
         assert entries[0]["ticker"] == "NVDA"
         assert entries[1]["ticker"] == "AAPL"
+
+    def test_store_persists_expected_return(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY, expected_return=0.075)
+
+        raw_text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+        entries = log.load_entries()
+        assert "EXPECTED_RETURN: +7.5%" in raw_text
+        assert entries[0]["expected_return"] == pytest.approx(0.075)
 
     def test_store_decision_idempotent(self, tmp_path):
         """Calling store_decision twice with same (ticker, date) stores only one entry."""
@@ -484,6 +493,39 @@ class TestDeferredReflection:
         assert "-5.0%" in human_content
         assert "Exit position immediately." in human_content
 
+    def test_reflect_on_final_decision_includes_surprise_ratio(self):
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value.content = "Outcome was luckier than planned."
+        reflector = Reflector(mock_llm)
+        reflector.reflect_on_final_decision(
+            final_decision=DECISION_BUY,
+            raw_return=0.10,
+            alpha_return=0.04,
+            expected_return=0.02,
+        )
+        messages = mock_llm.invoke.call_args[0][0]
+        human_content = next(content for role, content in messages if role == "human")
+        assert "Expected return at entry: +2.0%" in human_content
+        assert "Surprise ratio: 4.00" in human_content
+
+    def test_extract_expected_return_from_price_target(self):
+        trader_plan = "**Action**: Buy\n\n**Entry Price**: 100.0"
+        final_decision = "**Rating**: Buy\n\n**Price Target**: 112.0"
+        assert extract_expected_return(final_decision, trader_plan) == pytest.approx(0.12)
+
+        trader_plan_alt = "**Action**: Buy\n\n**Entry Price:** 100.0"
+        final_decision_alt = "**Rating**: Buy\n\n**Price Target:** 112.0"
+        assert extract_expected_return(final_decision_alt, trader_plan_alt) == pytest.approx(0.12)
+
+    def test_extract_expected_return_from_explicit_percent(self):
+        final_decision = "**Rating**: Buy\n\nExpected return: +8.5%"
+        assert extract_expected_return(final_decision) == pytest.approx(0.085)
+
+    def test_extract_expected_return_rejects_non_positive_target(self):
+        trader_plan = "**Entry Price**: 100.0"
+        assert extract_expected_return("**Price Target**: 0.0", trader_plan) is None
+        assert extract_expected_return("**Price Target**: -10.0", trader_plan) is None
+
     # TradingAgentsGraph._fetch_returns
 
     def test_fetch_returns_valid_ticker(self):
@@ -664,6 +706,20 @@ class TestDeferredReflection:
         assert entries[0]["reflection"] == "Momentum confirmed."
         assert "+5.0%" in entries[0]["raw"]
         assert "+2.0%" in entries[0]["alpha"]
+
+    def test_resolve_passes_expected_return_to_reflector(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, expected_return=0.03)
+        mock_reflector = MagicMock()
+        mock_reflector.reflect_on_final_decision.return_value = "Calibrated lesson."
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.memory_log = log
+        mock_graph.reflector = mock_reflector
+        mock_graph._fetch_returns = MagicMock(return_value=(0.09, 0.04, 5))
+        TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
+
+        call = mock_reflector.reflect_on_final_decision.call_args
+        assert call.kwargs["expected_return"] == pytest.approx(0.03)
 
 
 # ---------------------------------------------------------------------------
