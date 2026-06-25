@@ -163,14 +163,12 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # `ollama pull` beyond the three suggested defaults.
     "ollama": {
         "quick": [
-            ("gemma4:26b - Local Q4_K_M (25.8B, tools + thinking)", "gemma4:26b"),
             ("Qwen3:latest (8B)", "qwen3:latest"),
             ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B)", "glm-4.7-flash:latest"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("gemma4:26b - Local Q4_K_M (25.8B, tools + thinking)", "gemma4:26b"),
             ("GLM-4.7-Flash:latest (30B)", "glm-4.7-flash:latest"),
             ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
             ("Qwen3:latest (8B)", "qwen3:latest"),
@@ -188,10 +186,6 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "kimi": _CUSTOM_ONLY,
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
-    # Puter: 500+ models via Puter's OpenAI-compatible endpoint.
-    # Users authenticate with their Puter auth token (PUTER_AUTH_TOKEN).
-    # Models include GPT, Claude, Gemini, Grok, DeepSeek, Qwen, and many more.
-    "puter": _CUSTOM_ONLY,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
 }

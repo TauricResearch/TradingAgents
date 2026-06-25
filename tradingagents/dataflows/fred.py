@@ -80,14 +80,6 @@ class FredNotConfiguredError(VendorNotConfiguredError):
     keep working.
     """
 
-    def __init__(self, message: str | None = None):
-        hint = (
-            "FRED_API_KEY is not set. Get a free key at "
-            "https://fred.stlouisfed.org/docs/api/api_key.html, then set the "
-            "FRED_API_KEY environment variable (or add it to your .env file)."
-        )
-        super().__init__(message or hint)
-
 
 def get_api_key() -> str:
     """Retrieve the FRED API key from the environment."""
@@ -162,8 +154,6 @@ def get_macro_data(
     if look_back_days is None:
         look_back_days = DEFAULT_LOOKBACK_DAYS
 
-    logger.info("FRED request: indicator=%r, curr_date=%r, look_back_days=%d", indicator, curr_date, look_back_days)
-
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
 
@@ -175,11 +165,7 @@ def get_macro_data(
     except ValueError as e:
         return f"FRED: {e}"
 
-    try:
-        meta = _request("series", {"series_id": series_id}).get("seriess") or []
-    except ValueError as e:
-        logger.error("FRED series lookup failed: indicator=%r, series_id=%r, error=%s", indicator, series_id, e)
-        raise
+    meta = _request("series", {"series_id": series_id}).get("seriess") or []
     if not meta:
         return (
             f"FRED series '{series_id}' not found. Pass a known alias "
@@ -191,19 +177,15 @@ def get_macro_data(
     frequency = info.get("frequency", "")
     seasonal = info.get("seasonal_adjustment_short", "")
 
-    try:
-        observations = _request(
-            "series/observations",
-            {
-                "series_id": series_id,
-                "observation_start": start_date,
-                "observation_end": curr_date,
-                "sort_order": "asc",
-            },
-        ).get("observations", [])
-    except ValueError as e:
-        logger.error("FRED observations request failed: indicator=%r, series_id=%r, error=%s", indicator, series_id, e)
-        raise
+    observations = _request(
+        "series/observations",
+        {
+            "series_id": series_id,
+            "observation_start": start_date,
+            "observation_end": curr_date,
+            "sort_order": "asc",
+        },
+    ).get("observations", [])
 
     # FRED encodes a missing observation as ".".
     points = [

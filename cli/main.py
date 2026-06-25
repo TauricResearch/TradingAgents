@@ -482,14 +482,8 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    welcome_ascii = ""
-    welcome_path = Path(__file__).parent / "static" / "welcome.txt"
-    try:
-        if welcome_path.exists():
-            with open(welcome_path, encoding="utf-8") as f:
-                welcome_ascii = f.read()
-    except OSError:
-        pass  # Fall back to no ASCII art if file is unavailable
+    with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
+        welcome_ascii = f.read()
 
     # Create welcome box content
     welcome_content = f"{welcome_ascii}\n" if welcome_ascii else ""
@@ -1292,128 +1286,6 @@ def analyze(
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     run_analysis(checkpoint=checkpoint)
-
-
-run_past_app = typer.Typer(help="Schedule past-dated propagate() runs in the background.")
-app.add_typer(run_past_app, name="run-past")
-
-
-@run_past_app.callback(invoke_without_command=True)
-def _run_past_default(
-    ctx: typer.Context,
-    ticker: str = typer.Option(None, "--ticker", "-t", help="Ticker symbol, e.g. NVDA"),
-    date_from: str = typer.Option(None, "--from", help="Start date (YYYY-MM-DD)"),
-    date_to: str = typer.Option(None, "--to", help="End date (YYYY-MM-DD)"),
-    every: str = typer.Option("1d", "--every", help="Cadence: 1d|1w|2w|1mo"),
-    parallel: int = typer.Option(1, "--parallel", "-p", help="Parallelism (1-4)"),
-):
-    """Default invocation: start a new job (alias for `run-past start`)."""
-    if ctx.invoked_subcommand is not None:
-        return
-    if not ticker or not date_from or not date_to:
-        console.print("[red]--ticker, --from, and --to are required[/red]")
-        raise typer.Exit(code=2)
-    from web.server import background_runs
-    job_id = background_runs.start(
-        ticker=ticker, date_from=date_from, date_to=date_to,
-        every=every, parallel=parallel,
-    )
-    console.print(f"[green]OK[/green] Started background job: {job_id}")
-
-
-@run_past_app.command("list")
-def _run_past_list():
-    """List all background jobs (most recent first)."""
-    from web.server import background_runs
-    jobs = background_runs.list_jobs(limit=50)
-    if not jobs:
-        console.print("[dim](no jobs)[/dim]")
-        return
-    from rich.table import Table
-    table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("Job ID", style="cyan")
-    table.add_column("Ticker", style="green")
-    table.add_column("Range", style="white")
-    table.add_column("Status")
-    table.add_column("Progress", justify="right")
-    for j in jobs:
-        progress = f"{j.get('current_index', 0)} / {j.get('total', 0)}"
-        range_ = f"{j.get('date_from', 'N/A')} -> {j.get('date_to', 'N/A')}"
-        table.add_row(
-            j.get("job_id", "N/A"),
-            j.get("ticker", "N/A"),
-            range_,
-            j.get("status", "N/A"),
-            progress,
-        )
-    console.print(table)
-
-
-@run_past_app.command("status")
-def _run_past_status(job_id: str):
-    """Show detailed status for one job."""
-    from web.server import background_runs
-    try:
-        s = background_runs.get(job_id)
-    except KeyError:
-        console.print(f"[red]job not found: {job_id}[/red]")
-        raise typer.Exit(code=1) from None
-    current = s.get("current_index", 0) or 0
-    total = s.get("total", 0) or 0
-    pct = (current / total * 100) if total else 0.0
-    avg_dur = s.get("avg_duration_s")
-    avg_str = f"{avg_dur:.1f}s" if avg_dur is not None else "N/A"
-    console.print(f"job_id:    {s.get('job_id')}")
-    console.print(f"ticker:    {s.get('ticker')}")
-    console.print(f"range:     {s.get('date_from')} -> {s.get('date_to')} ({s.get('every')}, parallel={s.get('parallel')})")
-    console.print(f"status:    {s.get('status')}")
-    console.print(f"progress:  {current} / {total}  ({pct:.1f}%)")
-    console.print(f"avg:       {avg_str}")
-    if s.get("status") == "running":
-        eta = s.get("eta_s")
-        if eta is not None:
-            console.print(f"eta:       {eta}s")
-    started = s.get("started_at")
-    if started:
-        console.print(f"started:   {started}")
-    if s.get("finished_at"):
-        console.print(f"finished:  {s['finished_at']}")
-
-
-@run_past_app.command("cancel")
-def _run_past_cancel(job_id: str):
-    """Cancel a running or paused job."""
-    from web.server import background_runs
-    try:
-        background_runs.cancel(job_id)
-    except KeyError:
-        console.print(f"[red]job not found: {job_id}[/red]")
-        raise typer.Exit(code=1) from None
-    console.print(f"[green]OK[/green] cancelled: {job_id}")
-
-
-@run_past_app.command("pause")
-def _run_past_pause(job_id: str):
-    """Pause a running job."""
-    from web.server import background_runs
-    try:
-        background_runs.pause(job_id)
-    except KeyError:
-        console.print(f"[red]job not found: {job_id}[/red]")
-        raise typer.Exit(code=1) from None
-    console.print(f"[green]OK[/green] paused: {job_id}")
-
-
-@run_past_app.command("resume")
-def _run_past_resume(job_id: str):
-    """Resume a paused job."""
-    from web.server import background_runs
-    try:
-        background_runs.resume(job_id)
-    except KeyError:
-        console.print(f"[red]job not found: {job_id}[/red]")
-        raise typer.Exit(code=1) from None
-    console.print(f"[green]OK[/green] resumed: {job_id}")
 
 
 if __name__ == "__main__":

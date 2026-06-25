@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 from typing import Annotated
 
@@ -14,8 +13,6 @@ from .stockstats_utils import (
     yf_retry,
 )
 from .symbol_utils import NoMarketDataError, normalize_symbol
-
-logger = logging.getLogger(__name__)
 
 
 def get_YFin_data_online(
@@ -152,11 +149,6 @@ def get_stock_stats_indicators_window(
             "Usage: Identify overbought (>80) or oversold (<20) conditions and confirm the strength of trends or reversals. "
             "Tips: Use alongside RSI or MACD to confirm signals; divergence between price and MFI can indicate potential reversals."
         ),
-        "stochrsi": (
-            "StochRSI: Stochastic RSI is a momentum oscillator that measures the level of RSI relative to its high-low range. "
-            "Usage: Identify overbought (>0.8) and oversold (<0.2) conditions; values oscillate between 0 and 1. "
-            "Tips: Combine with trend analysis to avoid false signals in strong trends."
-        ),
     }
 
     if indicator not in best_ind_params:
@@ -196,10 +188,7 @@ def get_stock_stats_indicators_window(
     except NoMarketDataError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
     except Exception as e:
-        logger.warning(
-            "Error getting bulk stockstats data for %s (%s): %s",
-            symbol, indicator, e,
-        )
+        print(f"Error getting bulk stockstats data: {e}")
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -345,8 +334,6 @@ def get_fundamentals(
 
     except NoMarketDataError:
         raise
-    except (KeyboardInterrupt, SystemExit, MemoryError):
-        raise
     except Exception as e:
         return f"Error retrieving fundamentals for {ticker}: {str(e)}"
 
@@ -381,8 +368,6 @@ def get_balance_sheet(
         return header + csv_string
 
     except NoMarketDataError:
-        raise
-    except (KeyboardInterrupt, SystemExit, MemoryError):
         raise
     except Exception as e:
         return f"Error retrieving balance sheet for {ticker}: {str(e)}"
@@ -419,8 +404,6 @@ def get_cashflow(
 
     except NoMarketDataError:
         raise
-    except (KeyboardInterrupt, SystemExit, MemoryError):
-        raise
     except Exception as e:
         return f"Error retrieving cash flow for {ticker}: {str(e)}"
 
@@ -456,8 +439,6 @@ def get_income_statement(
 
     except NoMarketDataError:
         raise
-    except (KeyboardInterrupt, SystemExit, MemoryError):
-        raise
     except Exception as e:
         return f"Error retrieving income statement for {ticker}: {str(e)}"
 
@@ -485,7 +466,5 @@ def get_insider_transactions(
 
         return header + csv_string
 
-    except (KeyboardInterrupt, SystemExit, MemoryError):
-        raise
     except Exception as e:
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"

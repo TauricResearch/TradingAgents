@@ -3,9 +3,7 @@ from typing import Any
 
 from langchain_anthropic import ChatAnthropic
 
-from .base_client import BaseLLMClient, invoke_with_cache_and_retry, normalize_content
-from .cache import LLMResponseCache
-from .retry import RetryPolicy
+from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
@@ -42,28 +40,11 @@ class NormalizedChatAnthropic(ChatAnthropic):
 
     Claude models with extended thinking or tool use return content as a
     list of typed blocks. This normalizes to string for consistent
-    downstream handling. Cache + retry are wired through
-    ``invoke_with_cache_and_retry`` when the wrapping client attaches
-    ``_llm_cache`` / ``_retry_policy`` to the instance. The base
-    ``ChatAnthropic.invoke`` is captured at ``__init__`` as
-    ``_base_invoke`` so the wrapper can call the real entry point
-    without re-entering this override.
+    downstream handling.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._base_invoke = ChatAnthropic.invoke.__get__(self, type(self))
-
     def invoke(self, input, config=None, **kwargs):
-        cache = getattr(self, "_llm_cache", None)
-        retry_policy = getattr(self, "_retry_policy", None)
-        if cache is None and (retry_policy is None or retry_policy.max_retries == 0):
-            return normalize_content(self._base_invoke(input, config, **kwargs))
-        response = invoke_with_cache_and_retry(
-            self._base_invoke, self, input, config, kwargs,
-            cache=cache, retry_policy=retry_policy,
-        )
-        return normalize_content(response)
+        return normalize_content(super().invoke(input, config, **kwargs))
 
 
 class AnthropicClient(BaseLLMClient):
@@ -75,7 +56,7 @@ class AnthropicClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatAnthropic instance."""
         self.warn_if_unknown_model()
-        llm_kwargs = {"model": self.model, "max_retries": 0}
+        llm_kwargs = {"model": self.model}
 
         if self.base_url:
             llm_kwargs["base_url"] = self.base_url
@@ -87,18 +68,7 @@ class AnthropicClient(BaseLLMClient):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 
-        instance = NormalizedChatAnthropic(**llm_kwargs)
-
-        # Attach cache + retry policy post-init (see OpenAIClient for the
-        # same pattern and rationale).
-        cache = self.kwargs.get("llm_cache")
-        if isinstance(cache, LLMResponseCache):
-            instance._llm_cache = cache
-        retry_policy = self.kwargs.get("retry_policy")
-        if isinstance(retry_policy, RetryPolicy):
-            instance._retry_policy = retry_policy
-
-        return instance
+        return NormalizedChatAnthropic(**llm_kwargs)
 
     def validate_model(self) -> bool:
         """Validate model for Anthropic."""
