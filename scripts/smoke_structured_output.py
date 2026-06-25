@@ -105,6 +105,8 @@ def _print_section(title: str, content: object) -> None:
 
 def _as_text(content: object) -> str:
     """Coerce smoke outputs to text before marker checks."""
+    if content is None:
+        return ""
     return content if isinstance(content, str) else str(content)
 
 
@@ -116,9 +118,9 @@ def _missing_markers(content: object, required: list[str]) -> list[str]:
 def _run_structure_checks(checks: list[tuple[str, object, list[str]]]) -> int:
     failures = 0
     for name, content, required in checks:
-        missing = set(_missing_markers(content, required))
+        text = _as_text(content)
         for marker in required:
-            ok = marker not in missing
+            ok = marker in text
             print(f"  {'PASS' if ok else 'FAIL'}  {name}: contains {marker!r}")
             failures += int(not ok)
     return failures

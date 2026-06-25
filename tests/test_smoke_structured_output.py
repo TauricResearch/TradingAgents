@@ -1,6 +1,11 @@
 import pytest
 
-from scripts.smoke_structured_output import _missing_markers, _run_structure_checks
+from scripts.smoke_structured_output import _as_text, _missing_markers, _run_structure_checks
+
+
+@pytest.mark.unit
+def test_as_text_treats_none_as_empty_string():
+    assert _as_text(None) == ""
 
 
 @pytest.mark.unit
