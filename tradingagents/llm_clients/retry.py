@@ -35,9 +35,8 @@ from __future__ import annotations
 import logging
 import random
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +84,7 @@ class RetryPolicy:
     max_delay_seconds: float = 60.0
     jitter: float = 0.5
     sleep: Callable[[float], None] = time.sleep
-    on_retry: Callable[[int, float, BaseException], None] | None = None
+    on_retry: Optional[Callable[[int, float, BaseException], None]] = None
 
 
 def is_retryable(exc: BaseException) -> bool:
@@ -112,10 +111,12 @@ def is_retryable(exc: BaseException) -> bool:
     msg = str(exc).lower()
     if "rate limit" in msg or "too many requests" in msg:
         return True
-    return "timed out" in msg or "timeout" in msg
+    if "timed out" in msg or "timeout" in msg:
+        return True
+    return False
 
 
-def _status_code(exc: BaseException) -> int | None:
+def _status_code(exc: BaseException) -> Optional[int]:
     """Best-effort status-code lookup across SDK variants."""
     code = getattr(exc, "status_code", None)
     if isinstance(code, int):
@@ -128,7 +129,7 @@ def _status_code(exc: BaseException) -> int | None:
     return None
 
 
-def _retry_after_seconds(exc: BaseException) -> float | None:
+def _retry_after_seconds(exc: BaseException) -> Optional[float]:
     """Return the ``Retry-After`` header value, in seconds, or None.
 
     Accepts both numeric (seconds) and HTTP-date forms per RFC 7231.
@@ -175,7 +176,10 @@ def _is_retryable_by_class(exc: BaseException) -> bool:
     if cls_name in _RETRYABLE_CLASS_NAMES:
         return True
     # Walk the MRO so a subclass of RateLimitError still matches.
-    return any(base.__name__ in _RETRYABLE_CLASS_NAMES for base in type(exc).__mro__)
+    for base in type(exc).__mro__:
+        if base.__name__ in _RETRYABLE_CLASS_NAMES:
+            return True
+    return False
 
 
 def _compute_delay(
@@ -204,7 +208,7 @@ def _compute_delay(
 def invoke_with_retry(
     func: Callable[..., T],
     *args: Any,
-    policy: RetryPolicy | None = None,
+    policy: Optional[RetryPolicy] = None,
     **kwargs: Any,
 ) -> T:
     """Call ``func(*args, **kwargs)`` with retry on transient failures.
@@ -217,7 +221,7 @@ def invoke_with_retry(
     effective = policy or RetryPolicy()
     if effective.max_retries < 0:
         raise ValueError("max_retries must be >= 0")
-    last_exc: BaseException | None = None
+    last_exc: Optional[BaseException] = None
     total_attempts = effective.max_retries + 1
     for attempt in range(total_attempts):
         try:
@@ -242,7 +246,7 @@ def invoke_with_retry(
     raise last_exc  # pragma: no cover
 
 
-def with_retry(policy: RetryPolicy | None = None) -> Callable[[Callable[..., T]], Callable[..., T]]:
+def with_retry(policy: Optional[RetryPolicy] = None) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator form of ``invoke_with_retry``.
 
     Example::

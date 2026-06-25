@@ -34,7 +34,6 @@ Design notes
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import json
 import logging
@@ -43,10 +42,9 @@ import tempfile
 import threading
 import time
 import warnings
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -292,7 +290,7 @@ class LLMResponseCache:
         self,
         cache_dir: str | os.PathLike[str],
         *,
-        ttl_seconds: int | None = None,
+        ttl_seconds: Optional[int] = None,
         enabled: bool = True,
     ) -> None:
         self.cache_dir = Path(cache_dir)
@@ -305,7 +303,7 @@ class LLMResponseCache:
 
     # ---- public API ----
 
-    def get(self, key: str) -> Any | None:
+    def get(self, key: str) -> Optional[Any]:
         """Return a cached AIMessage, or None on miss/expire/disabled.
 
         Errors are logged and treated as a miss: a corrupted cache entry
@@ -389,8 +387,10 @@ class LLMResponseCache:
                 except BaseException:
                     # Remove the temp file on any failure so we don't
                     # litter the cache dir.
-                    with contextlib.suppress(OSError):
+                    try:
                         os.unlink(tmp_name)
+                    except OSError:
+                        pass
                     raise
             except OSError as exc:
                 logger.warning("llm_cache: write failed for key %s (%s)", key, exc)
@@ -436,17 +436,17 @@ class LLMResponseCache:
 # ---- Default resolution -------------------------------------------------
 
 
-_DEFAULT_CACHE: LLMResponseCache | None = None
+_DEFAULT_CACHE: Optional[LLMResponseCache] = None
 _DEFAULT_CACHE_LOCK = threading.Lock()
 
 
 def get_default_cache(
     *,
-    data_cache_dir: str | os.PathLike[str] | None = None,
-    ttl_seconds: int | None = None,
+    data_cache_dir: Optional[str | os.PathLike[str]] = None,
+    ttl_seconds: Optional[int] = None,
     enabled: bool = True,
     override: bool = False,
-) -> LLMResponseCache | None:
+) -> Optional[LLMResponseCache]:
     """Return a process-wide cache, building it lazily from config.
 
     Returns ``None`` when ``enabled`` is false (callers should treat
