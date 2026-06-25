@@ -513,9 +513,18 @@ class TestDeferredReflection:
         final_decision = "**Rating**: Buy\n\n**Price Target**: 112.0"
         assert extract_expected_return(final_decision, trader_plan) == pytest.approx(0.12)
 
+        trader_plan_alt = "**Action**: Buy\n\n**Entry Price:** 100.0"
+        final_decision_alt = "**Rating**: Buy\n\n**Price Target:** 112.0"
+        assert extract_expected_return(final_decision_alt, trader_plan_alt) == pytest.approx(0.12)
+
     def test_extract_expected_return_from_explicit_percent(self):
         final_decision = "**Rating**: Buy\n\nExpected return: +8.5%"
         assert extract_expected_return(final_decision) == pytest.approx(0.085)
+
+    def test_extract_expected_return_rejects_non_positive_target(self):
+        trader_plan = "**Entry Price**: 100.0"
+        assert extract_expected_return("**Price Target**: 0.0", trader_plan) is None
+        assert extract_expected_return("**Price Target**: -10.0", trader_plan) is None
 
     # TradingAgentsGraph._fetch_returns
 

@@ -11,7 +11,7 @@ _EXPECTED_RETURN_RE = re.compile(
 
 def _extract_labeled_float(text: str, label: str) -> float | None:
     pattern = re.compile(
-        rf"(?:\*\*)?{re.escape(label)}(?:\*\*)?\s*:\s*\$?\s*"
+        rf"\*?\*?{re.escape(label)}\*?\*?\s*:\s*\*?\*?\s*\$?\s*"
         r"([+-]?\d[\d,]*(?:\.\d+)?)",
         re.IGNORECASE,
     )
@@ -44,7 +44,7 @@ def extract_expected_return(final_decision: str, trader_plan: str = "") -> float
         or _extract_labeled_float(trader_plan or "", "Price Target")
         or _extract_labeled_float(trader_plan or "", "Target Price")
     )
-    if entry_price is None or target_price is None or entry_price <= 0:
+    if entry_price is None or target_price is None or entry_price <= 0 or target_price <= 0:
         return None
     return (target_price - entry_price) / entry_price
 
