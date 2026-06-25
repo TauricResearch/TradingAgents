@@ -12,6 +12,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_DEEP_THINK_LLM":       "deep_think_llm",
     "TRADINGAGENTS_QUICK_THINK_LLM":      "quick_think_llm",
     "TRADINGAGENTS_LLM_BACKEND_URL":      "backend_url",
+    "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
@@ -86,6 +87,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # provider-specific URL here would leak (e.g. OpenAI's /v1 was previously
     # being forwarded to Gemini, producing malformed request URLs).
     "backend_url": None,
+    # Optional override for the LLM client retry budget on transient provider
+    # errors (e.g. HTTP 429 rate limits). None keeps each provider/SDK's own
+    # default (the OpenAI/Azure SDK default is 2); set a higher value to ride
+    # out bursty throttling, since the SDK retries with exponential backoff and
+    # honors Retry-After. Forwarded to every provider client only when set
+    # (max_retries is in each one's passthrough list). Override via
+    # TRADINGAGENTS_LLM_MAX_RETRIES.
+    "llm_max_retries": None,
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"

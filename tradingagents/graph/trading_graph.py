@@ -156,6 +156,34 @@ class TradingAgentsGraph:
         if temperature is not None and temperature != "":
             kwargs["temperature"] = float(temperature)
 
+        # Retry budget for transient provider errors (HTTP 429 rate limits,
+        # brief 5xx). The OpenAI/Azure SDK retries with exponential backoff and
+        # honors Retry-After, so a higher count lets a run ride out bursty
+        # throttling. ``max_retries`` is in every client's passthrough list, so
+        # this forwards uniformly across providers.
+        max_retries = self.config.get("llm_max_retries")
+        if max_retries is not None and max_retries != "":
+            # bool is an int subclass: reject True/False explicitly so they
+            # don't silently become 1/0 retries.
+            if isinstance(max_retries, bool):
+                raise ValueError(
+                    "llm_max_retries (TRADINGAGENTS_LLM_MAX_RETRIES) must be a "
+                    f"non-negative integer, got {max_retries!r}"
+                )
+            try:
+                max_retries = int(max_retries)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    "llm_max_retries (TRADINGAGENTS_LLM_MAX_RETRIES) must be a "
+                    f"non-negative integer, got {max_retries!r}"
+                ) from exc
+            if max_retries < 0:
+                raise ValueError(
+                    "llm_max_retries (TRADINGAGENTS_LLM_MAX_RETRIES) must be a "
+                    f"non-negative integer, got {max_retries}"
+                )
+            kwargs["max_retries"] = max_retries
+
         return kwargs
 
     def _create_tool_nodes(self) -> dict[str, ToolNode]:
