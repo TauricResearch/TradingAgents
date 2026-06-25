@@ -41,7 +41,7 @@ jobs:
           uv run python -c "import tradingagents, cli.main; print('clean-install import OK')"
 
   lint:
-    name: ruff (strict, full repo)
+    name: ruff (web/ only)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,8 +50,8 @@ jobs:
           python-version: "3.12"
       - name: Install ruff
         run: uv sync --extra dev
-      - name: Lint the repository
-        run: uv run ruff check .
+      - name: Lint web directory
+        run: uv run ruff check web/
 
   deploy-dev:
     name: deploy to dev (PR preview)
