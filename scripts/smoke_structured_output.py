@@ -1,11 +1,12 @@
 """End-to-end smoke for structured-output agents against a real LLM provider.
 
 Runs the three decision-making agents (Research Manager, Trader, Portfolio
-Manager) directly with their structured-output bindings and prints the
-typed Pydantic instance + the rendered markdown for each.  Use this to
-verify a provider's native structured-output mode (json_schema for
+Manager) directly through their normal agent callables and prints the
+rendered markdown each agent returns. Use this to verify a provider's
+native structured-output mode (json_schema for
 OpenAI / xAI / DeepSeek / Qwen / GLM, response_schema for Gemini, tool-use
-for Anthropic) returns clean instances on the schemas we ship.
+for Anthropic) can produce clean schema-backed markdown through the same
+API used by the graph.
 
 Usage:
     OPENAI_API_KEY=... python scripts/smoke_structured_output.py openai
@@ -66,14 +67,14 @@ def _make_rm_state():
     }
 
 
-def _make_trader_state(investment_plan: str):
+def _make_trader_state(investment_plan: str) -> dict:
     return {
         "company_of_interest": "NVDA",
         "investment_plan": investment_plan,
     }
 
 
-def _make_pm_state(investment_plan: str, trader_plan: str):
+def _make_pm_state(investment_plan: str, trader_plan: str) -> dict:
     return {
         "company_of_interest": "NVDA",
         "past_context": "",
@@ -97,9 +98,30 @@ def _make_pm_state(investment_plan: str, trader_plan: str):
     }
 
 
-def _print_section(title: str, content: str) -> None:
+def _print_section(title: str, content: object) -> None:
     bar = "=" * 70
     print(f"\n{bar}\n{title}\n{bar}\n{content}")
+
+
+def _as_text(content: object) -> str:
+    """Coerce smoke outputs to text before marker checks."""
+    return content if isinstance(content, str) else str(content)
+
+
+def _missing_markers(content: object, required: list[str]) -> list[str]:
+    text = _as_text(content)
+    return [marker for marker in required if marker not in text]
+
+
+def _run_structure_checks(checks: list[tuple[str, object, list[str]]]) -> int:
+    failures = 0
+    for name, content, required in checks:
+        missing = set(_missing_markers(content, required))
+        for marker in required:
+            ok = marker not in missing
+            print(f"  {'PASS' if ok else 'FAIL'}  {name}: contains {marker!r}")
+            failures += int(not ok)
+    return failures
 
 
 def main() -> int:
@@ -151,16 +173,15 @@ def main() -> int:
     #    saved reports) keep working.
     checks = [
         ("Research Manager", investment_plan, ["**Recommendation**:"]),
-        ("Trader",           trader_plan,     ["**Action**:", "FINAL TRANSACTION PROPOSAL:"]),
-        ("Portfolio Manager", final_decision, ["**Rating**:", "**Executive Summary**:", "**Investment Thesis**:"]),
+        ("Trader", trader_plan, ["**Action**:", "FINAL TRANSACTION PROPOSAL:"]),
+        (
+            "Portfolio Manager",
+            final_decision,
+            ["**Rating**:", "**Executive Summary**:", "**Investment Thesis**:"],
+        ),
     ]
     print("\n" + "=" * 70 + "\nStructure checks\n" + "=" * 70)
-    failures = 0
-    for name, text, required in checks:
-        for marker in required:
-            ok = marker in text
-            print(f"  {'PASS' if ok else 'FAIL'}  {name}: contains {marker!r}")
-            failures += int(not ok)
+    failures = _run_structure_checks(checks)
 
     print()
     if failures:
