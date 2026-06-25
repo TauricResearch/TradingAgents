@@ -8,7 +8,7 @@
 __pycache__
 *.egg-info
 build
-/dist/
+dist
 results
 eval_results
 Dockerfile

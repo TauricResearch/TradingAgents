@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import re
 import threading
-from dataclasses import dataclass, field, fields, asdict
+from dataclasses import dataclass, field, fields
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
 
 from dateutil.relativedelta import relativedelta
 
@@ -46,7 +45,7 @@ def _validate_inputs(ticker: str, date_from: str, date_to: str, every: str, para
         f = date.fromisoformat(date_from)
         t = date.fromisoformat(date_to)
     except ValueError as e:
-        raise ValueError(f"invalid date format: {e}")
+        raise ValueError(f"invalid date format: {e}") from e
     if f > t:
         raise ValueError(f"date_from ({date_from}) must be <= date_to ({date_to})")
     if t > datetime.now(tz=timezone.utc).date():
@@ -113,10 +112,9 @@ def dates(date_from: str, date_to: str, every: str) -> list[str]:
     return [d.isoformat() for d in out]
 
 
-import json
-import os
-import tempfile
-
+import json  # noqa: E402
+import os  # noqa: E402
+import tempfile  # noqa: E402
 
 DATA_ROOT = Path(os.environ.get("TRADINGAGENTS_DATA_DIR", str(Path.home() / ".tradingagents" / "data")))
 
@@ -157,7 +155,7 @@ class BackgroundRunState:
     avg_duration_s: float = 0.0
     eta_s: int = 0
     started_at: str = ""
-    finished_at: Optional[str] = None
+    finished_at: str | None = None
     status: str = "running"  # running | paused | done | cancelled | error
     durations_s: list[float] = field(default_factory=list)
     _persist_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -207,7 +205,7 @@ class BackgroundRunState:
             raise
 
     @classmethod
-    def load(cls, job_id: str) -> "BackgroundRunState":
+    def load(cls, job_id: str) -> BackgroundRunState:
         p = state_path(job_id)
         data = json.loads(p.read_text(encoding="utf-8"))
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
@@ -216,7 +214,7 @@ class BackgroundRunState:
         return {f.name: getattr(self, f.name) for f in fields(self) if not f.name.startswith("_")}
 
 
-_jobs: dict[str, "_JobHandle"] = {}
+_jobs: dict[str, _JobHandle] = {}
 
 
 @dataclass
@@ -225,7 +223,7 @@ class _JobHandle:
     cancel_event: threading.Event
     pause_event: threading.Event
     state: BackgroundRunState
-    thread: Optional[threading.Thread] = None
+    thread: threading.Thread | None = None
 
 
 def register_handle(
@@ -246,7 +244,7 @@ def register_handle(
     return handle
 
 
-def get_handle(job_id: str) -> Optional[_JobHandle]:
+def get_handle(job_id: str) -> _JobHandle | None:
     return _jobs.get(job_id)
 
 
@@ -254,7 +252,7 @@ def unregister_handle(job_id: str) -> None:
     _jobs.pop(job_id, None)
 
 
-import time
+import time  # noqa: E402
 
 
 @dataclass
@@ -262,11 +260,11 @@ class _IterationResult:
     ticker: str
     date_iso: str
     duration_s: float
-    decision: Optional[dict] = None
-    final_state: Optional[dict] = None
+    decision: dict | None = None
+    final_state: dict | None = None
 
 
-import logging
+import logging  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -346,7 +344,7 @@ def _record_iteration_error(state: BackgroundRunState, date_iso: str, error: str
     p.write_text(json.dumps(errors, indent=2, sort_keys=True), encoding="utf-8")
 
 
-from concurrent.futures import Future, ThreadPoolExecutor, wait, FIRST_COMPLETED
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait  # noqa: E402
 
 
 def _run(handle: _JobHandle, date_list: list[str]) -> None:
@@ -430,7 +428,7 @@ def _run(handle: _JobHandle, date_list: list[str]) -> None:
     state.persist()
 
 
-def _fetch_close_price(ticker: str, date_iso: str) -> tuple[Optional[float], Optional[str]]:
+def _fetch_close_price(ticker: str, date_iso: str) -> tuple[float | None, str | None]:
     """Fetch the last closing price for (ticker, date_iso) from market data.
 
     Background runs have no live price feed, so we fetch the close from
@@ -458,9 +456,9 @@ def _fetch_close_price(ticker: str, date_iso: str) -> tuple[Optional[float], Opt
     return None, None
 
 
-def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s: float,
+def _record_run(ticker: str, date_iso: str, decision: dict | None, duration_s: float,
                 background_job_id: str, background_iteration_index: int,
-                final_state: Optional[dict] = None) -> None:
+                final_state: dict | None = None) -> None:
     """Create a standard run directory + run.json for a completed iteration.
 
     Uses ``storage.create_run_dir`` so that the history endpoint
@@ -470,9 +468,11 @@ def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s
     When ``final_state`` is provided, also writes stage files and events
     so background runs have the same persisted data as interactive runs.
     """
-    from web.server import events as _events  # defer import
-    from web.server import storage  # defer to avoid early import side-effects
     from tradingagents.default_config import DEFAULT_CONFIG  # for model info
+    from web.server import (
+        events as _events,  # defer import
+        storage,  # defer to avoid early import side-effects
+    )
 
     # Use the trade date as the started_at so the slug is meaningful
     # (e.g. "2026-06-01_03-00-00_IDT") and matches historical expectations.
@@ -590,8 +590,8 @@ def _record_run(ticker: str, date_iso: str, decision: Optional[dict], duration_s
 
     # Emit run_finished.
     summary_by_stage = {}
-    for s, field in _STAGE_REPORT_MAP.items():
-        report = (final_state.get(field) or "")
+    for s, stage_field in _STAGE_REPORT_MAP.items():
+        report = (final_state.get(stage_field) or "")
         if report:
             summary_by_stage[s] = report[:200]
     _events.emit(run_id, _events.EventType.RUN_FINISHED, {

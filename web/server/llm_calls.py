@@ -1,8 +1,9 @@
 """File-backed LLM call log. One JSONL line per call, per run."""
 from __future__ import annotations
 
+import contextlib
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from . import storage
 
@@ -19,12 +20,12 @@ def save_llm_call(
     model: str,
     prompt_text: str,
     response_text: str,
-    tool_calls: Optional[List[Dict[str, Any]]] = None,
+    tool_calls: list[dict[str, Any]] | None = None,
     input_tokens: int = 0,
     output_tokens: int = 0,
     total_tokens: int = 0,
     duration_ms: int = 0,
-    started_at: Optional[Any] = None,
+    started_at: Any | None = None,
 ) -> None:
     """Append a single LLM call to ``{run_dir}/llm_calls.jsonl``."""
     if started_at is None:
@@ -48,17 +49,15 @@ def save_llm_call(
         "duration_ms": duration_ms,
         "started_at": started_at_str,
     }
-    try:
+    with contextlib.suppress(KeyError):
         storage.append_run_llm_call(run_id, call)
-    except KeyError:
-        pass
 
 
-def llm_calls_for_run(run_id: str) -> List[Dict[str, Any]]:
+def llm_calls_for_run(run_id: str) -> list[dict[str, Any]]:
     """Return all LLM calls recorded for a run, in order."""
     return storage.list_run_llm_calls(run_id)
 
 
-def list_runs_for_ticker(ticker: str) -> List[Dict[str, Any]]:
+def list_runs_for_ticker(ticker: str) -> list[dict[str, Any]]:
     """Return all run.json rows for a ticker, newest first."""
     return storage.list_ticker_runs(ticker)

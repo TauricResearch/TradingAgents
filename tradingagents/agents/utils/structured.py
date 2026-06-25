@@ -46,26 +46,6 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
         return None
 
 
-def _add_tool_instruction(prompt: Any) -> Any:
-    """Append an instruction telling the model to use the available tool/schema.
-
-    Some providers (DeepSeek thinking models) reject the ``tool_choice``
-    parameter, so the model can choose to ignore the bound tool and respond
-    with free text.  Adding this instruction on retry makes the model far
-    more likely to actually call the tool.
-    """
-    instruction = (
-        "\n\nIMPORTANT: You MUST use the available function/tool to structure "
-        "your response according to the required output schema. "
-        "Call the function with the required parameters."
-    )
-    if isinstance(prompt, str):
-        return prompt + instruction
-    if isinstance(prompt, list):
-        return list(prompt) + [{"role": "user", "content": instruction.strip()}]
-    return prompt
-
-
 def invoke_structured_or_freetext(
     structured_llm: Any | None,
     plain_llm: Any,
@@ -83,27 +63,15 @@ def invoke_structured_or_freetext(
     if structured_llm is not None:
         try:
             result = structured_llm.invoke(prompt)
-            if result is not None:
-                return render(result)
-
-            # First attempt returned None (model ignored the bound tool).
-            # Retry once with an explicit instruction to use the tool.
-            logger.warning(
-                "%s: structured-output returned None; retrying with explicit instruction",
-                agent_name,
-            )
-            retry_prompt = _add_tool_instruction(prompt)
-            result = structured_llm.invoke(retry_prompt)
-            if result is not None:
-                return render(result)
-
-            logger.warning(
-                "%s: structured-output retry also returned None; falling back to free text",
-                agent_name,
-            )
+            if result is None:
+                # A thinking model can answer in plain text instead of calling
+                # the tool, leaving the parser with nothing to return. Treat it
+                # as a structured miss and fall back, with a clear reason.
+                raise ValueError("structured output returned no parsed result")
+            return render(result)
         except Exception as exc:
             logger.warning(
-                "%s: structured-output invocation failed (%s); falling back to free text",
+                "%s: structured-output invocation failed (%s); retrying once as free text",
                 agent_name, exc,
             )
 

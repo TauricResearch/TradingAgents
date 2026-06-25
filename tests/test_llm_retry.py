@@ -8,7 +8,6 @@ import pytest
 from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from tradingagents.llm_clients.retry import (
-    RETRYABLE_STATUS_CODES,
     RetryPolicy,
     _compute_delay,
     _is_retryable_by_class,

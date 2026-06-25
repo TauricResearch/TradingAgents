@@ -22,7 +22,7 @@ def data_root(tmp_path, monkeypatch):
 def test_write_json_atomic_overwrites_existing_file(tmp_path, data_root):
     target = tmp_path / "config.json"
     storage.write_json_atomic(target, {"v": 1})
-    with open(target, "r", encoding="utf-8") as reader:
+    with open(target, encoding="utf-8") as reader:
         reader.read()
     storage.write_json_atomic(target, {"v": 2})
     assert storage.read_json(target) == {"v": 2}

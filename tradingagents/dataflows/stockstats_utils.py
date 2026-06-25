@@ -1,6 +1,5 @@
 import logging
 import os
-import random
 import time
 from typing import Annotated
 
@@ -21,37 +20,23 @@ logger = logging.getLogger(__name__)
 MAX_OHLCV_STALE_DAYS = 10
 
 
-def yf_retry(func, max_retries=5, base_delay=2.0, max_delay=60.0):
-    """Execute a yfinance call with exponential backoff and jitter on rate limits.
+def yf_retry(func, max_retries=3, base_delay=2.0):
+    """Execute a yfinance call with exponential backoff on rate limits.
 
     yfinance raises YFRateLimitError on HTTP 429 responses but does not
     retry them internally. This wrapper adds retry logic specifically
-    for rate limits with capped exponential backoff and jitter to avoid
-    thundering herd problems.
+    for rate limits. Other exceptions propagate immediately.
     """
-    last_exception = None
     for attempt in range(max_retries + 1):
         try:
             return func()
-        except YFRateLimitError as e:
-            last_exception = e
+        except YFRateLimitError:
             if attempt < max_retries:
-                delay = min(base_delay * (2 ** attempt), max_delay)
-                jitter = random.uniform(0, 1.0)
-                wait_time = delay + jitter
-                logger.warning(
-                    f"Yahoo Finance rate limited, retrying in {wait_time:.1f}s "
-                    f"(attempt {attempt + 1}/{max_retries})"
-                )
-                time.sleep(wait_time)
+                delay = base_delay * (2 ** attempt)
+                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(delay)
             else:
-                logger.error(
-                    f"Yahoo Finance rate limit persisted after {max_retries} retries. "
-                    f"Last error: {e}"
-                )
                 raise
-    # Should not reach here, but just in case
-    raise last_exception
 
 
 def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
@@ -76,10 +61,9 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     data = data.dropna(subset=["Date"])
 
     price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
-    data = data.copy()
-    data.loc[:, price_cols] = data.loc[:, price_cols].apply(pd.to_numeric, errors="coerce")
+    data[price_cols] = data[price_cols].apply(pd.to_numeric, errors="coerce")
     data = data.dropna(subset=["Close"])
-    data.loc[:, price_cols] = data.loc[:, price_cols].ffill().bfill()
+    data[price_cols] = data[price_cols].ffill().bfill()
 
     return data
 

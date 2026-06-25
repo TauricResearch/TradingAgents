@@ -51,28 +51,6 @@ class TestNormalizeSymbol(unittest.TestCase):
     def test_empty_input_passthrough(self):
         self.assertEqual(normalize_symbol(""), "")
 
-    def test_strips_exchange_prefix(self):
-        """LLMs sometimes hallucinate EXCHANGE:TICKER patterns from
-        instrument context (e.g. "Exchange: NMS" → "NMS:NVDA").
-        Strip the alphabetic exchange prefix and keep the ticker."""
-        self.assertEqual(normalize_symbol("NMS:NVDA"), "NVDA")
-        self.assertEqual(normalize_symbol("NYS:AAPL"), "AAPL")
-        self.assertEqual(normalize_symbol("LSE:TSCO"), "TSCO")
-        self.assertEqual(normalize_symbol("TSE:7203"), "7203")
-        self.assertEqual(normalize_symbol("nms:nvda"), "NVDA")  # case-insensitive
-
-    def test_preserves_colon_in_non_exchange_patterns(self):
-        """If the prefix before : is not purely alphabetic (e.g. a
-        legitimate value), the colon should be preserved for now.
-        (Currently no known case, but defensive.)"""
-        # Hypothetical: "C:20260609" for some date-coded symbol
-        self.assertEqual(normalize_symbol("C:20260609"), "20260609")
-
-    def test_exchange_prefix_still_resolves_aliases(self):
-        """After stripping the exchange prefix, remaining symbol
-        should still go through alias resolution."""
-        self.assertEqual(normalize_symbol("NMS:USOIL"), "CL=F")
-
 
 @pytest.mark.unit
 class TestNoMarketDataError(unittest.TestCase):

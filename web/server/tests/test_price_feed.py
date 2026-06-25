@@ -1,6 +1,8 @@
 import asyncio
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from web.server import price_feed
 from web.server.tests.fixtures.fake_yfinance import make_fake_download
 
@@ -324,7 +326,8 @@ def test_poll_once_does_not_re_log_bad_symbol_each_poll(monkeypatch, caplog):
     price_feed._bad_symbol_warned.clear()
     _patch_fast_info_raises(monkeypatch, KeyError("exchangeTimezoneName"))
     state = price_feed.PriceState(snapshots={}, tickers=lambda: ["TA125"])
-    broadcast = lambda e: None
+    def broadcast(e):
+        return None
 
     with caplog.at_level("WARNING", logger="web.server.price_feed"):
         asyncio.run(price_feed._poll_once(state, broadcast))

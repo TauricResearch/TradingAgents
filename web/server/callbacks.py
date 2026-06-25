@@ -10,14 +10,13 @@ can capture events without going through the WS plumbing.
 """
 from __future__ import annotations
 
-import json
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
-
 
 _log = logging.getLogger(__name__)
 
@@ -37,10 +36,10 @@ def _broadcast_via_events(run_id: str) -> Callable[[dict], None]:
 class StreamingCallbackHandler(BaseCallbackHandler):
     """Maps LangChain's per-step callbacks to WsEvent payloads."""
 
-    def __init__(self, *, run_id: str, broadcast: Optional[Callable[[dict], None]] = None) -> None:
+    def __init__(self, *, run_id: str, broadcast: Callable[[dict], None] | None = None) -> None:
         self.run_id = run_id
         self._broadcast = broadcast or _broadcast_via_events(run_id)
-        self.current_node: Optional[str] = None
+        self.current_node: str | None = None
 
     def _emit(self, type_: str, data: dict) -> None:
         if self.current_node is not None:
@@ -109,7 +108,7 @@ class CaptureCallbackHandler(BaseCallbackHandler):
         *,
         run_id: str,
         ticker: str,
-        save_call: Optional[Callable[[dict], None]] = None,
+        save_call: Callable[[dict], None] | None = None,
     ) -> None:
         self.run_id = run_id
         self.ticker = ticker
@@ -117,7 +116,7 @@ class CaptureCallbackHandler(BaseCallbackHandler):
         # LangChain per-call run_id -> pending data
         self._pending: dict[uuid.UUID, dict[str, Any]] = {}
         # Set by the runner's event_callback before each node executes
-        self.current_node: Optional[str] = None
+        self.current_node: str | None = None
 
     def on_chat_model_start(
         self,
@@ -199,7 +198,7 @@ class CaptureCallbackHandler(BaseCallbackHandler):
         self._pending.pop(run_id, None)
 
 
-def _extract_last_user_text(messages: list) -> Optional[str]:
+def _extract_last_user_text(messages: list) -> str | None:
     """Best-effort extraction of the most recent user message text.
 
     LangChain's on_chat_model_start passes a nested list of message

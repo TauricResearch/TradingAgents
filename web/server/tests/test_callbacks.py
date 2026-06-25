@@ -7,6 +7,7 @@ than against the live WS queue.
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
@@ -109,8 +110,7 @@ class TestOnTool:
         assert events[0]["data"]["summary"] == "bad arg"
 
 
-from datetime import datetime, timezone
-from web.server.callbacks import CaptureCallbackHandler
+from web.server.callbacks import CaptureCallbackHandler  # noqa: E402
 
 
 @pytest.mark.unit
@@ -156,17 +156,22 @@ class TestCaptureCallbackHandler:
 
         handler.on_chat_model_start({"name": "ChatOpenAI"}, [[HumanMessage(content="first call")]], run_id=rid1)
         handler.on_chat_model_start({"name": "ChatOpenAI"}, [[HumanMessage(content="second call")]], run_id=rid2)
-        gen = MagicMock(); chat = MagicMock()
+        gen = MagicMock()
+        chat = MagicMock()
         chat.message = AIMessage(content="first response")
         gen.__iter__ = lambda self: iter([chat])
-        r1 = MagicMock(); r1.generations = [gen]; r1.llm_output = {"token_usage": {"total_tokens": 1}}
+        r1 = MagicMock()
+        r1.generations = [gen]
+        r1.llm_output = {"token_usage": {"total_tokens": 1}}
         handler.on_llm_end(r1, run_id=rid1)
 
         chat2 = MagicMock()
         chat2.message = AIMessage(content="second response")
         gen2 = MagicMock()
         gen2.__iter__ = lambda self: iter([chat2])
-        r2 = MagicMock(); r2.generations = [gen2]; r2.llm_output = {"token_usage": {"total_tokens": 2}}
+        r2 = MagicMock()
+        r2.generations = [gen2]
+        r2.llm_output = {"token_usage": {"total_tokens": 2}}
         handler.on_llm_end(r2, run_id=rid2)
 
         assert len(calls) == 2
@@ -179,10 +184,13 @@ class TestCaptureCallbackHandler:
         from uuid import uuid4
         rid = uuid4()
         handler.on_chat_model_start({"name": "ChatOpenAI"}, [[HumanMessage(content="check price")]], run_id=rid)
-        gen = MagicMock(); chat = MagicMock()
+        gen = MagicMock()
+        chat = MagicMock()
         chat.message = AIMessage(content="", tool_calls=[{"name": "get_price", "args": {}, "id": "call_1"}])
         gen.__iter__ = lambda self: iter([chat])
-        r = MagicMock(); r.generations = [gen]; r.llm_output = {}
+        r = MagicMock()
+        r.generations = [gen]
+        r.llm_output = {}
         handler.on_llm_end(r, run_id=rid)
         assert len(calls) == 1
         assert len(calls[0]["tool_calls"]) == 1

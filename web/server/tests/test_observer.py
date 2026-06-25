@@ -10,6 +10,6 @@ def test_observer_enriches_tool_call_with_timing():
 
 def test_observer_tracks_tool_duration():
     obs = Observer()
-    start = obs.enrich("tool_call", {"tool": "get_stock_data"})
+    obs.enrich("tool_call", {"tool": "get_stock_data"})
     end = obs.enrich("tool_result", {"tool": "get_stock_data", "summary": "..."})
     assert "duration_ms" in end["data"]

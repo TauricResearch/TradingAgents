@@ -1,8 +1,8 @@
 """Drop-in replacement for TradingAgentsGraph that emits scripted events."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 
 @dataclass
@@ -16,7 +16,7 @@ class ScriptedNode:
 class ScriptedRun:
     nodes: list[ScriptedNode]
     final_state: dict
-    fail_after: Optional[str] = None  # node name; if set, raise after that node
+    fail_after: str | None = None  # node name; if set, raise after that node
     rate_limit_count: int = 0  # how many times to raise RateLimitError before succeeding
 
 
@@ -28,8 +28,7 @@ class FakeGraph:
     def __init__(self, run: ScriptedRun):
         self._run = run
 
-    def propagate(self, ticker: str, trade_date: str, *, event_callback: Optional[Callable] = None):
-        from web.server import events
+    def propagate(self, ticker: str, trade_date: str, *, event_callback: Callable | None = None):
         # ScriptedRun uses sentinel run_id 0; the runner overrides
         raise NotImplementedError("Use FakeTradingAgents wrapper")
 

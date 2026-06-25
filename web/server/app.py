@@ -1,4 +1,5 @@
 """FastAPI application factory for the TradingAgents dashboard."""
+
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +12,6 @@ import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response, StreamingResponse
@@ -21,12 +21,19 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from . import storage, queries, events, llm_calls, runner, settings as settings_mod, log_publisher as lp_module
-from tradingagents.default_config import DEFAULT_CONFIG, _ENV_OVERRIDES
+from tradingagents.default_config import _ENV_OVERRIDES, DEFAULT_CONFIG
 from web.server.ticker_agent import orchestrator
 from web.server.ticker_agent.router import router as ticker_agent_router
-from .auth import router as auth_router, read_session, read_session_from_ws
 
+from . import (
+    events,
+    log_publisher as lp_module,
+    queries,
+    runner,
+    settings as settings_mod,
+    storage,
+)
+from .auth import read_session, read_session_from_ws, router as auth_router
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +49,7 @@ _active_ws: set[WebSocket] = set()
 
 
 # --------- request/response models ---------
+
 
 class WatchlistIn(BaseModel):
     ticker: str
@@ -70,6 +78,7 @@ class DownloadTickersIn(BaseModel):
 
 # --------- lifespan ---------
 
+
 def _price_broadcast(event: dict) -> None:
     """Sync adapter: ``PriceFeed.start`` expects a sync broadcast callable,
     but ``events._broadcast`` is async (it awaits ``ws.send_json``). We
@@ -97,13 +106,18 @@ async def lifespan(app: FastAPI):
         except OSError as exc:
             log.error("failed to remove legacy DB: %s", exc)
     storage.init_settings(data_dir=s.data_dir, cache_dir=s.cache_dir)
+    from web.server.cloud_persistence import restore_watchlist
+
+    restore_watchlist(s.data_dir)
     # Capture the main event loop so events.emit() (called from worker
     # threads inside loop.run_in_executor) can schedule broadcasts on it
     # via asyncio.run_coroutine_threadsafe. Without this, live WS
     # updates from inside a run silently never fire — the UI only
     # updated on reconnect (replay from events.jsonl).
     events.set_event_loop(asyncio.get_running_loop())
-    lp_module.setup_log_publisher(asyncio.get_running_loop(), min_level=getattr(logging, s.log_level, logging.INFO))
+    lp_module.setup_log_publisher(
+        asyncio.get_running_loop(), min_level=getattr(logging, s.log_level, logging.INFO)
+    )
     orchestrator.set_event_loop(asyncio.get_running_loop())
     # Silence yfinance's own ERROR-level noise for delisted/foreign symbols
     # (e.g. "TA125: possibly delisted"). Without this, the dashboard log
@@ -134,6 +148,7 @@ async def lifespan(app: FastAPI):
     # The background ``PriceFeed`` itself is opt-in via env var so the
     # test suite can disable the network-touching yfinance poll loop.
     from . import price_feed as _pf
+
     app.state.price_state = _pf.PriceState(
         snapshots={},
         tickers=lambda: [r["ticker"] for r in queries.read_watchlist()],
@@ -150,6 +165,7 @@ async def lifespan(app: FastAPI):
     # server last exited. Runs in the orchestrator's own threads;
     # the server startup is not blocked.
     from web.server import background_runs
+
     background_runs._load_existing_jobs()
 
     # Start the ticker accuracy agent background loop.
@@ -200,9 +216,15 @@ def create_app() -> FastAPI:
     def config_models():
         env = _read_dotenv()
         return {
-            "llm_provider": os.environ.get("TRADINGAGENTS_LLM_PROVIDER") or env.get("TRADINGAGENTS_LLM_PROVIDER") or DEFAULT_CONFIG.get("llm_provider"),
-            "deep_think_model": os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM") or env.get("TRADINGAGENTS_DEEP_THINK_LLM") or DEFAULT_CONFIG.get("deep_think_llm"),
-            "quick_think_model": os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or env.get("TRADINGAGENTS_QUICK_THINK_LLM") or DEFAULT_CONFIG.get("quick_think_llm"),
+            "llm_provider": os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+            or env.get("TRADINGAGENTS_LLM_PROVIDER")
+            or DEFAULT_CONFIG.get("llm_provider"),
+            "deep_think_model": os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM")
+            or env.get("TRADINGAGENTS_DEEP_THINK_LLM")
+            or DEFAULT_CONFIG.get("deep_think_llm"),
+            "quick_think_model": os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM")
+            or env.get("TRADINGAGENTS_QUICK_THINK_LLM")
+            or DEFAULT_CONFIG.get("quick_think_llm"),
         }
 
     @app.get("/api/health")
@@ -226,15 +248,18 @@ def create_app() -> FastAPI:
     @app.post("/api/watchlist", status_code=201)
     def add_to_watchlist(body: WatchlistIn) -> dict:
         from . import price_feed as _pf
+
         try:
             _pf.validate_ticker_exists(body.ticker)
         except _pf.TickerNotFound as exc:
             detail = {"error": "ticker_not_found", "ticker": body.ticker, "reason": exc.reason}
-            raise HTTPException(status_code=400, detail=detail)
+            raise HTTPException(status_code=400, detail=detail) from exc
         try:
-            row = queries.add_ticker(body.ticker, body.company_name, body.exchange, source=body.source)
+            row = queries.add_ticker(
+                body.ticker, body.company_name, body.exchange, source=body.source
+            )
         except queries.DuplicateTicker:
-            raise HTTPException(status_code=409, detail="ticker already on watchlist")
+            raise HTTPException(status_code=409, detail="ticker already on watchlist") from None
         return queries.watchlist_to_dict(row)
 
     @app.delete("/api/watchlist/{ticker}", status_code=204)
@@ -283,6 +308,7 @@ def create_app() -> FastAPI:
     @app.get("/api/tickers/{ticker}/history")
     def get_ticker_history(ticker: str, range: str = "auto") -> dict:
         from . import history as _history
+
         status, body = _history.get_history(ticker, range)
         if status != 200:
             raise HTTPException(status_code=status, detail=body)
@@ -349,7 +375,7 @@ def create_app() -> FastAPI:
                 csv_data = _download.generate_full_csv(ticker)
                 safe = storage.safe_ticker_component(ticker).upper()
                 filename = f"{safe}-data.csv"
-                buf.write(f"=== {filename} ===\n".encode("utf-8"))
+                buf.write(f"=== {filename} ===\n".encode())
                 buf.write(csv_data.encode("utf-8"))
                 buf.write(b"\n")
             buf.seek(0)
@@ -394,7 +420,10 @@ def create_app() -> FastAPI:
             valid = {"event", "stage", "llm_call"}
             bad = kinds - valid
             if bad:
-                raise HTTPException(status_code=400, detail=f"unknown kind(s): {sorted(bad)}; valid: {sorted(valid)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"unknown kind(s): {sorted(bad)}; valid: {sorted(valid)}",
+                )
         limit = max(1, min(int(limit), 5000))
         return queries.build_trace(run_id, since=since, limit=limit, kinds=kinds)
 
@@ -419,9 +448,9 @@ def create_app() -> FastAPI:
         try:
             new_run_id = await runner.resume_run(run_id, price_state=app.state.price_state)
         except KeyError:
-            raise HTTPException(status_code=404, detail=f"run_not_found: {run_id}")
+            raise HTTPException(status_code=404, detail=f"run_not_found: {run_id}") from None
         except ValueError as e:
-            raise HTTPException(status_code=409, detail=str(e))
+            raise HTTPException(status_code=409, detail=str(e)) from e
         return {"run_id": new_run_id, "previous_run_id": run_id}
 
     @app.delete("/api/runs/{run_id}")
@@ -451,10 +480,14 @@ def create_app() -> FastAPI:
             if ticker:
                 queries.clear_last_run_if_matches(ticker, run_id)
             results.append({"run_id": run_id, "deleted": deleted, "ticker": ticker})
-        return {"results": results, "total": len(results), "deleted": sum(1 for r in results if r["deleted"])}
+        return {
+            "results": results,
+            "total": len(results),
+            "deleted": sum(1 for r in results if r["deleted"]),
+        }
 
     @app.websocket("/ws/runs/{run_id}")
-    async def ws_run(ws: WebSocket, run_id: str, since: Optional[str] = None) -> None:
+    async def ws_run(ws: WebSocket, run_id: str, since: str | None = None) -> None:
         session = read_session_from_ws(ws)
         if not session:
             await ws.close(code=4001)
@@ -509,11 +542,13 @@ def create_app() -> FastAPI:
         if lp:
             lp.subscribe(ws)
         try:
-            await ws.send_json({
-                "type": "connected",
-                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                "id": str(uuid.uuid4()),
-            })
+            await ws.send_json(
+                {
+                    "type": "connected",
+                    "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    "id": str(uuid.uuid4()),
+                }
+            )
             while True:
                 await ws.receive_text()
         except WebSocketDisconnect:
@@ -644,7 +679,6 @@ def create_app() -> FastAPI:
 
     def _write_dotenv(updates: dict[str, str]) -> dict[str, str]:
         env_path = _ENV_PATH
-        existing = _read_dotenv()
         lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
         seen: set[str] = set()
         out: list[str] = []

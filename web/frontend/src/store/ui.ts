@@ -72,6 +72,7 @@ interface UiState {
   clearEventBuffer: (runId: string) => void;
   clearLastRunIdForTicker: (ticker: string) => void;
   clearBuffer: () => void;
+  setRunStartedAtForTicker: (ticker: string, startedAt: number | null) => void;
   setHistoryOpen: (ticker: string, open: boolean) => void;
   setBackgroundRunsOpen: (open: boolean) => void;
   setHoldThresholdPct: (pct: number) => void;

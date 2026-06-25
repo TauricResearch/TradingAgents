@@ -2,17 +2,16 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Callable, Optional
 
 import yfinance as yf
 
 from tradingagents.dataflows.symbol_utils import normalize_symbol
-
 from web.server import events
-
 
 log = logging.getLogger(__name__)
 
@@ -60,10 +59,10 @@ def validate_ticker_exists(ticker: str) -> None:
 class PriceSnapshot:
     price: float = 0.0
     prev_close: float = 0.0
-    change_pct: Optional[float] = None
+    change_pct: float | None = None
     sparkline: list[float] = field(default_factory=list)
     stale: bool = False
-    fetched_at: Optional[str] = None
+    fetched_at: str | None = None
 
 
 @dataclass
@@ -83,14 +82,14 @@ class PriceState:
         return self._watchlist_cache
 
 
-def snapshot_price(state: PriceState, ticker: str) -> tuple[Optional[float], Optional[str]]:
+def snapshot_price(state: PriceState, ticker: str) -> tuple[float | None, str | None]:
     snap = state.snapshots.get(ticker.upper())
     if snap is None or snap.stale or snap.price <= 0:
         return (None, None)
     return (snap.price, snap.fetched_at)
 
 
-async def _poll_once(state: PriceState, broadcast: Optional[Callable[[dict], None]]) -> None:
+async def _poll_once(state: PriceState, broadcast: Callable[[dict], None] | None) -> None:
     """Fast poll: fetch current price via yfinance fast_info for every ticker.
 
     This runs every ``poll_s`` seconds (default 2s) and uses the lightweight
@@ -235,10 +234,10 @@ class PriceFeed:
     def __init__(self, state: PriceState, poll_s: int = 2):
         self.state = state
         self.poll_s = poll_s
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
 
-    async def _loop(self, broadcast: Optional[Callable[[dict], None]]) -> None:
+    async def _loop(self, broadcast: Callable[[dict], None] | None) -> None:
         sparkline_counter = 0
         # Run sparkline refresh on the very first iteration too so new
         # tickers don't sit with an empty sparkline for a full minute.
@@ -258,12 +257,10 @@ class PriceFeed:
                 except Exception:
                     log.exception("sparkline update crashed; continuing")
 
-            try:
+            with contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=self.poll_s)
-            except asyncio.TimeoutError:
-                pass
 
-    def start(self, broadcast: Optional[Callable[[dict], None]] = None) -> None:
+    def start(self, broadcast: Callable[[dict], None] | None = None) -> None:
         if self._task is not None:
             return
         self._stop.clear()

@@ -6,7 +6,6 @@ and storage paths to avoid side effects.
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,7 +15,6 @@ from fastapi.testclient import TestClient
 
 from web.server import storage
 from web.server.ticker_agent.router import router
-
 
 pytestmark = pytest.mark.integration
 

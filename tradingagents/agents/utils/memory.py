@@ -170,13 +170,6 @@ class TradingMemoryLog:
         if not self._log_path or not self._log_path.exists() or not updates:
             return
 
-        # Validate all required keys are present before processing
-        required_keys = {"ticker", "trade_date", "raw_return", "alpha_return", "holding_days", "reflection"}
-        for upd in updates:
-            missing = required_keys - set(upd.keys())
-            if missing:
-                raise ValueError(f"Update missing required keys: {missing}")
-
         text = self._log_path.read_text(encoding="utf-8")
         blocks = text.split(self._SEPARATOR)
 

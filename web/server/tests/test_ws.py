@@ -1,11 +1,9 @@
 """WS endpoint tests for file-backed storage replay."""
-import threading
-import time
 import pytest
 from fastapi.testclient import TestClient
 
+from web.server import events, storage
 from web.server.app import create_app
-from web.server import events, runner, storage
 
 
 @pytest.fixture
@@ -67,7 +65,7 @@ def test_ws_global_endpoint_accepts_and_closes_cleanly(client):
     crashed the ASGI app with
     ``AssertionError: scope["type"] == "http"`` (starlette/staticfiles.py:91).
     """
-    with client.websocket_connect("/ws/global") as ws:
+    with client.websocket_connect("/ws/global"):
         # If we got here, the WS was accepted without the ASGI app
         # raising. The handler is now draining client messages; we
         # just close on exit.
@@ -98,7 +96,7 @@ def test_ws_global_does_not_match_run_route(client):
     # Verify a fresh /ws/global connect works — the /ws/runs/{run_id}
     # route would have replied with a "run not found" error frame
     # before the global handler can claim the connection.
-    with client.websocket_connect("/ws/global") as ws:
+    with client.websocket_connect("/ws/global"):
         # No initial error frame expected (the global handler doesn't
         # send one). Close cleanly.
         pass

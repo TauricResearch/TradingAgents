@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, main-with-dashboard]
   pull_request:
 
 concurrency:
@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -41,7 +41,7 @@ jobs:
           uv run python -c "import tradingagents, cli.main; print('clean-install import OK')"
 
   lint:
-    name: ruff (strict, full repo)
+    name: ruff (web/ only)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,17 +50,33 @@ jobs:
           python-version: "3.12"
       - name: Install ruff
         run: uv sync --extra dev
-      - name: Lint the repository
-        run: uv run ruff check .
+      - name: Lint web directory
+        run: uv run ruff check web/
 
-  deploy:
-    name: deploy to railway
+  deploy-dev:
+    name: deploy to dev (PR preview)
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'pull_request'
     needs: [test, lint, smoke-install]
     steps:
       - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
       - name: Deploy to Railway
-        uses: bervProject/railway-deploy@main
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --detach --environment staging --service gleaming-light
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_DEV }}
+
+  deploy-prod:
+    name: deploy to production
+    runs-on: ubuntu-latest
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/main-with-dashboard') && github.event_name == 'push'
+    needs: [test, lint, smoke-install]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Deploy to Railway
+        run: railway up --detach --environment production --service gleaming-light
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PROD }}

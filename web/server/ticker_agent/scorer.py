@@ -37,13 +37,12 @@ def _classify_run_outcome(run: dict) -> str | None:
     end_price = run.get("end_price")
     if not action or start_price is None or end_price is None:
         return None
-    if action == "BUY":
-        return "right" if end_price > start_price else "wrong"
-    elif action == "SELL":
-        return "right" if end_price < start_price else "wrong"
-    elif action == "HOLD":
-        return "unknown"
-    return None
+    verdict_map = {
+        "BUY": "right" if end_price > start_price else "wrong",
+        "SELL": "right" if end_price < start_price else "wrong",
+        "HOLD": "unknown",
+    }
+    return verdict_map.get(action)
 
 
 def compute_ticker_scores(

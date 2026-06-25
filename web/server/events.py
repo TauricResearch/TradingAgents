@@ -6,7 +6,7 @@ import logging
 import threading
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -34,7 +34,7 @@ class EventType(str, Enum):
     SERVER_NOTICE = "server_notice"
 
 
-def make_event(run_id: str, type_: EventType, data: Dict[str, Any]) -> Dict[str, Any]:
+def make_event(run_id: str, type_: EventType, data: dict[str, Any]) -> dict[str, Any]:
     """Build the canonical event dict that goes on the wire + to disk."""
     return {
         "id": f"{run_id}:{datetime.now(timezone.utc).timestamp():.6f}",
@@ -45,7 +45,7 @@ def make_event(run_id: str, type_: EventType, data: Dict[str, Any]) -> Dict[str,
     }
 
 
-_subscribers: Dict[str, Set[WebSocket]] = {}
+_subscribers: dict[str, set[WebSocket]] = {}
 _subscribers_lock = threading.Lock()
 
 # Reference to the main event loop, captured by the app lifespan.
@@ -55,7 +55,7 @@ _subscribers_lock = threading.Lock()
 # ``asyncio.run_coroutine_threadsafe`` for that. When unset (unit tests
 # that call ``emit()`` directly from the main thread), ``emit()`` falls
 # back to ``asyncio.get_running_loop()`` for backwards compatibility.
-_loop: Optional[asyncio.AbstractEventLoop] = None
+_loop: asyncio.AbstractEventLoop | None = None
 _loop_lock = threading.Lock()
 
 
@@ -75,7 +75,7 @@ def set_event_loop(loop: asyncio.AbstractEventLoop) -> None:
     log.debug("events: captured event loop %s", loop)
 
 
-def _get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
+def _get_event_loop() -> asyncio.AbstractEventLoop | None:
     """Return the captured loop, or ``None`` if not set / closed."""
     if _loop is None:
         return None
@@ -90,12 +90,12 @@ def _subscriber_count(run_id: str) -> int:
         return len(_subscribers.get(run_id, set())) + len(_subscribers.get("*", set()))
 
 
-async def _broadcast(event: Dict[str, Any]) -> None:
+async def _broadcast(event: dict[str, Any]) -> None:
     """Best-effort fanout to all WS subscribers (run-specific + global)."""
     rid = event.get("run_id")
     # Copy target list so subscribe/unsubscribe during the await doesn't
     # race with this iteration.
-    targets: List[WebSocket] = []
+    targets: list[WebSocket] = []
     with _subscribers_lock:
         if rid and rid in _subscribers:
             targets.extend(_subscribers[rid])
@@ -113,7 +113,7 @@ async def _broadcast(event: Dict[str, Any]) -> None:
             log.warning("WS broadcast failed: %s", exc)
 
 
-def emit(run_id: str, type_: EventType, data: Dict[str, Any]) -> None:
+def emit(run_id: str, type_: EventType, data: dict[str, Any]) -> None:
     """Persist + broadcast a domain event. Safe to call from any thread.
 
     Persistence is always synchronous on the calling thread. Broadcast is

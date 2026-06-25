@@ -19,17 +19,16 @@ import threading
 import time
 from collections import deque
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from fastapi import WebSocket
 
+from web.server import queries, storage
 from web.server.ticker_agent import scorer
-from web.server.ticker_agent.universe import discover_universe, UniverseConfig
-from web.server.ticker_agent.memory import read_memory, append_memory
-from web.server.ticker_agent.missing_capabilities import log_missing
 from web.server.ticker_agent.capabilities import discover_api_capabilities
 from web.server.ticker_agent.config import load_config
-from web.server import storage, queries
+from web.server.ticker_agent.memory import append_memory, read_memory
+from web.server.ticker_agent.missing_capabilities import log_missing
+from web.server.ticker_agent.universe import UniverseConfig, discover_universe
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ _live_events: deque[dict] = deque(maxlen=200)
 _event_id_counter: int = 0
 
 # Captured main event loop reference for WS broadcast from background thread
-_loop: Optional[asyncio.AbstractEventLoop] = None
+_loop: asyncio.AbstractEventLoop | None = None
 _loop_lock = threading.Lock()
 
 
@@ -60,7 +59,7 @@ def set_event_loop(loop: asyncio.AbstractEventLoop) -> None:
         _loop = loop
 
 
-def _get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
+def _get_event_loop() -> asyncio.AbstractEventLoop | None:
     """Return the captured loop, or None if not set / closed."""
     if _loop is None:
         return None
@@ -104,7 +103,8 @@ _step_timing: dict[int, float] = {}
 
 
 async def ws_broadcast(event: dict) -> None:
-    dead = set()
+    dead: set[WebSocket] = set()
+    global _ws_subscribers
     for ws in _ws_subscribers:
         try:
             await ws.send_json(event)
@@ -331,8 +331,8 @@ def _call_llm_strategy(prompt: str) -> dict:
         "error": None,
     }
     try:
-        from tradingagents.llm_clients import create_llm_client
         from tradingagents.default_config import DEFAULT_CONFIG
+        from tradingagents.llm_clients import create_llm_client
 
         llm_config = DEFAULT_CONFIG.copy()
         model_name = llm_config.get("quick_think_llm", "gpt-4o-mini")
@@ -376,8 +376,9 @@ def _call_llm_strategy(prompt: str) -> dict:
 
 def _execute_plan(plan: dict) -> dict:
     """Schedule background runs for tickers in the investigation plan."""
-    from web.server import background_runs, queries
     from datetime import date, timedelta
+
+    from web.server import background_runs, queries
 
     cfg = load_config()
     max_tickers = cfg.max_tickers_per_cycle or 20
@@ -416,14 +417,13 @@ def _execute_plan(plan: dict) -> dict:
     return {"scheduled": scheduled}
 
 
-def _fetch_close_price_for_date(ticker: str, date_iso: str) -> tuple[Optional[float], Optional[str]]:
+def _fetch_close_price_for_date(ticker: str, date_iso: str) -> tuple[float | None, str | None]:
     """Fetch the closing price for (ticker, date_iso) from market data.
 
     Returns ``(None, None)`` on any failure.
     """
     try:
         from tradingagents.dataflows.stockstats_utils import load_ohlcv
-        from tradingagents.dataflows.symbol_utils import NoMarketDataError
         df = load_ohlcv(ticker, date_iso)
         if df is not None and not df.empty and "Close" in df.columns:
             close = float(df["Close"].iloc[-1])
@@ -533,8 +533,9 @@ Return JSON:
 
     try:
         import re
-        from tradingagents.llm_clients import create_llm_client
+
         from tradingagents.default_config import DEFAULT_CONFIG
+        from tradingagents.llm_clients import create_llm_client
 
         llm_config = DEFAULT_CONFIG.copy()
         client = create_llm_client(

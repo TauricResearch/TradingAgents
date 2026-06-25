@@ -1,7 +1,7 @@
 """Tests for API capabilities inventory."""
 from __future__ import annotations
 
-from web.server.ticker_agent.capabilities import discover_api_capabilities, ApiCapability
+from web.server.ticker_agent.capabilities import ApiCapability, discover_api_capabilities
 
 
 def test_discover_returns_list():

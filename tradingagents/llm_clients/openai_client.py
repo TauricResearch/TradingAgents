@@ -5,14 +5,11 @@ from typing import Any
 from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage
-from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_openai import ChatOpenAI
 
 from .api_key_env import get_api_key_env
-from .base_client import BaseLLMClient, invoke_with_cache_and_retry, normalize_content
-from .cache import LLMResponseCache
+from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
-from .retry import RetryPolicy
 from .validators import validate_model
 
 
@@ -33,77 +30,10 @@ class NormalizedChatOpenAI(ChatOpenAI):
     Provider-specific quirks beyond structured-output (e.g. DeepSeek's
     reasoning_content roundtrip) live in subclasses so this base class
     stays small.
-
-    Cache + retry are attached post-init by the wrapping client: the
-    client looks at the ``_llm_cache`` / ``_retry_policy`` instance
-    attributes (set by ``OpenAIClient.get_llm``) and routes ``invoke``
-    through ``invoke_with_cache_and_retry`` when either is configured.
-    When neither is set, the override collapses to the original
-    ``normalize_content(super().invoke(...))`` path so behavior is
-    bit-identical to the pre-feature code.
-
-    The base ``invoke`` is captured at ``__init__`` as
-    ``self._base_invoke`` (a bound method to ``ChatOpenAI.invoke``) so
-    the cache/retry path can call the real API entry point without
-    re-entering this override.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # ``__get__`` rebinds a method to ``self``; this is the same
-        # lookup the runtime would do for ``super().invoke``, captured
-        # once so the cache/retry wrapper can call it directly without
-        # re-entering ``NormalizedChatOpenAI.invoke``.
-        #
-        # NOTE for future subclassers: if you override ``invoke`` in a
-        # subclass and need to call the wrapped version, call
-        # ``self._base_invoke(...)`` — not ``super().invoke(...)`` —
-        # because the latter would re-enter this override and lose
-        # your state. DeepSeek / Minimax clients are safe today
-        # because they only override ``_get_request_payload`` /
-        # ``_create_chat_result``, not ``invoke``.
-        self._base_invoke = ChatOpenAI.invoke.__get__(self, type(self))
-
-    def _create_chat_result(self, response, generation_info=None):
-        try:
-            return super()._create_chat_result(response, generation_info)
-        except (KeyError, TypeError) as e:
-            error_msg = str(e)
-            if "choices" not in error_msg:
-                raise
-            response_dict = (
-                response
-                if isinstance(response, dict)
-                else response.model_dump(
-                    exclude={"choices": {"__all__": {"message": {"parsed"}}}}
-                )
-            )
-            detail_parts = []
-            for key in (
-                "base_resp", "error", "input_sensitive",
-                "input_sensitive_type", "output_sensitive",
-                "output_sensitive_int", "output_sensitive_type",
-            ):
-                val = response_dict.get(key)
-                if val is not None:
-                    detail_parts.append(f"{key}={val}")
-            detail = f" ({', '.join(detail_parts)})" if detail_parts else ""
-            content = (
-                "The API returned a response without valid content choices. "
-                f"This may be due to content moderation or an API error.{detail}"
-            )
-            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=content))])
-
     def invoke(self, input, config=None, **kwargs):
-        cache = getattr(self, "_llm_cache", None)
-        retry_policy = getattr(self, "_retry_policy", None)
-        if cache is None and (retry_policy is None or retry_policy.max_retries == 0):
-            return normalize_content(self._base_invoke(input, config, **kwargs))
-        response = invoke_with_cache_and_retry(
-            self._base_invoke, self, input, config, kwargs,
-            cache=cache, retry_policy=retry_policy,
-        )
-        return normalize_content(response)
+        return normalize_content(super().invoke(input, config, **kwargs))
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)
@@ -190,11 +120,8 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
                 exclude={"choices": {"__all__": {"message": {"parsed"}}}}
             )
         )
-        choices = response_dict.get("choices")
-        if not choices:
-            return chat_result
         for generation, choice in zip(
-            chat_result.generations, choices, strict=False
+            chat_result.generations, response_dict.get("choices", []), strict=False
         ):
             reasoning = choice.get("message", {}).get("reasoning_content")
             if reasoning is not None:
@@ -349,7 +276,7 @@ class OpenAIClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return a configured ChatOpenAI instance, driven by the provider registry."""
         self.warn_if_unknown_model()
-        llm_kwargs = {"model": self.model, "max_retries": 0}
+        llm_kwargs = {"model": self.model}
         spec = OPENAI_COMPATIBLE_PROVIDERS.get(self.provider)
         chat_cls = NormalizedChatOpenAI
 
@@ -402,31 +329,8 @@ class OpenAIClient(BaseLLMClient):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 
-        # Native OpenAI (no custom base_url): use Responses API for
-        # consistent behavior across all model families. When a custom
-        # base_url is set (e.g. a third-party proxy or self-hosted
-        # backend), fall back to Chat Completions since those backends
-        # typically don't implement /v1/responses.
-        if self.provider == "openai" and not self.base_url:
-            llm_kwargs["use_responses_api"] = True
-
-        # Provider quirks come from the registry spec (spec.chat_class).
-        # No manual per-provider branch needed here.
-        instance = chat_cls(**llm_kwargs)
-
-        # Attach the response cache and retry policy (post-init) so the
-        # ``invoke`` override on the chat class can route through
-        # ``invoke_with_cache_and_retry`` when configured. Both are
-        # optional; the ``invoke`` override short-circuits to the
-        # original behavior when neither is set.
-        cache = self.kwargs.get("llm_cache")
-        if isinstance(cache, LLMResponseCache):
-            instance._llm_cache = cache
-        retry_policy = self.kwargs.get("retry_policy")
-        if isinstance(retry_policy, RetryPolicy):
-            instance._retry_policy = retry_policy
-
-        return instance
+        # The subclass (provider quirks) comes from the registry spec.
+        return chat_cls(**llm_kwargs)
 
     def validate_model(self) -> bool:
         """Validate model for the provider."""

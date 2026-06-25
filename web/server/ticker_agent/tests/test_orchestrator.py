@@ -1,8 +1,14 @@
 """Tests for the agent orchestrator."""
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
-from web.server.ticker_agent.orchestrator import run_cycle, _build_strategy_prompt, status, STEP_NAMES
+from unittest.mock import patch
+
+from web.server.ticker_agent.orchestrator import (
+    STEP_NAMES,
+    _build_strategy_prompt,
+    run_cycle,
+    status,
+)
 
 
 def test_build_strategy_prompt_includes_context():

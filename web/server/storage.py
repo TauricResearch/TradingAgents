@@ -7,8 +7,10 @@ All timestamps in persisted files are UTC ISO-8601 with ``Z`` suffix.
 The only Israel-local representation is the run directory slug,
 which is purely for human readability.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -18,12 +20,12 @@ import time
 from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
-from pathlib import Path
-from typing import Any, Iterable, Optional
-from zoneinfo import ZoneInfo
+from collections.abc import Iterable  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
+from zoneinfo import ZoneInfo  # noqa: E402
 
-from tradingagents.dataflows.utils import safe_ticker_component
-
+from tradingagents.dataflows.utils import safe_ticker_component  # noqa: E402
 
 # Module-level settings path; populated by ``init_settings()`` at app startup
 # so tests can monkeypatch a temp dir before any storage call.
@@ -127,9 +129,7 @@ def write_json_atomic(path: Path | str, data: Any) -> None:
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, sort_keys=True, ensure_ascii=False)
@@ -137,14 +137,12 @@ def write_json_atomic(path: Path | str, data: Any) -> None:
             os.fsync(f.fileno())
         _replace_with_retry(tmp, path)
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp)
-        except OSError:
-            pass
         raise
 
 
-def read_json(path: Path | str) -> Optional[Any]:
+def read_json(path: Path | str) -> Any | None:
     """Return parsed JSON or ``None`` on missing/invalid.
 
     A corrupted file logs a WARNING before returning ``None`` so the
@@ -152,12 +150,13 @@ def read_json(path: Path | str) -> Optional[Any]:
     (e.g. the watchlist).
     """
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         return None
     except json.JSONDecodeError as exc:
         import logging
+
         logging.getLogger(__name__).warning(
             "read_json: %s is malformed (%s); returning None", path, exc
         )
@@ -165,6 +164,7 @@ def read_json(path: Path | str) -> Optional[Any]:
 
 
 # ---- append-only JSONL ----
+
 
 def append_jsonl(path: Path | str, obj: Any) -> None:
     """Append ``obj`` as a single JSON line. Creates parent dir if needed.
@@ -187,7 +187,7 @@ def read_jsonl(path: Path | str) -> list[Any]:
     if not p.exists():
         return []
     out: list[Any] = []
-    with open(p, "r", encoding="utf-8") as f:
+    with open(p, encoding="utf-8") as f:
         for line in f:
             s = line.strip()
             if not s:
@@ -203,7 +203,8 @@ def read_jsonl(path: Path | str) -> list[Any]:
 
 # ---- slug ----
 
-def slug_for_now(now: Optional[datetime] = None) -> str:
+
+def slug_for_now(now: datetime | None = None) -> str:
     """Return an Israel-local slug like ``2026-06-03_14-30-00_IDT``.
 
     ``IDT`` = Israel Daylight Time (Apr–Oct), ``IST`` = Israel Standard Time.
@@ -228,6 +229,7 @@ def now_utc() -> datetime:
 
 
 # ---- ticker cleanup (used by watchlist removal) ----
+
 
 def clear_ticker_data(ticker: str) -> None:
     """Remove the ticker's data dir and framework checkpoint DB.
@@ -258,13 +260,13 @@ def today_utc_iso() -> str:
 
 def create_run_dir(
     ticker: str,
-    started_at: Optional[datetime] = None,
+    started_at: datetime | None = None,
     *,
-    llm_provider: Optional[str] = None,
-    deep_think_model: Optional[str] = None,
-    quick_think_model: Optional[str] = None,
-    start_price: Optional[float] = None,
-    start_price_at: Optional[str] = None,
+    llm_provider: str | None = None,
+    deep_think_model: str | None = None,
+    quick_think_model: str | None = None,
+    start_price: float | None = None,
+    start_price_at: str | None = None,
 ) -> dict:
     """Create a fresh run dir + write initial run.json. Return the dir info.
 
@@ -328,7 +330,7 @@ def create_run_dir(
     }
 
 
-def read_run(run_id: str) -> Optional[dict]:
+def read_run(run_id: str) -> dict | None:
     """Find and parse run.json for ``run_id``.
 
     Walks all ticker dirs to locate the dir whose run.json's id matches.
@@ -341,7 +343,7 @@ def read_run(run_id: str) -> Optional[dict]:
     return read_json(rd / "run.json")
 
 
-def _find_run_dir(run_id: str) -> Optional[Path]:
+def _find_run_dir(run_id: str) -> Path | None:
     """Locate the run directory for ``run_id``, using and populating the cache."""
     cached = _run_dir_cache.get(run_id)
     if cached is not None and cached.exists():
@@ -359,7 +361,7 @@ def _find_run_dir(run_id: str) -> Optional[Path]:
     return None
 
 
-def read_run_dir(run_id: str) -> Optional[Path]:
+def read_run_dir(run_id: str) -> Path | None:
     """Return the directory Path for ``run_id`` (results cached after first lookup)."""
     rd = _find_run_dir(run_id)
     if rd is not None:
@@ -367,7 +369,8 @@ def read_run_dir(run_id: str) -> Optional[Path]:
     dd = data_dir()
     log.warning(
         "read_run_dir: run %s not found under %s; ticker dirs: %s",
-        run_id, dd,
+        run_id,
+        dd,
         [str(td.name) for td in dd.iterdir() if td.is_dir()],
     )
     return None
@@ -389,7 +392,7 @@ def list_ticker_runs(ticker: str, limit: int = 50) -> list[dict]:
     return rows[:limit]
 
 
-def find_resumable_run(ticker: str, today_iso: str) -> Optional[dict]:
+def find_resumable_run(ticker: str, today_iso: str) -> dict | None:
     """Return the partial run dir info for ``ticker`` started today (UTC).
 
     "Partial" means ``status == "running"`` AND ``started_at``'s date is
