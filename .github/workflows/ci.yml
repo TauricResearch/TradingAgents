@@ -65,7 +65,7 @@ jobs:
       - name: Deploy to Railway
         run: railway up --detach --environment staging --service gleaming-light
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_DEV }}
 
   deploy-prod:
     name: deploy to production
@@ -79,4 +79,4 @@ jobs:
       - name: Deploy to Railway
         run: railway up --detach --environment production --service gleaming-light
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PROD }}
