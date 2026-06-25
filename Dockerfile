@@ -18,7 +18,7 @@ RUN apt-get update -qq && apt-get install -y -qq nodejs npm \
 
 RUN useradd --create-home appuser \
  && install -d -m 0755 -o appuser -g appuser /home/appuser/.tradingagents
-RUN cp -r /build /home/appuser/app && chown -R appuser:appuser /home/appuser/app
+RUN mkdir -p /home/appuser/app && cp -r /build/. /home/appuser/app && chown -R appuser:appuser /home/appuser/app
 USER appuser
 WORKDIR /home/appuser/app
 
