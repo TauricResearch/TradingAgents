@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /build
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md uv.lock ./
 COPY tradingagents/ tradingagents/
 COPY cli/ cli/
 COPY web/ web/
@@ -16,12 +16,12 @@ RUN apt-get update -qq && apt-get install -y -qq nodejs npm \
     && apt-get remove -y -qq nodejs npm && apt-get autoremove -y -qq \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd --create-home appuser \
- && install -d -m 0755 -o appuser -g appuser /home/appuser/.tradingagents
-RUN mkdir -p /home/appuser/app && cp -r /build/. /home/appuser/app && chown -R appuser:appuser /home/appuser/app
-USER appuser
+RUN mkdir -p /home/appuser/app && cp -r /build/. /home/appuser/app
 WORKDIR /home/appuser/app
 
 EXPOSE 8000
 
-CMD uv run uvicorn web.server.app:create_app --host 0.0.0.0 --port $PORT
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
