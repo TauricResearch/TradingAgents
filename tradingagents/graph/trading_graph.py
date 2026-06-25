@@ -3,7 +3,8 @@
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,8 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.llm_clients.cache import LLMResponseCache
+from tradingagents.llm_clients.retry import RetryPolicy
 from tradingagents.reporting import write_report_tree
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -42,6 +45,10 @@ from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 logger = logging.getLogger(__name__)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class TradingAgentsGraph:
@@ -79,6 +86,35 @@ class TradingAgentsGraph:
         # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
+
+        # Build the response cache (default ON; under ``data_cache_dir/llm_cache``)
+        # and retry policy from config. The cache + policy are forwarded to
+        # the chat client via ``create_llm_client(..., llm_cache=..., retry_policy=...)``;
+        # the chat class attaches them post-init so its ``invoke`` override
+        # routes through the cache + retry wrappers. See
+        # ``tradingagents.llm_clients.cache`` and ``...retry`` for details.
+        llm_cache = self._build_llm_cache()
+        if llm_cache is not None:
+            llm_kwargs["llm_cache"] = llm_cache
+        llm_retry = self._build_retry_policy()
+        if llm_retry is not None:
+            llm_kwargs["retry_policy"] = llm_retry
+
+        # LLM timeout (seconds) prevents indefinite hangs. None uses provider default.
+        llm_timeout = self.config.get("llm_timeout_seconds")
+        if llm_timeout is not None and llm_timeout != "":
+            llm_kwargs["timeout"] = float(llm_timeout)
+
+        # Provider fallback config (None = no fallback).
+        fallback_provider = self.config.get("llm_fallback_provider")
+        if fallback_provider:
+            llm_kwargs["fallback_provider"] = fallback_provider
+            llm_kwargs["fallback_model"] = (
+                self.config.get("llm_fallback_model")
+            )
+            llm_kwargs["fallback_base_url"] = (
+                self.config.get("llm_fallback_base_url")
+            )
 
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
@@ -157,6 +193,56 @@ class TradingAgentsGraph:
             kwargs["temperature"] = float(temperature)
 
         return kwargs
+
+    def _build_llm_cache(self) -> LLMResponseCache | None:
+        """Build the LLM response cache from config, or return None when disabled.
+
+        ``None`` is the contract for "no caching" — the chat-class
+        ``invoke`` override treats it identically to ``disabled``.
+        """
+        if not self.config.get("llm_cache_enabled", True):
+            return None
+        # ``llm_cache_ttl_seconds`` defaults to None, so the env-var
+        # coercion keeps it as a string ("3600") when the user sets
+        # TRADINGAGENTS_LLM_CACHE_TTL. Coerce to int here so the cache
+        # constructor sees a real number. (The same coercion happens
+        # implicitly for ``temperature`` etc. via float() in
+        # ``_get_provider_kwargs`` — this is the pattern for "type at
+        # the consumer".)
+        ttl_raw = self.config.get("llm_cache_ttl_seconds")
+        if ttl_raw in (None, ""):
+            ttl: int | None = None
+        else:
+            try:
+                ttl = int(ttl_raw)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "llm_cache: invalid ttl_seconds=%r; treating as no expiry",
+                    ttl_raw,
+                )
+                ttl = None
+        return LLMResponseCache(
+            cache_dir=os.path.join(self.config["data_cache_dir"], "llm_cache"),
+            ttl_seconds=ttl,
+            enabled=True,
+        )
+
+    def _build_retry_policy(self) -> RetryPolicy | None:
+        """Build the retry-with-backoff policy from config, or None when disabled.
+
+        ``max_retries=0`` is the explicit escape hatch — useful for
+        tests and for the rare "fail fast, don't hide upstream issues"
+        production case. We still build a ``RetryPolicy`` instance so the
+        call site only has to check for ``None``.
+        """
+        max_retries = int(self.config.get("llm_retry_max_retries", 5))
+        if max_retries < 0:
+            return None
+        return RetryPolicy(
+            max_retries=max_retries,
+            base_delay_seconds=float(self.config.get("llm_retry_base_delay_seconds", 1.0)),
+            max_delay_seconds=float(self.config.get("llm_retry_max_delay_seconds", 60.0)),
+        )
 
     def _create_tool_nodes(self) -> dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
@@ -318,7 +404,14 @@ class TradingAgentsGraph:
         identity = resolve_instrument_identity(ticker)
         return build_instrument_context(ticker, asset_type, identity)
 
-    def propagate(self, company_name, trade_date, asset_type: str = "stock"):
+    def propagate(
+        self,
+        company_name,
+        trade_date,
+        asset_type: str = "stock",
+        *,
+        event_callback: Callable[[str, dict], None] | None = None,
+    ):
         """Run the trading agents graph for a company on a specific date.
 
         ``asset_type`` selects between the stock pipeline (default) and the
@@ -327,6 +420,13 @@ class TradingAgentsGraph:
         ``checkpoint_enabled`` is set in config, the graph is recompiled with
         a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
+
+        ``event_callback`` (keyword-only, optional) is invoked with
+        ``(event_name, payload)`` tuples as the graph streams through its
+        nodes. Currently fires ``"node_entered"`` with ``{"node": <name>,
+        "ts": <iso8601-utc>}`` immediately before each per-node state delta
+        is merged. Exceptions raised by the callback are logged and swallowed
+        so they never break the run.
         """
         self.ticker = company_name
 
@@ -352,7 +452,9 @@ class TradingAgentsGraph:
                 logger.info("Starting fresh for %s on %s", company_name, trade_date)
 
         try:
-            return self._run_graph(company_name, trade_date, asset_type=asset_type)
+            return self._run_graph(
+                company_name, trade_date, asset_type=asset_type, event_callback=event_callback
+            )
         finally:
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
@@ -374,7 +476,13 @@ class TradingAgentsGraph:
             )
         return write_report_tree(final_state, ticker, save_path)
 
-    def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
+    def _run_graph(
+        self,
+        company_name,
+        trade_date,
+        asset_type: str = "stock",
+        event_callback: Callable[[str, dict], None] | None = None,
+    ):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents.
@@ -412,9 +520,72 @@ class TradingAgentsGraph:
             # state matches what graph.invoke() yields in the non-debug path.
             final_state = {}
             for chunk in trace:
+                # Debug-mode chunks are full state dicts ("values" mode), not
+                # {node_name: delta}. Extract the first state-change key as a
+                # best-effort label for callbacks; empty chunks are impossible
+                # here (trace only contains chunks with messages).
+                first_key = next(iter(chunk)) if chunk else "debug"
+                if event_callback is not None:
+                    try:
+                        event_callback(
+                            "node_entered",
+                            {"node": first_key, "ts": _now_iso()},
+                        )
+                    except Exception:  # callbacks must never break the run
+                        logger.exception("event_callback raised; continuing")
                 final_state.update(chunk)
+                if event_callback is not None:
+                    try:
+                        delta_val = chunk.get(first_key)
+                        event_callback(
+                            "node_exited",
+                            {
+                                "node": first_key,
+                                "ts": _now_iso(),
+                                "delta": delta_val,
+                            },
+                        )
+                    except Exception:  # callbacks must never break the run
+                        logger.exception("event_callback raised; continuing")
         else:
-            final_state = self.graph.invoke(init_agent_state, **args)
+            # Stream the graph so the event_callback fires in the non-debug
+            # path too (was previously only emitted in the debug branch).
+            # ``stream_mode="updates"`` yields {node_name: delta} per node;
+            # aggregating those deltas onto a copy of the initial state
+            # produces the same final object ``graph.invoke()`` would return.
+            final_state = dict(init_agent_state)
+            for chunk in self.graph.stream(
+                init_agent_state,
+                **{**args, "stream_mode": "updates"},
+            ):
+                # Empty chunks (e.g. from __interrupt__ or edge events) must
+                # never crash the run. Skip them silently (#1208).
+                if not chunk:
+                    continue
+                # stream_mode="updates" yields {node_name: delta_dict} per node.
+                node_name = next(iter(chunk))
+                delta = chunk[node_name]
+                if event_callback is not None:
+                    try:
+                        event_callback(
+                            "node_entered",
+                            {"node": node_name, "ts": _now_iso()},
+                        )
+                    except Exception:  # callbacks must never break the run
+                        logger.exception("event_callback raised; continuing")
+                final_state.update(delta)
+                if event_callback is not None:
+                    try:
+                        event_callback(
+                            "node_exited",
+                            {
+                                "node": node_name,
+                                "ts": _now_iso(),
+                                "delta": delta,
+                            },
+                        )
+                    except Exception:  # callbacks must never break the run
+                        logger.exception("event_callback raised; continuing")
 
         # Store current state for reflection.
         self.curr_state = final_state
