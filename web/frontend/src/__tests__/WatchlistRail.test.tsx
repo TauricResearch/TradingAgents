@@ -43,9 +43,11 @@ describe("WatchlistRail", () => {
     const input = screen.getByPlaceholderText("Search ticker…");
     fireEvent.change(input, { target: { value: "aapl" } });
 
-    expect(screen.getByText("AAPL")).toBeInTheDocument();
-    expect(screen.queryByText("NVDA")).not.toBeInTheDocument();
-    expect(screen.getByText("1/2")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("AAPL")).toBeInTheDocument();
+      expect(screen.queryByText("NVDA")).not.toBeInTheDocument();
+      expect(screen.getByText("1/2")).toBeInTheDocument();
+    });
   });
 
   it("clears the filter via the X button", async () => {
@@ -55,13 +57,18 @@ describe("WatchlistRail", () => {
     const input = screen.getByPlaceholderText("Search ticker…");
     fireEvent.change(input, { target: { value: "aapl" } });
 
-    // Find the clear button — it's the only button rendered inside the
-    // filter input wrapper that isn't a ticker row or the Add button.
+    // Wait for debounce to apply the filter, then find the clear button
+    await waitFor(() => {
+      const clearBtn = input.parentElement?.querySelector("button");
+      expect(clearBtn).toBeTruthy();
+    });
     const clearBtn = input.parentElement!.querySelector("button")!;
     fireEvent.click(clearBtn);
 
-    expect(screen.getByText("NVDA")).toBeInTheDocument();
-    expect(screen.getByText("AAPL")).toBeInTheDocument();
-    expect(screen.getByText("2M 0A")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("NVDA")).toBeInTheDocument();
+      expect(screen.getByText("AAPL")).toBeInTheDocument();
+      expect(screen.getByText("2M 0A")).toBeInTheDocument();
+    });
   });
 });

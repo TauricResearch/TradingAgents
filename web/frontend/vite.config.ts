@@ -1,8 +1,22 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import fs from "fs";
+import path from "path";
+
+function versionPlugin() {
+  return {
+    name: "version-inject",
+    buildStart() {
+      const versionFile = path.resolve(__dirname, "../../VERSION");
+      const version = fs.readFileSync(versionFile, "utf-8").trim();
+      const outPath = path.resolve(__dirname, "src/version.ts");
+      fs.writeFileSync(outPath, `export const VERSION = ${JSON.stringify(version)};\n`);
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), versionPlugin()],
   server: {
     port: 5173,
     proxy: {

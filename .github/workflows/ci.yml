@@ -53,11 +53,29 @@ jobs:
       - name: Lint web directory
         run: uv run ruff check web/
 
+  version-check:
+    name: version bump check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check version changed
+        run: |
+          current_version=$(grep '^version = ' pyproject.toml | sed 's/version = "//;s/"//')
+          main_version=$(git show main:pyproject.toml 2>/dev/null | grep '^version = ' | sed 's/version = "//;s/"//' || git show origin/main:pyproject.toml | grep '^version = ' | sed 's/version = "//;s/"//')
+          if [ "$current_version" == "$main_version" ]; then
+            echo "ERROR: Version not bumped. Expected change from $main_version"
+            exit 1
+          fi
+          echo "Version bumped: $main_version -> $current_version"
+
   deploy-dev:
     name: deploy to dev (PR preview)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    needs: [test, lint, smoke-install]
+    needs: [test, lint, smoke-install, version-check]
     steps:
       - uses: actions/checkout@v4
       - name: Install Railway CLI

@@ -420,18 +420,11 @@ def _execute_plan(plan: dict) -> dict:
 def _fetch_close_price_for_date(ticker: str, date_iso: str) -> tuple[float | None, str | None]:
     """Fetch the closing price for (ticker, date_iso) from market data.
 
+    Delegates to the shared implementation in ``background_runs``.
     Returns ``(None, None)`` on any failure.
     """
-    try:
-        from tradingagents.dataflows.stockstats_utils import load_ohlcv
-        df = load_ohlcv(ticker, date_iso)
-        if df is not None and not df.empty and "Close" in df.columns:
-            close = float(df["Close"].iloc[-1])
-            ts = f"{date_iso}T20:00:00Z"
-            return close, ts
-    except Exception:
-        pass
-    return None, None
+    from web.server.background_runs import _fetch_close_price
+    return _fetch_close_price(ticker, date_iso)
 
 
 def _rank_and_store(context: dict) -> dict:
@@ -633,7 +626,7 @@ def run_cycle() -> dict:
             llm_result = _call_llm_strategy(prompt)
             step3_duration = int((_timestamp_ms() - _step_timing[3]) * 1000)
             llm_response = llm_result["response"]
-            llm_failed = llm_response.get("reasoning_summary") == "LLM call failed"
+            llm_failed = llm_result.get("error") is not None
             _emit_event(3, "LLM strategy response received" if not llm_failed else "LLM call failed, using fallback plan", "ticker_llm_call", {
                 "step": 3,
                 "prompt_text": prompt,
@@ -715,7 +708,7 @@ def _background_loop() -> None:
         with _lock:
             _next_cycle_at = _now_iso()
 
-        for _ in range(interval_h * 120):
+        for _ in range(max(interval_h * 120, 1)):
             if _stop_event.is_set():
                 return
             time.sleep(30)

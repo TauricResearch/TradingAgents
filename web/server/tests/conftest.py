@@ -2,6 +2,8 @@ import os
 
 os.environ["TESTING"] = "1"
 os.environ["AUTH_DISABLED"] = "true"
+os.environ["TRADINGAGENTS_API_RATE_LIMIT"] = "10000/minute"
+os.environ["TRADINGAGENTS_BG_RATE_LIMIT"] = "10000/minute"
 
 import pytest
 

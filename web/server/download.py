@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import os
 import zipfile
 from pathlib import Path
 from typing import Any
 
 from . import storage
+
+log = logging.getLogger(__name__)
 
 
 def generate_summary_csv(ticker: str) -> str:
@@ -32,7 +35,7 @@ def generate_summary_csv(ticker: str) -> str:
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
 
-    for r in storage.list_ticker_runs(ticker.upper(), limit=500):
+    for r in storage.list_ticker_runs(ticker.upper(), limit=5000):
         writer.writerow(
             {
                 "run_id": r.get("id", ""),
@@ -76,7 +79,7 @@ def generate_full_csv(ticker: str) -> str:
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
 
-    for r in storage.list_ticker_runs(ticker.upper(), limit=500):
+    for r in storage.list_ticker_runs(ticker.upper(), limit=5000):
         run_id = r.get("id", "")
         events = storage.list_run_events(run_id) if run_id else []
         llm_calls = storage.list_run_llm_calls(run_id) if run_id else []
@@ -110,7 +113,7 @@ def generate_ticker_json(ticker: str) -> dict[str, Any]:
     safe = storage.safe_ticker_component(ticker).upper()
     runs_data: list[dict[str, Any]] = []
 
-    for r in storage.list_ticker_runs(ticker.upper(), limit=500):
+    for r in storage.list_ticker_runs(ticker.upper(), limit=5000):
         run_id = r.get("id", "")
         run_dir = storage.read_run_dir(run_id)
         events = storage.list_run_events(run_id) if run_id else []
@@ -154,11 +157,14 @@ def generate_ticker_zip(ticker: str) -> io.BytesIO:
 
         # Walk the ticker directory and add all files
         if ticker_path.exists():
-            for root, _dirs, files in os.walk(ticker_path):
-                for filename in files:
-                    file_path = Path(root) / filename
-                    arc_name = str(file_path.relative_to(ticker_path))
-                    zf.write(file_path, arc_name)
+            try:
+                for root, _dirs, files in os.walk(ticker_path):
+                    for filename in files:
+                        file_path = Path(root) / filename
+                        arc_name = str(file_path.relative_to(ticker_path))
+                        zf.write(file_path, arc_name)
+            except PermissionError as exc:
+                log.warning("download: skipping unreadable path %s: %s", exc.filename or ticker_path, exc)
 
     buf.seek(0)
     return buf

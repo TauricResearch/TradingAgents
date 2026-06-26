@@ -106,11 +106,19 @@ async def _broadcast(event: dict[str, Any]) -> None:
         rid, event.get("type"), event.get("id"), len(targets),
     )
 
+    dead: list[WebSocket] = []
     for ws in targets:
         try:
             await ws.send_json(event)
         except Exception as exc:  # noqa: BLE001
             log.warning("WS broadcast failed: %s", exc)
+            dead.append(ws)
+
+    if dead:
+        with _subscribers_lock:
+            for ws in dead:
+                for subs in _subscribers.values():
+                    subs.discard(ws)
 
 
 def emit(run_id: str, type_: EventType, data: dict[str, Any]) -> None:

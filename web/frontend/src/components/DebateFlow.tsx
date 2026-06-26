@@ -35,7 +35,7 @@ export function DebateFlow({ events, type }: DebateFlowProps) {
         const style = SIDE_STYLES[side] || SIDE_STYLES["Neutral Analyst"];
         const isLeft = side.startsWith("Bull") || side.startsWith("Aggressive");
         return (
-          <div key={i} className={`flex ${isLeft ? "justify-start" : "justify-end"}`}>
+          <div key={e.id ?? i} className={`flex ${isLeft ? "justify-start" : "justify-end"}`}>
             <div className={`max-w-[80%] rounded-xl px-3 py-2 border ${style.bg} ${style.border}`}>
               <div className={`text-[10px] font-semibold mb-1 ${style.text}`}>
                 {style.label} {d.turn ? `[Round ${d.turn}]` : ""}

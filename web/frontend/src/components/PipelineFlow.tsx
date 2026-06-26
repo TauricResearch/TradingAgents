@@ -476,7 +476,7 @@ function TeamCard({
           </span>
           <span
             className="text-[11px] font-semibold truncate tracking-tight"
-            style={{ color: status === "done" ? team.color : status === "active" ? `${team.color}cc` : "#475569" }}
+            style={{ color: status === "done" ? team.color : status === "active" ? `${team.color}cc` : "#64748b" }}
           >
             {team.label}
           </span>
@@ -585,7 +585,7 @@ function StageDetailPanel({
             </pre>
           )}
           {!stageDerived.excerpt && !stageDerived.fullText && (
-            <div className="text-xs text-slate-600 italic">No report content.</div>
+            <div className="text-xs text-slate-400 italic">No report content.</div>
           )}
         </div>
       ) : stageDerived.status === "errored" ? (
@@ -660,7 +660,7 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
       {/* Team cards row - horizontal scroll on mobile */}
       <div className="flex items-stretch gap-0 overflow-x-auto scrollable-mobile -mx-3 px-3 md:mx-0 md:px-0 md:overflow-visible">
         {teamStatuses.map(({ team, status, agentStatuses, timing }, i) => (
-          <div key={team.id} className="flex items-stretch flex-1 min-w-[200px] md:min-w-0">
+          <div key={team.id} className="flex items-stretch flex-1 min-w-[170px] md:min-w-0">
             <TeamCard
               team={team}
               status={status}

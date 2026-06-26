@@ -11,9 +11,10 @@ export function useKeyboardShortcuts() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
+      const target = e.target;
       // Don't capture when user is typing in an input/textarea/select
       if (
+        !(target instanceof HTMLElement) ||
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
         target.tagName === "SELECT" ||

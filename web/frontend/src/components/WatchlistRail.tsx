@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { shallow } from "zustand/shallow";
 import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem, addToWatchlist, getAccuracyLeaderboard, ApiError } from "../lib/api";
 import { TickerRow } from "./TickerRow";
 import { useUi } from "../store/ui";
+import { IndicatorRailView } from "./IndicatorRailView";
 
 type RunStatus = "idle" | "queued" | "running" | "done" | "errored";
 
@@ -34,21 +36,24 @@ export function WatchlistRail() {
   });
   const clearLast = useUi((s) => s.clearLastRunIdForTicker);
   const setFocusedTicker = useUi((s) => s.setFocusedTicker);
-  const collapsedGroups = useUi((s) => s.watchlistCollapsedGroups);
+  const collapsedGroups = useUi((s) => s.watchlistCollapsedGroups, shallow);
   const setCollapsedGroup = useUi((s) => s.setWatchlistCollapsedGroup);
-  const customGroupColors = useUi((s) => s.customGroupColors);
+  const customGroupColors = useUi((s) => s.customGroupColors, shallow);
   const setCustomGroupColor = useUi((s) => s.setCustomGroupColor);
   const removeCustomGroupColor = useUi((s) => s.removeCustomGroupColor);
-  const groupOrder = useUi((s) => s.groupOrder);
+  const groupOrder = useUi((s) => s.groupOrder, shallow);
   const setGroupOrder = useUi((s) => s.setGroupOrder);
 
   const [dragTicker, setDragTicker] = useState<string | null>(null);
   const [dragGroup, setDragGroup] = useState<string | null>(null);
   const pressStartRef = useRef(0);
   const [filterTicker, setFilterTicker] = useState("");
+  const [filterTickerRaw, setFilterTickerRaw] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [addingTicker, setAddingTicker] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<"default" | "accuracy">("default");
+  const [railMode, setRailMode] = useState<"watchlist" | "indicators">("watchlist");
 
   // Group inline editing state
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
@@ -57,6 +62,14 @@ export function WatchlistRail() {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [groupDropTarget, setGroupDropTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilterTicker(filterTickerRaw.toUpperCase());
+    }, 200);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [filterTickerRaw]);
 
   const handleRemove = useCallback(async (ticker: string) => {
     try {
@@ -107,7 +120,10 @@ export function WatchlistRail() {
     }
 
     ordered.splice(srcIdx, 1);
-    ordered.splice(ordered.indexOf(targetTicker), 0, sourceTicker);
+    const insertIdx = srcIdx < tgtIdx
+      ? ordered.indexOf(targetTicker) + 1
+      : ordered.indexOf(targetTicker);
+    ordered.splice(insertIdx, 0, sourceTicker);
 
     setDragTicker(null);
 
@@ -360,7 +376,7 @@ export function WatchlistRail() {
       <aside
         className={`
           fixed md:static inset-y-0 left-0 z-40
-          w-72 md:w-64
+          w-full max-w-72 md:w-64
           border-r border-slate-800 bg-slate-900/95 md:bg-slate-900/50 backdrop-blur-sm
           flex flex-col h-screen overflow-hidden
           transition-transform duration-300 ease-out
@@ -368,7 +384,9 @@ export function WatchlistRail() {
         `}
       >
         <div className="md:hidden shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-800 safe-area-top">
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Watchlist</span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+            {railMode === "watchlist" ? "Watchlist" : "Indicators"}
+          </span>
           <button
             onClick={() => setMobileSidebarOpen(false)}
             className="p-1 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
@@ -379,6 +397,34 @@ export function WatchlistRail() {
             </svg>
           </button>
         </div>
+        <div className="shrink-0 grid grid-cols-2 gap-1 border-b border-slate-800 px-2 py-2">
+          <button
+            type="button"
+            onClick={() => setRailMode("watchlist")}
+            className={`rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors ${
+              railMode === "watchlist"
+                ? "bg-sky-500/15 text-sky-300 border border-sky-500/25"
+                : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/60"
+            }`}
+          >
+            Watchlist
+          </button>
+          <button
+            type="button"
+            onClick={() => setRailMode("indicators")}
+            className={`rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors ${
+              railMode === "indicators"
+                ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/25"
+                : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/60"
+            }`}
+          >
+            Indicators
+          </button>
+        </div>
+        {railMode === "indicators" ? (
+          <IndicatorRailView />
+        ) : (
+          <>
         <div className="shrink-0 px-4 py-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
@@ -408,9 +454,9 @@ export function WatchlistRail() {
             <input
               type="text"
               value={filterTicker}
-              onChange={(e) => { setFilterTicker(e.target.value.toUpperCase()); setAddError(null); }}
+              onChange={(e) => { setFilterTickerRaw(e.target.value); setAddError(null); }}
               onKeyDown={(e) => {
-                if (e.key !== "Enter" || !filterTicker) return;
+                if (e.key !== "Enter" || !filterTickerRaw) return;
                 if (filteredWatchlist.length === 1) {
                   setFocusedTicker(filteredWatchlist[0].ticker);
                   setFilterTicker("");
@@ -425,7 +471,7 @@ export function WatchlistRail() {
             {filterTicker && (
               <button
                 type="button"
-                onClick={() => { setFilterTicker(""); setAddError(null); }}
+                onClick={() => { setFilterTickerRaw(""); setFilterTicker(""); setAddError(null); }}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -643,6 +689,8 @@ export function WatchlistRail() {
           )}
         </div>
 
+          </>
+        )}
       </aside>
     </>
   );

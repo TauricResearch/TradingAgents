@@ -113,7 +113,7 @@ def compute_score_for_ticker(ticker: str, runs: list[dict]) -> TickerScore | Non
     target_hit_rate = target_hits / target_total if target_total > 0 else None
 
     # Trending: win rate of last 10 runs vs all-time
-    recent = completed[-10:]
+    recent = completed[:10]
     recent_right = 0
     recent_total = 0
     for run in recent:

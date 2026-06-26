@@ -42,7 +42,7 @@ export function useRestoredRunEvents(focused: string | null): void {
       }
     },
     enabled: focused != null && runId != null,
-    staleTime: Infinity,
+    staleTime: 30_000,
   });
 
   useEffect(() => {

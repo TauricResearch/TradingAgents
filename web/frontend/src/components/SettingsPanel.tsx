@@ -59,6 +59,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
   const qc = useQueryClient();
   const [dirty, setDirty] = useState<Partial<AppConfig>>({});
   const [saved, setSaved] = useState(false);
+  const [appVersion, setAppVersion] = useState("");
 
   const [agentConfig, setAgentConfig] = useState<TickerAgentConfig>({ ...DEFAULT_AGENT_CONFIG });
   const [agentConfigDirty, setAgentConfigDirty] = useState(false);
@@ -127,6 +128,15 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
       }));
     }
   }, [agentConfigQuery.data]);
+
+  useEffect(() => {
+    if (open) {
+      fetch("/api/version")
+        .then((r) => r.json())
+        .then((d) => setAppVersion(d.version ?? ""))
+        .catch(() => setAppVersion("unknown"));
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -324,6 +334,27 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                     <div className="text-xs text-slate-600 pt-1">
                       Changes are saved to <code className="text-slate-500 bg-slate-800 px-1 rounded">.env</code> and apply
                       to future runs. No server restart required.
+                    </div>
+                  </div>
+                </section>
+
+                {/* ── About ── */}
+                <section>
+                  <h3 className="section-header flex items-center gap-2 mb-3">
+                    <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                    </svg>
+                    About
+                  </h3>
+                  <div className="glass-panel p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-300">Version</span>
+                      <span className="text-sm font-mono text-slate-400 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/50">
+                        v{appVersion || "…"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-600">
+                      Source: <code className="text-slate-500 bg-slate-800 px-1 rounded">VERSION</code> file at repo root
                     </div>
                   </div>
                 </section>

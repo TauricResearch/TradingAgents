@@ -18,14 +18,23 @@ export function useRunStream(runId: string | null) {
       setStatus("idle");
       return;
     }
+    // Reset cursor when runId changes so the new WS doesn't send a
+    // stale `since` param from a different run.
+    lastIdRef.current = null;
     // A fresh ResilientWs starts without a `since` cursor, so the
     // server replays every event for this runId. Wipe any pre-existing
     // buffer entries (typically from a REST replay) first so the
-    // replay doesn't duplicate them.
-    useUi.getState().clearEventBuffer(runId);
+    // replay doesn't duplicate them. The buffer clear is deferred to
+    // the first message handler to avoid losing events between the
+    // clear call and the WS handshake completing.
+    let bufferCleared = false;
     const client = new ResilientWs({
       url: () => buildRunUrl(runId, lastIdRef.current || undefined),
       onMessage: (evt) => {
+        if (!bufferCleared) {
+          bufferCleared = true;
+          useUi.getState().clearEventBuffer(runId);
+        }
         if (typeof evt.id === "string") lastIdRef.current = evt.id;
         appendEvent(evt);
         // Terminal events clear the active-run marker for whatever ticker

@@ -89,7 +89,7 @@ function useTickingNow(intervalMs: number): { nowIso: string; nowMs: number } {
 
 // --- main component ---
 
-export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; onClose: () => void }) {
+export function HistoricalAnalysisDrawer({ ticker, open, onClose }: { ticker: string; open: boolean; onClose: () => void }) {
   const holdThresholdPct = useUi((s) => s.holdThresholdPct);
   const historyPollIntervalMs = useUi((s) => s.historyPollIntervalMs);
   const setHistoryPollIntervalMs = useUi((s) => s.setHistoryPollIntervalMs);
@@ -191,10 +191,16 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
   }, [accuracyCurve, zoomLevel]);
 
   return (
-    <div
-      className="fixed inset-y-0 right-0 w-full md:w-[28rem] md:max-w-full bg-slate-900 border-l border-slate-700/50 shadow-2xl shadow-black/40 z-20 flex flex-col backdrop-blur-sm"
-      data-testid="history-drawer"
-    >
+    <>
+      <div
+        className={`drawer-overlay ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        className={`drawer-panel inset-y-0 right-0 w-full md:w-[28rem] md:max-w-full border-l flex flex-col ${open ? "translate-x-0" : "translate-x-full"}`}
+        data-testid="history-drawer"
+      >
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
         <div className="flex items-center gap-2">
           <h3 className="font-display font-semibold text-slate-200">{ticker}</h3>
@@ -362,5 +368,6 @@ export function HistoricalAnalysisDrawer({ ticker, onClose }: { ticker: string; 
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -93,6 +93,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
   const clearActiveRunForTicker = useUi((s) => s.clearActiveRunForTicker);
   const clearHistoricalRunForTicker = useUi((s) => s.clearHistoricalRunForTicker);
   const clearBuffer = useUi((s) => s.clearBuffer);
+  const setHistoryOpen = useUi((s) => s.setHistoryOpen);
 
   const hasHistory = lastRunId != null;
   const tickerRuns = useQuery({
@@ -181,7 +182,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
           {stale ? (
             <span className="text-amber-400/60">Unavailable on Yahoo Finance</span>
           ) : (
-            <span className="data-text text-slate-400">
+            <span className="data-text text-slate-300">
               {price != null ? `$${price.toFixed(2)}` : "\u2014"}
               {' \u00b7 '}USD
             </span>
@@ -189,15 +190,6 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-        {hasAnyRuns && (
-          <RunHistoryMenu
-            ticker={ticker}
-            runs={Array.isArray(tickerRuns.data) ? tickerRuns.data : []}
-            selectedRunId={historicalRunId}
-            onSelect={onSelectHistorical}
-            disabled={false}
-          />
-        )}
         <button
           disabled={isRunning || start.isPending}
           onClick={() => { if (!isRunning) start.mutate(); }}
@@ -217,6 +209,18 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
             ? "Re-run analysis"
             : "Run analysis"}
         </button>
+        {hasAnyRuns && (
+          <button onClick={() => setHistoryOpen(ticker, true)} className="btn-secondary text-xs">History</button>
+        )}
+        {hasAnyRuns && (
+          <RunHistoryMenu
+            ticker={ticker}
+            runs={Array.isArray(tickerRuns.data) ? tickerRuns.data : []}
+            selectedRunId={historicalRunId}
+            onSelect={onSelectHistorical}
+            disabled={false}
+          />
+        )}
         {isRunning && (
           <button
             disabled={cancel.isPending}

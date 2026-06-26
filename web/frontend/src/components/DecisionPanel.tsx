@@ -18,16 +18,20 @@ export function DecisionPanel({ action, target, confidence, rationale, degraded 
   const progressColor = isBuy ? "bg-emerald-500" : isSell ? "bg-red-500" : "bg-slate-500";
   const pct = Math.max(0, Math.min(1, confidence)) * 100;
   return (
-    <div className={`glass-panel mt-4 border-l-2 ${accentBorder}`}>
+    <div
+      className={`glass-panel mt-4 border-l-2 ${accentBorder} ${degraded ? "opacity-80" : ""}`}
+      role="region"
+      aria-label={`Decision: ${action}${target != null ? ` at $${target}` : ""}`}
+    >
       <div className="flex items-center gap-3 mb-3">
-        <span className={`tag ${actionBg} text-sm font-semibold ${actionColor}`}>
+        <span className={`tag ${actionBg} text-sm font-semibold ${actionColor}`} role="status" aria-label={`Action: ${action}`}>
           {isBuy && (
-            <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
             </svg>
           )}
           {isSell && (
-            <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
             </svg>
           )}
@@ -38,10 +42,10 @@ export function DecisionPanel({ action, target, confidence, rationale, degraded 
         {degraded && <span className="text-[10px] font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">degraded</span>}
       </div>
       <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
-        <span>Confidence</span>
-        <span className="data-text font-semibold text-slate-300">{pct.toFixed(0)}%</span>
+        <span id="confidence-label">Confidence</span>
+        <span className="data-text font-semibold text-slate-300" aria-labelledby="confidence-label">{pct.toFixed(0)}%</span>
       </div>
-      <div className="progress-bar">
+      <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className={`progress-fill ${progressColor}`} style={{ width: `${pct}%` }} />
       </div>
       <p className="text-sm text-slate-400 mt-3 whitespace-pre-wrap leading-relaxed">{rationale}</p>

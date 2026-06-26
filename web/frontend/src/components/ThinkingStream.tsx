@@ -28,7 +28,7 @@ export function ThinkingStream({ events, agentName }: ThinkingStreamProps) {
         const d = e.data as any;
         const text = d.text_fragment || d.text_preview || "";
         return (
-          <div key={i} className="px-3 py-1.5">
+          <div key={e.id ?? i} className="px-3 py-1.5">
             <span className="text-slate-600 mr-2">{new Date(e.ts).toLocaleTimeString()}</span>
             {text}
           </div>

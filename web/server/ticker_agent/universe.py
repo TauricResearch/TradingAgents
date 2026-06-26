@@ -139,13 +139,13 @@ def _get_sp500_tickers() -> list[str]:
     cache = _load_cache()
     cached = cache.get("sp500")
     if isinstance(cached, list):
-        return cached[:50]
+        return cached
 
     fetched = _fetch_sp500_tickers()
     if fetched:
         cache["sp500"] = fetched
         _save_cache()
-        return fetched[:50]
+        return fetched
 
     log.info("Using hardcoded fallback for S&P 500 tickers")
     return _FALLBACK_SP500

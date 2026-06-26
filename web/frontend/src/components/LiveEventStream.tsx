@@ -63,9 +63,11 @@ export function LiveEventStream() {
   const events = useFocusedRunEvents();
   const ref = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+    if (events.length > 0) setInitialLoading(false);
   }, [events.length]);
 
   const toggleExpand = (key: string) => {
@@ -130,7 +132,18 @@ export function LiveEventStream() {
         <span className="text-[10px] font-mono text-slate-600">{events.length} events</span>
       </div>
       <div ref={ref} className="h-48 md:h-72 overflow-y-auto p-2 space-y-1">
-      {events.length === 0 && <p className="text-sm text-slate-600 text-center py-8">No events yet. Click "Run analysis" to start.</p>}
+      {events.length === 0 && initialLoading ? (
+        <div className="space-y-2 px-3 py-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-2 animate-pulse">
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+              <div className="h-3 bg-slate-700/50 rounded w-full" style={{ width: `${60 + Math.random() * 30}%` }} />
+            </div>
+          ))}
+        </div>
+      ) : events.length === 0 ? (
+        <p className="text-sm text-slate-500 text-center py-8">No events yet. Click "Run analysis" to start.</p>
+      ) : null}
       {events.map((e) => {
         const key = (e.id ?? "") + ":" + (e.ts ?? 0);
         const data = e.data as EventData;

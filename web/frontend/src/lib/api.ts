@@ -1,4 +1,4 @@
-const base = "";
+export const base = "";
 
 /**
  * Thrown by the api helpers on non-2xx responses. ``body`` is the parsed
@@ -155,6 +155,143 @@ export async function fetchPrices(): Promise<Record<string, unknown>> {
   const r = await fetch(`${base}/api/prices`);
   if (!r.ok) {
     throw new ApiError(`prices ${r.status}`, r.status, await readJsonOrNull(r));
+  }
+  return r.json();
+}
+
+// ---- Market indicators ----
+
+export type IndicatorKind =
+  | "vix"
+  | "fear_greed"
+  | "red_days"
+  | "s5fi"
+  | "green_streak"
+  | "price_vs_moving_averages";
+
+export interface IndicatorDefinition {
+  id: string;
+  kind: IndicatorKind;
+  name: string;
+  description: string;
+  threshold: number;
+  comparator: "above" | "below" | "at_least" | "within";
+  unit: string;
+  enabled: boolean;
+  source: "builtin" | "custom";
+}
+
+export interface IndicatorResult {
+  triggered: boolean;
+  value: unknown;
+  threshold: number;
+  message: string;
+  checked_at: string;
+}
+
+export interface IndicatorCheck {
+  indicator: IndicatorDefinition;
+  result: IndicatorResult | null;
+}
+
+export async function fetchIndicators(): Promise<{ indicators: IndicatorDefinition[] }> {
+  const r = await fetch(`${base}/api/indicators`);
+  if (!r.ok) throw new ApiError(`indicators ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+export async function addIndicator(body: {
+  kind: IndicatorKind;
+  name?: string;
+  threshold?: number;
+  description?: string;
+}): Promise<IndicatorDefinition> {
+  const r = await fetch(`${base}/api/indicators`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new ApiError(`add-indicator ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+export async function removeIndicator(id: string): Promise<void> {
+  const r = await fetch(`${base}/api/indicators/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!r.ok) throw new ApiError(`remove-indicator ${r.status}`, r.status, await readJsonOrNull(r));
+}
+
+export async function updateIndicator(
+  id: string,
+  body: Partial<{ threshold: number; enabled: boolean }>
+): Promise<IndicatorDefinition> {
+  const r = await fetch(`${base}/api/indicators/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new ApiError(`update-indicator ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+export async function resetIndicators(): Promise<{ indicators: IndicatorDefinition[] }> {
+  const r = await fetch(`${base}/api/indicators/reset`, { method: "POST" });
+  if (!r.ok) throw new ApiError(`reset-indicators ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+export async function checkIndicators(): Promise<{ checks: IndicatorCheck[] }> {
+  const r = await fetch(`${base}/api/indicators/check`, { method: "POST" });
+  if (!r.ok) throw new ApiError(`check-indicators ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+export async function fetchSchedule(): Promise<{ interval_ms: number }> {
+  const r = await fetch(`${base}/api/indicators/schedule`);
+  if (!r.ok) throw new ApiError(`fetch-schedule ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+export async function updateSchedule(interval_ms: number): Promise<{ interval_ms: number }> {
+  const r = await fetch(`${base}/api/indicators/schedule`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ interval_ms }),
+  });
+  if (!r.ok) throw new ApiError(`update-schedule ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+// ---- Telegram notifier config ----
+
+export interface NotifierConfig {
+  enabled: boolean;
+  bot_token: string | null;
+  chat_id: string | null;
+}
+
+export async function fetchNotifierConfig(): Promise<NotifierConfig> {
+  const r = await fetch(`${base}/api/notifier/config`);
+  if (!r.ok) throw new ApiError(`notifier config ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+export async function updateNotifierConfig(
+  body: Partial<{ enabled: boolean; bot_token: string | null; chat_id: string | null }>,
+): Promise<NotifierConfig> {
+  const r = await fetch(`${base}/api/notifier/config`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new ApiError(`notifier config ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
+export async function testNotifier(): Promise<{ status: string; chat_id: string }> {
+  const r = await fetch(`${base}/api/notifier/test`, { method: "POST" });
+  if (!r.ok) {
+    const detail = await r.json().catch(() => ({ detail: r.statusText }));
+    throw new ApiError(`notifier test ${r.status}`, r.status, detail);
   }
   return r.json();
 }
@@ -584,5 +721,4 @@ export async function downloadTickers(tickers: string[], format: string = "zip")
   a.remove();
   window.URL.revokeObjectURL(url);
 }
-
 

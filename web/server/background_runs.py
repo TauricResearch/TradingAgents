@@ -215,6 +215,7 @@ class BackgroundRunState:
 
 
 _jobs: dict[str, _JobHandle] = {}
+_jobs_lock = threading.Lock()
 
 
 @dataclass
@@ -240,16 +241,19 @@ def register_handle(
         pause_event=threading.Event(),
         state=state,
     )
-    _jobs[job_id] = handle
+    with _jobs_lock:
+        _jobs[job_id] = handle
     return handle
 
 
 def get_handle(job_id: str) -> _JobHandle | None:
-    return _jobs.get(job_id)
+    with _jobs_lock:
+        return _jobs.get(job_id)
 
 
 def unregister_handle(job_id: str) -> None:
-    _jobs.pop(job_id, None)
+    with _jobs_lock:
+        _jobs.pop(job_id, None)
 
 
 import time  # noqa: E402
@@ -309,7 +313,9 @@ def _has_overlapping_job(ticker: str, date_from: str, date_to: str) -> tuple[boo
     state.json entries left after a crash are also detected.
     """
     ticker_upper = ticker.upper()
-    for jid, h in list(_jobs.items()):
+    with _jobs_lock:
+        jobs_snapshot = list(_jobs.items())
+    for jid, h in jobs_snapshot:
         s = h.state
         if (s.ticker.upper() == ticker_upper and s.status in ("running", "paused")
                 and _ranges_overlap(date_from, date_to, s.date_from, s.date_to)):
@@ -595,6 +601,7 @@ def _record_run(ticker: str, date_iso: str, decision: dict | None, duration_s: f
         if report:
             summary_by_stage[s] = report[:200]
     _events.emit(run_id, _events.EventType.RUN_FINISHED, {
+        "ticker": ticker,
         "duration_s": duration_s,
         "summary_by_stage": summary_by_stage,
     })

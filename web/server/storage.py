@@ -530,3 +530,152 @@ def ticker_agent_dir() -> Path:
 
 def ticker_agent_path(name: str) -> Path:
     return ticker_agent_dir() / name
+
+
+# ---- notifier settings (persisted to .env for durability) ----
+
+_NOTIFIER_ENV_TOKEN = "TRADINGAGENTS_TELEGRAM_BOT_TOKEN"
+_NOTIFIER_ENV_CHAT_ID = "TRADINGAGENTS_TELEGRAM_CHAT_ID"
+_NOTIFIER_ENV_ENABLED = "TRADINGAGENTS_TELEGRAM_NOTIFIER_ENABLED"
+
+
+def _env_path() -> Path:
+    """Return the .env path at the project root."""
+    return Path(__file__).resolve().parents[2] / ".env"
+
+
+def _read_env() -> dict[str, str]:
+    """Read .env as a dict of key->value."""
+    p = _env_path()
+    if not p.exists():
+        return {}
+    out: dict[str, str] = {}
+    for line in p.read_text(encoding="utf-8").splitlines():
+        s = line.strip()
+        if s and not s.startswith("#") and "=" in s:
+            k, _, v = s.partition("=")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def _write_env(updates: dict[str, str]) -> None:
+    """Update .env in place, preserving other keys."""
+    env_path = _env_path()
+    lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+    seen: set[str] = set()
+    out_lines: list[str] = []
+    for line in lines:
+        s = line.strip()
+        if s and not s.startswith("#") and "=" in s:
+            k = s.partition("=")[0].strip()
+            seen.add(k)
+            if k in updates:
+                out_lines.append(f"{k}={updates[k]}")
+                del updates[k]
+            else:
+                out_lines.append(line)
+        else:
+            out_lines.append(line)
+    for k, v in updates.items():
+        out_lines.append(f"{k}={v}")
+    env_path.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+
+
+# ---- Indicator schedule (auto-run on backend) ----
+
+_IND_SCHEDULE_ENV = "TRADINGAGENTS_INDICATOR_CHECK_INTERVAL_MS"
+
+
+def read_indicator_schedule() -> dict:
+    """
+    Return the indicator check schedule.
+
+    Reads from .env first (TRADINGAGENTS_INDICATOR_CHECK_INTERVAL_MS),
+    falls back to indicator_schedule.json, then to defaults.
+    Returns ``{"interval_ms": 0, "last_check_at": None}``.
+    """
+    env = _read_env()
+    val = os.environ.get(_IND_SCHEDULE_ENV) or env.get(_IND_SCHEDULE_ENV)
+    if val:
+        path = data_dir() / "indicator_schedule.json"
+        payload = read_json(path)
+        lca = payload.get("last_check_at") if payload else None
+        return {"interval_ms": int(val), "last_check_at": lca}
+    path = data_dir() / "indicator_schedule.json"
+    payload = read_json(path)
+    if payload:
+        return {
+            "interval_ms": int(payload.get("interval_ms", 0)),
+            "last_check_at": payload.get("last_check_at"),
+        }
+    return {"interval_ms": 0, "last_check_at": None}
+
+
+def write_indicator_schedule(cfg: dict) -> None:
+    """Persist indicator schedule to .env (durable) and JSON (runtime)."""
+    interval_ms = int(cfg.get("interval_ms", 0))
+    last_check_at = cfg.get("last_check_at")
+    _write_env({_IND_SCHEDULE_ENV: str(interval_ms)})
+    path = data_dir() / "indicator_schedule.json"
+    payload: dict[str, Any] = {"interval_ms": interval_ms}
+    if last_check_at is not None:
+        payload["last_check_at"] = last_check_at
+    write_json_atomic(path, payload)
+
+
+def read_notifier_config() -> dict:
+    """
+    Return notifier config.
+
+    Values are sourced from .env (TRADINGAGENTS_TELEGRAM_BOT_TOKEN,
+    TRADINGAGENTS_TELEGRAM_CHAT_ID, TRADINGAGENTS_TELEGRAM_NOTIFIER_ENABLED)
+    for token/chat_id to survive data-dir wipes, with notifier.json as
+    a fallback for the enabled flag when no env vars are set.
+    """
+    env = _read_env()
+
+    token = os.environ.get(_NOTIFIER_ENV_TOKEN) or env.get(_NOTIFIER_ENV_TOKEN)
+    chat_id = os.environ.get(_NOTIFIER_ENV_CHAT_ID) or env.get(_NOTIFIER_ENV_CHAT_ID)
+    raw_enabled = os.environ.get(_NOTIFIER_ENV_ENABLED) or env.get(_NOTIFIER_ENV_ENABLED)
+
+    if token or chat_id:
+        return {
+            "enabled": raw_enabled.lower() in ("1", "true", "yes") if raw_enabled else False,
+            "bot_token": token,
+            "chat_id": chat_id,
+        }
+
+    # Fall back to notifier.json only when nothing is in .env
+    path = data_dir() / "notifier.json"
+    payload = read_json(path)
+    if not payload:
+        return {"enabled": False, "bot_token": None, "chat_id": None}
+    return {
+        "enabled": bool(payload.get("enabled", False)),
+        "bot_token": payload.get("bot_token"),
+        "chat_id": payload.get("chat_id"),
+    }
+
+
+def write_notifier_config(cfg: dict) -> None:
+    """Persist notifier config to .env (Durable) and notifier.json (for runtime)."""
+    token = cfg.get("bot_token")
+    chat_id = cfg.get("chat_id")
+
+    env_updates: dict[str, str] = {}
+    if token is not None:
+        env_updates[_NOTIFIER_ENV_TOKEN] = token
+    if chat_id is not None:
+        env_updates[_NOTIFIER_ENV_CHAT_ID] = str(chat_id)
+    env_updates[_NOTIFIER_ENV_ENABLED] = "1" if cfg.get("enabled") else "0"
+
+    if env_updates:
+        _write_env(env_updates)
+
+    # Also keep notifier.json in sync for runtime reads that haven't loaded .env yet
+    path = data_dir() / "notifier.json"
+    write_json_atomic(path, {
+        "enabled": bool(cfg.get("enabled", False)),
+        "bot_token": token,
+        "chat_id": chat_id,
+    })

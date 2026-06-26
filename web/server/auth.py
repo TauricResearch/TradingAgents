@@ -22,7 +22,6 @@ _allowed_emails: list[str] = []
 def is_auth_disabled() -> bool:
     import os
     val = os.environ.get("AUTH_DISABLED", "")
-    print(f"[DEBUG] AUTH_DISABLED={val!r}")
     return val.lower() in ("true", "1", "yes")
 
 

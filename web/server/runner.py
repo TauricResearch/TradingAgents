@@ -29,6 +29,16 @@ log = logging.getLogger(__name__)
 
 MAX_CONCURRENT = int(os.environ.get("TRADINGAGENTS_DASHBOARD_MAX_CONCURRENT", "3"))
 
+# In-memory set of cancelled run IDs to avoid reading run.json from disk
+# on every node event callback. Populated by cancel_run() and checked
+# in the graph callback hot path.
+_cancelled_run_ids: set[str] = set()
+
+
+def mark_run_cancelled(run_id: str) -> None:
+    """Register a run as cancelled in-memory so the running graph stops fast."""
+    _cancelled_run_ids.add(run_id)
+
 
 def checkpoint_thread_id(ticker: str, date_str: str) -> str:
     """Mirror of ``tradingagents.graph.checkpointer.thread_id`` for tests."""
@@ -211,9 +221,9 @@ def build_graph(config=None, *, callbacks=None):
     )
 
 
-_WORK_QUEUE: asyncio.Queue = None  # type: ignore
+_WORK_QUEUE: asyncio.Queue | None = None
 _workers: list[asyncio.Task] = []
-_sem: asyncio.Semaphore = None  # type: ignore
+_sem: asyncio.Semaphore | None = None
 _active = 0
 _in_flight: set[str] = set()  # run_ids currently held by a worker task
 _idle = threading.Event()
@@ -461,8 +471,7 @@ async def _run_one(run_id: str, ticker: str, date_str: str, run_dir: Path, sem: 
         node_enter_t: dict[str, float] = {}
 
         def cb(node_name: str, payload: dict) -> None:
-            rj = storage.read_run(run_id)
-            if rj and rj.get("cancel_requested"):
+            if run_id in _cancelled_run_ids:
                 raise _CancelSentinel()
             if node_name == "node_entered":
                 node = payload.get("node", node_name)

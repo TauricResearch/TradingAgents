@@ -1,11 +1,13 @@
 """File-backed LLM call log. One JSONL line per call, per run."""
 from __future__ import annotations
 
-import contextlib
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from . import storage
+
+logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
@@ -49,8 +51,10 @@ def save_llm_call(
         "duration_ms": duration_ms,
         "started_at": started_at_str,
     }
-    with contextlib.suppress(KeyError):
+    try:
         storage.append_run_llm_call(run_id, call)
+    except KeyError:
+        logger.warning("llm_calls: run_id=%s not found, dropping call", run_id)
 
 
 def llm_calls_for_run(run_id: str) -> list[dict[str, Any]]:

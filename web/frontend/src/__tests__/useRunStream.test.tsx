@@ -46,11 +46,17 @@ describe("useRunStream", () => {
     });
   });
 
-  it("clears buffered events for its runId before opening the WS", () => {
+  it("clears buffered events for its runId on first WS message", () => {
     useUi.setState({
       eventBuffer: [evt("NVDA:42", "analyst_started", "1"), evt("AAPL:1", "analyst_started", "2")],
     });
     renderHook(() => useRunStream("NVDA:42"), { wrapper });
-    expect(useUi.getState().eventBuffer.map((e) => e.id)).toEqual(["2"]);
+    // Buffer is NOT cleared until the first WS message arrives
+    expect(useUi.getState().eventBuffer.map((e) => e.id)).toEqual(["1", "2"]);
+    const ws = MockWebSocket.instances[0];
+    act(() => ws.open());
+    act(() => ws.receive({ v: 1, type: "analyst_thinking", ts: "t", run_id: "NVDA:42", data: {}, id: "NVDA:42:3" }));
+    // After first message, stale events for this runId are cleared; events for other runs remain
+    expect(useUi.getState().eventBuffer.map((e) => e.id)).toEqual(["2", "NVDA:42:3"]);
   });
 });

@@ -39,6 +39,7 @@ dependencies = [
     "sqlmodel>=0.0.20",
     "aiosqlite>=0.20.0",
     "itsdangerous>=2.1.2",
+    "python-telegram-bot>=21.0",
 ]
 
 [project.optional-dependencies]

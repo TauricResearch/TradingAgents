@@ -20,6 +20,7 @@ export function useGlobalStream() {
   const clientRef = useRef<ResilientWs | null>(null);
 
   useEffect(() => {
+    if (clientRef.current) return;
     const client = new ResilientWs({
       url: buildGlobalUrl,
       onMessage: (evt: WsEvent) => {
@@ -45,6 +46,12 @@ export function useGlobalStream() {
             ...(old || {}),
             [ticker]: priceData,
           }));
+        } else if (evt.type === EventType.RUN_FINISHED || evt.type === EventType.RUN_FAILED) {
+          const { ticker } = evt.data as Record<string, unknown>;
+          if (typeof ticker === "string" && ticker) {
+            qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
+            qc.invalidateQueries({ queryKey: ["runs", "list"] });
+          }
         }
       },
     });

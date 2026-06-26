@@ -5,6 +5,7 @@ export interface SubscribeOpts {
   onMessage: (evt: WsEvent) => void;
   onStatus?: (status: "connecting" | "open" | "reconnecting" | "closed") => void;
   backoffMs?: (attempt: number) => number;
+  onReconnect?: (attempt: number, delayMs: number) => void;
 }
 
 export class ResilientWs {
@@ -32,6 +33,7 @@ export class ResilientWs {
   }
 
   private connect() {
+    if (this.closedByUser) return;
     this.opts.onStatus?.(this.attempt === 0 ? "connecting" : "reconnecting");
     const url = typeof this.opts.url === "function" ? this.opts.url() : this.opts.url;
     const ws = new WebSocket(url);
@@ -54,7 +56,9 @@ export class ResilientWs {
     };
     ws.onclose = () => {
       if (this.closedByUser) return;
-      const delay = (this.opts.backoffMs ?? defaultBackoff)(this.attempt++);
+      const attempt = this.attempt++;
+      const delay = (this.opts.backoffMs ?? defaultBackoff)(attempt);
+      this.opts.onReconnect?.(attempt, delay);
       setTimeout(() => this.connect(), delay);
     };
     ws.onerror = () => {

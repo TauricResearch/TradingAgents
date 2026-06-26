@@ -306,10 +306,16 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
   }
 
   return (
-    <div
-      className="fixed inset-y-0 right-0 w-full md:w-[28rem] md:max-w-full bg-slate-900 border-l border-slate-700/50 shadow-2xl shadow-black/40 z-20 flex flex-col backdrop-blur-sm"
-      data-testid="ticker-agent-drawer"
-    >
+    <>
+      <div
+        className={`drawer-overlay ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        className={`drawer-panel inset-y-0 right-0 w-full md:w-[28rem] md:max-w-full border-l flex flex-col ${open ? "translate-x-0" : "translate-x-full"}`}
+        data-testid="ticker-agent-drawer"
+      >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
         <h3 className="font-display font-semibold text-slate-200">Ticker Accuracy Agent</h3>
@@ -579,5 +585,6 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }

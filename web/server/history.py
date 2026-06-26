@@ -149,10 +149,11 @@ def _df_to_bars(df) -> list[dict]:
     if df is None or len(df) == 0:
         return []
     idx = df.index
-    if hasattr(idx, "tz") and idx.tz is not None:
-        idx = idx.tz_convert("UTC")
-    elif hasattr(idx, "tz_localize"):
-        idx = idx.tz_localize("UTC")
+    if hasattr(idx, "tz"):
+        if idx.tz is not None:
+            idx = idx.tz_convert("UTC")
+        elif hasattr(idx, "tz_localize"):
+            idx = idx.tz_localize("UTC")
     ts_iso = [t.isoformat().replace("+00:00", "Z") for t in idx]
     volumes = df["Volume"].tolist() if "Volume" in df.columns else [0.0] * len(df)
     return [

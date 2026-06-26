@@ -7,6 +7,8 @@ import io
 import json
 import logging
 import os
+import threading
+import time
 import uuid
 import zipfile
 from contextlib import asynccontextmanager
@@ -27,6 +29,7 @@ from web.server.ticker_agent.router import router as ticker_agent_router
 
 from . import (
     events,
+    indicators,
     log_publisher as lp_module,
     queries,
     runner,
@@ -37,10 +40,53 @@ from .auth import read_session, read_session_from_ws, router as auth_router
 
 log = logging.getLogger(__name__)
 
+
+def _get_notifier():
+    """Build a TelegramNotifier from stored config, or None if not configured."""
+    try:
+        cfg = storage.read_notifier_config()
+        if not cfg.get("enabled"):
+            return None
+        token = cfg.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = cfg.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID")
+        if not token or not chat_id:
+            return None
+        return _TelegramNotifierProxy(token, chat_id)
+    except Exception:
+        log.exception("Failed to create notifier")
+        return None
+
+
+class _TelegramNotifierProxy:
+    """Thin async wrapper around the sync Bot.send_message for use in sync endpoints."""
+
+    def __init__(self, token: str, chat_id: str | int) -> None:
+        from telegram import Bot
+
+        self._token = token
+        self._chat_id = str(chat_id)
+        self._bot = Bot(token=self._token)
+
+    async def send_results(self, results) -> None:
+        from telegram.error import Forbidden, InvalidToken
+
+        from web.server.notifier import build_results_message
+
+        try:
+            await self._bot.send_message(
+                chat_id=self._chat_id,
+                text=build_results_message(results),
+                parse_mode="HTML",
+            )
+        except Forbidden as exc:
+            log.warning("Telegram Forbidden: %s", exc)
+        except InvalidToken as exc:
+            log.warning("Telegram InvalidToken: %s", exc)
+
 limiter = Limiter(key_func=get_remote_address)
 
-_API_RATE_LIMIT = "10000/minute" if os.environ.get("TESTING") else "10/minute"
-_BG_RATE_LIMIT = "10000/minute" if os.environ.get("TESTING") else "5/minute"
+_API_RATE_LIMIT = os.environ.get("TRADINGAGENTS_API_RATE_LIMIT", "10/minute")
+_BG_RATE_LIMIT = os.environ.get("TRADINGAGENTS_BG_RATE_LIMIT", "5/minute")
 
 # Set of currently-open WebSocket objects. Tracked so the lifespan teardown
 # can force-close them; otherwise a handler stuck in `ws.receive()` will keep
@@ -76,6 +122,94 @@ class DownloadTickersIn(BaseModel):
     format: str = "zip"
 
 
+class IndicatorIn(BaseModel):
+    kind: str = "vix"
+    name: str | None = None
+    threshold: float | None = None
+    description: str | None = None
+    enabled: bool = True
+
+
+# --------- Background indicator scheduler ---------
+
+_indicator_scheduler_running = False
+_indicator_scheduler_stop = threading.Event()
+_indicator_scheduler_thread: threading.Thread | None = None
+
+
+def _run_indicator_check() -> None:
+    """Run indicator check and send Telegram notification if triggered."""
+    try:
+        checks = indicators.run_checks()
+        cfg = storage.read_notifier_config()
+        if cfg.get("enabled") and cfg.get("bot_token") and cfg.get("chat_id"):
+            triggered = any((c or {}).get("result", {}).get("triggered", False) for c in checks)
+            if triggered:
+                from web.server.notifier import _results_from_check_response
+                results = _results_from_check_response(checks)
+                notifier = _get_notifier()
+                if notifier:
+                    loop = events._get_event_loop()
+                    if loop is None:
+                        return
+                    loop.create_task(notifier.send_results(results))
+    except Exception:
+        log.exception("Background indicator check failed")
+
+
+def _update_last_check_at() -> None:
+    current_schedule = storage.read_indicator_schedule()
+    if current_schedule.get("interval_ms", 0) > 0:
+        current_schedule["last_check_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        storage.write_indicator_schedule(current_schedule)
+
+
+def _indicator_background_loop() -> None:
+    """Background thread: run indicator checks on the configured schedule."""
+    while not _indicator_scheduler_stop.is_set():
+        interval_ms = storage.read_indicator_schedule().get("interval_ms", 0)
+        if interval_ms <= 0:
+            # No schedule configured, sleep for 60s and recheck
+            _indicator_scheduler_stop.wait(60)
+            continue
+
+        _indicator_scheduler_stop.wait(interval_ms / 1000)
+        if _indicator_scheduler_stop.is_set():
+            return
+
+        try:
+            _run_indicator_check()
+        except Exception:
+            log.exception("Indicator background check error")
+        else:
+            _update_last_check_at()
+
+
+def _start_indicator_scheduler() -> None:
+    global _indicator_scheduler_running, _indicator_scheduler_thread
+    if _indicator_scheduler_running:
+        return
+    _indicator_scheduler_running = True
+    _indicator_scheduler_stop.clear()
+    _indicator_scheduler_thread = threading.Thread(target=_indicator_background_loop, daemon=True)
+    _indicator_scheduler_thread.start()
+    log.info("Indicator background scheduler started")
+
+
+def _stop_indicator_scheduler() -> None:
+    global _indicator_scheduler_running
+    _indicator_scheduler_running = False
+    _indicator_scheduler_stop.set()
+    log.info("Indicator background scheduler stopping")
+
+
+def _restart_indicator_scheduler() -> None:
+    """Restart the scheduler (called when schedule config changes)."""
+    _stop_indicator_scheduler()
+    time.sleep(0.5)
+    _start_indicator_scheduler()
+
+
 # --------- lifespan ---------
 
 
@@ -90,7 +224,10 @@ def _price_broadcast(event: dict) -> None:
         loop = asyncio.get_running_loop()
     except RuntimeError:
         return
-    loop.create_task(events._broadcast(event))
+    try:
+        loop.create_task(events._broadcast(event))
+    except RuntimeError as exc:
+        log.warning("_price_broadcast: failed to schedule broadcast: %s", exc)
 
 
 @asynccontextmanager
@@ -171,7 +308,12 @@ async def lifespan(app: FastAPI):
     # Start the ticker accuracy agent background loop.
     from web.server.ticker_agent import orchestrator as _agent
 
+    # Start the indicator background scheduler.
+    _start_indicator_scheduler()
+
     yield
+    # Stop the indicator scheduler before other shutdowns.
+    _stop_indicator_scheduler()
     # Stop the price feed (if it was started) before the runner so any
     # in-flight poll iteration can complete without racing shutdown.
     feed = getattr(app.state, "price_feed", None)
@@ -244,6 +386,87 @@ def create_app() -> FastAPI:
     @app.get("/api/prices")
     def list_prices() -> dict:
         return app.state.price_state.snapshots
+
+    @app.get("/api/indicators")
+    def list_indicators() -> dict:
+        return {
+            "indicators": [
+                indicators._definition_to_dict(row) for row in indicators.read_indicators()
+            ]
+        }
+
+    @app.post("/api/indicators")
+    def post_indicator(body: IndicatorIn) -> dict:
+        try:
+            row = indicators.add_indicator(body.model_dump(exclude_none=True))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return indicators._definition_to_dict(row)
+
+    @app.delete("/api/indicators/{indicator_id}", status_code=204)
+    def delete_indicator(indicator_id: str) -> Response:
+        if not indicators.remove_indicator(indicator_id):
+            raise HTTPException(status_code=404, detail="indicator not found")
+        return Response(status_code=204)
+
+    @app.patch("/api/indicators/{indicator_id}")
+    def patch_indicator(indicator_id: str, body: dict) -> dict:
+        try:
+            updated = indicators.update_indicator(indicator_id, body)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if updated is None:
+            raise HTTPException(status_code=404, detail="indicator not found")
+        return indicators._definition_to_dict(updated)
+
+    @app.post("/api/indicators/reset")
+    def reset_indicators() -> dict:
+        return {
+            "indicators": [
+                indicators._definition_to_dict(row) for row in indicators.reset_indicators()
+            ]
+        }
+
+    @app.post("/api/indicators/check")
+    @limiter.limit(_BG_RATE_LIMIT)
+    def check_indicators(request: Request) -> dict:
+        checks = indicators.run_checks()
+
+        # Send Telegram notification if notifier is enabled and something triggered
+        try:
+            cfg = storage.read_notifier_config()
+            if cfg.get("enabled") and cfg.get("bot_token") and cfg.get("chat_id"):
+                    _notifier = _get_notifier()
+                    if _notifier is not None:
+                        _cfg_triggered = any(
+                            (c or {}).get("result", {}).get("triggered", False) for c in checks
+                        )
+                        if _cfg_triggered:
+                            from web.server.notifier import _results_from_check_response
+
+                            _results = _results_from_check_response(checks)
+                            _asyncio = __import__("asyncio")
+                            _asyncio.get_running_loop().create_task(_notifier.send_results(_results))
+        except Exception:
+            log.exception("Failed to send Telegram notification")
+
+        return {"checks": checks}
+
+    @app.get("/api/indicators/schedule")
+    def get_indicator_schedule() -> dict:
+        return storage.read_indicator_schedule()
+
+    @app.put("/api/indicators/schedule")
+    def update_indicator_schedule(body: dict) -> dict:
+        if not isinstance(body, dict):
+            raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+        try:
+            interval_ms = int(body.get("interval_ms", 0))
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="interval_ms must be a number") from None
+        storage.write_indicator_schedule({"interval_ms": interval_ms})
+        _restart_indicator_scheduler()
+        return {"interval_ms": interval_ms}
 
     @app.post("/api/watchlist", status_code=201)
     def add_to_watchlist(body: WatchlistIn) -> dict:
@@ -441,6 +664,8 @@ def create_app() -> FastAPI:
         if rj is None:
             raise HTTPException(status_code=404, detail="run not found")
         storage.mark_run_status(run_id, cancel_requested=True)
+        from web.server.runner import mark_run_cancelled
+        mark_run_cancelled(run_id)
         return queries.run_to_dict(storage.read_run(run_id))
 
     @app.post("/api/runs/{run_id}/resume", status_code=202)
@@ -708,11 +933,7 @@ def create_app() -> FastAPI:
         cfg = {}
         for key in _CONFIG_KEYS:
             cfg[key] = os.environ.get(key) or env.get(key, "")
-        api_keys = {}
-        for key in _API_KEY_ENVS:
-            raw = os.environ.get(key) or env.get(key, "")
-            api_keys[key] = bool(raw)
-        return {"config": cfg, "api_keys": api_keys}
+        return {"config": cfg, "api_keys": {}}
 
     @app.put("/api/config")
     def put_config(body: dict):
@@ -734,6 +955,72 @@ def create_app() -> FastAPI:
     @app.get("/api/config/defaults")
     def get_config_defaults():
         return {"defaults": _CONFIG_DEFAULTS}
+
+    @app.get("/api/version")
+    def get_version():
+        version_file = Path(__file__).resolve().parents[2] / "VERSION"
+        version = version_file.read_text().strip() if version_file.exists() else "unknown"
+        return {"version": version}
+
+    # --- Notifier (Telegram) settings ---
+    class NotifierIn(BaseModel):
+        enabled: bool | None = None
+        bot_token: str | None = None
+        chat_id: str | None = None
+
+    class NotifierOut(BaseModel):
+        enabled: bool
+        bot_token: str | None
+        chat_id: str | None
+
+    @app.get("/api/notifier/config", response_model=NotifierOut)
+    def get_notifier_config() -> NotifierOut:
+        cfg = storage.read_notifier_config()
+        return NotifierOut(
+            enabled=cfg.get("enabled", False),
+            bot_token=cfg.get("bot_token"),
+            chat_id=cfg.get("chat_id"),
+        )
+
+    @app.put("/api/notifier/config", response_model=NotifierOut)
+    def update_notifier_config(body: NotifierIn) -> NotifierOut:
+        cfg = storage.read_notifier_config()
+        if body.enabled is not None:
+            cfg["enabled"] = bool(body.enabled)
+        if body.bot_token is not None:
+            cfg["bot_token"] = body.bot_token.strip() or None
+        if body.chat_id is not None:
+            cfg["chat_id"] = body.chat_id.strip() or None
+        storage.write_notifier_config(cfg)
+        return NotifierOut(
+            enabled=cfg.get("enabled", False),
+            bot_token=cfg.get("bot_token"),
+            chat_id=cfg.get("chat_id"),
+        )
+
+    @app.post("/api/notifier/test", status_code=202)
+    @limiter.limit(_BG_RATE_LIMIT)
+    async def test_notifier(request: Request) -> dict:
+        cfg = storage.read_notifier_config()
+        token = cfg.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = cfg.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID")
+        if not token or not chat_id:
+            raise HTTPException(status_code=400, detail="Telegram bot_token and chat_id must be configured")
+        from telegram import Bot
+        from telegram.error import Forbidden, InvalidToken
+
+        bot = Bot(token=token)
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text="✅ <b>TradingAgents Notifier Test</b>\n<i>Your Telegram notifications are working!</i>",
+                parse_mode="HTML",
+            )
+        except Forbidden as exc:
+            raise HTTPException(status_code=400, detail=f"Chat ID {chat_id} is not authorized: {exc}") from exc
+        except InvalidToken as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid bot token: {exc}") from exc
+        return {"status": "sent", "chat_id": chat_id}
 
     # static mount (only if build dir exists)
     settings = settings_mod.get_settings()
