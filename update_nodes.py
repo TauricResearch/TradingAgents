@@ -2,10 +2,11 @@ import os
 import glob
 import re
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
 directories = [
-    r'd:\Trading\TradingAgents\tradingagents\agents\analysts',
-    r'd:\Trading\TradingAgents\tradingagents\agents\researchers',
-    r'd:\Trading\TradingAgents\tradingagents\agents\risk_mgmt',
+    os.path.join(base_dir, 'tradingagents', 'agents', 'analysts'),
+    os.path.join(base_dir, 'tradingagents', 'agents', 'researchers'),
+    os.path.join(base_dir, 'tradingagents', 'agents', 'risk_mgmt'),
 ]
 
 for d in directories:
