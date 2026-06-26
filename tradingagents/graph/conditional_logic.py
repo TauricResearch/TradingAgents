@@ -52,22 +52,54 @@ class ConditionalLogic:
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
 
-        if (
-            state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
-        ):  # 3 rounds of back-and-forth between 2 agents
+        if self._investment_debate_is_complete(state):
             return "Research Manager"
         if state["investment_debate_state"]["current_response"].startswith("Bull"):
             return "Bear Researcher"
         return "Bull Researcher"
 
+    def should_continue_after_bull_researcher(self, state: AgentState) -> str:
+        """Determine the next node after the Bull Researcher."""
+        if self._investment_debate_is_complete(state):
+            return "Research Manager"
+        return "Bear Researcher"
+
+    def should_continue_after_bear_researcher(self, state: AgentState) -> str:
+        """Determine the next node after the Bear Researcher."""
+        if self._investment_debate_is_complete(state):
+            return "Research Manager"
+        return "Bull Researcher"
+
+    def _investment_debate_is_complete(self, state: AgentState) -> bool:
+        return state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
+
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue."""
-        if (
-            state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
-        ):  # 3 rounds of back-and-forth between 3 agents
+        if self._risk_analysis_is_complete(state):
             return "Portfolio Manager"
         if state["risk_debate_state"]["latest_speaker"].startswith("Aggressive"):
             return "Conservative Analyst"
         if state["risk_debate_state"]["latest_speaker"].startswith("Conservative"):
             return "Neutral Analyst"
         return "Aggressive Analyst"
+
+    def should_continue_after_aggressive_analyst(self, state: AgentState) -> str:
+        """Determine the next node after the Aggressive Analyst."""
+        if self._risk_analysis_is_complete(state):
+            return "Portfolio Manager"
+        return "Conservative Analyst"
+
+    def should_continue_after_conservative_analyst(self, state: AgentState) -> str:
+        """Determine the next node after the Conservative Analyst."""
+        if self._risk_analysis_is_complete(state):
+            return "Portfolio Manager"
+        return "Neutral Analyst"
+
+    def should_continue_after_neutral_analyst(self, state: AgentState) -> str:
+        """Determine the next node after the Neutral Analyst."""
+        if self._risk_analysis_is_complete(state):
+            return "Portfolio Manager"
+        return "Aggressive Analyst"
+
+    def _risk_analysis_is_complete(self, state: AgentState) -> bool:
+        return state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
