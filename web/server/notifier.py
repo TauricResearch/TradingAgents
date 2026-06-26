@@ -215,6 +215,49 @@ def build_heartbeat_message(results: list[IndicatorResult]) -> str:
     return _build_message(results, heartbeat=True)
 
 
+def _check_to_line(check: dict) -> str:
+    """Format a single raw check dict as an HTML line."""
+    ind = check.get("indicator", {})
+    result = check.get("result") or {}
+    name = ind.get("name", "Unknown")
+    message = result.get("message", "")
+    return f"<b>{_e(name)}</b> — {_e(message)}"
+
+
+def build_change_message(diff: dict) -> str:
+    """Build an HTML Telegram message describing what changed.
+
+    ``diff`` is the dict returned by ``storage.diff_indicator_states()``.
+    """
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+    lines = [f"📊 <b>TradingAgents Indicators — Signal Update</b>\n<i>{_e(now)}</i>\n"]
+
+    new_checks = diff.get("newly_triggered", [])
+    resolved_checks = diff.get("resolved", [])
+    still_checks = diff.get("still_active", [])
+
+    if new_checks:
+        lines.append("🚨 <b>New Signals</b>")
+        for c in new_checks:
+            lines.append(f"• {_check_to_line(c)}")
+        lines.append("")
+
+    if resolved_checks:
+        lines.append("✅ <b>Resolved</b>")
+        for c in resolved_checks:
+            lines.append(f"• {_check_to_line(c)}")
+        lines.append("")
+
+    if still_checks:
+        lines.append("ℹ️ <b>Still Active</b>")
+        for c in still_checks:
+            lines.append(f"• {_check_to_line(c)}")
+        lines.append("")
+
+    lines.append("<i>Automated indicator alert. Not financial advice.</i>")
+    return "\n".join(lines)
+
+
 def _e(text: str) -> str:
     """Escape a string for safe inclusion in an HTML Telegram message."""
     return html.escape(str(text))
