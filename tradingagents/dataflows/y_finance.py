@@ -350,10 +350,14 @@ def get_balance_sheet(
 
         if freq.lower() == "quarterly":
             data = yf_retry(lambda: ticker_obj.quarterly_balance_sheet)
+            data = filter_financials_by_date(data, curr_date)
+            if data.empty:
+                data = yf_retry(lambda: ticker_obj.balance_sheet)
+                data = filter_financials_by_date(data, curr_date)
+                freq = "annual (fallback from quarterly)"
         else:
             data = yf_retry(lambda: ticker_obj.balance_sheet)
-
-        data = filter_financials_by_date(data, curr_date)
+            data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
             raise NoMarketDataError(ticker, canonical, "no balance sheet data")
@@ -385,10 +389,14 @@ def get_cashflow(
 
         if freq.lower() == "quarterly":
             data = yf_retry(lambda: ticker_obj.quarterly_cashflow)
+            data = filter_financials_by_date(data, curr_date)
+            if data.empty:
+                data = yf_retry(lambda: ticker_obj.cashflow)
+                data = filter_financials_by_date(data, curr_date)
+                freq = "annual (fallback from quarterly)"
         else:
             data = yf_retry(lambda: ticker_obj.cashflow)
-
-        data = filter_financials_by_date(data, curr_date)
+            data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
             raise NoMarketDataError(ticker, canonical, "no cash flow data")
@@ -420,10 +428,14 @@ def get_income_statement(
 
         if freq.lower() == "quarterly":
             data = yf_retry(lambda: ticker_obj.quarterly_income_stmt)
+            data = filter_financials_by_date(data, curr_date)
+            if data.empty:
+                data = yf_retry(lambda: ticker_obj.income_stmt)
+                data = filter_financials_by_date(data, curr_date)
+                freq = "annual (fallback from quarterly)"
         else:
             data = yf_retry(lambda: ticker_obj.income_stmt)
-
-        data = filter_financials_by_date(data, curr_date)
+            data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
             raise NoMarketDataError(ticker, canonical, "no income statement data")

@@ -23,6 +23,10 @@ from tradingagents.agents.utils.news_data_tools import (
 )
 from tradingagents.agents.utils.prediction_markets_tools import get_prediction_markets
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
+from tradingagents.agents.utils.technical_data_tools import get_technical_indicators
+from tradingagents.agents.utils.quant_data_tools import get_quantitative_metrics
+from tradingagents.agents.utils.options_data_tools import get_options_chain_metrics
+from tradingagents.agents.utils.alternative_data_tools import get_youtube_sentiment
 
 # Public surface: the data tools are imported here so agents and the graph
 # import them from one place, plus the instrument/language helpers defined below.
@@ -44,6 +48,12 @@ __all__ = [
     "get_instrument_context_from_state",
     "get_language_instruction",
     "create_msg_delete",
+    "get_technical_indicators",
+    "get_quantitative_metrics",
+    "get_options_chain_metrics",
+    "get_youtube_sentiment",
+    "strip_think_tags",
+    "get_strict_data_instruction",
 ]
 
 logger = logging.getLogger(__name__)
@@ -63,6 +73,31 @@ def get_language_instruction() -> str:
     if lang.strip().lower() == "english":
         return ""
     return f" Write your entire response in {lang}."
+
+
+import re
+
+def strip_think_tags(text: str) -> str:
+    """Strip <think>...</think> blocks and any stray </think> tags from model output."""
+    if not isinstance(text, str):
+        return text
+    cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    cleaned = re.sub(r'</?think>', '', cleaned)
+    # Also strip out raw tool call tags that local models sometimes hallucinate in text
+    cleaned = re.sub(r'<tool_call>.*?</tool_call>', '', cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r'<tool_response>.*?</tool_call>', '', cleaned, flags=re.DOTALL)
+    return cleaned.strip()
+
+
+def get_strict_data_instruction() -> str:
+    """Return an instruction to prevent data hallucination when tools fail."""
+    return (
+        " IMPORTANT: DO NOT HALLUCINATE OR FABRICATE DATA. If all tool calls return "
+        "<unavailable>, <no data found>, or errors, you MUST output exactly "
+        "[DATA UNAVAILABLE — SKIPPED] for that section and nothing else. Do not invent analysis. "
+        "Also, NEVER hallucinate dates when calling tools. You MUST use exactly the current_date "
+        "provided in your prompt for any tool argument requesting a current or end date."
+    )
 
 
 def _clean_identity_value(value: Any) -> str | None:
@@ -112,6 +147,8 @@ def resolve_instrument_identity(ticker: str) -> dict:
         ("industry", "industry"),
         ("exchange", "exchange"),
         ("quoteType", "quote_type"),
+        ("country", "country"),
+        ("currency", "currency"),
     ):
         value = _clean_identity_value(info.get(source_key))
         if value:
@@ -152,7 +189,14 @@ def build_instrument_context(
         elif industry:
             details.append(f"Industry: {industry}")
         if identity.get("exchange"):
-            details.append(f"Exchange: {identity['exchange']}")
+            exch = identity['exchange']
+            if exch == "NSI":
+                exch = "NSE"
+            details.append(f"Exchange: {exch}")
+        if identity.get("country"):
+            details.append(f"Country: {identity['country']}")
+        if identity.get("currency"):
+            details.append(f"Currency: {identity['currency']} (use {identity['currency']} formatting instead of default $ if not USD)")
 
     if details:
         context += (

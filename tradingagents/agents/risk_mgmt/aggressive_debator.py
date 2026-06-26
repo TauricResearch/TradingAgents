@@ -1,4 +1,6 @@
 from tradingagents.agents.utils.agent_utils import (
+    strip_think_tags,
+    get_strict_data_instruction,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -42,7 +44,7 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
 
         new_risk_debate_state = {
             "history": history + "\n" + argument,
-            "aggressive_history": aggressive_history + "\n" + argument,
+            "aggressive_history": argument,
             "conservative_history": risk_debate_state.get("conservative_history", ""),
             "neutral_history": risk_debate_state.get("neutral_history", ""),
             "latest_speaker": "Aggressive",

@@ -1,3 +1,5 @@
+import logging
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -5,14 +7,23 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
     get_stock_data,
+    get_strict_data_instruction,
     get_verified_market_snapshot,
+    strip_think_tags,
 )
+from tradingagents.agents.utils.tool_call_recovery import (
+    log_tool_call_failure,
+    recover_tool_calls,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
+        ticker = state.get("company_of_interest", "UNKNOWN")
         instrument_context = get_instrument_context_from_state(state)
 
         tools = [
@@ -46,12 +57,23 @@ Volatility Indicators:
 Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
-- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names.
+- Select indicators that provide diverse and complementary information. Avoid redundancy. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names.
 
-Before writing the final report, call get_verified_market_snapshot for this ticker and the current date, and treat it as the source of truth for any exact OHLCV, price-level, or indicator-value claim. If another tool's output conflicts with the verified snapshot, flag the discrepancy rather than inventing a reconciled number. Do not claim historical validation, support/resistance bounces, or exact percentage moves unless they are directly supported by tool output with concrete dates and prices.
+Before writing the final report, call get_verified_market_snapshot for this ticker and the current date, and treat it as the source of truth for any exact OHLCV, price-level, or indicator-value claim.
 
-Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+IMPORTANT: Use the end_date equal to today's date ({current_date}) when calling get_stock_data. Start_date should be 1-2 years before that.
+
+Your report MUST include:
+1. Price Action Summary
+2. Technical Indicators interpretation
+3. **Support & Buy Zone** — specific price levels
+4. **Resistance & Target Prices** — specific price levels
+5. **Recommended Stop Loss** — specific price level (use ATR-based calculation)
+6. Overall Signal (Bullish/Bearish/Neutral)
+7. Summary Table (Markdown)
+
+Write a very detailed and nuanced report. Provide specific, actionable insights with supporting evidence."""
+            + get_strict_data_instruction()
             + get_language_instruction()
         )
 
@@ -79,16 +101,19 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-
         result = chain.invoke(state["messages"])
 
+        # Attempt to recover any hallucinated raw-JSON tool calls in the content
+        result, recovered = recover_tool_calls(result, tools, logger)
+        log_tool_call_failure("Market Analyst", ticker, [t.name for t in tools], result, logger)
+
         report = ""
-
         if len(result.tool_calls) == 0:
-            report = result.content
+            report = strip_think_tags(result.content)
 
+        messages_out = [result] + recovered
         return {
-            "messages": [result],
+            "messages": messages_out,
             "market_report": report,
         }
 

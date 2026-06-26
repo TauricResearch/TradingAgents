@@ -75,6 +75,10 @@ class MessageBuffer:
         "social": "Sentiment Analyst",
         "news": "News Analyst",
         "fundamentals": "Fundamentals Analyst",
+        "technical": "Technical Analyst",
+        "quant": "Quant Analyst",
+        "options": "Options Analyst",
+        "alternative": "Alternative Data Analyst",
     }
 
     # Report section mapping: section -> (analyst_key for filtering, finalizing_agent)
@@ -85,6 +89,10 @@ class MessageBuffer:
         "sentiment_report": ("social", "Sentiment Analyst"),
         "news_report": ("news", "News Analyst"),
         "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
+        "technical_report": ("technical", "Technical Analyst"),
+        "quant_report": ("quant", "Quant Analyst"),
+        "options_report": ("options", "Options Analyst"),
+        "alternative_report": ("alternative", "Alternative Data Analyst"),
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
@@ -193,6 +201,10 @@ class MessageBuffer:
                 "sentiment_report": "Social Sentiment",
                 "news_report": "News Analysis",
                 "fundamentals_report": "Fundamentals Analysis",
+                "technical_report": "Technical Analysis",
+                "quant_report": "Quantitative Analysis",
+                "options_report": "Options Analysis",
+                "alternative_report": "Alternative Data Analysis",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
@@ -208,25 +220,28 @@ class MessageBuffer:
         report_parts = []
 
         # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
+        analyst_sections = [
+            "market_report", "sentiment_report", "news_report", "fundamentals_report",
+            "technical_report", "quant_report", "options_report", "alternative_report"
+        ]
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
             if self.report_sections.get("market_report"):
-                report_parts.append(
-                    f"### Market Analysis\n{self.report_sections['market_report']}"
-                )
+                report_parts.append(f"### Market Analysis\n{self.report_sections['market_report']}")
             if self.report_sections.get("sentiment_report"):
-                report_parts.append(
-                    f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
-                )
+                report_parts.append(f"### Social Sentiment\n{self.report_sections['sentiment_report']}")
             if self.report_sections.get("news_report"):
-                report_parts.append(
-                    f"### News Analysis\n{self.report_sections['news_report']}"
-                )
+                report_parts.append(f"### News Analysis\n{self.report_sections['news_report']}")
             if self.report_sections.get("fundamentals_report"):
-                report_parts.append(
-                    f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
-                )
+                report_parts.append(f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}")
+            if self.report_sections.get("technical_report"):
+                report_parts.append(f"### Technical Analysis\n{self.report_sections['technical_report']}")
+            if self.report_sections.get("quant_report"):
+                report_parts.append(f"### Quantitative Analysis\n{self.report_sections['quant_report']}")
+            if self.report_sections.get("options_report"):
+                report_parts.append(f"### Options Analysis\n{self.report_sections['options_report']}")
+            if self.report_sections.get("alternative_report"):
+                report_parts.append(f"### Alternative Data Analysis\n{self.report_sections['alternative_report']}")
 
         # Research Team Reports
         if self.report_sections.get("investment_plan"):
@@ -306,6 +321,10 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
             "Sentiment Analyst",
             "News Analyst",
             "Fundamentals Analyst",
+            "Technical Analyst",
+            "Quant Analyst",
+            "Options Analyst",
+            "Alternative Data Analyst",
         ],
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
@@ -821,18 +840,35 @@ def update_research_team_status(status):
 
 
 # Ordered list of analysts for status transitions
-ANALYST_ORDER = ["market", "social", "news", "fundamentals"]
+ANALYST_ORDER = [
+    "market",
+    "social",
+    "news",
+    "fundamentals",
+    "technical",
+    "quant",
+    "options",
+    "alternative"
+]
 ANALYST_AGENT_NAMES = {
     "market": "Market Analyst",
     "social": "Sentiment Analyst",
     "news": "News Analyst",
     "fundamentals": "Fundamentals Analyst",
+    "technical": "Technical Analyst",
+    "quant": "Quant Analyst",
+    "options": "Options Analyst",
+    "alternative": "Alternative Data Analyst",
 }
 ANALYST_REPORT_MAP = {
     "market": "market_report",
     "social": "sentiment_report",
     "news": "news_report",
     "fundamentals": "fundamentals_report",
+    "technical": "technical_report",
+    "quant": "quant_report",
+    "options": "options_report",
+    "alternative": "alternative_report",
 }
 
 
@@ -1127,7 +1163,10 @@ def run_analysis(checkpoint: bool | None = None):
 
                 msg_type, content = classify_message_type(message)
                 if content and content.strip():
-                    message_buffer.add_message(msg_type, content)
+                    from tradingagents.agents.utils.agent_utils import strip_think_tags
+                    clean_content = strip_think_tags(content)
+                    if clean_content and clean_content.strip():
+                        message_buffer.add_message(msg_type, clean_content)
 
                 if hasattr(message, "tool_calls") and message.tool_calls:
                     for tool_call in message.tool_calls:
