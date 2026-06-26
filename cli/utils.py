@@ -18,6 +18,10 @@ ANALYST_ORDER = [
     ("Sentiment Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
+    ("Technical Analyst", AnalystType.TECHNICAL),
+    ("Quant Analyst", AnalystType.QUANT),
+    ("Options Analyst", AnalystType.OPTIONS),
+    ("Alternative Data Analyst", AnalystType.ALTERNATIVE_DATA),
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
@@ -113,8 +117,10 @@ def get_analysis_date() -> str:
         except ValueError:
             return False
 
+    today = datetime.now().strftime("%Y-%m-%d")
     date = questionary.text(
         "Enter the analysis date (YYYY-MM-DD):",
+        default=today,
         validate=lambda x: validate_date(x.strip())
         or "Please enter a valid date in YYYY-MM-DD format.",
         style=questionary.Style(

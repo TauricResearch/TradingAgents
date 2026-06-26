@@ -1,4 +1,6 @@
 from tradingagents.agents.utils.agent_utils import (
+    strip_think_tags,
+    get_strict_data_instruction,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -50,7 +52,7 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 
         new_investment_debate_state = {
             "history": history + "\n" + argument,
-            "bull_history": bull_history + "\n" + argument,
+            "bull_history": argument,
             "bear_history": investment_debate_state.get("bear_history", ""),
             "current_response": argument,
             "count": investment_debate_state["count"] + 1,

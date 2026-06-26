@@ -1,6 +1,10 @@
+import logging
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
+    strip_think_tags,
+    get_strict_data_instruction,
     get_global_news,
     get_instrument_context_from_state,
     get_language_instruction,
@@ -8,6 +12,12 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_prediction_markets,
 )
+from tradingagents.agents.utils.tool_call_recovery import (
+    log_tool_call_failure,
+    recover_tool_calls,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def create_news_analyst(llm):
@@ -25,9 +35,10 @@ def create_news_analyst(llm):
         ]
 
         system_message = (
-            f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for {asset_label}-specific or targeted news searches, get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news, get_macro_indicators(indicator, curr_date, look_back_days) to ground macro commentary in actual data from FRED (e.g. 'cpi', 'core_pce', 'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve'), and get_prediction_markets(topic, limit) for live market-implied probabilities of forward-looking events (e.g. 'Fed rate cut', 'recession 2026', geopolitical or sector events). Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
-            + get_language_instruction()
+            f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for {asset_label}-specific or targeted news searches, get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news, get_macro_indicators(indicator, curr_date, look_back_days) to ground macro commentary in actual data from FRED (e.g. 'cpi', 'core_pce', 'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve'), and get_prediction_markets(topic, limit) for live market-implied probabilities of forward-looking events (e.g. 'Fed rate cut', 'recession 2026', geopolitical or sector events). Provide specific, actionable insights with supporting evidence to help traders make informed decisions.\n"
+            "CRITICAL: If you state any quantitative figures (like inflation probabilities, rates, or macro predictions), you MUST cite the specific tool or source it came from (e.g., 'According to FRED data...', 'Based on prediction markets...'). Do not hallucinate quantitative figures without explicit tool data.\n"
+            " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
+            + get_strict_data_instruction() + get_language_instruction()
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -56,13 +67,15 @@ def create_news_analyst(llm):
         chain = prompt | llm.bind_tools(tools)
         result = chain.invoke(state["messages"])
 
-        report = ""
+        result, recovered = recover_tool_calls(result, tools, logger)
+        log_tool_call_failure("News Analyst", current_date, [t.name for t in tools], result, logger)
 
+        report = ""
         if len(result.tool_calls) == 0:
-            report = result.content
+            report = strip_think_tags(result.content)
 
         return {
-            "messages": [result],
+            "messages": [result] + recovered,
             "news_report": report,
         }
 

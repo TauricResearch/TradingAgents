@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.agent_utils import strip_think_tags, get_strict_data_instruction
 """Backwards-compatibility shim for the renamed module.
 
 The agent is now ``sentiment_analyst`` and aggregates Yahoo Finance news,

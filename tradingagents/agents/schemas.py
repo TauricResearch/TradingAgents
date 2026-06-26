@@ -138,18 +138,22 @@ class TraderProposal(BaseModel):
     )
     entry_price: float | None = Field(
         default=None,
-        description="Optional entry price target in the instrument's quote currency.",
+        description="Recommended entry price (buy zone) in the instrument's quote currency.",
+    )
+    target_price: float | None = Field(
+        default=None,
+        description="Recommended target price (take profit level) in the instrument's quote currency.",
     )
     stop_loss: float | None = Field(
         default=None,
-        description="Optional stop-loss price in the instrument's quote currency.",
+        description="Recommended stop-loss price to manage risk.",
     )
     position_sizing: str | None = Field(
         default=None,
         description="Optional sizing guidance, e.g. '5% of portfolio'.",
     )
 
-    @field_validator("entry_price", "stop_loss", mode="before")
+    @field_validator("entry_price", "target_price", "stop_loss", mode="before")
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
@@ -168,7 +172,9 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         f"**Reasoning**: {proposal.reasoning}",
     ]
     if proposal.entry_price is not None:
-        parts.extend(["", f"**Entry Price**: {proposal.entry_price}"])
+        parts.extend(["", f"**Entry Price (Buy Zone)**: {proposal.entry_price}"])
+    if proposal.target_price is not None:
+        parts.extend(["", f"**Target Price**: {proposal.target_price}"])
     if proposal.stop_loss is not None:
         parts.extend(["", f"**Stop Loss**: {proposal.stop_loss}"])
     if proposal.position_sizing:
