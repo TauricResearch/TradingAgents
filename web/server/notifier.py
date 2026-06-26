@@ -78,8 +78,19 @@ class TelegramNotifier:
         token: str | None = None,
         chat_id: str | int | None = None,
     ) -> None:
-        self._token: str = token or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-        self._chat_id: str = str(chat_id) if chat_id is not None else os.environ.get("TELEGRAM_CHAT_ID", "")
+        self._token: str = (
+            token
+            or os.environ.get("TRADINGAGENTS_TELEGRAM_BOT_TOKEN")
+            or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        )
+        self._chat_id: str = (
+            str(chat_id)
+            if chat_id is not None
+            else (
+                os.environ.get("TRADINGAGENTS_TELEGRAM_CHAT_ID")
+                or os.environ.get("TELEGRAM_CHAT_ID", "")
+            )
+        )
         if not self._token or not self._chat_id:
             raise ValueError(
                 "Telegram notifier requires both TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID "

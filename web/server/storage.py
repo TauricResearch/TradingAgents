@@ -671,6 +671,8 @@ def write_notifier_config(cfg: dict) -> None:
 
     if env_updates:
         _write_env(env_updates)
+        for k, v in env_updates.items():
+            os.environ[k] = v
 
     # Also keep notifier.json in sync for runtime reads that haven't loaded .env yet
     path = data_dir() / "notifier.json"

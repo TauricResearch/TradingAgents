@@ -47,8 +47,8 @@ def _get_notifier():
         cfg = storage.read_notifier_config()
         if not cfg.get("enabled"):
             return None
-        token = cfg.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN")
-        chat_id = cfg.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID")
+        token = cfg.get("bot_token") or os.environ.get("TRADINGAGENTS_TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = cfg.get("chat_id") or os.environ.get("TRADINGAGENTS_TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID")
         if not token or not chat_id:
             return None
         return _TelegramNotifierProxy(token, chat_id)
@@ -1002,8 +1002,8 @@ def create_app() -> FastAPI:
     @limiter.limit(_BG_RATE_LIMIT)
     async def test_notifier(request: Request) -> dict:
         cfg = storage.read_notifier_config()
-        token = cfg.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN")
-        chat_id = cfg.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID")
+        token = cfg.get("bot_token") or os.environ.get("TRADINGAGENTS_TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = cfg.get("chat_id") or os.environ.get("TRADINGAGENTS_TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID")
         if not token or not chat_id:
             raise HTTPException(status_code=400, detail="Telegram bot_token and chat_id must be configured")
         from telegram import Bot
