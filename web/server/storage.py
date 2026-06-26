@@ -657,6 +657,85 @@ def read_notifier_config() -> dict:
     }
 
 
+# ---- Indicator check result state (for change-detection) ----
+
+_INDICATOR_STATE_FILE = "indicator_state.json"
+
+
+def read_indicator_state() -> dict[str, dict]:
+    """Return the last-known indicator check results keyed by indicator id.
+
+    Returns ``{}`` when no prior state exists (first run or deleted file).
+    """
+    path = data_dir() / _INDICATOR_STATE_FILE
+    payload = read_json(path)
+    if not payload:
+        return {}
+    return payload
+
+
+def write_indicator_state(state: dict[str, dict]) -> None:
+    """Persist indicator check results so the next run can detect changes."""
+    path = data_dir() / _INDICATOR_STATE_FILE
+    write_json_atomic(path, state)
+
+
+def diff_indicator_states(
+    previous: dict[str, dict],
+    current: list[dict],
+) -> dict:
+    """Compare previous vs current indicator results.
+
+    Returns a dict with:
+      - ``changed``: bool — whether the triggered set differs
+      - ``newly_triggered``: list of result dicts that just became triggered
+      - ``resolved``: list of result dicts that are no longer triggered
+      - ``still_active``: list of result dicts still triggered
+      - ``all_checks``: full current results list
+    """
+    prev_triggered = {iid for iid, s in previous.items() if s.get("triggered")}
+    curr_by_id: dict[str, dict] = {}
+    for c in current:
+        ind = c.get("indicator", {})
+        rid = ind.get("id")
+        if rid:
+            curr_by_id[rid] = c
+
+    curr_triggered = {rid for rid, c in curr_by_id.items() if c.get("result", {}).get("triggered")}
+
+    newly_ids = curr_triggered - prev_triggered
+    resolved_ids = prev_triggered - curr_triggered
+    still_ids = curr_triggered & prev_triggered
+
+    def _lookup(ids: set[str]) -> list[dict]:
+        return [curr_by_id[iid] for iid in sorted(ids) if iid in curr_by_id]
+
+    return {
+        "changed": bool(newly_ids or resolved_ids),
+        "newly_triggered": _lookup(newly_ids),
+        "resolved": _lookup(resolved_ids),
+        "still_active": _lookup(still_ids),
+        "all_checks": current,
+    }
+
+
+def build_state_from_checks(checks: list[dict]) -> dict[str, dict]:
+    """Convert a ``run_checks()`` response to the persisted state dict."""
+    state: dict[str, dict] = {}
+    for c in checks:
+        ind = c.get("indicator", {})
+        rid = ind.get("id")
+        if not rid:
+            continue
+        result = c.get("result") or {}
+        state[rid] = {
+            "triggered": result.get("triggered", False),
+            "value": result.get("value"),
+            "checked_at": result.get("checked_at"),
+        }
+    return state
+
+
 def write_notifier_config(cfg: dict) -> None:
     """Persist notifier config to .env (Durable) and notifier.json (for runtime)."""
     token = cfg.get("bot_token")
@@ -671,6 +750,8 @@ def write_notifier_config(cfg: dict) -> None:
 
     if env_updates:
         _write_env(env_updates)
+        for k, v in env_updates.items():
+            os.environ[k] = v
 
     # Also keep notifier.json in sync for runtime reads that haven't loaded .env yet
     path = data_dir() / "notifier.json"

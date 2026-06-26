@@ -47,7 +47,7 @@ def create_telegram_application(token: str) -> Application:
         chat_id = update.effective_chat.id
         logger.info("/fetch command received from chat_id=%s", chat_id)
 
-        allowed = os.getenv("TELEGRAM_CHAT_ID")
+        allowed = os.getenv("TRADINGAGENTS_TELEGRAM_CHAT_ID") or os.getenv("TELEGRAM_CHAT_ID")
         if allowed is not None and chat_id != int(allowed):
             logger.warning("Unauthorized /fetch attempt from %s (allowed=%s)", chat_id, allowed)
             await context.bot.send_message(chat_id=chat_id, text="Unauthorized.")

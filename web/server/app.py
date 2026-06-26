@@ -47,8 +47,8 @@ def _get_notifier():
         cfg = storage.read_notifier_config()
         if not cfg.get("enabled"):
             return None
-        token = cfg.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN")
-        chat_id = cfg.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID")
+        token = cfg.get("bot_token") or os.environ.get("TRADINGAGENTS_TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = cfg.get("chat_id") or os.environ.get("TRADINGAGENTS_TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID")
         if not token or not chat_id:
             return None
         return _TelegramNotifierProxy(token, chat_id)
@@ -76,6 +76,20 @@ class _TelegramNotifierProxy:
             await self._bot.send_message(
                 chat_id=self._chat_id,
                 text=build_results_message(results),
+                parse_mode="HTML",
+            )
+        except Forbidden as exc:
+            log.warning("Telegram Forbidden: %s", exc)
+        except InvalidToken as exc:
+            log.warning("Telegram InvalidToken: %s", exc)
+
+    async def send_raw(self, text: str) -> None:
+        from telegram.error import Forbidden, InvalidToken
+
+        try:
+            await self._bot.send_message(
+                chat_id=self._chat_id,
+                text=text,
                 parse_mode="HTML",
             )
         except Forbidden as exc:
@@ -137,22 +151,36 @@ _indicator_scheduler_stop = threading.Event()
 _indicator_scheduler_thread: threading.Thread | None = None
 
 
+def _maybe_send_change_notification(checks: list[dict]) -> None:
+    """Compare checks to previous state and send Telegram if the triggered set changed."""
+    try:
+        cfg = storage.read_notifier_config()
+        if not (cfg.get("enabled") and cfg.get("bot_token") and cfg.get("chat_id")):
+            return
+        previous = storage.read_indicator_state()
+        diff = storage.diff_indicator_states(previous, checks)
+        if not diff["changed"]:
+            return
+        from web.server.notifier import build_change_message
+
+        notifier = _get_notifier()
+        if not notifier:
+            return
+        message = build_change_message(diff)
+        loop = events._get_event_loop()
+        if loop is None:
+            return
+        loop.create_task(notifier.send_raw(message))
+        storage.write_indicator_state(storage.build_state_from_checks(checks))
+    except Exception:
+        log.exception("Failed to send change notification")
+
+
 def _run_indicator_check() -> None:
-    """Run indicator check and send Telegram notification if triggered."""
+    """Run indicator check and send Telegram notification on status change."""
     try:
         checks = indicators.run_checks()
-        cfg = storage.read_notifier_config()
-        if cfg.get("enabled") and cfg.get("bot_token") and cfg.get("chat_id"):
-            triggered = any((c or {}).get("result", {}).get("triggered", False) for c in checks)
-            if triggered:
-                from web.server.notifier import _results_from_check_response
-                results = _results_from_check_response(checks)
-                notifier = _get_notifier()
-                if notifier:
-                    loop = events._get_event_loop()
-                    if loop is None:
-                        return
-                    loop.create_task(notifier.send_results(results))
+        _maybe_send_change_notification(checks)
     except Exception:
         log.exception("Background indicator check failed")
 
@@ -431,25 +459,7 @@ def create_app() -> FastAPI:
     @limiter.limit(_BG_RATE_LIMIT)
     def check_indicators(request: Request) -> dict:
         checks = indicators.run_checks()
-
-        # Send Telegram notification if notifier is enabled and something triggered
-        try:
-            cfg = storage.read_notifier_config()
-            if cfg.get("enabled") and cfg.get("bot_token") and cfg.get("chat_id"):
-                    _notifier = _get_notifier()
-                    if _notifier is not None:
-                        _cfg_triggered = any(
-                            (c or {}).get("result", {}).get("triggered", False) for c in checks
-                        )
-                        if _cfg_triggered:
-                            from web.server.notifier import _results_from_check_response
-
-                            _results = _results_from_check_response(checks)
-                            _asyncio = __import__("asyncio")
-                            _asyncio.get_running_loop().create_task(_notifier.send_results(_results))
-        except Exception:
-            log.exception("Failed to send Telegram notification")
-
+        _maybe_send_change_notification(checks)
         return {"checks": checks}
 
     @app.get("/api/indicators/schedule")
@@ -1002,8 +1012,8 @@ def create_app() -> FastAPI:
     @limiter.limit(_BG_RATE_LIMIT)
     async def test_notifier(request: Request) -> dict:
         cfg = storage.read_notifier_config()
-        token = cfg.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN")
-        chat_id = cfg.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID")
+        token = cfg.get("bot_token") or os.environ.get("TRADINGAGENTS_TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = cfg.get("chat_id") or os.environ.get("TRADINGAGENTS_TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID")
         if not token or not chat_id:
             raise HTTPException(status_code=400, detail="Telegram bot_token and chat_id must be configured")
         from telegram import Bot
