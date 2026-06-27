@@ -4,11 +4,13 @@ import type { WsEvent } from "../lib/events";
 
 export function useFocusedRunEvents(): WsEvent[] {
   const focused = useUi((s) => s.focusedTicker);
-  // Historical (user-picked) run takes priority so the user can keep
-  // viewing an older run while a new one streams in. If the user
-  // hasn't picked one, fall back to the latest run id for the ticker.
+  // Active (streaming) run takes priority so the user sees live events.
+  // Historical (user-picked) run is next so the user can keep viewing
+  // an older run. Falls back to the last completed run id.
   const runId = useUi((s) => {
     if (focused == null) return null;
+    const active = s.activeRunIdByTicker[focused];
+    if (active != null) return active;
     const historical = s.historicalRunIdByTicker[focused];
     if (historical != null) return historical;
     return s.lastRunIdByTicker[focused] ?? null;

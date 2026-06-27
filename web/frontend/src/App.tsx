@@ -105,6 +105,8 @@ export default function App() {
   // avoid a duplicate network round-trip.
   const focusedRunId = useUi((s) => {
     if (focused == null) return null;
+    const active = s.activeRunIdByTicker[focused];
+    if (active != null) return active;
     const historical = s.historicalRunIdByTicker[focused];
     if (historical != null) return historical;
     return s.lastRunIdByTicker[focused] ?? null;

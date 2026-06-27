@@ -38,6 +38,8 @@ _cancelled_run_ids: set[str] = set()
 def mark_run_cancelled(run_id: str) -> None:
     """Register a run as cancelled in-memory so the running graph stops fast."""
     _cancelled_run_ids.add(run_id)
+    if len(_cancelled_run_ids) > 500:
+        _cancelled_run_ids.clear()
 
 
 def checkpoint_thread_id(ticker: str, date_str: str) -> str:

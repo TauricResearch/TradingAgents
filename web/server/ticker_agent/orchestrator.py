@@ -43,6 +43,7 @@ _last_cycle_at: str | None = None
 _next_cycle_at: str | None = None
 _cycles_completed = 0
 _activity_log: list[dict] = []
+_MAX_ACTIVITY_LOG = 500
 _current_step: int = 0
 _live_events: deque[dict] = deque(maxlen=200)
 _event_id_counter: int = 0
@@ -503,6 +504,8 @@ def _write_memory(context: dict, llm_response: dict, execution_result: dict, sco
             "tickers_analyzed": len(context.get("universe", [])),
             "backtests_scheduled": scheduled_count,
         })
+        if len(_activity_log) > _MAX_ACTIVITY_LOG:
+            del _activity_log[:len(_activity_log) - _MAX_ACTIVITY_LOG]
 
 
 def _ask_llm_for_missing_capabilities(caps_text: str) -> list[tuple[str, str, str]]:

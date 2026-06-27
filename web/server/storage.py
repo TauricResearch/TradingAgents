@@ -34,6 +34,7 @@ _settings = {"data_dir": "", "cache_dir": ""}
 # Cache mapping run_id → run directory path, avoiding O(n) directory walks.
 # Populated lazily by ``_find_run_dir``.
 _run_dir_cache: dict[str, Path] = {}
+_RUN_DIR_CACHE_MAX = 2000
 
 
 def clear_run_dir_cache() -> None:
@@ -300,6 +301,7 @@ def create_run_dir(
     (run_dir / "stages").mkdir()
     run_id = run_id_for(ticker, started_at)
     _run_dir_cache[run_id] = run_dir
+    _trim_run_dir_cache()
     run_json = {
         "id": run_id,
         "ticker": safe_ticker_component(ticker).upper(),
@@ -343,6 +345,22 @@ def read_run(run_id: str) -> dict | None:
     return read_json(rd / "run.json")
 
 
+def _trim_run_dir_cache() -> None:
+    if len(_run_dir_cache) > _RUN_DIR_CACHE_MAX:
+        culled = 0
+        for rid in list(_run_dir_cache):
+            if culled >= len(_run_dir_cache) - _RUN_DIR_CACHE_MAX // 2:
+                break
+            p = _run_dir_cache[rid]
+            if not p.exists():
+                del _run_dir_cache[rid]
+                culled += 1
+        if len(_run_dir_cache) > _RUN_DIR_CACHE_MAX:
+            keys = sorted(_run_dir_cache, key=lambda k: _run_dir_cache[k].stat().st_mtime if _run_dir_cache[k].exists() else 0)
+            for k in keys[:len(_run_dir_cache) - _RUN_DIR_CACHE_MAX // 2]:
+                del _run_dir_cache[k]
+
+
 def _find_run_dir(run_id: str) -> Path | None:
     """Locate the run directory for ``run_id``, using and populating the cache."""
     cached = _run_dir_cache.get(run_id)
@@ -357,6 +375,7 @@ def _find_run_dir(run_id: str) -> Path | None:
             rj = read_json(sd / "run.json")
             if rj and rj.get("id") == run_id:
                 _run_dir_cache[run_id] = sd
+                _trim_run_dir_cache()
                 return sd
     return None
 

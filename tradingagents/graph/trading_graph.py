@@ -158,7 +158,9 @@ class TradingAgentsGraph:
         # State tracking
         self.curr_state = None
         self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
+        self.log_states_dict: dict[str, dict] = {}
+        self._state_log_counter = 0
+        self._max_states_in_memory = 10
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
@@ -610,7 +612,8 @@ class TradingAgentsGraph:
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
-        self.log_states_dict[str(trade_date)] = {
+        key = str(trade_date)
+        self.log_states_dict[key] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
             "market_report": final_state["market_report"],
@@ -648,7 +651,14 @@ class TradingAgentsGraph:
 
         log_path = directory / f"full_states_log_{trade_date}.json"
         with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
+            json.dump(self.log_states_dict[key], f, indent=4)
+
+        self._state_log_counter += 1
+        if self._state_log_counter > self._max_states_in_memory:
+            oldest = sorted(self.log_states_dict)[:self._state_log_counter - self._max_states_in_memory]
+            for k in oldest:
+                del self.log_states_dict[k]
+            self._state_log_counter = len(self.log_states_dict)
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""

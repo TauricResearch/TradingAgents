@@ -89,6 +89,7 @@ def _interval_for_span(span: timedelta) -> str:
 #: Key ``(ticker_upper, interval, start.date(), end.date())``.
 #: Value ``(fetched_at_monotonic, bars)``.
 _bar_cache: dict[tuple[str, str, object, object], tuple[float, list[dict]]] = {}
+_bar_cache_max_size = 500
 
 #: TTL by interval. 1m polls are short; 1d polls are long.
 _CACHE_TTL_S: dict[str, int] = {
@@ -96,6 +97,13 @@ _CACHE_TTL_S: dict[str, int] = {
     "1h": 300,
     "1d": 3600,
 }
+
+
+def _trim_bar_cache() -> None:
+    if len(_bar_cache) > _bar_cache_max_size:
+        sorted_keys = sorted(_bar_cache.keys(), key=lambda k: _bar_cache[k][0])
+        for k in sorted_keys[:len(_bar_cache) - _bar_cache_max_size]:
+            del _bar_cache[k]
 
 
 def fetch_history_bars(
@@ -136,6 +144,7 @@ def fetch_history_bars(
     )
     bars = _df_to_bars(df)
     _bar_cache[key] = (now_mono, bars)
+    _trim_bar_cache()
     return bars
 
 
