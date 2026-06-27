@@ -370,6 +370,7 @@ export function WatchlistRail() {
 
   const mobileSidebarOpen = useUi((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useUi((s) => s.setMobileSidebarOpen);
+  const sidebarCollapsed = useUi((s) => s.sidebarCollapsed);
 
   return (
     <>
@@ -379,8 +380,10 @@ export function WatchlistRail() {
           w-full max-w-72 md:w-64
           border-r border-slate-800 bg-slate-900/95 md:bg-slate-900/50 backdrop-blur-sm
           flex flex-col h-screen overflow-hidden
-          transition-transform duration-300 ease-out
-          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          transition-all duration-300 ease-out
+          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0
+          ${sidebarCollapsed ? "md:w-0 md:min-w-0 md:border-r-0 md:overflow-hidden" : "md:w-64"}
         `}
       >
         <div className="md:hidden shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-800 safe-area-top">

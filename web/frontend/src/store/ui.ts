@@ -58,6 +58,8 @@ interface UiState {
   groupOrder: string[];
   // Mobile sidebar drawer open/closed.
   mobileSidebarOpen: boolean;
+  // Desktop sidebar collapsed/expanded.
+  sidebarCollapsed: boolean;
   // Ticker Accuracy Agent drawer open/closed.
   tickerAgentDrawerOpen: boolean;
   setFocusedTicker: (t: string | null) => void;
@@ -83,6 +85,7 @@ interface UiState {
   removeCustomGroupColor: (name: string) => void;
   setGroupOrder: (order: string[]) => void;
   setMobileSidebarOpen: (open: boolean) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 }
 
 export const useUi = create<UiState>()(
@@ -104,7 +107,9 @@ export const useUi = create<UiState>()(
       groupOrder: [],
       mobileSidebarOpen: false,
       tickerAgentDrawerOpen: false,
+      sidebarCollapsed: false,
       setFocusedTicker: (t) => { set({ focusedTicker: t, mobileSidebarOpen: false }); },
+      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       setTickerAgentDrawerOpen: (open) => set({ tickerAgentDrawerOpen: open }),
       setLastRunIdForTicker: (ticker, runId) =>
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
