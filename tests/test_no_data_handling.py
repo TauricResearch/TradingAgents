@@ -14,7 +14,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from tradingagents.dataflows import stockstats_utils, interface
+from tradingagents.dataflows import interface, stockstats_utils
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.symbol_utils import NoMarketDataError
 
@@ -33,9 +33,9 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
 
     def test_empty_download_raises_and_does_not_cache(self):
         empty = pd.DataFrame()
-        with mock.patch.object(stockstats_utils.yf, "download", return_value=empty) as dl:
-            with self.assertRaises(NoMarketDataError):
-                stockstats_utils.load_ohlcv("FAKE", "2026-01-01")
+        with mock.patch.object(stockstats_utils.yf, "download", return_value=empty), \
+                self.assertRaises(NoMarketDataError):
+            stockstats_utils.load_ohlcv("FAKE", "2026-01-01")
         # Nothing should have been written to the cache.
         self.assertEqual(os.listdir(self._tmp), [])
 

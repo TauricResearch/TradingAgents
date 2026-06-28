@@ -1,9 +1,10 @@
 """Unit tests for the LLM capability table."""
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from tradingagents.llm_clients.capabilities import (
-    ModelCapabilities,
     get_capabilities,
 )
 
@@ -47,7 +48,7 @@ class TestPatternMatches:
         caps = get_capabilities("deepseek-reasoner-pro")
         assert caps.supports_tool_choice is False
 
-    def test_future_minimax_m3_inherits_thinking_quirks(self):
+    def test_minimax_m3_inherits_thinking_quirks(self):
         caps = get_capabilities("MiniMax-M3")
         assert caps.supports_tool_choice is False
 
@@ -119,5 +120,5 @@ class TestDefault:
 def test_capabilities_dataclass_is_frozen():
     """Capability rows are immutable so they can be safely shared."""
     caps = get_capabilities("deepseek-chat")
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         caps.supports_tool_choice = False  # type: ignore[misc]

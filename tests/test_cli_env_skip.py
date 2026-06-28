@@ -82,5 +82,68 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         self.assertEqual(sel["output_language"], "Japanese")
 
 
+@pytest.mark.unit
+class TestResearchDepthSkippedFromEnv(unittest.TestCase):
+    def test_both_round_envs_skip_depth_prompt(self):
+        import cli.main as m
+
+        env = {
+            "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "2",
+            "TRADINGAGENTS_MAX_RISK_ROUNDS": "4",
+        }
+        fake_cfg = dict(m.DEFAULT_CONFIG)
+        fake_cfg.update({"max_debate_rounds": 2, "max_risk_discuss_rounds": 4})
+
+        with mock.patch.dict(os.environ, env, clear=False), \
+             mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
+             mock.patch.object(m, "fetch_announcements", return_value=None), \
+             mock.patch.object(m, "display_announcements"), \
+             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
+             mock.patch.object(m, "select_analysts", return_value=[]), \
+             mock.patch.object(m, "select_research_depth") as prompt_depth, \
+             mock.patch.object(m, "ensure_api_key"), \
+             mock.patch.object(m, "select_llm_provider", return_value=("openai", None)), \
+             mock.patch.object(m, "ask_output_language", return_value="English"), \
+             mock.patch.object(m, "select_shallow_thinking_agent", return_value="gpt-5.4-mini"), \
+             mock.patch.object(m, "select_deep_thinking_agent", return_value="gpt-5.5"), \
+             mock.patch.object(m, "ask_openai_reasoning_effort", return_value=None):
+            sel = m.get_user_selections()
+
+        # The research-depth prompt is skipped; the value comes from the env config.
+        prompt_depth.assert_not_called()
+        self.assertEqual(sel["research_depth"], 2)
+
+
+@pytest.mark.unit
+class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
+    def test_effort_env_skips_step8_prompt(self):
+        import cli.main as m
+
+        env = {"TRADINGAGENTS_OPENAI_REASONING_EFFORT": "high"}
+        fake_cfg = dict(m.DEFAULT_CONFIG)
+        fake_cfg.update({"openai_reasoning_effort": "high"})
+
+        with mock.patch.dict(os.environ, env, clear=False), \
+             mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
+             mock.patch.object(m, "fetch_announcements", return_value=None), \
+             mock.patch.object(m, "display_announcements"), \
+             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
+             mock.patch.object(m, "select_analysts", return_value=[]), \
+             mock.patch.object(m, "select_research_depth", return_value=1), \
+             mock.patch.object(m, "ensure_api_key"), \
+             mock.patch.object(m, "select_llm_provider", return_value=("openai", None)), \
+             mock.patch.object(m, "ask_output_language", return_value="English"), \
+             mock.patch.object(m, "select_shallow_thinking_agent", return_value="gpt-5.4-mini"), \
+             mock.patch.object(m, "select_deep_thinking_agent", return_value="gpt-5.5"), \
+             mock.patch.object(m, "ask_openai_reasoning_effort") as prompt_effort:
+            sel = m.get_user_selections()
+
+        # The reasoning-effort prompt is skipped; the value comes from env config.
+        prompt_effort.assert_not_called()
+        self.assertEqual(sel["openai_reasoning_effort"], "high")
+
+
 if __name__ == "__main__":
     unittest.main()

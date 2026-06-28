@@ -1,15 +1,16 @@
 """Tests for TradingMemoryLog — storage, deferred reflection, PM injection, legacy removal."""
 
-import pytest
-import pandas as pd
 from unittest.mock import MagicMock, patch
 
-from tradingagents.agents.utils.memory import TradingMemoryLog
+import pandas as pd
+import pytest
+
+from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.graph.propagation import Propagator
-from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 
 _SEP = TradingMemoryLog._SEPARATOR
 
