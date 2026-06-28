@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { MessageSquare, AlertTriangle, Wrench, Play } from "lucide-react";
 import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
 import { formatDuration } from "../lib/format";
 import type { WsEvent } from "../lib/events";
@@ -59,6 +60,15 @@ const formatBubble: Record<string, Formatter> = {
   run_failed: formatRunFailed,
 };
 
+const TYPE_ICON: Record<string, JSX.Element | undefined> = {
+  debate_message: <MessageSquare className="w-3 h-3 inline mr-1 -mt-0.5 text-amber-400/70" />,
+  risk_message: <AlertTriangle className="w-3 h-3 inline mr-1 -mt-0.5 text-red-400/70" />,
+  tool_call: <Wrench className="w-3 h-3 inline mr-1 -mt-0.5 text-slate-400" />,
+  tool_result: <Wrench className="w-3 h-3 inline mr-1 -mt-0.5 text-slate-400" />,
+  decision: <Play className="w-3 h-3 inline mr-1 -mt-0.5 text-emerald-400/70" />,
+  analyst_started: <Play className="w-3 h-3 inline mr-1 -mt-0.5 text-sky-400/70" />,
+};
+
 export function LiveEventStream() {
   const events = useFocusedRunEvents();
   const ref = useRef<HTMLDivElement>(null);
@@ -79,7 +89,6 @@ export function LiveEventStream() {
     });
   };
 
-  // Derive live stats from events (mirrors CLI footer)
   const stats = useMemo(() => {
     const startedNodes = new Set<string>();
     const completedNodes = new Set<string>();
@@ -142,7 +151,7 @@ export function LiveEventStream() {
           ))}
         </div>
       ) : events.length === 0 ? (
-        <p className="text-sm text-slate-500 text-center py-8">No events yet. Click "Run analysis" to start.</p>
+        <p className="text-sm text-slate-500 text-center py-8">No events yet. Click &quot;Run analysis&quot; to start.</p>
       ) : null}
       {events.map((e) => {
         const key = (e.id ?? "") + ":" + (e.ts ?? 0);
@@ -194,6 +203,7 @@ function Bubble({ event, expanded, onToggle }: { event: WsEvent; expanded: boole
   const fullMessage = data.message as string | undefined;
   const toolArgs = data.args as string | undefined;
   const canExpand = !!onToggle;
+  const icon = TYPE_ICON[event.type];
 
   let expandContent: React.ReactNode = null;
   if (expanded) {
@@ -239,33 +249,16 @@ function Bubble({ event, expanded, onToggle }: { event: WsEvent; expanded: boole
       onClick={canExpand ? onToggle : undefined}
     >
       <span className="text-slate-600 mr-2 font-mono text-[10px]">{new Date(event.ts).toLocaleTimeString()}</span>
-      {event.type === "debate_message" && (
-        <svg className="w-3 h-3 inline mr-1 -mt-0.5 text-amber-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z" />
-        </svg>
-      )}
-      {event.type === "risk_message" && (
-        <svg className="w-3 h-3 inline mr-1 -mt-0.5 text-red-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-        </svg>
-      )}
-      {event.type === "tool_call" && (
-        <svg className="w-3 h-3 inline mr-1 -mt-0.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
-        </svg>
-      )}
+      {icon}
       <span className="font-medium">{text}</span>
       {expandContent}
     </div>
   );
 }
 
-/** Extract full report text grouped by stage from analyst_completed events. */
-// eslint-disable-next-line react-refresh/only-export-components
 export function useStageReports(events: WsEvent[]): { stage: string; text: string }[] {
   const seen = new Set<string>();
   const reports: { stage: string; text: string }[] = [];
-  // Iterate in reverse — the latest report for each stage is the final one
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i];
     if (e.type !== "analyst_completed") continue;

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Check } from "lucide-react";
 import type { WsEvent } from "../lib/events";
 import { formatDuration } from "../lib/format";
 
 export interface TeamDef {
   id: string;
   label: string;
-  icon: string;
+  icon: ReactNode;
   agents: { name: string }[];
   color: string;
   bgDim: string;
@@ -115,9 +116,7 @@ function AgentRow({
 }) {
   const dot =
     status === "completed" ? (
-      <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke={teamColor} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-        <path d="m4.5 12.75 6 6 9-13.5" />
-      </svg>
+      <Check className="w-2.5 h-2.5 shrink-0" style={{ color: teamColor }} strokeWidth={3} />
     ) : status === "in_progress" ? (
       <span className="block w-2 h-2 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: teamColor, boxShadow: `0 0 6px ${teamColor}60` }} />
     ) : (
@@ -212,7 +211,7 @@ export function TeamCard({
         style={{ borderBottomColor: status === "done" ? `${team.color}30` : "rgba(51,65,85,0.3)" }}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm leading-none" style={{ filter: status === "idle" ? "grayscale(1) opacity(0.4)" : "none" }}>
+          <span className="text-sm leading-none" style={{ filter: status === "idle" ? "grayscale(1) opacity(0.4)" : "none", color: team.color }}>
             {team.icon}
           </span>
           <span
@@ -230,7 +229,7 @@ export function TeamCard({
           )}
           {status === "done" && timing.duration_ms != null && (
             <span className="text-[10px] font-mono tabular-nums flex items-center gap-0.5" style={{ color: team.color }}>
-              <span className="text-emerald-400">✓</span>
+              <Check className="w-2.5 h-2.5" />
               {formatDuration(timing.duration_ms)}
             </span>
           )}

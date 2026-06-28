@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader, TrendingUp, TrendingDown } from "lucide-react";
 import { startRun, cancelRun, fetchTickerRuns, type RunRow } from "../lib/api";
 import { useUi } from "../store/ui";
 import { formatDuration } from "../lib/format";
@@ -166,9 +167,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                 : 'bg-red-500/10 text-red-400 border border-red-500/20'
             }`}>
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={changePct >= 0 ? "M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" : "M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3"} />
-              </svg>
+              {changePct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
             </span>
           )}
@@ -195,12 +194,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
           onClick={() => { if (!isRunning) start.mutate(); }}
           className="btn-primary text-xs md:text-sm whitespace-nowrap"
         >
-          {(isRunning || start.isPending) && (
-            <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" className="opacity-25" />
-              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-          )}
+          {(isRunning || start.isPending) && <Loader className="inline w-3 h-3 mr-1.5 animate-spin" />}
           {isRunning
             ? `Running ${formatDuration(elapsedMs)}`
             : start.isPending
@@ -227,12 +221,7 @@ export function TickerHeader({ ticker, price, changePct, stale }: Props) {
             onClick={() => cancel.mutate()}
             className="btn-secondary text-xs md:text-sm whitespace-nowrap"
           >
-            {cancel.isPending && (
-              <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" className="opacity-25" />
-                <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-            )}
+            {cancel.isPending && <Loader className="inline w-3 h-3 mr-1.5 animate-spin" />}
             {cancel.isPending ? "Cancelling..." : "Cancel"}
           </button>
         )}

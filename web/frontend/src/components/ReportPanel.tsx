@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown, FileText } from "lucide-react";
 import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
 import { useStageReports } from "./LiveEventStream";
 
@@ -23,7 +24,7 @@ export function ReportPanel() {
   return (
     <div className="mt-6">
       <h3 className="section-header mb-3 flex items-center gap-2">
-        <span className="w-1 h-1 rounded-full bg-emerald-400" />
+        <FileText className="w-3 h-3 text-emerald-400" />
         Full Reports
       </h3>
       <div className="space-y-2">
@@ -39,13 +40,9 @@ export function ReportPanel() {
                 aria-controls={`report-${stage}`}
               >
                 <span>{stageLabels[stage] ?? stage}</span>
-                <svg
+                <ChevronDown
                   className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                </svg>
+                />
               </button>
               {isOpen && (
                 <div id={`report-${stage}`} role="region" aria-label={stageLabels[stage] ?? stage}>

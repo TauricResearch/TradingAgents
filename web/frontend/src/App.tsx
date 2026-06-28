@@ -191,9 +191,10 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-market-DEFAULT">
       {/* Ambient background gradient */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-sky-500/5 blur-[120px]" />
-        <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full bg-emerald-500/5 blur-[150px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-sky-400/3 blur-[200px]" />
+        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-sky-500/5 blur-[150px] animate-breathing" />
+        <div className="absolute -bottom-40 -right-40 w-[700px] h-[700px] rounded-full bg-emerald-500/5 blur-[180px] animate-pulse-glow" style={{ animationDuration: '4s' }} />
+        <div className="absolute top-1/4 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-violet-500/3 blur-[150px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-amber-500/3 blur-[120px]" />
       </div>
 
       <TopBar
@@ -214,6 +215,7 @@ export default function App() {
 
         <WatchlistRail />
         <main className={`flex-1 p-3 md:p-6 relative z-10 min-w-0 transition-all duration-300 ${sidebarCollapsed ? "md:ml-0" : ""}`}>
+          <div key={focused ?? "empty"} className="animate-fade-in">
           {focused ? (
             <>
               {showStaleBanner && (
@@ -262,6 +264,7 @@ export default function App() {
           ) : (
             <EmptyWatchlist />
           )}
+          </div>
         </main>
       </div>
 

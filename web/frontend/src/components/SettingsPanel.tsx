@@ -8,6 +8,9 @@ import {
   updateAgentConfig,
   type AppConfig,
 } from "../lib/api";
+import {
+  Settings, Sun, Moon, Sparkles, BarChart3, Shield, Info, Loader, X, Check
+} from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -140,7 +143,6 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
 
   useEffect(() => {
     if (!open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDirty({});
       setAgentConfig({ ...DEFAULT_AGENT_CONFIG });
       setAgentConfigDirty(false);
@@ -166,10 +168,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
           {/* Header */}
           <header className="flex items-center justify-between border-b border-slate-700/50 px-5 py-3">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.075-.124l-1.217.456a1.125 1.125 0 0 1-1.37-.49l-1.296-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.296-2.247a1.125 1.125 0 0 1 1.37-.491l1.217.456c.355.133.75.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              </svg>
+              <Settings className="w-4 h-4 text-sky-400" />
               <h2 className="font-semibold text-slate-200 text-sm">Settings</h2>
             </div>
             <button
@@ -177,9 +176,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
               aria-label="Close"
               className="p-1 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
+              <X className="w-4 h-4" />
             </button>
           </header>
 
@@ -187,7 +184,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
           <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
             {isLoading && (
               <div className="flex items-center justify-center py-8">
-                <div className="w-5 h-5 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+                <Loader className="w-5 h-5 animate-spin text-sky-400" />
               </div>
             )}
 
@@ -196,9 +193,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                 {/* ── Appearance ── */}
                 <section>
                   <h3 className="section-header flex items-center gap-2 mb-3">
-                    <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-                    </svg>
+                    {theme === "dark" ? <Moon className="w-3.5 h-3.5 text-sky-400" /> : <Sun className="w-3.5 h-3.5 text-sky-400" />}
                     Appearance
                   </h3>
                   <div className="glass-panel p-3">
@@ -228,9 +223,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                 {/* ── LLM Configuration ── */}
                 <section>
                   <h3 className="section-header flex items-center gap-2 mb-3">
-                    <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
-                    </svg>
+                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
                     LLM Configuration
                   </h3>
                   <div className="glass-panel p-3 space-y-3">
@@ -275,9 +268,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                 {/* ── Analysis ── */}
                 <section>
                   <h3 className="section-header flex items-center gap-2 mb-3">
-                    <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605" />
-                    </svg>
+                    <BarChart3 className="w-3.5 h-3.5 text-sky-400" />
                     Analysis
                   </h3>
                   <div className="glass-panel p-3 space-y-3">
@@ -310,9 +301,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                 {/* ── Advanced ── */}
                 <section>
                   <h3 className="section-header flex items-center gap-2 mb-3">
-                    <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                    </svg>
+                    <Shield className="w-3.5 h-3.5 text-sky-400" />
                     Advanced
                   </h3>
                   <div className="glass-panel p-3 space-y-3">
@@ -341,16 +330,14 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                 {/* ── About ── */}
                 <section>
                   <h3 className="section-header flex items-center gap-2 mb-3">
-                    <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-                    </svg>
+                    <Info className="w-3.5 h-3.5 text-sky-400" />
                     About
                   </h3>
                   <div className="glass-panel p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-300">Version</span>
                       <span className="text-sm font-mono text-slate-400 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/50">
-                        v{appVersion || "…"}
+                        v{appVersion || "..."}
                       </span>
                     </div>
                     <div className="text-xs text-slate-600">
@@ -362,9 +349,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                 {/* ── Ticker Accuracy Agent ── */}
                 <section>
                   <h3 className="section-header flex items-center gap-2 mb-3">
-                    <svg className="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
-                    </svg>
+                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
                     Ticker Accuracy Agent
                   </h3>
                   <div className="glass-panel p-3 space-y-3">
@@ -417,7 +402,11 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
           {/* Footer */}
           <footer className="border-t border-slate-700/50 px-5 py-3 flex items-center justify-between">
             <span className="text-xs text-slate-600">
-              {saved && <span className="text-emerald-400">Saved ✓</span>}
+              {saved && (
+                <span className="inline-flex items-center gap-1 text-emerald-400">
+                  <Check className="w-3 h-3" /> Saved
+                </span>
+              )}
             </span>
             <div className="flex items-center gap-2">
               <button onClick={onClose} className="btn-secondary text-xs">
@@ -429,13 +418,10 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                 className="btn-primary text-xs"
               >
                 {mutation.isPending ? (
-                  <>
-                    <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" className="opacity-25" />
-                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                    Saving…
-                  </>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Loader className="w-3 h-3 animate-spin" />
+                    Saving...
+                  </span>
                 ) : "Save"}
               </button>
             </div>
@@ -469,7 +455,7 @@ function ConfigInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 font-mono tabular-nums"
+        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 font-mono tabular-nums transition-colors"
       />
     </label>
   );
@@ -492,7 +478,7 @@ function ConfigSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 transition-colors"
       >
         {options.map((opt) => (
           <option key={opt} value={opt}>{opt}</option>
@@ -532,5 +518,3 @@ function ConfigToggle({
     </div>
   );
 }
-
-

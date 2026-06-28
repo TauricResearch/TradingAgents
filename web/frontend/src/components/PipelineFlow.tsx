@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { AlertCircle, BarChart3, FlaskConical, Briefcase, Shield, ClipboardList, TrendingUp } from "lucide-react";
 import type { WsEvent } from "../lib/events";
 import { TeamCard, deriveAgentStatus, deriveTeamStatus, computeTeamTiming, type TeamDef } from "./TeamCard";
 import { PipelineStats } from "./PipelineStats";
@@ -18,21 +19,21 @@ const AGENT_TO_STAGE: Record<string, string> = {
   "Portfolio Manager": "risk",
 };
 
-const STAGES: { key: string; label: string; icon: string }[] = [
-  { key: "market", label: "Market", icon: "M" },
-  { key: "sentiment", label: "Sentiment", icon: "S" },
-  { key: "news", label: "News", icon: "N" },
-  { key: "fundamentals", label: "Fundamentals", icon: "F" },
-  { key: "research", label: "Research", icon: "R" },
-  { key: "trader", label: "Trader", icon: "T" },
-  { key: "risk", label: "Risk", icon: "⚠" },
+const STAGES: { key: string; label: string; icon: JSX.Element }[] = [
+  { key: "market", label: "Market", icon: <BarChart3 className="w-3.5 h-3.5" /> },
+  { key: "sentiment", label: "Sentiment", icon: <BarChart3 className="w-3.5 h-3.5" /> },
+  { key: "news", label: "News", icon: <BarChart3 className="w-3.5 h-3.5" /> },
+  { key: "fundamentals", label: "Fundamentals", icon: <BarChart3 className="w-3.5 h-3.5" /> },
+  { key: "research", label: "Research", icon: <FlaskConical className="w-3.5 h-3.5" /> },
+  { key: "trader", label: "Trader", icon: <TrendingUp className="w-3.5 h-3.5" /> },
+  { key: "risk", label: "Risk", icon: <Shield className="w-3.5 h-3.5" /> },
 ];
 
 const TEAMS: TeamDef[] = [
   {
     id: "analysts",
     label: "Analyst Team",
-    icon: "📊",
+    icon: <BarChart3 className="w-3.5 h-3.5" />,
     agents: [
       { name: "Market Analyst" },
       { name: "Sentiment Analyst" },
@@ -46,7 +47,7 @@ const TEAMS: TeamDef[] = [
   {
     id: "research",
     label: "Research Team",
-    icon: "🔬",
+    icon: <FlaskConical className="w-3.5 h-3.5" />,
     agents: [
       { name: "Bull Researcher" },
       { name: "Bear Researcher" },
@@ -59,7 +60,7 @@ const TEAMS: TeamDef[] = [
   {
     id: "trader",
     label: "Trading Team",
-    icon: "💼",
+    icon: <Briefcase className="w-3.5 h-3.5" />,
     agents: [
       { name: "Trader" },
     ],
@@ -70,7 +71,7 @@ const TEAMS: TeamDef[] = [
   {
     id: "risk",
     label: "Risk Management",
-    icon: "⚠️",
+    icon: <Shield className="w-3.5 h-3.5" />,
     agents: [
       { name: "Aggressive Analyst" },
       { name: "Conservative Analyst" },
@@ -83,7 +84,7 @@ const TEAMS: TeamDef[] = [
   {
     id: "portfolio",
     label: "Portfolio Mgmt",
-    icon: "📋",
+    icon: <ClipboardList className="w-3.5 h-3.5" />,
     agents: [
       { name: "Portfolio Manager" },
     ],
@@ -92,8 +93,6 @@ const TEAMS: TeamDef[] = [
     stageKeys: ["risk"],
   },
 ];
-
-/* ─── per-stage status derivation ─────────────────────── */
 
 type StageDerived = {
   status: "idle" | "running" | "done" | "errored";
@@ -188,10 +187,6 @@ function deriveStage(stage: string, events: WsEvent[]): StageDerived {
   };
 }
 
-
-
-/* ─── per-stage agent colors ───────────────────────────── */
-
 const AGENT_COLORS: Record<string, { base: string; dim: string; ring: string }> = {
   market:       { base: "#38bdf8", dim: "rgba(56,189,248,0.15)",  ring: "rgba(56,189,248,0.3)" },
   sentiment:    { base: "#a78bfa", dim: "rgba(167,139,250,0.15)", ring: "rgba(167,139,250,0.3)" },
@@ -201,10 +196,6 @@ const AGENT_COLORS: Record<string, { base: string; dim: string; ring: string }> 
   risk:         { base: "#ef4444", dim: "rgba(239,68,68,0.15)",   ring: "rgba(239,68,68,0.3)" },
   trader:       { base: "#fbbf24", dim: "rgba(251,191,36,0.15)",  ring: "rgba(251,191,36,0.3)" },
 };
-
-
-
-/* ─── live stats ───────────────────────────────────────── */
 
 interface LiveStats {
   agentsDone: number;
@@ -234,8 +225,6 @@ function computeStats(events: WsEvent[]): LiveStats {
   return { agentsDone, agentsTotal: allAgents.length, llmCalls, toolCalls, elapsedSec, hasRun: firstTs != null };
 }
 
-/* ─── accordion detail panel ───────────────────────────── */
-
 function StageDetailPanel({
   stageKey,
   stageDerived,
@@ -258,7 +247,7 @@ function StageDetailPanel({
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold" style={{ backgroundColor: ac.dim, color: ac.base }}>
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-md" style={{ backgroundColor: ac.dim, color: ac.base }}>
             {stageConfig.icon}
           </span>
           <div>
@@ -278,7 +267,7 @@ function StageDetailPanel({
         stageDerived.thinkingLog.length > 0 ? (
           <pre className="text-xs leading-relaxed text-slate-300 bg-slate-950/60 rounded-lg p-3 max-h-64 overflow-y-auto whitespace-pre-wrap font-mono border border-slate-800/50">
             {stageDerived.thinkingLog.join("\n")}
-            <span className="inline-block w-1.5 h-3 ml-0.5 align-middle rounded-sm" style={{ backgroundColor: ac.base }} />
+            <span className="inline-block w-1.5 h-3 ml-0.5 align-middle rounded-sm animate-pulse" style={{ backgroundColor: ac.base }} />
           </pre>
         ) : (
           <div className="flex items-center gap-2 text-xs text-slate-500 italic">
@@ -300,9 +289,7 @@ function StageDetailPanel({
         </div>
       ) : stageDerived.status === "errored" ? (
         <div className="flex items-center gap-2 text-xs text-red-400">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-          </svg>
+          <AlertCircle className="w-3.5 h-3.5" />
           This stage did not run because the run failed earlier.
         </div>
       ) : (
@@ -315,19 +302,15 @@ function StageDetailPanel({
   );
 }
 
-/* ─── main component ───────────────────────────────────── */
-
 export function PipelineFlow({ events }: { events: WsEvent[] }) {
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
 
-  // Derive per-stage status
   const stageDerivedMap = useMemo(() => {
     const map = new Map<string, StageDerived>();
     for (const s of STAGES) map.set(s.key, deriveStage(s.key, events));
     return map;
   }, [events]);
 
-  // Latest thinking text per agent (for hover tooltip)
   const agentThinkingPreview = useMemo(() => {
     const map = new Map<string, string>();
     for (const e of events) {
@@ -343,7 +326,6 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
     return map;
   }, [events]);
 
-  // Derive team-level status
   const derived = useMemo(() => {
     const teamStatuses = TEAMS.map((t) => ({
       team: t,
@@ -359,7 +341,6 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
 
   const toggleStage = (key: string) => setExpandedStage((prev) => (prev === key ? null : key));
 
-  // Click an agent row → open its stage detail panel
   const handleAgentClick = (agentName: string) => {
     const stage = AGENT_TO_STAGE[agentName];
     if (stage) toggleStage(stage);
@@ -367,7 +348,6 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
 
   return (
     <div className="glass-panel px-3 py-2.5" data-testid="pipeline-flow">
-      {/* Team cards row - horizontal scroll on mobile */}
       <div className="flex items-stretch gap-0 overflow-x-auto scrollable-mobile -mx-3 px-3 md:mx-0 md:px-0 md:overflow-visible">
         {teamStatuses.map(({ team, status, agentStatuses, timing }, i) => (
           <div key={team.id} className="flex items-stretch flex-1 min-w-[170px] md:min-w-0">
@@ -388,7 +368,6 @@ export function PipelineFlow({ events }: { events: WsEvent[] }) {
         ))}
       </div>
 
-      {/* Accordion detail panel */}
       {expandedStage && stageDerivedMap.has(expandedStage) && (
         <StageDetailPanel
           stageKey={expandedStage}

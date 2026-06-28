@@ -85,10 +85,16 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl shadow-lg shadow-black/20;
+    @apply bg-slate-800/60 backdrop-blur-md border border-slate-700/50 rounded-xl shadow-lg shadow-black/20;
+  }
+  .glass-panel:hover {
+    @apply border-slate-600/60;
   }
   [data-theme="light"] .glass-panel {
-    @apply bg-white/80 border-slate-200/80 shadow-slate-200/50 shadow-md;
+    @apply bg-white/90 border-slate-200/80 shadow-slate-200/50 shadow-md;
+  }
+  [data-theme="light"] .glass-panel:hover {
+    @apply border-slate-300/80;
   }
 
   .card-gradient {
@@ -99,9 +105,9 @@
   }
 
   .drawer-panel {
-    @apply fixed z-50 bg-slate-900 border-slate-700/50 
-           shadow-2xl shadow-black/40 transition-transform duration-300
-           backdrop-blur-sm;
+    @apply fixed z-50 bg-slate-900/95 border-slate-700/50 
+           shadow-2xl shadow-black/40 transition-transform duration-300 ease-out
+           backdrop-blur-md;
   }
 
   /* Full-screen drawers on mobile */
@@ -111,7 +117,7 @@
     }
   }
   [data-theme="light"] .drawer-panel {
-    @apply bg-white border-slate-200 shadow-slate-300/50;
+    @apply bg-white/95 border-slate-200 shadow-slate-300/50;
   }
 
   .drawer-overlay {
@@ -122,13 +128,14 @@
   }
 
   .glass-panel-hover {
-    @apply glass-panel hover:bg-slate-700/60 hover:border-slate-600/50 transition-all duration-200;
+    @apply glass-panel hover:bg-slate-700/60 hover:border-slate-600/60 transition-all duration-200;
   }
 
   .btn-primary {
     @apply px-3 py-1.5 text-sm font-medium rounded-lg 
            bg-sky-500/20 text-sky-400 border border-sky-500/30
            hover:bg-sky-500/30 hover:border-sky-500/50
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40
            disabled:opacity-40 disabled:cursor-not-allowed
            transition-all duration-200;
   }
@@ -137,6 +144,7 @@
     @apply px-3 py-1.5 text-sm font-medium rounded-lg
            bg-slate-700/50 text-slate-300 border border-slate-600/50
            hover:bg-slate-600/50 hover:text-slate-200
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/40
            disabled:opacity-40 disabled:cursor-not-allowed
            transition-all duration-200;
   }
@@ -145,6 +153,7 @@
     @apply px-3 py-1.5 text-sm font-medium rounded-lg
            bg-red-500/20 text-red-400 border border-red-500/30
            hover:bg-red-500/30 hover:border-red-500/50
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40
            transition-all duration-200;
   }
 

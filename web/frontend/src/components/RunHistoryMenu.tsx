@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { History, ChevronDown, Download, X, RefreshCw, Trash2 } from "lucide-react";
 import { deleteRun, deleteRuns, resumeRun, type RunRow } from "../lib/api";
 import { runLabel } from "./TickerHeader";
 import { useUi } from "../store/ui";
@@ -8,7 +9,7 @@ import DownloadFormatDialog from "./DownloadFormatDialog";
 interface Props {
   ticker: string;
   runs: RunRow[];
-  selectedRunId: string | null; // null = "Latest (live)"
+  selectedRunId: string | null;
   onSelect: (runId: string | null) => void;
   disabled: boolean;
 }
@@ -23,7 +24,6 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
   const clearHistoricalRunForTicker = useUi((s) => s.clearHistoricalRunForTicker);
   const clearLastRunIdForTicker = useUi((s) => s.clearLastRunIdForTicker);
 
-  // Click-outside handler
   useEffect(() => {
     if (!open) return;
     const onMouseDown = (e: MouseEvent) => {
@@ -64,9 +64,7 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
 
   const delOne = useMutation({
     mutationFn: (runId: string) => deleteRun(runId),
-    onSuccess: () => {
-      invalidateAfterDelete();
-    },
+    onSuccess: () => { invalidateAfterDelete(); },
   });
 
   const delBulk = useMutation({
@@ -91,7 +89,6 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
   });
 
   function invalidateAfterDelete() {
-    // Clear any local references that may point to now-deleted runs
     const state = useUi.getState();
     for (const [t, lastId] of Object.entries(state.lastRunIdByTicker)) {
       if (t !== ticker) continue;
@@ -99,7 +96,6 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
         clearLastRunIdForTicker(t);
       }
     }
-    // The selected run might have been deleted — switch back to "live"
     clearHistoricalRunForTicker(ticker);
     qc.invalidateQueries({ queryKey: ["ticker-runs", ticker] });
     qc.invalidateQueries({ queryKey: ["runs", "list"] });
@@ -109,7 +105,6 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
 
   return (
     <div ref={containerRef} className="relative">
-      {/* Trigger button */}
       <button
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
@@ -117,19 +112,13 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                    hover:bg-slate-700 hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30
                    disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
       >
-        <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <History className="w-3.5 h-3.5 text-slate-500" />
         <span className="max-w-[200px] truncate">{currentLabel}</span>
-        <svg className="w-3 h-3 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
       </button>
 
-      {/* Dropdown panel */}
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 min-w-[280px] sm:min-w-[360px] max-w-[90vw] sm:max-w-[480px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
-          {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/60">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Run history ({runs.length})
@@ -138,20 +127,18 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
               <button
                 onClick={() => setFormatDialogOpen(true)}
                 title="Download all data for this ticker"
-                className="text-slate-400 hover:text-sky-400 transition-colors"
+                className="p-1 rounded text-slate-400 hover:text-sky-400 hover:bg-slate-700/50 transition-colors"
                 aria-label="Download ticker data"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
+                <Download className="w-4 h-4" />
               </button>
-              <button onClick={closeAndReset} aria-label="Close" className="text-slate-500 hover:text-slate-300 text-lg leading-none px-1">&times;</button>
+              <button onClick={closeAndReset} aria-label="Close" className="p-1 rounded text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          {/* Run list */}
           <div className="max-h-[300px] overflow-y-auto">
-            {/* "Latest (live)" row */}
             <label
               className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors text-sm ${
                 selectedRunId === null ? "bg-sky-500/10 text-sky-300" : "text-slate-300 hover:bg-slate-700/50"
@@ -177,7 +164,6 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                     isSelected ? "bg-sky-500/10" : "hover:bg-slate-700/50"
                   }`}
                 >
-                  {/* Checkbox for bulk selection */}
                   <input
                     type="checkbox"
                     checked={checked.has(r.id)}
@@ -185,8 +171,6 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                     onClick={(e) => e.stopPropagation()}
                     className="accent-sky-500 shrink-0"
                   />
-
-                  {/* Radio for single selection */}
                   <input
                     type="radio"
                     name={`run-radio-${ticker}`}
@@ -194,8 +178,6 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                     onChange={() => { onSelect(r.id); closeAndReset(); }}
                     className="accent-sky-500 shrink-0"
                   />
-
-                  {/* Run label (clicking selects) */}
                   <span
                     onClick={() => { onSelect(r.id); closeAndReset(); }}
                     className="flex-1 min-w-0 cursor-pointer truncate text-slate-300 py-0.5"
@@ -210,43 +192,32 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                     )}
                   </span>
 
-                  {/* Per-row resume button for failed/cancelled runs */}
                   {(r.status === "failed" || r.status === "cancelled") && (
                     <button
                       disabled={resume.isPending}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        resume.mutate(r.id);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); resume.mutate(r.id); }}
                       className="shrink-0 sm:opacity-0 sm:group-hover:opacity-100 text-sky-400 hover:text-sky-300 
-                                  disabled:opacity-30 transition-all text-base leading-none p-1"
+                                  disabled:opacity-30 transition-all p-1 rounded"
                       title="Resume this run"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
+                      <RefreshCw className="w-3.5 h-3.5" />
                     </button>
                   )}
 
-                  {/* Per-row delete button */}
                   <button
                     disabled={delOne.isPending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      delOne.mutate(r.id);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); delOne.mutate(r.id); }}
                     className="shrink-0 sm:opacity-0 sm:group-hover:opacity-100 text-slate-500 hover:text-red-400 
-                                disabled:opacity-30 transition-all text-base leading-none px-1"
+                                disabled:opacity-30 transition-all p-1 rounded"
                     title="Delete this run"
                   >
-                    ×
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               );
             })}
           </div>
 
-          {/* Bulk delete bar */}
           {checkedCount > 0 && (
             <div className="flex items-center justify-between px-3 py-2 border-t border-slate-700/60 bg-slate-900/50">
               <span className="text-xs text-slate-400">{checkedCount} selected</span>
@@ -255,7 +226,7 @@ export function RunHistoryMenu({ ticker, runs, selectedRunId, onSelect, disabled
                 onClick={() => delBulk.mutate(Array.from(checked))}
                 className="btn-danger text-xs"
               >
-                {delBulk.isPending ? "Deleting…" : `Delete ${checkedCount}`}
+                {delBulk.isPending ? "Deleting..." : `Delete ${checkedCount}`}
               </button>
             </div>
           )}
