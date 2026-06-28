@@ -41,6 +41,18 @@ from .auth import read_session, read_session_from_ws, router as auth_router
 log = logging.getLogger(__name__)
 
 
+class NotifierIn(BaseModel):
+    enabled: bool | None = None
+    bot_token: str | None = None
+    chat_id: str | None = None
+
+
+class NotifierOut(BaseModel):
+    enabled: bool
+    bot_token: str | None
+    chat_id: str | None
+
+
 def _get_notifier():
     """Build a TelegramNotifier from stored config, or None if not configured."""
     try:
@@ -977,15 +989,6 @@ def create_app() -> FastAPI:
         return {"version": version}
 
     # --- Notifier (Telegram) settings ---
-    class NotifierIn(BaseModel):
-        enabled: bool | None = None
-        bot_token: str | None = None
-        chat_id: str | None = None
-
-    class NotifierOut(BaseModel):
-        enabled: bool
-        bot_token: str | None
-        chat_id: str | None
 
     @app.get("/api/notifier/config", response_model=NotifierOut)
     def get_notifier_config() -> NotifierOut:

@@ -581,21 +581,19 @@ def _write_env(updates: dict[str, str]) -> None:
     """Update .env in place, preserving other keys."""
     env_path = _env_path()
     lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
-    seen: set[str] = set()
+    remaining = dict(updates)
     out_lines: list[str] = []
     for line in lines:
         s = line.strip()
         if s and not s.startswith("#") and "=" in s:
             k = s.partition("=")[0].strip()
-            seen.add(k)
-            if k in updates:
-                out_lines.append(f"{k}={updates[k]}")
-                del updates[k]
+            if k in remaining:
+                out_lines.append(f"{k}={remaining.pop(k)}")
             else:
                 out_lines.append(line)
         else:
             out_lines.append(line)
-    for k, v in updates.items():
+    for k, v in remaining.items():
         out_lines.append(f"{k}={v}")
     env_path.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
 
@@ -644,12 +642,11 @@ def write_indicator_schedule(cfg: dict) -> None:
 
 def read_notifier_config() -> dict:
     """
-    Return notifier config.
+    Return notifier config from environment variables.
 
-    Values are sourced from .env (TRADINGAGENTS_TELEGRAM_BOT_TOKEN,
-    TRADINGAGENTS_TELEGRAM_CHAT_ID, TRADINGAGENTS_TELEGRAM_NOTIFIER_ENABLED)
-    for token/chat_id to survive data-dir wipes, with notifier.json as
-    a fallback for the enabled flag when no env vars are set.
+    Sources checked in order:
+      1. Process environment (Railway env vars)
+      2. .env file (local dev, persisted via UI saves)
     """
     env = _read_env()
 
@@ -668,22 +665,17 @@ def read_notifier_config() -> dict:
     raw_enabled = os.environ.get(_NOTIFIER_ENV_ENABLED) or env.get(_NOTIFIER_ENV_ENABLED)
 
     if token or chat_id:
+        if raw_enabled:
+            enabled = raw_enabled.lower() in ("1", "true", "yes")
+        else:
+            enabled = bool(token and chat_id)
         return {
-            "enabled": raw_enabled.lower() in ("1", "true", "yes") if raw_enabled else False,
+            "enabled": enabled,
             "bot_token": token,
             "chat_id": chat_id,
         }
 
-    # Fall back to notifier.json only when nothing is in .env
-    path = data_dir() / "notifier.json"
-    payload = read_json(path)
-    if not payload:
-        return {"enabled": False, "bot_token": None, "chat_id": None}
-    return {
-        "enabled": bool(payload.get("enabled", False)),
-        "bot_token": payload.get("bot_token"),
-        "chat_id": payload.get("chat_id"),
-    }
+    return {"enabled": False, "bot_token": None, "chat_id": None}
 
 
 # ---- Indicator check result state (for change-detection) ----
@@ -766,7 +758,7 @@ def build_state_from_checks(checks: list[dict]) -> dict[str, dict]:
 
 
 def write_notifier_config(cfg: dict) -> None:
-    """Persist notifier config to .env (Durable) and notifier.json (for runtime)."""
+    """Persist notifier config to .env and process environment."""
     token = cfg.get("bot_token")
     chat_id = cfg.get("chat_id")
 
@@ -781,11 +773,3 @@ def write_notifier_config(cfg: dict) -> None:
         _write_env(env_updates)
         for k, v in env_updates.items():
             os.environ[k] = v
-
-    # Also keep notifier.json in sync for runtime reads that haven't loaded .env yet
-    path = data_dir() / "notifier.json"
-    write_json_atomic(path, {
-        "enabled": bool(cfg.get("enabled", False)),
-        "bot_token": token,
-        "chat_id": chat_id,
-    })

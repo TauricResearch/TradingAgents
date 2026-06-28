@@ -110,7 +110,8 @@ export function IndicatorRailView() {
   const scheduleQuery = useQuery({
     queryKey: ["indicator-schedule"],
     queryFn: fetchSchedule,
-    staleTime: 60_000,
+    staleTime: 5_000,
+    refetchInterval: 10_000,
   });
 
   const scheduleMutation = useMutation({
@@ -124,12 +125,13 @@ export function IndicatorRailView() {
     if (scheduleQuery.data && typeof scheduleQuery.data.interval_ms === "number") {
       setAutoCheckInterval(scheduleQuery.data.interval_ms);
     }
-  }, [scheduleQuery.data]);
+  }, [scheduleQuery.data?.interval_ms]);
+
+  const intervalMs = scheduleQuery.data?.interval_ms ?? 0;
+  const lastCheckAt = scheduleQuery.data?.last_check_at;
 
   // Countdown timer for next auto-check
   useEffect(() => {
-    const intervalMs = scheduleQuery.data?.interval_ms;
-    const lastCheckAt = scheduleQuery.data?.last_check_at;
     if (!intervalMs || intervalMs === 0) {
       setCountdown("");
       return;
@@ -153,7 +155,7 @@ export function IndicatorRailView() {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [scheduleQuery.data]);
+  }, [intervalMs, lastCheckAt]);
 
   const indicatorsQuery = useQuery({
     queryKey: ["indicators"],
