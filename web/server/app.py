@@ -47,8 +47,8 @@ def _get_notifier():
         cfg = storage.read_notifier_config()
         if not cfg.get("enabled"):
             return None
-        token = cfg.get("bot_token") or os.environ.get("TRADINGAGENTS_TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
-        chat_id = cfg.get("chat_id") or os.environ.get("TRADINGAGENTS_TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID")
+        token = cfg.get("bot_token")
+        chat_id = cfg.get("chat_id")
         if not token or not chat_id:
             return None
         return _TelegramNotifierProxy(token, chat_id)
@@ -79,9 +79,9 @@ class _TelegramNotifierProxy:
                 parse_mode="HTML",
             )
         except Forbidden as exc:
-            log.warning("Telegram Forbidden: %s", exc)
+            log.error("Telegram Forbidden: %s", exc)
         except InvalidToken as exc:
-            log.warning("Telegram InvalidToken: %s", exc)
+            log.error("Telegram InvalidToken: %s", exc)
 
     async def send_raw(self, text: str) -> None:
         from telegram.error import Forbidden, InvalidToken
@@ -93,9 +93,9 @@ class _TelegramNotifierProxy:
                 parse_mode="HTML",
             )
         except Forbidden as exc:
-            log.warning("Telegram Forbidden: %s", exc)
+            log.error("Telegram Forbidden: %s", exc)
         except InvalidToken as exc:
-            log.warning("Telegram InvalidToken: %s", exc)
+            log.error("Telegram InvalidToken: %s", exc)
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -170,7 +170,7 @@ def _maybe_send_change_notification(checks: list[dict]) -> None:
         loop = events._get_event_loop()
         if loop is None:
             return
-        loop.create_task(notifier.send_raw(message))
+        asyncio.run_coroutine_threadsafe(notifier.send_raw(message), loop)
         storage.write_indicator_state(storage.build_state_from_checks(checks))
     except Exception:
         log.exception("Failed to send change notification")
@@ -474,9 +474,13 @@ def create_app() -> FastAPI:
             interval_ms = int(body.get("interval_ms", 0))
         except (ValueError, TypeError):
             raise HTTPException(status_code=400, detail="interval_ms must be a number") from None
-        storage.write_indicator_schedule({"interval_ms": interval_ms})
+        current = storage.read_indicator_schedule()
+        payload = {"interval_ms": interval_ms}
+        if current.get("last_check_at"):
+            payload["last_check_at"] = current["last_check_at"]
+        storage.write_indicator_schedule(payload)
         _restart_indicator_scheduler()
-        return {"interval_ms": interval_ms}
+        return payload
 
     @app.post("/api/watchlist", status_code=201)
     def add_to_watchlist(body: WatchlistIn) -> dict:
@@ -1012,8 +1016,8 @@ def create_app() -> FastAPI:
     @limiter.limit(_BG_RATE_LIMIT)
     async def test_notifier(request: Request) -> dict:
         cfg = storage.read_notifier_config()
-        token = cfg.get("bot_token") or os.environ.get("TRADINGAGENTS_TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
-        chat_id = cfg.get("chat_id") or os.environ.get("TRADINGAGENTS_TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID")
+        token = cfg.get("bot_token")
+        chat_id = cfg.get("chat_id")
         if not token or not chat_id:
             raise HTTPException(status_code=400, detail="Telegram bot_token and chat_id must be configured")
         from telegram import Bot
