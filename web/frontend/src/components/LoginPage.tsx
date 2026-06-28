@@ -1,3 +1,5 @@
+import { BarChart3 } from "lucide-react";
+
 export function LoginPage() {
   const handleLogin = async () => {
     try {
@@ -14,22 +16,21 @@ export function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-market-DEFAULT relative overflow-hidden">
       <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-sky-500/5 blur-[120px]" />
-        <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full bg-emerald-500/5 blur-[150px]" />
+        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-sky-500/5 blur-[150px] animate-breathing" />
+        <div className="absolute -bottom-40 -right-40 w-[700px] h-[700px] rounded-full bg-emerald-500/5 blur-[180px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-violet-500/3 blur-[120px]" />
       </div>
       <div className="relative text-center animate-fade-in">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-800/60 border border-slate-700/50 mb-6 mx-auto">
-          <svg className="w-8 h-8 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-          </svg>
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/15 to-emerald-500/15 border border-sky-500/20 mb-6 mx-auto shadow-[0_0_20px_rgba(56,189,248,0.1)]">
+          <BarChart3 className="w-8 h-8 text-sky-400" />
         </div>
-        <h1 className="text-2xl font-display font-semibold text-slate-100 tracking-tight mb-2">
+        <h1 className="text-3xl font-display font-semibold text-slate-100 tracking-tight mb-2">
           TradingAgents
         </h1>
-        <p className="text-sm text-slate-500 mb-8">Multi-Agent Trading Dashboard</p>
+        <p className="text-sm text-slate-500 mb-8">Multi-Agent LLM Trading Dashboard</p>
         <button
           onClick={handleLogin}
-          className="inline-flex items-center gap-3 px-6 py-3 bg-white text-gray-900 rounded-xl hover:bg-gray-100 transition-colors font-medium shadow-lg"
+          className="inline-flex items-center gap-3 px-6 py-3 bg-white text-gray-900 rounded-xl hover:bg-gray-100 transition-all font-medium shadow-lg hover:shadow-xl active:scale-[0.98]"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>

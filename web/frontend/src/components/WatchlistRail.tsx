@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { shallow } from "zustand/shallow";
+import { Search, X, Plus, GripVertical } from "lucide-react";
 import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem, addToWatchlist, getAccuracyLeaderboard, ApiError } from "../lib/api";
 import { TickerRow } from "./TickerRow";
 import { useUi } from "../store/ui";
@@ -370,6 +371,7 @@ export function WatchlistRail() {
 
   const mobileSidebarOpen = useUi((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useUi((s) => s.setMobileSidebarOpen);
+  const sidebarCollapsed = useUi((s) => s.sidebarCollapsed);
 
   return (
     <>
@@ -379,8 +381,10 @@ export function WatchlistRail() {
           w-full max-w-72 md:w-64
           border-r border-slate-800 bg-slate-900/95 md:bg-slate-900/50 backdrop-blur-sm
           flex flex-col h-screen overflow-hidden
-          transition-transform duration-300 ease-out
-          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          transition-all duration-300 ease-out
+          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0
+          ${sidebarCollapsed ? "md:w-0 md:min-w-0 md:border-r-0 md:overflow-hidden" : "md:w-64"}
         `}
       >
         <div className="md:hidden shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-800 safe-area-top">
@@ -392,9 +396,7 @@ export function WatchlistRail() {
             className="p-1 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
             aria-label="Close watchlist"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
+            <X className="w-4 h-4" />
           </button>
         </div>
         <div className="shrink-0 grid grid-cols-2 gap-1 border-b border-slate-800 px-2 py-2">
@@ -448,12 +450,10 @@ export function WatchlistRail() {
             </span>
           </div>
           <div className="relative mt-2">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 pointer-events-none" />
             <input
               type="text"
-              value={filterTicker}
+              value={filterTickerRaw}
               onChange={(e) => { setFilterTickerRaw(e.target.value); setAddError(null); }}
               onKeyDown={(e) => {
                 if (e.key !== "Enter" || !filterTickerRaw) return;
@@ -474,9 +474,7 @@ export function WatchlistRail() {
                 onClick={() => { setFilterTickerRaw(""); setFilterTicker(""); setAddError(null); }}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
@@ -530,7 +528,7 @@ export function WatchlistRail() {
                   } ${isEmpty ? "opacity-60" : ""}`}
                 >
                   {/* Drag grip */}
-                  <svg className="w-3 h-3 text-slate-600 cursor-grab active:cursor-grabbing shrink-0" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+                  <GripVertical className="w-3 h-3 text-slate-600 cursor-grab active:cursor-grabbing shrink-0" />
 
                   {/* Color dot */}
                   <button
@@ -624,9 +622,7 @@ export function WatchlistRail() {
               onClick={() => setCreatingGroup(true)}
               className="w-full flex items-center gap-1.5 px-1 py-1 text-[10px] text-slate-500 hover:text-sky-400 transition-colors"
             >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
+              <Plus className="w-3 h-3" />
               Add group
             </button>
           )}
@@ -679,9 +675,7 @@ export function WatchlistRail() {
                 onClick={handleAddFromFilter}
                 className="flex items-center gap-1.5 text-xs font-medium text-sky-400 hover:text-sky-300 disabled:text-slate-600 transition-colors"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
+                <Plus className="w-3.5 h-3.5" />
                 {addingTicker ? "Adding…" : `Add ${filterTicker.toUpperCase()} to watchlist`}
               </button>
               {addError && <p className="text-xs text-red-400 mt-2 text-center" role="alert">{addError}</p>}

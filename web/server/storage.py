@@ -653,8 +653,18 @@ def read_notifier_config() -> dict:
     """
     env = _read_env()
 
-    token = os.environ.get(_NOTIFIER_ENV_TOKEN) or env.get(_NOTIFIER_ENV_TOKEN)
-    chat_id = os.environ.get(_NOTIFIER_ENV_CHAT_ID) or env.get(_NOTIFIER_ENV_CHAT_ID)
+    token = (
+        os.environ.get(_NOTIFIER_ENV_TOKEN)
+        or env.get(_NOTIFIER_ENV_TOKEN)
+        or os.environ.get("TELEGRAM_BOT_TOKEN")
+        or env.get("TELEGRAM_BOT_TOKEN")
+    )
+    chat_id = (
+        os.environ.get(_NOTIFIER_ENV_CHAT_ID)
+        or env.get(_NOTIFIER_ENV_CHAT_ID)
+        or os.environ.get("TELEGRAM_CHAT_ID")
+        or env.get("TELEGRAM_CHAT_ID")
+    )
     raw_enabled = os.environ.get(_NOTIFIER_ENV_ENABLED) or env.get(_NOTIFIER_ENV_ENABLED)
 
     if token or chat_id:

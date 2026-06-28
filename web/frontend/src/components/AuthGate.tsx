@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { useAuthStore } from '../stores/authStore';
+import { Spinner } from '../ui';
 import { LoginPage } from './LoginPage';
 
 interface AuthGateProps {
@@ -16,7 +17,7 @@ export function AuthGate({ children }: AuthGateProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-market-DEFAULT">
-        <div className="w-12 h-12 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+        <Spinner size="lg" />
       </div>
     );
   }
