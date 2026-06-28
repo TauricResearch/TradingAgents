@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { X, Loader } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWatchlist, getAccuracyLeaderboard } from "../lib/api";
 
@@ -96,10 +97,10 @@ export function DecisionAccuracyLeaderboard({
         {onClose && (
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-300 transition-colors text-lg leading-none"
+            className="text-slate-500 hover:text-slate-300 transition-colors rounded-md p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
             aria-label="Close"
           >
-            ×
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
@@ -107,7 +108,7 @@ export function DecisionAccuracyLeaderboard({
       {/* ── Content ── */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+          <Loader className="w-6 h-6 text-sky-400 animate-spin" />
         </div>
       ) : agentError ? (
         <div className="text-center py-12">

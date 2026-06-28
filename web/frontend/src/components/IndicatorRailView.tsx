@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Bell, BellOff, Send, Settings, Trash2 } from "lucide-react";
+import { Activity, Bell, BellOff, Send, Settings, Trash2, X } from "lucide-react";
 import {
   addIndicator,
   checkIndicators,
@@ -247,12 +247,12 @@ export function IndicatorRailView() {
           <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Indicators</span>
           <span className="ml-auto text-[10px] text-slate-600">{indicators.length}</span>
           <button
-            type="button"
-            onClick={() => setShowNotifierSettings((v) => !v)}
-            className={`rounded-md p-1 transition-colors ${
-              notifierEnabled ? "text-emerald-400 hover:bg-emerald-400/10" : "text-slate-600 hover:text-slate-400"
-            }`}
-            title={notifierEnabled ? "Telegram notifications enabled" : "Telegram notifications disabled"}
+          type="button"
+          onClick={() => setShowNotifierSettings((v) => !v)}
+          className={`rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 ${
+            notifierEnabled ? "text-emerald-400 hover:bg-emerald-400/10" : "text-slate-600 hover:text-slate-400"
+          }`}
+          title={notifierEnabled ? "Telegram notifications enabled" : "Telegram notifications disabled"}
           >
             {notifierEnabled ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
           </button>
@@ -261,7 +261,7 @@ export function IndicatorRailView() {
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-slate-500">Schedule:</span>
           <select
-            className="bg-slate-800 text-xs text-slate-200 border border-slate-600 rounded px-1.5 py-1 cursor-pointer"
+            className="bg-slate-800 text-xs text-slate-200 border border-slate-600 rounded px-1.5 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500/30"
             value={scheduleQuery.data?.interval_ms ?? 0}
             onChange={(e) => scheduleMutation.mutate(Number(e.target.value))}
           >
@@ -296,9 +296,9 @@ export function IndicatorRailView() {
               <button
                 type="button"
                 onClick={() => setShowNotifierSettings(false)}
-                className="text-slate-500 hover:text-slate-300 text-lg leading-none"
+                className="text-slate-500 hover:text-slate-300 rounded-md p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
               >
-                ×
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
@@ -346,7 +346,7 @@ export function IndicatorRailView() {
               type="button"
               disabled={testMutation.isPending}
               onClick={() => testMutation.mutate()}
-              className="w-full rounded bg-slate-700 hover:bg-slate-600 px-2 py-1 text-xs text-slate-300 transition-colors disabled:opacity-50"
+              className="w-full rounded bg-slate-700 hover:bg-slate-600 px-2 py-1 text-xs text-slate-300 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
             >
               {testMutation.isPending ? "Sending..." : "Send Test Message"}
             </button>

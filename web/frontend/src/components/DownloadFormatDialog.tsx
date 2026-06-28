@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 import { downloadSingleTicker } from "../lib/api";
 
 interface Props {
@@ -17,6 +18,7 @@ const formats: { value: Format; label: string; desc: string }[] = [
 export default function DownloadFormatDialog({ ticker, onClose }: Props) {
   const [selected, setSelected] = useState<Format>("zip");
   const [loading, setLoading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const handleDownload = async () => {
     setLoading(true);
@@ -24,8 +26,7 @@ export default function DownloadFormatDialog({ ticker, onClose }: Props) {
       await downloadSingleTicker(ticker, selected);
       onClose();
     } catch (err) {
-      console.error("Download failed:", err);
-      alert("Download failed. Please try again.");
+      setDownloadError("Download failed. Please try again.");
       setLoading(false);
     }
   };
@@ -35,8 +36,8 @@ export default function DownloadFormatDialog({ ticker, onClose }: Props) {
       <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-full mx-4 max-w-sm">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/60">
           <h2 className="text-sm font-semibold text-slate-200">Download {ticker} Data</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none px-1">
-            &times;
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 p-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -66,20 +67,25 @@ export default function DownloadFormatDialog({ ticker, onClose }: Props) {
           ))}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-700/60">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleDownload}
-            disabled={loading}
-            className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-500 disabled:opacity-40 transition-colors"
-          >
-            {loading ? "Preparing…" : `Download ${selected.toUpperCase()}`}
-          </button>
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-slate-700/60">
+          {downloadError ? (
+            <span className="text-xs text-red-400" role="alert">{downloadError}</span>
+          ) : <span />}
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 text-sm bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDownload}
+              disabled={loading}
+              className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-500 disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
+            >
+              {loading ? "Preparing…" : `Download ${selected.toUpperCase()}`}
+            </button>
+          </div>
         </div>
       </div>
     </div>

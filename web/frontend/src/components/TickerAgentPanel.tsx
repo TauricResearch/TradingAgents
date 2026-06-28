@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { Check, X } from "lucide-react";
 import { connectTickerAgentWs, getTickerAgentStatus, getAccuracyLeaderboard, type AgentLiveEvent } from "../lib/api";
 
 const STEP_LABELS = [
@@ -169,7 +170,7 @@ export function TickerAgentPanel({ onClose }: TickerAgentPanelProps) {
             {dataFetchEvents.slice(-20).map((ev, i) => (
               <div key={i} className="flex items-center gap-2 text-slate-400 text-[10px]">
                 <span className={ev.detail?.success ? "text-emerald-400" : "text-red-400"}>
-                  {ev.detail?.success ? "✓" : "✗"}
+                  {ev.detail?.success ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                 </span>
                 <span className="font-mono text-slate-500">{ev.detail?.source}</span>
                 {ev.detail?.ticker && <span className="font-mono">{ev.detail?.ticker}</span>}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import { downloadTickers } from "../lib/api";
 
 interface Props {
@@ -18,6 +19,7 @@ export default function BatchDownloadDialog({ tickers, onClose }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [format, setFormat] = useState<Format>("zip");
   const [loading, setLoading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,8 +70,7 @@ export default function BatchDownloadDialog({ tickers, onClose }: Props) {
       await downloadTickers(Array.from(selected), format);
       onClose();
     } catch (err) {
-      console.error("Download failed:", err);
-      alert("Download failed. Please try again.");
+      setDownloadError("Download failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -83,8 +84,8 @@ export default function BatchDownloadDialog({ tickers, onClose }: Props) {
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/60">
           <h2 className="text-sm font-semibold text-slate-200">Download Ticker Data</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none px-1">
-            &times;
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 p-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -150,18 +151,21 @@ export default function BatchDownloadDialog({ tickers, onClose }: Props) {
         </div>
 
         <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700/60">
-          <span className="text-xs text-slate-500">{selected.size} selected</span>
+          <div className="flex items-center gap-3">
+            {downloadError && <span className="text-xs text-red-400" role="alert">{downloadError}</span>}
+            <span className="text-xs text-slate-500">{selected.size} selected</span>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-sm bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
+              className="px-3 py-1.5 text-sm bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
             >
               Cancel
             </button>
             <button
               onClick={handleDownload}
               disabled={selected.size === 0 || loading}
-              className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
             >
               {loading ? "Preparing…" : `Download ${format.toUpperCase()} (${selected.size})`}
             </button>

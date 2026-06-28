@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader } from "lucide-react";
+import { Spinner } from "../ui";
 import {
   getTickerAgentStatus,
   runTickerAgentCycle,
@@ -330,7 +332,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
 
           {statusLoading ? (
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+              <Spinner size="sm" />
               <span className="text-xs text-slate-500">Loading status…</span>
             </div>
           ) : (
@@ -350,7 +352,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-slate-500">Schedule:</span>
                 <select
-                  className="bg-slate-800 text-xs text-slate-200 border border-slate-600 rounded px-1.5 py-1"
+                   className="bg-slate-800 text-xs text-slate-200 border border-slate-600 rounded px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
                   value={config?.schedule_interval_h ?? 1}
                   onChange={(e) => configMutation.mutate({ schedule_interval_h: parseInt(e.target.value) })}
                   disabled={configMutation.isPending}
@@ -370,7 +372,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
                     disabled={runMutation.isPending}
                     onClick={() => runMutation.mutate()}
                   >
-                    {runMutation.isPending ? "Starting…" : "Run Now"}
+                    {runMutation.isPending ? <><Loader className="inline w-3 h-3 mr-1 animate-spin" />Starting…</> : "Run Now"}
                   </button>
                 )}
                 {currentStatus === "running" && (
@@ -379,7 +381,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
                     disabled={pauseMutation.isPending}
                     onClick={() => pauseMutation.mutate()}
                   >
-                    Pause
+                    {pauseMutation.isPending ? "Pausing…" : "Pause"}
                   </button>
                 )}
               </div>
@@ -474,7 +476,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           <span className="section-header">Accuracy Leaderboard</span>
           {lbLoading ? (
             <div className="flex items-center justify-center py-4">
-              <div className="w-6 h-6 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+              <Spinner size="md" />
             </div>
           ) : lbError ? (
             <div className="text-xs text-slate-400 space-y-1">
@@ -507,7 +509,7 @@ export function TickerAgentDrawer({ open, onClose }: TickerAgentDrawerProps) {
           <span className="section-header">Activity Log</span>
           {logLoading ? (
             <div className="flex items-center justify-center py-4">
-              <div className="w-6 h-6 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+              <Spinner size="md" />
             </div>
           ) : logError ? (
             <div className="text-xs text-slate-400 space-y-1">
