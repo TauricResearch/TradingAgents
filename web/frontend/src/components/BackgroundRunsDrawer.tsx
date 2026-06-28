@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Clock, X, ChevronRight, Plus, Loader } from "lucide-react";
 import {
   startBackgroundRun,
   getBackgroundRuns,
@@ -48,19 +49,15 @@ export function BackgroundRunsDrawer({ focusedTicker }: { focusedTicker: string 
       >
         <header className="flex items-center justify-between border-b border-slate-700/50 px-5 py-3">
           <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
+            <Clock className="w-4 h-4 text-sky-400" />
             <h2 className="font-semibold text-slate-200 text-sm">Background Past Runs</h2>
           </div>
           <button
             onClick={() => setOpen(false)}
             aria-label="Close"
-            className="p-1 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
+            className="p-1 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-slate-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
+            <X className="w-4 h-4" />
           </button>
         </header>
         <div className="h-[calc(45vh-3.5rem)] overflow-y-auto p-4 space-y-4">
@@ -131,13 +128,13 @@ function JobCard({ job, onChanged }: { job: BackgroundRunState; onChanged: () =>
         {showEta && <span className="ml-2 text-slate-600">ETA: {etaText}</span>}
       </div>
       <div className="mt-2 flex gap-2">
-        <button
-          onClick={async () => {
-            await cancelBackgroundRun(job.job_id);
-            onChanged();
-          }}
-          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-red-500/20 text-red-400 border border-red-500/20 hover:bg-red-500/30 transition-colors"
-        >
+          <button
+            onClick={async () => {
+              await cancelBackgroundRun(job.job_id);
+              onChanged();
+            }}
+            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-red-500/20 text-red-400 border border-red-500/20 hover:bg-red-500/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+          >
           Cancel
         </button>
       </div>
@@ -192,9 +189,7 @@ function PastJobs() {
       <details className="glass-panel p-3">
         <summary className="cursor-pointer text-sm font-medium text-slate-400 hover:text-slate-300 transition-colors [&::-webkit-details-marker]:hidden">
           <span className="flex items-center gap-2">
-            <svg className={`w-3 h-3 text-slate-500 transition-transform`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-            </svg>
+            <ChevronRight className="w-3 h-3 text-slate-500" />
             Past jobs (last {Math.min(10, past.length)})
           </span>
         </summary>
@@ -212,10 +207,10 @@ function PastJobs() {
               <button
                 disabled={delMutation.isPending}
                 onClick={() => delMutation.mutate(j.job_id)}
-                className="ml-auto shrink-0 text-slate-500 hover:text-red-400 disabled:opacity-30 transition-colors text-base leading-none px-1"
+                className="ml-auto shrink-0 text-slate-500 hover:text-red-400 disabled:opacity-30 transition-colors p-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                 title="Delete this past run"
               >
-                &times;
+                <X className="w-3 h-3" />
               </button>
             </li>
           ))}
@@ -256,9 +251,7 @@ function NewJobForm({ tickers, defaultTicker }: { tickers: string[]; defaultTick
     <details open className="glass-panel p-3">
       <summary className="cursor-pointer text-sm font-medium text-slate-300 hover:text-slate-200 transition-colors [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-2">
-          <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+          <Plus className="w-3.5 h-3.5 text-emerald-400" />
           New job
         </span>
       </summary>
@@ -345,13 +338,7 @@ function NewJobForm({ tickers, defaultTicker }: { tickers: string[]; defaultTick
             className="btn-primary text-xs"
           >
             {mutation.isPending ? (
-              <>
-                <svg className="inline w-3 h-3 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" className="opacity-25" />
-                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-                Starting…
-              </>
+              <><Loader className="inline w-3 h-3 mr-1.5 animate-spin" /> Starting…</>
             ) : "Start"}
           </button>
           {error && <span className="text-xs text-red-400" role="alert">{error}</span>}

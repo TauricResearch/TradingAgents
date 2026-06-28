@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Search, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { addToWatchlist, ApiError } from "../lib/api";
 import { useUi } from "../store/ui";
@@ -58,9 +59,7 @@ export function WatchlistFilter() {
         <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Watchlist</span>
       </div>
       <div className="relative mt-2">
-        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-        </svg>
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 pointer-events-none" />
         <input
           type="text"
           value={filterTickerRaw}
@@ -71,7 +70,7 @@ export function WatchlistFilter() {
             handleAddFromFilter();
           }}
           placeholder="Search or add ticker…"
-          className="w-full bg-slate-800/60 border border-slate-700/50 rounded-md pl-7 pr-7 py-1.5 text-xs text-slate-300 placeholder-slate-500 outline-none focus:border-slate-600 focus:bg-slate-800 transition-colors"
+          className="w-full bg-slate-800/60 border border-slate-700/50 rounded-md pl-7 pr-7 py-1.5 text-xs text-slate-300 placeholder-slate-500 outline-none focus:border-slate-600 focus:bg-slate-800 focus:ring-1 focus:ring-sky-500/30 transition-colors"
         />
         {filterTickerRaw && (
           <button
@@ -79,9 +78,7 @@ export function WatchlistFilter() {
             onClick={() => { setFilterTickerRaw(""); setFilterTicker(""); setAddError(null); }}
             className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-3.5 h-3.5" />
           </button>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 import type { WsEvent } from "../lib/events";
 import { ObservatoryDag } from "./ObservatoryDag";
 import { ThinkingStream } from "./ThinkingStream";
@@ -33,16 +34,16 @@ export function AgentObservatory({ events, onClose }: AgentObservatoryProps & { 
         {onClose && (
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-300 transition-colors text-lg leading-none mr-2"
+            className="text-slate-500 hover:text-slate-300 transition-colors rounded-md p-0.5 mr-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
             title="Close Observatory"
           >
-            ×
+            <X className="w-4 h-4" />
           </button>
         )}
         {tabs.map(t => (
           <button key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 text-xs rounded-t-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs rounded-t-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 ${
               tab === t.key
                 ? "bg-sky-500/15 text-sky-300 border-b-2 border-sky-400"
                 : "text-slate-500 hover:text-slate-300"

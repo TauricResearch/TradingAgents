@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GripVertical, X } from "lucide-react";
 import { useUi } from "../store/ui";
 import { useQuery } from "@tanstack/react-query";
 import { getAccuracyLeaderboard } from "../lib/api";
@@ -118,14 +119,7 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
         onMouseDown={(e) => e.stopPropagation()}
         aria-label={`Drag ${ticker} to reorder`}
       >
-        <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-500">
-          <circle cx="2" cy="2" r="1" fill="currentColor" stroke="none" />
-          <circle cx="6" cy="2" r="1" fill="currentColor" stroke="none" />
-          <circle cx="2" cy="7" r="1" fill="currentColor" stroke="none" />
-          <circle cx="6" cy="7" r="1" fill="currentColor" stroke="none" />
-          <circle cx="2" cy="12" r="1" fill="currentColor" stroke="none" />
-          <circle cx="6" cy="12" r="1" fill="currentColor" stroke="none" />
-        </svg>
+        <GripVertical className="w-3.5 h-5 text-slate-500" />
       </span>
       <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor[status]}`} />
       <div className="flex-1 min-w-0">
@@ -174,9 +168,9 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
           type="button"
           onClick={(e) => { e.stopPropagation(); setPending(true); }}
           aria-label={`Remove ${ticker} from watchlist`}
-          className="md:opacity-0 md:group-hover:opacity-100 text-slate-500 hover:text-red-400 text-sm px-2 py-2 shrink-0 transition-opacity"
+          className="md:opacity-0 md:group-hover:opacity-100 text-slate-500 hover:text-red-400 p-2 shrink-0 transition-opacity rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
         >
-          ×
+          <X className="w-3 h-3" />
         </button>
       ) : (
         <span className="flex items-center gap-1 text-xs shrink-0" onClick={(e) => e.stopPropagation()}>

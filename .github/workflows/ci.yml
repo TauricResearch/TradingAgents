@@ -64,10 +64,26 @@ jobs:
       - name: Check version changed
         run: |
           current_version=$(grep '^version = ' pyproject.toml | sed 's/version = "//;s/"//')
-          main_version=$(git show main:pyproject.toml 2>/dev/null | grep '^version = ' | sed 's/version = "//;s/"//' || git show origin/main:pyproject.toml | grep '^version = ' | sed 's/version = "//;s/"//')
-          if [ "$current_version" == "$main_version" ]; then
-            echo "ERROR: Version not bumped. Expected change from $main_version"
+          main_version=$(git show origin/main:pyproject.toml 2>/dev/null | grep '^version = ' | sed 's/version = "//;s/"//')
+          if [ -z "$main_version" ]; then
+            echo "ERROR: could not read version from origin/main"
             exit 1
+          fi
+          if [ "$current_version" == "$main_version" ]; then
+            echo "ERROR: Version not bumped ($main_version). Update version in pyproject.toml"
+            exit 1
+          fi
+          higher=$(printf "%s\n%s" "$main_version" "$current_version" | sort -V | tail -1)
+          if [ "$higher" != "$current_version" ]; then
+            echo "ERROR: Version must be higher than $main_version (current: $current_version)"
+            exit 1
+          fi
+          if [ -f VERSION ]; then
+            version_file=$(tr -d '[:space:]' < VERSION)
+            if [ "$version_file" != "$current_version" ]; then
+              echo "ERROR: VERSION file ($version_file) does not match pyproject.toml ($current_version)"
+              exit 1
+            fi
           fi
           echo "Version bumped: $main_version -> $current_version"
 

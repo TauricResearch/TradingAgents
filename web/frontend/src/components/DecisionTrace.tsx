@@ -1,23 +1,24 @@
 import { useState } from "react";
+import { ChevronDown, ChevronUp, BarChart3, MessageSquare, Newspaper, TrendingUp, FlaskConical, Briefcase, Shield } from "lucide-react";
 import type { WsEvent } from "../lib/events";
 
 interface TraceNode {
   stage: string;
   label: string;
-  icon: string;
+  Icon: React.ComponentType<{ className?: string }>;
   agent: string;
   summary: string;
   fullText: string | null;
 }
 
-const STAGE_CONFIG: Record<string, { label: string; icon: string }> = {
-  market: { label: "Market Analysis", icon: "📊" },
-  sentiment: { label: "Sentiment Analysis", icon: "💬" },
-  news: { label: "News Analysis", icon: "📰" },
-  fundamentals: { label: "Fundamentals", icon: "📈" },
-  research: { label: "Research & Debate", icon: "🔬" },
-  trader: { label: "Trader Proposal", icon: "💼" },
-  risk: { label: "Risk Discussion", icon: "⚠️" },
+const STAGE_CONFIG: Record<string, { label: string; Icon: React.ComponentType<{ className?: string }> }> = {
+  market: { label: "Market Analysis", Icon: BarChart3 },
+  sentiment: { label: "Sentiment Analysis", Icon: MessageSquare },
+  news: { label: "News Analysis", Icon: Newspaper },
+  fundamentals: { label: "Fundamentals", Icon: TrendingUp },
+  research: { label: "Research & Debate", Icon: FlaskConical },
+  trader: { label: "Trader Proposal", Icon: Briefcase },
+  risk: { label: "Risk Discussion", Icon: Shield },
 };
 
 export function DecisionTrace({ events }: { events: WsEvent[] }) {
@@ -35,7 +36,7 @@ export function DecisionTrace({ events }: { events: WsEvent[] }) {
     nodes.push({
       stage,
       label: config.label,
-      icon: config.icon,
+      Icon: config.Icon,
       agent: d.node || stage,
       summary: (d.report_excerpt || d.report_text || "").slice(0, 120),
       fullText: d.report_text || null,
@@ -55,13 +56,13 @@ export function DecisionTrace({ events }: { events: WsEvent[] }) {
               const key = `${n.stage}-${n.agent}`;
               setExpanded(expanded === key ? null : key);
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-slate-800/30 transition-colors border-l-2 border-slate-700 hover:border-sky-500">
-            <span>{n.icon}</span>
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-slate-800/30 transition-colors border-l-2 border-slate-700 hover:border-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 focus-visible:ring-inset">
+            <n.Icon className="w-3.5 h-3.5 shrink-0 text-sky-400" />
             <div className="min-w-0 flex-1">
               <div className="text-slate-300 font-medium truncate">{n.agent}</div>
               <div className="text-slate-500 text-[10px] truncate">{n.summary}</div>
             </div>
-            <span className="text-slate-600">{expanded === `${n.stage}-${n.agent}` ? "▲" : "▼"}</span>
+            {expanded === `${n.stage}-${n.agent}` ? <ChevronUp className="w-3 h-3 text-slate-600" /> : <ChevronDown className="w-3 h-3 text-slate-600" />}
           </button>
           {expanded === `${n.stage}-${n.agent}` && n.fullText && (
             <pre className="ml-6 mr-2 mb-2 p-3 bg-slate-950/60 rounded-lg text-xs text-slate-300 whitespace-pre-wrap font-mono border border-slate-800/50 max-h-64 overflow-y-auto">

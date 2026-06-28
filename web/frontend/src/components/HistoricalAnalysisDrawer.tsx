@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   getTickerHistory, getAccuracyLeaderboard, type HistoryRange, type RunDetail, type Bar,
@@ -317,19 +318,19 @@ export function HistoricalAnalysisDrawer({ ticker, open, onClose }: { ticker: st
                 <div className="absolute top-1 right-2 z-10 flex items-center gap-1">
                   <button
                     onClick={() => setZoomLevel(z => z + 1)}
-                    className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 rounded-lg px-2 py-0.5 backdrop-blur-sm border border-slate-700/50"
+                    className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 rounded-lg p-1.5 backdrop-blur-sm border border-slate-700/50 transition-colors"
                     title="Zoom in"
-                  >+</button>
+                  ><ZoomIn className="w-3 h-3" /></button>
                   <button
                     onClick={() => setZoomLevel(z => Math.min(z - 1, 0))}
-                    className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 rounded-lg px-2 py-0.5 backdrop-blur-sm border border-slate-700/50"
+                    className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 rounded-lg p-1.5 backdrop-blur-sm border border-slate-700/50 transition-colors"
                     title="Zoom out"
-                  >-</button>
+                  ><ZoomOut className="w-3 h-3" /></button>
                   <button
                     onClick={() => setZoomLevel(0)}
-                    className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 rounded-lg px-2 py-0.5 backdrop-blur-sm border border-slate-700/50"
+                    className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 rounded-lg p-1.5 backdrop-blur-sm border border-slate-700/50 transition-colors"
                     title="Reset zoom"
-                  >↺</button>
+                  ><RotateCcw className="w-3 h-3" /></button>
                 </div>
                 <AccuracyPlot data={accuracyCurve} xDomain={accuracyXDomain} />
               </div>
