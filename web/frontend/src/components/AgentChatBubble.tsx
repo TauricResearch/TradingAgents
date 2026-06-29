@@ -154,13 +154,13 @@ export function AgentChatBubble() {
           });
         }
 
-        // Build next conversation history
+        // Build next conversation history - ensure correct format
         const assistantToolMsg = {
-          role: "assistant",
-          content: fullResponse || null,
+          role: "assistant" as const,
+          content: fullResponse || "",
           tool_calls: toolCalls.map(tc => ({
             id: tc.id,
-            type: "function",
+            type: "function" as const,
             function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
           })),
         };
