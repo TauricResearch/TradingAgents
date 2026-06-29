@@ -160,9 +160,12 @@ export function TickerChatBar({ ticker, price, run }: Props) {
     try {
       const tools = await fetchTools();
       const puterTools = tools.map(tool => ({
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
+        type: "function",
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+        },
       }));
 
       const systemPrompt = [
@@ -195,6 +198,15 @@ export function TickerChatBar({ ticker, price, run }: Props) {
           if (chunk.text) {
             fullResponse += chunk.text;
             updateMessage(assistantMsgId, { content: fullResponse });
+          }
+          // Handle streaming tool calls (Puter.js format)
+          if (chunk.type === "tool_use") {
+            const toolCall = chunk as { id: string; name: string; input: Record<string, unknown> };
+            const result = await executeTool(toolCall.name, toolCall.input);
+            addMessage({
+              role: "tool",
+              content: JSON.stringify(result),
+            });
           }
         }
       } else {

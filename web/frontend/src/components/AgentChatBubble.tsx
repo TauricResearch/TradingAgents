@@ -81,9 +81,12 @@ export function AgentChatBubble() {
     try {
       const tools = await fetchTools();
       const puterTools = tools.map(tool => ({
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
+        type: "function",
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+        },
       }));
 
       const conversationHistory = [
@@ -107,19 +110,18 @@ export function AgentChatBubble() {
             fullResponse += chunk.text;
             updateMessage(assistantMsgId, { content: fullResponse });
           }
-          if (chunk.tool_calls) {
-            const toolCalls = chunk.tool_calls as Array<{ id: string; name: string; arguments: Record<string, unknown> }>;
+          // Puter.js streaming function calling uses type: 'tool_use' with input (not tool_calls)
+          if (chunk.type === "tool_use") {
+            const toolCall = chunk as { id: string; name: string; input: Record<string, unknown> };
             updateMessage(assistantMsgId, {
-              toolCalls: toolCalls.map(tc => ({ id: tc.id, name: tc.name, arguments: tc.arguments }))
+              toolCalls: [{ id: toolCall.id, name: toolCall.name, arguments: toolCall.input }]
             });
 
-            for (const call of toolCalls) {
-              const result = await executeTool(call.name, call.arguments);
-              addMessage({
-                role: "tool",
-                content: JSON.stringify(result),
-              });
-            }
+            const result = await executeTool(toolCall.name, toolCall.input);
+            addMessage({
+              role: "tool",
+              content: JSON.stringify(result),
+            });
           }
         }
       } else {
