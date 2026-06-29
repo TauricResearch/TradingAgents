@@ -91,7 +91,9 @@ export function AgentChatBubble() {
 
       const conversationHistory = [
         { role: "system", content: SYSTEM_PROMPT },
-        ...messages.map(m => ({ role: m.role, content: m.content })),
+        ...messages
+          .filter(m => m.content && m.content.trim())
+          .map(m => ({ role: m.role, content: m.content })),
         { role: "user", content: trimmed },
       ];
 
@@ -100,40 +102,44 @@ export function AgentChatBubble() {
       const response = await window.puter.ai.chat(conversationHistory, {
         model: MODEL,
         tools: puterTools,
-        stream: true,
+        stream: false,
       });
 
-      let fullResponse = "";
-      if (response && typeof response === "object" && Symbol.asyncIterator in (response as object)) {
-        for await (const chunk of response as AsyncIterable<Record<string, unknown>>) {
-          if (chunk.text) {
-            fullResponse += chunk.text;
-            updateMessage(assistantMsgId, { content: fullResponse });
-          }
-          // Puter.js streaming function calling uses type: 'tool_use' with input (not tool_calls)
-          if (chunk.type === "tool_use") {
-            const toolCall = chunk as { id: string; name: string; input: Record<string, unknown> };
-            updateMessage(assistantMsgId, {
-              toolCalls: [{ id: toolCall.id, name: toolCall.name, arguments: toolCall.input }]
-            });
+      // Handle non-streaming response
+      const extracted = extractResponseText(response);
+      updateMessage(assistantMsgId, { content: extracted });
 
-            const result = await executeTool(toolCall.name, toolCall.input);
-            addMessage({
-              role: "tool",
-              content: JSON.stringify(result),
-            });
-          }
+      // Check for tool calls in non-streaming response
+      const responseObj = response as Record<string, unknown>;
+      const message = responseObj?.message as Record<string, unknown> | undefined;
+      if (message?.tool_calls) {
+        const toolCalls = message.tool_calls as Array<{ id: string; function: { name: string; arguments: string } }>;
+        for (const call of toolCalls) {
+          const args = typeof call.function.arguments === "string" 
+            ? JSON.parse(call.function.arguments) 
+            : call.function.arguments;
+          const result = await executeTool(call.function.name, args);
+          addMessage({
+            role: "tool",
+            content: JSON.stringify(result),
+          });
         }
-      } else {
-        fullResponse = extractResponseText(response);
-        updateMessage(assistantMsgId, { content: fullResponse });
       }
 
       updateMessage(assistantMsgId, { isStreaming: false });
     } catch (error) {
+      console.error("AgentChat error:", error);
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = `${error.message}\n${error.stack || ""}`;
+      } else if (typeof error === "object" && error !== null) {
+        errorMessage = JSON.stringify(error, null, 2);
+      } else {
+        errorMessage = String(error);
+      }
       addMessage({
         role: "assistant",
-        content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+        content: `Error: ${errorMessage}`
       });
     } finally {
       setLoading(false);

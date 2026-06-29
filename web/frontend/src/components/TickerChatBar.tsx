@@ -180,7 +180,9 @@ export function TickerChatBar({ ticker, price, run }: Props) {
 
       const conversationHistory = [
         { role: "system", content: systemPrompt },
-        ...messages.map(m => ({ role: m.role, content: m.content })),
+        ...messages
+          .filter(m => m.content && m.content.trim())
+          .map(m => ({ role: m.role, content: m.content })),
         { role: "user", content: trimmed },
       ];
 
