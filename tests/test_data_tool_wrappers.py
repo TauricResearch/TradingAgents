@@ -4,10 +4,9 @@ Verifies that each tool correctly routes arguments to the dataflow layer
 and that get_indicators handles comma-separated indicator strings.
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # get_indicators comma-splitting logic
@@ -154,7 +153,9 @@ class TestFundamentalDataTools:
 
     @patch("tradingagents.agents.utils.fundamental_data_tools.route_to_vendor")
     def test_get_income_statement(self, mock_route):
-        from tradingagents.agents.utils.fundamental_data_tools import get_income_statement
+        from tradingagents.agents.utils.fundamental_data_tools import (
+            get_income_statement,
+        )
         mock_route.return_value = "Income statement"
 
         result = get_income_statement.invoke({"ticker": "AAPL"})

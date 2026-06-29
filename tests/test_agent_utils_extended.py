@@ -3,18 +3,16 @@
 Covers get_language_instruction, get_instrument_context_from_state, and create_msg_delete.
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tradingagents.agents.utils.agent_utils import (
-    get_language_instruction,
-    get_instrument_context_from_state,
-    build_instrument_context,
-    create_msg_delete,
     _clean_identity_value,
+    create_msg_delete,
+    get_instrument_context_from_state,
+    get_language_instruction,
 )
-
 
 # ---------------------------------------------------------------------------
 # _clean_identity_value

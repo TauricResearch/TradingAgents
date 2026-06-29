@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tradingagents.agents.researchers.bull_researcher import create_bull_researcher
 from tradingagents.agents.researchers.bear_researcher import create_bear_researcher
+from tradingagents.agents.researchers.bull_researcher import create_bull_researcher
 
 
 def _make_base_state(

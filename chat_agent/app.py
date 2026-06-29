@@ -6,7 +6,6 @@ a full multi-agent trading analysis report.
 
 import datetime
 import sys
-import time
 from pathlib import Path
 
 import streamlit as st

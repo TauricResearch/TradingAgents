@@ -5,7 +5,10 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel
 
-from tradingagents.agents.utils.structured import bind_structured, invoke_structured_or_freetext
+from tradingagents.agents.utils.structured import (
+    bind_structured,
+    invoke_structured_or_freetext,
+)
 
 
 class DummySchema(BaseModel):
