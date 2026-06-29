@@ -24,6 +24,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from tradingagents.default_config import _ENV_OVERRIDES, DEFAULT_CONFIG
+from web.server.chat_router import router as chat_router
 from web.server.ticker_agent import orchestrator
 from web.server.ticker_agent.router import router as ticker_agent_router
 
@@ -393,6 +394,7 @@ def create_app() -> FastAPI:
         return await call_next(request)
 
     app.include_router(auth_router)
+    app.include_router(chat_router)
 
     @app.get("/api/config/models")
     def config_models():
