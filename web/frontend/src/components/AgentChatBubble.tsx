@@ -98,48 +98,54 @@ export function AgentChatBubble() {
       ];
 
       const assistantMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
+      let currentMsgId = assistantMsgId;
 
-      // First call - may return tool calls
-      const response = await window.puter.ai.chat(conversationHistory, {
-        model: MODEL,
-        tools: puterTools,
-        stream: true,
-      });
+      // Loop until AI stops making tool calls (max 5 rounds to prevent infinite loops)
+      for (let round = 0; round < 5; round++) {
+        const response = await window.puter.ai.chat(conversationHistory, {
+          model: MODEL,
+          tools: puterTools,
+          stream: true,
+        });
 
-      let fullResponse = "";
-      const toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }> = [];
+        let fullResponse = "";
+        const toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }> = [];
 
-      if (response && typeof response === "object" && Symbol.asyncIterator in (response as object)) {
-        for await (const chunk of response as AsyncIterable<Record<string, unknown>>) {
-          if (chunk.type === "text" && chunk.text) {
-            fullResponse += chunk.text;
-            updateMessage(assistantMsgId, { content: fullResponse });
+        if (response && typeof response === "object" && Symbol.asyncIterator in (response as object)) {
+          for await (const chunk of response as AsyncIterable<Record<string, unknown>>) {
+            if (chunk.type === "text" && chunk.text) {
+              fullResponse += chunk.text;
+              updateMessage(currentMsgId, { content: fullResponse });
+            }
+            if (chunk.type === "tool_use") {
+              const toolCall = chunk as { id: string; name: string; input: Record<string, unknown> };
+              toolCalls.push({ id: toolCall.id, name: toolCall.name, arguments: toolCall.input });
+              updateMessage(currentMsgId, {
+                toolCalls: toolCalls.map(tc => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
+                isStreaming: true,
+              });
+            }
           }
-          if (chunk.type === "tool_use") {
-            const toolCall = chunk as { id: string; name: string; input: Record<string, unknown> };
-            toolCalls.push({ id: toolCall.id, name: toolCall.name, arguments: toolCall.input });
-            updateMessage(assistantMsgId, {
-              toolCalls: toolCalls.map(tc => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
-              isStreaming: true,
-            });
-          }
+        } else {
+          fullResponse = extractResponseText(response);
+          updateMessage(currentMsgId, { content: fullResponse });
         }
-      } else {
-        fullResponse = extractResponseText(response);
-        updateMessage(assistantMsgId, { content: fullResponse });
-      }
 
-      // If we got tool calls, execute them and continue conversation
-      if (toolCalls.length > 0) {
-        updateMessage(assistantMsgId, { content: fullResponse || "Processing tool calls..." });
+        // If no tool calls, we're done
+        if (toolCalls.length === 0) {
+          updateMessage(currentMsgId, { isStreaming: false });
+          break;
+        }
 
-        // Build tool results
+        // Execute tool calls
+        updateMessage(currentMsgId, { content: fullResponse || "Processing..." });
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
+
         for (const call of toolCalls) {
           const result = await executeTool(call.name, call.arguments);
           addMessage({
             role: "tool",
-            content: `Calling ${call.name}: ${JSON.stringify(result)}`,
+            content: `Called ${call.name}: ${JSON.stringify(result).slice(0, 500)}`,
           });
           toolResults.push({
             role: "tool",
@@ -148,7 +154,7 @@ export function AgentChatBubble() {
           });
         }
 
-        // Continue conversation with tool results
+        // Build next conversation history
         const assistantToolMsg = {
           role: "assistant",
           content: fullResponse || null,
@@ -159,35 +165,10 @@ export function AgentChatBubble() {
           })),
         };
 
-        conversationHistory = [
-          ...conversationHistory,
-          assistantToolMsg,
-          ...toolResults,
-        ];
+        conversationHistory = [...conversationHistory, assistantToolMsg, ...toolResults];
 
-        // Make follow-up call
-        const followUpMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
-        const followUpResponse = await window.puter.ai.chat(conversationHistory, {
-          model: MODEL,
-          tools: puterTools,
-          stream: true,
-        });
-
-        let followUpText = "";
-        if (followUpResponse && typeof followUpResponse === "object" && Symbol.asyncIterator in (followUpResponse as object)) {
-          for await (const chunk of followUpResponse as AsyncIterable<Record<string, unknown>>) {
-            if (chunk.type === "text" && chunk.text) {
-              followUpText += chunk.text;
-              updateMessage(followUpMsgId, { content: followUpText });
-            }
-          }
-        } else {
-          followUpText = extractResponseText(followUpResponse);
-          updateMessage(followUpMsgId, { content: followUpText });
-        }
-        updateMessage(followUpMsgId, { isStreaming: false });
-      } else {
-        updateMessage(assistantMsgId, { isStreaming: false });
+        // Create new message for next round
+        currentMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
       }
     } catch (error) {
       console.error("AgentChat error:", error);
