@@ -98,7 +98,7 @@ class TestRouteToVendor:
     @patch("tradingagents.dataflows.interface.get_category_for_method")
     def test_falls_back_on_primary_failure(self, mock_category, mock_vendor):
         mock_category.return_value = "core_stock_apis"
-        mock_vendor.return_value = "alpha_vantage"
+        mock_vendor.return_value = "alpha_vantage,yfinance"
         failing_impl = MagicMock(side_effect=RuntimeError("API down"))
         fallback_impl = MagicMock(return_value="Fallback data")
 
@@ -126,7 +126,7 @@ class TestRouteToVendor:
     @patch("tradingagents.dataflows.interface.get_category_for_method")
     def test_all_vendors_fail_raises_first_error(self, mock_category, mock_vendor):
         mock_category.return_value = "core_stock_apis"
-        mock_vendor.return_value = "yfinance"
+        mock_vendor.return_value = "yfinance,alpha_vantage"
         first_error = RuntimeError("yfinance down")
         second_error = RuntimeError("alpha_vantage down")
 
