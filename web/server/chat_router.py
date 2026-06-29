@@ -35,6 +35,11 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
                 continue
 
             tool_name = route.path.replace("/api/", "").replace("/", "_").strip("_")
+            # Replace dots and other invalid chars with underscores
+            tool_name = re.sub(r"[^a-zA-Z0-9_]", "_", tool_name)
+            # Ensure it starts with a letter
+            if tool_name and not tool_name[0].isalpha():
+                tool_name = "action_" + tool_name
             if not tool_name:
                 tool_name = "root"
 
