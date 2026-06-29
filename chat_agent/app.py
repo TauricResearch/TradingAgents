@@ -213,10 +213,7 @@ user_input = st.chat_input(
 if user_input and not st.session_state.running:
     parts = user_input.strip().split()
     ticker = parts[0].upper()
-    if len(parts) > 1:
-        trade_date = parts[1]
-    else:
-        trade_date = datetime.date.today().strftime("%Y-%m-%d")
+    trade_date = parts[1] if len(parts) > 1 else datetime.date.today().strftime("%Y-%m-%d")
 
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
