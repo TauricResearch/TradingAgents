@@ -35,6 +35,7 @@ import { PipelineFlow } from "./components/PipelineFlow";
 import { LlmTracePanel } from "./components/LlmTracePanel";
 import { AgentObservatory } from "./components/AgentObservatory";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AgentChatBubble } from "./components/AgentChatBubble";
 
 export default function App() {
   const focused = useUi((s) => s.focusedTicker);
@@ -292,6 +293,7 @@ export default function App() {
           onClose={() => setBatchDialogOpen(false)}
         />
       )}
+      <AgentChatBubble />
     </div>
   );
 
