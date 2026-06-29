@@ -9,7 +9,7 @@ declare global {
   interface Window {
     puter?: {
       ai?: {
-        chat?: (prompt: string | Array<{ role: string; content: string }>, options?: { model?: string }) => Promise<unknown>;
+        chat?: (prompt: string | Array<{ role: string; content: string }>, options?: { model?: string; tools?: unknown[]; stream?: boolean }) => Promise<unknown>;
       };
     };
   }
