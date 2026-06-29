@@ -100,8 +100,8 @@ export function AgentChatBubble() {
       const assistantMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
       let currentMsgId = assistantMsgId;
 
-      // Loop until AI stops making tool calls (max 5 rounds to prevent infinite loops)
-      for (let round = 0; round < 5; round++) {
+      // Loop until AI stops making tool calls (safety limit of 20 rounds)
+      for (let round = 0; round < 20; round++) {
         const response = await window.puter.ai.chat(conversationHistory, {
           model: MODEL,
           tools: puterTools,
