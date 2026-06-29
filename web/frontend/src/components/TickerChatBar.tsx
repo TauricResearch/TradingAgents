@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Loader2, MessageSquare, Send, X } from "lucide-react";
 import type { RunDetail } from "../lib/api";
 import type { WsEvent } from "../lib/events";
@@ -9,7 +9,7 @@ declare global {
   interface Window {
     puter?: {
       ai?: {
-        chat?: (prompt: string, options?: { model?: string }) => Promise<unknown>;
+        chat?: (prompt: string | Array<{ role: string; content: string }>, options?: { model?: string }) => Promise<unknown>;
       };
     };
   }
@@ -19,6 +19,11 @@ interface Props {
   ticker: string;
   price: Record<string, unknown>;
   run?: RunDetail | null;
+}
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
 }
 
 const MODEL = "moonshotai/kimi-k2.6";
@@ -124,28 +129,37 @@ export function TickerChatBar({ ticker, price, run }: Props) {
     text: clip(report.text, MAX_REPORT_CHARS),
   }));
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState("");
   const [isAsking, setIsAsking] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const context = useMemo(() => buildTickerContext(ticker, price, run, events, reports), [ticker, price, run, events, reports]);
   const hasContext = events.length > 0 || run != null || Object.keys(price).length > 0;
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const ask = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = question.trim();
     if (!trimmed || isAsking) return;
     setError("");
-    setAnswer("");
 
     if (!window.puter?.ai?.chat) {
       setError("Puter AI is still loading or unavailable. Check the network connection and try again.");
       return;
     }
 
+    const userMessage: Message = { role: "user", content: trimmed };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setQuestion("");
     setIsAsking(true);
+
     try {
-      const prompt = [
+      const systemPrompt = [
         `You are a market-analysis assistant answering questions about ticker ${ticker}.`,
         "Use the provided dashboard context first. If context is missing or stale, say what is missing.",
         "Do not invent current prices, filings, news, or decisions that are not in the context.",
@@ -153,12 +167,16 @@ export function TickerChatBar({ ticker, price, run }: Props) {
         "",
         "DASHBOARD CONTEXT JSON:",
         context,
-        "",
-        `USER QUESTION: ${trimmed}`,
       ].join("\n");
 
-      const response = await window.puter.ai.chat(prompt, { model: MODEL });
-      setAnswer(extractResponseText(response));
+      const conversationHistory = [
+        { role: "system", content: systemPrompt },
+        ...newMessages.map((m) => ({ role: m.role, content: m.content })),
+      ];
+
+      const response = await window.puter.ai.chat(conversationHistory, { model: MODEL });
+      const assistantMessage: Message = { role: "assistant", content: extractResponseText(response) };
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The chat request failed.");
     } finally {
@@ -168,6 +186,30 @@ export function TickerChatBar({ ticker, price, run }: Props) {
 
   return (
     <section className="glass-panel mb-4 overflow-hidden">
+      {messages.length > 0 && (
+        <div className="max-h-80 overflow-y-auto border-b border-slate-700/50 px-3 py-3">
+          {messages.map((msg, i) => (
+            <div key={i} className={`mb-2 flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                msg.role === "user"
+                  ? "bg-sky-600/30 text-slate-200"
+                  : "bg-slate-800/60 text-slate-300"
+              }`}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {isAsking && (
+            <div className="flex justify-start">
+              <div className="flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-2 text-sm text-slate-400">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                Thinking...
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      )}
       <form onSubmit={ask} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-950/40 px-3 py-2">
           <MessageSquare className="h-4 w-4 shrink-0 text-sky-400" aria-hidden="true" />
@@ -199,13 +241,9 @@ export function TickerChatBar({ ticker, price, run }: Props) {
           Ask
         </button>
       </form>
-      {(answer || error) && (
+      {error && (
         <div className="border-t border-slate-700/50 px-3 py-3">
-          {error ? (
-            <p className="text-sm text-red-300">{error}</p>
-          ) : (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">{answer}</p>
-          )}
+          <p className="text-sm text-red-300">{error}</p>
         </div>
       )}
     </section>

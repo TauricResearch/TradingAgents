@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Bell, BellOff, Send, Settings, Trash2, X } from "lucide-react";
+import { Activity, Bell, BellOff, Send, Trash2, X } from "lucide-react";
 import {
   addIndicator,
   checkIndicators,
@@ -17,6 +17,11 @@ import {
   type IndicatorKind,
   type NotifierConfig,
 } from "../lib/api";
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
 const KIND_ALIASES: Array<[RegExp, IndicatorKind]> = [
   [/\b(vix|volatility)\b/i, "vix"],
@@ -49,7 +54,7 @@ function parseThreshold(text: string): number | undefined {
 export function IndicatorRailView() {
   const qc = useQueryClient();
   const [chat, setChat] = useState("");
-  const [reply, setReply] = useState("Ask me to add or remove an indicator.");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showNotifierSettings, setShowNotifierSettings] = useState(false);
   const [notifierForm, setNotifierForm] = useState({ bot_token: "", chat_id: "" });
   const [notifierTestMsg, setNotifierTestMsg] = useState("");
@@ -57,6 +62,7 @@ export function IndicatorRailView() {
   const [countdown, setCountdown] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const notifierQuery = useQuery({
     queryKey: ["notifier-config"],
@@ -170,14 +176,14 @@ export function IndicatorRailView() {
     mutationFn: addIndicator,
     onSuccess: (indicator) => {
       qc.invalidateQueries({ queryKey: ["indicators"] });
-      setReply(`Added ${indicator.name} at ${formatThreshold(indicator)}.`);
+      addAssistantMessage(`Added ${indicator.name} at ${formatThreshold(indicator)}.`);
     },
   });
   const removeMutation = useMutation({
     mutationFn: removeIndicator,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["indicators"] });
-      setReply("Removed indicator.");
+      addAssistantMessage("Removed indicator.");
     },
   });
 
@@ -186,13 +192,13 @@ export function IndicatorRailView() {
       updateIndicator(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["indicators"] });
-      setReply("Threshold updated.");
+      addAssistantMessage("Threshold updated.");
     },
     onError: (err: Error) => {
       const apiErr = err as { message: string; body?: unknown };
       const detail = apiErr.body as { detail?: string } | undefined;
       const msg = detail?.detail || apiErr.message;
-      setReply(msg);
+      addAssistantMessage(msg);
     },
   });
 
@@ -205,10 +211,23 @@ export function IndicatorRailView() {
     return map;
   }, [checksMutation.data]);
 
+  const addAssistantMessage = (content: string) => {
+    setMessages((prev) => [...prev, { role: "assistant", content }]);
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const text = chat.trim();
     if (!text) return;
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
     setChat("");
 
     if (/\b(remove|delete)\b/i.test(text)) {
@@ -220,7 +239,7 @@ export function IndicatorRailView() {
           ? indicators.find((item) => item.kind === parseKind(text))
           : undefined);
       if (!target) {
-        setReply("I could not tell which indicator to remove.");
+        addAssistantMessage("I could not tell which indicator to remove.");
         return;
       }
       removeMutation.mutate(target.id);
@@ -230,7 +249,7 @@ export function IndicatorRailView() {
     if (/\b(add|create|new)\b/i.test(text)) {
       const kind = parseKind(text);
       if (!kind) {
-        setReply("Name the indicator type: VIX, fear greed, red days, S5FI, green streak, or moving averages.");
+        addAssistantMessage("Name the indicator type: VIX, fear greed, red days, S5FI, green streak, or moving averages.");
         return;
       }
       const threshold = parseThreshold(text);
@@ -238,7 +257,7 @@ export function IndicatorRailView() {
       return;
     }
 
-    setReply("Try: add VIX threshold 25, add fear greed 15, or remove VIX.");
+    addAssistantMessage("Try: add VIX threshold 25, add fear greed 15, or remove VIX.");
   };
 
   return (
@@ -439,8 +458,29 @@ export function IndicatorRailView() {
         })}
       </div>
 
+      {messages.length > 0 && (
+        <div className="shrink-0 max-h-48 overflow-y-auto border-t border-slate-800 px-2 py-2 space-y-1.5">
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[85%] rounded-lg px-2 py-1.5 text-[11px] leading-snug ${
+                msg.role === "user"
+                  ? "bg-sky-600/30 text-slate-200"
+                  : "bg-slate-800/60 text-slate-400"
+              }`}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      )}
+
       <form onSubmit={handleChatSubmit} className="shrink-0 border-t border-slate-800 p-2">
-        <p className="mb-2 rounded-lg bg-slate-800/50 px-2 py-1.5 text-[11px] leading-snug text-slate-400">{reply}</p>
+        {messages.length === 0 && (
+          <p className="mb-2 rounded-lg bg-slate-800/50 px-2 py-1.5 text-[11px] leading-snug text-slate-400">
+            Ask me to add or remove an indicator.
+          </p>
+        )}
         <div className="flex items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-950/40 px-2 py-1.5">
           <input
             value={chat}
