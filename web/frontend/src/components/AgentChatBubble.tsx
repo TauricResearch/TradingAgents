@@ -89,7 +89,7 @@ export function AgentChatBubble() {
         },
       }));
 
-      const conversationHistory = [
+      let conversationHistory = [
         { role: "system", content: SYSTEM_PROMPT },
         ...messages
           .filter(m => m.content && m.content.trim())
@@ -99,6 +99,7 @@ export function AgentChatBubble() {
 
       const assistantMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
 
+      // First call - may return tool calls
       const response = await window.puter.ai.chat(conversationHistory, {
         model: MODEL,
         tools: puterTools,
@@ -106,35 +107,88 @@ export function AgentChatBubble() {
       });
 
       let fullResponse = "";
+      const toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }> = [];
+
       if (response && typeof response === "object" && Symbol.asyncIterator in (response as object)) {
         for await (const chunk of response as AsyncIterable<Record<string, unknown>>) {
-          // Handle text chunks
           if (chunk.type === "text" && chunk.text) {
             fullResponse += chunk.text;
             updateMessage(assistantMsgId, { content: fullResponse });
           }
-          // Handle tool use chunks (Puter.js streaming format)
           if (chunk.type === "tool_use") {
             const toolCall = chunk as { id: string; name: string; input: Record<string, unknown> };
+            toolCalls.push({ id: toolCall.id, name: toolCall.name, arguments: toolCall.input });
             updateMessage(assistantMsgId, {
-              toolCalls: [{ id: toolCall.id, name: toolCall.name, arguments: toolCall.input }],
+              toolCalls: toolCalls.map(tc => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
               isStreaming: true,
-            });
-
-            const result = await executeTool(toolCall.name, toolCall.input);
-            addMessage({
-              role: "tool",
-              content: JSON.stringify(result),
             });
           }
         }
       } else {
-        // Non-streaming fallback
         fullResponse = extractResponseText(response);
         updateMessage(assistantMsgId, { content: fullResponse });
       }
 
-      updateMessage(assistantMsgId, { isStreaming: false });
+      // If we got tool calls, execute them and continue conversation
+      if (toolCalls.length > 0) {
+        updateMessage(assistantMsgId, { content: fullResponse || "Processing tool calls..." });
+
+        // Build tool results
+        const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
+        for (const call of toolCalls) {
+          const result = await executeTool(call.name, call.arguments);
+          addMessage({
+            role: "tool",
+            content: `Calling ${call.name}: ${JSON.stringify(result)}`,
+          });
+          toolResults.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content: JSON.stringify(result),
+          });
+        }
+
+        // Continue conversation with tool results
+        const assistantToolMsg = {
+          role: "assistant",
+          content: fullResponse || null,
+          tool_calls: toolCalls.map(tc => ({
+            id: tc.id,
+            type: "function",
+            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+          })),
+        };
+
+        conversationHistory = [
+          ...conversationHistory,
+          assistantToolMsg,
+          ...toolResults,
+        ];
+
+        // Make follow-up call
+        const followUpMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
+        const followUpResponse = await window.puter.ai.chat(conversationHistory, {
+          model: MODEL,
+          tools: puterTools,
+          stream: true,
+        });
+
+        let followUpText = "";
+        if (followUpResponse && typeof followUpResponse === "object" && Symbol.asyncIterator in (followUpResponse as object)) {
+          for await (const chunk of followUpResponse as AsyncIterable<Record<string, unknown>>) {
+            if (chunk.type === "text" && chunk.text) {
+              followUpText += chunk.text;
+              updateMessage(followUpMsgId, { content: followUpText });
+            }
+          }
+        } else {
+          followUpText = extractResponseText(followUpResponse);
+          updateMessage(followUpMsgId, { content: followUpText });
+        }
+        updateMessage(followUpMsgId, { isStreaming: false });
+      } else {
+        updateMessage(assistantMsgId, { isStreaming: false });
+      }
     } catch (error) {
       console.error("AgentChat error:", error);
       let errorMessage: string;
@@ -155,7 +209,7 @@ export function AgentChatBubble() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-4 left-4 z-50">
       <button
         onClick={toggleChat}
         className="h-14 w-14 rounded-full bg-sky-600 text-white shadow-lg hover:bg-sky-700 transition-colors flex items-center justify-center"
@@ -165,7 +219,7 @@ export function AgentChatBubble() {
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-16 right-0 w-96 h-[500px] bg-slate-900 rounded-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden">
+        <div className="absolute bottom-16 left-0 w-96 h-[500px] bg-slate-900 rounded-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-sky-400" />
