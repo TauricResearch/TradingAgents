@@ -5,7 +5,7 @@
 # Learnings baked in (from the 2026-06-01 bulk run):
 #   * Targets are the ticker folders under docs/ (minus stylesheets). A ticker
 #     counts as "done today" when docs/<TICKER>/<YYYYMMDD>_*/ already exists.
-#   * CONCURRENCY=5 ran clean end to end. CONCURRENCY=20 tripped the API key's
+#   * CONCURRENCY=10 is the default. CONCURRENCY=20 tripped the API key's
 #     request rate limit (HTTP 429, "Current limit: 50") in a burst at launch
 #     and silently dropped 2 tickers. Keep the default low; only raise it if
 #     the gateway quota is known to be higher.
@@ -15,7 +15,7 @@
 #     is inlined into the bash -c string below.
 #
 # Usage:
-#   bash scripts/run_missing_today.sh                  # all missing tickers, 5-wide
+#   bash scripts/run_missing_today.sh                  # all missing tickers, 10-wide
 #   CONCURRENCY=8 bash scripts/run_missing_today.sh    # override concurrency
 #   TRADINGAGENTS_DATE=2026-06-01 bash scripts/run_missing_today.sh
 #   bash scripts/run_missing_today.sh NVDA AMD TSLA    # explicit ticker list
@@ -46,7 +46,7 @@ model_slug() {
 }
 MODEL_SLUG="$(model_slug "$DEEP_MODEL")"
 REPORT_GLOB="${DATE_SLUG}_${MODEL_SLUG}_*"
-CONCURRENCY="${CONCURRENCY:-5}"                # 5 ran clean; 20 tripped HTTP 429 ("Current limit: 50")
+CONCURRENCY="${CONCURRENCY:-10}"               # 20 tripped HTTP 429 ("Current limit: 50")
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs}"
 mkdir -p "$LOGDIR"
 
@@ -119,13 +119,4 @@ echo "=== DONE: ${DONE}/${#ALL_TICKERS[@]} have a ${REPORT_GLOB} report ==="
 if [ "${#FAILED[@]}" -gt 0 ]; then
   echo "STILL FAILING (check ${LOGDIR}/<TICKER>.log): ${FAILED[*]}"
   exit 1
-fi
-
-# --- refresh generated docs + build the static site -----------------------
-if [ "${TA_BUILD_SITE:-1}" = "1" ]; then
-  echo "Refreshing report docs and building site..."
-  uv run python scripts/report_workflow.py \
-    --analysis-date "$DATE" \
-    --allow-incomplete \
-    --allow-summary-na
 fi

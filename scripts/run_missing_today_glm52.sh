@@ -6,7 +6,7 @@
 # project root at Python package import; provider "glm" reads ZHIPU_API_KEY.
 #
 # Usage:
-#   bash scripts/run_missing_today_glm52.sh                  # all missing tickers, 5-wide
+#   bash scripts/run_missing_today_glm52.sh                  # all missing tickers, 10-wide
 #   CONCURRENCY=8 bash scripts/run_missing_today_glm52.sh    # override concurrency
 #   TRADINGAGENTS_DATE=2026-06-01 bash scripts/run_missing_today_glm52.sh
 #   bash scripts/run_missing_today_glm52.sh NVDA AMD TSLA    # explicit ticker list
@@ -37,7 +37,7 @@ model_slug() {
 }
 MODEL_SLUG="$(model_slug "$DEEP_MODEL")"
 REPORT_GLOB="${DATE_SLUG}_${MODEL_SLUG}_*"
-CONCURRENCY="${CONCURRENCY:-5}"                # keep conservative unless the Zhipu quota is known higher
+CONCURRENCY="${CONCURRENCY:-10}"               # keep conservative unless the Zhipu quota is known higher
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs}"
 mkdir -p "$LOGDIR"
 
@@ -110,13 +110,4 @@ echo "=== DONE: ${DONE}/${#ALL_TICKERS[@]} have a ${REPORT_GLOB} report ==="
 if [ "${#FAILED[@]}" -gt 0 ]; then
   echo "STILL FAILING (check ${LOGDIR}/<TICKER>.log): ${FAILED[*]}"
   exit 1
-fi
-
-# --- refresh generated docs + build the static site -----------------------
-if [ "${TA_BUILD_SITE:-1}" = "1" ]; then
-  echo "Refreshing report docs and building site..."
-  uv run python scripts/report_workflow.py \
-    --analysis-date "$DATE" \
-    --allow-incomplete \
-    --allow-summary-na
 fi
