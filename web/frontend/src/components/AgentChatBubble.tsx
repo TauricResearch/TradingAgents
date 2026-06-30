@@ -247,9 +247,13 @@ export function AgentChatBubble() {
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
 
         for (const call of toolCallsFromResponse) {
-          const args = typeof call.function.arguments === "string" 
-            ? JSON.parse(call.function.arguments) 
-            : call.function.arguments;
+          let args: Record<string, unknown> = {};
+          try {
+            const raw = call.function.arguments;
+            args = typeof raw === "string" ? (raw ? JSON.parse(raw) : {}) : (raw || {});
+          } catch {
+            args = {};
+          }
           const result = await executeTool(call.function.name, args);
           addMessage({
             role: "tool",
