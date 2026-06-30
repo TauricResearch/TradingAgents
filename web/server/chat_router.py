@@ -51,22 +51,27 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
             if not tool_name:
                 tool_name = "root"
 
+            # Extract path parameters first
+            path_params = re.findall(r"\{(\w+)\}", route.path)
+
             # Get description from route or generate one
             description = ""
             if hasattr(route, "endpoint") and route.endpoint.__doc__:
                 description = route.endpoint.__doc__.strip().split("\n")[0]
+            elif path_params:
+                param_str = ", ".join([f"{p}: string" for p in path_params])
+                description = f"{method.upper()} {route.path.replace('/api/', '')} - {param_str}"
             else:
                 description = f"Execute {method} on {route.path}"
 
             # Extract parameters from path and known query params
             parameters: dict[str, dict[str, str]] = {}
-            path_params = re.findall(r"\{(\w+)\}", route.path)
             for param in path_params:
                 parameters[param] = {
                     "type": "string",
                     "description": (
-                        f"ticker symbol, e.g. 'SPY', 'AAPL', 'QQQ', 'MSFT'. "
-                        f"Pass the actual symbol from the user's question. "
+                        f"Required. The ticker symbol from the conversation context. "
+                        f"Examples: 'SPY', 'AAPL', 'QQQ', 'MSFT'. "
                     ),
                 }
 
@@ -76,7 +81,7 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
                     "type": "string",
                     "description": "ticker symbol to get price for, e.g. 'SPY', 'AAPL'",
                 }
-            if tool_name == "tickers__ticker__history":
+            if tool_name == "tickers_ticker_history":
                 parameters["range"] = {
                     "type": "string",
                     "description": "Time range for historical data (e.g. '1mo', '3mo', '6mo', '1y'). Default: '1mo'.",
