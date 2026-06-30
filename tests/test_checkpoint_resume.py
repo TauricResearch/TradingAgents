@@ -76,6 +76,43 @@ class TestCheckpointResume(unittest.TestCase):
         # analyst added 1, trader added 10 → 11
         self.assertEqual(result["count"], 11)
 
+    def test_run_signature_changes_thread_id(self):
+        """Different graph-shaping signatures must not share a checkpoint thread."""
+        base = thread_id(self.ticker, self.date)
+        market_only = thread_id(self.ticker, self.date, "analysts=market")
+        news_only = thread_id(self.ticker, self.date, "analysts=news")
+
+        self.assertNotEqual(base, market_only)
+        self.assertNotEqual(market_only, news_only)
+
+    def test_different_run_signature_starts_fresh(self):
+        """A changed run signature must not resume a stale checkpoint."""
+        global _should_crash
+        builder = _build_graph()
+        sig1 = "analysts=market"
+        sig2 = "analysts=news"
+        tid1 = thread_id(self.ticker, self.date, sig1)
+
+        # Run with sig1 — crash to leave a checkpoint.
+        _should_crash = True
+        with get_checkpointer(self.tmpdir, self.ticker) as saver:
+            graph = builder.compile(checkpointer=saver)
+            with self.assertRaises(RuntimeError):
+                graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid1}})
+
+        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date, sig1))
+        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, self.date, sig2))
+
+        # Run with sig2 — should start fresh, not resume sig1's checkpoint.
+        _should_crash = False
+        tid2 = thread_id(self.ticker, self.date, sig2)
+        with get_checkpointer(self.tmpdir, self.ticker) as saver:
+            graph = builder.compile(checkpointer=saver)
+            result = graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid2}})
+
+        self.assertEqual(result["count"], 11)
+        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date, sig1))
+
     def test_clear_checkpoint_allows_fresh_start(self):
         """After clearing, the graph starts from scratch."""
         global _should_crash

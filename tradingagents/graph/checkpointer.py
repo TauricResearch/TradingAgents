@@ -25,9 +25,12 @@ def _db_path(data_dir: str | Path, ticker: str) -> Path:
     return p / f"{safe}.db"
 
 
-def thread_id(ticker: str, date: str) -> str:
-    """Deterministic thread ID for a ticker+date pair."""
-    return hashlib.sha256(f"{ticker.upper()}:{date}".encode()).hexdigest()[:16]
+def thread_id(ticker: str, date: str, run_signature: str | None = None) -> str:
+    """Deterministic thread ID for a ticker/date/run-shape combination."""
+    parts = [ticker.upper(), date]
+    if run_signature:
+        parts.append(run_signature)
+    return hashlib.sha256(":".join(parts).encode()).hexdigest()[:16]
 
 
 @contextmanager
@@ -43,17 +46,27 @@ def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver
         conn.close()
 
 
-def has_checkpoint(data_dir: str | Path, ticker: str, date: str) -> bool:
+def has_checkpoint(
+    data_dir: str | Path,
+    ticker: str,
+    date: str,
+    run_signature: str | None = None,
+) -> bool:
     """Check whether a resumable checkpoint exists for ticker+date."""
-    return checkpoint_step(data_dir, ticker, date) is not None
+    return checkpoint_step(data_dir, ticker, date, run_signature) is not None
 
 
-def checkpoint_step(data_dir: str | Path, ticker: str, date: str) -> int | None:
+def checkpoint_step(
+    data_dir: str | Path,
+    ticker: str,
+    date: str,
+    run_signature: str | None = None,
+) -> int | None:
     """Return the step number of the latest checkpoint, or None if none exists."""
     db = _db_path(data_dir, ticker)
     if not db.exists():
         return None
-    tid = thread_id(ticker, date)
+    tid = thread_id(ticker, date, run_signature)
     with get_checkpointer(data_dir, ticker) as saver:
         config = {"configurable": {"thread_id": tid}}
         cp = saver.get_tuple(config)
@@ -73,12 +86,17 @@ def clear_all_checkpoints(data_dir: str | Path) -> int:
     return len(dbs)
 
 
-def clear_checkpoint(data_dir: str | Path, ticker: str, date: str) -> None:
+def clear_checkpoint(
+    data_dir: str | Path,
+    ticker: str,
+    date: str,
+    run_signature: str | None = None,
+) -> None:
     """Remove checkpoint for a specific ticker+date by deleting the thread's rows."""
     db = _db_path(data_dir, ticker)
     if not db.exists():
         return
-    tid = thread_id(ticker, date)
+    tid = thread_id(ticker, date, run_signature)
     conn = sqlite3.connect(str(db))
     try:
         for table in ("writes", "checkpoints"):

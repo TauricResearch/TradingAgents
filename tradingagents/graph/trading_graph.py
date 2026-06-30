@@ -65,6 +65,7 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        self.selected_analysts = tuple(selected_analysts)
 
         # Update the interface's config
         set_config(self.config)
@@ -125,9 +126,19 @@ class TradingAgentsGraph:
         self.log_states_dict = {}  # date to full state dict
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts)
+        self.workflow = self.graph_setup.setup_graph(self.selected_analysts)
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
+
+    def _checkpoint_run_signature(self, asset_type: str) -> str:
+        """Fingerprint graph-shaping choices for checkpoint resume identity."""
+        payload = {
+            "selected_analysts": list(self.selected_analysts),
+            "asset_type": asset_type,
+            "max_debate_rounds": self.config["max_debate_rounds"],
+            "max_risk_discuss_rounds": self.config["max_risk_discuss_rounds"],
+        }
+        return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
     def _get_provider_kwargs(self) -> dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
@@ -335,6 +346,7 @@ class TradingAgentsGraph:
 
         # Recompile with a checkpointer if the user opted in.
         if self.config.get("checkpoint_enabled"):
+            run_signature = self._checkpoint_run_signature(asset_type)
             self._checkpointer_ctx = get_checkpointer(
                 self.config["data_cache_dir"], company_name
             )
@@ -342,7 +354,10 @@ class TradingAgentsGraph:
             self.graph = self.workflow.compile(checkpointer=saver)
 
             step = checkpoint_step(
-                self.config["data_cache_dir"], company_name, str(trade_date)
+                self.config["data_cache_dir"],
+                company_name,
+                str(trade_date),
+                run_signature,
             )
             if step is not None:
                 logger.info(
@@ -391,7 +406,8 @@ class TradingAgentsGraph:
 
         # Inject thread_id so same ticker+date resumes, different date starts fresh.
         if self.config.get("checkpoint_enabled"):
-            tid = thread_id(company_name, str(trade_date))
+            run_signature = self._checkpoint_run_signature(asset_type)
+            tid = thread_id(company_name, str(trade_date), run_signature)
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
 
         if self.debug:
@@ -431,8 +447,12 @@ class TradingAgentsGraph:
 
         # Clear checkpoint on successful completion to avoid stale state.
         if self.config.get("checkpoint_enabled"):
+            run_signature = self._checkpoint_run_signature(asset_type)
             clear_checkpoint(
-                self.config["data_cache_dir"], company_name, str(trade_date)
+                self.config["data_cache_dir"],
+                company_name,
+                str(trade_date),
+                run_signature,
             )
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
