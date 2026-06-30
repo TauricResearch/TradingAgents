@@ -5,29 +5,23 @@ Auth uses either the AWS SigV4 credential chain or a native bearer token
 ID; langchain-aws is imported lazily with a clear install hint when the
 [bedrock] extra is absent.
 """
+import os
 import sys
 
 import pytest
 
 from tradingagents.llm_clients.api_key_env import (
+    AWS_SIGV4_CREDENTIAL_ENV_VARS,
     BEDROCK_BEARER_TOKEN_ENV,
     get_api_key_env,
 )
 from tradingagents.llm_clients.factory import create_llm_client
 from tradingagents.llm_clients.validators import validate_model
 
-# Standard AWS credential-chain env vars to scrub so a bearer-only / no-auth
-# scenario isn't contaminated by the developer's ambient AWS environment.
-_AWS_CRED_VARS = (
-    "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY",
-    "AWS_SESSION_TOKEN",
-    "AWS_PROFILE",
-    "AWS_ROLE_ARN",
-    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
-    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
-    "AWS_WEB_IDENTITY_TOKEN_FILE",
-)
+# Reuse the production SigV4 var list (covers AWS_PROFILE *and* AWS_DEFAULT_PROFILE,
+# partial keys, container creds) so the test scrub can't drift from what the client
+# actually clears. Also clear the bearer token unless a test sets it explicitly.
+_AWS_CRED_VARS = AWS_SIGV4_CREDENTIAL_ENV_VARS
 
 
 def _scrub_aws_env(monkeypatch):
@@ -38,7 +32,7 @@ def _scrub_aws_env(monkeypatch):
 
 @pytest.mark.unit
 def test_factory_routes_bedrock():
-    client = create_llm_client("bedrock", "us.anthropic.claude-opus-4-8-v1:0")
+    client = create_llm_client("bedrock", "us.anthropic.claude-opus-4-8")
     assert type(client).__name__ == "BedrockClient"
 
 
@@ -76,7 +70,7 @@ def test_construction_when_extra_installed(monkeypatch):
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-1")
     monkeypatch.delenv("AWS_REGION", raising=False)
-    llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-4-6-v1:0").get_llm()
+    llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-4-6").get_llm()
     assert type(llm).__name__ == "NormalizedChatBedrockConverse"
     assert llm.region_name == "eu-west-1"
 
@@ -97,7 +91,7 @@ def test_construction_with_bearer_token_only(monkeypatch):
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-west-2")
     monkeypatch.delenv("AWS_REGION", raising=False)
 
-    llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-4-6-v1:0").get_llm()
+    llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-4-6").get_llm()
     assert type(llm).__name__ == "NormalizedChatBedrockConverse"
     assert llm.region_name == "us-west-2"
     # The bearer token must reach botocore's request signer (bearer auth), rather
@@ -105,6 +99,82 @@ def test_construction_with_bearer_token_only(monkeypatch):
     signer = llm.client._request_signer
     auth_token = getattr(signer, "_auth_token", None) or getattr(signer, "auth_token", None)
     assert auth_token is not None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "contaminant",
+    [
+        {"AWS_PROFILE": "definitely-not-a-real-profile-xyz"},
+        {"AWS_DEFAULT_PROFILE": "definitely-not-a-real-profile-xyz"},
+        {"AWS_ACCESS_KEY_ID": "AKIAFAKE"},  # partial creds (no secret)
+        {"AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "/v2/credentials/fake"},
+    ],
+)
+def test_bearer_token_ignores_ambient_sigv4_env(monkeypatch, contaminant):
+    """A bearer token must construct cleanly despite stray ambient SigV4 env vars.
+
+    This is the real-world regression guard: developers commonly export a global
+    AWS_PROFILE (or have partial keys / container-credential hints in the env).
+    Without the bearer-auth env scrub, langchain-aws's bearer branch resolves the
+    ambient chain and raises (e.g. ProfileNotFound) even though the token alone
+    authenticates. The scrub must also restore the env afterward.
+    """
+    pytest.importorskip("langchain_aws")
+    import tradingagents.llm_clients.bedrock_client as bc
+    monkeypatch.setattr(bc, "_BEDROCK_CLASS", None)
+    _scrub_aws_env(monkeypatch)
+    monkeypatch.setenv(BEDROCK_BEARER_TOKEN_ENV, "test-bedrock-api-key")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-west-2")
+    monkeypatch.delenv("AWS_REGION", raising=False)
+    for var, value in contaminant.items():
+        monkeypatch.setenv(var, value)
+
+    llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-4-6").get_llm()
+    assert type(llm).__name__ == "NormalizedChatBedrockConverse"
+    signer = llm.client._request_signer
+    auth_token = getattr(signer, "_auth_token", None) or getattr(signer, "auth_token", None)
+    assert auth_token is not None
+    # Env must be restored exactly as it was (scrub is transient, not destructive).
+    for var, value in contaminant.items():
+        assert os.environ.get(var) == value
+
+
+@pytest.mark.unit
+def test_bearer_scrub_is_noop_without_token(monkeypatch):
+    """Without a bearer token, the SigV4 credential chain must be left intact.
+
+    A scrub that ran unconditionally would break IAM-role / profile users. Verify
+    static creds reach the signer (SigV4) when no token is present.
+    """
+    pytest.importorskip("langchain_aws")
+    import tradingagents.llm_clients.bedrock_client as bc
+    monkeypatch.setattr(bc, "_BEDROCK_CLASS", None)
+    _scrub_aws_env(monkeypatch)
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-west-2")
+    monkeypatch.delenv("AWS_REGION", raising=False)
+
+    llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-4-6").get_llm()
+    assert type(llm).__name__ == "NormalizedChatBedrockConverse"
+    # SigV4 path: the static creds must still be resolvable (not scrubbed away).
+    assert llm.client._get_credentials() is not None
+
+
+@pytest.mark.unit
+def test_region_defaults_to_us_west_2(monkeypatch):
+    """With neither AWS_REGION nor AWS_DEFAULT_REGION set, region falls back."""
+    pytest.importorskip("langchain_aws")
+    import tradingagents.llm_clients.bedrock_client as bc
+    monkeypatch.setattr(bc, "_BEDROCK_CLASS", None)
+    _scrub_aws_env(monkeypatch)
+    monkeypatch.setenv(BEDROCK_BEARER_TOKEN_ENV, "test-bedrock-api-key")
+    monkeypatch.delenv("AWS_REGION", raising=False)
+    monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
+
+    llm = create_llm_client("bedrock", "us.anthropic.claude-opus-4-8").get_llm()
+    assert llm.region_name == "us-west-2"
 
 
 # ---- CLI credential advisory (ensure_api_key) ----------------------------
@@ -143,6 +213,36 @@ def test_ensure_api_key_bedrock_credential_chain_no_prompt(monkeypatch, cli_util
     assert result is None
     mock_q.password.assert_not_called()
     mock_print.assert_not_called()  # chain configured -> stay silent
+
+
+@pytest.mark.unit
+def test_ensure_api_key_bedrock_default_profile_no_warning(monkeypatch, cli_utils):
+    """AWS_DEFAULT_PROFILE (not just AWS_PROFILE) counts as a configured chain."""
+    _scrub_aws_env(monkeypatch)
+    monkeypatch.setenv("AWS_DEFAULT_PROFILE", "my-default-profile")
+    from unittest.mock import patch
+    with patch.object(cli_utils, "questionary") as mock_q, \
+         patch.object(cli_utils.console, "print") as mock_print:
+        result = cli_utils.ensure_api_key("bedrock")
+    assert result is None
+    mock_q.password.assert_not_called()
+    mock_print.assert_not_called()
+
+
+@pytest.mark.unit
+def test_ensure_api_key_bedrock_warns_when_token_and_profile_coexist(monkeypatch, cli_utils):
+    """Bearer token + active AWS_PROFILE: return token AND warn it overrides profile."""
+    _scrub_aws_env(monkeypatch)
+    monkeypatch.setenv(BEDROCK_BEARER_TOKEN_ENV, "test-token")
+    monkeypatch.setenv("AWS_PROFILE", "some-stale-profile")
+    from unittest.mock import patch
+    with patch.object(cli_utils, "questionary") as mock_q, \
+         patch.object(cli_utils.console, "print") as mock_print:
+        result = cli_utils.ensure_api_key("bedrock")
+    assert result == "test-token"
+    mock_q.password.assert_not_called()
+    advice = " ".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+    assert "AWS_PROFILE" in advice and "ignored" in advice
 
 
 @pytest.mark.unit

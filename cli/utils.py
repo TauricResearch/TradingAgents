@@ -7,6 +7,7 @@ from rich.console import Console
 
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import (
+    AWS_SIGV4_CREDENTIAL_ENV_VARS,
     BEDROCK_BEARER_TOKEN_ENV,
     get_api_key_env,
 )
@@ -603,19 +604,21 @@ def confirm_ollama_endpoint(url: str) -> None:
         )
 
 
-# Env vars that indicate the AWS SigV4 credential chain is configured. This is a
-# cheap, env-only heuristic — it deliberately avoids importing boto3 or touching
-# IMDS at CLI time. It only gates an advisory message, so a false negative (e.g.
-# SSO cache or an IAM role with no env hint) merely shows a hint that doesn't
-# apply; it never blocks the run.
-_AWS_CREDENTIAL_CHAIN_HINTS = (
-    "AWS_ACCESS_KEY_ID",
-    "AWS_PROFILE",
-    "AWS_ROLE_ARN",
-    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
-    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
-    "AWS_WEB_IDENTITY_TOKEN_FILE",
-)
+# Env vars that indicate the AWS SigV4 credential chain is configured. Reuses the
+# single source in api_key_env so the CLI heuristic, the client's bearer-auth
+# scrub, and the tests can't drift apart (e.g. both honor AWS_DEFAULT_PROFILE,
+# not just AWS_PROFILE). Cheap and env-only — it deliberately avoids importing
+# boto3 or touching IMDS at CLI time, and only gates an advisory message, so a
+# false negative (SSO cache, IMDS role with no env hint) merely shows a hint that
+# doesn't apply; it never blocks the run.
+_AWS_CREDENTIAL_CHAIN_HINTS = AWS_SIGV4_CREDENTIAL_ENV_VARS
+
+# Profile vars that, when stale/invalid, would raise ProfileNotFound at boto3
+# session creation even though the bearer token alone authenticates. The client
+# transiently scrubs these for bearer auth (BedrockClient._bearer_auth_env), so
+# the run still succeeds — but we tell the user, since a global AWS_PROFILE is a
+# common footgun and the silent override is otherwise surprising.
+_AWS_PROFILE_VARS = ("AWS_PROFILE", "AWS_DEFAULT_PROFILE")
 
 
 def _ensure_bedrock_credentials() -> str | None:
@@ -625,11 +628,20 @@ def _ensure_bedrock_credentials() -> str | None:
     (``AWS_BEARER_TOKEN_BEDROCK``) or the AWS SigV4 credential chain. Both are
     optional from the CLI's point of view, so unlike single-key providers we must
     never prompt-and-persist — that would derail IAM-role/profile users who never
-    set a token. We only surface an actionable hint when *neither* mode looks
-    configured, turning the otherwise-opaque deferred boto3 error into guidance.
+    set a token. We surface an actionable hint when *neither* mode looks
+    configured, and a heads-up when a bearer token coexists with an AWS_PROFILE
+    (which the client overrides in favor of the token).
     """
     token = os.environ.get(BEDROCK_BEARER_TOKEN_ENV)
     if token:
+        active_profile = next(
+            (var for var in _AWS_PROFILE_VARS if os.environ.get(var)), None
+        )
+        if active_profile:
+            console.print(
+                f"\n[yellow]Bedrock: using {BEDROCK_BEARER_TOKEN_ENV} (API key); "
+                f"the active {active_profile} is ignored for this run.[/yellow]"
+            )
         return token
     if any(os.environ.get(var) for var in _AWS_CREDENTIAL_CHAIN_HINTS):
         return None  # SigV4 chain looks configured — say nothing.

@@ -12,8 +12,13 @@ Breaking changes within the 0.x line are called out explicitly.
 
 - **Bedrock API key auth.** Amazon Bedrock now accepts a native API key (bearer
   token) via `AWS_BEARER_TOKEN_BEDROCK` as an alternative to the AWS SigV4
-  credential chain — no AWS access keys required. The CLI advises (never prompts)
-  when neither auth mode is configured, and the docs/`.env.example` describe both.
+  credential chain — no AWS access keys required. When a token is set it takes
+  precedence: ambient SigV4 credential env vars (a stale `AWS_PROFILE`, partial
+  access keys, container-credential hints) are transiently ignored during client
+  construction so they can't break bearer auth with an opaque `ProfileNotFound`.
+  The CLI advises (never prompts) when neither auth mode is configured, and notes
+  when a bearer token overrides an active profile; the docs/`.env.example`
+  describe both modes.
 
 ## [0.3.0] — 2026-06-22
 

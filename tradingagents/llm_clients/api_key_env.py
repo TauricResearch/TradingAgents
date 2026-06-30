@@ -20,6 +20,27 @@ from __future__ import annotations
 # when set, so it needs no wiring beyond being documented and discoverable.
 BEDROCK_BEARER_TOKEN_ENV = "AWS_BEARER_TOKEN_BEDROCK"
 
+# Env vars that drive AWS SigV4 credential resolution. langchain-aws's bearer
+# branch still builds the boto3 client through the standard session, so any of
+# these — even a stale/invalid one — is resolved eagerly and can raise at
+# construction (e.g. a non-existent ``AWS_PROFILE`` -> ``ProfileNotFound``, or a
+# partial ``AWS_ACCESS_KEY_ID`` with no secret) EVEN WHEN a valid bearer token is
+# present. An explicit Bedrock API key is an unambiguous "use bearer auth" signal,
+# so the client transiently clears these around construction (see
+# ``BedrockClient.get_llm``) to make "a bearer token alone just works" actually
+# hold. The same list seeds the CLI credential-chain heuristic and the tests.
+AWS_SIGV4_CREDENTIAL_ENV_VARS = (
+    "AWS_PROFILE",
+    "AWS_DEFAULT_PROFILE",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+    "AWS_ROLE_ARN",
+    "AWS_WEB_IDENTITY_TOKEN_FILE",
+    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+)
+
 PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "openai":     "OPENAI_API_KEY",
     "anthropic":  "ANTHROPIC_API_KEY",
