@@ -123,7 +123,7 @@ async def chat_completions(req: ChatCompletionRequest, request: Request):
         # Read .env directly like the rest of the app
         env = {}
         from pathlib import Path
-        env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+        env_path = Path(__file__).resolve().parent.parent.parent / ".env"
         if env_path.exists():
             for line in env_path.read_text(encoding="utf-8").splitlines():
                 stripped = line.strip()
