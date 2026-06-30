@@ -180,11 +180,20 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
     """
     context = state.get("instrument_context")
     if isinstance(context, str) and context.strip():
-        return context
-    return build_instrument_context(
-        str(state["company_of_interest"]),
-        state.get("asset_type", "stock"),
-    )
+        base_context = context
+    else:
+        base_context = build_instrument_context(
+            str(state["company_of_interest"]),
+            state.get("asset_type", "stock"),
+        )
+
+    evidence_summary = state.get("evidence_summary")
+    if isinstance(evidence_summary, str) and evidence_summary.strip():
+        base_context += (
+            "\nEvidence IDs available for citation:\n"
+            f"{evidence_summary.strip()}"
+        )
+    return base_context
 
 
 def create_msg_delete():
@@ -212,6 +221,5 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
 
 
