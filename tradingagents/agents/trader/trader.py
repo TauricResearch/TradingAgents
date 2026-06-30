@@ -31,6 +31,7 @@ def create_trader(llm):
                 "content": (
                     "You are a trading agent analyzing market data to make investment decisions. "
                     "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
+                    "You MUST populate exact price levels for the 'entry_price' (buy zone), 'target_price', and 'stop_loss' fields based on the technical and quantitative data provided. "
                     "Anchor your reasoning in the analysts' reports and the research plan."
                     + get_language_instruction()
                 ),

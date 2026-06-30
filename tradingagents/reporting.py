@@ -35,6 +35,22 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
         analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    if final_state.get("technical_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "technical.md").write_text(final_state["technical_report"], encoding="utf-8")
+        analyst_parts.append(("Technical Analyst", final_state["technical_report"]))
+    if final_state.get("quant_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "quant.md").write_text(final_state["quant_report"], encoding="utf-8")
+        analyst_parts.append(("Quant Analyst", final_state["quant_report"]))
+    if final_state.get("options_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "options.md").write_text(final_state["options_report"], encoding="utf-8")
+        analyst_parts.append(("Options Analyst", final_state["options_report"]))
+    if final_state.get("alternative_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "alternative.md").write_text(final_state["alternative_report"], encoding="utf-8")
+        analyst_parts.append(("Alternative Data Analyst", final_state["alternative_report"]))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
         sections.append(f"## I. Analyst Team Reports\n\n{content}")

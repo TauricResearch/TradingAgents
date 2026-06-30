@@ -4,6 +4,10 @@ from langchain_core.tools import tool
 
 from tradingagents.dataflows.market_data_validator import build_verified_market_snapshot
 
+# Direct (non-tool) alias for pre-fetching inside analyst Python code
+_fetch_verified_snapshot = build_verified_market_snapshot
+
+
 
 @tool
 def get_verified_market_snapshot(

@@ -76,4 +76,5 @@ def invoke_structured_or_freetext(
             )
 
     response = plain_llm.invoke(prompt)
-    return response.content
+    from tradingagents.agents.utils.agent_utils import strip_think_tags
+    return strip_think_tags(response.content)

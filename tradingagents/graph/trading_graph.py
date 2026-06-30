@@ -26,6 +26,10 @@ from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_verified_market_snapshot,
     resolve_instrument_identity,
+    get_technical_indicators,
+    get_quantitative_metrics,
+    get_options_chain_metrics,
+    get_youtube_sentiment,
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
@@ -57,7 +61,12 @@ class TradingAgentsGraph:
         """Initialize the trading agents graph and components.
 
         Args:
-            selected_analysts: List of analyst types to include
+            selected_analysts: List of analyst types to include. Defaults to the
+                conservative four ("market", "social", "news", "fundamentals").
+                The newer analysts ("technical", "quant", "options",
+                "alternative") are opt-in: they pull optional deps (`ta`/`scipy`)
+                and/or an external `opencli` binary, so callers must request them
+                explicitly.
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
@@ -80,16 +89,21 @@ class TradingAgentsGraph:
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
 
+        deep_provider = self.config.get("deep_think_provider") or self.config["llm_provider"]
+        deep_url = self.config.get("deep_think_backend_url") or self.config.get("backend_url")
         deep_client = create_llm_client(
-            provider=self.config["llm_provider"],
+            provider=deep_provider,
             model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
+            base_url=deep_url,
             **llm_kwargs,
         )
+        
+        quick_provider = self.config.get("quick_think_provider") or self.config["llm_provider"]
+        quick_url = self.config.get("quick_think_backend_url") or self.config.get("backend_url")
         quick_client = create_llm_client(
-            provider=self.config["llm_provider"],
+            provider=quick_provider,
             model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
+            base_url=quick_url,
             **llm_kwargs,
         )
 
@@ -196,8 +210,13 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                    get_verified_market_snapshot,
                 ]
             ),
+            "technical": ToolNode([get_technical_indicators]),
+            "quant": ToolNode([get_quantitative_metrics]),
+            "options": ToolNode([get_options_chain_metrics]),
+            "alternative": ToolNode([get_youtube_sentiment]),
         }
 
     def _resolve_benchmark(self, ticker: str) -> str:
@@ -442,10 +461,14 @@ class TradingAgentsGraph:
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
+            "market_report": final_state.get("market_report", ""),
+            "sentiment_report": final_state.get("sentiment_report", ""),
+            "news_report": final_state.get("news_report", ""),
+            "fundamentals_report": final_state.get("fundamentals_report", ""),
+            "technical_report": final_state.get("technical_report", ""),
+            "quant_report": final_state.get("quant_report", ""),
+            "options_report": final_state.get("options_report", ""),
+            "alternative_report": final_state.get("alternative_report", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

@@ -44,6 +44,13 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Extra technical/quant analytics tools (technical & quant analysts). Optional
+# so the core install stays lean: pip install "tradingagents[analytics]". The
+# tools degrade to a clear "not installed" message when these are absent.
+analytics = [
+    "ta>=0.11.0",
+    "scipy>=1.11.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

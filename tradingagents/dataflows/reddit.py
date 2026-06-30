@@ -171,18 +171,68 @@ def _fetch_subreddit_json(
         return _fetch_subreddit_rss(ticker, sub, limit, timeout)
 
 
+def _fetch_subreddit_opencli(
+    ticker: str,
+    sub: str,
+    limit: int,
+    timeout: float,
+) -> list[dict]:
+    import json
+    import subprocess
+
+    from ._opencli import is_valid_ticker, resolve_opencli
+
+    if not is_valid_ticker(ticker):
+        logger.debug("opencli reddit search rejected unsafe ticker: %r", ticker)
+        return []
+    opencli = resolve_opencli()
+    if opencli is None:
+        logger.debug("opencli binary not found on PATH; falling back to RSS")
+        return []
+    cmd = [
+        opencli, "reddit", "search", ticker,
+        "--subreddit", sub,
+        "--sort", "new",
+        "--time", "week",
+        "--limit", str(limit),
+        "-f", "json"
+    ]
+    try:
+        # shell=False (the default): pass the argv list directly. shutil.which()
+        # above resolves the Windows .cmd shim, so no shell is needed.
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
+        if res.returncode == 0:
+            posts = json.loads(res.stdout)
+            return [{
+                "title": p.get("title", ""),
+                "score": p.get("score"),
+                "num_comments": p.get("comments"),
+                "created_utc": p.get("created_utc"),
+                "selftext": p.get("selftext", ""),
+                "source": "opencli"
+            } for p in posts]
+        else:
+            logger.debug("opencli reddit search failed: %s", res.stderr)
+            return []
+    except Exception as e:
+        logger.debug("opencli reddit search failed: %s", e)
+        return []
+
 def _fetch_subreddit(
     ticker: str,
     sub: str,
     limit: int,
     timeout: float,
 ) -> list[dict]:
-    """Fetch one subreddit, RSS-first.
+    """Fetch one subreddit, opencli-first, falling back to RSS.
 
-    The JSON search endpoint is reliably WAF-blocked (403) for public clients,
-    so we go straight to the RSS feed — which serves our identified User-Agent
-    reliably — halving our request volume against Reddit's per-IP rate limit.
+    The JSON search endpoint is reliably WAF-blocked (403) for public clients.
+    Agent Reach OpenCLI provides a robust alternative. If it fails (e.g. no session),
+    we go straight to the RSS feed.
     """
+    posts = _fetch_subreddit_opencli(ticker, sub, limit, timeout)
+    if posts:
+        return posts
     return _fetch_subreddit_rss(ticker, sub, limit, timeout)
 
 
