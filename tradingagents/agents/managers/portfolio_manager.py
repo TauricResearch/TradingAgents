@@ -38,6 +38,7 @@ def create_portfolio_manager(llm):
             if past_context
             else ""
         )
+        evidence_context = _format_evidence_context(state)
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
@@ -56,12 +57,13 @@ def create_portfolio_manager(llm):
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
 {lessons_line}
+{evidence_context}
 **Risk Analysts Debate History:**
 {history}
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Be decisive and ground every conclusion in specific evidence from the analysts. When evidence IDs are available, cite them explicitly in the thesis and populate supporting_evidence_ids with only those IDs.{get_language_instruction()}"""
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,
@@ -90,3 +92,31 @@ Be decisive and ground every conclusion in specific evidence from the analysts.{
         }
 
     return portfolio_manager_node
+
+
+def _format_evidence_context(state) -> str:
+    evidence_summary = (state.get("evidence_summary") or "").strip()
+    evidence_ids = _evidence_ids_from_state(state)
+    if not evidence_summary and not evidence_ids:
+        return ""
+
+    lines = ["**Evidence Audit Context:**"]
+    if evidence_summary:
+        lines.append(f"- Evidence summary: {evidence_summary}")
+    if evidence_ids:
+        lines.append(f"- Available evidence IDs: {', '.join(evidence_ids)}")
+        lines.append("- Include relevant IDs in the structured supporting_evidence_ids field.")
+    return "\n".join(lines) + "\n"
+
+
+def _evidence_ids_from_state(state) -> list[str]:
+    ledger = state.get("evidence_ledger") or {}
+    items = ledger.get("items", []) if isinstance(ledger, dict) else []
+    evidence_ids: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        evidence_id = item.get("evidence_id")
+        if isinstance(evidence_id, str) and evidence_id:
+            evidence_ids.append(evidence_id)
+    return evidence_ids
