@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Loader2, ChevronDown, Plus } from "lucide-react";
+import { MessageSquare, X, Send, Loader2, ChevronDown, Plus, Maximize2 } from "lucide-react";
 import { useChatStore } from "../stores/useChatStore";
 import { fetchTools, executeTool } from "../lib/agentTools";
+import { LargeChatScreen } from "./LargeChatScreen";
 
 function formatDateTime(timestamp: number): string {
   return new Date(timestamp).toLocaleString("en-US", {
@@ -76,6 +77,7 @@ const API_BASE = "/api/chat";
 export function AgentChatBubble() {
   const { messages, isOpen, isLoading, addMessage, updateMessage, toggleChat, setLoading, clearMessages } = useChatStore();
   const [input, setInput] = useState("");
+  const [largeScreenOpen, setLargeScreenOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -208,7 +210,16 @@ export function AgentChatBubble() {
     }
   };
 
+  const openLargeScreen = () => {
+    toggleChat();
+    setLargeScreenOpen(true);
+  };
+
   return (
+    <>
+      {largeScreenOpen && (
+        <LargeChatScreen onClose={() => setLargeScreenOpen(false)} />
+      )}
     <div className="fixed bottom-4 left-4 z-50">
       <button
         onClick={toggleChat}
@@ -227,7 +238,15 @@ export function AgentChatBubble() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={clearMessages}
+                onClick={openLargeScreen}
+                className="text-slate-400 hover:text-slate-200"
+                aria-label="Open full screen"
+                title="Open full screen"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); clearMessages(); }}
                 className="text-slate-400 hover:text-slate-200"
                 aria-label="New chat"
               >
@@ -312,5 +331,6 @@ export function AgentChatBubble() {
         </div>
       )}
     </div>
+    </>
   );
 }
