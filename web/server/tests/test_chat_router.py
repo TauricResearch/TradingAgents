@@ -59,7 +59,7 @@ def test_extract_tool_definitions_discovers_routes():
     names = {t["name"] for t in tools}
 
     assert "get_health" in names
-    assert "get_tickers_{ticker}_runs" in names or "get_tickers_{ticker}_runs" in names
+    assert "get_tickers__ticker__runs" in names
     assert "post_watchlist" in names
     # Chat and WS routes should be excluded
     assert not any(t["path"].startswith("/api/chat") for t in tools)
