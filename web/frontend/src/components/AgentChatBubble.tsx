@@ -254,7 +254,12 @@ export function AgentChatBubble() {
           } catch {
             args = {};
           }
-          const result = await executeTool(call.function.name, args);
+          let result: unknown;
+          try {
+            result = await executeTool(call.function.name, args);
+          } catch (toolErr) {
+            result = { error: toolErr instanceof Error ? toolErr.message : String(toolErr) };
+          }
           addMessage({
             role: "tool",
             content: `Called ${call.function.name}: ${JSON.stringify(result).slice(0, 500)}`,
