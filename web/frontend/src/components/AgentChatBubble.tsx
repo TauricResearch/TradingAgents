@@ -129,19 +129,30 @@ export function AgentChatBubble() {
 
       // Loop until AI stops making tool calls (safety limit of 20 rounds)
       for (let round = 0; round < 20; round++) {
-        const response = await fetch(`${API_BASE}/completions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: conversationHistory,
-            tools: backendTools,
-            stream: true,
-          }),
-        });
+        let response: Response;
+        try {
+          response = await fetch(`${API_BASE}/completions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: conversationHistory,
+              tools: backendTools,
+              stream: true,
+            }),
+          });
+        } catch (fetchErr) {
+          updateMessage(currentMsgId, {
+            content: `Network error: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
+            isStreaming: false,
+          });
+          break;
+        }
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Chat completion failed");
+          let errText = "Chat completion failed";
+          try { errText = (await response.json()).error || errText; } catch {}
+          updateMessage(currentMsgId, { content: `Error: ${errText}`, isStreaming: false });
+          break;
         }
 
         // Process SSE stream
@@ -170,13 +181,15 @@ export function AgentChatBubble() {
               }
               if (parsed.type === "tool_calls" && parsed.tool_calls) {
                 toolCallsFromResponse = parsed.tool_calls;
-                updateMessage(currentMsgId, {
-                  content: fullResponse,
-                  toolCalls: toolCallsFromResponse.map(tc => ({
-                    id: tc.id, name: tc.function.name,
-                    arguments: JSON.parse(tc.function.arguments || "{}"),
-                  })),
-                });
+                try {
+                  updateMessage(currentMsgId, {
+                    content: fullResponse,
+                    toolCalls: toolCallsFromResponse.map(tc => ({
+                      id: tc.id, name: tc.function.name,
+                      arguments: (() => { try { return JSON.parse(tc.function.arguments || "{}"); } catch { return {}; } })(),
+                    })),
+                  });
+                } catch {}
               }
               if (parsed.type === "done") {
                 if (parsed.tool_calls?.length > 0) {
@@ -260,14 +273,15 @@ export function AgentChatBubble() {
           } catch (toolErr) {
             result = { error: toolErr instanceof Error ? toolErr.message : String(toolErr) };
           }
+          const resultStr = JSON.stringify(result);
           addMessage({
             role: "tool",
-            content: `Called ${call.function.name}: ${JSON.stringify(result).slice(0, 500)}`,
+            content: `Called ${call.function.name}: ${resultStr.slice(0, 500)}`,
           });
           toolResults.push({
             role: "tool",
             tool_call_id: call.id,
-            content: JSON.stringify(result),
+            content: resultStr.slice(0, 2000),
           });
         }
 
