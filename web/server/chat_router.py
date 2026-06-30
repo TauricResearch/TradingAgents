@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import os
 import json
 from typing import Any
 
@@ -117,15 +118,32 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
 async def chat_completions(req: ChatCompletionRequest, request: Request):
     """Handle chat completions using the backend's LLM configuration."""
     try:
-        from tradingagents.default_config import DEFAULT_CONFIG
         from tradingagents.llm_clients import create_llm_client
 
-        llm_config = DEFAULT_CONFIG.copy()
-        provider = llm_config.get("llm_provider", "openai")
-        model_name = llm_config.get("quick_think_llm", "gpt-4o-mini")
+        # Read .env directly like the rest of the app
+        env = {}
+        from pathlib import Path
+        env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+        if env_path.exists():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if "=" in stripped:
+                    key, _, val = stripped.partition("=")
+                    env[key.strip()] = val.strip()
+
+        provider = env.get("TRADINGAGENTS_LLM_PROVIDER", "ollama").replace("-", "_")
+        model_name = env.get("TRADINGAGENTS_QUICK_THINK_LLM", "gpt-4o-mini")
+        backend_url = env.get("TRADINGAGENTS_LLM_BACKEND_URL") or None
+
+        # Set env vars so create_llm_client can find API keys
+        for k, v in env.items():
+            if v and k not in os.environ:
+                os.environ[k] = v
 
         # For Ollama, don't pass base_url (client handles it)
-        base_url = llm_config.get("backend_url") or None
+        base_url = backend_url
         if provider == "ollama":
             base_url = None
 
