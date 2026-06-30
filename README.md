@@ -56,6 +56,10 @@
 
 </div>
 
+## Community learning resources
+
+- [AIFlowLearn Codex + OpenClassroom learning pack](https://classroom.aiflowlearn.net/zh/classrooms/tradingagent) - a non-official community learning resource for building an architecture-level mental model and practicing the main project flow. It includes an [AIFlowLearn Codex walkthrough](https://www.aiflowlearn.net/zh/codex/tradingagents) and points back to this repository as the fact source. More AIFlowLearn Codex learning packs are listed at https://www.aiflowlearn.net/codex.
+
 ## TradingAgents Framework
 
 TradingAgents is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
