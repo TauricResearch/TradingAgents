@@ -121,12 +121,18 @@ async def chat_completions(req: ChatCompletionRequest, request: Request):
         from tradingagents.llm_clients import create_llm_client
 
         llm_config = DEFAULT_CONFIG.copy()
+        provider = llm_config.get("llm_provider", "openai")
         model_name = llm_config.get("quick_think_llm", "gpt-4o-mini")
 
+        # For Ollama, don't pass base_url (client handles it)
+        base_url = llm_config.get("backend_url") or None
+        if provider == "ollama":
+            base_url = None
+
         client = create_llm_client(
-            provider=llm_config.get("llm_provider", "openai"),
+            provider=provider,
             model=model_name,
-            base_url=llm_config.get("backend_url") or None,
+            base_url=base_url,
         )
         llm = client.get_llm()
 
