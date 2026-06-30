@@ -2,6 +2,8 @@ import json
 import logging
 import subprocess
 
+from ._opencli import is_valid_ticker, resolve_opencli
+
 logger = logging.getLogger(__name__)
 
 def fetch_youtube_sentiment(
@@ -10,13 +12,22 @@ def fetch_youtube_sentiment(
     timeout: float = 45.0,
 ) -> str:
     """Fetch recent YouTube videos and sentiment mentioning ``ticker``."""
+    if not is_valid_ticker(ticker):
+        logger.warning("opencli youtube search rejected unsafe ticker: %r", ticker)
+        return "<no YouTube data found (invalid ticker)>"
+    opencli = resolve_opencli()
+    if opencli is None:
+        logger.warning("opencli binary not found on PATH; skipping YouTube search")
+        return f"<no YouTube data found for {ticker.upper()} (opencli not installed)>"
     cmd = [
-        "opencli", "youtube", "search", ticker,
+        opencli, "youtube", "search", ticker,
         "--limit", str(limit),
         "-f", "json"
     ]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, shell=True, encoding="utf-8", errors="replace")
+        # shell=False (the default): pass the argv list directly. shutil.which()
+        # above resolves the Windows .cmd shim, so no shell is needed.
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
         if res.returncode == 0:
             try:
                 videos = json.loads(res.stdout)

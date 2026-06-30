@@ -53,7 +53,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=("market", "social", "news", "fundamentals", "technical", "quant", "options", "alternative"),
+        selected_analysts=("market", "social", "news", "fundamentals"),
         debug=False,
         config: dict[str, Any] = None,
         callbacks: list | None = None,
@@ -61,7 +61,12 @@ class TradingAgentsGraph:
         """Initialize the trading agents graph and components.
 
         Args:
-            selected_analysts: List of analyst types to include
+            selected_analysts: List of analyst types to include. Defaults to the
+                conservative four ("market", "social", "news", "fundamentals").
+                The newer analysts ("technical", "quant", "options",
+                "alternative") are opt-in: they pull optional deps (`ta`/`scipy`)
+                and/or an external `opencli` binary, so callers must request them
+                explicitly.
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)

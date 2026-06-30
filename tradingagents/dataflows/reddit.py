@@ -177,10 +177,20 @@ def _fetch_subreddit_opencli(
     limit: int,
     timeout: float,
 ) -> list[dict]:
-    import subprocess
     import json
+    import subprocess
+
+    from ._opencli import is_valid_ticker, resolve_opencli
+
+    if not is_valid_ticker(ticker):
+        logger.debug("opencli reddit search rejected unsafe ticker: %r", ticker)
+        return []
+    opencli = resolve_opencli()
+    if opencli is None:
+        logger.debug("opencli binary not found on PATH; falling back to RSS")
+        return []
     cmd = [
-        "opencli", "reddit", "search", ticker,
+        opencli, "reddit", "search", ticker,
         "--subreddit", sub,
         "--sort", "new",
         "--time", "week",
@@ -188,7 +198,9 @@ def _fetch_subreddit_opencli(
         "-f", "json"
     ]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, shell=True, encoding="utf-8", errors="replace")
+        # shell=False (the default): pass the argv list directly. shutil.which()
+        # above resolves the Windows .cmd shim, so no shell is needed.
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
         if res.returncode == 0:
             posts = json.loads(res.stdout)
             return [{

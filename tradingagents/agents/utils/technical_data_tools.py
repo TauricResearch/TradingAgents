@@ -1,11 +1,10 @@
 import logging
+from datetime import datetime, timedelta
 from typing import Annotated
 
-import pandas as pd
 import yfinance as yf
+from dateutil.relativedelta import relativedelta
 from langchain_core.tools import tool
-from ta import add_all_ta_features
-from ta.utils import dropna
 
 from tradingagents.dataflows.symbol_utils import normalize_symbol
 
@@ -21,9 +20,27 @@ def get_technical_indicators(
     using the 'ta' library. Returns the latest values for RSI, MACD, Bollinger Bands, ATR, ADX, CCI, and OBV.
     """
     try:
+        # `ta` is an optional dependency (pip install "tradingagents[analytics]").
+        # Import lazily so a missing wheel degrades this one tool instead of
+        # breaking import of the whole package.
+        from ta import add_all_ta_features
+        from ta.utils import dropna
+    except ImportError:
+        return (
+            "Technical indicators unavailable: the optional 'ta' dependency is not "
+            "installed. Install it with: pip install \"tradingagents[analytics]\"."
+        )
+    try:
         symbol = normalize_symbol(ticker)
-        # Fetch 6 months to ensure moving averages have enough data to compute
-        df = yf.Ticker(symbol).history(end=curr_date, period="6mo")
+        # Fetch 6 months ending at curr_date so moving averages have enough
+        # history. Bound the request by explicit start/end dates: yfinance only
+        # honours `end` when `start` is also given (a bare `period=` ignores
+        # `end` and returns data up to *today*, leaking future prices into a
+        # backtest). `end` is exclusive, so add a day to include curr_date.
+        end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+        start = (end_dt - relativedelta(months=6)).strftime("%Y-%m-%d")
+        end_inclusive = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        df = yf.Ticker(symbol).history(start=start, end=end_inclusive)
         if df.empty:
             return f"No price data found for {ticker} up to {curr_date}."
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
