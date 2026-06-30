@@ -30,6 +30,31 @@ class OpsConfig:
     per_position_stop_pct: Decimal = Decimal("-0.08")
     journal_path: str = "ops_journal.sqlite"
 
+    def __post_init__(self) -> None:
+        # Drawdown and per-position-stop percentages must be negative — a
+        # positive number here silently disables the kill switch.
+        for fname in ("daily_drawdown_pct", "weekly_drawdown_pct", "per_position_stop_pct"):
+            val = getattr(self, fname)
+            if val >= 0:
+                raise ValueError(f"{fname} must be negative, got {val}")
+        # Caps and reserves are fractions in [0, 1].
+        for fname in ("per_position_cap_pct", "cash_reserve_pct"):
+            val = getattr(self, fname)
+            if not (Decimal("0") <= val <= Decimal("1")):
+                raise ValueError(f"{fname} must be in [0, 1], got {val}")
+        if self.per_trade_dollar_floor < 0:
+            raise ValueError(
+                f"per_trade_dollar_floor must be >= 0, got {self.per_trade_dollar_floor}"
+            )
+        if self.max_open_positions <= 0:
+            raise ValueError(
+                f"max_open_positions must be > 0, got {self.max_open_positions}"
+            )
+        if self.broker_mode not in ("paper", "robinhood"):
+            raise ValueError(
+                f"broker_mode must be 'paper' or 'robinhood', got {self.broker_mode!r}"
+            )
+
 
 def _env_decimal(name: str) -> Decimal | None:
     raw = os.environ.get(name)
