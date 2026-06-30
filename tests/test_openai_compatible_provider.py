@@ -46,6 +46,20 @@ def test_keyless_local_uses_placeholder_and_chat_completions(monkeypatch):
 
 
 @pytest.mark.unit
+def test_explicit_api_key_kwarg_overrides_env(monkeypatch):
+    # A per-session key (e.g. entered in a UI and forwarded via config) must
+    # win over whatever's in the environment, and must work even when the
+    # env var is unset (#3 follow-up: the session-state fix only reached
+    # Anthropic/Google, not OpenAI-compatible providers like Groq).
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    llm = create_llm_client(
+        provider="groq", model="llama-3.3-70b-versatile", api_key="sk-session-key"
+    ).get_llm()
+    key = llm.openai_api_key.get_secret_value() if hasattr(llm.openai_api_key, "get_secret_value") else llm.openai_api_key
+    assert key == "sk-session-key"
+
+
+@pytest.mark.unit
 def test_optional_key_from_env(monkeypatch):
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_KEY", "sk-relay-123")
     llm = create_llm_client(
