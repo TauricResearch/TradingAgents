@@ -59,8 +59,14 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
             if hasattr(route, "endpoint") and route.endpoint.__doc__:
                 description = route.endpoint.__doc__.strip().split("\n")[0]
             elif path_params:
-                param_str = ", ".join([f"{p}: string" for p in path_params])
-                description = f"{method.upper()} {route.path.replace('/api/', '')} - {param_str}"
+                # Build function-style description: tool_name(param1, param2?) - purpose
+                sig_parts = []
+                for p in path_params:
+                    sig_parts.append(f"{p}: string")
+                sig = f"{method.lower()}_{tool_name}({', '.join(sig_parts)})"
+                # Use first path param as main descriptor
+                main_param = path_params[0]
+                description = f"{sig} - Fetch data for {main_param}. Examples: {main_param.upper()}=\"SPY\", \"AAPL\", \"QQQ\""
             else:
                 description = f"Execute {method} on {route.path}"
 
@@ -70,8 +76,8 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
                 parameters[param] = {
                     "type": "string",
                     "description": (
-                        f"Required. The ticker symbol from the conversation context. "
-                        f"Examples: 'SPY', 'AAPL', 'QQQ', 'MSFT'. "
+                        f"REQUIRED. The {param} symbol (e.g. 'SPY', 'AAPL', 'QQQ'). "
+                        f"Extract from conversation context. Must be a valid ticker symbol."
                     ),
                 }
 
@@ -84,7 +90,7 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
             if tool_name == "tickers_ticker_history":
                 parameters["range"] = {
                     "type": "string",
-                    "description": "Time range for historical data (e.g. '1mo', '3mo', '6mo', '1y'). Default: '1mo'.",
+                    "description": "Time range: '1d', '5d', '1mo', '3mo', '6mo', '1y'. Default: 'auto'",
                 }
 
             tools.append(
