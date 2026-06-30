@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Loader2, ChevronDown, Plus, Maximize2 } from "lucide-react";
+import { MessageSquare, X, Send, Loader2, ChevronDown, Plus, Maximize2, Trash2, History } from "lucide-react";
 import { useChatStore } from "../stores/useChatStore";
 import { fetchTools, executeTool } from "../lib/agentTools";
 import { LargeChatScreen } from "./LargeChatScreen";
@@ -75,9 +75,10 @@ function extractResponseText(response: unknown): string {
 const API_BASE = "/api/chat";
 
 export function AgentChatBubble() {
-  const { messages, isOpen, isLoading, addMessage, updateMessage, toggleChat, setLoading, clearMessages } = useChatStore();
+  const { messages, isOpen, isLoading, addMessage, updateMessage, toggleChat, setLoading, clearMessages, sessions, activeSessionId, createSession, deleteSession, switchSession } = useChatStore();
   const [input, setInput] = useState("");
   const [largeScreenOpen, setLargeScreenOpen] = useState(false);
+  const [showSessions, setShowSessions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -246,6 +247,14 @@ export function AgentChatBubble() {
                 <Maximize2 className="h-4 w-4" />
               </button>
               <button
+                onClick={(e) => { e.stopPropagation(); setShowSessions(!showSessions); }}
+                className={`text-slate-400 hover:text-slate-200 ${showSessions ? "text-sky-400" : ""}`}
+                aria-label="Session history"
+                title="Session history"
+              >
+                <History className="h-4 w-4" />
+              </button>
+              <button
                 onClick={(e) => { e.stopPropagation(); clearMessages(); }}
                 className="text-slate-400 hover:text-slate-200"
                 aria-label="New chat"
@@ -261,6 +270,29 @@ export function AgentChatBubble() {
               </button>
             </div>
           </div>
+
+          {showSessions && (
+            <div className="max-h-40 overflow-y-auto border-b border-slate-700">
+              {Object.values(sessions).sort((a, b) => b.updatedAt - a.updatedAt).map((session) => (
+                <div
+                  key={session.id}
+                  className={`flex items-center justify-between px-3 py-2 text-xs cursor-pointer hover:bg-slate-800/50 ${
+                    session.id === activeSessionId ? "bg-sky-600/20 text-sky-300" : "text-slate-400"
+                  }`}
+                  onClick={() => { switchSession(session.id); setShowSessions(false); }}
+                >
+                  <span className="truncate flex-1">{session.name}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
+                    className="ml-2 text-slate-500 hover:text-red-400 shrink-0"
+                    aria-label="Delete session"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && (
