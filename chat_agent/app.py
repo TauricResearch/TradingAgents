@@ -138,7 +138,7 @@ with st.sidebar:
 
     llm_provider = st.selectbox(
         "LLM Provider",
-        ["openai", "anthropic", "google", "deepseek"],
+        ["openai", "anthropic", "google", "deepseek", "groq"],
         index=0,
     )
 
@@ -147,6 +147,7 @@ with st.sidebar:
         "anthropic": ("claude-sonnet-4-6", "claude-haiku-4-5-20251001"),
         "google": ("gemini-2.5-pro", "gemini-2.5-flash"),
         "deepseek": ("deepseek-chat", "deepseek-chat"),
+        "groq": ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"),
     }
     default_deep, default_quick = provider_models.get(
         llm_provider, ("gpt-5.5", "gpt-5.4-mini")
@@ -161,6 +162,7 @@ with st.sidebar:
         "anthropic": "ANTHROPIC_API_KEY",
         "google": "GOOGLE_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
+        "groq": "GROQ_API_KEY",
     }.get(llm_provider, "OPENAI_API_KEY")
 
     api_key = st.text_input(

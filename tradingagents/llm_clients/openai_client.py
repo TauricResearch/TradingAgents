@@ -298,10 +298,13 @@ class OpenAIClient(BaseLLMClient):
             if base_url:
                 llm_kwargs["base_url"] = base_url
 
-            # API key: required unless key_optional; keyless local servers get a
-            # placeholder. The env-var name is the single source in api_key_env.
+            # API key: explicit kwarg (e.g. per-session key from a UI) takes
+            # precedence over the env var; required unless key_optional, in
+            # which case keyless local servers get a placeholder.
             api_key_env = get_api_key_env(self.provider)
-            api_key = os.environ.get(api_key_env) if api_key_env else None
+            api_key = self.kwargs.get("api_key") or (
+                os.environ.get(api_key_env) if api_key_env else None
+            )
             if api_key:
                 llm_kwargs["api_key"] = api_key
             elif spec.key_optional:
