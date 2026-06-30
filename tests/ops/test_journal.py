@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
 from ops.journal import Journal
@@ -39,3 +40,31 @@ def test_journal_records_equity_snapshot(tmp_path):
     )
     snaps = j.read_equity_snapshots()
     assert snaps[0]["equity"] == Decimal("250.00")
+
+
+def test_record_fill_rejects_naive_datetime(tmp_path):
+    j = Journal(str(tmp_path / "j.sqlite"))
+    naive = datetime(2026, 6, 30, 14, 30)
+    with pytest.raises(ValueError, match="naive"):
+        j.record_fill(
+            order_id="oid", client_order_id="cid", symbol="AAPL", side="BUY",
+            quantity=Decimal("1"), price=Decimal("100"),
+            filled_at=naive,
+        )
+
+
+def test_record_equity_snapshot_rejects_naive_datetime(tmp_path):
+    j = Journal(str(tmp_path / "j.sqlite"))
+    naive = datetime(2026, 6, 30, 13, 30)
+    with pytest.raises(ValueError, match="naive"):
+        j.record_equity_snapshot(at=naive, equity=Decimal("250"), cash=Decimal("250"))
+
+
+def test_context_manager_closes_connection(tmp_path):
+    path = str(tmp_path / "j.sqlite")
+    with Journal(path) as j:
+        j.record_event("k", {})
+    # After exiting, a second connection should still be able to open and read
+    j2 = Journal(path)
+    assert len(j2.read_events()) == 1
+    j2.close()

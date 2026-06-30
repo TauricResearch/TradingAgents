@@ -62,13 +62,17 @@ def _to_iso(dt: datetime) -> str:
 
 
 def _from_iso(s: str) -> datetime:
-    return datetime.fromisoformat(s)
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        raise ValueError(f"stored datetime lacks timezone info: {s!r}")
+    return dt
 
 
 class Journal:
     def __init__(self, path: str):
         self._path = path
-        self._conn = sqlite3.connect(path, isolation_level=None)
+        self._conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
+        self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_SCHEMA)
 
     def record_event(self, kind: str, payload: dict[str, Any]) -> None:
@@ -153,6 +157,12 @@ class Journal:
             {"at": _from_iso(row[0]), "equity": Decimal(row[1]), "cash": Decimal(row[2])}
             for row in cur
         ]
+
+    def __enter__(self) -> "Journal":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
 
     def close(self) -> None:
         self._conn.close()
