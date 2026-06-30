@@ -1,10 +1,37 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Loader2, ChevronDown } from "lucide-react";
+import { MessageSquare, X, Send, Loader2, ChevronDown, Plus } from "lucide-react";
 import { useChatStore } from "../stores/useChatStore";
 import { fetchTools, executeTool } from "../lib/agentTools";
 
 const MODEL = "moonshotai/kimi-k2.6";
-const SYSTEM_PROMPT = `You are a trading assistant with access to market data and analysis tools.
+
+function formatDateTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function getSystemPrompt(): string {
+  const now = new Date();
+  const dateTimeStr = now.toLocaleString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZoneName: "short",
+  });
+
+  return `You are a trading assistant with access to market data and analysis tools.
+
+Current date and time: ${dateTimeStr}
 
 Your available tools are auto-generated from the backend API. You have access to:
 - Watchlist management (get, add, remove, reorder tickers)
@@ -18,8 +45,10 @@ Your available tools are auto-generated from the backend API. You have access to
 When you need data, call the appropriate tool.
 When asked to perform actions, use the action tools.
 Always explain what you're doing and show results.
+Reference timestamps from tool results when relevant.
 
 The tool list is dynamically generated from the backend API schema.`;
+}
 
 function extractResponseText(response: unknown): string {
   if (typeof response === "string") return response;
@@ -45,7 +74,7 @@ function extractResponseText(response: unknown): string {
 }
 
 export function AgentChatBubble() {
-  const { messages, isOpen, isLoading, addMessage, updateMessage, toggleChat, setLoading } = useChatStore();
+  const { messages, isOpen, isLoading, addMessage, updateMessage, toggleChat, setLoading, clearMessages } = useChatStore();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +119,7 @@ export function AgentChatBubble() {
       }));
 
       let conversationHistory = [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: getSystemPrompt() },
         ...messages
           .filter(m => m.content && m.content.trim())
           .map(m => ({ role: m.role, content: m.content })),
@@ -206,13 +235,22 @@ export function AgentChatBubble() {
               <MessageSquare className="h-4 w-4 text-sky-400" />
               <span className="text-sm font-semibold text-slate-200">Trading Assistant</span>
             </div>
-            <button
-              onClick={toggleChat}
-              className="text-slate-400 hover:text-slate-200"
-              aria-label="Close chat"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={clearMessages}
+                className="text-slate-400 hover:text-slate-200"
+                aria-label="New chat"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <button
+                onClick={toggleChat}
+                className="text-slate-400 hover:text-slate-200"
+                aria-label="Close chat"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -248,6 +286,9 @@ export function AgentChatBubble() {
                       <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                     </span>
                   )}
+                  <div className={`text-[10px] mt-1 opacity-50 ${msg.role === "user" ? "text-right" : "text-left"}`}>
+                    {formatDateTime(msg.timestamp)}
+                  </div>
                 </div>
               </div>
             ))}

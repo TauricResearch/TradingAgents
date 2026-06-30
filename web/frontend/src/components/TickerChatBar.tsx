@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Loader2, MessageSquare, Send, X } from "lucide-react";
+import { Loader2, MessageSquare, Send, X, Plus } from "lucide-react";
 import type { RunDetail } from "../lib/api";
 import type { WsEvent } from "../lib/events";
 import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
@@ -28,6 +28,16 @@ interface Props {
 
 const MODEL = "moonshotai/kimi-k2.6";
 const MAX_REPORT_CHARS = 1800;
+
+function formatDateTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 const MAX_CONTEXT_CHARS = 18000;
 
 function clip(value: unknown, max = 600): string {
@@ -168,8 +178,22 @@ export function TickerChatBar({ ticker, price, run }: Props) {
         },
       }));
 
+      const now = new Date();
+      const dateTimeStr = now.toLocaleString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+        timeZoneName: "short",
+      });
+
       const systemPrompt = [
         `You are a market-analysis assistant answering questions about ticker ${ticker}.`,
+        `Current date and time: ${dateTimeStr}`,
         "Use the provided dashboard context first. If context is missing or stale, say what is missing.",
         "Do not invent current prices, filings, news, or decisions that are not in the context.",
         "Keep the answer concise, cite the relevant context fields, and avoid presenting this as financial advice.",
@@ -227,7 +251,17 @@ export function TickerChatBar({ ticker, price, run }: Props) {
   return (
     <section className="glass-panel mb-4 overflow-hidden">
       {messages.length > 0 && (
-        <div className="max-h-80 overflow-y-auto border-b border-slate-700/50 px-3 py-3">
+        <>
+          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50">
+            <span className="text-xs text-slate-500">Chat History</span>
+            <button
+              onClick={clearMessages}
+              className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1"
+            >
+              <Plus className="h-3 w-3" /> New Chat
+            </button>
+          </div>
+          <div className="max-h-80 overflow-y-auto border-b border-slate-700/50 px-3 py-3">
           {messages.map((msg) => (
             <div key={msg.id} className={`mb-2 flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
@@ -237,6 +271,9 @@ export function TickerChatBar({ ticker, price, run }: Props) {
               }`}>
                 {msg.content}
                 {msg.isStreaming && <span className="animate-pulse ml-1">|</span>}
+                <div className={`text-[10px] mt-1 opacity-50 ${msg.role === "user" ? "text-right" : "text-left"}`}>
+                  {formatDateTime(msg.timestamp)}
+                </div>
               </div>
             </div>
           ))}
@@ -250,6 +287,7 @@ export function TickerChatBar({ ticker, price, run }: Props) {
           )}
           <div ref={messagesEndRef} />
         </div>
+        </>
       )}
       <form onSubmit={ask} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-950/40 px-3 py-2">
