@@ -100,7 +100,7 @@ def format_report(final_state: dict, ticker: str) -> str:
     return "\n\n".join(sections)
 
 
-def run_analysis(ticker: str, trade_date: str, config: dict) -> dict:
+def run_analysis(ticker: str, trade_date: str, config: dict) -> tuple:
     """Run the TradingAgents pipeline and return the final state."""
     asset_type = detect_asset_type(ticker)
 
