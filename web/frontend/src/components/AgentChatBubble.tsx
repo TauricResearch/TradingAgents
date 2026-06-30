@@ -106,6 +106,21 @@ export function AgentChatBubble() {
     setLoading(true);
 
     try {
+      const TOOL_RENAME_MAP: Record<string, { name: string; description: string }> = {
+        get_tickers__ticker__history: {
+          name: "get_ticker_history",
+          description: "get_ticker_history(ticker: string, range?: string) - Fetch historical price data for a ticker. Example: get_ticker_history('SPY', '1mo'). Pass the stock symbol like 'SPY', 'AAPL', 'QQQ'.",
+        },
+        get_tickers__ticker__runs: {
+          name: "get_ticker_runs",
+          description: "get_ticker_runs(ticker: string, limit?: number) - Get analysis runs for a ticker. Example: get_ticker_runs('SPY').",
+        },
+      };
+
+      function cleanToolName(name: string): string {
+        return name.replace(/__+/g, "_").replace(/^get_/, "get_");
+      }
+
       const tools = await fetchTools();
       const backendTools = tools.map(tool => {
         const params = tool.parameters || {};
@@ -117,11 +132,16 @@ export function AgentChatBubble() {
             required.push(key);
           }
         }
-        const backendTool = {
+
+        const renamed = TOOL_RENAME_MAP[tool.name];
+        const finalName = renamed ? renamed.name : cleanToolName(tool.name);
+        const finalDesc = renamed ? renamed.description : tool.description;
+
+        return {
           type: "function",
           function: {
-            name: tool.name,
-            description: tool.description,
+            name: finalName,
+            description: finalDesc,
             parameters: {
               type: "object",
               properties,
@@ -129,7 +149,6 @@ export function AgentChatBubble() {
             },
           },
         };
-        return backendTool;
       });
 
       const toApiMessage = (m: typeof messages[0]) => {
