@@ -9,7 +9,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from tradingagents.agents.risk_mgmt.aggressive_debator import create_aggressive_debator
-from tradingagents.agents.risk_mgmt.conservative_debator import create_conservative_debator
+from tradingagents.agents.risk_mgmt.conservative_debator import (
+    create_conservative_debator,
+)
 from tradingagents.agents.risk_mgmt.neutral_debator import create_neutral_debator
 
 

@@ -1,18 +1,17 @@
 """Tests for the dataflows interface (route_to_vendor, get_category_for_method, get_vendor)."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tradingagents.dataflows.interface import (
+    TOOLS_CATEGORIES,
+    VENDOR_METHODS,
     get_category_for_method,
     get_vendor,
     route_to_vendor,
-    TOOLS_CATEGORIES,
-    VENDOR_METHODS,
 )
 from tradingagents.dataflows.symbol_utils import NoMarketDataError
-
 
 # ---------------------------------------------------------------------------
 # get_category_for_method
@@ -99,7 +98,7 @@ class TestRouteToVendor:
     @patch("tradingagents.dataflows.interface.get_category_for_method")
     def test_falls_back_on_primary_failure(self, mock_category, mock_vendor):
         mock_category.return_value = "core_stock_apis"
-        mock_vendor.return_value = "alpha_vantage"
+        mock_vendor.return_value = "alpha_vantage,yfinance"
         failing_impl = MagicMock(side_effect=RuntimeError("API down"))
         fallback_impl = MagicMock(return_value="Fallback data")
 
@@ -127,7 +126,7 @@ class TestRouteToVendor:
     @patch("tradingagents.dataflows.interface.get_category_for_method")
     def test_all_vendors_fail_raises_first_error(self, mock_category, mock_vendor):
         mock_category.return_value = "core_stock_apis"
-        mock_vendor.return_value = "yfinance"
+        mock_vendor.return_value = "yfinance,alpha_vantage"
         first_error = RuntimeError("yfinance down")
         second_error = RuntimeError("alpha_vantage down")
 
@@ -136,9 +135,8 @@ class TestRouteToVendor:
                 "yfinance": MagicMock(side_effect=first_error),
                 "alpha_vantage": MagicMock(side_effect=second_error),
             },
-        }):
-            with pytest.raises(RuntimeError, match="yfinance down"):
-                route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-15")
+        }), pytest.raises(RuntimeError, match="yfinance down"):
+            route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-15")
 
     def test_unsupported_method_raises(self):
         with pytest.raises(ValueError, match="not found in any category"):

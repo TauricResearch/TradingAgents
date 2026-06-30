@@ -5,10 +5,7 @@ a full multi-agent trading analysis report.
 """
 
 import datetime
-import os
 import sys
-import threading
-import time
 from pathlib import Path
 
 import streamlit as st
@@ -166,15 +163,13 @@ with st.sidebar:
         "deepseek": "DEEPSEEK_API_KEY",
     }.get(llm_provider, "OPENAI_API_KEY")
 
-    existing_key = os.environ.get(api_key_label, "")
     api_key = st.text_input(
         f"{api_key_label}",
-        value=existing_key,
         type="password",
-        help="Set your API key here or via environment variable.",
+        help="Set your API key here. It is stored only in your session.",
     )
     if api_key:
-        os.environ[api_key_label] = api_key
+        st.session_state["api_key"] = api_key
 
     st.divider()
     st.markdown(
@@ -218,10 +213,7 @@ user_input = st.chat_input(
 if user_input and not st.session_state.running:
     parts = user_input.strip().split()
     ticker = parts[0].upper()
-    if len(parts) > 1:
-        trade_date = parts[1]
-    else:
-        trade_date = datetime.date.today().strftime("%Y-%m-%d")
+    trade_date = parts[1] if len(parts) > 1 else datetime.date.today().strftime("%Y-%m-%d")
 
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
@@ -248,6 +240,9 @@ if user_input and not st.session_state.running:
         config["quick_think_llm"] = quick_model
         config["max_debate_rounds"] = debate_rounds
         config["max_risk_discuss_rounds"] = debate_rounds
+        session_api_key = st.session_state.get("api_key")
+        if session_api_key:
+            config["api_key"] = session_api_key
 
         st.session_state.running = True
         try:

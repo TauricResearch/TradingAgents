@@ -1,7 +1,7 @@
 """Tests for the StockTwits message fetcher."""
 
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
