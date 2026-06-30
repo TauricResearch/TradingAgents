@@ -88,7 +88,14 @@ def test_write_report_tree_emits_evidence_audit(tmp_path):
                     {
                         "evidence_id": "EVD-MKT-TEST",
                         "source": "verified_market_snapshot",
-                        "title": "Verified Market Snapshot",
+                        "title": "Verified | Market\nSnapshot",
+                        "as_of_date": "2026-01-10",
+                        "payload": {
+                            "latest_date": "2026-01-10",
+                            "latest_ohlcv": {"Close": 100.0, "Volume": 123456},
+                            "look_back_days": 20,
+                            "rows": [{"large": "payload stays in json only"}],
+                        },
                     }
                 ]
             },
@@ -138,8 +145,33 @@ def test_write_report_tree_emits_evidence_audit(tmp_path):
     assert "**Strict Mode Blocked**" not in complete
     assert "target too far" in complete
     assert "One analyst claim lacked a citation." in complete
+    audit_markdown = (tmp_path / "6_evidence" / "audit.md").read_text()
+    for markdown in (complete, audit_markdown):
+        assert "### Evidence Ledger" in markdown
+        assert (
+            "| [EVD-MKT-TEST](#evidence-1-evd-mkt-test) | "
+            "Verified \\| Market Snapshot | verified_market_snapshot | "
+            "2026-01-10 | latest_date=2026-01-10; Close=100.0; "
+            "Volume=123456; look_back_days=20 |"
+        ) in markdown
+        assert "#### Evidence 1 EVD-MKT-TEST" in markdown
+        assert "### Quantitative Anchors" in markdown
+        assert (
+            "| QA-TEST | AAPL | 100.0 | 2026-01-10 | "
+            "[EVD-MKT-TEST](#evidence-1-evd-mkt-test) |"
+        ) in markdown
+        assert "### Math Guardrail Events" in markdown
+        assert (
+            "| price_target_multiple | warn | "
+            "Price target is materially outside the anchor.; "
+            "action=review_target_price; "
+            "[EVD-MKT-TEST](#evidence-1-evd-mkt-test) |"
+        ) in markdown
     audit = json.loads((tmp_path / "evidence_audit.json").read_text())
     assert audit["evidence_ledger"]["items"][0]["evidence_id"] == "EVD-MKT-TEST"
+    assert audit["evidence_ledger"]["items"][0]["payload"]["rows"] == [
+        {"large": "payload stays in json only"}
+    ]
     assert audit["citation_verification"]["passed"] is True
     assert audit["quantitative_anchors"][0]["current_price"] == 100.0
     assert audit["math_guardrail_events"][0]["status"] == "warn"
@@ -149,6 +181,106 @@ def test_write_report_tree_emits_evidence_audit(tmp_path):
     assert audit["evidence_decision_status"] == "blocked"
     assert audit["evidence_actionable"] is False
     assert audit["original_final_trade_decision"] == "BUY: stale portfolio manager decision"
+
+
+@pytest.mark.unit
+def test_write_report_tree_escapes_special_evidence_ids_and_avoids_anchor_collisions(
+    tmp_path,
+):
+    long_scalar = "X" * 180
+    state = _state()
+    state.update(
+        {
+            "evidence_ledger": {
+                "items": [
+                    {
+                        "evidence_id": "EVD MKT/TEST[1]",
+                        "source": "news",
+                        "title": "Special ID",
+                        "as_of_date": "2026-01-10",
+                        "payload": {"headline": long_scalar, "quality": "primary"},
+                    },
+                    {
+                        "evidence_id": "EVD-MKT-TEST-1",
+                        "source": "filing",
+                        "title": "Colliding ID",
+                        "as_of_date": "2026-01-11",
+                        "payload": {"form": "10-K"},
+                    },
+                ]
+            },
+            "quantitative_anchors": [
+                {
+                    "anchor_id": "QA-SPECIAL",
+                    "symbol": "AAPL",
+                    "current_price": 100.0,
+                    "as_of_date": "2026-01-10",
+                    "evidence_id": "EVD MKT/TEST[1]",
+                }
+            ],
+            "math_guardrail_events": [
+                {
+                    "rule_id": "special_id_check",
+                    "status": "warn",
+                    "message": "Uses special evidence id.",
+                    "evidence_id": "EVD MKT/TEST[1]",
+                }
+            ],
+        }
+    )
+
+    out = write_report_tree(state, "AAPL", tmp_path)
+
+    complete = out.read_text()
+    audit_markdown = (tmp_path / "6_evidence" / "audit.md").read_text()
+    for markdown in (complete, audit_markdown):
+        assert "[EVD MKT/TEST\\[1\\]](#evidence-1-evd-mkt-test-1)" in markdown
+        assert "[EVD-MKT-TEST-1](#evidence-2-evd-mkt-test-1)" in markdown
+        assert "#### Evidence 1 EVD MKT/TEST[1]" in markdown
+        assert "#### Evidence 2 EVD-MKT-TEST-1" in markdown
+        assert (
+            "| QA-SPECIAL | AAPL | 100.0 | 2026-01-10 | "
+            "[EVD MKT/TEST\\[1\\]](#evidence-1-evd-mkt-test-1) |"
+        ) in markdown
+        assert (
+            "Uses special evidence id.; "
+            "[EVD MKT/TEST\\[1\\]](#evidence-1-evd-mkt-test-1)"
+        ) in markdown
+        assert long_scalar not in markdown
+        assert f"headline={'X' * 117}..." in markdown
+
+    audit = json.loads((tmp_path / "evidence_audit.json").read_text())
+    assert audit["evidence_ledger"]["items"][0]["payload"]["headline"] == long_scalar
+
+
+@pytest.mark.unit
+def test_write_report_tree_renders_no_math_guardrail_events(tmp_path):
+    state = _state()
+    state.update(
+        {
+            "evidence_ledger": {
+                "items": [
+                    {
+                        "evidence_id": "EVD-NEWS-TEST",
+                        "source": "news",
+                        "title": "News Summary",
+                        "as_of_date": "2026-01-10",
+                        "payload": {"headline": "Guidance reaffirmed", "quality": "primary"},
+                    }
+                ]
+            },
+            "quantitative_anchors": [],
+            "math_guardrail_events": [],
+        }
+    )
+
+    out = write_report_tree(state, "AAPL", tmp_path)
+
+    complete = out.read_text()
+    audit_markdown = (tmp_path / "6_evidence" / "audit.md").read_text()
+    for markdown in (complete, audit_markdown):
+        assert "**Math Guardrail Events**: 0" in markdown
+        assert "### Math Guardrail Events\n\nNone." in markdown
 
 
 @pytest.mark.unit

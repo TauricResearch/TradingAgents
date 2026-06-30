@@ -185,6 +185,7 @@ def _render_evidence_audit(audit: dict[str, Any]) -> str:
     original_decision_label = (
         "captured" if audit.get("original_final_trade_decision") else "not captured"
     )
+    evidence_links = _evidence_links(ledger_items)
 
     parts = [
         f"**Evidence Ledger Items**: {len(ledger_items)}",
@@ -211,10 +212,9 @@ def _render_evidence_audit(audit: dict[str, Any]) -> str:
             parts.extend(["", f"- Evidence IDs: {', '.join(ids)}"])
     if isinstance(citation, dict) and citation.get("warnings"):
         parts.extend(["", "- Citation warnings: " + "; ".join(citation["warnings"])])
-    if anchors:
-        parts.extend(["", "- Anchor IDs: " + ", ".join(_anchor_label(anchor) for anchor in anchors)])
-    if guardrail_events:
-        parts.extend(["", "- Guardrails: " + "; ".join(_guardrail_label(event) for event in guardrail_events)])
+    parts.extend(["", _render_evidence_ledger_section(ledger_items, evidence_links)])
+    parts.extend(["", _render_quantitative_anchors_section(anchors, evidence_links)])
+    parts.extend(["", _render_math_guardrail_events_section(guardrail_events, evidence_links)])
     if warnings:
         parts.extend(["", "- Evidence warnings: " + "; ".join(str(warning) for warning in warnings)])
     if blocking_reasons:
@@ -228,22 +228,212 @@ def _citation_status(citation: Any) -> str:
     return "Passed" if citation.get("passed") else "Failed"
 
 
-def _anchor_label(anchor: Any) -> str:
-    if not isinstance(anchor, dict):
-        return str(anchor)
-    anchor_id = anchor.get("anchor_id", "unknown")
-    current_price = anchor.get("current_price")
-    evidence_id = anchor.get("evidence_id", "unknown evidence")
-    return f"{anchor_id} current_price={current_price} evidence_id={evidence_id}"
+def _render_evidence_ledger_section(
+    ledger_items: list[Any],
+    evidence_links: dict[str, tuple[str, str]],
+) -> str:
+    parts = ["### Evidence Ledger"]
+    if not ledger_items:
+        return "\n\n".join([*parts, "None."])
+
+    rows = [
+        "| Evidence ID | Title | Source | As-of Date | Summary |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    detail_parts = []
+    for item in ledger_items:
+        if not isinstance(item, dict):
+            continue
+        evidence_id = str(item.get("evidence_id") or "unknown")
+        heading_text, anchor = evidence_links[evidence_id]
+        source = item.get("source", "")
+        payload = item.get("payload")
+        summary = _payload_summary(payload, source=source)
+        rows.append(
+            " | ".join(
+                [
+                    f"| {_evidence_link(evidence_id, anchor)}",
+                    _markdown_table_cell(item.get("title", "")),
+                    _markdown_table_cell(source),
+                    _markdown_table_cell(item.get("as_of_date", "")),
+                    f"{_markdown_table_cell(summary)} |",
+                ]
+            )
+        )
+        detail_parts.extend(
+            [
+                f"#### {heading_text}",
+                "",
+                f"- Source: {_markdown_text(source)}",
+                f"- As-of Date: {_markdown_text(item.get('as_of_date', ''))}",
+                f"- Summary: {_markdown_text(summary) if summary else 'None.'}",
+            ]
+        )
+
+    if len(rows) == 2:
+        return "\n\n".join([*parts, "None."])
+    return "\n\n".join([*parts, "\n".join(rows), "\n".join(detail_parts)])
 
 
-def _guardrail_label(event: Any) -> str:
-    if not isinstance(event, dict):
-        return str(event)
-    rule_id = event.get("rule_id", "unknown_rule")
-    status = event.get("status", "unknown")
-    message = event.get("message")
-    return f"{rule_id} status={status}" + (f" ({message})" if message else "")
+def _render_quantitative_anchors_section(
+    anchors: list[Any],
+    evidence_links: dict[str, tuple[str, str]],
+) -> str:
+    parts = ["### Quantitative Anchors"]
+    if not anchors:
+        return "\n\n".join([*parts, "None."])
+
+    rows = [
+        "| Anchor ID | Symbol | Current Price | As-of Date | Evidence ID |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for anchor in anchors:
+        if not isinstance(anchor, dict):
+            continue
+        evidence_id = anchor.get("evidence_id")
+        evidence_cell = _evidence_reference_link(str(evidence_id), evidence_links) if evidence_id else ""
+        rows.append(
+            " | ".join(
+                [
+                    f"| {_markdown_table_cell(anchor.get('anchor_id', ''))}",
+                    _markdown_table_cell(anchor.get("symbol", "")),
+                    _markdown_table_cell(anchor.get("current_price", "")),
+                    _markdown_table_cell(anchor.get("as_of_date", "")),
+                    f"{evidence_cell} |",
+                ]
+            )
+        )
+    if len(rows) == 2:
+        return "\n\n".join([*parts, "None."])
+    return "\n\n".join([*parts, "\n".join(rows)])
+
+
+def _render_math_guardrail_events_section(
+    events: list[Any],
+    evidence_links: dict[str, tuple[str, str]],
+) -> str:
+    parts = ["### Math Guardrail Events"]
+    if not events:
+        return "\n\n".join([*parts, "None."])
+
+    rows = [
+        "| Rule ID | Status | Message / Action / Evidence |",
+        "| --- | --- | --- |",
+    ]
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        detail_items = []
+        if event.get("message"):
+            detail_items.append(_markdown_table_cell(event["message"]))
+        if event.get("action"):
+            detail_items.append(f"action={_markdown_table_cell(event['action'])}")
+        if event.get("evidence_id"):
+            detail_items.append(
+                _evidence_reference_link(str(event["evidence_id"]), evidence_links)
+            )
+        rows.append(
+            " | ".join(
+                [
+                    f"| {_markdown_table_cell(event.get('rule_id', ''))}",
+                    _markdown_table_cell(event.get("status", "")),
+                    f"{'; '.join(detail_items)} |",
+                ]
+            )
+        )
+    if len(rows) == 2:
+        return "\n\n".join([*parts, "None."])
+    return "\n\n".join([*parts, "\n".join(rows)])
+
+
+def _payload_summary(payload: Any, *, source: Any = None) -> str:
+    if not isinstance(payload, dict):
+        return ""
+
+    if source == "verified_market_snapshot":
+        latest_ohlcv = payload.get("latest_ohlcv")
+        latest_ohlcv = latest_ohlcv if isinstance(latest_ohlcv, dict) else {}
+        preferred_values = {
+            "latest_date": payload.get("latest_date"),
+            "Close": latest_ohlcv.get("Close", payload.get("Close")),
+            "Volume": latest_ohlcv.get("Volume", payload.get("Volume")),
+            "look_back_days": payload.get("look_back_days"),
+        }
+        values = [
+            f"{key}={_simple_value(value)}"
+            for key, value in preferred_values.items()
+            if _is_simple_value(value)
+        ]
+        if values:
+            return "; ".join(values)
+
+    values = []
+    for key, value in payload.items():
+        if _is_simple_value(value):
+            values.append(f"{key}={_simple_value(value)}")
+        if len(values) >= 4:
+            break
+    return "; ".join(values)
+
+
+def _is_simple_value(value: Any) -> bool:
+    return value is None or isinstance(value, (str, int, float, bool))
+
+
+def _simple_value(value: Any) -> str:
+    text = "null" if value is None else str(value)
+    max_length = 120
+    if len(text) > max_length:
+        return text[: max_length - 3] + "..."
+    return text
+
+
+def _evidence_links(ledger_items: list[Any]) -> dict[str, tuple[str, str]]:
+    links = {}
+    for index, item in enumerate(ledger_items, start=1):
+        if not isinstance(item, dict):
+            continue
+        evidence_id = str(item.get("evidence_id") or "unknown")
+        heading_text = f"Evidence {index} {evidence_id}"
+        links[evidence_id] = (heading_text, _evidence_anchor(heading_text))
+    return links
+
+
+def _evidence_reference_link(
+    evidence_id: str,
+    evidence_links: dict[str, tuple[str, str]],
+) -> str:
+    if evidence_id in evidence_links:
+        return _evidence_link(evidence_id, evidence_links[evidence_id][1])
+    return _evidence_link(evidence_id, _evidence_anchor(f"Evidence {evidence_id}"))
+
+
+def _evidence_link(evidence_id: str, anchor: str) -> str:
+    return f"[{_markdown_link_label(evidence_id)}](#{anchor})"
+
+
+def _evidence_anchor(heading_text: str) -> str:
+    normalized = []
+    for char in heading_text.lower():
+        normalized.append(char if char.isalnum() else "-")
+    return "".join(normalized).strip("-")
+
+
+def _markdown_link_label(value: Any) -> str:
+    return (
+        _markdown_table_cell(value)
+        .replace("\\", "\\\\")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+    )
+
+
+def _markdown_table_cell(value: Any) -> str:
+    return _markdown_text(value).replace("|", "\\|")
+
+
+def _markdown_text(value: Any) -> str:
+    return " ".join(str(value).splitlines())
 
 
 def _jsonable(value: Any) -> Any:
