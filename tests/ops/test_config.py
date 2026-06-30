@@ -1,3 +1,5 @@
+import os
+import pytest
 from decimal import Decimal
 from ops.config import OpsConfig, load_config
 
@@ -25,3 +27,25 @@ def test_load_config_reads_env_overrides(monkeypatch):
     cfg = load_config()
     assert cfg.broker_mode == "robinhood"
     assert cfg.per_position_cap_pct == Decimal("0.05")
+
+
+def test_load_config_uses_dataclass_defaults_for_unset_fields(monkeypatch):
+    # Make sure no OPS_* vars leak from the test environment
+    for key in list(os.environ):
+        if key.startswith("OPS_"):
+            monkeypatch.delenv(key)
+    cfg = load_config()
+    # Should match the dataclass defaults exactly
+    assert cfg == OpsConfig()
+
+
+def test_load_config_raises_attributed_error_on_bad_decimal(monkeypatch):
+    monkeypatch.setenv("OPS_PER_POSITION_CAP_PCT", "banana")
+    with pytest.raises(ValueError, match="OPS_PER_POSITION_CAP_PCT"):
+        load_config()
+
+
+def test_load_config_raises_attributed_error_on_bad_int(monkeypatch):
+    monkeypatch.setenv("OPS_MAX_OPEN_POSITIONS", "five")
+    with pytest.raises(ValueError, match="OPS_MAX_OPEN_POSITIONS"):
+        load_config()
