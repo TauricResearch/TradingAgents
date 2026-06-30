@@ -135,7 +135,7 @@ export function AgentChatBubble() {
           body: JSON.stringify({
             messages: conversationHistory,
             tools: backendTools,
-            stream: false,
+            stream: true,
           }),
         });
 
@@ -144,9 +144,52 @@ export function AgentChatBubble() {
           throw new Error(error.error || "Chat completion failed");
         }
 
-        const data = await response.json();
-        let fullResponse = data.choices?.[0]?.message?.content || "";
-        let toolCallsFromResponse = data.choices?.[0]?.message?.tool_calls || [];
+        // Process SSE stream
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = "";
+        let toolCallsFromResponse: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6);
+            if (data === "[DONE]") break;
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === "text" && parsed.text) {
+                fullResponse += parsed.text;
+                updateMessage(currentMsgId, { content: fullResponse });
+              }
+              if (parsed.type === "tool_calls" && parsed.tool_calls) {
+                toolCallsFromResponse = parsed.tool_calls;
+                updateMessage(currentMsgId, {
+                  content: fullResponse,
+                  toolCalls: toolCallsFromResponse.map(tc => ({
+                    id: tc.id, name: tc.function.name,
+                    arguments: JSON.parse(tc.function.arguments || "{}"),
+                  })),
+                });
+              }
+              if (parsed.type === "done") {
+                if (parsed.tool_calls?.length > 0) {
+                  toolCallsFromResponse = parsed.tool_calls;
+                }
+                if (parsed.content && !fullResponse) {
+                  fullResponse = parsed.content;
+                  updateMessage(currentMsgId, { content: fullResponse });
+                }
+              }
+            } catch {}
+          }
+        }
 
         // Fallback: parse text-based tool calls if LLM outputs them as text
         if (toolCallsFromResponse.length === 0 && fullResponse) {

@@ -262,7 +262,7 @@ export function IndicatorRailView() {
         body: JSON.stringify({
           messages: conversationHistory,
           tools: backendTools,
-          stream: false,
+          stream: true,
         }),
       });
 
@@ -271,10 +271,37 @@ export function IndicatorRailView() {
         throw new Error(error.error || "Chat completion failed");
       }
 
-      const data = await apiResponse.json();
-      const fullResponse = data.choices?.[0]?.message?.content || "";
+      // Process SSE stream
+      const reader = apiResponse.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = "";
 
-      updateMessage(assistantMsgId, { content: fullResponse });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
+          if (data === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === "text" && parsed.text) {
+              fullResponse += parsed.text;
+              updateMessage(assistantMsgId, { content: fullResponse });
+            }
+            if (parsed.type === "done" && parsed.content && !fullResponse) {
+              fullResponse = parsed.content;
+              updateMessage(assistantMsgId, { content: fullResponse });
+            }
+          } catch {}
+        }
+      }
+
       updateMessage(assistantMsgId, { isStreaming: false });
     } catch (err) {
       updateMessage(assistantMsgId, {

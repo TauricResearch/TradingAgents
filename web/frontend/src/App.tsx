@@ -16,7 +16,7 @@ import "./lib/console-capture";
 import { AuthGate } from "./components/AuthGate";
 import { WatchlistRail } from "./components/WatchlistRail";
 import { TickerHeader } from "./components/TickerHeader";
-import { TickerChatBar } from "./components/TickerChatBar";
+
 import { TopBar } from "./components/TopBar";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { EmptyWatchlist } from "./components/EmptyWatchlist";
@@ -227,7 +227,7 @@ export default function App() {
                 />
               )}
               <TickerHeader ticker={focused} price={price.price} changePct={price.change_pct} stale={priceStale} />
-              <TickerChatBar ticker={focused} price={price} run={focusedRunDetail} />
+              
               <div className="mb-4">
                 <ErrorBoundary>
                   <PipelineFlow events={events} />
