@@ -1,10 +1,11 @@
 import logging
+from datetime import datetime, timedelta
 from typing import Annotated
-import numpy as np
 
+import numpy as np
 import yfinance as yf
+from dateutil.relativedelta import relativedelta
 from langchain_core.tools import tool
-import scipy.stats as stats
 
 from tradingagents.dataflows.symbol_utils import normalize_symbol
 
@@ -20,9 +21,26 @@ def get_quantitative_metrics(
     Expected Shortfall (ES), Annualized Volatility, and Sharpe Ratio over the past year.
     """
     try:
+        # `scipy` is an optional dependency (pip install "tradingagents[analytics]").
+        # Import lazily so a missing wheel degrades this one tool instead of
+        # breaking import of the whole package.
+        from scipy import stats
+    except ImportError:
+        return (
+            "Quantitative metrics unavailable: the optional 'scipy' dependency is not "
+            "installed. Install it with: pip install \"tradingagents[analytics]\"."
+        )
+    try:
         symbol = normalize_symbol(ticker)
-        # Fetch 1 year of data for robust statistical metrics
-        df = yf.Ticker(symbol).history(end=curr_date, period="1y")
+        # Fetch 1 year ending at curr_date for robust statistics. Bound the
+        # request by explicit start/end: yfinance only honours `end` when
+        # `start` is given (a bare `period=` ignores `end` and returns data up
+        # to *today*, leaking future prices into a backtest). `end` is
+        # exclusive, so add a day to include curr_date.
+        end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+        start = (end_dt - relativedelta(years=1)).strftime("%Y-%m-%d")
+        end_inclusive = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        df = yf.Ticker(symbol).history(start=start, end=end_inclusive)
         if len(df) < 20:
             return f"Not enough price data found for {ticker} up to {curr_date}."
         
