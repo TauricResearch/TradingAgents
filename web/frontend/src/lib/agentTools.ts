@@ -51,6 +51,29 @@ export async function executeTool(
   if (!tool) {
     return { success: false, error: `Tool not found: ${name}` };
   }
+
+  // Sanitize path params: replace {param} placeholders with actual values
+  // and remove any literal curly brace values the LLM might have passed
+  const sanitizedParams: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string" && value.startsWith("{") && value.endsWith("}")) {
+      sanitizedParams[key] = value.slice(1, -1);
+    } else {
+      sanitizedParams[key] = value;
+    }
+  }
+  
+  // Substitute path parameters: /api/tickers/{ticker}/history → /api/tickers/SPY/history
+  let path = tool.path;
+  const pathParams = tool.path.match(/\{(\w+)\}/g) || [];
+  for (const placeholder of pathParams) {
+    const paramName = placeholder.slice(1, -1);
+    const value = sanitizedParams[paramName];
+    if (value !== undefined && value !== null) {
+      path = path.replace(placeholder, String(value));
+      delete sanitizedParams[paramName];
+    }
+  }
   
   try {
     const response = await fetch(`${base}/api/chat/proxy`, {
@@ -58,9 +81,9 @@ export async function executeTool(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         method: tool.method,
-        path: tool.path,
-        params: tool.method === "GET" ? params : undefined,
-        body: tool.method !== "GET" ? params : undefined,
+        path,
+        params: tool.method === "GET" ? sanitizedParams : undefined,
+        body: tool.method !== "GET" ? sanitizedParams : undefined,
       }),
     });
     

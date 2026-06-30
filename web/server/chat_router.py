@@ -64,7 +64,7 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
             for param in path_params:
                 parameters[param] = {
                     "type": "string",
-                    "description": f"The actual value for {param} (e.g. 'SPY', 'AAPL', '123'). Do NOT use curly braces.",
+                    "description": f"Actual value for {param}. Pass a real value like 'SPY' or 'AAPL'. NEVER pass template syntax like '{{ticker}}'.",
                 }
 
             tools.append(
