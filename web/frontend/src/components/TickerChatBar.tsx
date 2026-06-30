@@ -231,9 +231,16 @@ export function TickerChatBar({ ticker, price, run }: Props) {
               fullResponse += parsed.text;
               updateMessage(assistantMsgId, { content: fullResponse });
             }
-            if (parsed.type === "done" && parsed.content && !fullResponse) {
-              fullResponse = parsed.content;
-              updateMessage(assistantMsgId, { content: fullResponse });
+            if (parsed.type === "done") {
+              if (parsed.content !== undefined && !fullResponse) {
+                fullResponse = parsed.content;
+                updateMessage(assistantMsgId, { content: fullResponse });
+              }
+              if (!parsed.tool_calls?.length) {
+                if (!fullResponse) {
+                  updateMessage(assistantMsgId, { content: "No response" });
+                }
+              }
             }
           } catch {}
         }

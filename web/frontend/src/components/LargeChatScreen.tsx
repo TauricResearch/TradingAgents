@@ -169,7 +169,7 @@ export function LargeChatScreen({ onClose }: Props) {
                 if (parsed.tool_calls?.length > 0) {
                   toolCallsFromResponse = parsed.tool_calls;
                 }
-                if (parsed.content && !fullResponse) {
+                if (parsed.content !== undefined && !fullResponse) {
                   fullResponse = parsed.content;
                   updateMessage(currentMsgId, { content: fullResponse });
                 }
@@ -200,7 +200,11 @@ export function LargeChatScreen({ onClose }: Props) {
         updateMessage(currentMsgId, { content: fullResponse });
 
         if (toolCallsFromResponse.length === 0) {
-          updateMessage(currentMsgId, { isStreaming: false });
+          if (!fullResponse) {
+            updateMessage(currentMsgId, { content: "No response", isStreaming: false });
+          } else {
+            updateMessage(currentMsgId, { isStreaming: false });
+          }
           break;
         }
 

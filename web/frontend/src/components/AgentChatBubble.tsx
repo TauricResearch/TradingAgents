@@ -195,7 +195,7 @@ export function AgentChatBubble() {
                 if (parsed.tool_calls?.length > 0) {
                   toolCallsFromResponse = parsed.tool_calls;
                 }
-                if (parsed.content && !fullResponse) {
+                if (parsed.content !== undefined && !fullResponse) {
                   fullResponse = parsed.content;
                   updateMessage(currentMsgId, { content: fullResponse });
                 }
@@ -251,7 +251,11 @@ export function AgentChatBubble() {
 
         // If no tool calls, we're done
         if (toolCallsFromResponse.length === 0) {
-          updateMessage(currentMsgId, { isStreaming: false });
+          if (!fullResponse) {
+            updateMessage(currentMsgId, { content: "No response", isStreaming: false });
+          } else {
+            updateMessage(currentMsgId, { isStreaming: false });
+          }
           break;
         }
 

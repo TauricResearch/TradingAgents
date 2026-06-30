@@ -58,13 +58,25 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
             else:
                 description = f"Execute {method} on {route.path}"
 
-            # Extract parameters from path
+            # Extract parameters from path and known query params
             parameters: dict[str, dict[str, str]] = {}
             path_params = re.findall(r"\{(\w+)\}", route.path)
             for param in path_params:
+                param_upper = param.upper()
                 parameters[param] = {
                     "type": "string",
-                    "description": f"Actual value for {param}. Pass a real value like 'SPY' or 'AAPL'. NEVER pass template syntax like '{{ticker}}'.",
+                    "description": (
+                        f"The {param} symbol ({param_upper} for S&P 500, e.g. 'SPY', 'AAPL', 'QQQ', 'MSFT'). "
+                        f"Use the SAME {param} value the user is asking about. "
+                        f"Do NOT use placeholder text."
+                    ),
+                }
+            
+            # Add known query parameters for specific endpoints
+            if tool_name == "tickers__ticker__history":
+                parameters["range"] = {
+                    "type": "string",
+                    "description": "Time range for historical data (e.g. '1mo', '3mo', '6mo', '1y'). Default: '1mo'.",
                 }
 
             tools.append(
@@ -93,7 +105,13 @@ async def get_tools(request: Request):
 async def proxy_request(proxy_req: ProxyRequest, request: Request):
     """Forward requests to any backend endpoint."""
     base_url = str(request.base_url).rstrip("/")
-    target_url = f"{base_url}{proxy_req.path}"
+    
+    # Sanitize path: replace any remaining {param} placeholders with param name
+    # This handles cases where the LLM passes literal {TICKER} instead of a real value
+    import re as _re_path
+    sanitized_path = _re_path.sub(r'[{}]', '', proxy_req.path)
+    
+    target_url = f"{base_url}{sanitized_path}"
 
     async with httpx.AsyncClient() as client:
         response = await client.request(
