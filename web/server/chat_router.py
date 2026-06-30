@@ -62,17 +62,20 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
             parameters: dict[str, dict[str, str]] = {}
             path_params = re.findall(r"\{(\w+)\}", route.path)
             for param in path_params:
-                param_upper = param.upper()
                 parameters[param] = {
                     "type": "string",
                     "description": (
-                        f"The {param} symbol ({param_upper} for S&P 500, e.g. 'SPY', 'AAPL', 'QQQ', 'MSFT'). "
-                        f"Use the SAME {param} value the user is asking about. "
-                        f"Do NOT use placeholder text."
+                        f"ticker symbol, e.g. 'SPY', 'AAPL', 'QQQ', 'MSFT'. "
+                        f"Pass the actual symbol from the user's question. "
                     ),
                 }
-            
-            # Add known query parameters for specific endpoints
+
+            # Add known query parameters for commonly used endpoints
+            if tool_name == "prices":
+                parameters["ticker"] = {
+                    "type": "string",
+                    "description": "ticker symbol to get price for, e.g. 'SPY', 'AAPL'",
+                }
             if tool_name == "tickers__ticker__history":
                 parameters["range"] = {
                     "type": "string",

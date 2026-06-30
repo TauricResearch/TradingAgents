@@ -211,15 +211,6 @@ export function LargeChatScreen({ onClose }: Props) {
         updateMessage(currentMsgId, { content: fullResponse || "Processing..." });
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
 
-        // Collect all ticker values from conversation context for fallback
-        const knownTickers = new Set<string>();
-        for (const msg of conversationHistory) {
-          if (typeof msg.content === "string") {
-            const matches = msg.content.match(/\b[A-Z]{1,5}\b/g);
-            if (matches) matches.forEach(t => knownTickers.add(t));
-          }
-        }
-
         for (const call of toolCallsFromResponse) {
           let args: Record<string, unknown> = {};
           try {
@@ -227,20 +218,6 @@ export function LargeChatScreen({ onClose }: Props) {
             args = typeof raw === "string" ? (raw ? JSON.parse(raw) : {}) : (raw || {});
           } catch {
             args = {};
-          }
-          // If a path-param value is still a placeholder, try extracting from conversation
-          for (const [key, value] of Object.entries(args)) {
-            if (typeof value === "string" && value.length > 0 && value.length <= 20) {
-              const clean = value.replace(/[{}]/g, "");
-              if (/^(ticker|symbol|name|id|param|value|parameter|placeholder|TICKER|SYMBOL)$/i.test(clean)) {
-                for (const ticker of knownTickers) {
-                  if (/^[A-Z]{1,5}$/.test(ticker)) {
-                    args[key] = ticker;
-                    break;
-                  }
-                }
-              }
-            }
           }
           let result: unknown;
           try {

@@ -73,12 +73,19 @@ export async function executeTool(
     if (typeof cleanValue === "string" && cleanValue.startsWith("{") && cleanValue.endsWith("}")) {
       cleanValue = cleanValue.slice(1, -1);
     }
-    // If value is still a placeholder like "ticker" or "TICKER", try to infer from context
+    // If value is still a placeholder like "ticker" or "TICKER", try to infer from context.
+    // Only do this if we have a real value from a previous successful call.
     if (typeof cleanValue === "string" && isPlaceholderValue(cleanValue)) {
       const contextValue = recentToolContext[key];
       if (contextValue !== undefined) {
         cleanValue = contextValue;
       }
+      // If no context available, return error - the LLM must provide a real value
+      // This handles queries where no specific ticker is mentioned (e.g. "find the best ticker")
+      return {
+        success: false,
+        error: `Missing required parameter '${key}'. You must specify a real ${key} symbol (e.g. SPY, AAPL). Do not use placeholder text.`,
+      };
     }
     sanitizedParams[key] = cleanValue;
   }
