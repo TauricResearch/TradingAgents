@@ -1104,11 +1104,15 @@ def run_analysis(checkpoint: bool | None = None):
         instrument_context = graph.resolve_instrument_context(
             selections["ticker"], selections["asset_type"]
         )
+        evidence_pack = graph._build_evidence_pack(
+            selections["ticker"], str(selections["analysis_date"])
+        )
         init_agent_state = graph.propagator.create_initial_state(
             selections["ticker"],
             selections["analysis_date"],
             asset_type=selections["asset_type"],
             instrument_context=instrument_context,
+            **evidence_pack,
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
@@ -1223,6 +1227,8 @@ def run_analysis(checkpoint: bool | None = None):
         final_state = {}
         for chunk in trace:
             final_state.update(chunk)
+
+        graph._audit_final_state(final_state)
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
