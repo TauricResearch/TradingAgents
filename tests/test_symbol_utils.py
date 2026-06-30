@@ -6,8 +6,8 @@ import pytest
 
 from tradingagents.dataflows.symbol_utils import (
     NoMarketDataError,
-    normalize_symbol,
     is_yahoo_safe,
+    normalize_symbol,
 )
 
 
