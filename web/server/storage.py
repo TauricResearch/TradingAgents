@@ -537,18 +537,7 @@ def walk_data_dir() -> Iterable[Path]:
             continue
         yield td
 
-
-TICKER_AGENT_DIR = "ticker_agent"
-
-
-def ticker_agent_dir() -> Path:
-    p = data_dir() / TICKER_AGENT_DIR
-    p.mkdir(parents=True, exist_ok=True)
-    return p
-
-
-def ticker_agent_path(name: str) -> Path:
-    return ticker_agent_dir() / name
+# ---- notifier settings (persisted to .env for durability) ----
 
 
 # ---- notifier settings (persisted to .env for durability) ----

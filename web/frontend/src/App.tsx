@@ -28,7 +28,6 @@ import { ReportPanel } from "./components/ReportPanel";
 import { DecisionPanel } from "./components/DecisionPanel";
 import { HistoricalAnalysisDrawer } from "./components/HistoricalAnalysisDrawer";
 import { BackgroundRunsDrawer } from "./components/BackgroundRunsDrawer";
-import { TickerAgentDrawer } from "./components/TickerAgentDrawer";
 import BatchDownloadDialog from "./components/BatchDownloadDialog";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PipelineFlow } from "./components/PipelineFlow";
@@ -101,8 +100,6 @@ export default function App() {
   const { theme, toggleTheme } = useTheme();
   const mobileSidebarOpen = useUi((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useUi((s) => s.setMobileSidebarOpen);
-  const tickerAgentDrawerOpen = useUi((s) => s.tickerAgentDrawerOpen);
-  const setTickerAgentDrawerOpen = useUi((s) => s.setTickerAgentDrawerOpen);
 
   // The run detail for the currently focused run (historical pick or
   // latest). Used to power the DecisionPanel's "incomplete" hint. The
@@ -276,10 +273,6 @@ export default function App() {
           onClose={() => useUi.getState().setHistoryOpen(focused, false)}
         />
       )}
-      <TickerAgentDrawer
-        open={tickerAgentDrawerOpen}
-        onClose={() => setTickerAgentDrawerOpen(false)}
-      />
       <BackgroundRunsDrawer focusedTicker={focused ?? "AAPL"} />
       <SettingsPanel
         open={settingsOpen}

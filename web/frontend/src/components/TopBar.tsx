@@ -1,4 +1,4 @@
-import { LogOut, Settings, Download, Bot, History, Menu, X } from "lucide-react";
+import { LogOut, Settings, Download, History, Menu, X } from "lucide-react";
 import { useAuthStore } from "../stores/authStore";
 import { useUi } from "../store/ui";
 import { Button } from "../ui";
@@ -12,7 +12,6 @@ interface TopBarProps {
 
 export function TopBar({ currentModelSummary, onOpenSettings, onOpenBatchDownload }: TopBarProps) {
   const setBackgroundRunsOpen = useUi((s) => s.setBackgroundRunsOpen);
-  const setTickerAgentDrawerOpen = useUi((s) => s.setTickerAgentDrawerOpen);
   const mobileSidebarOpen = useUi((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useUi((s) => s.setMobileSidebarOpen);
   const sidebarCollapsed = useUi((s) => s.sidebarCollapsed);
@@ -53,9 +52,6 @@ export function TopBar({ currentModelSummary, onOpenSettings, onOpenBatchDownloa
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="xs" onClick={() => setBackgroundRunsOpen(true)} icon={<History className="w-3.5 h-3.5" />}>
             <span className="hidden sm:inline">Past Runs</span>
-          </Button>
-          <Button variant="ghost" size="xs" onClick={() => setTickerAgentDrawerOpen(true)} icon={<Bot className="w-3.5 h-3.5" />}>
-            <span className="hidden sm:inline">Agent</span>
           </Button>
           <Button variant="ghost" size="xs" onClick={onOpenBatchDownload} icon={<Download className="w-3.5 h-3.5" />} aria-label="Download ticker data" />
           <Button variant="ghost" size="xs" onClick={onOpenSettings} icon={<Settings className="w-3.5 h-3.5" />} aria-label="Settings" />

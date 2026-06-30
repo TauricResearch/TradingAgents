@@ -6,9 +6,8 @@ import { ThinkingStream } from "./ThinkingStream";
 import { ToolTimeline } from "./ToolTimeline";
 import { DebateFlow } from "./DebateFlow";
 import { DecisionTrace } from "./DecisionTrace";
-import { TickerAgentPanel } from "./TickerAgentPanel";
 
-type Tab = "dag" | "thinking" | "tools" | "debate" | "risk" | "decision" | "ticker";
+type Tab = "dag" | "thinking" | "tools" | "debate" | "risk" | "decision";
 
 interface AgentObservatoryProps {
   events: WsEvent[];
@@ -25,7 +24,6 @@ export function AgentObservatory({ events, onClose }: AgentObservatoryProps & { 
     { key: "debate", label: "Debate" },
     { key: "risk", label: "Risk" },
     { key: "decision", label: "Trace" },
-    { key: "ticker", label: "Ticker" },
   ];
 
   return (
@@ -81,7 +79,6 @@ export function AgentObservatory({ events, onClose }: AgentObservatoryProps & { 
       {tab === "debate" && <DebateFlow events={events} type="debate" />}
       {tab === "risk" && <DebateFlow events={events} type="risk" />}
       {tab === "decision" && <DecisionTrace events={events} />}
-      {tab === "ticker" && <TickerAgentPanel onClose={onClose} />}
     </div>
   );
 }

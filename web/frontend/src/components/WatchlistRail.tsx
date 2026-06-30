@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { shallow } from "zustand/shallow";
 import { Search, X, Plus, GripVertical } from "lucide-react";
-import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem, addToWatchlist, getAccuracyLeaderboard, ApiError } from "../lib/api";
+import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem, addToWatchlist, ApiError } from "../lib/api";
 import { TickerRow } from "./TickerRow";
 import { useUi } from "../store/ui";
 import { IndicatorRailView } from "./IndicatorRailView";
@@ -29,12 +29,6 @@ export function WatchlistRail() {
   const qc = useQueryClient();
   const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: fetchWatchlist });
   const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices });
-  const { data: accuracyData } = useQuery({
-    queryKey: ["ticker-agent", "leaderboard"],
-    queryFn: getAccuracyLeaderboard,
-    refetchInterval: 30000,
-    staleTime: 10000,
-  });
   const clearLast = useUi((s) => s.clearLastRunIdForTicker);
   const setFocusedTicker = useUi((s) => s.setFocusedTicker);
   const collapsedGroups = useUi((s) => s.watchlistCollapsedGroups, shallow);
@@ -53,7 +47,6 @@ export function WatchlistRail() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [addingTicker, setAddingTicker] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [sortMode, setSortMode] = useState<"default" | "accuracy">("default");
   const [railMode, setRailMode] = useState<"watchlist" | "indicators">("watchlist");
 
   // Group inline editing state
@@ -283,15 +276,6 @@ export function WatchlistRail() {
 
   /* ---------- Filter & Sort ---------- */
   const lowerFilter = filterTicker.toLowerCase();
-  const scoreMap = useMemo(() => {
-    if (!accuracyData?.scores) return new Map<string, number>();
-    const m = new Map<string, number>();
-    for (const [t, s] of Object.entries(accuracyData.scores as Record<string, Record<string, unknown>>)) {
-      const pct = s.accuracy_pct as number | undefined;
-      if (pct != null) m.set(t, pct);
-    }
-    return m;
-  }, [accuracyData]);
 
   let filteredWatchlist = filterTicker
     ? userTickersBase.filter(
@@ -308,14 +292,6 @@ export function WatchlistRail() {
           (r.company_name && r.company_name.toLowerCase().includes(lowerFilter)),
       )
     : [...agentTickersBase];
-
-  if (sortMode === "accuracy") {
-    filteredWatchlist.sort((a, b) => {
-      const aPct = scoreMap.get(a.ticker) ?? -1;
-      const bPct = scoreMap.get(b.ticker) ?? -1;
-      return bPct - aPct;
-    });
-  }
 
   /* ---------- Group helpers (user tickers) ---------- */
   const grouped: Record<string, typeof watchlist> = {};
@@ -431,18 +407,6 @@ export function WatchlistRail() {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
             <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Watchlist</span>
-            <button
-              type="button"
-              onClick={() => setSortMode(sortMode === "accuracy" ? "default" : "accuracy")}
-              className={`text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors ${
-                sortMode === "accuracy"
-                  ? "text-sky-300 bg-sky-500/10 border border-sky-500/20"
-                  : "text-slate-600 hover:text-slate-400"
-              }`}
-              title={sortMode === "accuracy" ? "Sorted by accuracy — click for default order" : "Sort by accuracy"}
-            >
-              {sortMode === "accuracy" ? "By Accuracy" : "Default"}
-            </button>
             <span className="text-[10px] text-slate-600 ml-auto">
               {filterTicker
                 ? `${filteredWatchlist.length + filteredAgentTickers.length}/${watchlist.length}`

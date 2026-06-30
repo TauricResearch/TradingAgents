@@ -60,10 +60,7 @@ interface UiState {
   mobileSidebarOpen: boolean;
   // Desktop sidebar collapsed/expanded.
   sidebarCollapsed: boolean;
-  // Ticker Accuracy Agent drawer open/closed.
-  tickerAgentDrawerOpen: boolean;
   setFocusedTicker: (t: string | null) => void;
-  setTickerAgentDrawerOpen: (open: boolean) => void;
   setLastRunIdForTicker: (ticker: string, runId: string | null) => void;
   setActiveRunIdForTicker: (ticker: string, runId: string | null) => void;
   clearActiveRunForTicker: (ticker: string) => void;
@@ -106,11 +103,9 @@ export const useUi = create<UiState>()(
       customGroupColors: {},
       groupOrder: [],
       mobileSidebarOpen: false,
-      tickerAgentDrawerOpen: false,
       sidebarCollapsed: false,
       setFocusedTicker: (t) => { set({ focusedTicker: t, mobileSidebarOpen: false }); },
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-      setTickerAgentDrawerOpen: (open) => set({ tickerAgentDrawerOpen: open }),
       setLastRunIdForTicker: (ticker, runId) =>
         set((s) => ({ lastRunIdByTicker: { ...s.lastRunIdByTicker, [ticker]: runId } })),
       setActiveRunIdForTicker: (ticker, runId) =>
@@ -191,7 +186,6 @@ export const useUi = create<UiState>()(
         watchlistCollapsedGroups: s.watchlistCollapsedGroups,
         customGroupColors: s.customGroupColors,
         groupOrder: s.groupOrder,
-        tickerAgentDrawerOpen: s.tickerAgentDrawerOpen,
       }),
     },
   ),

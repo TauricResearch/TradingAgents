@@ -25,8 +25,6 @@ from slowapi.util import get_remote_address
 
 from tradingagents.default_config import _ENV_OVERRIDES, DEFAULT_CONFIG
 from web.server.chat_router import router as chat_router
-from web.server.ticker_agent import orchestrator
-from web.server.ticker_agent.router import router as ticker_agent_router
 
 from . import (
     events,
@@ -296,7 +294,6 @@ async def lifespan(app: FastAPI):
     lp_module.setup_log_publisher(
         asyncio.get_running_loop(), min_level=getattr(logging, s.log_level, logging.INFO)
     )
-    orchestrator.set_event_loop(asyncio.get_running_loop())
     # Silence yfinance's own ERROR-level noise for delisted/foreign symbols
     # (e.g. "TA125: possibly delisted"). Without this, the dashboard log
     # fills with yfinance-internal tracebacks every poll for every bad
@@ -346,9 +343,6 @@ async def lifespan(app: FastAPI):
 
     background_runs._load_existing_jobs()
 
-    # Start the ticker accuracy agent background loop.
-    from web.server.ticker_agent import orchestrator as _agent
-
     # Start the indicator background scheduler.
     _start_indicator_scheduler()
 
@@ -362,7 +356,6 @@ async def lifespan(app: FastAPI):
         await feed.stop()
     await runner.stop()
     lp_module.teardown_log_publisher()
-    _agent.stop_background_loop()
 
 
 def create_app() -> FastAPI:
@@ -870,9 +863,6 @@ def create_app() -> FastAPI:
         except KeyError:
             raise HTTPException(status_code=404, detail=f"job_not_found: {job_id}") from None
         return {"status": "ok"}
-
-    # --- Ticker Accuracy Agent ---
-    app.include_router(ticker_agent_router)
 
     # --- Config (read/write .env) ---
     _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"

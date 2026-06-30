@@ -4,8 +4,6 @@ import {
   fetchConfig,
   saveConfig,
   fetchConfigDefaults,
-  getAgentConfig,
-  updateAgentConfig,
   type AppConfig,
 } from "../lib/api";
 import {
@@ -18,24 +16,6 @@ interface Props {
   theme: "dark" | "light";
   toggleTheme: () => void;
 }
-
-interface TickerAgentConfig {
-  min_samples: number;
-  schedule_interval_h: number;
-  max_tickers_per_cycle: number;
-  sp500_enabled: boolean;
-  yahoo_sectors_enabled: boolean;
-  custom_universe_path: string;
-}
-
-const DEFAULT_AGENT_CONFIG: TickerAgentConfig = {
-  min_samples: 3,
-  schedule_interval_h: 6,
-  max_tickers_per_cycle: 10,
-  sp500_enabled: true,
-  yahoo_sectors_enabled: true,
-  custom_universe_path: "",
-};
 
 const LABELS: Record<keyof AppConfig, string> = {
   TRADINGAGENTS_LLM_PROVIDER: "LLM Provider",
@@ -64,19 +44,9 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
   const [saved, setSaved] = useState(false);
   const [appVersion, setAppVersion] = useState("");
 
-  const [agentConfig, setAgentConfig] = useState<TickerAgentConfig>({ ...DEFAULT_AGENT_CONFIG });
-  const [agentConfigDirty, setAgentConfigDirty] = useState(false);
-
   const { data, isLoading } = useQuery({
     queryKey: ["app-config"],
     queryFn: fetchConfig,
-    enabled: open,
-    staleTime: 30_000,
-  });
-
-  const agentConfigQuery = useQuery({
-    queryKey: ["ticker-agent", "config"],
-    queryFn: getAgentConfig,
     enabled: open,
     staleTime: 30_000,
   });
@@ -102,16 +72,9 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
     key in dirty ? dirty[key]! : (config?.[key] ?? "");
 
   const handleSave = useCallback(() => {
-    if (Object.keys(dirty).length === 0 && !agentConfigDirty) return;
-    if (Object.keys(dirty).length > 0) {
-      mutation.mutate(dirty);
-    }
-    if (agentConfigDirty) {
-      updateAgentConfig(agentConfig as unknown as Record<string, unknown>)
-        .then(() => qc.invalidateQueries({ queryKey: ["ticker-agent", "config"] }))
-        .catch(() => {});
-    }
-  }, [dirty, mutation, agentConfig, agentConfigDirty, qc]);
+    if (Object.keys(dirty).length === 0) return;
+    mutation.mutate(dirty);
+  }, [dirty, mutation]);
 
   const handleResetLlmDefaults = useCallback(async () => {
     try {
@@ -122,15 +85,6 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
       // If the defaults endpoint fails, silently do nothing.
     }
   }, [mutation]);
-
-  useEffect(() => {
-    if (agentConfigQuery.data) {
-      setAgentConfig((prev) => ({
-        ...prev,
-        ...(agentConfigQuery.data as unknown as Partial<TickerAgentConfig>),
-      }));
-    }
-  }, [agentConfigQuery.data]);
 
   useEffect(() => {
     if (open) {
@@ -144,8 +98,6 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
   useEffect(() => {
     if (!open) {
       setDirty({});
-      setAgentConfig({ ...DEFAULT_AGENT_CONFIG });
-      setAgentConfigDirty(false);
       setSaved(false);
     }
   }, [open]);
@@ -345,50 +297,6 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
                     </div>
                   </div>
                 </section>
-
-                {/* ── Ticker Accuracy Agent ── */}
-                <section>
-                  <h3 className="section-header flex items-center gap-2 mb-3">
-                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                    Ticker Accuracy Agent
-                  </h3>
-                  <div className="glass-panel p-3 space-y-3">
-                    <ConfigInput
-                      label="Min Samples"
-                      type="number"
-                      value={String(agentConfig.min_samples ?? 3)}
-                      onChange={(v) => { setAgentConfig((prev) => ({ ...prev, min_samples: Number(v) })); setAgentConfigDirty(true); }}
-                    />
-                    <ConfigInput
-                      label="Schedule Interval (hours)"
-                      type="number"
-                      value={String(agentConfig.schedule_interval_h ?? 6)}
-                      onChange={(v) => { setAgentConfig((prev) => ({ ...prev, schedule_interval_h: Number(v) })); setAgentConfigDirty(true); }}
-                    />
-                    <ConfigInput
-                      label="Max Tickers Per Cycle"
-                      type="number"
-                      value={String(agentConfig.max_tickers_per_cycle ?? 10)}
-                      onChange={(v) => { setAgentConfig((prev) => ({ ...prev, max_tickers_per_cycle: Number(v) })); setAgentConfigDirty(true); }}
-                    />
-                    <ConfigToggle
-                      label="S&P 500 Tickers"
-                      value={String(agentConfig.sp500_enabled ?? true)}
-                      onChange={(v) => { setAgentConfig((prev) => ({ ...prev, sp500_enabled: v === "true" })); setAgentConfigDirty(true); }}
-                    />
-                    <ConfigToggle
-                      label="Yahoo Sector ETFs"
-                      value={String(agentConfig.yahoo_sectors_enabled ?? true)}
-                      onChange={(v) => { setAgentConfig((prev) => ({ ...prev, yahoo_sectors_enabled: v === "true" })); setAgentConfigDirty(true); }}
-                    />
-                    <ConfigInput
-                      label="Custom Universe Path"
-                      type="text"
-                      value={agentConfig.custom_universe_path ?? ""}
-                      onChange={(v) => { setAgentConfig((prev) => ({ ...prev, custom_universe_path: v })); setAgentConfigDirty(true); }}
-                    />
-                  </div>
-                </section>
               </>
             )}
 
@@ -414,7 +322,7 @@ export function SettingsPanel({ open, onClose, theme, toggleTheme }: Props) {
               </button>
               <button
                 onClick={handleSave}
-                disabled={(Object.keys(dirty).length === 0 && !agentConfigDirty) || mutation.isPending}
+                disabled={Object.keys(dirty).length === 0 || mutation.isPending}
                 className="btn-primary text-xs"
               >
                 {mutation.isPending ? (

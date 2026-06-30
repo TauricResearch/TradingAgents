@@ -452,40 +452,6 @@ def build_health(run_id: str) -> dict:
     }
 
 
-# ---- ticker accuracy agent helpers ----
-
-def get_agent_state() -> dict | None:
-    """Read the ticker agent's state file. Returns None if missing."""
-    state_path = storage.ticker_agent_path("agent_state.json")
-    return storage.read_json(state_path)
-
-
-def get_ticker_accuracy(ticker: str) -> dict | None:
-    """Return accuracy data for a single ticker, or None if unscored."""
-    state = get_agent_state()
-    if not state:
-        return None
-    scores = state.get("scores", {})
-    return scores.get(ticker.upper())
-
-
-def get_scored_tickers(min_accuracy: float | None = None) -> list[dict]:
-    """Return all scored tickers sorted by accuracy_pct descending.
-
-    Args:
-        min_accuracy: Optional minimum accuracy_pct threshold (0-100).
-    """
-    state = get_agent_state()
-    if not state:
-        return []
-    scores = state.get("scores", {})
-    result = [{"ticker": t, **s} for t, s in scores.items()]
-    result.sort(key=lambda r: r.get("accuracy_pct") or -1, reverse=True)
-    if min_accuracy is not None:
-        result = [r for r in result if (r.get("accuracy_pct") or 0) >= min_accuracy]
-    return result
-
-
 def _parse_iso_z(s: str):
     """Parse an ISO-8601 string with optional ``Z`` suffix into a datetime."""
     if not s:
