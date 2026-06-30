@@ -145,5 +145,63 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
         self.assertEqual(sel["openai_reasoning_effort"], "high")
 
 
+@pytest.mark.unit
+class TestCliEvidenceBypass(unittest.TestCase):
+    def test_run_analysis_invokes_evidence_pack_and_audit(self):
+        import cli.main as m
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+        selections = {
+            "ticker": "AAPL",
+            "asset_type": "stock",
+            "analysis_date": "2026-05-29",
+            "analysts": [mock.MagicMock(value="market")],
+            "research_depth": 1,
+            "llm_provider": "openai",
+            "backend_url": None,
+            "shallow_thinker": "gpt-5.4-mini",
+            "deep_thinker": "gpt-5.5",
+            "google_thinking_level": None,
+            "openai_reasoning_effort": None,
+            "anthropic_effort": None,
+            "output_language": "English",
+        }
+
+        mock_graph_instance = mock.MagicMock()
+        mock_graph_instance.graph.stream.return_value = [
+            {"messages": [], "market_report": "some market report"}
+        ]
+        # Return a fake evidence pack
+        fake_evidence_pack = {
+            "evidence_ledger": {"items": []},
+            "quantitative_anchors": [],
+            "math_guardrail_events": [],
+            "citation_verification": None,
+            "evidence_warnings": [],
+        }
+        mock_graph_instance._build_evidence_pack.return_value = fake_evidence_pack
+
+        with mock.patch.object(m, "get_user_selections", return_value=selections), \
+             mock.patch.object(m, "TradingAgentsGraph", return_value=mock_graph_instance), \
+             mock.patch.object(m, "Live"), \
+             mock.patch.object(m, "typer"), \
+             mock.patch.object(m, "save_report_to_disk"), \
+             mock.patch.object(m, "display_complete_report"):
+            m.run_analysis()
+
+        # Check that _build_evidence_pack was called with correct parameters
+        mock_graph_instance._build_evidence_pack.assert_called_once_with("AAPL", "2026-05-29")
+        # Check that create_initial_state was called with the evidence pack unpacked
+        mock_graph_instance.propagator.create_initial_state.assert_called_once_with(
+            "AAPL",
+            "2026-05-29",
+            asset_type="stock",
+            instrument_context=mock.ANY,
+            **fake_evidence_pack
+        )
+        # Check that _audit_final_state was called on the merged state
+        mock_graph_instance._audit_final_state.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
