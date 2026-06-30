@@ -37,6 +37,11 @@ PROVIDER_DEFAULTS = {
     "qwen": ("qwen3.7-plus", None),
     "glm": ("glm-5", None),
     "xai": ("grok-4.3", None),
+    # Bedrock model IDs are region-specific cross-region inference profiles; this
+    # default is a "us." profile (works in us-east-1/2, us-west-2). Override with
+    # --deep-model / --quick-model for other regions or models. Auth uses the AWS
+    # credential chain or a Bedrock API key (AWS_BEARER_TOKEN_BEDROCK); set a region.
+    "bedrock": ("us.anthropic.claude-sonnet-4-6", None),
 }
 
 
