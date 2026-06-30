@@ -14,7 +14,7 @@ function formatDateTime(timestamp: number): string {
   });
 }
 
-function getSystemPrompt(): string {
+function getSystemPrompt(tools: Array<{ name: string; description: string }>): string {
   const now = new Date();
   const dateTimeStr = now.toLocaleString("en-US", {
     weekday: "long",
@@ -28,17 +28,16 @@ function getSystemPrompt(): string {
     timeZoneName: "short",
   });
 
+  const toolList = tools.map(t => `- ${t.name}: ${t.description}`).join("\n");
+
   return `You are a knowledgeable trading assistant with access to real-time market data and analysis tools.
 
 Current date and time: ${dateTimeStr}
 
 You MUST always answer the user's financial questions by actually using your available tools to fetch real data. Never refuse to answer or say you can't provide advice. When a user asks about a ticker (like SPY, AAPL, QQQ), immediately call the appropriate tool to get current data.
 
-Your available tools are auto-generated from the backend API:
-- get_prices: Get current prices for tickers in your watchlist
-- get_tickers__ticker__history: Get historical price data for any ticker
-- get_indicators: Check market indicators (VIX, Fear & Greed, etc.)
-- And more...
+Your available tools (auto-generated from the backend API):
+${toolList}
 
 When asked about whether to buy/sell/enter a position:
 1. Call get_prices or get_tickers__ticker__history to get current/recent data
@@ -148,7 +147,7 @@ export function AgentChatBubble() {
       };
 
       let conversationHistory: Record<string, unknown>[] = [
-        { role: "system", content: getSystemPrompt() },
+        { role: "system", content: getSystemPrompt(tools) },
         ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
         { role: "user", content: trimmed },
       ];

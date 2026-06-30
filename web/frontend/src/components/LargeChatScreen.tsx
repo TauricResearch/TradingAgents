@@ -22,7 +22,7 @@ function formatShortDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function getSystemPrompt(): string {
+function getSystemPrompt(tools: Array<{ name: string; description: string }>): string {
   const now = new Date();
   const dateTimeStr = now.toLocaleString("en-US", {
     weekday: "long",
@@ -36,23 +36,23 @@ function getSystemPrompt(): string {
     timeZoneName: "short",
   });
 
-  return `You are a trading assistant with access to market data and analysis tools.
+  const toolList = tools.map(t => `- ${t.name}: ${t.description}`).join("\n");
+
+  return `You are a knowledgeable trading assistant with access to real-time market data and analysis tools.
 
 Current date and time: ${dateTimeStr}
 
-Your available tools are auto-generated from the backend API. You have access to:
-- Watchlist management (get, add, remove, reorder tickers)
-- Analysis runs (start, get status, cancel, resume)
-- Price data (current prices, history)
-- Indicators (get, add, update, remove, check)
-- Background jobs (start, list, cancel, pause, resume)
-- Configuration (get, update settings)
-- Ticker accuracy agent (status, control, leaderboard)
+You MUST always answer the user's financial questions by actually using your available tools to fetch real data. Never refuse to answer or say you can't provide advice. When a user asks about a ticker (like SPY, AAPL, QQQ), immediately call the appropriate tool to get current data.
 
-When you need data, call the appropriate tool.
-When asked to perform actions, use the action tools.
-Always explain what you're doing and show results.
-Reference timestamps from tool results when relevant.
+Your available tools (auto-generated from the backend API):
+${toolList}
+
+When asked about whether to buy/sell/enter a position:
+1. Call get_prices or get_tickers__ticker__history to get current/recent data
+2. Call get_indicators to check market conditions
+3. Provide a direct answer based on the actual data, not generic disclaimers
+
+Always use tools to get real data when available. Analyze the data and give specific, data-driven answers.
 
 The tool list is dynamically generated from the backend API schema.`;
 }
@@ -119,7 +119,7 @@ export function LargeChatScreen({ onClose }: Props) {
       };
 
       let conversationHistory: Record<string, unknown>[] = [
-        { role: "system", content: getSystemPrompt() },
+        { role: "system", content: getSystemPrompt(tools) },
         ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
         { role: "user", content: trimmed },
       ];
