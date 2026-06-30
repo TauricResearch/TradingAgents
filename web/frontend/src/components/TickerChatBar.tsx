@@ -7,26 +7,12 @@ import { useStageReports } from "./LiveEventStream";
 import { useChatStore } from "../stores/useChatStore";
 import { fetchTools, executeTool } from "../lib/agentTools";
 
-declare global {
-  interface Window {
-    puter?: {
-      ai?: {
-        chat?: (
-          prompt: string | Array<{ role: string; content: string }>,
-          options?: { model?: string; tools?: unknown[]; stream?: boolean }
-        ) => Promise<unknown>;
-      };
-    };
-  }
-}
-
 interface Props {
   ticker: string;
   price: Record<string, unknown>;
   run?: RunDetail | null;
 }
 
-const MODEL = "moonshotai/kimi-k2.6";
 const MAX_REPORT_CHARS = 1800;
 
 function formatDateTime(timestamp: number): string {
@@ -157,11 +143,6 @@ export function TickerChatBar({ ticker, price, run }: Props) {
     if (!trimmed || isAsking) return;
     setError("");
 
-    if (!window.puter?.ai?.chat) {
-      setError("Puter AI is still loading or unavailable. Check the network connection and try again.");
-      return;
-    }
-
     const userMessage = { role: "user" as const, content: trimmed };
     addMessage(userMessage);
     setQuestion("");
@@ -169,7 +150,7 @@ export function TickerChatBar({ ticker, price, run }: Props) {
 
     try {
       const tools = await fetchTools();
-      const puterTools = tools.map(tool => ({
+      const backendTools = tools.map(tool => ({
         type: "function",
         function: {
           name: tool.name,
@@ -212,34 +193,25 @@ export function TickerChatBar({ ticker, price, run }: Props) {
 
       const assistantMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
 
-      const response = await window.puter.ai.chat(conversationHistory, {
-        model: MODEL,
-        tools: puterTools,
-        stream: true,
+      const apiResponse = await fetch("/api/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: conversationHistory,
+          tools: backendTools,
+          stream: false,
+        }),
       });
 
-      let fullResponse = "";
-      if (response && typeof response === "object" && Symbol.asyncIterator in (response as object)) {
-        for await (const chunk of response as AsyncIterable<Record<string, unknown>>) {
-          if (chunk.text) {
-            fullResponse += chunk.text;
-            updateMessage(assistantMsgId, { content: fullResponse });
-          }
-          // Handle streaming tool calls (Puter.js format)
-          if (chunk.type === "tool_use") {
-            const toolCall = chunk as { id: string; name: string; input: Record<string, unknown> };
-            const result = await executeTool(toolCall.name, toolCall.input);
-            addMessage({
-              role: "tool",
-              content: JSON.stringify(result),
-            });
-          }
-        }
-      } else {
-        fullResponse = extractResponseText(response);
-        updateMessage(assistantMsgId, { content: fullResponse });
+      if (!apiResponse.ok) {
+        const error = await apiResponse.json();
+        throw new Error(error.error || "Chat completion failed");
       }
 
+      const data = await apiResponse.json();
+      const fullResponse = data.choices?.[0]?.message?.content || "";
+
+      updateMessage(assistantMsgId, { content: fullResponse });
       updateMessage(assistantMsgId, { isStreaming: false });
     } catch (err) {
       setError(err instanceof Error ? err.message : "The chat request failed.");

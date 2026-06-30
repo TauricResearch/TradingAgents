@@ -3,8 +3,6 @@ import { MessageSquare, X, Send, Loader2, ChevronDown, Plus } from "lucide-react
 import { useChatStore } from "../stores/useChatStore";
 import { fetchTools, executeTool } from "../lib/agentTools";
 
-const MODEL = "moonshotai/kimi-k2.6";
-
 function formatDateTime(timestamp: number): string {
   return new Date(timestamp).toLocaleString("en-US", {
     month: "short",
@@ -73,6 +71,8 @@ function extractResponseText(response: unknown): string {
   return JSON.stringify(response, null, 2);
 }
 
+const API_BASE = "/api/chat";
+
 export function AgentChatBubble() {
   const { messages, isOpen, isLoading, addMessage, updateMessage, toggleChat, setLoading, clearMessages } = useChatStore();
   const [input, setInput] = useState("");
@@ -98,18 +98,13 @@ export function AgentChatBubble() {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
 
-    if (!window.puter?.ai?.chat) {
-      addMessage({ role: "assistant", content: "Puter AI is still loading. Please try again." });
-      return;
-    }
-
     addMessage({ role: "user", content: trimmed });
     setInput("");
     setLoading(true);
 
     try {
       const tools = await fetchTools();
-      const puterTools = tools.map(tool => ({
+      const backendTools = tools.map(tool => ({
         type: "function",
         function: {
           name: tool.name,
@@ -131,37 +126,29 @@ export function AgentChatBubble() {
 
       // Loop until AI stops making tool calls (safety limit of 20 rounds)
       for (let round = 0; round < 20; round++) {
-        const response = await window.puter.ai.chat(conversationHistory, {
-          model: MODEL,
-          tools: puterTools,
-          stream: true,
+        const response = await fetch(`${API_BASE}/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: conversationHistory,
+            tools: backendTools,
+            stream: false,
+          }),
         });
 
-        let fullResponse = "";
-        const toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }> = [];
-
-        if (response && typeof response === "object" && Symbol.asyncIterator in (response as object)) {
-          for await (const chunk of response as AsyncIterable<Record<string, unknown>>) {
-            if (chunk.type === "text" && chunk.text) {
-              fullResponse += chunk.text;
-              updateMessage(currentMsgId, { content: fullResponse });
-            }
-            if (chunk.type === "tool_use") {
-              const toolCall = chunk as { id: string; name: string; input: Record<string, unknown> };
-              toolCalls.push({ id: toolCall.id, name: toolCall.name, arguments: toolCall.input });
-              updateMessage(currentMsgId, {
-                toolCalls: toolCalls.map(tc => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
-                isStreaming: true,
-              });
-            }
-          }
-        } else {
-          fullResponse = extractResponseText(response);
-          updateMessage(currentMsgId, { content: fullResponse });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Chat completion failed");
         }
 
+        const data = await response.json();
+        const fullResponse = data.choices?.[0]?.message?.content || "";
+        const toolCallsFromResponse = data.choices?.[0]?.message?.tool_calls || [];
+
+        updateMessage(currentMsgId, { content: fullResponse });
+
         // If no tool calls, we're done
-        if (toolCalls.length === 0) {
+        if (toolCallsFromResponse.length === 0) {
           updateMessage(currentMsgId, { isStreaming: false });
           break;
         }
@@ -170,11 +157,14 @@ export function AgentChatBubble() {
         updateMessage(currentMsgId, { content: fullResponse || "Processing..." });
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
 
-        for (const call of toolCalls) {
-          const result = await executeTool(call.name, call.arguments);
+        for (const call of toolCallsFromResponse) {
+          const args = typeof call.function.arguments === "string" 
+            ? JSON.parse(call.function.arguments) 
+            : call.function.arguments;
+          const result = await executeTool(call.function.name, args);
           addMessage({
             role: "tool",
-            content: `Called ${call.name}: ${JSON.stringify(result).slice(0, 500)}`,
+            content: `Called ${call.function.name}: ${JSON.stringify(result).slice(0, 500)}`,
           });
           toolResults.push({
             role: "tool",
@@ -187,10 +177,10 @@ export function AgentChatBubble() {
         const assistantToolMsg = {
           role: "assistant" as const,
           content: fullResponse || "",
-          tool_calls: toolCalls.map(tc => ({
+          tool_calls: toolCallsFromResponse.map((tc: { id: string; function: { name: string; arguments: string } }) => ({
             id: tc.id,
             type: "function" as const,
-            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+            function: { name: tc.function.name, arguments: tc.function.arguments },
           })),
         };
 

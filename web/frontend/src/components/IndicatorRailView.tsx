@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Bell, BellOff, Send, Trash2, X } from "lucide-react";
+import { Activity, Bell, BellOff, Loader2, Send, Trash2, X } from "lucide-react";
 import {
   addIndicator,
   checkIndicators,
@@ -17,11 +17,8 @@ import {
   type IndicatorKind,
   type NotifierConfig,
 } from "../lib/api";
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+import { useChatStore } from "../stores/useChatStore";
+import { fetchTools, executeTool } from "../lib/agentTools";
 
 const KIND_ALIASES: Array<[RegExp, IndicatorKind]> = [
   [/\b(vix|volatility)\b/i, "vix"],
@@ -53,8 +50,9 @@ function parseThreshold(text: string): number | undefined {
 
 export function IndicatorRailView() {
   const qc = useQueryClient();
-  const [chat, setChat] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isAsking, setIsAsking] = useState(false);
+  const { messages, addMessage, updateMessage } = useChatStore();
   const [showNotifierSettings, setShowNotifierSettings] = useState(false);
   const [notifierForm, setNotifierForm] = useState({ bot_token: "", chat_id: "" });
   const [notifierTestMsg, setNotifierTestMsg] = useState("");
@@ -211,10 +209,6 @@ export function IndicatorRailView() {
     return map;
   }, [checksMutation.data]);
 
-  const addAssistantMessage = (content: string) => {
-    setMessages((prev) => [...prev, { role: "assistant", content }]);
-  };
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -223,41 +217,73 @@ export function IndicatorRailView() {
     scrollToBottom();
   }, [messages]);
 
-  const handleChatSubmit = (e: React.FormEvent) => {
+  const ask = async (e: React.FormEvent) => {
     e.preventDefault();
-    const text = chat.trim();
-    if (!text) return;
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
-    setChat("");
+    const trimmed = input.trim();
+    if (!trimmed || isAsking) return;
 
-    if (/\b(remove|delete)\b/i.test(text)) {
-      const lower = text.toLowerCase();
-      const target =
-        indicators.find((item) => lower.includes(item.id.toLowerCase())) ??
-        indicators.find((item) => lower.includes(item.name.toLowerCase())) ??
-        (parseKind(text)
-          ? indicators.find((item) => item.kind === parseKind(text))
-          : undefined);
-      if (!target) {
-        addAssistantMessage("I could not tell which indicator to remove.");
-        return;
+    addMessage({ role: "user", content: trimmed });
+    setInput("");
+    setIsAsking(true);
+
+    const assistantMsgId = addMessage({
+      role: "assistant",
+      content: "",
+      isStreaming: true,
+    });
+
+    try {
+      const tools = await fetchTools();
+      const backendTools = tools.map((tool) => ({
+        type: "function" as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+        },
+      }));
+
+      const systemPrompt = [
+        "You are a trading indicators assistant.",
+        "Help the user manage, add, remove, update, and check indicator conditions.",
+        "Use the available tools to perform actions, then explain the results clearly.",
+        "Be concise.",
+      ].join("\n");
+
+      const conversationHistory = [
+        { role: "system", content: systemPrompt },
+        ...messages.filter((m) => m.content && m.content.trim()).map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: trimmed },
+      ];
+
+      const apiResponse = await fetch("/api/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: conversationHistory,
+          tools: backendTools,
+          stream: false,
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        const error = await apiResponse.json();
+        throw new Error(error.error || "Chat completion failed");
       }
-      removeMutation.mutate(target.id);
-      return;
-    }
 
-    if (/\b(add|create|new)\b/i.test(text)) {
-      const kind = parseKind(text);
-      if (!kind) {
-        addAssistantMessage("Name the indicator type: VIX, fear greed, red days, S5FI, green streak, or moving averages.");
-        return;
-      }
-      const threshold = parseThreshold(text);
-      addMutation.mutate({ kind, threshold });
-      return;
-    }
+      const data = await apiResponse.json();
+      const fullResponse = data.choices?.[0]?.message?.content || "";
 
-    addAssistantMessage("Try: add VIX threshold 25, add fear greed 15, or remove VIX.");
+      updateMessage(assistantMsgId, { content: fullResponse });
+      updateMessage(assistantMsgId, { isStreaming: false });
+    } catch (err) {
+      updateMessage(assistantMsgId, {
+        isStreaming: false,
+        content: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+      });
+    } finally {
+      setIsAsking(false);
+    }
   };
 
   return (

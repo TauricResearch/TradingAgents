@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import re
+import json
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -18,6 +19,12 @@ class ProxyRequest(BaseModel):
     path: str
     params: dict[str, Any] | None = None
     body: dict[str, Any] | None = None
+
+
+class ChatCompletionRequest(BaseModel):
+    messages: list[dict[str, Any]]
+    tools: list[dict[str, Any]] | None = None
+    stream: bool = False
 
 
 def extract_tool_definitions(app) -> list[dict[str, Any]]:
@@ -104,3 +111,109 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
         else response.text
     )
     return JSONResponse(content=content, status_code=response.status_code)
+
+
+@router.post("/completions")
+async def chat_completions(req: ChatCompletionRequest, request: Request):
+    """Handle chat completions using the backend's LLM configuration."""
+    try:
+        from tradingagents.default_config import DEFAULT_CONFIG
+        from tradingagents.llm_clients import create_llm_client
+
+        llm_config = DEFAULT_CONFIG.copy()
+        model_name = llm_config.get("quick_think_llm", "gpt-4o-mini")
+
+        client = create_llm_client(
+            provider=llm_config.get("llm_provider", "openai"),
+            model=model_name,
+            base_url=llm_config.get("backend_url") or None,
+        )
+        llm = client.get_llm()
+
+        # Convert messages to LangChain format
+        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+
+        langchain_messages = []
+        for msg in req.messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+
+            if role == "system":
+                langchain_messages.append(SystemMessage(content=content))
+            elif role == "user":
+                langchain_messages.append(HumanMessage(content=content))
+            elif role == "assistant":
+                if msg.get("tool_calls"):
+                    # Handle tool calls - need to include them in the message
+                    tool_calls = []
+                    for tc in msg["tool_calls"]:
+                        tool_calls.append({
+                            "id": tc["id"],
+                            "type": "function",
+                            "function": {
+                                "name": tc["function"]["name"],
+                                "arguments": tc["function"]["arguments"],
+                            },
+                        })
+                    langchain_messages.append(AIMessage(
+                        content=content or "",
+                        tool_calls=tool_calls,
+                    ))
+                else:
+                    langchain_messages.append(AIMessage(content=content))
+            elif role == "tool":
+                tool_call_id = msg.get("tool_call_id", "")
+                langchain_messages.append(ToolMessage(
+                    content=content,
+                    tool_call_id=tool_call_id,
+                ))
+
+        # Bind tools if provided
+        if req.tools:
+            from langchain_core.tools import StructuredTool
+
+            lc_tools = []
+            for tool in req.tools:
+                func_info = tool.get("function", {})
+                lc_tools.append(StructuredTool(
+                    name=func_info["name"],
+                    description=func_info.get("description", ""),
+                    args_schema=None,  # We'll handle args as dict
+                    func=None,
+                ))
+
+            # For now, just invoke without tools binding
+            # TODO: Implement proper tool binding
+            response = llm.invoke(langchain_messages)
+        else:
+            response = llm.invoke(langchain_messages)
+
+        text = response.content if hasattr(response, "content") else str(response)
+
+        # Format as OpenAI-compatible response
+        return {
+            "id": "chatcmpl-backend",
+            "object": "chat.completion",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": text,
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "model": model_name,
+            "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            },
+        }
+
+    except Exception as e:
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500,
+        )
