@@ -174,14 +174,14 @@ export function IndicatorRailView() {
     mutationFn: addIndicator,
     onSuccess: (indicator) => {
       qc.invalidateQueries({ queryKey: ["indicators"] });
-      addAssistantMessage(`Added ${indicator.name} at ${formatThreshold(indicator)}.`);
+      addMessage({ role: "assistant", content: `Added ${indicator.name} at ${formatThreshold(indicator)}.` });
     },
   });
   const removeMutation = useMutation({
     mutationFn: removeIndicator,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["indicators"] });
-      addAssistantMessage("Removed indicator.");
+      addMessage({ role: "assistant", content: "Removed indicator." });
     },
   });
 
@@ -190,13 +190,13 @@ export function IndicatorRailView() {
       updateIndicator(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["indicators"] });
-      addAssistantMessage("Threshold updated.");
+      addMessage({ role: "assistant", content: "Threshold updated." });
     },
     onError: (err: Error) => {
       const apiErr = err as { message: string; body?: unknown };
       const detail = apiErr.body as { detail?: string } | undefined;
       const msg = detail?.detail || apiErr.message;
-      addAssistantMessage(msg);
+      addMessage({ role: "assistant", content: msg });
     },
   });
 
@@ -226,12 +226,6 @@ export function IndicatorRailView() {
     setInput("");
     setIsAsking(true);
 
-    const assistantMsgId = addMessage({
-      role: "assistant",
-      content: "",
-      isStreaming: true,
-    });
-
     try {
       const tools = await fetchTools();
       const backendTools = tools.map((tool) => ({
@@ -250,68 +244,151 @@ export function IndicatorRailView() {
         "Be concise.",
       ].join("\n");
 
-      const conversationHistory = [
+      const toApiMessage = (m: typeof messages[0]) => {
+        const base: Record<string, unknown> = { role: m.role, content: m.content };
+        if (m.role === "assistant" && m.toolCalls) {
+          base.tool_calls = m.toolCalls.map(tc => ({
+            id: tc.id, type: "function",
+            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+          }));
+        }
+        if (m.role === "tool") {
+          base.tool_call_id = m.toolCallId || "";
+        }
+        return base;
+      };
+
+      let conversationHistory: Record<string, unknown>[] = [
         { role: "system", content: systemPrompt },
-        ...messages.filter((m) => m.content && m.content.trim()).map((m) => ({ role: m.role, content: m.content })),
+        ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
         { role: "user", content: trimmed },
       ];
 
-      const apiResponse = await fetch("/api/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: conversationHistory,
-          tools: backendTools,
-          stream: true,
-        }),
-      });
+      let currentMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
 
-      if (!apiResponse.ok) {
-        const error = await apiResponse.json();
-        throw new Error(error.error || "Chat completion failed");
-      }
+      for (let round = 0; round < 20; round++) {
+        const apiResponse = await fetch("/api/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: conversationHistory,
+            tools: backendTools,
+            stream: true,
+          }),
+        });
 
-      // Process SSE stream
-      const reader = apiResponse.body!.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = "";
+        if (!apiResponse.ok) {
+          const error = await apiResponse.json();
+          throw new Error(error.error || "Chat completion failed");
+        }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        const reader = apiResponse.body!.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = "";
+        let toolCallsFromResponse: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6);
-          if (data === "[DONE]") break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
 
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === "text" && parsed.text) {
-              fullResponse += parsed.text;
-              updateMessage(assistantMsgId, { content: fullResponse });
-            }
-            if (parsed.type === "done") {
-              if (parsed.content !== undefined && !fullResponse) {
-                fullResponse = parsed.content;
-                updateMessage(assistantMsgId, { content: fullResponse });
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6);
+            if (data === "[DONE]") break;
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === "text" && parsed.text) {
+                fullResponse += parsed.text;
+                updateMessage(currentMsgId, { content: fullResponse });
               }
-              if (!parsed.tool_calls?.length) {
-                if (!fullResponse) {
-                  updateMessage(assistantMsgId, { content: "No response" });
+              if (parsed.type === "tool_calls" && parsed.tool_calls) {
+                toolCallsFromResponse = parsed.tool_calls;
+                try {
+                  updateMessage(currentMsgId, {
+                    content: fullResponse,
+                    toolCalls: toolCallsFromResponse.map(tc => ({
+                      id: tc.id, name: tc.function.name,
+                      arguments: (() => { try { return JSON.parse(tc.function.arguments || "{}"); } catch { return {}; } })(),
+                    })),
+                  });
+                } catch {}
+              }
+              if (parsed.type === "error") {
+                throw new Error(parsed.error || "Stream error");
+              }
+              if (parsed.type === "done") {
+                if (parsed.tool_calls?.length > 0) {
+                  toolCallsFromResponse = parsed.tool_calls;
+                }
+                if (parsed.content !== undefined && !fullResponse) {
+                  fullResponse = parsed.content;
+                  updateMessage(currentMsgId, { content: fullResponse });
                 }
               }
-            }
-          } catch {}
+            } catch {}
+          }
         }
-      }
 
-      updateMessage(assistantMsgId, { isStreaming: false });
+        updateMessage(currentMsgId, { content: fullResponse });
+
+        if (toolCallsFromResponse.length === 0) {
+          if (!fullResponse) {
+            updateMessage(currentMsgId, { content: "No response", isStreaming: false });
+          } else {
+            updateMessage(currentMsgId, { isStreaming: false });
+          }
+          break;
+        }
+
+        const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
+
+        for (const call of toolCallsFromResponse) {
+          let args: Record<string, unknown> = {};
+          try {
+            const raw = call.function.arguments;
+            args = typeof raw === "string" ? (raw ? JSON.parse(raw) : {}) : (raw || {});
+          } catch {
+            args = {};
+          }
+          let result: unknown;
+          try {
+            result = await executeTool(call.function.name, args);
+          } catch (toolErr) {
+            result = { error: toolErr instanceof Error ? toolErr.message : String(toolErr) };
+          }
+          const resultStr = JSON.stringify(result);
+          addMessage({
+            role: "tool",
+            content: `Called ${call.function.name}: ${resultStr.slice(0, 500)}`,
+            toolCallId: call.id,
+          });
+          toolResults.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content: resultStr.slice(0, 2000),
+          });
+        }
+
+        const assistantToolMsg = {
+          role: "assistant" as const,
+          content: fullResponse || "",
+          tool_calls: toolCallsFromResponse.map(tc => ({
+            id: tc.id,
+            type: "function" as const,
+            function: { name: tc.function.name, arguments: tc.function.arguments },
+          })),
+        };
+
+        conversationHistory = [...conversationHistory, assistantToolMsg, ...toolResults];
+        currentMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
+      }
     } catch (err) {
-      updateMessage(assistantMsgId, {
+      addMessage({
+        role: "assistant",
         isStreaming: false,
         content: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
       });
@@ -520,14 +597,28 @@ export function IndicatorRailView() {
 
       {messages.length > 0 && (
         <div className="shrink-0 max-h-48 overflow-y-auto border-t border-slate-800 px-2 py-2 space-y-1.5">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[85%] rounded-lg px-2 py-1.5 text-[11px] leading-snug ${
                 msg.role === "user"
                   ? "bg-sky-600/30 text-slate-200"
+                  : msg.role === "tool"
+                  ? "bg-slate-800 text-slate-400 font-mono"
                   : "bg-slate-800/60 text-slate-400"
               }`}>
+                {msg.toolCalls && msg.toolCalls.length > 0 && (
+                  <div className="text-[10px] text-sky-400 mb-1">
+                    Tools: {msg.toolCalls.map(tc => tc.name).join(", ")}
+                  </div>
+                )}
                 {msg.content}
+                {msg.isStreaming && !msg.content && (
+                  <span className="inline-flex gap-1 ml-1">
+                    <span className="w-1 h-1 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1 h-1 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1 h-1 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </span>
+                )}
               </div>
             </div>
           ))}
@@ -535,7 +626,7 @@ export function IndicatorRailView() {
         </div>
       )}
 
-      <form onSubmit={handleChatSubmit} className="shrink-0 border-t border-slate-800 p-2">
+      <form onSubmit={ask} className="shrink-0 border-t border-slate-800 p-2">
         {messages.length === 0 && (
           <p className="mb-2 rounded-lg bg-slate-800/50 px-2 py-1.5 text-[11px] leading-snug text-slate-400">
             Ask me to add or remove an indicator.
@@ -543,15 +634,15 @@ export function IndicatorRailView() {
         )}
         <div className="flex items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-950/40 px-2 py-1.5">
           <input
-            value={chat}
-            onChange={(e) => setChat(e.target.value)}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
             placeholder="add VIX 25..."
             className="min-w-0 flex-1 bg-transparent text-xs text-slate-200 outline-none placeholder:text-slate-600"
             aria-label="Indicator chat command"
           />
           <button
             type="submit"
-            disabled={!chat.trim() || addMutation.isPending || removeMutation.isPending}
+            disabled={!input.trim() || isAsking}
             className="rounded-md p-1 text-sky-400 transition-colors hover:bg-sky-500/10 disabled:text-slate-600"
             aria-label="Send indicator command"
           >

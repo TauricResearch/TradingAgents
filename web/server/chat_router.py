@@ -8,7 +8,7 @@ import json
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -109,18 +109,30 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
     """Forward requests to any backend endpoint."""
     base_url = str(request.base_url).rstrip("/")
     
-    # Sanitize path: replace any remaining {param} placeholders with param name
-    # This handles cases where the LLM passes literal {TICKER} instead of a real value
+    # Substitute path parameters (e.g. {ticker}) with actual values from params
     import re as _re_path
-    sanitized_path = _re_path.sub(r'[{}]', '', proxy_req.path)
+    path = proxy_req.path
+    params = dict(proxy_req.params or {})
     
-    target_url = f"{base_url}{sanitized_path}"
+    def _sub_path_param(m: _re_path.Match) -> str:
+        param_name = m.group(1)
+        value = params.pop(param_name, None)
+        if value is not None:
+            return str(value)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required path parameter '{param_name}' in the request.",
+        )
+    
+    resolved_path = _re_path.sub(r'\{(\w+)\}', _sub_path_param, path)
+    
+    target_url = f"{base_url}{resolved_path}"
 
     async with httpx.AsyncClient() as client:
         response = await client.request(
             method=proxy_req.method.upper(),
             url=target_url,
-            params=proxy_req.params or {},
+            params=params,
             json=proxy_req.body
             if proxy_req.method.upper() in ("POST", "PUT", "PATCH")
             else None,
@@ -450,13 +462,16 @@ def _build_langchain_messages(req: ChatCompletionRequest):
             if msg.get("tool_calls"):
                 tool_calls = []
                 for tc in msg["tool_calls"]:
+                    func = tc.get("function", {})
+                    raw_args = func.get("arguments", "{}")
+                    try:
+                        parsed_args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+                    except json.JSONDecodeError:
+                        parsed_args = {}
                     tool_calls.append({
-                        "id": tc["id"],
-                        "type": "function",
-                        "function": {
-                            "name": tc["function"]["name"],
-                            "arguments": tc["function"]["arguments"],
-                        },
+                        "name": func.get("name", ""),
+                        "args": parsed_args,
+                        "id": tc.get("id", ""),
                     })
                 messages.append(AIMessage(content=content or "", tool_calls=tool_calls))
             else:

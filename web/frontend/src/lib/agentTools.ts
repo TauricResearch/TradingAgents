@@ -101,6 +101,16 @@ export async function executeTool(
       delete sanitizedParams[paramName];
     }
   }
+
+  // Validate all path parameters were resolved
+  const unresolvedParams = path.match(/\{(\w+)\}/g) || [];
+  if (unresolvedParams.length > 0) {
+    const names = unresolvedParams.map(p => p.slice(1, -1)).join(", ");
+    return {
+      success: false,
+      error: `Missing required path parameters: ${names}. You must specify a real value for each (e.g. SPY, AAPL). Do not use placeholder text.`,
+    };
+  }
   
   try {
     const response = await fetch(`${base}/api/chat/proxy`, {

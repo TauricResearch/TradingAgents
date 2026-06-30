@@ -183,70 +183,148 @@ export function TickerChatBar({ ticker, price, run }: Props) {
         context,
       ].join("\n");
 
-      const conversationHistory = [
+      const toApiMessage = (m: typeof messages[0]) => {
+        const base: Record<string, unknown> = { role: m.role, content: m.content };
+        if (m.role === "assistant" && m.toolCalls) {
+          base.tool_calls = m.toolCalls.map(tc => ({
+            id: tc.id, type: "function",
+            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+          }));
+        }
+        if (m.role === "tool") {
+          base.tool_call_id = m.toolCallId || "";
+        }
+        return base;
+      };
+
+      let conversationHistory: Record<string, unknown>[] = [
         { role: "system", content: systemPrompt },
-        ...messages
-          .filter(m => m.content && m.content.trim())
-          .map(m => ({ role: m.role, content: m.content })),
+        ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
         { role: "user", content: trimmed },
       ];
 
-      const assistantMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
+      let currentMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
 
-      const apiResponse = await fetch("/api/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: conversationHistory,
-          tools: backendTools,
-          stream: true,
-        }),
-      });
+      for (let round = 0; round < 20; round++) {
+        const apiResponse = await fetch("/api/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: conversationHistory,
+            tools: backendTools,
+            stream: true,
+          }),
+        });
 
-      if (!apiResponse.ok) {
-        const error = await apiResponse.json();
-        throw new Error(error.error || "Chat completion failed");
-      }
+        if (!apiResponse.ok) {
+          const error = await apiResponse.json();
+          throw new Error(error.error || "Chat completion failed");
+        }
 
-      // Process SSE stream
-      const reader = apiResponse.body!.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = "";
+        const reader = apiResponse.body!.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = "";
+        let toolCallsFromResponse: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6);
-          if (data === "[DONE]") break;
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6);
+            if (data === "[DONE]") break;
 
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === "text" && parsed.text) {
-              fullResponse += parsed.text;
-              updateMessage(assistantMsgId, { content: fullResponse });
-            }
-            if (parsed.type === "done") {
-              if (parsed.content !== undefined && !fullResponse) {
-                fullResponse = parsed.content;
-                updateMessage(assistantMsgId, { content: fullResponse });
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === "text" && parsed.text) {
+                fullResponse += parsed.text;
+                updateMessage(currentMsgId, { content: fullResponse });
               }
-              if (!parsed.tool_calls?.length) {
-                if (!fullResponse) {
-                  updateMessage(assistantMsgId, { content: "No response" });
+              if (parsed.type === "tool_calls" && parsed.tool_calls) {
+                toolCallsFromResponse = parsed.tool_calls;
+                try {
+                  updateMessage(currentMsgId, {
+                    content: fullResponse,
+                    toolCalls: toolCallsFromResponse.map(tc => ({
+                      id: tc.id, name: tc.function.name,
+                      arguments: (() => { try { return JSON.parse(tc.function.arguments || "{}"); } catch { return {}; } })(),
+                    })),
+                  });
+                } catch {}
+              }
+              if (parsed.type === "error") {
+                throw new Error(parsed.error || "Stream error");
+              }
+              if (parsed.type === "done") {
+                if (parsed.tool_calls?.length > 0) {
+                  toolCallsFromResponse = parsed.tool_calls;
+                }
+                if (parsed.content !== undefined && !fullResponse) {
+                  fullResponse = parsed.content;
+                  updateMessage(currentMsgId, { content: fullResponse });
                 }
               }
-            }
-          } catch {}
+            } catch {}
+          }
         }
-      }
 
-      updateMessage(assistantMsgId, { isStreaming: false });
+        updateMessage(currentMsgId, { content: fullResponse });
+
+        if (toolCallsFromResponse.length === 0) {
+          if (!fullResponse) {
+            updateMessage(currentMsgId, { content: "No response", isStreaming: false });
+          } else {
+            updateMessage(currentMsgId, { isStreaming: false });
+          }
+          break;
+        }
+
+        const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
+
+        for (const call of toolCallsFromResponse) {
+          let args: Record<string, unknown> = {};
+          try {
+            const raw = call.function.arguments;
+            args = typeof raw === "string" ? (raw ? JSON.parse(raw) : {}) : (raw || {});
+          } catch {
+            args = {};
+          }
+          let result: unknown;
+          try {
+            result = await executeTool(call.function.name, args);
+          } catch (toolErr) {
+            result = { error: toolErr instanceof Error ? toolErr.message : String(toolErr) };
+          }
+          const resultStr = JSON.stringify(result);
+          addMessage({
+            role: "tool",
+            content: `Called ${call.function.name}: ${resultStr.slice(0, 500)}`,
+            toolCallId: call.id,
+          });
+          toolResults.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content: resultStr.slice(0, 2000),
+          });
+        }
+
+        const assistantToolMsg = {
+          role: "assistant" as const,
+          content: fullResponse || "",
+          tool_calls: toolCallsFromResponse.map(tc => ({
+            id: tc.id,
+            type: "function" as const,
+            function: { name: tc.function.name, arguments: tc.function.arguments },
+          })),
+        };
+
+        conversationHistory = [...conversationHistory, assistantToolMsg, ...toolResults];
+        currentMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "The chat request failed.");
     } finally {
@@ -320,7 +398,7 @@ export function TickerChatBar({ ticker, price, run }: Props) {
           type="submit"
           disabled={!question.trim() || isAsking}
           className="btn-primary inline-flex items-center justify-center gap-2 text-xs sm:w-auto"
-          title={hasContext ? `Ask ${MODEL} with ticker context` : "Ask with limited ticker context"}
+          title={hasContext ? "Ask with ticker context" : "Ask with limited ticker context"}
         >
           {isAsking ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Send className="h-3.5 w-3.5" aria-hidden="true" />}
           Ask

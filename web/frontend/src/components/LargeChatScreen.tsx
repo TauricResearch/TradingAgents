@@ -104,11 +104,23 @@ export function LargeChatScreen({ onClose }: Props) {
         },
       }));
 
-      let conversationHistory = [
+      const toApiMessage = (m: typeof messages[0]) => {
+        const base: Record<string, unknown> = { role: m.role, content: m.content };
+        if (m.role === "assistant" && m.toolCalls) {
+          base.tool_calls = m.toolCalls.map(tc => ({
+            id: tc.id, type: "function",
+            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+          }));
+        }
+        if (m.role === "tool") {
+          base.tool_call_id = m.toolCallId || "";
+        }
+        return base;
+      };
+
+      let conversationHistory: Record<string, unknown>[] = [
         { role: "system", content: getSystemPrompt() },
-        ...messages
-          .filter(m => m.content && m.content.trim())
-          .map(m => ({ role: m.role, content: m.content })),
+        ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
         { role: "user", content: trimmed },
       ];
 
@@ -164,6 +176,9 @@ export function LargeChatScreen({ onClose }: Props) {
                     arguments: JSON.parse(tc.function.arguments || "{}"),
                   })),
                 });
+              }
+              if (parsed.type === "error") {
+                throw new Error(parsed.error || "Stream error");
               }
               if (parsed.type === "done") {
                 if (parsed.tool_calls?.length > 0) {
@@ -228,6 +243,7 @@ export function LargeChatScreen({ onClose }: Props) {
           addMessage({
             role: "tool",
             content: `Called ${call.function.name}: ${JSON.stringify(result).slice(0, 500)}`,
+            toolCallId: call.id,
           });
           toolResults.push({
             role: "tool",

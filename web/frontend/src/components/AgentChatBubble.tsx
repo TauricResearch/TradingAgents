@@ -28,23 +28,24 @@ function getSystemPrompt(): string {
     timeZoneName: "short",
   });
 
-  return `You are a trading assistant with access to market data and analysis tools.
+  return `You are a knowledgeable trading assistant with access to real-time market data and analysis tools.
 
 Current date and time: ${dateTimeStr}
 
-Your available tools are auto-generated from the backend API. You have access to:
-- Watchlist management (get, add, remove, reorder tickers)
-- Analysis runs (start, get status, cancel, resume)
-- Price data (current prices, history)
-- Indicators (get, add, update, remove, check)
-- Background jobs (start, list, cancel, pause, resume)
-- Configuration (get, update settings)
-- Ticker accuracy agent (status, control, leaderboard)
+You MUST always answer the user's financial questions by actually using your available tools to fetch real data. Never refuse to answer or say you can't provide advice. When a user asks about a ticker (like SPY, AAPL, QQQ), immediately call the appropriate tool to get current data.
 
-When you need data, call the appropriate tool.
-When asked to perform actions, use the action tools.
-Always explain what you're doing and show results.
-Reference timestamps from tool results when relevant.
+Your available tools are auto-generated from the backend API:
+- get_prices: Get current prices for tickers in your watchlist
+- get_tickers__ticker__history: Get historical price data for any ticker
+- get_indicators: Check market indicators (VIX, Fear & Greed, etc.)
+- And more...
+
+When asked about whether to buy/sell/enter a position:
+1. Call get_prices or get_tickers__ticker__history to get current/recent data
+2. Call get_indicators to check market conditions
+3. Provide a direct answer based on the actual data, not generic disclaimers
+
+Always use tools to get real data when available. Analyze the data and give specific, data-driven answers.
 
 The tool list is dynamically generated from the backend API schema.`;
 }
@@ -107,25 +108,54 @@ export function AgentChatBubble() {
 
     try {
       const tools = await fetchTools();
-      const backendTools = tools.map(tool => ({
-        type: "function",
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.parameters,
-        },
-      }));
+      const backendTools = tools.map(tool => {
+        const params = tool.parameters || {};
+        const required: string[] = [];
+        const properties: Record<string, unknown> = {};
+        for (const [key, val] of Object.entries(params)) {
+          properties[key] = val;
+          if (tool.path.includes(`{${key}}`)) {
+            required.push(key);
+          }
+        }
+        const backendTool = {
+          type: "function",
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: {
+              type: "object",
+              properties,
+              ...(required.length > 0 ? { required } : {}),
+            },
+          },
+        };
+        return backendTool;
+      });
 
-      let conversationHistory = [
+      const toApiMessage = (m: typeof messages[0]) => {
+        const base: Record<string, unknown> = { role: m.role, content: m.content };
+        if (m.role === "assistant" && m.toolCalls) {
+          base.tool_calls = m.toolCalls.map(tc => ({
+            id: tc.id, type: "function",
+            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+          }));
+        }
+        if (m.role === "tool") {
+          base.tool_call_id = m.toolCallId || (m as any).tool_call_id || "";
+        }
+        return base;
+      };
+
+      let conversationHistory: Record<string, unknown>[] = [
         { role: "system", content: getSystemPrompt() },
-        ...messages
-          .filter(m => m.content && m.content.trim())
-          .map(m => ({ role: m.role, content: m.content })),
+        ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
         { role: "user", content: trimmed },
       ];
 
       const assistantMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
       let currentMsgId = assistantMsgId;
+      let hadExecutedTools = false;
 
       // Loop until AI stops making tool calls (safety limit of 20 rounds)
       for (let round = 0; round < 20; round++) {
@@ -191,6 +221,9 @@ export function AgentChatBubble() {
                   });
                 } catch {}
               }
+              if (parsed.type === "error") {
+                throw new Error(parsed.error || "Stream error");
+              }
               if (parsed.type === "done") {
                 if (parsed.tool_calls?.length > 0) {
                   toolCallsFromResponse = parsed.tool_calls;
@@ -251,8 +284,12 @@ export function AgentChatBubble() {
 
         // If no tool calls, we're done
         if (toolCallsFromResponse.length === 0) {
-          if (!fullResponse) {
-            updateMessage(currentMsgId, { content: "No response", isStreaming: false });
+          if (!fullResponse || !fullResponse.trim()) {
+            if (hadExecutedTools) {
+              updateMessage(currentMsgId, { isStreaming: false });
+            } else {
+              updateMessage(currentMsgId, { content: "No response", isStreaming: false });
+            }
           } else {
             updateMessage(currentMsgId, { isStreaming: false });
           }
@@ -281,6 +318,7 @@ export function AgentChatBubble() {
           addMessage({
             role: "tool",
             content: `Called ${call.function.name}: ${resultStr.slice(0, 500)}`,
+            toolCallId: call.id,
           });
           toolResults.push({
             role: "tool",
@@ -288,6 +326,8 @@ export function AgentChatBubble() {
             content: resultStr.slice(0, 2000),
           });
         }
+
+        hadExecutedTools = true;
 
         // Build next conversation history - ensure correct format
         const assistantToolMsg = {

@@ -19,6 +19,7 @@ export interface ChatMessage {
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
   isStreaming?: boolean;
+  toolCallId?: string;
 }
 
 export interface ChatSession {
