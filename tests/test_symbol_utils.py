@@ -51,6 +51,18 @@ class TestNormalizeSymbol(unittest.TestCase):
     def test_empty_input_passthrough(self):
         self.assertEqual(normalize_symbol(""), "")
 
+    def test_hk_stocks_normalization(self):
+        self.assertEqual(normalize_symbol("00175"), "0175.HK")
+        self.assertEqual(normalize_symbol("0175"), "0175.HK")
+        self.assertEqual(normalize_symbol("175"), "0175.HK")
+        self.assertEqual(normalize_symbol("00175.HK"), "0175.HK")
+        self.assertEqual(normalize_symbol("0175.HK"), "0175.HK")
+        self.assertEqual(normalize_symbol("175.HK"), "0175.HK")
+        self.assertEqual(normalize_symbol("82800"), "82800.HK")
+        self.assertEqual(normalize_symbol("82800.HK"), "82800.HK")
+        self.assertEqual(normalize_symbol("600519"), "600519")
+
+
 
 @pytest.mark.unit
 class TestNoMarketDataError(unittest.TestCase):
