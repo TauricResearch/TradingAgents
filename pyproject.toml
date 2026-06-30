@@ -39,8 +39,12 @@ dev = [
     "pytest>=8.0",
     "pytest-subtests>=0.13",
 ]
-# Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
-# stays lean: pip install "tradingagents[bedrock]".
+# Amazon Bedrock support (langchain-aws + boto3). Optional so the core install
+# stays lean: pip install "tradingagents[bedrock]". Supports both auth modes —
+# the AWS SigV4 credential chain and the native Bedrock API key
+# (AWS_BEARER_TOKEN_BEDROCK). The >=1.5.0 floor guarantees bearer-token support:
+# langchain-aws reads the token into its bedrock_api_key field and pulls a boto3
+# (>=1.39.0) new enough for botocore's bearer auth.
 bedrock = [
     "langchain-aws>=1.5.0",
 ]

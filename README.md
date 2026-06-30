@@ -156,7 +156,7 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
-For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-4-8-v1:0`.
+For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, and use a Bedrock model ID or cross-region inference profile ID, e.g. `us.anthropic.claude-opus-4-8` (run `aws bedrock list-inference-profiles` for the IDs available in your region). Authenticate either way: set a **Bedrock API key** with `AWS_BEARER_TOKEN_BEDROCK=<key>` (simplest — no AWS access keys needed), or use the standard **AWS credential chain** (environment variables, `~/.aws/credentials`, a named `AWS_PROFILE`, or an IAM role). When a bearer token is set it takes precedence and any active `AWS_PROFILE` is ignored for the Bedrock client. Set `AWS_DEFAULT_REGION` in both cases (the bearer token carries no region).
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
