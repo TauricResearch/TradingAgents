@@ -11,12 +11,24 @@ prompts for it automatically instead of failing on first API call.
 
 from __future__ import annotations
 
+# Amazon Bedrock's native API key (added by AWS in 2025) is a bearer token read
+# from this env var. It is an alternative to the AWS SigV4 credential chain, not
+# a replacement: Bedrock is intentionally mapped to ``None`` in
+# ``PROVIDER_API_KEY_ENV`` below so the CLI never force-prompts for a single key —
+# credential-chain users (IAM role / profile) must not be nagged for a token they
+# do not use. The bearer token is honored automatically by langchain-aws/botocore
+# when set, so it needs no wiring beyond being documented and discoverable.
+BEDROCK_BEARER_TOKEN_ENV = "AWS_BEARER_TOKEN_BEDROCK"
+
 PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "openai":     "OPENAI_API_KEY",
     "anthropic":  "ANTHROPIC_API_KEY",
     "google":     "GOOGLE_API_KEY",
     "azure":      "AZURE_OPENAI_API_KEY",
-    # Bedrock authenticates via the AWS credential chain, not a single key env.
+    # Bedrock has two valid auth modes — the AWS SigV4 credential chain (IAM role
+    # / profile / access keys) OR a native bearer token (AWS_BEARER_TOKEN_BEDROCK,
+    # see BEDROCK_BEARER_TOKEN_ENV). Neither is a single forced key, so this stays
+    # None and the CLI advises rather than prompts (see cli.utils.ensure_api_key).
     "bedrock":    None,
     "xai":        "XAI_API_KEY",
     "deepseek":   "DEEPSEEK_API_KEY",

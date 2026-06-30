@@ -41,11 +41,22 @@ def _bedrock_class():
 class BedrockClient(BaseLLMClient):
     """Client for Amazon Bedrock via the Converse API (langchain-aws).
 
-    Authentication uses the standard AWS credential chain (env vars,
-    ``~/.aws/credentials``, or an IAM role); set ``AWS_REGION`` /
-    ``AWS_DEFAULT_REGION`` and optionally ``AWS_PROFILE``. The model name is a
-    Bedrock model ID or cross-region inference profile ID, e.g.
-    ``us.anthropic.claude-opus-4-8-v1:0``.
+    Two authentication modes are supported, in this precedence (matching
+    botocore's own per-client resolution):
+
+    1. **Bedrock API key (bearer token)** — set ``AWS_BEARER_TOKEN_BEDROCK`` to a
+       Bedrock API key (created in the AWS console / via IAM). langchain-aws reads
+       it automatically and sends ``Authorization: Bearer <token>`` instead of
+       SigV4, so no AWS access key, secret, or profile is needed. This is the
+       simplest setup for a single-account run.
+    2. **AWS SigV4 credential chain** — the standard chain (env access keys,
+       ``~/.aws/credentials``, ``AWS_PROFILE``, or an IAM role) when no bearer
+       token is set.
+
+    Either way an explicit region is required (the bearer token carries none):
+    set ``AWS_REGION`` / ``AWS_DEFAULT_REGION`` (otherwise this falls back to
+    ``us-west-2``). The model name is a Bedrock model ID or cross-region
+    inference profile ID, e.g. ``us.anthropic.claude-opus-4-8-v1:0``.
     """
 
     def get_llm(self) -> Any:

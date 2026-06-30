@@ -6,7 +6,10 @@ from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
-from tradingagents.llm_clients.api_key_env import get_api_key_env
+from tradingagents.llm_clients.api_key_env import (
+    BEDROCK_BEARER_TOKEN_ENV,
+    get_api_key_env,
+)
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
@@ -600,6 +603,47 @@ def confirm_ollama_endpoint(url: str) -> None:
         )
 
 
+# Env vars that indicate the AWS SigV4 credential chain is configured. This is a
+# cheap, env-only heuristic — it deliberately avoids importing boto3 or touching
+# IMDS at CLI time. It only gates an advisory message, so a false negative (e.g.
+# SSO cache or an IAM role with no env hint) merely shows a hint that doesn't
+# apply; it never blocks the run.
+_AWS_CREDENTIAL_CHAIN_HINTS = (
+    "AWS_ACCESS_KEY_ID",
+    "AWS_PROFILE",
+    "AWS_ROLE_ARN",
+    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+    "AWS_WEB_IDENTITY_TOKEN_FILE",
+)
+
+
+def _ensure_bedrock_credentials() -> str | None:
+    """Advise (never force) on Bedrock auth — it has two valid modes.
+
+    Bedrock authenticates via either a native bearer token
+    (``AWS_BEARER_TOKEN_BEDROCK``) or the AWS SigV4 credential chain. Both are
+    optional from the CLI's point of view, so unlike single-key providers we must
+    never prompt-and-persist — that would derail IAM-role/profile users who never
+    set a token. We only surface an actionable hint when *neither* mode looks
+    configured, turning the otherwise-opaque deferred boto3 error into guidance.
+    """
+    token = os.environ.get(BEDROCK_BEARER_TOKEN_ENV)
+    if token:
+        return token
+    if any(os.environ.get(var) for var in _AWS_CREDENTIAL_CHAIN_HINTS):
+        return None  # SigV4 chain looks configured — say nothing.
+    console.print(
+        f"\n[yellow]Bedrock: no {BEDROCK_BEARER_TOKEN_ENV} and no AWS credentials "
+        f"detected.[/yellow]\n"
+        "Set a Bedrock API key (simplest):  "
+        f"[cyan]{BEDROCK_BEARER_TOKEN_ENV}=<your-key>[/cyan]\n"
+        "or configure the AWS credential chain (aws configure / AWS_PROFILE / IAM "
+        "role). Either way, set AWS_REGION (e.g. us-west-2)."
+    )
+    return None
+
+
 def ensure_api_key(provider: str) -> str | None:
     """Make sure the API key for `provider` is available in the environment.
 
@@ -611,6 +655,11 @@ def ensure_api_key(provider: str) -> str | None:
     Returns None for providers that do not require a key (e.g. ollama)
     and for providers not found in the canonical mapping.
     """
+    # Bedrock has two valid auth modes (bearer token OR SigV4 chain); handle it
+    # before the generic single-key flow so it advises instead of force-prompting.
+    if provider.lower() == "bedrock":
+        return _ensure_bedrock_credentials()
+
     env_var = get_api_key_env(provider)
     if env_var is None:
         return None  # ollama / unknown — no key check possible
