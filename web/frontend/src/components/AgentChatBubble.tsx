@@ -145,8 +145,51 @@ export function AgentChatBubble() {
         }
 
         const data = await response.json();
-        const fullResponse = data.choices?.[0]?.message?.content || "";
-        const toolCallsFromResponse = data.choices?.[0]?.message?.tool_calls || [];
+        let fullResponse = data.choices?.[0]?.message?.content || "";
+        let toolCallsFromResponse = data.choices?.[0]?.message?.tool_calls || [];
+
+        // Fallback: parse text-based tool calls if LLM outputs them as text
+        if (toolCallsFromResponse.length === 0 && fullResponse) {
+          const toolPattern = /<tool_call>\s*<name>(.*?)<\/name>\s*<parameters>(.*?)<\/parameters>\s*<\/tool_call>/gs;
+          const matches = [...fullResponse.matchAll(toolPattern)];
+          if (matches.length > 0) {
+            for (const match of matches) {
+              const name = match[1];
+              let params = {};
+              try { params = JSON.parse(match[2]); } catch {}
+              toolCallsFromResponse.push({
+                id: `call_text_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                type: "function",
+                function: { name, arguments: JSON.stringify(params) },
+              });
+            }
+            fullResponse = fullResponse.replace(toolPattern, "").trim();
+          }
+        }
+
+        // Also parse ```tool_call name="..." parameters="..." ``` format
+        if (toolCallsFromResponse.length === 0 && fullResponse) {
+          const blockPattern = /```tool_call\s*([\s\S]*?)\s*```/g;
+          const blockMatches = [...fullResponse.matchAll(blockPattern)];
+          if (blockMatches.length > 0) {
+            for (const match of blockMatches) {
+              const block = match[1];
+              const nameMatch = block.match(/name="([^"]*)"/);
+              const paramsMatch = block.match(/parameters="({.*?})"/);
+              if (nameMatch) {
+                const name = nameMatch[1];
+                let params = {};
+                try { params = JSON.parse(paramsMatch?.[1] || "{}"); } catch {}
+                toolCallsFromResponse.push({
+                  id: `call_text_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                  type: "function",
+                  function: { name, arguments: JSON.stringify(params) },
+                });
+              }
+            }
+            fullResponse = fullResponse.replace(blockPattern, "").trim();
+          }
+        }
 
         updateMessage(currentMsgId, { content: fullResponse });
 

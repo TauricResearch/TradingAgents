@@ -199,33 +199,111 @@ async def chat_completions(req: ChatCompletionRequest, request: Request):
             lc_tools = []
             for tool in req.tools:
                 func_info = tool.get("function", {})
+                params = func_info.get("parameters", {})
                 lc_tools.append(StructuredTool(
                     name=func_info["name"],
                     description=func_info.get("description", ""),
-                    args_schema=None,  # We'll handle args as dict
+                    args_schema=None,
                     func=None,
                 ))
 
-            # For now, just invoke without tools binding
-            # TODO: Implement proper tool binding
-            response = llm.invoke(langchain_messages)
+            llm_with_tools = llm.bind_tools(lc_tools)
+            response = llm_with_tools.invoke(langchain_messages)
         else:
             response = llm.invoke(langchain_messages)
 
         text = response.content if hasattr(response, "content") else str(response)
+        tool_calls_from_llm = getattr(response, "tool_calls", None) or []
+
+        # Fallback: parse text-based tool calls if LLM outputs <tool_call> as text
+        if not tool_calls_from_llm and text:
+            import re as _re
+            import uuid as _uuid
+            tool_pattern = _re.compile(
+                r'<tool_call>\s*<name>(.*?)</name>\s*<parameters>(.*?)</parameters>\s*</tool_call>',
+                _re.DOTALL,
+            )
+            matches = tool_pattern.findall(text)
+            if matches:
+                # Remove tool call text from the response
+                clean_text = tool_pattern.sub("", text).strip()
+                for name, params_str in matches:
+                    try:
+                        params = json.loads(params_str)
+                    except json.JSONDecodeError:
+                        params = {}
+                    tool_calls_from_llm.append({
+                        "id": f"call_{_uuid.uuid4().hex[:12]}",
+                        "type": "function",
+                        "function": {
+                            "name": name,
+                            "arguments": json.dumps(params),
+                        },
+                    })
+                if clean_text:
+                    text = clean_text
+
+        # Also parse ```tool_call...``` format
+        if not tool_calls_from_llm and text:
+            import re as _re
+            import uuid as _uuid
+            block_pattern = _re.compile(
+                r'```tool_call\s*(.*?)\s*```',
+                _re.DOTALL,
+            )
+            block_matches = block_pattern.findall(text)
+            if block_matches:
+                for block in block_matches:
+                    # Try to parse as JSON first
+                    try:
+                        tc = json.loads(block)
+                        tool_calls_from_llm.append({
+                            "id": f"call_{_uuid.uuid4().hex[:12]}",
+                            "type": "function",
+                            "function": {
+                                "name": tc.get("name", ""),
+                                "arguments": json.dumps(tc.get("arguments", tc.get("parameters", {}))),
+                            },
+                        })
+                    except json.JSONDecodeError:
+                        # Parse name="..." parameters="..." format
+                        name_match = _re.search(r'name="([^"]*)"', block)
+                        params_match = _re.search(r'parameters="({.*?})"', block, _re.DOTALL)
+                        if name_match:
+                            name = name_match.group(1)
+                            params_str = params_match.group(1) if params_match else "{}"
+                            try:
+                                params = json.loads(params_str)
+                            except json.JSONDecodeError:
+                                params = {}
+                            tool_calls_from_llm.append({
+                                "id": f"call_{_uuid.uuid4().hex[:12]}",
+                                "type": "function",
+                                "function": {
+                                    "name": name,
+                                    "arguments": json.dumps(params),
+                                },
+                            })
+                text = block_pattern.sub("", text).strip()
 
         # Format as OpenAI-compatible response
+        result_msg: dict[str, Any] = {"role": "assistant"}
+        if tool_calls_from_llm:
+            result_msg["content"] = text or None
+            result_msg["tool_calls"] = tool_calls_from_llm
+            finish_reason = "tool_calls"
+        else:
+            result_msg["content"] = text
+            finish_reason = "stop"
+
         return {
             "id": "chatcmpl-backend",
             "object": "chat.completion",
             "choices": [
                 {
                     "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": text,
-                    },
-                    "finish_reason": "stop",
+                    "message": result_msg,
+                    "finish_reason": finish_reason,
                 }
             ],
             "model": model_name,
