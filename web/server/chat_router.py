@@ -141,105 +141,146 @@ async def _stream_chat(req: ChatCompletionRequest, request: Request):
     """Generator for SSE streaming chat completions."""
     import re as _re
     import uuid as _uuid
-    from tradingagents.llm_clients import create_llm_client
-    from pathlib import Path
 
-    # Read .env
-    env = {}
-    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
-    if env_path.exists():
-        for line in env_path.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-            if "=" in stripped:
-                key, _, val = stripped.partition("=")
-                env[key.strip()] = val.strip()
+    try:
+        from tradingagents.llm_clients import create_llm_client
+        from pathlib import Path
 
-    provider = env.get("TRADINGAGENTS_LLM_PROVIDER", "ollama").replace("-", "_")
-    model_name = env.get("TRADINGAGENTS_QUICK_THINK_LLM", "gpt-4o-mini")
-    backend_url = env.get("TRADINGAGENTS_LLM_BACKEND_URL") or None
+        # Read .env
+        env = {}
+        env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+        if env_path.exists():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if "=" in stripped:
+                    key, _, val = stripped.partition("=")
+                    env[key.strip()] = val.strip()
 
-    for k, v in env.items():
-        if v and k not in os.environ:
-            os.environ[k] = v
+        provider = env.get("TRADINGAGENTS_LLM_PROVIDER", "ollama").replace("-", "_")
+        model_name = env.get("TRADINGAGENTS_QUICK_THINK_LLM", "gpt-4o-mini")
+        backend_url = env.get("TRADINGAGENTS_LLM_BACKEND_URL") or None
 
-    base_url = backend_url
-    if provider == "ollama":
-        base_url = None
+        for k, v in env.items():
+            if v and k not in os.environ:
+                os.environ[k] = v
 
-    client = create_llm_client(provider=provider, model=model_name, base_url=base_url)
-    llm = client.get_llm()
+        base_url = backend_url
+        if provider == "ollama":
+            base_url = None
 
-    from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+        client = create_llm_client(provider=provider, model=model_name, base_url=base_url)
+        llm = client.get_llm()
 
-    langchain_messages = _build_langchain_messages(req)
+        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 
-    if req.tools:
-        from langchain_core.tools import StructuredTool
+        langchain_messages = _build_langchain_messages(req)
+
+        # Try streaming with tools; fall back to non-streaming on failure
+        use_tools = bool(req.tools)
         lc_tools = []
-        for tool in req.tools:
-            func_info = tool.get("function", {})
-            lc_tools.append(StructuredTool(
-                name=func_info["name"],
-                description=func_info.get("description", ""),
-                args_schema=None,
-                func=None,
-            ))
-        llm_with_tools = llm.bind_tools(lc_tools)
-        stream = llm_with_tools.stream(langchain_messages)
-    else:
-        stream = llm.stream(langchain_messages)
+        if use_tools:
+            from langchain_core.tools import StructuredTool
+            for tool in req.tools:
+                func_info = tool.get("function", {})
+                lc_tools.append(StructuredTool(
+                    name=func_info["name"],
+                    description=func_info.get("description", ""),
+                    args_schema=None,
+                    func=None,
+                ))
 
-    full_text = ""
-    tool_calls_buffer: list[dict] = []
+        # Attempt streaming
+        stream_iter = None
+        try:
+            if use_tools:
+                llm_with_tools = llm.bind_tools(lc_tools)
+                stream_iter = llm_with_tools.stream(langchain_messages)
+            else:
+                stream_iter = llm.stream(langchain_messages)
+        except Exception:
+            # Streaming not supported - fall back to non-streaming with simulated chunks
+            stream_iter = None
 
-    for chunk in stream:
-        chunk_content = chunk.content if hasattr(chunk, "content") else ""
-        chunk_tool_calls = getattr(chunk, "tool_calls", None) or []
+        if stream_iter is not None:
+            full_text = ""
+            tool_calls_buffer: list[dict] = []
 
-        if chunk_content:
-            full_text += chunk_content
-            yield f"data: {json.dumps({'type': 'text', 'text': chunk_content})}\n\n"
+            try:
+                for chunk in stream_iter:
+                    chunk_content = chunk.content if hasattr(chunk, "content") else ""
+                    chunk_tool_calls = getattr(chunk, "tool_calls", None) or []
 
-        if chunk_tool_calls:
-            for tc in chunk_tool_calls:
-                existing = next((t for t in tool_calls_buffer if t["id"] == tc["id"]), None)
-                if existing:
-                    existing["function"]["arguments"] += tc["function"].get("arguments", "")
-                else:
-                    tool_calls_buffer.append({
-                        "id": tc["id"],
-                        "type": "function",
-                        "function": {
-                            "name": tc["function"]["name"],
-                            "arguments": tc["function"].get("arguments", ""),
-                        },
-                    })
-            yield f"data: {json.dumps({'type': 'tool_calls', 'tool_calls': tool_calls_buffer})}\n\n"
+                    if chunk_content:
+                        full_text += chunk_content
+                        yield f"data: {json.dumps({'type': 'text', 'text': chunk_content})}\n\n"
 
-    # Final: parse text-based tool calls if no structured ones
-    if not tool_calls_buffer and full_text:
-        tool_pattern = _re.compile(
-            r'<tool_call>\s*<name>(.*?)</name>\s*<parameters>(.*?)</parameters>\s*</tool_call>',
-            _re.DOTALL,
-        )
-        matches = tool_pattern.findall(full_text)
-        if matches:
-            full_text = tool_pattern.sub("", full_text).strip()
-            for name, params_str in matches:
-                try:
-                    params = json.loads(params_str)
-                except json.JSONDecodeError:
-                    params = {}
-                tool_calls_buffer.append({
-                    "id": f"call_{_uuid.uuid4().hex[:12]}",
-                    "type": "function",
-                    "function": {"name": name, "arguments": json.dumps(params)},
-                })
+                    if chunk_tool_calls:
+                        for tc in chunk_tool_calls:
+                            tc_id = tc.get("id", f"call_{_uuid.uuid4().hex[:12]}")
+                            tc_func = tc.get("function", tc)
+                            tc_name = tc_func.get("name", "")
+                            tc_args = tc_func.get("arguments", "")
 
-    finish_reason = "tool_calls" if tool_calls_buffer else "stop"
-    yield f"data: {json.dumps({'type': 'done', 'finish_reason': finish_reason, 'tool_calls': tool_calls_buffer, 'content': full_text})}\n\n"
+                            existing = next((t for t in tool_calls_buffer if t["id"] == tc_id), None)
+                            if existing:
+                                existing["function"]["arguments"] += tc_args
+                            else:
+                                tool_calls_buffer.append({
+                                    "id": tc_id,
+                                    "type": "function",
+                                    "function": {"name": tc_name, "arguments": tc_args},
+                                })
+                        yield f"data: {json.dumps({'type': 'tool_calls', 'tool_calls': tool_calls_buffer})}\n\n"
+            except Exception as stream_err:
+                yield f"data: {json.dumps({'type': 'error', 'error': str(stream_err)})}\n\n"
+
+            # Parse text-based tool calls
+            if not tool_calls_buffer and full_text:
+                tool_pattern = _re.compile(
+                    r'<tool_call>\s*<name>(.*?)</name>\s*<parameters>(.*?)</parameters>\s*</tool_call>',
+                    _re.DOTALL,
+                )
+                matches = tool_pattern.findall(full_text)
+                if matches:
+                    full_text = tool_pattern.sub("", full_text).strip()
+                    for name, params_str in matches:
+                        try:
+                            params = json.loads(params_str)
+                        except json.JSONDecodeError:
+                            params = {}
+                        tool_calls_buffer.append({
+                            "id": f"call_{_uuid.uuid4().hex[:12]}",
+                            "type": "function",
+                            "function": {"name": name, "arguments": json.dumps(params)},
+                        })
+
+            finish_reason = "tool_calls" if tool_calls_buffer else "stop"
+            yield f"data: {json.dumps({'type': 'done', 'finish_reason': finish_reason, 'tool_calls': tool_calls_buffer, 'content': full_text})}\n\n"
+        else:
+            # Non-streaming fallback
+            if use_tools:
+                llm_with_tools = llm.bind_tools(lc_tools)
+                response = llm_with_tools.invoke(langchain_messages)
+            else:
+                response = llm.invoke(langchain_messages)
+
+            text = response.content if hasattr(response, "content") else str(response)
+            tool_calls_from_llm = getattr(response, "tool_calls", None) or []
+
+            if text:
+                yield f"data: {json.dumps({'type': 'text', 'text': text})}\n\n"
+
+            if tool_calls_from_llm:
+                yield f"data: {json.dumps({'type': 'tool_calls', 'tool_calls': tool_calls_from_llm})}\n\n"
+
+            finish_reason = "tool_calls" if tool_calls_from_llm else "stop"
+            yield f"data: {json.dumps({'type': 'done', 'finish_reason': finish_reason, 'tool_calls': tool_calls_from_llm, 'content': text})}\n\n"
+
+    except Exception as e:
+        yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
     yield "data: [DONE]\n\n"
 
 
