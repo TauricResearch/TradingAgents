@@ -75,7 +75,7 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
                 description = f"Execute {method} on {route.path}"
 
             # Extract parameters from path and known query params
-            parameters: dict[str, dict[str, str]] = {}
+            parameters: dict[str, dict[str, Any]] = {}
             for param in path_params:
                 parameters[param] = {
                     "type": "string",
@@ -95,6 +95,26 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
                 parameters["range"] = {
                     "type": "string",
                     "description": "Time range: '1d', '5d', '1mo', '3mo', '6mo', '1y'. Default: 'auto'",
+                }
+            # NEW: Add ticker_price-specific parameters for post_indicators
+            if tool_name == "indicators" and method == "POST":
+                parameters["kind"] = {
+                    "type": "string",
+                    "enum": ["ticker_price"],
+                    "description": "Type of alert. Use 'ticker_price' for price alerts on specific tickers.",
+                }
+                parameters["ticker"] = {
+                    "type": "string",
+                    "description": "REQUIRED for ticker_price alerts. The ticker symbol (e.g. 'SPY', 'AAPL').",
+                }
+                parameters["threshold"] = {
+                    "type": "number",
+                    "description": "The price level to trigger the alert (e.g. 750).",
+                }
+                parameters["comparator"] = {
+                    "type": "string",
+                    "enum": ["above", "below", "at_least", "within"],
+                    "description": "Comparison type: 'above' (price > threshold), 'below' (price < threshold), 'at_least' (price >= threshold), 'within' (price within X% of threshold).",
                 }
 
             tools.append(

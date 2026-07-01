@@ -48,6 +48,12 @@ If user asks about SPY, you MUST call get_ticker_history with ticker="SPY" in th
 
 DO NOT call tools without required parameters. Every parameter marked as REQUIRED must be provided.
 
+## PRICE ALERTS
+You can set price alerts for tickers using the manage_indicators tool:
+- Create: POST with kind="ticker_price", ticker="SPY", threshold=750, comparator="above"
+- The system will notify via Telegram when the price condition is met
+- Alerts are one-shot: they trigger once then deactivate. Use reset to re-arm.
+
 Your available tools:
 ${toolList}
 
@@ -332,6 +338,17 @@ export function AgentChatBubble() {
           description: "REQUIRED PARAMS: ticker (string). Gets analysis runs for a ticker. Usage: get_ticker_runs({ticker: \"SPY\", limit: 10}). Always pass ticker as a string.",
           originalName: "get_tickers_ticker_runs",
         },
+        // NEW: Add friendly names for indicator tools
+        indicators: {
+          name: "manage_indicators",
+          description: "List, add, update, or remove indicator alerts including ticker price alerts. Create price alerts with kind='ticker_price', ticker='SPY', threshold=750, comparator='above'.",
+          originalName: "indicators",
+        },
+        indicators_indicator_id: {
+          name: "manage_indicator",
+          description: "Update or delete a specific indicator/alert by ID. Can also reset triggered alerts.",
+          originalName: "indicators_indicator_id",
+        },
       };
 
       const renamedToOriginal: Record<string, string> = {};
@@ -406,9 +423,16 @@ export function AgentChatBubble() {
         return base;
       };
 
+      // Build renamed tool list for system prompt (match names LLM will see)
+      const systemToolList = backendTools.map(t => ({
+        name: t.function.name,
+        description: t.function.description,
+      }));
+
       let conversationHistory: Record<string, unknown>[] = [
-        { role: "system", content: getSystemPrompt(tools) },
-        ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
+        { role: "system", content: getSystemPrompt(systemToolList) },
+        // Keep ALL messages that have content, tool_calls (even if content empty), or are tool results
+        ...messages.filter(m => (m.content && m.content.trim()) || (m.role === "assistant" && m.toolCalls?.length > 0) || m.role === "tool").map(toApiMessage),
         { role: "user", content: trimmed },
       ];
 
@@ -492,7 +516,9 @@ export function AgentChatBubble() {
                   updateMessage(currentMsgId, { content: fullResponse });
                 }
               }
-            } catch {}
+            } catch (parseErr) {
+              console.warn("AgentChat: failed to parse SSE event:", data, parseErr);
+            }
           }
         }
 
@@ -556,6 +582,7 @@ export function AgentChatBubble() {
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
 
         setCurrentUserMessage(trimmed);
+        let anyToolSucceeded = false;
 
         for (const call of toolCallsFromResponse) {
           let args: Record<string, unknown> = {};
@@ -572,6 +599,7 @@ export function AgentChatBubble() {
           } catch (toolErr) {
             result = { success: false, error: toolErr instanceof Error ? toolErr.message : String(toolErr) };
           }
+          if (result.success) anyToolSucceeded = true;
           const resultStr = JSON.stringify(result);
           addMessage({
             role: "tool",
@@ -585,7 +613,7 @@ export function AgentChatBubble() {
           });
         }
 
-        hadExecutedTools = true;
+        hadExecutedTools = anyToolSucceeded;
 
         const assistantToolMsg = {
           role: "assistant" as const,
