@@ -44,6 +44,11 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# The chat_agent Streamlit web UI. Optional so the CLI-only install stays lean:
+# pip install "tradingagents[chat]".
+chat = [
+    "streamlit>=1.50",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

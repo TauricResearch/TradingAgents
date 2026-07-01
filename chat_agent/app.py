@@ -138,7 +138,7 @@ with st.sidebar:
 
     llm_provider = st.selectbox(
         "LLM Provider",
-        ["openai", "anthropic", "google", "deepseek", "groq"],
+        ["openai", "anthropic", "google", "deepseek", "groq", "openrouter", "ollama"],
         index=0,
     )
 
@@ -148,6 +148,8 @@ with st.sidebar:
         "google": ("gemini-2.5-pro", "gemini-2.5-flash"),
         "deepseek": ("deepseek-chat", "deepseek-chat"),
         "groq": ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"),
+        "openrouter": ("anthropic/claude-sonnet-4.6", "openai/gpt-5.4-mini"),
+        "ollama": ("glm-4.7-flash:latest", "qwen3:latest"),
     }
     default_deep, default_quick = provider_models.get(
         llm_provider, ("gpt-5.5", "gpt-5.4-mini")
@@ -157,21 +159,39 @@ with st.sidebar:
     quick_model = st.text_input("Quick thinking model", value=default_quick)
     debate_rounds = st.slider("Debate rounds", 1, 5, 1)
 
+    backend_url = None
+    if llm_provider == "ollama":
+        backend_url = st.text_input(
+            "Ollama base URL",
+            value="http://localhost:11434/v1",
+            help=(
+                "Streamlit Cloud cannot reach a localhost Ollama server — "
+                "point this at a publicly reachable Ollama endpoint."
+            ),
+        )
+
     api_key_label = {
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
         "google": "GOOGLE_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
         "groq": "GROQ_API_KEY",
-    }.get(llm_provider, "OPENAI_API_KEY")
+        "openrouter": "OPENROUTER_API_KEY",
+    }.get(llm_provider)
 
-    api_key = st.text_input(
-        f"{api_key_label}",
-        type="password",
-        help="Set your API key here. It is stored only in your session.",
-    )
+    api_key = None
+    if api_key_label:
+        api_key = st.text_input(
+            f"{api_key_label}",
+            type="password",
+            help="Set your API key here. It is stored only in your session.",
+        )
+    else:
+        st.caption("No API key required for this provider.")
     if api_key:
         st.session_state["api_key"] = api_key
+    else:
+        st.session_state.pop("api_key", None)
 
     st.divider()
     st.markdown(
@@ -242,6 +262,8 @@ if user_input and not st.session_state.running:
         config["quick_think_llm"] = quick_model
         config["max_debate_rounds"] = debate_rounds
         config["max_risk_discuss_rounds"] = debate_rounds
+        if backend_url:
+            config["backend_url"] = backend_url
         session_api_key = st.session_state.get("api_key")
         if session_api_key:
             config["api_key"] = session_api_key
