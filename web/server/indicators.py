@@ -191,7 +191,7 @@ def add_indicator(body: dict[str, Any]) -> IndicatorDefinition:
         try:
             yf.Ticker(ticker).fast_info["lastPrice"]
         except Exception:
-            raise ValueError(f"Ticker '{ticker}' not found. Please check the symbol.")
+            raise ValueError(f"Ticker '{ticker}' not found. Please check the symbol.") from None
 
     # Get base definition for defaults
     if kind == "ticker_price":
