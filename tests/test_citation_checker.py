@@ -84,3 +84,38 @@ def test_non_evd_aliases_resolve_but_are_not_citation_tokens_in_free_text():
     assert result.passed is True
     assert result.cited_ids == []
     assert result.warnings == []
+
+
+@pytest.mark.unit
+def test_duplicate_citations_are_deduplicated_preserving_order():
+    ledger = EvidenceLedger()
+    ledger.register(
+        source="market_data",
+        title="NVDA June close",
+        as_of_date="2024-06-01",
+        payload={"close": 189.5},
+        evidence_id="EVD-MKT-202406",
+    )
+    ledger.register(
+        source="filing",
+        title="NVDA 10-K",
+        as_of_date="2024-02-21",
+        payload={"form": "10-K"},
+        evidence_id="EVD-FILING-20240221",
+    )
+
+    # Text contains duplicate known and duplicate unknown citations.
+    # Order: EVD-MKT-202406, EVD-UNKNOWN, EVD-MKT-202406 (dup), EVD-FILING-20240221, EVD-UNKNOWN (dup)
+    text = (
+        "Check EVD-MKT-202406 and EVD-UNKNOWN. "
+        "Also note EVD-MKT-202406 again, EVD-FILING-20240221, and EVD-UNKNOWN again."
+    )
+
+    result = verify_citations(text, ledger)
+
+    assert result.passed is False
+    # Expect order to be: EVD-MKT-202406, EVD-UNKNOWN, EVD-FILING-20240221 (no duplicates)
+    assert result.cited_ids == ["EVD-MKT-202406", "EVD-UNKNOWN", "EVD-FILING-20240221"]
+    assert result.unknown_ids == ["EVD-UNKNOWN"]
+    assert result.warnings == ["Unknown evidence citation: EVD-UNKNOWN"]
+
