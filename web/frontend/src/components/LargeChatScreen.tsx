@@ -165,8 +165,8 @@ export function LargeChatScreen({ onClose }: Props) {
       };
 
       let conversationHistory: Record<string, unknown>[] = [
-        { role: "system", content: getSystemPrompt(tools) },
-        ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
+        { role: "system", content: getSystemPrompt(backendTools.map(t => ({ name: t.function.name, description: t.function.description }))) },
+        ...messages.filter(m => (m.content && m.content.trim()) || (m.role === "assistant" && m.toolCalls?.length > 0) || m.role === "tool").map(toApiMessage),
         { role: "user", content: trimmed },
       ];
 
@@ -236,7 +236,9 @@ export function LargeChatScreen({ onClose }: Props) {
                   updateMessage(currentMsgId, { content: fullResponse });
                 }
               }
-            } catch {}
+            } catch (parseErr) {
+              console.warn("LargeChatScreen: failed to parse SSE event:", data, parseErr);
+            }
           }
         }
 

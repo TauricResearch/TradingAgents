@@ -206,7 +206,7 @@ export function TickerChatBar({ ticker, price, run }: Props) {
 
       let conversationHistory: Record<string, unknown>[] = [
         { role: "system", content: systemPrompt },
-        ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
+        ...messages.filter(m => (m.content && m.content.trim()) || (m.role === "assistant" && m.toolCalls?.length > 0) || m.role === "tool").map(toApiMessage),
         { role: "user", content: trimmed },
       ];
 
@@ -276,7 +276,9 @@ export function TickerChatBar({ ticker, price, run }: Props) {
                   updateMessage(currentMsgId, { content: fullResponse });
                 }
               }
-            } catch {}
+            } catch (parseErr) {
+              console.warn("TickerChatBar: failed to parse SSE event:", data, parseErr);
+            }
           }
         }
 
