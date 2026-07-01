@@ -18,6 +18,12 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    "TRADINGAGENTS_EVIDENCE_ENABLED":     "evidence_enabled",
+    "TRADINGAGENTS_EVIDENCE_STRICT_MODE": "evidence_strict_mode",
+    "TRADINGAGENTS_QUANT_ANCHOR_ENABLED": "quant_anchor_enabled",
+    "TRADINGAGENTS_CITATION_VERIFICATION_ENABLED": "citation_verification_enabled",
+    "TRADINGAGENTS_PRICE_TARGET_WARN_MULTIPLE": "price_target_warn_multiple",
+    "TRADINGAGENTS_PRICE_TARGET_BLOCK_MULTIPLE": "price_target_block_multiple",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -98,6 +104,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
+    # Evidence/citation audit: fail-soft by default; guardrail results are
+    # recorded in the run state and reports without interrupting the workflow.
+    "evidence_enabled": True,
+    "evidence_strict_mode": "warn",
+    "quant_anchor_enabled": True,
+    "citation_verification_enabled": True,
+    "price_target_warn_multiple": 3.0,
+    "price_target_block_multiple": 5.0,
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",

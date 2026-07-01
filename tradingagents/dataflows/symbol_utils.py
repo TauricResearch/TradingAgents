@@ -104,7 +104,10 @@ def normalize_symbol(raw: str) -> str:
       2. Crypto rule: a known crypto base quoted in USD/USDT/USDC (dashed or
          not) -> ``BASE-USD``.
       3. Forex rule: six letters that are two ISO currency codes -> ``PAIR=X``.
-      4. Otherwise the upper-cased symbol is returned unchanged (plain
+      4. Hong Kong stock rule: numeric tickers (e.g. ``00175``, ``175``, or
+         ``00175.HK``) -> normalized to ``0175.HK`` (Yahoo Finance expects
+         a 4-digit code with the ``.HK`` suffix for standard HK stocks).
+      5. Otherwise the upper-cased symbol is returned unchanged (plain
          equities, ETFs, Yahoo-native symbols like ``GC=F`` or ``^GSPC``).
 
     A trailing ``+`` (broker CFD marker, e.g. ``XAUUSD+``) is stripped before
@@ -125,6 +128,16 @@ def normalize_symbol(raw: str) -> str:
         canonical = crypto
     elif len(s) == 6 and s[:3] in _FOREX_CURRENCIES and s[3:] in _FOREX_CURRENCIES:
         canonical = f"{s}=X"
+    elif (s.isdigit() and len(s) <= 5) or (s.endswith(".HK") and s[:-3].isdigit()):
+        num_part = s[:-3] if s.endswith(".HK") else s
+        # Pad to the standard 5-digit code representation first (e.g. 175 -> 00175)
+        padded_num = num_part.zfill(5)
+        # Yahoo Finance expects 4-digit codes with .HK suffix for standard HK equities starting with 0.
+        if padded_num.startswith("0"):
+            normalized_num = padded_num[1:]
+        else:
+            normalized_num = padded_num
+        canonical = f"{normalized_num}.HK"
     else:
         canonical = s
 

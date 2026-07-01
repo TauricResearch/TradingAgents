@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -29,10 +30,17 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.market_data_validator import build_verified_market_snapshot_payload
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.evidence import EvidenceLedger, verify_citations
+from tradingagents.guardrails import (
+    MathGuardrailEngine,
+    QuantitativeAnchor,
+    build_market_price_anchor,
+)
 from tradingagents.llm_clients import create_llm_client
-from tradingagents.reporting import write_report_tree
+from tradingagents.reporting import build_evidence_audit, write_report_tree
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -374,18 +382,176 @@ class TradingAgentsGraph:
             )
         return write_report_tree(final_state, ticker, save_path)
 
+    def _empty_evidence_pack(self, warnings: list[str] | None = None) -> dict[str, Any]:
+        return {
+            "evidence_ledger": {"items": []},
+            "evidence_summary": "",
+            "quantitative_anchors": [],
+            "math_guardrail_events": [],
+            "citation_verification": None,
+            "evidence_warnings": list(warnings or []),
+        }
+
+    def _build_evidence_pack(self, company_name: str, trade_date: str) -> dict[str, Any]:
+        if not self.config.get("evidence_enabled", True):
+            return self._empty_evidence_pack()
+
+        try:
+            payload = build_verified_market_snapshot_payload(company_name, str(trade_date))
+            ledger = EvidenceLedger()
+            evidence = ledger.register(
+                source="verified_market_snapshot",
+                title=f"Verified market snapshot for {company_name}",
+                as_of_date=str(payload.get("latest_date") or trade_date),
+                payload=payload,
+                aliases=[f"EVD-MKT-{company_name.upper()}-{trade_date}"],
+            )
+            anchors = []
+            if self.config.get("quant_anchor_enabled", True):
+                anchor = build_market_price_anchor(
+                    symbol=company_name,
+                    as_of_date=str(trade_date),
+                    market_snapshot_payload=payload,
+                    evidence_id=evidence.evidence_id,
+                )
+                anchors.append(anchor.model_dump())
+            summary = (
+                f"- {evidence.evidence_id}: {evidence.title}; "
+                f"as_of={evidence.as_of_date}; source={evidence.source}"
+            )
+            return {
+                "evidence_ledger": ledger.to_dict(),
+                "evidence_summary": summary,
+                "quantitative_anchors": anchors,
+                "math_guardrail_events": [],
+                "citation_verification": None,
+                "evidence_warnings": [],
+            }
+        except Exception as exc:  # noqa: BLE001 - evidence audit must not block analysis
+            logger.warning(
+                "Could not build evidence pack for %s on %s: %s",
+                company_name,
+                trade_date,
+                exc,
+            )
+            return self._empty_evidence_pack(
+                [f"Evidence pack unavailable for {company_name} on {trade_date}: {exc}"]
+            )
+
+    def _merge_evidence_defaults(
+        self,
+        final_state: dict[str, Any],
+        evidence_pack: dict[str, Any],
+    ) -> None:
+        for key, value in evidence_pack.items():
+            final_state.setdefault(key, value)
+
+    def _audit_final_state(self, final_state: dict[str, Any]) -> None:
+        warnings = list(final_state.get("evidence_warnings") or [])
+        strict_mode = str(self.config.get("evidence_strict_mode", "warn")).strip().lower()
+        blocking_reasons: list[str] = []
+        ledger = EvidenceLedger.from_dict(final_state.get("evidence_ledger") or {"items": []})
+        decision = final_state.get("final_trade_decision", "")
+
+        if self.config.get("citation_verification_enabled", True):
+            result = verify_citations(
+                str(decision),
+                ledger,
+                require_citation=bool(self.config.get("evidence_enabled", True) and ledger.list_items()),
+            )
+            final_state["citation_verification"] = result.model_dump()
+            warnings.extend(result.warnings)
+            if not result.passed:
+                blocking_reasons.extend(result.warnings or ["Citation verification failed."])
+
+        if self.config.get("quant_anchor_enabled", True):
+            price_target = TradingAgentsGraph._extract_price_target(str(decision))
+            engine = MathGuardrailEngine(
+                warn_multiple=float(self.config.get("price_target_warn_multiple", 3.0)),
+                block_multiple=float(self.config.get("price_target_block_multiple", 5.0)),
+            )
+            events = list(final_state.get("math_guardrail_events") or [])
+            for anchor_payload in final_state.get("quantitative_anchors") or []:
+                anchor = QuantitativeAnchor(**anchor_payload)
+                for event in engine.check_price_target(anchor, price_target):
+                    dumped = event.model_dump()
+                    events.append(dumped)
+                    if event.status != "pass":
+                        warnings.append(event.message)
+                    if event.status == "blocked":
+                        blocking_reasons.append(f"{event.rule_id}: {event.message}")
+            final_state["math_guardrail_events"] = events
+
+        final_state["evidence_warnings"] = warnings
+        final_state["evidence_strict_mode"] = strict_mode
+        final_state["evidence_blocking_reasons"] = blocking_reasons
+        if strict_mode == "block" and blocking_reasons:
+            final_state["evidence_strict_blocked"] = True
+            final_state["evidence_decision_status"] = "blocked"
+            final_state["evidence_actionable"] = False
+            final_state["original_final_trade_decision"] = str(decision)
+            final_state["final_trade_decision"] = TradingAgentsGraph._render_strict_blocked_decision(
+                original_decision=str(decision),
+                blocking_reasons=blocking_reasons,
+            )
+        else:
+            final_state["evidence_strict_blocked"] = False
+            final_state["evidence_decision_status"] = "actionable"
+            final_state["evidence_actionable"] = True
+            final_state["original_final_trade_decision"] = None
+        risk_state = final_state.get("risk_debate_state")
+        if isinstance(risk_state, dict):
+            risk_state["judge_decision"] = final_state["final_trade_decision"]
+        final_state["evidence_audit"] = build_evidence_audit(final_state)
+
+    @staticmethod
+    def _render_strict_blocked_decision(
+        original_decision: str,
+        blocking_reasons: list[str],
+    ) -> str:
+        reasons = "\n".join(f"- {reason}" for reason in blocking_reasons)
+        return (
+            "**Rating**: Hold\n\n"
+            "**Decision Status**: Blocked - Not Actionable\n\n"
+            "**Executive Summary**: The original portfolio judgment is blocked "
+            "from actionable use because required evidence checks failed. Treat "
+            "the affected conclusions as invalid until the blocking reasons are "
+            "resolved.\n\n"
+            f"**Blocking Reasons**:\n{reasons}\n\n"
+            "### Original blocked decision\n\n"
+            f"{original_decision}"
+        )
+
+    @staticmethod
+    def _extract_price_target(decision: str) -> float | None:
+        match = re.search(
+            r"(?:\*\*)?Price\s+Target(?:\*\*)?\s*:\s*\$?\s*([-+]?\d+(?:,\d{3})*(?:\.\d+)?)",
+            decision,
+            flags=re.IGNORECASE,
+        )
+        if not match:
+            return None
+        try:
+            return float(match.group(1).replace(",", ""))
+        except ValueError:
+            return None
+
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents.
         past_context = self.memory_log.get_past_context(company_name)
         instrument_context = self.resolve_instrument_context(company_name, asset_type)
+        evidence_pack = TradingAgentsGraph._build_evidence_pack(
+            self, company_name, str(trade_date)
+        )
         init_agent_state = self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
             past_context=past_context,
             instrument_context=instrument_context,
+            **evidence_pack,
         )
         args = self.propagator.get_graph_args()
 
@@ -416,18 +582,22 @@ class TradingAgentsGraph:
         else:
             final_state = self.graph.invoke(init_agent_state, **args)
 
+        TradingAgentsGraph._merge_evidence_defaults(self, final_state, evidence_pack)
+        TradingAgentsGraph._audit_final_state(self, final_state)
+
         # Store current state for reflection.
         self.curr_state = final_state
 
         # Log state to disk.
         self._log_state(trade_date, final_state)
 
-        # Store decision for deferred reflection on the next same-ticker run.
-        self.memory_log.store_decision(
-            ticker=company_name,
-            trade_date=trade_date,
-            final_trade_decision=final_state["final_trade_decision"],
-        )
+        # Store only actionable decisions for deferred performance reflection.
+        if final_state.get("evidence_decision_status") != "blocked":
+            self.memory_log.store_decision(
+                ticker=company_name,
+                trade_date=trade_date,
+                final_trade_decision=final_state["final_trade_decision"],
+            )
 
         # Clear checkpoint on successful completion to avoid stale state.
         if self.config.get("checkpoint_enabled"):
@@ -467,6 +637,21 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
+            "evidence_ledger": final_state.get("evidence_ledger", {"items": []}),
+            "evidence_summary": final_state.get("evidence_summary", ""),
+            "quantitative_anchors": final_state.get("quantitative_anchors", []),
+            "math_guardrail_events": final_state.get("math_guardrail_events", []),
+            "citation_verification": final_state.get("citation_verification"),
+            "evidence_warnings": final_state.get("evidence_warnings", []),
+            "evidence_strict_mode": final_state.get("evidence_strict_mode", "warn"),
+            "evidence_strict_blocked": final_state.get("evidence_strict_blocked", False),
+            "evidence_decision_status": final_state.get(
+                "evidence_decision_status", "actionable"
+            ),
+            "evidence_actionable": final_state.get("evidence_actionable", True),
+            "evidence_blocking_reasons": final_state.get("evidence_blocking_reasons", []),
+            "original_final_trade_decision": final_state.get("original_final_trade_decision"),
+            "evidence_audit": build_evidence_audit(final_state),
         }
 
         # Save to file. Reject ticker values that would escape the

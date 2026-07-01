@@ -11,6 +11,7 @@ claim. Deterministic, no LLM involved.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any
 
 import pandas as pd
 from stockstats import wrap
@@ -59,26 +60,44 @@ def _fmt(value) -> str:
     return str(value)
 
 
-def build_verified_market_snapshot(
+def _json_value(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, pd.Timestamp):
+        return value.strftime("%Y-%m-%d")
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(value, "item"):
+        value = value.item()
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, float):
+        return float(value)
+    if isinstance(value, int):
+        return int(value)
+    return value
+
+
+def build_verified_market_snapshot_payload(
     symbol: str,
     curr_date: str,
     look_back_days: int = 30,
     indicators: Iterable[str] | None = None,
-) -> str:
-    """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
-    # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/
-    # Volume); stockstats `wrap()` lowercases columns and adds indicator
-    # columns, so read raw prices from `df` and indicators from `stock_df`.
+) -> dict[str, Any]:
+    """Return a JSON-safe ground-truth market snapshot payload."""
     df = _verified_rows(symbol, curr_date)
     stock_df = wrap(df.copy())
 
     selected = tuple(indicators or DEFAULT_SNAPSHOT_INDICATORS)
-    indicator_values: dict[str, str] = {}
+    indicator_values: dict[str, Any] = {}
     for name in selected:
         try:
-            stock_df[name]  # triggers stockstats calculation
-            indicator_values[name] = _fmt(stock_df.iloc[-1][name])
-        except Exception as exc:  # noqa: BLE001 — one bad indicator shouldn't sink the snapshot
+            stock_df[name]
+            indicator_values[name] = _json_value(stock_df.iloc[-1][name])
+        except Exception as exc:  # noqa: BLE001 - one bad indicator shouldn't sink the snapshot
             indicator_values[name] = f"N/A ({type(exc).__name__})"
 
     latest = df.iloc[-1]
@@ -86,11 +105,45 @@ def build_verified_market_snapshot(
     window = max(1, min(int(look_back_days), 30))
     recent = df.tail(window)
 
+    return {
+        "symbol": symbol.upper(),
+        "requested_date": curr_date,
+        "latest_date": latest_date,
+        "latest_ohlcv": {
+            field: _json_value(latest.get(field))
+            for field in ("Open", "High", "Low", "Close", "Volume")
+        },
+        "indicators": indicator_values,
+        "recent_closes": [
+            {
+                "Date": _fmt(row["Date"]),
+                "Close": _json_value(row.get("Close")),
+            }
+            for _, row in recent.iterrows()
+        ],
+        "look_back_days": len(recent),
+    }
+
+
+def build_verified_market_snapshot(
+    symbol: str,
+    curr_date: str,
+    look_back_days: int = 30,
+    indicators: Iterable[str] | None = None,
+) -> str:
+    """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
+    payload = build_verified_market_snapshot_payload(
+        symbol,
+        curr_date,
+        look_back_days=look_back_days,
+        indicators=indicators,
+    )
+
     lines = [
-        f"## Verified market data snapshot for {symbol.upper()}",
+        f"## Verified market data snapshot for {payload['symbol']}",
         "",
-        f"- Requested analysis date: {curr_date}",
-        f"- Latest trading row used: {latest_date}",
+        f"- Requested analysis date: {payload['requested_date']}",
+        f"- Latest trading row used: {payload['latest_date']}",
         "- Rows after the requested analysis date are excluded before verification.",
         "",
         "### Latest verified OHLCV row",
@@ -99,17 +152,17 @@ def build_verified_market_snapshot(
         "|---|---:|",
     ]
     for field in ("Open", "High", "Low", "Close", "Volume"):
-        lines.append(f"| {field} | {_fmt(latest.get(field))} |")
+        lines.append(f"| {field} | {_fmt(payload['latest_ohlcv'].get(field))} |")
 
     lines += ["", "### Verified technical indicators (latest row)", "",
               "| Indicator | Value |", "|---|---:|"]
-    for name, value in indicator_values.items():
-        lines.append(f"| {name} | {value} |")
+    for name, value in payload["indicators"].items():
+        lines.append(f"| {name} | {_fmt(value)} |")
 
-    lines += ["", f"### Recent verified closes (last {len(recent)} rows)", "",
+    lines += ["", f"### Recent verified closes (last {len(payload['recent_closes'])} rows)", "",
               "| Date | Close |", "|---|---:|"]
-    for _, row in recent.iterrows():
-        lines.append(f"| {_fmt(row['Date'])} | {_fmt(row.get('Close'))} |")
+    for row in payload["recent_closes"]:
+        lines.append(f"| {row['Date']} | {_fmt(row.get('Close'))} |")
 
     lines += [
         "",

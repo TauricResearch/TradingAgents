@@ -221,6 +221,13 @@ class PortfolioDecision(BaseModel):
         default=None,
         description="Optional recommended holding period, e.g. '3-6 months'.",
     )
+    supporting_evidence_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Evidence IDs from the prompt's evidence ledger that directly support "
+            "the final decision. Use an empty list only when no evidence IDs were provided."
+        ),
+    )
 
     @field_validator("price_target", mode="before")
     @classmethod
@@ -247,6 +254,8 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
         parts.extend(["", f"**Price Target**: {decision.price_target}"])
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
+    evidence_ids = ", ".join(decision.supporting_evidence_ids) or "None"
+    parts.extend(["", f"**Supporting Evidence IDs**: {evidence_ids}"])
     return "\n".join(parts)
 
 

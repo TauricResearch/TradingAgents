@@ -81,6 +81,12 @@ def _make_pm_state(past_context=""):
         "fundamentals_report": "Fundamentals report.",
         "investment_plan": "Research plan.",
         "trader_investment_plan": "Trader plan.",
+        "evidence_ledger": {"items": []},
+        "evidence_summary": "",
+        "quantitative_anchors": [],
+        "math_guardrail_events": [],
+        "citation_verification": None,
+        "evidence_warnings": [],
     }
 
 
@@ -685,6 +691,22 @@ class TestPortfolioManagerInjection:
         state = propagator.create_initial_state("NVDA", "2026-01-10")
         assert state["past_context"] == ""
 
+    def test_evidence_fields_default_in_initial_state(self):
+        propagator = Propagator()
+        state = propagator.create_initial_state("NVDA", "2026-01-10")
+        assert state["evidence_ledger"] == {"items": []}
+        assert state["evidence_summary"] == ""
+        assert state["quantitative_anchors"] == []
+        assert state["math_guardrail_events"] == []
+        assert state["citation_verification"] is None
+        assert state["evidence_warnings"] == []
+        assert state["evidence_strict_mode"] == "warn"
+        assert state["evidence_strict_blocked"] is False
+        assert state["evidence_decision_status"] == "actionable"
+        assert state["evidence_actionable"] is True
+        assert state["evidence_blocking_reasons"] == []
+        assert state["original_final_trade_decision"] is None
+
     # PM prompt
 
     def test_pm_prompt_includes_past_context(self):
@@ -704,6 +726,24 @@ class TestPortfolioManagerInjection:
         state = _make_pm_state(past_context="")
         pm_node(state)
         assert "Lessons from prior decisions" not in captured["prompt"]
+
+    def test_pm_prompt_includes_evidence_summary_and_ids(self):
+        captured = {}
+        llm = _structured_pm_llm(captured)
+        pm_node = create_portfolio_manager(llm)
+        state = _make_pm_state()
+        state["evidence_summary"] = "Verified close was 100.0 as of 2026-01-10."
+        state["evidence_ledger"] = {
+            "items": [
+                {"evidence_id": "EVD-MKT-TEST", "title": "Verified Market Snapshot"},
+                {"evidence_id": "EVD-NEWS-TEST", "title": "News Summary"},
+            ]
+        }
+        pm_node(state)
+        assert "Evidence Audit Context" in captured["prompt"]
+        assert "Verified close was 100.0" in captured["prompt"]
+        assert "EVD-MKT-TEST" in captured["prompt"]
+        assert "supporting_evidence_ids" in captured["prompt"]
 
     def test_pm_returns_rendered_markdown_with_rating(self):
         """The structured PortfolioDecision is rendered to markdown that
@@ -869,3 +909,227 @@ class TestLegacyRemoval:
         assert len(entries) == 1
         assert entries[0]["ticker"] == "NVDA"
         assert entries[0]["pending"] is True
+
+    def test_run_graph_adds_evidence_audit_fields(self, tmp_path, monkeypatch):
+        """_run_graph attaches citation and guardrail audit metadata fail-soft."""
+        import functools
+
+        def fake_invoke(init_state, **_kwargs):
+            evidence_id = init_state["evidence_ledger"]["items"][0]["evidence_id"]
+            return {
+                **init_state,
+                "final_trade_decision": (
+                    "**Rating**: Buy\n\n"
+                    "**Price Target**: 500.0\n\n"
+                    f"**Supporting Evidence IDs**: {evidence_id}"
+                ),
+                "investment_plan": "",
+                "trader_investment_plan": "",
+            }
+        payload = {
+            "symbol": "NVDA",
+            "requested_date": "2026-01-10",
+            "latest_date": "2026-01-10",
+            "latest_ohlcv": {"Open": 99.0, "High": 101.0, "Low": 98.0, "Close": 100.0, "Volume": 10},
+            "indicators": {},
+            "recent_closes": [{"Date": "2026-01-10", "Close": 100.0}],
+            "look_back_days": 1,
+        }
+        import tradingagents.graph.trading_graph as tg
+
+        monkeypatch.setattr(tg, "build_verified_market_snapshot_payload", lambda *a, **k: payload)
+
+        mock_graph = MagicMock()
+        mock_graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "mem.md")})
+        mock_graph.log_states_dict = {}
+        mock_graph.debug = False
+        mock_graph.config = {
+            "results_dir": str(tmp_path),
+            "evidence_enabled": True,
+            "citation_verification_enabled": True,
+            "quant_anchor_enabled": True,
+            "price_target_warn_multiple": 3.0,
+            "price_target_block_multiple": 5.0,
+        }
+        mock_graph.graph.invoke.side_effect = fake_invoke
+        mock_graph.propagator.create_initial_state.side_effect = (
+            lambda *args, **kwargs: Propagator().create_initial_state(*args, **kwargs)
+        )
+        mock_graph.propagator.get_graph_args.return_value = {}
+        mock_graph.signal_processor.process_signal.return_value = "Buy"
+        mock_graph.resolve_instrument_context.return_value = "Instrument context."
+        mock_graph._run_graph = functools.partial(
+            TradingAgentsGraph._run_graph, mock_graph
+        )
+
+        final_state, _ = TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
+
+        evidence_id = final_state["evidence_ledger"]["items"][0]["evidence_id"]
+        assert final_state["citation_verification"]["passed"] is True
+        assert final_state["citation_verification"]["cited_ids"] == [evidence_id]
+        assert final_state["quantitative_anchors"][0]["current_price"] == 100.0
+        assert final_state["math_guardrail_events"][0]["status"] == "blocked"
+        assert evidence_id.startswith("EVD-")
+
+    def test_evidence_strict_block_marks_missing_required_citation_without_exception(self):
+        state = {
+            "final_trade_decision": "**Rating**: Buy\n\nNo supporting citation.",
+            "evidence_ledger": {
+                "items": [
+                    {
+                        "evidence_id": "EVD-MKT-TEST",
+                        "source": "verified_market_snapshot",
+                        "title": "Verified Market Snapshot",
+                        "as_of_date": "2026-01-10",
+                        "payload": {"close": 100.0},
+                    }
+                ]
+            },
+            "quantitative_anchors": [],
+            "math_guardrail_events": [],
+            "evidence_warnings": [],
+            "risk_debate_state": {
+                "judge_decision": "**Rating**: Buy\n\nNo supporting citation.",
+            },
+        }
+        mock_graph = MagicMock()
+        mock_graph.config = {
+            "evidence_enabled": True,
+            "citation_verification_enabled": True,
+            "quant_anchor_enabled": False,
+            "evidence_strict_mode": "block",
+        }
+
+        TradingAgentsGraph._audit_final_state(mock_graph, state)
+
+        assert state["evidence_strict_blocked"] is True
+        assert state["evidence_decision_status"] == "blocked"
+        assert state["evidence_actionable"] is False
+        assert state["evidence_blocking_reasons"] == ["Citation required but none found."]
+        assert state["final_trade_decision"].startswith("**Rating**: Hold")
+        assert "Blocked - Not Actionable" in state["final_trade_decision"]
+        assert "Original blocked decision" in state["final_trade_decision"]
+        assert "**Rating**: Buy" in state["final_trade_decision"]
+        assert state["original_final_trade_decision"] == "**Rating**: Buy\n\nNo supporting citation."
+        assert state["risk_debate_state"]["judge_decision"] == state["final_trade_decision"]
+        assert state["citation_verification"]["passed"] is False
+        assert state["evidence_audit"]["citation_verification"]["missing_required"] is True
+        assert state["evidence_audit"]["evidence_strict_blocked"] is True
+        assert state["evidence_audit"]["evidence_decision_status"] == "blocked"
+        assert state["evidence_audit"]["evidence_actionable"] is False
+        assert state["evidence_audit"]["original_final_trade_decision"] == state["original_final_trade_decision"]
+
+    def test_evidence_strict_block_marks_blocked_math_guardrail_without_exception(self):
+        state = {
+            "final_trade_decision": (
+                "**Rating**: Buy\n\n"
+                "**Price Target**: 500.0\n\n"
+                "**Supporting Evidence IDs**: EVD-MKT-TEST"
+            ),
+            "evidence_ledger": {
+                "items": [
+                    {
+                        "evidence_id": "EVD-MKT-TEST",
+                        "source": "verified_market_snapshot",
+                        "title": "Verified Market Snapshot",
+                        "as_of_date": "2026-01-10",
+                        "payload": {"close": 100.0},
+                    }
+                ]
+            },
+            "quantitative_anchors": [
+                {
+                    "anchor_id": "QA-TEST",
+                    "symbol": "NVDA",
+                    "as_of_date": "2026-01-10",
+                    "current_price": 100.0,
+                    "evidence_id": "EVD-MKT-TEST",
+                }
+            ],
+            "math_guardrail_events": [],
+            "evidence_warnings": [],
+            "risk_debate_state": {
+                "judge_decision": (
+                    "**Rating**: Buy\n\n"
+                    "**Price Target**: 500.0\n\n"
+                    "**Supporting Evidence IDs**: EVD-MKT-TEST"
+                ),
+            },
+        }
+        mock_graph = MagicMock()
+        mock_graph.config = {
+            "evidence_enabled": True,
+            "citation_verification_enabled": True,
+            "quant_anchor_enabled": True,
+            "price_target_warn_multiple": 3.0,
+            "price_target_block_multiple": 5.0,
+            "evidence_strict_mode": "block",
+        }
+
+        TradingAgentsGraph._audit_final_state(mock_graph, state)
+
+        assert state["evidence_strict_blocked"] is True
+        assert state["evidence_decision_status"] == "blocked"
+        assert state["evidence_actionable"] is False
+        assert state["final_trade_decision"].startswith("**Rating**: Hold")
+        assert "Blocked - Not Actionable" in state["final_trade_decision"]
+        assert "price_target_multiple" in state["evidence_blocking_reasons"][0]
+        assert "**Price Target**: 500.0" in state["original_final_trade_decision"]
+        assert state["risk_debate_state"]["judge_decision"] == state["final_trade_decision"]
+        assert state["math_guardrail_events"][0]["status"] == "blocked"
+        assert state["evidence_audit"]["math_guardrail_events"][0]["rule_id"] == "price_target_multiple"
+        assert state["evidence_audit"]["evidence_strict_blocked"] is True
+        assert state["evidence_audit"]["evidence_decision_status"] == "blocked"
+        assert state["evidence_audit"]["evidence_actionable"] is False
+        assert state["evidence_audit"]["original_final_trade_decision"] == state["original_final_trade_decision"]
+
+    def test_run_graph_does_not_store_blocked_decision_in_memory(self, tmp_path, monkeypatch):
+        import functools
+
+        def fake_invoke(init_state, **_kwargs):
+            return {
+                **init_state,
+                "final_trade_decision": "**Rating**: Buy\n\nNo supporting citation.",
+                "investment_plan": "",
+                "trader_investment_plan": "",
+            }
+
+        payload = {
+            "symbol": "NVDA",
+            "requested_date": "2026-01-10",
+            "latest_date": "2026-01-10",
+            "latest_ohlcv": {"Open": 99.0, "High": 101.0, "Low": 98.0, "Close": 100.0, "Volume": 10},
+            "indicators": {},
+            "recent_closes": [{"Date": "2026-01-10", "Close": 100.0}],
+            "look_back_days": 1,
+        }
+        import tradingagents.graph.trading_graph as tg
+
+        monkeypatch.setattr(tg, "build_verified_market_snapshot_payload", lambda *a, **k: payload)
+
+        mock_graph = MagicMock()
+        mock_graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "mem.md")})
+        mock_graph.log_states_dict = {}
+        mock_graph.debug = False
+        mock_graph.config = {
+            "results_dir": str(tmp_path),
+            "evidence_enabled": True,
+            "citation_verification_enabled": True,
+            "quant_anchor_enabled": True,
+            "evidence_strict_mode": "block",
+        }
+        mock_graph.graph.invoke.side_effect = fake_invoke
+        mock_graph.propagator.create_initial_state.side_effect = (
+            lambda *args, **kwargs: Propagator().create_initial_state(*args, **kwargs)
+        )
+        mock_graph.propagator.get_graph_args.return_value = {}
+        mock_graph.signal_processor.process_signal.return_value = "Hold"
+        mock_graph.resolve_instrument_context.return_value = "Instrument context."
+        mock_graph._run_graph = functools.partial(
+            TradingAgentsGraph._run_graph, mock_graph
+        )
+
+        final_state, _ = TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
+
+        assert final_state["evidence_decision_status"] == "blocked"
+        assert mock_graph.memory_log.load_entries() == []
