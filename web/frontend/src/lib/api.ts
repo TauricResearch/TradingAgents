@@ -233,6 +233,15 @@ export async function updateIndicator(
   return r.json();
 }
 
+export async function resetIndicator(id: string): Promise<unknown> {
+  const r = await fetch(`${base}/api/indicators/${encodeURIComponent(id)}/reset`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
+  if (!r.ok) throw new ApiError(`reset-indicator ${r.status}`, r.status, await readJsonOrNull(r));
+  return r.json();
+}
+
 export async function resetIndicators(): Promise<{ indicators: IndicatorDefinition[] }> {
   const r = await fetch(`${base}/api/indicators/reset`, { method: "POST" });
   if (!r.ok) throw new ApiError(`reset-indicators ${r.status}`, r.status, await readJsonOrNull(r));
