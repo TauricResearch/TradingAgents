@@ -304,14 +304,17 @@ export function AgentChatBubble() {
     abortControllerRef.current = new AbortController();
 
     try {
-      // Pre-populate tool context from all user messages in conversation
-      const allUserContent = messages.filter(m => m.role === "user").map(m => m.content).join(" ");
-      const preTickers = allUserContent.match(/\$?([A-Z]{2,5})\b/g) || [];
-      for (const t of preTickers) {
-        const ticker = t.startsWith("$") ? t.slice(1) : t;
-        if (ticker.length >= 2) {
-          prepopulateToolContext({ ticker });
-          break;
+      // Pre-populate tool context from the most recent ticker mentioned (scan in reverse)
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.role !== "user") continue;
+        const tickerMatch = msg.content.match(/\$?([A-Z]{2,5})\b/g);
+        if (tickerMatch) {
+          const ticker = tickerMatch[0].startsWith("$") ? tickerMatch[0].slice(1) : tickerMatch[0];
+          if (ticker.length >= 2) {
+            prepopulateToolContext({ ticker });
+            break;
+          }
         }
       }
 

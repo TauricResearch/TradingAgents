@@ -5,7 +5,7 @@ import type { WsEvent } from "../lib/events";
 import { useFocusedRunEvents } from "../hooks/useFocusedRunEvents";
 import { useStageReports } from "./LiveEventStream";
 import { useChatStore } from "../stores/useChatStore";
-import { fetchTools, executeTool } from "../lib/agentTools";
+import { fetchTools, executeTool, setCurrentUserMessage, clearCurrentUserMessage, prepopulateToolContext, setConversationHistory } from "../lib/agentTools";
 
 interface Props {
   ticker: string;
@@ -150,6 +150,13 @@ export function TickerChatBar({ ticker, price, run }: Props) {
 
     try {
       const tools = await fetchTools();
+
+      // Pre-populate tool context with this ticker
+      prepopulateToolContext({ ticker });
+
+      // Set full conversation history for context extraction
+      setConversationHistory(messages.map(m => ({ role: m.role, content: m.content })));
+
       const backendTools = tools.map(tool => ({
         type: "function",
         function: {
@@ -205,7 +212,7 @@ export function TickerChatBar({ ticker, price, run }: Props) {
 
       let currentMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
 
-      for (let round = 0; round < 20; round++) {
+      for (let round = 0; round < 50; round++) {
         const apiResponse = await fetch("/api/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -226,7 +233,8 @@ export function TickerChatBar({ ticker, price, run }: Props) {
         let fullResponse = "";
         let toolCallsFromResponse: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
 
-        while (true) {
+        let streamDone = false;
+        while (!streamDone) {
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -236,7 +244,7 @@ export function TickerChatBar({ ticker, price, run }: Props) {
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             const data = line.slice(6);
-            if (data === "[DONE]") break;
+            if (data === "[DONE]") { streamDone = true; break; }
 
             try {
               const parsed = JSON.parse(data);
@@ -285,6 +293,8 @@ export function TickerChatBar({ ticker, price, run }: Props) {
 
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
 
+        setCurrentUserMessage(trimmed);
+
         for (const call of toolCallsFromResponse) {
           let args: Record<string, unknown> = {};
           try {
@@ -329,6 +339,7 @@ export function TickerChatBar({ ticker, price, run }: Props) {
       setError(err instanceof Error ? err.message : "The chat request failed.");
     } finally {
       setIsAsking(false);
+      clearCurrentUserMessage();
     }
   };
 

@@ -1,107 +1,130 @@
-# Task 5: Frontend — Inline Threshold Editing in Indicator Cards
+# Task 5: Add Detailed Notification Messages
 
-## Task Description
+**Files:**
+- Modify: `web/server/notifier.py:218-258`
 
-**File:** `web/frontend/src/components/IndicatorRailView.tsx`
+**Interfaces:**
+- Consumes: Indicator check results with `ticker_price` kind
+- Produces: `build_ticker_price_message()` function
 
-## Requirements
+- [ ] **Step 1: Add `build_ticker_price_message()` function**
 
-Add inline threshold editing to each indicator card. When a user clicks the threshold badge on an indicator card, it becomes an editable `<input type="number">`. On blur or Enter, it sends a PATCH request to update the threshold. On Escape, it cancels.
-
-### Step 1: Import `updateIndicator` in the existing import from `../lib/api`
-
-### Step 2: Add state for editing
-
-Add after existing state declarations (~line 55):
-
-```typescript
-const [editingId, setEditingId] = useState<string | null>(null);
-const [editValue, setEditValue] = useState<string>("");
+```python
+# web/server/notifier.py - add after build_change_message()
+def build_ticker_price_message(check: dict) -> str:
+    """Build a detailed HTML Telegram message for a ticker price alert.
+    
+    ``check`` is a single check dict from ``run_checks()`` with indicator kind ``ticker_price``.
+    """
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+    ind = check.get("indicator", {})
+    result = check.get("result") or {}
+    
+    ticker = ind.get("ticker", "???")
+    threshold = ind.get("threshold", 0)
+    comparator = ind.get("comparator", "above")
+    message = result.get("message", "")
+    value = result.get("value", {})
+    
+    # Parse price data from value
+    if isinstance(value, dict):
+        price = value.get("price", 0)
+        change_pct = value.get("change_pct", 0)
+        day_high = value.get("day_high", price)
+        day_low = value.get("day_low", price)
+    else:
+        price = float(value) if value else 0
+        change_pct = 0
+        day_high = price
+        day_low = price
+    
+    # Build comparator text
+    comparator_text = {
+        "above": "above",
+        "below": "below",
+        "at_least": "at least",
+        "within": "within",
+    }.get(comparator, comparator)
+    
+    lines = [
+        f"🚨 <b>Price Alert: {_e(ticker)}</b>",
+        f"<i>{_e(now)}</i>",
+        "",
+        f"<b>Price:</b> ${price:.2f} ({comparator_text} your ${threshold:.2f} target)",
+        f"<b>Change:</b> {change_pct:+.2f}% today",
+        f"<b>Day Range:</b> ${day_low:.2f} - ${day_high:.2f}",
+        "",
+        "<i>Automated price alert. Not financial advice.</i>",
+    ]
+    return "\n".join(lines)
 ```
 
-### Step 3: Add `useMutation` for updates
+- [ ] **Step 2: Update `build_change_message()` to use detailed format for ticker_price alerts**
 
-Add after the existing `removeMutation`:
+```python
+# web/server/notifier.py line 227-258
+def build_change_message(diff: dict) -> str:
+    """Build an HTML Telegram message describing what changed.
+    
+    ``diff`` is the dict returned by ``storage.diff_indicator_states()``.
+    """
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+    lines = [f"📊 <b>TradingAgents Indicators — Signal Update</b>\n<i>{_e(now)}</i>\n"]
 
-```typescript
-const updateMutation = useMutation({
-  mutationFn: ({ id, body }: { id: string; body: { threshold?: number; enabled?: boolean } }) =>
-    updateIndicator(id, body),
-  onSuccess: () => {
-    qc.invalidateQueries({ queryKey: ["indicators"] });
-    setReply("Threshold updated.");
-  },
-  onError: (err: Error) => {
-    const apiErr = err as { detail?: string };
-    setReply(apiErr.detail || err.message);
-  },
-});
+    new_checks = diff.get("newly_triggered", [])
+    resolved_checks = diff.get("resolved", [])
+    still_checks = diff.get("still_active", [])
+
+    if new_checks:
+        lines.append("🚨 <b>New Signals</b>")
+        for c in new_checks:
+            ind = c.get("indicator", {})
+            if ind.get("kind") == "ticker_price":
+                # Use detailed message for ticker_price alerts
+                lines.append(_ticker_price_inline(c))
+            else:
+                lines.append(f"• {_check_to_line(c)}")
+        lines.append("")
+
+    if resolved_checks:
+        lines.append("✅ <b>Resolved</b>")
+        for c in resolved_checks:
+            lines.append(f"• {_check_to_line(c)}")
+        lines.append("")
+
+    if still_checks:
+        lines.append("ℹ️ <b>Still Active</b>")
+        for c in still_checks:
+            lines.append(f"• {_check_to_line(c)}")
+        lines.append("")
+
+    lines.append("<i>Automated indicator alert. Not financial advice.</i>")
+    return "\n".join(lines)
+
+
+def _ticker_price_inline(check: dict) -> str:
+    """Format a ticker_price alert as an inline HTML line."""
+    ind = check.get("indicator", {})
+    result = check.get("result") or {}
+    ticker = ind.get("ticker", "???")
+    threshold = ind.get("threshold", 0)
+    comparator = ind.get("comparator", "above")
+    value = result.get("value", {})
+    
+    if isinstance(value, dict):
+        price = value.get("price", 0)
+        change_pct = value.get("change_pct", 0)
+    else:
+        price = float(value) if value else 0
+        change_pct = 0
+    
+    comparator_symbol = {"above": ">", "below": "<", "at_least": ">=", "within": "~"}.get(comparator, "?")
+    return f"• <b>{_e(ticker)}</b> ${price:.2f} ({comparator_symbol} ${threshold:.2f}) {change_pct:+.2f}%"
 ```
 
-### Step 4: Replace the static threshold badge with an editable input
+- [ ] **Step 3: Commit**
 
-Find the static threshold span in the `indicators.map` block (~line 351):
-
-```jsx
-<span className="rounded border border-slate-700/60 bg-slate-900/40 px-1.5 py-0.5">
-  {indicator.comparator} {formatThreshold(indicator)}
-</span>
+```bash
+git add web/server/notifier.py
+git commit -m "feat: add detailed ticker price notification messages"
 ```
-
-Replace with:
-
-```jsx
-{editingId === indicator.id ? (
-  <input
-    type="number"
-    value={editValue}
-    onChange={(e) => setEditValue(e.target.value)}
-    onBlur={() => {
-      const newThreshold = parseFloat(editValue);
-      if (!isNaN(newThreshold)) {
-        updateMutation.mutate({ id: indicator.id, body: { threshold: newThreshold } });
-      }
-      setEditingId(null);
-    }}
-    onKeyDown={(e) => {
-      if (e.key === "Enter") {
-        const newThreshold = parseFloat(editValue);
-        if (!isNaN(newThreshold)) {
-          updateMutation.mutate({ id: indicator.id, body: { threshold: newThreshold } });
-        }
-        setEditingId(null);
-      } else if (e.key === "Escape") {
-        setEditingId(null);
-      }
-    }}
-    autoFocus
-    className="w-20 rounded border border-sky-500 bg-slate-900 px-1.5 py-0.5 text-xs text-sky-300 outline-none"
-  />
-) : (
-  <span
-    onClick={() => {
-      setEditingId(indicator.id);
-      setEditValue(indicator.threshold.toString());
-    }}
-    className="cursor-pointer rounded border border-slate-700/60 bg-slate-900/40 px-1.5 py-0.5 text-xs text-slate-300 hover:border-slate-500"
-  >
-    {indicator.comparator} {formatThreshold(indicator)}
-  </span>
-)}
-```
-
-### Step 5: Verify TypeScript compilation
-
-Run: `cd web/frontend && npx tsc --noEmit`
-Expected: Clean build, no errors.
-
-## Context
-
-The `updateIndicator` API fetcher was added in Task 4. The `IndicatorRailView.tsx` already imports `IndicatorDefinition` and other indicator functions from `../lib/api` — just add `updateIndicator` to that import line.
-
-## Report File
-
-Write to: `.superpowers/sdd/task-5-report.md`
-
-Report back with:
-- Status, commits, TS compilation result, report path

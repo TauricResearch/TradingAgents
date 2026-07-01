@@ -42,9 +42,13 @@ def extract_tool_definitions(app) -> list[dict[str, Any]]:
             if method not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
                 continue
 
-            tool_name = route.path.replace("/api/", "").replace("/", "_").strip("_")
-            # Replace dots and other invalid chars with underscores
+            # Replace {param} with just param (removing braces) before building tool name
+            path_for_name = re.sub(r"\{(\w+)\}", r"\1", route.path.replace("/api/", ""))
+            tool_name = path_for_name.replace("/", "_").strip("_")
+            # Replace any remaining non-alphanumeric chars (but keep underscores)
             tool_name = re.sub(r"[^a-zA-Z0-9_]", "_", tool_name)
+            # Clean up any double underscores
+            tool_name = re.sub(r"__+", "_", tool_name).strip("_")
             # Ensure it starts with a letter
             if tool_name and not tool_name[0].isalpha():
                 tool_name = "action_" + tool_name
@@ -118,6 +122,10 @@ async def get_tools(request: Request):
 )
 async def proxy_request(proxy_req: ProxyRequest, request: Request):
     """Forward requests to any backend endpoint."""
+    print(f"[proxy] INCOMING REQUEST: {proxy_req.method} {proxy_req.path}")
+    print(f"[proxy]   params: {proxy_req.params}")
+    print(f"[proxy]   body: {proxy_req.body}")
+    
     base_url = str(request.base_url).rstrip("/")
     
     # Substitute path parameters (e.g. {ticker}) with actual values from params
@@ -125,9 +133,13 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
     path = proxy_req.path
     params = dict(proxy_req.params or {})
     
+    print(f"[proxy] Original path: {path}")
+    print(f"[proxy] Params before substitution: {params}")
+    
     def _sub_path_param(m: _re_path.Match) -> str:
         param_name = m.group(1)
         value = params.pop(param_name, None)
+        print(f"[proxy]   Substituting path param {{{param_name}}} -> {value}")
         if value is not None:
             return str(value)
         raise HTTPException(
@@ -136,8 +148,11 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
         )
     
     resolved_path = _re_path.sub(r'\{(\w+)\}', _sub_path_param, path)
+    print(f"[proxy] Resolved path: {resolved_path}")
+    print(f"[proxy] Remaining params: {params}")
     
     target_url = f"{base_url}{resolved_path}"
+    print(f"[proxy] Target URL: {target_url}")
 
     async with httpx.AsyncClient() as client:
         response = await client.request(
@@ -149,6 +164,8 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
             else None,
             headers={"Cookie": request.headers.get("cookie", "")},
         )
+    
+    print(f"[proxy] Response status: {response.status_code}")
 
     content = (
         response.json()
@@ -226,12 +243,50 @@ async def _stream_chat(req: ChatCompletionRequest, request: Request):
         lc_tools = []
         if use_tools:
             from langchain_core.tools import StructuredTool
+            from pydantic import BaseModel, create_model
+            
             for tool in req.tools:
                 func_info = tool.get("function", {})
+                tool_name = func_info.get("name", "unnamed_tool")
+                tool_desc = func_info.get("description", "")
+                params_obj = func_info.get("parameters", {})
+                
+                # Create dynamic args_schema from OpenAI-style parameters
+                schema_fields = {}
+                required_params = params_obj.get("required", [])
+                properties = params_obj.get("properties", {})
+                
+                for param_name, param_spec in properties.items():
+                    is_required = param_name in required_params
+                    param_type = param_spec.get("type", "string")
+                    # Map to Python types
+                    if param_type == "string":
+                        py_type = str
+                    elif param_type in ("integer", "number"):
+                        py_type = float
+                    elif param_type == "boolean":
+                        py_type = bool
+                    else:
+                        py_type = str
+                    # Default to ... (ellipsis) for required, None for optional
+                    default = ... if is_required else None
+                    schema_fields[param_name] = (py_type, default)
+                
+                if schema_fields:
+                    # Create dynamic Pydantic model
+                    model_name = f"{tool_name}Args"
+                    args_schema = create_model(model_name, **schema_fields)
+                    # Enhance description with explicit required params list and JSON example
+                    required_str = ", ".join(required_params) if required_params else "none"
+                    example_args = {k: k.upper() if k == "ticker" else "value" for k in required_params}
+                    tool_desc = f"{tool_desc}\n\nREQUIRED PARAMETERS: {required_str}\nJSON EXAMPLE: {json.dumps(example_args)}"
+                else:
+                    args_schema = None
+                
                 lc_tools.append(StructuredTool(
-                    name=func_info["name"],
-                    description=func_info.get("description", ""),
-                    args_schema=None,
+                    name=tool_name,
+                    description=tool_desc,
+                    args_schema=args_schema,
                     func=None,
                 ))
 

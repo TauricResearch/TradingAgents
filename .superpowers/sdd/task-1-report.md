@@ -1,22 +1,21 @@
-# Task 1 Report: Track `last_check_at` in Indicator Schedule
+# Task 1 Report: Add editing state to useChatStore
 
-## Status: DONE
+## What was implemented
+- Added `editingMessageId: string | null` state and `setEditingMessage`, `deleteMessagesAfter` actions to the `ChatState` interface
+- Added initial state `editingMessageId: null`
+- Implemented `setEditingMessage` action to set/reset the editing message ID
+- Implemented `deleteMessagesAfter` action that truncates messages after a given message ID in the active session, updates timestamps, and persists
 
-## Commits
-- `4a256b7` feat: track last_check_at in indicator schedule
+## Files changed
+- `web/frontend/src/stores/useChatStore.ts` (+24 lines)
 
-## Files Modified
-- `web/server/storage.py` — Extended `read_indicator_schedule` to return `last_check_at` (default `None`), extended `write_indicator_schedule` to persist `last_check_at` when non-`None`
-- `web/server/app.py` — Added `_update_last_check_at()` helper; called from `_indicator_background_loop` in the `else` block after a successful `_run_indicator_check()`
+## Verification
+- Lint: only pre-existing error at line 218 (`_` unused in `deleteSession`) — not from this change
+- TypeScript (`tsc --noEmit`): no new errors; all errors are pre-existing in other files
+- Code reviewed the final file: all changes match the brief exactly
 
-## Test Summary
-```
-tests/test_fred.py::FredResolutionTests::test_get_macro_data_returns_guidance_on_bad_indicator PASSED
-tests/test_stockstats_date_column.py::TestCleanDataframeAcrossVersions::test_indicators_compute_after_index_rename PASSED
-```
-2 passed, 572 deselected — no regressions.
-
-## Notes
-- `last_check_at` is written only when `interval_ms > 0` (i.e., auto-run is configured)
-- Timestamps are UTC ISO-8601 with `Z` suffix, consistent with the rest of the codebase
-- The `_update_last_check_at` function was extracted into its own helper for clarity
+## Self-review findings
+- Implementation matches the brief line-for-line
+- `deleteMessagesAfter` properly handles: missing session, missing message ID, and correctly persists
+- The action truncates at the index (`slice(0, idx)`), meaning the message with `id` is removed along with everything after it — matches expectation for "delete messages after (and including) this ID"
+- `setEditingMessage` is a simple setter with no side effects — appropriate for a zustand store

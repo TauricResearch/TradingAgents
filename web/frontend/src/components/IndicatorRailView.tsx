@@ -18,7 +18,7 @@ import {
   type NotifierConfig,
 } from "../lib/api";
 import { useChatStore } from "../stores/useChatStore";
-import { fetchTools, executeTool } from "../lib/agentTools";
+import { fetchTools, executeTool, setCurrentUserMessage, clearCurrentUserMessage, prepopulateToolContext, setConversationHistory } from "../lib/agentTools";
 
 const KIND_ALIASES: Array<[RegExp, IndicatorKind]> = [
   [/\b(vix|volatility)\b/i, "vix"],
@@ -228,6 +228,24 @@ export function IndicatorRailView() {
 
     try {
       const tools = await fetchTools();
+
+      // Pre-populate tool context from the most recent ticker mentioned (scan in reverse)
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.role !== "user") continue;
+        const tickerMatch = msg.content.match(/\$?([A-Z]{2,5})\b/g);
+        if (tickerMatch) {
+          const ticker = tickerMatch[0].startsWith("$") ? tickerMatch[0].slice(1) : tickerMatch[0];
+          if (ticker.length >= 2) {
+            prepopulateToolContext({ ticker });
+            break;
+          }
+        }
+      }
+
+      // Set full conversation history for context extraction
+      setConversationHistory(messages.map(m => ({ role: m.role, content: m.content })));
+
       const backendTools = tools.map((tool) => ({
         type: "function" as const,
         function: {
@@ -266,7 +284,7 @@ export function IndicatorRailView() {
 
       let currentMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
 
-      for (let round = 0; round < 20; round++) {
+      for (let round = 0; round < 50; round++) {
         const apiResponse = await fetch("/api/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -287,7 +305,8 @@ export function IndicatorRailView() {
         let fullResponse = "";
         let toolCallsFromResponse: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
 
-        while (true) {
+        let streamDone = false;
+        while (!streamDone) {
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -297,7 +316,7 @@ export function IndicatorRailView() {
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             const data = line.slice(6);
-            if (data === "[DONE]") break;
+            if (data === "[DONE]") { streamDone = true; break; }
 
             try {
               const parsed = JSON.parse(data);
@@ -345,6 +364,8 @@ export function IndicatorRailView() {
         }
 
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
+
+        setCurrentUserMessage(trimmed);
 
         for (const call of toolCallsFromResponse) {
           let args: Record<string, unknown> = {};
@@ -394,6 +415,7 @@ export function IndicatorRailView() {
       });
     } finally {
       setIsAsking(false);
+      clearCurrentUserMessage();
     }
   };
 

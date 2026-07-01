@@ -334,7 +334,7 @@ def reset_indicators() -> list[IndicatorDefinition]:
 def run_checks() -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     indicators_to_update: list[IndicatorDefinition] = []
-    
+
     for defn in read_indicators():
         if not defn.enabled:
             results.append({"indicator": _definition_to_dict(defn), "result": None})
@@ -342,11 +342,11 @@ def run_checks() -> list[dict[str, Any]]:
         try:
             value = _fetch_value(defn)
             triggered, message = _evaluate(defn, value)
-            
+
             # For ticker_price, update triggered state if it fires
             if defn.kind == "ticker_price" and triggered and not defn.triggered:
                 indicators_to_update.append(defn)
-            
+
             results.append(
                 {
                     "indicator": _definition_to_dict(defn),
@@ -373,7 +373,7 @@ def run_checks() -> list[dict[str, Any]]:
                     },
                 }
             )
-    
+
     # Persist triggered state for one-shot alerts
     if indicators_to_update:
         all_indicators = read_indicators()
@@ -397,7 +397,7 @@ def run_checks() -> list[dict[str, Any]]:
             else:
                 updated.append(ind)
         write_indicators(updated)
-    
+
     return results
 
 
@@ -466,12 +466,12 @@ def _evaluate(defn: IndicatorDefinition, value: Any) -> tuple[bool, str]:
         # One-shot: already fired, skip
         if defn.triggered:
             return False, f"Alert already triggered for {defn.ticker}."
-        
+
         price_data = value
         price = price_data["price"]
         threshold = defn.threshold
         comparator = defn.comparator
-        
+
         if comparator == "above":
             triggered = price > threshold
             msg = f"{defn.ticker} is ${price:.2f} (above ${threshold:.2f})"
@@ -490,14 +490,14 @@ def _evaluate(defn: IndicatorDefinition, value: Any) -> tuple[bool, str]:
         else:
             triggered = False
             msg = f"Unknown comparator: {comparator}"
-        
+
         if triggered:
             change = price_data.get("change_pct", 0)
             high = price_data.get("day_high", price)
             low = price_data.get("day_low", price)
             msg += f"\nChange: {change:+.2f}% today"
             msg += f"\nDay Range: ${low:.2f} - ${high:.2f}"
-        
+
         return triggered, msg
     return False, "Unsupported indicator."
 
@@ -515,7 +515,7 @@ def _fetch_ticker_price(ticker: str) -> dict[str, Any]:
     t = yf.Ticker(ticker)
     fast_info = t.fast_info
     price = float(fast_info["lastPrice"])
-    
+
     # Get additional context for detailed notification
     try:
         hist = t.history(period="5d")
@@ -532,7 +532,7 @@ def _fetch_ticker_price(ticker: str) -> dict[str, Any]:
         change_pct = 0
         day_high = price
         day_low = price
-    
+
     return {
         "price": price,
         "change_pct": change_pct,

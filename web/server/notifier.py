@@ -224,6 +224,71 @@ def _check_to_line(check: dict) -> str:
     return f"<b>{_e(name)}</b> — {_e(message)}"
 
 
+def build_ticker_price_message(check: dict) -> str:
+    """Build a detailed HTML Telegram message for a ticker price alert.
+
+    ``check`` is a single check dict from ``run_checks()`` with indicator kind ``ticker_price``.
+    """
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+    ind = check.get("indicator", {})
+    result = check.get("result") or {}
+
+    ticker = ind.get("ticker", "???")
+    threshold = ind.get("threshold", 0)
+    comparator = ind.get("comparator", "above")
+    value = result.get("value", {})
+
+    if isinstance(value, dict):
+        price = value.get("price", 0)
+        change_pct = value.get("change_pct", 0)
+        day_high = value.get("day_high", price)
+        day_low = value.get("day_low", price)
+    else:
+        price = float(value) if value else 0
+        change_pct = 0
+        day_high = price
+        day_low = price
+
+    comparator_text = {
+        "above": "above",
+        "below": "below",
+        "at_least": "at least",
+        "within": "within",
+    }.get(comparator, comparator)
+
+    lines = [
+        f"🚨 <b>Price Alert: {_e(ticker)}</b>",
+        f"<i>{_e(now)}</i>",
+        "",
+        f"<b>Price:</b> ${price:.2f} ({comparator_text} your ${threshold:.2f} target)",
+        f"<b>Change:</b> {change_pct:+.2f}% today",
+        f"<b>Day Range:</b> ${day_low:.2f} - ${day_high:.2f}",
+        "",
+        "<i>Automated price alert. Not financial advice.</i>",
+    ]
+    return "\n".join(lines)
+
+
+def _ticker_price_inline(check: dict) -> str:
+    """Format a ticker_price alert as an inline HTML line."""
+    ind = check.get("indicator", {})
+    result = check.get("result") or {}
+    ticker = ind.get("ticker", "???")
+    threshold = ind.get("threshold", 0)
+    comparator = ind.get("comparator", "above")
+    value = result.get("value", {})
+
+    if isinstance(value, dict):
+        price = value.get("price", 0)
+        change_pct = value.get("change_pct", 0)
+    else:
+        price = float(value) if value else 0
+        change_pct = 0
+
+    comparator_symbol = {"above": ">", "below": "<", "at_least": ">=", "within": "~"}.get(comparator, "?")
+    return f"• <b>{_e(ticker)}</b> ${price:.2f} ({comparator_symbol} ${threshold:.2f}) {change_pct:+.2f}%"
+
+
 def build_change_message(diff: dict) -> str:
     """Build an HTML Telegram message describing what changed.
 
@@ -239,7 +304,11 @@ def build_change_message(diff: dict) -> str:
     if new_checks:
         lines.append("🚨 <b>New Signals</b>")
         for c in new_checks:
-            lines.append(f"• {_check_to_line(c)}")
+            ind = c.get("indicator", {})
+            if ind.get("kind") == "ticker_price":
+                lines.append(_ticker_price_inline(c))
+            else:
+                lines.append(f"• {_check_to_line(c)}")
         lines.append("")
 
     if resolved_checks:
