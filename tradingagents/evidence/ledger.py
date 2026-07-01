@@ -141,6 +141,12 @@ def _normalize_for_json(value: Any) -> Any:
             str(_normalize_for_json(key)): _normalize_for_json(item_value)
             for key, item_value in value.items()
         }
+    if isinstance(value, (set, frozenset)):
+        try:
+            sorted_items = sorted(value)
+        except TypeError:
+            sorted_items = list(value)
+        return [_normalize_for_json(item) for item in sorted_items]
     if isinstance(value, tuple):
         return [_normalize_for_json(item) for item in value]
     if isinstance(value, list):
