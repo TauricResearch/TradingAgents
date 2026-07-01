@@ -22,11 +22,12 @@ def verify_citations(
     require_citation: bool = False,
 ) -> CitationVerificationResult:
     refs = extract_citation_refs(text)
+    unique_refs = list(dict.fromkeys(refs))
     cited_ids: list[str] = []
     unknown_ids: list[str] = []
     warnings: list[str] = []
 
-    for ref in refs:
+    for ref in unique_refs:
         resolved = ledger.resolve(ref)
         if resolved is None:
             cited_ids.append(ref)
@@ -35,7 +36,7 @@ def verify_citations(
         else:
             cited_ids.append(resolved)
 
-    missing_required = require_citation and not refs
+    missing_required = require_citation and not unique_refs
     if missing_required:
         warnings.append("Citation required but none found.")
 
