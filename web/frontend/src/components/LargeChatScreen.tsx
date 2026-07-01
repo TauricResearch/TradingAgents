@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Loader2, Plus, Minimize2, Trash2, MessageCircle } from "lucide-react";
+import { MessageSquare, X, Send, Loader2, Plus, Minimize2, Trash2, MessageCircle, Pencil } from "lucide-react";
 import { useChatStore } from "../stores/useChatStore";
-import { fetchTools, executeTool } from "../lib/agentTools";
+import { fetchTools, executeTool, setCurrentUserMessage, clearCurrentUserMessage, prepopulateToolContext, setConversationHistory } from "../lib/agentTools";
 
 function formatDateTime(timestamp: number): string {
   return new Date(timestamp).toLocaleString("en-US", {
@@ -64,7 +64,7 @@ interface Props {
 }
 
 export function LargeChatScreen({ onClose }: Props) {
-  const { messages, isLoading, addMessage, updateMessage, setLoading, sessions, activeSessionId, createSession, deleteSession, switchSession } = useChatStore();
+  const { messages, isLoading, addMessage, updateMessage, setLoading, sessions, activeSessionId, createSession, deleteSession, switchSession, editingMessageId, setEditingMessage, deleteMessagesAfter } = useChatStore();
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -82,6 +82,28 @@ export function LargeChatScreen({ onClose }: Props) {
     inputRef.current?.focus();
   }, [activeSessionId]);
 
+  useEffect(() => {
+    if (!editingMessageId) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setEditingMessage(null);
+        setInput("");
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [editingMessageId, setEditingMessage]);
+
+  useEffect(() => {
+    if (!editingMessageId) return;
+    const msg = messages.find(m => m.id === editingMessageId);
+    if (msg && msg.role === "user") {
+      setInput(msg.content);
+      inputRef.current?.focus();
+    }
+  }, [editingMessageId, messages]);
+
   const sessionList = Object.values(sessions).sort((a, b) => b.updatedAt - a.updatedAt);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,12 +111,36 @@ export function LargeChatScreen({ onClose }: Props) {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
 
+    const editingId = editingMessageId;
+    if (editingId) {
+      deleteMessagesAfter(editingId);
+      setEditingMessage(null);
+    }
+
     addMessage({ role: "user", content: trimmed });
     setInput("");
     setLoading(true);
 
     try {
       const tools = await fetchTools();
+
+      // Pre-populate tool context from the most recent ticker mentioned (scan in reverse)
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.role !== "user") continue;
+        const tickerMatch = msg.content.match(/\$?([A-Z]{2,5})\b/g);
+        if (tickerMatch) {
+          const ticker = tickerMatch[0].startsWith("$") ? tickerMatch[0].slice(1) : tickerMatch[0];
+          if (ticker.length >= 2) {
+            prepopulateToolContext({ ticker });
+            break;
+          }
+        }
+      }
+
+      // Set full conversation history for context extraction
+      setConversationHistory(messages.map(m => ({ role: m.role, content: m.content })));
+
       const backendTools = tools.map(tool => ({
         type: "function",
         function: {
@@ -127,7 +173,7 @@ export function LargeChatScreen({ onClose }: Props) {
       const assistantMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
       let currentMsgId = assistantMsgId;
 
-      for (let round = 0; round < 20; round++) {
+      for (let round = 0; round < 50; round++) {
         const response = await fetch(`${API_BASE}/completions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -149,7 +195,8 @@ export function LargeChatScreen({ onClose }: Props) {
         let fullResponse = "";
         let toolCallsFromResponse: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
 
-        while (true) {
+        let streamDone = false;
+        while (!streamDone) {
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -159,7 +206,7 @@ export function LargeChatScreen({ onClose }: Props) {
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             const data = line.slice(6);
-            if (data === "[DONE]") break;
+            if (data === "[DONE]") { streamDone = true; break; }
 
             try {
               const parsed = JSON.parse(data);
@@ -226,6 +273,8 @@ export function LargeChatScreen({ onClose }: Props) {
         updateMessage(currentMsgId, { content: fullResponse || "Processing..." });
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
 
+        setCurrentUserMessage(trimmed);
+
         for (const call of toolCallsFromResponse) {
           let args: Record<string, unknown> = {};
           try {
@@ -282,6 +331,7 @@ export function LargeChatScreen({ onClose }: Props) {
       });
     } finally {
       setLoading(false);
+      clearCurrentUserMessage();
     }
   };
 
@@ -404,14 +454,24 @@ export function LargeChatScreen({ onClose }: Props) {
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[75%] rounded-xl px-4 py-3 text-sm ${
+                className={`max-w-[75%] rounded-xl px-4 py-3 text-sm relative ${
                   msg.role === "user"
-                    ? "bg-sky-600/30 text-slate-200"
+                    ? "bg-sky-600/30 text-slate-200 pr-8"
                     : msg.role === "tool"
                     ? "bg-slate-800 text-slate-400 font-mono text-xs"
                     : "bg-slate-800/60 text-slate-300"
                 }`}
               >
+                {msg.role === "user" && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingMessage(msg.id); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-sky-400 hover:bg-slate-800/50 transition-colors"
+                    aria-label="Edit message"
+                    title="Edit message"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
                 {msg.toolCalls && msg.toolCalls.length > 0 && (
                   <div className="mb-2 text-xs text-sky-400">
                     Calling: {msg.toolCalls.map(tc => tc.name).join(", ")}
@@ -435,12 +495,24 @@ export function LargeChatScreen({ onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 border-t border-slate-700 bg-slate-900">
+          {editingMessageId && (
+            <div className="flex items-center justify-between max-w-4xl mx-auto mb-2">
+              <span className="text-xs text-sky-400">Editing message</span>
+              <button
+                type="button"
+                onClick={() => { setEditingMessage(null); setInput(""); }}
+                className="text-xs text-slate-400 hover:text-slate-200"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-3 max-w-4xl mx-auto">
             <input
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about your trading data..."
+              placeholder={editingMessageId ? "Edit your message..." : "Ask about your trading data..."}
               className="flex-1 bg-slate-800 text-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-sky-500/50"
               disabled={isLoading}
             />
@@ -448,10 +520,12 @@ export function LargeChatScreen({ onClose }: Props) {
               type="submit"
               disabled={!input.trim() || isLoading}
               className="p-3 rounded-xl bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label="Send message"
+              aria-label={editingMessageId ? "Resend message" : "Send message"}
             >
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
+              ) : editingMessageId ? (
+                <span className="text-sm font-medium">Resend</span>
               ) : (
                 <Send className="h-5 w-5" />
               )}
