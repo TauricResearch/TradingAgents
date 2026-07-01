@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GripVertical, X } from "lucide-react";
+import { GripVertical, X, Bell } from "lucide-react";
 import { useUi } from "../store/ui";
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   changePct?: number | null;
   stale?: boolean;
   onRemove?: (ticker: string) => void | Promise<void>;
+  onAddAlert?: (ticker: string) => void;
   group?: string | null;
   groupColor?: string;
   onGroupChange?: (ticker: string, group: string | null) => void;
@@ -34,7 +35,7 @@ const dotColor: Record<Props["status"], string> = {
 
 const GROUP_COLORS = ["#38bdf8", "#fb923c", "#a78bfa", "#34d399", "#f472b6", "#fbbf24", "#f87171", "#2dd4bf"];
 
-export function TickerRow({ ticker, companyName, lastDecision, sparkline, status, price, changePct, stale, onRemove, group, groupColor, onGroupChange, onDrop, dragHandleProps }: Props) {
+export function TickerRow({ ticker, companyName, lastDecision, sparkline, status, price, changePct, stale, onRemove, onAddAlert, group, groupColor, onGroupChange, onDrop, dragHandleProps }: Props) {
   const focused = useUi((s) => s.focusedTicker);
   const setFocused = useUi((s) => s.setFocusedTicker);
   const isFocused = focused === ticker;
@@ -144,14 +145,29 @@ export function TickerRow({ ticker, companyName, lastDecision, sparkline, status
         {sparkPath && <path d={sparkPath} stroke={isFocused ? "#38bdf8" : "#475569"} strokeWidth="1.5" fill="none" />}
       </svg>
       {!pending ? (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setPending(true); }}
-          aria-label={`Remove ${ticker} from watchlist`}
-          className="md:opacity-0 md:group-hover:opacity-100 text-slate-500 hover:text-red-400 p-2 shrink-0 transition-opacity rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
-        >
-          <X className="w-3 h-3" />
-        </button>
+        <>
+          {onAddAlert && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddAlert(ticker);
+              }}
+              className="md:opacity-0 md:group-hover:opacity-100 text-slate-500 hover:text-sky-400 p-2 shrink-0 transition-opacity rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
+              title="Add price alert"
+            >
+              <Bell className="w-3 h-3" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setPending(true); }}
+            aria-label={`Remove ${ticker} from watchlist`}
+            className="md:opacity-0 md:group-hover:opacity-100 text-slate-500 hover:text-red-400 p-2 shrink-0 transition-opacity rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </>
       ) : (
         <span className="flex items-center gap-1 text-xs shrink-0" onClick={(e) => e.stopPropagation()}>
           <button

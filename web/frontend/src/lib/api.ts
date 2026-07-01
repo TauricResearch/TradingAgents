@@ -179,7 +179,11 @@ export interface IndicatorDefinition {
   unit: string;
   enabled: boolean;
   source: "builtin" | "custom";
+  ticker?: string;
+  triggered?: boolean;
 }
+
+export type Indicator = IndicatorDefinition;
 
 export interface IndicatorResult {
   triggered: boolean;
@@ -205,6 +209,8 @@ export async function addIndicator(body: {
   name?: string;
   threshold?: number;
   description?: string;
+  ticker?: string;
+  comparator?: "above" | "below" | "at_least" | "within";
 }): Promise<IndicatorDefinition> {
   const r = await fetch(`${base}/api/indicators`, {
     method: "POST",

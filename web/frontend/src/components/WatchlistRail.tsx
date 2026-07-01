@@ -1,8 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { shallow } from "zustand/shallow";
-import { Search, X, Plus, GripVertical } from "lucide-react";
-import { fetchWatchlist, fetchPrices, removeFromWatchlist, reorderWatchlist, updateWatchlistItem, addToWatchlist, ApiError } from "../lib/api";
+import { Search, X, Plus, GripVertical, Bell } from "lucide-react";
+import {
+  fetchWatchlist,
+  fetchPrices,
+  removeFromWatchlist,
+  reorderWatchlist,
+  updateWatchlistItem,
+  addToWatchlist,
+  ApiError,
+  fetchIndicators,
+  addIndicator,
+  removeIndicator,
+  resetIndicator,
+  type Indicator,
+} from "../lib/api";
 import { TickerRow } from "./TickerRow";
 import { useUi } from "../store/ui";
 import { IndicatorRailView } from "./IndicatorRailView";
@@ -29,6 +42,12 @@ export function WatchlistRail() {
   const qc = useQueryClient();
   const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: fetchWatchlist });
   const { data: prices = {} } = useQuery({ queryKey: ["prices"], queryFn: fetchPrices });
+  const { data: indicatorsData } = useQuery({ queryKey: ["indicators"], queryFn: fetchIndicators });
+
+  // Filter to only ticker_price alerts
+  const tickerAlerts = (indicatorsData?.indicators || []).filter(
+    (ind: Indicator) => ind.kind === "ticker_price"
+  );
   const clearLast = useUi((s) => s.clearLastRunIdForTicker);
   const setFocusedTicker = useUi((s) => s.setFocusedTicker);
   const collapsedGroups = useUi((s) => s.watchlistCollapsedGroups, shallow);
@@ -56,6 +75,13 @@ export function WatchlistRail() {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [groupDropTarget, setGroupDropTarget] = useState<string | null>(null);
+
+  // Price alert state
+  const [showAlertForm, setShowAlertForm] = useState(false);
+  const [alertTicker, setAlertTicker] = useState("");
+  const [alertThreshold, setAlertThreshold] = useState("");
+  const [alertComparator, setAlertComparator] = useState<"above" | "below" | "at_least" | "within">("above");
+  const [alertError, setAlertError] = useState<string | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -331,6 +357,10 @@ export function WatchlistRail() {
         changePct={price.change_pct}
         stale={price.stale === true}
         onRemove={handleRemove}
+        onAddAlert={(ticker) => {
+          setAlertTicker(ticker);
+          setShowAlertForm(true);
+        }}
         group={row.group}
         groupColor={row.group ? groupColor(row.group, customGroupColors) : undefined}
         onGroupChange={handleGroupChange}
@@ -623,6 +653,136 @@ export function WatchlistRail() {
             ) : (
               <p className="text-[10px] text-slate-600 italic px-2 py-1">No agent tickers yet</p>
             )}
+          </div>
+
+          {/* Price Alerts Section */}
+          <div className="border-t border-slate-700/30 pt-2 mt-2">
+            <div className="flex items-center justify-between px-1 py-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Price Alerts
+              </span>
+              <button
+                onClick={() => {
+                  setShowAlertForm(!showAlertForm);
+                  setAlertError(null);
+                }}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Alert Form */}
+            {showAlertForm && (
+              <div className="px-2 mb-2 p-2 bg-slate-800/40 rounded-lg border border-slate-700/50">
+                <div className="flex gap-1 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Ticker"
+                    value={alertTicker}
+                    onChange={(e) => setAlertTicker(e.target.value.toUpperCase())}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/50"
+                  />
+                  <select
+                    value={alertComparator}
+                    onChange={(e) => setAlertComparator(e.target.value as typeof alertComparator)}
+                    className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
+                  >
+                    <option value="above">Above</option>
+                    <option value="below">Below</option>
+                    <option value="at_least">At Least</option>
+                    <option value="within">Within %</option>
+                  </select>
+                </div>
+                <div className="flex gap-1">
+                  <input
+                    type="number"
+                    placeholder="Price"
+                    value={alertThreshold}
+                    onChange={(e) => setAlertThreshold(e.target.value)}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/50"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!alertTicker || !alertThreshold) {
+                        setAlertError("Ticker and price required");
+                        return;
+                      }
+                      try {
+                        await addIndicator({
+                          kind: "ticker_price",
+                          ticker: alertTicker,
+                          threshold: parseFloat(alertThreshold),
+                          comparator: alertComparator,
+                          name: `${alertTicker} ${alertComparator} $${alertThreshold}`,
+                        });
+                        setShowAlertForm(false);
+                        setAlertTicker("");
+                        setAlertThreshold("");
+                        setAlertError(null);
+                        qc.invalidateQueries({ queryKey: ["indicators"] });
+                      } catch (err) {
+                        setAlertError(err instanceof Error ? err.message : "Failed to add alert");
+                      }
+                    }}
+                    className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 px-2 py-1 rounded text-xs transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+                {alertError && (
+                  <p className="text-red-400 text-xs mt-1">{alertError}</p>
+                )}
+              </div>
+            )}
+
+            {/* Alert List */}
+            <div className="space-y-0.5">
+              {tickerAlerts.map((alert: Indicator) => (
+                <div
+                  key={alert.id}
+                  className="flex items-center justify-between px-2 py-1 rounded hover:bg-slate-800/60 group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        alert.triggered ? "bg-slate-500" : "bg-emerald-500"
+                      }`}
+                    />
+                    <span className="text-xs text-slate-300">
+                      {alert.ticker} {alert.comparator === "above" ? ">" : alert.comparator === "below" ? "<" : alert.comparator === "at_least" ? ">=" : "~"} ${alert.threshold}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {alert.triggered && (
+                      <button
+                        onClick={async () => {
+                          await resetIndicator(alert.id);
+                          qc.invalidateQueries({ queryKey: ["indicators"] });
+                        }}
+                        className="text-amber-400/60 hover:text-amber-400 text-xs"
+                        title="Reset alert"
+                      >
+                        ↺
+                      </button>
+                    )}
+                    <button
+                      onClick={async () => {
+                        await removeIndicator(alert.id);
+                        qc.invalidateQueries({ queryKey: ["indicators"] });
+                      }}
+                      className="text-red-400/60 hover:text-red-400 text-xs"
+                      title="Delete alert"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {tickerAlerts.length === 0 && !showAlertForm && (
+                <p className="text-[10px] text-slate-600 italic px-2 py-1">No price alerts</p>
+              )}
+            </div>
           </div>
 
           {filteredWatchlist.length === 0 && watchlist.length === 0 && agentTickersBase.length === 0 && (
