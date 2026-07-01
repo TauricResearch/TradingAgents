@@ -76,6 +76,9 @@ interface ChatState {
   messages: ChatMessage[];
   isOpen: boolean;
   isLoading: boolean;
+  editingMessageId: string | null;
+  setEditingMessage: (id: string | null) => void;
+  deleteMessagesAfter: (id: string) => void;
 
   addMessage: (msg: Omit<ChatMessage, "id" | "timestamp">) => string;
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void;
@@ -112,6 +115,7 @@ export const useChatStore = create<ChatState>((set, get) => {
     messages: syncMessages(loaded, activeSessionId),
     isOpen: false,
     isLoading: false,
+    editingMessageId: null,
 
     addMessage: (msg) => {
       const state = get();
@@ -173,6 +177,26 @@ export const useChatStore = create<ChatState>((set, get) => {
         sessions: { ...state.sessions, [session.id]: session },
         activeSessionId: session.id,
         messages: [],
+      });
+      persist(get());
+    },
+
+    setEditingMessage: (id) => {
+      set({ editingMessageId: id });
+    },
+
+    deleteMessagesAfter: (id) => {
+      const state = get();
+      const sessionId = state.activeSessionId;
+      if (!sessionId || !state.sessions[sessionId]) return;
+      const session = state.sessions[sessionId];
+      const idx = session.messages.findIndex((m) => m.id === id);
+      if (idx === -1) return;
+      session.messages = session.messages.slice(0, idx);
+      session.updatedAt = Date.now();
+      set({
+        sessions: { ...state.sessions, [sessionId]: { ...session } },
+        messages: [...session.messages],
       });
       persist(get());
     },
