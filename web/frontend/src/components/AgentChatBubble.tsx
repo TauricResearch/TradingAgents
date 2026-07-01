@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Loader2, ChevronDown, Plus, Maximize2, Trash2, History } from "lucide-react";
-import { useChatStore } from "../stores/useChatStore";
-import { fetchTools, executeTool } from "../lib/agentTools";
+import { MessageSquare, X, Send, Loader2, ChevronDown, Plus, Maximize2, Trash2, History, ChevronRight, CheckCircle2, XCircle, AlertCircle, ArrowRight, Pencil } from "lucide-react";
+import { useChatStore, type Message } from "../stores/useChatStore";
+import { fetchTools, executeTool, setRenamedToolMap, setCurrentUserMessage, clearCurrentUserMessage, prepopulateToolContext, setConversationHistory, type ToolResult } from "../lib/agentTools";
 import { LargeChatScreen } from "./LargeChatScreen";
 
 function formatDateTime(timestamp: number): string {
@@ -34,19 +34,24 @@ function getSystemPrompt(tools: Array<{ name: string; description: string }>): s
 
 Current date and time: ${dateTimeStr}
 
-You MUST always answer the user's financial questions by actually using your available tools to fetch real data. Never refuse to answer or say you can't provide advice. When a user asks about a ticker (like SPY, AAPL, QQQ), immediately call the appropriate tool to get current data.
+## TOOL CALLING RULES (CRITICAL)
+When you call a tool, you MUST provide ALL required parameters in the arguments JSON object.
 
-Your available tools (auto-generated from the backend API):
+**Example of a CORRECT tool call for get_ticker_history:**
+{"name": "get_ticker_history", "arguments": {"ticker": "SPY", "range": "1mo"}}
+
+**Example of an INCORRECT tool call (missing ticker):**
+{"name": "get_ticker_history", "arguments": {}}  <- THIS WILL FAIL
+
+If user asks about SPY, you MUST call get_ticker_history with ticker="SPY" in the arguments, like:
+{"name": "get_ticker_history", "arguments": {"ticker": "SPY"}}
+
+DO NOT call tools without required parameters. Every parameter marked as REQUIRED must be provided.
+
+Your available tools:
 ${toolList}
 
-When asked about whether to buy/sell/enter a position:
-1. Call get_prices or get_tickers__ticker__history to get current/recent data
-2. Call get_indicators to check market conditions
-3. Provide a direct answer based on the actual data, not generic disclaimers
-
-Always use tools to get real data when available. Analyze the data and give specific, data-driven answers.
-
-The tool list is dynamically generated from the backend API schema.`;
+Always actually call the tools via tool_calls function - do not just describe what you would call.`;
 }
 
 function extractResponseText(response: unknown): string {
@@ -74,11 +79,167 @@ function extractResponseText(response: unknown): string {
 
 const API_BASE = "/api/chat";
 
+interface ToolCallMeta {
+  toolName: string;
+  args: Record<string, unknown>;
+  result: ToolResult;
+  timestamp: number;
+}
+
+interface ToolResultDisplay extends Omit<Message, "role"> {
+  role: "tool";
+  toolMeta?: ToolCallMeta;
+}
+
+function ToolCallCard({ meta }: { meta: ToolCallMeta }) {
+  const [expanded, setExpanded] = useState(false);
+  const { toolName, args, result } = meta;
+  const isSuccess = result.success;
+
+  return (
+    <div className={`rounded-lg border overflow-hidden mb-2 transition-all ${isSuccess ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5"}`}>
+      <div
+        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-700/30"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <ChevronRight className={`h-3 w-3 transition-transform ${expanded ? "rotate-90" : ""} ${isSuccess ? "text-emerald-400" : "text-red-400"}`} />
+        {isSuccess ? (
+          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+        ) : (
+          <XCircle className="h-4 w-4 text-red-400" />
+        )}
+        <span className={`font-semibold text-sm ${isSuccess ? "text-emerald-300" : "text-red-300"}`}>
+          {toolName}
+        </span>
+        {Object.keys(args).length > 0 && (
+          <span className="text-xs text-slate-400">
+            ({Object.entries(args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ")})
+          </span>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="px-3 py-2 border-t border-slate-700/50 text-xs font-mono">
+          {isSuccess && result.data && (
+            <div className="mb-2">
+              <div className="text-slate-400 mb-1">Result Preview:</div>
+              <pre className="text-emerald-300 bg-slate-900/50 p-2 rounded overflow-x-auto max-h-32">
+                {JSON.stringify(result.data, null, 2).slice(0, 500)}
+                {JSON.stringify(result.data).length > 500 && "..."}
+              </pre>
+            </div>
+          )}
+
+          {!isSuccess && result.error && (
+            <div className="mb-2">
+              <div className="text-red-400 mb-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> Error:
+              </div>
+              <div className="text-red-300 bg-red-900/20 p-2 rounded">
+                {result.error}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function parseToolContent(content: string): { toolName: string; result: unknown } | null {
+  const match = content.match(/^Called (\w+):\s*(.+)/);
+  if (match) {
+    try {
+      return { toolName: match[1], result: JSON.parse(match[2]) };
+    } catch {
+      return { toolName: match[1], result: match[2] };
+    }
+  }
+  return null;
+}
+
+function MessageBubble({ msg }: { msg: Message }) {
+  const { setEditingMessage } = useChatStore();
+  const isUser = msg.role === "user";
+  const isTool = msg.role === "tool";
+  const isAssistant = msg.role === "assistant";
+
+  if (isTool) {
+    const parsed = parseToolContent(msg.content);
+    const toolMeta: ToolCallMeta | undefined = parsed ? {
+      toolName: parsed.toolName,
+      args: {},
+      result: typeof parsed.result === "object" ? parsed.result as ToolResult : { success: true, data: parsed.result },
+      timestamp: msg.timestamp,
+    } : undefined;
+
+    return (
+      <div className="bg-slate-800/80 rounded-lg px-3 py-2 text-sm border border-slate-700">
+        {msg.toolCalls && msg.toolCalls.length > 0 && (
+          <div className="mb-2 text-xs text-sky-400 flex items-center gap-2">
+            <ArrowRight className="h-3 w-3" />
+            <span>Calling: {msg.toolCalls.map(tc => tc.name).join(", ")}</span>
+          </div>
+        )}
+        {toolMeta ? (
+          <ToolCallCard meta={toolMeta} />
+        ) : (
+          <div className="text-slate-400 font-mono text-xs whitespace-pre-wrap break-all">
+            {msg.content.slice(0, 300)}
+            {msg.content.length > 300 && "..."}
+          </div>
+        )}
+        <div className="text-[10px] text-slate-500 mt-1">
+          {formatDateTime(msg.timestamp)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`max-w-[85%] rounded-lg px-3 py-2 text-sm relative ${
+        isUser
+          ? "bg-sky-600/30 text-slate-200 pr-8"
+          : "bg-slate-800/60 text-slate-300"
+      }`}
+    >
+      {isUser && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setEditingMessage(msg.id); }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-sky-400 hover:bg-slate-800/50 transition-colors"
+          aria-label="Edit message"
+          title="Edit message"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      )}
+      {msg.toolCalls && msg.toolCalls.length > 0 && (
+        <div className="mb-2 text-xs text-sky-400">
+          <span className="font-semibold">Calling:</span> {msg.toolCalls.map(tc => tc.name).join(", ")}
+        </div>
+      )}
+      <div className="whitespace-pre-wrap">{msg.content}</div>
+      {msg.isStreaming && !msg.content && (
+        <span className="inline-flex gap-1 ml-1">
+          <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+          <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+          <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+        </span>
+      )}
+      <div className={`text-[10px] mt-1 opacity-50 ${isUser ? "text-right" : "text-left"}`}>
+        {formatDateTime(msg.timestamp)}
+      </div>
+    </div>
+  );
+}
+
 export function AgentChatBubble() {
-  const { messages, isOpen, isLoading, addMessage, updateMessage, toggleChat, setLoading, clearMessages, sessions, activeSessionId, createSession, deleteSession, switchSession } = useChatStore();
+  const { messages, isOpen, isLoading, addMessage, updateMessage, toggleChat, setLoading, clearMessages, sessions, activeSessionId, createSession, deleteSession, switchSession, editingMessageId, setEditingMessage, deleteMessagesAfter } = useChatStore();
   const [input, setInput] = useState("");
   const [largeScreenOpen, setLargeScreenOpen] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -96,29 +257,88 @@ export function AgentChatBubble() {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!editingMessageId) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setEditingMessage(null);
+        setInput("");
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [editingMessageId, setEditingMessage]);
+
+  useEffect(() => {
+    if (!editingMessageId) return;
+    const msg = messages.find(m => m.id === editingMessageId);
+    if (msg && msg.role === "user") {
+      setInput(msg.content);
+      inputRef.current?.focus();
+    }
+  }, [editingMessageId, messages]);
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
 
+    const editingId = editingMessageId;
+    if (editingId) {
+      deleteMessagesAfter(editingId);
+      setEditingMessage(null);
+    }
+
     addMessage({ role: "user", content: trimmed });
     setInput("");
     setLoading(true);
 
+    abortControllerRef.current = new AbortController();
+
     try {
-      const TOOL_RENAME_MAP: Record<string, { name: string; description: string }> = {
-        get_tickers__ticker__history: {
+      // Pre-populate tool context from all user messages in conversation
+      const allUserContent = messages.filter(m => m.role === "user").map(m => m.content).join(" ");
+      const preTickers = allUserContent.match(/\$?([A-Z]{2,5})\b/g) || [];
+      for (const t of preTickers) {
+        const ticker = t.startsWith("$") ? t.slice(1) : t;
+        if (ticker.length >= 2) {
+          prepopulateToolContext({ ticker });
+          break;
+        }
+      }
+
+      // Set full conversation history for context extraction during tool execution
+      setConversationHistory(messages.map(m => ({ role: m.role, content: m.content })));
+
+      const TOOL_RENAME_MAP: Record<string, { name: string; description: string; originalName: string }> = {
+        tickers_ticker_history: {
           name: "get_ticker_history",
-          description: "get_ticker_history(ticker: string, range?: string) - Fetch historical price data for a ticker. Example: get_ticker_history('SPY', '1mo'). Pass the stock symbol like 'SPY', 'AAPL', 'QQQ'.",
+          description: "REQUIRED PARAMS: ticker (string). Fetches historical price data for a stock ticker. Usage: get_ticker_history({ticker: \"SPY\", range: \"1mo\"}). Always pass ticker as a string like \"SPY\", \"AAPL\", or \"QQQ\".",
+          originalName: "get_tickers_ticker_history",
         },
-        get_tickers__ticker__runs: {
+        tickers_ticker_runs: {
           name: "get_ticker_runs",
-          description: "get_ticker_runs(ticker: string, limit?: number) - Get analysis runs for a ticker. Example: get_ticker_runs('SPY').",
+          description: "REQUIRED PARAMS: ticker (string). Gets analysis runs for a ticker. Usage: get_ticker_runs({ticker: \"SPY\", limit: 10}). Always pass ticker as a string.",
+          originalName: "get_tickers_ticker_runs",
         },
       };
 
+      const renamedToOriginal: Record<string, string> = {};
+      for (const [, value] of Object.entries(TOOL_RENAME_MAP)) {
+        renamedToOriginal[value.name] = value.originalName;
+      }
+      setRenamedToolMap(renamedToOriginal);
+
       function cleanToolName(name: string): string {
-        return name.replace(/__+/g, "_").replace(/^get_/, "get_");
+        return name.replace(/__+/g, "_").replace(/^get_/, "").replace(/_+$/, "");
       }
 
       const tools = await fetchTools();
@@ -126,16 +346,34 @@ export function AgentChatBubble() {
         const params = tool.parameters || {};
         const required: string[] = [];
         const properties: Record<string, unknown> = {};
+        
+        // First, add all params to properties and check if they're path params (required)
         for (const [key, val] of Object.entries(params)) {
           properties[key] = val;
+          // Check if this param is in the path as {param}
           if (tool.path.includes(`{${key}}`)) {
             required.push(key);
           }
         }
+        
+        // If ticker is in path but not in params (which shouldn't happen but let's be safe)
+        const pathParamMatches = tool.path.match(/\{(\w+)\}/g) || [];
+        for (const placeholder of pathParamMatches) {
+          const paramName = placeholder.slice(1, -1);
+          if (!properties[paramName]) {
+            properties[paramName] = {
+              type: "string",
+              description: `REQUIRED. The ${paramName} symbol (e.g. 'SPY', 'AAPL', 'QQQ').`,
+            };
+            required.push(paramName);
+          }
+        }
 
-        const renamed = TOOL_RENAME_MAP[tool.name];
-        const finalName = renamed ? renamed.name : cleanToolName(tool.name);
+        const cleanedName = cleanToolName(tool.name);
+        const renamed = TOOL_RENAME_MAP[cleanedName];
+        const finalName = renamed ? renamed.name : cleanedName;
         const finalDesc = renamed ? renamed.description : tool.description;
+        const originalName = tool.name;
 
         return {
           type: "function",
@@ -145,7 +383,7 @@ export function AgentChatBubble() {
             parameters: {
               type: "object",
               properties,
-              ...(required.length > 0 ? { required } : {}),
+              required,
             },
           },
         };
@@ -175,8 +413,7 @@ export function AgentChatBubble() {
       let currentMsgId = assistantMsgId;
       let hadExecutedTools = false;
 
-      // Loop until AI stops making tool calls (safety limit of 20 rounds)
-      for (let round = 0; round < 20; round++) {
+      for (let round = 0; round < 50; round++) {
         let response: Response;
         try {
           response = await fetch(`${API_BASE}/completions`, {
@@ -187,6 +424,7 @@ export function AgentChatBubble() {
               tools: backendTools,
               stream: true,
             }),
+            signal: abortControllerRef.current?.signal,
           });
         } catch (fetchErr) {
           updateMessage(currentMsgId, {
@@ -203,13 +441,13 @@ export function AgentChatBubble() {
           break;
         }
 
-        // Process SSE stream
         const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         let fullResponse = "";
         let toolCallsFromResponse: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
 
-        while (true) {
+        let streamDone = false;
+        while (!streamDone) {
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -219,7 +457,7 @@ export function AgentChatBubble() {
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             const data = line.slice(6);
-            if (data === "[DONE]") break;
+            if (data === "[DONE]") { streamDone = true; break; }
 
             try {
               const parsed = JSON.parse(data);
@@ -255,7 +493,6 @@ export function AgentChatBubble() {
           }
         }
 
-        // Fallback: parse text-based tool calls if LLM outputs them as text
         if (toolCallsFromResponse.length === 0 && fullResponse) {
           const toolPattern = /<tool_call>\s*<name>(.*?)<\/name>\s*<parameters>(.*?)<\/parameters>\s*<\/tool_call>/gs;
           const matches = [...fullResponse.matchAll(toolPattern)];
@@ -274,7 +511,6 @@ export function AgentChatBubble() {
           }
         }
 
-        // Also parse ```tool_call name="..." parameters="..." ``` format
         if (toolCallsFromResponse.length === 0 && fullResponse) {
           const blockPattern = /```tool_call\s*([\s\S]*?)\s*```/g;
           const blockMatches = [...fullResponse.matchAll(blockPattern)];
@@ -300,7 +536,6 @@ export function AgentChatBubble() {
 
         updateMessage(currentMsgId, { content: fullResponse });
 
-        // If no tool calls, we're done
         if (toolCallsFromResponse.length === 0) {
           if (!fullResponse || !fullResponse.trim()) {
             if (hadExecutedTools) {
@@ -314,9 +549,10 @@ export function AgentChatBubble() {
           break;
         }
 
-        // Execute tool calls
         updateMessage(currentMsgId, { content: fullResponse || "Processing..." });
         const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
+
+        setCurrentUserMessage(trimmed);
 
         for (const call of toolCallsFromResponse) {
           let args: Record<string, unknown> = {};
@@ -326,11 +562,12 @@ export function AgentChatBubble() {
           } catch {
             args = {};
           }
-          let result: unknown;
+          
+          let result: ToolResult;
           try {
-            result = await executeTool(call.function.name, args);
+            result = await executeTool(call.function.name, args) as ToolResult;
           } catch (toolErr) {
-            result = { error: toolErr instanceof Error ? toolErr.message : String(toolErr) };
+            result = { success: false, error: toolErr instanceof Error ? toolErr.message : String(toolErr) };
           }
           const resultStr = JSON.stringify(result);
           addMessage({
@@ -347,7 +584,6 @@ export function AgentChatBubble() {
 
         hadExecutedTools = true;
 
-        // Build next conversation history - ensure correct format
         const assistantToolMsg = {
           role: "assistant" as const,
           content: fullResponse || "",
@@ -359,8 +595,6 @@ export function AgentChatBubble() {
         };
 
         conversationHistory = [...conversationHistory, assistantToolMsg, ...toolResults];
-
-        // Create new message for next round
         currentMsgId = addMessage({ role: "assistant", content: "", isStreaming: true });
       }
     } catch (error) {
@@ -379,6 +613,7 @@ export function AgentChatBubble() {
       });
     } finally {
       setLoading(false);
+      clearCurrentUserMessage();
     }
   };
 
@@ -402,7 +637,7 @@ export function AgentChatBubble() {
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-16 left-0 w-96 h-[500px] bg-slate-900 rounded-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden">
+        <div className="absolute bottom-16 left-0 w-[420px] h-[550px] bg-slate-900 rounded-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-sky-400" />
@@ -465,7 +700,7 @@ export function AgentChatBubble() {
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 && (
               <div className="text-center text-slate-500 text-sm py-8">
                 Ask me anything about your trading data.
@@ -476,44 +711,31 @@ export function AgentChatBubble() {
                 key={msg.id}
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                <div
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                    msg.role === "user"
-                      ? "bg-sky-600/30 text-slate-200"
-                      : msg.role === "tool"
-                      ? "bg-slate-800 text-slate-400 font-mono text-xs"
-                      : "bg-slate-800/60 text-slate-300"
-                  }`}
-                >
-                  {msg.toolCalls && msg.toolCalls.length > 0 && (
-                    <div className="mb-2 text-xs text-sky-400">
-                      Calling: {msg.toolCalls.map(tc => tc.name).join(", ")}
-                    </div>
-                  )}
-                  {msg.content}
-                  {msg.isStreaming && !msg.content && (
-                    <span className="inline-flex gap-1 ml-1">
-                      <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </span>
-                  )}
-                  <div className={`text-[10px] mt-1 opacity-50 ${msg.role === "user" ? "text-right" : "text-left"}`}>
-                    {formatDateTime(msg.timestamp)}
-                  </div>
-                </div>
+                <MessageBubble msg={msg} />
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
 
           <form onSubmit={handleSubmit} className="p-3 border-t border-slate-700">
+            {editingMessageId && (
+              <div className="flex items-center justify-between px-1 mb-2">
+                <span className="text-xs text-sky-400">Editing message</span>
+                <button
+                  type="button"
+                  onClick={() => { setEditingMessage(null); setInput(""); }}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about your trading data..."
+                placeholder={editingMessageId ? "Edit your message..." : "Ask about your trading data..."}
                 className="flex-1 bg-slate-800 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/50"
                 disabled={isLoading}
               />
@@ -525,10 +747,23 @@ export function AgentChatBubble() {
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
+                ) : editingMessageId ? (
+                  <span className="text-xs font-medium">Resend</span>
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
               </button>
+              {isLoading && (
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  className="p-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  aria-label="Stop request"
+                  title="Stop"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </form>
         </div>
