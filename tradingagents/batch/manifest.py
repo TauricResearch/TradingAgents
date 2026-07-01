@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.load import dumps, loads
-from langchain_core.messages import BaseMessage
 from langchain_core.messages.utils import convert_to_messages
 
 
@@ -95,7 +94,7 @@ class BatchRunState:
         trade_date: str,
         asset_type: str,
         state: dict[str, Any],
-    ) -> "BatchRunState":
+    ) -> BatchRunState:
         return cls(
             ticker=ticker,
             trade_date=trade_date,
@@ -137,7 +136,7 @@ class BatchManifest:
         selected_analysts: list[str],
         config: dict[str, Any],
         runs: dict[str, BatchRunState],
-    ) -> "BatchManifest":
+    ) -> BatchManifest:
         return cls(
             run_id=datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
             + "-"
@@ -163,7 +162,7 @@ class BatchManifest:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "BatchManifest":
+    def from_dict(cls, raw: dict[str, Any]) -> BatchManifest:
         runs = {
             ticker: BatchRunState(**run)
             for ticker, run in raw.get("runs", {}).items()
@@ -200,7 +199,7 @@ class BatchManifest:
         return path
 
     @classmethod
-    def load(cls, root: Path, run_id: str) -> "BatchManifest":
+    def load(cls, root: Path, run_id: str) -> BatchManifest:
         path = root / run_id / "manifest.json"
         return cls.from_dict(json.loads(path.read_text(encoding="utf-8")))
 

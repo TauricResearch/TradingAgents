@@ -153,7 +153,8 @@ class TestAlphaVantageFallback:
         """End-to-end: with Alpha Vantage forced primary, a td_9 call still
         returns the real tiered block computed by yfinance."""
         import copy
-        from tradingagents.dataflows import y_finance, interface
+
+        from tradingagents.dataflows import interface, y_finance
         from tradingagents.dataflows.config import get_config, set_config
 
         frame = _ohlcv([100 + i for i in range(320)])  # rising -> sell-setup
@@ -162,7 +163,7 @@ class TestAlphaVantageFallback:
         saved = copy.deepcopy(get_config())  # restore so the global config doesn't leak
         try:
             cfg = get_config()
-            cfg.setdefault("tool_vendors", {})["get_indicators"] = "alpha_vantage"
+            cfg.setdefault("tool_vendors", {})["get_indicators"] = "alpha_vantage,yfinance"
             set_config(cfg)
 
             out = interface.route_to_vendor("get_indicators", "AAPL", "td_9", "2026-06-04", 30)

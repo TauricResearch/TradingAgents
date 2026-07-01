@@ -5,6 +5,7 @@ and quick clients (a per-process total), then forwarded to the chat-model
 constructor through each provider client's passthrough kwargs.
 """
 
+import dataclasses
 from types import SimpleNamespace
 
 import pytest
@@ -67,11 +68,16 @@ class TestPassthrough:
         assert captured["kwargs"]["rate_limiter"] is limiter
 
     def test_openai_forwards_rate_limiter(self, monkeypatch):
+        # The "openai" provider's chat class comes from the frozen ProviderSpec
+        # in OPENAI_COMPATIBLE_PROVIDERS (resolved at import time), not the
+        # NormalizedChatOpenAI module attribute directly — patch the registry
+        # entry so get_llm() actually picks up the fake class.
         captured = {}
-        monkeypatch.setattr(
-            openai_client, "NormalizedChatOpenAI",
-            lambda **kwargs: captured.setdefault("kwargs", kwargs),
+        fake_spec = dataclasses.replace(
+            openai_client.OPENAI_COMPATIBLE_PROVIDERS["openai"],
+            chat_class=lambda **kwargs: captured.setdefault("kwargs", kwargs),
         )
+        monkeypatch.setitem(openai_client.OPENAI_COMPATIBLE_PROVIDERS, "openai", fake_spec)
         limiter = _build_rate_limiter(30)
         openai_client.OpenAIClient(
             model="gpt-5.4-mini", provider="openai", rate_limiter=limiter

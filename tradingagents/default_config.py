@@ -23,13 +23,35 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_LLM_RPM":              "llm_requests_per_minute",
     "TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT": "sentiment_include_reddit",
     "TRADINGAGENTS_EXECUTION_MODE":       "execution_mode",
+    # Provider-specific reasoning/thinking knobs (None = each provider's own
+    # default). Settable here for non-interactive runs; the CLI also offers an
+    # interactive choice, which is skipped when the matching var is set.
+    "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
+    "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
+    "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
 }
 
 
+_BOOL_TRUE = ("true", "1", "yes", "on")
+_BOOL_FALSE = ("false", "0", "no", "off")
+
+
 def _coerce(value: str, reference):
-    """Coerce env-var string to the type of the existing default value."""
+    """Coerce env-var string to the type of the existing default value.
+
+    Invalid values raise ``ValueError`` rather than silently falling back to a
+    default — a misspelled boolean (e.g. ``treu``) or non-numeric int should fail
+    loudly at startup, not quietly misconfigure an unattended run.
+    """
     if isinstance(reference, bool):
-        return value.strip().lower() in ("true", "1", "yes", "on")
+        normalized = value.strip().lower()
+        if normalized in _BOOL_TRUE:
+            return True
+        if normalized in _BOOL_FALSE:
+            return False
+        raise ValueError(
+            f"expected a boolean ({'/'.join(_BOOL_TRUE + _BOOL_FALSE)}), got {value!r}"
+        )
     if isinstance(reference, int) and not isinstance(reference, bool):
         return int(value)
     if isinstance(reference, float):
@@ -43,7 +65,10 @@ def _apply_env_overrides(config: dict) -> dict:
         raw = os.environ.get(env_var)
         if raw is None or raw == "":
             continue
-        config[key] = _coerce(raw, config.get(key))
+        try:
+            config[key] = _coerce(raw, config.get(key))
+        except ValueError as exc:
+            raise ValueError(f"Invalid value for {env_var}: {exc}") from exc
     return config
 
 
@@ -106,7 +131,6 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
-    "analyst_concurrency_limit": 1,
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.
@@ -127,12 +151,17 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # disable it with TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT=0.
     "sentiment_include_reddit": True,
     # Data vendor configuration
-    # Category-level configuration (default for all tools in category)
+    # Category-level configuration (default for all tools in category).
+    # The configured value is the exact vendor chain — requests are NOT silently
+    # routed to vendors you didn't choose. For ordered fallback, list several,
+    # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
     "data_vendors": {
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
+        "prediction_markets": "polymarket",  # Options: polymarket (keyless)
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

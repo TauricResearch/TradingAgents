@@ -9,12 +9,12 @@ Covers the three pieces added after a deep run died on back-to-back 429s:
   burning its free-text fallback on a saturated provider.
 """
 
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from email.utils import format_datetime
-from datetime import datetime, timedelta, timezone
 
 from tradingagents.llm_clients import retry
 from tradingagents.llm_clients.retry import (
@@ -262,6 +262,7 @@ class TestClientWiring:
     def test_anthropic_invoke_retries_and_normalizes(self, sleeps, monkeypatch):
         from langchain_anthropic import ChatAnthropic
         from langchain_core.messages import AIMessage
+
         from tradingagents.llm_clients.anthropic_client import NormalizedChatAnthropic
 
         message = AIMessage(content=[{"type": "text", "text": "ok"}])
@@ -276,8 +277,9 @@ class TestClientWiring:
         assert result.content == "ok"
 
     def test_openai_invoke_retries_and_normalizes(self, sleeps, monkeypatch):
-        from langchain_openai import ChatOpenAI
         from langchain_core.messages import AIMessage
+        from langchain_openai import ChatOpenAI
+
         from tradingagents.llm_clients.openai_client import NormalizedChatOpenAI
 
         message = AIMessage(content=[{"type": "text", "text": "ok"}])

@@ -29,8 +29,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_cashflow,
     get_fundamentals,
     get_global_news,
-    get_indicators,
     get_income_statement,
+    get_indicators,
     get_insider_transactions,
     get_news,
     get_stock_data,
@@ -111,7 +111,7 @@ class BatchRunner:
         selected_analysts: list[str],
         config: dict[str, Any],
         root: Path | None = None,
-    ) -> "BatchRunner":
+    ) -> BatchRunner:
         provider_key = provider.lower()
         if provider_key not in {"openai", "anthropic"}:
             raise ValueError("batch mode supports only provider='openai' or provider='anthropic'")
@@ -149,7 +149,7 @@ class BatchRunner:
         return cls(manifest=manifest, root=root)
 
     @classmethod
-    def load(cls, *, config: dict[str, Any], run_id: str) -> "BatchRunner":
+    def load(cls, *, config: dict[str, Any], run_id: str) -> BatchRunner:
         root = batch_root(config)
         manifest = BatchManifest.load(root, run_id)
         return cls(manifest=manifest, root=root)

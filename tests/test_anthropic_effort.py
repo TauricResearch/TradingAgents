@@ -1,9 +1,9 @@
 """Tests for Anthropic effort-parameter gating (#831).
 
-Haiku 4.5 (and current Haiku versions) reject the ``effort`` parameter
-with a 400. Opus 4.5+ and Sonnet 4.5+ accept it. The gate uses a
-forward-compat regex so future ``claude-{opus,sonnet}-X-Y`` releases
-inherit support automatically.
+Haiku (any version) and Sonnet 4.5 reject the ``effort`` parameter with a
+400. Only Opus 4.5+ and Sonnet 4.6+ accept it. The gate uses a per-family
+minimum version so future ``claude-{opus,sonnet}-X-Y`` releases inherit
+support automatically.
 """
 
 import pytest
@@ -24,9 +24,13 @@ def _capture_kwargs(monkeypatch):
 class TestEffortGate:
     @pytest.mark.parametrize(
         "model",
-        ["claude-haiku-4-5", "claude-haiku-5-0", "claude-haiku-4-7-preview"],
+        [
+            "claude-haiku-4-5", "claude-haiku-5-0", "claude-haiku-4-7-preview",
+            # Sonnet 4.5 (and earlier) 400 on effort — only Sonnet 4.6+ supports it.
+            "claude-sonnet-4-5", "claude-sonnet-4-0",
+        ],
     )
-    def test_haiku_does_not_receive_effort(self, monkeypatch, model):
+    def test_unsupported_models_do_not_receive_effort(self, monkeypatch, model):
         captured = _capture_kwargs(monkeypatch)
         mod.AnthropicClient(model=model, effort="medium", api_key="x").get_llm()
         assert "effort" not in captured["kwargs"]
@@ -35,7 +39,7 @@ class TestEffortGate:
         "model",
         [
             "claude-opus-4-5", "claude-opus-4-6", "claude-opus-4-7",
-            "claude-sonnet-4-5", "claude-sonnet-4-6",
+            "claude-sonnet-4-6",
         ],
     )
     def test_current_opus_and_sonnet_receive_effort(self, monkeypatch, model):

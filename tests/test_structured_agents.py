@@ -16,6 +16,7 @@ from tradingagents.agents.analysts import sentiment_analyst as sentiment_module
 from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
+    PortfolioDecision,
     PortfolioRating,
     ResearchPlan,
     SentimentBand,
@@ -28,7 +29,6 @@ from tradingagents.agents.schemas import (
 )
 from tradingagents.agents.trader.trader import create_trader
 from tradingagents.dataflows.config import get_config, set_config
-
 
 # ---------------------------------------------------------------------------
 # Render functions
@@ -68,6 +68,48 @@ class TestRenderTraderProposal:
         assert "Stop Loss" not in md
         assert "Position Sizing" not in md
         assert "FINAL TRANSACTION PROPOSAL: **SELL**" in md
+
+
+@pytest.mark.unit
+class TestNullishFloatCoercion:
+    """A weak LLM may write "None"/"N/A" into an optional float field (#1058);
+    coerce those to None so the structured call validates instead of erroring."""
+
+    def test_trader_nullish_strings_coerce_to_none(self):
+        for sentinel in ("None", "N/A", "null", "-", "", "TBD"):
+            p = TraderProposal(
+                action=TraderAction.HOLD,
+                reasoning="x",
+                entry_price=sentinel,
+                stop_loss=sentinel,
+            )
+            assert p.entry_price is None
+            assert p.stop_loss is None
+
+    def test_trader_real_numeric_string_still_parses(self):
+        p = TraderProposal(action=TraderAction.BUY, reasoning="x", entry_price="189.5")
+        assert p.entry_price == 189.5
+
+    def test_pm_nullish_price_target_rejected(self):
+        """price_target is required on PortfolioDecision (unlike Trader's
+        optional entry_price/stop_loss): a nullish placeholder must fail
+        loudly instead of silently becoming None."""
+        with pytest.raises(ValidationError):
+            PortfolioDecision(
+                rating=PortfolioRating.OVERWEIGHT,
+                executive_summary="s",
+                investment_thesis="t",
+                price_target="N/A",
+            )
+
+    def test_pm_real_numeric_string_still_parses(self):
+        d = PortfolioDecision(
+            rating=PortfolioRating.OVERWEIGHT,
+            executive_summary="s",
+            investment_thesis="t",
+            price_target="189.5",
+        )
+        assert d.price_target == 189.5
 
 
 @pytest.mark.unit
@@ -122,6 +164,24 @@ def _structured_trader_llm(captured: dict, proposal: TraderProposal | None = Non
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
     return llm
+
+
+@pytest.mark.unit
+def test_invoke_structured_falls_back_when_result_is_none():
+    # A thinking model can answer in plain text, leaving the parser with None.
+    # That must fall back to free text, not crash on render(None) (#1051).
+    from tradingagents.agents.utils.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.return_value = None
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="FREETEXT")
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda r: r.rating, agent_name="t"
+    )
+    assert out == "FREETEXT"
+    plain.invoke.assert_called_once()
 
 
 @pytest.mark.unit

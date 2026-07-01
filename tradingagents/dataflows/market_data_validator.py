@@ -10,7 +10,7 @@ claim. Deterministic, no LLM involved.
 
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 import pandas as pd
 from stockstats import wrap
@@ -61,7 +61,7 @@ def _fmt(value) -> str:
     return str(value)
 
 
-def latest_close_on_or_before(symbol: str, curr_date: str) -> Optional[float]:
+def latest_close_on_or_before(symbol: str, curr_date: str) -> float | None:
     """Latest close on or before curr_date, using the verified no-lookahead rows."""
     df = _verified_rows(symbol, curr_date)
     close = df.iloc[-1].get("Close")
@@ -74,7 +74,7 @@ def build_verified_market_snapshot(
     symbol: str,
     curr_date: str,
     look_back_days: int = 30,
-    indicators: Optional[Iterable[str]] = None,
+    indicators: Iterable[str] | None = None,
 ) -> str:
     """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
     # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/

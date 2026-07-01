@@ -28,6 +28,7 @@ truth.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import math
 import re
 import sys
@@ -35,7 +36,6 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
-
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
@@ -624,10 +624,8 @@ def remove_stale_ticker_hubs(active_tickers: set[str]) -> int:
             hub_path.unlink()
             removed += 1
 
-        try:
+        with contextlib.suppress(OSError):
             ticker_dir.rmdir()
-        except OSError:
-            pass
 
     return removed
 

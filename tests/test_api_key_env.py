@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -13,7 +12,6 @@ from tradingagents.llm_clients.api_key_env import (
     get_api_key_env,
     is_anthropic_setup_token,
 )
-
 
 # ---- Mapping coverage -----------------------------------------------------
 
@@ -83,6 +81,7 @@ def test_anthropic_console_api_key_is_allowed():
 def cli_utils(monkeypatch):
     """Import cli.utils with a fresh environment so module-level state is consistent."""
     import importlib
+
     import cli.utils as cli_utils_module
     return importlib.reload(cli_utils_module)
 

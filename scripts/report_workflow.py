@@ -25,9 +25,10 @@ DOCS = ROOT / "docs"
 sys.path.insert(0, str(ROOT))
 
 from cli.report_headings import transform  # noqa: E402
-from scripts import build_reports_site as site  # noqa: E402
-from scripts import reassemble_complete_reports as reassembler  # noqa: E402
-
+from scripts import (  # noqa: E402
+    build_reports_site as site,
+    reassemble_complete_reports as reassembler,
+)
 
 normalize_analysis_date = site.normalize_analysis_date
 

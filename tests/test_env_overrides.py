@@ -84,6 +84,33 @@ def test_sentiment_include_reddit_override(monkeypatch):
     assert dc.DEFAULT_CONFIG["sentiment_include_reddit"] is False
 
 
+def test_reasoning_thinking_overrides(monkeypatch):
+    """The provider reasoning/thinking knobs are env-configurable (non-interactive runs)."""
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_OPENAI_REASONING_EFFORT="high",
+        TRADINGAGENTS_GOOGLE_THINKING_LEVEL="minimal",
+        TRADINGAGENTS_ANTHROPIC_EFFORT="low",
+    )
+    assert dc.DEFAULT_CONFIG["openai_reasoning_effort"] == "high"
+    assert dc.DEFAULT_CONFIG["google_thinking_level"] == "minimal"
+    assert dc.DEFAULT_CONFIG["anthropic_effort"] == "low"
+
+
+def test_reasoning_effort_defaults_to_none(monkeypatch):
+    """Unset thinking/effort knobs keep this fork's built-in defaults.
+
+    ``google_thinking_level`` has no fork-specific default (None, each
+    provider's own default); ``openai_reasoning_effort`` / ``anthropic_effort``
+    intentionally default to max-effort reasoning (#xhigh, #max) rather than
+    None here.
+    """
+    dc = _reload_with_env(monkeypatch)
+    assert dc.DEFAULT_CONFIG["openai_reasoning_effort"] == "xhigh"
+    assert dc.DEFAULT_CONFIG["google_thinking_level"] is None
+    assert dc.DEFAULT_CONFIG["anthropic_effort"] == "max"
+
+
 def test_empty_env_value_is_passthrough(monkeypatch):
     """Empty TRADINGAGENTS_* values must not clobber the built-in default."""
     dc = _reload_with_env(
@@ -98,10 +125,20 @@ def test_empty_env_value_is_passthrough(monkeypatch):
 def test_invalid_int_raises(monkeypatch):
     """Garbage int values should surface a ValueError at import, not silently misconfigure."""
     monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "not-a-number")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="TRADINGAGENTS_MAX_DEBATE_ROUNDS"):
         importlib.reload(default_config_module)
     # Restore module state for subsequent tests in this process
     monkeypatch.delenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", raising=False)
+    importlib.reload(default_config_module)
+
+
+@pytest.mark.parametrize("bad", ["treu", "flase", "maybe", "2", "enabled"])
+def test_invalid_bool_raises(monkeypatch, bad):
+    """A misspelled boolean must fail loudly (like ints) instead of silently False."""
+    monkeypatch.setenv("TRADINGAGENTS_CHECKPOINT_ENABLED", bad)
+    with pytest.raises(ValueError, match="TRADINGAGENTS_CHECKPOINT_ENABLED"):
+        importlib.reload(default_config_module)
+    monkeypatch.delenv("TRADINGAGENTS_CHECKPOINT_ENABLED", raising=False)
     importlib.reload(default_config_module)
 
 

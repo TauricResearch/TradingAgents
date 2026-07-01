@@ -15,8 +15,7 @@ import pandas as pd
 import pytest
 from stockstats import wrap
 
-from tradingagents.dataflows import indicator_registry as reg
-from tradingagents.dataflows import stockstats_utils as su
+from tradingagents.dataflows import indicator_registry as reg, stockstats_utils as su
 
 
 def _ohlcv(closes, end="2026-06-04", volumes=None):

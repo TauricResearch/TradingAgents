@@ -104,6 +104,12 @@ def test_run_workflow_can_allow_incomplete_target_date(monkeypatch):
         ),
     )
     monkeypatch.setattr(workflow, "build_reports_site", lambda date: calls.append(date))
+    # build_static_site invokes the real `mkdocs build --strict`, which needs
+    # the derived per-ticker docs/<TICKER>/index.md hubs that only exist after
+    # a real report run — never in a fresh checkout (CI). Not this test's
+    # concern (it verifies the incomplete-target-date allowance), so stub it
+    # like the other workflow steps.
+    monkeypatch.setattr(workflow, "build_static_site", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         workflow,
         "validate_homepage",
@@ -330,6 +336,10 @@ def test_workflow_command_order_is_process_build_validate(monkeypatch):
     monkeypatch.setattr(workflow, "require_full_coverage", lambda runs, selected, date: None)
     monkeypatch.setattr(workflow, "process_selected_runs", lambda selected: calls.append("process"))
     monkeypatch.setattr(workflow, "build_reports_site", lambda date: calls.append("build_reports_site"))
+    # Real `mkdocs build --strict` needs the derived per-ticker docs/<TICKER>/
+    # index.md hubs, which don't exist in a fresh checkout (CI). This test only
+    # cares about call order among the three workflow steps below, so stub it.
+    monkeypatch.setattr(workflow, "build_static_site", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         workflow,
         "validate_homepage",
@@ -352,7 +362,7 @@ def test_dry_run_uses_copied_docs_and_restores_repo_paths(tmp_path, monkeypatch)
     def fake_run_workflow(analysis_date, **kwargs):
         observed["analysis_date"] = analysis_date
         observed["docs"] = workflow.DOCS
-        assert workflow.DOCS != docs
+        assert docs != workflow.DOCS
         assert (workflow.DOCS / "AAPL" / "20260602_opus_20260602_101010").is_dir()
         (workflow.DOCS / "dry-run-marker").write_text("temp only", encoding="utf-8")
 
@@ -362,4 +372,4 @@ def test_dry_run_uses_copied_docs_and_restores_repo_paths(tmp_path, monkeypatch)
 
     assert observed["analysis_date"] == "20260602"
     assert not (docs / "dry-run-marker").exists()
-    assert workflow.DOCS == docs
+    assert docs == workflow.DOCS
