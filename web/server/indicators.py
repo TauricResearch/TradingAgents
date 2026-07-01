@@ -175,12 +175,45 @@ def write_indicators(indicators: list[IndicatorDefinition]) -> None:
 
 def add_indicator(body: dict[str, Any]) -> IndicatorDefinition:
     kind = str(body.get("kind", "vix"))
-    if kind not in {d.kind for d in DEFAULT_INDICATORS}:
+
+    # Validate kind is supported
+    supported_kinds = {d.kind for d in DEFAULT_INDICATORS} | {"ticker_price"}
+    if kind not in supported_kinds:
         raise ValueError(f"unsupported indicator kind: {kind}")
-    base = next(d for d in DEFAULT_INDICATORS if d.kind == kind)
+
+    # For ticker_price, validate ticker is provided
+    ticker = body.get("ticker")
+    if kind == "ticker_price":
+        if not ticker:
+            raise ValueError("ticker is required for ticker_price alerts")
+        ticker = str(ticker).upper()
+        # Validate ticker exists
+        try:
+            yf.Ticker(ticker).fast_info["lastPrice"]
+        except Exception:
+            raise ValueError(f"Ticker '{ticker}' not found. Please check the symbol.")
+
+    # Get base definition for defaults
+    if kind == "ticker_price":
+        # Create a base definition for ticker_price
+        base = IndicatorDefinition(
+            id="",
+            kind="ticker_price",
+            name=f"{ticker} Alert",
+            description=f"Alert when {ticker} reaches the target price.",
+            threshold=0,
+            comparator="above",
+            unit="price",
+            ticker=ticker,
+        )
+    else:
+        base = next(d for d in DEFAULT_INDICATORS if d.kind == kind)
+
     name = str(body.get("name") or base.name).strip()
     threshold = float(body.get("threshold", base.threshold))
+    comparator = str(body.get("comparator", base.comparator))
     indicator_id = _slugify(str(body.get("id") or name or kind))
+
     rows = read_indicators()
     existing_ids = {row.id for row in rows}
     if indicator_id in existing_ids:
@@ -188,16 +221,30 @@ def add_indicator(body: dict[str, Any]) -> IndicatorDefinition:
         while f"{indicator_id}-{suffix}" in existing_ids:
             suffix += 1
         indicator_id = f"{indicator_id}-{suffix}"
+
+    # Check for duplicate ticker_price alerts
+    if kind == "ticker_price":
+        for row in rows:
+            if (
+                row.kind == "ticker_price"
+                and row.ticker == ticker
+                and row.comparator == comparator
+                and row.threshold == threshold
+            ):
+                raise ValueError(f"Alert already exists for {ticker} {comparator} ${threshold}")
+
     row = IndicatorDefinition(
         id=indicator_id,
         kind=base.kind,
         name=name,
         description=str(body.get("description") or base.description),
         threshold=threshold,
-        comparator=base.comparator,
+        comparator=comparator,
         unit=base.unit,
         source="custom",
         enabled=bool(body.get("enabled", True)),
+        ticker=ticker,
+        triggered=False,
     )
     write_indicators([*rows, row])
     return row
@@ -226,17 +273,53 @@ def update_indicator(indicator_id: str, body: dict[str, Any]) -> IndicatorDefini
             if new_enabled is not None:
                 if not isinstance(new_enabled, bool):
                     raise ValueError("enabled must be a boolean")
-                new_enabled = new_enabled
+            new_comparator = body.get("comparator")
+            if new_comparator is not None:
+                if new_comparator not in ("above", "below", "at_least", "within"):
+                    raise ValueError("comparator must be one of: above, below, at_least, within")
+            new_ticker = body.get("ticker")
+            new_triggered = body.get("triggered")
+            if new_triggered is not None:
+                if not isinstance(new_triggered, bool):
+                    raise ValueError("triggered must be a boolean")
+
             rows[i] = IndicatorDefinition(
                 id=row.id,
                 kind=row.kind,
                 name=row.name,
                 description=row.description,
                 threshold=new_threshold if new_threshold is not None else row.threshold,
-                comparator=row.comparator,
+                comparator=new_comparator if new_comparator is not None else row.comparator,
                 unit=row.unit,
                 enabled=new_enabled if new_enabled is not None else row.enabled,
                 source=row.source,
+                ticker=new_ticker if new_ticker is not None else row.ticker,
+                triggered=new_triggered if new_triggered is not None else row.triggered,
+            )
+            write_indicators(rows)
+            return rows[i]
+    return None
+
+
+def reset_indicator(indicator_id: str) -> IndicatorDefinition | None:
+    """Reset a single indicator's triggered state to False (re-arm one-shot alert)."""
+    rows = read_indicators()
+    for i, row in enumerate(rows):
+        if row.id == indicator_id:
+            if not row.triggered:
+                return row  # Already active, no change needed
+            rows[i] = IndicatorDefinition(
+                id=row.id,
+                kind=row.kind,
+                name=row.name,
+                description=row.description,
+                threshold=row.threshold,
+                comparator=row.comparator,
+                unit=row.unit,
+                enabled=row.enabled,
+                source=row.source,
+                ticker=row.ticker,
+                triggered=False,
             )
             write_indicators(rows)
             return rows[i]
