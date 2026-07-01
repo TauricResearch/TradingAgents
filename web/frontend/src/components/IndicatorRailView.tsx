@@ -278,7 +278,7 @@ export function IndicatorRailView() {
 
       let conversationHistory: Record<string, unknown>[] = [
         { role: "system", content: systemPrompt },
-        ...messages.filter(m => m.content && m.content.trim()).map(toApiMessage),
+        ...messages.filter(m => (m.content && m.content.trim()) || (m.role === "assistant" && m.toolCalls?.length > 0) || m.role === "tool").map(toApiMessage),
         { role: "user", content: trimmed },
       ];
 
@@ -348,7 +348,9 @@ export function IndicatorRailView() {
                   updateMessage(currentMsgId, { content: fullResponse });
                 }
               }
-            } catch {}
+            } catch (parseErr) {
+              console.warn("IndicatorRailView: failed to parse SSE event:", data, parseErr);
+            }
           }
         }
 
@@ -446,6 +448,9 @@ export function IndicatorRailView() {
             onChange={(e) => scheduleMutation.mutate(Number(e.target.value))}
           >
             <option value={0}>Off (manual only)</option>
+            <option value={300000}>Every 5m</option>
+            <option value={900000}>Every 15m</option>
+            <option value={1800000}>Every 30m</option>
             <option value={3600000}>Every 1h</option>
             <option value={7200000}>Every 2h</option>
             <option value={14400000}>Every 4h</option>
