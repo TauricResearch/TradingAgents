@@ -6,14 +6,12 @@ from web.server.app import create_app
 
 
 def _make_client(data_root):
-    from web.server import runner
-    from unittest.mock import AsyncMock, MagicMock
 
     async def fake_enqueue(*a, **kw):
         return "fake-run-id"
 
     import pytest  # noqa: F401 – just for the fixture; we call directly
-    from web.server import storage
+
     from web.server.tests.conftest import data_root as _  # noqa: F401
 
     app = create_app()
@@ -90,9 +88,9 @@ def test_extract_tool_definitions_extracts_path_params():
 
 
 def test_extract_tool_definitions_fallback_description():
-    from web.server.chat_router import extract_tool_definitions
-
     from fastapi import FastAPI
+
+    from web.server.chat_router import extract_tool_definitions
 
     app = FastAPI()
 
@@ -108,9 +106,9 @@ def test_extract_tool_definitions_fallback_description():
 
 def test_extract_tool_definitions_root_fallback():
     """Route at '/' gets tool_name='root'."""
-    from web.server.chat_router import extract_tool_definitions
-
     from fastapi import FastAPI
+
+    from web.server.chat_router import extract_tool_definitions
 
     app = FastAPI()
 
@@ -128,10 +126,9 @@ class TestGetToolsEndpoint:
     """GET /api/chat/tools returns auto-generated tool definitions."""
 
     def test_returns_200_with_tools_list(self, data_root):
-        from web.server import runner
-        from unittest.mock import AsyncMock
 
         import pytest  # noqa: F401
+
         from web.server.tests.conftest import data_root as _  # noqa: F401
 
         app = create_app()
@@ -144,10 +141,9 @@ class TestGetToolsEndpoint:
             assert len(body["tools"]) > 0
 
     def test_tool_shape(self, data_root):
-        from web.server import runner
-        from unittest.mock import AsyncMock
 
         import pytest  # noqa: F401
+
         from web.server.tests.conftest import data_root as _  # noqa: F401
 
         app = create_app()
@@ -181,8 +177,8 @@ class TestProxyEndpoint:
             assert r.status_code == 422
 
     def test_proxy_get_health(self, data_root, monkeypatch):
-        from unittest.mock import AsyncMock, MagicMock, patch
-        import httpx
+        from unittest.mock import AsyncMock, MagicMock
+
 
         app = create_app()
         with TestClient(app) as client:

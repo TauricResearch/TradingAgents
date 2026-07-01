@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import re
-import os
 import json
+import os
+import re
 from typing import Any
 
 import httpx
@@ -145,17 +145,17 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
     print(f"[proxy] INCOMING REQUEST: {proxy_req.method} {proxy_req.path}")
     print(f"[proxy]   params: {proxy_req.params}")
     print(f"[proxy]   body: {proxy_req.body}")
-    
+
     base_url = str(request.base_url).rstrip("/")
-    
+
     # Substitute path parameters (e.g. {ticker}) with actual values from params
     import re as _re_path
     path = proxy_req.path
     params = dict(proxy_req.params or {})
-    
+
     print(f"[proxy] Original path: {path}")
     print(f"[proxy] Params before substitution: {params}")
-    
+
     def _sub_path_param(m: _re_path.Match) -> str:
         param_name = m.group(1)
         value = params.pop(param_name, None)
@@ -166,11 +166,11 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
             status_code=400,
             detail=f"Missing required path parameter '{param_name}' in the request.",
         )
-    
+
     resolved_path = _re_path.sub(r'\{(\w+)\}', _sub_path_param, path)
     print(f"[proxy] Resolved path: {resolved_path}")
     print(f"[proxy] Remaining params: {params}")
-    
+
     target_url = f"{base_url}{resolved_path}"
     print(f"[proxy] Target URL: {target_url}")
 
@@ -184,7 +184,7 @@ async def proxy_request(proxy_req: ProxyRequest, request: Request):
             else None,
             headers={"Cookie": request.headers.get("cookie", "")},
         )
-    
+
     print(f"[proxy] Response status: {response.status_code}")
 
     content = (
@@ -224,8 +224,9 @@ async def _stream_chat(req: ChatCompletionRequest, request: Request):
     import uuid as _uuid
 
     try:
-        from tradingagents.llm_clients import create_llm_client
         from pathlib import Path
+
+        from tradingagents.llm_clients import create_llm_client
 
         # Read .env
         env = {}
@@ -254,7 +255,6 @@ async def _stream_chat(req: ChatCompletionRequest, request: Request):
         client = create_llm_client(provider=provider, model=model_name, base_url=base_url)
         llm = client.get_llm()
 
-        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 
         langchain_messages = _build_langchain_messages(req)
 
@@ -263,19 +263,19 @@ async def _stream_chat(req: ChatCompletionRequest, request: Request):
         lc_tools = []
         if use_tools:
             from langchain_core.tools import StructuredTool
-            from pydantic import BaseModel, create_model
-            
+            from pydantic import create_model
+
             for tool in req.tools:
                 func_info = tool.get("function", {})
                 tool_name = func_info.get("name", "unnamed_tool")
                 tool_desc = func_info.get("description", "")
                 params_obj = func_info.get("parameters", {})
-                
+
                 # Create dynamic args_schema from OpenAI-style parameters
                 schema_fields = {}
                 required_params = params_obj.get("required", [])
                 properties = params_obj.get("properties", {})
-                
+
                 for param_name, param_spec in properties.items():
                     is_required = param_name in required_params
                     param_type = param_spec.get("type", "string")
@@ -291,7 +291,7 @@ async def _stream_chat(req: ChatCompletionRequest, request: Request):
                     # Default to ... (ellipsis) for required, None for optional
                     default = ... if is_required else None
                     schema_fields[param_name] = (py_type, default)
-                
+
                 if schema_fields:
                     # Create dynamic Pydantic model
                     model_name = f"{tool_name}Args"
@@ -302,7 +302,7 @@ async def _stream_chat(req: ChatCompletionRequest, request: Request):
                     tool_desc = f"{tool_desc}\n\nREQUIRED PARAMETERS: {required_str}\nJSON EXAMPLE: {json.dumps(example_args)}"
                 else:
                     args_schema = None
-                
+
                 lc_tools.append(StructuredTool(
                     name=tool_name,
                     description=tool_desc,
@@ -405,8 +405,9 @@ async def _stream_chat(req: ChatCompletionRequest, request: Request):
 
 async def _non_stream_chat(req: ChatCompletionRequest, request: Request):
     """Non-streaming chat completion."""
-    from tradingagents.llm_clients import create_llm_client
     from pathlib import Path
+
+    from tradingagents.llm_clients import create_llm_client
 
     env = {}
     env_path = Path(__file__).resolve().parent.parent.parent / ".env"
@@ -533,7 +534,7 @@ async def _non_stream_chat(req: ChatCompletionRequest, request: Request):
 
 def _build_langchain_messages(req: ChatCompletionRequest):
     """Convert OpenAI-format messages to LangChain format."""
-    from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
     messages = []
     for msg in req.messages:

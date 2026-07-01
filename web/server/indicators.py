@@ -270,18 +270,15 @@ def update_indicator(indicator_id: str, body: dict[str, Any]) -> IndicatorDefini
                 except (TypeError, ValueError):
                     raise ValueError("threshold must be a number") from None
             new_enabled = body.get("enabled")
-            if new_enabled is not None:
-                if not isinstance(new_enabled, bool):
-                    raise ValueError("enabled must be a boolean")
+            if new_enabled is not None and not isinstance(new_enabled, bool):
+                raise ValueError("enabled must be a boolean")
             new_comparator = body.get("comparator")
-            if new_comparator is not None:
-                if new_comparator not in ("above", "below", "at_least", "within"):
-                    raise ValueError("comparator must be one of: above, below, at_least, within")
+            if new_comparator is not None and new_comparator not in ("above", "below", "at_least", "within"):
+                raise ValueError("comparator must be one of: above, below, at_least, within")
             new_ticker = body.get("ticker")
             new_triggered = body.get("triggered")
-            if new_triggered is not None:
-                if not isinstance(new_triggered, bool):
-                    raise ValueError("triggered must be a boolean")
+            if new_triggered is not None and not isinstance(new_triggered, bool):
+                raise ValueError("triggered must be a boolean")
 
             rows[i] = IndicatorDefinition(
                 id=row.id,
