@@ -153,6 +153,9 @@ class IndicatorIn(BaseModel):
     threshold: float | None = None
     description: str | None = None
     enabled: bool = True
+    ticker: str | None = None
+    comparator: str | None = None
+    triggered: bool | None = None
 
 
 # --------- Background indicator scheduler ---------
