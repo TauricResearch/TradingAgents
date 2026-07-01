@@ -24,6 +24,7 @@ IndicatorKind = Literal[
     "s5fi",
     "green_streak",
     "price_vs_moving_averages",
+    "ticker_price",
 ]
 
 CNN_FEAR_GREED_URL = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
@@ -57,6 +58,8 @@ class IndicatorDefinition:
     unit: str
     enabled: bool = True
     source: Literal["builtin", "custom"] = "builtin"
+    ticker: str | None = None  # only for ticker_price kind
+    triggered: bool = False    # one-shot state
 
 
 DEFAULT_INDICATORS: list[IndicatorDefinition] = [
@@ -122,7 +125,7 @@ def _config_path():
 
 
 def _definition_to_dict(defn: IndicatorDefinition) -> dict[str, Any]:
-    return {
+    result = {
         "id": defn.id,
         "kind": defn.kind,
         "name": defn.name,
@@ -133,6 +136,10 @@ def _definition_to_dict(defn: IndicatorDefinition) -> dict[str, Any]:
         "enabled": defn.enabled,
         "source": defn.source,
     }
+    if defn.ticker is not None:
+        result["ticker"] = defn.ticker
+    result["triggered"] = defn.triggered
+    return result
 
 
 def _definition_from_dict(data: dict[str, Any]) -> IndicatorDefinition:
@@ -146,6 +153,8 @@ def _definition_from_dict(data: dict[str, Any]) -> IndicatorDefinition:
         unit=str(data.get("unit", "")),
         enabled=bool(data.get("enabled", True)),
         source=str(data.get("source", "custom")),  # type: ignore[arg-type]
+        ticker=data.get("ticker"),
+        triggered=bool(data.get("triggered", False)),
     )
 
 
