@@ -72,6 +72,8 @@ def _json_value(value: Any) -> Any:
         pass
     if hasattr(value, "item"):
         value = value.item()
+    if isinstance(value, bool):
+        return value
     if isinstance(value, float):
         return float(value)
     if isinstance(value, int):
