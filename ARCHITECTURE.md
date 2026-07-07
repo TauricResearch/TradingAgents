@@ -112,8 +112,15 @@ rejected ◀──── any gate ──────────── reflectio
 | `votes.py` | Deterministic vote accounting + confidence-weighted consensus (ties → HOLD) |
 | `gates.py` | `risk_gate`: VaR/CVaR vs limits, level availability; fails closed |
 | `nodes.py` | All node implementations; PM builds the `TradeRecommendation` from engine numbers only |
-| `graph.py` | Graph assembly, `run_pipeline` helper, `PipelineState` |
+| `graph.py` | Graph assembly, `run_pipeline` / `stream_pipeline`, `PipelineState` |
 | `prompts/*.md` | Versioned debate/sentiment/critic/reflection/judge templates |
+
+Phase 6 enhancements (ADR-0022): `prepare` fans out into five parallel
+team nodes merged by a state reducer (optional intra-team thread pool);
+empty-evidence debate stages are skipped dynamically; a `human_approval`
+interrupt node gates live execution (live builds require a checkpointer);
+structured calls retry with a bounded budget; `stream_pipeline` yields
+per-node updates.
 
 ### Phase 5 — `tradingagents/pro/memory/`
 

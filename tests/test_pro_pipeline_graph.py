@@ -186,23 +186,24 @@ def test_unsupported_judge_ruling_rejected_at_pm():
     assert state["recommendation"] is None
 
 
-def test_gather_rejects_when_no_agent_produces_evidence():
+def test_join_rejects_when_no_agent_produces_evidence():
     llm = FakePipelineLLM(overrides={EvidenceDraft: RuntimeError("all agents down")})
     state = run_pipeline(llm, CONFIG, pipeline_snapshot())
-    assert state["rejection"]["stage"] == "gather"
+    assert state["rejection"]["stage"] == "join"
     assert state["recommendation"] is None
     assert state["debate"] == []  # rejected before any debate turn
 
 
-def test_live_mode_execution_is_refused_pending_human_approval():
+def test_live_mode_without_checkpointer_cannot_even_build():
+    import pytest
+
     llm = FakePipelineLLM()
     config = ProConfig(
         asset=AssetClass.GOLD, mode=TradingMode.LIVE,
         live_trading_enabled=True, max_debate_rounds=1,
     )
-    state = run_pipeline(llm, config, pipeline_snapshot())
-    assert state["recommendation"] is not None  # research artifact stands
-    assert state["execution_status"].startswith("refused: live mode requires")
+    with pytest.raises(ValueError, match="requires a checkpointer"):
+        run_pipeline(llm, config, pipeline_snapshot())
 
 
 def test_sell_ruling_builds_sell_geometry():

@@ -240,3 +240,22 @@ WINNING_PATTERN lesson. Only closed trades become historical analogs; win
 statistics for Kelly require a minimum sample (5 closed trades) and both
 wins and losses — a Kelly fraction fabricated from a degenerate history is
 worse than none.
+
+## ADR-0022: Parallel teams via reducer channel; live mode requires a checkpointer
+
+**Status:** accepted (Phase 6)
+
+Evidence gathering fans out from ``prepare`` into five team nodes that
+LangGraph executes in one superstep; their writes merge through a reducer
+on the ``evidence_by_team`` channel, and a fixed team iteration order keeps
+votes deterministic regardless of branch completion order. Intra-team
+agent calls can additionally run on a thread pool (``agent_workers``).
+Debate stages whose team produced no evidence are skipped dynamically.
+
+The human-approval gate is a LangGraph ``interrupt()``: a live run pauses
+after the Portfolio Manager and only ``Command(resume={"approved": True})``
+reaches execution — a decline is a recorded rejection. Because interrupts
+need persistence, ``build_pro_pipeline`` refuses to build a live-mode
+pipeline without a checkpointer (fail closed, Constraint 5). Structured
+LLM calls get a bounded retry budget (``llm_retries``); streaming exposes
+per-node updates for the Phase 10 dashboard.

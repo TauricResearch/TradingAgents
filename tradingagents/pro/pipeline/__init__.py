@@ -1,7 +1,12 @@
 """Pro debate pipeline (Phase 4): evidence -> debate -> gates -> recommendation."""
 
 from tradingagents.pro.pipeline.gates import GateResult, risk_gate
-from tradingagents.pro.pipeline.graph import PipelineState, build_pro_pipeline, run_pipeline
+from tradingagents.pro.pipeline.graph import (
+    PipelineState,
+    build_pro_pipeline,
+    run_pipeline,
+    stream_pipeline,
+)
 from tradingagents.pro.pipeline.nodes import PipelineNodes, load_pipeline_prompt
 from tradingagents.pro.pipeline.schemas import (
     CriticReport,
@@ -21,6 +26,7 @@ __all__ = [
     "PipelineState",
     "build_pro_pipeline",
     "run_pipeline",
+    "stream_pipeline",
     "PipelineNodes",
     "load_pipeline_prompt",
     "CriticReport",

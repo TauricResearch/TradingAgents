@@ -4,14 +4,20 @@ Every node returns a partial state update. Gates write ``rejection`` and
 the graph routes to the terminal ``rejected`` node — a rejected run ends
 with no TradeRecommendation (Constraint 4). LLM calls go through the same
 injectable structured-output interface the evidence agents use.
+
+Phase 6: evidence gathering is split into ``prepare`` + five parallel team
+nodes + a ``join`` gate; live mode pauses at the ``human_approval`` node
+(LangGraph interrupt) and only an explicit approval resumes into execution.
 """
 
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from importlib import resources
 from typing import Any
 
+from langgraph.types import interrupt
 from pydantic import ValidationError
 
 from tradingagents.contracts import (
@@ -86,8 +92,20 @@ def _debate_block(debate: list[dict]) -> str:
     return "\n".join(lines)
 
 
+# Fixed iteration order keeps votes/evidence deterministic regardless of
+# which parallel team branch finished first.
+TEAM_ORDER = (
+    AgentTeam.TECHNICAL,
+    AgentTeam.MACRO,
+    AgentTeam.NEWS_SENTIMENT,
+    AgentTeam.QUANT,
+    AgentTeam.RISK,
+)
+
+
 def _all_evidence(state: dict) -> list[AgentEvidence]:
-    return [e for team in state["evidence_by_team"].values() for e in team]
+    by_team = state["evidence_by_team"]
+    return [e for team in TEAM_ORDER for e in by_team.get(team.value, [])]
 
 
 def _with_memory(evidence_block: str, state: dict) -> str:
@@ -99,29 +117,50 @@ def _with_memory(evidence_block: str, state: dict) -> str:
 
 
 class PipelineNodes:
-    """Node functions bound to an LLM, config, equity base, and optional memory."""
+    """Node functions bound to an LLM, config, equity base, and optional memory.
 
-    def __init__(self, llm, config: ProConfig, equity: float = 100_000.0, memory=None):
+    ``llm_retries`` bounds re-attempts of failed structured calls;
+    ``agent_workers`` > 1 runs a team's evidence agents on a thread pool
+    (LLM calls are I/O bound).
+    """
+
+    def __init__(
+        self,
+        llm,
+        config: ProConfig,
+        equity: float = 100_000.0,
+        memory=None,
+        llm_retries: int = 1,
+        agent_workers: int = 1,
+    ):
+        if llm_retries < 0 or agent_workers < 1:
+            raise ValueError("llm_retries must be >= 0 and agent_workers >= 1")
         self.llm = llm
         self.config = config
         self.equity = equity
         self.memory = memory  # ProMemory | None (duck-typed; tests may fake it)
+        self.llm_retries = llm_retries
+        self.agent_workers = agent_workers
         self._prompts = {
             name: load_pipeline_prompt(name)
             for name in ("debate", "sentiment", "critic", "reflection", "judge")
         }
 
     def _invoke(self, schema, prompt: str):
-        try:
-            return self.llm.with_structured_output(schema).invoke(prompt)
-        except Exception:
-            logger.warning("pipeline structured call failed for %s", schema.__name__,
-                           exc_info=True)
-            return None
+        for attempt in range(1 + self.llm_retries):
+            try:
+                return self.llm.with_structured_output(schema).invoke(prompt)
+            except Exception:
+                logger.warning(
+                    "pipeline structured call failed for %s (attempt %d/%d)",
+                    schema.__name__, attempt + 1, 1 + self.llm_retries, exc_info=True,
+                )
+        return None
 
-    # --- gather ----------------------------------------------------------------
+    # --- prepare -> parallel teams -> join ------------------------------------
 
-    def gather(self, state: dict) -> dict[str, Any]:
+    def prepare(self, state: dict) -> dict[str, Any]:
+        """Deterministic pre-work: engine metrics, regime, memory context."""
         snapshot = state["snapshot"]
         bars = snapshot.bars
         quant = compute_quant_metrics(bars)
@@ -134,25 +173,16 @@ class PipelineNodes:
         risk = compute_risk_metrics(
             snapshot, self.config.risk, self.equity, **win_kwargs
         )
-        extras: dict[str, MetricReading] = {**quant, **risk}
-
-        evidence_by_team: dict[str, list[AgentEvidence]] = {}
-        for team in (
-            AgentTeam.TECHNICAL,
-            AgentTeam.MACRO,
-            AgentTeam.NEWS_SENTIMENT,
-            AgentTeam.QUANT,
-            AgentTeam.RISK,
-        ):
-            agents = build_team(SPECS_BY_TEAM[team], self.llm)
-            evidence_by_team[team.value] = run_agents(agents, snapshot, extra_metrics=extras)
-
         regime = classify_regime(bars) if len(bars) >= 3 else MarketRegime.UNKNOWN
 
         analogs, memory_context = [], ""
         if self.memory:
             from tradingagents.pro.memory import describe_snapshot
 
+            self.memory.record_regime(
+                snapshot.symbol, regime,
+                {name: m.value for name, m in quant.items()},
+            )
             query = describe_snapshot(snapshot, regime)
             analogs = self.memory.historical_analogs(query, k=3, symbol=snapshot.symbol)
             blocks = []
@@ -171,8 +201,7 @@ class PipelineNodes:
                 blocks.append(relations)
             memory_context = "\n".join(blocks)
 
-        update: dict[str, Any] = {
-            "evidence_by_team": evidence_by_team,
+        return {
             "quant_metrics": quant,
             "risk_metrics": risk,
             "regime": regime,
@@ -182,12 +211,40 @@ class PipelineNodes:
             "historical_analogs": analogs,
             "memory_context": memory_context,
         }
-        if not any(evidence_by_team.values()):
-            update["rejection"] = {
-                "stage": "gather",
-                "reasons": ["no agent produced evidence; nothing to debate"],
+
+    def make_team_node(self, team: AgentTeam):
+        """One node per team; the graph runs the five in the same superstep,
+        so LangGraph executes them concurrently. Each writes only its own
+        key into the reduced ``evidence_by_team`` channel."""
+
+        def node(state: dict) -> dict[str, Any]:
+            snapshot = state["snapshot"]
+            extras: dict[str, MetricReading] = {
+                **state["quant_metrics"], **state["risk_metrics"]
             }
-        return update
+            agents = build_team(SPECS_BY_TEAM[team], self.llm)
+            if self.agent_workers > 1:
+                with ThreadPoolExecutor(max_workers=self.agent_workers) as pool:
+                    results = list(pool.map(
+                        lambda agent: agent.analyze(snapshot, extra_metrics=extras),
+                        agents,
+                    ))
+                evidence = [e for e in results if e is not None]
+            else:
+                evidence = run_agents(agents, snapshot, extra_metrics=extras)
+            return {"evidence_by_team": {team.value: evidence}}
+
+        node.__name__ = f"team_{team.value}"
+        return node
+
+    def join(self, state: dict) -> dict[str, Any]:
+        """Fan-in gate: no evidence from any team means nothing to debate."""
+        if not any(state.get("evidence_by_team", {}).values()):
+            return {"rejection": {
+                "stage": "join",
+                "reasons": ["no agent produced evidence; nothing to debate"],
+            }}
+        return {}
 
     # --- debate ----------------------------------------------------------------
 
@@ -418,13 +475,46 @@ class PipelineNodes:
             }}
         return {"recommendation": recommendation}
 
+    def human_approval(self, state: dict) -> dict:
+        """Mandatory human gate for live mode (Constraint 5).
+
+        Pauses the graph via LangGraph interrupt; resuming with
+        ``Command(resume={"approved": bool, "approver": str, ...})`` decides
+        the route. Paper/backtest pass through untouched.
+        """
+        if self.config.mode is not TradingMode.LIVE:
+            return {}
+        rec = state.get("recommendation")
+        decision = interrupt({
+            "question": "Approve live execution of this recommendation?",
+            "recommendation": rec.model_dump(mode="json") if rec is not None else None,
+        })
+        approved = bool(decision.get("approved")) if isinstance(decision, dict) else False
+        update: dict[str, Any] = {"human_approval": {
+            "approved": approved,
+            "approver": (decision or {}).get("approver", "unknown")
+            if isinstance(decision, dict) else "unknown",
+        }}
+        if not approved:
+            update["rejection"] = {
+                "stage": "human_approval",
+                "reasons": ["human approver declined live execution"],
+            }
+        return update
+
     def execution(self, state: dict) -> dict:
-        if self.config.mode is TradingMode.LIVE:
-            # Constraint 5: the human-approval graph node arrives in Phase 6;
-            # until it exists, live routing is refused unconditionally.
-            return {"execution_status":
-                    "refused: live mode requires the human-approval node (Phase 6)"}
         recommendation = state.get("recommendation")
+        if self.config.mode is TradingMode.LIVE:
+            approval = state.get("human_approval") or {}
+            if not approval.get("approved"):
+                # unreachable via the graph (human_approval gates first),
+                # but fail closed if this node is ever invoked directly
+                return {"execution_status":
+                        "refused: live execution without recorded human approval"}
+            if self.memory and recommendation is not None:
+                self.memory.record_trade(recommendation, regime=state["regime"])
+            return {"execution_status":
+                    "accepted:live (human-approved; broker routing arrives in Phase 9)"}
         if self.memory and recommendation is not None:
             self.memory.record_trade(recommendation, regime=state["regime"])
         return {"execution_status": f"accepted:{self.config.mode.value}"}
