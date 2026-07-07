@@ -53,6 +53,7 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+"tradingagents.pro.agents" = ["prompts/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
