@@ -186,3 +186,29 @@ News/sentiment agents need per-item provenance for per-claim attribution
 backward compatible (defaults to empty; 0.1 payloads still validate).
 Typed news-feed adapters (Reddit, RSS wires, economic calendar) are the
 flagged Phase 3.1 follow-up; until then callers inject items.
+
+## ADR-0018: Pipeline gates are deterministic; LLM stages argue, code decides
+
+**Status:** accepted (Phase 4)
+
+The debate pipeline's rejection points are code: the risk gate compares
+engine-computed VaR/CVaR against `RiskLimits` and fails closed when it has
+nothing to check; the PM stage rejects a ruling with no supporting
+evidence, recomputes side-correct levels, and lets the TradeRecommendation
+contract's geometry validation act as the final gate; a critic-model
+outage is a *fail*, not a pass-through. Every gate routes to one terminal
+``rejected`` node and a rejected run ends with no recommendation
+(Constraint 4). Votes are tallied in code (evidence direction × confidence,
+ties resolve to HOLD); the judge sees the tally and must justify ruling
+against it, but cannot alter it.
+
+## ADR-0019: Execution node refuses live routing until Phase 6
+
+**Status:** accepted (Phase 4)
+
+Even a fully-approved recommendation cannot reach live execution: the
+execution node accepts paper/backtest modes and unconditionally refuses
+live mode with an explicit reason, because the human-approval graph node
+(Constraint 5) is Phase 6 scope. The research artifact (recommendation)
+survives; only routing is refused. This makes "live before human approval
+exists" structurally impossible rather than configurationally unlikely.

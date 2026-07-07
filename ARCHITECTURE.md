@@ -90,9 +90,32 @@ Evidence flow: `MarketSnapshot` (+ engine extras) → rendering → LLM
 agent was actually shown. Known input gaps (VWAP/ADX/Supertrend, X/Twitter)
 abstain by design and are noted per spec.
 
-### Later phases (planned)
+### Phase 4 — `tradingagents/pro/pipeline/`
 
-- Phase 4: debate pipeline nodes (executive roles) producing `TradeRecommendation`.
+The debate pipeline as a LangGraph `StateGraph` (ADR-0018/0019):
+
+```
+gather ──> technical bull ⇄ bear ──> macro bull ⇄ bear ──> sentiment
+  │            (bounded rounds)          (bounded rounds)        │
+  │                                                       risk gate (code)
+  │ (no evidence)                                                │
+  ▼                                                           critic
+rejected ◀──── any gate ──────────── reflection ──> judge ──> portfolio mgr
+  │                                                              │
+  ▼                                                          execution
+ END ◀────────────────────────────────────────── (paper OK; live refused)
+```
+
+| Module | Provides |
+|---|---|
+| `schemas.py` | Structured outputs: `DebateTurn`, `CriticReport`, `ReflectionNote`, `JudgeVerdict` |
+| `votes.py` | Deterministic vote accounting + confidence-weighted consensus (ties → HOLD) |
+| `gates.py` | `risk_gate`: VaR/CVaR vs limits, level availability; fails closed |
+| `nodes.py` | All node implementations; PM builds the `TradeRecommendation` from engine numbers only |
+| `graph.py` | Graph assembly, `run_pipeline` helper, `PipelineState` |
+| `prompts/*.md` | Versioned debate/sentiment/critic/reflection/judge templates |
+
+### Later phases (planned)
 - Phases 5–11: memory, graph enhancements, backtesting, RL, execution,
   dashboard, production engineering.
 
