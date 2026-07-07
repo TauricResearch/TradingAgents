@@ -212,3 +212,31 @@ live mode with an explicit reason, because the human-approval graph node
 (Constraint 5) is Phase 6 scope. The research artifact (recommendation)
 survives; only routing is refused. This makes "live before human approval
 exists" structurally impossible rather than configurationally unlikely.
+
+## ADR-0020: Qdrant over Milvus; dependency-free default index
+
+**Status:** accepted (Phase 5)
+
+Qdrant is the chosen vector DB when one is needed: it runs embedded/local
+(no service for dev), is a single binary in prod, and has first-class
+payload filtering. Milvus's distributed architecture (etcd + object store
++ workers) is unjustified at this project's memory scale. But neither is
+required to *run*: the default is an exact-cosine in-memory index over the
+JSONL store (thousands of records is nothing), with `QdrantIndex` behind
+the optional `qdrant` extra implementing the same `VectorIndex` protocol.
+Embeddings are likewise injectable — the default deterministic hashing
+embedder keeps tests/backtests offline; production plugs a real embedding
+callable without touching other code. The knowledge graph is a weighted
+adjacency list, not a graph database, for the same reason.
+
+## ADR-0021: Append-only memory with derived lesson records
+
+**Status:** accepted (Phase 5)
+
+Pro memory is a separate JSONL audit trail (the base framework's markdown
+log is untouched). Records are never rewritten: closing a trade appends an
+OUTCOME record referencing the TRADE record, plus a derived MISTAKE or
+WINNING_PATTERN lesson. Only closed trades become historical analogs; win
+statistics for Kelly require a minimum sample (5 closed trades) and both
+wins and losses — a Kelly fraction fabricated from a degenerate history is
+worse than none.

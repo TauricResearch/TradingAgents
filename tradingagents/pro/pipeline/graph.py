@@ -17,6 +17,7 @@ from langgraph.graph import END, START, StateGraph
 
 from tradingagents.contracts import (
     AgentEvidence,
+    HistoricalAnalog,
     MarketRegime,
     MarketSnapshot,
     MetricReading,
@@ -38,6 +39,8 @@ class PipelineState(TypedDict, total=False):
     technical_rounds: int
     macro_rounds: int
     gate_results: dict[str, dict]
+    historical_analogs: list[HistoricalAnalog]
+    memory_context: str
     reflection: dict
     judge_action: TradeAction
     judge_confidence: int
@@ -57,10 +60,11 @@ def _gate(next_node: str):
     return route
 
 
-def build_pro_pipeline(llm, config: ProConfig, equity: float = 100_000.0):
+def build_pro_pipeline(llm, config: ProConfig, equity: float = 100_000.0, memory=None):
     """Compile the debate pipeline. ``llm`` follows the structured-output
-    interface used throughout the Pro layer (any LangChain chat model)."""
-    nodes = PipelineNodes(llm, config, equity)
+    interface used throughout the Pro layer (any LangChain chat model);
+    ``memory`` is an optional ProMemory for analogs/lessons/win-stats."""
+    nodes = PipelineNodes(llm, config, equity, memory=memory)
     graph = StateGraph(PipelineState)
 
     graph.add_node("gather", nodes.gather)
@@ -128,7 +132,8 @@ def run_pipeline(
     config: ProConfig,
     snapshot: MarketSnapshot,
     equity: float = 100_000.0,
+    memory=None,
 ) -> dict[str, Any]:
     """Build and invoke the pipeline once; returns the final state dict."""
-    pipeline = build_pro_pipeline(llm, config, equity)
+    pipeline = build_pro_pipeline(llm, config, equity, memory=memory)
     return pipeline.invoke({"snapshot": snapshot})

@@ -90,13 +90,22 @@ def _all_evidence(state: dict) -> list[AgentEvidence]:
     return [e for team in state["evidence_by_team"].values() for e in team]
 
 
-class PipelineNodes:
-    """Node functions bound to an LLM, config, and equity base."""
+def _with_memory(evidence_block: str, state: dict) -> str:
+    """Append the memory context (analogs, lessons, relations) to an
+    evidence block; the record shown to debaters includes what the desk
+    has learned, with the same no-invention rules."""
+    context = state.get("memory_context") or ""
+    return f"{evidence_block}\n\n{context}" if context else evidence_block
 
-    def __init__(self, llm, config: ProConfig, equity: float = 100_000.0):
+
+class PipelineNodes:
+    """Node functions bound to an LLM, config, equity base, and optional memory."""
+
+    def __init__(self, llm, config: ProConfig, equity: float = 100_000.0, memory=None):
         self.llm = llm
         self.config = config
         self.equity = equity
+        self.memory = memory  # ProMemory | None (duck-typed; tests may fake it)
         self._prompts = {
             name: load_pipeline_prompt(name)
             for name in ("debate", "sentiment", "critic", "reflection", "judge")
@@ -116,7 +125,15 @@ class PipelineNodes:
         snapshot = state["snapshot"]
         bars = snapshot.bars
         quant = compute_quant_metrics(bars)
-        risk = compute_risk_metrics(snapshot, self.config.risk, self.equity)
+        stats = self.memory.win_stats(snapshot.symbol) if self.memory else None
+        win_kwargs = (
+            {"win_rate": stats[0], "avg_win": stats[1], "avg_loss": stats[2]}
+            if stats
+            else {}
+        )
+        risk = compute_risk_metrics(
+            snapshot, self.config.risk, self.equity, **win_kwargs
+        )
         extras: dict[str, MetricReading] = {**quant, **risk}
 
         evidence_by_team: dict[str, list[AgentEvidence]] = {}
@@ -131,6 +148,29 @@ class PipelineNodes:
             evidence_by_team[team.value] = run_agents(agents, snapshot, extra_metrics=extras)
 
         regime = classify_regime(bars) if len(bars) >= 3 else MarketRegime.UNKNOWN
+
+        analogs, memory_context = [], ""
+        if self.memory:
+            from tradingagents.pro.memory import describe_snapshot
+
+            query = describe_snapshot(snapshot, regime)
+            analogs = self.memory.historical_analogs(query, k=3, symbol=snapshot.symbol)
+            blocks = []
+            if analogs:
+                blocks.append("Historical analogs (from memory, with outcomes):")
+                blocks.extend(
+                    f"- [{a.similarity:.2f} similar] {a.description} => {a.outcome}"
+                    for a in analogs
+                )
+            lessons = self.memory.lessons(query, k=3, symbol=snapshot.symbol)
+            if lessons:
+                blocks.append("Lessons from prior decisions:")
+                blocks.extend(f"- {hit.record.text}" for hit in lessons)
+            relations = self.memory.relations_block(snapshot.symbol)
+            if relations:
+                blocks.append(relations)
+            memory_context = "\n".join(blocks)
+
         update: dict[str, Any] = {
             "evidence_by_team": evidence_by_team,
             "quant_metrics": quant,
@@ -139,6 +179,8 @@ class PipelineNodes:
             "debate": [],
             "technical_rounds": 0,
             "macro_rounds": 0,
+            "historical_analogs": analogs,
+            "memory_context": memory_context,
         }
         if not any(evidence_by_team.values()):
             update["rejection"] = {
@@ -156,7 +198,7 @@ class PipelineNodes:
             team=team.value,
             symbol=state["snapshot"].symbol,
             asset=state["snapshot"].asset.value,
-            evidence_block=_evidence_block(evidence),
+            evidence_block=_with_memory(_evidence_block(evidence), state),
             debate_block=_debate_block(state["debate"]),
         )
         turn = self._invoke(DebateTurn, prompt)
@@ -258,6 +300,10 @@ class PipelineNodes:
                 weaknesses="reflection model unavailable; treat thesis as untested",
                 invalidation="unknown — no invalidation condition was produced",
             )
+        if self.memory:
+            self.memory.record_reflection(
+                state["snapshot"].symbol, note.weaknesses, note.invalidation
+            )
         entry = {
             "speaker": "reflection",
             "stance": "falsification",
@@ -281,7 +327,7 @@ class PipelineNodes:
                 f"{consensus_action.value} carries {share:.0%} of confidence weight "
                 f"across {len(votes)} agent votes"
             ),
-            evidence_block=_evidence_block(evidence),
+            evidence_block=_with_memory(_evidence_block(evidence), state),
             debate_block=_debate_block(state["debate"]),
         )
         verdict = self._invoke(JudgeVerdict, prompt)
@@ -322,6 +368,7 @@ class PipelineNodes:
                 market_regime=state["regime"],
                 evidence=evidence,
                 vote_breakdown=state["vote_breakdown"],
+                historical_analogs=state.get("historical_analogs", []),
             )
             return {"recommendation": recommendation}
 
@@ -362,6 +409,7 @@ class PipelineNodes:
                 evidence=supporting,
                 counterarguments=opposing,
                 vote_breakdown=state["vote_breakdown"],
+                historical_analogs=state.get("historical_analogs", []),
             )
         except (ValidationError, KeyError) as exc:
             return {"rejection": {
@@ -376,6 +424,9 @@ class PipelineNodes:
             # until it exists, live routing is refused unconditionally.
             return {"execution_status":
                     "refused: live mode requires the human-approval node (Phase 6)"}
+        recommendation = state.get("recommendation")
+        if self.memory and recommendation is not None:
+            self.memory.record_trade(recommendation, regime=state["regime"])
         return {"execution_status": f"accepted:{self.config.mode.value}"}
 
     def rejected(self, state: dict) -> dict:

@@ -44,6 +44,11 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Qdrant backend for the Pro memory system (ADR-0020). The default in-memory
+# index needs nothing; install this to scale retrieval beyond one process.
+qdrant = [
+    "qdrant-client>=1.12",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

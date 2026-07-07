@@ -115,6 +115,25 @@ rejected ◀──── any gate ──────────── reflectio
 | `graph.py` | Graph assembly, `run_pipeline` helper, `PipelineState` |
 | `prompts/*.md` | Versioned debate/sentiment/critic/reflection/judge templates |
 
+### Phase 5 — `tradingagents/pro/memory/`
+
+Typed memory with semantic retrieval (ADR-0020/0021):
+
+| Module | Provides |
+|---|---|
+| `records.py` | `MemoryRecord` + kinds: trade, outcome, regime, reflection, strategy, mistake, winning_pattern |
+| `store.py` | Append-only JSONL audit trail (crash-safe appends, corrupt-line tolerant) |
+| `embedding.py` | Injectable `EmbeddingFn`; deterministic hashing embedder default |
+| `index.py` / `qdrant_index.py` | `VectorIndex` protocol: in-memory cosine default, optional Qdrant (`pip install "tradingagents[qdrant]"`) |
+| `graph.py` | Weighted knowledge graph + seeded gold/BTC market relationships |
+| `memory.py` | `ProMemory` facade: record/close trades (derives lessons), analogs, lessons, win-stats, relations block |
+
+Pipeline integration: gather injects historical analogs + lessons +
+relations into the debate context and win statistics into the risk engine
+(waking the Kelly agent); reflection notes and accepted trades are written
+back; the PM attaches analogs to `TradeRecommendation.historical_analogs`.
+Rejected runs write nothing.
+
 ### Later phases (planned)
 - Phases 5–11: memory, graph enhancements, backtesting, RL, execution,
   dashboard, production engineering.
