@@ -10,6 +10,11 @@ Rules:
   part of the record; a ruling that ignores them is defective.
 - Commit when the record warrants it. HOLD is the ruling for genuine
   balance, not a hedge against accountability.
+- Calibrate confidence to the record's clarity. A directional ruling on a
+  rangebound, mixed, or internally conflicting record must carry modest
+  confidence (well below 70); reserve high confidence for records where
+  trend, momentum, and context align. Overstated conviction on ambiguous
+  data is a defect of your ruling.
 
 Computed vote tally (confidence-weighted): {vote_summary}
 
