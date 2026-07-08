@@ -78,5 +78,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ["src/test/setup.ts"],
     css: false,
+    // e2e/ belongs to Playwright; vitest's default glob would ingest it
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 });
