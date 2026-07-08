@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-07-08T11:12:48.238615+00:00",
+  "symbol": "BTC-USD",
+  "ticker": "BTC-USD",
+  "bars": 250,
+  "window": [
+    "2025-11-01",
+    "2026-07-08"
+  ],
+  "provider": "env",
+  "models": {
+    "llm_provider": "deepseek",
+    "deep_think_llm": "deepseek-chat",
+    "quick_think_llm": "deepseek-chat",
+    "team_overrides": {},
+    "require_pinned_models": false
+  },
+  "decide_every": 12,
+  "decisions": 13,
+  "executed": 0,
+  "rejections": {
+    "risk_gate": 13
+  },
+  "final_equity": 100000.0,
+  "n_trades": 0,
+  "report": {
+    "total_return": 0.0,
+    "max_drawdown": 0.0,
+    "sharpe": 0.0,
+    "sortino": 0.0,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "expectancy": 0.0,
+    "n_trades": 0
+  },
+  "est_cost_usd": 0.19172231999999986,
+  "trades": []
+}

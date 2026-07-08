@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-07-08T11:13:31.061601+00:00",
+  "symbol": "BTC-USD",
+  "ticker": "BTC-USD",
+  "bars": 250,
+  "window": [
+    "2025-11-01",
+    "2026-07-08"
+  ],
+  "provider": "fake",
+  "models": "FakePipelineLLM",
+  "decide_every": 12,
+  "decisions": 13,
+  "executed": 0,
+  "rejections": {
+    "risk_gate": 13
+  },
+  "final_equity": 100000.0,
+  "n_trades": 0,
+  "report": {
+    "total_return": 0.0,
+    "max_drawdown": 0.0,
+    "sharpe": 0.0,
+    "sortino": 0.0,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "expectancy": 0.0,
+    "n_trades": 0
+  },
+  "est_cost_usd": null,
+  "trades": []
+}
