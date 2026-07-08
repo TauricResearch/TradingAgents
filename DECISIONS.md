@@ -379,3 +379,46 @@ usage metadata — the figure is a budget gauge, explicitly not an invoice,
 until a pinned production provider's usage API is wired. Deployment ships
 paper-only images (Dockerfile.pro has no live transport to enable); the
 paper→live promotion path is a human checklist in docs/DEPLOYMENT.md.
+
+## ADR-0031: Production-readiness review remediations (30-day set)
+
+**Status:** accepted (post-review) — addresses EVAL-01, INJ-01, MEM-01,
+QUANT-01/02/03, MODEL-01, REL-01, SEC-01/02, CTX-01 (partial).
+
+- **Temporal memory (MEM-01):** records carry `event_time` (market time);
+  all retrieval (`historical_analogs`, `lessons`, `win_stats`, `retrieve`)
+  accepts `as_of` and filters on effective time. The pipeline threads
+  `snapshot.as_of` through every memory read/write, so a backtest at time
+  T cannot see memories after T even from a pre-warmed store.
+- **Untrusted content (INJ-01):** news and memory-derived analog/lesson
+  texts are sanitized (marker forgery and newline smuggling neutralized)
+  and wrapped in `<<<EXTERNAL_UNTRUSTED_CONTENT id=…>>>` sentinels with a
+  hard data-not-instructions rule; the golden evals include a poisoned
+  headline that must not flip the decision.
+- **Timeframe-correct risk (QUANT-02):** the operative timeframe is
+  inferred from the snapshot's bars; agent specs are retimed per run;
+  VaR/CVaR scale to the daily horizon (sqrt-time) so intraday runs pass
+  through the same daily limits — BTC/H1 now completes end to end.
+- **Backtest input fidelity (QUANT-01):** `HistoricalCorpus` supplies
+  as-of macro/onchain/news to replay snapshots; a corpus-less replay
+  labels the gap in `missing_feeds` instead of silently narrowing scope.
+- **Exit parity (QUANT-03):** the paper service manages exits from bar
+  high/low with the same stop-first pessimism as the backtest broker.
+- **Model routing (MODEL-01):** `ModelBundle` routes evidence teams and
+  debaters to the quick model and critic/reflection/judge to the deep
+  model; `bundle_from_config` builds it from `ProConfig.models`; a bare
+  llm coerces to a single-model bundle for compatibility.
+- **Durability (REL-01):** the service rehydrates open positions from the
+  venue book + memory on startup, reconciles every iteration, and blocks
+  new entries while out of sync.
+- **Evals (EVAL-01 scaffold):** `pro/evals/` golden cases (unambiguous
+  up/down fixtures + injection twin) with structural scoring (schema
+  success, forbidden-direction, fabricated-citation detection); CI runs
+  the structural gate always and `python -m tradingagents.pro.evals`
+  against a real model when credentials exist. This is the harness, not
+  the sufficient eval bar — golden coverage must grow before promotion.
+- **Hardening:** dashboard API-key middleware + loopback compose bind
+  (SEC-01); `requirements.lock` + pip-audit in CI + lock-based Docker
+  build (SEC-02); exponential backoff on structured-call retries and
+  bind-once runnables (CTX-01 partial — full system/user message split
+  remains open with tracing/roster work).

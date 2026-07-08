@@ -1,6 +1,8 @@
 # TradingAgents Pro — Kubernetes manifests (paper-trading deployment).
 # Apply: kubectl apply -f deploy/k8s/pro.yaml
 # Secrets: create 'pro-keys' out of band; never commit real values.
+# It must include PRO_DASHBOARD_TOKEN — the dashboard enforces X-API-Key
+# whenever the token is set (SEC-01).
 apiVersion: v1
 kind: Namespace
 metadata:

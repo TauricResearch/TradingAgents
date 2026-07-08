@@ -32,6 +32,18 @@ from tradingagents.pro.analytics import (
 QUANT_SOURCE = "quant_engine"
 RISK_SOURCE = "risk_engine"
 
+# Bars per trading day, for scaling per-bar risk to the daily horizon that
+# RiskLimits speaks (review finding QUANT-02). W1 scales down (a weekly bar
+# spans ~5 trading days).
+BARS_PER_DAY: dict[Timeframe, float] = {
+    Timeframe.M1: 1440, Timeframe.M5: 288, Timeframe.M15: 96, Timeframe.M30: 48,
+    Timeframe.H1: 24, Timeframe.H4: 6, Timeframe.D1: 1, Timeframe.W1: 1 / 5,
+}
+
+
+def infer_timeframe(snapshot: MarketSnapshot) -> Timeframe:
+    return snapshot.bars[-1].timeframe if snapshot.bars else Timeframe.D1
+
 
 def _reading(name: str, value: float, source: str, unit: str | None = None) -> MetricReading:
     return MetricReading(name=name, value=value, unit=unit, source=source)
@@ -63,7 +75,7 @@ def compute_risk_metrics(
     limits: RiskLimits,
     equity: float,
     side: str = "BUY",
-    timeframe: Timeframe = Timeframe.D1,
+    timeframe: Timeframe | None = None,
     win_rate: float | None = None,
     avg_win: float | None = None,
     avg_loss: float | None = None,
@@ -88,13 +100,17 @@ def compute_risk_metrics(
         ),
     }
 
+    timeframe = timeframe or infer_timeframe(snapshot)
     bars = [b for b in snapshot.bars if b.timeframe == timeframe]
     if len(bars) >= 21:
         returns = _simple_returns(bars)
-        out["VAR_95"] = _reading("VAR_95", historical_var(returns, 0.95), RISK_SOURCE,
-                                 "fraction/bar")
-        out["CVAR_95"] = _reading("CVAR_95", historical_cvar(returns, 0.95), RISK_SOURCE,
-                                  "fraction/bar")
+        # scale per-bar VaR/CVaR to the daily horizon RiskLimits speaks
+        # (sqrt-time under iid returns; documented approximation)
+        scale = math.sqrt(BARS_PER_DAY[timeframe])
+        out["VAR_95"] = _reading("VAR_95", historical_var(returns, 0.95) * scale,
+                                 RISK_SOURCE, "fraction/day")
+        out["CVAR_95"] = _reading("CVAR_95", historical_cvar(returns, 0.95) * scale,
+                                  RISK_SOURCE, "fraction/day")
 
     atr_reading = snapshot.get_indicator("ATR_14", timeframe)
     if bars and atr_reading is not None:

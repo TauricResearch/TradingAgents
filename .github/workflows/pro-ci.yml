@@ -16,12 +16,24 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install
-        run: pip install -e ".[dev,dashboard]" httpx
+      - name: Install (locked)
+        run: |
+          pip install -r requirements.lock
+          pip install --no-deps -e .
       - name: Lint (ruff)
         run: ruff check .
+      - name: Dependency audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.lock
       - name: Full test suite
         run: pytest -q
+      - name: Decision evals (structural gate always; model gate needs a key)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          pytest -q tests/test_pro_evals.py
+          if [ -n "$OPENAI_API_KEY" ]; then python -m tradingagents.pro.evals; fi
 
   docker-build:
     needs: lint-and-test

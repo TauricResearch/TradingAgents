@@ -7,11 +7,19 @@ from tradingagents.pro.pipeline import CriticReport, run_pipeline
 
 
 def seeded_memory(n_closed: int = 5) -> ProMemory:
+    """Seed with event_time in the market past — the as-of filter (MEM-01)
+    correctly hides wall-clock-stamped records from a historical snapshot."""
+    from datetime import timedelta
+
+    from tests.pro_fakes import BASE_TS
+
     memory = ProMemory()
     pnls = [2.0, 2.0, 2.0, -1.0, -1.0][:n_closed]
-    for pnl in pnls:
-        trade = memory.record_trade(make_recommendation())
-        memory.close_trade(trade.id, pnl=pnl)
+    for i, pnl in enumerate(pnls):
+        opened = BASE_TS + timedelta(days=i)
+        trade = memory.record_trade(make_recommendation(), event_time=opened)
+        memory.close_trade(trade.id, pnl=pnl,
+                           event_time=opened + timedelta(days=2))
     return memory
 
 

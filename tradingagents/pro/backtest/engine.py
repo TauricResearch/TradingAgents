@@ -138,4 +138,5 @@ class BacktestEngine:
             record.id, pnl=trade.pnl,
             lesson=f"{trade.side} exited via {trade.reason} after "
                    f"{(trade.closed_at - trade.opened_at)}",
+            event_time=trade.closed_at,  # bar time, not wall clock (MEM-01)
         )

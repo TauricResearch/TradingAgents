@@ -75,7 +75,10 @@ class ProMemory:
         return record
 
     def record_trade(
-        self, recommendation: TradeRecommendation, regime: MarketRegime | None = None
+        self,
+        recommendation: TradeRecommendation,
+        regime: MarketRegime | None = None,
+        event_time=None,
     ) -> MemoryRecord:
         regime = regime or recommendation.market_regime
         claims = "; ".join(e.claim for e in recommendation.evidence[:5])
@@ -94,12 +97,14 @@ class ProMemory:
                 "regime": regime.value,
                 "entry_price": recommendation.entry_price,
                 "stop_loss": recommendation.stop_loss,
+                "take_profits": [tp.price for tp in recommendation.take_profits],
                 "risk_reward": recommendation.risk_reward,
             },
+            event_time=event_time,
         ))
 
     def close_trade(
-        self, trade_record_id: str, pnl: float, lesson: str = ""
+        self, trade_record_id: str, pnl: float, lesson: str = "", event_time=None
     ) -> list[MemoryRecord]:
         """Record a trade outcome; derive a lesson record from the result."""
         trade = self._records.get(trade_record_id)
@@ -112,6 +117,7 @@ class ProMemory:
             symbol=trade.symbol,
             ref_id=trade.id,
             payload={"pnl": pnl, "won": won, "closed_at": utc_now().isoformat()},
+            event_time=event_time,
         ))]
         lesson_kind = MemoryKind.WINNING_PATTERN if won else MemoryKind.MISTAKE
         lesson_text = lesson or (
@@ -121,7 +127,7 @@ class ProMemory:
         )
         added.append(self._add(MemoryRecord(
             kind=lesson_kind, text=lesson_text, symbol=trade.symbol, ref_id=trade.id,
-            payload={"pnl": pnl},
+            payload={"pnl": pnl}, event_time=event_time,
         )))
         return added
 
@@ -141,21 +147,25 @@ class ProMemory:
                 return record
         return None
 
-    def record_regime(self, symbol: str, regime: MarketRegime, features: dict) -> MemoryRecord:
+    def record_regime(self, symbol: str, regime: MarketRegime, features: dict,
+                      event_time=None) -> MemoryRecord:
         feature_text = " ".join(f"{k} {v:.4g}" for k, v in features.items())
         return self._add(MemoryRecord(
             kind=MemoryKind.REGIME,
             text=f"{symbol} regime {regime.value}: {feature_text}",
             symbol=symbol,
             payload={"regime": regime.value, **features},
+            event_time=event_time,
         ))
 
-    def record_reflection(self, symbol: str, weaknesses: str, invalidation: str) -> MemoryRecord:
+    def record_reflection(self, symbol: str, weaknesses: str, invalidation: str,
+                          event_time=None) -> MemoryRecord:
         return self._add(MemoryRecord(
             kind=MemoryKind.REFLECTION,
             text=f"{symbol} reflection. Weaknesses: {weaknesses} Invalidation: {invalidation}",
             symbol=symbol,
             payload={"weaknesses": weaknesses, "invalidation": invalidation},
+            event_time=event_time,
         ))
 
     def record_strategy(self, symbol: str, description: str, payload: dict | None = None):
@@ -172,17 +182,30 @@ class ProMemory:
         k: int = 5,
         kinds: tuple[MemoryKind, ...] | None = None,
         symbol: str | None = None,
+        as_of=None,
     ) -> list[SearchHit]:
-        return self._index.search(self._embed(query), k=k, kinds=kinds, symbol=symbol)
+        """``as_of`` filters by each record's effective (market) time so a
+        backtest at time T can never see memories from after T (MEM-01)."""
+        hits = self._index.search(
+            self._embed(query), k=k * 3 if as_of else k, kinds=kinds, symbol=symbol
+        )
+        if as_of is not None:
+            hits = [h for h in hits if h.record.effective_time <= as_of]
+        return hits[:k]
 
     def historical_analogs(
-        self, query: str, k: int = 3, symbol: str | None = None
+        self, query: str, k: int = 3, symbol: str | None = None, as_of=None
     ) -> list[HistoricalAnalog]:
-        """Closed trades resembling the query, as contract HistoricalAnalogs."""
+        """Closed trades resembling the query, as contract HistoricalAnalogs.
+        Only trades whose *outcome* precedes ``as_of`` qualify — an open or
+        future-resolved trade is not an analog yet."""
         outcomes_by_trade = {
-            r.ref_id: r for r in self._records.values() if r.kind is MemoryKind.OUTCOME
+            r.ref_id: r for r in self._records.values()
+            if r.kind is MemoryKind.OUTCOME
+            and (as_of is None or r.effective_time <= as_of)
         }
-        hits = self.retrieve(query, k=k * 3, kinds=(MemoryKind.TRADE,), symbol=symbol)
+        hits = self.retrieve(query, k=k * 3, kinds=(MemoryKind.TRADE,), symbol=symbol,
+                             as_of=as_of)
         analogs = []
         for hit in hits:
             outcome = outcomes_by_trade.get(hit.record.id)
@@ -190,8 +213,8 @@ class ProMemory:
                 continue  # open trades have no outcome; not an analog yet
             analogs.append(HistoricalAnalog(
                 description=hit.record.text,
-                period_start=hit.record.created_at,
-                period_end=outcome.created_at,
+                period_start=hit.record.effective_time,
+                period_end=outcome.effective_time,
                 similarity=max(0.0, min(1.0, hit.score)),
                 outcome=outcome.text,
                 memory_ref=hit.record.id,
@@ -200,20 +223,24 @@ class ProMemory:
                 break
         return analogs
 
-    def lessons(self, query: str, k: int = 3, symbol: str | None = None) -> list[SearchHit]:
+    def lessons(self, query: str, k: int = 3, symbol: str | None = None,
+                as_of=None) -> list[SearchHit]:
         return self.retrieve(
-            query, k=k, symbol=symbol,
+            query, k=k, symbol=symbol, as_of=as_of,
             kinds=(MemoryKind.MISTAKE, MemoryKind.WINNING_PATTERN,
                    MemoryKind.REFLECTION, MemoryKind.STRATEGY),
         )
 
-    def win_stats(self, symbol: str | None = None) -> tuple[float, float, float] | None:
+    def win_stats(self, symbol: str | None = None,
+                  as_of=None) -> tuple[float, float, float] | None:
         """(win_rate, avg_win, avg_loss) from closed trades; None below the
         minimum sample (fabricating a Kelly from 2 trades is worse than none)."""
         pnls = [
             r.payload["pnl"]
             for r in self._records.values()
-            if r.kind is MemoryKind.OUTCOME and (symbol is None or r.symbol == symbol)
+            if r.kind is MemoryKind.OUTCOME
+            and (symbol is None or r.symbol == symbol)
+            and (as_of is None or r.effective_time <= as_of)
         ]
         if len(pnls) < MIN_TRADES_FOR_STATS:
             return None

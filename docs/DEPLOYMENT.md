@@ -9,6 +9,7 @@ checklist of explicit sign-off events, not a config flag.
 ```bash
 export OPENAI_API_KEY=...     # or your provider of choice
 export FRED_API_KEY=...       # free
+export PRO_DASHBOARD_TOKEN=$(openssl rand -hex 24)   # dashboard X-API-Key
 docker compose -f deploy/docker-compose.pro.yml up --build
 # dashboard: http://localhost:8600
 # with the Qdrant memory backend:

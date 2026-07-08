@@ -2,7 +2,7 @@
 
 from tradingagents.pro.backtest.broker import ClosedTrade, SimBroker
 from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
-from tradingagents.pro.backtest.data import BarReplay
+from tradingagents.pro.backtest.data import BarReplay, HistoricalCorpus
 from tradingagents.pro.backtest.engine import BacktestEngine, BacktestResult
 from tradingagents.pro.backtest.llm_cache import CacheMiss, CachingLLM
 from tradingagents.pro.backtest.metrics import (
@@ -32,6 +32,7 @@ __all__ = [
     "LiquidityModel",
     "SlippageModel",
     "BarReplay",
+    "HistoricalCorpus",
     "BacktestEngine",
     "BacktestResult",
     "CacheMiss",

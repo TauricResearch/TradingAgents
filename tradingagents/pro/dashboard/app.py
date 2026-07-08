@@ -34,13 +34,31 @@ class DashboardState:
         return self.runs[-1] if self.runs else None
 
 
-def create_app(state: DashboardState | None = None):
-    from fastapi import FastAPI, HTTPException
+def create_app(state: DashboardState | None = None, api_token: str | None = None):
+    """``api_token`` (or env PRO_DASHBOARD_TOKEN) enables auth: every request
+    must carry ``X-API-Key: <token>``. Unset = open, for localhost dev only
+    (SEC-01) — deployment templates set the token and bind loopback."""
+    import hmac
+    import os
+
+    from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import HTMLResponse
 
     state = state or DashboardState()
+    token = api_token if api_token is not None else os.environ.get("PRO_DASHBOARD_TOKEN")
     app = FastAPI(title="TradingAgents Pro Dashboard")
     app.state.dashboard = state
+
+    if token:
+        @app.middleware("http")
+        async def require_api_key(request: Request, call_next):
+            from fastapi.responses import JSONResponse
+
+            supplied = request.headers.get("x-api-key", "")
+            if not hmac.compare_digest(supplied, token):
+                return JSONResponse({"detail": "missing or invalid X-API-Key"},
+                                    status_code=401)
+            return await call_next(request)
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:

@@ -7,11 +7,12 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.pro
     ports:
-      - "8600:8600"
+      - "127.0.0.1:8600:8600"  # loopback only; front with a reverse proxy to expose
     environment:
       FRED_API_KEY: ${FRED_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       TRADINGAGENTS_LLM_PROVIDER: ${TRADINGAGENTS_LLM_PROVIDER:-openai}
+      PRO_DASHBOARD_TOKEN: ${PRO_DASHBOARD_TOKEN:?set a dashboard API token}
     volumes:
       - pro-data:/data
     restart: unless-stopped

@@ -9,8 +9,12 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
+COPY requirements.lock .
+# reproducible builds: exact pinned dependency set first (SEC-02),
+# then the project itself without re-resolving
+RUN pip install --no-cache-dir -r requirements.lock
 COPY . .
-RUN pip install --no-cache-dir ".[dashboard]"
+RUN pip install --no-cache-dir --no-deps .
 
 FROM python:3.12-slim
 

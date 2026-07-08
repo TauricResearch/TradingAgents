@@ -41,3 +41,15 @@ class MemoryRecord(BaseModel):
         default=None, description="Id of the record this one annotates (e.g. outcome->trade)."
     )
     created_at: datetime = Field(default_factory=utc_now)
+    event_time: datetime | None = Field(
+        default=None,
+        description=(
+            "When the remembered event happened in *market* time (bar time in "
+            "backtests). None falls back to created_at. Retrieval filters on "
+            "this to prevent future leakage (MEM-01)."
+        ),
+    )
+
+    @property
+    def effective_time(self) -> datetime:
+        return self.event_time or self.created_at

@@ -53,6 +53,7 @@ class PipelineState(TypedDict, total=False):
     evidence_by_team: Annotated[dict[str, list[AgentEvidence]], _merge_team_evidence]
     quant_metrics: dict[str, MetricReading]
     risk_metrics: dict[str, MetricReading]
+    run_timeframe: object  # Timeframe inferred from the snapshot's bars
     regime: MarketRegime
     debate: list[dict]
     technical_rounds: int
