@@ -31,9 +31,69 @@ def market_overview(run: RunRecord | None) -> dict:
     return summary
 
 
+def system_status(router, equity: float | None = None) -> dict:
+    """Kill switch, circuit breaker, and open book (UX review RISK-01).
+
+    ``router`` is an ExecutionRouter or None (dashboard attached to a
+    replay/monitor-only state). Read-only: reset stays an operator action.
+    """
+    if router is None:
+        return {"attached": False, "trading_halted": None}
+    breaker = router.breaker.check()
+    engaged = router.kill_switch.engaged
+    return {
+        "attached": True,
+        "kill_switch": {"engaged": engaged, "reason": router.kill_switch.reason},
+        "circuit_breaker": {"tripped": breaker.tripped, "reason": breaker.reason},
+        "open_positions": [
+            {"symbol": symbol, "quantity": quantity}
+            for symbol, quantity in sorted(router.local_book.items())
+        ],
+        "equity": equity,
+        "trading_halted": engaged or breaker.tripped,
+    }
+
+
+def alert_feed(runs: Sequence[RunRecord], limit: int = 50) -> dict:
+    """Operational events derived from run records, newest first (ALERT-02).
+
+    severity: critical = security (quarantined injection), warning = a
+    stage refused the trade, info = degraded inputs the agents disclosed.
+    """
+    alerts: list[dict] = []
+    for run in runs:
+        def add(severity: str, text: str, run=run) -> None:
+            alerts.append({
+                "time": run.started_at.isoformat(),
+                "run_id": run.run_id,
+                "severity": severity,
+                "text": text,
+            })
+
+        snapshot = run.state.get("snapshot")
+        for feed in (snapshot.missing_feeds if snapshot else []):
+            if feed.startswith("news:quarantined"):
+                add("critical", f"suspected prompt injection quarantined ({feed})")
+            else:
+                add("info", f"feed unavailable: {feed}")
+        if run.rejection:
+            reasons = "; ".join(str(r) for r in run.rejection.get("reasons", []))
+            add("warning",
+                f"trade rejected at {run.rejection.get('stage')}"
+                + (f": {reasons}" if reasons else ""))
+        execution_status = run.state.get("execution_status") or ""
+        if execution_status.startswith("blocked:"):
+            add("warning", f"execution {execution_status}")
+    alerts.reverse()
+    return {"alerts": alerts[:limit]}
+
+
 def recommendation_view(rec: TradeRecommendation | None,
-                        invalidation: str | None = None) -> dict:
+                        invalidation: str | None = None,
+                        rejection: dict | None = None) -> dict:
     if rec is None:
+        if rejection:  # EXPL-01: a rejected run explains itself
+            return {"status": "rejected", "rejection": rejection}
         return {"status": "no recommendation"}
     view = rec.model_dump(mode="json")  # the full Phase 0 schema, verbatim
     view["vote_tally"] = {
@@ -43,6 +103,7 @@ def recommendation_view(rec: TradeRecommendation | None,
     view["n_counterarguments"] = len(rec.counterarguments)
     # the reflection stage's falsifiability condition (UX review EXPL-02)
     view["invalidation"] = invalidation
+    view["rejection"] = rejection
     return view
 
 

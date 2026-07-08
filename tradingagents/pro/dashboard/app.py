@@ -25,6 +25,8 @@ class DashboardState:
     memory: ProMemory = field(default_factory=ProMemory)
     backtest: BacktestResult | None = None
     monte_carlo = None
+    router = None            # ExecutionRouter, when attached to live/paper loop
+    equity: float | None = None
 
     @property
     def runs(self) -> list[RunRecord]:
@@ -106,8 +108,18 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             return service.recommendation_view(None)
         reflection = run.state.get("reflection") or {}
         return service.recommendation_view(
-            run.recommendation, invalidation=reflection.get("invalidation")
+            run.recommendation,
+            invalidation=reflection.get("invalidation"),
+            rejection=run.rejection,
         )
+
+    @app.get("/api/status")
+    def status() -> dict:
+        return service.system_status(state.router, state.equity)
+
+    @app.get("/api/alerts")
+    def alerts() -> dict:
+        return service.alert_feed(state.runs)
 
     @app.get("/api/journal")
     def journal() -> dict:

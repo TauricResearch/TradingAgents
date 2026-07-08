@@ -15,7 +15,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root: test fakes
 from tests.pro_fakes import BASE_TS  # noqa: E402
 from tests.test_pro_pipeline_graph import FakePipelineLLM, pipeline_snapshot  # noqa: E402
-from tradingagents.contracts import AssetClass, OHLCVBar, ProConfig, Timeframe, TradingMode
+from tradingagents.contracts import (
+    AssetClass,
+    OHLCVBar,
+    ProConfig,
+    RiskLimits,
+    Timeframe,
+    TradingMode,
+)
 from tradingagents.pro.backtest import (
     BacktestEngine,
     BarReplay,
@@ -23,6 +30,14 @@ from tradingagents.pro.backtest import (
     monte_carlo_summary,
 )
 from tradingagents.pro.dashboard.app import DashboardState, create_app
+from tradingagents.pro.execution import (
+    VENUES,
+    AuditLog,
+    CircuitBreaker,
+    ExecutionRouter,
+    KillSwitch,
+    PaperVenueAdapter,
+)
 from tradingagents.pro.memory import ProMemory
 
 
@@ -58,9 +73,27 @@ def build_state() -> DashboardState:
         )
 
     paper_config = ProConfig(asset=AssetClass.GOLD, max_debate_rounds=1)
-    state.recorder.record_run(
+    run = state.recorder.record_run(
         FakePipelineLLM(), paper_config, pipeline_snapshot(), memory=state.memory
     )
+    # demo-only: mark two feeds degraded so the alert stream has content
+    run.state["snapshot"] = run.state["snapshot"].model_copy(
+        update={"missing_feeds": ["news:quarantined:0", "macro:fred"]}
+    )
+
+    # attach an execution router so /api/status shows the real safety rails
+    state.router = ExecutionRouter(
+        adapter=PaperVenueAdapter(VENUES["mt5"]),
+        limits=RiskLimits(),
+        kill_switch=KillSwitch(),
+        breaker=CircuitBreaker(RiskLimits(), equity_base=100_000.0),
+        audit=AuditLog(),
+    )
+    if run.recommendation is not None:  # mirror the accepted paper fill
+        state.router.local_book[run.symbol] = round(
+            run.recommendation.position_size.quantity, 4
+        )
+    state.equity = result.final_equity
     return state
 
 

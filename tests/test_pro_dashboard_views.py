@@ -4,17 +4,28 @@ import pytest
 
 from tests.test_pro_memory_facade import make_recommendation
 from tests.test_pro_pipeline_graph import CONFIG, FakePipelineLLM, pipeline_snapshot
+from tradingagents.contracts import RiskLimits
 from tradingagents.pro.backtest import BacktestEngine, BarReplay, SimBroker
 from tradingagents.pro.dashboard import PipelineRecorder
 from tradingagents.pro.dashboard.service import (
     agent_performance,
+    alert_feed,
     backtest_view,
     debate_timeline,
     evidence_panels,
     market_overview,
     memory_insights,
     recommendation_view,
+    system_status,
     trade_journal,
+)
+from tradingagents.pro.execution import (
+    VENUES,
+    AuditLog,
+    CircuitBreaker,
+    ExecutionRouter,
+    KillSwitch,
+    PaperVenueAdapter,
 )
 from tradingagents.pro.memory import ProMemory
 
@@ -60,6 +71,74 @@ class TestRunViews:
             run.recommendation, invalidation="close below 2300 invalidates"
         )
         assert view["invalidation"] == "close below 2300 invalidates"
+
+    def test_recommendation_view_explains_rejection(self):
+        view = recommendation_view(
+            None, rejection={"stage": "risk_gate", "reasons": ["stop too wide"]}
+        )
+        assert view["status"] == "rejected"
+        assert view["rejection"]["stage"] == "risk_gate"
+
+
+def make_router() -> ExecutionRouter:
+    limits = RiskLimits()
+    return ExecutionRouter(
+        adapter=PaperVenueAdapter(VENUES["mt5"]),
+        limits=limits,
+        kill_switch=KillSwitch(),
+        breaker=CircuitBreaker(limits, equity_base=100_000.0),
+        audit=AuditLog(),
+    )
+
+
+class TestSystemStatus:
+    def test_unattached(self):
+        assert system_status(None) == {"attached": False, "trading_halted": None}
+
+    def test_healthy_router(self):
+        router = make_router()
+        router.local_book["XAUUSD"] = 5.0
+        view = system_status(router, equity=100_000.0)
+        assert view["trading_halted"] is False
+        assert view["kill_switch"]["engaged"] is False
+        assert view["circuit_breaker"]["tripped"] is False
+        assert view["open_positions"] == [{"symbol": "XAUUSD", "quantity": 5.0}]
+        assert view["equity"] == 100_000.0
+
+    def test_kill_switch_halts(self):
+        router = make_router()
+        router.kill_switch.engage("operator halt")
+        view = system_status(router)
+        assert view["trading_halted"] is True
+        assert view["kill_switch"]["reason"] == "operator halt"
+
+    def test_tripped_breaker_halts(self):
+        router = make_router()
+        for _ in range(3):  # default consecutive-loss limit
+            router.breaker.record_trade_result(-10.0)
+        view = system_status(router)
+        assert view["trading_halted"] is True
+        assert "consecutive losses" in view["circuit_breaker"]["reason"]
+
+
+class TestAlertFeed:
+    def test_accepted_clean_run_raises_no_alerts(self, recorded):
+        recorder, _, _ = recorded
+        assert alert_feed(recorder.runs) == {"alerts": []}
+
+    def test_alerts_from_degraded_and_rejected_runs(self, recorded):
+        recorder, run, _ = recorded
+        run.state["snapshot"] = run.state["snapshot"].model_copy(
+            update={"missing_feeds": ["news:quarantined:0", "macro:fred"]}
+        )
+        run.state["rejection"] = {"stage": "risk_gate", "reasons": ["stop too wide"]}
+        run.state["execution_status"] = "blocked:reconciliation"
+        feed = alert_feed(recorder.runs)["alerts"]
+        severities = {a["severity"] for a in feed}
+        assert severities == {"critical", "warning", "info"}
+        quarantine = next(a for a in feed if a["severity"] == "critical")
+        assert "prompt injection" in quarantine["text"]
+        assert all(a["run_id"] == run.run_id for a in feed)
 
     def test_debate_timeline_orders_speakers(self, recorded):
         _, run, _ = recorded

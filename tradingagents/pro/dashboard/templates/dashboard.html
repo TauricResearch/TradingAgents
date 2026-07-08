@@ -32,6 +32,16 @@
   .decision .action { font-size:1.5rem; font-weight:bold; }
   .ladder td { border:none; padding:1px 10px 1px 0; }
   details { margin-top:0.6rem; } details summary { cursor:pointer; color:#9ca7b3; }
+  #haltBanner { display:none; background:#f85149; color:#0d1117; font-weight:bold;
+                padding:0.5rem 1rem; border-radius:6px; margin:0.6rem 0; }
+  #alerts { list-style:none; padding:0; margin:0; font-size:0.82rem;
+            max-height:16rem; overflow-y:auto; }
+  #alerts li { padding:3px 0; border-bottom:1px solid #21262d; }
+  select { background:#1c2128; color:#c9d1d9; border:1px solid #30363d;
+           border-radius:6px; padding:2px 6px; font:inherit; font-size:0.8rem; }
+  .cardhead { display:flex; justify-content:space-between; align-items:baseline;
+              gap:1rem; flex-wrap:wrap; }
+  .cardhead h2 { flex:1; }
 </style>
 </head>
 <body>
@@ -42,16 +52,23 @@
   <span class="badge" id="regimeBadge">regime: —</span>
   <span class="badge" id="execBadge">exec: —</span>
   <span class="badge" id="priceBadge">—</span>
+  <span class="badge" id="riskBadge">risk: —</span>
+  <span class="badge" id="positionsBadge">positions: —</span>
 </header>
+<div id="haltBanner" role="alert"></div>
 <div class="grid">
   <div class="card"><h2>Decision</h2><div class="decision" id="recommendation">loading…</div></div>
-  <div class="card"><h2>Market overview</h2><pre id="overview">loading…</pre></div>
-  <div class="card" style="grid-column:1/-1"><h2>Debate timeline</h2>
+  <div class="card"><h2>Alerts</h2><ul id="alerts"><li class="dim">loading…</li></ul></div>
+  <div class="card" style="grid-column:1/-1">
+    <div class="cardhead"><h2>Debate timeline</h2>
+      <label class="dim">run <select id="runSelector"><option value="">latest (follow)</option></select></label>
+    </div>
     <ul class="timeline" id="timeline"></ul></div>
   <div class="card"><h2>Evidence panels</h2><div id="evidence"></div></div>
   <div class="card"><h2>Agent performance <small>(by hit rate)</small></h2><div id="agents"></div></div>
   <div class="card"><h2>Trade journal</h2><div id="journal"></div></div>
-  <div class="card"><h2>Backtest</h2><pre id="backtest">loading…</pre></div>
+  <div class="card"><h2>Backtest</h2><div id="backtest">loading…</div></div>
+  <div class="card"><h2>Market overview</h2><pre id="overview">loading…</pre></div>
   <div class="card"><h2>Memory insights</h2><pre id="memory">loading…</pre></div>
 </div>
 <script>
@@ -113,8 +130,14 @@ function stanceClass(value) {
 }
 const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 
-// --- decision card (EXPL-01 light / EXPL-02 / IA-02) ------------------------
+// --- decision card (EXPL-01 / EXPL-02 / IA-02) -------------------------------
 function renderDecision(rec) {
+  if (rec.status === "rejected") {
+    const reasons = (rec.rejection.reasons || []).map(r => `<li>${esc(r)}</li>`).join("");
+    return `<span class="action bear">✕ REJECTED</span>` +
+      ` <span class="dim">at ${esc(rec.rejection.stage)}</span>` +
+      (reasons ? `<ul>${reasons}</ul>` : "");
+  }
   if (rec.status) return esc(rec.status);
   const cls = stanceClass(rec.action), glyph = dirGlyph(rec.action);
   let html = `<span class="action ${cls}">${glyph} ${esc(rec.action)}</span>` +
@@ -141,6 +164,18 @@ function renderDecision(rec) {
           ` <span class="dim">(${rec.n_evidence} evidence, ${rec.n_counterarguments} counter)</span><br>`;
   if (rec.invalidation)
     html += `<b>invalidation:</b> ${esc(rec.invalidation)}<br>`;
+  // EXPL-01: the losing side of the debate, strongest first
+  const counters = [...(rec.counterarguments || [])]
+    .sort((a, b) => b.confidence - a.confidence).slice(0, 3);
+  if (counters.length)
+    html += `<b>strongest counterarguments:</b><ul>` + counters.map(c =>
+      `<li><span class="${stanceClass(c.direction)}">${dirGlyph(c.direction)} ${esc(c.agent_id)}</span>` +
+      ` <small>conf ${c.confidence}</small>: ${esc(c.claim)}</li>`).join("") + "</ul>";
+  const analogs = (rec.historical_analogs || []).slice(0, 2);
+  if (analogs.length)
+    html += `<b>historical analogs:</b><ul>` + analogs.map(a =>
+      `<li>${esc(a.description)} <small>(similarity ${(a.similarity * 100).toFixed(0)}%)</small>` +
+      ` — ${esc(a.outcome)}</li>`).join("") + "</ul>";
   // plumbing fields hidden behind the expander (IA-02)
   const {schema_version, id, created_at, ...visible} = rec;
   html += `<details><summary>full schema (JSON)</summary>` +
@@ -148,7 +183,77 @@ function renderDecision(rec) {
   return html;
 }
 
+// --- equity curve as inline SVG, no chart library (VIZ-01) -------------------
+function equityChart(curve) {
+  if (!curve || curve.length < 2) return "";
+  const w = 560, h = 120;
+  let min = Infinity, max = -Infinity;
+  for (const v of curve) { if (v < min) min = v; if (v > max) max = v; }
+  const span = (max - min) || 1;
+  const points = curve.map((v, i) =>
+    `${(i / (curve.length - 1) * w).toFixed(1)},${(h - 4 - (v - min) / span * (h - 8)).toFixed(1)}`
+  ).join(" ");
+  const first = curve[0], last = curve[curve.length - 1];
+  const stroke = last >= first ? "#3fb950" : "#f85149";
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"` +
+    ` style="width:100%;height:${h}px" role="img" aria-label="equity curve">` +
+    `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="1.5"/></svg>` +
+    `<small class="dim">equity ${min.toFixed(0)}–${max.toFixed(0)} over ${curve.length} bars</small>`;
+}
+
+// --- run selector state (NAV-01): "" = follow latest -------------------------
+let pinnedRunId = "";
+document.getElementById("runSelector").addEventListener("change", event => {
+  pinnedRunId = event.target.value;
+  refresh();
+});
+function syncRunSelector(runs) {
+  const selector = document.getElementById("runSelector");
+  const options = `<option value="">latest (follow)</option>` + [...runs].reverse().map(run =>
+    `<option value="${esc(run.run_id)}">` +
+    `${esc(run.started_at.slice(0, 16))} ${esc(run.symbol)} ` +
+    `${esc(run.action ?? "rejected@" + run.rejected_at)}</option>`).join("");
+  if (previous.runSelector !== options) {
+    previous.runSelector = options;
+    selector.innerHTML = options;
+  }
+  selector.value = pinnedRunId;
+}
+
 async function refresh() {
+  await renderSafe("status", async () => {
+    const status = await fetchJson("/api/status");
+    const risk = document.getElementById("riskBadge");
+    const banner = document.getElementById("haltBanner");
+    if (!status.attached) {
+      risk.textContent = "risk: n/a (monitor)";
+      document.getElementById("positionsBadge").textContent = "positions: n/a";
+      banner.style.display = "none";
+    } else {
+      const kill = status.kill_switch.engaged, breaker = status.circuit_breaker.tripped;
+      risk.textContent = "risk: " +
+        (kill ? "KILL SWITCH" : breaker ? "BREAKER TRIPPED" : "OK") +
+        (status.equity != null ? ` · equity ${Number(status.equity).toFixed(0)}` : "");
+      risk.style.color = status.trading_halted ? "#f85149" : "#3fb950";
+      const open = status.open_positions;
+      document.getElementById("positionsBadge").textContent = "positions: " +
+        (open.length ? open.map(p => `${p.symbol} ${p.quantity > 0 ? "+" : ""}${p.quantity}`).join(", ") : "none");
+      banner.style.display = status.trading_halted ? "block" : "none";
+      if (status.trading_halted)
+        banner.textContent = "⛔ TRADING HALTED — " +
+          (kill ? `kill switch: ${status.kill_switch.reason}`
+                : `circuit breaker: ${status.circuit_breaker.reason}`);
+    }
+  });
+  await renderSafe("alerts", async () => {
+    const feed = await fetchJson("/api/alerts");
+    const glyphs = {critical: "⛔", warning: "⚠", info: "ℹ"};
+    const classes = {critical: "bear", warning: "neutral", info: "dim"};
+    setPanel("alerts", feed.alerts.length ? feed.alerts.map(a =>
+      `<li><span class="${classes[a.severity]}">${glyphs[a.severity]} ${esc(a.severity)}</span>` +
+      ` <small>${esc(a.time.slice(0, 19))}</small> ${esc(a.text)}</li>`).join("")
+      : `<li class="dim">no alerts</li>`);
+  });
   await renderSafe("overview", async () => {
     const overview = await fetchJson("/api/overview");
     setPanel("overview", esc(JSON.stringify(overview, null, 1)));
@@ -161,7 +266,15 @@ async function refresh() {
     setPanel("recommendation", renderDecision(await fetchJson("/api/recommendation/latest")));
   });
   await renderSafe("backtest", async () => {
-    setPanel("backtest", esc(JSON.stringify(await fetchJson("/api/backtest"), null, 1)));
+    const backtest = await fetchJson("/api/backtest");
+    if (backtest.status) { setPanel("backtest", esc(backtest.status)); return; }
+    const {equity_curve, ...rest} = backtest;
+    setPanel("backtest",
+      `<p>final equity ${Number(backtest.final_equity).toFixed(0)}` +
+      ` · ${backtest.n_trades} trades · ${backtest.executed}/${backtest.decisions} decisions executed</p>` +
+      equityChart(equity_curve) +
+      `<details><summary>full report (JSON)</summary>` +
+      `<pre>${esc(JSON.stringify(rest, null, 1))}</pre></details>`);
   });
   await renderSafe("memory", async () => {
     setPanel("memory", esc(JSON.stringify(await fetchJson("/api/memory"), null, 1)));
@@ -169,15 +282,16 @@ async function refresh() {
   await renderSafe("runs", async () => {
     const runs = await fetchJson("/api/runs");
     if (!runs.length) return;
-    const latest = runs[runs.length - 1];
-    const timeline = await fetchJson(`/api/runs/${latest.run_id}/timeline`);
+    syncRunSelector(runs);                                      // NAV-01
+    const shown = runs.find(run => run.run_id === pinnedRunId) ?? runs[runs.length - 1];
+    const timeline = await fetchJson(`/api/runs/${shown.run_id}/timeline`);
     setPanel("timeline", timeline.entries.map(entry =>
       `<li><b class="${stanceClass(entry.stance)}">${dirGlyph(entry.stance)} ${esc(entry.speaker)}</b>` +
       ` <small>(${esc(entry.stance ?? "")}, conf ${entry.confidence ?? "-"})</small><br>` +
       `${esc(entry.argument)}` +
       (entry.cited.length ? `<br><small>cites: ${esc(entry.cited.join(", "))}</small>` : "") +
       `</li>`).join(""));
-    const evidence = await fetchJson(`/api/runs/${latest.run_id}/evidence`);
+    const evidence = await fetchJson(`/api/runs/${shown.run_id}/evidence`);
     setPanel("evidence", Object.entries(evidence).map(
       ([team, items]) => `<h3>${esc(team)} (${items.length})</h3>` + items.map(e =>
         `<div><b class="${stanceClass(e.direction)}">${dirGlyph(e.direction)} ${esc(e.agent_id)}</b>` +

@@ -38,6 +38,11 @@ def test_index_quick_win_markers(client):
     assert "dirGlyph" in html and "▲" in html        # A11Y-01
     assert "invalidation" in html                    # EXPL-02
     assert "document.hidden" in html                 # PERF-01
+    assert 'id="haltBanner"' in html                 # RISK-01
+    assert 'id="alerts"' in html                     # ALERT-02
+    assert 'id="runSelector"' in html                # NAV-01
+    assert "equityChart" in html                     # VIZ-01
+    assert "counterarguments" in html                # EXPL-01
 
 
 def test_api_surface(client):
@@ -57,6 +62,12 @@ def test_api_surface(client):
     recommendation = client.get("/api/recommendation/latest").json()
     assert recommendation["action"] == "BUY" and "vote_breakdown" in recommendation
     assert "invalidation" in recommendation  # EXPL-02: reflection surfaced
+
+    status = client.get("/api/status").json()
+    assert status == {"attached": False, "trading_halted": None}  # no router wired
+
+    alerts = client.get("/api/alerts").json()
+    assert alerts == {"alerts": []}  # clean accepted run
 
     for path in ("/api/journal", "/api/backtest", "/api/memory", "/api/agents"):
         assert client.get(path).status_code == 200
