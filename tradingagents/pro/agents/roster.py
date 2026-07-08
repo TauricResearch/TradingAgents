@@ -281,15 +281,21 @@ RISK_SPECS: tuple[AgentSpec, ...] = (
           "Gross exposure and leverage vs limits.",
           metrics=("POSITION_PCT_EQUITY", "MAX_POSITION_PCT", "MAX_LEVERAGE")),
     _spec("dynamic_stop_loss", _R,
-          "Stop placement: the ATR-scaled stop level vs structure — tight "
-          "enough to protect, wide enough to breathe.",
-          metrics=("ENTRY_REF_PRICE", "ATR_STOP"), indicators=("ATR_14",),
-          primary=("ATR_STOP",)),
+          "Stop placement for whichever side might be taken: the ATR-scaled "
+          "stop levels for a hypothetical long and short — tight enough to "
+          "protect, wide enough to breathe. You assess geometry, not "
+          "direction.",
+          metrics=("ENTRY_REF_PRICE", "ATR_STOP_LONG", "ATR_STOP_SHORT"),
+          indicators=("ATR_14",), primary=("ATR_STOP_LONG", "ATR_STOP_SHORT")),
     _spec("dynamic_take_profit", _R,
-          "Target placement: the ATR-scaled take-profit ladder and its "
-          "reward-to-risk geometry.",
-          metrics=("ENTRY_REF_PRICE", "ATR_TP1", "ATR_TP2", "ATR_STOP"),
-          indicators=("ATR_14",), primary=("ATR_TP1",)),
+          "Target placement for whichever side might be taken: the ATR "
+          "ladders for a hypothetical long and short and their reward-to-"
+          "risk geometry. You assess geometry, not direction.",
+          metrics=("ENTRY_REF_PRICE", "ATR_TP1_LONG", "ATR_TP2_LONG",
+                   "ATR_TP1_SHORT", "ATR_TP2_SHORT",
+                   "ATR_STOP_LONG", "ATR_STOP_SHORT"),
+          indicators=("ATR_14",),
+          primary=("ATR_TP1_LONG", "ATR_TP1_SHORT")),
 )
 
 ROSTER: tuple[AgentSpec, ...] = (

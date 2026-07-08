@@ -11,6 +11,7 @@ from tradingagents.pro.agents import (
     ROSTER,
     SPECS_BY_TEAM,
     build_team,
+    compute_neutral_risk_metrics,
     compute_quant_metrics,
     compute_risk_metrics,
     load_team_template,
@@ -131,7 +132,7 @@ class TestTeamsEndToEnd:
                 ),
             ]
         )
-        extra = compute_risk_metrics(snapshot, RiskLimits(), equity=100_000.0)
+        extra = compute_neutral_risk_metrics(snapshot, RiskLimits(), equity=100_000.0)
         agents = build_team(SPECS_BY_TEAM[AgentTeam.RISK], FakeLLM())
         evidence = run_agents(agents, snapshot, extra_metrics=extra)
         ids = {e.agent_id for e in evidence}

@@ -7,7 +7,11 @@ from tradingagents.pro.agents.base import (
     load_team_template,
     run_agents,
 )
-from tradingagents.pro.agents.metrics import compute_quant_metrics, compute_risk_metrics
+from tradingagents.pro.agents.metrics import (
+    compute_neutral_risk_metrics,
+    compute_quant_metrics,
+    compute_risk_metrics,
+)
 from tradingagents.pro.agents.rendering import RenderedContext, render_context
 from tradingagents.pro.agents.roster import (
     MACRO_SPECS,
@@ -28,6 +32,7 @@ __all__ = [
     "build_team",
     "load_team_template",
     "run_agents",
+    "compute_neutral_risk_metrics",
     "compute_quant_metrics",
     "compute_risk_metrics",
     "RenderedContext",

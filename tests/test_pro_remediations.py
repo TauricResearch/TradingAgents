@@ -206,6 +206,56 @@ class TestQuant01CorpusReplay:
         assert loaded.as_of(ts)["macro"][0].value == 104.0
 
 
+class TestEvalDrivenFixes:
+    """Fixes from the first N-sample real-model run: phantom risk vote,
+    consensus pollution, critic scoping."""
+
+    def test_prepare_stage_risk_metrics_are_direction_neutral(self):
+        from tradingagents.contracts import RiskLimits
+        from tradingagents.pro.agents.metrics import compute_neutral_risk_metrics
+
+        snapshot = pipeline_snapshot()
+        metrics = compute_neutral_risk_metrics(snapshot, RiskLimits(), 100_000.0)
+        assert "ATR_STOP_LONG" in metrics and "ATR_STOP_SHORT" in metrics
+        assert "ATR_TP1_LONG" in metrics and "ATR_TP1_SHORT" in metrics
+        assert "ATR_STOP" not in metrics  # no bare-sided level pre-decision
+        entry = metrics["ENTRY_REF_PRICE"].value
+        assert metrics["ATR_STOP_LONG"].value < entry < metrics["ATR_STOP_SHORT"].value
+        assert metrics["ATR_TP1_SHORT"].value < entry < metrics["ATR_TP1_LONG"].value
+
+    def test_pipeline_runs_neutral_prepare_and_sided_pm(self):
+        state = run_pipeline(FakePipelineLLM(), CONFIG, pipeline_snapshot())
+        assert "ATR_STOP_LONG" in state["risk_metrics"]
+        assert "ATR_STOP" not in state["risk_metrics"]
+        rec = state["recommendation"]  # PM recomputed the sided ladder
+        assert rec is not None and rec.stop_loss < rec.entry_price
+
+    def test_risk_votes_recorded_but_excluded_from_consensus(self):
+        import re
+
+        llm = FakePipelineLLM()
+        state = run_pipeline(llm, CONFIG, pipeline_snapshot())
+        evidence = [e for team in state["evidence_by_team"].values() for e in team]
+        risk_ids = {e.agent_id for e in evidence if e.team.value == "risk"}
+        assert risk_ids, "risk team should emit posture evidence"
+        # recorded in the breakdown
+        breakdown_ids = {v.agent_id for v in state["vote_breakdown"].votes}
+        assert risk_ids <= breakdown_ids
+        # excluded from the judge's tally
+        judge_prompt = llm.prompts["JudgeVerdict"][0]
+        (tallied,) = re.findall(r"across (\d+) directional agent votes", judge_prompt)
+        assert int(tallied) == len(evidence) - len(risk_ids)
+        assert "recorded but not tallied" in judge_prompt
+
+    def test_critic_rule_scopes_to_debating_teams(self):
+        from tradingagents.pro.pipeline import load_pipeline_prompt
+
+        template = load_pipeline_prompt("critic")
+        assert "debating-team" in template
+        assert "NOT a defect" in template
+        assert "ONLY defects" in template
+
+
 class TestRel01Durability:
     def test_restart_rehydrates_open_positions(self):
         from tests.test_pro_e2e_service import ScriptedSnapshots, make_service

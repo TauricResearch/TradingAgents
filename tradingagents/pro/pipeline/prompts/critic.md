@@ -7,12 +7,18 @@ Audit the debate below against the evidence record. Disqualifying defects
 - A speaker cited an agent id that is not in the evidence record.
 - A speaker's claim contradicts the direction or content of the evidence
   they cited.
-- The debate never addressed the highest-confidence evidence on the losing
-  side (an un-rebutted strongest counterargument).
+- The debate never addressed the highest-confidence *debating-team*
+  evidence on the losing side (an un-rebutted strongest counterargument).
+  This rule covers only evidence from the teams that speak in the debate —
+  technical, macro, and news_sentiment. Quant and risk evidence is
+  advisory context for the judge and risk gate; debaters are not required
+  to rebut it, and its absence from the debate is NOT a defect.
 
 Report every defect you find (one sentence each, naming the speaker), even
-in a 'pass'. Do not fail the debate for style, verbosity, or conclusions
-you personally disagree with — only for evidence-integrity defects.
+in a 'pass'. The issues list must contain ONLY defects — never include
+confirmations that a check passed. Do not fail the debate for style,
+verbosity, or conclusions you personally disagree with — only for
+evidence-integrity defects.
 
 Evidence record (all teams):
 {evidence_block}

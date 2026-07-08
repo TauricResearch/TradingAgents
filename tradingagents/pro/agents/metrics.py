@@ -145,3 +145,45 @@ def compute_risk_metrics(
             "fraction"
         )
     return out
+
+
+def compute_neutral_risk_metrics(
+    snapshot: MarketSnapshot,
+    limits: RiskLimits,
+    equity: float,
+    timeframe: Timeframe | None = None,
+    win_rate: float | None = None,
+    avg_win: float | None = None,
+    avg_loss: float | None = None,
+) -> dict[str, MetricReading]:
+    """Direction-neutral risk metrics for the *pre-decision* stage.
+
+    The eval runs exposed a phantom directional vote: computing the ATR
+    ladder for a default BUY side made the dynamic stop/target agents emit
+    'bullish' evidence on any tape. Before a direction exists, levels are
+    published for BOTH hypothetical sides (LONG_*/SHORT_*); sizing is
+    side-symmetric (|entry - stop| is the same distance either way). The
+    portfolio manager still computes the single-sided set after the judge
+    rules."""
+    timeframe = timeframe or infer_timeframe(snapshot)
+    out = compute_risk_metrics(
+        snapshot, limits, equity, side="BUY", timeframe=timeframe,
+        win_rate=win_rate, avg_win=avg_win, avg_loss=avg_loss,
+    )
+    # re-label the BUY-sided levels as LONG_*, add SHORT_* mirrors
+    for name in [n for n in out if n.startswith(("ATR_STOP", "ATR_TP"))]:
+        reading = out.pop(name)
+        out[f"{name}_LONG"] = _reading(f"{name}_LONG", reading.value, RISK_SOURCE)
+    atr_reading = snapshot.get_indicator("ATR_14", timeframe)
+    entry = out.get("ENTRY_REF_PRICE")
+    if atr_reading is not None and entry is not None:
+        atr = atr_reading.value["value"]
+        if atr > 0 and not math.isnan(atr):
+            out["ATR_STOP_SHORT"] = _reading(
+                "ATR_STOP_SHORT", atr_stop_loss(entry.value, atr, "SELL"), RISK_SOURCE
+            )
+            for i, tp in enumerate(atr_take_profits(entry.value, atr, "SELL"), start=1):
+                out[f"ATR_TP{i}_SHORT"] = _reading(
+                    f"ATR_TP{i}_SHORT", tp.price, RISK_SOURCE
+                )
+    return out

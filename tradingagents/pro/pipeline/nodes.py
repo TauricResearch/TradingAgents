@@ -43,7 +43,7 @@ from tradingagents.pro.agents import (
     compute_risk_metrics,
     run_agents,
 )
-from tradingagents.pro.agents.metrics import infer_timeframe
+from tradingagents.pro.agents.metrics import compute_neutral_risk_metrics, infer_timeframe
 from tradingagents.pro.agents.rendering import wrap_untrusted
 from tradingagents.pro.analytics import classify_regime
 from tradingagents.pro.models import ModelBundle
@@ -196,7 +196,10 @@ class PipelineNodes:
             else {}
         )
         equity = state.get("equity") or self.equity
-        risk = compute_risk_metrics(
+        # direction-neutral: no side exists before the judge rules, so the
+        # ladder is published for both hypothetical sides (eval finding:
+        # BUY-sided defaults created a phantom bullish risk vote)
+        risk = compute_neutral_risk_metrics(
             snapshot, self.config.risk, equity, timeframe=run_timeframe, **win_kwargs
         )
         if self.advisor is not None:
@@ -423,14 +426,19 @@ class PipelineNodes:
 
     def judge(self, state: dict) -> dict:
         evidence = _all_evidence(state)
-        votes = votes_from_evidence(evidence)
+        # risk-team "direction" is posture (supports / argues against the
+        # position), not a market call — it is recorded in the breakdown but
+        # excluded from the directional consensus (eval finding)
+        directional = [e for e in evidence if e.team is not AgentTeam.RISK]
+        votes = votes_from_evidence(directional or evidence)
         consensus_action, share = confidence_weighted_consensus(votes)
         prompt = self._prompts["judge"].format(
             symbol=state["snapshot"].symbol,
             asset=state["snapshot"].asset.value,
             vote_summary=(
                 f"{consensus_action.value} carries {share:.0%} of confidence weight "
-                f"across {len(votes)} agent votes"
+                f"across {len(votes)} directional agent votes (risk-team "
+                f"posture votes recorded but not tallied)"
             ),
             evidence_block=_with_memory(_evidence_block(evidence), state),
             debate_block=_debate_block(state["debate"]),
