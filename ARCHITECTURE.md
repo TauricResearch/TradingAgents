@@ -186,6 +186,15 @@ One execution interface, paper-first (ADR-0026/0027):
 | `venues.py` | Five `VenueSpec`s (MT5/Binance/Bybit/IBKR/OANDA) over one `PaperVenueAdapter`; live stubs refuse |
 | `router.py` | validate → kill switch → breaker → idempotent retry submit → audit; `reconcile()` |
 
+### Phase 10 — `tradingagents/pro/dashboard/`
+
+Explainability UI (ADR-0028): `recorder.py` (stream events → RunRecords),
+`service.py` (tested view models: overview, debate timeline, full-schema
+recommendation, evidence panels, trade journal/P&L, backtest + Monte
+Carlo, memory insights, outcome-scored per-agent hit rates), `app.py`
+(FastAPI shell, `dashboard` extra) + one vanilla-JS template. Demo:
+`python scripts/pro_dashboard_demo.py`.
+
 ### Later phases (planned)
 - Phases 5–11: memory, graph enhancements, backtesting, RL, execution,
   dashboard, production engineering.

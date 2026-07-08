@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TradingAgents Pro</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+         background:#0d1117; color:#c9d1d9; margin:0; padding:1rem 2rem; }
+  h1 { font-size:1.2rem; color:#e6edf3; }
+  h2 { font-size:0.95rem; color:#79c0ff; border-bottom:1px solid #21262d;
+       padding-bottom:4px; margin-top:1.6rem; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem 2rem; }
+  .card { background:#161b22; border:1px solid #21262d; border-radius:8px;
+          padding:0.8rem 1rem; overflow-x:auto; }
+  .bull { color:#3fb950; } .bear { color:#f85149; } .neutral { color:#d29922; }
+  table { border-collapse:collapse; width:100%; font-size:0.8rem; }
+  td, th { border-bottom:1px solid #21262d; padding:3px 8px; text-align:left; }
+  pre { white-space:pre-wrap; font-size:0.78rem; }
+  .timeline li { margin-bottom:0.5rem; }
+  small { color:#8b949e; }
+</style>
+</head>
+<body>
+<h1>TradingAgents Pro — research desk</h1>
+<div class="grid">
+  <div class="card"><h2>Market overview</h2><pre id="overview">loading…</pre></div>
+  <div class="card"><h2>Latest recommendation (full schema)</h2>
+    <pre id="recommendation">loading…</pre></div>
+  <div class="card" style="grid-column:1/3"><h2>Debate timeline</h2>
+    <ul class="timeline" id="timeline"></ul></div>
+  <div class="card"><h2>Evidence panels</h2><div id="evidence"></div></div>
+  <div class="card"><h2>Agent performance</h2><div id="agents"></div></div>
+  <div class="card"><h2>Trade journal</h2><div id="journal"></div></div>
+  <div class="card"><h2>Backtest</h2><pre id="backtest">loading…</pre></div>
+  <div class="card"><h2>Memory insights</h2><pre id="memory">loading…</pre></div>
+</div>
+<script>
+async function fetchJson(url) {
+  const response = await fetch(url);
+  return response.json();
+}
+function stanceClass(value) {
+  if (["bull", "bullish", "BUY"].includes(value)) return "bull";
+  if (["bear", "bearish", "SELL"].includes(value)) return "bear";
+  return "neutral";
+}
+async function refresh() {
+  document.getElementById("overview").textContent =
+    JSON.stringify(await fetchJson("/api/overview"), null, 1);
+  document.getElementById("recommendation").textContent =
+    JSON.stringify(await fetchJson("/api/recommendation/latest"), null, 1);
+  document.getElementById("backtest").textContent =
+    JSON.stringify(await fetchJson("/api/backtest"), null, 1);
+  document.getElementById("memory").textContent =
+    JSON.stringify(await fetchJson("/api/memory"), null, 1);
+
+  const runs = await fetchJson("/api/runs");
+  if (runs.length) {
+    const latest = runs[runs.length - 1];
+    const timeline = await fetchJson(`/api/runs/${latest.run_id}/timeline`);
+    document.getElementById("timeline").innerHTML = timeline.entries.map(entry =>
+      `<li><b class="${stanceClass(entry.stance)}">${entry.speaker}</b>` +
+      ` <small>(${entry.stance ?? ""}, conf ${entry.confidence ?? "-"})</small><br>` +
+      `${entry.argument}` +
+      (entry.cited.length ? `<br><small>cites: ${entry.cited.join(", ")}</small>` : "") +
+      `</li>`).join("");
+
+    const evidence = await fetchJson(`/api/runs/${latest.run_id}/evidence`);
+    document.getElementById("evidence").innerHTML = Object.entries(evidence).map(
+      ([team, items]) => `<h3>${team} (${items.length})</h3>` + items.map(e =>
+        `<div><b class="${stanceClass(e.direction)}">${e.agent_id}</b>` +
+        ` <small>conf ${e.confidence}</small>: ${e.claim}</div>`).join("")
+    ).join("");
+  }
+
+  const agents = await fetchJson("/api/agents");
+  document.getElementById("agents").innerHTML =
+    "<table><tr><th>agent</th><th>votes</th><th>avg conf</th><th>hit rate</th></tr>" +
+    Object.entries(agents).map(([id, row]) =>
+      `<tr><td>${id}</td><td>${row.votes}</td>` +
+      `<td>${row.avg_confidence.toFixed(0)}</td>` +
+      `<td>${row.hit_rate === null ? "—" : (row.hit_rate * 100).toFixed(0) + "%"}</td></tr>`
+    ).join("") + "</table>";
+
+  const journal = await fetchJson("/api/journal");
+  document.getElementById("journal").innerHTML =
+    `<p>trades: ${journal.n_trades} · total P&L: ${journal.total_pnl.toFixed(2)}` +
+    (journal.win_rate !== null ? ` · win rate ${(journal.win_rate * 100).toFixed(0)}%` : "") +
+    "</p><table><tr><th>symbol</th><th>action</th><th>pnl</th><th>closed</th></tr>" +
+    journal.entries.map(entry =>
+      `<tr><td>${entry.symbol}</td><td class="${stanceClass(entry.action)}">${entry.action}</td>` +
+      `<td class="${entry.pnl >= 0 ? "bull" : "bear"}">${entry.pnl.toFixed(2)}</td>` +
+      `<td><small>${entry.closed_at}</small></td></tr>`).join("") + "</table>";
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

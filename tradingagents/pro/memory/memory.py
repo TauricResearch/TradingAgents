@@ -125,6 +125,11 @@ class ProMemory:
         )))
         return added
 
+    def records(self, kind: MemoryKind | None = None) -> list[MemoryRecord]:
+        """All records (optionally filtered by kind), oldest first."""
+        items = sorted(self._records.values(), key=lambda r: r.created_at)
+        return [r for r in items if kind is None or r.kind is kind]
+
     def find_trade_by_recommendation(self, recommendation_id: str) -> MemoryRecord | None:
         """The trade record the pipeline wrote for a given recommendation —
         the handle the backtester/execution layer uses to close the loop."""

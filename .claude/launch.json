@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pro-dashboard-demo",
+      "runtimeExecutable": "/Users/ajaykumar/.venvs/tradingagents-pro/bin/python",
+      "runtimeArgs": ["scripts/pro_dashboard_demo.py", "8600"],
+      "port": 8600
+    }
+  ]
+}

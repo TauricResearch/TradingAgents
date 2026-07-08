@@ -49,6 +49,11 @@ bedrock = [
 qdrant = [
     "qdrant-client>=1.12",
 ]
+# Pro dashboard (Phase 10): FastAPI app + uvicorn server.
+dashboard = [
+    "fastapi>=0.110",
+    "uvicorn>=0.30",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
@@ -60,6 +65,7 @@ include = ["tradingagents*", "cli*"]
 cli = ["static/*"]
 "tradingagents.pro.agents" = ["prompts/*.md"]
 "tradingagents.pro.pipeline" = ["prompts/*.md"]
+"tradingagents.pro.dashboard" = ["templates/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

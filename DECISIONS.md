@@ -337,3 +337,19 @@ cannot double-fill. The audit log hash-chains every entry to its
 predecessor; edits, deletions, or reordering break `verify()`.
 Reconciliation surfaces local-vs-venue drift; it never silently adopts
 the venue's view of the book.
+
+## ADR-0028: Dashboard is a thin FastAPI shell over tested view models
+
+**Status:** accepted (Phase 10)
+
+The dashboard's substance is a dependency-free view-model layer
+(`dashboard/service.py`) projecting RunRecords, ProMemory, and
+BacktestResults into JSON — fully unit-tested without a web framework.
+FastAPI (optional ``dashboard`` extra) adds only routing, and the UI is a
+single vanilla-JS HTML page — no build toolchain, no node_modules.
+`PipelineRecorder` derives the debate timeline from ``stream_pipeline``
+events (accumulating updates with the same merge semantics as the graph),
+so what the dashboard shows is what the pipeline streamed. Per-agent hit
+rates are outcome-scored: a directional vote scores when a closed trade
+resolves it; HOLD votes are never scored; unresolved agents show no rate
+rather than a fake one.
