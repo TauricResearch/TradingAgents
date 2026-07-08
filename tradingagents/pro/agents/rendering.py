@@ -30,6 +30,7 @@ _SOURCE_TYPES = (
     ("gold_cross_asset", SourceType.MARKET_DATA),
     ("risk_engine", SourceType.MODEL),
     ("quant_engine", SourceType.MODEL),
+    ("rl_advisor", SourceType.MODEL),
 )
 
 SNAPSHOT_SOURCE_ID = "snapshot"

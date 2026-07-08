@@ -232,10 +232,13 @@ QUANT_SPECS: tuple[AgentSpec, ...] = (
           metrics=("TREND_R2", "REALIZED_VOL_ANN"),
           notes="true walk-forward validation arrives with the Phase 7 backtester"),
     _spec("reinforcement_learning", _Q,
-          "Policy-learning view: given regime features, what would an RL "
-          "policy trained on similar states likely do, and how reliable is that?",
-          metrics=("TREND_SLOPE_PCT", "REALIZED_VOL_ANN", "CLOSE_ZSCORE_50"),
-          notes="advisory only; actual RL policy arrives in Phase 8"),
+          "Trained-policy read: the RL advisor's action values for the "
+          "current state, their edge, and how much training support they "
+          "carry — advisory input for the judge, never a directive.",
+          metrics=("RL_Q_BUY", "RL_Q_SELL", "RL_Q_HOLD", "RL_POLICY_EDGE",
+                   "RL_STATE_VISITS"),
+          primary=("RL_Q_BUY",),
+          notes="abstains unless a trained RLAdvisor is attached to the pipeline"),
     _spec("time_series_forecast", _Q,
           "Extrapolation discipline: what the fitted trend and its R² justify "
           "forecasting, and where extrapolation breaks.",

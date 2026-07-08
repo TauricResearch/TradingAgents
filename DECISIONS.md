@@ -287,3 +287,25 @@ parameters; Monte Carlo bootstraps trade P&L (costs embedded), seeded and
 deterministic. v1 simulates one position at a time; multi-asset portfolio
 simulation arrives with Phase 9 reconciliation. Tick-level simulation
 awaits the paid microstructure feeds (docs/DATA_SOURCES.md).
+
+## ADR-0025: Tabular RL first; PPO/SAC/DQN behind a policy protocol
+
+**Status:** accepted (Phase 8) — deliberate deviation from the spec's
+PPO/SAC/DQN list, flagged for sign-off.
+
+The shipped policy is tabular action-value learning over a discretized
+deterministic state space (regime × trend × volatility × z-score buckets —
+Constraint 2: never raw LLM output), trained on full-feedback offline
+transitions and evaluated with the Phase 7 objectives. Rationale: deep RL
+adds a PyTorch/gymnasium dependency, GPU-shaped CI, and non-determinism,
+while the current data (daily bars, one asset at a time) cannot feed a
+policy network enough samples to beat a well-regularized table. The
+``PolicyProtocol`` seam means a PPO/SAC/DQN implementation drops in
+additively when backtest evidence justifies the dependency.
+
+Advisory-only is structural: the advisor emits ``RL_Q_*`` MetricReadings
+consumed by the roster's ``reinforcement_learning`` evidence agent — one
+voice and one vote, subject to every gate. Undertrained states
+(< min_visits) yield no advice; the agent abstains rather than whisper
+noise. There is no code path from a policy output to execution that skips
+the judge.

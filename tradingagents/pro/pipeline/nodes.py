@@ -130,6 +130,7 @@ class PipelineNodes:
         config: ProConfig,
         equity: float = 100_000.0,
         memory=None,
+        advisor=None,
         llm_retries: int = 1,
         agent_workers: int = 1,
     ):
@@ -139,6 +140,7 @@ class PipelineNodes:
         self.config = config
         self.equity = equity
         self.memory = memory  # ProMemory | None (duck-typed; tests may fake it)
+        self.advisor = advisor  # RLAdvisor | None: advisory metrics only (ADR-0025)
         self.llm_retries = llm_retries
         self.agent_workers = agent_workers
         self._prompts = {
@@ -174,6 +176,12 @@ class PipelineNodes:
         risk = compute_risk_metrics(
             snapshot, self.config.risk, equity, **win_kwargs
         )
+        if self.advisor is not None:
+            try:
+                quant.update(self.advisor.advise(bars))
+            except Exception:
+                logger.warning("RL advisor failed; proceeding without advice",
+                               exc_info=True)
         regime = classify_regime(bars) if len(bars) >= 3 else MarketRegime.UNKNOWN
 
         analogs, memory_context = [], ""

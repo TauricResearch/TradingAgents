@@ -102,6 +102,7 @@ def build_pro_pipeline(
     config: ProConfig,
     equity: float = 100_000.0,
     memory=None,
+    advisor=None,
     checkpointer=None,
     llm_retries: int = 1,
     agent_workers: int = 1,
@@ -118,7 +119,7 @@ def build_pro_pipeline(
             "cannot pause/resume without one"
         )
     nodes = PipelineNodes(
-        llm, config, equity, memory=memory,
+        llm, config, equity, memory=memory, advisor=advisor,
         llm_retries=llm_retries, agent_workers=agent_workers,
     )
     graph = StateGraph(PipelineState)

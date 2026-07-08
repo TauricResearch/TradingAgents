@@ -156,6 +156,23 @@ Backtests run the identical pipeline graph (ADR-0023/0024):
 | `walkforward.py` | Rolling windows; stability evaluation until Phase 8 adds fitted params |
 | `montecarlo.py` | Seeded trade-P&L bootstrap: final-equity/drawdown percentiles, P(loss) |
 
+### Phase 8 — `tradingagents/pro/rl/`
+
+Advisory RL over the deterministic signal layer (ADR-0025):
+
+| Module | Provides |
+|---|---|
+| `features.py` | Discretized state: regime × trend × vol × z-score buckets |
+| `env.py` | Offline full-feedback transitions (cost-adjusted forward returns) |
+| `policy.py` | `QTablePolicy` (JSON-persisted, inspectable) + `PolicyProtocol` seam for PPO/SAC/DQN |
+| `trainer.py` | Seeded training + held-out evaluation scored with Phase 7 objectives |
+| `advisor.py` | `RLAdvisor` → `RL_Q_*` MetricReadings; undertrained states advise nothing |
+
+The advisor plugs into the pipeline's `prepare` node; the roster's
+`reinforcement_learning` agent consumes its readings as primary inputs
+(abstains without a trained policy). RL is one evidence voice and one
+vote — never an execution path.
+
 ### Later phases (planned)
 - Phases 5–11: memory, graph enhancements, backtesting, RL, execution,
   dashboard, production engineering.
