@@ -35,8 +35,77 @@ jobs:
           pytest -q tests/test_pro_evals.py
           if [ -n "$OPENAI_API_KEY" ]; then python -m tradingagents.pro.evals; fi
 
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc -b
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Bundle budget (initial JS < 200 KB gzip)
+        run: |
+          size=$(gzip -c ../tradingagents/pro/dashboard/static/assets/index-*.js | wc -c)
+          echo "initial bundle: ${size} bytes gzip"
+          test "$size" -lt 204800
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spa-dist
+          path: tradingagents/pro/dashboard/static/
+
+  e2e:
+    needs: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend (locked)
+        run: |
+          pip install -r requirements.lock
+          pip install --no-deps -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: spa-dist
+          path: tradingagents/pro/dashboard/static/
+      - name: Install frontend + browsers
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Playwright E2E
+        working-directory: frontend
+        env:
+          PRO_PYTHON: python
+        run: npx playwright test --project=desktop
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: frontend/test-results/
+
   docker-build:
-    needs: lint-and-test
+    needs: [lint-and-test, frontend]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

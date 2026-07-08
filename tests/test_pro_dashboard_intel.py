@@ -49,6 +49,24 @@ class TestIntelService:
         service.snapshot()
         assert calls["n"] == 2
 
+    def test_hanging_feed_hits_deadline_not_forever(self):
+        import time as _time
+
+        def hang():
+            _time.sleep(5)
+            return [reading("LATE")]
+
+        service = IntelService(
+            feeds={"fast": lambda: [reading("FAST")],
+                   "blackhole": hang},
+            deadline=0.5,
+        )
+        t0 = _time.monotonic()
+        view = service.snapshot()
+        assert _time.monotonic() - t0 < 3.0  # bounded, not 30s+
+        assert [m["name"] for m in view["metrics"]] == ["FAST"]
+        assert any("no response within" in f for f in view["missing_feeds"])
+
     def test_calendar_with_and_without_source(self):
         service = IntelService(
             feeds={},

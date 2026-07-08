@@ -12,6 +12,8 @@ services:
       FRED_API_KEY: ${FRED_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       TRADINGAGENTS_LLM_PROVIDER: ${TRADINGAGENTS_LLM_PROVIDER:-openai}
+      OANDA_API_TOKEN: ${OANDA_API_TOKEN:-}
+      OANDA_ENV: ${OANDA_ENV:-practice}
       PRO_DASHBOARD_TOKEN: ${PRO_DASHBOARD_TOKEN:?set a dashboard API token}
     volumes:
       - pro-data:/data

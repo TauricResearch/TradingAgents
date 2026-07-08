@@ -37,14 +37,17 @@ class IntelService:
         calendar_source: Callable[[int], list[dict]] | None = None,
         ttl: float = 60.0,
         calendar_ttl: float = 6 * 3600.0,
+        deadline: float = 10.0,
         now: Callable[[], float] = time.monotonic,
     ):
         self._feeds = feeds
         self._calendar_source = calendar_source
         self.ttl = ttl
         self.calendar_ttl = calendar_ttl
+        self.deadline = deadline
         self._now = now
         self._lock = threading.Lock()
+        self._pool = None  # lazy ThreadPoolExecutor, shared across snapshots
         self._cached: tuple[float, dict] | None = None
         self._cached_calendar: tuple[float, dict] | None = None
 
@@ -95,13 +98,37 @@ class IntelService:
             if self._cached and self._now() - self._cached[0] < self.ttl:
                 return self._cached[1]
 
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+
         from tradingagents.pro.ingestion.sessions import current_session
 
+        # feeds fetch in parallel under a hard deadline: one blackholed
+        # vendor (blocked egress hangs, not errors) must never make the
+        # whole intelligence view take minutes — it becomes a missing_feeds
+        # line instead
         metrics: list[dict] = []
         missing: list[str] = []
-        for feed_name, fetch in self.feeds.items():
+        feeds = dict(self.feeds)
+        # persistent pool: a `with` block would join hanging threads on
+        # exit, re-introducing the very stall the deadline exists to stop.
+        # A blackholed fetch keeps its worker busy until the transport
+        # timeout; the TTL cache bounds how often that can pile up.
+        with self._lock:
+            if self._pool is None:
+                self._pool = ThreadPoolExecutor(max_workers=8,
+                                                thread_name_prefix="intel")
+            pool = self._pool
+        futures = {name: pool.submit(fetch) for name, fetch in feeds.items()}
+        started = time.monotonic()
+        for feed_name, future in futures.items():
+            remaining = max(0.05, self.deadline - (time.monotonic() - started))
             try:
-                metrics.extend(_reading_view(r) for r in fetch())
+                readings = future.result(timeout=remaining)
+                metrics.extend(_reading_view(r) for r in readings)
+            except FutureTimeout:
+                future.cancel()
+                missing.append(f"{feed_name}: no response within "
+                               f"{self.deadline:.0f}s (vendor unreachable?)")
             except Exception as exc:
                 missing.append(f"{feed_name}: {exc}")
         view = {

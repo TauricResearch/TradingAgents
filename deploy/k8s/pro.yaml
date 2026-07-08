@@ -51,10 +51,10 @@ spec:
           volumeMounts:
             - {name: data, mountPath: /data}
           readinessProbe:
-            httpGet: {path: /api/overview, port: 8600}
+            httpGet: {path: /healthz, port: 8600}
             initialDelaySeconds: 5
           livenessProbe:
-            httpGet: {path: /api/overview, port: 8600}
+            httpGet: {path: /healthz, port: 8600}
             periodSeconds: 30
           resources:
             requests: {cpu: 250m, memory: 512Mi}

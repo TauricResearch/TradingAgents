@@ -114,16 +114,27 @@ class EventBroadcaster:
             self._subscribers[sub_id] = queue
             backlog = [e for e in self._ring
                        if last_event_id is not None and e.id > last_event_id]
+        # A publish can land in the ring before registration while its
+        # fan-out (call_soon_threadsafe) fires after — the event would
+        # arrive via both paths. Monotonic id filtering dedupes.
+        last_sent = last_event_id or 0
         try:
             for event in backlog:
                 yield event.frame()
+                last_sent = event.id
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(),
                                                    timeout=KEEPALIVE_SECONDS)
+                    if event.id <= last_sent:
+                        continue
                     yield event.frame()
+                    last_sent = event.id
                 except asyncio.TimeoutError:
-                    yield ": keepalive\n\n"
+                    # a real event, not a comment: EventSource cannot see
+                    # comments, and the client needs heartbeats to keep its
+                    # freshness indicator honest while nothing is happening
+                    yield 'event: heartbeat\ndata: {}\n\n'
         finally:
             with self._lock:
                 self._subscribers.pop(sub_id, None)

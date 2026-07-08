@@ -161,7 +161,7 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             try:
                 async for frame in agen:
                     yield frame
-                    if not frame.startswith(":"):
+                    if frame.startswith("id:"):  # real events only, not heartbeats
                         delivered += 1
                         if max_events is not None and delivered >= max_events:
                             return
@@ -244,6 +244,12 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
                                 headers={"Retry-After": "30"}) from None
         except NoMarketDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
+        except Exception as exc:  # vendor unreachable / network egress blocked
+            raise HTTPException(
+                status_code=503,
+                detail=f"market data vendor unreachable: {type(exc).__name__}",
+                headers={"Retry-After": "60"},
+            ) from None
 
     @app.get("/api/bars")
     def bars(symbol: str, timeframe: str = "1d",
@@ -444,12 +450,29 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     def agents() -> dict:
         return service.agent_performance(state.runs, state.memory)
 
-    # SPA fallback: client routes (/trade/..., /decisions/...) get index.html;
-    # unknown /api paths still 404. Registered last so real routes win.
-    @app.get("/{path:path}", response_class=HTMLResponse, include_in_schema=False)
-    def spa_fallback(path: str) -> HTMLResponse:
+    # SPA fallback: root-level build files (sw.js, manifest, icons) are
+    # served as files; client routes (/trade/..., /decisions/...) get
+    # index.html; unknown /api paths still 404. Registered last.
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa_fallback(path: str):
+        import mimetypes
+
+        from fastapi.responses import Response
+
         if path.startswith("api/") or path in ("api", "healthz", "metrics"):
             raise HTTPException(status_code=404, detail=f"no route /{path}")
+        if has_spa and path and ".." not in path:
+            candidate = static_root / path
+            try:
+                is_file = candidate.is_file()
+            except Exception:
+                is_file = False
+            if is_file:
+                media_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
+                cache = ("no-cache" if path in ("sw.js", "index.html")
+                         else "public, max-age=86400")
+                return Response(candidate.read_bytes(), media_type=media_type,
+                                headers={"Cache-Control": cache})
         if has_spa:
             return HTMLResponse(spa_index.read_text(encoding="utf-8"),
                                 headers={"Cache-Control": "no-cache"})

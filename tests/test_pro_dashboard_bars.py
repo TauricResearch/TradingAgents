@@ -162,6 +162,18 @@ class TestBarsEndpoints:
                           params={"symbol": "XAUUSD",
                                   "timeframe": "bogus"}).status_code == 422
 
+    def test_vendor_unreachable_maps_to_503(self):
+        class Unreachable(CountingFeed):
+            def get_bars(self, *a, **k):
+                raise ConnectionError("egress blocked")
+
+        state = DashboardState()
+        state.marketdata = MarketDataService(make_registry(Unreachable()))
+        client = TestClient(create_app(state))
+        response = client.get("/api/bars", params={"symbol": "XAUUSD"})
+        assert response.status_code == 503
+        assert "unreachable" in response.json()["detail"]
+
     def test_rate_limit_maps_to_503(self):
         class Throttled(CountingFeed):
             def get_bars(self, *a, **k):

@@ -21,16 +21,20 @@ def client():
 
 
 def test_index_serves_dashboard_html(client):
+    # "/" serves the SPA when a frontend build exists, else the legacy page;
+    # both carry the product name. The legacy page stays at /legacy.
     response = client.get("/")
     assert response.status_code == 200
     assert "TradingAgents Pro" in response.text
+    legacy = client.get("/legacy")
+    assert legacy.status_code == 200
     for section in ("overview", "recommendation", "timeline", "agents", "journal"):
-        assert f'id="{section}"' in response.text
+        assert f'id="{section}"' in legacy.text
 
 
 def test_index_quick_win_markers(client):
-    """UX quick wins are wired into the page (structural check)."""
-    html = client.get("/").text
+    """UX quick wins are wired into the legacy page (structural check)."""
+    html = client.get("/legacy").text
     assert 'name="viewport"' in html                 # A11Y-02
     assert "@media (max-width: 900px)" in html       # A11Y-02
     assert "X-API-Key" in html                       # SEC-UI-01

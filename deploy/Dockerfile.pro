@@ -1,5 +1,18 @@
 # TradingAgents Pro service image (paper trader + dashboard).
 # The base repo's Dockerfile remains untouched for the stock workflow.
+#
+# NOTE: run a SINGLE uvicorn worker — the SSE broadcaster and session
+# store are in-process; multiple workers would silently split the stream.
+FROM node:22-slim AS frontend
+
+WORKDIR /fe
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ .
+# build emits to ../tradingagents/... in the repo; here we redirect into
+# a local dist and copy it into the python build context explicitly
+RUN npx tsc -b && npx vite build --outDir /fe/dist
+
 FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -14,7 +27,10 @@ COPY requirements.lock .
 # then the project itself without re-resolving
 RUN pip install --no-cache-dir -r requirements.lock
 COPY . .
-RUN pip install --no-cache-dir --no-deps .
+COPY --from=frontend /fe/dist/ tradingagents/pro/dashboard/static/
+# sourcemaps stay out of the wheel (CI keeps them as artifacts)
+RUN find tradingagents/pro/dashboard/static -name "*.map" -delete \
+    && pip install --no-cache-dir --no-deps .
 
 FROM python:3.12-slim
 

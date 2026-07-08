@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Dark is the default (:root); light overrides via
+   [data-theme="light"]. Semantic trading colors keep their established
+   meanings: bull green / bear red / neutral amber. Staleness is a
+   DESATURATED amber + dashed border so "neutral direction" and "old data"
+   can never be confused (honesty requirement).
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c2128;
+  --border: #21262d;
+  --border-strong: #30363d;
+
+  --fg: #e6edf3;
+  --fg-muted: #9ca7b3;
+  --fg-subtle: #6e7681;
+
+  --bull: #3fb950;
+  --bull-muted: rgba(63, 185, 80, 0.15);
+  --bear: #f85149;
+  --bear-muted: rgba(248, 81, 73, 0.15);
+  --neutral: #d29922;
+  --neutral-muted: rgba(210, 153, 34, 0.15);
+  --accent: #79c0ff;
+  --accent-muted: rgba(121, 192, 255, 0.12);
+
+  --critical: var(--bear);
+  --warning: var(--neutral);
+  --info: var(--accent);
+  --stale: #9e8747; /* desaturated amber — distinct from neutral */
+  --locked: #6e7681;
+
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --surface-2: #eaeef2;
+  --border: #d0d7de;
+  --border-strong: #afb8c1;
+
+  --fg: #1f2328;
+  --fg-muted: #59636e;
+  --fg-subtle: #818b98;
+
+  --bull: #1a7f37;
+  --bull-muted: rgba(26, 127, 55, 0.12);
+  --bear: #cf222e;
+  --bear-muted: rgba(207, 34, 46, 0.12);
+  --neutral: #9a6700;
+  --neutral-muted: rgba(154, 103, 0, 0.12);
+  --accent: #0969da;
+  --accent-muted: rgba(9, 105, 218, 0.1);
+
+  --stale: #857a55;
+  --locked: #818b98;
+
+  --shadow-1: 0 1px 2px rgba(31, 35, 40, 0.08);
+  --shadow-2: 0 4px 16px rgba(31, 35, 40, 0.12);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-bull: var(--bull);
+  --color-bull-muted: var(--bull-muted);
+  --color-bear: var(--bear);
+  --color-bear-muted: var(--bear-muted);
+  --color-neutral: var(--neutral);
+  --color-neutral-muted: var(--neutral-muted);
+  --color-accent: var(--accent);
+  --color-accent-muted: var(--accent-muted);
+  --color-critical: var(--critical);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-stale: var(--stale);
+  --color-locked: var(--locked);
+
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Prices and table numerics must not jitter as digits change */
+.tabular,
+table td,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Staleness treatment: applied by <WidgetFrame> / freshness system */
+.is-stale {
+  border-style: dashed !important;
+  border-color: var(--stale) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* react-grid-layout essentials (subset of its stylesheet, themed) */
+.react-grid-layout {
+  position: relative;
+}
+.react-grid-item {
+  transition: transform 200ms ease;
+}
+.react-grid-item.react-grid-placeholder {
+  background: var(--accent-muted);
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius);
+  opacity: 0.6;
+  z-index: 2;
+}
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+}
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--fg-subtle);
+  border-bottom: 2px solid var(--fg-subtle);
+}
+
+/* print stylesheet: the /report route becomes the PDF export */
+@media print {
+  body {
+    background: #ffffff;
+    color: #1f2328;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
