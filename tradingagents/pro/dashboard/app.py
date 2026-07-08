@@ -102,7 +102,12 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     @app.get("/api/recommendation/latest")
     def latest_recommendation() -> dict:
         run = state.latest_run()
-        return service.recommendation_view(run.recommendation if run else None)
+        if run is None:
+            return service.recommendation_view(None)
+        reflection = run.state.get("reflection") or {}
+        return service.recommendation_view(
+            run.recommendation, invalidation=reflection.get("invalidation")
+        )
 
     @app.get("/api/journal")
     def journal() -> dict:

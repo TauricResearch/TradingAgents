@@ -28,6 +28,18 @@ def test_index_serves_dashboard_html(client):
         assert f'id="{section}"' in response.text
 
 
+def test_index_quick_win_markers(client):
+    """UX quick wins are wired into the page (structural check)."""
+    html = client.get("/").text
+    assert 'name="viewport"' in html                 # A11Y-02
+    assert "@media (max-width: 900px)" in html       # A11Y-02
+    assert "X-API-Key" in html                       # SEC-UI-01
+    assert "STALE" in html and 'id="conn"' in html   # ALERT-01
+    assert "dirGlyph" in html and "▲" in html        # A11Y-01
+    assert "invalidation" in html                    # EXPL-02
+    assert "document.hidden" in html                 # PERF-01
+
+
 def test_api_surface(client):
     overview = client.get("/api/overview").json()
     assert overview["symbol"] == "XAUUSD"
@@ -44,6 +56,7 @@ def test_api_surface(client):
 
     recommendation = client.get("/api/recommendation/latest").json()
     assert recommendation["action"] == "BUY" and "vote_breakdown" in recommendation
+    assert "invalidation" in recommendation  # EXPL-02: reflection surfaced
 
     for path in ("/api/journal", "/api/backtest", "/api/memory", "/api/agents"):
         assert client.get(path).status_code == 200

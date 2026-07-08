@@ -31,7 +31,8 @@ def market_overview(run: RunRecord | None) -> dict:
     return summary
 
 
-def recommendation_view(rec: TradeRecommendation | None) -> dict:
+def recommendation_view(rec: TradeRecommendation | None,
+                        invalidation: str | None = None) -> dict:
     if rec is None:
         return {"status": "no recommendation"}
     view = rec.model_dump(mode="json")  # the full Phase 0 schema, verbatim
@@ -40,6 +41,8 @@ def recommendation_view(rec: TradeRecommendation | None) -> dict:
     }
     view["n_evidence"] = len(rec.evidence)
     view["n_counterarguments"] = len(rec.counterarguments)
+    # the reflection stage's falsifiability condition (UX review EXPL-02)
+    view["invalidation"] = invalidation
     return view
 
 

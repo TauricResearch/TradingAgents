@@ -52,6 +52,14 @@ class TestRunViews:
         assert view["action"] == "BUY"
         assert view["vote_tally"]["BUY"] >= 1
         assert view["n_evidence"] == len(view["evidence"])
+        assert view["invalidation"] is None  # not supplied
+
+    def test_recommendation_view_carries_invalidation(self, recorded):
+        _, run, _ = recorded
+        view = recommendation_view(
+            run.recommendation, invalidation="close below 2300 invalidates"
+        )
+        assert view["invalidation"] == "close below 2300 invalidates"
 
     def test_debate_timeline_orders_speakers(self, recorded):
         _, run, _ = recorded
