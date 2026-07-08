@@ -309,3 +309,31 @@ voice and one vote, subject to every gate. Undertrained states
 (< min_visits) yield no advice; the agent abstains rather than whisper
 noise. There is no code path from a policy output to execution that skips
 the judge.
+
+## ADR-0026: Five venues are one paper adapter plus VenueSpecs; live is a stub
+
+**Status:** accepted (Phase 9)
+
+MT5, Binance, Bybit, IBKR, and OANDA share one tested `PaperVenueAdapter`
+fill engine; each venue is a `VenueSpec` (symbol mapping, precision,
+minimums, cost models). Live transports are instantiable stubs that raise
+`ExecutionNotEnabled` from every operation — wiring credentials is an
+explicit sign-off event, not a configuration default (Constraint 5).
+Safety logic (validation, kill switch, breaker, retries, reconciliation,
+audit) lives in the router, never in adapters, so a real transport cannot
+accidentally bypass it.
+
+## ADR-0027: Latching safety controls and a hash-chained audit log
+
+**Status:** accepted (Phase 9)
+
+The kill switch is file-backed (an operator can `touch` the kill file from
+a shell) and latching — only an explicit operator reset re-enables
+trading. The circuit breaker trips on consecutive losses (streaks span
+days) or daily-loss breach (resets at day rollover). Idempotency is
+enforced twice: the router reuses the recommendation id as the order key
+and the paper adapter returns `duplicate` for a seen key — a retry storm
+cannot double-fill. The audit log hash-chains every entry to its
+predecessor; edits, deletions, or reordering break `verify()`.
+Reconciliation surfaces local-vs-venue drift; it never silently adopts
+the venue's view of the book.

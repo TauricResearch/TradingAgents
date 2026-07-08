@@ -173,6 +173,19 @@ The advisor plugs into the pipeline's `prepare` node; the roster's
 (abstains without a trained policy). RL is one evidence voice and one
 vote — never an execution path.
 
+### Phase 9 — `tradingagents/pro/execution/`
+
+One execution interface, paper-first (ADR-0026/0027):
+
+| Module | Provides |
+|---|---|
+| `interface.py` | `ExecutionAdapter` protocol, `OrderRequest/Result`, `AdapterError`, `ExecutionNotEnabled` |
+| `validation.py` | Freshness, size-vs-limits, venue-support, no-HOLD checks |
+| `safety.py` | Latching file-backed `KillSwitch`; `CircuitBreaker` (loss streaks + daily loss) |
+| `audit.py` | Hash-chained append-only `AuditLog` (tamper-evident, verifiable) |
+| `venues.py` | Five `VenueSpec`s (MT5/Binance/Bybit/IBKR/OANDA) over one `PaperVenueAdapter`; live stubs refuse |
+| `router.py` | validate → kill switch → breaker → idempotent retry submit → audit; `reconcile()` |
+
 ### Later phases (planned)
 - Phases 5–11: memory, graph enhancements, backtesting, RL, execution,
   dashboard, production engineering.
