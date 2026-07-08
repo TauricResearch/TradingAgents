@@ -1,0 +1,65 @@
+/** Display formatting only — the backend computes every trading number
+ * (Constraint 2); these helpers never derive new quantities. */
+
+export function fmtPrice(value: number | null | undefined, digits = 2): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+export function fmtPnl(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${fmtPrice(value)}`;
+}
+
+export function fmtPct(fraction: number | null | undefined, digits = 1): string {
+  if (fraction == null || Number.isNaN(fraction)) return "—";
+  return `${(fraction * 100).toFixed(digits)}%`;
+}
+
+export function fmtTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleTimeString();
+}
+
+export function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
+export function relativeAge(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return "—";
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+export type Direction = "bull" | "bear" | "neutral";
+
+/** Canonical direction mapping — glyph + word + color travel together
+ * (A11Y-01: never color alone). */
+export function directionOf(value: string | null | undefined): Direction {
+  const v = (value ?? "").toLowerCase();
+  if (["bull", "bullish", "buy", "long"].includes(v)) return "bull";
+  if (["bear", "bearish", "sell", "short"].includes(v)) return "bear";
+  return "neutral";
+}
+
+export const DIRECTION_GLYPH: Record<Direction, string> = {
+  bull: "▲",
+  bear: "▼",
+  neutral: "–",
+};

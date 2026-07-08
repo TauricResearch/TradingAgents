@@ -1,0 +1,296 @@
+/** Zod schemas mirroring the tested view models in
+ * tradingagents/pro/dashboard/service.py — the API boundary is validated
+ * so a drifted backend fails loudly here, not deep in a component.
+ * `.passthrough()` where the backend may grow additive fields. */
+import { z } from "zod";
+
+export const OverviewSchema = z
+  .object({
+    status: z.string().optional(),
+    symbol: z.string().optional(),
+    as_of: z.string().optional(),
+    last_close: z.number().nullable().optional(),
+    n_bars: z.number().optional(),
+    session: z.string().nullable().optional(),
+    missing_feeds: z.array(z.string()).optional(),
+    regime: z.string().nullable().optional(),
+    run_id: z.string().optional(),
+    started_at: z.string().optional(),
+    execution_status: z.string().nullable().optional(),
+    rejected_at: z.string().nullable().optional(),
+  })
+  .passthrough();
+export type Overview = z.infer<typeof OverviewSchema>;
+
+export const RunListItemSchema = z.object({
+  run_id: z.string(),
+  started_at: z.string(),
+  symbol: z.string(),
+  action: z.string().nullable(),
+  rejected_at: z.string().nullable(),
+});
+export type RunListItem = z.infer<typeof RunListItemSchema>;
+export const RunListSchema = z.array(RunListItemSchema);
+
+const TakeProfitSchema = z.object({
+  price: z.number(),
+  size_fraction: z.number(),
+});
+
+const AgentVoteSchema = z.object({
+  agent_id: z.string(),
+  vote: z.string(),
+  confidence: z.number(),
+});
+
+const EvidenceItemSchema = z
+  .object({
+    agent_id: z.string(),
+    direction: z.string(),
+    confidence: z.number(),
+    claim: z.string(),
+    data_refs: z
+      .array(z.object({ name: z.string(), value: z.unknown() }).passthrough())
+      .optional(),
+    sources: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
+export type EvidenceItem = z.infer<typeof EvidenceItemSchema>;
+
+const AnalogSchema = z
+  .object({
+    description: z.string(),
+    similarity: z.number(),
+    outcome: z.string(),
+  })
+  .passthrough();
+
+export const RecommendationSchema = z
+  .object({
+    status: z.string().optional(), // "rejected" | "no recommendation"
+    rejection: z
+      .object({ stage: z.string().nullable().optional() })
+      .catchall(z.unknown())
+      .nullable()
+      .optional(),
+    id: z.string().optional(),
+    symbol: z.string().optional(),
+    action: z.string().optional(),
+    confidence: z.number().optional(),
+    entry_price: z.number().nullable().optional(),
+    stop_loss: z.number().nullable().optional(),
+    take_profits: z.array(TakeProfitSchema).optional(),
+    position_size: z
+      .object({
+        quantity: z.number(),
+        notional: z.number().nullable().optional(),
+        pct_of_equity: z.number().nullable().optional(),
+      })
+      .optional(),
+    market_regime: z.string().optional(),
+    risk_reward: z.number().nullable().optional(),
+    vote_tally: z.record(z.number()).optional(),
+    vote_breakdown: z.object({ votes: z.array(AgentVoteSchema) }).optional(),
+    n_evidence: z.number().optional(),
+    n_counterarguments: z.number().optional(),
+    counterarguments: z.array(EvidenceItemSchema).optional(),
+    evidence: z.array(EvidenceItemSchema).optional(),
+    historical_analogs: z.array(AnalogSchema).optional(),
+    invalidation: z.string().nullable().optional(),
+    created_at: z.string().optional(),
+  })
+  .passthrough();
+export type Recommendation = z.infer<typeof RecommendationSchema>;
+
+export const TimelineSchema = z.object({
+  run_id: z.string(),
+  node_sequence: z.array(z.string()),
+  entries: z.array(
+    z
+      .object({
+        speaker: z.string(),
+        stance: z.string().nullable(),
+        confidence: z.number().nullable(),
+        argument: z.string(),
+        cited: z.array(z.string()),
+      })
+      .passthrough(),
+  ),
+  rejection: z
+    .object({ stage: z.string().nullable().optional() })
+    .catchall(z.unknown())
+    .nullable(),
+});
+export type Timeline = z.infer<typeof TimelineSchema>;
+
+export const EvidencePanelsSchema = z.record(z.array(EvidenceItemSchema));
+export type EvidencePanels = z.infer<typeof EvidencePanelsSchema>;
+
+export const StatusSchema = z
+  .object({
+    attached: z.boolean(),
+    trading_halted: z.boolean().nullable(),
+    kill_switch: z.object({ engaged: z.boolean(), reason: z.string() }).optional(),
+    circuit_breaker: z.object({ tripped: z.boolean(), reason: z.string() }).optional(),
+    open_positions: z
+      .array(z.object({ symbol: z.string(), quantity: z.number() }))
+      .optional(),
+    equity: z.number().nullable().optional(),
+  })
+  .passthrough();
+export type SystemStatus = z.infer<typeof StatusSchema>;
+
+export const AlertSchema = z.object({
+  time: z.string(),
+  run_id: z.string(),
+  severity: z.enum(["critical", "warning", "info"]),
+  text: z.string(),
+});
+export type Alert = z.infer<typeof AlertSchema>;
+export const AlertFeedSchema = z.object({ alerts: z.array(AlertSchema) });
+
+export const JournalSchema = z.object({
+  entries: z.array(
+    z
+      .object({
+        symbol: z.string(),
+        action: z.string().nullable(),
+        regime: z.string().nullable(),
+        pnl: z.number(),
+        won: z.boolean().nullable(),
+        closed_at: z.string(),
+      })
+      .passthrough(),
+  ),
+  total_pnl: z.number(),
+  n_trades: z.number(),
+  win_rate: z.number().nullable(),
+});
+export type Journal = z.infer<typeof JournalSchema>;
+
+export const BacktestSchema = z
+  .object({
+    status: z.string().optional(),
+    report: z.record(z.number()).optional(),
+    final_equity: z.number().optional(),
+    decisions: z.number().optional(),
+    executed: z.number().optional(),
+    rejections: z.record(z.number()).optional(),
+    equity_curve: z.array(z.number()).optional(),
+    n_trades: z.number().optional(),
+    monte_carlo: z
+      .object({
+        final_equity_p5: z.number(),
+        final_equity_p50: z.number(),
+        final_equity_p95: z.number(),
+        max_drawdown_p95: z.number(),
+        prob_loss: z.number(),
+      })
+      .optional(),
+  })
+  .passthrough();
+export type Backtest = z.infer<typeof BacktestSchema>;
+
+export const MemorySchema = z.object({
+  counts: z.record(z.number()),
+  recent_lessons: z.array(z.object({ kind: z.string(), text: z.string() })),
+});
+export type MemoryInsights = z.infer<typeof MemorySchema>;
+
+export const AgentPerfSchema = z.record(
+  z.object({
+    votes: z.number(),
+    avg_confidence: z.number(),
+    scored: z.number(),
+    hit_rate: z.number().nullable(),
+  }),
+);
+export type AgentPerf = z.infer<typeof AgentPerfSchema>;
+
+export const SymbolSpecSchema = z.object({
+  symbol: z.string(),
+  vendor_symbol: z.string(),
+  source: z.string(),
+  timeframes: z.array(z.string()),
+  live: z.boolean(),
+});
+export type SymbolSpec = z.infer<typeof SymbolSpecSchema>;
+export const SymbolsSchema = z.array(SymbolSpecSchema);
+
+export const BarSchema = z.object({
+  time: z.number(),
+  open: z.number(),
+  high: z.number(),
+  low: z.number(),
+  close: z.number(),
+  volume: z.number(),
+});
+export type Bar = z.infer<typeof BarSchema>;
+export const BarsSchema = z.array(BarSchema);
+
+export const IndicatorSeriesSchema = z.record(
+  z.object({
+    params: z.record(z.unknown()),
+    series: z.record(z.array(z.object({ time: z.number(), value: z.number() }))),
+  }),
+);
+export type IndicatorSeries = z.infer<typeof IndicatorSeriesSchema>;
+
+export const IntelSchema = z.object({
+  as_of: z.string(),
+  session: z.string(),
+  metrics: z.array(
+    z.object({
+      name: z.string(),
+      value: z.number(),
+      unit: z.string().nullable(),
+      as_of: z.string().nullable(),
+      source: z.string().nullable(),
+    }),
+  ),
+  missing_feeds: z.array(z.string()),
+  unsubscribed_feeds: z.array(z.object({ name: z.string(), provider: z.string() })),
+});
+export type Intel = z.infer<typeof IntelSchema>;
+
+export const CalendarSchema = z.object({
+  releases: z.array(
+    z.object({
+      date: z.string(),
+      release: z.string(),
+      release_id: z.number().nullable().optional(),
+    }),
+  ),
+  missing_feeds: z.array(z.string()),
+  as_of: z.string(),
+});
+export type Calendar = z.infer<typeof CalendarSchema>;
+
+export const NotificationSchema = z.object({
+  id: z.string(),
+  severity: z.string(),
+  event: z.string(),
+  text: z.string(),
+  time: z.string(),
+  read: z.boolean(),
+});
+export type Notification = z.infer<typeof NotificationSchema>;
+export const NotificationsSchema = z.object({
+  notifications: z.array(NotificationSchema),
+  unread: z.number(),
+});
+
+export const PrefsSchema = z.object({
+  theme: z.string(),
+  default_symbol: z.string(),
+  layouts: z.record(z.unknown()),
+  version: z.number(),
+});
+export type Prefs = z.infer<typeof PrefsSchema>;
+
+export const WatchlistSchema = z.object({
+  name: z.string(),
+  symbols: z.array(z.string()),
+});
+export type Watchlist = z.infer<typeof WatchlistSchema>;
+export const WatchlistsSchema = z.array(WatchlistSchema);
