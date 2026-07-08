@@ -125,6 +125,17 @@ class ProMemory:
         )))
         return added
 
+    def find_trade_by_recommendation(self, recommendation_id: str) -> MemoryRecord | None:
+        """The trade record the pipeline wrote for a given recommendation —
+        the handle the backtester/execution layer uses to close the loop."""
+        for record in self._records.values():
+            if (
+                record.kind is MemoryKind.TRADE
+                and record.payload.get("recommendation_id") == recommendation_id
+            ):
+                return record
+        return None
+
     def record_regime(self, symbol: str, regime: MarketRegime, features: dict) -> MemoryRecord:
         feature_text = " ".join(f"{k} {v:.4g}" for k, v in features.items())
         return self._add(MemoryRecord(

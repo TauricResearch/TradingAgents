@@ -49,6 +49,7 @@ def _merge_team_evidence(
 
 class PipelineState(TypedDict, total=False):
     snapshot: MarketSnapshot
+    equity: float  # per-run override of the builder's equity (backtests)
     evidence_by_team: Annotated[dict[str, list[AgentEvidence]], _merge_team_evidence]
     quant_metrics: dict[str, MetricReading]
     risk_metrics: dict[str, MetricReading]

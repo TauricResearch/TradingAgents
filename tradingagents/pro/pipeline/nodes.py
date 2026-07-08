@@ -170,8 +170,9 @@ class PipelineNodes:
             if stats
             else {}
         )
+        equity = state.get("equity") or self.equity
         risk = compute_risk_metrics(
-            snapshot, self.config.risk, self.equity, **win_kwargs
+            snapshot, self.config.risk, equity, **win_kwargs
         )
         regime = classify_regime(bars) if len(bars) >= 3 else MarketRegime.UNKNOWN
 
@@ -438,7 +439,8 @@ class PipelineNodes:
             }}
 
         # Recompute engine levels for the ruled side (Constraint 2).
-        sided = compute_risk_metrics(snapshot, self.config.risk, self.equity,
+        equity = state.get("equity") or self.equity
+        sided = compute_risk_metrics(snapshot, self.config.risk, equity,
                                      side=action.value)
         gate = risk_gate(sided, self.config, proposed_action=action)
         if not gate.passed:

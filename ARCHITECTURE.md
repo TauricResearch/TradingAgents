@@ -141,6 +141,21 @@ relations into the debate context and win statistics into the risk engine
 back; the PM attaches analogs to `TradeRecommendation.historical_analogs`.
 Rejected runs write nothing.
 
+### Phase 7 — `tradingagents/pro/backtest/`
+
+Backtests run the identical pipeline graph (ADR-0023/0024):
+
+| Module | Provides |
+|---|---|
+| `data.py` | `BarReplay`: per-step snapshots, lookahead-safe by construction |
+| `costs.py` | Side-aware slippage, commission, liquidity participation cap |
+| `broker.py` | `SimBroker`: stop-before-TP intrabar policy, TP-ladder partials, mark-to-market equity |
+| `engine.py` | `BacktestEngine`: decide on close, fill next open, equity-aware sizing, `memory.close_trade` on exits |
+| `metrics.py` | Sharpe, Sortino, max drawdown, win rate, profit factor, expectancy (Phase 8 objectives) |
+| `llm_cache.py` | `CachingLLM` record/replay/auto with JSONL persistence (fidelity: ADR-0023) |
+| `walkforward.py` | Rolling windows; stability evaluation until Phase 8 adds fitted params |
+| `montecarlo.py` | Seeded trade-P&L bootstrap: final-equity/drawdown percentiles, P(loss) |
+
 ### Later phases (planned)
 - Phases 5–11: memory, graph enhancements, backtesting, RL, execution,
   dashboard, production engineering.

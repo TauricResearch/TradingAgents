@@ -259,3 +259,31 @@ need persistence, ``build_pro_pipeline`` refuses to build a live-mode
 pipeline without a checkpointer (fail closed, Constraint 5). Structured
 LLM calls get a bounded retry budget (``llm_retries``); streaming exposes
 per-node updates for the Phase 10 dashboard.
+
+## ADR-0023: Backtests run the live pipeline with a record/replay LLM cache
+
+**Status:** accepted (Phase 7)
+
+The backtest engine invokes the same compiled graph as live/paper — no
+"backtest-only strategy" divergence. LLM cost is handled by ``CachingLLM``
+(auto/record/replay keyed on ``sha256(schema + prompt)``, JSONL-persisted).
+**Fidelity tradeoff:** a cache hit requires a byte-identical prompt, so
+any change to prompts, roster, or data rendering invalidates the cache;
+``replay`` mode raises on a miss rather than silently mixing fresh model
+output into a run that claims to be reproducible. Per-run equity flows
+through pipeline state, so sizing responds to drawdowns exactly as live.
+
+## ADR-0024: Conservative simulation defaults
+
+**Status:** accepted (Phase 7)
+
+No lookahead by construction (decide on bar *i*'s close from bars <= *i*,
+fill at bar *i+1*'s open); when a bar touches both the stop and a
+take-profit, the stop fills first (pessimistic); slippage is side-aware
+against the trader; orders cannot exceed a participation fraction of the
+fill bar's volume — the excess is dropped, not filled. Walk-forward is
+labelled *stability evaluation* until Phase 8 introduces fitted
+parameters; Monte Carlo bootstraps trade P&L (costs embedded), seeded and
+deterministic. v1 simulates one position at a time; multi-asset portfolio
+simulation arrives with Phase 9 reconciliation. Tick-level simulation
+awaits the paid microstructure feeds (docs/DATA_SOURCES.md).
