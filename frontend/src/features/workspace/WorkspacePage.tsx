@@ -24,6 +24,9 @@ import {
   ReplayControls,
   useReplay,
 } from "@/components/charts/ReplayController";
+import { DrawingToolbar } from "@/components/charts/drawings/DrawingToolbar";
+import type { ToolMode } from "@/components/charts/drawings/types";
+import { useDrawingsStore } from "@/stores/drawings";
 import {
   useBars,
   useCalendar,
@@ -105,7 +108,12 @@ export default function WorkspacePage() {
     setCompare,
   } = useUiStore();
   const [style, setStyle] = useState<SeriesStyle>("candles");
+  const [toolMode, setToolMode] = useState<ToolMode>("select");
   const chartCardRef = useRef<HTMLDivElement | null>(null);
+  const drawingCount = useDrawingsStore(
+    (state) => (state.bySymbol[symbol] ?? []).length,
+  );
+  const clearDrawings = useDrawingsStore((state) => state.clear);
 
   const symbols = useSymbols();
   const spec = symbols.data?.find((s) => s.symbol === symbol);
@@ -293,17 +301,30 @@ export default function WorkspacePage() {
               />
             ) : (
               <ChartSyncProvider>
-                <PriceChart
-                  bars={visibleBars}
-                  style={style}
-                  recommendation={recForSymbol}
-                  markers={markers}
-                  liveSymbol={isLive ? symbol : undefined}
-                  indicators={visibleIndicators}
-                  showVolume={showVolume}
-                  syncId={compare ? "workspace" : undefined}
-                  height={compare ? 300 : 420}
-                />
+                <div className="flex gap-2">
+                  <DrawingToolbar
+                    mode={toolMode}
+                    onModeChange={setToolMode}
+                    count={drawingCount}
+                    onClearAll={() => clearDrawings(symbol)}
+                  />
+                  <div className="min-w-0 grow">
+                    <PriceChart
+                      bars={visibleBars}
+                      style={style}
+                      recommendation={recForSymbol}
+                      markers={markers}
+                      liveSymbol={isLive ? symbol : undefined}
+                      indicators={visibleIndicators}
+                      showVolume={showVolume}
+                      syncId={compare ? "workspace" : undefined}
+                      drawingsSymbol={symbol}
+                      toolMode={toolMode}
+                      onToolModeChange={setToolMode}
+                      height={compare ? 300 : 420}
+                    />
+                  </div>
+                </div>
                 {compare && (
                   <div className="mt-3 border-t border-border pt-2">
                     <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">

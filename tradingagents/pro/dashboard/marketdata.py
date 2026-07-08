@@ -97,7 +97,7 @@ def default_registry() -> dict[str, SymbolSpec]:
             live=False,
             feed_factory=YFinanceDailyBarsFeed,
         )
-    if OandaGoldFeed.configured():
+    if OandaGoldFeed.configured() and OandaGoldFeed.probe():
         registry["XAUUSD"] = SymbolSpec(
             symbol="XAUUSD",
             vendor_symbol="XAU_USD",
@@ -107,6 +107,13 @@ def default_registry() -> dict[str, SymbolSpec]:
             feed_factory=OandaGoldFeed,
         )
     else:
+        if OandaGoldFeed.configured():
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "OANDA_API_TOKEN is set but the API rejected it — "
+                "falling back to yfinance daily gold"
+            )
         registry["XAUUSD"] = SymbolSpec(
             symbol="XAUUSD",
             vendor_symbol="GC=F",

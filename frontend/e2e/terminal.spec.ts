@@ -209,3 +209,70 @@ test.describe("v2 features", () => {
     await expect(page.getByTestId("saved-views")).toHaveCount(0);
   });
 });
+
+test.describe("v3 drawing tools", () => {
+  test.beforeEach(async ({ page }) => unlock(page));
+
+  test("trendline: draw, persist across reload, erase", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "drawing tools are desktop-only by design");
+    await page.goto("/trade/XAUUSD");
+    const chart = page.getByTestId("price-chart");
+    await expect(chart.locator("canvas").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(chart).toHaveAttribute("data-drawings", "0");
+
+    await page.getByRole("button", { name: /Trendline/ }).click();
+    const box = (await chart.boundingBox())!;
+    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.4);
+    await page.waitForTimeout(600); // human tempo; fast pairs go via dblclick
+    await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.55);
+    await expect(chart).toHaveAttribute("data-drawings", "1");
+
+    await page.reload();
+    await expect(
+      page.getByTestId("price-chart"),
+    ).toHaveAttribute("data-drawings", "1", { timeout: 20_000 });
+
+    await page.getByRole("button", { name: /Erase/ }).click();
+    const box2 = (await page.getByTestId("price-chart").boundingBox())!;
+    // click the segment midpoint
+    await page.mouse.click(box2.x + box2.width * 0.45, box2.y + box2.height * 0.475);
+    await expect(
+      page.getByTestId("price-chart"),
+    ).toHaveAttribute("data-drawings", "0");
+  });
+
+  test("fib places with two clicks; Esc cancels in-progress", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "drawing tools are desktop-only by design");
+    await page.goto("/trade/XAUUSD");
+    const chart = page.getByTestId("price-chart");
+    await expect(chart.locator("canvas").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    const box = (await chart.boundingBox())!;
+
+    // start a fib, then cancel — nothing persists
+    await page.getByRole("button", { name: /Fib retracement/ }).click();
+    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.3);
+    await page.keyboard.press("Escape");
+    await expect(chart).toHaveAttribute("data-drawings", "0");
+
+    // place a full fib
+    await page.getByRole("button", { name: /Fib retracement/ }).click();
+    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.3);
+    await page.waitForTimeout(600);
+    await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.7);
+    await expect(chart).toHaveAttribute("data-drawings", "1");
+
+    // clear all
+    await page.getByRole("button", { name: /Clear all drawings/ }).click();
+    await expect(chart).toHaveAttribute("data-drawings", "0");
+  });
+});

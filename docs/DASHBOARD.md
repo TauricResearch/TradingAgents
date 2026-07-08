@@ -78,10 +78,21 @@ markers; live last-price via `series.update`. Timeframes come from
 Indicator series come from `/api/bars/indicators` — computed by the same
 deterministic engine the pipeline uses.
 
-**Descoped honestly** (need the licensed TradingView library): drawing
-tools, fib, volume profile, Renko, replay mode. No fake market-depth
-ladder (only an imbalance scalar exists). No manual order ticket (the
-loop is autonomous; operator controls are pause/kill).
+**Drawing tools (v3)**: trendlines, horizontal rays, and Fibonacci
+retracements via a custom Lightweight Charts primitive
+(`components/charts/drawings/`). Anchored in data space (time + price)
+so they survive pan/zoom/timeframe; per-symbol persistence rides the
+prefs pipeline (cross-device); toolbar is desktop-only (honest: touch
+drawing is out of scope). Implementation note: LWC suppresses the
+second click of a <500ms pair as double-click detection — placement
+subscribes both `subscribeClick` and `subscribeDblClick` with a
+same-tap dedupe, and the placement preview updates the primitive
+imperatively (never through React state).
+
+**Descoped honestly** (need the licensed TradingView library): volume
+profile, Renko, freeform drawing beyond trend/ray/fib. No fake
+market-depth ladder (only an imbalance scalar exists). No manual order
+ticket (the loop is autonomous; operator controls are pause/kill).
 
 ## Personalization
 

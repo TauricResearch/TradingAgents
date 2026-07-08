@@ -15,6 +15,7 @@ import { useBinanceTicker } from "@/lib/binance";
 import { installKeyboardHandler } from "@/lib/shortcuts";
 import { startEventStream } from "@/lib/sse";
 import { recordSuccess } from "@/lib/staleness";
+import { useDrawingsStore } from "@/stores/drawings";
 import { useLayoutStore } from "@/stores/layout";
 import { useUiStore } from "@/stores/ui";
 
@@ -44,11 +45,15 @@ function Wiring() {
   // live BTC ticks
   useBinanceTicker(true);
 
-  // one-time hydrate of layouts from server prefs, then debounced mirror
+  const drawingsBySymbol = useDrawingsStore((state) => state.bySymbol);
+
+  // one-time hydrate of layouts + drawings from server prefs, then mirror
   useEffect(() => {
     if (prefs.data && !hydratedRef.current) {
       hydratedRef.current = true;
       layoutStore.hydrate(prefs.data.layouts);
+      const layouts = prefs.data.layouts as { drawings?: unknown };
+      useDrawingsStore.getState().hydrate(layouts?.drawings);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefs.data]);
@@ -59,13 +64,17 @@ function Wiring() {
       void savePrefs(client, {
         theme: ui.theme,
         default_symbol: ui.symbol,
-        layouts: layoutStore.exportForPrefs(),
+        layouts: {
+          ...layoutStore.exportForPrefs(),
+          drawings: useDrawingsStore.getState().bySymbol,
+        },
         version: 1,
       }).catch(() => undefined); // offline is fine; localStorage still has it
     }, 1500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutStore.overrides, layoutStore.preset, ui.theme, ui.symbol]);
+  }, [layoutStore.overrides, layoutStore.preset, ui.theme, ui.symbol,
+      drawingsBySymbol]);
 
   // keyboard chords
   useEffect(

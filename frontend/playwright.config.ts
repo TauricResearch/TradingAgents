@@ -25,7 +25,8 @@ export default defineConfig({
     // TRADINGAGENTS_PRO_DATA in a temp dir: prefs/watchlist tests must
     // never touch the operator's real ~/.tradingagents state
     command:
-      'cd .. && PRO_DASHBOARD_TOKEN=e2e-token TRADINGAGENTS_PRO_DATA="$(mktemp -d)" ' +
+      // OANDA_API_TOKEN cleared: e2e must be hermetic from operator env
+    'cd .. && PRO_DASHBOARD_TOKEN=e2e-token OANDA_API_TOKEN="" TRADINGAGENTS_PRO_DATA="$(mktemp -d)" ' +
       `${process.env.PRO_PYTHON ?? "python"} scripts/pro_dashboard_demo.py 8600`,
     url: "http://127.0.0.1:8600/healthz",
     reuseExistingServer: false,

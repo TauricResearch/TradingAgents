@@ -118,6 +118,16 @@ banner + red badge → recovery); real gold candles via yfinance; honest
 503 + degraded panels with Binance egress blocked; replay isolation;
 theme toggle; layout edit; service-worker update-on-prompt.
 
+**v3 delta (chart drawing tools)**: trend/hray/fib drawing with
+persistence and erase/clear; 9 new unit tests (fib geometry, hit
+testing, store caps) and 2 new e2e specs (draw→persist→erase,
+fib + Esc cancel) — 1010 python / 28 vitest / 31 Playwright all green.
+Found and fixed in the process: LWC's double-click window silently
+swallowing rapid placement clicks; an invalid OANDA token bricking gold
+charts instead of falling back to yfinance (now probe-gated at registry
+build); e2e now hermetic from operator env (token cleared, temp data
+dir).
+
 **Known open items (honest)**
 - OANDA_API_TOKEN not yet in .env — gold remains EOD until the operator
   adds it (adapter, poller, registry switch are wired and fake-tested).

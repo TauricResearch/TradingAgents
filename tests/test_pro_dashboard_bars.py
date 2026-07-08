@@ -295,3 +295,26 @@ class TestGoldTickPoller:
         poller.start()
         poller.stop()
         assert poller._thread is None
+
+
+class TestRegistryFallback:
+    def test_invalid_oanda_token_falls_back_to_yfinance(self, monkeypatch):
+        from tradingagents.pro.dashboard.marketdata import default_registry
+        from tradingagents.pro.ingestion.oanda_gold import OandaGoldFeed
+
+        monkeypatch.setenv("OANDA_API_TOKEN", "configured-but-invalid")
+        monkeypatch.setattr(OandaGoldFeed, "probe", classmethod(lambda cls, timeout=8.0: False))
+        registry = default_registry()
+        assert registry["XAUUSD"].source == "yfinance_daily"
+        assert registry["XAUUSD"].live is False
+
+    def test_valid_probe_enables_oanda(self, monkeypatch):
+        from tradingagents.pro.dashboard.marketdata import default_registry
+        from tradingagents.pro.ingestion.oanda_gold import OandaGoldFeed
+
+        monkeypatch.setenv("OANDA_API_TOKEN", "valid")
+        monkeypatch.setattr(OandaGoldFeed, "probe", classmethod(lambda cls, timeout=8.0: True))
+        registry = default_registry()
+        assert registry["XAUUSD"].source == "oanda_gold"
+        assert registry["XAUUSD"].live is True
+        assert "1h" in registry["XAUUSD"].timeframes

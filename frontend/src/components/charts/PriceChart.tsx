@@ -22,9 +22,20 @@ import { useEffect, useRef } from "react";
 import { chartColors, useLightweightChart } from "./useLightweightChart";
 import { toHeikinAshi } from "./transform";
 import { useChartSync } from "./ChartSync";
+import { DrawingsPrimitive } from "./drawings/primitive";
+import {
+  POINTS_REQUIRED,
+  type DrawingKind,
+  type DrawingPoint,
+  type ToolMode,
+} from "./drawings/types";
 import type { Bar, IndicatorSeries, Recommendation } from "@/lib/api/types";
 import { directionOf } from "@/lib/format";
+import { useDrawingsStore } from "@/stores/drawings";
 import { useTickerStore } from "@/stores/ticker";
+import { useUiStore } from "@/stores/ui";
+
+const NO_DRAWINGS: never[] = [];
 
 export type SeriesStyle = "candles" | "heikin-ashi" | "bars" | "line" | "area";
 
@@ -55,6 +66,9 @@ export function PriceChart({
   indicators,
   showVolume = false,
   syncId,
+  drawingsSymbol,
+  toolMode = "select",
+  onToolModeChange,
   height = 420,
 }: {
   bars: Bar[];
@@ -68,6 +82,10 @@ export function PriceChart({
   showVolume?: boolean;
   /** register with a ChartSyncProvider group for crosshair sync */
   syncId?: string;
+  /** enable user drawings, persisted under this symbol */
+  drawingsSymbol?: string;
+  toolMode?: ToolMode;
+  onToolModeChange?: (mode: ToolMode) => void;
   height?: number;
 }) {
   const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
@@ -78,6 +96,21 @@ export function PriceChart({
 
   const { containerRef, chartRef } = useLightweightChart(() => undefined);
   useChartSync(syncId, chartRef);
+
+  // --- user drawings (annotations; pure geometry) ------------------------------
+  const primitiveRef = useRef<DrawingsPrimitive | null>(null);
+  const placedRef = useRef<DrawingPoint[]>([]);
+  // click + dblclick both route to placement (LWC suppresses the second
+  // click of a fast pair); dedupe identical events at the window boundary
+  const lastEventRef = useRef<{ time: number; price: number; at: number } | null>(null);
+  const toolModeRef = useRef<ToolMode>(toolMode);
+  toolModeRef.current = toolMode;
+  const onToolModeChangeRef = useRef(onToolModeChange);
+  onToolModeChangeRef.current = onToolModeChange;
+  const theme = useUiStore((s) => s.theme);
+  const drawings = useDrawingsStore((state) =>
+    drawingsSymbol ? (state.bySymbol[drawingsSymbol] ?? NO_DRAWINGS) : NO_DRAWINGS,
+  );
 
   // (re)build all series when inputs change
   useEffect(() => {
@@ -191,8 +224,14 @@ export function PriceChart({
       }
     }
 
+    if (drawingsSymbol && seriesRef.current) {
+      const primitive = new DrawingsPrimitive();
+      seriesRef.current.attachPrimitive(primitive);
+      primitiveRef.current = primitive;
+    }
+
     chart.timeScale().fitContent();
-  }, [bars, style, indicators, showVolume, chartRef]);
+  }, [bars, style, indicators, showVolume, drawingsSymbol, chartRef]);
 
   // recommendation levels as price lines
   useEffect(() => {
@@ -270,6 +309,95 @@ export function PriceChart({
     };
   }, [markers, bars, style, indicators, showVolume]);
 
+  // push drawings + theme colors into the primitive
+  useEffect(() => {
+    const colors = chartColors();
+    primitiveRef.current?.setDrawings(drawings, {
+      line: colors.accent,
+      fib: colors.neutral,
+      label: colors.muted,
+    });
+  }, [drawings, theme, bars, style, indicators, showVolume]);
+
+  // click-to-place, crosshair preview, erase, Esc cancel
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !drawingsSymbol) return;
+
+    const cancel = () => {
+      placedRef.current = [];
+      lastEventRef.current = null; // dedupe only spans one tap gesture
+      primitiveRef.current?.setPreview(null);
+      onToolModeChangeRef.current?.("select");
+    };
+
+    const onClick = (param: { point?: { x: number; y: number }; time?: unknown }) => {
+      const mode = toolModeRef.current;
+      const primitive = primitiveRef.current;
+      const series = seriesRef.current;
+      if (!param.point || !primitive || !series) return;
+      if (mode === "erase") {
+        const id = primitive.findNearest(param.point);
+        if (id) useDrawingsStore.getState().remove(drawingsSymbol, id);
+        return;
+      }
+      if (mode === "select") return;
+      const price = series.coordinateToPrice(param.point.y);
+      if (price == null || param.time == null) return;
+      const point: DrawingPoint = { time: Number(param.time), price };
+      const last = lastEventRef.current;
+      if (last && Date.now() - last.at < 300 &&
+          last.time === point.time && last.price === point.price) {
+        return; // click + dblclick delivered for the same tap
+      }
+      lastEventRef.current = { ...point, at: Date.now() };
+      const placed = [...placedRef.current, point];
+      if (placed.length >= POINTS_REQUIRED[mode as DrawingKind]) {
+        useDrawingsStore.getState().add(drawingsSymbol, {
+          id: crypto.randomUUID(),
+          kind: mode as DrawingKind,
+          points: placed,
+        });
+        cancel();
+      } else {
+        placedRef.current = placed;
+        primitiveRef.current?.setPreview({
+          kind: mode as DrawingKind,
+          placed,
+          cursor: null,
+        });
+      }
+    };
+
+    const onMove = (param: { point?: { x: number; y: number }; time?: unknown }) => {
+      if (placedRef.current.length === 0 || !param.point) return;
+      const price = seriesRef.current?.coordinateToPrice(param.point.y);
+      if (price == null || param.time == null) return;
+      primitiveRef.current?.setPreview({
+        kind: toolModeRef.current as DrawingKind,
+        placed: placedRef.current,
+        cursor: { time: Number(param.time), price },
+      });
+    };
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") cancel();
+    };
+
+    // LWC suppresses the second click of a <500ms pair (double-click
+    // detection) — subscribe both so rapid two-click placement works
+    chart.subscribeClick(onClick);
+    chart.subscribeDblClick(onClick);
+    chart.subscribeCrosshairMove(onMove);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      chart.unsubscribeClick(onClick);
+      chart.unsubscribeDblClick(onClick);
+      chart.unsubscribeCrosshairMove(onMove);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [drawingsSymbol, chartRef]);
+
   // live last-price via series.update (never setData on tick)
   const lastBar = bars[bars.length - 1];
   useEffect(() => {
@@ -299,10 +427,11 @@ export function PriceChart({
   return (
     <div
       ref={containerRef}
-      style={{ height }}
+      style={{ height, cursor: toolMode !== "select" ? "crosshair" : undefined }}
       role="img"
       aria-label="price chart"
       data-testid="price-chart"
+      data-drawings={drawingsSymbol ? drawings.length : undefined}
     />
   );
 }

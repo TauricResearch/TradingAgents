@@ -77,7 +77,7 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         try:
             from tradingagents.pro.ingestion.oanda_gold import OandaGoldFeed
 
-            if OandaGoldFeed.configured():
+            if OandaGoldFeed.configured() and OandaGoldFeed.probe():
                 from tradingagents.pro.dashboard.ticker import GoldTickPoller
 
                 poller = GoldTickPoller(OandaGoldFeed(), state.broadcaster)

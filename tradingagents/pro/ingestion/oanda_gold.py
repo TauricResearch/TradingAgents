@@ -68,6 +68,24 @@ class OandaGoldFeed:
     def configured() -> bool:
         return bool(os.environ.get("OANDA_API_TOKEN"))
 
+    @classmethod
+    def probe(cls, timeout: float = 8.0) -> bool:
+        """One cheap candles request proves the token actually works.
+        A configured-but-invalid token (wrong product, expired) must
+        degrade to the yfinance fallback, not brick gold charts."""
+        if not cls.configured():
+            return False
+        try:
+            feed = cls(transport=RequestsTransport(
+                timeout=timeout,
+                headers={"Authorization":
+                         f"Bearer {os.environ.get('OANDA_API_TOKEN', '')}"},
+            ))
+            feed.get_bars("XAU_USD", Timeframe.D1, limit=2)
+            return True
+        except Exception:
+            return False
+
     def _candles(self, instrument: str, params: dict) -> list[dict]:
         payload = self._transport.get_json(
             f"{self._base}/v3/instruments/{instrument}/candles", params
