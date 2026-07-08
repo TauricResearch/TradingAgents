@@ -37,28 +37,40 @@ class ModelBundle:
         return cls.single(llm_or_bundle)
 
 
-def bundle_from_config(config: ProConfig, **client_kwargs) -> ModelBundle:
+def bundle_from_config(
+    config: ProConfig,
+    quick_timeout: float = 60.0,
+    deep_timeout: float = 180.0,
+    **client_kwargs,
+) -> ModelBundle:
     """Build a bundle from ProConfig.models via the base provider factory.
 
     Model IDs should be pinned, dated snapshots in production (SEC-02 /
     MODEL-01): a floating alias silently changes behavior with no eval gate.
+
+    Per-tier request timeouts bound worst-case decision latency (eval
+    finding: reasoning-class deep calls blocked 20+ minutes on an open
+    socket; SDK default only breaks at 600 s). A timed-out call flows into
+    the existing retry -> abstain path.
     """
     from tradingagents.llm_clients import create_llm_client
 
     routing = config.models
 
-    def make(model_id: str):
-        return create_llm_client(routing.llm_provider, model_id, **client_kwargs).get_llm()
+    def make(model_id: str, timeout: float):
+        return create_llm_client(
+            routing.llm_provider, model_id, timeout=timeout, **client_kwargs
+        ).get_llm()
 
-    quick = make(routing.quick_think_llm)
+    quick = make(routing.quick_think_llm, quick_timeout)
     deep = quick if routing.deep_think_llm == routing.quick_think_llm else make(
-        routing.deep_think_llm
+        routing.deep_think_llm, deep_timeout
     )
     made: dict[str, object] = {routing.quick_think_llm: quick,
                                routing.deep_think_llm: deep}
     overrides = {}
     for team, model_id in routing.team_overrides.items():
         if model_id not in made:
-            made[model_id] = make(model_id)
+            made[model_id] = make(model_id, quick_timeout)
         overrides[team] = made[model_id]
     return ModelBundle(quick=quick, deep=deep, team_overrides=overrides)

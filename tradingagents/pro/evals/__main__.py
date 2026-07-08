@@ -19,7 +19,7 @@ from tradingagents.contracts import AssetClass, ModelRouting, ProConfig
 from tradingagents.pro.evals.golden import golden_cases
 from tradingagents.pro.evals.harness import run_decision_evals
 from tradingagents.pro.models import bundle_from_config
-from tradingagents.pro.observability import CostTrackingLLM
+from tradingagents.pro.observability import CostTrackingLLM, price_for
 
 EST_COST_PER_CASE_RUN = 0.20  # measured on the first live runs (gpt-5.4-mini/gpt-5.5)
 
@@ -60,16 +60,19 @@ def main() -> int:
         return 2
 
     n_runs = len(cases) * args.samples
+    price_scale = price_for(routing.llm_provider).input_per_mtok / 3.0
+    est = n_runs * EST_COST_PER_CASE_RUN * price_scale
     print(f"running {len(cases)} cases x {args.samples} samples = {n_runs} "
-          f"pipeline runs (~${n_runs * EST_COST_PER_CASE_RUN:.2f} estimated)\n")
+          f"pipeline runs (~${est:.2f} estimated at {routing.llm_provider} rates)\n")
 
     config = ProConfig(asset=AssetClass.GOLD, max_debate_rounds=1, models=routing)
     # low temperature for eval comparability across runs; note reasoning
     # models may ignore it and no setting makes runs bit-identical (see the
     # base README's reproducibility section) — N-sample stats are the fix
     bundle = bundle_from_config(config, temperature=0.2)
-    bundle.quick = CostTrackingLLM(bundle.quick)
-    deep_tracker = CostTrackingLLM(bundle.deep)
+    price = price_for(routing.llm_provider)
+    bundle.quick = CostTrackingLLM(bundle.quick, price=price)
+    deep_tracker = CostTrackingLLM(bundle.deep, price=price)
     bundle.deep = deep_tracker if bundle.deep is not bundle.quick else bundle.quick
 
     report = run_decision_evals(bundle, config, cases=cases,

@@ -90,6 +90,22 @@ class ModelPrice:
     output_per_mtok: float = 15.0
 
 
+# Approximate published list prices (USD per Mtok), for budget gauges only —
+# verify against the provider's pricing page when it matters (eval finding:
+# DeepSeek runs were reported at ~10x their real cost under the old
+# one-size default). Unknown providers fall back to the conservative default.
+PROVIDER_PRICES: dict[str, ModelPrice] = {
+    "openai": ModelPrice(input_per_mtok=3.0, output_per_mtok=15.0),
+    "anthropic": ModelPrice(input_per_mtok=3.0, output_per_mtok=15.0),
+    "deepseek": ModelPrice(input_per_mtok=0.28, output_per_mtok=1.10),
+    "google": ModelPrice(input_per_mtok=1.25, output_per_mtok=10.0),
+}
+
+
+def price_for(provider: str) -> ModelPrice:
+    return PROVIDER_PRICES.get(provider.lower(), ModelPrice())
+
+
 @dataclass
 class CostReport:
     calls: int = 0
