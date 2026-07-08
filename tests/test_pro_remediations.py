@@ -253,7 +253,8 @@ class TestEvalDrivenFixes:
         template = load_pipeline_prompt("critic")
         assert "debating-team" in template
         assert "NOT a defect" in template
-        assert "ONLY defects" in template
+        assert "ONLY verified defects" in template
+        assert "OMIT it entirely" in template  # self-verification rule
 
 
 class TestRel01Durability:
