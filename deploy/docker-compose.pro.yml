@@ -1,0 +1,30 @@
+# Local Pro stack: dashboard + (optional) Qdrant for memory retrieval.
+#   docker compose -f deploy/docker-compose.pro.yml up
+#   docker compose -f deploy/docker-compose.pro.yml --profile qdrant up
+services:
+  pro-dashboard:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.pro
+    ports:
+      - "8600:8600"
+    environment:
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      TRADINGAGENTS_LLM_PROVIDER: ${TRADINGAGENTS_LLM_PROVIDER:-openai}
+    volumes:
+      - pro-data:/data
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    profiles: ["qdrant"]
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  pro-data:
+  qdrant-data:

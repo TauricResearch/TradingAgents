@@ -1,0 +1,33 @@
+# CI for the TradingAgents Pro extension. The base repo's ci.yml continues
+# to cover the stock workflow; this workflow adds the Pro gates.
+name: pro-ci
+
+on:
+  push:
+    branches: ["pro/**", "main"]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev,dashboard]" httpx
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Full test suite
+        run: pytest -q
+
+  docker-build:
+    needs: lint-and-test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Pro image
+        run: docker build -f deploy/Dockerfile.pro -t tradingagents-pro:${{ github.sha }} .

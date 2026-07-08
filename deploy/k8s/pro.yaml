@@ -1,0 +1,72 @@
+# TradingAgents Pro — Kubernetes manifests (paper-trading deployment).
+# Apply: kubectl apply -f deploy/k8s/pro.yaml
+# Secrets: create 'pro-keys' out of band; never commit real values.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tradingagents-pro
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pro-config
+  namespace: tradingagents-pro
+data:
+  TRADINGAGENTS_LLM_PROVIDER: "openai"
+  TRADINGAGENTS_MAX_DEBATE_ROUNDS: "1"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pro-data
+  namespace: tradingagents-pro
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pro-dashboard
+  namespace: tradingagents-pro
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pro-dashboard}
+  template:
+    metadata:
+      labels: {app: pro-dashboard}
+    spec:
+      containers:
+        - name: dashboard
+          image: tradingagents-pro:latest  # push to your registry and pin a tag
+          ports: [{containerPort: 8600}]
+          envFrom:
+            - configMapRef: {name: pro-config}
+            - secretRef: {name: pro-keys, optional: true}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+          readinessProbe:
+            httpGet: {path: /api/overview, port: 8600}
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: {path: /api/overview, port: 8600}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "1", memory: 1Gi}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: pro-data}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pro-dashboard
+  namespace: tradingagents-pro
+spec:
+  selector: {app: pro-dashboard}
+  ports:
+    - {port: 80, targetPort: 8600}

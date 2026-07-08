@@ -353,3 +353,29 @@ so what the dashboard shows is what the pipeline streamed. Per-agent hit
 rates are outcome-scored: a directional vote scores when a closed trade
 resolves it; HOLD votes are never scored; unresolved agents show no rate
 rather than a fake one.
+
+## ADR-0029: One service loop; bar-close position management; exit-bar cooldown
+
+**Status:** accepted (Phase 11)
+
+`PaperTradingService` is the single composition root: snapshot → recorded
+pipeline run → router → position management → memory writeback. Position
+management is bar-close based (the service reacts to breaches observed at
+snapshot time); intrabar semantics belong to the backtest broker and, in a
+future live deployment, to venue-native stop/TP orders. The service never
+re-enters on the bar that closed a position (exit-bar cooldown), and never
+holds more than one position per symbol. Iteration errors are logged and
+counted, not fatal — the loop survives transient data outages.
+
+## ADR-0030: Dependency-free observability; costs are labelled estimates
+
+**Status:** accepted (Phase 11)
+
+Structured logging is stdlib JSON; metrics are a small registry with
+Prometheus text exposition (no prometheus_client); LLM cost tracking wraps
+the Pro LLM interface and stacks with the backtest cache. Token counts are
+chars/4 estimates because the structured-output interface hides provider
+usage metadata — the figure is a budget gauge, explicitly not an invoice,
+until a pinned production provider's usage API is wired. Deployment ships
+paper-only images (Dockerfile.pro has no live transport to enable); the
+paper→live promotion path is a human checklist in docs/DEPLOYMENT.md.

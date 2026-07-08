@@ -195,9 +195,20 @@ Carlo, memory insights, outcome-scored per-agent hit rates), `app.py`
 (FastAPI shell, `dashboard` extra) + one vanilla-JS template. Demo:
 `python scripts/pro_dashboard_demo.py`.
 
-### Later phases (planned)
-- Phases 5–11: memory, graph enhancements, backtesting, RL, execution,
-  dashboard, production engineering.
+### Phase 11 — service loop, observability, deployment
+
+- `pro/service.py`: `PaperTradingService` — the deployable loop wiring
+  snapshot → pipeline → router → position management → memory (ADR-0029).
+- `pro/observability.py`: JSON logs, Prometheus-text metrics, LLM cost
+  tracking (ADR-0030).
+- `deploy/`: `Dockerfile.pro`, `docker-compose.pro.yml` (+ Qdrant
+  profile), `k8s/pro.yaml`. CI: `.github/workflows/pro-ci.yml`.
+- Docs: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md),
+  [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (incl. the paper→live
+  promotion checklist).
+
+All eleven phases are implemented; open sign-offs (paid data, deep RL,
+live credentials) are tracked in the ADR log and DATA_SOURCES.md.
 
 ## Compatibility stance
 
