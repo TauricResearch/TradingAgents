@@ -85,6 +85,68 @@ class TestIntelService:
         assert view["releases"] == [] and "fred_calendar: no key" in view["missing_feeds"]
 
 
+class TestCorrelations:
+    @staticmethod
+    def make_marketdata(symbols, n=60):
+        """Fake marketdata: deterministic correlated/anticorrelated closes."""
+        import math
+
+        from tests.pro_fakes import make_bars
+
+        class Fake:
+            def get_bars(self, symbol, timeframe, limit=250):
+                if symbol not in symbols:
+                    raise KeyError(symbol)
+                bars = make_bars(min(limit, n))
+                if symbol == "INVERSE":  # perfectly anti-correlated series
+                    rebuilt = []
+                    for b in bars:
+                        close = 1000 * math.exp(-math.log(b.close / 100))
+                        rebuilt.append(b.model_copy(update={
+                            "open": close, "high": close + 1,
+                            "low": close - 1, "close": close,
+                        }))
+                    return rebuilt
+                return bars
+        return Fake()
+
+    def test_matrix_symmetry_and_diagonal(self):
+        from tradingagents.pro.dashboard.intel import correlation_matrix
+
+        md = self.make_marketdata({"A", "B"})
+        view = correlation_matrix(md, ("A", "B"), window=30)
+        assert view["matrix"]["A"]["A"] == 1.0
+        assert view["matrix"]["A"]["B"] == view["matrix"]["B"]["A"]
+        assert view["used_days"] >= 5 and view["missing"] == []
+
+    def test_anticorrelated_series_reads_negative(self):
+        from tradingagents.pro.dashboard.intel import correlation_matrix
+
+        md = self.make_marketdata({"A", "INVERSE"})
+        view = correlation_matrix(md, ("A", "INVERSE"), window=30)
+        assert view["matrix"]["A"]["INVERSE"] < -0.9
+
+    def test_missing_symbol_disclosed_not_zero_filled(self):
+        from tradingagents.pro.dashboard.intel import correlation_matrix
+
+        md = self.make_marketdata({"A", "B"})
+        view = correlation_matrix(md, ("A", "B", "GHOST"), window=30)
+        assert "GHOST" not in view["matrix"]
+        assert any(m.startswith("GHOST") for m in view["missing"])
+        assert view["symbols"] == ["A", "B"]
+
+    def test_endpoint_and_cache(self):
+        state = DashboardState()
+        state.marketdata = self.make_marketdata({"BTC-USD", "XAUUSD", "DXY",
+                                                 "SILVER", "US10Y"})
+        client = TestClient(create_app(state))
+        view = client.get("/api/intel/correlations", params={"window": 30}).json()
+        assert view["matrix"]["BTC-USD"]["XAUUSD"] is not None
+        # second call served from cache (same object contents)
+        again = client.get("/api/intel/correlations", params={"window": 30}).json()
+        assert again == view
+
+
 class TestFredCalendar:
     def test_release_dates_parsing(self):
         class FakeTransport:

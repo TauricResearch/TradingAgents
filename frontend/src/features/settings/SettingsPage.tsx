@@ -2,14 +2,17 @@
  * explainer. Halting is displayed but executed operator-side (touch the
  * KILL file / engage()) — the dashboard is read-only over execution by
  * design, and says so instead of pretending. */
+import { useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { binanceHost, setBinanceHost } from "@/lib/binance";
-import { useStatus } from "@/lib/api/queries";
+import { patchPrefs, usePrefs, useStatus } from "@/lib/api/queries";
 import { useLayoutStore, type PresetId } from "@/stores/layout";
 import { useUiStore } from "@/stores/ui";
 
@@ -17,6 +20,10 @@ export default function SettingsPage() {
   const { theme, setTheme } = useUiStore();
   const { preset, setPreset, reset } = useLayoutStore();
   const status = useStatus();
+  const prefs = usePrefs();
+  const client = useQueryClient();
+  const views = prefs.data?.views ?? [];
+  const muted = prefs.data?.muted_events ?? [];
   const [host, setHost] = useState(binanceHost());
   const [confirm, setConfirm] = useState("");
 
@@ -87,6 +94,80 @@ export default function SettingsPage() {
             Use wss://stream.binance.us:9443 in US regions. Takes effect on
             next reconnect.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Saved views</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {views.length === 0 ? (
+            <p className="text-sm text-fg-subtle">
+              None yet — save one from the command palette (⌘K → "Save current
+              view").
+            </p>
+          ) : (
+            <ul className="space-y-1" data-testid="saved-views">
+              {views.map((view) => (
+                <li key={view.path} className="flex items-center gap-2 text-sm">
+                  <Link to={view.path} className="text-accent hover:underline">
+                    {view.name}
+                  </Link>
+                  <span className="grow font-mono text-xs text-fg-subtle">
+                    {view.path}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    aria-label={`delete view ${view.name}`}
+                    onClick={() =>
+                      void patchPrefs(client, {
+                        views: views.filter((v) => v.path !== view.path),
+                      })
+                    }
+                  >
+                    <X size={12} />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Muted notification types</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {muted.length === 0 ? (
+            <p className="text-sm text-fg-subtle">
+              Nothing muted. Mute a type from any notification in the bell
+              panel; muted types are hidden, never deleted.
+            </p>
+          ) : (
+            <ul className="flex flex-wrap gap-2" data-testid="muted-events">
+              {muted.map((event) => (
+                <li key={event}>
+                  <Badge variant="stale" className="gap-1">
+                    {event}
+                    <button
+                      aria-label={`unmute ${event}`}
+                      onClick={() =>
+                        void patchPrefs(client, {
+                          muted_events: muted.filter((m) => m !== event),
+                        })
+                      }
+                    >
+                      <X size={11} />
+                    </button>
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

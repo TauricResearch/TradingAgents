@@ -5,7 +5,12 @@ import { X } from "lucide-react";
 
 import { EmptyState } from "./EmptyState";
 import { Button } from "./ui/button";
-import { markNotificationsRead, useNotifications } from "@/lib/api/queries";
+import {
+  markNotificationsRead,
+  patchPrefs,
+  useNotifications,
+  usePrefs,
+} from "@/lib/api/queries";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
@@ -19,10 +24,16 @@ const TONE: Record<string, string> = {
 export function NotificationCenter() {
   const { notificationsOpen, setNotificationsOpen } = useUiStore();
   const notifications = useNotifications();
+  const prefs = usePrefs();
   const client = useQueryClient();
 
   if (!notificationsOpen) return null;
-  const items = notifications.data?.notifications ?? [];
+  const muted = new Set(prefs.data?.muted_events ?? []);
+  // muting hides, never deletes — the backend keeps everything
+  const items = (notifications.data?.notifications ?? []).filter(
+    (note) => !muted.has(note.event),
+  );
+  const mutedCount = (notifications.data?.notifications ?? []).length - items.length;
 
   return (
     <aside
@@ -59,6 +70,11 @@ export function NotificationCenter() {
         </div>
       </div>
       <div className="grow overflow-y-auto p-3">
+        {mutedCount > 0 && (
+          <p className="mb-2 text-xs text-fg-subtle">
+            {mutedCount} hidden by mute rules (manage in Settings)
+          </p>
+        )}
         {items.length === 0 ? (
           <EmptyState kind="empty" title="All clear" detail="No notifications yet." />
         ) : (
@@ -77,14 +93,28 @@ export function NotificationCenter() {
                   <span className={cn("text-xs uppercase", TONE[note.severity])}>
                     {note.severity} · {note.event}
                   </span>
-                  {!note.read && (
-                    <button
-                      className="text-xs text-accent hover:underline"
-                      onClick={() => void markNotificationsRead(client, [note.id])}
-                    >
-                      mark read
-                    </button>
-                  )}
+                  <span className="flex gap-2">
+                    {!note.read && (
+                      <button
+                        className="text-xs text-accent hover:underline"
+                        onClick={() => void markNotificationsRead(client, [note.id])}
+                      >
+                        mark read
+                      </button>
+                    )}
+                    {note.event && (
+                      <button
+                        className="text-xs text-fg-subtle hover:underline"
+                        onClick={() =>
+                          void patchPrefs(client, {
+                            muted_events: [...muted, note.event],
+                          })
+                        }
+                      >
+                        mute type
+                      </button>
+                    )}
+                  </span>
                 </div>
                 <p className={note.read ? "" : "text-fg"}>{note.text}</p>
                 <div className="text-xs text-fg-subtle">{fmtDateTime(note.time)}</div>

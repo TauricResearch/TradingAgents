@@ -11,6 +11,7 @@ import { Sparkline } from "@/components/Sparkline";
 import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { WidgetGrid, type WidgetDef } from "@/components/WidgetGrid";
 import {
   useAlerts,
@@ -222,7 +223,8 @@ const WIDGETS: WidgetDef[] = [
   { id: "prices", title: "Prices", render: () => <PriceRibbon />, layout: { x: 7, y: 7, w: 5, h: 5, minW: 3, minH: 4 } },
   { id: "alerts", title: "Alerts", render: () => <AlertsWidget />, layout: { x: 0, y: 12, w: 7, h: 7, minW: 3, minH: 4 } },
   { id: "diff", title: "Since you left", render: () => <SinceYouLeft />, layout: { x: 7, y: 12, w: 5, h: 7, minW: 3, minH: 4 } },
-  { id: "next", title: "What's next", render: () => <WhatNext />, layout: { x: 0, y: 19, w: 12, h: 5, minW: 4, minH: 4 } },
+  { id: "watchlist", title: "Watchlist", render: () => <WatchlistPanel />, layout: { x: 0, y: 19, w: 7, h: 6, minW: 4, minH: 4 } },
+  { id: "next", title: "What's next", render: () => <WhatNext />, layout: { x: 7, y: 19, w: 5, h: 6, minW: 4, minH: 4 } },
 ];
 
 export default function HomePage() {

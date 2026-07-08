@@ -123,3 +123,89 @@ test.describe("terminal", () => {
     expect(status.type).toContain("text/event-stream");
   });
 });
+
+test.describe("v2 features", () => {
+  test.beforeEach(async ({ page }) => unlock(page));
+
+  test("replay mode isolates history from live", async ({ page }) => {
+    await page.goto("/trade/XAUUSD");
+    await expect(
+      page.getByTestId("price-chart").locator("canvas").first(),
+    ).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: /Replay/ }).click();
+    await expect(page.getByTestId("replay-badge")).toContainText("REPLAY");
+    await expect(page.getByText("live ticks suspended")).toBeVisible();
+    await page.getByRole("button", { name: "Exit replay" }).click();
+    await expect(page.getByTestId("replay-badge")).toHaveCount(0);
+  });
+
+  test("indicator picker adds a pane", async ({ page }) => {
+    await page.goto("/trade/XAUUSD");
+    await expect(
+      page.getByTestId("price-chart").locator("canvas").first(),
+    ).toBeVisible({ timeout: 20_000 });
+    const before = await page
+      .getByTestId("price-chart")
+      .locator("table canvas")
+      .count();
+    await page.getByTestId("indicator-picker").click();
+    await page.getByText("RSI 14").click();
+    await page.keyboard.press("Escape");
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId("price-chart").locator("table canvas").count(),
+        { timeout: 15_000 },
+      )
+      .toBeGreaterThan(before);
+  });
+
+  test("watchlist add and remove persists", async ({ page, isMobile }) => {
+    // per-project symbol: both projects share one server + prefs store
+    const symbol = isMobile ? "SILVER" : "DXY";
+    await page.goto("/");
+    const panel = page.getByTestId("watchlist-panel");
+    await expect(panel).toBeVisible();
+    await panel.getByLabel("Add symbol to watchlist").fill(symbol);
+    await panel.getByRole("button", { name: /Add/ }).click();
+    await expect(panel.getByRole("link", { name: symbol })).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByTestId("watchlist-panel").getByRole("link", { name: symbol }),
+    ).toBeVisible({ timeout: 15_000 });
+    await page
+      .getByTestId("watchlist-panel")
+      .getByLabel(`remove ${symbol}`)
+      .click();
+    await expect(
+      page.getByTestId("watchlist-panel").getByRole("link", { name: symbol }),
+    ).toHaveCount(0);
+  });
+
+  test("correlation matrix renders or discloses gaps", async ({ page }) => {
+    await page.goto("/intel");
+    // either a matrix with data or an honest not-enough-data state
+    await expect(
+      page
+        .getByTestId("correlation-matrix")
+        .or(page.getByText("Not enough overlapping data")),
+    ).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("saved views round-trip through palette and settings", async ({
+    page,
+    isMobile,
+  }) => {
+    // desktop-only also avoids racing the shared prefs store
+    test.skip(isMobile, "palette is keyboard-driven");
+    await page.goto("/portfolio");
+    await page.keyboard.press("ControlOrMeta+k");
+    await page.getByPlaceholder(/Search commands/).fill("Save current view");
+    await page.keyboard.press("Enter");
+    await page.goto("/settings");
+    const views = page.getByTestId("saved-views");
+    await expect(views).toContainText("portfolio");
+    await views.getByRole("button").first().click();
+    await expect(page.getByTestId("saved-views")).toHaveCount(0);
+  });
+});

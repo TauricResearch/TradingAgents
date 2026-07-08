@@ -280,13 +280,31 @@ export const NotificationsSchema = z.object({
   unread: z.number(),
 });
 
+export const SavedViewSchema = z.object({
+  name: z.string(),
+  path: z.string(),
+});
+export type SavedView = z.infer<typeof SavedViewSchema>;
+
 export const PrefsSchema = z.object({
   theme: z.string(),
   default_symbol: z.string(),
   layouts: z.record(z.unknown()),
+  views: z.array(SavedViewSchema).default([]),
+  muted_events: z.array(z.string()).default([]),
   version: z.number(),
 });
 export type Prefs = z.infer<typeof PrefsSchema>;
+
+export const CorrelationsSchema = z.object({
+  window: z.number(),
+  used_days: z.number(),
+  symbols: z.array(z.string()),
+  matrix: z.record(z.record(z.number())),
+  missing: z.array(z.string()),
+  as_of: z.string(),
+});
+export type Correlations = z.infer<typeof CorrelationsSchema>;
 
 export const WatchlistSchema = z.object({
   name: z.string(),

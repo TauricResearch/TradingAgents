@@ -77,6 +77,10 @@ export function installKeyboardHandler(handlers: {
       case "D":
         handlers.toggleTheme();
         break;
+      case "f":
+        // full-screen the active chart; pages opt in by listening
+        window.dispatchEvent(new Event("pro:fullscreen"));
+        break;
       default: {
         const n = parseInt(event.key, 10);
         if (n >= 1 && n <= 7) handlers.setTimeframe(n - 1);
@@ -95,6 +99,7 @@ export const SHORTCUT_CHEATSHEET: { keys: string; action: string }[] = [
   { keys: "x", action: "Toggle symbol (XAUUSD ↔ BTC-USD)" },
   { keys: "1…7", action: "Timeframe 1m 5m 15m 1h 4h 1D 1W" },
   { keys: "⇧D", action: "Toggle theme" },
+  { keys: "f", action: "Full-screen chart (Workspace)" },
   { keys: "?", action: "This cheatsheet" },
   { keys: "Esc", action: "Close dialog / palette" },
 ];

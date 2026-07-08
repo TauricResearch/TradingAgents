@@ -69,17 +69,62 @@ honest metric needs data.
   (mute/threshold) over the notification store.
 - Multi-tenant track per the blocker list above.
 
-## Validation snapshot (2026-07-08)
+## Final Production Validation Report (2026-07-08, v2)
 
-- Python suite: 1000+ tests green including 60+ new dashboard-backend
-  tests (auth matrix, SSE thread-safety, TTL/single-flight, prefs
-  atomicity, exports, SPA fallback).
-- Frontend: tsc strict clean, eslint clean, 16 vitest unit tests,
-  Playwright E2E suite (desktop + mobile projects) against the seeded
-  demo server with auth enabled.
-- Live drills verified in-browser: token gate, LIVE↔STALE↔recovery via
-  SSE heartbeats, real gold candles via yfinance, honest 503 +
-  degraded states when Binance egress is blocked, halt banner, run
-  pinning, layout edit mode, service-worker update-on-prompt.
-- Initial bundle ≈166 KB gzip (budget 200 KB in CI); charts and grid
-  lazy-loaded per route.
+**Feature completeness vs spec** — shipped across v1+v2: 5 modules +
+settings + print-report; SSE push with heartbeats + Binance WS +
+polling fallback; Lightweight Charts with candles/Heikin-Ashi/OHLC
+bars/line/area, indicator overlays and oscillator panes from the
+deterministic engine, volume pane, recommendation price lines, trade
+markers, full-screen, synchronized compare charts (separate scales),
+client-side market replay with REPLAY badge and tick isolation;
+watchlists (persisted CRUD); journal filters + Sharpe/Sortino/max-DD +
+drawdown pane; saved views; alert mute rules (hide, never delete);
+cross-asset correlation matrix (server-side Pearson on daily log
+returns, gaps disclosed); command palette + vim chords; personalizable
+layouts with presets; notification center; CSV/print-PDF exports; PWA;
+Storybook; dark/light themes.
+
+**Test evidence**
+- Python: 1008 tests + 69 subtests green (includes ~80 dashboard-backend
+  tests: auth matrix, SSE thread-safety + replay dedupe, TTL/
+  single-flight, prefs atomicity under concurrent writers, correlation
+  symmetry/disclosure, exports, SPA fallback).
+- Frontend: tsc strict + eslint clean; 19 vitest unit tests (formatters,
+  Heikin-Ashi, drawdown, staleness, calibration bucketing, zod contract
+  fixtures); 29 Playwright e2e green (desktop + Pixel-5 projects,
+  serial — shared prefs store; temp data dir so tests never touch
+  operator state).
+
+**Lighthouse** (built SPA on the seeded demo server, lighthouse@12)
+- Desktop preset: **Performance 96 · Accessibility 100 · Best Practices
+  100**; FCP 1.0s, LCP 1.2s, TTI 1.2s, TBT 0ms — meets every spec
+  target.
+- Mobile (simulated slow-4G/4× CPU): Accessibility 100, Best Practices
+  100, Performance 65 (FCP 5.1s under throttle). Honest note: this is a
+  desktop-first terminal; PWA repeat visits are precached (near-instant
+  shell). Mobile-perf fast-follow: further route-level splitting of the
+  166 KB gz initial bundle.
+- A11y fixes landed from the audit: fg-subtle contrast raised to AA on
+  both themes, inline links underlined (not color-only), ladder table
+  given screen-reader headers.
+
+**Bundle**: initial JS 166.6 KB gz (CI budget 200 KB); charts (58 KB)
+and grid (29 KB) split per route; fonts self-hosted.
+
+**Live drills (in-browser)**: token gate; LIVE↔STALE↔recovery via SSE
+heartbeat events; halt-banner drill (kill-switch stub → full-width
+banner + red badge → recovery); real gold candles via yfinance; honest
+503 + degraded panels with Binance egress blocked; replay isolation;
+theme toggle; layout edit; service-worker update-on-prompt.
+
+**Known open items (honest)**
+- OANDA_API_TOKEN not yet in .env — gold remains EOD until the operator
+  adds it (adapter, poller, registry switch are wired and fake-tested).
+- Local Docker Desktop corrupted by a disk-full incident (user purge
+  pending); the image build is verified by CI's docker job instead.
+- Binance REST/WS geo-blocked from the dev network — degraded paths are
+  what got exercised; BTC live ticks need verification from an
+  unblocked network.
+- Paid feeds (Coinglass/Glassnode/ETF flows) remain locked panels
+  pending subscription sign-offs.

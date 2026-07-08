@@ -7,6 +7,7 @@ import type { z } from "zod";
 import { apiFetch } from "./client";
 import {
   AgentPerfSchema,
+  CorrelationsSchema,
   AlertFeedSchema,
   BacktestSchema,
   BarsSchema,
@@ -45,6 +46,7 @@ export const qk = {
   indicators: (symbol: string, tf: string, names: string) =>
     ["indicators", symbol, tf, names] as const,
   intel: ["intel"] as const,
+  correlations: (window: number) => ["correlations", window] as const,
   calendar: ["calendar"] as const,
   notifications: ["notifications"] as const,
   prefs: ["prefs"] as const,
@@ -160,6 +162,14 @@ export const useIntel = () =>
     refetchInterval: 60_000,
   });
 
+export const useCorrelations = (window = 30) =>
+  useQuery({
+    queryKey: qk.correlations(window),
+    queryFn: fetchParsed(`/api/intel/correlations?window=${window}`,
+                         CorrelationsSchema),
+    staleTime: 3_600_000,
+  });
+
 export const useCalendar = () =>
   useQuery({
     queryKey: qk.calendar,
@@ -196,6 +206,34 @@ export async function savePrefs(client: QueryClient, prefs: unknown) {
   });
   client.setQueryData(qk.prefs, PrefsSchema.parse(saved));
   return saved;
+}
+
+/** Read-modify-write over the cached prefs document. */
+export async function patchPrefs(
+  client: QueryClient,
+  patch: Record<string, unknown>,
+) {
+  const current = client.getQueryData(qk.prefs) ?? {};
+  return savePrefs(client, { ...current, ...patch });
+}
+
+export async function upsertWatchlist(
+  client: QueryClient,
+  watchlist: { name: string; symbols: string[] },
+) {
+  await apiFetch("/api/watchlists", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(watchlist),
+  });
+  await client.invalidateQueries({ queryKey: qk.watchlists });
+}
+
+export async function deleteWatchlist(client: QueryClient, name: string) {
+  await apiFetch(`/api/watchlists/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+  await client.invalidateQueries({ queryKey: qk.watchlists });
 }
 
 export async function markNotificationsRead(client: QueryClient, ids?: string[]) {

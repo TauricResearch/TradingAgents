@@ -2,6 +2,7 @@
  * sizes, trades table (every P&L row links to its run — the killer
  * feature), memory-driven journal, integrity panel, exports. */
 import { Download } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { EquityCurve } from "@/components/charts/EquityCurve";
@@ -27,9 +28,23 @@ export default function PortfolioPage() {
   const status = useStatus();
   const memory = useMemoryInsights();
   const runs = useRuns();
+  const [showDrawdown, setShowDrawdown] = useState(true);
+  const [symbolFilter, setSymbolFilter] = useState("all");
+  const [outcomeFilter, setOutcomeFilter] = useState("all");
 
   const report = backtest.data?.report ?? {};
   const j = journal.data;
+
+  const symbolsInJournal = useMemo(
+    () => [...new Set((j?.entries ?? []).map((e) => e.symbol))],
+    [j],
+  );
+  const filteredEntries = (j?.entries ?? []).filter(
+    (entry) =>
+      (symbolFilter === "all" || entry.symbol === symbolFilter) &&
+      (outcomeFilter === "all" ||
+        (outcomeFilter === "won" ? entry.won === true : entry.won === false)),
+  );
 
   return (
     <div className="space-y-4">
@@ -44,9 +59,18 @@ export default function PortfolioPage() {
               <SkeletonCard lines={6} />
             ) : backtest.data?.equity_curve && backtest.data.equity_curve.length > 1 ? (
               <>
+                <label className="mb-1 flex items-center gap-1.5 text-xs text-fg-muted">
+                  <input
+                    type="checkbox"
+                    checked={showDrawdown}
+                    onChange={() => setShowDrawdown(!showDrawdown)}
+                  />
+                  drawdown pane
+                </label>
                 <EquityCurve
                   curve={backtest.data.equity_curve}
                   monteCarlo={backtest.data.monte_carlo ?? null}
+                  showDrawdown={showDrawdown}
                 />
                 <p className="mt-2 text-xs text-fg-subtle">
                   {backtest.data.executed}/{backtest.data.decisions} decisions
@@ -83,6 +107,10 @@ export default function PortfolioPage() {
             value={report.sharpe != null ? report.sharpe.toFixed(2) : "—"}
           />
           <StatCard
+            label="Backtest Sortino"
+            value={report.sortino != null ? report.sortino.toFixed(2) : "—"}
+          />
+          <StatCard
             label="Backtest max DD"
             value={report.max_drawdown != null ? fmtPct(report.max_drawdown) : "—"}
             tone="bear"
@@ -97,7 +125,28 @@ export default function PortfolioPage() {
       <Card>
         <CardHeader>
           <CardTitle>Trades</CardTitle>
-          <div className="flex gap-2 no-print">
+          <div className="flex flex-wrap items-center gap-2 no-print">
+            <select
+              value={symbolFilter}
+              onChange={(event) => setSymbolFilter(event.target.value)}
+              aria-label="Filter by symbol"
+              className="h-7 rounded-md border border-border-strong bg-surface-2 px-2 text-xs"
+            >
+              <option value="all">all symbols</option>
+              {symbolsInJournal.map((sym) => (
+                <option key={sym} value={sym}>{sym}</option>
+              ))}
+            </select>
+            <select
+              value={outcomeFilter}
+              onChange={(event) => setOutcomeFilter(event.target.value)}
+              aria-label="Filter by outcome"
+              className="h-7 rounded-md border border-border-strong bg-surface-2 px-2 text-xs"
+            >
+              <option value="all">all outcomes</option>
+              <option value="won">wins</option>
+              <option value="lost">losses</option>
+            </select>
             <a href="/api/export/journal.csv" download>
               <Button size="sm" variant="outline">
                 <Download size={13} /> CSV
@@ -133,7 +182,7 @@ export default function PortfolioPage() {
                   </tr>
                 </thead>
                 <tbody className="tabular">
-                  {j!.entries.map((entry, i) => {
+                  {filteredEntries.map((entry, i) => {
                     // best-effort run linkage: the run whose start precedes close
                     const run = [...(runs.data ?? [])]
                       .reverse()
@@ -161,7 +210,7 @@ export default function PortfolioPage() {
                           {run ? (
                             <Link
                               to={`/decisions/${run.run_id}`}
-                              className="text-xs text-accent hover:underline"
+                              className="text-xs text-accent underline underline-offset-2"
                             >
                               view reasoning →
                             </Link>

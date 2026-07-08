@@ -52,10 +52,17 @@ class Notification(_Mutable):
     read: bool = False
 
 
+class SavedView(_Mutable):
+    name: str = Field(min_length=1, max_length=64)
+    path: str = Field(min_length=1, max_length=512)
+
+
 class UserPrefs(_Mutable):
     theme: str = "dark"
     default_symbol: str = "BTC-USD"
     layouts: dict[str, Any] = Field(default_factory=dict)
+    views: list[SavedView] = Field(default_factory=list, max_length=50)
+    muted_events: list[str] = Field(default_factory=list, max_length=100)
     version: int = 1
 
 

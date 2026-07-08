@@ -50,7 +50,7 @@ export function AlertFeedList({
             <span className="text-fg-muted">{alert.text}</span>
             <div className="text-xs text-fg-subtle">
               {fmtDateTime(alert.time)} ·{" "}
-              <Link to={`/decisions/${alert.run_id}`} className="text-accent hover:underline">
+              <Link to={`/decisions/${alert.run_id}`} className="text-accent underline underline-offset-2">
                 view run
               </Link>
             </div>

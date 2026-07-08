@@ -1,14 +1,19 @@
-/** Price chart: candles / heikin-ashi / line / area, recommendation
- * levels as price lines (entry solid accent, stop dashed bear, TPs
- * dotted bull with size fractions), trade markers from the journal,
- * and a live last-price update from the ticker store. */
+/** Price chart: candles / heikin-ashi / OHLC bars / line / area,
+ * recommendation levels as price lines, trade markers, live last-price
+ * updates, optional volume pane, and indicator series from the
+ * deterministic engine (/api/bars/indicators) — overlays on the price
+ * pane, oscillators in sub-panes. The chart renders numbers; it never
+ * computes them (Heikin-Ashi is a labeled presentation redraw). */
 import {
   AreaSeries,
+  BarSeries,
   CandlestickSeries,
+  HistogramSeries,
   LineSeries,
   createSeriesMarkers,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
+  type SeriesType,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -16,11 +21,12 @@ import { useEffect, useRef } from "react";
 
 import { chartColors, useLightweightChart } from "./useLightweightChart";
 import { toHeikinAshi } from "./transform";
-import type { Bar, Recommendation } from "@/lib/api/types";
+import { useChartSync } from "./ChartSync";
+import type { Bar, IndicatorSeries, Recommendation } from "@/lib/api/types";
 import { directionOf } from "@/lib/format";
 import { useTickerStore } from "@/stores/ticker";
 
-export type SeriesStyle = "candles" | "heikin-ashi" | "line" | "area";
+export type SeriesStyle = "candles" | "heikin-ashi" | "bars" | "line" | "area";
 
 export interface TradeMarker {
   time: number;
@@ -28,41 +34,75 @@ export interface TradeMarker {
   label: string;
 }
 
+/** overlays share the price pane; oscillators get their own */
+const OVERLAY_INDICATORS = new Set(["EMA_10", "SMA_50", "SMA_200", "BOLL"]);
+
+const INDICATOR_LINE_COLORS: Record<string, string> = {
+  value: "#79c0ff",
+  macd: "#79c0ff",
+  signal: "#d29922",
+  middle: "#9ca7b3",
+  upper: "#6e7681",
+  lower: "#6e7681",
+};
+
 export function PriceChart({
   bars,
   style = "candles",
   recommendation,
   markers = [],
   liveSymbol,
+  indicators,
+  showVolume = false,
+  syncId,
   height = 420,
 }: {
   bars: Bar[];
   style?: SeriesStyle;
   recommendation?: Recommendation | null;
   markers?: TradeMarker[];
-  /** ticker-store symbol for live last-price updates (e.g. "BTC-USD") */
+  /** ticker-store symbol for live last-price updates; omit during replay */
   liveSymbol?: string;
+  /** deterministic indicator series keyed by name (RSI_14, MACD, …) */
+  indicators?: IndicatorSeries;
+  showVolume?: boolean;
+  /** register with a ChartSyncProvider group for crosshair sync */
+  syncId?: string;
   height?: number;
 }) {
-  const seriesRef = useRef<ISeriesApi<"Candlestick" | "Line" | "Area"> | null>(null);
+  const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
+  const extraSeriesRef = useRef<ISeriesApi<SeriesType>[]>([]);
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const styleRef = useRef(style);
   styleRef.current = style;
 
   const { containerRef, chartRef } = useLightweightChart(() => undefined);
+  useChartSync(syncId, chartRef);
 
-  // (re)build the series when style changes; refill data when bars change
+  // (re)build all series when inputs change
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    if (seriesRef.current) {
-      markersRef.current?.detach();
-      markersRef.current = null;
-      chart.removeSeries(seriesRef.current);
-      seriesRef.current = null;
-    }
+    markersRef.current?.detach();
+    markersRef.current = null;
+    if (seriesRef.current) chart.removeSeries(seriesRef.current);
+    extraSeriesRef.current.forEach((series) => chart.removeSeries(series));
+    seriesRef.current = null;
+    extraSeriesRef.current = [];
+
     const colors = chartColors();
     const data = style === "heikin-ashi" ? toHeikinAshi(bars) : bars;
+    const ohlc = data.map((b) => ({
+      time: b.time as UTCTimestamp,
+      open: b.open,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+    }));
+    const closes = data.map((b) => ({
+      time: b.time as UTCTimestamp,
+      value: b.close,
+    }));
 
     if (style === "candles" || style === "heikin-ashi") {
       const series = chart.addSeries(CandlestickSeries, {
@@ -73,24 +113,22 @@ export function PriceChart({
         wickUpColor: colors.bull,
         wickDownColor: colors.bear,
       });
-      series.setData(
-        data.map((b) => ({
-          time: b.time as UTCTimestamp,
-          open: b.open,
-          high: b.high,
-          low: b.low,
-          close: b.close,
-        })),
-      );
+      series.setData(ohlc);
+      seriesRef.current = series;
+    } else if (style === "bars") {
+      const series = chart.addSeries(BarSeries, {
+        upColor: colors.bull,
+        downColor: colors.bear,
+        thinBars: false,
+      });
+      series.setData(ohlc);
       seriesRef.current = series;
     } else if (style === "line") {
       const series = chart.addSeries(LineSeries, {
         color: colors.accent,
         lineWidth: 2,
       });
-      series.setData(
-        data.map((b) => ({ time: b.time as UTCTimestamp, value: b.close })),
-      );
+      series.setData(closes);
       seriesRef.current = series;
     } else {
       const series = chart.addSeries(AreaSeries, {
@@ -99,13 +137,62 @@ export function PriceChart({
         bottomColor: "rgba(121,192,255,0.02)",
         lineWidth: 2,
       });
-      series.setData(
-        data.map((b) => ({ time: b.time as UTCTimestamp, value: b.close })),
-      );
+      series.setData(closes);
       seriesRef.current = series;
     }
+
+    // pane layout: 0 = price (+overlays); volume next; then one pane per
+    // oscillator, in stable name order
+    let nextPane = 1;
+
+    if (showVolume) {
+      const volume = chart.addSeries(
+        HistogramSeries,
+        { priceFormat: { type: "volume" }, priceScaleId: "volume" },
+        nextPane,
+      );
+      volume.setData(
+        data.map((b, i) => ({
+          time: b.time as UTCTimestamp,
+          value: b.volume,
+          color:
+            i > 0 && b.close < data[i - 1]!.close
+              ? "rgba(248,81,73,0.5)"
+              : "rgba(63,185,80,0.5)",
+        })),
+      );
+      extraSeriesRef.current.push(volume);
+      nextPane += 1;
+    }
+
+    for (const [name, block] of Object.entries(indicators ?? {}).sort()) {
+      const overlay = OVERLAY_INDICATORS.has(name);
+      const paneIndex = overlay ? 0 : nextPane;
+      if (!overlay) nextPane += 1;
+      for (const [lineName, points] of Object.entries(block.series)) {
+        const isHistogram = lineName === "histogram";
+        const series = chart.addSeries(
+          isHistogram ? HistogramSeries : LineSeries,
+          isHistogram
+            ? { color: "rgba(121,192,255,0.4)" }
+            : {
+                color: INDICATOR_LINE_COLORS[lineName] ?? colors.neutral,
+                lineWidth: 1,
+                priceLineVisible: false,
+                lastValueVisible: !overlay,
+                title: overlay ? name : `${name} ${lineName}`,
+              },
+          paneIndex,
+        );
+        series.setData(
+          points.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+        );
+        extraSeriesRef.current.push(series);
+      }
+    }
+
     chart.timeScale().fitContent();
-  }, [bars, style, chartRef]);
+  }, [bars, style, indicators, showVolume, chartRef]);
 
   // recommendation levels as price lines
   useEffect(() => {
@@ -147,7 +234,7 @@ export function PriceChart({
       });
     }
     return () => lines.forEach((line) => series.removePriceLine(line));
-  }, [recommendation, bars, style]);
+  }, [recommendation, bars, style, indicators, showVolume]);
 
   // trade / run markers
   useEffect(() => {
@@ -181,7 +268,7 @@ export function PriceChart({
       markersRef.current?.detach();
       markersRef.current = null;
     };
-  }, [markers, bars, style]);
+  }, [markers, bars, style, indicators, showVolume]);
 
   // live last-price via series.update (never setData on tick)
   const lastBar = bars[bars.length - 1];
@@ -191,7 +278,7 @@ export function PriceChart({
       const tick = state.ticks[liveSymbol];
       const series = seriesRef.current;
       if (!tick || !series) return;
-      if (styleRef.current === "candles") {
+      if (styleRef.current === "candles" || styleRef.current === "bars") {
         (series as ISeriesApi<"Candlestick">).update({
           time: lastBar.time as UTCTimestamp,
           open: lastBar.open,

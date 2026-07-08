@@ -19,6 +19,75 @@ from tradingagents.contracts import utc_now
 
 logger = logging.getLogger(__name__)
 
+CORRELATION_SYMBOLS = ("BTC-USD", "XAUUSD", "DXY", "SILVER", "US10Y")
+
+
+def correlation_matrix(marketdata, symbols, window: int = 30,
+                       deadline: float = 10.0) -> dict:
+    """Pairwise Pearson correlations of daily log returns (deterministic
+    math on close prices — the UI renders, never computes). Calendars are
+    aligned on shared dates (BTC trades weekends, gold doesn't); symbols
+    without enough overlapping data are disclosed, never zero-filled.
+    Bars fetch in parallel under a deadline — one blackholed vendor must
+    not make the matrix take minutes."""
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+
+    import numpy as np
+    import pandas as pd
+
+    from tradingagents.contracts import Timeframe
+
+    closes: dict[str, pd.Series] = {}
+    missing: list[str] = []
+    pool = ThreadPoolExecutor(max_workers=len(symbols) or 1,
+                              thread_name_prefix="corr")
+    futures = {
+        symbol: pool.submit(
+            marketdata.get_bars, symbol, Timeframe.D1, window + 10
+        )
+        for symbol in symbols
+    }
+    started = time.monotonic()
+    for symbol, future in futures.items():
+        remaining = max(0.05, deadline - (time.monotonic() - started))
+        try:
+            bars = future.result(timeout=remaining)
+            closes[symbol] = pd.Series(
+                [b.close for b in bars],
+                index=[b.start.date() for b in bars],
+            )
+        except FutureTimeout:
+            future.cancel()
+            missing.append(f"{symbol}: no response within {deadline:.0f}s")
+        except Exception as exc:
+            missing.append(f"{symbol}: {exc}")
+    pool.shutdown(wait=False)  # never join a blackholed fetch
+
+    matrix: dict[str, dict[str, float]] = {}
+    used_days = 0
+    if len(closes) >= 2:
+        frame = pd.DataFrame(closes).sort_index().dropna()
+        returns = np.log(frame / frame.shift(1)).dropna().tail(window)
+        used_days = len(returns)
+        if used_days >= 5:
+            corr = returns.corr()
+            matrix = {
+                a: {b: round(float(corr.loc[a, b]), 3) for b in corr.columns}
+                for a in corr.index
+            }
+        else:
+            missing.append(
+                f"only {used_days} overlapping daily returns; need >= 5"
+            )
+    return {
+        "window": window,
+        "used_days": used_days,
+        "symbols": [s for s in symbols if s in matrix],
+        "matrix": matrix,
+        "missing": missing,
+        "as_of": utc_now().isoformat(),
+    }
+
 
 def _reading_view(reading) -> dict:
     return {
@@ -50,6 +119,7 @@ class IntelService:
         self._pool = None  # lazy ThreadPoolExecutor, shared across snapshots
         self._cached: tuple[float, dict] | None = None
         self._cached_calendar: tuple[float, dict] | None = None
+        self._cached_correlations: dict[tuple, tuple[float, dict]] = {}
 
     # --- default wiring (built lazily so tests never construct real feeds) --------
 
@@ -146,6 +216,19 @@ class IntelService:
         }
         with self._lock:
             self._cached = (self._now(), view)
+        return view
+
+    def correlations(self, marketdata, window: int = 30,
+                     symbols: tuple[str, ...] = CORRELATION_SYMBOLS) -> dict:
+        window = max(5, min(window, 250))
+        cache_key = (window, symbols)
+        with self._lock:
+            cached = self._cached_correlations.get(cache_key)
+            if cached and self._now() - cached[0] < 3600.0:
+                return cached[1]
+        view = correlation_matrix(marketdata, symbols, window)
+        with self._lock:
+            self._cached_correlations[cache_key] = (self._now(), view)
         return view
 
     def calendar(self, days: int = 30) -> dict:

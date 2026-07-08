@@ -16,6 +16,12 @@ interface UiState {
   setSymbol: (symbol: string) => void;
   timeframe: string;
   setTimeframe: (tf: string) => void;
+  indicators: string[];
+  toggleIndicator: (name: string) => void;
+  showVolume: boolean;
+  toggleVolume: () => void;
+  compare: boolean;
+  setCompare: (on: boolean) => void;
   lastSeenAt: number; // powers the "since you left" diff panel
   markSeen: () => void;
 }
@@ -38,6 +44,17 @@ export const useUiStore = create<UiState>()(
       setSymbol: (symbol) => set({ symbol }),
       timeframe: "1h",
       setTimeframe: (timeframe) => set({ timeframe }),
+      indicators: [],
+      toggleIndicator: (name) =>
+        set((state) => ({
+          indicators: state.indicators.includes(name)
+            ? state.indicators.filter((n) => n !== name)
+            : [...state.indicators, name],
+        })),
+      showVolume: false,
+      toggleVolume: () => set((state) => ({ showVolume: !state.showVolume })),
+      compare: false,
+      setCompare: (compare) => set({ compare }),
       lastSeenAt: Date.now(),
       markSeen: () => set({ lastSeenAt: Date.now() }),
     }),
@@ -48,6 +65,8 @@ export const useUiStore = create<UiState>()(
         symbol: s.symbol,
         timeframe: s.timeframe,
         lastSeenAt: s.lastSeenAt,
+        indicators: s.indicators,
+        showVolume: s.showVolume,
       }),
     },
   ),

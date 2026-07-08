@@ -1,20 +1,33 @@
-/** Trading Workspace: chart-first with decision-level overlays, symbol
- * internals, positions. Honestly cut: no fake DOM ladder (only an
- * imbalance scalar exists), no manual order ticket (the loop is
- * autonomous; operator controls are pause/kill). */
-import { useMemo, useState } from "react";
+/** Trading Workspace: chart-first with decision-level overlays, indicator
+ * panes, volume, compare mode (crosshair-synced, separate scales),
+ * client-side market replay (REPLAY badge, ticks suspended), full-screen.
+ * Honestly cut: no fake DOM ladder, no manual order ticket. */
+import { Columns2, Maximize2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { DecisionCard } from "@/components/DecisionCard";
 import { EmptyState } from "@/components/EmptyState";
+import { IndicatorPicker } from "@/components/IndicatorPicker";
 import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
-import { PriceChart, type SeriesStyle, type TradeMarker } from "@/components/charts/PriceChart";
+import { ChartSyncProvider } from "@/components/charts/ChartSync";
+import {
+  PriceChart,
+  type SeriesStyle,
+  type TradeMarker,
+} from "@/components/charts/PriceChart";
+import {
+  ReplayControls,
+  useReplay,
+} from "@/components/charts/ReplayController";
 import {
   useBars,
   useCalendar,
+  useIndicators,
   useIntel,
   useJournal,
   useOverview,
@@ -29,6 +42,7 @@ import { useUiStore } from "@/stores/ui";
 const STYLES: { id: SeriesStyle; label: string }[] = [
   { id: "candles", label: "Candles" },
   { id: "heikin-ashi", label: "Heikin Ashi" },
+  { id: "bars", label: "OHLC" },
   { id: "line", label: "Line" },
   { id: "area", label: "Area" },
 ];
@@ -59,7 +73,7 @@ function InternalsPanel({ symbol }: { symbol: string }) {
             key={name}
             label={name.replaceAll("_", " ")}
             value={
-              Math.abs(metric.value) < 0.01
+              Math.abs(metric.value) < 0.01 && metric.value !== 0
                 ? metric.value.toExponential(2)
                 : fmtPrice(metric.value, 2)
             }
@@ -79,15 +93,36 @@ function InternalsPanel({ symbol }: { symbol: string }) {
 export default function WorkspacePage() {
   const params = useParams<{ symbol: string }>();
   const symbol = params.symbol ?? "BTC-USD";
-  const { timeframe, setTimeframe, setSymbol } = useUiStore();
+  const {
+    timeframe,
+    setTimeframe,
+    setSymbol,
+    indicators: selectedIndicators,
+    toggleIndicator,
+    showVolume,
+    toggleVolume,
+    compare,
+    setCompare,
+  } = useUiStore();
   const [style, setStyle] = useState<SeriesStyle>("candles");
+  const chartCardRef = useRef<HTMLDivElement | null>(null);
 
   const symbols = useSymbols();
   const spec = symbols.data?.find((s) => s.symbol === symbol);
   const available = spec?.timeframes ?? ["1d"];
-  const activeTf = available.includes(timeframe) ? timeframe : available[available.length - 1]!;
+  const activeTf = available.includes(timeframe)
+    ? timeframe
+    : available[available.length - 1]!;
+
+  const compareSymbol = symbol === "BTC-USD" ? "XAUUSD" : "BTC-USD";
+  const compareSpec = symbols.data?.find((s) => s.symbol === compareSymbol);
+  const compareTf = (compareSpec?.timeframes ?? ["1d"]).includes(activeTf)
+    ? activeTf
+    : "1d";
 
   const bars = useBars(symbol, activeTf, 300);
+  const compareBars = useBars(compareSymbol, compareTf, 300);
+  const indicatorData = useIndicators(symbol, activeTf, selectedIndicators);
   const recommendation = useRecommendation();
   const overview = useOverview();
   const journal = useJournal();
@@ -96,6 +131,37 @@ export default function WorkspacePage() {
 
   // keep global symbol in sync with the route
   if (useUiStore.getState().symbol !== symbol) setSymbol(symbol);
+
+  const allBars = useMemo(() => bars.data ?? [], [bars.data]);
+  const replay = useReplay(allBars.length);
+  const visibleBars = replay.active
+    ? allBars.slice(0, replay.cursor)
+    : allBars;
+  const cursorTime = visibleBars[visibleBars.length - 1]?.time ?? null;
+  const cursorLabel =
+    replay.active && cursorTime
+      ? new Date(cursorTime * 1000).toLocaleDateString()
+      : null;
+
+  // indicators sliced to the replay cursor (presentation filter)
+  const visibleIndicators = useMemo(() => {
+    if (!indicatorData.data) return undefined;
+    if (!replay.active || cursorTime == null) return indicatorData.data;
+    return Object.fromEntries(
+      Object.entries(indicatorData.data).map(([name, block]) => [
+        name,
+        {
+          ...block,
+          series: Object.fromEntries(
+            Object.entries(block.series).map(([line, points]) => [
+              line,
+              points.filter((p) => p.time <= cursorTime),
+            ]),
+          ),
+        },
+      ]),
+    );
+  }, [indicatorData.data, replay.active, cursorTime]);
 
   const recForSymbol =
     recommendation.data && recommendation.data.symbol === symbol
@@ -110,24 +176,42 @@ export default function WorkspacePage() {
           time: Math.floor(new Date(entry.closed_at).getTime() / 1000),
           direction: entry.pnl >= 0 ? "bull" : "bear",
           label: `${entry.action ?? ""} ${fmtPnl(entry.pnl)}`,
-        })),
-    [journal.data, symbol],
+        }))
+        .filter((m) => !replay.active || cursorTime == null || m.time <= cursorTime),
+    [journal.data, symbol, replay.active, cursorTime],
   );
+
+  // full-screen: button + `f` shortcut (dispatched as a window event)
+  const toggleFullscreen = () => {
+    const el = chartCardRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void el.requestFullscreen();
+  };
+  useEffect(() => {
+    const handler = () => toggleFullscreen();
+    window.addEventListener("pro:fullscreen", handler);
+    return () => window.removeEventListener("pro:fullscreen", handler);
+  }, []);
 
   const positions = (status.data?.open_positions ?? []).filter(
     (p) => p.symbol === symbol,
   );
   const nextRelease = calendar.data?.releases[0];
+  const isLive = (spec?.live || symbol === "BTC-USD") && !replay.active;
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
       <div className="min-w-0 space-y-4">
-        <Card>
+        <Card ref={chartCardRef} className="bg-surface">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               {symbol}
-              {spec && !spec.live && <Badge variant="stale">EOD data</Badge>}
-              {spec?.live && <Badge variant="bull">live</Badge>}
+              {replay.active ? null : spec && !spec.live ? (
+                <Badge variant="stale">EOD data</Badge>
+              ) : (
+                spec?.live && <Badge variant="bull">live</Badge>
+              )}
             </CardTitle>
             <div className="flex flex-wrap items-center gap-1 text-xs">
               {available.map((tf) => (
@@ -161,9 +245,44 @@ export default function WorkspacePage() {
                   {s.label}
                 </button>
               ))}
+              <span className="mx-1 text-border-strong">|</span>
+              <IndicatorPicker
+                selected={selectedIndicators}
+                onToggle={toggleIndicator}
+                volume={showVolume}
+                onToggleVolume={toggleVolume}
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-pressed={compare}
+                onClick={() => setCompare(!compare)}
+              >
+                <Columns2 size={13} /> Compare
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Full screen (f)"
+                onClick={toggleFullscreen}
+              >
+                <Maximize2 size={13} />
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
+            <div className="mb-2 flex items-center justify-between no-print">
+              <ReplayControls
+                replay={replay}
+                totalBars={allBars.length}
+                cursorLabel={cursorLabel}
+              />
+              {replay.active && (
+                <span className="text-xs text-stale">
+                  replayed history — live ticks suspended
+                </span>
+              )}
+            </div>
             {bars.isPending ? (
               <SkeletonCard lines={8} />
             ) : bars.isError ? (
@@ -173,15 +292,43 @@ export default function WorkspacePage() {
                 detail={String(bars.error)}
               />
             ) : (
-              <PriceChart
-                bars={bars.data}
-                style={style}
-                recommendation={recForSymbol}
-                markers={markers}
-                liveSymbol={spec?.live || symbol === "BTC-USD" ? symbol : undefined}
-              />
+              <ChartSyncProvider>
+                <PriceChart
+                  bars={visibleBars}
+                  style={style}
+                  recommendation={recForSymbol}
+                  markers={markers}
+                  liveSymbol={isLive ? symbol : undefined}
+                  indicators={visibleIndicators}
+                  showVolume={showVolume}
+                  syncId={compare ? "workspace" : undefined}
+                  height={compare ? 300 : 420}
+                />
+                {compare && (
+                  <div className="mt-3 border-t border-border pt-2">
+                    <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">
+                      <span className="font-mono">{compareSymbol}</span>
+                      <span>({compareTf}) — crosshair synced, own price scale</span>
+                    </div>
+                    {compareBars.data ? (
+                      <PriceChart
+                        bars={
+                          replay.active && cursorTime != null
+                            ? compareBars.data.filter((b) => b.time <= cursorTime)
+                            : compareBars.data
+                        }
+                        style="line"
+                        syncId="workspace"
+                        height={180}
+                      />
+                    ) : (
+                      <SkeletonCard lines={3} />
+                    )}
+                  </div>
+                )}
+              </ChartSyncProvider>
             )}
-            {nextRelease && (
+            {nextRelease && !replay.active && (
               <p className="mt-2 text-xs text-fg-subtle">
                 next macro event: {nextRelease.release} on {nextRelease.date}
               </p>

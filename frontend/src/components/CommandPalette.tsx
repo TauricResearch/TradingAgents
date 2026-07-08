@@ -1,11 +1,12 @@
 /** cmdk palette: navigation, trade context, actions, run/global search.
  * Halting trading deliberately requires typing HALT in the settings
  * flow — it is findable here but never one keystroke away. */
+import { useQueryClient } from "@tanstack/react-query";
 import { Command } from "cmdk";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { Kbd } from "./ui/kbd";
-import { useRuns } from "@/lib/api/queries";
+import { patchPrefs, usePrefs, useRuns } from "@/lib/api/queries";
 import { fmtDateTime } from "@/lib/format";
 import { useUiStore } from "@/stores/ui";
 import { useLayoutStore, type PresetId } from "@/stores/layout";
@@ -14,6 +15,9 @@ const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 export function CommandPalette() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const client = useQueryClient();
+  const prefs = usePrefs();
   const {
     paletteOpen,
     setPaletteOpen,
@@ -144,6 +148,35 @@ export function CommandPalette() {
           >
             Halt trading… (kill switch — confirm in Settings)
           </Command.Item>
+        </Command.Group>
+
+        <Command.Group heading="Views">
+          <Command.Item
+            onSelect={() => {
+              const path = location.pathname + location.search;
+              const name = `${location.pathname.replaceAll("/", " ").trim() || "home"} · ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+              const existing = prefs.data?.views ?? [];
+              void patchPrefs(client, {
+                views: [...existing.filter((v) => v.path !== path),
+                        { name, path }].slice(-50),
+              });
+              close();
+            }}
+            className="cursor-pointer rounded px-3 py-2 aria-selected:bg-surface-2"
+          >
+            Save current view
+          </Command.Item>
+          {(prefs.data?.views ?? []).map((view) => (
+            <Command.Item
+              key={view.path}
+              value={`view ${view.name} ${view.path}`}
+              onSelect={() => go(view.path)}
+              className="flex cursor-pointer items-center justify-between rounded px-3 py-2 aria-selected:bg-surface-2"
+            >
+              <span>{view.name}</span>
+              <span className="text-xs text-fg-subtle">{view.path}</span>
+            </Command.Item>
+          ))}
         </Command.Group>
 
         <Command.Group heading="Runs">

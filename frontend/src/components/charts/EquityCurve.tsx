@@ -8,13 +8,16 @@ import {
 import { useEffect } from "react";
 
 import { chartColors, useLightweightChart } from "./useLightweightChart";
+import { toDrawdown } from "./transform";
 import { fmtPrice } from "@/lib/format";
 
 export function EquityCurve({
   curve,
   monteCarlo,
+  showDrawdown = false,
   height = 220,
 }: {
+  showDrawdown?: boolean;
   curve: number[];
   monteCarlo?: {
     final_equity_p5: number;
@@ -53,11 +56,33 @@ export function EquityCurve({
         value,
       })),
     );
+    let drawdownSeries: ReturnType<typeof chart.addSeries> | null = null;
+    if (showDrawdown) {
+      drawdownSeries = chart.addSeries(
+        AreaSeries,
+        {
+          lineColor: colors.bear,
+          topColor: "rgba(0,0,0,0)",
+          bottomColor: "rgba(248,81,73,0.25)",
+          lineWidth: 1,
+          priceLineVisible: false,
+          priceFormat: { type: "percent" },
+        },
+        1, // own pane under the equity curve
+      );
+      drawdownSeries.setData(
+        toDrawdown(curve).map((value, i) => ({
+          time: (86400 * (i + 1)) as UTCTimestamp,
+          value: value * 100,
+        })),
+      );
+    }
     chart.timeScale().fitContent();
     return () => {
       chart.removeSeries(series);
+      if (drawdownSeries) chart.removeSeries(drawdownSeries);
     };
-  }, [curve, chartRef]);
+  }, [curve, showDrawdown, chartRef]);
 
   return (
     <div>

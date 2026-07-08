@@ -8,8 +8,9 @@ import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
-import { useCalendar, useIntel, useOverview } from "@/lib/api/queries";
+import { useCalendar, useCorrelations, useIntel, useOverview } from "@/lib/api/queries";
 import { fmtDateTime, fmtPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const GROUPS: { title: string; names: string[] }[] = [
   {
@@ -29,6 +30,67 @@ const GROUPS: { title: string; names: string[] }[] = [
     names: ["CPI_YOY", "FED_FUNDS_RATE", "PPI_YOY", "NFP"],
   },
 ];
+
+function CorrelationMatrix() {
+  const correlations = useCorrelations(30);
+  if (correlations.isPending) return <SkeletonCard lines={5} />;
+  if (correlations.isError || !correlations.data)
+    return <EmptyState kind="error" title="Correlations unavailable" />;
+  const { symbols, matrix, missing, used_days } = correlations.data;
+  if (symbols.length < 2)
+    return (
+      <EmptyState
+        kind="waiting"
+        title="Not enough overlapping data"
+        detail={missing.join("; ") || "need at least two series"}
+      />
+    );
+  return (
+    <div data-testid="correlation-matrix">
+      <table className="w-full text-xs tabular">
+        <thead>
+          <tr>
+            <th />
+            {symbols.map((sym) => (
+              <th key={sym} className="px-1 pb-1 text-right font-mono font-medium">
+                {sym}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {symbols.map((row) => (
+            <tr key={row}>
+              <td className="pr-1 font-mono">{row}</td>
+              {symbols.map((col) => {
+                const value = matrix[row]?.[col];
+                const strong = value != null && Math.abs(value) >= 0.5 && row !== col;
+                return (
+                  <td
+                    key={col}
+                    className={cn(
+                      "px-1 py-0.5 text-right",
+                      row === col && "text-fg-subtle",
+                      strong && value! > 0 && "text-bull",
+                      strong && value! < 0 && "text-bear",
+                    )}
+                  >
+                    {value != null ? value.toFixed(2) : "—"}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-xs text-fg-subtle">
+        Pearson on daily log returns, {used_days} shared days (computed
+        server-side, deterministically).
+        {missing.length > 0 && <> Unavailable: {missing.join("; ")}</>}
+      </p>
+    </div>
+  );
+}
 
 export default function IntelPage() {
   const intel = useIntel();
@@ -110,6 +172,15 @@ export default function IntelPage() {
           );
         })}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Cross-asset correlations (30d)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CorrelationMatrix />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

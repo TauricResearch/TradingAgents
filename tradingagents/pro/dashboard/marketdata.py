@@ -86,6 +86,17 @@ def default_registry() -> dict[str, SymbolSpec]:
             feed_factory=BinanceSpotFeed,
         ),
     }
+    # daily-only cross-asset series (correlation matrix, context charts)
+    for symbol, vendor in (("DXY", "DX-Y.NYB"), ("SILVER", "SI=F"),
+                           ("US10Y", "^TNX")):
+        registry[symbol] = SymbolSpec(
+            symbol=symbol,
+            vendor_symbol=vendor,
+            source="yfinance_daily",
+            timeframes=(Timeframe.D1,),
+            live=False,
+            feed_factory=YFinanceDailyBarsFeed,
+        )
     if OandaGoldFeed.configured():
         registry["XAUUSD"] = SymbolSpec(
             symbol="XAUUSD",

@@ -71,6 +71,24 @@ class TestPrefsStore:
         assert store.delete_watchlist("gold") is True
         assert store.delete_watchlist("gold") is False
 
+    def test_saved_views_and_muted_events_roundtrip(self, store):
+        saved = store.put_prefs({
+            "theme": "dark",
+            "views": [{"name": "gold focus", "path": "/trade/XAUUSD?tf=1h"}],
+            "muted_events": ["iteration_error"],
+        })
+        assert saved["views"][0]["name"] == "gold focus"
+        assert saved["muted_events"] == ["iteration_error"]
+
+    def test_saved_view_validation(self, store):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            store.put_prefs({"views": [{"name": "", "path": "/x"}]})
+        with pytest.raises(ValidationError):
+            store.put_prefs({"views": [{"name": "x", "path": "/x",
+                                        "sneaky": 1}]})
+
     def test_notification_cap_and_mark_read(self, store):
         for i in range(MAX_NOTIFICATIONS + 20):
             store.add_notification("info", "e", f"n{i}")

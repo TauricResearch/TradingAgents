@@ -385,6 +385,10 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     def intel() -> dict:
         return state.intel.snapshot()
 
+    @app.get("/api/intel/correlations")
+    def intel_correlations(window: int = 30) -> dict:
+        return state.intel.correlations(state.marketdata, window)
+
     @app.get("/api/calendar")
     def calendar(days: int = 30) -> dict:
         return state.intel.calendar(days)

@@ -86,6 +86,13 @@ export function DecisionCard({
 
       {rec.entry_price != null ? (
         <table className="font-mono text-sm tabular">
+          <thead className="sr-only">
+            <tr>
+              <th>Level</th>
+              <th>Price</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
           <tbody>
             {[...(rec.take_profits ?? [])].reverse().map((tp, i, arr) => (
               <tr key={`tp-${i}`} className="text-bull">
@@ -188,7 +195,7 @@ export function DecisionCard({
       {runId && (
         <Link
           to={`/decisions/${runId}`}
-          className="inline-block text-sm text-accent hover:underline"
+          className="inline-block text-sm text-accent underline underline-offset-2"
         >
           Open full reasoning →
         </Link>

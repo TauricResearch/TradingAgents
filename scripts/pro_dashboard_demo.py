@@ -13,6 +13,7 @@ from datetime import timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root: test fakes
+
 from tests.pro_fakes import BASE_TS  # noqa: E402
 from tests.test_pro_pipeline_graph import FakePipelineLLM, pipeline_snapshot  # noqa: E402
 from tradingagents.contracts import (
@@ -99,6 +100,13 @@ def build_state() -> DashboardState:
 
 def main() -> None:
     import uvicorn
+
+    try:  # pick up gitignored keys (OANDA_API_TOKEN etc.) for dev servers
+        from dotenv import load_dotenv
+
+        load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+    except ImportError:
+        pass
 
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8600
     uvicorn.run(create_app(build_state()), host="127.0.0.1", port=port)
