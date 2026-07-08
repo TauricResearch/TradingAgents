@@ -8,6 +8,7 @@ cannot cite data it never saw, and code (not the model) owns attribution.
 
 from __future__ import annotations
 
+import re as _re
 from dataclasses import dataclass, field
 
 from tradingagents.contracts import (
@@ -51,8 +52,6 @@ UNTRUSTED_CLOSE = "<<<END_EXTERNAL_UNTRUSTED_CONTENT>>>"
 # removed *before* any prompt sees it. Patterns are deliberately
 # high-precision: they match instruction grammar, not topical vocabulary,
 # so real headlines ("Fed must act", "markets ignore data") stay clear.
-import re as _re
-
 _ATTACK_PATTERNS = [
     _re.compile(p, _re.IGNORECASE)
     for p in (

@@ -61,7 +61,14 @@ def _accumulate(state: dict, update: dict) -> None:
 
 
 class PipelineRecorder:
-    def __init__(self):
+    """``max_runs`` caps memory over long soaks: each RunRecord holds a full
+    snapshot (bars, news, debate transcript), so an unbounded list would grow
+    to hundreds of MB across a 30-day paper run. Oldest runs are dropped."""
+
+    def __init__(self, max_runs: int = 500):
+        if max_runs < 1:
+            raise ValueError("max_runs must be >= 1")
+        self.max_runs = max_runs
         self.runs: list[RunRecord] = []
 
     def record_run(
@@ -84,4 +91,5 @@ class PipelineRecorder:
                 if update:
                     _accumulate(run.state, update)
         self.runs.append(run)
+        del self.runs[:-self.max_runs]
         return run

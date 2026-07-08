@@ -57,6 +57,35 @@ class FredMacroFeed:
             )
         return key
 
+    def get_release_dates(self, days_ahead: int = 30) -> list[dict]:
+        """Upcoming release dates (economic calendar). Returns
+        [{"date": "YYYY-MM-DD", "release": name, "release_id": id}, ...]."""
+        from datetime import date, timedelta
+
+        key = self._key()
+        today = date.today()
+        payload = self._transport.get_json(
+            f"{API_BASE}/releases/dates",
+            {
+                "api_key": key,
+                "file_type": "json",
+                "include_release_dates_with_no_data": "true",
+                "realtime_start": today.isoformat(),
+                "realtime_end": (today + timedelta(days=days_ahead)).isoformat(),
+                "sort_order": "asc",
+                "limit": 200,
+            },
+        )
+        return [
+            {
+                "date": row["date"],
+                "release": row.get("release_name", ""),
+                "release_id": row.get("release_id"),
+            }
+            for row in payload.get("release_dates", [])
+            if today.isoformat() <= row.get("date", "")
+        ]
+
     def get_metrics(self) -> list[MetricReading]:
         key = self._key()
         readings: list[MetricReading] = []

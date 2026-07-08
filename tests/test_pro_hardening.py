@@ -84,7 +84,7 @@ class TestDeepStageTimeouts:
         config = ProConfig(asset=AssetClass.GOLD)
         bundle = bundle_from_config(config, quick_timeout=45.0, deep_timeout=120.0)
         assert isinstance(bundle, ModelBundle)
-        by_model = {model: kw for model, kw in captured}
+        by_model = dict(captured)
         assert by_model["gpt-5.4-mini"]["timeout"] == 45.0
         assert by_model["gpt-5.5"]["timeout"] == 120.0
 

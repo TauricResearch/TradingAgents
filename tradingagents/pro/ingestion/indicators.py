@@ -42,6 +42,44 @@ INDICATOR_SPECS: dict[str, tuple[int, dict, dict[str, str]]] = {
 DEFAULT_INDICATOR_NAMES = tuple(INDICATOR_SPECS)
 
 
+def _validate(bars: Sequence[OHLCVBar], names: Sequence[str]) -> None:
+    unknown = sorted(set(names) - set(INDICATOR_SPECS))
+    if unknown:
+        raise ValueError(f"unknown indicators {unknown}; supported: {sorted(INDICATOR_SPECS)}")
+    timeframes = {b.timeframe for b in bars}
+    if len(timeframes) != 1:
+        raise ValueError(f"bars span multiple timeframes: {sorted(t.value for t in timeframes)}")
+
+
+def compute_indicator_series(
+    bars: Sequence[OHLCVBar], names: Sequence[str] = DEFAULT_INDICATOR_NAMES
+) -> dict[str, dict]:
+    """Full per-bar series of each named indicator (for charting).
+
+    Same deterministic engine and warm-up discipline as compute_indicators
+    (Constraint 2: the UI renders these numbers, it never computes them).
+    Positions inside the warm-up window — where stockstats would emit a
+    partial mean — come back as None, as do NaN/inf values.
+    """
+    _validate(bars, names)
+    frame = wrap(bars_to_dataframe(bars))
+    result: dict[str, dict] = {}
+    for name in names:
+        min_bars, params, outputs = INDICATOR_SPECS[name]
+        series: dict[str, list[float | None]] = {}
+        for key, column in outputs.items():
+            values: list[float | None] = []
+            for i, raw in enumerate(frame[column].tolist()):
+                value = float(raw)
+                if i + 1 < min_bars or math.isnan(value) or math.isinf(value):
+                    values.append(None)
+                else:
+                    values.append(value)
+            series[key] = values
+        result[name] = {"params": params, "series": series}
+    return result
+
+
 def compute_indicators(
     bars: Sequence[OHLCVBar], names: Sequence[str] = DEFAULT_INDICATOR_NAMES
 ) -> list[IndicatorReading]:
@@ -52,13 +90,8 @@ def compute_indicators(
     (NaN at the tail) are skipped rather than reported as garbage; the
     caller sees the omission and can record the gap.
     """
-    unknown = sorted(set(names) - set(INDICATOR_SPECS))
-    if unknown:
-        raise ValueError(f"unknown indicators {unknown}; supported: {sorted(INDICATOR_SPECS)}")
-    timeframes = {b.timeframe for b in bars}
-    if len(timeframes) != 1:
-        raise ValueError(f"bars span multiple timeframes: {sorted(t.value for t in timeframes)}")
-    timeframe = timeframes.pop()
+    _validate(bars, names)  # guarantees non-empty, single-timeframe bars
+    timeframe = bars[0].timeframe
 
     frame = wrap(bars_to_dataframe(bars))
     readings: list[IndicatorReading] = []

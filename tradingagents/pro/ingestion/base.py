@@ -32,13 +32,19 @@ class HttpTransport(Protocol):
 class RequestsTransport:
     """Default transport backed by ``requests`` with typed throttle errors."""
 
-    def __init__(self, session: requests.Session | None = None, timeout: float = DEFAULT_TIMEOUT):
+    def __init__(
+        self,
+        session: requests.Session | None = None,
+        timeout: float = DEFAULT_TIMEOUT,
+        headers: dict | None = None,
+    ):
         self._session = session or requests.Session()
         self._timeout = timeout
+        self._headers = {"User-Agent": _USER_AGENT, **(headers or {})}
 
     def get_json(self, url: str, params: dict | None = None) -> dict | list:
         response = self._session.get(
-            url, params=params, timeout=self._timeout, headers={"User-Agent": _USER_AGENT}
+            url, params=params, timeout=self._timeout, headers=self._headers
         )
         # 418 is Binance's repeat-offender throttle ban; treat like 429 so
         # callers back off instead of retrying into a longer ban.

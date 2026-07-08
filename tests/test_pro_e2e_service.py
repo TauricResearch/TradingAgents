@@ -155,3 +155,44 @@ class TestBenchmarks:
         memory.historical_analogs("XAUUSD trending_up BUY", k=3)
         elapsed = time.perf_counter() - start
         assert elapsed < 0.1, f"retrieval took {elapsed * 1000:.0f}ms"
+
+
+class TestEventHookAndRecorderCap:
+    def test_on_event_receives_run_position_status(self):
+        events = []
+        memory = ProMemory()
+        service = make_service([130.0, 145.0], memory=memory)
+        service.on_event = lambda t, d: events.append((t, d))
+
+        service.run_once()
+        types = [t for t, _ in events]
+        assert types.count("run") == 1 and types.count("status") == 1
+        opened = next(d for t, d in events if t == "position")
+        assert opened["state"] == "opened" and opened["symbol"] == "XAUUSD"
+
+        events.clear()
+        service.run_once()  # target breach -> close
+        closed = next(d for t, d in events if t == "position")
+        assert closed["state"] == "closed" and closed["pnl"] > 0
+        status = next(d for t, d in events if t == "status")
+        assert status["attached"] is True and "equity" in status
+
+    def test_raising_consumer_never_breaks_the_loop(self):
+        service = make_service([130.0])
+
+        def broken(t, d):
+            raise RuntimeError("ui crashed")
+
+        service.on_event = broken
+        summary = service.run_once()  # must not raise
+        assert summary["order_status"] == "filled"
+
+    def test_recorder_caps_run_history(self):
+        from tradingagents.pro.dashboard.recorder import PipelineRecorder
+
+        recorder = PipelineRecorder(max_runs=2)
+        ids = [
+            recorder.record_run(FakePipelineLLM(), CONFIG, pipeline_snapshot()).run_id
+            for _ in range(3)
+        ]
+        assert [r.run_id for r in recorder.runs] == ids[1:]  # oldest dropped

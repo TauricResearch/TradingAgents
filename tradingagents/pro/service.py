@@ -67,6 +67,7 @@ class PaperTradingService:
         dashboard_state: DashboardState | None = None,
         metrics: MetricsRegistry | None = None,
         alerts: AlertManager | None = None,
+        on_event: Callable[[str, dict], None] | None = None,
         **pipeline_kwargs,
     ):
         self.llm = llm
@@ -77,6 +78,7 @@ class PaperTradingService:
         self.dashboard = dashboard_state or DashboardState(memory=memory)
         self.metrics = metrics or MetricsRegistry()
         self.alerts = alerts or AlertManager(metrics=self.metrics)
+        self.on_event = on_event
         self.pipeline_kwargs = pipeline_kwargs
         self.open_positions: dict[str, OpenPosition] = {}
         self.rehydrate()
@@ -131,6 +133,36 @@ class PaperTradingService:
     # --- one iteration -----------------------------------------------------------
 
     def run_once(self) -> dict:
+        summary = self._run_once()
+        self._emit("run", summary)
+        for closed in summary.get("closed_positions", []):
+            self._emit("position", {"state": "closed", **closed})
+        if summary.get("order_status") == "filled":
+            self._emit("position", {"state": "opened",
+                                    "symbol": summary.get("symbol"),
+                                    "action": summary.get("action")})
+        self._emit("status", self._status_event())
+        return summary
+
+    def _emit(self, type_: str, data: dict) -> None:
+        """UI push hook (SSE); a broken consumer never breaks the loop."""
+        if self.on_event is None:
+            return
+        try:
+            self.on_event(type_, data)
+        except Exception:
+            logger.exception("on_event consumer failed for %s event", type_)
+
+    def _status_event(self) -> dict:
+        from tradingagents.pro.dashboard import service as views
+
+        try:
+            equity = self.router.adapter.account().equity
+        except Exception:
+            equity = None
+        return views.system_status(self.router, equity)
+
+    def _run_once(self) -> dict:
         snapshot = self.snapshot_source()
         self.metrics.inc("runs_total")
 
@@ -163,6 +195,7 @@ class PaperTradingService:
         rec = run.recommendation
         summary: dict = {
             "run_id": run.run_id,
+            "symbol": snapshot.symbol,
             "action": rec.action.value if rec else None,
             "rejected_at": run.rejection and run.rejection.get("stage"),
             "closed_positions": closed,
