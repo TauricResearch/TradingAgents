@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-07-08T10:56:52.999178+00:00",
+  "symbol": "XAUUSD",
+  "ticker": "GC=F",
+  "bars": 250,
+  "window": [
+    "2025-07-10",
+    "2026-07-08"
+  ],
+  "provider": "fake",
+  "models": "FakePipelineLLM",
+  "decide_every": 12,
+  "decisions": 10,
+  "executed": 5,
+  "rejections": {
+    "risk_gate": 5
+  },
+  "final_equity": 100966.30464844435,
+  "n_trades": 5,
+  "report": {
+    "total_return": 0.009483724702988798,
+    "max_drawdown": 0.00839138731718407,
+    "sharpe": 1.1373228365373809,
+    "sortino": 1.7063636247002298,
+    "win_rate": 0.6,
+    "profit_factor": 4.381303089526243,
+    "expectancy": 193.26092968886962,
+    "n_trades": 5
+  },
+  "est_cost_usd": null,
+  "trades": [
+    {
+      "side": "BUY",
+      "entry": 4231.3461,
+      "exit": 4438.243695368857,
+      "pnl": 486.0,
+      "reason": "take_profit",
+      "opened": "2025-12-02",
+      "closed": "2025-12-26"
+    },
+    {
+      "side": "BUY",
+      "entry": 4450.89,
+      "exit": 4692.12090762437,
+      "pnl": 538.76,
+      "reason": "take_profit",
+      "opened": "2026-01-07",
+      "closed": "2026-01-20"
+    },
+    {
+      "side": "BUY",
+      "entry": 5082.5163,
+      "exit": 5195.514869688069,
+      "pnl": 227.32,
+      "reason": "take_profit",
+      "opened": "2026-01-26",
+      "closed": "2026-01-28"
+    },
+    {
+      "side": "BUY",
+      "entry": 5050.909882324218,
+      "exit": 5002.799044726563,
+      "pnl": -99.39,
+      "reason": "stop",
+      "opened": "2026-02-11",
+      "closed": "2026-03-19"
+    },
+    {
+      "side": "BUY",
+      "entry": 4440.588135351562,
+      "exit": 4358.540131090186,
+      "pnl": -186.39,
+      "reason": "stop",
+      "opened": "2026-05-27",
+      "closed": "2026-06-05"
+    }
+  ]
+}

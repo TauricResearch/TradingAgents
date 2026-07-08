@@ -19,6 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from tradingagents.contracts import MarketSnapshot, ProConfig, TradeAction, TradeRecommendation
+from tradingagents.pro.alerting import AlertManager
 from tradingagents.pro.dashboard.app import DashboardState
 from tradingagents.pro.execution import ExecutionRouter
 from tradingagents.pro.memory import ProMemory
@@ -65,6 +66,7 @@ class PaperTradingService:
         memory: ProMemory,
         dashboard_state: DashboardState | None = None,
         metrics: MetricsRegistry | None = None,
+        alerts: AlertManager | None = None,
         **pipeline_kwargs,
     ):
         self.llm = llm
@@ -74,6 +76,7 @@ class PaperTradingService:
         self.memory = memory
         self.dashboard = dashboard_state or DashboardState(memory=memory)
         self.metrics = metrics or MetricsRegistry()
+        self.alerts = alerts or AlertManager(metrics=self.metrics)
         self.pipeline_kwargs = pipeline_kwargs
         self.open_positions: dict[str, OpenPosition] = {}
         self.rehydrate()
@@ -134,8 +137,24 @@ class PaperTradingService:
         reconciliation = self.router.reconcile()
         if not reconciliation.in_sync:
             self.metrics.inc("reconciliation_failures_total")
+            self.alerts.emit(
+                "critical", "reconciliation_drift",
+                "local book and venue disagree; new entries blocked",
+                missing=",".join(reconciliation.missing_on_venue),
+                unknown=",".join(reconciliation.unknown_on_venue),
+            )
 
         closed = self._manage_positions(snapshot)
+
+        quarantined = [f for f in snapshot.missing_feeds
+                       if f.startswith("news:quarantined")]
+        if quarantined:
+            self.alerts.emit(
+                "critical", "injection_quarantined",
+                f"{len(quarantined)} news item(s) quarantined as suspected "
+                "prompt injection before reaching any prompt",
+                symbol=snapshot.symbol,
+            )
 
         run = self.dashboard.recorder.record_run(
             self.llm, self.config, snapshot, memory=self.memory,
@@ -173,6 +192,15 @@ class PaperTradingService:
             equity = self.router.adapter.account().equity
             result = self.router.submit_recommendation(rec, equity)
             summary["order_status"] = result.status
+            if result.status == "rejected":
+                reason = result.reason or ""
+                safety_stop = reason.startswith(("kill_switch", "circuit_breaker"))
+                self.alerts.emit(
+                    "critical" if safety_stop else "warning",
+                    "order_rejected",
+                    f"order for {rec.symbol} rejected: {reason}",
+                    symbol=rec.symbol,
+                )
             if result.status == "filled":
                 self.metrics.inc("orders_filled_total")
                 self.open_positions[rec.symbol] = OpenPosition(
@@ -195,9 +223,13 @@ class PaperTradingService:
                 summary = self.run_once()
                 logger.info("service iteration complete",
                             extra={"extra_fields": summary})
-            except Exception:
+            except Exception as exc:
                 logger.exception("service iteration failed; continuing")
                 self.metrics.inc("iteration_errors_total")
+                self.alerts.emit(
+                    "warning", "iteration_error",
+                    f"service iteration raised {type(exc).__name__}: {exc}",
+                )
             iterations += 1
             if max_iterations is None or iterations < max_iterations:
                 sleep(interval_seconds)

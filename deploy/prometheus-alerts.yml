@@ -1,0 +1,54 @@
+# Prometheus alert rules for TradingAgents Pro (OBS-02).
+#
+# Scrape target: the service exposes MetricsRegistry.render_prometheus().
+# These rules cover what the in-process AlertManager cannot: the process
+# being dead, stalled, or silently failing every iteration.
+groups:
+  - name: tradingagents-pro
+    rules:
+      - alert: ProServiceDown
+        expr: up{job="tradingagents-pro"} == 0
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "Pro service is not being scraped — process dead or unreachable."
+
+      - alert: ProNoRuns
+        expr: increase(runs_total[2h]) == 0
+        for: 30m
+        labels: {severity: critical}
+        annotations:
+          summary: "No pipeline runs in 2h — the loop is stalled (hourly cadence expected)."
+
+      - alert: ProIterationErrors
+        expr: increase(iteration_errors_total[1h]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Service iterations are raising; check JSON logs for the stack."
+
+      - alert: ProReconciliationDrift
+        expr: increase(reconciliation_failures_total[1h]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Local book and venue disagree; new entries are blocked until resolved."
+
+      - alert: ProInjectionQuarantine
+        expr: increase(alerts_total{event="injection_quarantined"}[6h]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Suspected prompt injection quarantined from the news feed — inspect the payload."
+
+      - alert: ProAlertDeliveryFailing
+        expr: increase(alert_delivery_failures_total[1h]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "An alert sink is failing — pages may not be reaching anyone."
+
+      - alert: ProEverythingRejected
+        expr: >
+          increase(rejections_total[24h]) > 0
+          and increase(recommendations_total[24h]) == 0
+        for: 6h
+        labels: {severity: warning}
+        annotations:
+          summary: "Every run rejected for 24h — possible degraded inputs or a stuck gate."

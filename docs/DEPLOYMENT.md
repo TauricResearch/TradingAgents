@@ -49,6 +49,17 @@ dashboard) → execution router (validation → kill switch → circuit breaker
 - **LLM cost:** wrap the model with `CostTrackingLLM` (stacks with the
   backtester's `CachingLLM`). Token counts are estimates (chars/4) until a
   pinned provider's usage metadata is wired.
+- **Model pinning (AI-07):** set `models.require_pinned_models=True` in
+  ProConfig for paper/live — `bundle_from_config` then refuses floating
+  aliases (`gpt-5.5`) and demands dated snapshots (`gpt-5.5-2026-03-11`),
+  so a provider-side model swap cannot change behavior without an eval
+  rerun. Providers without dated aliases (DeepSeek) cannot satisfy this;
+  leaving the flag off is an explicit acceptance of that drift risk.
+- **Alerting (OBS-02):** pass an `AlertManager` to `PaperTradingService`
+  — critical events (kill switch/breaker refusals, reconciliation drift,
+  iteration errors, quarantined injections) fan out to sinks
+  (`LogAlertSink`, `WebhookAlertSink` for Slack/PagerDuty bridges).
+  Metric-level rules for Prometheus live in `deploy/prometheus-alerts.yml`.
 
 ## Operations
 
@@ -76,5 +87,9 @@ dashboard) → execution router (validation → kill switch → circuit breaker
    configured; reconciliation scheduled.
 7. RL advisory (if used) retrained on production data and reviewed
    (ADR-0025).
+8. Model IDs pinned to dated snapshots and `require_pinned_models=True`
+   (AI-07); the eval suite rerun against exactly those snapshots.
+9. A 30-day paper soak completed per docs/SOAK.md with its exit criteria
+   met (OPS-04).
 
 Until every box is ticked, the system will refuse live routing on its own.

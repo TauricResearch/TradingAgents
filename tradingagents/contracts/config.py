@@ -46,6 +46,20 @@ class ModelRouting(ContractModel):
         default_factory=dict,
         description="Optional per-team model override, e.g. {'risk': 'gpt-5.5'}.",
     )
+    require_pinned_models: bool = Field(
+        default=False,
+        description=(
+            "Refuse floating model aliases (AI-07): every model ID must carry "
+            "a date stamp (YYYY-MM-DD or YYYYMMDD suffix) so provider-side "
+            "model swaps cannot silently change behavior under an eval gate. "
+            "Set for paper/live deployments; leave off for dev and providers "
+            "without dated aliases (accepting that risk explicitly)."
+        ),
+    )
+
+    def all_model_ids(self) -> list[str]:
+        return [self.quick_think_llm, self.deep_think_llm,
+                *self.team_overrides.values()]
 
     def model_for(self, team: AgentTeam, deep: bool = False) -> str:
         return self.team_overrides.get(

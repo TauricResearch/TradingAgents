@@ -1,5 +1,6 @@
 """Round-3 eval-driven hardening: quarantine (INJ-02), timeouts, pricing."""
 
+import pytest
 
 from tests.test_pro_pipeline_graph import CONFIG, FakePipelineLLM, pipeline_snapshot
 from tradingagents.contracts import AgentTeam, AssetClass, NewsItem, ProConfig
@@ -86,6 +87,68 @@ class TestDeepStageTimeouts:
         by_model = {model: kw for model, kw in captured}
         assert by_model["gpt-5.4-mini"]["timeout"] == 45.0
         assert by_model["gpt-5.5"]["timeout"] == 120.0
+
+
+class TestModelPinning:
+    """AI-07: floating aliases refused when pinning is required."""
+
+    def test_is_pinned_model(self):
+        from tradingagents.pro.models import is_pinned_model
+
+        assert is_pinned_model("gpt-5.5-2026-03-11")
+        assert is_pinned_model("claude-haiku-4-5-20251001")
+        assert not is_pinned_model("gpt-5.5")
+        assert not is_pinned_model("deepseek-chat")
+
+    def test_require_pinned_refuses_floating_aliases(self):
+        config = ProConfig(asset=AssetClass.GOLD)
+        config = config.model_copy(update={
+            "models": config.models.model_copy(
+                update={"require_pinned_models": True}
+            )
+        })
+        with pytest.raises(ValueError, match="AI-07"):
+            bundle_from_config(config)
+
+    def test_require_pinned_accepts_dated_snapshots(self, monkeypatch):
+        class FakeClient:
+            def __init__(self, provider, model, **kwargs):
+                pass
+
+            def get_llm(self):
+                return FakePipelineLLM()
+
+        import tradingagents.llm_clients as clients
+
+        monkeypatch.setattr(clients, "create_llm_client",
+                            lambda provider, model, **kw: FakeClient(provider, model, **kw))
+        config = ProConfig(asset=AssetClass.GOLD)
+        config = config.model_copy(update={
+            "models": config.models.model_copy(update={
+                "require_pinned_models": True,
+                "quick_think_llm": "gpt-5.4-mini-2026-01-15",
+                "deep_think_llm": "gpt-5.5-2026-03-11",
+            })
+        })
+        assert isinstance(bundle_from_config(config), ModelBundle)
+
+    def test_floating_aliases_warn_when_not_required(self, monkeypatch, caplog):
+        class FakeClient:
+            def __init__(self, provider, model, **kwargs):
+                pass
+
+            def get_llm(self):
+                return FakePipelineLLM()
+
+        import logging
+
+        import tradingagents.llm_clients as clients
+
+        monkeypatch.setattr(clients, "create_llm_client",
+                            lambda provider, model, **kw: FakeClient(provider, model, **kw))
+        with caplog.at_level(logging.WARNING, logger="tradingagents.pro.models"):
+            bundle_from_config(ProConfig(asset=AssetClass.GOLD))
+        assert any("floating model aliases" in r.message for r in caplog.records)
 
 
 class TestProviderPricing:

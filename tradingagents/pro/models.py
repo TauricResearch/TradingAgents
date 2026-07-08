@@ -12,9 +12,21 @@ tests and simple callers keep working unchanged.
 
 from __future__ import annotations
 
+import logging
+import re
 from dataclasses import dataclass, field
 
 from tradingagents.contracts import AgentTeam, ProConfig
+
+logger = logging.getLogger(__name__)
+
+# a dated snapshot carries YYYY-MM-DD or a YYYYMMDD suffix,
+# e.g. "gpt-5.5-2026-03-11" or "claude-haiku-4-5-20251001"
+_DATED_MODEL = re.compile(r"\d{4}-\d{2}-\d{2}|\d{8}")
+
+
+def is_pinned_model(model_id: str) -> bool:
+    return bool(_DATED_MODEL.search(model_id))
 
 
 @dataclass
@@ -56,6 +68,18 @@ def bundle_from_config(
     from tradingagents.llm_clients import create_llm_client
 
     routing = config.models
+    floating = [m for m in routing.all_model_ids() if not is_pinned_model(m)]
+    if floating:
+        if routing.require_pinned_models:
+            raise ValueError(
+                "require_pinned_models is set but these model IDs are floating "
+                f"aliases, not dated snapshots: {sorted(set(floating))} (AI-07)"
+            )
+        logger.warning(
+            "floating model aliases in use (no dated snapshot): %s — provider-"
+            "side swaps can change behavior without an eval gate (AI-07)",
+            sorted(set(floating)),
+        )
 
     def make(model_id: str, timeout: float):
         return create_llm_client(
