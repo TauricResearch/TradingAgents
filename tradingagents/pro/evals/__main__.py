@@ -35,7 +35,10 @@ def main() -> int:
         print(f"{key_env} not set (env or .env); aborting", file=sys.stderr)
         return 2
     config = ProConfig(asset=AssetClass.GOLD, max_debate_rounds=1, models=routing)
-    bundle = bundle_from_config(config)
+    # low temperature for eval comparability across runs; note reasoning
+    # models may ignore it and no setting makes runs bit-identical (see the
+    # base README's reproducibility section) — N-sample evals remain the fix
+    bundle = bundle_from_config(config, temperature=0.2)
     # track spend on both tiers
     bundle.quick = CostTrackingLLM(bundle.quick)
     deep_tracker = CostTrackingLLM(bundle.deep)

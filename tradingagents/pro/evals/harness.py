@@ -34,6 +34,7 @@ class CaseResult:
     failures: list[str] = field(default_factory=list)
     action: str | None = None
     rejected_at: str | None = None
+    rejection_reasons: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -55,6 +56,8 @@ class EvalReport:
             detail = f" [{'; '.join(r.failures)}]" if r.failures else ""
             lines.append(f"  {status} {r.name}: action={r.action} "
                          f"rejected_at={r.rejected_at}{detail}")
+            for reason in r.rejection_reasons:
+                lines.append(f"       reason: {reason}")
         return "\n".join(lines)
 
 
@@ -98,6 +101,7 @@ def evaluate_case(llm, config: ProConfig, case: GoldenCase, **kwargs) -> CaseRes
         failures=failures,
         action=action,
         rejected_at=rejection and rejection.get("stage"),
+        rejection_reasons=list(rejection.get("reasons", [])) if rejection else [],
     )
 
 
