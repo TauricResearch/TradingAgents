@@ -156,14 +156,20 @@ class TestFredCalendar:
                 return {"release_dates": [
                     {"release_id": 10, "release_name": "Consumer Price Index",
                      "date": "2999-01-15"},
+                    {"release_id": 99, "release_name": "SONIA Interest Rate Benchmark",
+                     "date": "2999-01-04"},
                     {"release_id": 50, "release_name": "Employment Situation",
                      "date": "2999-01-03"},
                 ]}
 
         feed = FredMacroFeed(transport=FakeTransport(), api_key="k")
         releases = feed.get_release_dates(days_ahead=30)
-        assert len(releases) == 2
+        assert len(releases) == 3
         assert releases[0]["release"] == "Consumer Price Index"
+        by_name = {r["release"]: r for r in releases}
+        assert by_name["Consumer Price Index"]["major"] is True
+        assert by_name["Employment Situation"]["major"] is True
+        assert by_name["SONIA Interest Rate Benchmark"]["major"] is False
 
     def test_calendar_requires_key(self, monkeypatch):
         from tradingagents.dataflows.fred import FredNotConfiguredError

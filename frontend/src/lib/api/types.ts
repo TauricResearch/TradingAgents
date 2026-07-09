@@ -259,6 +259,7 @@ export const CalendarSchema = z.object({
       date: z.string(),
       release: z.string(),
       release_id: z.number().nullable().optional(),
+      major: z.boolean().optional(),
     }),
   ),
   missing_feeds: z.array(z.string()),

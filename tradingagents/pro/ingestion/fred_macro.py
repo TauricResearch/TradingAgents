@@ -76,11 +76,22 @@ class FredMacroFeed:
                 "limit": 200,
             },
         )
+        import re
+
+        # market-moving releases surface first in briefing widgets;
+        # everything still ships (the calendar page shows all)
+        major = re.compile(
+            r"consumer price index|employment situation|fomc|"
+            r"gross domestic product|producer price index|retail sales|"
+            r"personal income and outlays|advance monthly sales",
+            re.IGNORECASE,
+        )
         return [
             {
                 "date": row["date"],
                 "release": row.get("release_name", ""),
                 "release_id": row.get("release_id"),
+                "major": bool(major.search(row.get("release_name", ""))),
             }
             for row in payload.get("release_dates", [])
             if today.isoformat() <= row.get("date", "")

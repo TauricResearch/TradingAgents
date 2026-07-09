@@ -185,7 +185,10 @@ function SinceYouLeft() {
 
 function WhatNext() {
   const calendar = useCalendar();
-  const releases = (calendar.data?.releases ?? []).slice(0, 5);
+  const all = calendar.data?.releases ?? [];
+  // market-moving releases first; fall back to everything if none flagged
+  const majors = all.filter((r) => r.major);
+  const releases = (majors.length > 0 ? majors : all).slice(0, 5);
   if (calendar.isPending) return <SkeletonCard lines={3} />;
   if (releases.length === 0)
     return (
