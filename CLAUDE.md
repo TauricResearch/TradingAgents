@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 TradingAgents is a LangGraph-based multi-agent LLM financial trading analysis framework. This is **David's fork**, optimized primarily for the **China A-share market** as the main use case, with A-share data providers (tushare/akshare), Tavily news curation, an Evidence Steward gate, and other enhancements on top of upstream (TauricResearch/TradingAgents). Non-A-share tickers (US/crypto/commodity/forex) are supported but secondary.
 
+The fork is synced to **upstream v0.3.1** (2026-07). It adopts upstream's architectural improvements (provider registry, verified data-access contract, symbol normalization, structured output, analyst execution planning) but strips team/enterprise-oriented expansion: **do not re-add** Bedrock, Kimi, Groq, Mistral, NVIDIA NIM, or Polymarket. FRED macro data is kept. The default LLM provider is **DeepSeek**. See `.upstream-sync-report.md` for the full sync rationale.
+
 ## Common Commands
 
 ```bash
@@ -62,7 +64,7 @@ Key concepts:
 | `tradingagents/llm_clients/` | LLM provider abstraction: factory pattern routing to OpenAI-compatible / Anthropic / Google / Azure |
 | `tradingagents/default_config.py` | **Single source of truth for all configuration**, supports `TRADINGAGENTS_*` env-var overrides |
 | `cli/` | Typer + Rich interactive CLI |
-| `tests/` | pytest suite (40 test files), conftest auto-injects dummy API keys |
+| `tests/` | pytest suite (60+ test files), conftest auto-injects dummy API keys |
 
 ### Data Fetching Fallback Chain
 
@@ -82,14 +84,15 @@ Data calls route through `tradingagents/dataflows/interface.py` → `route_to_ve
 
 ### Fork-Specific Features (vs upstream)
 
-1. **A-share support**: `tradingagents/dataflows/china_data.py`, auto-supplements yfinance gaps with tushare/akshare
-2. **Tavily news**: `tradingagents/dataflows/tavily_news.py`, news data source
-3. **Evidence Steward**: `tradingagents/agents/evidence_steward.py`, assesses evidence quality, enriches via Tavily when insufficient
-4. **News Advisor**: LLM-driven coverage gap analysis + targeted search
+1. **A-share support**: `tradingagents/dataflows/china_data.py`, auto-supplements yfinance gaps with tushare/akshare; local three-tier identity resolution (tushare -> akshare -> yfinance)
+2. **Tavily news**: `tradingagents/dataflows/tavily_news.py`, A-share query templates, topic fallback, domain/score filters
+3. **Evidence Steward**: `tradingagents/agents/evidence_steward.py` + `tradingagents/dataflows/evidence.py`, assesses evidence sufficiency before downstream debate, enriches via Tavily when thin/contradictory/identity-ambiguous
+4. **News Advisor**: `tradingagents/dataflows/news_advisor.py`, LLM-driven (Agentic RAG reflection) coverage-gap analysis + targeted search
 5. **Credibility Scoring**: `tradingagents/dataflows/credibility.py`, news source credibility scoring
 6. **Cross-source Consistency**: `tradingagents/dataflows/consistency.py`, cross-source consistency detection
-7. **Market Data Validator**: `tradingagents/dataflows/market_data_validator.py`
-8. **Symbol Normalization**: `tradingagents/dataflows/symbol_utils.py`
+7. **Market Data Validator**: `tradingagents/dataflows/market_data_validator.py`, deterministic snapshot to ground numeric claims (stops LLM confabulation of prices/indicators)
+8. **Symbol Normalization**: `tradingagents/dataflows/symbol_utils.py`, normalize commodity/forex/crypto/A-share tickers
+9. **Progress events**: `tradingagents/dataflows/progress.py`, lightweight data-call progress events surfaced in the Chinese CLI
 
 ## Design Principles
 

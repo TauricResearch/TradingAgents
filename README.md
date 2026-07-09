@@ -28,7 +28,7 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
-- [2026-05] **David fork sync** preserves local China-market and domestic-provider behavior while adapting upstream v0.2.5. Fork-specific changes are tracked in [docs/roadmap/CHANGELOG.md](docs/roadmap/CHANGELOG.md).
+- [2026-07] **David fork** synced to upstream **v0.3.1**, preserving the China A-share workflow (Evidence Steward gate, Tushare/AkShare data, Tavily news curation, Chinese CLI) while adopting upstream's architectural improvements - provider registry, verified data-access contract, symbol normalization, and structured output. Unwanted upstream expansion (Bedrock, Kimi, Groq, Mistral, NVIDIA NIM, Polymarket) was stripped; FRED macro data was kept. Fork-specific changes are tracked in [docs/roadmap/CHANGELOG.md](docs/roadmap/CHANGELOG.md).
 - [2026-07] **TradingAgents v0.3.1** released with correctness and stability fixes: Alpha Vantage look-ahead filtering, graph-router crash-safety, graph-shape-aware checkpoint resume, working crypto sentiment sources, a configurable LLM retry budget, Bedrock API-key auth, and Claude Sonnet 5 / Fable 5 support. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-06] **TradingAgents v0.3.0** released with a verified data-access contract, an expanded provider registry (NVIDIA, Kimi, Groq, Mistral, Bedrock, and any OpenAI-compatible endpoint), FRED and Polymarket data vendors, a current-generation model catalog, and a CI gate.
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening.
@@ -106,17 +106,43 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### David Fork Additions
 
-This fork keeps upstream TradingAgents compatible while adding a China-market
-workflow layer:
+This fork keeps upstream TradingAgents compatible while adding a China A-share
+workflow layer on top of upstream v0.3.1. It adopts upstream's architectural
+improvements (provider registry, verified data-access contract, symbol
+normalization, structured output, analyst execution planning) but strips the
+team/enterprise-oriented expansion (Bedrock, Kimi, Groq, Mistral, NVIDIA NIM,
+Polymarket); FRED macro data is kept because it adds value for equity analysis.
 
-- Chinese/config-first CLI defaults via `tradingagents.config.example.json`.
-- Domestic-provider defaults and compatibility for DeepSeek, Xiaomi MiMo, Qwen,
-  GLM, MiniMax, OpenRouter, Ollama, Azure, OpenAI, Google, Anthropic, and xAI.
-- A-share ticker normalization, Yahoo Finance primary routing, and
-  Tushare/AkShare/Alpha Vantage fallback or supplementation for required data.
-- Tavily-first curated market news in the dataflow layer.
-- Evidence Steward gate before downstream debate when A-share evidence is thin,
-  contradictory, or identity-ambiguous.
+**A-share market support**
+- A-share ticker normalization for Shanghai (`.SS`) and Shenzhen (`.SZ`).
+- Local three-tier company-identity resolution: Tushare -> AkShare -> YFinance,
+  so A-share tickers resolve to the correct Chinese company profile instead of
+  yfinance's often-wrong or English names.
+- yfinance-primary routing with Tushare/AkShare/Alpha Vantage fallback or
+  supplementation; a coverage-ratio gate decides when A-share vendors must
+  supplement thin yfinance data.
+
+**Evidence Steward gate**
+- A graph node before the researcher debate that blocks downstream discussion
+  when A-share evidence is too thin, contradictory, or identity-ambiguous, and
+  can enrich it via Tavily before proceeding.
+
+**News curation and verification**
+- Tavily-first curated market news with A-share query templates, topic
+  fallback, and domain/score filters.
+- A news verification pipeline: source credibility scoring, cross-source
+  consistency detection, an LLM-driven news advisor (Agentic RAG reflection)
+  for coverage-gap analysis and targeted search, and look-ahead-safe
+  historical news windows.
+
+**Chinese, config-first CLI**
+- Chinese-localized interactive CLI with data-call progress events.
+- A config-first workflow via `tradingagents.config.example.json` and
+  `TRADINGAGENTS_*` env-var overrides that skip the matching interactive step.
+
+**Domestic provider defaults**
+- DeepSeek is the default provider; Xiaomi MiMo, Qwen, GLM, MiniMax, OpenRouter,
+  Ollama, Azure, OpenAI, Google, Anthropic, and xAI are all supported.
 
 The upstream changelog remains in [CHANGELOG.md](CHANGELOG.md). Fork-specific
 changes are recorded in [docs/roadmap/CHANGELOG.md](docs/roadmap/CHANGELOG.md).
