@@ -23,9 +23,9 @@ class ConditionalLogic:
         """Determine if sentiment-analyst tool round should continue.
 
         Method name keeps the legacy ``social`` suffix to match the
-        ``selected_analysts`` wire value (saved-config back-compat);
-        the returned ``clear_node`` label uses the v0.2.5 rename so it
-        matches the node registered by setup_graph.
+        ``AnalystType.SOCIAL = "social"`` wire value (saved-config
+        back-compat); the returned ``clear_node`` label uses the v0.2.5
+        rename so it matches the node registered by the execution plan.
         """
         messages = state["messages"]
         last_message = messages[-1]

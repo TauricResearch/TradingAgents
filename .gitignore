@@ -238,3 +238,5 @@ tradingagents.local.json
 # Temp files
 .tmp_cache/
 tmp_run_*.py
+# Enterprise env file (secrets)
+.env.enterprise

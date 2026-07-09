@@ -10,10 +10,9 @@ from tradingagents.graph.analyst_execution import (
 
 class AnalystExecutionPlanTests(unittest.TestCase):
     def test_build_plan_preserves_selected_order(self):
-        plan = build_analyst_execution_plan(["news", "market"], concurrency_limit=2)
+        plan = build_analyst_execution_plan(["news", "market"])
 
         self.assertEqual([spec.key for spec in plan.specs], ["news", "market"])
-        self.assertEqual(plan.concurrency_limit, 2)
         self.assertEqual(plan.specs[0].agent_node, "News Analyst")
         self.assertEqual(plan.specs[0].tool_node, "tools_news")
         self.assertEqual(plan.specs[0].clear_node, "Msg Clear News")
@@ -22,10 +21,6 @@ class AnalystExecutionPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_analyst_execution_plan(["market", "macro"])
 
-    def test_requires_positive_concurrency_limit(self):
-        with self.assertRaises(ValueError):
-            build_analyst_execution_plan(["market"], concurrency_limit=0)
-
     def test_get_initial_analyst_node_uses_plan_metadata(self):
         plan = build_analyst_execution_plan(["fundamentals", "news"])
 
@@ -33,6 +28,17 @@ class AnalystExecutionPlanTests(unittest.TestCase):
             get_initial_analyst_node(plan),
             "Fundamentals Analyst",
         )
+
+    def test_social_key_displays_as_sentiment_analyst(self):
+        # The wire key stays "social" for saved-config back-compat, but the
+        # user-visible agent_node label must match the v0.2.5 rename so the
+        # wall-time summary and any future consumer of agent_node says
+        # "Sentiment Analyst" rather than the legacy "Social Analyst".
+        plan = build_analyst_execution_plan(["social"])
+        spec = plan.specs[0]
+        self.assertEqual(spec.key, "social")
+        self.assertEqual(spec.agent_node, "Sentiment Analyst")
+        self.assertEqual(spec.report_key, "sentiment_report")
 
 
 class AnalystWallTimeTrackerTests(unittest.TestCase):

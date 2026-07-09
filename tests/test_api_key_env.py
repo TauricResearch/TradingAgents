@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 import typer
 
 from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV, get_api_key_env
-
 
 # ---- Mapping coverage -----------------------------------------------------
 
@@ -84,6 +82,7 @@ def test_cli_provider_validation_uses_canonical_mapping(monkeypatch):
 def cli_utils(monkeypatch):
     """Import cli.utils with a fresh environment so module-level state is consistent."""
     import importlib
+
     import cli.utils as cli_utils_module
     return importlib.reload(cli_utils_module)
 

@@ -1,14 +1,46 @@
 # TradingAgents/graph/setup.py
 
-from typing import Any, Dict
+from typing import Any
+
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from tradingagents.agents import *
+from tradingagents.agents import (
+    create_aggressive_debator,
+    create_bear_researcher,
+    create_bull_researcher,
+    create_conservative_debator,
+    create_evidence_steward,
+    create_fundamentals_analyst,
+    create_market_analyst,
+    create_msg_delete,
+    create_neutral_debator,
+    create_news_analyst,
+    create_portfolio_manager,
+    create_research_manager,
+    create_sentiment_analyst,
+    create_trader,
+)
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
+
+# Every target a shared conditional router can return. Each edge driven by the
+# router maps all of them, so a fall-through return (e.g. under prompt/i18n/
+# refactor drift in the speaker labels) can never hit a missing path_map entry
+# and crash LangGraph mid-run (#1088).
+DEBATE_PATH_MAP = {
+    "Bull Researcher": "Bull Researcher",
+    "Bear Researcher": "Bear Researcher",
+    "Research Manager": "Research Manager",
+}
+RISK_ANALYSIS_PATH_MAP = {
+    "Aggressive Analyst": "Aggressive Analyst",
+    "Conservative Analyst": "Conservative Analyst",
+    "Neutral Analyst": "Neutral Analyst",
+    "Portfolio Manager": "Portfolio Manager",
+}
 
 
 class GraphSetup:
@@ -18,19 +50,17 @@ class GraphSetup:
         self,
         quick_thinking_llm: Any,
         deep_thinking_llm: Any,
-        tool_nodes: Dict[str, ToolNode],
+        tool_nodes: dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
-        analyst_concurrency_limit: int = 1,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
-        self.analyst_concurrency_limit = analyst_concurrency_limit
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
+        self, selected_analysts=("market", "social", "news", "fundamentals")
     ):
         """Set up and compile the agent workflow graph.
 
@@ -41,19 +71,29 @@ class GraphSetup:
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
         """
-        plan = build_analyst_execution_plan(
-            selected_analysts,
-            concurrency_limit=self.analyst_concurrency_limit,
-        )
+        plan = build_analyst_execution_plan(selected_analysts)
 
-        # "social" key preserved for back-compat; the underlying agent has been
-        # renamed to sentiment_analyst (see issue #557).
         analyst_factories = {
             "market": lambda: create_market_analyst(self.quick_thinking_llm),
             "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
             "news": lambda: create_news_analyst(self.quick_thinking_llm),
             "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
         }
+
+        # Create Evidence Steward gate node (fork-specific: evidence quality check)
+        evidence_steward_node = create_evidence_steward()
+
+        # Create researcher and manager nodes
+        bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
+        bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)
+        research_manager_node = create_research_manager(self.deep_thinking_llm)
+        trader_node = create_trader(self.quick_thinking_llm)
+
+        # Create risk analysis nodes
+        aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
+        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
+        conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
 
         # Create workflow
         workflow = StateGraph(AgentState)
@@ -63,17 +103,6 @@ class GraphSetup:
             workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
             workflow.add_node(spec.clear_node, create_msg_delete())
             workflow.add_node(spec.tool_node, self.tool_nodes[spec.key])
-
-        # Create researcher, trader, risk, and manager nodes
-        evidence_steward_node = create_evidence_steward()
-        bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
-        bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)
-        research_manager_node = create_research_manager(self.deep_thinking_llm)
-        trader_node = create_trader(self.quick_thinking_llm)
-        aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
-        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
-        conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
-        portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
 
         # Add other nodes
         workflow.add_node("Evidence Steward", evidence_steward_node)
@@ -110,50 +139,24 @@ class GraphSetup:
             else:
                 workflow.add_edge(current_clear, "Evidence Steward")
 
-        # Add remaining edges
         workflow.add_edge("Evidence Steward", "Bull Researcher")
-        workflow.add_conditional_edges(
-            "Bull Researcher",
-            self.conditional_logic.should_continue_debate,
-            {
-                "Bear Researcher": "Bear Researcher",
-                "Research Manager": "Research Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Bear Researcher",
-            self.conditional_logic.should_continue_debate,
-            {
-                "Bull Researcher": "Bull Researcher",
-                "Research Manager": "Research Manager",
-            },
-        )
+
+        # Both research-debate edges share the complete DEBATE_PATH_MAP (#1088).
+        for debate_node in ("Bull Researcher", "Bear Researcher"):
+            workflow.add_conditional_edges(
+                debate_node,
+                self.conditional_logic.should_continue_debate,
+                DEBATE_PATH_MAP,
+            )
         workflow.add_edge("Research Manager", "Trader")
         workflow.add_edge("Trader", "Aggressive Analyst")
-        workflow.add_conditional_edges(
-            "Aggressive Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Conservative Analyst": "Conservative Analyst",
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Conservative Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Neutral Analyst": "Neutral Analyst",
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Neutral Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Aggressive Analyst": "Aggressive Analyst",
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
+        # All three risk edges share the complete RISK_ANALYSIS_PATH_MAP (#1088).
+        for risk_node in ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst"):
+            workflow.add_conditional_edges(
+                risk_node,
+                self.conditional_logic.should_continue_risk_analysis,
+                RISK_ANALYSIS_PATH_MAP,
+            )
 
         workflow.add_edge("Portfolio Manager", END)
 

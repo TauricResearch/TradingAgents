@@ -1,26 +1,26 @@
 import os
 from pathlib import Path
-import questionary
-from typing import List, Optional, Tuple, Dict
 
+import questionary
 from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
-from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "示例：SPY、002636、600519.SS、CNC.TO、7203.T、0700.HK"
+TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
 ANALYST_ORDER = [
-    ("市场分析师", AnalystType.MARKET),
-    ("社交情绪分析师", AnalystType.SOCIAL),
-    ("新闻分析师", AnalystType.NEWS),
-    ("基本面分析师", AnalystType.FUNDAMENTALS),
+    ("Market Analyst", AnalystType.MARKET),
+    ("Sentiment Analyst", AnalystType.SOCIAL),
+    ("News Analyst", AnalystType.NEWS),
+    ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
+
+CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
 
 
 def is_valid_ticker_input(value: str) -> bool:
@@ -35,12 +35,17 @@ def is_valid_ticker_input(value: str) -> bool:
 
 
 def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol."""
+    """Prompt the user to enter a ticker symbol, preserving exchange suffixes.
+
+    Uses questionary.text (not typer.prompt, which strips trailing dot-suffixes
+    like ``000404.SH`` on some shells) and validates the symbol charset so an
+    obvious typo is caught before the run starts.
+    """
     ticker = questionary.text(
-        f"请输入要分析的股票代码（{TICKER_INPUT_EXAMPLES}）：",
+        f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
         validate=lambda x: (
             is_valid_ticker_input(x)
-            or "请输入有效的股票代码，例如 AAPL、002636、GC=F。"
+            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, GC=F."
         ),
         style=questionary.Style(
             [
@@ -50,8 +55,8 @@ def get_ticker() -> str:
         ),
     ).ask()
 
-    if not ticker:
-        console.print("\n[red]未提供股票代码，已退出。[/red]")
+    if ticker is None:
+        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
     return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
@@ -63,18 +68,18 @@ def normalize_ticker_symbol(ticker: str) -> str:
     First infers A-share exchange suffixes for bare six-digit codes (e.g.
     ``002636`` -> ``002636.SZ``), then delegates to the data layer's
     ``normalize_symbol`` for commodity/forex/crypto resolution (e.g.
-    ``BTCUSD`` -> ``BTC-USD``, ``XAUUSD`` -> ``GC=F``).
+    ``BTCUSD`` -> ``BTC-USD``, ``XAUUSD`` -> ``GC=F``). Falls back to the
+    plain upper-case if the data layer is unavailable.
     """
     try:
-        from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol as _infer_a_share
+        from tradingagents.dataflows.ticker_utils import (
+            normalize_ticker_symbol as _infer_a_share,
+        )
         from tradingagents.dataflows.symbol_utils import normalize_symbol
 
         return normalize_symbol(_infer_a_share(ticker))
     except Exception:
         return ticker.strip().upper()
-
-
-CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC")
 
 
 def detect_asset_type(ticker: str) -> AssetType:
@@ -87,8 +92,8 @@ def detect_asset_type(ticker: str) -> AssetType:
 
 
 def filter_analysts_for_asset_type(
-    analysts: List[AnalystType], asset_type: AssetType
-) -> List[AnalystType]:
+    analysts: list[AnalystType], asset_type: AssetType
+) -> list[AnalystType]:
     if asset_type != AssetType.CRYPTO:
         return analysts
     return [
@@ -113,9 +118,9 @@ def get_analysis_date() -> str:
             return False
 
     date = questionary.text(
-        "请输入分析日期（YYYY-MM-DD）：",
+        "Enter the analysis date (YYYY-MM-DD):",
         validate=lambda x: validate_date(x.strip())
-        or "请输入 YYYY-MM-DD 格式的有效日期。",
+        or "Please enter a valid date in YYYY-MM-DD format.",
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -125,21 +130,27 @@ def get_analysis_date() -> str:
     ).ask()
 
     if not date:
-        console.print("\n[red]未提供分析日期，已退出。[/red]")
+        console.print("\n[red]No date provided. Exiting...[/red]")
         exit(1)
 
     return date.strip()
 
 
-def select_analysts() -> List[AnalystType]:
+def select_analysts(asset_type: AssetType = AssetType.STOCK) -> list[AnalystType]:
     """Select analysts using an interactive checkbox."""
+    available_analysts = filter_analysts_for_asset_type(
+        [value for _, value in ANALYST_ORDER],
+        asset_type,
+    )
     choices = questionary.checkbox(
-        "请选择参与分析的智能体：",
+        "Select Your [Analysts Team]:",
         choices=[
-            questionary.Choice(display, value=value) for display, value in ANALYST_ORDER
+            questionary.Choice(display, value=value)
+            for display, value in ANALYST_ORDER
+            if value in available_analysts
         ],
-        instruction="\n- 按空格选择/取消\n- 按 a 全选/取消全选\n- 按回车确认",
-        validate=lambda x: len(x) > 0 or "至少选择一个分析师。",
+        instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
+        validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
         style=questionary.Style(
             [
                 ("checkbox-selected", "fg:green"),
@@ -151,7 +162,7 @@ def select_analysts() -> List[AnalystType]:
     ).ask()
 
     if not choices:
-        console.print("\n[red]未选择分析师，已退出。[/red]")
+        console.print("\n[red]No analysts selected. Exiting...[/red]")
         exit(1)
 
     return choices
@@ -162,17 +173,17 @@ def select_research_depth() -> int:
 
     # Define research depth options with their corresponding values
     DEPTH_OPTIONS = [
-        ("浅层 - 快速研究，较少辩论和策略讨论轮次", 1),
-        ("中等 - 平衡速度和深度，适中讨论轮次", 3),
-        ("深层 - 更全面的研究和更充分的讨论", 5),
+        ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
+        ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
+        ("Deep - Comprehensive research, in depth debate and strategy discussion", 5),
     ]
 
     choice = questionary.select(
-        "请选择研究深度：",
+        "Select Your [Research Depth]:",
         choices=[
             questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS
         ],
-        instruction="\n- 使用方向键移动\n- 按回车确认",
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
                 ("selected", "fg:yellow noinherit"),
@@ -183,36 +194,82 @@ def select_research_depth() -> int:
     ).ask()
 
     if choice is None:
-        console.print("\n[red]未选择研究深度，已退出。[/red]")
+        console.print("\n[red]No research depth selected. Exiting...[/red]")
         exit(1)
 
     return choice
 
 
-def _fetch_openrouter_models() -> List[Tuple[str, str]]:
+# Mainstream OpenRouter chat-LLM provider namespaces. We surface the newest
+# models from these rather than the universal-newest, which is dominated by
+# niche/experimental releases. These are the general-purpose chat providers;
+# more enterprise/specialised namespaces (nvidia, cohere, amazon, ...) tend to
+# ship research/safety variants as their newest, so they're left out of the
+# shortlist. Provider names are stable (unlike model IDs), so this rarely needs
+# touching; anything not here is still reachable via Custom ID.
+_OPENROUTER_MAINSTREAM = {
+    "openai", "anthropic", "google", "deepseek", "qwen", "mistralai",
+    "meta-llama", "x-ai", "z-ai", "minimax", "moonshotai",
+}
+
+
+def _fetch_openrouter_models() -> list[tuple[str, str]]:
     """Fetch available models from the OpenRouter API."""
     import requests
     try:
         resp = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
         resp.raise_for_status()
         models = resp.json().get("data", [])
+        # Newest first so the top-N shown really is the latest available — the
+        # API currently returns this order, but sort explicitly so the prompt's
+        # "latest available" label holds regardless of response ordering.
+        models.sort(key=lambda m: m.get("created") or 0, reverse=True)
         return [(m.get("name") or m["id"], m["id"]) for m in models]
     except Exception as e:
-        console.print(f"\n[yellow]无法获取 OpenRouter 模型列表：{e}[/yellow]")
+        console.print(f"\n[yellow]Could not fetch OpenRouter models: {e}[/yellow]")
         return []
 
 
-def select_openrouter_model() -> str:
-    """Select an OpenRouter model from the newest available, or enter a custom ID."""
-    models = _fetch_openrouter_models()
+def _require_text(message: str, hint: str) -> str:
+    """Prompt for a required value; exit cleanly if the user cancels.
 
-    choices = [questionary.Choice(name, value=mid) for name, mid in models[:5]]
+    ``questionary.text(...).ask()`` returns None on Ctrl-C/Esc; mirror the
+    exit-on-cancel behavior of the other required selections so a cancelled
+    prompt never returns an empty model/deployment that would fail downstream.
+    """
+    response = questionary.text(
+        message,
+        validate=lambda x: len(x.strip()) > 0 or hint,
+    ).ask()
+    if response is None:
+        console.print("\n[red]Cancelled. Exiting...[/red]")
+        exit(1)
+    return response.strip()
+
+
+def select_openrouter_model(mode: str) -> str:
+    """Select an OpenRouter model from the newest available, or enter a custom ID.
+
+    ``mode`` ("quick"/"deep") labels the prompt so the two consecutive
+    OpenRouter selections are distinguishable, like the other providers (#1000).
+    """
+    models = _fetch_openrouter_models()  # newest first
+    # Prefer the newest from mainstream providers so the shortlist isn't crowded
+    # out by niche/experimental releases; fall back to all if none match.
+    mainstream = [
+        (name, mid) for name, mid in models
+        if not mid.startswith("~")  # skip variant/alias duplicate routes
+        and mid.split("/", 1)[0] in _OPENROUTER_MAINSTREAM
+    ]
+    top = (mainstream or models)[:5]
+
+    choices = [questionary.Choice(name, value=mid) for name, mid in top]
     choices.append(questionary.Choice("Custom model ID", value="custom"))
 
     choice = questionary.select(
-        "请选择 OpenRouter 模型（最新可用列表）：",
+        f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
         choices=choices,
-        instruction="\n- 使用方向键移动\n- 按回车确认",
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style([
             ("selected", "fg:magenta noinherit"),
             ("highlighted", "fg:magenta noinherit"),
@@ -220,41 +277,40 @@ def select_openrouter_model() -> str:
         ]),
     ).ask()
 
-    if choice is None or choice == "custom":
-        return questionary.text(
-            "请输入 OpenRouter 模型 ID（例如 google/gemma-4-26b-a4b-it）：",
-            validate=lambda x: len(x.strip()) > 0 or "请输入模型 ID。",
-        ).ask().strip()
-
+    if choice is None:
+        console.print("\n[red]No model selected. Exiting...[/red]")
+        exit(1)
+    if choice == "custom":
+        return _require_text(
+            "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
+            "Please enter a model ID.",
+        )
     return choice
 
 
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
-    return questionary.text(
-        "请输入模型 ID：",
-        validate=lambda x: len(x.strip()) > 0 or "请输入模型 ID。",
-    ).ask().strip()
+    return _require_text("Enter model ID:", "Please enter a model ID.")
 
 
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
     if provider.lower() == "openrouter":
-        return select_openrouter_model()
+        return select_openrouter_model(mode)
 
     if provider.lower() == "azure":
-        return questionary.text(
-            f"请输入 Azure deployment 名称（{mode}-thinking）：",
-            validate=lambda x: len(x.strip()) > 0 or "请输入 deployment 名称。",
-        ).ask().strip()
+        return _require_text(
+            f"Enter Azure deployment name ({mode}-thinking):",
+            "Please enter a deployment name.",
+        )
 
     choice = questionary.select(
-        f"请选择 [{mode.title()}-Thinking] LLM 模型：",
+        f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
             for display, value in get_model_options(provider, mode)
         ],
-        instruction="\n- 使用方向键移动\n- 按回车确认",
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
                 ("selected", "fg:magenta noinherit"),
@@ -265,7 +321,7 @@ def _select_model(provider: str, mode: str) -> str:
     ).ask()
 
     if choice is None:
-        console.print(f"\n[red]未选择 {mode} thinking LLM，已退出。[/red]")
+        console.print(f"\n[red]No {mode} thinking llm engine selected. Exiting...[/red]")
         exit(1)
 
     if choice == "custom":
@@ -283,33 +339,65 @@ def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
     return _select_model(provider, "deep")
 
-def select_llm_provider() -> tuple[str, str | None]:
-    """Select the LLM provider and its API endpoint."""
-    # Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL.
+def _llm_provider_table() -> list[tuple[str, str, str | None]]:
+    """(display_name, provider_key, base_url) for every supported provider.
+
+    Shared by the interactive picker and by env-driven configuration so an
+    env-set provider resolves to the same default endpoint the menu uses.
+    Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
+    (convention from the broader Ollama ecosystem); falls back to the
+    localhost default when unset.
+    """
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
-    # (display_name, provider_key, base_url)
-    PROVIDERS = [
+    return [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
+        ("Xiaomi MiMo", "mimo", "https://token-plan-sgp.xiaomimimo.com/anthropic"),
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
-        ("Xiaomi MiMo", "mimo", "https://token-plan-sgp.xiaomimimo.com/anthropic"),
         ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
-        ("GLM", "glm", "https://api.z.ai/api/paas/v4/"),
+        ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
     ]
 
+
+def provider_default_url(provider_key: str) -> str | None:
+    """Return the default backend URL for a provider key, or None if unknown."""
+    key = provider_key.lower()
+    for _, pk, url in _llm_provider_table():
+        if pk == key:
+            return url
+    return None
+
+
+def resolve_backend_url(
+    provider: str, menu_url: str | None = None, env_url: str | None = None
+) -> str | None:
+    """Resolve the backend URL with the correct precedence.
+
+    An explicit env override (``env_url``, from ``TRADINGAGENTS_LLM_BACKEND_URL``
+    via ``DEFAULT_CONFIG['backend_url']``) is honored regardless of how the
+    provider was chosen — interactively or from the environment (#978).
+    Otherwise the menu/region URL, then the provider's default.
+    """
+    return env_url or menu_url or provider_default_url(provider)
+
+
+def select_llm_provider() -> tuple[str, str | None]:
+    """Select the LLM provider and its API endpoint."""
+    PROVIDERS = _llm_provider_table()
+
     choice = questionary.select(
-        "请选择 LLM Provider：",
+        "Select your LLM Provider:",
         choices=[
             questionary.Choice(display, value=(provider_key, url))
             for display, provider_key, url in PROVIDERS
         ],
-        instruction="\n- 使用方向键移动\n- 按回车确认",
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
                 ("selected", "fg:magenta noinherit"),
@@ -318,9 +406,9 @@ def select_llm_provider() -> tuple[str, str | None]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
-        console.print("\n[red]未选择 LLM Provider，已退出。[/red]")
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
 
     provider, url = choice
@@ -330,12 +418,12 @@ def select_llm_provider() -> tuple[str, str | None]:
 def ask_openai_reasoning_effort() -> str:
     """Ask for OpenAI reasoning effort level."""
     choices = [
-        questionary.Choice("Medium（默认）", "medium"),
-        questionary.Choice("High（更充分）", "high"),
-        questionary.Choice("Low（更快）", "low"),
+        questionary.Choice("Medium (Default)", "medium"),
+        questionary.Choice("High (More thorough)", "high"),
+        questionary.Choice("Low (Faster)", "low"),
     ]
     return questionary.select(
-        "请选择 Reasoning Effort：",
+        "Select Reasoning Effort:",
         choices=choices,
         style=questionary.Style([
             ("selected", "fg:cyan noinherit"),
@@ -348,14 +436,16 @@ def ask_openai_reasoning_effort() -> str:
 def ask_anthropic_effort() -> str | None:
     """Ask for Anthropic effort level.
 
-    Controls token usage and response thoroughness on Claude 4.5+ and 4.6 models.
+    Controls token usage and response thoroughness on Claude 4.5 / 4.6 / 4.7
+    models. The API also accepts "max"; we expose low/medium/high as the
+    common selection range.
     """
     return questionary.select(
-        "请选择 Effort Level：",
+        "Select Effort Level:",
         choices=[
-            questionary.Choice("High（推荐）", "high"),
-            questionary.Choice("Medium（平衡）", "medium"),
-            questionary.Choice("Low（更快更省）", "low"),
+            questionary.Choice("High (recommended)", "high"),
+            questionary.Choice("Medium (balanced)", "medium"),
+            questionary.Choice("Low (faster, cheaper)", "low"),
         ],
         style=questionary.Style([
             ("selected", "fg:cyan noinherit"),
@@ -372,10 +462,10 @@ def ask_gemini_thinking_config() -> str | None:
     Client maps to appropriate API param based on model series.
     """
     return questionary.select(
-        "请选择 Thinking Mode：",
+        "Select Thinking Mode:",
         choices=[
-            questionary.Choice("启用 Thinking（推荐）", "high"),
-            questionary.Choice("最小/禁用 Thinking", "minimal"),
+            questionary.Choice("Enable Thinking (recommended)", "high"),
+            questionary.Choice("Minimal/Disable Thinking", "minimal"),
         ],
         style=questionary.Style([
             ("selected", "fg:green noinherit"),
@@ -386,16 +476,20 @@ def ask_gemini_thinking_config() -> str | None:
 
 
 def ask_glm_region() -> tuple[str, str]:
-    """Ask which GLM platform to use."""
+    """Ask which GLM platform (Z.AI international vs BigModel China) to use.
+
+    Zhipu serves the same GLM models under two brands with separate
+    accounts; keys aren't interchangeable. Returns (provider_key, backend_url).
+    """
     return questionary.select(
-        "请选择 GLM 平台：",
+        "Select GLM platform:",
         choices=[
             questionary.Choice(
-                "Z.AI - api.z.ai（国际站，使用 ZHIPU_API_KEY）",
+                "Z.AI — api.z.ai (international, uses ZHIPU_API_KEY)",
                 value=("glm", "https://api.z.ai/api/paas/v4/"),
             ),
             questionary.Choice(
-                "BigModel - open.bigmodel.cn（中国站，使用 ZHIPU_CN_API_KEY）",
+                "BigModel — open.bigmodel.cn (China, uses ZHIPU_CN_API_KEY)",
                 value=("glm-cn", "https://open.bigmodel.cn/api/paas/v4/"),
             ),
         ],
@@ -408,16 +502,21 @@ def ask_glm_region() -> tuple[str, str]:
 
 
 def ask_qwen_region() -> tuple[str, str]:
-    """Ask which Qwen region to use."""
+    """Ask which Qwen region (international vs China) to use.
+
+    Alibaba DashScope exposes two endpoints with separate accounts —
+    a key from one region does NOT authenticate against the other
+    (fixes #758). Returns (provider_key, backend_url).
+    """
     return questionary.select(
-        "请选择 Qwen 区域：",
+        "Select Qwen region:",
         choices=[
             questionary.Choice(
-                "International - dashscope-intl.aliyuncs.com（使用 DASHSCOPE_API_KEY）",
+                "International — dashscope-intl.aliyuncs.com (uses DASHSCOPE_API_KEY)",
                 value=("qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
             ),
             questionary.Choice(
-                "China - dashscope.aliyuncs.com（使用 DASHSCOPE_CN_API_KEY）",
+                "China — dashscope.aliyuncs.com (uses DASHSCOPE_CN_API_KEY)",
                 value=("qwen-cn", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
             ),
         ],
@@ -430,16 +529,21 @@ def ask_qwen_region() -> tuple[str, str]:
 
 
 def ask_minimax_region() -> tuple[str, str]:
-    """Ask which MiniMax region to use."""
+    """Ask which MiniMax region (global vs China) to use.
+
+    MiniMax exposes two endpoints with separate accounts — a key from
+    one region does NOT authenticate against the other. Returns
+    (provider_key, backend_url).
+    """
     return questionary.select(
-        "请选择 MiniMax 区域：",
+        "Select MiniMax region:",
         choices=[
             questionary.Choice(
-                "Global - api.minimax.io（使用 MINIMAX_API_KEY）",
+                "Global — api.minimax.io (uses MINIMAX_API_KEY)",
                 value=("minimax", "https://api.minimax.io/v1"),
             ),
             questionary.Choice(
-                "China - api.minimaxi.com（使用 MINIMAX_CN_API_KEY）",
+                "China — api.minimaxi.com (uses MINIMAX_CN_API_KEY)",
                 value=("minimax-cn", "https://api.minimaxi.com/v1"),
             ),
         ],
@@ -449,49 +553,6 @@ def ask_minimax_region() -> tuple[str, str]:
             ("pointer", "fg:cyan noinherit"),
         ]),
     ).ask()
-
-
-def ensure_api_key(provider: str) -> Optional[str]:
-    """Make sure the API key for `provider` is available in the environment.
-
-    If the env var is already set, returns its value untouched. Otherwise
-    interactively prompts the user, persists the value to the project's
-    .env file via python-dotenv's set_key (creating .env if needed), and
-    exports it into os.environ so the current process picks it up.
-
-    Returns None for providers that do not require a key (e.g. ollama)
-    and for providers not found in the canonical mapping.
-    """
-    env_var = get_api_key_env(provider)
-    if env_var is None:
-        return None  # ollama / unknown — no key check possible
-
-    existing = os.environ.get(env_var)
-    if existing:
-        return existing
-
-    console.print(
-        f"\n[yellow]{env_var} 未在环境变量中设置。[/yellow]"
-    )
-    key = questionary.password(
-        f"请输入 {env_var}（将保存到 .env）：",
-        style=questionary.Style([
-            ("text", "fg:cyan"),
-            ("highlighted", "noinherit"),
-        ]),
-    ).ask()
-    if not key:
-        console.print(
-            f"[red]已跳过。API 调用将失败，直到设置 {env_var}。[/red]"
-        )
-        return None
-
-    env_path = find_dotenv(usecwd=True) or str(Path.cwd() / ".env")
-    Path(env_path).touch(exist_ok=True)
-    set_key(env_path, env_var, key)
-    os.environ[env_var] = key
-    console.print(f"[green]已将 {env_var} 保存到 {env_path}[/green]")
-    return key
 
 
 def confirm_ollama_endpoint(url: str) -> None:
@@ -524,13 +585,63 @@ def confirm_ollama_endpoint(url: str) -> None:
         )
 
 
+def ensure_api_key(provider: str) -> str | None:
+    """Make sure the API key for `provider` is available in the environment.
+
+    If the env var is already set, returns its value untouched. Otherwise
+    interactively prompts the user, persists the value to the project's
+    .env file via python-dotenv's set_key (creating .env if needed), and
+    exports it into os.environ so the current process picks it up.
+
+    Returns None for providers that do not require a key (e.g. ollama)
+    and for providers not found in the canonical mapping.
+    """
+    env_var = get_api_key_env(provider)
+    if env_var is None:
+        return None  # ollama / unknown — no key check possible
+
+    # Key-optional providers (generic OpenAI-compatible / local servers) read the
+    # key when present but must never force an interactive prompt.
+    from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
+    spec = OPENAI_COMPATIBLE_PROVIDERS.get(provider.lower())
+    if spec is not None and spec.key_optional:
+        return os.environ.get(env_var)
+
+    existing = os.environ.get(env_var)
+    if existing:
+        return existing
+
+    console.print(
+        f"\n[yellow]{env_var} is not set in your environment.[/yellow]"
+    )
+    key = questionary.password(
+        f"Paste your {env_var} (will be saved to .env):",
+        style=questionary.Style([
+            ("text", "fg:cyan"),
+            ("highlighted", "noinherit"),
+        ]),
+    ).ask()
+    if not key:
+        console.print(
+            f"[red]Skipped. API calls will fail until {env_var} is set.[/red]"
+        )
+        return None
+
+    env_path = find_dotenv(usecwd=True) or str(Path.cwd() / ".env")
+    Path(env_path).touch(exist_ok=True)
+    set_key(env_path, env_var, key)
+    os.environ[env_var] = key
+    console.print(f"[green]Saved {env_var} to {env_path}[/green]")
+    return key
+
+
 def ask_output_language() -> str:
     """Ask for report output language."""
     choice = questionary.select(
-        "请选择报告输出语言：",
+        "Select Output Language:",
         choices=[
-            questionary.Choice("中文（默认）", "Chinese"),
-            questionary.Choice("English", "English"),
+            questionary.Choice("English (default)", "English"),
+            questionary.Choice("Chinese (中文)", "Chinese"),
             questionary.Choice("Japanese (日本語)", "Japanese"),
             questionary.Choice("Korean (한국어)", "Korean"),
             questionary.Choice("Hindi (हिन्दी)", "Hindi"),
@@ -549,10 +660,14 @@ def ask_output_language() -> str:
         ]),
     ).ask()
 
+    # Output language has a sensible default, so a cancel falls back to English
+    # rather than exiting the run (unlike the required model/provider prompts).
+    if choice is None:
+        return "English"
     if choice == "custom":
-        return questionary.text(
-            "请输入语言名称（例如 Turkish、Vietnamese、Thai、Indonesian）：",
-            validate=lambda x: len(x.strip()) > 0 or "请输入语言名称。",
-        ).ask().strip()
+        return (questionary.text(
+            "Enter language name (e.g. Turkish, Vietnamese, Thai, Indonesian):",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a language name.",
+        ).ask() or "").strip() or "English"
 
     return choice

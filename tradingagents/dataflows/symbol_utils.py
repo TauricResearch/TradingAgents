@@ -10,7 +10,6 @@ differ from the broker / TradingView / MT5 style symbols users often type:
     EURUSD            EURUSD=X          spot forex pairs take a ``=X`` suffix
     BTCUSD            BTC-USD           crypto pairs use a ``-`` separator
     SPX500, US500     ^GSPC             index CFDs map to Yahoo index symbols
-    600519.SH         600519.SS         Shanghai tickers use .SS on Yahoo
 
 Passing the raw broker symbol to Yahoo returns an empty result, which the
 agents previously received as free text and could hallucinate a price
@@ -24,27 +23,11 @@ from __future__ import annotations
 import logging
 import re
 
+# NoMarketDataError lives in the vendor-error taxonomy (errors.py); re-exported
+# here for the many call sites that import it alongside normalize_symbol.
+from .errors import NoMarketDataError as NoMarketDataError
+
 logger = logging.getLogger(__name__)
-
-
-class NoMarketDataError(Exception):
-    """Raised when a vendor returns no rows/records for a symbol.
-
-    Carries both the symbol the user requested and the canonical symbol the
-    vendor was actually queried with, so callers can build a clear message
-    instead of emitting a vendor-specific empty string into the data channel.
-    """
-
-    def __init__(self, symbol: str, canonical: str | None = None, detail: str = ""):
-        self.symbol = symbol
-        self.canonical = canonical or symbol
-        self.detail = detail
-        msg = f"No market data for {symbol!r}"
-        if canonical and canonical != symbol:
-            msg += f" (queried as {canonical!r})"
-        if detail:
-            msg += f": {detail}"
-        super().__init__(msg)
 
 
 # ISO-4217 codes common enough to appear in retail forex pairs. A bare
@@ -97,20 +80,25 @@ _YAHOO_SAFE = re.compile(r"^[A-Za-z0-9._\-\^=]+$")
 _CRYPTO_QUOTES = ("USDT", "USDC", "USD")
 
 
-def _normalize_crypto(s: str) -> str | None:
-    """Return ``<BASE>-USD`` if ``s`` is a known crypto quoted in USD/USDT/USDC.
-
-    Accepts dashed or undashed forms: ``BTCUSD``, ``BTCUSDT``, ``BTC-USDT``,
-    ``BTC-USDC`` all resolve to ``BTC-USD``. Returns None otherwise.
+def crypto_base(raw: str) -> str | None:
+    """Return the crypto base (e.g. ``BTC``) for a known USD/USDT/USDC-quoted
+    crypto symbol in any form the pipeline may hold — ``BTC-USD``, ``BTCUSD``,
+    ``BTC-USDT`` — or None for non-crypto symbols. Purely syntactic.
     """
-    compact = s.replace("-", "")
+    if not isinstance(raw, str):
+        return None
+    compact = raw.strip().upper().rstrip("+").replace("-", "")
     for quote in _CRYPTO_QUOTES:
         if compact.endswith(quote):
             base = compact[: -len(quote)]
-            if base in _CRYPTO_BASES:
-                return f"{base}-USD"
-            break
+            return base if base in _CRYPTO_BASES else None
     return None
+
+
+def _normalize_crypto(s: str) -> str | None:
+    """Return ``<BASE>-USD`` for a known USD/USDT/USDC-quoted crypto, else None."""
+    base = crypto_base(s)
+    return f"{base}-USD" if base else None
 
 
 def normalize_symbol(raw: str) -> str:
@@ -118,11 +106,10 @@ def normalize_symbol(raw: str) -> str:
 
     Resolution order (first match wins):
       1. Explicit alias table (metals, energy, index CFDs).
-      2. A-share suffix conversion (.SH -> .SS for Yahoo Finance).
-      3. Crypto rule: a known crypto base quoted in USD/USDT/USDC (dashed or
+      2. Crypto rule: a known crypto base quoted in USD/USDT/USDC (dashed or
          not) -> ``BASE-USD``.
-      4. Forex rule: six letters that are two ISO currency codes -> ``PAIR=X``.
-      5. Otherwise the upper-cased symbol is returned unchanged (plain
+      3. Forex rule: six letters that are two ISO currency codes -> ``PAIR=X``.
+      4. Otherwise the upper-cased symbol is returned unchanged (plain
          equities, ETFs, Yahoo-native symbols like ``GC=F`` or ``^GSPC``).
 
     A trailing ``+`` (broker CFD marker, e.g. ``XAUUSD+``) is stripped before
@@ -139,9 +126,6 @@ def normalize_symbol(raw: str) -> str:
     crypto = _normalize_crypto(s)
     if s in _ALIASES:
         canonical = _ALIASES[s]
-    # A-share: .SH (Tushare/Shanghai) -> .SS (Yahoo Finance)
-    elif s.endswith(".SH"):
-        canonical = s[:-3] + ".SS"
     elif crypto is not None:
         canonical = crypto
     elif len(s) == 6 and s[:3] in _FOREX_CURRENCIES and s[3:] in _FOREX_CURRENCIES:

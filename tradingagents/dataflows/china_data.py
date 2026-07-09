@@ -72,6 +72,51 @@ def get_stock_akshare(symbol: str, start_date: str, end_date: str) -> str:
     )
 
 
+def get_stock_tushare_df(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """A-share OHLCV as a DataFrame (Date/Open/High/Low/Close/Volume/...).
+
+    Same as ``get_stock_tushare`` but returns the formatted DataFrame instead
+    of a markdown report, for callers (the ``load_ohlcv`` vendor path) that
+    need raw rows rather than a rendered string.
+    """
+    pro = _get_tushare_pro()
+    ts_code = _require_a_share_tushare_symbol(symbol)
+    try:
+        df = pro.daily(
+            ts_code=ts_code,
+            start_date=_date_to_api(start_date),
+            end_date=_date_to_api(end_date),
+        )
+    except Exception as exc:
+        raise ChinaDataUnavailableError(f"Tushare daily request failed for {ts_code}: {exc}") from exc
+    _save_raw_data(symbol, end_date, "tushare_get_stock", df)
+    if df is None or df.empty:
+        raise ChinaDataUnavailableError(f"Tushare returned no daily data for {ts_code}.")
+    return _format_tushare_daily(df)
+
+
+def get_stock_akshare_df(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """A-share OHLCV as a DataFrame from AKShare (fallback for the vendor path)."""
+    ak = _import_optional("akshare", "pip install akshare")
+    ak_symbol = _require_a_share_akshare_symbol(symbol)
+    try:
+        df = ak.stock_zh_a_hist(
+            symbol=ak_symbol,
+            period="daily",
+            start_date=_date_to_api(start_date),
+            end_date=_date_to_api(end_date),
+            adjust=get_config().get("akshare_adjust", ""),
+        )
+    except Exception as exc:
+        raise ChinaDataUnavailableError(
+            f"AKShare historical request failed for {ak_symbol}: {exc}"
+        ) from exc
+    _save_raw_data(symbol, end_date, "akshare_get_stock", df)
+    if df is None or df.empty:
+        raise ChinaDataUnavailableError(f"AKShare returned no historical data for {ak_symbol}.")
+    return _format_akshare_daily(df)
+
+
 def get_fundamentals_tushare(ticker: str, curr_date: str = None) -> str:
     """Retrieve a compact A-share fundamentals snapshot from Tushare."""
     pro = _get_tushare_pro()

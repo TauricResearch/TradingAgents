@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 from datetime import datetime
@@ -46,7 +47,8 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_global_news as get_alpha_vantage_global_news,
 )
-from .alpha_vantage_common import AlphaVantageRateLimitError
+from .fred import FredNotConfiguredError, get_macro_data as get_fred_macro_data
+from .alpha_vantage_common import AlphaVantageNotConfiguredError, AlphaVantageRateLimitError
 from yfinance.exceptions import YFRateLimitError
 from .symbol_utils import NoMarketDataError
 
@@ -91,6 +93,12 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
         ]
+    },
+    "macro_data": {
+        "description": "Macroeconomic indicators (rates, inflation, labor, growth)",
+        "tools": [
+            "get_macro_indicators",
+        ]
     }
 }
 
@@ -99,6 +107,7 @@ VENDOR_LIST = [
     "akshare",
     "tavily",
     "yfinance",
+    "fred",
     "alpha_vantage",
 ]
 
@@ -153,11 +162,18 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
+    # macro_data
+    "get_macro_indicators": {
+        "fred": get_fred_macro_data,
+    },
 }
 
 
 class DataUnavailableError(RuntimeError):
     """Raised when required analysis data is unavailable from all configured vendors."""
+
+
+logger = logging.getLogger("tradingagents.dataflows.interface")
 
 def get_category_for_method(method: str) -> str:
     """Get the category that contains the specified method."""
@@ -190,19 +206,41 @@ _news_result_cache: dict[tuple, str] = {}
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
-    cache_key = None
-    # Check cache for news methods to avoid duplicate calls across analysts
-    if method in {"get_news", "get_global_news"}:
-        cache_key = (method, tuple(str(a) for a in args), tuple(sorted((k, str(v)) for k, v in kwargs.items() if v is not None)))
-        if cache_key in _news_result_cache:
-            return _news_result_cache[cache_key]
-
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',') if v.strip()]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
+
+    # An explicit vendor choice that names no real vendor is a config error:
+    # surface it instead of silently trying every vendor in VENDOR_METHODS.
+    if vendor_config != "default":
+        # A vendor name that is not a known vendor at all (typo, e.g.
+        # "bogus_vendor") is a config error: surface it. Vendors that are
+        # valid but not wired for this particular method (e.g. tushare for
+        # get_indicators) are handled by the fallback chain below, not here.
+        known_vendors = set(VENDOR_LIST)
+        unknown = [v for v in primary_vendors if v not in known_vendors]
+        if unknown:
+            raise ValueError(
+                f"Unknown vendor(s) configured for '{method}': {', '.join(unknown)}. "
+                f"Known vendors: {', '.join(VENDOR_LIST)}"
+            )
+
+    cache_key = None
+    # Check cache for news methods to avoid duplicate calls across analysts.
+    # vendor_config is part of the key so a config change or a test that
+    # repatches vendors does not return a stale cached result.
+    if method in {"get_news", "get_global_news"}:
+        cache_key = (
+            method,
+            vendor_config,
+            tuple(str(a) for a in args),
+            tuple(sorted((k, str(v)) for k, v in kwargs.items() if v is not None)),
+        )
+        if cache_key in _news_result_cache:
+            return _news_result_cache[cache_key]
 
     if method in {"get_news", "get_global_news"}:
         result = _route_news_to_vendors(method, primary_vendors, *args, **kwargs)
@@ -211,17 +249,25 @@ def route_to_vendor(method: str, *args, **kwargs):
             _news_result_cache[cache_key] = result
         return result
 
-    # Build fallback chain: primary vendors first, then remaining available vendors
-    all_available_vendors = list(VENDOR_METHODS[method].keys())
-    fallback_vendors = primary_vendors.copy()
-    for vendor in all_available_vendors:
-        if vendor not in fallback_vendors:
-            fallback_vendors.append(vendor)
+    # Build fallback chain. "default" keeps the resilient full-chain behavior.
+    # An explicit vendor choice is honored strictly: only the configured
+    # vendors are tried, so a healthy unchosen vendor is NOT silently used
+    # (#988). Transient errors (rate limit / network) still opt in to the
+    # remaining vendors as an implicit safety net - see the recoverable branch.
+    if vendor_config == "default":
+        fallback_vendors = list(VENDOR_METHODS[method].keys())
+    else:
+        fallback_vendors = primary_vendors.copy()
 
     recoverable_errors = []
     incomplete_primary: tuple[str, Any, str] | None = None
     last_no_data: NoMarketDataError | None = None
     first_error: Exception | None = None
+    # True once a transient error (rate limit / network) pulled in a vendor
+    # outside the explicit chain. When the whole chain still fails after that,
+    # we surface an aggregated DataUnavailableError rather than re-raising the
+    # single primary error, because more than one vendor was actually tried.
+    implicit_fallback_triggered = False
 
     for index, vendor in enumerate(fallback_vendors):
         if vendor not in VENDOR_METHODS[method]:
@@ -238,14 +284,31 @@ def route_to_vendor(method: str, *args, **kwargs):
         except NoMarketDataError as e:
             last_no_data = e
             _emit_data_progress("failure", method, vendor, args, str(e))
+            logger.warning("vendor %s reported no market data for %s: %s", vendor, method, e)
             recoverable_errors.append((vendor, e))
+            if first_error is None:
+                first_error = e
             continue
         except Exception as exc:
             if _is_recoverable_vendor_error(vendor, exc):
                 _emit_data_progress("failure", method, vendor, args, _summarize_vendor_error(exc))
+                # Log the real error so a broken primary is visible in logs,
+                # not masked by a later fallback's no-data sentinel (#989).
+                logger.warning("vendor %s failed for %s: %s", vendor, method, exc)
                 recoverable_errors.append((vendor, exc))
                 if first_error is None:
                     first_error = exc
+                # Transient errors (rate limit / network) opt in to the
+                # remaining vendors even under an explicit single-vendor
+                # config: a throttle is temporary, so an unchosen vendor is
+                # worth trying. NoMarketDataError / not-configured errors do
+                # NOT trigger this - they reflect data/config state that
+                # trying another unchosen vendor would mask (#988).
+                if _is_transient_vendor_error(exc):
+                    for extra in VENDOR_METHODS[method]:
+                        if extra not in fallback_vendors:
+                            fallback_vendors.append(extra)
+                            implicit_fallback_triggered = True
                 continue
             raise
 
@@ -286,11 +349,14 @@ def route_to_vendor(method: str, *args, **kwargs):
         sym = last_no_data.symbol
         canonical = last_no_data.canonical
         resolved = "" if canonical == sym else f" (resolved to '{canonical}')"
+        detail = (last_no_data.detail or "").strip()
+        detail_part = f" Last observed detail: {detail}." if detail else ""
         return (
             f"NO_DATA_AVAILABLE: No market data found for '{sym}'{resolved} from "
             f"any configured vendor. The symbol may be invalid, delisted, or not "
             f"covered by Yahoo Finance / Alpha Vantage. Do not estimate or "
             f"fabricate values — report that data is unavailable for this symbol."
+            f"{detail_part}"
         )
 
     if incomplete_primary:
@@ -306,10 +372,18 @@ def route_to_vendor(method: str, *args, **kwargs):
         return message
 
     if recoverable_errors:
-        message = _format_vendor_unavailable_message(method, recoverable_errors)
-        if _should_halt_on_missing_data(method):
-            raise DataUnavailableError(message)
-        return message
+        # Optional categories degrade to a sentinel so the analysis proceeds.
+        if not _should_halt_on_missing_data(method):
+            return _format_vendor_unavailable_message(method, recoverable_errors, category)
+        # Core category: a single configured vendor that fails with no fallback
+        # tried must surface its real error (a broken primary should be loud,
+        # not silently repackaged). When more than one vendor was tried - either
+        # an explicit multi-vendor chain or an implicit fallback - aggregate the
+        # failures into DataUnavailableError so every vendor's reason is visible.
+        if len(recoverable_errors) == 1 and not implicit_fallback_triggered:
+            raise recoverable_errors[0][1]
+        message = _format_vendor_unavailable_message(method, recoverable_errors, category)
+        raise DataUnavailableError(message)
 
     raise RuntimeError(f"No available vendor for '{method}'")
 
@@ -911,7 +985,15 @@ def _should_halt_on_missing_data(method: str) -> bool:
 
 
 def _is_recoverable_vendor_error(vendor: str, exc: Exception) -> bool:
-    """Return True when another configured vendor should be tried."""
+    """Return True when the chain should try the next vendor instead of aborting.
+
+    VendorError subclasses (no-data / rate-limit / not-configured) are always
+    recoverable - that is the point of the shared hierarchy. Any other
+    ValueError raised by a vendor is also treated as recoverable within the
+    chain: vendors raise ValueError for many data-shape reasons, and the next
+    vendor may still succeed. The chain's tail logic decides whether to re-raise
+    the original error (single broken primary) or aggregate it.
+    """
     request_errors = (requests.RequestException,)
     if CurlCffiRequestException:
         request_errors = (*request_errors, CurlCffiRequestException)
@@ -923,6 +1005,8 @@ def _is_recoverable_vendor_error(vendor: str, exc: Exception) -> bool:
         exc,
         (
             AlphaVantageRateLimitError,
+            AlphaVantageNotConfiguredError,
+            FredNotConfiguredError,
             TavilyUnavailableError,
             YFRateLimitError,
             ChinaDataUnavailableError,
@@ -930,27 +1014,42 @@ def _is_recoverable_vendor_error(vendor: str, exc: Exception) -> bool:
     ):
         return True
 
-    return (
-        vendor in {"alpha_vantage", "tavily", "tushare", "akshare"}
-        and isinstance(exc, ValueError)
-        and (
-            "ALPHA_VANTAGE_API_KEY" in str(exc)
-            or "TAVILY_API_KEY" in str(exc)
-            or "TUSHARE_TOKEN" in str(exc)
-            or "TUSHARE_API_KEY" in str(exc)
-        )
+    return isinstance(exc, ValueError)
+
+
+def _is_transient_vendor_error(exc: Exception) -> bool:
+    """True for transient errors (rate limit / network) that justify pulling in
+    vendors outside the explicitly configured chain as an implicit safety net.
+
+    Not-configured and no-data errors are NOT transient: the former is a config
+    problem the user should see, and the latter means the data genuinely does
+    not exist, so silently trying an unchosen vendor would mask the real cause.
+    """
+    request_errors = (requests.RequestException,)
+    if CurlCffiRequestException:
+        request_errors = (*request_errors, CurlCffiRequestException)
+    return isinstance(
+        exc,
+        (
+            AlphaVantageRateLimitError,
+            YFRateLimitError,
+            TavilyUnavailableError,
+            *request_errors,
+        ),
     )
 
 
 def _format_vendor_unavailable_message(
     method: str,
     errors: list[tuple[str, Exception]],
+    category: str = "",
 ) -> str:
     details = "; ".join(
         f"{vendor}: {_summarize_vendor_error(exc)}" for vendor, exc in errors
     )
+    category_part = f" (category: {category})" if category else ""
     return (
-        f"Data unavailable for '{method}'. All configured data vendors failed: {details}. "
+        f"DATA_UNAVAILABLE: Data unavailable for '{method}'{category_part}. All configured data vendors failed: {details}. "
         "Try again later or configure a working fallback data vendor."
     )
 

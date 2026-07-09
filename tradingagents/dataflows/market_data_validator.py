@@ -10,7 +10,7 @@ claim. Deterministic, no LLM involved.
 
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 import pandas as pd
 from stockstats import wrap
@@ -32,7 +32,7 @@ def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
     look-ahead rows, but we re-apply the cutoff defensively — this is a
     verification path, so it must not trust its input to be pre-filtered.
     """
-    data = load_ohlcv(symbol, curr_date)
+    data = load_ohlcv(symbol, curr_date, via_vendor=True)
     if data is None or data.empty:
         raise ValueError(f"No OHLCV data available for {symbol}.")
 
@@ -63,7 +63,7 @@ def build_verified_market_snapshot(
     symbol: str,
     curr_date: str,
     look_back_days: int = 30,
-    indicators: Optional[Iterable[str]] = None,
+    indicators: Iterable[str] | None = None,
 ) -> str:
     """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
     # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/

@@ -1,14 +1,14 @@
 """yfinance-based news data fetching functions."""
 
-from typing import Optional
+import contextlib
+from datetime import datetime
 
 import yfinance as yf
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
 from .stockstats_utils import yf_retry
-from .ticker_utils import to_yfinance_symbol
+from .symbol_utils import normalize_symbol
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -29,10 +29,8 @@ def _extract_article_data(article: dict) -> dict:
         pub_date_str = content.get("pubDate", "")
         pub_date = None
         if pub_date_str:
-            try:
+            with contextlib.suppress(ValueError, AttributeError):
                 pub_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                pass
 
         return {
             "title": title,
@@ -48,10 +46,8 @@ def _extract_article_data(article: dict) -> dict:
         pub_date = None
         ts = article.get("providerPublishTime")
         if ts:
-            try:
+            with contextlib.suppress(ValueError, OSError, TypeError):
                 pub_date = datetime.fromtimestamp(ts)
-            except (ValueError, OSError, TypeError):
-                pass
         return {
             "title": article.get("title", "No title"),
             "summary": article.get("summary", ""),
@@ -92,13 +88,17 @@ def get_news_yfinance(
         Formatted string containing news articles
     """
     article_limit = get_config()["news_article_limit"]
+    # Query Yahoo with the canonical symbol, like every other yfinance path —
+    # a raw broker/forex/crypto alias (XAUUSD, BTCUSD) otherwise silently
+    # returns no news. Keep the user's ticker in the report header.
+    canonical = normalize_symbol(ticker)
+    resolved = "" if canonical == ticker else f" (resolved to {canonical})"
     try:
-        ticker = to_yfinance_symbol(ticker)
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(canonical)
         news = yf_retry(lambda: stock.get_news(count=article_limit))
 
         if not news:
-            return f"No news found for {ticker}"
+            return f"No news found for {ticker}{resolved}"
 
         # Parse date range for filtering
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -123,9 +123,9 @@ def get_news_yfinance(
             filtered_count += 1
 
         if filtered_count == 0:
-            return f"No news found for {ticker} between {start_date} and {end_date}"
+            return f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
 
-        return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
+        return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
 
     except Exception as e:
         return f"Error fetching news for {ticker}: {str(e)}"
@@ -133,8 +133,8 @@ def get_news_yfinance(
 
 def get_global_news_yfinance(
     curr_date: str,
-    look_back_days: Optional[int] = None,
-    limit: Optional[int] = None,
+    look_back_days: int | None = None,
+    limit: int | None = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
