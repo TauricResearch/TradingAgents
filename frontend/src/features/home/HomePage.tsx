@@ -218,13 +218,13 @@ function AlertsWidget() {
 }
 
 const WIDGETS: WidgetDef[] = [
-  { id: "decision", title: "Decision", render: () => <DecisionHero />, layout: { x: 0, y: 0, w: 7, h: 12, minW: 4, minH: 8 } },
-  { id: "snapshot", title: "Portfolio snapshot", render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 7, minW: 3, minH: 5 } },
-  { id: "prices", title: "Prices", render: () => <PriceRibbon />, layout: { x: 7, y: 7, w: 5, h: 5, minW: 3, minH: 4 } },
-  { id: "alerts", title: "Alerts", render: () => <AlertsWidget />, layout: { x: 0, y: 12, w: 7, h: 7, minW: 3, minH: 4 } },
-  { id: "diff", title: "Since you left", render: () => <SinceYouLeft />, layout: { x: 7, y: 12, w: 5, h: 7, minW: 3, minH: 4 } },
-  { id: "watchlist", title: "Watchlist", render: () => <WatchlistPanel />, layout: { x: 0, y: 19, w: 7, h: 6, minW: 4, minH: 4 } },
-  { id: "next", title: "What's next", render: () => <WhatNext />, layout: { x: 7, y: 19, w: 5, h: 6, minW: 4, minH: 4 } },
+  { id: "decision", title: "Decision", render: () => <DecisionHero />, layout: { x: 0, y: 0, w: 7, h: 10, minW: 4, minH: 7 } },
+  { id: "snapshot", title: "Portfolio snapshot", render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 6, minW: 3, minH: 5 } },
+  { id: "prices", title: "Prices", render: () => <PriceRibbon />, layout: { x: 7, y: 6, w: 5, h: 4, minW: 3, minH: 4 } },
+  { id: "alerts", title: "Alerts", render: () => <AlertsWidget />, layout: { x: 0, y: 10, w: 7, h: 6, minW: 3, minH: 4 } },
+  { id: "diff", title: "Since you left", render: () => <SinceYouLeft />, layout: { x: 7, y: 10, w: 5, h: 6, minW: 3, minH: 4 } },
+  { id: "watchlist", title: "Watchlist", render: () => <WatchlistPanel />, layout: { x: 0, y: 16, w: 7, h: 6, minW: 4, minH: 4 } },
+  { id: "next", title: "What's next", render: () => <WhatNext />, layout: { x: 7, y: 16, w: 5, h: 6, minW: 4, minH: 4 } },
 ];
 
 export default function HomePage() {

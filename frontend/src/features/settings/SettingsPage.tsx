@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { binanceHost, setBinanceHost } from "@/lib/binance";
 import { patchPrefs, usePrefs, useStatus } from "@/lib/api/queries";
-import { useLayoutStore, type PresetId } from "@/stores/layout";
+import { PRESET_DESCRIPTIONS, useLayoutStore, type PresetId } from "@/stores/layout";
 import { useUiStore } from "@/stores/ui";
 
 export default function SettingsPage() {
@@ -66,6 +66,7 @@ export default function SettingsPage() {
               </Button>
             ))}
           </div>
+          <p className="text-xs text-fg-subtle">{PRESET_DESCRIPTIONS[preset]}</p>
           <Button variant="ghost" size="sm" onClick={() => reset()}>
             Reset all layouts to preset defaults
           </Button>

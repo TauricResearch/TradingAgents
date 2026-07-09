@@ -65,7 +65,7 @@ export default function ReportPage() {
               <th className="py-1 font-medium">symbol</th>
               <th className="py-1 font-medium">action</th>
               <th className="py-1 text-right font-medium">P&L</th>
-              <th className="py-1 font-medium">closed</th>
+              <th className="py-1 pl-8 font-medium">closed</th>
             </tr>
           </thead>
           <tbody>
@@ -74,7 +74,7 @@ export default function ReportPage() {
                 <td className="py-1 font-mono">{entry.symbol}</td>
                 <td className="py-1">{entry.action ?? "—"}</td>
                 <td className="py-1 text-right">{fmtPnl(entry.pnl)}</td>
-                <td className="py-1 text-xs">{fmtDateTime(entry.closed_at)}</td>
+                <td className="py-1 pl-8 text-xs">{fmtDateTime(entry.closed_at)}</td>
               </tr>
             ))}
           </tbody>
@@ -83,6 +83,12 @@ export default function ReportPage() {
 
       <section>
         <h2 className="mb-2 border-b border-border pb-1 font-semibold">Agent accuracy</h2>
+        {Object.values(r.agents).every((a) => a.scored === 0) ? (
+          <p className="text-sm text-fg-muted">
+            No scored outcomes yet — agents score once the trades they voted
+            on close.
+          </p>
+        ) : (
         <table className="w-full text-sm tabular">
           <thead>
             <tr className="border-b border-border text-left text-xs">
@@ -108,6 +114,7 @@ export default function ReportPage() {
               ))}
           </tbody>
         </table>
+        )}
       </section>
 
       <section>

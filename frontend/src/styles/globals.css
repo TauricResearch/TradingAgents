@@ -175,10 +175,21 @@ table td,
 
 /* print stylesheet: the /report route becomes the PDF export */
 @media print {
+  html,
+  body,
+  #root {
+    height: auto;
+  }
   body {
     background: #ffffff;
     color: #1f2328;
   }
+  /* the app shell scrolls <main> internally; print must flow instead */
+  main {
+    overflow: visible !important;
+  }
+  header,
+  nav,
   .no-print {
     display: none !important;
   }

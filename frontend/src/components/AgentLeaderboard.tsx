@@ -18,8 +18,8 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
           <tr className="border-b border-border text-left text-fg-subtle">
             <th className="py-1 pr-2 font-medium">agent</th>
             <th className="py-1 pr-2 text-right font-medium">votes</th>
-            <th className="py-1 pr-2 text-right font-medium">avg conf</th>
-            <th className="py-1 pr-2 text-right font-medium">hit rate</th>
+            <th className="whitespace-nowrap py-1 pr-2 text-right font-medium">conf</th>
+            <th className="whitespace-nowrap py-1 pr-2 text-right font-medium">hit</th>
             <th className="py-1 text-right font-medium">calib gap</th>
           </tr>
         </thead>

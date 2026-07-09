@@ -39,7 +39,7 @@ test.describe("terminal", () => {
 
   test("home answers the 5-second questions", async ({ page }) => {
     // safe? — risk badge; AI stance? — decision card; P&L? — snapshot
-    await expect(page.getByTestId("risk-badge")).toContainText(/risk: OK|KILL|BREAKER/);
+    await expect(page.getByTestId("risk-badge")).toContainText(/risk OK|KILL|BREAKER|monitor/);
     await expect(page.getByTestId("decision-card")).toContainText("BUY");
     await expect(page.getByTestId("decision-card")).toContainText("confidence");
     await expect(page.getByTestId("invalidation")).toBeVisible();

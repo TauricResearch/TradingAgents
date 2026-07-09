@@ -48,14 +48,23 @@ export interface TradeMarker {
 /** overlays share the price pane; oscillators get their own */
 const OVERLAY_INDICATORS = new Set(["EMA_10", "SMA_50", "SMA_200", "BOLL"]);
 
-const INDICATOR_LINE_COLORS: Record<string, string> = {
-  value: "#79c0ff",
-  macd: "#79c0ff",
-  signal: "#d29922",
-  middle: "#9ca7b3",
-  upper: "#6e7681",
-  lower: "#6e7681",
-};
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+/** theme-resolved per-line colors (review finding: hardcoded dark-theme
+ * hexes washed out on light backgrounds) */
+function indicatorLineColors(colors: ReturnType<typeof chartColors>) {
+  return {
+    value: colors.accent,
+    macd: colors.accent,
+    signal: colors.neutral,
+    middle: colors.muted,
+    upper: colors.muted,
+    lower: colors.muted,
+  } as Record<string, string>;
+}
 
 export function PriceChart({
   bars,
@@ -184,20 +193,20 @@ export function PriceChart({
         { priceFormat: { type: "volume" }, priceScaleId: "volume" },
         nextPane,
       );
+      const volumeBear = hexToRgba(colors.bear, 0.55);
+      const volumeBull = hexToRgba(colors.bull, 0.55);
       volume.setData(
         data.map((b, i) => ({
           time: b.time as UTCTimestamp,
           value: b.volume,
-          color:
-            i > 0 && b.close < data[i - 1]!.close
-              ? "rgba(248,81,73,0.5)"
-              : "rgba(63,185,80,0.5)",
+          color: i > 0 && b.close < data[i - 1]!.close ? volumeBear : volumeBull,
         })),
       );
       extraSeriesRef.current.push(volume);
       nextPane += 1;
     }
 
+    const lineColors = indicatorLineColors(colors);
     for (const [name, block] of Object.entries(indicators ?? {}).sort()) {
       const overlay = OVERLAY_INDICATORS.has(name);
       const paneIndex = overlay ? 0 : nextPane;
@@ -207,9 +216,9 @@ export function PriceChart({
         const series = chart.addSeries(
           isHistogram ? HistogramSeries : LineSeries,
           isHistogram
-            ? { color: "rgba(121,192,255,0.4)" }
+            ? { color: hexToRgba(colors.accent, 0.4) }
             : {
-                color: INDICATOR_LINE_COLORS[lineName] ?? colors.neutral,
+                color: lineColors[lineName] ?? colors.neutral,
                 lineWidth: 1,
                 priceLineVisible: false,
                 lastValueVisible: !overlay,
@@ -231,7 +240,7 @@ export function PriceChart({
     }
 
     chart.timeScale().fitContent();
-  }, [bars, style, indicators, showVolume, drawingsSymbol, chartRef]);
+  }, [bars, style, indicators, showVolume, drawingsSymbol, theme, chartRef]);
 
   // recommendation levels as price lines
   useEffect(() => {

@@ -128,6 +128,28 @@ charts instead of falling back to yfinance (now probe-gated at registry
 build); e2e now hermetic from operator env (token cleared, temp data
 dir).
 
+**v4 quality review (full route × theme × viewport audit)**: 32-shot
+screenshot matrix + interaction drills + copy/number audits. Findings
+fixed: PWA update prompt had no UI (users stranded on stale bundles —
+UpdateToast added via useRegisterSW); chart series/indicator/volume
+colors were hardcoded dark-theme hexes and did not re-resolve on theme
+flip (now derived from tokens, theme in rebuild deps); status strip
+consumed 4 wrapped rows on mobile (now one safety-critical row: LIVE,
+risk, degraded count — context badges md+); report page P&L/date
+columns collided and the agent table rendered headerless-empty (fixed +
+honest empty line); print CSS could clip (app shell scrolls <main>
+internally — print now flows); position badge read like a price change
+(now "pos XAUUSD +76.92"); layout presets were fake (operator/analyst/
+risk were identical — now real per-preset widget sets with honest
+descriptions); Home default grid had ~40% dead space in hero/snapshot
+(heights fitted); decision-rail ladder wrapped awkwardly (compact
+format); leaderboard header cramping; favicon added; copy normalized
+("risk OK · $100,111", "session —"). Accepted as-is: LWC first
+time-axis label clipping (library default), demo-price artifacts
+(FakePipelineLLM levels vs real bars — absent with real runs).
+Re-verified: 1010 py / 28 vitest / 31 e2e green, Lighthouse desktop
+96/100/100 unchanged.
+
 **Known open items (honest)**
 - OANDA_API_TOKEN not yet in .env — gold remains EOD until the operator
   adds it (adapter, poller, registry switch are wired and fake-tested).

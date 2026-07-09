@@ -98,9 +98,11 @@ export function DecisionCard({
               <tr key={`tp-${i}`} className="text-bull">
                 <td className="pr-4">TP{arr.length - i}</td>
                 <td className="pr-4 text-right">{fmtPrice(tp.price)}</td>
-                <td className="text-fg-subtle">
-                  {pctFrom(rec.entry_price!, tp.price)} · closes{" "}
-                  {Math.round(tp.size_fraction * 100)}%
+                <td className="whitespace-nowrap text-fg-subtle">
+                  {pctFrom(rec.entry_price!, tp.price)}
+                  {compact
+                    ? ` · ${Math.round(tp.size_fraction * 100)}%`
+                    : ` · closes ${Math.round(tp.size_fraction * 100)}%`}
                 </td>
               </tr>
             ))}

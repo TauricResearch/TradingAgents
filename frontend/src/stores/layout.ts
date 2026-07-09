@@ -9,6 +9,23 @@ import { persist } from "zustand/middleware";
 export type ModuleId = "home" | "workspace" | "portfolio" | "intel";
 export type PresetId = "operator" | "analyst" | "risk";
 
+/** Presets are real (review finding: a preset that changes nothing is
+ * fake). Each seeds per-module hidden-widget sets; the operator preset
+ * is the full default. */
+export const PRESETS: Record<PresetId, Partial<Record<ModuleId, string[]>>> = {
+  operator: {},
+  // reasoning-first: strip money/market tiles, keep decision context
+  analyst: { home: ["prices", "watchlist", "snapshot"] },
+  // risk-first: strip discovery widgets, keep alerts/portfolio/decision
+  risk: { home: ["watchlist", "diff", "next"] },
+};
+
+export const PRESET_DESCRIPTIONS: Record<PresetId, string> = {
+  operator: "Everything — the full briefing (default)",
+  analyst: "Reasoning-first: hides prices, watchlist, and the portfolio tile",
+  risk: "Risk-first: hides watchlist, diff, and calendar to foreground alerts",
+};
+
 export interface ModuleLayout {
   layout: Layout[];
   hidden: string[];
@@ -34,7 +51,16 @@ export const useLayoutStore = create<LayoutState>()(
       preset: "operator",
       editing: false,
       overrides: {},
-      setPreset: (preset) => set({ preset, overrides: {} }),
+      setPreset: (preset) =>
+        set({
+          preset,
+          overrides: Object.fromEntries(
+            Object.entries(PRESETS[preset]).map(([module, hidden]) => [
+              module,
+              { layout: [], hidden: [...hidden] },
+            ]),
+          ) as LayoutState["overrides"],
+        }),
       setEditing: (editing) => set({ editing }),
       saveLayout: (module, layout) =>
         set((state) => ({

@@ -16,7 +16,7 @@
     "noEmit": true,
     "useDefineForClassFields": true,
     "verbatimModuleSyntax": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom"],
+    "types": ["vitest/globals", "@testing-library/jest-dom", "vite-plugin-pwa/react"],
     "baseUrl": ".",
     "paths": { "@/*": ["./src/*"] }
   },

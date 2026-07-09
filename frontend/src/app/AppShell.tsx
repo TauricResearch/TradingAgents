@@ -9,6 +9,7 @@ import { HaltBanner, StatusStrip } from "./StatusStrip";
 import { CommandPalette } from "@/components/CommandPalette";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ShortcutCheatsheet } from "@/components/ShortcutCheatsheet";
+import { UpdateToast } from "@/components/UpdateToast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { savePrefs, usePrefs } from "@/lib/api/queries";
 import { useBinanceTicker } from "@/lib/binance";
@@ -130,6 +131,7 @@ export function AppShell() {
         <CommandPalette />
         <NotificationCenter />
         <ShortcutCheatsheet />
+        <UpdateToast />
       </TooltipProvider>
     </AuthGate>
   );

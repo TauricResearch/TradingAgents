@@ -28,7 +28,7 @@ function ConnPill() {
       {state === "stale" && `STALE ${ageSeconds}s`}
       {state === "disconnected" && "DISCONNECTED"}
       {state === "live" && lastSuccess > 0 && (
-        <span className="ml-2 font-normal text-fg-subtle">
+        <span className="ml-2 font-normal text-fg-subtle max-md:hidden">
           updated {fmtTime(new Date(lastSuccess).toISOString())}
         </span>
       )}
@@ -81,11 +81,18 @@ export function StatusStrip() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/95 backdrop-blur">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
-        <span className="text-sm font-bold">TradingAgents Pro</span>
+      {/* one row always: on mobile only safety-critical items stay
+          (LIVE state, risk, degraded count) — context badges are md+ */}
+      <div className="flex items-center gap-x-3 gap-y-1 px-4 py-2 max-md:gap-x-2 md:flex-wrap">
+        <span className="text-sm font-bold max-md:hidden">TradingAgents Pro</span>
+        <span className="whitespace-nowrap text-sm font-bold md:hidden">TA Pro</span>
         <ConnPill />
-        <Badge variant="accent">{o?.regime ?? "regime: —"}</Badge>
-        <Badge>{o?.session ? `session: ${o.session}` : "session: —"}</Badge>
+        <Badge variant="accent" className="max-lg:hidden">
+          {o?.regime ?? "regime —"}
+        </Badge>
+        <Badge className="max-lg:hidden">
+          {o?.session ? `session ${o.session}` : "session —"}
+        </Badge>
         {s?.attached ? (
           <Badge
             variant={s.trading_halted ? "bear" : "bull"}
@@ -95,20 +102,20 @@ export function StatusStrip() {
               ? s.kill_switch?.engaged
                 ? "KILL SWITCH"
                 : "BREAKER TRIPPED"
-              : "risk: OK"}
-            {s.equity != null && ` · ${fmtPrice(s.equity, 0)}`}
+              : "risk OK"}
+            {s.equity != null && ` · $${fmtPrice(s.equity, 0)}`}
           </Badge>
         ) : (
           <Badge variant="locked" data-testid="risk-badge">
-            risk: n/a (monitor)
+            monitor only
           </Badge>
         )}
         {s?.attached && (
-          <Badge data-testid="positions-badge">
+          <Badge data-testid="positions-badge" className="max-md:hidden">
             {s.open_positions && s.open_positions.length > 0
-              ? s.open_positions
-                  .map((p) => `${p.symbol} ${p.quantity > 0 ? "+" : ""}${p.quantity}`)
-                  .join(", ")
+              ? `pos ${s.open_positions
+                  .map((p) => `${p.symbol} ${p.quantity > 0 ? "+" : ""}${p.quantity.toFixed(2)}`)
+                  .join(", ")}`
               : "no positions"}
           </Badge>
         )}
@@ -116,8 +123,10 @@ export function StatusStrip() {
           <Badge variant="stale">{o!.missing_feeds!.length} feeds degraded</Badge>
         )}
         <span className="grow" />
-        <PriceTicker symbol="BTC-USD" />
-        <PriceTicker symbol="XAUUSD" />
+        <span className="contents max-md:hidden">
+          <PriceTicker symbol="BTC-USD" />
+          <PriceTicker symbol="XAUUSD" />
+        </span>
         <Button
           variant="ghost"
           size="icon"

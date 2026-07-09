@@ -8,6 +8,7 @@ import {
 import { useEffect } from "react";
 
 import { chartColors, useLightweightChart } from "./useLightweightChart";
+import { useUiStore } from "@/stores/ui";
 import { toDrawdown } from "./transform";
 import { fmtPrice } from "@/lib/format";
 
@@ -34,6 +35,7 @@ export function EquityCurve({
       handleScale: false,
     });
   });
+  const theme = useUiStore((s) => s.theme); // series colors re-resolve on flip
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -82,7 +84,7 @@ export function EquityCurve({
       chart.removeSeries(series);
       if (drawdownSeries) chart.removeSeries(drawdownSeries);
     };
-  }, [curve, showDrawdown, chartRef]);
+  }, [curve, showDrawdown, theme, chartRef]);
 
   return (
     <div>
