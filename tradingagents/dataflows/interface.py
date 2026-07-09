@@ -3,54 +3,55 @@ import logging
 import os
 import re
 from datetime import datetime
-from typing import Annotated, Any
 from io import StringIO
+from typing import Any
 
 import pandas as pd
 import requests
+from yfinance.exceptions import YFRateLimitError
+
+from .alpha_vantage import (
+    get_balance_sheet as get_alpha_vantage_balance_sheet,
+    get_cashflow as get_alpha_vantage_cashflow,
+    get_fundamentals as get_alpha_vantage_fundamentals,
+    get_global_news as get_alpha_vantage_global_news,
+    get_income_statement as get_alpha_vantage_income_statement,
+    get_indicator as get_alpha_vantage_indicator,
+    get_insider_transactions as get_alpha_vantage_insider_transactions,
+    get_news as get_alpha_vantage_news,
+    get_stock as get_alpha_vantage_stock,
+)
+from .alpha_vantage_common import AlphaVantageNotConfiguredError, AlphaVantageRateLimitError
+from .china_data import (
+    ChinaDataUnavailableError,
+    get_balance_sheet_tushare,
+    get_cashflow_tushare,
+    get_fundamentals_akshare,
+    get_fundamentals_tushare,
+    get_income_statement_tushare,
+    get_stock_akshare,
+    get_stock_tushare,
+)
+from .fred import FredNotConfiguredError, get_macro_data as get_fred_macro_data
+from .symbol_utils import NoMarketDataError
+from .tavily_news import (
+    TavilyUnavailableError,
+    get_global_news_tavily,
+    get_news_tavily,
+)
+from .ticker_utils import is_a_share_ticker
 
 # Import from vendor-specific modules
 from .y_finance import (
-    get_YFin_data_online,
-    get_stock_stats_indicators_window,
-    get_fundamentals as get_yfinance_fundamentals,
     get_balance_sheet as get_yfinance_balance_sheet,
     get_cashflow as get_yfinance_cashflow,
+    get_fundamentals as get_yfinance_fundamentals,
     get_income_statement as get_yfinance_income_statement,
     get_insider_transactions as get_yfinance_insider_transactions,
+    get_stock_stats_indicators_window,
+    get_YFin_data_online,
 )
-from .yfinance_news import get_news_yfinance, get_global_news_yfinance
-from .tavily_news import (
-    TavilyUnavailableError,
-    get_news_tavily,
-    get_global_news_tavily,
-)
-from .china_data import (
-    ChinaDataUnavailableError,
-    get_stock_tushare,
-    get_stock_akshare,
-    get_fundamentals_tushare,
-    get_fundamentals_akshare,
-    get_balance_sheet_tushare,
-    get_cashflow_tushare,
-    get_income_statement_tushare,
-)
-from .ticker_utils import is_a_share_ticker
-from .alpha_vantage import (
-    get_stock as get_alpha_vantage_stock,
-    get_indicator as get_alpha_vantage_indicator,
-    get_fundamentals as get_alpha_vantage_fundamentals,
-    get_balance_sheet as get_alpha_vantage_balance_sheet,
-    get_cashflow as get_alpha_vantage_cashflow,
-    get_income_statement as get_alpha_vantage_income_statement,
-    get_insider_transactions as get_alpha_vantage_insider_transactions,
-    get_news as get_alpha_vantage_news,
-    get_global_news as get_alpha_vantage_global_news,
-)
-from .fred import FredNotConfiguredError, get_macro_data as get_fred_macro_data
-from .alpha_vantage_common import AlphaVantageNotConfiguredError, AlphaVantageRateLimitError
-from yfinance.exceptions import YFRateLimitError
-from .symbol_utils import NoMarketDataError
+from .yfinance_news import get_global_news_yfinance, get_news_yfinance
 
 try:
     from curl_cffi.requests.exceptions import RequestException as CurlCffiRequestException
@@ -947,7 +948,7 @@ def _should_skip_vendor_for_symbol(vendor: str, args: tuple[Any, ...]) -> bool:
 def _is_missing_required_data_result(result: Any) -> bool:
     if result is None:
         return True
-    if hasattr(result, "empty") and getattr(result, "empty"):
+    if hasattr(result, "empty") and result.empty:
         return True
     if isinstance(result, dict):
         return not bool(result) or any(

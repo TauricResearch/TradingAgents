@@ -2,16 +2,12 @@
 
 import json
 
-import pytest
-
-from tradingagents.dataflows import config as _config_module
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.consistency import (
     attach_cross_source_info,
     cluster_news_by_event,
     cross_source_summary,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

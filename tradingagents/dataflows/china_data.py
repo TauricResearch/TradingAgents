@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pandas as pd
 
@@ -162,7 +163,7 @@ def get_fundamentals_tushare(ticker: str, curr_date: str = None) -> str:
     return "\n\n".join(
         [
             f"# China A-share fundamentals for {ts_code}",
-            f"# Source: tushare",
+            "# Source: tushare",
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             *sections,
         ]
@@ -203,7 +204,7 @@ def get_fundamentals_akshare(ticker: str, curr_date: str = None) -> str:
     return "\n\n".join(
         [
             f"# China A-share fundamentals for {ak_symbol}",
-            f"# Source: akshare",
+            "# Source: akshare",
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             *sections,
         ]

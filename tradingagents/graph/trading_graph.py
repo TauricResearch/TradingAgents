@@ -342,8 +342,8 @@ class TradingAgentsGraph:
         path and the CLI call this so the resolved identity reaches the whole
         graph regardless of entry point.
         """
-        from tradingagents.dataflows.ticker_utils import is_a_share_ticker
         from tradingagents.dataflows.evidence import resolve_canonical_company_profile
+        from tradingagents.dataflows.ticker_utils import is_a_share_ticker
 
         if is_a_share_ticker(ticker):
             profile = resolve_canonical_company_profile(ticker)

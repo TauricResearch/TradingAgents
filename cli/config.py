@@ -6,7 +6,6 @@ from typing import Any
 from cli.models import AnalystType
 from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol
 
-
 CLI_CONFIG = {
     # Announcements
     "announcements_url": "https://api.tauric.ai/v1/announcements",

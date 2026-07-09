@@ -15,7 +15,6 @@ import requests
 from .config import get_config
 from .ticker_utils import is_a_share_ticker, to_akshare_symbol
 
-
 API_URL = "https://api.tavily.com/search"
 
 

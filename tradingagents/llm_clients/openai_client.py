@@ -1,10 +1,9 @@
 import os
 import re
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
-
-from copy import deepcopy
 
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI

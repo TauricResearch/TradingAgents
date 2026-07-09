@@ -5,7 +5,6 @@ import time
 from collections import deque
 from functools import wraps
 from pathlib import Path
-from typing import Optional
 
 import typer
 from dotenv import load_dotenv
@@ -1153,7 +1152,7 @@ def run_analysis(checkpoint: bool | None = None, config_path: Path | None = None
     # Now start the display layout
     layout = create_layout()
 
-    with progress_sink(add_data_progress), Live(layout, refresh_per_second=4) as live:
+    with progress_sink(add_data_progress), Live(layout, refresh_per_second=4):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
@@ -1369,7 +1368,7 @@ def analyze(
         help="启用/禁用 checkpoint-resume（每个节点后保存状态，便于崩溃后恢复）。"
         "省略时遵循 TRADINGAGENTS_CHECKPOINT_ENABLED。",
     ),
-    config: Optional[Path] = typer.Option(
+    config: Path | None = typer.Option(
         DEFAULT_LOCAL_CONFIG_PATH,
         "--config",
         help="本地 JSON 配置文件路径；默认尝试 tradingagents.local.json。",

@@ -2,11 +2,9 @@
 
 import pytest
 
-from tradingagents.dataflows import config as _config_module
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.evidence import (
     EvidenceGateError,
-    EvidenceStatus,
     _find_wrong_identity_hits,
     _get_wrong_identity_hints,
     _names_are_related,

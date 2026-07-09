@@ -5,10 +5,11 @@ from __future__ import annotations
 import os
 import re
 import time
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Iterable
+from typing import Any
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -21,8 +22,8 @@ from .news_advisor import analyze_news_coverage
 from .ticker_utils import (
     is_a_share_ticker,
     normalize_ticker_symbol,
-    to_yfinance_symbol,
     to_tushare_symbol,
+    to_yfinance_symbol,
 )
 
 
@@ -627,9 +628,12 @@ def _find_wrong_identity_hits(items: list[dict[str, Any]], profile: dict[str, An
 
         binds_profile_code = bool(item_codes & profile_codes)
         for name in hints:
-            if name in text and not _is_profile_alias(name, profile_names):
-                if item_source == "report" or binds_profile_code:
-                    hits.add(name)
+            if (
+                name in text
+                and not _is_profile_alias(name, profile_names)
+                and (item_source == "report" or binds_profile_code)
+            ):
+                hits.add(name)
 
         hits.update(_wrong_names_bound_to_profile_code(text, profile, profile_names))
     return hits
