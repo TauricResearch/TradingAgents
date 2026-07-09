@@ -4,16 +4,13 @@ import json
 
 import pytest
 
-from tradingagents.dataflows import config as _config_module
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.news_advisor import (
     NewsAdvisorResult,
     _analyze_via_rules,
-    _format_headlines,
     _parse_advisor_response,
     analyze_news_coverage,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

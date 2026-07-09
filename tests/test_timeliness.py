@@ -2,8 +2,6 @@
 
 from datetime import datetime
 
-import pytest
-
 from tradingagents.dataflows.interface import (
     _filter_stale_items,
     _parse_date_best_effort,
@@ -12,7 +10,6 @@ from tradingagents.dataflows.tavily_news import (
     _is_published_outside_window,
     _parse_published_date,
 )
-
 
 # ---------------------------------------------------------------------------
 # _parse_published_date (Tavily-level)

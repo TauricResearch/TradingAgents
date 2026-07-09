@@ -1,4 +1,3 @@
-import pytest
 
 from tradingagents.dataflows import config as _config_module
 from tradingagents.dataflows.config import set_config
@@ -7,7 +6,6 @@ from tradingagents.dataflows.credibility import (
     credibility_summary,
     score_credibility,
 )
-
 
 # ---------------------------------------------------------------------------
 # score_credibility — domain classification

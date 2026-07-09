@@ -1,5 +1,5 @@
-from curl_cffi.requests.exceptions import SSLError as CurlCffiSSLError
 import pandas as pd
+from curl_cffi.requests.exceptions import SSLError as CurlCffiSSLError
 
 from tradingagents.dataflows import y_finance
 

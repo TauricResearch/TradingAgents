@@ -1,6 +1,5 @@
 """Tests for market-aware enrichment query generation."""
 
-import pytest
 
 from tradingagents.dataflows.evidence import _build_enrichment_queries
 

@@ -80,6 +80,7 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]   # intentional re-exports
+"cli/**/*.py" = ["E402", "B008"]  # CLI loads .env before imports; typer.Option in defaults is idiomatic
 
 [tool.ruff.lint.isort]
 # Keep multiple aliased names from one module in a single combined import block

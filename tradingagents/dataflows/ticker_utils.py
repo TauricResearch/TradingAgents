@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-
 _A_SHARE_EXCHANGE_BY_PREFIX = {
     "0": "SZ",
     "2": "SZ",

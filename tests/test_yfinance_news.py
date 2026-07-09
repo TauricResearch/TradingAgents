@@ -1,9 +1,14 @@
 import copy
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import tradingagents.default_config as default_config
-from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows import yfinance_news
+from tradingagents.dataflows.config import set_config
+
+# Epoch (UTC) inside the test's [2026-01-24, 2026-02-01] lookback window, so
+# flat-structured fake articles survive the look-ahead-safe date filter (#1007).
+_PUB_TS = int(datetime(2026, 1, 28, 12, tzinfo=timezone.utc).timestamp())
 
 
 def test_get_news_yfinance_uses_default_article_limit(monkeypatch):
@@ -55,6 +60,7 @@ def test_get_global_news_yfinance_uses_default_queries_and_limits(monkeypatch):
                     "title": f"{query} update",
                     "publisher": "Yahoo Finance",
                     "link": f"https://example.com/{len(captured)}",
+                    "providerPublishTime": _PUB_TS,
                 }
             ]
         )

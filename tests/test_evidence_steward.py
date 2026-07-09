@@ -13,6 +13,7 @@ from tradingagents.dataflows.evidence import (
     format_company_profile,
     resolve_canonical_company_profile,
 )
+from tradingagents.dataflows.news_advisor import NewsAdvisorResult
 from tradingagents.dataflows.ticker_utils import to_tushare_symbol
 from tradingagents.graph.setup import GraphSetup
 
@@ -39,6 +40,25 @@ def _base_state(news_report="", market_report="market ok", fundamentals_report="
         "fundamentals_report": fundamentals_report,
         "canonical_company_profile": _profile(),
     }
+
+
+def _disable_llm_advisor(monkeypatch):
+    """Make evidence-steward unit tests deterministic and key-independent.
+
+    Neutralizes the LLM advisor so it returns no queries (forcing the mocked
+    ``_run_tavily_enrichment`` multi-round path instead of the un-mocked
+    ``_run_tavily_enrichment_with_queries``), and skips LLM clustering in
+    ``_assess_news_items`` so the verdict is purely rule-based. Tests then pass
+    regardless of whether real API keys are present locally or in CI.
+    """
+    monkeypatch.setattr(
+        "tradingagents.dataflows.evidence.create_llm_from_config",
+        lambda *a, **kw: None,
+    )
+    monkeypatch.setattr(
+        "tradingagents.dataflows.evidence.analyze_news_coverage",
+        lambda *a, **kw: NewsAdvisorResult(should_enrich=True, queries=[]),
+    )
 
 
 def test_incomplete_primary_stock_data_hard_fails_after_all_fallbacks(monkeypatch):
@@ -148,6 +168,7 @@ def test_evidence_steward_rejects_wrong_ticker_identity():
 
 
 def test_evidence_steward_does_not_hard_fail_on_unbound_tech_company_names(monkeypatch):
+    _disable_llm_advisor(monkeypatch)
     monkeypatch.setattr("tradingagents.dataflows.evidence._run_tavily_enrichment", lambda *args, **kwargs: [])
     state = _base_state(
         news_report=(
@@ -165,12 +186,16 @@ def test_evidence_steward_does_not_hard_fail_on_unbound_tech_company_names(monke
     assert "公司直相关新闻" in str(exc.value)
 
 
-def test_evidence_steward_allows_chinese_alias_when_yfinance_profile_is_english():
+def test_evidence_steward_allows_chinese_alias_when_yfinance_profile_is_english(monkeypatch):
+    # Deterministic rule-based assessment: the news item is sourced from cninfo
+    # (high-credibility) so a single company item clears the
+    # news_min_company_items=1 threshold via credibility weight.
+    _disable_llm_advisor(monkeypatch)
     state = _base_state(
         news_report=(
             "### 星网锐捷公告更新\n"
             "002396.SZ（星网锐捷）发布经营公告，公告主体为福建星网锐捷通讯股份有限公司。\n"
-            "Link: https://example.com/002396-star-net\n"
+            "Link: https://static.cninfo.com.cn/finalpage/2026-05-07/002396-announcement.html\n"
         )
     )
     state["canonical_company_profile"] = {
@@ -198,6 +223,7 @@ def test_evidence_steward_allows_chinese_alias_when_yfinance_profile_is_english(
 
 
 def test_evidence_steward_does_not_hard_fail_on_peer_codes_from_enrichment(monkeypatch):
+    _disable_llm_advisor(monkeypatch)
     monkeypatch.setattr(
         "tradingagents.dataflows.evidence._run_tavily_enrichment",
         lambda *args, **kwargs: [
@@ -220,6 +246,7 @@ def test_evidence_steward_does_not_hard_fail_on_peer_codes_from_enrichment(monke
 
 def test_evidence_steward_enriches_empty_news_three_rounds_and_dedupes(monkeypatch):
     calls = []
+    _disable_llm_advisor(monkeypatch)
 
     def fake_enrich(profile, trade_date, rounds, deadline):
         calls.append(rounds)
@@ -281,6 +308,7 @@ def test_evidence_steward_enriches_empty_news_three_rounds_and_dedupes(monkeypat
 
 
 def test_evidence_steward_stops_when_enrichment_still_insufficient(monkeypatch):
+    _disable_llm_advisor(monkeypatch)
     monkeypatch.setattr("tradingagents.dataflows.evidence._run_tavily_enrichment", lambda *args, **kwargs: [])
     set_config(
         {

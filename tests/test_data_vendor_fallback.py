@@ -1,5 +1,5 @@
-from yfinance.exceptions import YFRateLimitError
 import pytest
+from yfinance.exceptions import YFRateLimitError
 
 from tradingagents.dataflows import interface
 from tradingagents.dataflows.config import set_config
