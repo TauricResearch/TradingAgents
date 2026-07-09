@@ -63,3 +63,14 @@ Every adapter takes an injectable transport (`HttpTransport`) or loader
 callable; tests run fully offline against canned payloads
 (`tests/pro_fakes.py`). Backtests will inject replay transports/loaders
 over recorded data — same adapters, zero code change (Phase 7).
+
+
+## Delta Exchange (India) — added for live BTC/gold
+
+Public market-data endpoints (candles 1m–1w, tickers with funding/OI/
+mark) for BTCUSD perp and PAXGUSD (tokenized gold ≈ spot, small basis —
+disclosed in /api/symbols). No signing required; DELTA_API_KEY/SECRET
+stay in .env for potential future signed endpoints, never used for
+trading from the dashboard. Vendor preference is probe-gated with
+Binance/yfinance fallbacks; PRO_DISABLE_LIVE_VENDORS=1 forces fallbacks
+(hermetic tests).

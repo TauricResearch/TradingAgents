@@ -59,11 +59,15 @@ Component inventory: shadcn-style vendored primitives
   5s → 60s (`refetchInterval` is a function so mounted queries pick the
   change up). EventSource authenticates via the session cookie
   (`POST /api/session` exchanges `X-API-Key`; header auth still works).
-- **Binance WS** connects browser→`wss://stream.binance.com` directly
-  for BTC ticks (shared socket, backoff+jitter, rAF-throttled zustand
-  store, host configurable for geo-blocks); gold ticks arrive via the
-  backend OANDA poller on the SSE stream. Vendor unreachable ⇒ honest
-  degraded states, never blank panels.
+- **Live prices**: vendor preference is probe-gated at startup — when
+  Delta Exchange is reachable (the operator's venue; Binance is
+  geo-blocked on their network), both BTC-USD (BTCUSD perp) and XAUUSD
+  (PAXGUSD tokenized gold, ≈ spot with a small disclosed basis) serve
+  live intraday candles and backend-polled ticks over SSE; otherwise
+  browser→Binance WS for BTC and OANDA/yfinance for gold. The decision
+  pipeline still computes on GC=F daily — the PAXG-vs-futures basis is
+  a disclosed presentation difference, not hidden. Vendor unreachable ⇒
+  honest degraded states, never blank panels.
 - **Staleness**: any success bumps a global monotonic marker; >12s ⇒
   STALE, never-connected ⇒ DISCONNECTED (ports the legacy ALERT-01).
 

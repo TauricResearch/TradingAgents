@@ -300,9 +300,11 @@ class TestGoldTickPoller:
 class TestRegistryFallback:
     def test_invalid_oanda_token_falls_back_to_yfinance(self, monkeypatch):
         from tradingagents.pro.dashboard.marketdata import default_registry
+        from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
         from tradingagents.pro.ingestion.oanda_gold import OandaGoldFeed
 
         monkeypatch.setenv("OANDA_API_TOKEN", "configured-but-invalid")
+        monkeypatch.setattr(DeltaExchangeFeed, "probe", classmethod(lambda cls, timeout=8.0: False))
         monkeypatch.setattr(OandaGoldFeed, "probe", classmethod(lambda cls, timeout=8.0: False))
         registry = default_registry()
         assert registry["XAUUSD"].source == "yfinance_daily"
@@ -310,11 +312,40 @@ class TestRegistryFallback:
 
     def test_valid_probe_enables_oanda(self, monkeypatch):
         from tradingagents.pro.dashboard.marketdata import default_registry
+        from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
         from tradingagents.pro.ingestion.oanda_gold import OandaGoldFeed
 
         monkeypatch.setenv("OANDA_API_TOKEN", "valid")
+        monkeypatch.setattr(DeltaExchangeFeed, "probe", classmethod(lambda cls, timeout=8.0: False))
         monkeypatch.setattr(OandaGoldFeed, "probe", classmethod(lambda cls, timeout=8.0: True))
         registry = default_registry()
         assert registry["XAUUSD"].source == "oanda_gold"
         assert registry["XAUUSD"].live is True
         assert "1h" in registry["XAUUSD"].timeframes
+
+
+class TestDeltaPreference:
+    def test_delta_serves_both_symbols_when_alive(self, monkeypatch):
+        from tradingagents.pro.dashboard.marketdata import default_registry
+        from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
+
+        monkeypatch.setattr(DeltaExchangeFeed, "probe",
+                            classmethod(lambda cls, timeout=8.0: True))
+        registry = default_registry()
+        assert registry["BTC-USD"].source == "delta_exchange"
+        assert registry["BTC-USD"].vendor_symbol == "BTCUSD"
+        assert registry["XAUUSD"].source == "delta_exchange"
+        assert registry["XAUUSD"].vendor_symbol == "PAXGUSD"
+        assert registry["XAUUSD"].live is True
+        assert "1m" in [t.value for t in registry["XAUUSD"].timeframes]
+
+    def test_kill_switch_env_forces_fallbacks(self, monkeypatch):
+        from tradingagents.pro.dashboard.marketdata import default_registry
+        from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
+
+        monkeypatch.setenv("PRO_DISABLE_LIVE_VENDORS", "1")
+        monkeypatch.delenv("OANDA_API_TOKEN", raising=False)
+        assert DeltaExchangeFeed.probe() is False  # no network touched
+        registry = default_registry()
+        assert registry["BTC-USD"].source == "binance_spot"
+        assert registry["XAUUSD"].source == "yfinance_daily"

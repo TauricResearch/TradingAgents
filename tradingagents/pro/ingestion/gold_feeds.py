@@ -120,10 +120,16 @@ class GoldCrossAssetFeed:
             )
         )
         tnx = self._closes(self.TNX_SYMBOL, 1)
+        # Yahoo now quotes ^TNX directly in percent (4.57 = 4.57%); the
+        # legacy CBOE convention was yield*10 (45.7). A 10Y yield above
+        # 25% is implausible outside hyperinflation, so treat larger
+        # values as legacy-scaled. (Live-data test caught the old /10
+        # assumption reporting 0.457% to the macro agents.)
+        raw_tnx = tnx[-1]
         readings.append(
             MetricReading(
                 name="US10Y",
-                value=tnx[-1] / 10.0,  # ^TNX quotes yield x10 (42.5 => 4.25%)
+                value=raw_tnx / 10.0 if raw_tnx > 25 else raw_tnx,
                 unit="percent",
                 as_of=as_of,
                 source=self.name,

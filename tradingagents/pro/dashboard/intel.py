@@ -130,6 +130,9 @@ class IntelService:
                 BinanceDerivativesFeed,
                 BinanceSpotFeed,
             )
+            from tradingagents.pro.ingestion.delta_exchange import (
+                DeltaExchangeFeed,
+            )
             from tradingagents.pro.ingestion.fred_macro import FredMacroFeed
             from tradingagents.pro.ingestion.gold_feeds import (
                 GoldCrossAssetFeed,
@@ -142,7 +145,9 @@ class IntelService:
 
             derivatives = BinanceDerivativesFeed()
             spot = BinanceSpotFeed()
+            delta = DeltaExchangeFeed()
             self._feeds = {
+                "delta_derivatives": lambda: delta.get_metrics("BTCUSD"),
                 "binance_derivatives": derivatives.get_metrics,
                 "orderbook_imbalance":
                     lambda: [spot.get_orderbook_imbalance("BTCUSDT")],

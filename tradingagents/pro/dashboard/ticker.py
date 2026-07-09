@@ -1,10 +1,9 @@
-"""Gold tick poller: OANDA quotes → SSE `tick` events.
+"""Quote tick pollers → SSE `tick` events.
 
-BTC ticks never touch the backend (browsers connect to Binance WS
-directly); gold has no free public websocket, so the backend polls the
-OANDA practice API and rebroadcasts. Vendor-friendly by construction:
-zero requests while nobody is subscribed to the stream, exponential
-backoff on rate limits.
+Backend polling turns any QuoteFeed (Delta Exchange, OANDA) into the
+live tick stream the frontend already renders per symbol. Vendor-
+friendly by construction: zero requests while nobody is subscribed to
+the stream, exponential backoff on rate limits.
 """
 
 from __future__ import annotations
@@ -18,10 +17,10 @@ from tradingagents.pro.dashboard.events import EventBroadcaster
 logger = logging.getLogger(__name__)
 
 
-class GoldTickPoller:
+class QuoteTickPoller:
     def __init__(
         self,
-        feed,                       # QuoteFeed (OandaGoldFeed in production)
+        feed,                       # any QuoteFeed (Delta, OANDA, ...)
         broadcaster: EventBroadcaster,
         symbol: str = "XAU_USD",
         display_symbol: str = "XAUUSD",
@@ -41,7 +40,7 @@ class GoldTickPoller:
         if self._thread is not None:
             return
         self._thread = threading.Thread(
-            target=self._run, name="gold-tick-poller", daemon=True
+            target=self._run, name=f"tick-poller-{self.display_symbol}", daemon=True
         )
         self._thread.start()
 
@@ -74,7 +73,12 @@ class GoldTickPoller:
                 delay = self.interval
             except VendorRateLimitError:
                 delay = min(max(delay * 2, self.interval), self.backoff_cap)
-                logger.warning("OANDA throttled; backing off to %.0fs", delay)
+                logger.warning("%s quote feed throttled; backing off to %.0fs",
+                               self.display_symbol, delay)
             except Exception:
-                logger.exception("gold tick poll failed; continuing")
+                logger.exception("%s tick poll failed; continuing", self.display_symbol)
                 delay = self.interval
+
+
+# backwards-compatible alias (pre-Delta name)
+GoldTickPoller = QuoteTickPoller

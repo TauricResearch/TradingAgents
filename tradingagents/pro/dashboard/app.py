@@ -73,21 +73,26 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     @asynccontextmanager
     async def lifespan(app):
         state.broadcaster.bind_loop(asyncio.get_running_loop())
-        poller = None
+        pollers = []
         try:
-            from tradingagents.pro.ingestion.oanda_gold import OandaGoldFeed
+            from tradingagents.pro.dashboard.ticker import QuoteTickPoller
 
-            if OandaGoldFeed.configured() and OandaGoldFeed.probe():
-                from tradingagents.pro.dashboard.ticker import GoldTickPoller
-
-                poller = GoldTickPoller(OandaGoldFeed(), state.broadcaster)
-                poller.start()
+            # one poller per live symbol whose vendor supports quotes;
+            # registry access runs the vendor probes (logged) exactly once
+            for spec in state.marketdata.registry.values():
+                if spec.live and spec.source in ("delta_exchange", "oanda_gold"):
+                    poller = QuoteTickPoller(
+                        spec.feed_factory(), state.broadcaster,
+                        symbol=spec.vendor_symbol, display_symbol=spec.symbol,
+                    )
+                    poller.start()
+                    pollers.append(poller)
         except Exception:  # a broken tick feed must never block the app
             import logging
 
-            logging.getLogger(__name__).exception("gold tick poller not started")
+            logging.getLogger(__name__).exception("tick pollers not started")
         yield
-        if poller is not None:
+        for poller in pollers:
             poller.stop()
 
     app = FastAPI(title="TradingAgents Pro Dashboard", lifespan=lifespan)

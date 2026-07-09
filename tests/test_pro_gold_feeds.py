@@ -53,8 +53,23 @@ def test_cross_asset_metrics():
     assert readings["XAU_XAG_CORR_30D"].value == pytest.approx(1.0)
     assert readings["DXY"].value == pytest.approx(FRAMES["DX-Y.NYB"]["Close"].iloc[-1])
     # ^TNX quotes yield*10 -> adapter divides by 10
+    # fixture uses the legacy x10 convention (42.x) -> scaled down
     assert readings["US10Y"].value == pytest.approx(FRAMES["^TNX"]["Close"].iloc[-1] / 10.0)
     assert readings["US10Y"].unit == "percent"
+
+
+def test_us10y_modern_percent_quotes_pass_through():
+    """Yahoo now serves ^TNX in percent directly (4.57) — no /10."""
+    frames = dict(FRAMES)
+    frames["^TNX"] = make_ohlcv_frame(n=5, start_price=4.2)
+    feed = GoldCrossAssetFeed(
+        YFinanceDailyBarsFeed(loader=lambda s, d: frames[s]), correlation_window=3
+    )
+    readings = {r.name: r for r in feed.get_metrics()}
+    # passed through untouched (no /10): equals the raw close
+    assert readings["US10Y"].value == pytest.approx(
+        frames["^TNX"]["Close"].iloc[-1]
+    )
 
 
 def test_correlation_window_lower_bound():

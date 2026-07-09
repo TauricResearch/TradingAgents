@@ -150,13 +150,42 @@ time-axis label clipping (library default), demo-price artifacts
 Re-verified: 1010 py / 28 vitest / 31 e2e green, Lighthouse desktop
 96/100/100 unchanged.
 
+**Live-data test (v5, 2026-07-09)**: Delta Exchange (India) adapter
+added — the operator's reachable venue (Binance geo-blocked). Panel
+status on live data:
+
+| Surface | Status |
+|---|---|
+| BTC-USD charts (1m–1w) | LIVE — Delta BTCUSD perp (62,892 at test) |
+| XAUUSD charts (1m–1w) | LIVE — Delta PAXGUSD tokenized gold ≈ spot (4,098; first intraday gold) |
+| Strip/ribbon ticks | LIVE — backend pollers → SSE, both symbols every 5s |
+| Funding/OI/mark | LIVE — Delta (funding 0.01 %/8h, OI $51M) |
+| Fear & Greed | LIVE — 22 (extreme fear) |
+| DXY / US10Y / XAU-XAG corr | LIVE — yfinance daily (100.9 / 4.57% / 0.97) |
+| Correlation matrix | LIVE — all 5 symbols, 24 shared days, BTC×gold 0.556 |
+| Session | LIVE — london at test time |
+| FRED macro/calendar | degraded (no key) — disclosed |
+| Binance feeds | degraded (geo-block) — disclosed |
+
+**The real decision** (`scripts/pro_live_terminal.py`, deepseek-chat,
+one full pipeline run on today's GC=F tape): **REJECTED at the critic**
+— macro_bear claimed the 10Y yield "has already risen from its lows"
+while its cited evidence stated only the current level; the critic
+vetoed the fabricated trend. All rails live: kill switch armed,
+hash-chained audit written, run/status/tick events on SSE. A refused
+trade on live data is the honesty architecture working.
+
+Found by this test and fixed: yfinance now quotes ^TNX in percent
+directly — the legacy /10 conversion under-reported US10Y 10× to the
+macro agents (convention guard + regression test added).
+
 **Known open items (honest)**
 - OANDA_API_TOKEN not yet in .env — gold remains EOD until the operator
   adds it (adapter, poller, registry switch are wired and fake-tested).
 - Local Docker Desktop corrupted by a disk-full incident (user purge
   pending); the image build is verified by CI's docker job instead.
-- Binance REST/WS geo-blocked from the dev network — degraded paths are
-  what got exercised; BTC live ticks need verification from an
-  unblocked network.
+- Binance REST/WS geo-blocked from the dev network — superseded: Delta
+  Exchange now serves both symbols live on this network; Binance remains
+  the probe-gated fallback for networks where it is reachable.
 - Paid feeds (Coinglass/Glassnode/ETF flows) remain locked panels
   pending subscription sign-offs.

@@ -75,6 +75,8 @@ class OandaGoldFeed:
         degrade to the yfinance fallback, not brick gold charts."""
         if not cls.configured():
             return False
+        if os.environ.get("PRO_DISABLE_LIVE_VENDORS") == "1":
+            return False
         try:
             feed = cls(transport=RequestsTransport(
                 timeout=timeout,

@@ -69,15 +69,34 @@ class SymbolSpec:
 
 
 def default_registry() -> dict[str, SymbolSpec]:
-    """BTC via Binance (all timeframes, live); gold via OANDA practice API
-    when OANDA_API_TOKEN is set (intraday + live ticks), else yfinance
-    daily only — capability degradation is disclosed, never faked."""
+    """Vendor preference is probe-gated, never assumed: Delta Exchange
+    first for BTC (BTCUSD perp) and gold (PAXGUSD, tokenized gold ≈ spot)
+    — the operator's reachable venue; else Binance for BTC and OANDA/
+    yfinance for gold. Degradation is disclosed, never faked."""
+    import logging
+
     from tradingagents.pro.ingestion.binance import BinanceSpotFeed
+    from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
     from tradingagents.pro.ingestion.gold_feeds import YFinanceDailyBarsFeed
     from tradingagents.pro.ingestion.oanda_gold import OandaGoldFeed
 
+    logger = logging.getLogger(__name__)
+    delta_alive = DeltaExchangeFeed.probe()
+    if delta_alive:
+        logger.info("Delta Exchange reachable — serving BTC-USD (BTCUSD perp) "
+                    "and XAUUSD (PAXGUSD tokenized gold) live")
+
     registry = {
         "BTC-USD": SymbolSpec(
+            symbol="BTC-USD",
+            vendor_symbol="BTCUSD",
+            source="delta_exchange",
+            timeframes=tuple(TIMEFRAME_SECONDS),
+            live=True,
+            feed_factory=DeltaExchangeFeed,
+        )
+        if delta_alive
+        else SymbolSpec(
             symbol="BTC-USD",
             vendor_symbol="BTCUSDT",
             source="binance_spot",
@@ -97,7 +116,16 @@ def default_registry() -> dict[str, SymbolSpec]:
             live=False,
             feed_factory=YFinanceDailyBarsFeed,
         )
-    if OandaGoldFeed.configured() and OandaGoldFeed.probe():
+    if delta_alive:
+        registry["XAUUSD"] = SymbolSpec(
+            symbol="XAUUSD",
+            vendor_symbol="PAXGUSD",  # tokenized gold, ≈ spot (small basis)
+            source="delta_exchange",
+            timeframes=tuple(TIMEFRAME_SECONDS),
+            live=True,
+            feed_factory=DeltaExchangeFeed,
+        )
+    elif OandaGoldFeed.configured() and OandaGoldFeed.probe():
         registry["XAUUSD"] = SymbolSpec(
             symbol="XAUUSD",
             vendor_symbol="XAU_USD",
