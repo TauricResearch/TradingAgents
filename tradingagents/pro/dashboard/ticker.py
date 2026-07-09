@@ -61,6 +61,7 @@ class QuoteTickPoller:
             "bid": quote.bid,
             "ask": quote.ask,
             "last": quote.last,
+            "source": getattr(self.feed, "name", "sse"),
             "ts": quote.ts.isoformat(),
         })
         return True

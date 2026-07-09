@@ -7,7 +7,7 @@ export interface Tick {
   bid: number | null;
   ask: number | null;
   at: number; // Date.now() of receipt
-  source: "binance" | "oanda" | "rest";
+  source: string; // feed name from the venue (delta_exchange, binance, ...)
 }
 
 interface TickerState {

@@ -49,6 +49,7 @@ VOLUME /data
 # Live mode additionally requires a checkpointer, human approval, and a real
 # venue transport — none of which exist in this image by design.
 EXPOSE 8600
-CMD ["python", "-m", "uvicorn", "--factory", \
-     "tradingagents.pro.dashboard.app:create_default_app", \
-     "--host", "0.0.0.0", "--port", "8600"]
+# service loop + dashboard in one process (single worker required:
+# the SSE broadcaster is in-process). Without an LLM key the loop
+# self-disables and the dashboard serves in monitor mode.
+CMD ["python", "-m", "tradingagents.pro.main"]

@@ -38,6 +38,18 @@ def _dummy_api_keys(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _hermetic_operator_env(monkeypatch):
+    """tradingagents/__init__.py auto-loads the repo .env on import, so the
+    operator's deployment settings leak into every test process. Neutralize
+    the ones that change behavior: the dashboard must not silently gain
+    auth (tests opt in via create_app(api_token=...)), and vendor probes
+    must never hit the network from unit tests."""
+    monkeypatch.delenv("PRO_DASHBOARD_TOKEN", raising=False)
+    monkeypatch.delenv("OANDA_API_TOKEN", raising=False)
+    monkeypatch.setenv("PRO_DISABLE_LIVE_VENDORS", "1")
+
+
+@pytest.fixture(autouse=True)
 def _isolate_config():
     """Reset the global dataflows config before and after each test.
 

@@ -76,13 +76,14 @@ export function startEventStream(client: QueryClient): () => void {
         last: number;
         bid?: number;
         ask?: number;
+        source?: string;
       };
       useTickerStore.getState().setTick(tick.symbol, {
         last: tick.last,
         bid: tick.bid ?? null,
         ask: tick.ask ?? null,
         at: Date.now(),
-        source: "oanda",
+        source: tick.source ?? "sse",
       });
     } catch {
       /* malformed tick — ignore */
