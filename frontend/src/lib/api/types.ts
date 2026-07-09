@@ -28,6 +28,7 @@ export const RunListItemSchema = z.object({
   symbol: z.string(),
   action: z.string().nullable(),
   rejected_at: z.string().nullable(),
+  timeframe: z.string().nullable().optional(),
 });
 export type RunListItem = z.infer<typeof RunListItemSchema>;
 export const RunListSchema = z.array(RunListItemSchema);

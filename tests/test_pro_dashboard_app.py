@@ -79,3 +79,98 @@ def test_api_surface(client):
 
 def test_unknown_run_is_404(client):
     assert client.get("/api/runs/nope/timeline").status_code == 404
+
+
+class TestRunPersistence:
+    def test_round_trip_preserves_views(self, tmp_path):
+        from tradingagents.pro.dashboard import service as views
+        from tradingagents.pro.dashboard.recorder import PipelineRecorder
+
+        memory = ProMemory()
+        recorder = PipelineRecorder(store_dir=tmp_path)
+        run = recorder.record_run(
+            FakePipelineLLM(), CONFIG, pipeline_snapshot(), memory=memory
+        )
+        reloaded = PipelineRecorder(store_dir=tmp_path)
+        assert [r.run_id for r in reloaded.runs] == [run.run_id]
+        loaded = reloaded.runs[0]
+        assert views.debate_timeline(loaded) == views.debate_timeline(run)
+        assert views.evidence_panels(loaded) == views.evidence_panels(run)
+        assert views.market_overview(loaded) == views.market_overview(run)
+        assert loaded.recommendation.action == run.recommendation.action
+        assert loaded.timeframe == "1d"
+
+    def test_corrupt_file_skipped(self, tmp_path):
+        from tradingagents.pro.dashboard.recorder import PipelineRecorder
+
+        (tmp_path / "bad.json").write_text("{nope", encoding="utf-8")
+        recorder = PipelineRecorder(store_dir=tmp_path)
+        assert recorder.runs == []
+
+    def test_prune_beyond_cap(self, tmp_path):
+        from tradingagents.pro.dashboard.recorder import PipelineRecorder
+
+        memory = ProMemory()
+        recorder = PipelineRecorder(max_runs=2, store_dir=tmp_path)
+        for _ in range(3):
+            recorder.record_run(FakePipelineLLM(), CONFIG, pipeline_snapshot(),
+                                memory=memory)
+        assert len(list(tmp_path.glob("*.json"))) == 2
+        assert len(PipelineRecorder(max_runs=2, store_dir=tmp_path).runs) == 2
+
+    def test_runs_rows_carry_timeframe(self, client):
+        rows = client.get("/api/runs").json()
+        assert rows[0]["timeframe"] == "1d"
+
+
+class TestPipelineTriggerEndpoint:
+    @pytest.fixture()
+    def triggered_client(self):
+        from tradingagents.pro.main import PipelineTrigger
+
+        state = DashboardState(memory=ProMemory())
+
+        # a stub trigger keeps this test free of execution wiring
+        class StubTrigger(PipelineTrigger):
+            def __init__(self):
+                super().__init__(service=None)
+                self.calls = []
+
+            def run(self, symbol, timeframe):
+                self.calls.append((symbol, timeframe))
+                return {"ok": True}
+
+        state.trigger = StubTrigger()
+        return TestClient(create_app(state)), state.trigger
+
+    def test_started(self, triggered_client):
+        client, trigger = triggered_client
+        response = client.post("/api/pipeline/run",
+                               json={"symbol": "XAUUSD", "timeframe": "1h"})
+        assert response.status_code == 202
+        assert response.json()["status"] == "started"
+        import time
+        for _ in range(50):
+            if trigger.calls:
+                break
+            time.sleep(0.02)
+        assert trigger.calls == [("XAUUSD", "1h")]
+
+    def test_validation(self, triggered_client):
+        client, _ = triggered_client
+        assert client.post("/api/pipeline/run",
+                           json={"symbol": "DOGE", "timeframe": "1h"}).status_code == 422
+        assert client.post("/api/pipeline/run",
+                           json={"symbol": "XAUUSD", "timeframe": "5m"}).status_code == 422
+
+    def test_busy_and_untriggered(self, triggered_client):
+        client, trigger = triggered_client
+        trigger._busy.acquire()
+        try:
+            assert client.post("/api/pipeline/run",
+                               json={"symbol": "XAUUSD", "timeframe": "1h"}).status_code == 409
+        finally:
+            trigger._busy.release()
+        bare = TestClient(create_app(DashboardState()))
+        assert bare.post("/api/pipeline/run",
+                         json={"symbol": "XAUUSD", "timeframe": "1h"}).status_code == 503

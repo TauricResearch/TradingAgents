@@ -71,6 +71,31 @@ Component inventory: shadcn-style vendored primitives
 - **Staleness**: any success bumps a global monotonic marker; >12s ⇒
   STALE, never-connected ⇒ DISCONNECTED (ports the legacy ALERT-01).
 
+## On-demand pipeline runs & persistent history (v7)
+
+- **Trigger**: `POST /api/pipeline/run` `{symbol, timeframe}` — symbol
+  ∈ {XAUUSD, BTC-USD}, timeframe ∈ {1h, 4h, 1d}. Returns 202 and runs
+  in a background thread through the SAME service as the hourly loop
+  (full debate→critic→judge→gates→PM chain, paper execution, recorder,
+  memory). 422 invalid choice, 409 while a run is in flight
+  (single-flight by design), 503 in monitor mode (no service wired).
+  UI: "Run" button on the Decisions run rail, palette action
+  "Run pipeline…", and a "Run pipeline now" CTA on the empty state.
+  The dialog states the honest cost (≈ $0.10–0.20/run in model calls).
+- **Stage progress**: `record_run(on_node=...)` publishes SSE `stage`
+  events per pipeline node; the frontend shows a live
+  "running {symbol} · {stage}" chip until the terminal `run` event.
+- **Snapshot routing**: gold 1d = the loop's canonical GC=F daily
+  pipeline; gold 1h/4h = Delta XAUTUSD bars + gold macro feeds; BTC =
+  Delta BTCUSD bars + FRED + on-chain (CoinMetrics/Fear&Greed) + Delta
+  funding/OI. Per-asset `ProConfig` selects the matching agent roster.
+- **Persistence**: `PipelineRecorder(store_dir=data/runs)` writes each
+  completed run as one JSON file (atomic tmp+fsync+rename; contracts
+  round-trip via `model_dump`/`model_validate`) and reloads them on
+  boot — run history survives container restarts. Corrupt files are
+  skipped with a warning; files beyond `max_runs` are pruned oldest
+  first. Run rail rows carry a timeframe badge from the stored bars.
+
 ## Charts
 
 TradingView **Lightweight Charts** (Apache-2.0): candles, Heikin-Ashi

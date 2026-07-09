@@ -55,3 +55,114 @@ class TestBuildService:
         assert state.latest_run() is not None
         assert (tmp_path / "audit.jsonl").exists()
         assert service.router.audit.verify()
+
+
+class TestPipelineTrigger:
+    """On-demand runs: routing, validation, single-flight, loop lock."""
+
+    def _trigger(self):
+        from tests.test_pro_pipeline_graph import CONFIG, pipeline_snapshot
+        from tradingagents.pro.main import PipelineTrigger
+
+        calls = {}
+
+        class FakeService:
+            config = CONFIG
+            run_lock = None
+
+            def run_once(self, snapshot=None, config=None):
+                calls["config"] = config
+                return {"symbol": snapshot.symbol, "run_id": "r1"}
+
+        class FakeSnapshotTrigger(PipelineTrigger):
+            def _build_snapshot(self, symbol, asset, tf):
+                calls["build"] = (symbol, asset, tf)
+                return pipeline_snapshot()
+
+        return FakeSnapshotTrigger(FakeService()), calls
+
+    def test_gold_intraday_routing(self):
+        from tradingagents.contracts import AssetClass, Timeframe
+
+        trigger, calls = self._trigger()
+        out = trigger.run("XAUUSD", "4h")
+        assert out["run_id"] == "r1"
+        assert calls["build"] == ("XAUUSD", AssetClass.GOLD, Timeframe("4h"))
+        assert calls["config"].asset is AssetClass.GOLD
+
+    def test_bitcoin_routing(self):
+        from tradingagents.contracts import AssetClass, Timeframe
+
+        trigger, calls = self._trigger()
+        trigger.run("BTC-USD", "1h")
+        assert calls["build"] == ("BTC-USD", AssetClass.BITCOIN, Timeframe("1h"))
+        assert calls["config"].asset is AssetClass.BITCOIN
+
+    def test_rejects_unknown_symbol_and_timeframe(self):
+        trigger, _ = self._trigger()
+        with pytest.raises(ValueError):
+            trigger.run("DOGE", "1h")
+        with pytest.raises(ValueError):
+            trigger.run("XAUUSD", "5m")
+        assert trigger.busy() is False  # rejection never leaves the lock held
+
+    def test_single_flight(self):
+        from tradingagents.pro.main import TriggerBusy
+
+        trigger, _ = self._trigger()
+        assert trigger._busy.acquire(blocking=False)
+        try:
+            with pytest.raises(TriggerBusy):
+                trigger.run("XAUUSD", "1h")
+        finally:
+            trigger._busy.release()
+        trigger.run("XAUUSD", "1h")  # released → next run proceeds
+        assert trigger.busy() is False
+
+    def test_run_once_serializes_on_shared_lock(self):
+        """The loop and the trigger share service.run_lock: while one run
+        holds it, run_once for the other must hold it too (no interleaved
+        pipeline+execution)."""
+        import threading
+
+        from tests.test_pro_pipeline_graph import (
+            CONFIG,
+            FakePipelineLLM,
+            pipeline_snapshot,
+        )
+        from tradingagents.contracts import RiskLimits
+        from tradingagents.pro.execution import (
+            VENUES,
+            AuditLog,
+            CircuitBreaker,
+            ExecutionRouter,
+            KillSwitch,
+            PaperVenueAdapter,
+        )
+        from tradingagents.pro.memory import ProMemory
+        from tradingagents.pro.service import PaperTradingService
+
+        limits = RiskLimits()
+        router = ExecutionRouter(
+            adapter=PaperVenueAdapter(VENUES["mt5"], starting_cash=100_000.0),
+            limits=limits,
+            kill_switch=KillSwitch(),
+            breaker=CircuitBreaker(limits, equity_base=100_000.0),
+            audit=AuditLog(),
+        )
+        lock = threading.Lock()
+        service = PaperTradingService(
+            FakePipelineLLM(), CONFIG, pipeline_snapshot,
+            router=router, memory=ProMemory(), run_lock=lock,
+        )
+        held_during_run = []
+        original = service._run_once
+
+        def spy(*args, **kwargs):
+            held_during_run.append(lock.locked())
+            return original(*args, **kwargs)
+
+        service._run_once = spy
+        service.run_once()
+        assert held_during_run == [True]
+        assert lock.locked() is False

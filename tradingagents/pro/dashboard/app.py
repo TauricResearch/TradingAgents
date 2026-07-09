@@ -44,6 +44,7 @@ class DashboardState:
     marketdata: md.MarketDataService = field(default_factory=md.MarketDataService)
     prefs: PrefsStore = field(default_factory=PrefsStore)
     intel: IntelService = field(default_factory=IntelService)
+    trigger = None            # PipelineTrigger, when a service loop is attached
 
     @property
     def runs(self) -> list[RunRecord]:
@@ -286,6 +287,7 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
                 "symbol": run.symbol,
                 "action": run.recommendation.action.value if run.recommendation else None,
                 "rejected_at": run.rejection and run.rejection.get("stage"),
+                "timeframe": run.timeframe,
             }
             for run in state.runs
         ]
@@ -323,6 +325,42 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     @app.get("/api/alerts")
     def alerts() -> dict:
         return service.alert_feed(state.runs)
+
+    @app.post("/api/pipeline/run")
+    async def run_pipeline(request: Request) -> JSONResponse:
+        import threading as _threading
+
+        body = await request.json()
+        symbol = body.get("symbol")
+        timeframe = body.get("timeframe")
+        trigger = state.trigger
+        if trigger is None:
+            raise HTTPException(
+                status_code=503,
+                detail="no pipeline service attached (monitor mode) — "
+                       "run via the service container or pro_live_terminal",
+            )
+        if symbol not in trigger.SYMBOLS or timeframe not in trigger.TIMEFRAMES:
+            raise HTTPException(
+                status_code=422,
+                detail=f"symbol must be one of {list(trigger.SYMBOLS)} and "
+                       f"timeframe one of {list(trigger.TIMEFRAMES)}",
+            )
+        if trigger.busy():
+            raise HTTPException(status_code=409,
+                                detail="a pipeline run is already in progress")
+
+        def work():
+            import logging as _logging
+
+            try:
+                trigger.run(symbol, timeframe)
+            except Exception:
+                _logging.getLogger(__name__).exception("on-demand run failed")
+
+        _threading.Thread(target=work, name="on-demand-run", daemon=True).start()
+        return JSONResponse({"status": "started", "symbol": symbol,
+                             "timeframe": timeframe}, status_code=202)
 
     @app.get("/api/prefs")
     def get_prefs() -> dict:

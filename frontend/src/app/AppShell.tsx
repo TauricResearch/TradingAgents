@@ -8,6 +8,7 @@ import { Sidebar } from "./Sidebar";
 import { HaltBanner, StatusStrip } from "./StatusStrip";
 import { CommandPalette } from "@/components/CommandPalette";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { RunPipelineDialog } from "@/components/RunPipelineDialog";
 import { ShortcutCheatsheet } from "@/components/ShortcutCheatsheet";
 import { UpdateToast } from "@/components/UpdateToast";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -130,6 +131,7 @@ export function AppShell() {
         </div>
         <CommandPalette />
         <NotificationCenter />
+        <RunPipelineDialog />
         <ShortcutCheatsheet />
         <UpdateToast />
       </TooltipProvider>

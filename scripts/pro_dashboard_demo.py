@@ -91,10 +91,27 @@ def build_state() -> DashboardState:
         audit=AuditLog(),
     )
     if run.recommendation is not None:  # mirror the accepted paper fill
-        state.router.local_book[run.symbol] = round(
-            run.recommendation.position_size.quantity, 4
-        )
+        # submit through the router so the paper venue holds the matching
+        # position — otherwise reconcile() flags drift on the next run
+        state.router.submit_recommendation(run.recommendation, equity=100_000.0)
     state.equity = result.final_equity
+
+    # on-demand trigger backed by the fake LLM so the Run Pipeline dialog
+    # is fully exercisable (and e2e-testable) without cost or network
+    from tradingagents.pro.main import PipelineTrigger
+    from tradingagents.pro.service import PaperTradingService
+
+    service = PaperTradingService(
+        FakePipelineLLM(), paper_config, pipeline_snapshot,
+        router=state.router, memory=state.memory, dashboard_state=state,
+        on_event=state.broadcaster.publish,
+    )
+
+    class DemoTrigger(PipelineTrigger):
+        def _build_snapshot(self, symbol, asset, tf):  # no vendors in demo
+            return pipeline_snapshot()
+
+    state.trigger = DemoTrigger(service)
     return state
 
 

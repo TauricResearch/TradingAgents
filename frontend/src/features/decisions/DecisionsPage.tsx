@@ -2,7 +2,7 @@
  * header, gate waterfall, debate timeline, consensus, evidence with
  * provenance, persistent counterargument column, calibration, agent
  * leaderboard. Rejections are first-class citizens. */
-import { ShieldAlert } from "lucide-react";
+import { Play, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -15,7 +15,9 @@ import { DirectionBadge } from "@/components/DirectionBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { EvidencePanel } from "@/components/EvidencePanel";
 import { GateWaterfall } from "@/components/GateWaterfall";
+import { PipelineProgressChip } from "@/components/RunPipelineDialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import {
@@ -28,6 +30,7 @@ import {
 } from "@/lib/api/queries";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui";
 
 type Filter = "all" | "traded" | "rejected";
 
@@ -87,6 +90,11 @@ function RunRail({
               </div>
               <div className="mt-0.5 flex items-center gap-1">
                 <span className="font-mono">{run.symbol}</span>
+                {run.timeframe && (
+                  <Badge className="px-1.5 font-mono text-[10px]">
+                    {run.timeframe}
+                  </Badge>
+                )}
                 {run.action ? (
                   <span>{run.action}</span>
                 ) : (
@@ -106,6 +114,7 @@ function RunRail({
 export default function DecisionsPage() {
   const params = useParams<{ runId?: string }>();
   const navigate = useNavigate();
+  const setRunDialogOpen = useUiStore((s) => s.setRunDialogOpen);
   const runs = useRuns();
   const overview = useOverview();
   const recommendation = useRecommendation();
@@ -127,11 +136,18 @@ export default function DecisionsPage() {
   if (runs.isPending) return <SkeletonCard lines={8} />;
   if ((runs.data ?? []).length === 0) {
     return (
-      <EmptyState
-        kind="waiting"
-        title="No runs yet"
-        detail="The decision center fills as the pipeline runs."
-      />
+      <div className="space-y-3">
+        <EmptyState
+          kind="waiting"
+          title="No runs yet"
+          detail="Trigger a pipeline run now, or wait for the hourly loop's next decision."
+        />
+        <div className="flex justify-center">
+          <Button onClick={() => setRunDialogOpen(true)} data-testid="run-pipeline-cta">
+            <Play size={13} /> Run pipeline now
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -143,6 +159,14 @@ export default function DecisionsPage() {
       <Card className="lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
         <CardHeader>
           <CardTitle>Runs</CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setRunDialogOpen(true)}
+            data-testid="run-pipeline-open"
+          >
+            <Play size={12} /> Run
+          </Button>
         </CardHeader>
         <CardContent className="h-full">
           <RunRail
@@ -168,6 +192,7 @@ export default function DecisionsPage() {
                 <ShieldAlert size={12} /> injection quarantined
               </Badge>
             )}
+            <PipelineProgressChip />
           </CardHeader>
           <CardContent>
             {isLatest ? (

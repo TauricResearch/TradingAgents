@@ -294,3 +294,32 @@ test.describe("v3 drawing tools", () => {
     await expect(chart).toHaveAttribute("data-drawings", "0");
   });
 });
+
+test.describe("v7 on-demand pipeline", () => {
+  test("run dialog triggers a run that lands in the rail", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "run rail is a desktop surface");
+    await unlock(page);
+    await page.goto("/decisions");
+
+    const rail = page.getByTestId("run-rail");
+    await expect(rail.locator("li").first()).toBeVisible();
+    const before = await rail.locator("li").count();
+
+    await page.getByTestId("run-pipeline-open").click();
+    await expect(page.getByTestId("pipeline-start")).toBeVisible();
+    await expect(page.getByText(/\$0\.10/)).toBeVisible(); // honest cost note
+    await page.getByTestId("pipeline-start").click();
+
+    // fake-LLM run completes fast; SSE `run` refetches the rail
+    await expect(async () => {
+      expect(await rail.locator("li").count()).toBe(before + 1);
+    }).toPass({ timeout: 20_000 });
+
+    // newest run carries its timeframe badge
+    await page.keyboard.press("Escape");
+    await expect(rail.locator("li").first()).toContainText("1d");
+  });
+});

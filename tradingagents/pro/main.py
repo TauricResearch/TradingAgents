@@ -28,6 +28,116 @@ logger = logging.getLogger(__name__)
 DEFAULT_INTERVAL_SECONDS = 3600.0
 
 
+class _MappedBars:
+    """Presents a feed under dashboard symbols (XAUUSD → XAUTUSD, ...)."""
+
+    def __init__(self, feed, mapping: dict[str, str]):
+        self._feed = feed
+        self._mapping = mapping
+        self.name = getattr(feed, "name", "mapped")
+
+    def get_bars(self, symbol, timeframe, *, limit=250, end=None):
+        return self._feed.get_bars(self._mapping.get(symbol, symbol),
+                                   timeframe, limit=limit, end=end)
+
+
+class _DeltaBtcMetrics:
+    """MetricsFeed adapter: Delta funding/OI/mark for the BTC roster."""
+
+    name = "delta_exchange"
+
+    def __init__(self, feed):
+        self._feed = feed
+
+    def get_metrics(self):
+        return self._feed.get_metrics("BTCUSD")
+
+
+class TriggerBusy(RuntimeError):
+    pass
+
+
+class PipelineTrigger:
+    """On-demand full pipeline run for a chosen pair × timeframe, through
+    the SAME service (router, memory, recorder, gates) as the hourly loop.
+    One at a time: `busy()` backs the API's 409; the service's run_lock
+    additionally serializes against the loop itself."""
+
+    SYMBOLS = ("XAUUSD", "BTC-USD")
+    TIMEFRAMES = ("1h", "4h", "1d")
+
+    def __init__(self, service):
+        self.service = service
+        self._busy = threading.Lock()
+        self.current: dict | None = None  # {"symbol","timeframe"} while running
+
+    def busy(self) -> bool:
+        return self._busy.locked()
+
+    def run(self, symbol: str, timeframe: str) -> dict:
+        from tradingagents.contracts import AssetClass, ProConfig, Timeframe
+
+        if symbol not in self.SYMBOLS:
+            raise ValueError(f"symbol must be one of {self.SYMBOLS}")
+        if timeframe not in self.TIMEFRAMES:
+            raise ValueError(f"timeframe must be one of {self.TIMEFRAMES}")
+        if not self._busy.acquire(blocking=False):
+            raise TriggerBusy("a pipeline run is already in progress")
+        try:
+            self.current = {"symbol": symbol, "timeframe": timeframe}
+            asset = AssetClass.GOLD if symbol == "XAUUSD" else AssetClass.BITCOIN
+            config = ProConfig(asset=asset, max_debate_rounds=1,
+                               models=self.service.config.models)
+            tf = Timeframe(timeframe)
+            snapshot = self._build_snapshot(symbol, asset, tf)
+            return self.service.run_once(snapshot=snapshot, config=config)
+        finally:
+            self.current = None
+            self._busy.release()
+
+    def _build_snapshot(self, symbol: str, asset, tf):
+        from tradingagents.contracts import Timeframe
+        from tradingagents.pro.ingestion.builder import SnapshotBuilder
+        from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
+        from tradingagents.pro.ingestion.fred_macro import FredMacroFeed
+        from tradingagents.pro.ingestion.gold_feeds import (
+            GoldCrossAssetFeed,
+            YFinanceDailyBarsFeed,
+        )
+        from tradingagents.pro.ingestion.onchain import CoinMetricsFeed, FearGreedFeed
+        from tradingagents.pro.ingestion.sessions import current_session
+
+        delta = DeltaExchangeFeed()
+        if symbol == "XAUUSD":
+            if tf is Timeframe.D1:
+                # the loop's canonical daily gold path (GC=F futures)
+                def gold_loader(sym: str, curr_date: str):
+                    from tradingagents.dataflows.stockstats_utils import load_ohlcv
+
+                    return load_ohlcv("GC=F" if sym == "XAUUSD" else sym, curr_date)
+
+                from tradingagents.pro.ingestion.builder import build_gold_pipeline
+
+                builder = build_gold_pipeline(loader=gold_loader)
+            else:
+                # intraday gold: Delta XAUT (≈ spot) + the same macro context
+                yf = YFinanceDailyBarsFeed()
+                builder = SnapshotBuilder(
+                    bars_feed=_MappedBars(delta, {"XAUUSD": "XAUTUSD"}),
+                    macro_feeds=(GoldCrossAssetFeed(yf), FredMacroFeed()),
+                    session_fn=current_session,
+                )
+        else:
+            builder = SnapshotBuilder(
+                bars_feed=_MappedBars(delta, {"BTC-USD": "BTCUSD"}),
+                macro_feeds=(FredMacroFeed(),),
+                onchain_feeds=(CoinMetricsFeed(), FearGreedFeed(),
+                               _DeltaBtcMetrics(delta)),
+                session_fn=current_session,
+            )
+        return builder.build(symbol, asset, timeframes=(tf,), bar_limit=250)
+
+
 def loop_enabled() -> bool:
     if os.environ.get("PRO_LOOP_DISABLED") == "1":
         return False
@@ -73,9 +183,12 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     data_path = Path(data_dir) if data_dir else default_data_dir()
     data_path.mkdir(parents=True, exist_ok=True)
 
+    from tradingagents.pro.dashboard.recorder import PipelineRecorder
+
     limits = RiskLimits()
     memory = ProMemory()
     state = DashboardState(memory=memory)
+    state.recorder = PipelineRecorder(store_dir=data_path / "runs")
     state.prefs = PrefsStore(data_path / "dashboard_prefs.json")
     router = ExecutionRouter(
         adapter=PaperVenueAdapter(VENUES["mt5"], starting_cash=100_000.0),
@@ -124,6 +237,7 @@ def main() -> None:
                                     DEFAULT_INTERVAL_SECONDS))
     if loop_enabled():
         service, state = build_service()
+        state.trigger = PipelineTrigger(service)
         logger.info("paper-trading loop enabled: one decision every %.0fs "
                     "(real LLM calls — provider %s)", interval,
                     os.environ.get("TRADINGAGENTS_LLM_PROVIDER", "deepseek"))

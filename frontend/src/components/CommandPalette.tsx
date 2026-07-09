@@ -27,6 +27,7 @@ export function CommandPalette() {
     theme,
     setTheme,
     setShortcutsOpen,
+    setRunDialogOpen,
   } = useUiStore();
   const setPreset = useLayoutStore((s) => s.setPreset);
   const runs = useRuns();
@@ -101,6 +102,15 @@ export function CommandPalette() {
         </Command.Group>
 
         <Command.Group heading="Actions">
+          <Command.Item
+            onSelect={() => {
+              setRunDialogOpen(true);
+              close();
+            }}
+            className="cursor-pointer rounded px-3 py-2 aria-selected:bg-surface-2"
+          >
+            Run pipeline… (choose pair &amp; timeframe)
+          </Command.Item>
           <Command.Item
             onSelect={() => {
               setTheme(theme === "dark" ? "light" : "dark");

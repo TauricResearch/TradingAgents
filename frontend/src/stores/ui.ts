@@ -3,6 +3,13 @@ import { persist } from "zustand/middleware";
 
 export type Theme = "dark" | "light";
 
+/** Live progress of an in-flight on-demand pipeline run (SSE `stage`
+ * events; cleared by the terminal `run` event). Not persisted. */
+export interface PipelineProgress {
+  symbol: string;
+  stage: string;
+}
+
 interface UiState {
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -24,6 +31,10 @@ interface UiState {
   setCompare: (on: boolean) => void;
   lastSeenAt: number; // powers the "since you left" diff panel
   markSeen: () => void;
+  runDialogOpen: boolean;
+  setRunDialogOpen: (open: boolean) => void;
+  pipelineProgress: PipelineProgress | null;
+  setPipelineProgress: (progress: PipelineProgress | null) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -57,6 +68,10 @@ export const useUiStore = create<UiState>()(
       setCompare: (compare) => set({ compare }),
       lastSeenAt: Date.now(),
       markSeen: () => set({ lastSeenAt: Date.now() }),
+      runDialogOpen: false,
+      setRunDialogOpen: (runDialogOpen) => set({ runDialogOpen }),
+      pipelineProgress: null,
+      setPipelineProgress: (pipelineProgress) => set({ pipelineProgress }),
     }),
     {
       name: "pro-ui",
@@ -71,6 +86,10 @@ export const useUiStore = create<UiState>()(
     },
   ),
 );
+
+export function usePipelineProgress() {
+  return useUiStore((s) => s.pipelineProgress);
+}
 
 export function applyPersistedTheme() {
   document.documentElement.dataset.theme = useUiStore.getState().theme;

@@ -6,6 +6,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { qk, setPollingInterval } from "./api/queries";
 import { recordSuccess } from "./staleness";
 import { useTickerStore } from "@/stores/ticker";
+import { useUiStore } from "@/stores/ui";
 
 export type StreamHealth = "connecting" | "open" | "down";
 
@@ -40,11 +41,28 @@ export function startEventStream(client: QueryClient): () => void {
 
   source.addEventListener("run", () => {
     bump();
+    useUiStore.getState().setPipelineProgress(null); // run finished
     void client.invalidateQueries({ queryKey: qk.runs });
     void client.invalidateQueries({ queryKey: qk.recommendation });
     void client.invalidateQueries({ queryKey: qk.overview });
     void client.invalidateQueries({ queryKey: qk.journal });
     void client.invalidateQueries({ queryKey: qk.agents });
+  });
+
+  source.addEventListener("stage", (event) => {
+    bump();
+    try {
+      const stage = JSON.parse((event as MessageEvent).data) as {
+        stage: string;
+        symbol?: string;
+      };
+      useUiStore.getState().setPipelineProgress({
+        symbol: stage.symbol ?? "",
+        stage: stage.stage,
+      });
+    } catch {
+      /* malformed stage — ignore */
+    }
   });
 
   source.addEventListener("alert", () => {

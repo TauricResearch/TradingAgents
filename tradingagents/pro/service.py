@@ -14,6 +14,7 @@ stop/take-profit orders once a real transport is signed off (ADR-0029).
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -68,6 +69,7 @@ class PaperTradingService:
         metrics: MetricsRegistry | None = None,
         alerts: AlertManager | None = None,
         on_event: Callable[[str, dict], None] | None = None,
+        run_lock: threading.Lock | None = None,
         **pipeline_kwargs,
     ):
         self.llm = llm
@@ -79,6 +81,8 @@ class PaperTradingService:
         self.metrics = metrics or MetricsRegistry()
         self.alerts = alerts or AlertManager(metrics=self.metrics)
         self.on_event = on_event
+        # serializes pipeline executions (hourly loop vs on-demand trigger)
+        self.run_lock = run_lock or threading.Lock()
         self.pipeline_kwargs = pipeline_kwargs
         self.open_positions: dict[str, OpenPosition] = {}
         self.rehydrate()
@@ -132,8 +136,10 @@ class PaperTradingService:
 
     # --- one iteration -----------------------------------------------------------
 
-    def run_once(self) -> dict:
-        summary = self._run_once()
+    def run_once(self, snapshot: MarketSnapshot | None = None,
+                 config: ProConfig | None = None) -> dict:
+        with self.run_lock:
+            summary = self._run_once(snapshot=snapshot, config=config)
         self._emit("run", summary)
         for closed in summary.get("closed_positions", []):
             self._emit("position", {"state": "closed", **closed})
@@ -162,8 +168,10 @@ class PaperTradingService:
             equity = None
         return views.system_status(self.router, equity)
 
-    def _run_once(self) -> dict:
-        snapshot = self.snapshot_source()
+    def _run_once(self, snapshot: MarketSnapshot | None = None,
+                  config: ProConfig | None = None) -> dict:
+        snapshot = snapshot if snapshot is not None else self.snapshot_source()
+        config = config or self.config
         self.metrics.inc("runs_total")
 
         reconciliation = self.router.reconcile()
@@ -189,7 +197,9 @@ class PaperTradingService:
             )
 
         run = self.dashboard.recorder.record_run(
-            self.llm, self.config, snapshot, memory=self.memory,
+            self.llm, config, snapshot, memory=self.memory,
+            on_node=lambda name: self._emit("stage", {"stage": name,
+                                                      "symbol": snapshot.symbol}),
             **self.pipeline_kwargs,
         )
         rec = run.recommendation

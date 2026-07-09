@@ -81,8 +81,11 @@ def main() -> None:
 
     data_dir = Path(tempfile.mkdtemp(prefix="pro-live-"))
     limits = RiskLimits()
+    from tradingagents.pro.dashboard.recorder import PipelineRecorder
+
     memory = ProMemory()
     state = DashboardState(memory=memory)
+    state.recorder = PipelineRecorder(store_dir=data_dir / "runs")
     router = ExecutionRouter(
         adapter=PaperVenueAdapter(VENUES["mt5"], starting_cash=100_000.0),
         limits=limits,
@@ -100,6 +103,10 @@ def main() -> None:
                                    BroadcastAlertSink(state.broadcaster)]),
         on_event=state.broadcaster.publish,
     )
+
+    from tradingagents.pro.main import PipelineTrigger
+
+    state.trigger = PipelineTrigger(service)
 
     print("running ONE live pipeline iteration on today's gold tape…")
     summary = service.run_once()
