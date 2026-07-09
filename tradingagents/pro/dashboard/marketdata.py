@@ -70,7 +70,7 @@ class SymbolSpec:
 
 def default_registry() -> dict[str, SymbolSpec]:
     """Vendor preference is probe-gated, never assumed: Delta Exchange
-    first for BTC (BTCUSD perp) and gold (PAXGUSD, tokenized gold ≈ spot)
+    first for BTC (BTCUSD perp) and gold (XAUTUSD, Tether Gold ≈ spot)
     — the operator's reachable venue; else Binance for BTC and OANDA/
     yfinance for gold. Degradation is disclosed, never faked."""
     import logging
@@ -84,7 +84,7 @@ def default_registry() -> dict[str, SymbolSpec]:
     delta_alive = DeltaExchangeFeed.probe()
     if delta_alive:
         logger.info("Delta Exchange reachable — serving BTC-USD (BTCUSD perp) "
-                    "and XAUUSD (PAXGUSD tokenized gold) live")
+                    "and XAUUSD (XAUTUSD Tether Gold) live")
 
     registry = {
         "BTC-USD": SymbolSpec(
@@ -119,7 +119,7 @@ def default_registry() -> dict[str, SymbolSpec]:
     if delta_alive:
         registry["XAUUSD"] = SymbolSpec(
             symbol="XAUUSD",
-            vendor_symbol="PAXGUSD",  # tokenized gold, ≈ spot (small basis)
+            vendor_symbol="XAUTUSD",  # Tether Gold, ≈ spot (small basis)
             source="delta_exchange",
             timeframes=tuple(TIMEFRAME_SECONDS),
             live=True,

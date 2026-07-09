@@ -62,10 +62,10 @@ Component inventory: shadcn-style vendored primitives
 - **Live prices**: vendor preference is probe-gated at startup — when
   Delta Exchange is reachable (the operator's venue; Binance is
   geo-blocked on their network), both BTC-USD (BTCUSD perp) and XAUUSD
-  (PAXGUSD tokenized gold, ≈ spot with a small disclosed basis) serve
+  (XAUTUSD Tether Gold, ≈ spot with a small disclosed basis) serve
   live intraday candles and backend-polled ticks over SSE; otherwise
   browser→Binance WS for BTC and OANDA/yfinance for gold. The decision
-  pipeline still computes on GC=F daily — the PAXG-vs-futures basis is
+  pipeline still computes on GC=F daily — the XAUT-vs-futures basis is
   a disclosed presentation difference, not hidden. Vendor unreachable ⇒
   honest degraded states, never blank panels.
 - **Staleness**: any success bumps a global monotonic marker; >12s ⇒

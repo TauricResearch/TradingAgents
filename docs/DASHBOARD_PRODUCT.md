@@ -157,7 +157,7 @@ status on live data:
 | Surface | Status |
 |---|---|
 | BTC-USD charts (1m–1w) | LIVE — Delta BTCUSD perp (62,892 at test) |
-| XAUUSD charts (1m–1w) | LIVE — Delta PAXGUSD tokenized gold ≈ spot (4,098; first intraday gold) |
+| XAUUSD charts (1m–1w) | LIVE — Delta XAUTUSD Tether Gold ≈ spot (first intraday gold) |
 | Strip/ribbon ticks | LIVE — backend pollers → SSE, both symbols every 5s |
 | Funding/OI/mark | LIVE — Delta (funding 0.01 %/8h, OI $51M) |
 | Fear & Greed | LIVE — 22 (extreme fear) |

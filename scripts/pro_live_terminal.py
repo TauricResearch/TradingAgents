@@ -9,7 +9,7 @@
   TRADINGAGENTS_* env (default deepseek via repo .env), full safety
   rails (kill switch armed, breaker, hash-chained audit in a temp dir).
 - Serving: the dashboard on :8600 with live Delta Exchange charts/ticks
-  (BTCUSD perp, PAXGUSD tokenized gold) when reachable.
+  (BTCUSD perp, XAUTUSD Tether Gold) when reachable.
 
 A rejection is as valid an outcome as a trade — the gates saying no to
 today's market is the system working.

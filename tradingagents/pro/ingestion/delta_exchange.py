@@ -6,8 +6,8 @@ DELTA_API_KEY/SECRET in the operator's .env are intentionally unused
 here; they exist for possible future signed endpoints, never for
 trading from the dashboard.
 
-Instruments are perpetual futures (BTCUSD; PAXGUSD = Paxos tokenized
-gold, ≈ spot with a small basis) — disclosed in /api/symbols, not
+Instruments are perpetual futures (BTCUSD; XAUTUSD = Tether Gold,
+≈ spot with a small basis) — disclosed in /api/symbols, not
 hidden. Candle rows arrive newest-first and are re-sorted ascending.
 """
 

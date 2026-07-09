@@ -335,7 +335,7 @@ class TestDeltaPreference:
         assert registry["BTC-USD"].source == "delta_exchange"
         assert registry["BTC-USD"].vendor_symbol == "BTCUSD"
         assert registry["XAUUSD"].source == "delta_exchange"
-        assert registry["XAUUSD"].vendor_symbol == "PAXGUSD"
+        assert registry["XAUUSD"].vendor_symbol == "XAUTUSD"
         assert registry["XAUUSD"].live is True
         assert "1m" in [t.value for t in registry["XAUUSD"].timeframes]
 

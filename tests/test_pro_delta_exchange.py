@@ -69,7 +69,7 @@ class TestDeltaBars:
         monkeypatch.setenv("DELTA_BASE_URL", "https://api.delta.exchange/")
         transport = FakeTransport(candles=candle_payload())
         feed = DeltaExchangeFeed(transport=transport)
-        feed.get_bars("PAXGUSD", Timeframe.D1, limit=2)
+        feed.get_bars("XAUTUSD", Timeframe.D1, limit=2)
         assert transport.requests[0][0].startswith(
             "https://api.delta.exchange/v2/"
         )

@@ -68,7 +68,7 @@ over recorded data — same adapters, zero code change (Phase 7).
 ## Delta Exchange (India) — added for live BTC/gold
 
 Public market-data endpoints (candles 1m–1w, tickers with funding/OI/
-mark) for BTCUSD perp and PAXGUSD (tokenized gold ≈ spot, small basis —
+mark) for BTCUSD perp and XAUTUSD (Tether Gold ≈ spot, small basis —
 disclosed in /api/symbols). No signing required; DELTA_API_KEY/SECRET
 stay in .env for potential future signed endpoints, never used for
 trading from the dashboard. Vendor preference is probe-gated with
