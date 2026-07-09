@@ -30,8 +30,11 @@ class TestBuildService:
         from tests.test_pro_pipeline_graph import pipeline_snapshot
         from tradingagents.pro.ingestion import builder as builder_module
 
+        seen = {}
+
         class FakeBuilder:
             def build(self, symbol, asset, **kwargs):
+                seen["symbol"] = symbol
                 return pipeline_snapshot()
 
         monkeypatch.setattr(builder_module, "build_gold_pipeline",
@@ -45,6 +48,9 @@ class TestBuildService:
         assert state.router is service.router
         assert (tmp_path / "dashboard_prefs.json").exists() is False  # lazy
         summary = service.run_once()
+        # venue-tradable display symbol, never the vendor ticker (first
+        # container run was refused at validation with GC=F)
+        assert seen["symbol"] == "XAUUSD"
         assert summary["run_id"]
         assert state.latest_run() is not None
         assert (tmp_path / "audit.jsonl").exists()

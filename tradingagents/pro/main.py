@@ -87,12 +87,20 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     state.router = router
     state.equity = 100_000.0
 
-    builder = build_gold_pipeline()
+    # display symbol is XAUUSD (what the venue trades); GC=F is only the
+    # yfinance ticker, mapped inside the loader. First container run
+    # proved why: a GC=F-labeled order is refused at venue validation.
+    def gold_loader(symbol: str, curr_date: str):
+        from tradingagents.dataflows.stockstats_utils import load_ohlcv
+
+        return load_ohlcv("GC=F" if symbol == "XAUUSD" else symbol, curr_date)
+
+    builder = build_gold_pipeline(loader=gold_loader)
 
     def snapshot_source():
         from tradingagents.contracts import AssetClass as AC
 
-        return builder.build("GC=F", AC.GOLD, bar_limit=250)
+        return builder.build("XAUUSD", AC.GOLD, bar_limit=250)
 
     service = PaperTradingService(
         llm, config, snapshot_source,

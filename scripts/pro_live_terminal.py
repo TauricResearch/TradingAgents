@@ -68,10 +68,16 @@ def main() -> None:
     bundle.deep = deep_tracker if bundle.deep is not bundle.quick else bundle.quick
     trackers = {bundle.quick, bundle.deep}
 
-    builder = build_gold_pipeline()
+    # display symbol XAUUSD (venue-tradable); GC=F only inside the loader
+    def gold_loader(symbol, curr_date):
+        from tradingagents.dataflows.stockstats_utils import load_ohlcv
+
+        return load_ohlcv("GC=F" if symbol == "XAUUSD" else symbol, curr_date)
+
+    builder = build_gold_pipeline(loader=gold_loader)
 
     def snapshot_source():
-        return builder.build("GC=F", AssetClass.GOLD, bar_limit=250)
+        return builder.build("XAUUSD", AssetClass.GOLD, bar_limit=250)
 
     data_dir = Path(tempfile.mkdtemp(prefix="pro-live-"))
     limits = RiskLimits()
