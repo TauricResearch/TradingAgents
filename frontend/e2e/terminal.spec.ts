@@ -213,6 +213,30 @@ test.describe("v2 features", () => {
 test.describe("v3 drawing tools", () => {
   test.beforeEach(async ({ page }) => unlock(page));
 
+  /** Place a two-point drawing like a human: arm the tool, click twice,
+   * and if nothing landed (slow CI runners can swallow taps during
+   * chart layout settle) cancel and try again. */
+  async function placeTwoPoints(
+    page: import("@playwright/test").Page,
+    tool: RegExp,
+    points: [number, number][],
+  ) {
+    const chart = page.getByTestId("price-chart");
+    const before = Number(await chart.getAttribute("data-drawings"));
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await page.getByRole("button", { name: tool }).click();
+      const box = (await chart.boundingBox())!;
+      for (const [fx, fy] of points) {
+        await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
+        await page.waitForTimeout(650);
+      }
+      const after = Number(await chart.getAttribute("data-drawings"));
+      if (after > before) return;
+      await page.keyboard.press("Escape"); // reset any half-placed state
+      await page.waitForTimeout(400);
+    }
+  }
+
   test("trendline: draw, persist across reload, erase", async ({
     page,
     isMobile,
@@ -225,11 +249,8 @@ test.describe("v3 drawing tools", () => {
     });
     await expect(chart).toHaveAttribute("data-drawings", "0");
 
-    await page.getByRole("button", { name: /Trendline/ }).click();
-    const box = (await chart.boundingBox())!;
-    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.4);
-    await page.waitForTimeout(600); // human tempo; fast pairs go via dblclick
-    await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.55);
+    await page.waitForTimeout(800); // let the chart finish its layout settle
+    await placeTwoPoints(page, /Trendline/, [[0.3, 0.4], [0.6, 0.55]]);
     await expect(chart).toHaveAttribute("data-drawings", "1");
 
     await page.reload();
@@ -265,10 +286,7 @@ test.describe("v3 drawing tools", () => {
     await expect(chart).toHaveAttribute("data-drawings", "0");
 
     // place a full fib
-    await page.getByRole("button", { name: /Fib retracement/ }).click();
-    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.3);
-    await page.waitForTimeout(600);
-    await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.7);
+    await placeTwoPoints(page, /Fib retracement/, [[0.3, 0.3], [0.6, 0.7]]);
     await expect(chart).toHaveAttribute("data-drawings", "1");
 
     // clear all

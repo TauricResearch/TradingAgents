@@ -41,9 +41,25 @@ export const useDrawingsStore = create<DrawingsState>()(
           bySymbol: { ...state.bySymbol, [symbol]: [] },
         })),
       hydrate: (data) => {
-        if (data && typeof data === "object" && !Array.isArray(data)) {
-          set({ bySymbol: data as Record<string, Drawing[]> });
-        }
+        if (!data || typeof data !== "object" || Array.isArray(data)) return;
+        // MERGE by id, never overwrite: the server mirror is a debounced
+        // snapshot and can be staler than local state (review: a reload
+        // 1.5s after drawing wiped the drawing). Union keeps both sides;
+        // the next mirror tick pushes the merged set back up.
+        const incoming = data as Record<string, Drawing[]>;
+        set((state) => {
+          const merged: Record<string, Drawing[]> = { ...state.bySymbol };
+          for (const [symbol, drawings] of Object.entries(incoming)) {
+            if (!Array.isArray(drawings)) continue;
+            const existing = merged[symbol] ?? [];
+            const seen = new Set(existing.map((d) => d.id));
+            merged[symbol] = [
+              ...existing,
+              ...drawings.filter((d) => d && !seen.has(d.id)),
+            ].slice(-MAX_PER_SYMBOL);
+          }
+          return { bySymbol: merged };
+        });
       },
     }),
     { name: "pro-drawings" },
