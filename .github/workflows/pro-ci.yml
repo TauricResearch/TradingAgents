@@ -112,3 +112,28 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Pro image
         run: docker build -f deploy/Dockerfile.pro -t tradingagents-pro:${{ github.sha }} .
+
+  # Optional: real Delta testnet conformance (go-live Phase 1). No-ops
+  # unless the DELTA_TESTNET_API_KEY/SECRET repo secrets are configured —
+  # never a required check, never touches production endpoints.
+  venue-testnet:
+    needs: [lint-and-test]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Conformance vs Delta testnet (skips without secrets)
+        env:
+          DELTA_TESTNET_API_KEY: ${{ secrets.DELTA_TESTNET_API_KEY }}
+          DELTA_TESTNET_API_SECRET: ${{ secrets.DELTA_TESTNET_API_SECRET }}
+        run: |
+          if [ -z "$DELTA_TESTNET_API_KEY" ]; then
+            echo "no testnet secrets configured — skipping"; exit 0
+          fi
+          pip install -r requirements.lock
+          pip install --no-deps -e .
+          pytest -q tests/test_pro_execution_conformance.py

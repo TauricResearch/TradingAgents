@@ -11,15 +11,21 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 from tradingagents.pro.backtest.costs import CommissionModel, SlippageModel
 from tradingagents.pro.execution.interface import (
     AccountState,
+    AdapterCapabilities,
+    BracketSpec,
     BrokerPosition,
     ExecutionNotEnabled,
     OrderRequest,
     OrderResult,
+    OrderSpec,
+    OrderState,
+    OrderUpdate,
 )
 
 
@@ -99,6 +105,7 @@ class PaperVenueAdapter:
         self._cash = starting_cash
         self._positions: dict[str, BrokerPosition] = {}
         self._seen: dict[str, OrderResult] = {}
+        self._orders: dict[str, OrderUpdate] = {}  # v2 book, by client_order_id
         self._state_path = Path(state_path) if state_path else None
         if self._state_path is not None:
             self._load_state()
@@ -125,6 +132,12 @@ class PaperVenueAdapter:
         self._seen = {
             key: OrderResult(**data) for key, data in raw.get("seen", {}).items()
         }
+        for key, data in raw.get("orders", {}).items():
+            self._orders[key] = OrderUpdate(**{
+                **data,
+                "state": OrderState(data["state"]),
+                "ts": datetime.fromisoformat(data["ts"]),
+            })
 
     def _save_state(self) -> None:
         if self._state_path is None:
@@ -135,6 +148,10 @@ class PaperVenueAdapter:
             "cash": self._cash,
             "positions": {s: asdict(p) for s, p in self._positions.items()},
             "seen": {k: asdict(r) for k, r in self._seen.items()},
+            "orders": {
+                k: {**asdict(u), "state": u.state.value, "ts": u.ts.isoformat()}
+                for k, u in self._orders.items()
+            },
         })
 
     def supported_symbols(self) -> set[str]:
@@ -218,6 +235,102 @@ class PaperVenueAdapter:
             positions=tuple(self._positions.values()),
         )
 
+    # --- v2 contract (VenueAdapter) --------------------------------------------------
+    # Paper is the degenerate async case: every order goes terminal inside
+    # place_order, which is what lets one conformance suite cover paper and
+    # live implementations alike.
+
+    def capabilities(self) -> AdapterCapabilities:
+        return AdapterCapabilities(
+            native_bracket=False,
+            terminal_on_place=True,
+            supports_client_oid_lookup=True,
+            supports_streams=False,
+        )
+
+    def _v2_update(self, spec: OrderSpec, state: OrderState, *,
+                   filled: float = 0.0, price: float = 0.0, fee: float = 0.0,
+                   reason: str = "") -> OrderUpdate:
+        update = OrderUpdate(
+            client_order_id=spec.client_order_id, state=state,
+            venue_order_id=f"paper-{len(self._orders) + 1}",
+            filled_quantity=filled, avg_fill_price=price,
+            commission=fee, reason=reason,
+        )
+        self._orders[spec.client_order_id] = update
+        self._save_state()
+        return update
+
+    def place_order(self, spec: OrderSpec,
+                    bracket: BracketSpec | None = None) -> OrderUpdate:
+        if spec.client_order_id in self._orders:
+            return self._orders[spec.client_order_id]  # venue-side dedupe
+        try:
+            self.venue.venue_symbol(spec.symbol)
+        except ValueError as exc:
+            return self._v2_update(spec, OrderState.REJECTED, reason=str(exc))
+        quantity = round(spec.quantity, self.venue.quantity_precision)
+        if quantity < self.venue.min_quantity or quantity <= 0:
+            return self._v2_update(
+                spec, OrderState.REJECTED,
+                reason=f"quantity {quantity} below venue minimum "
+                       f"{self.venue.min_quantity}",
+            )
+        reference = (spec.limit_price if spec.order_type == "limit"
+                     and spec.limit_price else spec.reference_price)
+        fill_price = self.venue.slippage.fill_price(reference, spec.side)
+        fee = self.venue.commission.cost(quantity, fill_price)
+
+        if spec.reduce_only:
+            position = self._positions.get(spec.symbol)
+            if position is None or position.side == spec.side:
+                return self._v2_update(
+                    spec, OrderState.REJECTED,
+                    reason=f"reduce-only with no opposing position in {spec.symbol}",
+                )
+            close_qty = min(quantity, position.quantity)
+            sign = 1 if spec.side == "BUY" else -1
+            self._cash -= sign * close_qty * fill_price + fee
+            remaining = round(position.quantity - close_qty,
+                              self.venue.quantity_precision)
+            if remaining > 0:
+                self._positions[spec.symbol] = BrokerPosition(
+                    symbol=position.symbol, side=position.side,
+                    quantity=remaining, avg_price=position.avg_price,
+                )
+            else:
+                self._positions.pop(spec.symbol, None)
+            return self._v2_update(spec, OrderState.FILLED, filled=close_qty,
+                                   price=fill_price, fee=fee)
+
+        sign = 1 if spec.side == "BUY" else -1
+        self._cash -= sign * quantity * fill_price + fee
+        self._positions[spec.symbol] = BrokerPosition(
+            symbol=spec.symbol, side=spec.side, quantity=quantity,
+            avg_price=fill_price,
+        )
+        return self._v2_update(spec, OrderState.FILLED, filled=quantity,
+                               price=fill_price, fee=fee)
+
+    def cancel_order(self, client_order_id: str) -> OrderUpdate:
+        known = self._orders.get(client_order_id)
+        if known is None:
+            return OrderUpdate(client_order_id=client_order_id,
+                               state=OrderState.REJECTED,
+                               reason="unknown order")
+        # everything is terminal on paper; canceling reports current truth
+        return known
+
+    def get_order(self, client_order_id: str) -> OrderUpdate | None:
+        return self._orders.get(client_order_id)
+
+    def open_orders(self) -> list[OrderUpdate]:
+        return [u for u in self._orders.values() if not u.state.terminal]
+
+    def poll_updates(self, since: datetime) -> list[OrderUpdate]:
+        return sorted((u for u in self._orders.values() if u.ts >= since),
+                      key=lambda u: u.ts)
+
 
 class LiveAdapterStub:
     """Placeholder for a real transport. Instantiable (so wiring can be
@@ -244,4 +357,27 @@ class LiveAdapterStub:
         self._refuse()
 
     def account(self) -> AccountState:
+        self._refuse()
+
+    # v2 surface refuses identically: arming live is a sign-off event
+    def capabilities(self) -> AdapterCapabilities:
+        self._refuse()
+
+    def place_order(self, spec: OrderSpec,
+                    bracket: BracketSpec | None = None) -> OrderUpdate:
+        self._refuse()
+
+    def cancel_order(self, client_order_id: str) -> OrderUpdate:
+        self._refuse()
+
+    def get_order(self, client_order_id: str) -> OrderUpdate | None:
+        self._refuse()
+
+    def open_orders(self) -> list[OrderUpdate]:
+        self._refuse()
+
+    def poll_updates(self, since: datetime) -> list[OrderUpdate]:
+        self._refuse()
+
+    def supported_symbols(self) -> set[str]:
         self._refuse()

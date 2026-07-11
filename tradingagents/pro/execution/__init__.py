@@ -1,14 +1,25 @@
 """Pro execution layer (Phase 9): one interface, paper adapters first."""
 
 from tradingagents.pro.execution.audit import AuditLog
+from tradingagents.pro.execution.instruments import (
+    InstrumentInfo,
+    InstrumentService,
+    InstrumentsUnavailable,
+)
 from tradingagents.pro.execution.interface import (
     AccountState,
+    AdapterCapabilities,
     AdapterError,
+    BracketSpec,
     BrokerPosition,
     ExecutionAdapter,
     ExecutionNotEnabled,
     OrderRequest,
     OrderResult,
+    OrderSpec,
+    OrderState,
+    OrderUpdate,
+    VenueAdapter,
 )
 from tradingagents.pro.execution.router import ExecutionRouter, ReconciliationReport
 from tradingagents.pro.execution.safety import BreakerState, CircuitBreaker, KillSwitch
@@ -23,12 +34,21 @@ from tradingagents.pro.execution.venues import (
 __all__ = [
     "AuditLog",
     "AccountState",
+    "AdapterCapabilities",
     "AdapterError",
+    "BracketSpec",
     "BrokerPosition",
     "ExecutionAdapter",
     "ExecutionNotEnabled",
+    "InstrumentInfo",
+    "InstrumentService",
+    "InstrumentsUnavailable",
     "OrderRequest",
     "OrderResult",
+    "OrderSpec",
+    "OrderState",
+    "OrderUpdate",
+    "VenueAdapter",
     "ExecutionRouter",
     "ReconciliationReport",
     "BreakerState",
