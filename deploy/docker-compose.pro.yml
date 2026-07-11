@@ -23,7 +23,10 @@ services:
       PRO_DASHBOARD_TOKEN: ${PRO_DASHBOARD_TOKEN:?set a dashboard API token}
     volumes:
       - pro-data:/data
-    restart: unless-stopped
+    # `always`, not `unless-stopped`: Docker Desktop stops containers
+    # gracefully on quit, which `unless-stopped` treats as a manual stop —
+    # the soak loop would silently stay down at next login.
+    restart: always
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
