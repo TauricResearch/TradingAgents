@@ -45,6 +45,7 @@ class DashboardState:
     prefs: PrefsStore = field(default_factory=PrefsStore)
     intel: IntelService = field(default_factory=IntelService)
     trigger = None            # PipelineTrigger, when a service loop is attached
+    metrics = None            # MetricsRegistry, when a service loop is attached
 
     @property
     def runs(self) -> list[RunRecord]:
@@ -143,6 +144,15 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     @app.get("/healthz")
     def healthz() -> dict:
         return {"status": "ok"}
+
+    @app.get("/metrics")
+    def metrics() -> Response:
+        # Prometheus scrape target; open like /healthz (no payload data,
+        # counters only). Empty until a service loop attaches a registry.
+        from fastapi.responses import PlainTextResponse
+
+        rendered = state.metrics.render_prometheus() if state.metrics else ""
+        return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.post("/api/session")
     def create_session(request: Request, response: Response) -> dict:

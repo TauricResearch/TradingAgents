@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
 import threading
 import uuid
 from pathlib import Path
@@ -92,17 +91,9 @@ class PrefsStore:
             return PrefsDocument()
 
     def _write(self) -> None:
-        """Atomic: temp file in the target directory, fsync, os.replace."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = self._document.model_dump_json(indent=1)
-        with tempfile.NamedTemporaryFile(
-            "w", dir=self.path.parent, suffix=".tmp",
-            delete=False, encoding="utf-8",
-        ) as tmp:
-            tmp.write(payload)
-            tmp.flush()
-            os.fsync(tmp.fileno())
-        os.replace(tmp.name, self.path)
+        from tradingagents.pro.persistence import atomic_write_text
+
+        atomic_write_text(self.path, self._document.model_dump_json(indent=1))
 
     # --- prefs -------------------------------------------------------------------
 

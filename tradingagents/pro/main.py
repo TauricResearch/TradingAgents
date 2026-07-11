@@ -172,6 +172,9 @@ def build_service(llm=None, data_dir: str | Path | None = None):
         llm_provider=os.environ.get("TRADINGAGENTS_LLM_PROVIDER", "deepseek"),
         quick_think_llm=os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM", "deepseek-chat"),
         deep_think_llm=os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM", "deepseek-chat"),
+        # opt-in (AI-07): default-on would refuse DeepSeek, which publishes
+        # no dated aliases. Live arming (go-live Phase 4) revisits this.
+        require_pinned_models=os.environ.get("PRO_REQUIRE_PINNED_MODELS") == "1",
     )
     config = ProConfig(asset=AssetClass.GOLD, max_debate_rounds=1, models=routing)
 
@@ -186,19 +189,22 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     from tradingagents.pro.dashboard.recorder import PipelineRecorder
 
     limits = RiskLimits()
-    memory = ProMemory()
+    # persistent memory + venue book: without both, service.rehydrate()
+    # has nothing to read after a container restart (go-live Phase 0)
+    memory = ProMemory(store_path=data_path / "memory.jsonl")
     state = DashboardState(memory=memory)
     state.recorder = PipelineRecorder(store_dir=data_path / "runs")
     state.prefs = PrefsStore(data_path / "dashboard_prefs.json")
     router = ExecutionRouter(
-        adapter=PaperVenueAdapter(VENUES["mt5"], starting_cash=100_000.0),
+        adapter=PaperVenueAdapter(VENUES["mt5"], starting_cash=100_000.0,
+                                  state_path=data_path / "paper_state.json"),
         limits=limits,
         kill_switch=KillSwitch(data_path / "KILL"),
         breaker=CircuitBreaker(limits, equity_base=100_000.0),
         audit=AuditLog(data_path / "audit.jsonl"),
     )
     state.router = router
-    state.equity = 100_000.0
+    state.equity = router.adapter.account().equity  # reflects a reloaded book
 
     # display symbol is XAUUSD (what the venue trades); GC=F is only the
     # yfinance ticker, mapped inside the loader. First container run
@@ -222,6 +228,7 @@ def build_service(llm=None, data_dir: str | Path | None = None):
                                    BroadcastAlertSink(state.broadcaster)]),
         on_event=state.broadcaster.publish,
     )
+    state.metrics = service.metrics  # /metrics scrape target
     return service, state
 
 

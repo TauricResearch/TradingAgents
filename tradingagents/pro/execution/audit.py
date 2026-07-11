@@ -49,9 +49,11 @@ class AuditLog:
         entry = {**body, "hash": self._digest(prev_hash, body)}
         self._entries.append(entry)
         if self._path:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            with self._path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(entry, sort_keys=True) + "\n")
+            # fsync per entry: an audit line the caller acted on must
+            # survive power loss (money-path prerequisite for go-live)
+            from tradingagents.pro.persistence import append_line_fsync
+
+            append_line_fsync(self._path, json.dumps(entry, sort_keys=True))
         return entry
 
     def verify(self) -> bool:

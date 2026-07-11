@@ -174,3 +174,20 @@ class TestPipelineTriggerEndpoint:
         bare = TestClient(create_app(DashboardState()))
         assert bare.post("/api/pipeline/run",
                          json={"symbol": "XAUUSD", "timeframe": "1h"}).status_code == 503
+
+
+class TestMetricsEndpoint:
+    def test_scrapeable_and_open(self, client):
+        # no registry attached -> empty but 200 (scrape target always up)
+        response = client.get("/metrics")
+        assert response.status_code == 200
+        assert response.text == ""
+
+    def test_renders_registry(self):
+        from tradingagents.pro.observability import MetricsRegistry
+
+        state = DashboardState(memory=ProMemory())
+        state.metrics = MetricsRegistry()
+        state.metrics.inc("runs_total")
+        text = TestClient(create_app(state)).get("/metrics").text
+        assert "runs_total 1" in text

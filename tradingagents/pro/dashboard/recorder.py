@@ -16,8 +16,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import tempfile
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -178,6 +176,8 @@ class PipelineRecorder:
     def _persist(self, run: RunRecord) -> None:
         assert self.store_dir is not None
         self.store_dir.mkdir(parents=True, exist_ok=True)
+        from tradingagents.pro.persistence import atomic_write_text
+
         payload = json.dumps({
             "run_id": run.run_id,
             "started_at": run.started_at.isoformat(),
@@ -186,14 +186,7 @@ class PipelineRecorder:
             "node_sequence": run.node_sequence,
             "state": _state_to_json(run.state),
         })
-        with tempfile.NamedTemporaryFile(
-            "w", dir=self.store_dir, suffix=".tmp",
-            delete=False, encoding="utf-8",
-        ) as tmp:
-            tmp.write(payload)
-            tmp.flush()
-            os.fsync(tmp.fileno())
-        os.replace(tmp.name, self.store_dir / f"{run.run_id}.json")
+        atomic_write_text(self.store_dir / f"{run.run_id}.json", payload)
         # prune files beyond the cap, oldest first (mtime order suffices)
         files = sorted(self.store_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
         for stale in files[:-self.max_runs]:
