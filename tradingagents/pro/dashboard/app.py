@@ -108,6 +108,13 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         cookie = request.cookies.get(SESSION_COOKIE, "")
         return bool(cookie) and cookie in sessions
 
+    if not token:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "dashboard auth DISABLED (no PRO_DASHBOARD_TOKEN) — dev/testing "
+            "only; set the token before any non-loopback exposure"
+        )
     if token:
         @app.middleware("http")
         async def require_api_key(request: Request, call_next):

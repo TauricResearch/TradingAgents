@@ -20,7 +20,9 @@ services:
       TRADINGAGENTS_PRO_DATA: /data
       OANDA_API_TOKEN: ${OANDA_API_TOKEN:-}
       OANDA_ENV: ${OANDA_ENV:-practice}
-      PRO_DASHBOARD_TOKEN: ${PRO_DASHBOARD_TOKEN:?set a dashboard API token}
+      # Empty = auth DISABLED (dev/testing; the port binds loopback only).
+      # Production: export PRO_DASHBOARD_TOKEN before `compose up`.
+      PRO_DASHBOARD_TOKEN: ${PRO_DASHBOARD_TOKEN:-}
     volumes:
       - pro-data:/data
     # `always`, not `unless-stopped`: Docker Desktop stops containers
