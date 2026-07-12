@@ -42,6 +42,11 @@ class ExecutionRouter:
     audit: AuditLog
     max_retries: int = 2
     local_book: dict[str, float] = field(default_factory=dict)  # symbol -> signed qty
+    # go-live Phase 2: when an OrderManager is injected, submissions run
+    # through the journaled OMS path (write-ahead, resolve-by-coid,
+    # brackets). None = the original synchronous path, unchanged.
+    oms = None
+    protection_mode: str = "bar_close"  # "venue_bracket" for live wiring
 
     def submit_recommendation(
         self, rec: TradeRecommendation | None, equity: float
@@ -51,6 +56,12 @@ class ExecutionRouter:
             "symbol": getattr(rec, "symbol", None),
             "action": getattr(rec, "action", None) and rec.action.value,
         })
+
+        # leading gate (OMS wiring only): a process that has not accounted
+        # for its outstanding orders does not trade
+        if self.oms is not None and not self.oms.recovered:
+            return self._refuse(rec, "oms_not_recovered",
+                                "boot recovery has not completed")
 
         supported = (
             self.adapter.supported_symbols()
@@ -68,6 +79,9 @@ class ExecutionRouter:
         breaker = self.breaker.check()
         if breaker.tripped:
             return self._refuse(rec, "circuit_breaker", breaker.reason)
+
+        if self.oms is not None:
+            return self._submit_via_oms(rec)
 
         order = OrderRequest(
             idempotency_key=rec.id,
@@ -139,6 +153,70 @@ class ExecutionRouter:
         return report
 
     # --- internals -----------------------------------------------------------
+
+    def _submit_via_oms(self, rec: TradeRecommendation) -> OrderResult:
+        """Phase-2 path: deterministic plan -> journaled OMS execution."""
+        from tradingagents.pro.execution import ids
+        from tradingagents.pro.execution.interface import BracketSpec, OrderState
+        from tradingagents.pro.execution.orders import ExecutionPlan
+
+        bracket = None
+        if rec.stop_loss is not None:
+            bracket = BracketSpec(
+                stop_loss_price=rec.stop_loss,
+                take_profits=tuple((tp.price, tp.size_fraction)
+                                   for tp in rec.take_profits),
+            )
+        plan = ExecutionPlan(
+            run_id=rec.id,
+            decision_hash=ids.decision_hash(rec),
+            symbol=rec.symbol,
+            side=rec.action.value,
+            quantity=rec.position_size.quantity,
+            reference_price=rec.entry_price,
+            bracket=bracket,
+            protection_mode=self.protection_mode,
+        )
+        order = self.oms.execute(plan)
+        status = {
+            OrderState.FILLED: "filled",
+            OrderState.REJECTED: "rejected",
+            OrderState.ABANDONED: "rejected",
+            OrderState.CANCELED: "rejected",
+        }.get(order.state, "submitted")
+        result = OrderResult(
+            status=status, idempotency_key=rec.id,
+            venue=self.adapter.name, venue_symbol=order.spec.venue_symbol,
+            filled_quantity=order.filled_quantity,
+            fill_price=order.avg_fill_price,
+            commission=order.commission,
+            reason=order.reason,
+        )
+        self.audit.append("order_result", {
+            "recommendation_id": rec.id,
+            "status": result.status,
+            "fill_price": result.fill_price,
+            "filled_quantity": result.filled_quantity,
+            "venue": result.venue,
+            "reason": result.reason,
+        })
+        if result.status == "filled":
+            sign = 1 if rec.action.value == "BUY" else -1
+            self.local_book[rec.symbol] = (
+                self.local_book.get(rec.symbol, 0.0)
+                + sign * result.filled_quantity
+            )
+        return result
+
+    def apply_closed_trades(self) -> list:
+        """Consume OMS-detected exits (venue-side stops/TPs/flattens) into
+        the same book/breaker path bar-close exits use."""
+        if self.oms is None:
+            return []
+        closed = self.oms.drain_closed()
+        for trade in closed:
+            self.record_close(trade.symbol, trade.pnl)
+        return closed
 
     def _refuse(self, rec, stage: str, reason: str) -> OrderResult:
         self.audit.append(stage, {

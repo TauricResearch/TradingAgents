@@ -285,9 +285,14 @@ class PaperTradingService:
         if not snapshot.bars:
             return []
         bar = snapshot.bars[-1]
-        closed = []
+        closed = self._consume_oms_exits(bar)
         for symbol, position in list(self.open_positions.items()):
             if symbol != snapshot.symbol:
+                continue
+            oms = getattr(self.router, "oms", None)
+            if oms is not None and oms.has_venue_protection(symbol):
+                # venue-side bracket owns the exit; bar-close management
+                # would double-close (go-live Phase 2 coexistence rule)
                 continue
             rec = position.recommendation
             long = rec.action is TradeAction.BUY
@@ -320,4 +325,30 @@ class PaperTradingService:
             self.metrics.set_gauge("last_realized_pnl", pnl)
             del self.open_positions[symbol]
             closed.append({"symbol": symbol, "pnl": pnl, "reason": reason})
+        return closed
+
+    def _consume_oms_exits(self, bar) -> list[dict]:
+        """Fold venue-detected exits (brackets/watchdog flattens) into the
+        SAME downstream path as bar-close exits: breaker, memory, metrics."""
+        oms = getattr(self.router, "oms", None)
+        if oms is None:
+            return []
+        oms.poll()
+        closed = []
+        for trade in oms.drain_closed():
+            position = self.open_positions.pop(trade.symbol, None)
+            self.router.record_close(trade.symbol, trade.pnl)
+            if position is not None:
+                record = self.memory.find_trade_by_recommendation(
+                    position.recommendation.id)
+                if record is not None:
+                    self.memory.close_trade(
+                        record.id, pnl=trade.pnl,
+                        lesson=f"exited via venue {trade.reason}",
+                        event_time=bar.start,
+                    )
+            self.metrics.inc("positions_closed_total", reason=trade.reason)
+            self.metrics.set_gauge("last_realized_pnl", trade.pnl)
+            closed.append({"symbol": trade.symbol, "pnl": trade.pnl,
+                           "reason": trade.reason})
         return closed

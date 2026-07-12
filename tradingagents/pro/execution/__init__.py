@@ -21,6 +21,14 @@ from tradingagents.pro.execution.interface import (
     OrderUpdate,
     VenueAdapter,
 )
+from tradingagents.pro.execution.journal import OrderJournal
+from tradingagents.pro.execution.oms import OrderManager, RecoveryFailed
+from tradingagents.pro.execution.orders import (
+    ClosedTrade,
+    ExecutionPlan,
+    IllegalTransition,
+    ManagedOrder,
+)
 from tradingagents.pro.execution.router import ExecutionRouter, ReconciliationReport
 from tradingagents.pro.execution.safety import BreakerState, CircuitBreaker, KillSwitch
 from tradingagents.pro.execution.validation import ValidationResult, validate_recommendation
@@ -30,6 +38,7 @@ from tradingagents.pro.execution.venues import (
     PaperVenueAdapter,
     VenueSpec,
 )
+from tradingagents.pro.execution.watchdog import BracketWatchdog
 
 __all__ = [
     "AuditLog",
@@ -49,8 +58,16 @@ __all__ = [
     "OrderState",
     "OrderUpdate",
     "VenueAdapter",
+    "BracketWatchdog",
+    "ClosedTrade",
+    "ExecutionPlan",
     "ExecutionRouter",
+    "IllegalTransition",
+    "ManagedOrder",
+    "OrderJournal",
+    "OrderManager",
     "ReconciliationReport",
+    "RecoveryFailed",
     "BreakerState",
     "CircuitBreaker",
     "KillSwitch",
