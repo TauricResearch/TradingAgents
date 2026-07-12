@@ -74,12 +74,12 @@ def main() -> None:
 
         return load_ohlcv("GC=F" if symbol == "XAUUSD" else symbol, curr_date)
 
-    builder = build_gold_pipeline(loader=gold_loader)
+    data_dir = Path(tempfile.mkdtemp(prefix="pro-live-"))
+    builder = build_gold_pipeline(loader=gold_loader,
+                                  cot_cache_path=data_dir / "cot_cache.json")
 
     def snapshot_source():
         return builder.build("XAUUSD", AssetClass.GOLD, bar_limit=250)
-
-    data_dir = Path(tempfile.mkdtemp(prefix="pro-live-"))
     limits = RiskLimits()
     from tradingagents.pro.dashboard.recorder import PipelineRecorder
 

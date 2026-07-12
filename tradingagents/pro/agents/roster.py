@@ -159,6 +159,16 @@ MACRO_SPECS: tuple[AgentSpec, ...] = (
           "Labor market via nonfarm payroll changes; strength vs cooling and "
           "the policy-path read-through.",
           metrics=("NFP_CHANGE",)),
+    _spec("cot_positioning", _M,
+          "Speculative positioning from the weekly CFTC COT report: net "
+          "non-commercial futures exposure, its share of open interest, and "
+          "the week-over-week shift (crowding vs capitulation).",
+          metrics=("GOLD_COT_NET_NONCOMM", "GOLD_COT_NET_PCT_OI",
+                   "GOLD_COT_NET_CHANGE_1W")),
+    _spec("implied_volatility", _M,
+          "Implied volatility regime via GVZ (CBOE gold vol index): level "
+          "and 1-day change vs what realized-vol metrics show.",
+          metrics=("GOLD_VOL_INDEX", "GOLD_VOL_INDEX_CHANGE_1D")),
     _spec("commodity_correlation", _M,
           "Cross-commodity confirmation: gold/silver correlation regime and "
           "whether the complex moves together.",

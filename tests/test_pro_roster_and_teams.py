@@ -24,7 +24,7 @@ AS_OF = datetime(2026, 7, 6, 14, 30, tzinfo=timezone.utc)
 
 APPENDIX_COUNTS = {
     AgentTeam.TECHNICAL: 24,
-    AgentTeam.MACRO: 11,
+    AgentTeam.MACRO: 13,
     AgentTeam.NEWS_SENTIMENT: 7,
     AgentTeam.QUANT: 8,
     AgentTeam.RISK: 9,
@@ -33,7 +33,7 @@ APPENDIX_COUNTS = {
 
 class TestRosterIntegrity:
     def test_full_appendix_coverage(self):
-        assert len(ROSTER) == sum(APPENDIX_COUNTS.values()) == 59
+        assert len(ROSTER) == sum(APPENDIX_COUNTS.values()) == 61
         for team, count in APPENDIX_COUNTS.items():
             assert len(SPECS_BY_TEAM[team]) == count, team
 

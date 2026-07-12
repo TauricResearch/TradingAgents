@@ -97,6 +97,7 @@ class PipelineTrigger:
 
     def _build_snapshot(self, symbol: str, asset, tf):
         from tradingagents.contracts import Timeframe
+        from tradingagents.pro.dashboard.prefs import default_data_dir
         from tradingagents.pro.ingestion.builder import SnapshotBuilder
         from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
         from tradingagents.pro.ingestion.fred_macro import FredMacroFeed
@@ -105,6 +106,7 @@ class PipelineTrigger:
             YFinanceDailyBarsFeed,
         )
         from tradingagents.pro.ingestion.onchain import CoinMetricsFeed, FearGreedFeed
+        from tradingagents.pro.ingestion.positioning import GoldCotFeed, GoldVolFeed
         from tradingagents.pro.ingestion.sessions import current_session
 
         delta = DeltaExchangeFeed()
@@ -118,13 +120,21 @@ class PipelineTrigger:
 
                 from tradingagents.pro.ingestion.builder import build_gold_pipeline
 
-                builder = build_gold_pipeline(loader=gold_loader)
+                builder = build_gold_pipeline(
+                    loader=gold_loader,
+                    cot_cache_path=default_data_dir() / "cot_cache.json",
+                )
             else:
                 # intraday gold: Delta XAUT (≈ spot) + the same macro context
                 yf = YFinanceDailyBarsFeed()
                 builder = SnapshotBuilder(
                     bars_feed=_MappedBars(delta, {"XAUUSD": "XAUTUSD"}),
-                    macro_feeds=(GoldCrossAssetFeed(yf), FredMacroFeed()),
+                    macro_feeds=(
+                        GoldCrossAssetFeed(yf), FredMacroFeed(),
+                        GoldCotFeed(cache_path=default_data_dir()
+                                    / "cot_cache.json"),
+                        GoldVolFeed(yf),
+                    ),
                     session_fn=current_session,
                 )
         else:
@@ -214,7 +224,8 @@ def build_service(llm=None, data_dir: str | Path | None = None):
 
         return load_ohlcv("GC=F" if symbol == "XAUUSD" else symbol, curr_date)
 
-    builder = build_gold_pipeline(loader=gold_loader)
+    builder = build_gold_pipeline(loader=gold_loader,
+                                  cot_cache_path=data_path / "cot_cache.json")
 
     def snapshot_source():
         from tradingagents.contracts import AssetClass as AC

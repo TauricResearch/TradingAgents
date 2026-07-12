@@ -126,6 +126,7 @@ class IntelService:
     @property
     def feeds(self) -> dict[str, Callable[[], list]]:
         if self._feeds is None:
+            from tradingagents.pro.dashboard.prefs import default_data_dir
             from tradingagents.pro.ingestion.binance import (
                 BinanceDerivativesFeed,
                 BinanceSpotFeed,
@@ -142,10 +143,15 @@ class IntelService:
                 CoinMetricsFeed,
                 FearGreedFeed,
             )
+            from tradingagents.pro.ingestion.positioning import (
+                GoldCotFeed,
+                GoldVolFeed,
+            )
 
             derivatives = BinanceDerivativesFeed()
             spot = BinanceSpotFeed()
             delta = DeltaExchangeFeed()
+            yf_daily = YFinanceDailyBarsFeed()
             self._feeds = {
                 "delta_derivatives": lambda: delta.get_metrics("BTCUSD"),
                 "binance_derivatives": derivatives.get_metrics,
@@ -154,8 +160,12 @@ class IntelService:
                 "fear_greed": FearGreedFeed().get_metrics,
                 "coinmetrics": CoinMetricsFeed().get_metrics,
                 "gold_cross_asset":
-                    GoldCrossAssetFeed(YFinanceDailyBarsFeed()).get_metrics,
+                    GoldCrossAssetFeed(yf_daily).get_metrics,
                 "fred_macro": FredMacroFeed().get_metrics,
+                "gold_cot": GoldCotFeed(
+                    cache_path=default_data_dir() / "cot_cache.json"
+                ).get_metrics,
+                "gold_vol": GoldVolFeed(yf_daily).get_metrics,
             }
         return self._feeds
 

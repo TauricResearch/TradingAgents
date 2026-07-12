@@ -29,6 +29,10 @@ const GROUPS: { title: string; names: string[] }[] = [
     title: "Macro (FRED)",
     names: ["CPI_YOY", "FED_FUNDS_RATE", "PPI_YOY", "NFP"],
   },
+  {
+    title: "Gold positioning & vol",
+    names: ["GOLD_COT_NET", "GOLD_VOL_INDEX"],
+  },
 ];
 
 function CorrelationMatrix() {

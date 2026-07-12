@@ -106,7 +106,20 @@ def test_gold_pipeline_end_to_end_with_fakes(monkeypatch):
     fred_payload = {
         "observations": [{"date": "2026-07-03", "value": "4.25"}]
     }
-    transport = FakeTransport({"/fred/series/observations": fred_payload})
+    cot_payload = [
+        {"report_date_as_yyyy_mm_dd": "2026-07-07T00:00:00.000",
+         "noncomm_positions_long_all": "233713",
+         "noncomm_positions_short_all": "39467",
+         "open_interest_all": "371776"},
+        {"report_date_as_yyyy_mm_dd": "2026-06-30T00:00:00.000",
+         "noncomm_positions_long_all": "229619",
+         "noncomm_positions_short_all": "35600",
+         "open_interest_all": "369541"},
+    ]
+    transport = FakeTransport({
+        "/fred/series/observations": fred_payload,
+        "publicreporting.cftc.gov": cot_payload,
+    })
 
     builder = build_gold_pipeline(loader=fake_loader, transport=transport)
     snapshot = builder.build("GC=F", AssetClass.GOLD, bar_limit=40, as_of=AS_OF)
@@ -116,6 +129,8 @@ def test_gold_pipeline_end_to_end_with_fakes(monkeypatch):
     macro_names = {m.name for m in snapshot.macro}
     assert "XAU_XAG_CORR_30D" in macro_names
     assert "US10Y" in macro_names
+    assert "GOLD_COT_NET_NONCOMM" in macro_names  # DR-1 positioning
+    assert "GOLD_VOL_INDEX" in macro_names        # DR-1 implied vol
     assert snapshot.missing_feeds == []
 
 

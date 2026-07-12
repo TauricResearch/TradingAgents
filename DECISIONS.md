@@ -422,3 +422,26 @@ QUANT-01/02/03, MODEL-01, REL-01, SEC-01/02, CTX-01 (partial).
   build (SEC-02); exponential backoff on structured-call retries and
   bind-once runnables (CTX-01 partial — full system/user message split
   remains open with tracing/roster work).
+
+## ADR-0032: DR-1 external "reference tools" — OpenBB as discovery, direct REST at runtime; Hermes rejected
+
+- **Context:** operator shared a social-media graphic pitching
+  TradingAgents + OpenBB + Hermes as "a full hedge fund desk."
+- **OpenBB:** used interactively to discover/validate the datasets the
+  gold roster lacked (CFTC COT gold positioning, CBOE GVZ). At runtime we
+  call the same public endpoints directly (`publicreporting.cftc.gov`
+  Socrata API; `^GVZ` via the existing yfinance plumbing) behind our
+  standard feed classes: the openbb meta-package's ~30-package tree
+  failed the dependency gate (requirements.lock surface, pip-audit
+  exposure, Docker image size) for what amounts to one REST call and one
+  extra ticker. Its keyless economic-calendar provider reduces to FRED,
+  which we already integrate — the "second calendar source" idea was
+  dropped rather than duplicated.
+- **Hermes (NousResearch hermes-agent): rejected.** A self-improving,
+  self-modifying LLM agent may never orchestrate this pipeline. The
+  system's safety architecture exists precisely to keep LLM output away
+  from money paths: deterministic engines compute every number,
+  deterministic gates have the last word, and no gate has an override.
+  "The learning brain that orchestrates it all" is the exact design we
+  refuse. Any future research-assistant use would enter only through the
+  injection-quarantined news/intel path, as untrusted text.

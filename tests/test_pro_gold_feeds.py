@@ -12,6 +12,7 @@ FRAMES = {
     "SI=F": make_ohlcv_frame(n=40, start_price=29.0),
     "DX-Y.NYB": make_ohlcv_frame(n=5, start_price=104.0),
     "^TNX": make_ohlcv_frame(n=5, start_price=42.0),
+    "^GVZ": make_ohlcv_frame(n=5, start_price=24.0),
 }
 
 
