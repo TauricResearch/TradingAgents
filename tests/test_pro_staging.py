@@ -114,7 +114,7 @@ class TestModeRouting:
         arming.arm("XAUUSD", "live", operator="t")
         service.run_once()
         # settle the live entry so the venue holds the position
-        for coid, order in fake.orders.items():
+        for coid in fake.orders:
             fake.settle(coid)
         live_oms.poll()
         report = service.router.reconcile()
