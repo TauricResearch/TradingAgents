@@ -137,6 +137,19 @@ export const StatusSchema = z
       .array(z.object({ symbol: z.string(), quantity: z.number() }))
       .optional(),
     equity: z.number().nullable().optional(),
+    live_armed: z.boolean().optional(),
+    arming: z
+      .record(
+        z.string(),
+        z.object({
+          pair: z.string(),
+          tier: z.string(),
+          label: z.string(),
+          expires_at: z.string().optional(),
+          expired: z.boolean().optional(),
+        }),
+      )
+      .optional(),
   })
   .passthrough();
 export type SystemStatus = z.infer<typeof StatusSchema>;

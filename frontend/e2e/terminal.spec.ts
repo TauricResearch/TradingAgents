@@ -323,3 +323,17 @@ test.describe("v7 on-demand pipeline", () => {
     await expect(rail.locator("li").first()).toContainText("1d");
   });
 });
+
+test.describe("v-golive Phase 4 arming", () => {
+  test("paper mode shows no live banner or flatten control", async ({
+    page,
+  }) => {
+    // safety-critical direction: the live-armed banner and its one
+    // execution write must NEVER appear while every pair is paper (the
+    // demo server's default state).
+    await unlock(page);
+    await expect(page.getByTestId("risk-badge")).toBeVisible();
+    await expect(page.getByTestId("arming-banner")).toHaveCount(0);
+    await expect(page.getByTestId("emergency-flatten")).toHaveCount(0);
+  });
+});

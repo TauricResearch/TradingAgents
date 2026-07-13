@@ -46,6 +46,8 @@ class DashboardState:
     intel: IntelService = field(default_factory=IntelService)
     trigger = None            # PipelineTrigger, when a service loop is attached
     metrics = None            # MetricsRegistry, when a service loop is attached
+    arming = None             # ArmingStore, when live wiring is present
+    alerts = None             # AlertManager, when a service loop is attached
 
     @property
     def runs(self) -> list[RunRecord]:
@@ -337,7 +339,27 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
 
     @app.get("/api/status")
     def status() -> dict:
-        return service.system_status(state.router, state.equity)
+        return service.system_status(state.router, state.equity, state.arming)
+
+    @app.post("/api/flatten")
+    async def flatten(request: Request) -> JSONResponse:
+        """Emergency flatten — the ONE sanctioned dashboard->execution
+        write. Behind auth (the /api middleware) plus a typed-confirmation
+        body echoing the exact phrase the UI generated."""
+        if state.router is None:
+            raise HTTPException(status_code=503,
+                                detail="no execution router attached")
+        body = await request.json()
+        if body.get("confirm") != "FLATTEN":
+            raise HTTPException(
+                status_code=422,
+                detail="type FLATTEN to confirm the emergency flatten")
+        from tradingagents.pro.flatten import emergency_flatten
+
+        summary = emergency_flatten(
+            state.router, arming=state.arming, operator="dashboard",
+            alerts=getattr(state, "alerts", None))
+        return JSONResponse({"status": "flattened", **summary})
 
     @app.get("/api/alerts")
     def alerts() -> dict:

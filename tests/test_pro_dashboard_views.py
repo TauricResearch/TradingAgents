@@ -93,7 +93,10 @@ def make_router() -> ExecutionRouter:
 
 class TestSystemStatus:
     def test_unattached(self):
-        assert system_status(None) == {"attached": False, "trading_halted": None}
+        view = system_status(None)
+        assert view["attached"] is False
+        assert view["trading_halted"] is None
+        assert view["live_armed"] is False  # arming absent = all paper
 
     def test_healthy_router(self):
         router = make_router()

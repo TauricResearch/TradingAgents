@@ -140,6 +140,25 @@ shortcut and no dashboard button**: Settings shows the operator runbook
 command behind a typed HALT confirmation — the dashboard is read-only
 over execution by design.
 
+## Emergency Flatten — the one exception (go-live Phase 4)
+
+The dashboard is read-only over execution with **exactly one** write
+path: an **Emergency Flatten** control that appears only while a pair is
+armed at a live tier, in the immovable amber `LIVE — ARMED` banner
+(sibling of the halt banner). It sits behind the `/api/*` auth middleware
+plus a typed `FLATTEN` confirmation, and calls the same
+`emergency_flatten` routine as the CLI: cancel every resting order, close
+every position at market (reduce-only), engage the kill switch, and
+disarm all pairs — all hash-chain audited.
+
+The rationale is a deliberate reversal of the read-only principle for
+this one control: **in live trading, the absence of a one-press stop is
+more dangerous than its presence.** A trapped operator watching real
+capital move against them must be able to halt from the surface they are
+already looking at. Every *other* execution action — entries, exits,
+re-arming — stays off the dashboard; arming itself is the CLI ceremony
+(`tradingagents-pro arm-live`), never a button.
+
 ## PWA & performance
 
 - vite-plugin-pwa, `registerType: "prompt"` (a trading UI is never

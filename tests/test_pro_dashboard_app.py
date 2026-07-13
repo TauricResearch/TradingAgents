@@ -68,7 +68,10 @@ def test_api_surface(client):
     assert "invalidation" in recommendation  # EXPL-02: reflection surfaced
 
     status = client.get("/api/status").json()
-    assert status == {"attached": False, "trading_halted": None}  # no router wired
+    # no router wired; arming absent = every pair paper (go-live Phase 4)
+    assert status["attached"] is False
+    assert status["trading_halted"] is None
+    assert status["live_armed"] is False
 
     alerts = client.get("/api/alerts").json()
     assert alerts == {"alerts": []}  # clean accepted run

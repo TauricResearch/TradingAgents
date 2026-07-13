@@ -31,14 +31,20 @@ def market_overview(run: RunRecord | None) -> dict:
     return summary
 
 
-def system_status(router, equity: float | None = None) -> dict:
-    """Kill switch, circuit breaker, and open book (UX review RISK-01).
+def system_status(router, equity: float | None = None, arming=None) -> dict:
+    """Kill switch, circuit breaker, open book, and per-pair arming
+    (UX review RISK-01; go-live Phase 4).
 
     ``router`` is an ExecutionRouter or None (dashboard attached to a
     replay/monitor-only state). Read-only: reset stays an operator action.
+    ``arming`` is an ArmingStore or None; absent = every pair is PAPER.
     """
+    arming_view = arming.status() if arming is not None else {}
+    live_armed = any(v["tier"] in ("canary", "live")
+                     for v in arming_view.values())
     if router is None:
-        return {"attached": False, "trading_halted": None}
+        return {"attached": False, "trading_halted": None,
+                "arming": arming_view, "live_armed": live_armed}
     breaker = router.breaker.check()
     engaged = router.kill_switch.engaged
     return {
@@ -51,6 +57,8 @@ def system_status(router, equity: float | None = None) -> dict:
         ],
         "equity": equity,
         "trading_halted": engaged or breaker.tripped,
+        "arming": arming_view,
+        "live_armed": live_armed,
     }
 
 

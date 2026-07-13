@@ -57,6 +57,7 @@ dashboard = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-pro = "tradingagents.pro.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]
@@ -94,6 +95,7 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]   # intentional re-exports
+"tradingagents/pro/cli.py" = ["B008"]  # Typer Option()-in-default is idiomatic
 
 [tool.ruff.lint.isort]
 # Keep multiple aliased names from one module in a single combined import block

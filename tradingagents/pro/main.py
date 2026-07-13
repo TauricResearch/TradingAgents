@@ -216,6 +216,15 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     state.router = router
     state.equity = router.adapter.account().equity  # reflects a reloaded book
 
+    # per-pair arming state (go-live Phase 4). Every pair defaults to
+    # paper; the tradingagents-pro arm-live ceremony flips it, and the
+    # dashboard header + /api/flatten read it. Present but paper-only
+    # until the live routing lands (Phase 6).
+    from tradingagents.pro.arming import ArmingStore
+
+    state.arming = ArmingStore(data_path / "arming.json",
+                               audit=router.audit)
+
     # display symbol is XAUUSD (what the venue trades); GC=F is only the
     # yfinance ticker, mapped inside the loader. First container run
     # proved why: a GC=F-labeled order is refused at venue validation.
@@ -240,6 +249,7 @@ def build_service(llm=None, data_dir: str | Path | None = None):
         on_event=state.broadcaster.publish,
     )
     state.metrics = service.metrics  # /metrics scrape target
+    state.alerts = service.alerts    # emergency-flatten alerting
     return service, state
 
 

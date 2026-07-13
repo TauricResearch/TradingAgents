@@ -112,6 +112,23 @@ def build_state() -> DashboardState:
             return pipeline_snapshot()
 
     state.trigger = DemoTrigger(service)
+
+    # PRO_DEMO_ARM=BTC-USD:canary arms a pair so the live banner +
+    # Emergency Flatten control are exercisable in the demo (go-live P4).
+    import os
+
+    demo_arm = os.environ.get("PRO_DEMO_ARM")
+    if demo_arm:
+        import tempfile
+        from pathlib import Path
+
+        from tradingagents.pro.arming import ArmingStore
+
+        pair, _, tier = demo_arm.partition(":")
+        arming = ArmingStore(Path(tempfile.mkdtemp()) / "arming.json",
+                             audit=state.router.audit)
+        arming.arm(pair, tier or "canary", operator="demo")
+        state.arming = arming
     return state
 
 

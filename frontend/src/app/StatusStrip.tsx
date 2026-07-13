@@ -1,10 +1,13 @@
 /** Immovable safety chrome: connection state, loop/risk state, feed
  * health, session, prices. The halt banner renders above everything
  * when trading is halted — it cannot be hidden or moved. */
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell, Moon, Search, Sun } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api/client";
+import { qk } from "@/lib/api/queries";
 import { useNotifications, useOverview, useStatus } from "@/lib/api/queries";
 import { fmtPrice, fmtTime } from "@/lib/format";
 import { useConnectionState } from "@/lib/staleness";
@@ -66,6 +69,64 @@ export function HaltBanner() {
     >
       ⛔ TRADING HALTED — {reason}
     </div>
+  );
+}
+
+/** Live-armed banner: a sibling of HaltBanner, immovable, shown whenever
+ * any pair is armed at a live tier. Real capital is exposed — say so. */
+export function ArmingBanner() {
+  const status = useStatus();
+  const arming = status.data?.arming;
+  if (!arming) return null;
+  const armed = Object.values(arming).filter((a) =>
+    ["canary", "live"].includes(a.tier),
+  );
+  if (armed.length === 0) return null;
+  return (
+    <div
+      role="alert"
+      className="flex items-center justify-between gap-2 bg-[#8a6d00] px-4 py-1.5 text-sm font-bold text-[#0d1117]"
+      data-testid="arming-banner"
+    >
+      <span>
+        🔴 LIVE — ARMED:{" "}
+        {armed.map((a) => `${a.pair} (${a.tier})`).join(", ")}
+      </span>
+      <EmergencyFlattenButton />
+    </div>
+  );
+}
+
+/** The ONE sanctioned dashboard→execution write. Auth (session cookie)
+ * plus a typed confirmation; on success the kill switch engages and every
+ * pair disarms. Documented in DASHBOARD.md as the deliberate exception to
+ * read-only-over-execution. */
+function EmergencyFlattenButton() {
+  const client = useQueryClient();
+  const flatten = async () => {
+    const typed = window.prompt(
+      "EMERGENCY FLATTEN cancels all orders and closes all positions at " +
+        "market, then disarms. Type FLATTEN to confirm.",
+    );
+    if (typed !== "FLATTEN") return;
+    try {
+      await apiFetch("/api/flatten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "FLATTEN" }),
+      });
+    } finally {
+      void client.invalidateQueries({ queryKey: qk.status });
+    }
+  };
+  return (
+    <button
+      onClick={() => void flatten()}
+      className="rounded border border-[#0d1117] bg-bear px-2 py-0.5 text-xs font-bold text-[#0d1117] hover:brightness-110"
+      data-testid="emergency-flatten"
+    >
+      EMERGENCY FLATTEN
+    </button>
   );
 }
 

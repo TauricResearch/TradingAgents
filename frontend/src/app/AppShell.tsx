@@ -5,7 +5,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { AuthGate } from "./AuthGate";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Sidebar } from "./Sidebar";
-import { HaltBanner, StatusStrip } from "./StatusStrip";
+import { ArmingBanner, HaltBanner, StatusStrip } from "./StatusStrip";
 import { CommandPalette } from "@/components/CommandPalette";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { RunPipelineDialog } from "@/components/RunPipelineDialog";
@@ -119,6 +119,7 @@ export function AppShell() {
         <Wiring />
         <div className="flex h-screen flex-col">
           <HaltBanner />
+          <ArmingBanner />
           <StatusStrip />
           <div className="flex min-h-0 grow">
             <Sidebar />
