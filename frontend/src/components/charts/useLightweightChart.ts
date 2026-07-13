@@ -81,5 +81,6 @@ export function chartColors() {
     neutral: v("--neutral"),
     accent: v("--accent"),
     muted: v("--fg-subtle"),
+    onSolid: v("--on-solid"),
   };
 }

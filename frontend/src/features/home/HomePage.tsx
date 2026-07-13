@@ -51,8 +51,9 @@ function PortfolioSnapshot() {
   if (journal.isPending) return <SkeletonCard lines={4} />;
   const j = journal.data;
   return (
-    // brand-gradient panel (reskin): white text on --brand -> deep blue
-    <div className="-m-1 space-y-3 rounded-[16px] bg-[linear-gradient(135deg,var(--brand),#1a3f96)] p-4 text-white">
+    // brand-gradient panel (reskin): literal blues, not var(--brand) — the
+    // dark theme's brand (#7d9ef2) is too light for this card's white text
+    <div className="-m-1 space-y-3 rounded-[16px] bg-[linear-gradient(135deg,#2456c5,#1a3f96)] p-4 text-white">
       <div>
         <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
           Equity

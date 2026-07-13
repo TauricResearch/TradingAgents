@@ -60,7 +60,7 @@ function RunRail({
             className={cn(
               "rounded-full border px-2.5 py-0.5 font-semibold capitalize",
               filter === f
-                ? "border-accent bg-accent text-white"
+                ? "border-accent bg-accent text-on-solid"
                 : "border-border text-fg-subtle hover:text-fg",
             )}
             aria-pressed={filter === f}

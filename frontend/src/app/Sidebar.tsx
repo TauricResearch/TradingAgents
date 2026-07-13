@@ -59,7 +59,7 @@ function Item({
           "max-md:flex-col max-md:gap-0.5 max-md:px-2 max-md:py-2 max-md:text-[10px]",
           "max-[1150px]:md:justify-center max-[1150px]:md:px-2",
           isActive
-            ? "bg-accent text-white shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)]"
+            ? "bg-accent text-on-solid shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)]"
             : "text-fg-muted hover:bg-surface-2 hover:text-fg",
         )
       }

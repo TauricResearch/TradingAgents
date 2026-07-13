@@ -25,7 +25,7 @@
 
   --fg: #1a2130;
   --fg-muted: #5a6474;
-  --fg-subtle: #8a93a6;
+  --fg-subtle: #646f84; /* 4.68:1 on --surface-2 (spec #8a93a6 was 2.85) */
 
   --bull: #157945;
   --bull-muted: rgba(21, 121, 69, 0.12);
@@ -35,6 +35,7 @@
   --neutral-muted: rgba(139, 97, 13, 0.12);
   --accent: #2456c5; /* brand */
   --accent-muted: rgba(36, 86, 197, 0.1);
+  --on-solid: #ffffff; /* text on solid accent/bull/bear/neutral fills */
   --brand: var(--accent);
   --brand-strong: #1c46a6;
   --brand-muted: var(--accent-muted);
@@ -75,7 +76,7 @@
 
   --fg: #edf1f8;
   --fg-muted: #a5afc4;
-  --fg-subtle: #7c87a0;
+  --fg-subtle: #93a0bb; /* 4.91:1 on --surface-2 (spec #7c87a0 was 3.58) */
 
   --bull: #41bb77;
   --bull-muted: rgba(65, 187, 119, 0.15);
@@ -86,8 +87,11 @@
   --accent: #7d9ef2;
   --accent-muted: rgba(125, 158, 242, 0.15);
   --brand-strong: #97b2f5;
+  /* dark accent/bear/neutral are light-valued: white text on them fails
+     WCAG (2.2–2.6:1); solid fills use dark text instead */
+  --on-solid: #10151f;
 
-  --stale: #9e8747;
+  --stale: #a89050; /* 4.94:1 on surface (was #9e8747 = 4.40) */
   --locked: #7c87a0;
   --live: #41bb77;
 
@@ -118,6 +122,7 @@
   --color-neutral-muted: var(--neutral-muted);
   --color-accent: var(--accent);
   --color-accent-muted: var(--accent-muted);
+  --color-on-solid: var(--on-solid);
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
   --color-critical: var(--critical);

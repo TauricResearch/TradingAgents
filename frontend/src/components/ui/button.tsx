@@ -10,7 +10,7 @@ const buttonVariants = cva(
       variant: {
         // primary CTA: solid brand with a soft brand shadow (reskin)
         default:
-          "bg-accent text-white hover:bg-brand-strong shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)]",
+          "bg-accent text-on-solid hover:bg-brand-strong shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)]",
         // the pre-reskin default look, kept for chip-like secondary actions
         muted:
           "bg-accent-muted text-accent hover:bg-accent/20 border border-border",

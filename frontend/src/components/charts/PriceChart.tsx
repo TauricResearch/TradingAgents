@@ -248,6 +248,7 @@ export function PriceChart({
         series.createPriceLine({
           price: recommendation.entry_price,
           color: colors.accent,
+          axisLabelTextColor: colors.onSolid,
           lineWidth: 1,
           lineStyle: 0,
           title: "ENTRY",
@@ -258,6 +259,7 @@ export function PriceChart({
           series.createPriceLine({
             price: recommendation.stop_loss,
             color: colors.bear,
+            axisLabelTextColor: colors.onSolid,
             lineWidth: 1,
             lineStyle: 1,
             title: "STOP",
@@ -269,6 +271,7 @@ export function PriceChart({
           series.createPriceLine({
             price: tp.price,
             color: colors.bull,
+            axisLabelTextColor: colors.onSolid,
             lineWidth: 1,
             lineStyle: 2,
             title: `TP${i + 1} · ${Math.round(tp.size_fraction * 100)}%`,

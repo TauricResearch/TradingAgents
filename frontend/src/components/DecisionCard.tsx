@@ -309,7 +309,7 @@ export function DecisionCard({
         (hero ? (
           <Link
             to={`/decisions/${runId}`}
-            className="inline-flex items-center rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)] hover:bg-brand-strong"
+            className="inline-flex items-center rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-on-solid shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)] hover:bg-brand-strong"
           >
             Open full reasoning →
           </Link>

@@ -123,7 +123,7 @@ export function HaltBanner() {
   return (
     <div
       role="alert"
-      className="rounded-2xl bg-bear px-4 py-2 text-sm font-bold text-white"
+      className="rounded-2xl bg-bear px-4 py-2 text-sm font-bold text-on-solid"
       data-testid="halt-banner"
     >
       ⛔ TRADING HALTED — {reason}
@@ -144,7 +144,7 @@ export function ArmingBanner() {
   return (
     <div
       role="alert"
-      className="flex items-center justify-between gap-2 rounded-2xl bg-neutral px-4 py-1.5 text-sm font-bold text-white"
+      className="flex items-center justify-between gap-2 rounded-2xl bg-neutral px-4 py-1.5 text-sm font-bold text-on-solid"
       data-testid="arming-banner"
     >
       <span>
@@ -181,7 +181,7 @@ function EmergencyFlattenButton() {
   return (
     <button
       onClick={() => void flatten()}
-      className="rounded-lg bg-bear px-2.5 py-1 text-xs font-bold text-white ring-1 ring-white/60 hover:brightness-110"
+      className="rounded-lg bg-bear px-2.5 py-1 text-xs font-bold text-on-solid ring-1 ring-white/60 hover:brightness-110"
       data-testid="emergency-flatten"
     >
       EMERGENCY FLATTEN
@@ -276,7 +276,7 @@ export function StatusStrip() {
         >
           <Bell size={15} />
           {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-bear px-1 text-[10px] font-bold text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-bear px-1 text-[10px] font-bold text-on-solid">
               {unread > 99 ? "99+" : unread}
             </span>
           )}
