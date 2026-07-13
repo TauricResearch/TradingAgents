@@ -8,7 +8,6 @@ import { AlertFeedList } from "@/components/AlertFeedList";
 import { DecisionCard } from "@/components/DecisionCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Sparkline } from "@/components/Sparkline";
-import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { WatchlistPanel } from "@/components/WatchlistPanel";
@@ -34,8 +33,14 @@ function DecisionHero() {
   if (rec.isPending) return <SkeletonCard lines={5} />;
   if (rec.isError)
     return <EmptyState kind="error" title="Decision unavailable" detail={String(rec.error)} />;
+  const o = overview.data;
   return (
-    <DecisionCard rec={rec.data} runId={overview.data?.run_id ?? null} />
+    <DecisionCard
+      rec={rec.data}
+      hero
+      kicker={`AI Decision — ${o?.symbol ?? "—"}`}
+      runId={o?.run_id ?? null}
+    />
   );
 }
 
@@ -46,32 +51,51 @@ function PortfolioSnapshot() {
   if (journal.isPending) return <SkeletonCard lines={4} />;
   const j = journal.data;
   return (
-    <div className="grid grid-cols-2 gap-2">
-      <StatCard
-        label="Equity"
-        value={status.data?.equity != null ? fmtPrice(status.data.equity, 0) : "—"}
-        sub={
-          status.data?.attached === false ? "monitor mode — no execution attached" : undefined
-        }
-      />
-      <StatCard
-        label="Total P&L"
-        value={fmtPnl(j?.total_pnl)}
-        tone={j && j.total_pnl >= 0 ? "bull" : "bear"}
-        n={j?.n_trades}
-        sub={j?.win_rate != null ? `win rate ${fmtPct(j.win_rate, 0)}` : "no closed trades"}
-      />
-      <div className="col-span-2 flex items-center justify-between rounded-md border border-border bg-surface-2/50 px-3 py-2">
-        <span className="text-xs uppercase tracking-wide text-fg-subtle">
+    // brand-gradient panel (reskin): white text on --brand -> deep blue
+    <div className="-m-1 space-y-3 rounded-[16px] bg-[linear-gradient(135deg,var(--brand),#1a3f96)] p-4 text-white">
+      <div>
+        <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
+          Equity
+        </div>
+        <div className="font-mono text-[34px] font-bold leading-tight tabular">
+          {status.data?.equity != null ? fmtPrice(status.data.equity, 0) : "—"}
+        </div>
+        {status.data?.attached === false && (
+          <div className="text-[11px] text-white/70">
+            monitor mode — no execution attached
+          </div>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span>
+          P&L{" "}
+          <span className="font-mono font-semibold tabular">
+            {fmtPnl(j?.total_pnl)}
+          </span>
+          {j?.n_trades != null && (
+            <span className="text-white/70"> (n={j.n_trades})</span>
+          )}
+        </span>
+        <span className="text-white/85">
+          {j?.win_rate != null
+            ? `win rate ${fmtPct(j.win_rate, 0)}`
+            : "no closed trades"}
+        </span>
+      </div>
+      <div className="flex items-center justify-between rounded-xl bg-white/10 px-3 py-2">
+        <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
           Backtest equity
         </span>
         {backtest.data?.equity_curve && backtest.data.equity_curve.length > 1 ? (
           <Sparkline values={backtest.data.equity_curve} width={160} height={32} />
         ) : (
-          <span className="text-xs text-fg-subtle">no backtest yet</span>
+          <span className="text-xs text-white/70">no backtest yet</span>
         )}
       </div>
-      <Link to="/portfolio" className="col-span-2 text-sm text-accent hover:underline">
+      <Link
+        to="/portfolio"
+        className="inline-flex items-center rounded-xl border border-white/40 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/10"
+      >
         Open portfolio →
       </Link>
     </div>
@@ -96,10 +120,21 @@ function PriceRibbon() {
           <Link
             key={row.symbol}
             to={`/trade/${row.symbol}`}
-            className="rounded-md border border-border bg-surface-2/50 px-3 py-2 hover:border-border-strong"
+            className="rounded-[14px] bg-surface-2 px-3.5 py-2.5 transition-colors hover:bg-surface-solid hover:shadow-sm"
           >
-            <div className="text-xs text-fg-subtle">{row.symbol}</div>
-            <div className="font-mono text-lg tabular">{fmtPrice(price)}</div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold">{row.symbol}</span>
+              <span
+                className={
+                  row.tick
+                    ? "rounded-full bg-bull-muted px-2 py-0.5 text-[10px] font-bold text-bull"
+                    : "rounded-full border border-dashed border-stale px-2 py-0.5 text-[10px] font-bold text-stale"
+                }
+              >
+                {row.tick ? "LIVE" : "EOD"}
+              </span>
+            </div>
+            <div className="font-mono text-[17.5px] tabular">{fmtPrice(price)}</div>
             <div className="text-[11px] text-fg-subtle">
               {row.tick
                 ? `live · ${row.tick.source}`

@@ -30,6 +30,12 @@ function WatchRow({ symbol, onRemove }: { symbol: string; onRemove: () => void }
   const price = tick?.last ?? fallback;
   return (
     <li className="flex items-center gap-2 border-b border-border/50 py-1.5">
+      <span
+        aria-hidden="true"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] bg-surface-2 text-[10px] font-bold text-fg-muted"
+      >
+        {symbol.slice(0, 2).toUpperCase()}
+      </span>
       <Link
         to={`/trade/${symbol}`}
         className="w-20 shrink-0 font-mono text-sm hover:text-accent"
