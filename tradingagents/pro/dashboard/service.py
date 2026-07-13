@@ -31,7 +31,71 @@ def market_overview(run: RunRecord | None) -> dict:
     return summary
 
 
-def system_status(router, equity: float | None = None, arming=None) -> dict:
+def _mark_for(symbol: str, ticks, marketdata) -> tuple[float | None, str]:
+    """Best available mark price with an honest provenance label:
+    live tick > latest daily close (eod) > none (falls back to entry)."""
+    if ticks is not None:
+        cached = ticks.get(symbol)
+        if cached is not None:
+            return cached[0], "live"
+    if marketdata is not None:
+        try:
+            bars = marketdata.get_bars(symbol, "1d", limit=1)
+            if bars:
+                return bars[-1].close, "eod"
+        except Exception:  # degraded vendor must not break /api/status
+            pass
+    return None, "entry"
+
+
+def open_positions_view(router, equity: float | None,
+                        ticks=None, marketdata=None) -> tuple[list[dict], float | None]:
+    """Positions with entry/mark/unrealized P&L (trader review G2).
+
+    Entry comes from the venue adapter's book (avg_price); mark from the
+    tick cache or daily close, labeled. Anything unknowable is null —
+    never a fabricated number.
+    """
+    entries: dict[str, float] = {}
+    adapter = getattr(router, "adapter", None)
+    if adapter is not None:
+        try:
+            for pos in adapter.positions():
+                entries[pos.symbol] = pos.avg_price
+        except Exception:
+            pass
+    positions: list[dict] = []
+    unrealized_total: float | None = None
+    for symbol, quantity in sorted(router.local_book.items()):
+        entry = entries.get(symbol)
+        mark, mark_source = _mark_for(symbol, ticks, marketdata)
+        if mark is None and entry is not None:
+            mark = entry
+        unrealized = (
+            (mark - entry) * quantity
+            if mark is not None and entry is not None and mark_source != "entry"
+            else None
+        )
+        if unrealized is not None:
+            unrealized_total = (unrealized_total or 0.0) + unrealized
+        exposure_pct = (
+            abs(quantity * mark) / equity * 100.0
+            if mark is not None and equity else None
+        )
+        positions.append({
+            "symbol": symbol,
+            "quantity": quantity,
+            "entry_price": entry,
+            "mark_price": mark,
+            "mark_source": mark_source,
+            "unrealized_pnl": unrealized,
+            "exposure_pct": exposure_pct,
+        })
+    return positions, unrealized_total
+
+
+def system_status(router, equity: float | None = None, arming=None,
+                  ticks=None, marketdata=None) -> dict:
     """Kill switch, circuit breaker, open book, and per-pair arming
     (UX review RISK-01; go-live Phase 4).
 
@@ -47,14 +111,14 @@ def system_status(router, equity: float | None = None, arming=None) -> dict:
                 "arming": arming_view, "live_armed": live_armed}
     breaker = router.breaker.check()
     engaged = router.kill_switch.engaged
+    positions, unrealized_total = open_positions_view(
+        router, equity, ticks=ticks, marketdata=marketdata)
     return {
         "attached": True,
         "kill_switch": {"engaged": engaged, "reason": router.kill_switch.reason},
         "circuit_breaker": {"tripped": breaker.tripped, "reason": breaker.reason},
-        "open_positions": [
-            {"symbol": symbol, "quantity": quantity}
-            for symbol, quantity in sorted(router.local_book.items())
-        ],
+        "open_positions": positions,
+        "unrealized_total": unrealized_total,
         "equity": equity,
         "trading_halted": engaged or breaker.tripped,
         "arming": arming_view,

@@ -105,8 +105,13 @@ class TestSystemStatus:
         assert view["trading_halted"] is False
         assert view["kill_switch"]["engaged"] is False
         assert view["circuit_breaker"]["tripped"] is False
-        assert view["open_positions"] == [{"symbol": "XAUUSD", "quantity": 5.0}]
+        [pos] = view["open_positions"]
+        assert pos["symbol"] == "XAUUSD" and pos["quantity"] == 5.0
+        # book-only position (no adapter fill): every P&L field honest-null
+        assert pos["entry_price"] is None and pos["unrealized_pnl"] is None
+        assert pos["mark_source"] == "entry"
         assert view["equity"] == 100_000.0
+        assert view["unrealized_total"] is None
 
     def test_kill_switch_halts(self):
         router = make_router()

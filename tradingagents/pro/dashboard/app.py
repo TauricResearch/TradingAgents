@@ -27,6 +27,7 @@ from tradingagents.pro.dashboard.events import EventBroadcaster
 from tradingagents.pro.dashboard.intel import IntelService
 from tradingagents.pro.dashboard.prefs import PrefsStore
 from tradingagents.pro.dashboard.recorder import PipelineRecorder, RunRecord
+from tradingagents.pro.dashboard.ticker import TickCache
 from tradingagents.pro.memory import ProMemory
 
 SESSION_COOKIE = "pro_session"
@@ -42,6 +43,7 @@ class DashboardState:
     equity: float | None = None
     broadcaster: EventBroadcaster = field(default_factory=EventBroadcaster)
     marketdata: md.MarketDataService = field(default_factory=md.MarketDataService)
+    ticks: TickCache | None = None  # set in __post_init__
     prefs: PrefsStore = field(default_factory=PrefsStore)
     intel: IntelService = field(default_factory=IntelService)
     trigger = None            # PipelineTrigger, when a service loop is attached
@@ -55,6 +57,15 @@ class DashboardState:
 
     def latest_run(self) -> RunRecord | None:
         return self.runs[-1] if self.runs else None
+
+    def latest_run_for(self, symbol: str) -> RunRecord | None:
+        """Newest run for one symbol — the per-symbol decision board
+        (trader review G1) must not lose a gold ticket because a BTC
+        run happened afterwards."""
+        for run in reversed(self.runs):
+            if run.symbol == symbol:
+                return run
+        return None
 
 
 def create_app(state: DashboardState | None = None, api_token: str | None = None):
@@ -88,6 +99,7 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
                     poller = QuoteTickPoller(
                         spec.feed_factory(), state.broadcaster,
                         symbol=spec.vendor_symbol, display_symbol=spec.symbol,
+                        cache=state.ticks,
                     )
                     poller.start()
                     pollers.append(poller)
@@ -307,6 +319,41 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     def overview() -> dict:
         return service.market_overview(state.latest_run())
 
+    _regime_cache: dict = {"at": 0.0, "payload": None}
+
+    @app.get("/api/regime")
+    def regime() -> dict:
+        """Per-symbol deterministic regime (trader review G3) — the same
+        classify_regime the pipeline records, computed over daily bars for
+        every dashboard symbol so the strip never shows one symbol's
+        regime on another's screen. Never an LLM."""
+        import time as _time
+
+        from tradingagents.pro.analytics.features import classify_regime
+        from tradingagents.pro.ingestion.sessions import current_session
+
+        now = _time.monotonic()
+        if _regime_cache["payload"] is not None and now - _regime_cache["at"] < 300:
+            return _regime_cache["payload"]
+        from datetime import datetime, timezone
+
+        symbols: dict[str, dict] = {}
+        for sym in sorted(state.marketdata.registry):
+            try:
+                bars = state.marketdata.get_bars(sym, "1d", limit=60)
+                value = classify_regime(bars).value if len(bars) >= 3 else None
+            except Exception:
+                value = None  # degraded vendor -> honest null, not a guess
+            symbols[sym] = {"regime": value}
+        as_of = datetime.now(timezone.utc)
+        payload = {
+            "symbols": symbols,
+            "session": current_session(as_of).value,
+            "as_of": as_of.isoformat(),
+        }
+        _regime_cache.update(at=now, payload=payload)
+        return payload
+
     @app.get("/api/runs")
     def runs() -> list[dict]:
         return [
@@ -335,21 +382,35 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     def evidence(run_id: str) -> dict:
         return service.evidence_panels(_run_or_404(run_id))
 
-    @app.get("/api/recommendation/latest")
-    def latest_recommendation() -> dict:
-        run = state.latest_run()
+    def _ticket_view(run: RunRecord | None) -> dict:
         if run is None:
             return service.recommendation_view(None)
         reflection = run.state.get("reflection") or {}
-        return service.recommendation_view(
+        view = service.recommendation_view(
             run.recommendation,
             invalidation=reflection.get("invalidation"),
             rejection=run.rejection,
         )
+        # let per-symbol/per-run consumers link back without /api/overview
+        view.setdefault("symbol", run.symbol)
+        view["run_id"] = run.run_id
+        view["run_started_at"] = run.started_at.isoformat()
+        view["timeframe"] = run.timeframe
+        return view
+
+    @app.get("/api/recommendation/latest")
+    def latest_recommendation(symbol: str | None = None) -> dict:
+        run = state.latest_run_for(symbol) if symbol else state.latest_run()
+        return _ticket_view(run)
+
+    @app.get("/api/runs/{run_id}/recommendation")
+    def run_recommendation(run_id: str) -> dict:
+        return _ticket_view(_run_or_404(run_id))
 
     @app.get("/api/status")
     def status() -> dict:
-        return service.system_status(state.router, state.equity, state.arming)
+        return service.system_status(state.router, state.equity, state.arming,
+                                     ticks=state.ticks, marketdata=state.marketdata)
 
     @app.post("/api/flatten")
     async def flatten(request: Request) -> JSONResponse:

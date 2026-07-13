@@ -17,6 +17,24 @@ from tradingagents.pro.dashboard.events import EventBroadcaster
 logger = logging.getLogger(__name__)
 
 
+class TickCache:
+    """Last-tick store so synchronous readers (position marks, price
+    alerts) can see the same prices the SSE stream broadcasts. Ticks
+    were previously fire-and-forget into the event stream only."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._ticks: dict[str, tuple[float, str]] = {}  # symbol -> (last, iso ts)
+
+    def put(self, symbol: str, last: float, ts: str) -> None:
+        with self._lock:
+            self._ticks[symbol] = (last, ts)
+
+    def get(self, symbol: str) -> tuple[float, str] | None:
+        with self._lock:
+            return self._ticks.get(symbol)
+
+
 class QuoteTickPoller:
     def __init__(
         self,
@@ -26,9 +44,11 @@ class QuoteTickPoller:
         display_symbol: str = "XAUUSD",
         interval: float = 5.0,
         backoff_cap: float = 60.0,
+        cache: TickCache | None = None,
     ):
         self.feed = feed
         self.broadcaster = broadcaster
+        self.cache = cache
         self.symbol = symbol
         self.display_symbol = display_symbol
         self.interval = interval
@@ -56,6 +76,8 @@ class QuoteTickPoller:
         if self.broadcaster.subscriber_count == 0:
             return False  # nobody listening: no vendor calls
         quote = self.feed.get_quote(self.symbol)
+        if self.cache is not None and quote.last is not None:
+            self.cache.put(self.display_symbol, quote.last, quote.ts.isoformat())
         self.broadcaster.publish("tick", {
             "symbol": self.display_symbol,
             "bid": quote.bid,
