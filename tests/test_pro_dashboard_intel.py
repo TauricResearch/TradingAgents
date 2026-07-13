@@ -208,7 +208,9 @@ class TestIntelAndExportEndpoints:
         assert response.headers["content-type"].startswith("text/csv")
         assert "attachment; filename=" in response.headers["content-disposition"]
         lines = response.text.strip().splitlines()
-        assert lines[0] == "symbol,action,regime,pnl,won,closed_at"
+        # go-live Phase 5 added tax-ready columns (venue id, fees, prices, mode)
+        assert lines[0] == ("symbol,action,regime,pnl,won,closed_at,mode,"
+                            "commission,venue_order_id,fill_price,entry_price")
 
     def test_report_export_has_every_section(self, seeded_client):
         report = seeded_client.get("/api/export/report.json").json()

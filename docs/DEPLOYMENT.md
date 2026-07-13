@@ -93,3 +93,20 @@ dashboard) → execution router (validation → kill switch → circuit breaker
    met (OPS-04).
 
 Until every box is ticked, the system will refuse live routing on its own.
+
+## Live ops surfaces (go-live Phase 5)
+
+- **Health**: `GET /health/live` aggregates feed health, venue
+  reachability, clock skew, and run recency — 200 healthy, 503 degraded.
+  Point an uptime monitor here; the hourly loop and the dead-man switch
+  consume the same verdict.
+- **Metrics**: `GET /metrics` (Prometheus text) now includes a
+  `last_run_ts` heartbeat gauge alongside the existing counters.
+- **Alerting**: set `PRO_TELEGRAM_BOT_TOKEN`/`PRO_TELEGRAM_CHAT_ID` and/or
+  `PRO_ALERT_WEBHOOK_URL` (secrets layer in prod) — fills, disarms,
+  reconciliation drift, degraded-feed-while-open, dead-man trips, and a
+  daily P&L summary push out. Log + dashboard broadcast are always on.
+- **Dead-man switch**: `PRO_DEADMAN_TIMEOUT_SECONDS` (default 600) — if
+  health can't be confirmed for that long while live-armed, all resting
+  orders are cancelled and the kill switch engages.
+- Operator procedures live in docs/LIVE_TRADING_RUNBOOK.md.

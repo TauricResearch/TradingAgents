@@ -111,10 +111,14 @@ def make_alerting_service(closes, kill_reason=None):
 
 
 class TestServiceAlerts:
-    def test_clean_iteration_emits_nothing(self):
+    def test_clean_iteration_emits_no_problem_alerts(self):
         service, sink = make_alerting_service([130.0])
         service.run_once()
-        assert sink.alerts == []
+        # a once-per-day info/daily_pnl heartbeat is expected (Phase 5);
+        # "clean" means no warning/critical
+        assert [a for a in sink.alerts
+                if a.severity in ("warning", "critical")] == []
+        assert all(a.event == "daily_pnl" for a in sink.alerts)
 
     def test_kill_switch_refusal_is_critical(self):
         service, sink = make_alerting_service([130.0], kill_reason="drill")

@@ -148,6 +148,31 @@ class PipelineTrigger:
         return builder.build(symbol, asset, timeframes=(tf,), bar_limit=250)
 
 
+def _build_alert_sinks(broadcaster):
+    """Assemble alert sinks from the environment (go-live Phase 5). Log +
+    dashboard broadcast always; Telegram and webhook are added only when
+    their secrets are present, so paper/dev stays quiet by default."""
+    from tradingagents.pro.alerting import (
+        LogAlertSink,
+        TelegramAlertSink,
+        WebhookAlertSink,
+    )
+    from tradingagents.pro.dashboard.events import BroadcastAlertSink
+    from tradingagents.pro.secrets import get_secret
+
+    sinks = [LogAlertSink(), BroadcastAlertSink(broadcaster)]
+    bot_token = get_secret("PRO_TELEGRAM_BOT_TOKEN")
+    chat_id = get_secret("PRO_TELEGRAM_CHAT_ID")
+    if bot_token and chat_id:
+        sinks.append(TelegramAlertSink(bot_token, chat_id))
+        logger.info("Telegram alert sink enabled")
+    webhook_url = get_secret("PRO_ALERT_WEBHOOK_URL")
+    if webhook_url:
+        sinks.append(WebhookAlertSink(webhook_url))
+        logger.info("webhook alert sink enabled")
+    return sinks
+
+
 def loop_enabled() -> bool:
     if os.environ.get("PRO_LOOP_DISABLED") == "1":
         return False
@@ -162,9 +187,8 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     """Assemble the live service + dashboard state. ``llm`` is injectable
     for tests; production builds the env-configured bundle."""
     from tradingagents.contracts import AssetClass, ModelRouting, ProConfig, RiskLimits
-    from tradingagents.pro.alerting import AlertManager, LogAlertSink
+    from tradingagents.pro.alerting import AlertManager
     from tradingagents.pro.dashboard.app import DashboardState
-    from tradingagents.pro.dashboard.events import BroadcastAlertSink
     from tradingagents.pro.dashboard.prefs import PrefsStore, default_data_dir
     from tradingagents.pro.execution import (
         VENUES,
@@ -244,13 +268,51 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     service = PaperTradingService(
         llm, config, snapshot_source,
         router=router, memory=memory, dashboard_state=state,
-        alerts=AlertManager(sinks=[LogAlertSink(),
-                                   BroadcastAlertSink(state.broadcaster)]),
+        alerts=AlertManager(sinks=_build_alert_sinks(state.broadcaster)),
         on_event=state.broadcaster.publish,
     )
     state.metrics = service.metrics  # /metrics scrape target
+    service.alerts.metrics = service.metrics  # count deliveries + failures
     state.alerts = service.alerts    # emergency-flatten alerting
     return service, state
+
+
+def _start_live_safety_daemons(service, state) -> None:
+    """When any pair is live-armed: warn if on a laptop host, and start the
+    dead-man switch (layer c of the kill switch). No-op in paper (go-live
+    Phase 5)."""
+    import os
+    import platform
+
+    arming = getattr(state, "arming", None)
+    if arming is None:
+        return
+    live_armed = any(v["tier"] in ("canary", "live")
+                     for v in arming.status().values())
+    if not live_armed:
+        return
+
+    on_docker_desktop = os.path.exists("/.dockerenv") and (
+        "linuxkit" in platform.release().lower())
+    if on_docker_desktop or platform.system() == "Darwin":
+        msg = ("LIVE-ARMED on a laptop / Docker Desktop host — a sleep "
+               "leaves positions unmanaged. Move to an always-on Linux "
+               "host with NTP before unattended live trading.")
+        logger.warning(msg)
+        service.alerts.emit("warning", "armed_on_laptop_host", msg)
+
+    from tradingagents.pro.deadman import DeadManSwitch, cancel_resting_orders
+    from tradingagents.pro.health import live_health
+
+    timeout = float(os.environ.get("PRO_DEADMAN_TIMEOUT_SECONDS", "600"))
+    deadman = DeadManSwitch(
+        health_fn=lambda: live_health(state, state.arming),
+        on_trip=cancel_resting_orders(service.router),
+        timeout_seconds=timeout, alerts=service.alerts,
+    )
+    deadman.start()
+    state.deadman = deadman
+    logger.info("dead-man switch armed (timeout %.0fs)", timeout)
 
 
 def main() -> None:
@@ -286,6 +348,7 @@ def main() -> None:
             name="paper-loop", daemon=True,
         )
         thread.start()
+        _start_live_safety_daemons(service, state)
     else:
         from tradingagents.pro.dashboard.app import DashboardState
 

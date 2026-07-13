@@ -160,6 +160,25 @@ export default function PortfolioPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {j?.by_mode &&
+            Object.keys(j.by_mode).some((m) => m !== "paper") && (
+              <div
+                className="mb-3 flex flex-wrap gap-2 text-xs"
+                data-testid="journal-by-mode"
+              >
+                {Object.entries(j.by_mode).map(([mode, s]) => (
+                  <span
+                    key={mode}
+                    className="rounded-full border border-border-strong px-2.5 py-0.5"
+                  >
+                    <span className="font-semibold uppercase">{mode}</span>{" "}
+                    {s.n_trades} trades ·{" "}
+                    {s.win_rate != null ? fmtPct(s.win_rate, 0) : "—"} win ·{" "}
+                    {fmtPnl(s.total_pnl)}
+                  </span>
+                ))}
+              </div>
+            )}
           {journal.isPending ? (
             <SkeletonCard lines={4} />
           ) : (j?.entries.length ?? 0) === 0 ? (

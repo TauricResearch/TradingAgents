@@ -19,7 +19,13 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from tradingagents.contracts import MarketSnapshot, ProConfig, TradeAction, TradeRecommendation
+from tradingagents.contracts import (
+    MarketSnapshot,
+    ProConfig,
+    TradeAction,
+    TradeRecommendation,
+    utc_now,
+)
 from tradingagents.pro.alerting import AlertManager
 from tradingagents.pro.dashboard.app import DashboardState
 from tradingagents.pro.execution import ExecutionRouter
@@ -173,6 +179,8 @@ class PaperTradingService:
         snapshot = snapshot if snapshot is not None else self.snapshot_source()
         config = config or self.config
         self.metrics.inc("runs_total")
+        # heartbeat for /health/live + the dead-man switch (go-live Phase 5)
+        self.metrics.set_gauge("last_run_ts", utc_now().timestamp())
 
         reconciliation = self.router.reconcile()
         if not reconciliation.in_sync:
@@ -194,6 +202,18 @@ class PaperTradingService:
                 f"{len(quarantined)} news item(s) quarantined as suspected "
                 "prompt injection before reaching any prompt",
                 symbol=snapshot.symbol,
+            )
+
+        # degraded data while exposed is worth waking someone (Phase 5):
+        # a feed the open position depends on going dark is push-worthy,
+        # not just a dashboard badge
+        non_quarantine_missing = [f for f in snapshot.missing_feeds
+                                  if not f.startswith("news:quarantined")]
+        if non_quarantine_missing and self.open_positions:
+            self.alerts.emit(
+                "warning", "degraded_with_open_position",
+                f"feeds degraded while {len(self.open_positions)} position(s) "
+                f"open: {non_quarantine_missing}", symbol=snapshot.symbol,
             )
 
         run = self.dashboard.recorder.record_run(
@@ -275,7 +295,28 @@ class PaperTradingService:
                     quantity=result.filled_quantity,
                     entry_commission=result.commission,
                 )
+        self._maybe_daily_pnl_summary(snapshot)
         return summary
+
+    def _maybe_daily_pnl_summary(self, snapshot) -> None:
+        """Emit one info/daily_pnl alert per UTC day (go-live Phase 5)."""
+        from tradingagents.pro.dashboard.service import trade_journal
+
+        today = utc_now().date().isoformat()
+        if getattr(self, "_last_pnl_day", None) == today:
+            return
+        self._last_pnl_day = today
+        journal = trade_journal(self.memory)
+        try:
+            equity = self.router.adapter.account().equity
+        except Exception:
+            equity = None
+        self.alerts.emit(
+            "info", "daily_pnl",
+            f"daily summary: {journal['n_trades']} closed trades, realized "
+            f"P&L {journal['total_pnl']:+.2f}"
+            + (f", equity {equity:,.2f}" if equity is not None else ""),
+        )
 
     def run_forever(
         self,
@@ -341,14 +382,33 @@ class PaperTradingService:
             self.router.record_close(symbol, pnl)
             record = self.memory.find_trade_by_recommendation(rec.id)
             if record is not None:
-                self.memory.close_trade(record.id, pnl=pnl,
-                                        lesson=f"{rec.action.value} exited via {reason}",
-                                        event_time=bar.start)
+                self.memory.close_trade(
+                    record.id, pnl=pnl,
+                    lesson=f"{rec.action.value} exited via {reason}",
+                    event_time=bar.start,
+                    details={
+                        "mode": self._trade_mode(symbol),
+                        "commission": position.entry_commission + result.commission,
+                        "venue_order_id": result.venue_symbol,
+                        "fill_price": result.fill_price,
+                        "entry_price": position.fill_price,
+                    })
             self.metrics.inc("positions_closed_total", reason=reason)
             self.metrics.set_gauge("last_realized_pnl", pnl)
             del self.open_positions[symbol]
             closed.append({"symbol": symbol, "pnl": pnl, "reason": reason})
         return closed
+
+    def _trade_mode(self, symbol: str) -> str:
+        """Effective arming tier for a symbol at close time (paper default)
+        — tags the journal for per-mode calibration (go-live Phase 5)."""
+        arming = getattr(self.dashboard, "arming", None)
+        if arming is None:
+            return "paper"
+        try:
+            return arming.effective_tier(symbol)
+        except Exception:
+            return "paper"
 
     def _consume_oms_exits(self, bar) -> list[dict]:
         """Fold venue-detected exits (brackets/watchdog flattens) into the
@@ -369,7 +429,13 @@ class PaperTradingService:
                         record.id, pnl=trade.pnl,
                         lesson=f"exited via venue {trade.reason}",
                         event_time=bar.start,
-                    )
+                        details={
+                            "mode": self._trade_mode(trade.symbol),
+                            "commission": trade.commission,
+                            "venue_order_id": trade.client_order_id,
+                            "fill_price": trade.exit_price,
+                            "entry_price": trade.entry_price,
+                        })
             self.metrics.inc("positions_closed_total", reason=trade.reason)
             self.metrics.set_gauge("last_realized_pnl", trade.pnl)
             closed.append({"symbol": trade.symbol, "pnl": trade.pnl,

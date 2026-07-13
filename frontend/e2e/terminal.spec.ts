@@ -337,3 +337,17 @@ test.describe("v-golive Phase 4 arming", () => {
     await expect(page.getByTestId("emergency-flatten")).toHaveCount(0);
   });
 });
+
+test.describe("v-golive Phase 5 ops", () => {
+  test("health endpoint is reachable and unauthenticated", async ({
+    request,
+  }) => {
+    // /health/live is auth-exempt like /healthz; 200 or 503 (a JSON
+    // verdict) both count as reachable — never a 401.
+    const resp = await request.get("/health/live");
+    expect([200, 503]).toContain(resp.status());
+    const body = await resp.json();
+    expect(body).toHaveProperty("ok");
+    expect(body).toHaveProperty("checks");
+  });
+});

@@ -147,6 +147,16 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     def healthz() -> dict:
         return {"status": "ok"}
 
+    @app.get("/health/live")
+    def health_live() -> JSONResponse:
+        # aggregate liveness for uptime monitors, the loop's entry gate,
+        # and the dead-man switch. 503 when degraded so external monitors
+        # treat degraded-while-armed as down (go-live Phase 5).
+        from tradingagents.pro.health import live_health
+
+        report = live_health(state, state.arming).as_dict()
+        return JSONResponse(report, status_code=200 if report["ok"] else 503)
+
     @app.get("/metrics")
     def metrics() -> Response:
         # Prometheus scrape target; open like /healthz (no payload data,
@@ -487,14 +497,19 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             buffer = io.StringIO()
             writer = csv.writer(buffer)
             writer.writerow(["symbol", "action", "regime", "pnl", "won",
-                             "closed_at"])
+                             "closed_at", "mode", "commission",
+                             "venue_order_id", "fill_price", "entry_price"])
             yield buffer.getvalue()
             for entry in journal["entries"]:
                 buffer.seek(0)
                 buffer.truncate(0)
                 writer.writerow([entry["symbol"], entry["action"],
                                  entry["regime"], entry["pnl"], entry["won"],
-                                 entry["closed_at"]])
+                                 entry["closed_at"], entry.get("mode"),
+                                 entry.get("commission"),
+                                 entry.get("venue_order_id"),
+                                 entry.get("fill_price"),
+                                 entry.get("entry_price")])
                 yield buffer.getvalue()
 
         return StreamingResponse(

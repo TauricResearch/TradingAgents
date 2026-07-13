@@ -91,6 +91,47 @@ class WebhookAlertSink:
         urllib.request.urlopen(request, timeout=self.timeout).close()
 
 
+class TelegramAlertSink:
+    """Pushes alerts to a Telegram chat via the Bot API (go-live Phase 5).
+
+    Bot token + chat id are secrets (read via the secrets layer at wiring
+    time, never logged). Same fail-closed contract as every sink: the
+    trading loop must not stall because the pager is down. Uses the stdlib
+    ``urllib.request`` like ``WebhookAlertSink`` — no new dependency.
+    """
+
+    _SEVERITY_PREFIX = {"critical": "\U0001f6a8 CRITICAL",
+                        "warning": "⚠️ WARNING", "info": "ℹ️ INFO"}
+
+    def __init__(self, bot_token: str, chat_id: str, timeout: float = 5.0,
+                 min_severity: str = "warning"):
+        if min_severity not in SEVERITIES:
+            raise ValueError(f"min_severity must be one of {SEVERITIES}")
+        self._token = bot_token
+        self.chat_id = chat_id
+        self.timeout = timeout
+        self.min_severity = min_severity
+
+    def _redact(self, text: str) -> str:
+        return text.replace(self._token, "***") if self._token else text
+
+    def deliver(self, alert: Alert) -> None:
+        if SEVERITIES.index(alert.severity) > SEVERITIES.index(self.min_severity):
+            return
+        prefix = self._SEVERITY_PREFIX.get(alert.severity, alert.severity)
+        message = f"{prefix} · {alert.event}\n{alert.text}"
+        payload = json.dumps({"chat_id": self.chat_id, "text": message}).encode()
+        request = urllib.request.Request(
+            f"https://api.telegram.org/bot{self._token}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(request, timeout=self.timeout).close()
+        except Exception as exc:  # redact the token from any surfaced error
+            raise RuntimeError(self._redact(str(exc))) from None
+
+
 class AlertManager:
     """Fan-out with per-sink isolation and optional metric counting."""
 

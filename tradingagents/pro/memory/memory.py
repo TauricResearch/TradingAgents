@@ -104,19 +104,28 @@ class ProMemory:
         ))
 
     def close_trade(
-        self, trade_record_id: str, pnl: float, lesson: str = "", event_time=None
+        self, trade_record_id: str, pnl: float, lesson: str = "",
+        event_time=None, details: dict | None = None,
     ) -> list[MemoryRecord]:
-        """Record a trade outcome; derive a lesson record from the result."""
+        """Record a trade outcome; derive a lesson record from the result.
+
+        ``details`` (go-live Phase 5) rides along in the outcome payload —
+        commission, venue_order_id, fill_price, and the arming ``mode`` at
+        decision time — for the tax-ready export and per-mode calibration.
+        """
         trade = self._records.get(trade_record_id)
         if trade is None or trade.kind is not MemoryKind.TRADE:
             raise KeyError(f"no trade record {trade_record_id}")
         won = pnl > 0
+        payload = {"pnl": pnl, "won": won, "closed_at": utc_now().isoformat()}
+        if details:
+            payload.update(details)
         added = [self._add(MemoryRecord(
             kind=MemoryKind.OUTCOME,
             text=f"outcome of {trade.text}: pnl {pnl:+.4f} ({'win' if won else 'loss'})",
             symbol=trade.symbol,
             ref_id=trade.id,
-            payload={"pnl": pnl, "won": won, "closed_at": utc_now().isoformat()},
+            payload=payload,
             event_time=event_time,
         ))]
         lesson_kind = MemoryKind.WINNING_PATTERN if won else MemoryKind.MISTAKE

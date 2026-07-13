@@ -156,24 +156,43 @@ def trade_journal(memory: ProMemory) -> dict:
     trades = {r.id: r for r in memory.records(MemoryKind.TRADE)}
     entries = []
     total_pnl = 0.0
+    by_mode: dict[str, dict] = {}
     for outcome in memory.records(MemoryKind.OUTCOME):
         trade = trades.get(outcome.ref_id)
         pnl = outcome.payload.get("pnl", 0.0)
         total_pnl += pnl
+        # venue truth + arming mode ride in the outcome payload (Phase 5);
+        # paper trades default to mode "paper" with zero venue fields
+        mode = outcome.payload.get("mode", "paper")
+        won = outcome.payload.get("won")
         entries.append({
             "symbol": outcome.symbol,
             "action": trade.payload.get("action") if trade else None,
             "regime": trade.payload.get("regime") if trade else None,
             "pnl": pnl,
-            "won": outcome.payload.get("won"),
+            "won": won,
             "closed_at": outcome.created_at.isoformat(),
+            "mode": mode,
+            "commission": outcome.payload.get("commission", 0.0),
+            "venue_order_id": outcome.payload.get("venue_order_id", ""),
+            "fill_price": outcome.payload.get("fill_price"),
+            "entry_price": outcome.payload.get("entry_price"),
         })
+        bucket = by_mode.setdefault(mode, {"n_trades": 0, "wins": 0,
+                                           "total_pnl": 0.0})
+        bucket["n_trades"] += 1
+        bucket["wins"] += 1 if won else 0
+        bucket["total_pnl"] += pnl
+    for bucket in by_mode.values():
+        bucket["win_rate"] = (bucket["wins"] / bucket["n_trades"]
+                              if bucket["n_trades"] else None)
     wins = sum(1 for e in entries if e["won"])
     return {
         "entries": entries,
         "total_pnl": total_pnl,
         "n_trades": len(entries),
         "win_rate": wins / len(entries) if entries else None,
+        "by_mode": by_mode,
     }
 
 

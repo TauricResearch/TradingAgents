@@ -173,12 +173,26 @@ export const JournalSchema = z.object({
         pnl: z.number(),
         won: z.boolean().nullable(),
         closed_at: z.string(),
+        mode: z.string().optional(),
+        commission: z.number().optional(),
+        venue_order_id: z.string().optional(),
       })
       .passthrough(),
   ),
   total_pnl: z.number(),
   n_trades: z.number(),
   win_rate: z.number().nullable(),
+  by_mode: z
+    .record(
+      z.string(),
+      z.object({
+        n_trades: z.number(),
+        wins: z.number(),
+        total_pnl: z.number(),
+        win_rate: z.number().nullable(),
+      }),
+    )
+    .optional(),
 });
 export type Journal = z.infer<typeof JournalSchema>;
 
