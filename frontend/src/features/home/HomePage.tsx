@@ -23,6 +23,7 @@ import {
   useStatus,
 } from "@/lib/api/queries";
 import { fmtPnl, fmtPrice, fmtDateTime, fmtPct } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
 import { useLayoutStore } from "@/stores/layout";
 import { useUiStore } from "@/stores/ui";
@@ -70,9 +71,21 @@ function PortfolioSnapshot() {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span>
           Total P&L{" "}
-          <span className="font-mono font-semibold tabular">
-            {fmtPnl(j?.total_pnl)}
-          </span>
+          {/* toned chip: white base keeps bull/bear legible on the gradient */}
+          {j?.total_pnl != null ? (
+            <span
+              className={cn(
+                "rounded-md bg-white/90 px-1.5 py-px font-mono font-semibold tabular",
+                j.total_pnl >= 0 ? "text-bull" : "text-bear",
+              )}
+            >
+              {fmtPnl(j.total_pnl)}
+            </span>
+          ) : (
+            <span className="font-mono font-semibold tabular">
+              {fmtPnl(j?.total_pnl)}
+            </span>
+          )}
           {j?.n_trades != null && (
             <span className="text-white/70"> (n={j.n_trades})</span>
           )}
@@ -258,7 +271,7 @@ function AlertsWidget() {
 
 const WIDGETS: WidgetDef[] = [
   { id: "decision", title: "Decision", render: () => <DecisionHero />, layout: { x: 0, y: 0, w: 7, h: 10, minW: 4, minH: 7 } },
-  { id: "snapshot", title: "Portfolio snapshot", render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 6, minW: 3, minH: 5 } },
+  { id: "snapshot", title: "Portfolio snapshot", render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 7, minW: 3, minH: 6 } },
   { id: "prices", title: "Prices", render: () => <PriceRibbon />, layout: { x: 7, y: 6, w: 5, h: 4, minW: 3, minH: 4 } },
   { id: "alerts", title: "Alerts", render: () => <AlertsWidget />, layout: { x: 0, y: 10, w: 7, h: 6, minW: 3, minH: 4 } },
   { id: "diff", title: "Since you left", render: () => <SinceYouLeft />, layout: { x: 7, y: 10, w: 5, h: 6, minW: 3, minH: 4 } },

@@ -41,16 +41,16 @@ Navigating Home → Trade → Portfolio → Trade in one SPA session crashes the
 
 Verified compliant (not deviations): Workspace symbol title 18 px/800 normal-case is the spec's own Trade exception; hover lift only on `interactive` cards matches spec §1; card titles 11 px uppercase `--fg-subtle`; `font-display: swap` present for both font families (no invisible-text period).
 
-## 5. Nits (follow-up material, not fixed here)
+## 5. Nits — all addressed in the follow-up commit (except 8, environmental)
 
-1. **Portfolio snapshot CTA clipped** by the default widget height on Home (both themes; user-resizable, but the default layout should fit it). `desktop-dark-home.png` bottom of gradient card.
-2. **Home P&L lost its bull/bear tone** on the gradient card — direction now conveyed by sign only (old StatCard was toned). White-on-gradient is spec-mandated; consider a toned chip inside the card.
-3. **Hero DecisionCard dropped the sr-only Level/Price/Detail table headers** the old table variant had (all row content still present; non-hero variant unaffected).
-4. ConnPill timestamp lost the word "updated" (honesty-label wording, minor).
-5. `drawings/primitive.ts` fallback constants still carry old-palette hexes (`#79c0ff`/`#d29922`/`#9ca7b3`) — runtime always overrides them with theme tokens via `setDrawings` except `fibFill` (7 %-alpha amber band, both themes). Cosmetic dead code.
-6. Two same-labeled search buttons coexist in the DOM (one `display:none` per breakpoint) — fine for users, mildly brittle for `getByLabelText`-style queries.
-7. Agent leaderboard columns clip slightly in the 310 px rail (`desktop-dark-decisions.png`).
-8. Console shows `wss://stream.binance.com` WebSocket warnings on this network (geo-blocked; pre-existing transport fallback, honest "degraded" chips shown). Zero app errors/warnings otherwise in both themes across all 7 routes.
+1. **Portfolio snapshot CTA clipped** by the default Home widget height — FIXED: default/min layout height 6→7 / 5→6 (persisted user layouts unaffected).
+2. **Home P&L lost its bull/bear tone** on the gradient card — FIXED: toned chip (white base, bull/bear text — legible on the gradient in both themes); plain white kept for the null case.
+3. **Hero DecisionCard dropped the sr-only Level/Price/Detail headers** — FIXED: sr-only header line restored in the ladder.
+4. ConnPill timestamp lost the word "updated" — FIXED: wording restored.
+5. `drawings/primitive.ts` old-palette fallback constants + never-overridden `fibFill` — FIXED: fallbacks aligned to the current palette, and `PriceChart` now passes a theme-derived `fibFill` via `setDrawings`.
+6. Two same-labeled search buttons in the DOM — FIXED: the <981 px icon variant is labeled "Search (Cmd+K)" (distinct from the field's "Search and commands (Cmd+K)").
+7. Agent leaderboard clipping in the 310 px rail — FIXED: horizontal scroll instead of clipping; hit-rate cell nowrap.
+8. Console `wss://stream.binance.com` warnings on this network — WON'T FIX: geo-blocked environment; the transport fallback is pre-existing, deliberate, and surfaced honestly via "degraded" chips. Zero app errors/warnings otherwise in both themes across all 7 routes.
 
 ## 6. Behavior & safety checklist results
 

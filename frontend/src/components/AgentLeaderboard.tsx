@@ -12,7 +12,7 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
   });
 
   return (
-    <div className="max-h-96 overflow-y-auto">
+    <div className="max-h-96 overflow-y-auto overflow-x-auto">
       <table className="w-full text-xs" data-testid="agent-leaderboard">
         <thead className="sticky top-0 bg-surface">
           <tr className="border-b border-border text-left text-fg-subtle">
@@ -43,7 +43,7 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
                 <td className="py-1 pr-2 text-right">
                   {row.avg_confidence.toFixed(0)}
                 </td>
-                <td className="py-1 pr-2 text-right">
+                <td className="whitespace-nowrap py-1 pr-2 text-right">
                   {row.hit_rate == null
                     ? `— (n=${row.scored})`
                     : `${Math.round(row.hit_rate * 100)}% (n=${row.scored})`}

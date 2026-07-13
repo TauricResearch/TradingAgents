@@ -72,7 +72,7 @@ function ConnPill() {
       {state === "disconnected" && "DISCONNECTED"}
       {state === "live" && lastSuccess > 0 && (
         <span className="font-normal text-fg-subtle max-md:hidden">
-          {fmtTime(new Date(lastSuccess).toISOString())}
+          updated {fmtTime(new Date(lastSuccess).toISOString())}
         </span>
       )}
     </span>
@@ -261,7 +261,7 @@ export function StatusStrip() {
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Search and commands (Cmd+K)"
+          aria-label="Search (Cmd+K)"
           className="min-[981px]:hidden"
           onClick={() => setPaletteOpen(true)}
         >

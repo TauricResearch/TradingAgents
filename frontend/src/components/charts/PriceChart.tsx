@@ -322,6 +322,7 @@ export function PriceChart({
     primitiveRef.current?.setDrawings(drawings, {
       line: colors.accent,
       fib: colors.neutral,
+      fibFill: hexToRgba(colors.neutral, 0.08),
       label: colors.muted,
     });
   }, [drawings, theme, bars, style, indicators, showVolume]);

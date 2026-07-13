@@ -43,11 +43,13 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private requestUpdateFn: (() => void) | null = null;
   private drawings: Drawing[] = [];
   private preview: PreviewState | null = null;
+  // fallbacks only — PriceChart overrides all of these with theme tokens
+  // via setDrawings before anything is drawn
   private colors: DrawingColors = {
-    line: "#79c0ff",
-    fib: "#d29922",
-    fibFill: "rgba(210,153,34,0.07)",
-    label: "#9ca7b3",
+    line: "#2456c5",
+    fib: "#8b610d",
+    fibFill: "rgba(139,97,13,0.08)",
+    label: "#646f84",
   };
   private paneView: IPrimitivePaneView;
 

@@ -70,6 +70,9 @@ function LevelLadder({ rec }: { rec: Recommendation }) {
   ];
   return (
     <div className="space-y-1.5">
+      {/* the old table variant exposed column headers to screen readers;
+          the ladder keeps that contract */}
+      <div className="sr-only">Levels: label, price, detail</div>
       {rows.map((row) => (
         <div key={row.label} className="flex items-center gap-3 text-sm">
           <span className={cn("w-12 font-mono text-xs", row.textClass)}>
