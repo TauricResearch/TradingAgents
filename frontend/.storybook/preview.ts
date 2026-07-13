@@ -9,7 +9,7 @@ const preview: Preview = {
       toolbar: { title: "Theme", items: ["dark", "light"] },
     },
   },
-  initialGlobals: { theme: "dark" },
+  initialGlobals: { theme: "light" },
   decorators: [
     (Story, context) => {
       document.documentElement.dataset.theme = String(context.globals.theme);

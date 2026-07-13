@@ -18,8 +18,8 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@fontsource-variable/inter": "^5.2.5",
     "@fontsource-variable/jetbrains-mono": "^5.2.5",
+    "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-dropdown-menu": "^2.1.6",
     "@radix-ui/react-switch": "^1.1.3",

@@ -3,9 +3,12 @@
  * when trading is halted — it cannot be hidden or moved. */
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, Moon, Search, Sun } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { apiFetch } from "@/lib/api/client";
 import { qk } from "@/lib/api/queries";
 import { useNotifications, useOverview, useStatus } from "@/lib/api/queries";
@@ -15,42 +18,98 @@ import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
 import { useUiStore } from "@/stores/ui";
 
+const ROUTE_TITLES: [prefix: string, title: string, subtitle: string][] = [
+  ["/trade", "Trading Workspace", "Live charts, drawings, and replay"],
+  ["/decisions", "AI Decision Center", "Every verdict with its full reasoning"],
+  ["/portfolio", "Portfolio", "Simulated performance and trade journal"],
+  ["/intel", "Market Intelligence", "Macro, positioning, and feed health"],
+  ["/settings", "Settings", "Appearance, layouts, and connections"],
+  ["/report", "Monthly Report", "Print-ready performance summary"],
+  ["/", "Overview", "The 5-second questions, answered"],
+];
+
+const DEFAULT_TITLE: (typeof ROUTE_TITLES)[number] = [
+  "/",
+  "Overview",
+  "The 5-second questions, answered",
+];
+
+function PageTitle() {
+  const { pathname } = useLocation();
+  const [, title, subtitle] =
+    ROUTE_TITLES.find(([p]) =>
+      p === "/" ? pathname === "/" : pathname.startsWith(p),
+    ) ?? DEFAULT_TITLE;
+  return (
+    <div className="min-w-0">
+      <div className="truncate text-base font-extrabold leading-tight">{title}</div>
+      <div className="truncate text-[11px] text-fg-subtle max-[980px]:hidden">
+        {subtitle}
+      </div>
+    </div>
+  );
+}
+
 function ConnPill() {
   const { state, ageSeconds, lastSuccess } = useConnectionState();
   return (
     <span
       className={cn(
-        "text-xs font-bold",
-        state === "live" && "text-bull",
-        state === "stale" && "text-stale",
-        state === "disconnected" && "text-bear",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold",
+        state === "live" && "bg-bull-muted text-bull",
+        state === "stale" && "border border-dashed border-stale text-stale",
+        state === "disconnected" && "bg-bear-muted text-bear",
       )}
       data-testid="conn-state"
     >
-      {state === "live" && "LIVE"}
+      {state === "live" && (
+        <>
+          <span className="live-dot" aria-hidden="true" />
+          LIVE
+        </>
+      )}
       {state === "stale" && `STALE ${ageSeconds}s`}
       {state === "disconnected" && "DISCONNECTED"}
       {state === "live" && lastSuccess > 0 && (
-        <span className="ml-2 font-normal text-fg-subtle max-md:hidden">
-          updated {fmtTime(new Date(lastSuccess).toISOString())}
+        <span className="font-normal text-fg-subtle max-md:hidden">
+          {fmtTime(new Date(lastSuccess).toISOString())}
         </span>
       )}
     </span>
   );
 }
 
+/** Navy ticker chip; the price flashes bull/bear on each tick (visual
+ * only — a prev-value ref, no store changes). */
 function PriceTicker({ symbol }: { symbol: string }) {
   const tick = useTick(symbol);
   const overview = useOverview();
   const fallback =
     overview.data?.symbol === symbol ? overview.data.last_close : null;
   const price = tick?.last ?? fallback;
+  const prev = useRef<number | null>(null);
+  const [flash, setFlash] = useState<"tick-up" | "tick-down" | "">("");
+  useEffect(() => {
+    if (price == null) return;
+    if (prev.current != null && price !== prev.current) {
+      setFlash(price > prev.current ? "tick-up" : "tick-down");
+      const timer = setTimeout(() => setFlash(""), 700);
+      prev.current = price;
+      return () => clearTimeout(timer);
+    }
+    prev.current = price;
+  }, [price]);
   return (
-    <Badge className="font-mono" data-testid={`ticker-${symbol}`}>
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3 py-1 font-mono text-xs text-white tabular"
+      data-testid={`ticker-${symbol}`}
+    >
       {symbol}{" "}
-      <span className={tick ? "text-fg" : "text-fg-muted"}>{fmtPrice(price)}</span>
+      <span className={cn(tick ? "text-white" : "text-white/70", flash)}>
+        {fmtPrice(price)}
+      </span>
       {!tick && <span className="text-[10px] text-stale">EOD</span>}
-    </Badge>
+    </span>
   );
 }
 
@@ -64,7 +123,7 @@ export function HaltBanner() {
   return (
     <div
       role="alert"
-      className="bg-bear px-4 py-2 text-sm font-bold text-[#0d1117]"
+      className="rounded-2xl bg-bear px-4 py-2 text-sm font-bold text-white"
       data-testid="halt-banner"
     >
       ⛔ TRADING HALTED — {reason}
@@ -85,7 +144,7 @@ export function ArmingBanner() {
   return (
     <div
       role="alert"
-      className="flex items-center justify-between gap-2 bg-[#8a6d00] px-4 py-1.5 text-sm font-bold text-[#0d1117]"
+      className="flex items-center justify-between gap-2 rounded-2xl bg-neutral px-4 py-1.5 text-sm font-bold text-white"
       data-testid="arming-banner"
     >
       <span>
@@ -122,7 +181,7 @@ function EmergencyFlattenButton() {
   return (
     <button
       onClick={() => void flatten()}
-      className="rounded border border-[#0d1117] bg-bear px-2 py-0.5 text-xs font-bold text-[#0d1117] hover:brightness-110"
+      className="rounded-lg bg-bear px-2.5 py-1 text-xs font-bold text-white ring-1 ring-white/60 hover:brightness-110"
       data-testid="emergency-flatten"
     >
       EMERGENCY FLATTEN
@@ -141,17 +200,27 @@ export function StatusStrip() {
   const unread = notifications.data?.unread ?? 0;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-bg/95 backdrop-blur">
+    <header className="z-40 rounded-[18px] border border-border bg-surface shadow-(--shadow-1) backdrop-blur-[16px]">
       {/* one row always: on mobile only safety-critical items stay
-          (LIVE state, risk, degraded count) — context badges are md+ */}
-      <div className="flex items-center gap-x-3 gap-y-1 px-4 py-2 max-md:gap-x-2 md:flex-wrap">
-        <span className="text-sm font-bold max-md:hidden">TradingAgents Pro</span>
-        <span className="whitespace-nowrap text-sm font-bold md:hidden">TA Pro</span>
+          (LIVE state, risk, degraded count) — context badges shrink away */}
+      <div className="flex items-center gap-x-3 gap-y-1 px-4 py-2.5 max-md:gap-x-2 md:flex-wrap">
+        <PageTitle />
+        <button
+          type="button"
+          aria-label="Search and commands (Cmd+K)"
+          onClick={() => setPaletteOpen(true)}
+          className="flex w-[250px] items-center gap-2 rounded-xl bg-surface-2 px-3 py-1.5 text-left text-xs text-fg-subtle hover:text-fg max-[980px]:hidden"
+        >
+          <Search size={13} aria-hidden="true" />
+          <span className="grow">Search markets, runs…</span>
+          <Kbd>⌘K</Kbd>
+        </button>
+        <span className="grow" />
         <ConnPill />
-        <Badge variant="accent" className="max-lg:hidden">
+        <Badge variant="accent" className="max-[1250px]:hidden">
           {o?.regime ?? "regime —"}
         </Badge>
-        <Badge className="max-lg:hidden">
+        <Badge className="max-[1250px]:hidden">
           {o?.session ? `session ${o.session}` : "session —"}
         </Badge>
         {s?.attached ? (
@@ -183,15 +252,17 @@ export function StatusStrip() {
         {(o?.missing_feeds?.length ?? 0) > 0 && (
           <Badge variant="stale">{o!.missing_feeds!.length} feeds degraded</Badge>
         )}
-        <span className="grow" />
-        <span className="contents max-md:hidden">
+        <span className="contents max-[980px]:hidden">
           <PriceTicker symbol="BTC-USD" />
+        </span>
+        <span className="contents max-[1250px]:hidden">
           <PriceTicker symbol="XAUUSD" />
         </span>
         <Button
           variant="ghost"
           size="icon"
           aria-label="Search and commands (Cmd+K)"
+          className="min-[981px]:hidden"
           onClick={() => setPaletteOpen(true)}
         >
           <Search size={15} />

@@ -117,13 +117,16 @@ export function AppShell() {
     <AuthGate>
       <TooltipProvider>
         <Wiring />
-        <div className="flex h-screen flex-col">
+        {/* ambient blur blobs behind everything (motion-safe via CSS) */}
+        <div className="bg-blob bg-blob--brand" aria-hidden="true" />
+        <div className="bg-blob bg-blob--violet" aria-hidden="true" />
+        <div className="flex h-screen flex-col gap-3 p-[14px] max-md:p-2">
           <HaltBanner />
           <ArmingBanner />
           <StatusStrip />
-          <div className="flex min-h-0 grow">
+          <div className="flex min-h-0 grow gap-3">
             <Sidebar />
-            <main className="min-w-0 grow overflow-y-auto p-4 max-md:pb-20">
+            <main className="min-w-0 grow overflow-y-auto max-md:pb-20">
               <ErrorBoundary label="This page">
                 <Outlet />
               </ErrorBoundary>

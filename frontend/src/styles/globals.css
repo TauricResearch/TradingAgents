@@ -1,81 +1,109 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Design tokens. Dark is the default (:root); light overrides via
-   [data-theme="light"]. Semantic trading colors keep their established
-   meanings: bull green / bear red / neutral amber. Staleness is a
-   DESATURATED amber + dashed border so "neutral direction" and "old data"
+   Design tokens — "Accops" light-glass design. LIGHT is the default (:root);
+   dark via [data-theme="dark"]. Semantic trading colors keep their
+   established meanings: bull green / bear red / neutral amber. Staleness is
+   a DESATURATED amber + dashed border so "neutral direction" and "old data"
    can never be confused (honesty requirement).
+
+   Chart code reads these vars BY NAME via getComputedStyle
+   (useLightweightChart.ts): --bull --bear --neutral --accent --fg-muted
+   --fg-subtle --border --border-strong --font-mono. Never rename them.
 --------------------------------------------------------------------------- */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  --bg: #0d1117;
-  --surface: #161b22;
-  --surface-2: #1c2128;
-  --border: #21262d;
-  --border-strong: #30363d;
+  --bg: #eef1f7;
+  --bg-gradient-to: #f7f9fc;
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-solid: #ffffff;
+  --surface-2: #f4f6fa;
+  --border: #e4e8f0;
+  --border-strong: #cfd6e4;
 
-  --fg: #e6edf3;
-  --fg-muted: #9ca7b3;
-  --fg-subtle: #8b949e;
+  --fg: #1a2130;
+  --fg-muted: #5a6474;
+  --fg-subtle: #8a93a6;
 
-  --bull: #3fb950;
-  --bull-muted: rgba(63, 185, 80, 0.15);
-  --bear: #f85149;
-  --bear-muted: rgba(248, 81, 73, 0.15);
-  --neutral: #d29922;
-  --neutral-muted: rgba(210, 153, 34, 0.15);
-  --accent: #79c0ff;
-  --accent-muted: rgba(121, 192, 255, 0.12);
+  --bull: #16824a;
+  --bull-muted: rgba(22, 130, 74, 0.12);
+  --bear: #d33b35;
+  --bear-muted: rgba(211, 59, 53, 0.12);
+  --neutral: #b07b10;
+  --neutral-muted: rgba(176, 123, 16, 0.12);
+  --accent: #2456c5; /* brand */
+  --accent-muted: rgba(36, 86, 197, 0.1);
+  --brand: var(--accent);
+  --brand-strong: #1c46a6;
+  --brand-muted: var(--accent-muted);
 
   --critical: var(--bear);
   --warning: var(--neutral);
   --info: var(--accent);
-  --stale: #9e8747; /* desaturated amber — distinct from neutral */
-  --locked: #6e7681;
+  --stale: #9a8a58; /* desaturated amber — distinct from neutral */
+  --locked: #8a93a6;
+  --live: #2fae66;
 
-  --radius-sm: 6px;
-  --radius: 8px;
-  --radius-lg: 12px;
+  --navy: #2c3547; /* reserved accent (ticker chip) */
+  --navy-2: #222a3b;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-tile: 16px;
+
+  --shadow-card: 0 1px 2px rgba(26, 33, 48, 0.04),
+    0 10px 28px -14px rgba(26, 33, 48, 0.12);
+  --shadow-hover: 0 2px 4px rgba(26, 33, 48, 0.05),
+    0 20px 44px -18px rgba(26, 33, 48, 0.2);
+  --shadow-1: var(--shadow-card);
+  --shadow-2: var(--shadow-hover);
 }
 
-[data-theme="light"] {
-  color-scheme: light;
+[data-theme="dark"] {
+  color-scheme: dark;
 
-  --bg: #ffffff;
-  --surface: #f6f8fa;
-  --surface-2: #eaeef2;
-  --border: #d0d7de;
-  --border-strong: #afb8c1;
+  --bg: #141a28;
+  --bg-gradient-to: #10151f;
+  --surface: rgba(30, 38, 55, 0.9);
+  --surface-solid: #1e2637;
+  --surface-2: #27314b;
+  --border: #2b3550;
+  --border-strong: #3a466a;
 
-  --fg: #1f2328;
-  --fg-muted: #59636e;
-  --fg-subtle: #6e7781;
+  --fg: #edf1f8;
+  --fg-muted: #a5afc4;
+  --fg-subtle: #7c87a0;
 
-  --bull: #1a7f37;
-  --bull-muted: rgba(26, 127, 55, 0.12);
-  --bear: #cf222e;
-  --bear-muted: rgba(207, 34, 46, 0.12);
-  --neutral: #9a6700;
-  --neutral-muted: rgba(154, 103, 0, 0.12);
-  --accent: #0969da;
-  --accent-muted: rgba(9, 105, 218, 0.1);
+  --bull: #41bb77;
+  --bull-muted: rgba(65, 187, 119, 0.15);
+  --bear: #f0564f;
+  --bear-muted: rgba(240, 86, 79, 0.15);
+  --neutral: #e0a53a;
+  --neutral-muted: rgba(224, 165, 58, 0.15);
+  --accent: #7d9ef2;
+  --accent-muted: rgba(125, 158, 242, 0.15);
+  --brand-strong: #97b2f5;
 
-  --stale: #857a55;
-  --locked: #818b98;
+  --stale: #9e8747;
+  --locked: #7c87a0;
+  --live: #41bb77;
 
-  --shadow-1: 0 1px 2px rgba(31, 35, 40, 0.08);
-  --shadow-2: 0 4px 16px rgba(31, 35, 40, 0.12);
+  --navy: #1b2232;
+  --navy-2: #151c2a;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35),
+    0 10px 28px -14px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.4),
+    0 20px 44px -18px rgba(0, 0, 0, 0.6);
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-surface-solid: var(--surface-solid);
   --color-surface-2: var(--surface-2);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
@@ -90,18 +118,25 @@
   --color-neutral-muted: var(--neutral-muted);
   --color-accent: var(--accent);
   --color-accent-muted: var(--accent-muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
   --color-critical: var(--critical);
   --color-warning: var(--warning);
   --color-info: var(--info);
   --color-stale: var(--stale);
   --color-locked: var(--locked);
+  --color-live: var(--live);
+  --color-navy: var(--navy);
+  --color-navy-2: var(--navy-2);
 
-  --font-sans: "Inter Variable", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Plus Jakarta Sans Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular,
+    monospace;
 
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-tile: 16px;
 }
 
 html,
@@ -111,7 +146,7 @@ body,
 }
 
 body {
-  background: var(--bg);
+  background: linear-gradient(160deg, var(--bg), var(--bg-gradient-to)) fixed;
   color: var(--fg);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -131,12 +166,101 @@ table td,
   border-color: var(--stale) !important;
 }
 
+/* --- ambience -------------------------------------------------------------
+   Two fixed radial blur blobs behind all content (rendered by AppShell). */
+.bg-blob {
+  position: fixed;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: -1;
+}
+.bg-blob--brand {
+  top: -120px;
+  right: -100px;
+  width: 480px;
+  height: 480px;
+  background: rgba(36, 86, 197, 0.09);
+  filter: blur(70px);
+  animation: blobFloat 26s ease-in-out infinite;
+}
+.bg-blob--violet {
+  bottom: -140px;
+  left: -120px;
+  width: 520px;
+  height: 520px;
+  background: rgba(122, 92, 240, 0.06);
+  filter: blur(60px);
+  animation: blobFloat 32s ease-in-out infinite reverse;
+}
+
+@keyframes blobFloat {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-28px, 24px);
+  }
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(47, 174, 102, 0.5);
+  }
+  60% {
+    opacity: 0.75;
+    box-shadow: 0 0 0 5px rgba(47, 174, 102, 0);
+  }
+}
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--live);
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+/* transient price tick flash (visual only; class applied per tick) */
+@keyframes tickFlash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.tick-up {
+  color: var(--bull);
+  transition: color 0.6s ease;
+}
+.tick-down {
+  color: var(--bear);
+  transition: color 0.6s ease;
+}
+
+/* interactive-card hover lift (motion-safe only) */
+@media (prefers-reduced-motion: no-preference) {
+  .card-lift {
+    transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  .bg-blob {
+    animation: none !important;
   }
 }
 
@@ -182,7 +306,7 @@ table td,
   }
   body {
     background: #ffffff;
-    color: #1f2328;
+    color: #1a2130;
   }
   /* the app shell scrolls <main> internally; print must flow instead */
   main {
@@ -190,6 +314,7 @@ table td,
   }
   header,
   nav,
+  .bg-blob,
   .no-print {
     display: none !important;
   }

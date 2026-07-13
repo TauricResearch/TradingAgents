@@ -19,11 +19,11 @@ export function DialogContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[rgba(16,21,31,0.45)] backdrop-blur-sm" />
       <DialogPrimitive.Content
         className={cn(
           "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
-          "rounded-lg border border-border-strong bg-surface p-5 shadow-(--shadow-2)",
+          "rounded-[18px] border border-border bg-surface-solid p-6 shadow-(--shadow-2)",
           className,
         )}
         {...props}

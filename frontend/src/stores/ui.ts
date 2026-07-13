@@ -40,7 +40,7 @@ interface UiState {
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
-      theme: "dark",
+      theme: "light",
       setTheme: (theme) => {
         document.documentElement.dataset.theme = theme;
         set({ theme });
@@ -75,6 +75,14 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "pro-ui",
+      // v1: the Accops reskin made LIGHT the default — migrate persisted
+      // sessions to it once; the toggle still persists a choice afterwards
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<UiState>;
+        if (version < 1) state.theme = "light";
+        return state as UiState;
+      },
       partialize: (s) => ({
         theme: s.theme,
         symbol: s.symbol,

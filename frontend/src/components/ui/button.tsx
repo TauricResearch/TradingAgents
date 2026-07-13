@@ -4,19 +4,24 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  "inline-flex items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
   {
     variants: {
       variant: {
-        default: "bg-accent-muted text-accent hover:bg-accent/20 border border-border-strong",
+        // primary CTA: solid brand with a soft brand shadow (reskin)
+        default:
+          "bg-accent text-white hover:bg-brand-strong shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)]",
+        // the pre-reskin default look, kept for chip-like secondary actions
+        muted:
+          "bg-accent-muted text-accent hover:bg-accent/20 border border-border",
         ghost: "hover:bg-surface-2 text-fg-muted hover:text-fg",
         outline: "border border-border-strong bg-transparent hover:bg-surface-2",
         destructive: "bg-bear-muted text-bear border border-bear/40 hover:bg-bear/25",
       },
       size: {
-        sm: "h-7 px-2 text-xs",
-        md: "h-8 px-3",
-        icon: "h-8 w-8",
+        sm: "h-7 px-2.5 text-xs",
+        md: "h-9 px-3.5",
+        icon: "h-9 w-9",
       },
     },
     defaultVariants: { variant: "default", size: "md" },
