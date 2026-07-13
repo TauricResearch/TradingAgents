@@ -56,6 +56,7 @@ class OrderManager:
         self.pending_protection: dict[str, dict] = {}
         self._closed: list[ClosedTrade] = []
         self.recovered = False
+        self.on_venue_error = None  # Phase 3: feeds the error-cooldown gate
 
     # --- helpers ---------------------------------------------------------------
 
@@ -95,6 +96,7 @@ class OrderManager:
         spec = OrderSpec(
             client_order_id=coid, symbol=plan.symbol, venue_symbol="",
             side=plan.side, quantity=plan.quantity,
+            order_type=plan.order_type, limit_price=plan.limit_price,
             reference_price=plan.reference_price,
         )
         order = ManagedOrder(spec=spec, leg=ids.ENTRY,
@@ -131,6 +133,8 @@ class OrderManager:
                     "idempotency_key": spec.client_order_id,
                     "attempt": attempt + 1, "error": str(exc),
                 })
+                if self.on_venue_error is not None:
+                    self.on_venue_error()
                 resolved = self._lookup(spec.client_order_id)
                 if resolved is not None:
                     return resolved  # the send actually landed

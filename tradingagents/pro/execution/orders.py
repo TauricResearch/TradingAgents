@@ -109,6 +109,9 @@ class ExecutionPlan:
     reference_price: float
     bracket: BracketSpec | None = None
     protection_mode: Literal["bar_close", "venue_bracket"] = "bar_close"
+    # Phase 3: large market orders are converted to bounded-cross limits
+    order_type: Literal["market", "limit"] = "market"
+    limit_price: float | None = None
 
 
 @dataclass(frozen=True)

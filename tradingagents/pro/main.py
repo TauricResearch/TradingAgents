@@ -248,8 +248,19 @@ def main() -> None:
 
     from tradingagents.pro.dashboard.app import create_app
     from tradingagents.pro.observability import configure_structured_logging
+    from tradingagents.pro.secrets import get_secret
 
     configure_structured_logging()
+
+    # Phase 3: live mode may never boot with an open dashboard. This
+    # entrypoint only ever runs the paper loop (arming live is the Phase-4
+    # CLI ceremony), but the guard is here too as defense in depth.
+    if os.environ.get("LIVE_TRADING") == "true" and not get_secret(
+            "PRO_DASHBOARD_TOKEN"):
+        raise SystemExit(
+            "refusing to start: LIVE_TRADING=true requires PRO_DASHBOARD_TOKEN "
+            "(a control surface over real capital must be authenticated)"
+        )
 
     interval = float(os.environ.get("PRO_LOOP_INTERVAL_SECONDS",
                                     DEFAULT_INTERVAL_SECONDS))

@@ -232,8 +232,31 @@ class PaperTradingService:
             and (run.state.get("execution_status") or "").startswith("accepted")
             and rec.symbol not in self.open_positions
         ):
+            # Phase 3 data-health gate: with live gates armed, degraded
+            # ingestion is a hard pre-trade stop — never trade on data
+            # you'd flag as degraded in the UI
+            if (getattr(self.router, "live_gates", None) is not None
+                    and snapshot.missing_feeds):
+                self.router.audit.append("live_data_health", {
+                    "recommendation_id": rec.id,
+                    "missing_feeds": list(snapshot.missing_feeds),
+                })
+                self.alerts.emit(
+                    "warning", "order_rejected",
+                    f"entry for {rec.symbol} blocked: degraded feeds "
+                    f"{list(snapshot.missing_feeds)}", symbol=rec.symbol,
+                )
+                summary["order_status"] = "blocked:data_health"
+                return summary
+            spread_bps = None
+            if snapshot.quote and snapshot.quote.bid and snapshot.quote.ask:
+                mid = (snapshot.quote.bid + snapshot.quote.ask) / 2
+                if mid > 0:
+                    spread_bps = 10_000.0 * (
+                        snapshot.quote.ask - snapshot.quote.bid) / mid
             equity = self.router.adapter.account().equity
-            result = self.router.submit_recommendation(rec, equity)
+            result = self.router.submit_recommendation(
+                rec, equity, spread_bps=spread_bps)
             summary["order_status"] = result.status
             if result.status == "rejected":
                 reason = result.reason or ""

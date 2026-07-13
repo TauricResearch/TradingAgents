@@ -47,9 +47,13 @@ class ExecutionRouter:
     # brackets). None = the original synchronous path, unchanged.
     oms = None
     protection_mode: str = "bar_close"  # "venue_bracket" for live wiring
+    # go-live Phase 3: LiveGateChain when real capital is armed; None =
+    # paper behavior unchanged.
+    live_gates = None
 
     def submit_recommendation(
-        self, rec: TradeRecommendation | None, equity: float
+        self, rec: TradeRecommendation | None, equity: float,
+        spread_bps: float | None = None,
     ) -> OrderResult:
         self.audit.append("order_received", {
             "recommendation_id": getattr(rec, "id", None),
@@ -79,6 +83,11 @@ class ExecutionRouter:
         breaker = self.breaker.check()
         if breaker.tripped:
             return self._refuse(rec, "circuit_breaker", breaker.reason)
+
+        if self.live_gates is not None:
+            gate = self._check_live_gates(rec, equity, spread_bps)
+            if not gate.ok:
+                return self._refuse(rec, gate.gate, gate.reason)
 
         if self.oms is not None:
             return self._submit_via_oms(rec)
@@ -154,6 +163,26 @@ class ExecutionRouter:
 
     # --- internals -----------------------------------------------------------
 
+    def _check_live_gates(self, rec, equity: float, spread_bps: float | None):
+        """Live-capital gates (Phase 3): account allocation, sizing, rate
+        limits, error cooldowns — after the breaker, before any order."""
+        notional = rec.position_size.quantity * rec.entry_price
+        open_notional = sum(
+            p.quantity * p.avg_price for p in self.adapter.positions()
+        )
+        risk_amount = (abs(rec.entry_price - rec.stop_loss)
+                       * rec.position_size.quantity
+                       if rec.stop_loss is not None else None)
+        return self.live_gates.check_entry(
+            notional=notional, equity=equity,
+            open_notional=open_notional,
+            open_positions=len(self.local_book),
+            max_open_positions=self.limits.max_open_positions,
+            risk_amount=risk_amount,
+            max_risk_pct=self.limits.max_risk_per_trade_pct,
+            spread_bps=spread_bps,
+        )
+
     def _submit_via_oms(self, rec: TradeRecommendation) -> OrderResult:
         """Phase-2 path: deterministic plan -> journaled OMS execution."""
         from tradingagents.pro.execution import ids
@@ -167,6 +196,17 @@ class ExecutionRouter:
                 take_profits=tuple((tp.price, tp.size_fraction)
                                    for tp in rec.take_profits),
             )
+        order_type, limit_price = "market", None
+        if self.live_gates is not None:
+            limits = self.live_gates.limits
+            notional = rec.position_size.quantity * rec.entry_price
+            if notional > limits.market_order_notional_cap:
+                # Phase 3: big orders never cross the book unbounded —
+                # limit at reference +/- max_cross_bps tolerance
+                cross = limits.max_cross_bps / 10_000.0
+                sign = 1 if rec.action.value == "BUY" else -1
+                order_type = "limit"
+                limit_price = rec.entry_price * (1 + sign * cross)
         plan = ExecutionPlan(
             run_id=rec.id,
             decision_hash=ids.decision_hash(rec),
@@ -176,8 +216,14 @@ class ExecutionRouter:
             reference_price=rec.entry_price,
             bracket=bracket,
             protection_mode=self.protection_mode,
+            order_type=order_type,
+            limit_price=limit_price,
         )
         order = self.oms.execute(plan)
+        if (self.live_gates is not None
+                and order.state not in (OrderState.REJECTED,
+                                        OrderState.ABANDONED)):
+            self.live_gates.record_order()  # rate-limit accounting
         status = {
             OrderState.FILLED: "filled",
             OrderState.REJECTED: "rejected",

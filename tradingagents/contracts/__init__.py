@@ -19,7 +19,12 @@ boundary instead of drifting through the graph.
 """
 
 from tradingagents.contracts.base import SCHEMA_VERSION, ContractModel, utc_now
-from tradingagents.contracts.config import ModelRouting, ProConfig, RiskLimits
+from tradingagents.contracts.config import (
+    LiveRiskLimits,
+    ModelRouting,
+    ProConfig,
+    RiskLimits,
+)
 from tradingagents.contracts.enums import (
     AgentTeam,
     AssetClass,
@@ -79,5 +84,6 @@ __all__ = [
     "SpotQuote",
     "ModelRouting",
     "ProConfig",
+    "LiveRiskLimits",
     "RiskLimits",
 ]

@@ -32,6 +32,58 @@ class RiskLimits(ContractModel):
     )
 
 
+class LiveRiskLimits(ContractModel):
+    """Additional hard limits that apply when real capital is armed
+    (go-live Phase 3). Deterministic gates only — no override path exists.
+
+    Contract defaults are deliberately conservative; the Phase-4
+    ``live.yaml`` loader additionally requires every one of these to be
+    written out explicitly by a human (no silent defaults in production).
+    """
+
+    live_max_account_allocation_pct: float = Field(
+        default=5.0, gt=0, le=100,
+        description="Ceiling on TOTAL notional across open positions as a "
+                    "percentage of venue-reported equity.")
+    max_notional_per_trade: float = Field(
+        default=1_000.0, gt=0,
+        description="Absolute notional cap (quote currency) per entry.")
+    max_orders_per_hour: int = Field(default=6, ge=1)
+    max_orders_per_day: int = Field(default=24, ge=1)
+    daily_loss_limit_pct: float = Field(default=2.0, gt=0, le=100)
+    weekly_loss_limit_pct: float = Field(default=5.0, gt=0, le=100)
+    max_drawdown_from_hwm_pct: float = Field(default=10.0, gt=0, le=100)
+    venue_error_cooldown_seconds: float = Field(default=300.0, ge=0)
+    venue_error_burst_threshold: int = Field(
+        default=3, ge=1,
+        description="Venue errors within the cooldown window that trigger "
+                    "an entry cooldown.")
+    max_spread_bps: float = Field(
+        default=25.0, gt=0,
+        description="Reject entries when the quoted bid/ask spread exceeds "
+                    "this (execution would start underwater).")
+    market_order_notional_cap: float = Field(
+        default=500.0, gt=0,
+        description="Above this notional, market orders are converted to "
+                    "limit orders with max_cross_bps tolerance.")
+    max_cross_bps: float = Field(default=10.0, gt=0)
+    max_leverage: float = Field(default=1.0, ge=1)
+    i_understand_leverage_multiplies_losses: bool = Field(
+        default=False,
+        description="Must be explicitly true to set max_leverage above 1.")
+
+    @model_validator(mode="after")
+    def _leverage_needs_explicit_acknowledgement(self):
+        if (self.max_leverage > 1
+                and not self.i_understand_leverage_multiplies_losses):
+            raise ValueError(
+                "max_leverage > 1 requires "
+                "i_understand_leverage_multiplies_losses=true — leverage "
+                "multiplies losses as well as gains"
+            )
+        return self
+
+
 class ModelRouting(ContractModel):
     """Which LLM serves which tier/team.
 

@@ -1,0 +1,43 @@
+# live.yaml — required to arm live trading (go-live Phase 4 loads this).
+# EVERY value below must be present: the loader refuses on a missing key
+# and names it. There are no silent defaults for real capital. Copy to
+# live.yaml (gitignored), edit deliberately, then run:
+#     tradingagents-pro arm-live --config live.yaml
+#
+# This file selects venues/instruments and hard risk limits ONLY. It
+# cannot enable any override, withdrawal, or bypass — none exist in code.
+
+venue: delta                 # delta (testnet vs prod chosen by DELTA_BASE_URL/env)
+
+pairs:
+  BTC-USD:
+    mode: shadow             # shadow | canary | live  (per-pair, Phase 6)
+  XAUUSD:                    # Delta XAUTUSD perp (Tether Gold ≈ spot, disclosed basis)
+    mode: shadow
+
+risk:
+  live_max_account_allocation_pct: 5.0
+  max_notional_per_trade: 250.0
+  max_orders_per_hour: 4
+  max_orders_per_day: 12
+  daily_loss_limit_pct: 2.0
+  weekly_loss_limit_pct: 5.0
+  max_drawdown_from_hwm_pct: 10.0
+  venue_error_cooldown_seconds: 300
+  venue_error_burst_threshold: 3
+  max_spread_bps: 25.0
+  market_order_notional_cap: 100.0
+  max_cross_bps: 10.0
+  max_leverage: 1.0
+  i_understand_leverage_multiplies_losses: false
+
+# On a daily/weekly loss or drawdown breach: cancel all + flatten all +
+# disarm. Re-arming requires re-running the ceremony.
+breach_action: cancel_and_flatten
+
+# Promotion thresholds the readiness-report checks before you size up
+# (Phase 6). Promotion is never automatic.
+promotion:
+  min_shadow_days: 28
+  min_canary_days: 14
+  max_reconciliation_incidents: 0
