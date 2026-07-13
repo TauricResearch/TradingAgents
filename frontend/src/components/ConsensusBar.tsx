@@ -35,7 +35,7 @@ export function ConsensusBar({
   return (
     <div data-testid="consensus-bar">
       <div
-        className="flex h-5 w-full overflow-hidden rounded-full border border-border"
+        className="flex h-[22px] w-full overflow-hidden rounded-full border border-border shadow-[inset_0_1px_3px_rgba(26,33,48,0.12)]"
         role="img"
         aria-label={`consensus: ${counts.bear} bearish, ${counts.neutral} neutral, ${counts.bull} bullish votes, confidence weighted`}
       >

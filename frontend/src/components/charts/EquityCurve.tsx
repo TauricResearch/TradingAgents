@@ -7,7 +7,7 @@ import {
 } from "lightweight-charts";
 import { useEffect } from "react";
 
-import { chartColors, useLightweightChart } from "./useLightweightChart";
+import { chartColors, useLightweightChart, hexToRgba } from "./useLightweightChart";
 import { useUiStore } from "@/stores/ui";
 import { toDrawdown } from "./transform";
 import { fmtPrice } from "@/lib/format";
@@ -46,7 +46,7 @@ export function EquityCurve({
     const up = last >= first;
     const series = chart.addSeries(AreaSeries, {
       lineColor: up ? colors.bull : colors.bear,
-      topColor: up ? "rgba(63,185,80,0.2)" : "rgba(248,81,73,0.2)",
+      topColor: hexToRgba(up ? colors.bull : colors.bear, 0.2),
       bottomColor: "rgba(0,0,0,0)",
       lineWidth: 2,
       priceLineVisible: false,
@@ -65,7 +65,7 @@ export function EquityCurve({
         {
           lineColor: colors.bear,
           topColor: "rgba(0,0,0,0)",
-          bottomColor: "rgba(248,81,73,0.25)",
+          bottomColor: hexToRgba(colors.bear, 0.25),
           lineWidth: 1,
           priceLineVisible: false,
           priceFormat: { type: "percent" },

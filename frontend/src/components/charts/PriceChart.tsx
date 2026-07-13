@@ -19,7 +19,7 @@ import {
 } from "lightweight-charts";
 import { useEffect, useRef } from "react";
 
-import { chartColors, useLightweightChart } from "./useLightweightChart";
+import { chartColors, useLightweightChart, hexToRgba } from "./useLightweightChart";
 import { toHeikinAshi } from "./transform";
 import { useChartSync } from "./ChartSync";
 import { DrawingsPrimitive } from "./drawings/primitive";
@@ -47,11 +47,6 @@ export interface TradeMarker {
 
 /** overlays share the price pane; oscillators get their own */
 const OVERLAY_INDICATORS = new Set(["EMA_10", "SMA_50", "SMA_200", "BOLL"]);
-
-function hexToRgba(hex: string, alpha: number): string {
-  const n = parseInt(hex.replace("#", ""), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
-}
 
 /** theme-resolved per-line colors (review finding: hardcoded dark-theme
  * hexes washed out on light backgrounds) */
@@ -175,8 +170,8 @@ export function PriceChart({
     } else {
       const series = chart.addSeries(AreaSeries, {
         lineColor: colors.accent,
-        topColor: "rgba(121,192,255,0.25)",
-        bottomColor: "rgba(121,192,255,0.02)",
+        topColor: hexToRgba(colors.accent, 0.25),
+        bottomColor: hexToRgba(colors.accent, 0.02),
         lineWidth: 2,
       });
       series.setData(closes);

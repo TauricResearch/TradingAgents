@@ -28,7 +28,7 @@ export default function SettingsPage() {
   const [confirm, setConfirm] = useState("");
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="mx-auto max-w-[680px] space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>Appearance</CardTitle>

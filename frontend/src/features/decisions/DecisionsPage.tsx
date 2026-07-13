@@ -58,9 +58,9 @@ function RunRail({
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "rounded-full border px-2.5 py-0.5 capitalize",
+              "rounded-full border px-2.5 py-0.5 font-semibold capitalize",
               filter === f
-                ? "border-accent/50 bg-accent-muted text-accent"
+                ? "border-accent bg-accent text-white"
                 : "border-border text-fg-subtle hover:text-fg",
             )}
             aria-pressed={filter === f}
@@ -78,10 +78,10 @@ function RunRail({
             <button
               onClick={() => onSelect(run.run_id)}
               className={cn(
-                "w-full rounded-md border px-2.5 py-1.5 text-left text-xs",
+                "w-full rounded-[14px] border px-2.5 py-1.5 text-left text-xs",
                 selected === run.run_id
-                  ? "border-accent/60 bg-accent-muted"
-                  : "border-border hover:border-border-strong",
+                  ? "border-accent bg-accent-muted"
+                  : "border-border bg-surface-2/60 hover:border-border-strong",
               )}
             >
               <div className="flex items-center justify-between">

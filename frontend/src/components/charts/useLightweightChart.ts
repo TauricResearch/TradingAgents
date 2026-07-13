@@ -66,6 +66,12 @@ export function useLightweightChart(
   return { containerRef, chartRef };
 }
 
+/** hex token -> rgba with alpha (gradients must follow the theme) */
+export function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
 export function chartColors() {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string) => css.getPropertyValue(name).trim();

@@ -40,7 +40,8 @@ class TestPrefsStore:
         path = tmp_path / "prefs.json"
         path.write_text("{not json", encoding="utf-8")
         store = PrefsStore(path)
-        assert store.get_prefs()["theme"] == "dark"
+        # reskin: light is the default theme
+        assert store.get_prefs()["theme"] == "light"
 
     def test_atomic_write_leaves_no_temp_files(self, store, tmp_path):
         for i in range(5):
@@ -119,9 +120,9 @@ class TestPrefsEndpoints:
         return TestClient(create_app(state))
 
     def test_prefs_crud(self, client):
-        assert client.get("/api/prefs").json()["theme"] == "dark"
-        updated = client.put("/api/prefs", json={"theme": "light"}).json()
-        assert updated["theme"] == "light"
+        assert client.get("/api/prefs").json()["theme"] == "light"  # reskin default
+        updated = client.put("/api/prefs", json={"theme": "dark"}).json()
+        assert updated["theme"] == "dark"
         assert client.put("/api/prefs", json={"nope": 1}).status_code == 422
         assert client.put(
             "/api/prefs", content=b"{" * 300_000,

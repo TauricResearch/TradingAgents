@@ -21,17 +21,17 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-md border border-border bg-surface-2/50 px-3 py-2",
+        "rounded-[16px] bg-surface-2 px-3.5 py-2.5",
         className,
       )}
     >
-      <div className="text-[11px] uppercase tracking-wide text-fg-subtle">
+      <div className="truncate text-[9.5px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
         {label}
         {n != null && <span className="ml-1 normal-case">(n={n})</span>}
       </div>
       <div
         className={cn(
-          "font-mono text-lg tabular",
+          "font-mono text-[16.5px] tabular",
           tone === "bull" && "text-bull",
           tone === "bear" && "text-bear",
           tone === "neutral" && "text-neutral",

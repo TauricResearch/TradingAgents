@@ -68,7 +68,7 @@ function PortfolioSnapshot() {
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span>
-          P&L{" "}
+          Total P&L{" "}
           <span className="font-mono font-semibold tabular">
             {fmtPnl(j?.total_pnl)}
           </span>

@@ -13,6 +13,7 @@ import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Segment, Segmented } from "@/components/ui/segmented";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { ChartSyncProvider } from "@/components/charts/ChartSync";
 import {
@@ -39,7 +40,6 @@ import {
   useSymbols,
 } from "@/lib/api/queries";
 import { fmtPnl, fmtPrice } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
 
 const STYLES: { id: SeriesStyle; label: string }[] = [
@@ -213,7 +213,7 @@ export default function WorkspacePage() {
       <div className="min-w-0 space-y-4">
         <Card ref={chartCardRef} className="bg-surface">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 !text-lg !font-extrabold !normal-case !tracking-normal !text-fg">
               {symbol}
               {replay.active ? null : spec && !spec.live ? (
                 <Badge variant="stale">EOD data</Badge>
@@ -221,39 +221,30 @@ export default function WorkspacePage() {
                 spec?.live && <Badge variant="bull">live</Badge>
               )}
             </CardTitle>
-            <div className="flex flex-wrap items-center gap-1 text-xs">
-              {available.map((tf) => (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  aria-pressed={tf === activeTf}
-                  className={cn(
-                    "rounded px-2 py-0.5 font-mono",
-                    tf === activeTf
-                      ? "bg-accent-muted text-accent"
-                      : "text-fg-subtle hover:text-fg",
-                  )}
-                >
-                  {tf}
-                </button>
-              ))}
-              <span className="mx-1 text-border-strong">|</span>
-              {STYLES.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setStyle(s.id)}
-                  aria-pressed={style === s.id}
-                  className={cn(
-                    "rounded px-2 py-0.5",
-                    style === s.id
-                      ? "bg-accent-muted text-accent"
-                      : "text-fg-subtle hover:text-fg",
-                  )}
-                >
-                  {s.label}
-                </button>
-              ))}
-              <span className="mx-1 text-border-strong">|</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Segmented>
+                {available.map((tf) => (
+                  <Segment
+                    key={tf}
+                    onClick={() => setTimeframe(tf)}
+                    active={tf === activeTf}
+                    className="font-mono"
+                  >
+                    {tf}
+                  </Segment>
+                ))}
+              </Segmented>
+              <Segmented>
+                {STYLES.map((s) => (
+                  <Segment
+                    key={s.id}
+                    onClick={() => setStyle(s.id)}
+                    active={style === s.id}
+                  >
+                    {s.label}
+                  </Segment>
+                ))}
+              </Segmented>
               <IndicatorPicker
                 selected={selectedIndicators}
                 onToggle={toggleIndicator}

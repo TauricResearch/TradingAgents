@@ -40,7 +40,7 @@ export default function ReportPage() {
 
   const r = report.data;
   return (
-    <article className="mx-auto max-w-3xl space-y-6 bg-surface p-8 print:bg-white print:p-0">
+    <article className="mx-auto max-w-[760px] space-y-6 rounded-[20px] border border-border bg-surface-solid px-10 py-9 shadow-(--shadow-1) print:rounded-none print:border-0 print:bg-white print:p-0 print:shadow-none">
       <header className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold">TradingAgents Pro — Operations Report</h1>
