@@ -43,7 +43,7 @@ export function CommandPalette() {
       open={paletteOpen}
       onOpenChange={setPaletteOpen}
       label="Command palette"
-      className="fixed left-1/2 top-24 z-50 w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-(--shadow-2)"
+      className="fixed left-1/2 top-24 z-50 w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-[18px] border border-border bg-surface-solid shadow-(--shadow-2)"
     >
       <Command.Input
         placeholder="Search commands, runs, symbols…"

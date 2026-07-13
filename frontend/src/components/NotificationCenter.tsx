@@ -37,7 +37,7 @@ export function NotificationCenter() {
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border-strong bg-surface shadow-(--shadow-2)"
+      className="fixed bottom-2.5 right-2.5 top-2.5 z-50 flex w-full max-w-sm flex-col rounded-[18px] border border-border bg-surface-solid shadow-(--shadow-2)"
       role="dialog"
       aria-label="Notification center"
       data-testid="notification-center"
