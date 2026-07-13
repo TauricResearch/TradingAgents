@@ -50,22 +50,71 @@ class ExecutionRouter:
     # go-live Phase 3: LiveGateChain when real capital is armed; None =
     # paper behavior unchanged.
     live_gates = None
+    # go-live Phase 6 staged rollout: per-pair mode routing. ``arming``
+    # decides the tier; ``live_oms`` (an OrderManager over the live venue
+    # adapter) is where canary/live orders go; ``shadow_tracker`` records
+    # would-have-been live fills for shadow-mode paper fills. All None =
+    # every order stays on the paper venue, exactly as before.
+    arming = None
+    live_oms = None
+    shadow_tracker = None
+
+    def tier_for(self, symbol: str) -> str:
+        if self.arming is None:
+            return "paper"
+        try:
+            return self.arming.effective_tier(symbol)
+        except Exception:
+            return "paper"
+
+    def omses(self) -> list:
+        return [o for o in (self.oms, self.live_oms) if o is not None]
 
     def submit_recommendation(
         self, rec: TradeRecommendation | None, equity: float,
         spread_bps: float | None = None,
     ) -> OrderResult:
+        tier = self.tier_for(getattr(rec, "symbol", ""))
+        route_live = tier in ("canary", "live") and self.live_oms is not None
         self.audit.append("order_received", {
             "recommendation_id": getattr(rec, "id", None),
             "symbol": getattr(rec, "symbol", None),
             "action": getattr(rec, "action", None) and rec.action.value,
+            "tier": tier,
+            "route": "live" if route_live else "paper",
         })
+
+        # a pair armed at a live tier with no live venue wired is REFUSED,
+        # never silently paper-filled — the operator believes real capital
+        # is working; pretending would be a lie (Phase 6)
+        if tier in ("canary", "live") and self.live_oms is None:
+            return self._refuse(
+                rec, "live_route_unavailable",
+                f"pair armed '{tier}' but no live venue is wired — refusing "
+                "rather than silently filling on paper")
 
         # leading gate (OMS wiring only): a process that has not accounted
         # for its outstanding orders does not trade
-        if self.oms is not None and not self.oms.recovered:
+        entry_oms = self.live_oms if route_live else self.oms
+        if entry_oms is not None and not entry_oms.recovered:
             return self._refuse(rec, "oms_not_recovered",
                                 "boot recovery has not completed")
+
+        if route_live:
+            # gates measure against the venue that will hold the risk
+            try:
+                equity = self.live_oms.adapter.account().equity
+            except Exception as exc:
+                return self._refuse(rec, "live_venue_unreachable", str(exc))
+            if tier == "canary":
+                # canary sizes to the venue minimum BEFORE validation —
+                # the gates judge the order that will actually be placed
+                sized = self._canary_sized(rec)
+                if sized is None:
+                    return self._refuse(
+                        rec, "canary_sizing",
+                        "venue minimum size unavailable for canary")
+                rec = sized
 
         supported = (
             self.adapter.supported_symbols()
@@ -89,8 +138,13 @@ class ExecutionRouter:
             if not gate.ok:
                 return self._refuse(rec, gate.gate, gate.reason)
 
+        if route_live:
+            return self._submit_via_oms(rec, oms=self.live_oms, tier=tier)
+
         if self.oms is not None:
-            return self._submit_via_oms(rec)
+            result = self._submit_via_oms(rec, oms=self.oms, tier=tier)
+            self._maybe_shadow(rec, tier, result)
+            return result
 
         order = OrderRequest(
             idempotency_key=rec.id,
@@ -115,7 +169,42 @@ class ExecutionRouter:
             self.local_book[order.symbol] = (
                 self.local_book.get(order.symbol, 0.0) + sign * result.filled_quantity
             )
+        self._maybe_shadow(rec, tier, result)
         return result
+
+    def _canary_sized(self, rec):
+        """A copy of the recommendation resized to the live venue's minimum
+        viable size — canary proves the pipe with the smallest real order."""
+        try:
+            info = self.live_oms.adapter.instruments.get(rec.symbol)
+            quantity = min(rec.position_size.quantity,
+                           info.to_quantity(info.min_contracts))
+            if quantity <= 0:
+                return None
+            return rec.model_copy(update={
+                "position_size": rec.position_size.model_copy(update={
+                    "quantity": quantity,
+                    "notional": quantity * rec.entry_price,
+                }),
+            })
+        except Exception:
+            logger.exception("canary sizing failed")
+            return None
+
+    def _maybe_shadow(self, rec, tier: str, result: OrderResult) -> None:
+        """Shadow mode: after a PAPER fill, record the would-have-been live
+        fill so paper-vs-live divergence is measured (Phase 6)."""
+        if (tier != "shadow" or self.shadow_tracker is None
+                or result.status != "filled"):
+            return
+        try:
+            self.shadow_tracker.record(
+                symbol=rec.symbol, side=rec.action.value,
+                quantity=result.filled_quantity,
+                paper_fill_price=result.fill_price,
+            )
+        except Exception:
+            logger.exception("shadow fill recording failed; continuing")
 
     def record_close(self, symbol: str, pnl: float) -> None:
         """Called by the position manager when a trade closes; feeds the
@@ -128,7 +217,17 @@ class ExecutionRouter:
             self.audit.append("circuit_breaker_tripped", {"reason": state.reason})
 
     def reconcile(self) -> ReconciliationReport:
+        # Phase 6: a symbol holds risk on exactly one venue at a time
+        # (its tier decides), so the truth set is the union of venues
         venue_positions = {p.symbol: p for p in self.adapter.positions()}
+        if self.live_oms is not None:
+            try:
+                for p in self.live_oms.adapter.positions():
+                    venue_positions[p.symbol] = p
+            except Exception:
+                logger.warning("live venue unreachable during reconcile; "
+                               "its positions are missing from this pass",
+                               exc_info=True)
         missing, unknown, mismatched = [], [], []
         for symbol, local_quantity in self.local_book.items():
             venue_position = venue_positions.get(symbol)
@@ -183,11 +282,19 @@ class ExecutionRouter:
             spread_bps=spread_bps,
         )
 
-    def _submit_via_oms(self, rec: TradeRecommendation) -> OrderResult:
-        """Phase-2 path: deterministic plan -> journaled OMS execution."""
+    def _submit_via_oms(self, rec: TradeRecommendation, oms=None,
+                        tier: str = "paper") -> OrderResult:
+        """Phase-2 path: deterministic plan -> journaled OMS execution.
+        Phase 6: ``oms`` selects the venue (paper vs live); canary clamps
+        the quantity to the venue minimum and live tiers use venue-side
+        bracket protection."""
         from tradingagents.pro.execution import ids
         from tradingagents.pro.execution.interface import BracketSpec, OrderState
         from tradingagents.pro.execution.orders import ExecutionPlan
+
+        oms = oms if oms is not None else self.oms
+        route_live = tier in ("canary", "live") and oms is self.live_oms
+        quantity = rec.position_size.quantity  # canary already sized upstream
 
         bracket = None
         if rec.stop_loss is not None:
@@ -199,7 +306,7 @@ class ExecutionRouter:
         order_type, limit_price = "market", None
         if self.live_gates is not None:
             limits = self.live_gates.limits
-            notional = rec.position_size.quantity * rec.entry_price
+            notional = quantity * rec.entry_price
             if notional > limits.market_order_notional_cap:
                 # Phase 3: big orders never cross the book unbounded —
                 # limit at reference +/- max_cross_bps tolerance
@@ -212,14 +319,15 @@ class ExecutionRouter:
             decision_hash=ids.decision_hash(rec),
             symbol=rec.symbol,
             side=rec.action.value,
-            quantity=rec.position_size.quantity,
+            quantity=quantity,
             reference_price=rec.entry_price,
             bracket=bracket,
-            protection_mode=self.protection_mode,
+            protection_mode="venue_bracket" if route_live
+            else self.protection_mode,
             order_type=order_type,
             limit_price=limit_price,
         )
-        order = self.oms.execute(plan)
+        order = oms.execute(plan)
         if (self.live_gates is not None
                 and order.state not in (OrderState.REJECTED,
                                         OrderState.ABANDONED)):
@@ -232,7 +340,7 @@ class ExecutionRouter:
         }.get(order.state, "submitted")
         result = OrderResult(
             status=status, idempotency_key=rec.id,
-            venue=self.adapter.name, venue_symbol=order.spec.venue_symbol,
+            venue=oms.adapter.name, venue_symbol=order.spec.venue_symbol,
             filled_quantity=order.filled_quantity,
             fill_price=order.avg_fill_price,
             commission=order.commission,

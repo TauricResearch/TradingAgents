@@ -353,8 +353,9 @@ class PaperTradingService:
         for symbol, position in list(self.open_positions.items()):
             if symbol != snapshot.symbol:
                 continue
-            oms = getattr(self.router, "oms", None)
-            if oms is not None and oms.has_venue_protection(symbol):
+            omses = (self.router.omses() if hasattr(self.router, "omses")
+                     else [o for o in (getattr(self.router, "oms", None),) if o])
+            if any(o.has_venue_protection(symbol) for o in omses):
                 # venue-side bracket owns the exit; bar-close management
                 # would double-close (go-live Phase 2 coexistence rule)
                 continue
@@ -412,11 +413,17 @@ class PaperTradingService:
 
     def _consume_oms_exits(self, bar) -> list[dict]:
         """Fold venue-detected exits (brackets/watchdog flattens) into the
-        SAME downstream path as bar-close exits: breaker, memory, metrics."""
-        oms = getattr(self.router, "oms", None)
-        if oms is None:
-            return []
-        oms.poll()
+        SAME downstream path as bar-close exits: breaker, memory, metrics.
+        Phase 6: both the paper and (when routed) live OMS are drained."""
+        omses = (self.router.omses() if hasattr(self.router, "omses")
+                 else [o for o in (getattr(self.router, "oms", None),) if o])
+        closed = []
+        for oms in omses:
+            oms.poll()
+            closed.extend(self._drain_one_oms(oms, bar))
+        return closed
+
+    def _drain_one_oms(self, oms, bar) -> list[dict]:
         closed = []
         for trade in oms.drain_closed():
             position = self.open_positions.pop(trade.symbol, None)

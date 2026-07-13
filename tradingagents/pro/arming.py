@@ -63,15 +63,27 @@ class ArmingStore:
         self._state: dict[str, PairArming] = {
             p: PairArming(pair=p) for p in self._pairs
         }
+        self._mtime: float = 0.0
         self._load()
 
     # --- persistence ---------------------------------------------------------------
+
+    def _maybe_reload(self) -> None:
+        """The CLI ceremony and the running service are separate processes
+        sharing arming.json — reads pick up external writes (Phase 6)."""
+        try:
+            mtime = self.path.stat().st_mtime
+        except FileNotFoundError:
+            return
+        if mtime != self._mtime:
+            self._load()
 
     def _load(self) -> None:
         import json
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
+            self._mtime = self.path.stat().st_mtime
         except FileNotFoundError:
             return
         except Exception:
@@ -135,20 +147,24 @@ class ArmingStore:
     # --- queries ---------------------------------------------------------------------
 
     def get(self, pair: str) -> PairArming:
+        self._maybe_reload()
         return self._state[pair]
 
     def effective_tier(self, pair: str, now=None) -> str:
+        self._maybe_reload()
         record = self._state.get(pair)
         return record.effective_tier(now) if record else "paper"
 
     def is_live(self, pair: str, now=None) -> bool:
         """True only for canary/live tiers that have not expired — the
         gate Phase 6 consults before letting an order reach a live venue."""
+        self._maybe_reload()
         record = self._state.get(pair)
         return bool(record and record.effective_tier(now) in ("canary", "live"))
 
     def status(self, now=None) -> dict:
         """Dashboard view: per-pair label with expiry demotion surfaced."""
+        self._maybe_reload()
         out = {}
         for pair, record in self._state.items():
             effective = record.effective_tier(now)

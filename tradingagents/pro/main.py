@@ -274,7 +274,49 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     state.metrics = service.metrics  # /metrics scrape target
     service.alerts.metrics = service.metrics  # count deliveries + failures
     state.alerts = service.alerts    # emergency-flatten alerting
+    _wire_staged_routing(state, router, service, data_path)
     return service, state
+
+
+def _wire_staged_routing(state, router, service, data_path) -> None:
+    """Phase 6: the router honors per-pair arming tiers. Shadow tracking
+    is always wired (costs nothing until a pair is armed 'shadow'); the
+    LIVE route is built only when venue credentials exist — an armed pair
+    without a live route is REFUSED by the router, never paper-filled."""
+    router.arming = state.arming
+
+    from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
+    from tradingagents.pro.staging import ShadowFillTracker
+
+    vendor_map = {"XAUUSD": "XAUTUSD", "BTC-USD": "BTCUSD"}
+    market_data = DeltaExchangeFeed()
+    router.shadow_tracker = ShadowFillTracker(
+        lambda s: market_data.get_quote(vendor_map.get(s, s)),
+        store_path=data_path / "shadow_fills.jsonl",
+        metrics=service.metrics,
+    )
+
+    testnet = os.environ.get("PRO_LIVE_VENUE", "testnet") != "production"
+    try:
+        from tradingagents.pro.execution import OrderManager
+        from tradingagents.pro.execution.adapters.delta import DeltaAdapter
+
+        live_adapter = DeltaAdapter.from_env(testnet=testnet)
+        live_oms = OrderManager(
+            live_adapter,
+            journal_path=data_path / "oms" / "live_journal.jsonl",
+            audit=router.audit,
+        )
+        live_oms.recover()  # blocking: unresolved live orders = no boot
+        router.live_oms = live_oms
+        logger.info("live route wired (%s) — orders go live only for "
+                    "canary/live-armed pairs",
+                    "testnet" if testnet else "PRODUCTION")
+    except Exception as exc:
+        # no credentials (the common paper case) or venue unreachable:
+        # stay paper-only; armed pairs will be refused, honestly
+        logger.info("live route not wired (%s) — armed pairs would be "
+                    "refused, paper/shadow unaffected", exc)
 
 
 def _start_live_safety_daemons(service, state) -> None:

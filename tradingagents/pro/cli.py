@@ -75,8 +75,11 @@ def status() -> None:
 def readiness_report(
     testnet: bool = typer.Option(True, help="Check against testnet (default) "
                                  "or production venue."),
+    config: Path = typer.Option(None, help="live.yaml — when given, appends "
+                                "the per-pair PROMOTION report (Phase 6)."),
 ) -> None:
-    """Run the go-live self-check. Any FAIL blocks arming."""
+    """Run the go-live self-check (+ promotion report with --config).
+    Any security FAIL blocks arming; promotion is never automatic."""
     from tradingagents.pro.preflight import go_live_readiness
 
     try:
@@ -86,7 +89,45 @@ def readiness_report(
         adapter = None
     report = go_live_readiness(adapter=adapter, audit=_audit())
     typer.echo(report.render())
+
+    if config is not None:
+        typer.echo("")
+        typer.echo(_promotion_section(config))
     raise typer.Exit(code=0 if report.ok else 1)
+
+
+def _promotion_section(config: Path) -> str:
+    from tradingagents.pro.dashboard.recorder import PipelineRecorder
+    from tradingagents.pro.dashboard.service import trade_journal
+    from tradingagents.pro.live_config import LiveConfigError, load_live_config
+    from tradingagents.pro.memory import ProMemory
+    from tradingagents.pro.staging import (
+        ShadowFillTracker,
+        promotion_report,
+        render_promotion_report,
+    )
+
+    try:
+        cfg = load_live_config(config)
+    except LiveConfigError as exc:
+        return f"promotion report unavailable: {exc}"
+    data = _data_dir()
+    audit = _audit()
+    arming = _arming(audit)
+    memory_path = data / "memory.jsonl"
+    memory = (ProMemory(store_path=memory_path) if memory_path.exists()
+              else ProMemory())
+    report = promotion_report(
+        pairs=list(cfg.pair_modes),
+        arming=arming,
+        recorder_runs=PipelineRecorder(store_dir=data / "runs").runs,
+        journal=trade_journal(memory),
+        audit_entries=audit.entries,
+        shadow_fills=ShadowFillTracker(
+            None, store_path=data / "shadow_fills.jsonl").load(),
+        promotion_thresholds=cfg.promotion,
+    )
+    return render_promotion_report(report)
 
 
 @app.command("arm-live")

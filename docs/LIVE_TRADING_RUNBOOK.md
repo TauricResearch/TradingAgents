@@ -97,3 +97,32 @@ across restarts on the `/data` volume.
 - `GET /metrics` — Prometheus counters/gauges incl. `last_run_ts`;
   `deploy/prometheus-alerts.yml` has the alert rules.
 - The daily P&L summary arrives once per UTC day on your alert channel.
+
+## Staged rollout (Phase 6)
+
+Arming tiers change where orders actually go:
+
+- **shadow** — decisions run live; orders fill on the PAPER venue while
+  the would-have-been live fill (crossing the real spread) is recorded to
+  `shadow_fills.jsonl`. Zero capital at risk; divergence is measured.
+- **canary** — orders go to the LIVE venue at the venue-minimum size,
+  regardless of configured sizing. Proves the whole pipe with the
+  smallest possible real order.
+- **live** — live venue at configured sizing.
+
+A pair armed canary/live while no live venue is wired is **refused**,
+never silently paper-filled. `PRO_LIVE_VENUE=testnet|production` selects
+the endpoint for the live route (testnet default).
+
+Suggested promotion defaults (encode them in live.yaml `promotion:`):
+≥ 28 days shadow, ≥ 14 days canary, zero unexplained reconciliation
+incidents before sizing up. Check with:
+
+```
+tradingagents-pro readiness-report --config live.yaml
+```
+
+The report shows, per pair: current tier, decisions, gate-rejection
+rate, shadow/canary durations, shadow-fill divergence, and any blockers.
+Promotion is never automatic — re-run the arming ceremony at the new
+tier.
