@@ -19,12 +19,12 @@ import { useTick } from "@/stores/ticker";
 import { useUiStore } from "@/stores/ui";
 
 const ROUTE_TITLES: [prefix: string, title: string, subtitle: string][] = [
-  ["/trade", "Trade Workspace", "Chart-first with decision overlays"],
+  ["/trade", "Trade Workspace", "chart-first with decision overlays"],
   ["/decisions", "Decision Center", "Every run's full reasoning — rejections included"],
   ["/portfolio", "Portfolio", "Live paper P&L, backtest and the trade journal"],
   ["/intel", "Market Intelligence", "Regime, metrics and feed coverage — honestly stated"],
   ["/settings", "Settings", "Appearance, layouts, connections and the kill switch"],
-  ["/report", "Monthly Report", "Print-ready performance summary"],
+  ["/report", "Operations Report", "Print-ready summary — browser print produces the PDF"],
   ["/", "Overview", "The 5-second briefing — stance, money, what changed"],
 ];
 
@@ -36,10 +36,14 @@ const DEFAULT_TITLE: (typeof ROUTE_TITLES)[number] = [
 
 function PageTitle() {
   const { pathname } = useLocation();
-  const [, title, subtitle] =
+  const symbol = useUiStore((s) => s.symbol);
+  const [prefix, title, rawSubtitle] =
     ROUTE_TITLES.find(([p]) =>
       p === "/" ? pathname === "/" : pathname.startsWith(p),
     ) ?? DEFAULT_TITLE;
+  // Trade subtitle carries the active symbol (mockup: "BTC-USD · chart-first…")
+  const subtitle =
+    prefix === "/trade" ? `${symbol} · ${rawSubtitle}` : rawSubtitle;
   return (
     // the title is the mockup's left anchor. The block may shrink (min-w-0)
     // to yield row space, but the title LINE is nowrap-without-truncate, so

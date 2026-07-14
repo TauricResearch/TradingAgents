@@ -141,6 +141,22 @@ Fixed:
    overflow, title present at every width. Also fixed the Trade chart-card symbol
    wrapping ("BTC-" / "USD") — now `whitespace-nowrap`, one line like the mockup.
 
+## Round 5 — exhaustive re-diff (Decisions/Settings/Report/overlays/states)
+
+Diffed the surfaces earlier rounds hadn't closely checked. Everything matched or
+was a documented KEEP except two page-title copy strings (mockup `pageMeta` vs our
+`ROUTE_TITLES`), now fixed:
+- Report top-bar title `"Monthly Report"` → **"Operations Report"**; subtitle →
+  **"Print-ready summary — browser print produces the PDF"** (the report sheet
+  heading already read "Operations Report").
+- Trade subtitle now carries the active symbol — **"{symbol} · chart-first with
+  decision overlays"** (dynamic; the mockup hardcodes "BTC-USD ·", ours is correct
+  for XAUUSD too).
+All five other page titles, the ⌘K palette, notifications, shortcuts, and the
+Decisions/Settings structure verified exact. The gate-waterfall order/labels and
+calibration/leaderboard empty states remain KEEP (real pipeline nodes, honest
+empties).
+
 ## KEEP (remaining, by design)
 
 - **Gaps-v8 additions the mockup predates** — decision-board second slot, price
