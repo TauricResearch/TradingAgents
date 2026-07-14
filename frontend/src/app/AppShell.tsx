@@ -12,7 +12,7 @@ import { RunPipelineDialog } from "@/components/RunPipelineDialog";
 import { ShortcutCheatsheet } from "@/components/ShortcutCheatsheet";
 import { UpdateToast } from "@/components/UpdateToast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { savePrefs, usePrefs } from "@/lib/api/queries";
+import { patchPrefs, usePrefs } from "@/lib/api/queries";
 import { useBinanceTicker } from "@/lib/binance";
 import { installKeyboardHandler } from "@/lib/shortcuts";
 import { startEventStream } from "@/lib/sse";
@@ -63,7 +63,10 @@ function Wiring() {
   useEffect(() => {
     if (!hydratedRef.current) return;
     const timer = setTimeout(() => {
-      void savePrefs(client, {
+      // MERGE over the server document (patchPrefs), never a from-scratch
+      // object: a bare savePrefs here silently reset every field this
+      // mirror didn't carry (views, muted_events, operator_label)
+      void patchPrefs(client, {
         theme: ui.theme,
         default_symbol: ui.symbol,
         layouts: {
