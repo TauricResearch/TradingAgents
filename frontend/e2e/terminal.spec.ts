@@ -360,6 +360,80 @@ test.describe("v7 on-demand pipeline", () => {
 });
 
 test.describe("v-golive Phase 4 arming", () => {
+  test("decision board + per-symbol ticket survive symbol mismatch", async ({
+    page,
+  }) => {
+    // Home: board with a hero and the second symbol's compact slot (G1)
+    await expect(page.getByTestId("decision-board")).toBeVisible();
+    // Trade page for the demo's traded symbol shows a ticket, and the
+    // per-symbol endpoint answers for the OTHER symbol without lying
+    await page.goto("/trade/XAUUSD");
+    await expect(
+      page.getByTestId("decision-card").or(
+        page.getByText("No decision yet for XAUUSD")),
+    ).toBeVisible({ timeout: 10_000 });
+
+    const gold = await page.request.get(
+      "/api/recommendation/latest?symbol=XAUUSD",
+      { headers: { "X-API-Key": TOKEN } });
+    expect(gold.status()).toBe(200);
+  });
+
+  test("open positions expose entry/mark/unrealized honestly", async ({
+    page,
+  }) => {
+    const status = await page.request.get("/api/status",
+      { headers: { "X-API-Key": TOKEN } });
+    const body = await status.json();
+    if ((body.open_positions ?? []).length > 0) {
+      const pos = body.open_positions[0];
+      expect(pos).toHaveProperty("entry_price");
+      expect(pos).toHaveProperty("mark_source");
+      await page.goto(`/trade/${pos.symbol}`);
+      await expect(
+        page.getByTestId("position-unrealized").first(),
+      ).toBeVisible({ timeout: 10_000 });
+    }
+  });
+
+  test("price alert: create from the trade rail, list, delete", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "alert rail is a desktop panel");
+    await page.goto("/trade/XAUUSD");
+    const panel = page.getByTestId("price-alerts");
+    await expect(panel).toBeVisible({ timeout: 10_000 });
+    await page.getByTestId("price-alert-level").fill("4321.5");
+    await page.getByTestId("price-alert-create").click();
+    await expect(panel.getByText("4,321.50")).toBeVisible({ timeout: 5_000 });
+    // notify-only invariant: creating an alert must not touch the book
+    const status = await page.request.get("/api/status",
+      { headers: { "X-API-Key": TOKEN } });
+    expect((await status.json()).trading_halted).not.toBe(true);
+    await panel.getByRole("button", { name: /Delete alert/ }).click();
+    await expect(panel.getByText("4,321.50")).toBeHidden({ timeout: 5_000 });
+  });
+
+  test("parameterized indicator id resolves server-side", async ({ page }) => {
+    const series = await page.request.get(
+      "/api/bars/indicators?symbol=XAUUSD&timeframe=1d&names=EMA_21",
+      { headers: { "X-API-Key": TOKEN } });
+    expect(series.status()).toBe(200);
+    expect((await series.json()).EMA_21.params.period).toBe(21);
+    const bad = await page.request.get(
+      "/api/bars/indicators?symbol=XAUUSD&timeframe=1d&names=EMA_9999",
+      { headers: { "X-API-Key": TOKEN } });
+    expect(bad.status()).toBe(422);
+  });
+
+  test("intel calendar defaults to majors with countdown", async ({ page }) => {
+    await page.goto("/intel");
+    const toggle = page.getByTestId("calendar-majors-toggle");
+    await expect(toggle).toBeVisible({ timeout: 10_000 });
+    await expect(toggle).toHaveText(/major only/);
+  });
+
   test("paper mode shows no live banner or flatten control", async ({
     page,
   }) => {

@@ -45,8 +45,14 @@ export interface TradeMarker {
   label: string;
 }
 
-/** overlays share the price pane; oscillators get their own */
-const OVERLAY_INDICATORS = new Set(["EMA_10", "SMA_50", "SMA_200", "BOLL"]);
+/** overlays share the price pane; oscillators get their own. Prefix-based
+ * so parameterized ids (EMA_21, RSI_9) classify like their family (G7). */
+function isOverlayIndicator(name: string): boolean {
+  return (
+    name.startsWith("EMA_") || name.startsWith("SMA_") ||
+    name === "BOLL" || name === "VWAP"
+  );
+}
 
 /** theme-resolved per-line colors (review finding: hardcoded dark-theme
  * hexes washed out on light backgrounds) */
@@ -198,7 +204,7 @@ export function PriceChart({
 
     const lineColors = indicatorLineColors(colors);
     for (const [name, block] of Object.entries(indicators ?? {}).sort()) {
-      const overlay = OVERLAY_INDICATORS.has(name);
+      const overlay = isOverlayIndicator(name);
       const paneIndex = overlay ? 0 : nextPane;
       if (!overlay) nextPane += 1;
       for (const [lineName, points] of Object.entries(block.series)) {

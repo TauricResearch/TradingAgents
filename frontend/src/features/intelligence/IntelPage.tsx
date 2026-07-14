@@ -2,6 +2,7 @@
  * feed-coverage panel — unsubscribed paid feeds render locked with
  * honest copy. Weakness as trust signal. */
 import { Lock } from "lucide-react";
+import { useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
@@ -99,6 +100,7 @@ function CorrelationMatrix() {
 export default function IntelPage() {
   const intel = useIntel();
   const calendar = useCalendar();
+  const [majorsOnly, setMajorsOnly] = useState(true);
   const overview = useOverview();
 
   if (intel.isPending) return <SkeletonCard lines={8} />;
@@ -190,6 +192,19 @@ export default function IntelPage() {
         <Card>
           <CardHeader>
             <CardTitle>Economic calendar</CardTitle>
+            <button
+              onClick={() => setMajorsOnly(!majorsOnly)}
+              aria-pressed={majorsOnly}
+              data-testid="calendar-majors-toggle"
+              className={cn(
+                "rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                majorsOnly
+                  ? "border-accent bg-accent text-(--on-solid)"
+                  : "border-border text-fg-subtle hover:text-fg",
+              )}
+            >
+              {majorsOnly ? "major only" : "showing all"}
+            </button>
           </CardHeader>
           <CardContent>
             {calendar.isPending ? (
@@ -208,14 +223,59 @@ export default function IntelPage() {
                 }
               />
             ) : (
-              <ul className="max-h-72 space-y-1 overflow-y-auto text-sm">
-                {calendar.data!.releases.map((release, i) => (
-                  <li key={i} className="flex justify-between border-b border-border/40 py-1">
-                    <span className="text-fg-muted">{release.release}</span>
-                    <span className="font-mono text-xs tabular">{release.date}</span>
-                  </li>
-                ))}
-              </ul>
+              (() => {
+                const all = calendar.data!.releases;
+                const majors = all.filter((r) => r.major);
+                const shown = majorsOnly && majors.length > 0 ? majors : all;
+                const nextMajor = majors[0];
+                const daysTo = (date: string) =>
+                  Math.max(0, Math.round(
+                    (new Date(date).getTime() - Date.now()) / 86_400_000));
+                const byDate = new Map<string, typeof shown>();
+                for (const release of shown) {
+                  byDate.set(release.date,
+                             [...(byDate.get(release.date) ?? []), release]);
+                }
+                return (
+                  <div className="space-y-2">
+                    {nextMajor && (
+                      <p className="text-xs text-fg-muted" data-testid="next-major">
+                        next major:{" "}
+                        <span className="font-semibold">{nextMajor.release}</span>
+                        {" "}in {daysTo(nextMajor.date)}d ({nextMajor.date} —
+                        FRED publishes dates, not times)
+                      </p>
+                    )}
+                    {majorsOnly && majors.length === 0 && (
+                      <p className="text-xs text-stale">
+                        no releases flagged major in this window — showing all
+                      </p>
+                    )}
+                    <ul className="max-h-72 space-y-2 overflow-y-auto text-sm">
+                      {[...byDate.entries()].map(([date, releases]) => (
+                        <li key={date}>
+                          <div className="mb-0.5 font-mono text-xs tabular text-fg-subtle">
+                            {date}
+                          </div>
+                          <ul className="space-y-0.5">
+                            {releases.map((release, i) => (
+                              <li key={i}
+                                  className="flex items-center justify-between gap-2 border-b border-border/40 py-0.5">
+                                <span className="text-fg-muted">{release.release}</span>
+                                {release.major && (
+                                  <Badge variant="accent" className="px-1.5 text-[10px]">
+                                    major
+                                  </Badge>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()
             )}
           </CardContent>
         </Card>

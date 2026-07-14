@@ -165,6 +165,21 @@ export const StatusSchema = z
   .passthrough();
 export type SystemStatus = z.infer<typeof StatusSchema>;
 
+export const PriceAlertSchema = z
+  .object({
+    id: z.string(),
+    symbol: z.string(),
+    level: z.number(),
+    direction: z.enum(["above", "below"]),
+    note: z.string().optional(),
+    created_at: z.string().optional(),
+    triggered_at: z.string().nullable().optional(),
+    active: z.boolean(),
+  })
+  .passthrough();
+export const PriceAlertListSchema = z.array(PriceAlertSchema);
+export type PriceAlert = z.infer<typeof PriceAlertSchema>;
+
 export const RegimeSchema = z
   .object({
     symbols: z.record(

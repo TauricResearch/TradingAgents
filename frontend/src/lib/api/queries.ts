@@ -26,6 +26,7 @@ import {
   SymbolsSchema,
   TimelineSchema,
   WatchlistsSchema,
+  PriceAlertListSchema,
   RegimeSchema,
 } from "./types";
 
@@ -40,6 +41,7 @@ export const qk = {
     ["recommendation", "latest", symbol ?? "any"] as const,
   runRecommendation: (id: string) => ["runs", id, "recommendation"] as const,
   regime: ["regime"] as const,
+  priceAlerts: ["price-alerts"] as const,
   journal: ["journal"] as const,
   backtest: ["backtest"] as const,
   memory: ["memory"] as const,
@@ -128,6 +130,32 @@ export const useRunRecommendation = (runId: string | null | undefined) =>
     staleTime: Infinity,
     retry: false,
   });
+
+export const usePriceAlerts = () =>
+  useQuery({
+    queryKey: qk.priceAlerts,
+    queryFn: fetchParsed("/api/price-alerts", PriceAlertListSchema),
+    staleTime: 10_000,
+  });
+
+/** Notify-only by design: a triggered alert raises a notification, it
+ * can never place or modify an order. */
+export async function createPriceAlert(
+  client: QueryClient,
+  alert: { symbol: string; level: number; direction: "above" | "below"; note?: string },
+) {
+  await apiFetch("/api/price-alerts", {
+    method: "POST",
+    body: JSON.stringify(alert),
+    headers: { "Content-Type": "application/json" },
+  });
+  await client.invalidateQueries({ queryKey: qk.priceAlerts });
+}
+
+export async function deletePriceAlert(client: QueryClient, id: string) {
+  await apiFetch(`/api/price-alerts/${id}`, { method: "DELETE" });
+  await client.invalidateQueries({ queryKey: qk.priceAlerts });
+}
 
 export const useRegime = () =>
   useQuery({

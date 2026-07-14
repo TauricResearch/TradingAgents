@@ -134,6 +134,12 @@ export function CommandPalette() {
             </Command.Item>
           ))}
           <Command.Item
+            onSelect={() => go(`/trade/${symbol}`)}
+            className="cursor-pointer rounded px-3 py-2 aria-selected:bg-surface-2"
+          >
+            Create price alert… (on the {symbol} workspace)
+          </Command.Item>
+          <Command.Item
             onSelect={() => {
               window.open("/api/export/journal.csv", "_blank");
               close();
