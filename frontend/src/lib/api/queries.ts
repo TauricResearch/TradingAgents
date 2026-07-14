@@ -26,6 +26,7 @@ import {
   SymbolsSchema,
   TimelineSchema,
   WatchlistsSchema,
+  RegimeSchema,
 } from "./types";
 
 export const qk = {
@@ -35,7 +36,10 @@ export const qk = {
   runs: ["runs"] as const,
   runTimeline: (id: string) => ["runs", id, "timeline"] as const,
   runEvidence: (id: string) => ["runs", id, "evidence"] as const,
-  recommendation: ["recommendation", "latest"] as const,
+  recommendation: (symbol?: string) =>
+    ["recommendation", "latest", symbol ?? "any"] as const,
+  runRecommendation: (id: string) => ["runs", id, "recommendation"] as const,
+  regime: ["regime"] as const,
   journal: ["journal"] as const,
   backtest: ["backtest"] as const,
   memory: ["memory"] as const,
@@ -102,11 +106,35 @@ export const useRunEvidence = (runId: string | null, isLatest: boolean) =>
     refetchInterval: isLatest ? () => pollingInterval : false,
   });
 
-export const useRecommendation = () =>
+export const useRecommendation = (symbol?: string) =>
   useQuery({
-    queryKey: qk.recommendation,
-    queryFn: fetchParsed("/api/recommendation/latest", RecommendationSchema),
+    queryKey: qk.recommendation(symbol),
+    queryFn: fetchParsed(
+      symbol
+        ? `/api/recommendation/latest?symbol=${encodeURIComponent(symbol)}`
+        : "/api/recommendation/latest",
+      RecommendationSchema,
+    ),
     ...live(),
+  });
+
+/** Full persisted ticket of any historical run (G8). 404 = the run
+ * predates ticket persistence; callers show an honest fallback. */
+export const useRunRecommendation = (runId: string | null | undefined) =>
+  useQuery({
+    queryKey: qk.runRecommendation(runId ?? "none"),
+    queryFn: fetchParsed(`/api/runs/${runId}/recommendation`, RecommendationSchema),
+    enabled: runId != null,
+    staleTime: Infinity,
+    retry: false,
+  });
+
+export const useRegime = () =>
+  useQuery({
+    queryKey: qk.regime,
+    queryFn: fetchParsed("/api/regime", RegimeSchema),
+    staleTime: 240_000,
+    refetchInterval: 300_000,
   });
 
 export const useJournal = () =>

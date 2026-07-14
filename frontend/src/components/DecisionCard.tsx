@@ -96,6 +96,33 @@ function LevelLadder({ rec }: { rec: Recommendation }) {
   );
 }
 
+/** Deterministic bet math (G9): breakeven win-rate from R:R, and the
+ * dollar risk/reward implied by the ladder x size. Pure arithmetic over
+ * backend-computed fields — this function derives no trading numbers of
+ * its own beyond the identity 1/(1+RR). */
+export function betMath(rec: Recommendation): {
+  breakevenPct: number;
+  riskUsd: number | null;
+  rewardUsd: number | null;
+} | null {
+  const rr = rec.risk_reward;
+  if (rr == null || rr <= 0) return null;
+  const entry = rec.entry_price;
+  const stop = rec.stop_loss;
+  const qty = rec.position_size?.quantity;
+  // take_profits is ordered closest-first (the ladder reverses for display)
+  const tp1 = rec.take_profits?.[0]?.price;
+  const riskUsd =
+    entry != null && stop != null && qty != null
+      ? Math.abs(entry - stop) * qty
+      : null;
+  const rewardUsd =
+    entry != null && tp1 != null && qty != null
+      ? Math.abs(tp1 - entry) * qty
+      : null;
+  return { breakevenPct: 100 / (1 + rr), riskUsd, rewardUsd };
+}
+
 export function DecisionCard({
   rec,
   compact = false,
@@ -148,6 +175,7 @@ export function DecisionCard({
   }
 
   const tally = rec.vote_tally ?? {};
+  const math = betMath(rec);
   const counters = [...(rec.counterarguments ?? [])]
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, compact ? 1 : 3);
@@ -259,6 +287,20 @@ export function DecisionCard({
           {rec.n_evidence ?? 0} evidence · {rec.n_counterarguments ?? 0} counter
         </span>
       </div>
+
+      {!compact && math != null && (
+        <div className="text-xs text-fg-muted tabular" data-testid="bet-math">
+          breakeven win rate {math.breakevenPct.toFixed(0)}% (from R:R)
+          {math.riskUsd != null && math.rewardUsd != null && (
+            <>
+              {" "}· risking {fmtPrice(math.riskUsd, 0)} to make{" "}
+              {fmtPrice(math.rewardUsd, 0)} at first target
+            </>
+          )}
+          {" "}· stated confidence {rec.confidence ?? "—"}/100 (calibration
+          builds as trades close)
+        </div>
+      )}
 
       {rec.invalidation && (
         <div

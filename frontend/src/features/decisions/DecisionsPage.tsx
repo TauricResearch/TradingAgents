@@ -25,6 +25,7 @@ import {
   useOverview,
   useRecommendation,
   useRunEvidence,
+  useRunRecommendation,
   useRuns,
   useRunTimeline,
 } from "@/lib/api/queries";
@@ -126,6 +127,9 @@ export default function DecisionsPage() {
 
   const timeline = useRunTimeline(selected, isLatest);
   const evidence = useRunEvidence(selected, isLatest);
+  // historical runs serve their persisted ticket (G8); latest keeps the
+  // live recommendation hook (follow-latest behavior unchanged)
+  const historicalTicket = useRunRecommendation(isLatest ? null : selected);
 
   const missingFeeds = isLatest ? (overview.data?.missing_feeds ?? []) : [];
   const quarantinedRun =
@@ -201,11 +205,14 @@ export default function DecisionsPage() {
               ) : (
                 <DecisionCard rec={recommendation.data} />
               )
+            ) : historicalTicket.isPending ? (
+              <SkeletonCard lines={5} />
+            ) : historicalTicket.data ? (
+              <DecisionCard rec={historicalTicket.data} />
             ) : (
               <p className="text-sm text-fg-muted">
-                Historical run — full recommendation payloads are kept for the
-                latest run; the debate transcript and evidence below are this
-                run's complete record.
+                This run predates ticket persistence — the debate transcript
+                and evidence below are its complete record.
               </p>
             )}
           </CardContent>
@@ -273,6 +280,41 @@ export default function DecisionsPage() {
       </div>
 
       <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Similar past setups</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const shown = isLatest ? recommendation.data : historicalTicket.data;
+              const analogs = shown?.historical_analogs ?? [];
+              if (analogs.length === 0)
+                return (
+                  <p className="text-xs text-fg-subtle">
+                    No closed analogs yet — this panel fills as similar
+                    setups resolve and their outcomes are recorded.
+                  </p>
+                );
+              return (
+                <ul className="space-y-2 text-xs" data-testid="analogs-panel">
+                  {analogs.map((analog, i) => (
+                    <li key={i} className="rounded-[10px] bg-surface-2 px-2.5 py-2">
+                      <p>{analog.description}</p>
+                      <p className="mt-1 text-fg-muted">
+                        outcome: {analog.outcome}
+                        {analog.similarity != null && (
+                          <span className="text-fg-subtle">
+                            {" "}· similarity {(analog.similarity * 100).toFixed(0)}%
+                          </span>
+                        )}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Calibration</CardTitle>

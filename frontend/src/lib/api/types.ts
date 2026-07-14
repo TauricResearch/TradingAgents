@@ -134,8 +134,19 @@ export const StatusSchema = z
     kill_switch: z.object({ engaged: z.boolean(), reason: z.string() }).optional(),
     circuit_breaker: z.object({ tripped: z.boolean(), reason: z.string() }).optional(),
     open_positions: z
-      .array(z.object({ symbol: z.string(), quantity: z.number() }))
+      .array(
+        z.object({
+          symbol: z.string(),
+          quantity: z.number(),
+          entry_price: z.number().nullable().optional(),
+          mark_price: z.number().nullable().optional(),
+          mark_source: z.enum(["live", "eod", "entry"]).optional(),
+          unrealized_pnl: z.number().nullable().optional(),
+          exposure_pct: z.number().nullable().optional(),
+        }),
+      )
       .optional(),
+    unrealized_total: z.number().nullable().optional(),
     equity: z.number().nullable().optional(),
     live_armed: z.boolean().optional(),
     arming: z
@@ -153,6 +164,18 @@ export const StatusSchema = z
   })
   .passthrough();
 export type SystemStatus = z.infer<typeof StatusSchema>;
+
+export const RegimeSchema = z
+  .object({
+    symbols: z.record(
+      z.string(),
+      z.object({ regime: z.string().nullable() }),
+    ),
+    session: z.string().nullable().optional(),
+    as_of: z.string(),
+  })
+  .passthrough();
+export type RegimePayload = z.infer<typeof RegimeSchema>;
 
 export const AlertSchema = z.object({
   time: z.string(),

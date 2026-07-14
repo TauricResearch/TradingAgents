@@ -43,7 +43,8 @@ export function startEventStream(client: QueryClient): () => void {
     bump();
     useUiStore.getState().setPipelineProgress(null); // run finished
     void client.invalidateQueries({ queryKey: qk.runs });
-    void client.invalidateQueries({ queryKey: qk.recommendation });
+    void client.invalidateQueries({ queryKey: ["recommendation", "latest"] });
+    void client.invalidateQueries({ queryKey: qk.regime });
     void client.invalidateQueries({ queryKey: qk.overview });
     void client.invalidateQueries({ queryKey: qk.journal });
     void client.invalidateQueries({ queryKey: qk.agents });

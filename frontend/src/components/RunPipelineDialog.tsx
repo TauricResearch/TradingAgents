@@ -122,12 +122,23 @@ export function RunPipelineDialog() {
 }
 
 /** Compact inline chip for page headers while a run is in flight. */
+/** Node order mirrors the backend gate waterfall — used only to show
+ * "stage k/N" progress; unknown stages fall back to the bare name. */
+const STAGE_ORDER = [
+  "prepare", "team_news_sentiment", "team_quant", "team_risk", "team_macro",
+  "team_technical", "join", "technical_bull", "technical_bear", "macro_bull",
+  "macro_bear", "risk_gate", "critic", "reflection", "judge", "pm_gate",
+  "human_approval", "execution",
+];
+
 export function PipelineProgressChip() {
   const progress = usePipelineProgress();
   if (!progress) return null;
+  const index = STAGE_ORDER.indexOf(progress.stage.toLowerCase());
+  const counter = index >= 0 ? ` (${index + 1}/${STAGE_ORDER.length})` : "";
   return (
     <Badge variant="accent" data-testid="pipeline-progress-chip">
-      running {progress.symbol} · {progress.stage}
+      running {progress.symbol} · {progress.stage}{counter}
     </Badge>
   );
 }

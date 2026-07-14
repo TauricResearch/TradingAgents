@@ -20,7 +20,8 @@ import {
   useRuns,
   useStatus,
 } from "@/lib/api/queries";
-import { fmtDateTime, fmtPct, fmtPnl } from "@/lib/format";
+import { fmtDateTime, fmtPct, fmtPnl, fmtPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export default function PortfolioPage() {
   const journal = useJournal();
@@ -121,6 +122,75 @@ export default function PortfolioPage() {
           />
         </div>
       </div>
+
+      <Card data-testid="open-risk">
+        <CardHeader>
+          <CardTitle>Open risk</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(status.data?.open_positions?.length ?? 0) === 0 ? (
+            <EmptyState kind="empty" title="No open positions"
+                        detail="Open risk appears here the moment the book is non-flat." />
+          ) : (
+            <div className="space-y-2">
+              <table className="w-full text-sm tabular">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs text-fg-subtle">
+                    <th className="py-1 font-medium">symbol</th>
+                    <th className="py-1 text-right font-medium">qty</th>
+                    <th className="py-1 text-right font-medium">entry</th>
+                    <th className="py-1 text-right font-medium">mark</th>
+                    <th className="py-1 text-right font-medium">unrealized</th>
+                    <th className="py-1 text-right font-medium">exposure</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {status.data!.open_positions!.map((p) => (
+                    <tr key={p.symbol}>
+                      <td className="py-1 font-mono">{p.symbol}</td>
+                      <td className="py-1 text-right">
+                        {p.quantity > 0 ? "+" : ""}{p.quantity}
+                      </td>
+                      <td className="py-1 text-right font-mono">{fmtPrice(p.entry_price)}</td>
+                      <td className="py-1 text-right font-mono">
+                        {fmtPrice(p.mark_price)}
+                        {p.mark_source && p.mark_source !== "live" && (
+                          <span className="ml-1 text-[10px] uppercase text-stale">
+                            {p.mark_source}
+                          </span>
+                        )}
+                      </td>
+                      <td className={cn(
+                        "py-1 text-right font-mono",
+                        p.unrealized_pnl != null &&
+                          (p.unrealized_pnl >= 0 ? "text-bull" : "text-bear"),
+                      )}>
+                        {fmtPnl(p.unrealized_pnl)}
+                      </td>
+                      <td className="py-1 text-right">
+                        {p.exposure_pct != null ? `${p.exposure_pct.toFixed(1)}%` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {(status.data as { unrealized_total?: number | null }).unrealized_total != null && (
+                <p className="text-xs text-fg-muted">
+                  total unrealized{" "}
+                  <span className={cn(
+                    "font-mono font-semibold tabular",
+                    (status.data as { unrealized_total?: number }).unrealized_total! >= 0
+                      ? "text-bull" : "text-bear",
+                  )}>
+                    {fmtPnl((status.data as { unrealized_total?: number }).unrealized_total)}
+                  </span>
+                  {" "}· marks labeled EOD/entry when no live tick is available
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

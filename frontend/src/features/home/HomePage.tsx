@@ -28,20 +28,43 @@ import { useTick } from "@/stores/ticker";
 import { useLayoutStore } from "@/stores/layout";
 import { useUiStore } from "@/stores/ui";
 
+const BOARD_SYMBOLS = ["XAUUSD", "BTC-USD"] as const;
+
+/** Decision board (G1): one current stance PER SYMBOL. The freshest
+ * ticket renders as the hero; the other symbol keeps a compact card —
+ * a rejected BTC run can no longer hide a live gold decision. */
 function DecisionHero() {
-  const rec = useRecommendation();
-  const overview = useOverview();
-  if (rec.isPending) return <SkeletonCard lines={5} />;
-  if (rec.isError)
-    return <EmptyState kind="error" title="Decision unavailable" detail={String(rec.error)} />;
-  const o = overview.data;
+  const gold = useRecommendation(BOARD_SYMBOLS[0]);
+  const btc = useRecommendation(BOARD_SYMBOLS[1]);
+  if (gold.isPending || btc.isPending) return <SkeletonCard lines={5} />;
+  if (gold.isError && btc.isError)
+    return (
+      <EmptyState kind="error" title="Decisions unavailable"
+                  detail={String(gold.error)} />
+    );
+  const entries = BOARD_SYMBOLS.map((sym, i) => {
+    const query = i === 0 ? gold : btc;
+    const rec = query.data ?? null;
+    const meta = rec as { run_id?: string; run_started_at?: string } | null;
+    return { sym, rec, runId: meta?.run_id ?? null,
+             at: meta?.run_started_at ?? "" };
+  }).sort((a, b) => (a.at > b.at ? -1 : 1));
+  const [lead, second] = entries as [typeof entries[0], typeof entries[0]];
   return (
-    <DecisionCard
-      rec={rec.data}
-      hero
-      kicker={`AI Decision — ${o?.symbol ?? "—"}`}
-      runId={o?.run_id ?? null}
-    />
+    <div className="space-y-3" data-testid="decision-board">
+      <DecisionCard
+        rec={lead.rec}
+        hero
+        kicker={`AI Decision — ${lead.sym}`}
+        runId={lead.runId}
+      />
+      <div className="border-t border-border pt-3">
+        <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
+          {second.sym}
+        </div>
+        <DecisionCard rec={second.rec} compact runId={second.runId} />
+      </div>
+    </div>
   );
 }
 

@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { apiFetch } from "@/lib/api/client";
 import { qk } from "@/lib/api/queries";
-import { useNotifications, useOverview, useStatus } from "@/lib/api/queries";
-import { fmtPrice, fmtTime } from "@/lib/format";
+import { useNotifications, useOverview, useRegime, useStatus } from "@/lib/api/queries";
+import { fmtPnl, fmtPrice, fmtTime } from "@/lib/format";
 import { useConnectionState } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
@@ -192,12 +192,22 @@ function EmergencyFlattenButton() {
 export function StatusStrip() {
   const status = useStatus();
   const overview = useOverview();
+  const regime = useRegime();
   const notifications = useNotifications();
-  const { theme, setTheme, setPaletteOpen, setNotificationsOpen } = useUiStore();
+  const { theme, symbol, setTheme, setPaletteOpen, setNotificationsOpen } =
+    useUiStore();
 
   const s = status.data;
   const o = overview.data;
   const unread = notifications.data?.unread ?? 0;
+  // symbol-aware regime (G3): the chip shows the ACTIVE symbol's regime
+  // from the deterministic per-symbol endpoint, never another symbol's
+  const activeRegime = regime.data?.symbols?.[symbol]?.regime ?? null;
+  const regimeTitle = regime.data
+    ? Object.entries(regime.data.symbols)
+        .map(([sym, r]) => `${sym}: ${r.regime ?? "—"}`)
+        .join(" · ")
+    : undefined;
 
   return (
     <header className="z-40 rounded-[18px] border border-border bg-surface shadow-(--shadow-1) backdrop-blur-[16px]">
@@ -217,8 +227,15 @@ export function StatusStrip() {
         </button>
         <span className="grow" />
         <ConnPill />
-        <Badge variant="accent" className="max-[1250px]:hidden">
-          {o?.regime ?? "regime —"}
+        <Badge
+          variant="accent"
+          className="max-[1250px]:hidden"
+          title={regimeTitle}
+          data-testid="regime-badge"
+        >
+          {activeRegime != null
+            ? `${symbol.replace("-USD", "")} ${activeRegime}`
+            : (o?.regime ?? "regime —")}
         </Badge>
         <Badge className="max-[1250px]:hidden">
           {o?.session ? `session ${o.session}` : "session —"}
@@ -244,7 +261,9 @@ export function StatusStrip() {
           <Badge data-testid="positions-badge" className="max-md:hidden">
             {s.open_positions && s.open_positions.length > 0
               ? `pos ${s.open_positions
-                  .map((p) => `${p.symbol} ${p.quantity > 0 ? "+" : ""}${p.quantity.toFixed(2)}`)
+                  .map((p) =>
+                    `${p.symbol} ${p.quantity > 0 ? "+" : ""}${p.quantity.toFixed(2)}` +
+                    (p.unrealized_pnl != null ? ` (${fmtPnl(p.unrealized_pnl)})` : ""))
                   .join(", ")}`
               : "no positions"}
           </Badge>

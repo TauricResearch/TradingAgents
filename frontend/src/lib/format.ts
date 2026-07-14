@@ -20,10 +20,18 @@ export function fmtPct(fraction: number | null | undefined, digits = 1): string 
   return `${(fraction * 100).toFixed(digits)}%`;
 }
 
+/** Short local timezone label ("IST", "GMT+5:30", ...) — every clock in a
+ * cross-session product must say WHICH 22:41 it is (trader review G10). */
+export const TZ_LABEL: string =
+  new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+    .formatToParts(new Date())
+    .find((part) => part.type === "timeZoneName")?.value ?? "";
+
 export function fmtTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleTimeString();
+  if (Number.isNaN(date.getTime())) return "—";
+  return `${date.toLocaleTimeString()}${TZ_LABEL ? ` ${TZ_LABEL}` : ""}`;
 }
 
 export function fmtDateTime(iso: string | null | undefined): string {
@@ -33,7 +41,7 @@ export function fmtDateTime(iso: string | null | undefined): string {
   return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
-  })}`;
+  })}${TZ_LABEL ? ` ${TZ_LABEL}` : ""}`;
 }
 
 export function relativeAge(iso: string | null | undefined): string {

@@ -34,12 +34,12 @@ import {
   useIndicators,
   useIntel,
   useJournal,
-  useOverview,
   useRecommendation,
   useStatus,
   useSymbols,
 } from "@/lib/api/queries";
 import { fmtPnl, fmtPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
 
 const STYLES: { id: SeriesStyle; label: string }[] = [
@@ -131,8 +131,7 @@ export default function WorkspacePage() {
   const bars = useBars(symbol, activeTf, 300);
   const compareBars = useBars(compareSymbol, compareTf, 300);
   const indicatorData = useIndicators(symbol, activeTf, selectedIndicators);
-  const recommendation = useRecommendation();
-  const overview = useOverview();
+  const recommendation = useRecommendation(symbol);
   const journal = useJournal();
   const status = useStatus();
   const calendar = useCalendar();
@@ -171,10 +170,14 @@ export default function WorkspacePage() {
     );
   }, [indicatorData.data, replay.active, cursorTime]);
 
+  // per-symbol endpoint (G1): a later run for another symbol can no
+  // longer displace this symbol's current ticket
   const recForSymbol =
     recommendation.data && recommendation.data.symbol === symbol
       ? recommendation.data
       : null;
+  const recRunId =
+    (recommendation.data as { run_id?: string } | undefined)?.run_id ?? null;
 
   const markers: TradeMarker[] = useMemo(
     () =>
@@ -369,6 +372,9 @@ export default function WorkspacePage() {
                   <tr className="border-b border-border text-left text-xs text-fg-subtle">
                     <th className="py-1 font-medium">symbol</th>
                     <th className="py-1 text-right font-medium">quantity</th>
+                    <th className="py-1 text-right font-medium">entry</th>
+                    <th className="py-1 text-right font-medium">mark</th>
+                    <th className="py-1 text-right font-medium">unrealized</th>
                     <th className="py-1 text-right font-medium">book state</th>
                   </tr>
                 </thead>
@@ -379,6 +385,27 @@ export default function WorkspacePage() {
                       <td className="py-1 text-right">
                         {p.quantity > 0 ? "+" : ""}
                         {p.quantity}
+                      </td>
+                      <td className="py-1 text-right font-mono">
+                        {fmtPrice(p.entry_price)}
+                      </td>
+                      <td className="py-1 text-right font-mono">
+                        {fmtPrice(p.mark_price)}
+                        {p.mark_source && p.mark_source !== "live" && (
+                          <span className="ml-1 text-[10px] uppercase text-stale">
+                            {p.mark_source}
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        className={cn(
+                          "py-1 text-right font-mono",
+                          p.unrealized_pnl != null &&
+                            (p.unrealized_pnl >= 0 ? "text-bull" : "text-bear"),
+                        )}
+                        data-testid="position-unrealized"
+                      >
+                        {fmtPnl(p.unrealized_pnl)}
                       </td>
                       <td className="py-1 text-right text-bull">reconciled</td>
                     </tr>
@@ -399,16 +426,12 @@ export default function WorkspacePage() {
             {recommendation.isPending ? (
               <SkeletonCard lines={4} />
             ) : recForSymbol ? (
-              <DecisionCard
-                rec={recForSymbol}
-                compact
-                runId={overview.data?.run_id ?? null}
-              />
+              <DecisionCard rec={recForSymbol} compact runId={recRunId} />
             ) : (
               <EmptyState
                 kind="empty"
-                title={`No current decision for ${symbol}`}
-                detail="The latest run targeted a different symbol."
+                title={`No decision yet for ${symbol}`}
+                detail="No pipeline run has targeted this symbol."
               />
             )}
           </CardContent>
