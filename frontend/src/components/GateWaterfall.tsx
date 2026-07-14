@@ -5,34 +5,31 @@ import { Check, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const STAGE_LABELS: Record<string, string> = {
-  prepare: "Prepare",
-  team_technical: "Technical",
-  team_macro: "Macro",
-  team_news_sentiment: "Sentiment",
-  team_quant: "Quant",
-  team_risk: "Risk team",
-  onchain: "On-chain",
-  join: "Join",
-  technical_bull: "Tech bull",
-  technical_bear: "Tech bear",
-  macro_bull: "Macro bull",
-  macro_bear: "Macro bear",
-  risk_gate: "Risk gate",
-  critic: "Critic",
-  reflection: "Reflection",
-  judge: "Judge",
-  portfolio_manager: "PM gate",
-  pm_gate: "PM gate",
-  human_approval: "Approval",
-  execution: "Execution",
-  rejected: "Rejected",
-};
+// Mockup buckets: every real node maps into a display group; the exact
+// failing node is still named in the rejection detail line below the strip
+// (display grouping, not information hiding).
+const STAGE_GROUPS: [group: string, nodes: string[]][] = [
+  ["Prepare", ["prepare"]],
+  ["Technical", ["team_technical", "technical"]],
+  ["Macro", ["team_macro", "macro"]],
+  ["Sentiment", ["team_news_sentiment", "sentiment"]],
+  ["Quant", ["team_quant"]],
+  ["On-chain", ["onchain"]],
+  ["Risk team", ["team_risk", "risk_team"]],
+  ["Debate", ["join", "technical_bull", "technical_bear", "macro_bull",
+              "macro_bear", "debate", "critic", "reflection"]],
+  ["Judge", ["judge"]],
+  ["Risk gate", ["risk_gate"]],
+  ["PM gate", ["pm_gate", "portfolio_manager"]],
+  ["Approval", ["human_approval"]],
+  ["Execution", ["execution"]],
+];
 
-/** every real node stays visible (honesty); unknown ids just lose the
- * underscores instead of leaking raw enum names */
-function stageLabel(stage: string): string {
-  return STAGE_LABELS[stage] ?? stage.replaceAll("_", " ");
+function groupOf(stage: string): string {
+  for (const [group, nodes] of STAGE_GROUPS) {
+    if (nodes.includes(stage)) return group;
+  }
+  return stage.replaceAll("_", " ");
 }
 
 export function GateWaterfall({
@@ -42,9 +39,12 @@ export function GateWaterfall({
   nodeSequence: string[];
   rejection: { stage?: string | null; [k: string]: unknown } | null;
 }) {
-  // preserve pipeline order, drop fan-out duplicates
-  const stages = [...new Set(nodeSequence)].filter((s) => s !== "rejected");
-  const failedAt = rejection?.stage ?? null;
+  // group real nodes into the display buckets, preserving pipeline order
+  const stages = [...new Set(
+    nodeSequence.filter((s) => s !== "rejected").map(groupOf),
+  )];
+  const failedAt = rejection?.stage ? groupOf(String(rejection.stage)) : null;
+  const failedNode = rejection?.stage ?? null;
   const reasons = (rejection?.reasons as string[] | undefined) ?? [];
 
   return (
@@ -72,14 +72,19 @@ export function GateWaterfall({
                 ) : reached ? (
                   <Check size={11} aria-label="passed" />
                 ) : null}
-                {stageLabel(stage)}
+                {stage}
               </span>
             </li>
           );
         })}
       </ol>
+      {failedNode != null && (
+        <p className="mt-2 text-xs text-bear">
+          rejected at <span className="font-mono">{String(failedNode)}</span>
+        </p>
+      )}
       {failedAt && reasons.length > 0 && (
-        <ul className="mt-2 list-disc pl-5 text-xs text-bear">
+        <ul className="mt-1 list-disc pl-5 text-xs text-bear">
           {reasons.map((reason, i) => (
             <li key={i}>{String(reason)}</li>
           ))}

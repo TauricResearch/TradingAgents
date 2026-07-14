@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
+import { usePrefs } from "@/lib/api/queries";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
 
@@ -76,6 +77,8 @@ function Item({
 }
 
 export function Sidebar() {
+  const prefs = usePrefs();
+  const operatorLabel = prefs.data?.operator_label ?? "Operator";
   const symbol = useUiStore((s) => s.symbol);
   return (
     <nav
@@ -124,12 +127,12 @@ export function Sidebar() {
       >
         <span
           aria-hidden="true"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#7a5cf0,#5b3fd6)] text-xs font-bold text-white"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#7a5cf0,#5b3fd6)] text-sm font-extrabold text-white"
         >
-          OP
+          {operatorLabel.charAt(0).toUpperCase()}
         </span>
         <div className="min-w-0 text-xs">
-          <div className="truncate font-semibold">Operator</div>
+          <div className="truncate font-semibold">{operatorLabel}</div>
           <div className="flex items-center gap-1 text-[10.5px] text-bull">
             <span className="live-dot h-[6px] w-[6px]" aria-hidden="true" />
             Session Active

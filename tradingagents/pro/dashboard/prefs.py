@@ -72,6 +72,7 @@ class SavedView(_Mutable):
 
 class UserPrefs(_Mutable):
     theme: str = "light"
+    operator_label: str = Field(default="Operator", max_length=64)
     default_symbol: str = "BTC-USD"
     layouts: dict[str, Any] = Field(default_factory=dict)
     views: list[SavedView] = Field(default_factory=list, max_length=50)

@@ -355,6 +355,7 @@ export type SavedView = z.infer<typeof SavedViewSchema>;
 
 export const PrefsSchema = z.object({
   theme: z.string(),
+  operator_label: z.string().optional(),
   default_symbol: z.string(),
   layouts: z.record(z.unknown()),
   views: z.array(SavedViewSchema).default([]),

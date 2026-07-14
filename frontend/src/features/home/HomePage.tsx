@@ -1,7 +1,8 @@
 /** Home: the 5-second briefing. Above the fold, in priority order —
  * safety (strip above), the AI's current stance, P&L, prices, alerts,
  * what changed, what's next. No charts here: Workspace owns them. */
-import { Pencil, PencilOff } from "lucide-react";
+import { Eye, EyeOff, Pencil, PencilOff } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { AlertFeedList } from "@/components/AlertFeedList";
@@ -74,19 +75,31 @@ function PortfolioSnapshot() {
   const status = useStatus();
   const journal = useJournal();
   const backtest = useBacktest();
+  const [hidden, setHidden] = useState(false);
   if (journal.isPending) return <SkeletonCard lines={4} />;
   const j = journal.data;
+  const mask = (value: string) => (hidden ? "••••••" : value);
   return (
-    // brand-gradient panel (reskin): literal blues, not var(--brand) — the
+    // brand-gradient panel (mockup): literal blues, not var(--brand) — the
     // dark theme's brand (#7d9ef2) is too light for this card's white text
     <div className="-m-1 space-y-3 rounded-[16px] bg-[linear-gradient(135deg,#2456c5,#1a3f96)] p-4 text-white">
       <div>
-        <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
-          Portfolio equity
+        <div className="flex items-center justify-between">
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
+            Portfolio equity
+          </div>
+          <button
+            onClick={() => setHidden(!hidden)}
+            aria-label={hidden ? "Show balance" : "Hide balance"}
+            aria-pressed={hidden}
+            className="text-white/60 hover:text-white"
+          >
+            {hidden ? <Eye size={14} /> : <EyeOff size={14} />}
+          </button>
         </div>
-        <div className="font-mono text-[34px] font-bold leading-tight tabular">
+        <div className="mt-1.5 font-mono text-[34px] font-bold leading-tight tracking-[-0.02em] tabular">
           {status.data?.equity != null
-            ? `$${fmtPrice(status.data.equity, 0)}`
+            ? mask(`$${fmtPrice(status.data.equity, 0)}`)
             : "—"}
         </div>
         {status.data?.attached === false && (
@@ -95,32 +108,32 @@ function PortfolioSnapshot() {
           </div>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-[18px] gap-y-1 text-[13px]">
         <span>
           P&L{" "}
-          {/* toned chip: white base keeps bull/bear legible on the gradient */}
-          {j?.total_pnl != null ? (
-            <span
-              className={cn(
-                "rounded-md bg-white/90 px-1.5 py-px font-mono font-semibold tabular",
-                j.total_pnl >= 0 ? "text-bull" : "text-bear",
-              )}
-            >
-              {fmtPnl(j.total_pnl)}
-            </span>
-          ) : (
-            <span className="font-mono font-semibold tabular">
-              {fmtPnl(j?.total_pnl)}
-            </span>
-          )}
+          <span
+            className={cn(
+              "font-mono font-bold tabular",
+              (j?.total_pnl ?? 0) >= 0 ? "text-[#8fe3b4]" : "text-[#ff8a84]",
+            )}
+          >
+            {mask(fmtPnl(j?.total_pnl))}
+          </span>
           {j?.n_trades != null && (
-            <span className="text-white/70"> (n={j.n_trades})</span>
+            <span className="opacity-70"> (n={j.n_trades})</span>
           )}
         </span>
-        <span className="text-white/85">
-          {j?.win_rate != null
-            ? `win rate ${fmtPct(j.win_rate, 0)}`
-            : "no closed trades"}
+        <span>
+          {j?.win_rate != null ? (
+            <>
+              win rate{" "}
+              <span className="font-mono font-bold tabular">
+                {fmtPct(j.win_rate, 0)}
+              </span>
+            </>
+          ) : (
+            "no closed trades"
+          )}
         </span>
       </div>
       <div className="flex items-center justify-between rounded-xl bg-white/10 px-3 py-2">

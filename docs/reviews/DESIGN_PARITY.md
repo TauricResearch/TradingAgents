@@ -10,10 +10,13 @@ of every screen in both themes — `mockup-*` vs `ours-*` (before) and `after-*`
 
 ## Verdict
 
-After this pass the implementation matches the mockup on every screen and token
-except the **KEEP list** below — each kept deviation is either a measured
-accessibility fix or an additive feature that shipped after the mockup was drawn
-(gaps v8). No safety rule was traded for pixels.
+**100% visual match, operator-directed.** After the first pass a short KEEP list
+remained (contrast-adjusted tokens, P&L chip, generic identity, ungrouped
+waterfall). The operator explicitly requested a literal 100% match, so those were
+adopted too (second pass, see below). The only remaining differences are the
+gaps-v8 features the operator chose to keep (styled mockup-native) and honest
+data-dependent states — the mockup shows populated fixtures where a fresh
+deployment shows truthful empties.
 
 ## Token diff
 
@@ -25,9 +28,9 @@ card/hover shadows). Deltas:
 |---|---|---|---|
 | `--chrome-fg`, `--chrome-fg-muted` | `#eef1f7` / 65% | missing | **FIXED** — added both themes; navy ticker chip now uses them |
 | `--shadow-chrome` | heavy chrome shadow | missing | **FIXED** — added both themes |
-| light `--bull/--bear/--neutral/--stale`, `--fg-subtle` | `#16824a/#d33b35/#b07b10/#9a8a58/#8a93a6` | `#157945/#c4302b/#8b610d/#766a44/#646f84` | **KEEP** — mockup values measure < 4.5:1 on their own muted/surface pairings (DESIGN_REVIEW.md contrast tables); hue preserved |
-| dark `--bear` | `#f0564f` | `#f47f79` | **KEEP** — same reason (3.7:1 on dark surfaces) |
-| dark `--stale`, `--locked` | `#9e8f5c/#6e7891` | `#a89050/#7c87a0` | **KEEP** — contrast-adjusted |
+| light `--bull/--bear/--neutral/--stale`, `--fg-subtle` | `#16824a/#d33b35/#b07b10/#9a8a58/#8a93a6` | `#157945/#c4302b/#8b610d/#766a44/#646f84` | **ADOPTED (2nd pass, operator-directed)** — mockup values restored; measured ratios in DESIGN_REVIEW.md stand as the recorded caveat |
+| dark `--bear` | `#f0564f` | `#f47f79` | **ADOPTED (2nd pass, operator-directed)** |
+| dark `--stale`, `--locked` | `#9e8f5c/#6e7891` | `#a89050/#7c87a0` | **ADOPTED (2nd pass, operator-directed)** |
 
 ## FIXED in this pass (commit refs in git log)
 
@@ -59,20 +62,31 @@ card/hover shadows). Deltas:
 13. Portfolio: KPI tiles in a 2-column grid; trade actions as toned chips
     (glyph + word preserved inside); "Report (PDF)" is the solid brand button.
 
-## KEEP (deliberate deviations, flagged not hidden)
+## Second pass — operator-directed 100% adoption
 
-- **WCAG token adjustments** (table above) — "100% match" does not override
-  measured 4.5:1 contrast; the mockup's own spec lists contrast as a survival rule.
-- **P&L white chip on the gradient card** — mockup paints bull-green text directly
-  on the gradient (≈2.8:1); the chip keeps the tone legible.
-- **Session card identity** — mockup shows `ajay.kumar`; the product has no user
-  identity system (token auth only), so "Operator" stays honest.
+1. **Exact mockup palette restored** (light `#16824a/#d33b35/#b07b10/#9a8a58`,
+   `--fg-subtle #8a93a6`; dark `--bear #f0564f`, `--stale #9e8f5c`,
+   `--locked #6e7891`; `--on-solid #ffffff` in both themes). *Recorded fact: these
+   pairings measure below WCAG 4.5:1 in the combinations documented in
+   DESIGN_REVIEW.md; adopted on explicit operator instruction ("i need 100%
+   match"). Revert = one token block.*
+2. **P&L on the gradient card** uses the mockup's mint `#8fe3b4` (negative:
+   `#ff8a84`), mono bold, `(n=…)` at 70% — chip removed. Win-rate value mono bold.
+3. **Hide-balance eye toggle** on the equity card (mockup had it; masks
+   equity + P&L client-side).
+4. **Gate waterfall grouped into the mockup's buckets** (Prepare / Technical /
+   Macro / Sentiment / Quant / Risk team / Debate / Judge / Risk gate / PM gate /
+   Approval / Execution). The exact failing node is still printed beneath the
+   strip — display grouping, not information hiding.
+5. **Operator identity**: new `operator_label` pref (default "Operator") renders
+   in the session card with an initial-letter avatar; set to `ajay.kumar` on this
+   deployment. No fake identity system — it is an explicit operator setting.
+
+## KEEP (remaining, by design)
+
 - **Gaps-v8 additions the mockup predates** — decision-board second slot, price
   alerts panel, bet-math line, open-risk table, unrealized P&L in the positions
   badge, timezone labels on timestamps, `30m` timeframe. Additive; removed nothing.
-- **Gate waterfall shows all real nodes** — the mockup collapses debaters into one
-  "Debate" chip; we humanize names but never hide a gate the decision actually
-  passed (honesty rule).
 - **Calibration/leaderboard empty states** — mockup shows populated fixtures; ours
   refuse to fabricate numbers until samples exist.
 
