@@ -122,7 +122,9 @@ export function Sidebar() {
       <div
         className={cn(
           "mt-2 flex items-center gap-2.5 rounded-[14px] bg-surface-2 p-2.5",
-          "max-md:hidden max-[1150px]:md:hidden",
+          "max-md:hidden",
+          // collapsed rail (768–1150px): avatar-only, centered (mockup)
+          "max-[1150px]:md:justify-center max-[1150px]:md:bg-transparent max-[1150px]:md:p-0",
         )}
       >
         <span
@@ -131,7 +133,7 @@ export function Sidebar() {
         >
           {operatorLabel.charAt(0).toUpperCase()}
         </span>
-        <div className="min-w-0 text-xs">
+        <div className="min-w-0 text-xs max-[1150px]:md:hidden">
           <div className="truncate font-semibold">{operatorLabel}</div>
           <div className="flex items-center gap-1 text-[10.5px] text-bull">
             <span className="live-dot h-[6px] w-[6px]" aria-hidden="true" />

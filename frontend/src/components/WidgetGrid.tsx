@@ -2,7 +2,7 @@
  * their own error boundary + frame; safety chrome lives outside any
  * grid. Drag/resize only in edit mode; mobile renders a fixed
  * priority-ordered stack. */
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import RGL, { WidthProvider, type Layout } from "react-grid-layout";
 import { EyeOff, GripVertical } from "lucide-react";
 
@@ -26,9 +26,19 @@ export interface WidgetDef {
   headerExtra?: React.ReactNode;
 }
 
-function useIsMobile() {
-  // matchMedia without a hook library: evaluated per render is fine here
-  return typeof window !== "undefined" && window.innerWidth < 768;
+// mockup/spec: the grid becomes a priority-ordered stack below 1020px
+const STACK_QUERY = "(max-width: 1019px)";
+
+function useIsStacked() {
+  return useSyncExternalStore(
+    (notify) => {
+      const mq = window.matchMedia(STACK_QUERY);
+      mq.addEventListener("change", notify);
+      return () => mq.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(STACK_QUERY).matches,
+    () => false,
+  );
 }
 
 export function WidgetGrid({
@@ -39,7 +49,7 @@ export function WidgetGrid({
   widgets: WidgetDef[];
 }) {
   const { overrides, editing, saveLayout, showWidget } = useLayoutStore();
-  const isMobile = useIsMobile();
+  const isStacked = useIsStacked();
   const override = overrides[module];
   const hidden = useMemo(() => new Set(override?.hidden ?? []), [override]);
 
@@ -49,10 +59,10 @@ export function WidgetGrid({
     return saved ?? { i: w.id, ...w.layout };
   });
 
-  if (isMobile) {
-    // fixed priority stack: definition order, no drag on mobile
+  if (isStacked) {
+    // fixed priority stack: definition order, no drag below 1020px
     return (
-      <div className="space-y-3 pb-16">
+      <div className="space-y-3 max-md:pb-16">
         {visible.map((w) => (
           <WidgetFrame key={w.id} widget={w} module={module} />
         ))}

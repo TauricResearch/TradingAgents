@@ -12,7 +12,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { apiFetch } from "@/lib/api/client";
 import { qk } from "@/lib/api/queries";
 import { useNotifications, useOverview, useRegime, useStatus } from "@/lib/api/queries";
-import { fmtPnl, fmtPrice, fmtTime } from "@/lib/format";
+import { fmtPnl, fmtPrice, TZ_LABEL } from "@/lib/format";
 import { useConnectionState } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
@@ -41,9 +41,9 @@ function PageTitle() {
       p === "/" ? pathname === "/" : pathname.startsWith(p),
     ) ?? DEFAULT_TITLE;
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 shrink">
       <div className="truncate text-base font-extrabold leading-tight">{title}</div>
-      <div className="truncate text-[11px] text-fg-subtle max-[980px]:hidden">
+      <div className="truncate text-[11px] text-fg-subtle max-[1350px]:hidden">
         {subtitle}
       </div>
     </div>
@@ -55,7 +55,7 @@ function ConnPill() {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold",
+        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold",
         state === "live" && "bg-bull-muted text-bull",
         state === "stale" && "border border-dashed border-stale text-stale",
         state === "disconnected" && "bg-bear-muted text-bear",
@@ -72,7 +72,11 @@ function ConnPill() {
       {state === "disconnected" && "DISCONNECTED"}
       {state === "live" && lastSuccess > 0 && (
         <span className="font-normal text-fg-subtle max-md:hidden">
-          updated {fmtTime(new Date(lastSuccess).toISOString())}
+          updated{" "}
+          {new Date(lastSuccess).toLocaleTimeString()}
+          {TZ_LABEL && (
+            <span className="max-[1440px]:hidden"> {TZ_LABEL}</span>
+          )}
         </span>
       )}
     </span>
@@ -100,7 +104,7 @@ function PriceTicker({ symbol }: { symbol: string }) {
   }, [price]);
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3 py-1 font-mono text-xs text-(--chrome-fg) tabular"
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-navy px-3 py-1 font-mono text-xs text-(--chrome-fg) tabular"
       data-testid={`ticker-${symbol}`}
     >
       <span className="text-(--chrome-fg-muted)">{symbol}</span>{" "}
@@ -219,13 +223,13 @@ export function StatusStrip() {
     <header className="z-40 rounded-[18px] border border-border bg-surface shadow-(--shadow-1) backdrop-blur-[16px]">
       {/* one row always: on mobile only safety-critical items stay
           (LIVE state, risk, degraded count) — context badges shrink away */}
-      <div className="flex items-center gap-x-3 gap-y-1 px-4 py-2.5 max-md:gap-x-2 md:flex-wrap">
+      <div className="flex items-center gap-x-3 gap-y-1 px-4 py-2.5 max-md:gap-x-2">
         <PageTitle />
         <button
           type="button"
           aria-label="Search and commands (Cmd+K)"
           onClick={() => setPaletteOpen(true)}
-          className="flex w-[250px] items-center gap-2 rounded-xl bg-surface-2 px-3 py-1.5 text-left text-xs text-fg-subtle hover:text-fg max-[980px]:hidden"
+          className="flex w-[250px] shrink-0 items-center gap-2 rounded-xl bg-surface-2 px-3 py-1.5 text-left text-xs text-fg-subtle hover:text-fg max-[1350px]:w-[180px] max-[980px]:hidden"
         >
           <Search size={13} aria-hidden="true" />
           <span className="grow">Search markets, runs…</span>
@@ -265,12 +269,19 @@ export function StatusStrip() {
           </Badge>
         )}
         {s?.attached && (
-          <Badge data-testid="positions-badge" className="max-md:hidden">
+          <Badge
+            data-testid="positions-badge"
+            className="max-[1350px]:hidden"
+            title={s.open_positions
+              ?.map((p) => p.unrealized_pnl != null
+                ? `${p.symbol} unrealized ${fmtPnl(p.unrealized_pnl)}`
+                : p.symbol)
+              .join(" · ")}
+          >
             {s.open_positions && s.open_positions.length > 0
               ? `pos ${s.open_positions
                   .map((p) =>
-                    `${p.symbol} ${p.quantity > 0 ? "+" : ""}${p.quantity.toFixed(2)}` +
-                    (p.unrealized_pnl != null ? ` (${fmtPnl(p.unrealized_pnl)})` : ""))
+                    `${p.symbol} ${p.quantity > 0 ? "+" : ""}${p.quantity.toFixed(2)}`)
                   .join(", ")}`
               : "no positions"}
           </Badge>
@@ -281,7 +292,7 @@ export function StatusStrip() {
         <span className="contents max-[980px]:hidden">
           <PriceTicker symbol="BTC-USD" />
         </span>
-        <span className="contents max-[1250px]:hidden">
+        <span className="contents max-[1560px]:hidden">
           <PriceTicker symbol="XAUUSD" />
         </span>
         <Button

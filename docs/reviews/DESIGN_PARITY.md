@@ -82,6 +82,29 @@ card/hover shadows). Deltas:
    in the session card with an initial-letter avatar; set to `ajay.kumar` on this
    deployment. No fake identity system — it is an explicit operator setting.
 
+## Third pass — responsiveness
+
+Measured with a 900–1700px sweep (every 50px) plus 390/768/1000/1200 pairs
+against the mockup (`resp-*` captures):
+
+1. **Status strip never wraps**: `flex-wrap` removed; progressive hiding
+   instead — subtitle + pos badge <1350px, regime·session chip + full search
+   <1250px (search narrows to 180px <1350px), TZ suffix <1440px, XAU ticker
+   <1560px, BTC ticker + search <980px. Pos badge dropped its unrealized
+   parenthetical (now a hover tooltip; the number lives in Portfolio/Trade
+   tables) — the mockup's short `pos XAUUSD +76.92` form. Pills are
+   `shrink-0 whitespace-nowrap`; the title cell absorbs flex pressure and
+   truncates. Verified: one row, zero overflow at every width 900–1700.
+2. **Home stacks below 1020px** (mockup/spec breakpoint): WidgetGrid's stack
+   mode now triggers at 1020px via a reactive `matchMedia` subscription
+   (was 768px), priority-ordered, drag disabled while stacked.
+3. **Collapsed sidebar keeps the avatar** (768–1150px): avatar-only session
+   circle like the mockup; full card returns ≥1150px.
+4. **Mobile (<768px) keeps our treatment** — bottom nav bar, stacked compact
+   strip. KEEP: the mockup's own 390px rendering overlaps its title with the
+   LIVE chip (`resp-mockup-home-390.png`); ours is the intended behavior per
+   the original spec's mobile rules.
+
 ## KEEP (remaining, by design)
 
 - **Gaps-v8 additions the mockup predates** — decision-board second slot, price
