@@ -115,6 +115,32 @@ cold cache instead of spreading `{}`, and the mirror merges via `patchPrefs`
 instead of `savePrefs`; `PrefsSchema` is passthrough so old clients can't strip
 fields they predate.
 
+## Round 4 — header title squeeze (found on a fresh re-compare)
+
+A fresh side-by-side (seeded demo, populated state) caught a real regression the
+earlier passes missed because they were shot in a monitor-only / few-chips state:
+on **every** screen the top-bar **page title + subtitle was squeezed to zero** —
+the mockup always shows "Overview" / "Trade Workspace" / "Market Intelligence" at
+top-left, ours showed the search box as the leftmost element. Root cause: the
+header row is `[title (min-w-0 shrink)] [search] [grow] [chips…]`; the title was
+the only shrinkable node, so with execution attached (risk + pos badges) plus
+"feeds degraded" — chips the mockup's demo state doesn't carry — it collapsed away.
+
+Fixed:
+1. **Title never collapses**: the title *line* is `whitespace-nowrap` (no
+   truncate), so flexbox floors the title block's min-content at the title width;
+   only the **subtitle** truncates (…) when cramped. The title is always fully
+   visible, like the mockup.
+2. **Header matches the mockup's chip density**: the mockup header carries one
+   ticker (BTC-USD); ours now defers the XAU ticker to ultra-wide (≥1680px — its
+   price also lives on the Home Prices card and Trade), and defers the gaps-v8
+   `pos` badge (≥1550px) and `feeds degraded` (>1450px) so normal widths show the
+   mockup's set (LIVE · regime·session · risk · BTC ticker). Search shrinks to
+   180px ≤1550px.
+3. **Verified**: 900→1700px sweep every 50px across all 6 screens — one row, zero
+   overflow, title present at every width. Also fixed the Trade chart-card symbol
+   wrapping ("BTC-" / "USD") — now `whitespace-nowrap`, one line like the mockup.
+
 ## KEEP (remaining, by design)
 
 - **Gaps-v8 additions the mockup predates** — decision-board second slot, price

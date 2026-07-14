@@ -41,8 +41,14 @@ function PageTitle() {
       p === "/" ? pathname === "/" : pathname.startsWith(p),
     ) ?? DEFAULT_TITLE;
   return (
+    // the title is the mockup's left anchor. The block may shrink (min-w-0)
+    // to yield row space, but the title LINE is nowrap-without-truncate, so
+    // flexbox floors the block's min-content at the title width — the title
+    // never disappears. Only the subtitle truncates (…) when cramped.
     <div className="min-w-0 shrink">
-      <div className="truncate text-base font-extrabold leading-tight">{title}</div>
+      <div className="whitespace-nowrap text-base font-extrabold leading-tight">
+        {title}
+      </div>
       <div className="truncate text-[11px] text-fg-subtle max-[1350px]:hidden">
         {subtitle}
       </div>
@@ -229,7 +235,7 @@ export function StatusStrip() {
           type="button"
           aria-label="Search and commands (Cmd+K)"
           onClick={() => setPaletteOpen(true)}
-          className="flex w-[250px] shrink-0 items-center gap-2 rounded-xl bg-surface-2 px-3 py-1.5 text-left text-xs text-fg-subtle hover:text-fg max-[1350px]:w-[180px] max-[980px]:hidden"
+          className="flex w-[250px] shrink-0 items-center gap-2 rounded-xl bg-surface-2 px-3 py-1.5 text-left text-xs text-fg-subtle hover:text-fg max-[1550px]:w-[180px] max-[980px]:hidden"
         >
           <Search size={13} aria-hidden="true" />
           <span className="grow">Search markets, runs…</span>
@@ -271,7 +277,7 @@ export function StatusStrip() {
         {s?.attached && (
           <Badge
             data-testid="positions-badge"
-            className="max-[1350px]:hidden"
+            className="max-[1550px]:hidden"
             title={s.open_positions
               ?.map((p) => p.unrealized_pnl != null
                 ? `${p.symbol} unrealized ${fmtPnl(p.unrealized_pnl)}`
@@ -287,12 +293,15 @@ export function StatusStrip() {
           </Badge>
         )}
         {(o?.missing_feeds?.length ?? 0) > 0 && (
-          <Badge variant="stale">{o!.missing_feeds!.length} feeds degraded</Badge>
+          <Badge variant="stale" className="max-[1450px]:hidden">{o!.missing_feeds!.length} feeds degraded</Badge>
         )}
         <span className="contents max-[980px]:hidden">
           <PriceTicker symbol="BTC-USD" />
         </span>
-        <span className="contents max-[1560px]:hidden">
+        {/* the mockup header carries one ticker (BTC-USD); the XAU chip
+            only appears on ultra-wide screens — its price also lives on
+            the Home Prices card and the Trade page */}
+        <span className="contents max-[1680px]:hidden">
           <PriceTicker symbol="XAUUSD" />
         </span>
         <Button

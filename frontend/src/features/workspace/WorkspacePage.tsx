@@ -226,8 +226,8 @@ export default function WorkspacePage() {
       <div className="min-w-0 space-y-4">
         <Card ref={chartCardRef} className="bg-surface">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 !text-lg !font-extrabold !normal-case !tracking-normal !text-fg">
-              {symbol}
+            <CardTitle className="flex items-center gap-2 whitespace-nowrap !text-lg !font-extrabold !normal-case !tracking-normal !text-fg">
+              <span className="whitespace-nowrap">{symbol}</span>
               {replay.active ? null : spec && !spec.live ? (
                 <Badge variant="stale">EOD data</Badge>
               ) : (
