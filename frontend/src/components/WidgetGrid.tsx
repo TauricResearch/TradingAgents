@@ -17,6 +17,9 @@ const Grid = WidthProvider(RGL);
 export interface WidgetDef {
   id: string;
   title: string;
+  /** card renders its own heading (mockup hero/portfolio) — frame title
+   * hidden outside edit mode */
+  chromeless?: boolean;
   render: () => React.ReactNode;
   /** grid units; 12-col grid, rowHeight 32 */
   layout: Omit<Layout, "i">;
@@ -106,9 +109,10 @@ function WidgetFrame({
   fill?: boolean;
 }) {
   const { editing, hideWidget } = useLayoutStore();
+  const headerHidden = widget.chromeless && !editing;
   return (
     <Card className={cn(fill && "flex h-full flex-col overflow-hidden")}>
-      <CardHeader className="shrink-0">
+      <CardHeader className={cn("shrink-0", headerHidden && "hidden")}>
         <div className="flex items-center gap-1.5">
           {editing && (
             <GripVertical

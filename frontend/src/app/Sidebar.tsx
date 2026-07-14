@@ -96,9 +96,9 @@ export function Sidebar() {
         )}
       >
         <div className="text-[15px] font-extrabold leading-tight">
-          TradingAgents <span className="text-accent">Pro</span>
+          TradingAgents <span className="font-normal text-fg-subtle">Pro</span>
         </div>
-        <div className="text-[10.5px] text-fg-subtle">multi-agent terminal</div>
+        <div className="text-[10.5px] text-fg-subtle">multi-agent trading terminal</div>
       </div>
 
       <SectionLabel>MENU</SectionLabel>

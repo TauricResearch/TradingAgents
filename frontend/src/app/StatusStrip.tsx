@@ -19,19 +19,19 @@ import { useTick } from "@/stores/ticker";
 import { useUiStore } from "@/stores/ui";
 
 const ROUTE_TITLES: [prefix: string, title: string, subtitle: string][] = [
-  ["/trade", "Trading Workspace", "Live charts, drawings, and replay"],
-  ["/decisions", "AI Decision Center", "Every verdict with its full reasoning"],
-  ["/portfolio", "Portfolio", "Simulated performance and trade journal"],
-  ["/intel", "Market Intelligence", "Macro, positioning, and feed health"],
-  ["/settings", "Settings", "Appearance, layouts, and connections"],
+  ["/trade", "Trade Workspace", "Chart-first with decision overlays"],
+  ["/decisions", "Decision Center", "Every run's full reasoning — rejections included"],
+  ["/portfolio", "Portfolio", "Live paper P&L, backtest and the trade journal"],
+  ["/intel", "Market Intelligence", "Regime, metrics and feed coverage — honestly stated"],
+  ["/settings", "Settings", "Appearance, layouts, connections and the kill switch"],
   ["/report", "Monthly Report", "Print-ready performance summary"],
-  ["/", "Overview", "The 5-second questions, answered"],
+  ["/", "Overview", "The 5-second briefing — stance, money, what changed"],
 ];
 
 const DEFAULT_TITLE: (typeof ROUTE_TITLES)[number] = [
   "/",
   "Overview",
-  "The 5-second questions, answered",
+  "The 5-second briefing — stance, money, what changed",
 ];
 
 function PageTitle() {
@@ -88,24 +88,30 @@ function PriceTicker({ symbol }: { symbol: string }) {
     overview.data?.symbol === symbol ? overview.data.last_close : null;
   const price = tick?.last ?? fallback;
   const prev = useRef<number | null>(null);
-  const [flash, setFlash] = useState<"tick-up" | "tick-down" | "">("");
+  // last tick direction tints the price (mockup: #5ad48e/#ff8a84 — picked
+  // for contrast on the navy chip, not the standard bull/bear tokens)
+  const [dir, setDir] = useState<"up" | "down" | "">("");
   useEffect(() => {
     if (price == null) return;
     if (prev.current != null && price !== prev.current) {
-      setFlash(price > prev.current ? "tick-up" : "tick-down");
-      const timer = setTimeout(() => setFlash(""), 700);
-      prev.current = price;
-      return () => clearTimeout(timer);
+      setDir(price > prev.current ? "up" : "down");
     }
     prev.current = price;
   }, [price]);
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3 py-1 font-mono text-xs text-white tabular"
+      className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3 py-1 font-mono text-xs text-(--chrome-fg) tabular"
       data-testid={`ticker-${symbol}`}
     >
-      {symbol}{" "}
-      <span className={cn(tick ? "text-white" : "text-white/70", flash)}>
+      <span className="text-(--chrome-fg-muted)">{symbol}</span>{" "}
+      <span
+        className={cn(
+          "font-semibold",
+          !tick && "text-(--chrome-fg-muted)",
+          dir === "up" && "text-[#5ad48e]",
+          dir === "down" && "text-[#ff8a84]",
+        )}
+      >
         {fmtPrice(price)}
       </span>
       {!tick && <span className="text-[10px] text-stale">EOD</span>}
@@ -233,12 +239,13 @@ export function StatusStrip() {
           title={regimeTitle}
           data-testid="regime-badge"
         >
-          {activeRegime != null
-            ? `${symbol.replace("-USD", "")} ${activeRegime}`
-            : (o?.regime ?? "regime —")}
-        </Badge>
-        <Badge className="max-[1250px]:hidden">
-          {o?.session ? `session ${o.session}` : "session —"}
+          {(activeRegime != null
+            ? `${symbol.replace("-USD", "")} ${activeRegime.replaceAll("_", " ")}`
+            : (o?.regime ?? "regime —")) +
+            " · " +
+            (regime.data?.session ?? o?.session
+              ? `session ${(regime.data?.session ?? o?.session ?? "").replaceAll("_", " ")}`
+              : "session —")}
         </Badge>
         {s?.attached ? (
           <Badge

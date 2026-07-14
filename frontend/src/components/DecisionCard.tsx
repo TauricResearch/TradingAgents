@@ -15,6 +15,10 @@ function pctFrom(entry: number, price: number): string {
   return `${price >= entry ? "+" : ""}${pct}%`;
 }
 
+function humanRegime(regime: string | null | undefined): string {
+  return (regime ?? "unknown").replaceAll("_", " ");
+}
+
 const CHIP_TONE: Record<string, string> = {
   BUY: "bg-bull-muted ring-bull/40",
   SELL: "bg-bear-muted ring-bear/40",
@@ -188,10 +192,10 @@ export function DecisionCard({
           <span className="text-[11px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
             {kicker}
           </span>
-          <Badge variant="accent">{rec.market_regime}</Badge>
+          <Badge variant="accent">{humanRegime(rec.market_regime)} regime</Badge>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-4">
         {hero ? (
           <span
             className={cn(
@@ -204,23 +208,48 @@ export function DecisionCard({
         ) : (
           <DirectionBadge value={rec.action} className="text-2xl font-bold" />
         )}
-        <span
-          className={cn(
-            "text-sm text-fg-muted",
-            hero && "border-l border-border pl-4",
-          )}
-        >
-          confidence{" "}
-          <span className={cn("font-mono tabular", hero && "text-2xl text-fg")}>
-            {rec.confidence}
-          </span>
-          <span className="text-fg-subtle">/100</span>
-        </span>
-        {!hero && <Badge variant="accent">{rec.market_regime}</Badge>}
-        {rec.risk_reward != null && (
-          <span className={cn(hero && "border-l border-border pl-4")}>
-            <Badge>R:R {rec.risk_reward.toFixed(2)}</Badge>
-          </span>
+        {hero ? (
+          <>
+            {/* mockup hero stats: small-caps label over big mono value,
+                hairline dividers between stats */}
+            <span className="border-l border-border pl-4">
+              <span className="block text-[10.5px] text-fg-subtle">confidence</span>
+              <span className="font-mono text-2xl text-fg tabular">
+                {rec.confidence}
+                <span className="text-sm text-fg-subtle">/100</span>
+              </span>
+            </span>
+            {rec.risk_reward != null && (
+              <span className="border-l border-border pl-4">
+                <span className="block text-[10.5px] text-fg-subtle">
+                  risk : reward
+                </span>
+                <span className="font-mono text-2xl text-fg tabular">
+                  {rec.risk_reward.toFixed(2)}
+                </span>
+              </span>
+            )}
+            <span className="border-l border-border pl-4">
+              <span className="block text-[10.5px] text-fg-subtle">votes</span>
+              <span className="font-mono text-lg tabular">
+                <span className="text-bull">▲{tally.BUY ?? 0}</span>{" "}
+                <span className="text-neutral">–{tally.HOLD ?? 0}</span>{" "}
+                <span className="text-bear">▼{tally.SELL ?? 0}</span>
+              </span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-sm text-fg-muted">
+              confidence{" "}
+              <span className="font-mono tabular">{rec.confidence}</span>
+              <span className="text-fg-subtle">/100</span>
+            </span>
+            <Badge variant="accent">{humanRegime(rec.market_regime)}</Badge>
+            {rec.risk_reward != null && (
+              <Badge>R:R {rec.risk_reward.toFixed(2)}</Badge>
+            )}
+          </>
         )}
       </div>
 
@@ -278,11 +307,13 @@ export function DecisionCard({
               ` (${rec.position_size.pct_of_equity}% equity)`}
           </span>
         )}
-        <span>
-          votes <span className="text-bull">▲{tally.BUY ?? 0}</span>{" "}
-          <span className="text-neutral">–{tally.HOLD ?? 0}</span>{" "}
-          <span className="text-bear">▼{tally.SELL ?? 0}</span>
-        </span>
+        {!hero && (
+          <span>
+            votes <span className="text-bull">▲{tally.BUY ?? 0}</span>{" "}
+            <span className="text-neutral">–{tally.HOLD ?? 0}</span>{" "}
+            <span className="text-bear">▼{tally.SELL ?? 0}</span>
+          </span>
+        )}
         <span className="text-fg-subtle">
           {rec.n_evidence ?? 0} evidence · {rec.n_counterarguments ?? 0} counter
         </span>
@@ -361,9 +392,9 @@ export function DecisionCard({
         ) : (
           <Link
             to={`/decisions/${runId}`}
-            className="inline-block text-sm text-accent underline underline-offset-2"
+            className="inline-flex items-center rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-on-solid shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)] hover:bg-brand-strong"
           >
-            Open full reasoning →
+            Full reasoning →
           </Link>
         ))}
     </div>

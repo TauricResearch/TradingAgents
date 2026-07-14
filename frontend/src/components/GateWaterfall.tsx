@@ -7,20 +7,33 @@ import { cn } from "@/lib/utils";
 
 const STAGE_LABELS: Record<string, string> = {
   prepare: "Prepare",
-  technical: "Technical",
-  macro: "Macro",
-  sentiment: "Sentiment",
+  team_technical: "Technical",
+  team_macro: "Macro",
+  team_news_sentiment: "Sentiment",
+  team_quant: "Quant",
+  team_risk: "Risk team",
   onchain: "On-chain",
-  risk_team: "Risk team",
-  debate: "Debate",
+  join: "Join",
+  technical_bull: "Tech bull",
+  technical_bear: "Tech bear",
+  macro_bull: "Macro bull",
+  macro_bear: "Macro bear",
   risk_gate: "Risk gate",
   critic: "Critic",
   reflection: "Reflection",
   judge: "Judge",
   portfolio_manager: "PM gate",
+  pm_gate: "PM gate",
+  human_approval: "Approval",
   execution: "Execution",
   rejected: "Rejected",
 };
+
+/** every real node stays visible (honesty); unknown ids just lose the
+ * underscores instead of leaking raw enum names */
+function stageLabel(stage: string): string {
+  return STAGE_LABELS[stage] ?? stage.replaceAll("_", " ");
+}
 
 export function GateWaterfall({
   nodeSequence,
@@ -59,7 +72,7 @@ export function GateWaterfall({
                 ) : reached ? (
                   <Check size={11} aria-label="passed" />
                 ) : null}
-                {STAGE_LABELS[stage] ?? stage}
+                {stageLabel(stage)}
               </span>
             </li>
           );

@@ -6,11 +6,10 @@ import type { Alert } from "@/lib/api/types";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const GLYPH = { critical: "⛔", warning: "⚠", info: "ℹ" } as const;
-const TONE = {
-  critical: "text-bear",
-  warning: "text-neutral",
-  info: "text-fg-muted",
+const CHIP = {
+  critical: "bg-bear-muted text-bear",
+  warning: "bg-neutral-muted text-neutral",
+  info: "bg-accent-muted text-accent",
 } as const;
 
 export function AlertFeedList({
@@ -35,18 +34,19 @@ export function AlertFeedList({
   return (
     <ul className="divide-y divide-border/60" data-testid="alert-feed">
       {shown.map((alert, i) => (
-        <li key={`${alert.run_id}-${i}`} className="flex gap-2 py-1.5 text-sm">
-          <span className={cn("shrink-0", TONE[alert.severity])} aria-hidden="true">
-            {alert.text.includes("injection") ? (
-              <ShieldAlert size={14} className="mt-0.5" />
-            ) : (
-              GLYPH[alert.severity]
+        <li key={`${alert.run_id}-${i}`} className="flex gap-2.5 py-2 text-sm">
+          <span
+            className={cn(
+              "mt-0.5 inline-flex h-fit shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+              CHIP[alert.severity],
             )}
+          >
+            {alert.text.includes("injection") && (
+              <ShieldAlert size={11} aria-hidden="true" />
+            )}
+            {alert.severity}
           </span>
           <div className="min-w-0">
-            <span className={cn("mr-2 text-xs uppercase", TONE[alert.severity])}>
-              {alert.severity}
-            </span>
             <span className="text-fg-muted">{alert.text}</span>
             <div className="text-xs text-fg-subtle">
               {fmtDateTime(alert.time)} ·{" "}

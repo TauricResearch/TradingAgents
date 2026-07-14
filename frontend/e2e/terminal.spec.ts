@@ -43,7 +43,7 @@ test.describe("terminal", () => {
     await expect(page.getByTestId("decision-card")).toContainText("BUY");
     await expect(page.getByTestId("decision-card")).toContainText("confidence");
     await expect(page.getByTestId("invalidation")).toBeVisible();
-    await expect(page.getByText("Total P&L").first()).toBeVisible();
+    await expect(page.getByText("P&L", { exact: false }).first()).toBeVisible();
   });
 
   test("decision center shows debate, gates, and leaderboard", async ({

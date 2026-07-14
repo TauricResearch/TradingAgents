@@ -20,9 +20,9 @@ export function UpdateToast() {
       className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-[18px] border border-border bg-surface-solid px-4 py-2.5 text-sm shadow-(--shadow-2) max-md:bottom-20"
       data-testid="update-toast"
     >
-      <span>A new version of the terminal is ready.</span>
+      <span>A new version is available.</span>
       <Button size="sm" onClick={() => void updateServiceWorker(true)}>
-        <RefreshCw size={13} /> Reload
+        <RefreshCw size={13} /> Refresh
       </Button>
       <Button
         size="icon"

@@ -49,6 +49,8 @@
 
   --navy: #2c3547; /* reserved accent (ticker chip) */
   --navy-2: #222a3b;
+  --chrome-fg: #eef1f7; /* text on navy chrome */
+  --chrome-fg-muted: rgba(238, 241, 247, 0.65);
 
   --radius-sm: 10px;
   --radius: 14px;
@@ -61,6 +63,7 @@
     0 20px 44px -18px rgba(26, 33, 48, 0.2);
   --shadow-1: var(--shadow-card);
   --shadow-2: var(--shadow-hover);
+  --shadow-chrome: 0 18px 44px -16px rgba(26, 33, 48, 0.45);
 }
 
 [data-theme="dark"] {
@@ -97,11 +100,14 @@
 
   --navy: #1b2232;
   --navy-2: #151c2a;
+  --chrome-fg: #edf1f8;
+  --chrome-fg-muted: rgba(237, 241, 248, 0.6);
 
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35),
     0 10px 28px -14px rgba(0, 0, 0, 0.5);
   --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.4),
     0 20px 44px -18px rgba(0, 0, 0, 0.6);
+  --shadow-chrome: 0 18px 44px -16px rgba(0, 0, 0, 0.7);
 }
 
 @theme inline {
@@ -133,6 +139,8 @@
   --color-live: var(--live);
   --color-navy: var(--navy);
   --color-navy-2: var(--navy-2);
+  --color-chrome-fg: var(--chrome-fg);
+  --color-chrome-fg-muted: var(--chrome-fg-muted);
 
   --font-sans: "Plus Jakarta Sans Variable", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular,

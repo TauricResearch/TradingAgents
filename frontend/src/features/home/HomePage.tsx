@@ -15,6 +15,7 @@ import { WidgetGrid, type WidgetDef } from "@/components/WidgetGrid";
 import {
   useAlerts,
   useBacktest,
+  useBars,
   useCalendar,
   useJournal,
   useOverview,
@@ -46,8 +47,9 @@ function DecisionHero() {
     const query = i === 0 ? gold : btc;
     const rec = query.data ?? null;
     const meta = rec as { run_id?: string; run_started_at?: string } | null;
+    const tf = (rec as { timeframe?: string } | null)?.timeframe;
     return { sym, rec, runId: meta?.run_id ?? null,
-             at: meta?.run_started_at ?? "" };
+             at: meta?.run_started_at ?? "", tf };
   }).sort((a, b) => (a.at > b.at ? -1 : 1));
   const [lead, second] = entries as [typeof entries[0], typeof entries[0]];
   return (
@@ -55,7 +57,7 @@ function DecisionHero() {
       <DecisionCard
         rec={lead.rec}
         hero
-        kicker={`AI Decision — ${lead.sym}`}
+        kicker={`AI Decision — ${lead.sym}${lead.tf ? ` · ${lead.tf.toUpperCase()}` : ""}`}
         runId={lead.runId}
       />
       <div className="border-t border-border pt-3">
@@ -80,10 +82,12 @@ function PortfolioSnapshot() {
     <div className="-m-1 space-y-3 rounded-[16px] bg-[linear-gradient(135deg,#2456c5,#1a3f96)] p-4 text-white">
       <div>
         <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
-          Equity
+          Portfolio equity
         </div>
         <div className="font-mono text-[34px] font-bold leading-tight tabular">
-          {status.data?.equity != null ? fmtPrice(status.data.equity, 0) : "—"}
+          {status.data?.equity != null
+            ? `$${fmtPrice(status.data.equity, 0)}`
+            : "—"}
         </div>
         {status.data?.attached === false && (
           <div className="text-[11px] text-white/70">
@@ -93,7 +97,7 @@ function PortfolioSnapshot() {
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span>
-          Total P&L{" "}
+          P&L{" "}
           {/* toned chip: white base keeps bull/bear legible on the gradient */}
           {j?.total_pnl != null ? (
             <span
@@ -139,6 +143,13 @@ function PortfolioSnapshot() {
   );
 }
 
+function PriceSpark({ symbol }: { symbol: string }) {
+  const bars = useBars(symbol, "1h", 40);
+  const closes = (bars.data ?? []).map((bar) => bar.close);
+  if (closes.length < 2) return null;
+  return <Sparkline values={closes} width={150} height={30} />;
+}
+
 function PriceRibbon() {
   const btc = useTick("BTC-USD");
   const gold = useTick("XAUUSD");
@@ -172,6 +183,9 @@ function PriceRibbon() {
               </span>
             </div>
             <div className="font-mono text-[17.5px] tabular">{fmtPrice(price)}</div>
+            <div className="text-bull">
+              <PriceSpark symbol={row.symbol} />
+            </div>
             <div className="text-[11px] text-fg-subtle">
               {row.tick
                 ? `live · ${row.tick.source}`
@@ -293,8 +307,8 @@ function AlertsWidget() {
 }
 
 const WIDGETS: WidgetDef[] = [
-  { id: "decision", title: "Decision", render: () => <DecisionHero />, layout: { x: 0, y: 0, w: 7, h: 10, minW: 4, minH: 7 } },
-  { id: "snapshot", title: "Portfolio snapshot", render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 7, minW: 3, minH: 6 } },
+  { id: "decision", title: "Decision", chromeless: true, render: () => <DecisionHero />, layout: { x: 0, y: 0, w: 7, h: 10, minW: 4, minH: 7 } },
+  { id: "snapshot", title: "Portfolio snapshot", chromeless: true, render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 7, minW: 3, minH: 6 } },
   { id: "prices", title: "Prices", render: () => <PriceRibbon />, layout: { x: 7, y: 6, w: 5, h: 4, minW: 3, minH: 4 } },
   { id: "alerts", title: "Alerts", render: () => <AlertsWidget />, layout: { x: 0, y: 10, w: 7, h: 6, minW: 3, minH: 4 } },
   { id: "diff", title: "Since you left", render: () => <SinceYouLeft />, layout: { x: 7, y: 10, w: 5, h: 6, minW: 3, minH: 4 } },

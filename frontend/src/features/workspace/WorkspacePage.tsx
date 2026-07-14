@@ -9,7 +9,6 @@ import { useParams } from "react-router-dom";
 import { DecisionCard } from "@/components/DecisionCard";
 import { EmptyState } from "@/components/EmptyState";
 import { IndicatorPicker } from "@/components/IndicatorPicker";
-import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,17 +75,23 @@ function InternalsPanel({ symbol }: { symbol: string }) {
       )}
       {available.map((name) => {
         const metric = metrics.get(name)!;
+        const value =
+          Math.abs(metric.value) < 0.01 && metric.value !== 0
+            ? metric.value.toExponential(2)
+            : fmtPrice(metric.value, 2);
         return (
-          <StatCard
+          <div
             key={name}
-            label={name.replaceAll("_", " ")}
-            value={
-              Math.abs(metric.value) < 0.01 && metric.value !== 0
-                ? metric.value.toExponential(2)
-                : fmtPrice(metric.value, 2)
-            }
-            sub={`${metric.source ?? ""} ${metric.unit ?? ""}`}
-          />
+            className="flex items-center justify-between rounded-[12px] bg-surface-2 px-3 py-2"
+            title={`${metric.source ?? ""} ${metric.unit ?? ""}`.trim()}
+          >
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+              {name.replaceAll("_", " ")}
+            </span>
+            <span className="font-mono text-[15px] font-semibold tabular">
+              {value}
+            </span>
+          </div>
         );
       })}
       {intel.data.missing_feeds.length > 0 && available.length > 0 && (

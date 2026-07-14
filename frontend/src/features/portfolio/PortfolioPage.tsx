@@ -91,7 +91,7 @@ export default function PortfolioPage() {
           </CardContent>
         </Card>
 
-        <div className="grid content-start gap-2">
+        <div className="grid grid-cols-2 content-start gap-2">
           <StatCard
             label="Live paper P&L"
             value={fmtPnl(j?.total_pnl)}
@@ -223,7 +223,7 @@ export default function PortfolioPage() {
               </Button>
             </a>
             <Link to="/report">
-              <Button size="sm" variant="outline">
+              <Button size="sm">
                 Report (PDF)
               </Button>
             </Link>
@@ -284,7 +284,18 @@ export default function PortfolioPage() {
                       <tr key={i} className="border-b border-border/50">
                         <td className="py-1 pr-2 font-mono">{entry.symbol}</td>
                         <td className="py-1 pr-2">
-                          <DirectionBadge value={entry.action} />
+                          <span
+                            className={
+                              "inline-flex rounded-md px-2 py-0.5 text-xs font-semibold " +
+                              (entry.action === "SELL"
+                                ? "bg-bear-muted"
+                                : entry.action === "BUY"
+                                  ? "bg-bull-muted"
+                                  : "bg-neutral-muted")
+                            }
+                          >
+                            <DirectionBadge value={entry.action} />
+                          </span>
                         </td>
                         <td className="py-1 pr-2 text-fg-subtle">{entry.regime ?? "—"}</td>
                         <td
