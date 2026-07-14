@@ -361,7 +361,7 @@ export const PrefsSchema = z.object({
   views: z.array(SavedViewSchema).default([]),
   muted_events: z.array(z.string()).default([]),
   version: z.number(),
-});
+}).passthrough(); // round-trips must preserve fields this client predates
 export type Prefs = z.infer<typeof PrefsSchema>;
 
 export const CorrelationsSchema = z.object({

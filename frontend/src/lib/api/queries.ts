@@ -269,8 +269,16 @@ export async function patchPrefs(
   client: QueryClient,
   patch: Record<string, unknown>,
 ) {
-  const current = client.getQueryData(qk.prefs) ?? {};
-  return savePrefs(client, { ...current, ...patch });
+  // read-modify-write over the SERVER document: an empty cache (mount-time
+  // writes racing the first fetch) must never PUT client defaults — that
+  // silently resets server-side fields (found via operator_label)
+  const current =
+    client.getQueryData(qk.prefs) ??
+    (await client.fetchQuery({
+      queryKey: qk.prefs,
+      queryFn: fetchParsed("/api/prefs", PrefsSchema),
+    }));
+  return savePrefs(client, { ...(current as Record<string, unknown>), ...patch });
 }
 
 export async function upsertWatchlist(
