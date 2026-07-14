@@ -32,10 +32,12 @@ import { useUiStore } from "@/stores/ui";
 
 const BOARD_SYMBOLS = ["XAUUSD", "BTC-USD"] as const;
 
-/** Decision board (G1): one current stance PER SYMBOL. The freshest
- * ticket renders as the hero; the other symbol keeps a compact card —
- * a rejected BTC run can no longer hide a live gold decision. */
+/** Decision board (G1): one current stance PER SYMBOL. The hero leads
+ * with the ACTIVE symbol (the one the header/ticker emphasizes), so the
+ * hero's symbol + regime agree with the chrome; the other symbol keeps a
+ * compact card — a rejected run for one symbol can't hide the other's. */
 function DecisionHero() {
+  const activeSymbol = useUiStore((s) => s.symbol);
   const gold = useRecommendation(BOARD_SYMBOLS[0]);
   const btc = useRecommendation(BOARD_SYMBOLS[1]);
   if (gold.isPending || btc.isPending) return <SkeletonCard lines={5} />;
@@ -47,11 +49,25 @@ function DecisionHero() {
   const entries = BOARD_SYMBOLS.map((sym, i) => {
     const query = i === 0 ? gold : btc;
     const rec = query.data ?? null;
-    const meta = rec as { run_id?: string; run_started_at?: string } | null;
+    const meta = rec as
+      | { run_id?: string; run_started_at?: string; status?: string }
+      | null;
     const tf = (rec as { timeframe?: string } | null)?.timeframe;
+    // a run exists (traded OR rejected — both are decisions); "no
+    // recommendation" means the symbol has never run
+    const hasDecision = meta != null && meta.status !== "no recommendation";
     return { sym, rec, runId: meta?.run_id ?? null,
-             at: meta?.run_started_at ?? "", tf };
-  }).sort((a, b) => (a.at > b.at ? -1 : 1));
+             at: meta?.run_started_at ?? "", tf, hasDecision };
+  });
+  // hero = the active symbol (BTC-USD by default) so the hero's symbol +
+  // regime agree with the chrome — but a symbol WITH a decision always
+  // beats one without, so we never lead with an empty hero
+  entries.sort((a, b) => {
+    if (a.hasDecision !== b.hasDecision) return a.hasDecision ? -1 : 1;
+    if (a.sym === activeSymbol) return -1;
+    if (b.sym === activeSymbol) return 1;
+    return 0;
+  });
   const [lead, second] = entries as [typeof entries[0], typeof entries[0]];
   return (
     <div className="space-y-3" data-testid="decision-board">
@@ -82,7 +98,7 @@ function PortfolioSnapshot() {
   return (
     // brand-gradient panel (mockup): literal blues, not var(--brand) — the
     // dark theme's brand (#7d9ef2) is too light for this card's white text
-    <div className="-m-1 space-y-3 rounded-[16px] bg-[linear-gradient(135deg,#2456c5,#1a3f96)] p-4 text-white">
+    <div className="-m-1 flex h-full flex-col gap-3 rounded-[16px] bg-[linear-gradient(135deg,#2456c5,#1a3f96)] p-4 text-white">
       <div>
         <div className="flex items-center justify-between">
           <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
@@ -136,7 +152,7 @@ function PortfolioSnapshot() {
           )}
         </span>
       </div>
-      <div className="flex items-center justify-between rounded-xl bg-white/10 px-3 py-2">
+      <div className="flex flex-1 items-center justify-between rounded-xl bg-white/10 px-3 py-2">
         <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
           Backtest equity
         </span>
@@ -320,8 +336,10 @@ function AlertsWidget() {
 }
 
 const WIDGETS: WidgetDef[] = [
+  // right column is non-overlapping so RGL keeps the mockup order:
+  // Portfolio Equity → Prices → Since you left → What's next
   { id: "decision", title: "Decision", chromeless: true, render: () => <DecisionHero />, layout: { x: 0, y: 0, w: 7, h: 10, minW: 4, minH: 7 } },
-  { id: "snapshot", title: "Portfolio snapshot", chromeless: true, render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 7, minW: 3, minH: 6 } },
+  { id: "snapshot", title: "Portfolio snapshot", chromeless: true, render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 6, minW: 3, minH: 5 } },
   { id: "prices", title: "Prices", render: () => <PriceRibbon />, layout: { x: 7, y: 6, w: 5, h: 4, minW: 3, minH: 4 } },
   { id: "alerts", title: "Alerts", render: () => <AlertsWidget />, layout: { x: 0, y: 10, w: 7, h: 6, minW: 3, minH: 4 } },
   { id: "diff", title: "Since you left", render: () => <SinceYouLeft />, layout: { x: 7, y: 10, w: 5, h: 6, minW: 3, minH: 4 } },

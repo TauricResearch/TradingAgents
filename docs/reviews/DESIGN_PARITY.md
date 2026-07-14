@@ -157,6 +157,22 @@ Decisions/Settings structure verified exact. The gate-waterfall order/labels and
 calibration/leaderboard empty states remain KEEP (real pipeline nodes, honest
 empties).
 
+## Round 6 — Home hero symbol + right-column layout (annotated screenshot)
+
+User annotated the deployed Home. Grounded via live DOM + prefs, fixed:
+- **Hero leads with the active/header symbol** (BTC-USD default) so the hero's
+  symbol + regime chip agree with the header ticker/regime — a symbol *with* a
+  decision still beats one without, so the hero is never empty. (Was: freshest run,
+  which showed XAUUSD/ranging while the header said BTC/high-volatility.)
+- **Right column order fixed to the mockup**: Portfolio Equity → Prices → Since you
+  left → What's next (default `WIDGETS` made non-overlapping; the earlier snapshot
+  `h7` bump reverted to `h6`).
+- **Portfolio Equity card fills its cell** (`h-full flex flex-col`, backtest strip
+  `flex-1`) — no more dead white space below it when there's no backtest.
+- **Stale saved layout reset**: `LAYOUT_VERSION` bump drops a user's persisted
+  `overrides` on hydrate (client + server prefs mirror) so the corrected defaults
+  show — the root cause of the user's Prices-at-the-bottom + gap view.
+
 ## KEEP (remaining, by design)
 
 - **Gaps-v8 additions the mockup predates** — decision-board second slot, price

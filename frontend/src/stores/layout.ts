@@ -9,6 +9,12 @@ import { persist } from "zustand/middleware";
 export type ModuleId = "home" | "workspace" | "portfolio" | "intel";
 export type PresetId = "operator" | "analyst" | "risk";
 
+/** Bump when the DEFAULT widget layout changes in a way that should
+ * override a user's saved layout. On hydrate, a mismatched (or absent)
+ * version drops saved `overrides` so the corrected defaults show — a
+ * one-time reset, both client (localStorage) and server (prefs mirror). */
+export const LAYOUT_VERSION = 2;
+
 /** Presets are real (review finding: a preset that changes nothing is
  * fake). Each seeds per-module hidden-widget sets; the operator preset
  * is the full default. */
@@ -103,18 +109,38 @@ export const useLayoutStore = create<LayoutState>()(
         }),
       hydrate: (data) => {
         if (data && typeof data === "object" && "preset" in data) {
-          const d = data as { preset?: PresetId; overrides?: LayoutState["overrides"] };
+          const d = data as {
+            preset?: PresetId;
+            overrides?: LayoutState["overrides"];
+            version?: number;
+          };
+          // stale/absent version → drop saved overrides so corrected
+          // defaults render (keep the chosen preset)
+          const fresh = d.version === LAYOUT_VERSION;
           set({
             preset: d.preset ?? "operator",
-            overrides: d.overrides ?? {},
+            overrides: fresh ? (d.overrides ?? {}) : {},
           });
         }
       },
       exportForPrefs: () => ({
+        version: LAYOUT_VERSION,
         preset: get().preset,
         overrides: get().overrides,
       }),
     }),
-    { name: "pro-layout", partialize: (s) => ({ preset: s.preset, overrides: s.overrides }) },
+    {
+      name: "pro-layout",
+      version: LAYOUT_VERSION,
+      // localStorage copy: a version bump drops the saved overrides too
+      migrate: (persisted) => {
+        const p = (persisted ?? {}) as {
+          preset?: PresetId;
+          overrides?: LayoutState["overrides"];
+        };
+        return { preset: p.preset ?? "operator", overrides: {} };
+      },
+      partialize: (s) => ({ preset: s.preset, overrides: s.overrides }),
+    },
   ),
 );
