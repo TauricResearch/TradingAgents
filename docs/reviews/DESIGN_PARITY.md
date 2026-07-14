@@ -105,6 +105,16 @@ against the mockup (`resp-*` captures):
    LIVE chip (`resp-mockup-home-390.png`); ours is the intended behavior per
    the original spec's mobile rules.
 
+## Found & fixed along the way
+
+Setting `operator_label` kept reverting: the AppShell layout/theme mirror PUT a
+hand-built prefs document 1.5s after every page load, silently resetting every
+field it didn't carry — including saved views and mute rules, a long-standing
+silent bug. Fixed twice-over: `patchPrefs` now fetches the server document on a
+cold cache instead of spreading `{}`, and the mirror merges via `patchPrefs`
+instead of `savePrefs`; `PrefsSchema` is passthrough so old clients can't strip
+fields they predate.
+
 ## KEEP (remaining, by design)
 
 - **Gaps-v8 additions the mockup predates** — decision-board second slot, price
