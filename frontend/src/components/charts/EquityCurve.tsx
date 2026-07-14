@@ -81,6 +81,11 @@ export function EquityCurve({
     }
     chart.timeScale().fitContent();
     return () => {
+      // on unmount the hook has already disposed the chart (and nulled
+      // the ref) — removing series then throws inside lightweight-charts.
+      // Reading the ref at cleanup time is the point: it detects disposal.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (chartRef.current !== chart) return;
       chart.removeSeries(series);
       if (drawdownSeries) chart.removeSeries(drawdownSeries);
     };

@@ -75,6 +75,41 @@ test.describe("terminal", () => {
     await expect(page.getByText("EOD data")).toBeVisible();
   });
 
+  // regression: unmounting a page disposed the lightweight-charts instance
+  // before dependent effect cleanups ran; unguarded removeSeries/unsubscribe
+  // calls threw ("Object is disposed" / "Value is undefined") and the
+  // workspace crashed to its error boundary on the return visit
+  test("workspace survives trade → portfolio → trade SPA navigation", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "keyboard chords are desktop UX");
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(String(err)));
+
+    // default symbol is BTC-USD (no seeded chart data); x toggles to XAUUSD
+    await page.keyboard.press("x");
+    await page.keyboard.press("g");
+    await page.keyboard.press("t");
+    await expect(page).toHaveURL(/\/trade\/XAUUSD/);
+    const canvas = page.getByTestId("price-chart").locator("canvas").first();
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+
+    // portfolio must mount (and later unmount) its EquityCurve chart —
+    // that unmount is what used to throw
+    await page.keyboard.press("g");
+    await page.keyboard.press("p");
+    await expect(page.getByTestId("equity-curve")).toBeVisible({
+      timeout: 20_000,
+    });
+
+    await page.keyboard.press("g");
+    await page.keyboard.press("t");
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/failed to render/)).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
+  });
+
   test("portfolio links trades to reasoning and exports CSV", async ({
     page,
   }) => {

@@ -46,6 +46,7 @@ class SnapshotBuilder:
         extra_metric_fns: Sequence[Callable[[], MetricReading]] = (),
         indicator_names: Sequence[str] = DEFAULT_INDICATOR_NAMES,
         session_fn: SessionFn | None = None,
+        news_feed=None,
     ):
         self._bars_feed = bars_feed
         self._quote_feed = quote_feed
@@ -54,6 +55,7 @@ class SnapshotBuilder:
         self._extra_metric_fns = tuple(extra_metric_fns)
         self._indicator_names = tuple(indicator_names)
         self._session_fn = session_fn
+        self._news_feed = news_feed
 
     def build(
         self,
@@ -82,6 +84,20 @@ class SnapshotBuilder:
                 logger.warning("quote feed %s failed", self._quote_feed.name, exc_info=True)
                 missing.append(self._quote_feed.name)
 
+        news = []
+        if self._news_feed is not None:
+            try:
+                news = self._news_feed.get_news()
+            except Exception:
+                # a raising vendor degrades like any other feed (and, when
+                # live-armed, blocks entries via the data-health gate); an
+                # EMPTY result is a normal market state, not degradation —
+                # agents still disclose "news" per-prompt when the list is
+                # empty (rendering.py)
+                logger.warning("news feed %s failed", self._news_feed.name,
+                               exc_info=True)
+                missing.append(self._news_feed.name)
+
         macro = self._collect(self._macro_feeds, missing)
         onchain = self._collect(self._onchain_feeds, missing)
         for fn in self._extra_metric_fns:
@@ -101,6 +117,7 @@ class SnapshotBuilder:
             indicators=indicators,
             macro=macro,
             onchain=onchain,
+            news=news,
             session=self._session_fn(as_of) if self._session_fn else None,
             missing_feeds=missing,
         )
@@ -124,6 +141,7 @@ def build_gold_pipeline(
     """Default gold (XAU) pipeline: GC=F daily bars + cross-asset context +
     FRED macro + CFTC COT positioning + GVZ implied vol + session
     awareness. All feeds free; FRED needs its free key."""
+    from tradingagents.pro.ingestion.news import YahooFinanceNewsFeed
     from tradingagents.pro.ingestion.positioning import GoldCotFeed, GoldVolFeed
 
     bars_feed = YFinanceDailyBarsFeed(loader=loader)
@@ -135,11 +153,14 @@ def build_gold_pipeline(
             GoldCotFeed(transport=transport, cache_path=cot_cache_path),
             GoldVolFeed(bars_feed),
         ),
+        news_feed=YahooFinanceNewsFeed("GC=F"),
         session_fn=current_session,
     )
 
 
 def build_bitcoin_pipeline(transport=None) -> SnapshotBuilder:
+    from tradingagents.pro.ingestion.news import YahooFinanceNewsFeed
+
     """Default BTC pipeline: Binance spot bars/quote/depth + perp metrics +
     on-chain (CoinMetrics, blockchain.com) + Fear & Greed. All keyless."""
     spot = BinanceSpotFeed(transport=transport)
@@ -153,4 +174,5 @@ def build_bitcoin_pipeline(transport=None) -> SnapshotBuilder:
             FearGreedFeed(transport=transport),
         ),
         extra_metric_fns=(lambda: spot.get_orderbook_imbalance("BTCUSDT"),),
+        news_feed=YahooFinanceNewsFeed("BTC-USD"),
     )

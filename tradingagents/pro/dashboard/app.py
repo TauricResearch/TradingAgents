@@ -90,7 +90,28 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         state.broadcaster.bind_loop(asyncio.get_running_loop())
         pollers = []
         try:
-            from tradingagents.pro.dashboard.ticker import QuoteTickPoller
+            from tradingagents.pro.dashboard.ticker import (
+                PriceAlertEngine,
+                QuoteTickPoller,
+            )
+
+            def _emit_price_alert(severity, event, text, **labels):
+                # AlertManager (Telegram/webhook/log/notification) when a
+                # loop is attached; SSE + notification store always
+                if state.alerts is not None:
+                    state.alerts.emit(severity, event, text, **labels)
+                    return
+                from datetime import datetime, timezone
+
+                now = datetime.now(timezone.utc).isoformat()
+                state.prefs.add_notification(
+                    severity=severity, event=event, text=text, time=now)
+                state.broadcaster.publish("alert", {
+                    "severity": severity, "event": event,
+                    "text": text, "time": now,
+                })
+
+            alert_engine = PriceAlertEngine(state.prefs, _emit_price_alert)
 
             # one poller per live symbol whose vendor supports quotes;
             # registry access runs the vendor probes (logged) exactly once
@@ -100,6 +121,7 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
                         spec.feed_factory(), state.broadcaster,
                         symbol=spec.vendor_symbol, display_symbol=spec.symbol,
                         cache=state.ticks,
+                        alert_engine=alert_engine,
                     )
                     poller.start()
                     pollers.append(poller)
@@ -510,6 +532,32 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         if not state.prefs.delete_watchlist(name):
             raise HTTPException(status_code=404, detail=f"no watchlist {name!r}")
         return {"deleted": name}
+
+    @app.get("/api/price-alerts")
+    def price_alerts() -> list[dict]:
+        return state.prefs.price_alerts()
+
+    @app.post("/api/price-alerts")
+    async def create_price_alert(request: Request) -> dict:
+        data = await request.json()
+        symbol = data.get("symbol")
+        if symbol not in state.marketdata.registry:
+            raise HTTPException(
+                status_code=422,
+                detail=f"unknown symbol {symbol!r}; "
+                       f"supported: {sorted(state.marketdata.registry)}")
+        try:
+            return state.prefs.add_price_alert(data)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        except Exception as exc:  # pydantic validation
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    @app.delete("/api/price-alerts/{alert_id}")
+    def delete_price_alert(alert_id: str) -> dict:
+        if not state.prefs.delete_price_alert(alert_id):
+            raise HTTPException(status_code=404, detail=f"no alert {alert_id}")
+        return {"deleted": alert_id}
 
     @app.get("/api/notifications")
     def notifications(unread: int = 0) -> dict:

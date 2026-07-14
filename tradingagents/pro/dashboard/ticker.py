@@ -35,6 +35,47 @@ class TickCache:
             return self._ticks.get(symbol)
 
 
+class PriceAlertEngine:
+    """Evaluates user price alerts against the tick stream (G4).
+
+    Notify-only by construction: on a cross it deactivates the alert and
+    emits through the provided callback (AlertManager.emit-compatible) —
+    there is no path from here to any order API. Crossing semantics need
+    a previous tick, so the first tick after startup only seeds state.
+    """
+
+    def __init__(self, store, emit) -> None:
+        self.store = store          # PrefsStore
+        self.emit = emit            # (severity, event, text, **labels) -> None
+
+    def check(self, symbol: str, prev: float | None, last: float) -> int:
+        if prev is None or last is None:
+            return 0
+        fired = 0
+        for alert in self.store.active_price_alerts_for(symbol):
+            level = alert["level"]
+            crossed = (
+                prev < level <= last if alert["direction"] == "above"
+                else prev > level >= last
+            )
+            if not crossed:
+                continue
+            self.store.mark_price_alert_triggered(alert["id"])
+            note = f" — {alert['note']}" if alert.get("note") else ""
+            try:
+                self.emit(
+                    "warning", "price_alert",
+                    f"{symbol} crossed {level:g} ({alert['direction']}); "
+                    f"last {last:g}{note}",
+                    symbol=symbol,
+                )
+            except Exception:
+                logger.exception("price alert emit failed (alert already "
+                                 "deactivated; will not re-fire)")
+            fired += 1
+        return fired
+
+
 class QuoteTickPoller:
     def __init__(
         self,
@@ -45,10 +86,12 @@ class QuoteTickPoller:
         interval: float = 5.0,
         backoff_cap: float = 60.0,
         cache: TickCache | None = None,
+        alert_engine: PriceAlertEngine | None = None,
     ):
         self.feed = feed
         self.broadcaster = broadcaster
         self.cache = cache
+        self.alert_engine = alert_engine
         self.symbol = symbol
         self.display_symbol = display_symbol
         self.interval = interval
@@ -73,11 +116,19 @@ class QuoteTickPoller:
     def poll_once(self) -> bool:
         """One cycle; returns True when a tick was published (tests call
         this directly — the thread loop is just pacing around it)."""
-        if self.broadcaster.subscriber_count == 0:
-            return False  # nobody listening: no vendor calls
+        alerts_armed = (
+            self.alert_engine is not None
+            and self.alert_engine.store.has_active_price_alerts()
+        )
+        if self.broadcaster.subscriber_count == 0 and not alerts_armed:
+            return False  # nobody listening, no alerts armed: no vendor calls
         quote = self.feed.get_quote(self.symbol)
+        prev = self.cache.get(self.display_symbol) if self.cache is not None else None
         if self.cache is not None and quote.last is not None:
             self.cache.put(self.display_symbol, quote.last, quote.ts.isoformat())
+        if alerts_armed and quote.last is not None:
+            self.alert_engine.check(
+                self.display_symbol, prev[0] if prev else None, quote.last)
         self.broadcaster.publish("tick", {
             "symbol": self.display_symbol,
             "bid": quote.bid,

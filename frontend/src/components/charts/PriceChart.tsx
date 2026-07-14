@@ -116,16 +116,11 @@ export function PriceChart({
     drawingsSymbol ? (state.bySymbol[drawingsSymbol] ?? NO_DRAWINGS) : NO_DRAWINGS,
   );
 
-  // (re)build all series when inputs change
+  // (re)build all series when inputs change; torn down in the cleanup so
+  // unmount leaves no stale refs behind
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    markersRef.current?.detach();
-    markersRef.current = null;
-    if (seriesRef.current) chart.removeSeries(seriesRef.current);
-    extraSeriesRef.current.forEach((series) => chart.removeSeries(series));
-    seriesRef.current = null;
-    extraSeriesRef.current = [];
 
     const colors = chartColors();
     const data = style === "heikin-ashi" ? toHeikinAshi(bars) : bars;
@@ -235,6 +230,22 @@ export function PriceChart({
     }
 
     chart.timeScale().fitContent();
+
+    return () => {
+      // on unmount the hook cleanup has already run (chart disposed,
+      // chartRef nulled) — touching the chart then throws; just drop refs.
+      // Reading the ref at cleanup time is the point: it detects disposal.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (chartRef.current === chart) {
+        markersRef.current?.detach();
+        if (seriesRef.current) chart.removeSeries(seriesRef.current);
+        extraSeriesRef.current.forEach((series) => chart.removeSeries(series));
+      }
+      markersRef.current = null;
+      seriesRef.current = null;
+      extraSeriesRef.current = [];
+      primitiveRef.current = null;
+    };
   }, [bars, style, indicators, showVolume, drawingsSymbol, theme, chartRef]);
 
   // recommendation levels as price lines
@@ -279,7 +290,12 @@ export function PriceChart({
         );
       });
     }
-    return () => lines.forEach((line) => series.removePriceLine(line));
+    return () => {
+      // the rebuild cleanup runs first and may have removed the series
+      // (shared deps) — its price lines died with it
+      if (seriesRef.current !== series) return;
+      lines.forEach((line) => series.removePriceLine(line));
+    };
   }, [recommendation, bars, style, indicators, showVolume]);
 
   // trade / run markers
@@ -311,7 +327,8 @@ export function PriceChart({
         }),
     );
     return () => {
-      markersRef.current?.detach();
+      // skip detach when the rebuild cleanup already removed the series
+      if (seriesRef.current === series) markersRef.current?.detach();
       markersRef.current = null;
     };
   }, [markers, bars, style, indicators, showVolume]);
@@ -399,10 +416,15 @@ export function PriceChart({
     chart.subscribeCrosshairMove(onMove);
     window.addEventListener("keydown", onKey);
     return () => {
+      window.removeEventListener("keydown", onKey);
+      // on unmount the chart is already disposed (hook cleanup runs
+      // first) and took its subscriptions with it. Reading the ref at
+      // cleanup time is the point: it detects disposal.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (chartRef.current !== chart) return;
       chart.unsubscribeClick(onClick);
       chart.unsubscribeDblClick(onClick);
       chart.unsubscribeCrosshairMove(onMove);
-      window.removeEventListener("keydown", onKey);
     };
   }, [drawingsSymbol, chartRef]);
 

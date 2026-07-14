@@ -13,7 +13,10 @@ import {
 } from "react";
 
 interface SyncRegistry {
-  register: (id: string, chart: IChartApi) => () => void;
+  /** isDisposed: charts are torn down by useLightweightChart's cleanup
+   * before this registration's cleanup runs on unmount — unsubscribing
+   * a disposed chart throws, and remove() already dropped the handlers */
+  register: (id: string, chart: IChartApi, isDisposed: () => boolean) => () => void;
 }
 
 const SyncContext = createContext<SyncRegistry | null>(null);
@@ -23,7 +26,7 @@ export function ChartSyncProvider({ children }: { children: ReactNode }) {
   const isSyncingRef = useRef(false);
 
   const registryRef = useRef<SyncRegistry>({
-    register(id, chart) {
+    register(id, chart, isDisposed) {
       chartsRef.current.set(id, chart);
 
       const onRange = (range: LogicalRange | null) => {
@@ -64,9 +67,10 @@ export function ChartSyncProvider({ children }: { children: ReactNode }) {
       chart.timeScale().subscribeVisibleLogicalRangeChange(onRange);
       chart.subscribeCrosshairMove(onCrosshair);
       return () => {
+        chartsRef.current.delete(id);
+        if (isDisposed()) return;
         chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
         chart.unsubscribeCrosshairMove(onCrosshair);
-        chartsRef.current.delete(id);
       };
     },
   });
@@ -87,6 +91,6 @@ export function useChartSync(
   useEffect(() => {
     const chart = chartRef.current;
     if (!syncId || !registry || !chart) return;
-    return registry.register(syncId, chart);
+    return registry.register(syncId, chart, () => chartRef.current !== chart);
   }, [syncId, registry, chartRef]);
 }

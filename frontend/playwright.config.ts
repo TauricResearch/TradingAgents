@@ -4,6 +4,9 @@ import { defineConfig, devices } from "@playwright/test";
  * LLM + synthetic bars) with auth enabled — the same fixture the Python
  * suite trusts. Run from repo root context: the demo script imports
  * test fakes. */
+// overridable for machines where 8600 is taken (e.g. Docker port forwards)
+const PORT = process.env.PRO_E2E_PORT ?? "8600";
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
@@ -13,7 +16,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://127.0.0.1:8600",
+    baseURL: `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure",
   },
   projects: [
@@ -27,8 +30,8 @@ export default defineConfig({
     command:
       // OANDA_API_TOKEN cleared: e2e must be hermetic from operator env
     'cd .. && PRO_DASHBOARD_TOKEN=e2e-token OANDA_API_TOKEN="" PRO_DISABLE_LIVE_VENDORS=1 TRADINGAGENTS_PRO_DATA="$(mktemp -d)" ' +
-      `${process.env.PRO_PYTHON ?? "python"} scripts/pro_dashboard_demo.py 8600`,
-    url: "http://127.0.0.1:8600/healthz",
+      `${process.env.PRO_PYTHON ?? "python"} scripts/pro_dashboard_demo.py ${PORT}`,
+    url: `http://127.0.0.1:${PORT}/healthz`,
     reuseExistingServer: false,
     timeout: 60_000,
   },

@@ -83,7 +83,9 @@ class FredMacroFeed:
         major = re.compile(
             r"consumer price index|employment situation|fomc|"
             r"gross domestic product|producer price index|retail sales|"
-            r"personal income and outlays|advance monthly sales",
+            r"personal income and outlays|advance monthly sales|"
+            r"unemployment insurance weekly claims|"
+            r"university of michigan|ism report|jolts|gdpnow",
             re.IGNORECASE,
         )
         return [

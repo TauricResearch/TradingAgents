@@ -85,7 +85,7 @@ class TestIndicatorEngine:
         assert "RSI_14" in names
 
     def test_unknown_indicator_rejected(self):
-        with pytest.raises(ValueError, match="unknown indicators"):
+        with pytest.raises(ValueError, match="unknown indicator"):
             compute_indicators(make_bars(n=30), ["ICHIMOKU"])
 
     def test_mixed_timeframes_rejected(self):

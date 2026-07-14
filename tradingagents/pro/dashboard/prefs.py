@@ -51,6 +51,20 @@ class Notification(_Mutable):
     read: bool = False
 
 
+class PriceAlert(_Mutable):
+    """User-defined price level alert (trader review G4). Notify-only:
+    triggering one produces an alert/notification, never an order."""
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    symbol: str = Field(min_length=1, max_length=32)
+    level: float = Field(gt=0)
+    direction: str = Field(pattern="^(above|below)$")
+    note: str = Field(default="", max_length=200)
+    created_at: str = ""
+    triggered_at: str | None = None
+    active: bool = True
+
+
 class SavedView(_Mutable):
     name: str = Field(min_length=1, max_length=64)
     path: str = Field(min_length=1, max_length=512)
@@ -69,6 +83,7 @@ class PrefsDocument(_Mutable):
     prefs: UserPrefs = Field(default_factory=UserPrefs)
     watchlists: list[Watchlist] = Field(default_factory=list)
     notifications: list[Notification] = Field(default_factory=list)
+    price_alerts: list[PriceAlert] = Field(default_factory=list, max_length=50)
 
 
 class PrefsStore:
@@ -134,6 +149,56 @@ class PrefsStore:
             if changed:
                 self._write()
             return changed
+
+    # --- price alerts (G4) ---------------------------------------------------------
+
+    def price_alerts(self) -> list[dict]:
+        with self._lock:
+            return [a.model_dump() for a in self._document.price_alerts]
+
+    def add_price_alert(self, data: dict) -> dict:
+        from datetime import datetime, timezone
+
+        alert = PriceAlert.model_validate(data)
+        if not alert.created_at:
+            alert.created_at = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            if len(self._document.price_alerts) >= 50:
+                raise ValueError("price alert limit reached (50); delete some first")
+            self._document.price_alerts.append(alert)
+            self._write()
+            return alert.model_dump()
+
+    def delete_price_alert(self, alert_id: str) -> bool:
+        with self._lock:
+            before = len(self._document.price_alerts)
+            self._document.price_alerts = [
+                a for a in self._document.price_alerts if a.id != alert_id
+            ]
+            changed = len(self._document.price_alerts) != before
+            if changed:
+                self._write()
+            return changed
+
+    def has_active_price_alerts(self) -> bool:
+        with self._lock:
+            return any(a.active for a in self._document.price_alerts)
+
+    def active_price_alerts_for(self, symbol: str) -> list[dict]:
+        with self._lock:
+            return [a.model_dump() for a in self._document.price_alerts
+                    if a.active and a.symbol == symbol]
+
+    def mark_price_alert_triggered(self, alert_id: str) -> None:
+        from datetime import datetime, timezone
+
+        with self._lock:
+            for alert in self._document.price_alerts:
+                if alert.id == alert_id and alert.active:
+                    alert.active = False
+                    alert.triggered_at = datetime.now(timezone.utc).isoformat()
+                    self._write()
+                    return
 
     # --- notifications -----------------------------------------------------------
 

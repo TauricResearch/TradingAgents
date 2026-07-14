@@ -51,9 +51,14 @@ export function useLightweightChart(
     chartRef.current = chart;
     const cleanup = onReadyRef.current(chart);
     return () => {
+      // This cleanup runs FIRST on unmount (effects are destroyed in
+      // creation order, and this hook is called before the consumer's
+      // own effects). Null the ref before disposing so dependent
+      // cleanups can detect the disposed chart (`chartRef.current !==
+      // chart`) and skip calls that would throw "Object is disposed".
+      chartRef.current = null;
       cleanup?.();
       chart.remove();
-      chartRef.current = null;
     };
      
   }, []);

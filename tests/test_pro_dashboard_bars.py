@@ -131,7 +131,7 @@ class TestIndicatorSeries:
         )
 
     def test_unknown_indicator_raises(self):
-        with pytest.raises(ValueError, match="unknown indicators"):
+        with pytest.raises(ValueError, match="unknown indicator"):
             indicator_series_view(make_bars(30), ("NOPE",))
 
 

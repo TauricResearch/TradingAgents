@@ -41,11 +41,71 @@ INDICATOR_SPECS: dict[str, tuple[int, dict, dict[str, str]]] = {
 
 DEFAULT_INDICATOR_NAMES = tuple(INDICATOR_SPECS)
 
+# Parameterized families (trader review G7): EMA_21, RSI_9, ... resolve to
+# stockstats columns at request time. Fixed-period entries above stay valid
+# (and keep their curated warm-up windows).
+_PARAM_FAMILIES: dict[str, str] = {
+    "EMA": "close_{n}_ema",
+    "SMA": "close_{n}_sma",
+    "RSI": "rsi_{n}",
+    "ATR": "atr_{n}",
+}
+_PARAM_RE = __import__("re").compile(r"^(EMA|SMA|RSI|ATR)_(\d{1,3})$")
+MIN_PERIOD, MAX_PERIOD = 2, 400
+
+# Anchored intraday VWAP: cumulative sum(typical*vol)/sum(vol) reset each
+# UTC day. Only meaningful within a session — daily/weekly bars get a 422.
+VWAP_NAME = "VWAP"
+_INTRADAY = {"1m", "5m", "15m", "30m", "1h", "4h"}
+
+
+def _spec_for(name: str) -> tuple[int, dict, dict[str, str]] | None:
+    """Resolve a fixed or parameterized indicator name; None = unknown."""
+    if name in INDICATOR_SPECS:
+        return INDICATOR_SPECS[name]
+    match = _PARAM_RE.match(name)
+    if not match:
+        return None
+    family, period = match.group(1), int(match.group(2))
+    if not MIN_PERIOD <= period <= MAX_PERIOD:
+        raise ValueError(
+            f"{name}: period must be {MIN_PERIOD}-{MAX_PERIOD}")
+    warmup = period + 1 if family in ("RSI", "ATR") else period
+    return (warmup, {"period": period},
+            {"value": _PARAM_FAMILIES[family].format(n=period)})
+
+
+def _vwap_series(bars: Sequence[OHLCVBar]) -> list[float | None]:
+    values: list[float | None] = []
+    day = None
+    pv_sum = 0.0
+    vol_sum = 0.0
+    for bar in bars:
+        bar_day = bar.start.date()
+        if bar_day != day:
+            day, pv_sum, vol_sum = bar_day, 0.0, 0.0
+        typical = (bar.high + bar.low + bar.close) / 3.0
+        volume = bar.volume or 0.0
+        pv_sum += typical * volume
+        vol_sum += volume
+        values.append(pv_sum / vol_sum if vol_sum > 0 else None)
+    return values
+
 
 def _validate(bars: Sequence[OHLCVBar], names: Sequence[str]) -> None:
-    unknown = sorted(set(names) - set(INDICATOR_SPECS))
-    if unknown:
-        raise ValueError(f"unknown indicators {unknown}; supported: {sorted(INDICATOR_SPECS)}")
+    for name in names:
+        if name == VWAP_NAME:
+            if bars and bars[0].timeframe.value not in _INTRADAY:
+                raise ValueError(
+                    "VWAP is session-anchored and needs an intraday "
+                    "timeframe (1m-4h); daily/weekly bars have no session")
+            continue
+        if _spec_for(name) is None:
+            raise ValueError(
+                f"unknown indicator {name!r}; supported: fixed "
+                f"{sorted(INDICATOR_SPECS)}, parameterized EMA_n/SMA_n/"
+                f"RSI_n/ATR_n (n {MIN_PERIOD}-{MAX_PERIOD}), and VWAP "
+                f"(intraday)")
     timeframes = {b.timeframe for b in bars}
     if len(timeframes) != 1:
         raise ValueError(f"bars span multiple timeframes: {sorted(t.value for t in timeframes)}")
@@ -65,7 +125,11 @@ def compute_indicator_series(
     frame = wrap(bars_to_dataframe(bars))
     result: dict[str, dict] = {}
     for name in names:
-        min_bars, params, outputs = INDICATOR_SPECS[name]
+        if name == VWAP_NAME:
+            result[name] = {"params": {"anchor": "utc_day"},
+                            "series": {"value": _vwap_series(bars)}}
+            continue
+        min_bars, params, outputs = _spec_for(name)
         series: dict[str, list[float | None]] = {}
         for key, column in outputs.items():
             values: list[float | None] = []
@@ -96,7 +160,14 @@ def compute_indicators(
     frame = wrap(bars_to_dataframe(bars))
     readings: list[IndicatorReading] = []
     for name in names:
-        min_bars, params, outputs = INDICATOR_SPECS[name]
+        if name == VWAP_NAME:
+            last = _vwap_series(bars)[-1]
+            if last is not None:
+                readings.append(IndicatorReading(
+                    name=name, timeframe=timeframe,
+                    value={"value": last}, params={"anchor": "utc_day"}))
+            continue
+        min_bars, params, outputs = _spec_for(name)
         if len(bars) < min_bars:
             continue
         values: dict[str, float] = {}
