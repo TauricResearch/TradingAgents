@@ -244,12 +244,86 @@ class TestGoogleSession:
         assert config == {
             "auth_required": True, "google": True,
             "firebase": {"apiKey": "public", "projectId": "demo-project"},
+            "stream_url": None,
         }
         for key in GOOGLE_ENV:
             monkeypatch.delenv(key, raising=False)
         plain = TestClient(create_app(DashboardState(), api_token="tok"))
         assert plain.get("/api/auth/config").json() == {
-            "auth_required": True, "google": False, "firebase": None}
+            "auth_required": True, "google": False, "firebase": None,
+            "stream_url": None}
+
+
+class TestDirectStreamTickets:
+    """Direct-SSE auth for Firebase Hosting deployments (Hosting's proxy
+    can't carry SSE): single-use short-TTL tickets minted by an
+    authenticated session, consumed on first use."""
+
+    def _client(self, monkeypatch, state=None):
+        monkeypatch.setenv("PRO_STREAM_DIRECT_URL", "https://svc.run.app")
+        monkeypatch.setenv("PRO_STREAM_ALLOWED_ORIGIN", "https://site.web.app")
+        return TestClient(create_app(state or DashboardState(),
+                                     api_token="secret-token"))
+
+    def test_ticket_flow_single_use(self, monkeypatch):
+        state = DashboardState()
+        with self._client(monkeypatch, state) as client:
+            # minting requires auth
+            assert client.get("/api/stream/ticket").status_code == 401
+            client.post("/api/session", headers={"X-API-Key": "secret-token"})
+            ticket = client.get("/api/stream/ticket").json()["ticket"]
+
+            # a fresh browser context: no cookie, ticket alone authenticates
+            bare = TestClient(client.app)
+            state.broadcaster.publish("run", {"run_id": "r1"})
+            ok = bare.get("/api/stream", params={
+                "ticket": ticket, "last_event_id": "0", "max_events": "1"})
+            assert ok.status_code == 200 and "event: run" in ok.text
+            # consumed: the same ticket never authenticates twice
+            assert bare.get("/api/stream", params={
+                "ticket": ticket, "max_events": "1"}).status_code == 401
+
+    def test_expired_ticket_rejected(self, monkeypatch):
+        import tradingagents.pro.dashboard.app  # noqa: F401 — patch target
+
+        with self._client(monkeypatch) as client:
+            client.post("/api/session", headers={"X-API-Key": "secret-token"})
+            ticket = client.get("/api/stream/ticket").json()["ticket"]
+            future = __import__("time").monotonic() + 120  # beyond the 60s TTL
+            monkeypatch.setattr("time.monotonic", lambda: future)
+            bare = TestClient(client.app)
+            assert bare.get("/api/stream", params={
+                "ticket": ticket, "max_events": "1"}).status_code == 401
+
+    def test_ticket_never_opens_other_routes(self, monkeypatch):
+        with self._client(monkeypatch) as client:
+            client.post("/api/session", headers={"X-API-Key": "secret-token"})
+            ticket = client.get("/api/stream/ticket").json()["ticket"]
+            bare = TestClient(client.app)
+            assert bare.get("/api/overview",
+                            params={"ticket": ticket}).status_code == 401
+
+    def test_cors_header_only_for_allowed_origin(self, monkeypatch):
+        state = DashboardState()
+        with self._client(monkeypatch, state) as client:
+            client.post("/api/session", headers={"X-API-Key": "secret-token"})
+            state.broadcaster.publish("run", {"run_id": "r1"})
+            for origin, expected in [("https://site.web.app", True),
+                                     ("https://evil.example", False)]:
+                ticket = client.get("/api/stream/ticket").json()["ticket"]
+                response = TestClient(client.app).get(
+                    "/api/stream",
+                    params={"ticket": ticket, "last_event_id": "0",
+                            "max_events": "1"},
+                    headers={"Origin": origin})
+                assert (response.headers.get("access-control-allow-origin")
+                        == "https://site.web.app") is expected
+
+    def test_disabled_without_env(self):
+        client = TestClient(create_app(DashboardState(), api_token="tok"))
+        client.post("/api/session", headers={"X-API-Key": "tok"})
+        assert client.get("/api/stream/ticket").status_code == 404
+        assert client.get("/api/auth/config").json()["stream_url"] is None
 
 
 class TestSSEEndpoint:

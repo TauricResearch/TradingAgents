@@ -120,6 +120,22 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         if email.strip()
     }
     google_enabled = bool(firebase_project and allowed_emails)
+
+    # Direct SSE (optional): Firebase Hosting's proxy buffers responses and
+    # cannot carry Server-Sent Events (observed live: /api/stream → 503
+    # behind Hosting). When BOTH are set, the SPA connects its EventSource
+    # straight to the Cloud Run origin, authenticated by a short-lived
+    # single-use ticket minted through the normal (cookie) session:
+    #   PRO_STREAM_DIRECT_URL      public Cloud Run URL (no trailing slash)
+    #   PRO_STREAM_ALLOWED_ORIGIN  the Hosting origin allowed via CORS
+    # In-process ticket store is safe: deployments enforce max-instances=1
+    # (the same single-writer invariant that guards /data).
+    stream_direct_url = os.environ.get("PRO_STREAM_DIRECT_URL", "").strip().rstrip("/")
+    stream_allowed_origin = os.environ.get(
+        "PRO_STREAM_ALLOWED_ORIGIN", "").strip().rstrip("/")
+    stream_direct = bool(stream_direct_url and stream_allowed_origin)
+    stream_tickets: dict[str, float] = {}  # ticket -> monotonic expiry
+    STREAM_TICKET_TTL = 60.0
     firebase_web_config = None
     if google_enabled:
         import json as _json
@@ -198,6 +214,19 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     app = FastAPI(title="TradingAgents Pro Dashboard", lifespan=lifespan)
     app.state.dashboard = state
 
+    def _consume_stream_ticket(request: Request) -> bool:
+        """Single-use, short-TTL ticket auth for the direct-SSE path only.
+        Consumed on first validation — a replayed URL is rejected."""
+        import time as _time
+
+        supplied = request.query_params.get("ticket", "")
+        if not (stream_direct and supplied):
+            return False
+        now = _time.monotonic()
+        for stale in [t for t, exp in stream_tickets.items() if exp < now]:
+            stream_tickets.pop(stale, None)
+        return stream_tickets.pop(supplied, 0.0) >= now
+
     def _authenticated(request: Request) -> bool:
         if not token:
             return True
@@ -205,7 +234,10 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         if hmac.compare_digest(supplied, token):
             return True
         cookie = request.cookies.get(SESSION_COOKIE, "")
-        return bool(cookie) and cookie in sessions
+        if bool(cookie) and cookie in sessions:
+            return True
+        return (request.url.path == "/api/stream"
+                and _consume_stream_ticket(request))
 
     if not token:
         import logging
@@ -268,11 +300,26 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     @app.get("/api/auth/config")
     def auth_config() -> dict:
         # open by design: no data, just which login UI the SPA should render
+        # and where the EventSource should connect (null = same origin)
         return {
             "auth_required": bool(token),
             "google": google_enabled,
             "firebase": firebase_web_config if google_enabled else None,
+            "stream_url": stream_direct_url if stream_direct else None,
         }
+
+    @app.get("/api/stream/ticket")
+    def stream_ticket() -> dict:
+        # auth-gated by the middleware like every /api route: only an
+        # established session (cookie through Hosting) can mint one
+        import time as _time
+
+        if not stream_direct:
+            raise HTTPException(status_code=404,
+                                detail="direct stream not configured")
+        ticket = secrets.token_urlsafe(32)
+        stream_tickets[ticket] = _time.monotonic() + STREAM_TICKET_TTL
+        return {"ticket": ticket}
 
     def _google_identity(request: Request) -> str:
         """Validate the Authorization: Bearer Firebase ID token; returns the
@@ -339,11 +386,18 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             finally:
                 await agen.aclose()
 
+        headers = {"Cache-Control": "no-cache",
+                   "X-Accel-Buffering": "no"}  # nginx: do not buffer SSE
+        # direct-SSE is cross-origin from the Hosting site; EventSource GETs
+        # are CORS "simple requests" (no preflight) but the response must
+        # name the allowed origin. Ticket auth means no credentials header.
+        if stream_direct and (request.headers.get("origin", "").rstrip("/")
+                              == stream_allowed_origin):
+            headers["Access-Control-Allow-Origin"] = stream_allowed_origin
         return StreamingResponse(
             frames(),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache",
-                     "X-Accel-Buffering": "no"},  # nginx: do not buffer SSE
+            headers=headers,
         )
 
     def _legacy_html() -> str:

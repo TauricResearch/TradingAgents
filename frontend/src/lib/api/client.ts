@@ -83,11 +83,14 @@ export async function establishSession(): Promise<{
 }
 
 /** Which login UI to render (open endpoint, no data). `firebase` is the
- * PUBLIC web-app config — present only when Google sign-in is enabled. */
+ * PUBLIC web-app config — present only when Google sign-in is enabled.
+ * `stream_url` (when set) is the Cloud Run origin the EventSource should
+ * connect to directly — Firebase Hosting's proxy can't carry SSE. */
 export interface AuthConfig {
   auth_required: boolean;
   google: boolean;
   firebase: Record<string, string> | null;
+  stream_url?: string | null;
 }
 
 export async function fetchAuthConfig(): Promise<AuthConfig> {
