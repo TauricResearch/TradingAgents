@@ -8,6 +8,7 @@ only the LLM responses and bars are synthetic.
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -142,7 +143,15 @@ def main() -> None:
     except ImportError:
         pass
 
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8600
+    # PORT env var (dev-tool auto-assigned port) wins over the CLI arg so
+    # this can share a machine with other chats' demo servers; CLI arg stays
+    # for manual `python scripts/pro_dashboard_demo.py <port>` runs.
+    if os.environ.get("PORT"):
+        port = int(os.environ["PORT"])
+    elif len(sys.argv) > 1:
+        port = int(sys.argv[1])
+    else:
+        port = 8600
     uvicorn.run(create_app(build_state()), host="127.0.0.1", port=port)
 
 

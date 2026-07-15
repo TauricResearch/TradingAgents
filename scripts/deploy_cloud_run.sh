@@ -41,10 +41,13 @@ LLM_PROVIDER_UPPER="$(printf '%s' "$LLM_PROVIDER" | tr '[:lower:]' '[:upper:]')"
 LLM_KEY_ENV="${LLM_PROVIDER_UPPER}_API_KEY"
 
 echo "==> Building + pushing ${IMAGE} via Cloud Build"
+# `gcloud builds submit --tag` always runs `docker build -t $TAG .` with the
+# default Dockerfile path — it can't take -f alongside --tag — so use the
+# explicit build config instead (deploy/cloudbuild.yaml).
 gcloud builds submit \
   --project "$PROJECT_ID" \
-  --tag "$IMAGE" \
-  -f deploy/Dockerfile.pro \
+  --config deploy/cloudbuild.yaml \
+  --substitutions "_IMAGE=${IMAGE}" \
   .
 
 echo "==> Deploying ${SERVICE} to Cloud Run (${REGION})"
@@ -53,6 +56,10 @@ echo "==> Deploying ${SERVICE} to Cloud Run (${REGION})"
 # state — see docs/DEPLOYMENT.md); --min-instances=0 keeps it scale-to-zero
 # between visits since the automatic trading loop is disabled here.
 # --execution-environment gen2 is required for the Cloud Storage volume mount.
+# --update-env-vars/--update-secrets (not --set-*) MERGE with what's already
+# on the service, so redeploys never wipe env applied out-of-band (e.g. the
+# Google sign-in vars PRO_FIREBASE_PROJECT_ID/PRO_ALLOWED_EMAILS/
+# PRO_FIREBASE_WEB_CONFIG — see docs/DEPLOYMENT.md).
 gcloud run deploy "$SERVICE" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
@@ -62,8 +69,8 @@ gcloud run deploy "$SERVICE" \
   --max-instances 1 \
   --add-volume "name=data,type=cloud-storage,bucket=${BUCKET}" \
   --add-volume-mount "volume=data,mount-path=/data" \
-  --set-env-vars "TRADINGAGENTS_LLM_PROVIDER=${LLM_PROVIDER},PRO_LOOP_DISABLED=1" \
-  --set-secrets "PRO_DASHBOARD_TOKEN=pro-dashboard-token:latest,${LLM_KEY_ENV}=${LLM_PROVIDER}-api-key:latest" \
+  --update-env-vars "TRADINGAGENTS_LLM_PROVIDER=${LLM_PROVIDER},PRO_LOOP_DISABLED=1" \
+  --update-secrets "PRO_DASHBOARD_TOKEN=pro-dashboard-token:latest,${LLM_KEY_ENV}=${LLM_PROVIDER}-api-key:latest" \
   --allow-unauthenticated
 
 echo "==> Done. Fetch the Cloud Run URL with:"

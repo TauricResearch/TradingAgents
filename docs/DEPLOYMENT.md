@@ -38,10 +38,28 @@ site. The supported pairing is **Firebase Hosting (TLS/CDN front door) →
 Cloud Run**, running the same `deploy/Dockerfile.pro` image; Hosting
 rewrites every path to Cloud Run (`firebase.json` at repo root), so the
 FastAPI app keeps serving both the SPA and `/api/*` exactly as it does
-today. Auth is unchanged too — the existing `PRO_DASHBOARD_TOKEN`
-token-paste screen (`AuthGate`) is still the real access control; a
-Firebase-Auth Google-sign-in wall in front of it is a tracked follow-up,
-not part of this setup.
+today.
+
+**Auth:** the `PRO_DASHBOARD_TOKEN` X-API-Key path always works (curl,
+scripts, e2e, emergency access). Google sign-in activates on top of it when
+BOTH of these are set on the Cloud Run service (fail closed — a project id
+without an allowlist keeps Google sign-in disabled, and the SPA then shows
+the token form instead):
+
+- `PRO_FIREBASE_PROJECT_ID` — the Firebase project id (ID-token audience)
+- `PRO_ALLOWED_EMAILS` — comma-separated Google account allowlist; any
+  other Google account is rejected with 403 *after* authenticating
+- `PRO_FIREBASE_WEB_CONFIG` — the public web-app config JSON
+  (`firebase apps:sdkconfig WEB <appId>`); set its `authDomain` to your
+  Hosting domain so the sign-in popup stays first-party (Hosting serves the
+  reserved `/__/auth/*` helpers before the Cloud Run rewrite)
+
+One-time: register a web app (`firebase apps:create web pro-dashboard`) and
+enable the **Google** provider in the Firebase console (Authentication →
+Sign-in method → Google → Enable — the console auto-provisions the OAuth
+client; the admin API refuses without one). Token verification runs through
+`google-auth` (already a locked dependency): signature against Google's
+certs, audience = the project id, `email_verified`, then the allowlist.
 
 **Hard boundary: this deployment is paper-mode only.** No Delta/live-venue
 credentials are configured here, and none should be — live trading needs an
@@ -94,9 +112,14 @@ Then point `.firebaserc`'s `"default"` project at your project id, confirm
 firebase deploy --only hosting
 ```
 
-**Verify:** `curl https://<hosting-domain>/healthz` → `200`; load the root
-URL and confirm the existing token-paste `AuthGate` screen appears; after
-pasting the token, trigger one on-demand run and confirm it survives a
+**Verify:** `curl https://<hosting-domain>/health/live` → `200` (use this
+endpoint, not `/healthz` — Google's frontend reserves the exact path
+`/healthz` on Cloud Run's `*.run.app`-backed domains, including through a
+Firebase Hosting rewrite, and returns its own 404 for it before the request
+ever reaches the container; `/health/live`, `/metrics`, and everything
+else are unaffected). Load the root URL and confirm the existing
+token-paste `AuthGate` screen appears; after pasting the token, trigger
+one on-demand run and confirm it survives a
 redeploy (proves the GCS-backed `/data` volume actually persists across
 instance churn, not just within one warm instance).
 

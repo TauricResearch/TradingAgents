@@ -10,6 +10,15 @@ so browser-native transports that cannot set headers (EventSource,
 ``<a download>``) still authenticate. Static shell and ``/healthz`` are
 open — they contain no data.
 
+Google sign-in (optional): when ``PRO_FIREBASE_PROJECT_ID`` and a non-empty
+``PRO_ALLOWED_EMAILS`` allowlist are both set, ``POST /api/session`` also
+accepts ``Authorization: Bearer <firebase-id-token>`` — verified against
+Google's public certs via google-auth (already a dependency), then gated on
+``email_verified`` + the allowlist — and mints the same session cookie.
+Fail closed: a project id without an allowlist keeps Google sign-in
+disabled. ``GET /api/auth/config`` (open) tells the SPA which login UI to
+render; ``PRO_FIREBASE_WEB_CONFIG`` carries the public Firebase web config.
+
 Run locally:
     uvicorn --factory tradingagents.pro.dashboard.app:create_default_app
 """
@@ -31,6 +40,17 @@ from tradingagents.pro.dashboard.ticker import TickCache
 from tradingagents.pro.memory import ProMemory
 
 SESSION_COOKIE = "pro_session"
+
+
+def _verify_firebase_token(id_token: str, audience: str) -> dict:
+    """Verify a Firebase ID token and return its claims. Module-level so
+    tests can monkeypatch it (the repo's injectable-fakes pattern); raises
+    ValueError on any invalid/expired/wrong-audience token."""
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token as google_id_token
+
+    return google_id_token.verify_firebase_token(
+        id_token, google_requests.Request(), audience=audience)
 
 
 @dataclass
@@ -84,6 +104,43 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     state = state or DashboardState()
     token = api_token if api_token is not None else os.environ.get("PRO_DASHBOARD_TOKEN")
     sessions: set[str] = set()  # in-process; restart = re-auth via header
+
+    # Google sign-in (optional). Fail closed: BOTH the project id (token
+    # audience) and a non-empty email allowlist are required — a project id
+    # alone would admit any Google account on earth.
+    firebase_project = os.environ.get("PRO_FIREBASE_PROJECT_ID", "").strip()
+    allowed_emails = {
+        email.strip().lower()
+        for email in os.environ.get("PRO_ALLOWED_EMAILS", "").split(",")
+        if email.strip()
+    }
+    google_enabled = bool(firebase_project and allowed_emails)
+    firebase_web_config = None
+    if google_enabled:
+        import json as _json
+
+        raw_config = os.environ.get("PRO_FIREBASE_WEB_CONFIG", "")
+        try:
+            firebase_web_config = _json.loads(raw_config) if raw_config else None
+        except ValueError:
+            firebase_web_config = None
+        if firebase_web_config is None:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "PRO_FIREBASE_WEB_CONFIG missing/invalid — Google sign-in "
+                "disabled (the SPA needs the public web config to start "
+                "the OAuth popup)"
+            )
+            google_enabled = False
+    elif firebase_project and not allowed_emails:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "PRO_FIREBASE_PROJECT_ID set without PRO_ALLOWED_EMAILS — "
+            "Google sign-in stays DISABLED (fail closed; an empty allowlist "
+            "would admit any Google account)"
+        )
 
     @asynccontextmanager
     async def lifespan(app):
@@ -156,8 +213,11 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         @app.middleware("http")
         async def require_api_key(request: Request, call_next):
             path = request.url.path
-            # only /api/* carries data; the static shell and /healthz are open
-            if not path.startswith("/api") or path == "/api/session":
+            # only /api/* carries data; the static shell and /healthz are
+            # open. /api/session mints the cookie; /api/auth/config carries
+            # no data (it tells the login screen which UI to render).
+            if (not path.startswith("/api")
+                    or path in ("/api/session", "/api/auth/config")):
                 return await call_next(request)
             if _authenticated(request):
                 return await call_next(request)
@@ -200,18 +260,55 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         rendered = state.metrics.render_prometheus() if state.metrics else ""
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
+    @app.get("/api/auth/config")
+    def auth_config() -> dict:
+        # open by design: no data, just which login UI the SPA should render
+        return {
+            "auth_required": bool(token),
+            "google": google_enabled,
+            "firebase": firebase_web_config if google_enabled else None,
+        }
+
+    def _google_identity(request: Request) -> str:
+        """Validate the Authorization: Bearer Firebase ID token; returns the
+        allowlisted email or raises HTTPException (401 invalid, 403 not
+        allowed). Only called when google_enabled."""
+        auth_header = request.headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401,
+                                detail="missing or invalid X-API-Key")
+        try:
+            claims = _verify_firebase_token(
+                auth_header.removeprefix("Bearer ").strip(), firebase_project)
+        except Exception:
+            raise HTTPException(status_code=401,
+                                detail="invalid or expired Google sign-in "
+                                       "token") from None
+        email = str(claims.get("email", "")).lower()
+        if not claims.get("email_verified") or not email:
+            raise HTTPException(status_code=401,
+                                detail="Google account email not verified")
+        if email not in allowed_emails:
+            raise HTTPException(status_code=403,
+                                detail="this Google account is not authorized")
+        return email
+
     @app.post("/api/session")
     def create_session(request: Request, response: Response) -> dict:
+        identity = None
         if token:
             supplied = request.headers.get("x-api-key", "")
             if not hmac.compare_digest(supplied, token):
-                raise HTTPException(status_code=401,
-                                    detail="missing or invalid X-API-Key")
+                if not google_enabled:
+                    raise HTTPException(status_code=401,
+                                        detail="missing or invalid X-API-Key")
+                identity = _google_identity(request)  # raises 401/403
             session_id = secrets.token_urlsafe(32)
             sessions.add(session_id)
             response.set_cookie(SESSION_COOKIE, session_id, httponly=True,
                                 samesite="strict", path="/")
-        return {"authenticated": True, "auth_required": bool(token)}
+        return {"authenticated": True, "auth_required": bool(token),
+                "identity": identity}
 
     @app.get("/api/stream")
     async def stream(request: Request) -> StreamingResponse:

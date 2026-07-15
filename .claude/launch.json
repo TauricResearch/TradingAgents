@@ -2,14 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "pro-dashboard-demo-8601",
+      "name": "pro-dashboard-demo-firebase-session",
       "runtimeExecutable": "/Users/ajaykumar/.venvs/tradingagents-pro/bin/python",
       "runtimeArgs": [
-        "scripts/pro_dashboard_demo.py",
-        "8601"
+        "scripts/pro_dashboard_demo.py"
       ],
-      "port": 8601,
-      "autoPort": false
+      "port": 8610,
+      "autoPort": true
     }
   ]
 }

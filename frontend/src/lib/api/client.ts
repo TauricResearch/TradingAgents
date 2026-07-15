@@ -81,3 +81,38 @@ export async function establishSession(): Promise<{
     throw new ApiError(response.status, response.statusText, "/api/session");
   return (await response.json()) as { authenticated: boolean; auth_required: boolean };
 }
+
+/** Which login UI to render (open endpoint, no data). `firebase` is the
+ * PUBLIC web-app config — present only when Google sign-in is enabled. */
+export interface AuthConfig {
+  auth_required: boolean;
+  google: boolean;
+  firebase: Record<string, string> | null;
+}
+
+export async function fetchAuthConfig(): Promise<AuthConfig> {
+  const response = await fetch("/api/auth/config");
+  if (!response.ok)
+    throw new ApiError(response.status, response.statusText, "/api/auth/config");
+  return (await response.json()) as AuthConfig;
+}
+
+/** Exchange a Firebase ID token for the HttpOnly session cookie. The server
+ * verifies the token and enforces its email allowlist (403 = signed in with
+ * a Google account that isn't authorized). */
+export async function establishGoogleSession(idToken: string): Promise<void> {
+  const response = await fetch("/api/session", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(response.status, detail, "/api/session");
+  }
+}

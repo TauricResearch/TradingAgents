@@ -149,7 +149,107 @@ class TestAuthMatrix:
         client = TestClient(create_app(DashboardState()))
         assert client.get("/api/overview").status_code == 200
         session = client.post("/api/session").json()
-        assert session == {"authenticated": True, "auth_required": False}
+        assert session == {"authenticated": True, "auth_required": False,
+                           "identity": None}
+
+
+GOOGLE_ENV = {
+    "PRO_FIREBASE_PROJECT_ID": "demo-project",
+    "PRO_ALLOWED_EMAILS": "Trader@Example.com",  # mixed case: compare folded
+    "PRO_FIREBASE_WEB_CONFIG": '{"apiKey": "public", "projectId": "demo-project"}',
+}
+
+
+class TestGoogleSession:
+    """Google sign-in: Bearer ID-token verification gated on the email
+    allowlist (fail closed at every branch). The verifier is monkeypatched —
+    these tests never hit Google's cert endpoint."""
+
+    def _client(self, monkeypatch, claims=None, error=None, env=GOOGLE_ENV):
+        import tradingagents.pro.dashboard.app as app_module
+
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+
+        def fake_verify(id_token, audience):
+            assert audience == "demo-project"
+            if error is not None:
+                raise error
+            return claims
+
+        monkeypatch.setattr(app_module, "_verify_firebase_token", fake_verify)
+        return TestClient(create_app(DashboardState(), api_token="secret-token"))
+
+    def test_allowlisted_email_mints_cookie(self, monkeypatch):
+        client = self._client(monkeypatch, claims={
+            "email": "trader@example.com", "email_verified": True})
+        minted = client.post("/api/session",
+                             headers={"Authorization": "Bearer good"})
+        assert minted.status_code == 200
+        assert minted.json()["identity"] == "trader@example.com"
+        assert minted.cookies.get("pro_session")
+        assert client.get("/api/overview").status_code == 200  # cookie works
+
+    def test_non_allowlisted_email_403(self, monkeypatch):
+        client = self._client(monkeypatch, claims={
+            "email": "intruder@example.com", "email_verified": True})
+        denied = client.post("/api/session",
+                             headers={"Authorization": "Bearer good"})
+        assert denied.status_code == 403
+        assert client.get("/api/overview").status_code == 401  # no cookie
+
+    def test_unverified_email_401(self, monkeypatch):
+        client = self._client(monkeypatch, claims={
+            "email": "trader@example.com", "email_verified": False})
+        assert client.post(
+            "/api/session", headers={"Authorization": "Bearer good"}
+        ).status_code == 401
+
+    def test_invalid_token_401(self, monkeypatch):
+        client = self._client(monkeypatch, error=ValueError("expired"))
+        assert client.post(
+            "/api/session", headers={"Authorization": "Bearer bad"}
+        ).status_code == 401
+
+    def test_bearer_ignored_when_google_not_configured(self, monkeypatch):
+        # no PRO_FIREBASE_* env: bearer must NOT open a side door
+        for key in GOOGLE_ENV:
+            monkeypatch.delenv(key, raising=False)
+        client = TestClient(create_app(DashboardState(), api_token="secret-token"))
+        assert client.post(
+            "/api/session", headers={"Authorization": "Bearer anything"}
+        ).status_code == 401
+
+    def test_fail_closed_without_allowlist(self, monkeypatch):
+        env = dict(GOOGLE_ENV, PRO_ALLOWED_EMAILS="")
+        client = self._client(monkeypatch, claims={
+            "email": "trader@example.com", "email_verified": True}, env=env)
+        # google disabled entirely → bearer path rejected, config says so
+        assert client.post(
+            "/api/session", headers={"Authorization": "Bearer good"}
+        ).status_code == 401
+        assert client.get("/api/auth/config").json()["google"] is False
+
+    def test_api_key_path_untouched(self, monkeypatch):
+        client = self._client(monkeypatch, claims={
+            "email": "trader@example.com", "email_verified": True})
+        minted = client.post("/api/session",
+                             headers={"X-API-Key": "secret-token"})
+        assert minted.status_code == 200
+        assert minted.json()["identity"] is None  # token sessions carry none
+
+    def test_auth_config_shapes(self, monkeypatch):
+        google = self._client(monkeypatch, claims={})
+        config = google.get("/api/auth/config").json()
+        assert config == {
+            "auth_required": True, "google": True,
+            "firebase": {"apiKey": "public", "projectId": "demo-project"},
+        }
+        for key in GOOGLE_ENV:
+            monkeypatch.delenv(key, raising=False)
+        plain = TestClient(create_app(DashboardState(), api_token="tok"))
+        assert plain.get("/api/auth/config").json() == {
+            "auth_required": True, "google": False, "firebase": None}
 
 
 class TestSSEEndpoint:

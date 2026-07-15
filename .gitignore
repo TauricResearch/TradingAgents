@@ -237,3 +237,4 @@ frontend/dev-dist/
 frontend/*.tsbuildinfo
 live.yaml
 *.enc.env
+.firebase/

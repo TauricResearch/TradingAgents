@@ -1,0 +1,8 @@
+# Minimal Cloud Build config: `gcloud builds submit --tag` can't pass a
+# custom Dockerfile path (`-f`) alongside `--tag`, so scripts/deploy_cloud_run.sh
+# uses this config + a substitution instead.
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-f", "deploy/Dockerfile.pro", "-t", "${_IMAGE}", "."]
+images:
+  - "${_IMAGE}"
