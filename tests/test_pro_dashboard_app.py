@@ -103,6 +103,26 @@ class TestRunPersistence:
         assert loaded.recommendation.action == run.recommendation.action
         assert loaded.timeframe == "1d"
 
+    def test_pre_timing_file_loads_with_empty_node_times(self, tmp_path):
+        """Runs persisted before node_times existed load fine (UI omits latency)."""
+        import json
+
+        from tradingagents.pro.dashboard.recorder import PipelineRecorder
+
+        memory = ProMemory()
+        recorder = PipelineRecorder(store_dir=tmp_path)
+        run = recorder.record_run(
+            FakePipelineLLM(), CONFIG, pipeline_snapshot(), memory=memory
+        )
+        assert run.node_times  # new runs record timings
+        path = tmp_path / f"{run.run_id}.json"
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        del raw["node_times"]  # simulate a pre-R9 file
+        path.write_text(json.dumps(raw), encoding="utf-8")
+        loaded = PipelineRecorder(store_dir=tmp_path).runs[0]
+        assert loaded.node_times == []
+        assert loaded.node_sequence == run.node_sequence
+
     def test_corrupt_file_skipped(self, tmp_path):
         from tradingagents.pro.dashboard.recorder import PipelineRecorder
 

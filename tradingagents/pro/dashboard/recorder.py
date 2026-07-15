@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -42,6 +43,9 @@ class RunRecord:
     symbol: str
     asset: str
     node_sequence: list[str] = field(default_factory=list)
+    # per-node wall time, parallel to node_sequence: [{"node", "elapsed_s"}].
+    # Runs persisted before this field exists load as [] (UI omits latency).
+    node_times: list[dict] = field(default_factory=list)
     state: dict = field(default_factory=dict)
 
     @property
@@ -166,6 +170,7 @@ class PipelineRecorder:
                     symbol=raw["symbol"],
                     asset=raw["asset"],
                     node_sequence=list(raw.get("node_sequence", [])),
+                    node_times=list(raw.get("node_times", [])),
                     state=_state_from_json(raw.get("state", {})),
                 ))
             except Exception:
@@ -184,6 +189,7 @@ class PipelineRecorder:
             "symbol": run.symbol,
             "asset": run.asset,
             "node_sequence": run.node_sequence,
+            "node_times": run.node_times,
             "state": _state_to_json(run.state),
         })
         atomic_write_text(self.store_dir / f"{run.run_id}.json", payload)
@@ -209,9 +215,18 @@ class PipelineRecorder:
             asset=snapshot.asset.value,
             state={"snapshot": snapshot},
         )
+        clock = time.monotonic()
         for event in stream_pipeline(llm, config, snapshot, **pipeline_kwargs):
+            now = time.monotonic()
+            elapsed, clock = now - clock, now
             for node_name, update in event.items():
                 run.node_sequence.append(node_name)
+                # elapsed covers the whole event; attribute it to the first
+                # node and 0 to siblings (parallel branches share one event)
+                run.node_times.append(
+                    {"node": node_name, "elapsed_s": round(elapsed, 3)}
+                )
+                elapsed = 0.0
                 if on_node is not None:
                     try:
                         on_node(node_name)

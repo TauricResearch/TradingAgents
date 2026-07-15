@@ -156,6 +156,10 @@ class TestAlertFeed:
         assert speakers.index("technical_bull") < speakers.index("judge")
         assert view["node_sequence"][0] == "prepare"
         assert view["rejection"] is None
+        # per-node latency rides parallel to node_sequence (R9 pipeline board)
+        assert [t["node"] for t in view["node_times"]] == view["node_sequence"]
+        assert all(t["elapsed_s"] >= 0 for t in view["node_times"])
+        assert view["execution_status"] == "accepted:paper"
 
     def test_evidence_panels_grouped_by_team(self, recorded):
         _, run, _ = recorded

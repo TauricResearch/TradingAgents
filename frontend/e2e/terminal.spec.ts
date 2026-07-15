@@ -56,6 +56,20 @@ test.describe("terminal", () => {
     await expect(page.getByTestId("debate-timeline")).toContainText("judge");
   });
 
+  test("decision pipeline board renders and inspects stages", async ({
+    page,
+  }) => {
+    await page.goto("/decisions");
+    const board = page.getByTestId("decision-pipeline");
+    await expect(board).toBeVisible();
+    // default selection is the judge with its real verdict
+    await expect(page.getByTestId("pipeline-detail")).toContainText("Judge — Aldous");
+    // clicking a station swaps the detail bar to that stage's output
+    await page.getByTestId("pipeline-station-risk_gate").click();
+    await expect(page.getByTestId("pipeline-detail")).toContainText("Risk gate — Imara");
+    await expect(page.getByTestId("pipeline-replay")).toBeEnabled();
+  });
+
   test("run pinning survives navigation", async ({ page }) => {
     await page.goto("/decisions");
     const first = page.getByTestId("run-rail").locator("button").first();

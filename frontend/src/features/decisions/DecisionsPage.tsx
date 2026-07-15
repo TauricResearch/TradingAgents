@@ -11,6 +11,7 @@ import { CalibrationChart } from "@/components/CalibrationChart";
 import { ConsensusBar } from "@/components/ConsensusBar";
 import { DebateTimeline } from "@/components/DebateTimeline";
 import { DecisionCard } from "@/components/DecisionCard";
+import { DecisionPipeline3D } from "@/components/DecisionPipeline3D";
 import { DirectionBadge } from "@/components/DirectionBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { EvidencePanel } from "@/components/EvidencePanel";
@@ -31,7 +32,7 @@ import {
 } from "@/lib/api/queries";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useUiStore } from "@/stores/ui";
+import { usePipelineProgress, useUiStore } from "@/stores/ui";
 
 type Filter = "all" | "traded" | "rejected";
 
@@ -116,6 +117,7 @@ export default function DecisionsPage() {
   const params = useParams<{ runId?: string }>();
   const navigate = useNavigate();
   const setRunDialogOpen = useUiStore((s) => s.setRunDialogOpen);
+  const pipelineProgress = usePipelineProgress();
   const runs = useRuns();
   const overview = useOverview();
   const recommendation = useRecommendation();
@@ -157,9 +159,32 @@ export default function DecisionsPage() {
 
   const judgeEntry = timeline.data?.entries.find((e) => e.speaker === "judge");
   const votes = recommendation.data?.vote_breakdown?.votes ?? [];
+  const shownRec = isLatest ? recommendation.data : historicalTicket.data;
+  const selectedRun = runs.data?.find((r) => r.run_id === selected);
+  const runNo = (runs.data?.findIndex((r) => r.run_id === selected) ?? -1) + 1;
+  const runLabel = selectedRun
+    ? `${isLatest ? "last run" : "run"} · ${selectedRun.symbol}${
+        selectedRun.timeframe ? ` ${selectedRun.timeframe}` : ""
+      } · #${runNo}`
+    : "—";
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[240px_1fr_300px]">
+    <div className="grid gap-4 lg:grid-cols-[250px_minmax(0,1fr)_310px]">
+      <Card className="lg:col-span-full">
+        <CardHeader>
+          <CardTitle>Decision pipeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DecisionPipeline3D
+            timeline={timeline.data}
+            evidence={evidence.data}
+            rec={shownRec}
+            live={pipelineProgress}
+            runLabel={runLabel}
+          />
+        </CardContent>
+      </Card>
+
       <Card className="lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
         <CardHeader>
           <CardTitle>Runs</CardTitle>

@@ -194,6 +194,36 @@ with 0px slack, so any font-metric difference clipped it. Fixed:
   3 lines, "+N more — full reasoning →"); alerts cell h8; Decision cell h14.
   Final live probe on :8600: **all 7 cards 0px overflow, zero clipped CTAs.**
 
+## Round 9 — Decision pipeline isometric board (new mockup section, 2026-07-15)
+
+The design gained a "Decision pipeline" isometric flow board at the top of the
+Decisions tab (full-width `grid-column:1/-1`; the existing Verdict → Gate waterfall
+→ Consensus → Debate → Evidence cards stay below). Built per the user's build spec
+as `DecisionPipeline3D.tsx`, geometry ported 1:1 from the mockup's `defs` table
+(projection KX83/KY35.5/CX302/CY62, 17 stations, 23 edges incl. 4 rejection rails,
+grid-square diamond corners k=a·0.62): glass slabs tinted by real per-stage outcome
+(team evidence lean, debate stances, gate pass/reject, judge action, execution
+status), curved edges with pulse dots, hover decision tooltips, click → detail bar
+(status chip · Stage — Persona · role · latency · first sentence of the stage's
+real output), Replay stepper over the recorded node_sequence, live mode driven by
+the real SSE `stage` events, verdict pill (`▲ BUY · 72`) beaconed above Execution.
+Backend: recorder now persists per-node `node_times` (monotonic deltas; old run
+files load as `[]` and the UI omits latency) and the timeline API exposes
+`node_times` + `execution_status`. Decisions grid widened to the mockup's
+`250px/1fr/310px`. Personas (Atlas/Kenji/…/Aldous/Otto) adopted as fixed display
+labels per the spec.
+
+Honesty deviations from the mockup's fixture copy (KEEP): no fabricated agent
+counts ("23 agents") or fill prices — execution shows the real `execution_status`
+(`accepted:paper`; broker fills arrive in Phase 9); tooltips/tallies (`merged
+N▲ N▼ N–`, `lean bullish`) computed from the run's actual evidence/debate;
+"not hit this run" sink stats omit the mockup's invented history. Saved mockup
+copy under `mockup-src/` is one revision stale (the signed-in design RPC moved to
+`/design/anthropic.omelette.api.v1alpha.…` and blocks anonymous fetch); parity was
+verified against the live design canvas instead. The updated mockup also added a
+price-alerts card (already shipped) and a memory-insights card (follow-up, not in
+this round).
+
 ## KEEP (remaining, by design)
 
 - **Gaps-v8 additions the mockup predates** — decision-board second slot, price

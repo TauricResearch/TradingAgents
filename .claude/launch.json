@@ -8,7 +8,8 @@
         "scripts/pro_dashboard_demo.py",
         "8601"
       ],
-      "port": 8601
+      "port": 8601,
+      "autoPort": false
     }
   ]
 }

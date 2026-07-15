@@ -183,6 +183,11 @@ def debate_timeline(run: RunRecord) -> dict:
     return {
         "run_id": run.run_id,
         "node_sequence": list(run.node_sequence),
+        # per-node latency (parallel to node_sequence); [] for runs
+        # persisted before timing existed — the UI then omits latency
+        "node_times": list(run.node_times),
+        # honest execution outcome, e.g. "accepted:paper" / "rejected:risk_gate"
+        "execution_status": run.state.get("execution_status"),
         "entries": [
             {
                 "speaker": e["speaker"],

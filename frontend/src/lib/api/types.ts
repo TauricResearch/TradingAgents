@@ -106,6 +106,12 @@ export type Recommendation = z.infer<typeof RecommendationSchema>;
 export const TimelineSchema = z.object({
   run_id: z.string(),
   node_sequence: z.array(z.string()),
+  // per-node latency, parallel to node_sequence; absent/[] on runs
+  // recorded before R9 (the pipeline board then omits latency)
+  node_times: z
+    .array(z.object({ node: z.string(), elapsed_s: z.number() }))
+    .optional(),
+  execution_status: z.string().nullable().optional(),
   entries: z.array(
     z
       .object({
