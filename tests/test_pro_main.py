@@ -5,7 +5,7 @@ import pytest
 fastapi = pytest.importorskip("fastapi")
 
 from tests.test_pro_pipeline_graph import FakePipelineLLM  # noqa: E402
-from tradingagents.pro.main import loop_enabled  # noqa: E402
+from tradingagents.pro.main import has_llm_key, loop_enabled  # noqa: E402
 
 
 class TestLoopEnabled:
@@ -21,6 +21,17 @@ class TestLoopEnabled:
         assert loop_enabled() is False
         monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
         assert loop_enabled() is True
+
+    def test_has_llm_key_ignores_loop_disabled(self, monkeypatch):
+        # PRO_LOOP_DISABLED=1 must only gate the periodic thread — the
+        # service (and on-demand runs) still need has_llm_key() to see the
+        # real key so main() wires state.trigger regardless (Cloud Run
+        # hosting: no automatic loop, but "Run pipeline now" still works).
+        monkeypatch.setenv("TRADINGAGENTS_LLM_PROVIDER", "deepseek")
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+        monkeypatch.setenv("PRO_LOOP_DISABLED", "1")
+        assert has_llm_key() is True
+        assert loop_enabled() is False
 
 
 class TestBuildService:

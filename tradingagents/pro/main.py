@@ -11,9 +11,14 @@ serves the dashboard in monitor mode — stated in the logs, not silent.
 Env:
     TRADINGAGENTS_LLM_PROVIDER / _QUICK_THINK_LLM / _DEEP_THINK_LLM
     PRO_LOOP_INTERVAL_SECONDS   (default 3600 — one decision per hour)
-    PRO_LOOP_DISABLED=1         dashboard-only regardless of keys
+    PRO_LOOP_DISABLED=1         skip the automatic hourly loop only — the
+                                service still builds and on-demand runs
+                                (POST /api/pipeline/run) keep working as
+                                long as an LLM key is present
     TRADINGAGENTS_PRO_DATA      audit/prefs dir (volume in Docker)
     PRO_DASHBOARD_TOKEN         dashboard auth
+    PORT                        uvicorn bind port (default 8600; Cloud Run
+                                injects its own value)
 """
 
 from __future__ import annotations
@@ -173,14 +178,21 @@ def _build_alert_sinks(broadcaster):
     return sinks
 
 
-def loop_enabled() -> bool:
-    if os.environ.get("PRO_LOOP_DISABLED") == "1":
-        return False
+def has_llm_key() -> bool:
+    """True when an API key exists for the configured provider — independent
+    of PRO_LOOP_DISABLED, which only gates the *periodic* background thread
+    (on-demand runs still need the service/trigger wired up)."""
     from tradingagents.llm_clients.api_key_env import get_api_key_env
 
     provider = os.environ.get("TRADINGAGENTS_LLM_PROVIDER", "deepseek")
     key_env = get_api_key_env(provider)
     return bool(key_env and os.environ.get(key_env))
+
+
+def loop_enabled() -> bool:
+    if os.environ.get("PRO_LOOP_DISABLED") == "1":
+        return False
+    return has_llm_key()
 
 
 def build_service(llm=None, data_dir: str | Path | None = None):
@@ -378,29 +390,36 @@ def main() -> None:
 
     interval = float(os.environ.get("PRO_LOOP_INTERVAL_SECONDS",
                                     DEFAULT_INTERVAL_SECONDS))
-    if loop_enabled():
+    if has_llm_key():
         service, state = build_service()
         state.trigger = PipelineTrigger(service)
-        logger.info("paper-trading loop enabled: one decision every %.0fs "
-                    "(real LLM calls — provider %s)", interval,
-                    os.environ.get("TRADINGAGENTS_LLM_PROVIDER", "deepseek"))
-        thread = threading.Thread(
-            target=service.run_forever,
-            kwargs={"interval_seconds": interval},
-            name="paper-loop", daemon=True,
-        )
-        thread.start()
-        _start_live_safety_daemons(service, state)
+        if loop_enabled():
+            logger.info("paper-trading loop enabled: one decision every %.0fs "
+                        "(real LLM calls — provider %s)", interval,
+                        os.environ.get("TRADINGAGENTS_LLM_PROVIDER", "deepseek"))
+            thread = threading.Thread(
+                target=service.run_forever,
+                kwargs={"interval_seconds": interval},
+                name="paper-loop", daemon=True,
+            )
+            thread.start()
+            _start_live_safety_daemons(service, state)
+        else:
+            logger.warning(
+                "automatic paper-trading loop DISABLED (PRO_LOOP_DISABLED=1) "
+                "— on-demand pipeline runs remain available"
+            )
     else:
         from tradingagents.pro.dashboard.app import DashboardState
 
         state = DashboardState()
         logger.warning(
-            "paper-trading loop DISABLED (no LLM key for the configured "
-            "provider, or PRO_LOOP_DISABLED=1) — dashboard in monitor mode"
+            "paper-trading DISABLED (no LLM key for the configured provider) "
+            "— dashboard in monitor mode, on-demand runs unavailable"
         )
 
-    uvicorn.run(create_app(state), host="0.0.0.0", port=8600,
+    port = int(os.environ.get("PORT", 8600))
+    uvicorn.run(create_app(state), host="0.0.0.0", port=port,
                 log_level="warning")
 
 

@@ -30,6 +30,76 @@ Probes hit `/api/overview`; memory/audit JSONL files live on the `pro-data`
 PVC. One replica by design — the service loop is single-writer over its
 memory and audit files.
 
+## Cloud Run + Firebase Hosting
+
+Firebase Hosting can't run this app directly — it's a FastAPI backend (SSE,
+single in-process worker by design) serving the built SPA, not a static
+site. The supported pairing is **Firebase Hosting (TLS/CDN front door) →
+Cloud Run**, running the same `deploy/Dockerfile.pro` image; Hosting
+rewrites every path to Cloud Run (`firebase.json` at repo root), so the
+FastAPI app keeps serving both the SPA and `/api/*` exactly as it does
+today. Auth is unchanged too — the existing `PRO_DASHBOARD_TOKEN`
+token-paste screen (`AuthGate`) is still the real access control; a
+Firebase-Auth Google-sign-in wall in front of it is a tracked follow-up,
+not part of this setup.
+
+**Hard boundary: this deployment is paper-mode only.** No Delta/live-venue
+credentials are configured here, and none should be — live trading needs an
+always-on host per the promotion checklist below, which a scale-to-zero
+Cloud Run service structurally is not.
+
+**Why `--max-instances=1`:** the single-writer invariant noted above for
+Kubernetes applies here too — everything under `TRADINGAGENTS_PRO_DATA`
+(`memory.jsonl`, `runs/` history, `dashboard_prefs.json`, `paper_state.json`,
+the `KILL` latch, hash-chained `audit.jsonl`, `arming.json`) must never be
+written by more than one instance at once. Capping concurrent instances at 1
+enforces that; `--min-instances=0` is still fine alongside it and keeps the
+service scale-to-zero between visits (the automatic hourly loop is disabled
+via `PRO_LOOP_DISABLED=1` for this deployment — on-demand runs from the "Run
+pipeline now" button still work as long as an LLM key secret is set).
+
+**Prerequisites:**
+- A Firebase project on the **Blaze (pay-as-you-go)** plan — Hosting's
+  Cloud Run rewrite feature isn't available on the free Spark plan.
+- Enable these GCP APIs on the project: `run.googleapis.com`,
+  `artifactregistry.googleapis.com`, `cloudbuild.googleapis.com`,
+  `secretmanager.googleapis.com`, `storage.googleapis.com`.
+- `gcloud` CLI (`gcloud auth login`, `gcloud config set project <id>`) and
+  `firebase-tools` (`npm install -g firebase-tools`, `firebase login`) —
+  both interactive OAuth flows, run them yourself.
+
+**One-time setup** (replace `$PROJECT_ID`/`$REGION`/`$BUCKET` throughout):
+
+```bash
+gcloud artifacts repositories create pro-dashboard \
+  --repository-format=docker --location="$REGION"
+
+gcloud storage buckets create "gs://$BUCKET" --location="$REGION"
+
+# secret VALUES are typed interactively — never pasted into chat or committed
+printf '%s' "$PRO_DASHBOARD_TOKEN" | gcloud secrets create pro-dashboard-token --data-file=-
+printf '%s' "$DEEPSEEK_API_KEY"    | gcloud secrets create deepseek-api-key --data-file=-
+```
+
+**Deploy** (builds + pushes the image, then deploys to Cloud Run):
+
+```bash
+PROJECT_ID=<your-project-id> BUCKET=<your-bucket> ./scripts/deploy_cloud_run.sh
+```
+
+Then point `.firebaserc`'s `"default"` project at your project id, confirm
+`firebase.json`'s rewrite `serviceId`/`region` match what you deployed, and:
+
+```bash
+firebase deploy --only hosting
+```
+
+**Verify:** `curl https://<hosting-domain>/healthz` → `200`; load the root
+URL and confirm the existing token-paste `AuthGate` screen appears; after
+pasting the token, trigger one on-demand run and confirm it survives a
+redeploy (proves the GCS-backed `/data` volume actually persists across
+instance churn, not just within one warm instance).
+
 ## The service loop
 
 `PaperTradingService` (see `tradingagents/pro/service.py`) is the

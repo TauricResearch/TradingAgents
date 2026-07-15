@@ -1,0 +1,14 @@
+{
+  "hosting": {
+    "public": "deploy/firebase-public",
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "pro-dashboard",
+          "region": "asia-south1"
+        }
+      }
+    ]
+  }
+}
