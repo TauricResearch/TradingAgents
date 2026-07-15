@@ -156,10 +156,15 @@ export function DecisionCard({
           </span>
         </div>
         {reasons.length > 0 &&
-          (compact ? (
-            // compact slots (decision board / trade rail) stay card-sized:
-            // first reason clamped; the full record is one click away
-            <p className="mt-2 line-clamp-2 text-sm text-fg-muted">
+          (compact || hero ? (
+            // board/rail slots stay card-sized (mockup's rejected state is
+            // a short box): first reason clamped; full record one click away
+            <p
+              className={cn(
+                "mt-2 text-sm text-fg-muted",
+                hero ? "line-clamp-3" : "line-clamp-2",
+              )}
+            >
               {String(reasons[0])}
             </p>
           ) : (
@@ -169,7 +174,7 @@ export function DecisionCard({
               ))}
             </ul>
           ))}
-        {compact && (reasons.length > 1 || meta.run_id || runId) && (
+        {(compact || hero) && (reasons.length > 1 || meta.run_id || runId) && (
           <p className="mt-1 text-xs text-fg-subtle">
             {reasons.length > 1 && `+${reasons.length - 1} more reason${reasons.length > 2 ? "s" : ""} — `}
             {(runId ?? meta.run_id) ? (
