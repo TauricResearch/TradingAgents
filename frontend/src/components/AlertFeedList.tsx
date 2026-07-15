@@ -34,10 +34,10 @@ export function AlertFeedList({
   return (
     <ul className="divide-y divide-border/60" data-testid="alert-feed">
       {shown.map((alert, i) => (
-        <li key={`${alert.run_id}-${i}`} className="flex gap-2.5 py-2 text-sm">
+        <li key={`${alert.run_id}-${i}`} className="flex gap-3 py-[9px] text-[13px]">
           <span
             className={cn(
-              "mt-0.5 inline-flex h-fit shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+              "mt-0.5 inline-flex h-fit shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em]",
               CHIP[alert.severity],
             )}
           >
@@ -49,12 +49,12 @@ export function AlertFeedList({
           <div className="min-w-0">
             {/* mockup alerts are one-liners; long texts (a critic's full
                 rejection) clamp here — the run page has the whole record */}
-            <p className="line-clamp-2 text-fg-muted" title={alert.text}>
+            <p className="line-clamp-2 text-fg" title={alert.text}>
               {alert.text}
             </p>
-            <div className="text-xs text-fg-subtle">
+            <div className="text-[11px] text-fg-subtle">
               {fmtDateTime(alert.time)} ·{" "}
-              <Link to={`/decisions/${alert.run_id}`} className="text-accent underline underline-offset-2">
+              <Link to={`/decisions/${alert.run_id}`} className="text-accent">
                 view run
               </Link>
             </div>

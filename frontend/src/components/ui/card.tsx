@@ -28,7 +28,7 @@ export function CardHeader({
   return (
     <div
       className={cn(
-        "flex items-baseline justify-between gap-2 px-6 pt-5 pb-2",
+        "flex items-baseline justify-between gap-2 px-[22px] pt-5 pb-2",
         className,
       )}
       {...props}
@@ -55,5 +55,5 @@ export function CardContent({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("px-6 pb-5", className)} {...props} />;
+  return <div className={cn("px-[22px] pb-5", className)} {...props} />;
 }

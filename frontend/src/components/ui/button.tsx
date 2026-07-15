@@ -4,7 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  "inline-flex items-center justify-center gap-1.5 rounded-xl font-bold transition-colors focus-visible:outline-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
   {
     variants: {
       variant: {
@@ -18,9 +18,10 @@ const buttonVariants = cva(
         outline: "border border-border-strong bg-transparent hover:bg-surface-2",
         destructive: "bg-bear-muted text-bear border border-bear/40 hover:bg-bear/25",
       },
+      // dims mirror the mockup: md = 36px/20px pad/13px, sm = 32px/14px/10px radius
       size: {
-        sm: "h-7 px-2.5 text-xs",
-        md: "h-9 px-3.5",
+        sm: "h-8 rounded-[10px] px-3.5 text-xs",
+        md: "h-9 px-5 text-[13px]",
         icon: "h-9 w-9",
       },
     },

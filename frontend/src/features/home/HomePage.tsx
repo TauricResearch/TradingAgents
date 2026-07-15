@@ -77,12 +77,14 @@ function DecisionHero() {
         kicker={`AI Decision — ${lead.sym}${lead.tf ? ` · ${lead.tf.toUpperCase()}` : ""}`}
         runId={lead.runId}
       />
-      <div className="border-t border-border pt-3">
-        <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
-          {second.sym}
+      {second.hasDecision && (
+        <div className="border-t border-border pt-3">
+          <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
+            {second.sym}
+          </div>
+          <DecisionCard rec={second.rec} compact runId={second.runId} />
         </div>
-        <DecisionCard rec={second.rec} compact runId={second.runId} />
-      </div>
+      )}
     </div>
   );
 }
@@ -98,10 +100,10 @@ function PortfolioSnapshot() {
   return (
     // brand-gradient panel (mockup): literal blues, not var(--brand) — the
     // dark theme's brand (#7d9ef2) is too light for this card's white text
-    <div className="-m-1 flex h-full flex-col gap-3 rounded-[16px] bg-[linear-gradient(135deg,#2456c5,#1a3f96)] p-4 text-white">
+    <div className="flex h-full flex-col gap-3 rounded-[20px] bg-[linear-gradient(135deg,#2456c5,#1a3f96)] px-6 py-5 text-white">
       <div>
         <div className="flex items-center justify-between">
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
+          <div className="text-[11px] font-bold uppercase tracking-[0.09em] text-white/75">
             Portfolio equity
           </div>
           <button
@@ -152,19 +154,19 @@ function PortfolioSnapshot() {
           )}
         </span>
       </div>
-      <div className="flex flex-1 items-center justify-between rounded-xl bg-white/10 px-3 py-2">
-        <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-white/70">
+      <div className="flex flex-1 items-center justify-between rounded-[14px] bg-white/[0.12] px-3.5 py-2">
+        <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.06em] text-white/80">
           Backtest equity
         </span>
         {backtest.data?.equity_curve && backtest.data.equity_curve.length > 1 ? (
-          <Sparkline values={backtest.data.equity_curve} width={160} height={32} />
+          <Sparkline values={backtest.data.equity_curve} width={150} height={30} stroke="#8fe3b4" />
         ) : (
           <span className="text-xs text-white/70">no backtest yet</span>
         )}
       </div>
       <Link
         to="/portfolio"
-        className="inline-flex items-center rounded-xl border border-white/40 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/10"
+        className="inline-flex h-8 self-start items-center rounded-[10px] border border-white/35 bg-white/10 px-4 text-xs font-bold text-white hover:bg-white/[0.22]"
       >
         Open portfolio →
       </Link>
@@ -188,7 +190,7 @@ function PriceRibbon() {
     { symbol: "XAUUSD", tick: gold, live: false },
   ];
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-3.5">
       {rows.map((row) => {
         const fallback =
           overview.data?.symbol === row.symbol ? overview.data.last_close : null;
@@ -200,22 +202,25 @@ function PriceRibbon() {
             className="rounded-[14px] bg-surface-2 px-3.5 py-2.5 transition-colors hover:bg-surface-solid hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold">{row.symbol}</span>
+              <span className="text-xs font-bold text-fg-subtle">{row.symbol}</span>
               <span
                 className={
                   row.tick
-                    ? "rounded-full bg-bull-muted px-2 py-0.5 text-[10px] font-bold text-bull"
-                    : "rounded-full border border-dashed border-stale px-2 py-0.5 text-[10px] font-bold text-stale"
+                    ? "inline-flex items-center gap-1 rounded-full bg-bull-muted px-[9px] py-0.5 text-[10px] font-bold text-bull"
+                    : "rounded-full border border-dashed border-stale px-[9px] py-0.5 text-[10px] font-bold text-stale"
                 }
               >
+                {row.tick && (
+                  <span className="size-[5px] animate-pulse rounded-full bg-bull" aria-hidden />
+                )}
                 {row.tick ? "LIVE" : "EOD"}
               </span>
             </div>
-            <div className="font-mono text-[17.5px] tabular">{fmtPrice(price)}</div>
+            <div className="font-mono text-[17.5px] font-bold tracking-[-0.01em] tabular">{fmtPrice(price)}</div>
             <div className="text-bull">
               <PriceSpark symbol={row.symbol} />
             </div>
-            <div className="text-[11px] text-fg-subtle">
+            <div className="text-[10px] text-fg-subtle">
               {row.tick
                 ? `live · ${row.tick.source}`
                 : price != null
@@ -259,14 +264,14 @@ function SinceYouLeft() {
     );
   }
   return (
-    <div className="space-y-1.5 text-sm">
+    <div className="space-y-[7px] text-[13px]">
       {newRuns.length > 0 && (
         <p>
-          <span className="font-semibold">{newRuns.length}</span> new run(s) —
+          <span className="font-bold">{newRuns.length}</span> new run(s) —
           latest:{" "}
           <Link
             to={`/decisions/${newRuns[newRuns.length - 1]!.run_id}`}
-            className="text-accent hover:underline"
+            className="font-semibold text-accent hover:underline"
           >
             {newRuns[newRuns.length - 1]!.action ?? "rejected"}
           </Link>
@@ -274,12 +279,13 @@ function SinceYouLeft() {
       )}
       {closed.length > 0 && (
         <p>
-          <span className="font-semibold">{closed.length}</span> trade(s) closed,
+          <span className="font-bold">{closed.length}</span> trade(s) closed,
           net{" "}
           <span
-            className={
-              closed.reduce((s, e) => s + e.pnl, 0) >= 0 ? "text-bull" : "text-bear"
-            }
+            className={cn(
+              "font-mono font-bold",
+              closed.reduce((s, e) => s + e.pnl, 0) >= 0 ? "text-bull" : "text-bear",
+            )}
           >
             {fmtPnl(closed.reduce((s, e) => s + e.pnl, 0))}
           </span>
@@ -287,11 +293,11 @@ function SinceYouLeft() {
       )}
       {newAlerts.length > 0 && (
         <p>
-          <span className="font-semibold">{newAlerts.length}</span> alert(s),{" "}
+          <span className="font-bold">{newAlerts.length}</span> alert(s),{" "}
           {newAlerts.filter((a) => a.severity === "critical").length} critical
         </p>
       )}
-      <Button size="sm" variant="ghost" onClick={markSeen}>
+      <Button size="sm" variant="outline" onClick={markSeen}>
         Mark seen
       </Button>
     </div>
@@ -318,11 +324,11 @@ function WhatNext() {
       />
     );
   return (
-    <ul className="space-y-1 text-sm">
+    <ul className="space-y-1.5 text-[13px]">
       {releases.map((release, i) => (
         <li key={i} className="flex justify-between">
-          <span className="text-fg-muted">{release.release}</span>
-          <span className="font-mono text-xs tabular">{release.date}</span>
+          <span className="text-fg">{release.release}</span>
+          <span className="font-mono text-xs text-fg-subtle tabular">{release.date}</span>
         </li>
       ))}
     </ul>
@@ -339,7 +345,7 @@ const WIDGETS: WidgetDef[] = [
   // right column is non-overlapping so RGL keeps the mockup order:
   // Portfolio Equity → Prices → Since you left → What's next
   { id: "decision", title: "Decision", chromeless: true, render: () => <DecisionHero />, layout: { x: 0, y: 0, w: 7, h: 14, minW: 4, minH: 8 } },
-  { id: "snapshot", title: "Portfolio snapshot", chromeless: true, render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 7, minW: 3, minH: 6 } },
+  { id: "snapshot", title: "Portfolio snapshot", chromeless: true, bleed: true, render: () => <PortfolioSnapshot />, layout: { x: 7, y: 0, w: 5, h: 7, minW: 3, minH: 6 } },
   { id: "prices", title: "Prices", render: () => <PriceRibbon />, layout: { x: 7, y: 7, w: 5, h: 4, minW: 3, minH: 4 } },
   { id: "alerts", title: "Alerts", render: () => <AlertsWidget />, layout: { x: 0, y: 14, w: 7, h: 8, minW: 3, minH: 4 } },
   { id: "diff", title: "Since you left", render: () => <SinceYouLeft />, layout: { x: 7, y: 11, w: 5, h: 6, minW: 3, minH: 4 } },

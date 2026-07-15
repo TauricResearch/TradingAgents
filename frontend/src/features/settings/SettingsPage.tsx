@@ -29,12 +29,12 @@ export default function SettingsPage() {
   const [confirm, setConfirm] = useState("");
 
   return (
-    <div className="mx-auto max-w-[680px] space-y-4">
+    <div className="mx-auto max-w-[680px] space-y-[14px]">
       <Card>
         <CardHeader>
           <CardTitle>Appearance</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center gap-3">
+        <CardContent className="flex items-center gap-2">
           {(["light", "dark"] as const).map((t) => (
             <Button
               key={t}
@@ -83,7 +83,7 @@ export default function SettingsPage() {
           <CardTitle>Data connections</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <label className="block text-sm">
+          <label className="block text-[13px] font-semibold">
             Binance WebSocket host
             <Input
               className="mt-1 font-mono"
@@ -173,7 +173,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-bear/40">
+      <Card className="border-[1.5px] border-bear/35">
         <CardHeader>
           <CardTitle className="text-bear">Halt trading (kill switch)</CardTitle>
           {status.data?.kill_switch?.engaged && <Badge variant="bear">ENGAGED</Badge>}
@@ -181,25 +181,25 @@ export default function SettingsPage() {
         <CardContent className="space-y-2 text-sm">
           <p className="text-fg-muted">
             The kill switch is an operator action, not a dashboard button:
-            engaging it requires shell access (<code className="font-mono text-xs">touch
-            &lt;data&gt;/KILL</code>) or <code className="font-mono text-xs">
+            engaging it requires shell access (<code className="rounded-[6px] bg-surface-2 px-1.5 py-px font-mono text-xs">touch
+            &lt;data&gt;/KILL</code>) or <code className="rounded-[6px] bg-surface-2 px-1.5 py-px font-mono text-xs">
             kill_switch.engage(reason)</code>, and resetting demands an operator
             identity. The dashboard reads that state; it cannot write it. This
             is deliberate — a browser session must never be one click away from
             halting (or un-halting) the loop.
           </p>
-          <label className="block">
+          <label className="block text-[13px] font-semibold">
             Type <span className="font-mono">HALT</span> to reveal the runbook
             command:
             <Input
-              className="mt-1 w-40 font-mono"
+              className="mt-1 w-[180px] font-mono"
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
               aria-label="halt confirmation"
             />
           </label>
           {confirm === "HALT" && (
-            <pre className="rounded-md border border-bear/40 bg-bear-muted p-3 font-mono text-xs">
+            <pre className="rounded-xl border border-bear/40 bg-bear-muted p-[14px] font-mono text-xs">
               docker exec pro-dashboard touch /data/KILL
             </pre>
           )}

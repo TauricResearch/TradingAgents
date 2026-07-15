@@ -53,7 +53,7 @@ export function CalibrationChart({ perf }: { perf: AgentPerf }) {
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className="w-full max-w-sm"
+      className="mt-2 w-full"
       role="img"
       aria-label="confidence calibration: predicted confidence versus realized hit rate"
       data-testid="calibration-chart"

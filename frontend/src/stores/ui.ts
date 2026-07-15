@@ -55,14 +55,16 @@ export const useUiStore = create<UiState>()(
       setSymbol: (symbol) => set({ symbol }),
       timeframe: "1h",
       setTimeframe: (timeframe) => set({ timeframe }),
-      indicators: [],
+      // mockup default: EMA 10 overlay on ("Indicators (1)")
+      indicators: ["EMA_10"],
       toggleIndicator: (name) =>
         set((state) => ({
           indicators: state.indicators.includes(name)
             ? state.indicators.filter((n) => n !== name)
             : [...state.indicators, name],
         })),
-      showVolume: false,
+      // mockup default: volume pane on
+      showVolume: true,
       toggleVolume: () => set((state) => ({ showVolume: !state.showVolume })),
       compare: false,
       setCompare: (compare) => set({ compare }),
@@ -77,10 +79,15 @@ export const useUiStore = create<UiState>()(
       name: "pro-ui",
       // v1: the Accops reskin made LIGHT the default — migrate persisted
       // sessions to it once; the toggle still persists a choice afterwards
-      version: 1,
+      // v2: mockup chart defaults (volume pane + EMA 10) applied once
+      version: 2,
       migrate: (persisted, version) => {
         const state = (persisted ?? {}) as Partial<UiState>;
         if (version < 1) state.theme = "light";
+        if (version < 2) {
+          state.showVolume = true;
+          if (!state.indicators?.length) state.indicators = ["EMA_10"];
+        }
         return state as UiState;
       },
       partialize: (s) => ({

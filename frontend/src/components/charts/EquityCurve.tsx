@@ -101,15 +101,15 @@ export function EquityCurve({
         data-testid="equity-curve"
       />
       {monteCarlo && (
-        <div className="mt-1 flex flex-wrap gap-x-4 text-xs text-fg-muted tabular">
+        <div className="mt-1 flex flex-wrap gap-x-[18px] text-xs text-fg-muted tabular">
           <span>
-            MC p5 <span className="text-bear">{fmtPrice(monteCarlo.final_equity_p5, 0)}</span>
+            MC p5 <span className="font-bold text-bear">{fmtPrice(monteCarlo.final_equity_p5, 0)}</span>
           </span>
-          <span>p50 {fmtPrice(monteCarlo.final_equity_p50, 0)}</span>
+          <span>p50 <span className="font-bold">{fmtPrice(monteCarlo.final_equity_p50, 0)}</span></span>
           <span>
-            p95 <span className="text-bull">{fmtPrice(monteCarlo.final_equity_p95, 0)}</span>
+            p95 <span className="font-bold text-bull">{fmtPrice(monteCarlo.final_equity_p95, 0)}</span>
           </span>
-          <span>P(loss) {(monteCarlo.prob_loss * 100).toFixed(1)}%</span>
+          <span>P(loss) <span className="font-bold">{(monteCarlo.prob_loss * 100).toFixed(1)}%</span></span>
         </div>
       )}
     </div>

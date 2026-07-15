@@ -57,7 +57,7 @@ function CorrelationMatrix() {
           <tr>
             <th />
             {symbols.map((sym) => (
-              <th key={sym} className="px-1 pb-1 text-right font-mono font-medium">
+              <th key={sym} className="px-1 pb-1 text-right font-mono font-semibold">
                 {sym}
               </th>
             ))}
@@ -66,7 +66,7 @@ function CorrelationMatrix() {
         <tbody>
           {symbols.map((row) => (
             <tr key={row}>
-              <td className="pr-1 font-mono">{row}</td>
+              <td className="pr-1 font-mono font-semibold">{row}</td>
               {symbols.map((col) => {
                 const value = matrix[row]?.[col];
                 const strong = value != null && Math.abs(value) >= 0.5 && row !== col;
@@ -76,6 +76,7 @@ function CorrelationMatrix() {
                     className={cn(
                       "px-1 py-0.5 text-right",
                       row === col && "text-fg-subtle",
+                      strong && "font-bold",
                       strong && value! > 0 && "text-bull",
                       strong && value! < 0 && "text-bear",
                     )}
@@ -124,7 +125,7 @@ export default function IntelPage() {
           <span className="text-[11px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
             Regime board
           </span>
-          <Badge variant="accent" className="text-sm">
+          <Badge variant="accent" className="text-sm font-bold">
             {overview.data?.symbol ?? "—"}: {overview.data?.regime ?? "no runs yet"}
           </Badge>
           <Badge>session: {intel.data.session}</Badge>
@@ -199,14 +200,14 @@ export default function IntelPage() {
           <CardContent className="space-y-3">
             {intel.data.missing_feeds.length > 0 && (
               <div>
-                <div className="mb-1 text-xs font-semibold uppercase text-stale">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.07em] text-stale">
                   Degraded this cycle
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {intel.data.missing_feeds.map((feed, i) => (
                     <span
                       key={i}
-                      className="rounded-md border border-dashed border-stale px-2 py-0.5 font-mono text-[11px] text-stale"
+                      className="rounded-full border border-dashed border-stale px-2 py-0.5 font-mono text-[11px] text-stale"
                     >
                       {feed}
                     </span>
@@ -215,7 +216,7 @@ export default function IntelPage() {
               </div>
             )}
             <div>
-              <div className="mb-1 text-xs font-semibold uppercase text-locked">
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.07em] text-locked">
                 Not subscribed
               </div>
               <ul className="space-y-1.5">

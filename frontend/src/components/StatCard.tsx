@@ -25,10 +25,12 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-[16px] px-3.5 py-2.5",
+        // mockup: elevated KPI tiles are 16px radius / 12px vertical pad;
+        // flat grouped tiles (Intel) are 14px radius / 10px pad
+        "px-3.5",
         elevated
-          ? "border border-border bg-surface shadow-(--shadow-1)"
-          : "bg-surface-2",
+          ? "rounded-[16px] border border-border bg-surface py-3 shadow-(--shadow-1)"
+          : "rounded-[14px] bg-surface-2 py-2.5",
         className,
       )}
     >
@@ -38,7 +40,7 @@ export function StatCard({
       </div>
       <div
         className={cn(
-          "font-mono text-[16.5px] tabular",
+          "font-mono text-[16.5px] font-bold tabular tracking-[-0.01em]",
           tone === "bull" && "text-bull",
           tone === "bear" && "text-bear",
           tone === "neutral" && "text-neutral",

@@ -4,11 +4,15 @@ export function Sparkline({
   width = 96,
   height = 24,
   ariaLabel,
+  stroke,
 }: {
   values: number[];
   width?: number;
   height?: number;
   ariaLabel?: string;
+  /** fixed stroke override (e.g. mint on the brand-gradient card); when
+   * omitted the line is bull/bear-tinted by direction */
+  stroke?: string;
 }) {
   if (values.length < 2) return <span className="text-fg-subtle">—</span>;
   let min = Infinity;
@@ -43,7 +47,7 @@ export function Sparkline({
       <polyline
         points={points}
         fill="none"
-        stroke={up ? "var(--bull)" : "var(--bear)"}
+        stroke={stroke ?? (up ? "var(--bull)" : "var(--bear)")}
         strokeWidth="1.5"
       />
     </svg>

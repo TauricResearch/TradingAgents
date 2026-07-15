@@ -30,7 +30,7 @@ import {
   useRuns,
   useRunTimeline,
 } from "@/lib/api/queries";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateCompact } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useLiveStages } from "@/stores/pipelineLive";
 import { usePipelineProgress, useUiStore } from "@/stores/ui";
@@ -55,16 +55,16 @@ function RunRail({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-2 flex gap-1 text-xs">
+      <div className="mb-2.5 flex gap-1 text-[11px]">
         {(["all", "traded", "rejected"] as Filter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "rounded-full border px-2.5 py-0.5 font-semibold lowercase",
+              "rounded-full border px-3 py-[3px] lowercase",
               filter === f
-                ? "border-accent bg-accent text-on-solid"
-                : "border-border text-fg-subtle hover:text-fg",
+                ? "border-accent bg-accent font-bold text-on-solid"
+                : "border-border-strong font-semibold text-fg-subtle hover:text-fg",
             )}
             aria-pressed={filter === f}
           >
@@ -72,7 +72,7 @@ function RunRail({
           </button>
         ))}
       </div>
-      <ol className="min-h-0 grow space-y-1 overflow-y-auto pr-1" data-testid="run-rail">
+      <ol className="min-h-0 grow space-y-1.5 overflow-y-auto pr-1" data-testid="run-rail">
         {items.length === 0 && (
           <EmptyState kind="empty" title="No runs match" className="py-4" />
         )}
@@ -81,29 +81,34 @@ function RunRail({
             <button
               onClick={() => onSelect(run.run_id)}
               className={cn(
-                "w-full rounded-[14px] border px-2.5 py-1.5 text-left text-xs",
+                "w-full rounded-[14px] border px-3 py-2 text-left text-[11.5px] text-fg",
+                "transition-[transform,box-shadow] duration-200",
+                "hover:-translate-y-px hover:shadow-[var(--shadow-card)]",
                 selected === run.run_id
                   ? "border-accent bg-accent-muted"
-                  : "border-border bg-surface-2/60 hover:border-border-strong",
+                  : "border-border bg-transparent",
               )}
             >
-              <div className="flex items-center justify-between">
-                <DirectionBadge value={run.action ?? "rejected"} showWord={false} />
-                <span className="text-fg-subtle">{fmtDateTime(run.started_at)}</span>
+              <div className="flex items-center justify-between gap-1">
+                <DirectionBadge
+                  value={run.action ?? "rejected"}
+                  className="font-extrabold"
+                />
+                <span className="whitespace-nowrap text-[10.5px] text-fg-subtle">
+                  {fmtDateCompact(run.started_at)}
+                </span>
               </div>
-              <div className="mt-0.5 flex items-center gap-1">
-                <span className="font-mono">{run.symbol}</span>
+              <div className="mt-[3px] flex items-center gap-[5px]">
+                <span className="font-mono font-semibold">{run.symbol}</span>
                 {run.timeframe && (
-                  <Badge className="px-1.5 font-mono text-[10px]">
+                  <span className="inline-flex items-center rounded-[6px] bg-surface-2 px-1.5 font-mono text-[9.5px] text-fg-muted">
                     {run.timeframe}
-                  </Badge>
+                  </span>
                 )}
-                {run.action ? (
-                  <span>{run.action}</span>
-                ) : (
-                  <Badge variant="neutral" className="px-1.5 text-[10px]">
-                    rejected @ {run.rejected_at}
-                  </Badge>
+                {!run.action && (
+                  <span className="inline-flex items-center rounded-[6px] bg-bear-muted px-1.5 font-mono text-[9.5px] text-bear">
+                    @ {run.rejected_at}
+                  </span>
                 )}
               </div>
             </button>
@@ -191,13 +196,6 @@ export default function DecisionsPage() {
       <Card className="lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
         <CardHeader>
           <CardTitle>Runs</CardTitle>
-          <Button
-            size="sm"
-            onClick={() => setRunDialogOpen(true)}
-            data-testid="run-pipeline-open"
-          >
-            <Play size={12} /> Run
-          </Button>
         </CardHeader>
         <CardContent className="h-full">
           <RunRail
@@ -213,9 +211,9 @@ export default function DecisionsPage() {
             <CardTitle>
               Verdict{" "}
               {isLatest ? (
-                <span className="text-fg-subtle">(latest — following)</span>
+                <span className="font-medium normal-case tracking-normal text-fg-subtle">(latest — following)</span>
               ) : (
-                <span className="text-fg-subtle">(pinned)</span>
+                <span className="font-medium normal-case tracking-normal text-fg-subtle">(pinned)</span>
               )}
             </CardTitle>
             {quarantinedRun && (
@@ -352,7 +350,7 @@ export default function DecisionsPage() {
             ) : (
               <SkeletonCard lines={4} />
             )}
-            <p className="mt-2 text-xs text-fg-subtle">
+            <p className="mt-2 text-[11px] text-fg-subtle">
               Hollow points = insufficient sample. This chart is the product's
               honesty metric.
             </p>

@@ -36,7 +36,7 @@ export function DrawingToolbar({
 }) {
   return (
     <div
-      className="flex flex-col gap-0.5 rounded-md border border-border bg-surface-2/60 p-0.5 max-md:hidden"
+      className="flex flex-col items-center gap-1 pt-1 max-md:hidden"
       role="toolbar"
       aria-label="Drawing tools"
       data-testid="drawing-toolbar"
@@ -49,12 +49,12 @@ export function DrawingToolbar({
             aria-label={tool.label}
             aria-pressed={mode === tool.mode}
             className={cn(
-              "h-7 w-7",
+              "h-[30px] w-[30px] rounded-[9px] border border-border",
               mode === tool.mode && "bg-accent-muted text-accent",
             )}
             onClick={() => onModeChange(tool.mode)}
           >
-            <tool.icon size={14} />
+            <tool.icon size={13} />
           </Button>
         </Tip>
       ))}
@@ -63,11 +63,11 @@ export function DrawingToolbar({
           size="icon"
           variant="ghost"
           aria-label={`Clear all drawings (${count})`}
-          className="h-7 w-7 text-bear/70 hover:text-bear"
+          className="h-[30px] w-[30px] rounded-[9px] border border-border text-bear/70 hover:text-bear"
           disabled={count === 0}
           onClick={onClearAll}
         >
-          <Trash2 size={14} />
+          <Trash2 size={13} />
         </Button>
       </Tip>
     </div>

@@ -20,6 +20,10 @@ export interface WidgetDef {
   /** card renders its own heading (mockup hero/portfolio) — frame title
    * hidden outside edit mode */
   chromeless?: boolean;
+  /** widget's own render already supplies a full-bleed card (bg/border/
+   * radius, e.g. the Portfolio Equity gradient panel) — drop the frame's
+   * own chrome + padding outside edit mode so it isn't double-boxed */
+  bleed?: boolean;
   render: () => React.ReactNode;
   /** grid units; 12-col grid, rowHeight 32 */
   layout: Omit<Layout, "i">;
@@ -120,8 +124,14 @@ function WidgetFrame({
 }) {
   const { editing, hideWidget } = useLayoutStore();
   const headerHidden = widget.chromeless && !editing;
+  const bleeding = widget.bleed && !editing;
   return (
-    <Card className={cn(fill && "flex h-full flex-col overflow-hidden")}>
+    <Card
+      className={cn(
+        fill && "flex h-full flex-col overflow-hidden",
+        bleeding && "border-transparent bg-transparent shadow-none backdrop-blur-none",
+      )}
+    >
       <CardHeader className={cn("shrink-0", headerHidden && "hidden")}>
         <div className="flex items-center gap-1.5">
           {editing && (
@@ -148,7 +158,13 @@ function WidgetFrame({
           )}
         </div>
       </CardHeader>
-      <CardContent className={cn(fill && "min-h-0 grow overflow-y-auto")}>
+      <CardContent
+        className={cn(
+          fill && "min-h-0 grow overflow-y-auto",
+          headerHidden && !bleeding && "pt-5",
+          bleeding && "p-0",
+        )}
+      >
         <ErrorBoundary label={widget.title}>{widget.render()}</ErrorBoundary>
       </CardContent>
     </Card>

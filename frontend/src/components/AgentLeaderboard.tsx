@@ -13,14 +13,14 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
 
   return (
     <div className="max-h-96 overflow-y-auto overflow-x-auto">
-      <table className="w-full text-xs" data-testid="agent-leaderboard">
-        <thead className="sticky top-0 bg-surface">
+      <table className="w-full text-[11.5px]" data-testid="agent-leaderboard">
+        <thead className="sticky top-0 bg-surface-solid">
           <tr className="border-b border-border text-left text-fg-subtle">
-            <th className="py-1 pr-2 font-medium">agent</th>
-            <th className="py-1 pr-2 text-right font-medium">votes</th>
-            <th className="whitespace-nowrap py-1 pr-2 text-right font-medium">conf</th>
-            <th className="whitespace-nowrap py-1 pr-2 text-right font-medium">hit</th>
-            <th className="py-1 text-right font-medium">gap</th>
+            <th className="py-1 pr-1.5 font-semibold">agent</th>
+            <th className="py-1 pr-1.5 text-right font-semibold">votes</th>
+            <th className="whitespace-nowrap py-1 pr-1.5 text-right font-semibold">conf</th>
+            <th className="whitespace-nowrap py-1 pr-1.5 text-right font-semibold">hit</th>
+            <th className="py-1 text-right font-semibold">gap</th>
           </tr>
         </thead>
         <tbody className="tabular">
@@ -38,19 +38,26 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
                   unscored && "text-fg-subtle",
                 )}
               >
-                <td className="py-1 pr-2 font-mono">{agentId}</td>
-                <td className="py-1 pr-2 text-right">{row.votes}</td>
-                <td className="py-1 pr-2 text-right">
+                <td className="py-[5px] pr-1.5 font-mono">{agentId}</td>
+                <td className="py-[5px] pr-1.5 text-right">{row.votes}</td>
+                <td className="py-[5px] pr-1.5 text-right">
                   {row.avg_confidence.toFixed(0)}
                 </td>
-                <td className="whitespace-nowrap py-1 pr-2 text-right">
-                  {row.hit_rate == null
-                    ? `— (${row.scored})`
-                    : `${Math.round(row.hit_rate * 100)}% (${row.scored})`}
+                <td className="whitespace-nowrap py-[5px] pr-1.5 text-right">
+                  {row.hit_rate == null ? (
+                    <>
+                      — <span className="text-fg-subtle">({row.scored})</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-bold">{Math.round(row.hit_rate * 100)}%</span>{" "}
+                      <span className="text-fg-subtle">({row.scored})</span>
+                    </>
+                  )}
                 </td>
                 <td
                   className={cn(
-                    "py-1 text-right",
+                    "py-[5px] text-right font-bold",
                     gap != null && gap > 0.15 && "text-neutral",
                     gap != null && gap <= 0 && "text-bull",
                   )}

@@ -20,6 +20,7 @@ import {
   useWatchlists,
 } from "@/lib/api/queries";
 import { fmtPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
 
 function WatchRow({ symbol, onRemove }: { symbol: string; onRemove: () => void }) {
@@ -29,31 +30,36 @@ function WatchRow({ symbol, onRemove }: { symbol: string; onRemove: () => void }
   const fallback = overview.data?.symbol === symbol ? overview.data.last_close : null;
   const price = tick?.last ?? fallback;
   return (
-    <li className="flex items-center gap-2 border-b border-border/50 py-1.5">
+    <li className="flex items-center gap-4 border-b border-border py-[9px]">
       <span
         aria-hidden="true"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] bg-surface-2 text-[10px] font-bold text-fg-muted"
+        className="flex h-8 w-16 shrink-0 items-center justify-center rounded-[10px] bg-surface-2 text-[11px] font-extrabold tracking-[0.02em] text-fg-muted"
       >
         {symbol.slice(0, 2).toUpperCase()}
       </span>
       <Link
         to={`/trade/${symbol}`}
-        className="w-20 shrink-0 font-mono text-sm hover:text-accent"
+        className="w-[90px] shrink-0 font-mono text-[13px] font-semibold hover:text-accent"
       >
         {symbol}
       </Link>
-      <span className="w-24 shrink-0 text-right font-mono text-sm tabular">
+      <span className="w-[110px] shrink-0 text-right font-mono text-[13px] font-bold tabular">
         {fmtPrice(price)}
       </span>
-      <span className="w-10 shrink-0 text-[10px] text-fg-subtle">
+      <span
+        className={cn(
+          "w-[52px] shrink-0 rounded-full text-center text-[10px] font-bold",
+          tick ? "bg-bull-muted text-bull" : "bg-surface-2 text-fg-subtle",
+        )}
+      >
         {tick ? "live" : price != null ? "EOD" : "—"}
       </span>
       <span className="grow">
         {spark.data && spark.data.length > 1 ? (
           <Sparkline
             values={spark.data.map((b) => b.close)}
-            width={90}
-            height={20}
+            width={120}
+            height={24}
             ariaLabel={`${symbol} 30-day trend`}
           />
         ) : spark.isError ? (
@@ -63,7 +69,7 @@ function WatchRow({ symbol, onRemove }: { symbol: string; onRemove: () => void }
       <Button
         size="icon"
         variant="ghost"
-        className="h-6 w-6"
+        className="h-7 w-7 rounded-[9px]"
         aria-label={`remove ${symbol}`}
         onClick={onRemove}
       >
@@ -144,9 +150,9 @@ export function WatchlistPanel() {
           onChange={(event) => setDraft(event.target.value)}
           placeholder="Add symbol (e.g. DXY)"
           aria-label="Add symbol to watchlist"
-          className="h-7 text-xs"
+          className="h-8 text-xs"
         />
-        <Button size="sm" type="submit" variant="outline">
+        <Button size="sm" type="submit">
           <Plus size={12} /> Add
         </Button>
       </form>

@@ -1,7 +1,6 @@
 /** Debate as a timeline, not a 59-node graph: team-colored lanes, stance
  * glyphs, citation chips. Reads like a transcript because it is one. */
 import { DirectionBadge } from "./DirectionBadge";
-import { Badge } from "./ui/badge";
 import type { Timeline } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -23,29 +22,32 @@ function laneClass(speaker: string): string {
 
 export function DebateTimeline({ timeline }: { timeline: Timeline }) {
   return (
-    <ol className="space-y-2" data-testid="debate-timeline">
+    <ol className="space-y-3" data-testid="debate-timeline">
       {timeline.entries.map((entry, i) => (
         <li
           key={i}
           className={cn(
-            "border-l-[3px] pl-3",
+            "rounded-sm border-l-[3px] pl-3.5",
             laneClass(entry.speaker),
           )}
         >
           <div className="flex flex-wrap items-baseline gap-2">
             <DirectionBadge value={entry.stance} showWord={false} />
-            <span className="font-semibold">{entry.speaker}</span>
-            <span className="text-xs text-fg-subtle">
+            <span className="font-bold">{entry.speaker}</span>
+            <span className="text-[11px] text-fg-subtle">
               {entry.stance ?? ""} · conf {entry.confidence ?? "–"}
             </span>
           </div>
-          <p className="mt-0.5 text-sm text-fg-muted">{entry.argument}</p>
+          <p className="mt-[3px] text-[13px] text-fg-muted">{entry.argument}</p>
           {entry.cited.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {entry.cited.map((ref) => (
-                <Badge key={ref} className="text-[10px]">
+                <span
+                  key={ref}
+                  className="inline-flex items-center rounded-[7px] bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-fg-muted"
+                >
                   {ref}
-                </Badge>
+                </span>
               ))}
             </div>
           )}

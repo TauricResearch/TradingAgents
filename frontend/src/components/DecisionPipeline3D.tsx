@@ -7,7 +7,7 @@
  * entries, evidence, rejection, execution_status); personas are display
  * labels for the fixed agent roster. LLMs never compute anything here.
  */
-import { Play } from "lucide-react";
+import { Play, SkipForward } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
@@ -16,15 +16,15 @@ import type {
   Timeline,
 } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
-import type { PipelineProgress } from "@/stores/ui";
+import { type PipelineProgress, useUiStore } from "@/stores/ui";
 
 /* ---------------------------------------------------------------- geometry */
 
 // isometric projection: sx = CX + (x−y)·KX, sy = CY + (x+y)·KY − z
-const KX = 83;
+const KX = 76;
 const KY = 35.5;
-const CX = 302;
-const CY = 62;
+const CX = 300;
+const CY = 60;
 
 function px(x: number, y: number): number {
   return CX + (x - y) * KX;
@@ -39,6 +39,14 @@ function py(x: number, y: number, z = 0): number {
 function halfExtents(a: number): { dx: number; dy: number } {
   const k = a * 0.62;
   return { dx: 2 * k * KX, dy: 2 * k * KY };
+}
+
+/** Stations are laid out in screen-aligned coordinates — u = x−y is
+ * screen-horizontal, v = x+y is screen-vertical — then converted back to
+ * iso coords so slabs stay true iso diamonds. The whole main chain shares
+ * v = 4, which pins every station to one screen baseline. */
+function uv(u: number, v: number): { x: number; y: number } {
+  return { x: (u + v) / 2, y: (v - u) / 2 };
 }
 
 /* ------------------------------------------------------------------ tables */
@@ -79,59 +87,62 @@ interface Station {
   sink?: boolean;
 }
 
+// main chain: one screen baseline (v = 4, screenY ≈ 202), labels alternate
+// above/below to avoid collisions; teams fan out vertically at u = −1.6
 const STATIONS: Station[] = [
   { id: "prepare", label: "Prepare", persona: "Atlas", role: "snapshot · regime",
-    nodes: ["prepare"], x: 0.1, y: 2, a: 0.44, h: 13, labelPos: "above" },
+    nodes: ["prepare"], ...uv(-3.4, 4), a: 0.44, h: 13, labelPos: "above" },
   { id: "team_technical", label: "Technical", persona: "Kenji",
     role: "technical analysis", nodes: ["team_technical"], team: "technical",
-    x: 1.4, y: 0.4, a: 0.3, h: 9, labelPos: "left", small: true },
+    ...uv(-1.6, 1.2), a: 0.3, h: 9, labelPos: "left", small: true },
   { id: "team_macro", label: "Macro", persona: "Margaux",
     role: "macro analysis", nodes: ["team_macro"], team: "macro",
-    x: 1.4, y: 1.2, a: 0.3, h: 9, labelPos: "left", small: true },
+    ...uv(-1.6, 2.6), a: 0.3, h: 9, labelPos: "left", small: true },
   { id: "team_news_sentiment", label: "News & Sentiment", persona: "Priya",
     role: "news & sentiment", nodes: ["team_news_sentiment"],
     team: "news_sentiment",
-    x: 1.4, y: 2, a: 0.3, h: 9, labelPos: "left", small: true },
+    ...uv(-1.6, 4), a: 0.3, h: 9, labelPos: "left", small: true },
   { id: "team_quant", label: "Quant", persona: "Viktor",
     role: "quant metrics", nodes: ["team_quant"], team: "quant",
-    x: 1.4, y: 2.8, a: 0.3, h: 9, labelPos: "left", small: true },
+    ...uv(-1.6, 5.4), a: 0.3, h: 9, labelPos: "left", small: true },
   { id: "team_risk", label: "Risk", persona: "Nadia",
     role: "risk assessment", nodes: ["team_risk"], team: "risk",
-    x: 1.4, y: 3.6, a: 0.3, h: 9, labelPos: "left", small: true },
+    ...uv(-1.6, 6.8), a: 0.3, h: 9, labelPos: "left", small: true },
   { id: "join", label: "Join", persona: "Atlas", role: "evidence merge",
-    nodes: ["join"], x: 2.6, y: 2, a: 0.4, h: 13, labelPos: "below" },
+    nodes: ["join"], ...uv(0, 4), a: 0.4, h: 13, labelPos: "below" },
   { id: "debate_technical", label: "Technical", persona: "Tomas ⇄ Freya",
     role: "bull ⇄ bear",
     nodes: ["technical_bull", "technical_bear"],
     speakers: ["technical_bull", "technical_bear"],
-    x: 3.68, y: 1.35, a: 0.3, h: 9, labelPos: "above", small: true },
+    ...uv(1.3, 3.1), a: 0.3, h: 9, labelPos: "above", small: true },
   { id: "debate_macro", label: "Macro", persona: "Elif ⇄ Bruno",
     role: "bull ⇄ bear",
     nodes: ["macro_bull", "macro_bear"], speakers: ["macro_bull", "macro_bear"],
-    x: 3.68, y: 2.65, a: 0.3, h: 9, labelPos: "below", small: true },
+    ...uv(1.3, 4.9), a: 0.3, h: 9, labelPos: "below", small: true },
   { id: "debate_sentiment", label: "Sentiment", persona: "Noa",
     role: "rapporteur", nodes: ["sentiment"], speakers: ["sentiment"],
-    x: 4.5, y: 2, a: 0.3, h: 9, labelPos: "below", small: true },
+    ...uv(2.5, 4), a: 0.3, h: 9, labelPos: "below", small: true },
   { id: "risk_gate", label: "Risk gate", persona: "Imara", role: "hard limits",
-    nodes: ["risk_gate"], x: 5.7, y: 2, a: 0.42, h: 13,
+    nodes: ["risk_gate"], ...uv(3.4, 4), a: 0.42, h: 13,
     labelPos: "below", gate: true },
   { id: "review", label: "Critic · Reflection", persona: "Cass + Miro",
     role: "audit + memory",
     nodes: ["critic", "reflection"], speakers: ["critic", "reflection"],
-    x: 6.55, y: 1.3, a: 0.38, h: 13, labelPos: "above" },
+    ...uv(4.6, 4), a: 0.38, h: 13, labelPos: "above" },
   { id: "judge", label: "Judge", persona: "Aldous", role: "final verdict",
     nodes: ["judge"], speakers: ["judge"],
-    x: 7.45, y: 2.05, a: 0.48, h: 20, labelPos: "below" },
+    ...uv(5.8, 4), a: 0.48, h: 20, labelPos: "below" },
   { id: "sizing", label: "Portfolio mgr", persona: "Ingrid", role: "sizing gate",
-    nodes: ["portfolio_manager"], x: 8.3, y: 1.3, a: 0.38, h: 13,
+    nodes: ["portfolio_manager"], ...uv(7, 4), a: 0.38, h: 13,
     labelPos: "above", gate: true },
   { id: "approval", label: "Human approval", persona: "operator (you)",
     role: "live only", nodes: ["human_approval"],
-    x: 9.1, y: 2.05, a: 0.38, h: 13, labelPos: "below", gate: true },
+    ...uv(8.2, 4), a: 0.38, h: 13, labelPos: "below", gate: true },
+  // execution stays "below": the verdict beacon floats above it
   { id: "execution", label: "Execution", persona: "Otto", role: "paper venue",
-    nodes: ["execution"], x: 9.95, y: 1.3, a: 0.44, h: 13, labelPos: "below" },
+    nodes: ["execution"], ...uv(9.55, 4), a: 0.44, h: 13, labelPos: "below" },
   { id: "rejected", label: "Rejected", persona: "—", role: "terminal sink",
-    nodes: ["rejected"], x: 7.7, y: 3.9, a: 0.46, h: 6,
+    nodes: ["rejected"], ...uv(6, 6.6), a: 0.46, h: 6,
     labelPos: "below", sink: true },
 ];
 
@@ -625,6 +636,7 @@ export function DecisionPipeline3D({
   runLabel: string;
 }) {
   const reduced = useReducedMotion();
+  const setRunDialogOpen = useUiStore((s) => s.setRunDialogOpen);
   const [selected, setSelected] = useState("judge");
   const [hovered, setHovered] = useState<string | null>(null);
   const [replayIdx, setReplayIdx] = useState<number | null>(null);
@@ -722,9 +734,10 @@ export function DecisionPipeline3D({
     return { flowing, current: flowing && to?.status === "active", fired: false };
   };
 
+  const execSt = STATION_BY_ID.get("execution") as Station;
   const execTop = {
-    x: px(9.95, 1.3),
-    y: py(9.95, 1.3, 13 + 3),
+    x: px(execSt.x, execSt.y),
+    y: py(execSt.x, execSt.y, execSt.h + 3),
   };
   const hoveredSt = hovered ? STATION_BY_ID.get(hovered) : null;
   const hoveredView = hovered ? views.get(hovered) : null;
@@ -750,24 +763,36 @@ export function DecisionPipeline3D({
               </li>
             ))}
           </ul>
-          <button
-            onClick={() => seq.length > 0 && setReplayIdx(0)}
-            disabled={live != null || seq.length === 0}
-            data-testid="pipeline-replay"
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-[9px] border border-border-strong",
-              "px-2.5 text-xs font-semibold text-fg hover:bg-surface-2",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-            )}
-          >
-            <Play size={11} /> Replay run
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setRunDialogOpen(true)}
+              data-testid="pipeline-run"
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-[9px] bg-accent",
+                "px-2.5 text-xs font-semibold text-on-solid hover:bg-brand-strong",
+              )}
+            >
+              <SkipForward size={11} /> Run
+            </button>
+            <button
+              onClick={() => seq.length > 0 && setReplayIdx(0)}
+              disabled={live != null || seq.length === 0}
+              data-testid="pipeline-replay"
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-[9px] border border-border-strong",
+                "px-2.5 text-xs font-semibold text-fg hover:bg-surface-2",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+              )}
+            >
+              <Play size={11} /> Replay run
+            </button>
+          </div>
         </div>
       </div>
 
       {/* the isometric board */}
       <svg
-        viewBox="0 0 1100 536"
+        viewBox="0 0 1100 360"
         width="100%"
         role="img"
         aria-label="Isometric 3D view of the decision pipeline: prepare fans out to five agent teams, evidence joins into the debate arena, then passes risk gate, critic and reflection, judge, portfolio manager, human approval and execution; gates can reject."
@@ -778,41 +803,59 @@ export function DecisionPipeline3D({
             <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.28} />
             <stop offset="100%" stopColor="var(--brand)" stopOpacity={0} />
           </radialGradient>
+          {/* the iso grid clips to the screen-aligned ground band */}
+          <clipPath id="pp-ground-clip">
+            <rect x={12} y={68} width={1076} height={258} rx={16} />
+          </clipPath>
         </defs>
 
-        {/* ground + floor grid */}
-        <polygon
-          points={`${px(-1, 0)},${py(-1, 0)} ${px(11, 0)},${py(11, 0)} ${px(11, 4)},${py(11, 4)} ${px(-1, 4)},${py(-1, 4)}`}
+        {/* ground: screen-aligned rounded band (not an iso diamond) with
+            the iso floor grid clipped inside it, edge to edge */}
+        <rect
+          x={12}
+          y={68}
+          width={1076}
+          height={258}
+          rx={16}
           fill="var(--fg-subtle)"
           fillOpacity={0.04}
         />
-        <g stroke="var(--fg-subtle)" strokeOpacity={0.1} strokeWidth={0.7}>
-          {Array.from({ length: 13 }, (_, i) => i - 1).map((x) => (
+        <g
+          clipPath="url(#pp-ground-clip)"
+          stroke="var(--fg-subtle)"
+          strokeOpacity={0.1}
+          strokeWidth={0.7}
+        >
+          {Array.from({ length: 14 }, (_, i) => i - 3).map((x) => (
             <line
               key={`gx${x}`}
-              x1={px(x, 0)}
-              y1={py(x, 0)}
-              x2={px(x, 4)}
-              y2={py(x, 4)}
+              x1={px(x, -5)}
+              y1={py(x, -5)}
+              x2={px(x, 7)}
+              y2={py(x, 7)}
             />
           ))}
-          {Array.from({ length: 5 }, (_, i) => i).map((y) => (
+          {Array.from({ length: 13 }, (_, i) => i - 5).map((y) => (
             <line
               key={`gy${y}`}
-              x1={px(-1, y)}
-              y1={py(-1, y)}
-              x2={px(11, y)}
-              y2={py(11, y)}
+              x1={px(-3, y)}
+              y1={py(-3, y)}
+              x2={px(10, y)}
+              y2={py(10, y)}
             />
           ))}
         </g>
 
         {/* debate arena platform (flat slab under the pods) */}
         {(() => {
-          const { dx, dy } = halfExtents(1.14);
-          const cx = px(4.02, 2);
-          const cy = py(4.02, 2);
+          const { dx, dy } = halfExtents(1.37);
+          const cx = px(2.72, 1.28);
+          const cy = py(2.72, 1.28);
           const h = 5;
+          // caption floats above the platform's TOP corner (iso 1.87, 0.43)
+          // so it clears the Technical pod's "above" label
+          const capX = px(1.87, 0.43);
+          const capY = py(1.87, 0.43) - 32;
           return (
             <g aria-hidden>
               <polygon
@@ -837,8 +880,8 @@ export function DecisionPipeline3D({
                 strokeWidth={0.9}
               />
               <text
-                x={cx}
-                y={cy + dy - 12}
+                x={capX}
+                y={capY}
                 textAnchor="middle"
                 fontSize={9}
                 fontWeight={700}

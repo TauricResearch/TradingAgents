@@ -2,6 +2,7 @@
  * confidence-weighted vote share with exact counts labeled. A sankey
  * was rejected: votes are a tally, not a flow. */
 import { directionOf } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 interface Vote {
   agent_id: string;
@@ -39,26 +40,27 @@ export function ConsensusBar({
         role="img"
         aria-label={`consensus: ${counts.bear} bearish, ${counts.neutral} neutral, ${counts.bull} bullish votes, confidence weighted`}
       >
-        <div className="bg-bear/70" style={{ width: `${pct.bear}%` }} />
-        <div className="bg-neutral/50" style={{ width: `${pct.neutral}%` }} />
-        <div className="bg-bull/70" style={{ width: `${pct.bull}%` }} />
+        <div className="bg-bear/75" style={{ width: `${pct.bear}%` }} />
+        <div className="bg-neutral/55" style={{ width: `${pct.neutral}%` }} />
+        <div className="bg-bull/80" style={{ width: `${pct.bull}%` }} />
       </div>
-      <div className="mt-1 flex justify-between text-xs tabular">
+      <div className="mt-1.5 flex justify-between text-xs font-semibold tabular">
         <span className="text-bear">▼ {counts.bear} bearish</span>
         <span className="text-neutral">– {counts.neutral} neutral</span>
         <span className="text-bull">▲ {counts.bull} bullish</span>
       </div>
       {judge && (
-        <div className="mt-1 text-xs text-fg-muted">
+        <div className="mt-1.5 text-xs text-fg-muted">
           judge ruled{" "}
           <span
-            className={
+            className={cn(
+              "font-bold",
               judge === "bull"
                 ? "text-bull"
                 : judge === "bear"
                   ? "text-bear"
-                  : "text-neutral"
-            }
+                  : "text-neutral",
+            )}
           >
             {judgeAction}
           </span>

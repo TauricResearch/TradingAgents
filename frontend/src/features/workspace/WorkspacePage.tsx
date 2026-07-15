@@ -80,13 +80,13 @@ function InternalsPanel({ symbol }: { symbol: string }) {
         return (
           <div
             key={name}
-            className="flex items-center justify-between rounded-[14px] bg-surface-2 px-3 py-2"
+            className="flex items-center justify-between rounded-[14px] bg-surface-2 px-3.5 py-2.5"
             title={`${metric.source ?? ""} ${metric.unit ?? ""}`.trim()}
           >
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+            <span className="text-[11px] font-semibold text-fg-subtle">
               {name.replaceAll("_", " ")}
             </span>
-            <span className="font-mono text-[15px] font-semibold tabular">
+            <span className="font-mono text-sm font-bold tabular">
               {value}
             </span>
           </div>
@@ -233,7 +233,7 @@ export default function WorkspacePage() {
                 data-testid="symbol-select"
                 value={symbol}
                 onChange={(event) => navigate(`/trade/${event.target.value}`)}
-                className="cursor-pointer rounded-[10px] border border-border bg-transparent px-1.5 py-0.5 text-lg font-extrabold text-fg hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="cursor-pointer rounded-[10px] border border-border bg-transparent px-1.5 py-0.5 text-lg font-extrabold tracking-[-0.01em] text-fg hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 {TRADE_SYMBOLS.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -329,14 +329,14 @@ export default function WorkspacePage() {
                       drawingsSymbol={symbol}
                       toolMode={toolMode}
                       onToolModeChange={setToolMode}
-                      height={compare ? 300 : 420}
+                      height={compare ? 300 : 400}
                     />
                   </div>
                 </div>
                 {compare && (
-                  <div className="mt-3 border-t border-border pt-2">
+                  <div className="mt-3 border-t border-border pt-[10px]">
                     <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">
-                      <span className="font-mono">{compareSymbol}</span>
+                      <span className="font-mono font-bold">{compareSymbol}</span>
                       <span>({compareTf}) — crosshair synced, own price scale</span>
                     </div>
                     {compareBars.data ? (
@@ -358,7 +358,7 @@ export default function WorkspacePage() {
               </ChartSyncProvider>
             )}
             {nextRelease && !replay.active && (
-              <p className="mt-2 text-xs text-fg-subtle">
+              <p className="mt-[10px] text-xs text-fg-subtle">
                 next macro event: {nextRelease.release} on {nextRelease.date}
               </p>
             )}
@@ -381,29 +381,29 @@ export default function WorkspacePage() {
                 }
               />
             ) : (
-              <table className="w-full text-sm tabular">
+              <table className="w-full text-[13px] tabular">
                 <thead>
                   <tr className="border-b border-border text-left text-xs text-fg-subtle">
-                    <th className="py-1 font-medium">symbol</th>
-                    <th className="py-1 text-right font-medium">quantity</th>
-                    <th className="py-1 text-right font-medium">entry</th>
-                    <th className="py-1 text-right font-medium">mark</th>
-                    <th className="py-1 text-right font-medium">unrealized</th>
-                    <th className="py-1 text-right font-medium">book state</th>
+                    <th className="py-1.5 font-semibold">symbol</th>
+                    <th className="py-1.5 text-right font-semibold">quantity</th>
+                    <th className="py-1.5 text-right font-semibold">entry</th>
+                    <th className="py-1.5 text-right font-semibold">mark</th>
+                    <th className="py-1.5 text-right font-semibold">unrealized</th>
+                    <th className="py-1.5 text-right font-semibold">book state</th>
                   </tr>
                 </thead>
                 <tbody>
                   {positions.map((p) => (
                     <tr key={p.symbol}>
-                      <td className="py-1 font-mono">{p.symbol}</td>
-                      <td className="py-1 text-right">
+                      <td className="py-2 font-mono">{p.symbol}</td>
+                      <td className="py-2 text-right">
                         {p.quantity > 0 ? "+" : ""}
                         {p.quantity}
                       </td>
-                      <td className="py-1 text-right font-mono">
+                      <td className="py-2 text-right font-mono">
                         {fmtPrice(p.entry_price)}
                       </td>
-                      <td className="py-1 text-right font-mono">
+                      <td className="py-2 text-right font-mono">
                         {fmtPrice(p.mark_price)}
                         {p.mark_source && p.mark_source !== "live" && (
                           <span className="ml-1 text-[10px] uppercase text-stale">
@@ -413,7 +413,7 @@ export default function WorkspacePage() {
                       </td>
                       <td
                         className={cn(
-                          "py-1 text-right font-mono",
+                          "py-2 text-right font-mono",
                           p.unrealized_pnl != null &&
                             (p.unrealized_pnl >= 0 ? "text-bull" : "text-bear"),
                         )}
@@ -421,7 +421,11 @@ export default function WorkspacePage() {
                       >
                         {fmtPnl(p.unrealized_pnl)}
                       </td>
-                      <td className="py-1 text-right text-bull">reconciled</td>
+                      <td className="py-2 text-right">
+                        <span className="inline-flex rounded-full bg-bull-muted px-2.5 py-0.5 text-[11px] font-bold text-bull">
+                          reconciled
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -452,18 +456,18 @@ export default function WorkspacePage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Price alerts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PriceAlertsPanel symbol={symbol} rec={recForSymbol} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
             <CardTitle>Market internals</CardTitle>
           </CardHeader>
           <CardContent>
             <InternalsPanel symbol={symbol} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Price alerts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PriceAlertsPanel symbol={symbol} rec={recForSymbol} />
           </CardContent>
         </Card>
       </div>
@@ -517,10 +521,13 @@ function PriceAlertsPanel({
           configured) — they never trade.
         </p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="space-y-1.5">
           {mine.map((alert) => (
-            <li key={alert.id} className="flex items-center justify-between gap-2">
-              <span className="font-mono tabular">
+            <li
+              key={alert.id}
+              className="flex items-center justify-between gap-2 rounded-[12px] bg-surface-2 px-3 py-[7px] text-[12.5px]"
+            >
+              <span className="font-mono font-bold tabular">
                 {alert.direction === "above" ? "≥" : "≤"} {fmtPrice(alert.level)}
               </span>
               <span className="grow truncate text-xs text-fg-subtle">
@@ -529,7 +536,7 @@ function PriceAlertsPanel({
               <button
                 onClick={() => void deletePriceAlert(client, alert.id)}
                 aria-label={`Delete alert at ${alert.level}`}
-                className="text-fg-subtle hover:text-bear"
+                className="flex size-[22px] shrink-0 items-center justify-center rounded-[7px] text-fg-subtle hover:bg-bear-muted hover:text-bear"
               >
                 ×
               </button>

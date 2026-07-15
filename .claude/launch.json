@@ -9,6 +9,26 @@
       ],
       "port": 8610,
       "autoPort": true
+    },
+    {
+      "name": "pro-dashboard-demo-api-8600",
+      "runtimeExecutable": "/Users/ajaykumar/.venvs/tradingagents-pro/bin/python",
+      "runtimeArgs": [
+        "scripts/pro_dashboard_demo.py",
+        "8600"
+      ],
+      "port": 8600
+    },
+    {
+      "name": "frontend-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "frontend"
+      ],
+      "port": 5173
     }
   ]
 }

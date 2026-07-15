@@ -20,9 +20,15 @@ function humanRegime(regime: string | null | undefined): string {
 }
 
 const CHIP_TONE: Record<string, string> = {
-  BUY: "bg-bull-muted ring-bull/40",
-  SELL: "bg-bear-muted ring-bear/40",
-  HOLD: "bg-neutral-muted ring-neutral/40",
+  BUY: "bg-bull-muted",
+  SELL: "bg-bear-muted",
+  HOLD: "bg-neutral-muted",
+};
+// hero pill keeps a faint inset ring (mockup rgba .2); non-hero pill has none
+const CHIP_RING: Record<string, string> = {
+  BUY: "ring-bull/20",
+  SELL: "ring-bear/20",
+  HOLD: "ring-neutral/20",
 };
 
 /** Hero-only level ladder: labels + rounded progress bars with mono price
@@ -49,7 +55,7 @@ function LevelLadder({ rec }: { rec: Recommendation }) {
       detail: `${pctFrom(rec.entry_price!, tp.price)} · closes ${Math.round(tp.size_fraction * 100)}%`,
       width: Math.max(38, 92 - i * 27),
       barClass: "bg-[linear-gradient(90deg,var(--bull),rgba(22,130,74,0.55))]",
-      textClass: "text-bull",
+      textClass: "text-bull font-bold",
     })),
     {
       label: "ENTRY",
@@ -57,7 +63,7 @@ function LevelLadder({ rec }: { rec: Recommendation }) {
       detail: "",
       width: 24,
       barClass: "bg-accent",
-      textClass: "font-bold text-fg",
+      textClass: "font-extrabold text-fg",
     },
     ...(rec.stop_loss != null
       ? [
@@ -67,7 +73,7 @@ function LevelLadder({ rec }: { rec: Recommendation }) {
             detail: pctFrom(rec.entry_price, rec.stop_loss),
             width: 12,
             barClass: "bg-bear",
-            textClass: "text-bear",
+            textClass: "text-bear font-bold",
           },
         ]
       : []),
@@ -78,8 +84,8 @@ function LevelLadder({ rec }: { rec: Recommendation }) {
           the ladder keeps that contract */}
       <div className="sr-only">Levels: label, price, detail</div>
       {rows.map((row) => (
-        <div key={row.label} className="flex items-center gap-3 text-sm">
-          <span className={cn("w-12 font-mono text-xs", row.textClass)}>
+        <div key={row.label} className="flex items-center gap-3 text-[13px]">
+          <span className={cn("w-12 font-mono text-[13px]", row.textClass)}>
             {row.label}
           </span>
           <span className="h-2 grow overflow-hidden rounded-full bg-surface-2">
@@ -88,10 +94,10 @@ function LevelLadder({ rec }: { rec: Recommendation }) {
               style={{ width: `${row.width}%` }}
             />
           </span>
-          <span className={cn("w-24 text-right font-mono tabular", row.textClass)}>
+          <span className={cn("w-[92px] text-right font-mono tabular", row.textClass)}>
             {fmtPrice(row.price)}
           </span>
-          <span className="w-32 whitespace-nowrap text-xs text-fg-subtle">
+          <span className="w-[104px] whitespace-nowrap text-right font-mono text-[13px] text-fg-subtle">
             {row.detail}
           </span>
         </div>
@@ -148,10 +154,17 @@ export function DecisionCard({
     return (
       <div data-testid="decision-rejected">
         <div className="flex items-center gap-3">
-          <span className="rounded-md bg-neutral-muted px-3 py-1 text-lg font-bold text-neutral">
+          <span
+            className={cn(
+              "bg-neutral-muted text-neutral",
+              hero
+                ? "rounded-2xl px-5 py-2.5 text-[26px] font-extrabold"
+                : "rounded-md px-3 py-1 text-lg font-bold",
+            )}
+          >
             ✕ REJECTED
           </span>
-          <span className="text-sm text-fg-muted">
+          <span className="text-[13px] text-fg-muted">
             at {String(rec.rejection?.stage ?? "unknown stage")}
           </span>
         </div>
@@ -225,51 +238,52 @@ export function DecisionCard({
           <Badge variant="accent">{humanRegime(rec.market_regime)} regime</Badge>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-5">
         {hero ? (
           <span
             className={cn(
-              "inline-flex items-center rounded-[14px] px-4 py-1 ring-1 ring-inset",
+              "inline-flex items-center rounded-[14px] px-[18px] py-2 ring-1 ring-inset",
               CHIP_TONE[rec.action ?? "HOLD"] ?? CHIP_TONE.HOLD,
+              CHIP_RING[rec.action ?? "HOLD"] ?? CHIP_RING.HOLD,
             )}
           >
-            <DirectionBadge value={rec.action} className="text-[28px] font-extrabold" />
+            <DirectionBadge value={rec.action} className="gap-[9px] text-[28px] font-extrabold" />
           </span>
         ) : (
           // mockup: action sits on a filled tone pill on Decisions/Trade too
           <span
             className={cn(
-              "inline-flex items-center rounded-[12px] px-3 py-0.5 ring-1 ring-inset",
+              "inline-flex items-center rounded-[14px] px-4 py-[7px]",
               CHIP_TONE[rec.action ?? "HOLD"] ?? CHIP_TONE.HOLD,
             )}
           >
-            <DirectionBadge value={rec.action} className="text-2xl font-bold" />
+            <DirectionBadge value={rec.action} className="gap-2 text-2xl font-extrabold" />
           </span>
         )}
         {hero ? (
           <>
             {/* mockup hero stats: small-caps label over big mono value,
                 hairline dividers between stats */}
-            <span className="border-l border-border pl-4">
-              <span className="block text-[10.5px] text-fg-subtle">confidence</span>
-              <span className="font-mono text-2xl text-fg tabular">
+            <span className="border-l border-border pl-5">
+              <span className="block text-xs text-fg-subtle">confidence</span>
+              <span className="font-mono text-2xl font-bold text-fg tabular">
                 {rec.confidence}
-                <span className="text-sm text-fg-subtle">/100</span>
+                <span className="text-[13px] font-normal text-fg-subtle">/100</span>
               </span>
             </span>
             {rec.risk_reward != null && (
-              <span className="border-l border-border pl-4">
-                <span className="block text-[10.5px] text-fg-subtle">
+              <span className="border-l border-border pl-5">
+                <span className="block text-xs text-fg-subtle">
                   risk : reward
                 </span>
-                <span className="font-mono text-2xl text-fg tabular">
+                <span className="font-mono text-2xl font-bold text-fg tabular">
                   {rec.risk_reward.toFixed(2)}
                 </span>
               </span>
             )}
-            <span className="border-l border-border pl-4">
-              <span className="block text-[10.5px] text-fg-subtle">votes</span>
-              <span className="font-mono text-lg tabular">
+            <span className="border-l border-border pl-5">
+              <span className="block text-xs text-fg-subtle">votes</span>
+              <span className="font-mono text-[17px] font-bold tabular">
                 <span className="text-bull">▲{tally.BUY ?? 0}</span>{" "}
                 <span className="text-neutral">–{tally.HOLD ?? 0}</span>{" "}
                 <span className="text-bear">▼{tally.SELL ?? 0}</span>
@@ -278,7 +292,7 @@ export function DecisionCard({
           </>
         ) : (
           <>
-            <span className="text-sm text-fg-muted">
+            <span className="text-[13px] text-fg-muted">
               confidence{" "}
               <span className="font-mono tabular">{rec.confidence}</span>
               <span className="text-fg-subtle">/100</span>
@@ -337,24 +351,52 @@ export function DecisionCard({
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        {rec.position_size && (
-          <span className="tabular">
-            size {rec.position_size.quantity.toFixed(4)}
-            {rec.position_size.pct_of_equity != null &&
-              ` (${rec.position_size.pct_of_equity}% equity)`}
+      {rec.invalidation && (
+        <div
+          className="rounded-xl bg-neutral-muted px-3.5 py-2.5 text-[13px]"
+          data-testid="invalidation"
+        >
+          <span className="font-bold text-neutral">Invalidation</span> —{" "}
+          {rec.invalidation}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          {rec.position_size && (
+            <span className="tabular">
+              size {rec.position_size.quantity.toFixed(4)}
+              {rec.position_size.pct_of_equity != null &&
+                ` (${rec.position_size.pct_of_equity}% equity)`}
+            </span>
+          )}
+          {!hero && (
+            <span>
+              votes <span className="text-bull">▲{tally.BUY ?? 0}</span>{" "}
+              <span className="text-neutral">–{tally.HOLD ?? 0}</span>{" "}
+              <span className="text-bear">▼{tally.SELL ?? 0}</span>
+            </span>
+          )}
+          <span className="text-fg-subtle">
+            {rec.n_evidence ?? 0} evidence · {rec.n_counterarguments ?? 0} counter
           </span>
-        )}
-        {!hero && (
-          <span>
-            votes <span className="text-bull">▲{tally.BUY ?? 0}</span>{" "}
-            <span className="text-neutral">–{tally.HOLD ?? 0}</span>{" "}
-            <span className="text-bear">▼{tally.SELL ?? 0}</span>
-          </span>
-        )}
-        <span className="text-fg-subtle">
-          {rec.n_evidence ?? 0} evidence · {rec.n_counterarguments ?? 0} counter
-        </span>
+        </div>
+        {runId &&
+          (hero ? (
+            <Link
+              to={`/decisions/${runId}`}
+              className="inline-flex h-9 items-center rounded-xl bg-accent px-5 text-[13px] font-bold text-on-solid shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)] hover:bg-brand-strong"
+            >
+              Open full reasoning →
+            </Link>
+          ) : (
+            <Link
+              to={`/decisions/${runId}`}
+              className="inline-flex items-center rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-on-solid shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)] hover:bg-brand-strong"
+            >
+              Full reasoning →
+            </Link>
+          ))}
       </div>
 
       {!compact && math != null && (
@@ -368,16 +410,6 @@ export function DecisionCard({
           )}
           {" "}· stated confidence {rec.confidence ?? "—"}/100 (calibration
           builds as trades close)
-        </div>
-      )}
-
-      {rec.invalidation && (
-        <div
-          className="rounded-xl bg-neutral-muted px-3 py-2 text-sm"
-          data-testid="invalidation"
-        >
-          <span className="font-semibold text-neutral">Invalidation</span> —{" "}
-          {rec.invalidation}
         </div>
       )}
 
@@ -419,23 +451,6 @@ export function DecisionCard({
           </ul>
         </div>
       )}
-
-      {runId &&
-        (hero ? (
-          <Link
-            to={`/decisions/${runId}`}
-            className="inline-flex items-center rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-on-solid shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)] hover:bg-brand-strong"
-          >
-            Open full reasoning →
-          </Link>
-        ) : (
-          <Link
-            to={`/decisions/${runId}`}
-            className="inline-flex items-center rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-on-solid shadow-[0_8px_18px_-8px_rgba(36,86,197,0.6)] hover:bg-brand-strong"
-          >
-            Full reasoning →
-          </Link>
-        ))}
     </div>
   );
 }

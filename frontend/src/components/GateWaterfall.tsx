@@ -49,28 +49,28 @@ export function GateWaterfall({
 
   return (
     <div data-testid="gate-waterfall">
-      <ol className="flex flex-wrap items-center gap-1 text-xs">
+      <ol className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
         {stages.map((stage, i) => {
           const failed = stage === failedAt;
           const reached =
             failedAt == null || stages.indexOf(String(failedAt)) >= i;
           return (
-            <li key={stage} className="flex items-center gap-1">
-              {i > 0 && <span className="text-fg-subtle">→</span>}
+            <li key={stage} className="flex items-center gap-1.5">
+              {i > 0 && <span className="text-border-strong">→</span>}
               <span
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5",
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] font-bold",
                   failed
-                    ? "border-bear/50 bg-bear-muted text-bear"
+                    ? "bg-bear-muted text-bear"
                     : reached
-                      ? "border-bull/40 bg-bull-muted text-bull"
-                      : "border-border text-fg-subtle",
+                      ? "bg-bull-muted text-bull"
+                      : "text-fg-subtle",
                 )}
               >
                 {failed ? (
-                  <X size={11} aria-label="failed" />
+                  <X size={10} aria-label="failed" />
                 ) : reached ? (
-                  <Check size={11} aria-label="passed" />
+                  <Check size={10} aria-label="passed" />
                 ) : null}
                 {stage}
               </span>

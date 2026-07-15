@@ -44,6 +44,18 @@ export function fmtDateTime(iso: string | null | undefined): string {
   })}${TZ_LABEL ? ` ${TZ_LABEL}` : ""}`;
 }
 
+/** Compact "MM/DD HH:MM" for dense lists like the run rail (mockup parity)
+ * — no year, no timezone; the precise, TZ-qualified stamp lives in the
+ * verdict header where there's room for it. */
+export function fmtDateCompact(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  const md = date.toLocaleDateString([], { month: "2-digit", day: "2-digit" });
+  const hm = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${md} ${hm}`;
+}
+
 export function relativeAge(iso: string | null | undefined): string {
   if (!iso) return "—";
   const ms = Date.now() - new Date(iso).getTime();

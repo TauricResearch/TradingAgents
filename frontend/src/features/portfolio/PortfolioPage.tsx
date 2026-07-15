@@ -48,8 +48,8 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+    <div className="space-y-[14px]">
+      <div className="grid gap-[14px] lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card>
           <CardHeader>
             <CardTitle>Backtest equity</CardTitle>
@@ -63,6 +63,7 @@ export default function PortfolioPage() {
                 <label className="mb-1 flex items-center gap-1.5 text-xs text-fg-muted">
                   <input
                     type="checkbox"
+                    className="accent-[var(--brand)]"
                     checked={showDrawdown}
                     onChange={() => setShowDrawdown(!showDrawdown)}
                   />
@@ -72,6 +73,7 @@ export default function PortfolioPage() {
                   curve={backtest.data.equity_curve}
                   monteCarlo={backtest.data.monte_carlo ?? null}
                   showDrawdown={showDrawdown}
+                  height={170}
                 />
                 <p className="mt-2 text-xs text-fg-subtle">
                   {backtest.data.executed}/{backtest.data.decisions} decisions
@@ -206,7 +208,7 @@ export default function PortfolioPage() {
               value={symbolFilter}
               onChange={(event) => setSymbolFilter(event.target.value)}
               aria-label="Filter by symbol"
-              className="h-7 rounded-md border border-border-strong bg-surface-2 px-2 text-xs"
+              className="h-[30px] rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs"
             >
               <option value="all">all symbols</option>
               {symbolsInJournal.map((sym) => (
@@ -217,7 +219,7 @@ export default function PortfolioPage() {
               value={outcomeFilter}
               onChange={(event) => setOutcomeFilter(event.target.value)}
               aria-label="Filter by outcome"
-              className="h-7 rounded-md border border-border-strong bg-surface-2 px-2 text-xs"
+              className="h-[30px] rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs"
             >
               <option value="all">all outcomes</option>
               <option value="won">wins</option>
@@ -265,15 +267,15 @@ export default function PortfolioPage() {
             />
           ) : (
             <div className="max-h-96 overflow-y-auto">
-              <table className="w-full text-sm" data-testid="trades-table">
-                <thead className="sticky top-0 bg-surface">
-                  <tr className="border-b border-border text-left text-xs text-fg-subtle">
-                    <th className="py-1 pr-2 font-medium">symbol</th>
-                    <th className="py-1 pr-2 font-medium">action</th>
-                    <th className="py-1 pr-2 font-medium">regime</th>
-                    <th className="py-1 pr-2 text-right font-medium">P&L</th>
-                    <th className="py-1 pr-2 font-medium">closed</th>
-                    <th className="py-1 font-medium">why</th>
+              <table className="w-full text-[13px]" data-testid="trades-table">
+                <thead className="sticky top-0 bg-surface-solid">
+                  <tr className="border-b border-border text-left text-[11px] text-fg-subtle">
+                    <th className="py-1.5 pr-2 font-semibold">symbol</th>
+                    <th className="py-1.5 pr-2 font-semibold">action</th>
+                    <th className="py-1.5 pr-2 font-semibold">regime</th>
+                    <th className="py-1.5 pr-2 text-right font-semibold">P&L</th>
+                    <th className="py-1.5 pr-2 font-semibold">closed</th>
+                    <th className="py-1.5 font-semibold">why</th>
                   </tr>
                 </thead>
                 <tbody className="tabular">
@@ -287,12 +289,12 @@ export default function PortfolioPage() {
                           new Date(r.started_at) <= new Date(entry.closed_at),
                       );
                     return (
-                      <tr key={i} className="border-b border-border/50">
-                        <td className="py-1 pr-2 font-mono">{entry.symbol}</td>
-                        <td className="py-1 pr-2">
+                      <tr key={i} className="border-b border-border">
+                        <td className="py-[7px] pr-2 font-mono font-semibold">{entry.symbol}</td>
+                        <td className="py-[7px] pr-2">
                           <span
                             className={
-                              "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold " +
+                              "inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold " +
                               (entry.action === "SELL"
                                 ? "bg-bear-muted"
                                 : entry.action === "BUY"
@@ -303,16 +305,16 @@ export default function PortfolioPage() {
                             <DirectionBadge value={entry.action} />
                           </span>
                         </td>
-                        <td className="py-1 pr-2 text-fg-subtle">{entry.regime ?? "—"}</td>
+                        <td className="py-[7px] pr-2 text-fg-subtle">{entry.regime ?? "—"}</td>
                         <td
-                          className={`py-1 pr-2 text-right ${entry.pnl >= 0 ? "text-bull" : "text-bear"}`}
+                          className={`py-[7px] pr-2 text-right font-mono font-bold ${entry.pnl >= 0 ? "text-bull" : "text-bear"}`}
                         >
                           {fmtPnl(entry.pnl)}
                         </td>
-                        <td className="py-1 pr-2 text-xs text-fg-subtle">
+                        <td className="py-[7px] pr-2 text-[11px] text-fg-subtle">
                           {fmtDateTime(entry.closed_at)}
                         </td>
-                        <td className="py-1">
+                        <td className="py-[7px]">
                           {run ? (
                             <Link
                               to={`/decisions/${run.run_id}`}
@@ -334,7 +336,7 @@ export default function PortfolioPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-[14px] lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Journal — lessons the system wrote itself</CardTitle>
@@ -345,9 +347,9 @@ export default function PortfolioPage() {
             ) : (memory.data?.recent_lessons.length ?? 0) === 0 ? (
               <EmptyState kind="empty" title="No lessons recorded yet" />
             ) : (
-              <ul className="space-y-1.5 text-sm">
+              <ul className="space-y-2 text-[13px]">
                 {memory.data!.recent_lessons.map((lesson, i) => (
-                  <li key={i} className="flex gap-2">
+                  <li key={i} className="flex gap-2.5">
                     <Badge
                       variant={lesson.kind === "mistake" ? "bear" : "bull"}
                       className="shrink-0 self-start"
@@ -366,30 +368,30 @@ export default function PortfolioPage() {
           <CardHeader>
             <CardTitle>Integrity</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-2 text-[13px]">
             {status.data?.attached ? (
               <>
                 <p>
                   kill switch:{" "}
                   {status.data.kill_switch?.engaged ? (
-                    <span className="text-bear">ENGAGED — {status.data.kill_switch.reason}</span>
+                    <span className="font-bold text-bear">ENGAGED — {status.data.kill_switch.reason}</span>
                   ) : (
-                    <span className="text-bull">armed, not fired</span>
+                    <span className="font-bold text-bull">armed, not fired</span>
                   )}
                 </p>
                 <p>
                   circuit breaker:{" "}
                   {status.data.circuit_breaker?.tripped ? (
-                    <span className="text-bear">
+                    <span className="font-bold text-bear">
                       TRIPPED — {status.data.circuit_breaker.reason}
                     </span>
                   ) : (
-                    <span className="text-bull">clear</span>
+                    <span className="font-bold text-bull">clear</span>
                   )}
                 </p>
                 <p className="text-fg-subtle">
                   Audit log is hash-chained on disk; verify with
-                  <code className="ml-1 font-mono text-xs">AuditLog(path).verify()</code>.
+                  <code className="ml-1 rounded-[6px] bg-surface-2 px-1.5 py-px font-mono text-xs">AuditLog(path).verify()</code>.
                 </p>
               </>
             ) : (
