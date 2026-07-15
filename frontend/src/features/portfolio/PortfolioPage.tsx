@@ -91,32 +91,38 @@ export default function PortfolioPage() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 content-start gap-2">
+        <div className="grid grid-cols-2 content-start gap-2.5">
           <StatCard
+            elevated
             label="Live paper P&L"
             value={fmtPnl(j?.total_pnl)}
             tone={j && j.total_pnl >= 0 ? "bull" : "bear"}
             n={j?.n_trades}
           />
           <StatCard
+            elevated
             label="Win rate"
             value={j?.win_rate != null ? fmtPct(j.win_rate, 0) : "—"}
             n={j?.n_trades}
           />
           <StatCard
+            elevated
             label="Backtest Sharpe"
             value={report.sharpe != null ? report.sharpe.toFixed(2) : "—"}
           />
           <StatCard
+            elevated
             label="Backtest Sortino"
             value={report.sortino != null ? report.sortino.toFixed(2) : "—"}
           />
           <StatCard
+            elevated
             label="Backtest max DD"
             value={report.max_drawdown != null ? fmtPct(report.max_drawdown) : "—"}
             tone="bear"
           />
           <StatCard
+            elevated
             label="Profit factor"
             value={report.profit_factor != null ? report.profit_factor.toFixed(2) : "—"}
           />
@@ -286,7 +292,7 @@ export default function PortfolioPage() {
                         <td className="py-1 pr-2">
                           <span
                             className={
-                              "inline-flex rounded-md px-2 py-0.5 text-xs font-semibold " +
+                              "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold " +
                               (entry.action === "SELL"
                                 ? "bg-bear-muted"
                                 : entry.action === "BUY"
@@ -310,7 +316,7 @@ export default function PortfolioPage() {
                           {run ? (
                             <Link
                               to={`/decisions/${run.run_id}`}
-                              className="text-xs text-accent underline underline-offset-2"
+                              className="text-xs font-semibold text-accent hover:underline"
                             >
                               view reasoning →
                             </Link>

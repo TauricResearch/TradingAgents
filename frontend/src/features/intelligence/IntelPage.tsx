@@ -117,15 +117,17 @@ export default function IntelPage() {
 
   return (
     <div className="space-y-4">
+      {/* mockup: a single inline strip — heading, regime pill, session pill,
+          and the "as of…" note all on one row (not a header/content card) */}
       <Card>
-        <CardHeader>
-          <CardTitle>Regime board</CardTitle>
-          <Badge>session: {intel.data.session}</Badge>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3 text-sm">
+        <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-[11px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
+            Regime board
+          </span>
           <Badge variant="accent" className="text-sm">
             {overview.data?.symbol ?? "—"}: {overview.data?.regime ?? "no runs yet"}
           </Badge>
+          <Badge>session: {intel.data.session}</Badge>
           <span className="text-xs text-fg-subtle">
             as of {fmtDateTime(intel.data.as_of)} — regime is computed
             deterministically from trend/volatility inputs, never by an LLM.
@@ -179,34 +181,81 @@ export default function IntelPage() {
         })}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Cross-asset correlations (30d)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CorrelationMatrix />
-        </CardContent>
-      </Card>
-
+      {/* mockup pairs Cross-asset correlations beside Feed coverage */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Economic calendar</CardTitle>
-            <button
-              onClick={() => setMajorsOnly(!majorsOnly)}
-              aria-pressed={majorsOnly}
-              data-testid="calendar-majors-toggle"
-              className={cn(
-                "rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-                majorsOnly
-                  ? "border-accent bg-accent text-(--on-solid)"
-                  : "border-border text-fg-subtle hover:text-fg",
-              )}
-            >
-              {majorsOnly ? "major only" : "showing all"}
-            </button>
+            <CardTitle>Cross-asset correlations (30d)</CardTitle>
           </CardHeader>
           <CardContent>
+            <CorrelationMatrix />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Feed coverage</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {intel.data.missing_feeds.length > 0 && (
+              <div>
+                <div className="mb-1 text-xs font-semibold uppercase text-stale">
+                  Degraded this cycle
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {intel.data.missing_feeds.map((feed, i) => (
+                    <span
+                      key={i}
+                      className="rounded-md border border-dashed border-stale px-2 py-0.5 font-mono text-[11px] text-stale"
+                    >
+                      {feed}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <div className="mb-1 text-xs font-semibold uppercase text-locked">
+                Not subscribed
+              </div>
+              <ul className="space-y-1.5">
+                {intel.data.unsubscribed_feeds.map((feed) => (
+                  <li key={feed.name} className="flex items-center gap-2 text-sm text-locked">
+                    <Lock size={13} aria-hidden="true" />
+                    <span className="capitalize">{feed.name.replaceAll("_", " ")}</span>
+                    <Badge variant="locked">{feed.provider}</Badge>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-fg-subtle">
+                These paid feeds are not connected. Agents that depend on them
+                declare it in missing_feeds and reduce claim confidence — the
+                dashboard never fakes a reading it doesn't have.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Economic calendar is an addition beyond the mockup (gaps-v8) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Economic calendar</CardTitle>
+          <button
+            onClick={() => setMajorsOnly(!majorsOnly)}
+            aria-pressed={majorsOnly}
+            data-testid="calendar-majors-toggle"
+            className={cn(
+              "rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+              majorsOnly
+                ? "border-accent bg-accent text-(--on-solid)"
+                : "border-border text-fg-subtle hover:text-fg",
+            )}
+          >
+            {majorsOnly ? "major only" : "showing all"}
+          </button>
+        </CardHeader>
+        <CardContent>
             {calendar.isPending ? (
               <SkeletonCard lines={4} />
             ) : (calendar.data?.releases.length ?? 0) === 0 ? (
@@ -278,47 +327,7 @@ export default function IntelPage() {
               })()
             )}
           </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Feed coverage</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {intel.data.missing_feeds.length > 0 && (
-              <div>
-                <div className="mb-1 text-xs font-semibold uppercase text-stale">
-                  Degraded this cycle
-                </div>
-                <ul className="space-y-1 text-xs text-fg-muted">
-                  {intel.data.missing_feeds.map((feed, i) => (
-                    <li key={i}>{feed}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div>
-              <div className="mb-1 text-xs font-semibold uppercase text-locked">
-                Not subscribed
-              </div>
-              <ul className="space-y-1.5">
-                {intel.data.unsubscribed_feeds.map((feed) => (
-                  <li key={feed.name} className="flex items-center gap-2 text-sm text-locked">
-                    <Lock size={13} aria-hidden="true" />
-                    <span className="capitalize">{feed.name.replaceAll("_", " ")}</span>
-                    <Badge variant="locked">{feed.provider}</Badge>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-fg-subtle">
-                These paid feeds are not connected. Agents that depend on them
-                declare it in missing_feeds and reduce claim confidence — the
-                dashboard never fakes a reading it doesn't have.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -3,7 +3,7 @@
  * EMA/SMA/RSI/ATR periods are editable (G7): the id carries the period
  * (EMA_21) so store/query plumbing stays a plain string list. */
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "./ui/button";
@@ -46,10 +46,9 @@ export function IndicatorPicker({
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <Button size="sm" variant="ghost" data-testid="indicator-picker">
+        <Button size="sm" variant="outline" data-testid="indicator-picker">
           <SlidersHorizontal size={13} />
           Indicators{selected.length > 0 && ` (${selected.length})`}
-          <ChevronDown size={12} />
         </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>

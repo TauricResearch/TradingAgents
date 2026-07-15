@@ -9,6 +9,7 @@ export function StatCard({
   sub,
   n,
   tone,
+  elevated = false,
   className,
 }: {
   label: string;
@@ -16,12 +17,18 @@ export function StatCard({
   sub?: ReactNode;
   n?: number;
   tone?: "bull" | "bear" | "neutral";
+  /** mockup KPI tiles are elevated (bordered + shadow on `surface`);
+   * grouped tiles (Intel) stay flat on `surface-2` */
+  elevated?: boolean;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "rounded-[16px] bg-surface-2 px-3.5 py-2.5",
+        "rounded-[16px] px-3.5 py-2.5",
+        elevated
+          ? "border border-border bg-surface shadow-(--shadow-1)"
+          : "bg-surface-2",
         className,
       )}
     >

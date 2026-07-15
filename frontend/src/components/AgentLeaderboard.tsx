@@ -20,7 +20,7 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
             <th className="py-1 pr-2 text-right font-medium">votes</th>
             <th className="whitespace-nowrap py-1 pr-2 text-right font-medium">conf</th>
             <th className="whitespace-nowrap py-1 pr-2 text-right font-medium">hit</th>
-            <th className="py-1 text-right font-medium">calib gap</th>
+            <th className="py-1 text-right font-medium">gap</th>
           </tr>
         </thead>
         <tbody className="tabular">
@@ -45,8 +45,8 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
                 </td>
                 <td className="whitespace-nowrap py-1 pr-2 text-right">
                   {row.hit_rate == null
-                    ? `— (n=${row.scored})`
-                    : `${Math.round(row.hit_rate * 100)}% (n=${row.scored})`}
+                    ? `— (${row.scored})`
+                    : `${Math.round(row.hit_rate * 100)}% (${row.scored})`}
                 </td>
                 <td
                   className={cn(

@@ -206,7 +206,15 @@ export function DecisionCard({
             <DirectionBadge value={rec.action} className="text-[28px] font-extrabold" />
           </span>
         ) : (
-          <DirectionBadge value={rec.action} className="text-2xl font-bold" />
+          // mockup: action sits on a filled tone pill on Decisions/Trade too
+          <span
+            className={cn(
+              "inline-flex items-center rounded-[12px] px-3 py-0.5 ring-1 ring-inset",
+              CHIP_TONE[rec.action ?? "HOLD"] ?? CHIP_TONE.HOLD,
+            )}
+          >
+            <DirectionBadge value={rec.action} className="text-2xl font-bold" />
+          </span>
         )}
         {hero ? (
           <>
@@ -335,10 +343,11 @@ export function DecisionCard({
 
       {rec.invalidation && (
         <div
-          className="rounded-md border border-neutral/40 bg-neutral-muted px-3 py-2 text-sm"
+          className="rounded-xl bg-neutral-muted px-3 py-2 text-sm"
           data-testid="invalidation"
         >
-          <span className="font-semibold">Invalidation:</span> {rec.invalidation}
+          <span className="font-semibold text-neutral">Invalidation</span> —{" "}
+          {rec.invalidation}
         </div>
       )}
 

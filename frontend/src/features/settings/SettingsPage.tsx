@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { binanceHost, setBinanceHost } from "@/lib/binance";
+import { cn } from "@/lib/utils";
 import { patchPrefs, usePrefs, useStatus } from "@/lib/api/queries";
 import { PRESET_DESCRIPTIONS, useLayoutStore, type PresetId } from "@/stores/layout";
 import { useUiStore } from "@/stores/ui";
@@ -34,13 +35,13 @@ export default function SettingsPage() {
           <CardTitle>Appearance</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center gap-3">
-          {(["dark", "light"] as const).map((t) => (
+          {(["light", "dark"] as const).map((t) => (
             <Button
               key={t}
-              variant={theme === t ? "default" : "outline"}
+              variant={theme === t ? "default" : "ghost"}
               size="sm"
               onClick={() => setTheme(t)}
-              className="capitalize"
+              className={cn("capitalize", theme !== t && "bg-surface-2 text-fg-muted")}
             >
               {t}
             </Button>
@@ -57,10 +58,10 @@ export default function SettingsPage() {
             {(["operator", "analyst", "risk"] as PresetId[]).map((p) => (
               <Button
                 key={p}
-                variant={preset === p ? "default" : "outline"}
+                variant={preset === p ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setPreset(p)}
-                className="capitalize"
+                className={cn("capitalize", preset !== p && "bg-surface-2 text-fg-muted")}
               >
                 {p}
               </Button>

@@ -82,7 +82,7 @@ function InternalsPanel({ symbol }: { symbol: string }) {
         return (
           <div
             key={name}
-            className="flex items-center justify-between rounded-[12px] bg-surface-2 px-3 py-2"
+            className="flex items-center justify-between rounded-[14px] bg-surface-2 px-3 py-2"
             title={`${metric.source ?? ""} ${metric.unit ?? ""}`.trim()}
           >
             <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
@@ -222,7 +222,7 @@ export default function WorkspacePage() {
   const isLive = (spec?.live || symbol === "BTC-USD") && !replay.active;
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
+    <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
       <div className="min-w-0 space-y-4">
         <Card ref={chartCardRef} className="bg-surface">
           <CardHeader>
@@ -267,15 +267,16 @@ export default function WorkspacePage() {
               />
               <Button
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 aria-pressed={compare}
                 onClick={() => setCompare(!compare)}
+                className={compare ? "border-accent bg-brand-muted text-accent" : ""}
               >
                 <Columns2 size={13} /> Compare
               </Button>
               <Button
                 size="icon"
-                variant="ghost"
+                variant="outline"
                 aria-label="Full screen (f)"
                 onClick={toggleFullscreen}
               >

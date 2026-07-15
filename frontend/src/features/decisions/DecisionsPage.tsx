@@ -59,7 +59,7 @@ function RunRail({
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "rounded-full border px-2.5 py-0.5 font-semibold capitalize",
+              "rounded-full border px-2.5 py-0.5 font-semibold lowercase",
               filter === f
                 ? "border-accent bg-accent text-on-solid"
                 : "border-border text-fg-subtle hover:text-fg",
@@ -165,7 +165,6 @@ export default function DecisionsPage() {
           <CardTitle>Runs</CardTitle>
           <Button
             size="sm"
-            variant="outline"
             onClick={() => setRunDialogOpen(true)}
             data-testid="run-pipeline-open"
           >
@@ -326,8 +325,8 @@ export default function DecisionsPage() {
               <SkeletonCard lines={4} />
             )}
             <p className="mt-2 text-xs text-fg-subtle">
-              Does stated confidence match realized accuracy? Hollow points =
-              insufficient sample. This chart is the product's honesty metric.
+              Hollow points = insufficient sample. This chart is the product's
+              honesty metric.
             </p>
           </CardContent>
         </Card>

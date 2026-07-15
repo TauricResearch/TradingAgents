@@ -28,7 +28,7 @@ export function DebateTimeline({ timeline }: { timeline: Timeline }) {
         <li
           key={i}
           className={cn(
-            "border-l-2 pl-3",
+            "border-l-[3px] pl-3",
             laneClass(entry.speaker),
           )}
         >
