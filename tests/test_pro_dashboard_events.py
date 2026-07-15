@@ -136,13 +136,13 @@ class TestAuthMatrix:
         minted = secured_client.post("/api/session",
                                      headers={"X-API-Key": "secret-token"})
         assert minted.status_code == 200
-        cookie = minted.cookies.get("pro_session")
+        cookie = minted.cookies.get("__session")
         assert cookie
         # cookie alone now authenticates (TestClient persists cookies)
         assert secured_client.get("/api/overview").status_code == 200
 
     def test_bogus_cookie_rejected(self, secured_client):
-        secured_client.cookies.set("pro_session", "forged")
+        secured_client.cookies.set("__session", "forged")
         assert secured_client.get("/api/overview").status_code == 401
 
     def test_open_mode_without_token(self):
@@ -187,7 +187,7 @@ class TestGoogleSession:
                              headers={"Authorization": "Bearer good"})
         assert minted.status_code == 200
         assert minted.json()["identity"] == "trader@example.com"
-        assert minted.cookies.get("pro_session")
+        assert minted.cookies.get("__session")
         assert client.get("/api/overview").status_code == 200  # cookie works
 
     def test_non_allowlisted_email_403(self, monkeypatch):

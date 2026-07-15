@@ -39,7 +39,12 @@ from tradingagents.pro.dashboard.recorder import PipelineRecorder, RunRecord
 from tradingagents.pro.dashboard.ticker import TickCache
 from tradingagents.pro.memory import ProMemory
 
-SESSION_COOKIE = "pro_session"
+# "__session" is the ONLY cookie Firebase Hosting's CDN forwards to a
+# Cloud Run backend — any other name is silently stripped from requests,
+# which turns every cookie-authenticated call into a 401 behind Hosting
+# (observed live: successful Google sign-in bounced straight back to the
+# login screen). Plain deployments don't care what it's called.
+SESSION_COOKIE = "__session"
 
 
 def _verify_firebase_token(id_token: str, audience: str) -> dict:
