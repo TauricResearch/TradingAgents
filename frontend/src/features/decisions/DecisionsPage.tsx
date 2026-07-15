@@ -32,6 +32,7 @@ import {
 } from "@/lib/api/queries";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useLiveStages } from "@/stores/pipelineLive";
 import { usePipelineProgress, useUiStore } from "@/stores/ui";
 
 type Filter = "all" | "traded" | "rejected";
@@ -118,6 +119,7 @@ export default function DecisionsPage() {
   const navigate = useNavigate();
   const setRunDialogOpen = useUiStore((s) => s.setRunDialogOpen);
   const pipelineProgress = usePipelineProgress();
+  const liveStages = useLiveStages();
   const runs = useRuns();
   const overview = useOverview();
   const recommendation = useRecommendation();
@@ -180,6 +182,7 @@ export default function DecisionsPage() {
             evidence={evidence.data}
             rec={shownRec}
             live={pipelineProgress}
+            liveStages={liveStages}
             runLabel={runLabel}
           />
         </CardContent>

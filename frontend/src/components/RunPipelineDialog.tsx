@@ -1,8 +1,11 @@
 /** On-demand pipeline run: pick pair + timeframe, POST, watch stage
  * progress over SSE. Honest about cost — every run makes real model
- * calls. 409 = a run is already in flight (one at a time by design). */
+ * calls. 409 = a run is already in flight (one at a time by design).
+ * On accept, jump to the Decision Center so the 3D pipeline board shows
+ * the run advancing live. */
 import { Play } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -24,6 +27,7 @@ export function RunPipelineDialog() {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const progress = usePipelineProgress();
+  const navigate = useNavigate();
 
   const start = async () => {
     setError(null);
@@ -34,6 +38,9 @@ export function RunPipelineDialog() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol, timeframe }),
       });
+      // run accepted: watch it live on the Decision Center pipeline board
+      setOpen(false);
+      navigate("/decisions");
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError("A pipeline run is already in progress — one at a time.");

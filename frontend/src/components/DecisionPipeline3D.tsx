@@ -205,15 +205,20 @@ function computeViews(
   rec: Recommendation | null | undefined,
   activeNode: string | null,
   visibleNodes: Set<string> | null, // replay: only nodes revealed so far
+  liveNodes: string[] | null = null, // live: nodes THIS run has visited
 ): Map<string, StationView> {
   const seq = timeline?.node_sequence ?? [];
   const nodeTimes = timeline?.node_times ?? [];
   const rejection = timeline?.rejection ?? null;
   const executionStatus = timeline?.execution_status ?? null;
   const entries = timeline?.entries ?? [];
-  const done = new Set(
-    seq.filter((n) => visibleNodes == null || visibleNodes.has(n)),
-  );
+  // live mode: progression comes ONLY from the in-flight run's visited
+  // stages — never from the previously selected run's node history (which
+  // would paint the whole board "done" with someone else's outcomes)
+  const done =
+    liveNodes != null
+      ? new Set(liveNodes)
+      : new Set(seq.filter((n) => visibleNodes == null || visibleNodes.has(n)));
   const activeBucket = activeNode ? bucketOf(activeNode) : null;
 
   const views = new Map<string, StationView>();
@@ -257,7 +262,9 @@ function computeViews(
         tint = longs > shorts ? "bull" : shorts > longs ? "bear" : "brand";
         decision =
           items.length === 0
-            ? "no evidence"
+            ? liveNodes != null
+              ? "done" // in-flight run: outcomes land when it completes
+              : "no evidence"
             : `lean ${longs > shorts ? "bullish" : shorts > longs ? "bearish" : "mixed"}`;
         output = items[0] ? firstSentence(items[0].claim) : null;
       } else if (st.id === "review") {
@@ -605,12 +612,15 @@ export function DecisionPipeline3D({
   evidence,
   rec,
   live,
+  liveStages = [],
   runLabel,
 }: {
   timeline: Timeline | undefined;
   evidence: EvidencePanels | undefined;
   rec: Recommendation | null | undefined;
   live: PipelineProgress | null;
+  /** stages the in-flight run has visited so far (SSE, arrival order) */
+  liveStages?: string[];
   /** e.g. "last run · BTC-USD 1d · #61" */
   runLabel: string;
 }) {
@@ -648,15 +658,27 @@ export function DecisionPipeline3D({
   }, [live]);
 
   const replaying = replayIdx != null;
+  const liveMode = live != null;
   const activeNode = live?.stage ?? (replaying ? seq[replayIdx] ?? null : null);
   const visibleNodes = replaying
     ? new Set(seq.slice(0, replayIdx))
     : null;
 
+  // live mode isolates the board from the SELECTED run's data entirely:
+  // progression = this run's visited stages; tints/outputs arrive with the
+  // terminal `run` event, when the completed run becomes selectable data
   const views = useMemo(
-    () => computeViews(timeline, evidence, rec, activeNode, visibleNodes),
+    () =>
+      computeViews(
+        liveMode ? undefined : timeline,
+        liveMode ? undefined : evidence,
+        liveMode ? undefined : rec,
+        activeNode,
+        visibleNodes,
+        liveMode ? liveStages : null,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [timeline, evidence, rec, activeNode, replayIdx],
+    [timeline, evidence, rec, activeNode, replayIdx, liveMode, liveStages],
   );
 
   const liveBucketIdx = activeNode
@@ -672,7 +694,8 @@ export function DecisionPipeline3D({
     STATION_BY_ID.get(selected) ?? (STATIONS.find((s) => s.id === "judge") as Station);
   const selView = views.get(sel.id);
 
-  const rejectedStage = timeline?.rejection?.stage ?? null;
+  // live mode: the selected run's rejection must not animate its rail
+  const rejectedStage = liveMode ? null : (timeline?.rejection?.stage ?? null);
   const finalMode = !live && !replaying;
   const verdict =
     finalMode && rec?.action && !rejectedStage

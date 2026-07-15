@@ -17,6 +17,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { apiFetch, fetchAuthConfig } from "./api/client";
 import { qk, setPollingInterval } from "./api/queries";
 import { recordSuccess } from "./staleness";
+import { usePipelineLiveStore } from "@/stores/pipelineLive";
 import { useTickerStore } from "@/stores/ticker";
 import { useUiStore } from "@/stores/ui";
 
@@ -120,6 +121,7 @@ export function startEventStream(client: QueryClient): () => void {
     source.addEventListener("run", (event) => {
       bump(event);
       useUiStore.getState().setPipelineProgress(null); // run finished
+      usePipelineLiveStore.getState().clear();
       void client.invalidateQueries({ queryKey: qk.runs });
       void client.invalidateQueries({ queryKey: ["recommendation", "latest"] });
       void client.invalidateQueries({ queryKey: qk.regime });
@@ -139,6 +141,7 @@ export function startEventStream(client: QueryClient): () => void {
           symbol: stage.symbol ?? "",
           stage: stage.stage,
         });
+        usePipelineLiveStore.getState().push(stage.stage);
       } catch {
         /* malformed stage — ignore */
       }
