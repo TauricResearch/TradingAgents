@@ -187,6 +187,12 @@ with 0px slack, so any font-metric difference clipped it. Fixed:
   Decision cell h10→h13; columns re-flowed; `LAYOUT_VERSION` → 3 one-time reset.
 - Verified by DOM probe at 1440/1280/1024: every widget `overflow ≤ 4px`, zero
   clipped CTAs ("Open portfolio →", "Full reasoning →", every "view run").
+- Follow-ups on the LIVE container's real data (8b–8d): the hero drops the
+  counterargument/analog text blocks (the mockup's Home hero shows only the
+  "N evidence · N counter" meta line — full text lives on Decisions); a rejected
+  run in the HERO slot clamps like the mockup's short rejected box (first reason,
+  3 lines, "+N more — full reasoning →"); alerts cell h8; Decision cell h14.
+  Final live probe on :8600: **all 7 cards 0px overflow, zero clipped CTAs.**
 
 ## KEEP (remaining, by design)
 
