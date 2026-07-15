@@ -376,7 +376,7 @@ export function DecisionCard({
         </div>
       )}
 
-      {!compact && counters.length > 0 && (
+      {!compact && !hero && counters.length > 0 && (
         <div>
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
             Strongest counterarguments
@@ -396,7 +396,7 @@ export function DecisionCard({
         </div>
       )}
 
-      {!compact && analogs.length > 0 && (
+      {!compact && !hero && analogs.length > 0 && (
         <div>
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
             Historical analogs

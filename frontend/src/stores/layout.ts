@@ -13,7 +13,7 @@ export type PresetId = "operator" | "analyst" | "risk";
  * override a user's saved layout. On hydrate, a mismatched (or absent)
  * version drops saved `overrides` so the corrected defaults show — a
  * one-time reset, both client (localStorage) and server (prefs mirror). */
-export const LAYOUT_VERSION = 3;
+export const LAYOUT_VERSION = 4;
 
 /** Presets are real (review finding: a preset that changes nothing is
  * fake). Each seeds per-module hidden-widget sets; the operator preset
