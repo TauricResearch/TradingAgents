@@ -108,7 +108,33 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
 
     state = state or DashboardState()
     token = api_token if api_token is not None else os.environ.get("PRO_DASHBOARD_TOKEN")
-    sessions: set[str] = set()  # in-process; restart = re-auth via header
+
+    # Sessions are STATELESS: the cookie value is "<expiry-ts>.<hmac>" signed
+    # with a key derived from the API token, so a session survives process
+    # restarts, redeploys, and Cloud Run scale-to-zero (an in-process set
+    # logged the operator out every time the instance wound down). Rotating
+    # PRO_DASHBOARD_TOKEN invalidates every outstanding session.
+    SESSION_TTL_SECONDS = 7 * 24 * 3600
+
+    def _sign_session(expiry: str) -> str:
+        assert token is not None
+        return hmac.new(token.encode(), f"pro-session:{expiry}".encode(),
+                        "sha256").hexdigest()
+
+    def _mint_session() -> str:
+        import time as _time
+
+        expiry = str(int(_time.time()) + SESSION_TTL_SECONDS)
+        return f"{expiry}.{_sign_session(expiry)}"
+
+    def _session_valid(cookie: str) -> bool:
+        import time as _time
+
+        expiry, _, signature = cookie.partition(".")
+        if not (expiry.isdigit() and signature):
+            return False
+        return (hmac.compare_digest(signature, _sign_session(expiry))
+                and int(expiry) > _time.time())
 
     # Google sign-in (optional). Fail closed: BOTH the project id (token
     # audience) and a non-empty email allowlist are required — a project id
@@ -234,7 +260,7 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         if hmac.compare_digest(supplied, token):
             return True
         cookie = request.cookies.get(SESSION_COOKIE, "")
-        if bool(cookie) and cookie in sessions:
+        if bool(cookie) and _session_valid(cookie):
             return True
         return (request.url.path == "/api/stream"
                 and _consume_stream_ticket(request))
@@ -355,10 +381,12 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
                     raise HTTPException(status_code=401,
                                         detail="missing or invalid X-API-Key")
                 identity = _google_identity(request)  # raises 401/403
-            session_id = secrets.token_urlsafe(32)
-            sessions.add(session_id)
-            response.set_cookie(SESSION_COOKIE, session_id, httponly=True,
-                                samesite="strict", path="/")
+            # max_age: without it the browser drops the cookie on quit —
+            # combined with stateless signing, sign-in survives browser
+            # restarts, server redeploys, and scale-to-zero for the TTL
+            response.set_cookie(SESSION_COOKIE, _mint_session(),
+                                httponly=True, samesite="strict", path="/",
+                                max_age=SESSION_TTL_SECONDS)
         return {"authenticated": True, "auth_required": bool(token),
                 "identity": identity}
 

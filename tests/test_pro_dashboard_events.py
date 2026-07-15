@@ -144,6 +144,37 @@ class TestAuthMatrix:
     def test_bogus_cookie_rejected(self, secured_client):
         secured_client.cookies.set("__session", "forged")
         assert secured_client.get("/api/overview").status_code == 401
+        # structurally valid shape but wrong signature
+        secured_client.cookies.set("__session", "99999999999.deadbeef")
+        assert secured_client.get("/api/overview").status_code == 401
+
+    def test_session_survives_process_restart(self, secured_client):
+        """Regression: sessions were an in-process set, so Cloud Run
+        scale-to-zero / redeploys logged the operator out constantly. The
+        signed cookie must authenticate against a FRESH app instance."""
+        minted = secured_client.post("/api/session",
+                                     headers={"X-API-Key": "secret-token"})
+        cookie = minted.cookies.get("__session")
+        assert cookie
+        reborn = TestClient(create_app(DashboardState(),
+                                       api_token="secret-token"))
+        reborn.cookies.set("__session", cookie)
+        assert reborn.get("/api/overview").status_code == 200
+        # a different token secret invalidates every outstanding session
+        rotated = TestClient(create_app(DashboardState(), api_token="other"))
+        rotated.cookies.set("__session", cookie)
+        assert rotated.get("/api/overview").status_code == 401
+
+    def test_expired_session_rejected(self, secured_client, monkeypatch):
+        minted = secured_client.post("/api/session",
+                                     headers={"X-API-Key": "secret-token"})
+        cookie = minted.cookies.get("__session")
+        future = __import__("time").time() + 8 * 24 * 3600  # beyond 7d TTL
+        monkeypatch.setattr("time.time", lambda: future)
+        fresh = TestClient(create_app(DashboardState(),
+                                      api_token="secret-token"))
+        fresh.cookies.set("__session", cookie)
+        assert fresh.get("/api/overview").status_code == 401
 
     def test_open_mode_without_token(self):
         client = TestClient(create_app(DashboardState()))
