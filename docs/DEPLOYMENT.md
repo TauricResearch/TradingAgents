@@ -50,9 +50,12 @@ the token form instead):
 - `PRO_ALLOWED_EMAILS` — comma-separated Google account allowlist; any
   other Google account is rejected with 403 *after* authenticating
 - `PRO_FIREBASE_WEB_CONFIG` — the public web-app config JSON
-  (`firebase apps:sdkconfig WEB <appId>`); set its `authDomain` to your
-  Hosting domain so the sign-in popup stays first-party (Hosting serves the
-  reserved `/__/auth/*` helpers before the Cloud Run rewrite)
+  (`firebase apps:sdkconfig WEB <appId>`); keep `authDomain` at the DEFAULT
+  `<project>.firebaseapp.com` — the auto-provisioned OAuth client only
+  whitelists that domain's `/__/auth/handler` redirect, so pointing
+  `authDomain` at the `web.app` Hosting domain fails the Google popup with
+  `Error 400: redirect_uri_mismatch` (verified live). The popup returns the
+  result via postMessage, so the cross-domain handler is fine.
 
 One-time: register a web app (`firebase apps:create web pro-dashboard`) and
 enable the **Google** provider in the Firebase console (Authentication →
