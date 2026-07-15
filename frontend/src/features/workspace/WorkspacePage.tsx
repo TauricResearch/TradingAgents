@@ -4,7 +4,7 @@
  * Honestly cut: no fake DOM ladder, no manual order ticket. */
 import { Columns2, Maximize2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { DecisionCard } from "@/components/DecisionCard";
 import { EmptyState } from "@/components/EmptyState";
@@ -53,6 +53,13 @@ const STYLES: { id: SeriesStyle; label: string }[] = [
   { id: "line", label: "Line" },
   { id: "area", label: "Area" },
 ];
+
+// the two tradable pairs (same set as the run dialog); the registry's other
+// symbols (DXY, US10Y, …) are correlation inputs, not chartable workspaces
+const TRADE_SYMBOLS = [
+  { value: "BTC-USD", label: "BTC-USD · Bitcoin" },
+  { value: "XAUUSD", label: "XAUUSD · Gold" },
+] as const;
 
 function InternalsPanel({ symbol }: { symbol: string }) {
   const intel = useIntel();
@@ -106,6 +113,7 @@ function InternalsPanel({ symbol }: { symbol: string }) {
 export default function WorkspacePage() {
   const params = useParams<{ symbol: string }>();
   const symbol = params.symbol ?? "BTC-USD";
+  const navigate = useNavigate();
   const {
     timeframe,
     setTimeframe,
@@ -227,7 +235,22 @@ export default function WorkspacePage() {
         <Card ref={chartCardRef} className="bg-surface">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 whitespace-nowrap !text-lg !font-extrabold !normal-case !tracking-normal !text-fg">
-              <span className="whitespace-nowrap">{symbol}</span>
+              <label htmlFor="trade-symbol" className="sr-only">
+                Trading pair
+              </label>
+              <select
+                id="trade-symbol"
+                data-testid="symbol-select"
+                value={symbol}
+                onChange={(event) => navigate(`/trade/${event.target.value}`)}
+                className="cursor-pointer rounded-[10px] border border-border bg-transparent px-1.5 py-0.5 text-lg font-extrabold text-fg hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {TRADE_SYMBOLS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
               {replay.active ? null : spec && !spec.live ? (
                 <Badge variant="stale">EOD data</Badge>
               ) : (

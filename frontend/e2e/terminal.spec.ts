@@ -89,6 +89,20 @@ test.describe("terminal", () => {
     await expect(page.getByText("EOD data")).toBeVisible();
   });
 
+  test("chart symbol dropdown switches between BTC and gold", async ({
+    page,
+  }) => {
+    await page.goto("/trade");
+    await expect(page.getByTestId("symbol-select")).toHaveValue("BTC-USD");
+    await page.getByTestId("symbol-select").selectOption("XAUUSD");
+    await expect(page).toHaveURL(/\/trade\/XAUUSD/);
+    await expect(page.getByTestId("price-chart").locator("canvas").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.getByTestId("symbol-select").selectOption("BTC-USD");
+    await expect(page).toHaveURL(/\/trade\/BTC-USD/);
+  });
+
   // regression: unmounting a page disposed the lightweight-charts instance
   // before dependent effect cleanups ran; unguarded removeSeries/unsubscribe
   // calls threw ("Object is disposed" / "Value is undefined") and the
