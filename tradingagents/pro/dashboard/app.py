@@ -376,7 +376,15 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         identity = None
         if token:
             supplied = request.headers.get("x-api-key", "")
-            if not hmac.compare_digest(supplied, token):
+            authed = hmac.compare_digest(supplied, token)
+            if not authed:
+                # an existing valid session cookie re-establishes on boot —
+                # a Google user's page reload carries ONLY the cookie (no
+                # header, no fresh ID token) and must not bounce to the
+                # login screen; re-minting below gives a sliding TTL
+                cookie = request.cookies.get(SESSION_COOKIE, "")
+                authed = bool(cookie) and _session_valid(cookie)
+            if not authed:
                 if not google_enabled:
                     raise HTTPException(status_code=401,
                                         detail="missing or invalid X-API-Key")

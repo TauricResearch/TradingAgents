@@ -165,6 +165,28 @@ class TestAuthMatrix:
         rotated.cookies.set("__session", cookie)
         assert rotated.get("/api/overview").status_code == 401
 
+    def test_cookie_reestablishes_session_on_boot(self, secured_client):
+        """Regression: a Google user's page reload calls POST /api/session
+        with ONLY the session cookie (no header, no fresh ID token) — it
+        must re-establish, not bounce to the login screen."""
+        minted = secured_client.post("/api/session",
+                                     headers={"X-API-Key": "secret-token"})
+        cookie = minted.cookies.get("__session")
+        reloaded = TestClient(create_app(DashboardState(),
+                                         api_token="secret-token"))
+        reloaded.cookies.set("__session", cookie)
+        again = reloaded.post("/api/session")  # no credentials but the cookie
+        assert again.status_code == 200
+        # sliding TTL: a fresh cookie is set (value only differs when the
+        # clock ticks — expiry+hmac are deterministic per second)
+        assert "set-cookie" in again.headers
+        assert reloaded.get("/api/overview").status_code == 200
+        # a bogus cookie still cannot mint anything
+        forged = TestClient(create_app(DashboardState(),
+                                       api_token="secret-token"))
+        forged.cookies.set("__session", "99999999999.deadbeef")
+        assert forged.post("/api/session").status_code == 401
+
     def test_expired_session_rejected(self, secured_client, monkeypatch):
         minted = secured_client.post("/api/session",
                                      headers={"X-API-Key": "secret-token"})
