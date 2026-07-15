@@ -109,32 +109,65 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     state = state or DashboardState()
     token = api_token if api_token is not None else os.environ.get("PRO_DASHBOARD_TOKEN")
 
-    # Sessions are STATELESS: the cookie value is "<expiry-ts>.<hmac>" signed
-    # with a key derived from the API token, so a session survives process
-    # restarts, redeploys, and Cloud Run scale-to-zero (an in-process set
-    # logged the operator out every time the instance wound down). Rotating
-    # PRO_DASHBOARD_TOKEN invalidates every outstanding session.
+    # Sessions are STATELESS, cookie-based JWTs (HS256, stdlib — the repo
+    # avoids new dependencies): header.payload.signature signed with a key
+    # derived from the API token, so a session survives process restarts,
+    # redeploys, and Cloud Run scale-to-zero, and the payload carries the
+    # signed identity (`sub`) across reloads. Rotating PRO_DASHBOARD_TOKEN
+    # invalidates every outstanding session.
     SESSION_TTL_SECONDS = 7 * 24 * 3600
+    _jwt_key = (hmac.new(token.encode(), b"pro-session-jwt", "sha256").digest()
+                if token else b"")
 
-    def _sign_session(expiry: str) -> str:
-        assert token is not None
-        return hmac.new(token.encode(), f"pro-session:{expiry}".encode(),
-                        "sha256").hexdigest()
+    def _b64url(data: bytes) -> str:
+        import base64 as _base64
 
-    def _mint_session() -> str:
+        return _base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+    def _b64url_decode(text: str) -> bytes:
+        import base64 as _base64
+
+        return _base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+    def _mint_session(identity: "str | None" = None) -> str:
+        import json as _json
         import time as _time
 
-        expiry = str(int(_time.time()) + SESSION_TTL_SECONDS)
-        return f"{expiry}.{_sign_session(expiry)}"
+        now = int(_time.time())
+        header = _b64url(_json.dumps(
+            {"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
+        payload = _b64url(_json.dumps(
+            {"iss": "tradingagents-pro", "sub": identity or "api-token",
+             "iat": now, "exp": now + SESSION_TTL_SECONDS},
+            separators=(",", ":")).encode())
+        signing_input = f"{header}.{payload}"
+        signature = _b64url(hmac.new(_jwt_key, signing_input.encode(),
+                                     "sha256").digest())
+        return f"{signing_input}.{signature}"
+
+    def _session_claims(cookie: str) -> "dict | None":
+        """Verify the JWT cookie; returns its claims or None."""
+        import json as _json
+        import time as _time
+
+        parts = cookie.split(".")
+        if len(parts) != 3:
+            return None
+        signing_input = f"{parts[0]}.{parts[1]}"
+        expected = _b64url(hmac.new(_jwt_key, signing_input.encode(),
+                                    "sha256").digest())
+        if not hmac.compare_digest(parts[2], expected):
+            return None
+        try:
+            claims = _json.loads(_b64url_decode(parts[1]))
+        except (ValueError, UnicodeDecodeError):
+            return None
+        if not isinstance(claims.get("exp"), int) or claims["exp"] <= _time.time():
+            return None
+        return claims
 
     def _session_valid(cookie: str) -> bool:
-        import time as _time
-
-        expiry, _, signature = cookie.partition(".")
-        if not (expiry.isdigit() and signature):
-            return False
-        return (hmac.compare_digest(signature, _sign_session(expiry))
-                and int(expiry) > _time.time())
+        return _session_claims(cookie) is not None
 
     # Google sign-in (optional). Fail closed: BOTH the project id (token
     # audience) and a non-empty email allowlist are required — a project id
@@ -378,21 +411,26 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             supplied = request.headers.get("x-api-key", "")
             authed = hmac.compare_digest(supplied, token)
             if not authed:
-                # an existing valid session cookie re-establishes on boot —
-                # a Google user's page reload carries ONLY the cookie (no
+                # an existing valid session JWT re-establishes on boot — a
+                # Google user's page reload carries ONLY the cookie (no
                 # header, no fresh ID token) and must not bounce to the
-                # login screen; re-minting below gives a sliding TTL
-                cookie = request.cookies.get(SESSION_COOKIE, "")
-                authed = bool(cookie) and _session_valid(cookie)
+                # login screen. The signed `sub` claim restores identity;
+                # re-minting below gives a sliding TTL.
+                claims = _session_claims(
+                    request.cookies.get(SESSION_COOKIE, ""))
+                if claims is not None:
+                    authed = True
+                    if claims.get("sub") not in (None, "api-token"):
+                        identity = str(claims["sub"])
             if not authed:
                 if not google_enabled:
                     raise HTTPException(status_code=401,
                                         detail="missing or invalid X-API-Key")
                 identity = _google_identity(request)  # raises 401/403
             # max_age: without it the browser drops the cookie on quit —
-            # combined with stateless signing, sign-in survives browser
+            # combined with the stateless JWT, sign-in survives browser
             # restarts, server redeploys, and scale-to-zero for the TTL
-            response.set_cookie(SESSION_COOKIE, _mint_session(),
+            response.set_cookie(SESSION_COOKIE, _mint_session(identity),
                                 httponly=True, samesite="strict", path="/",
                                 max_age=SESSION_TTL_SECONDS)
         return {"authenticated": True, "auth_required": bool(token),

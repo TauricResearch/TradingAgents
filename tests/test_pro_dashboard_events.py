@@ -283,6 +283,29 @@ class TestGoogleSession:
         ).status_code == 401
         assert client.get("/api/auth/config").json()["google"] is False
 
+    def test_jwt_cookie_carries_identity_across_reload(self, monkeypatch):
+        """The session cookie is a real HS256 JWT whose signed `sub` claim
+        restores the Google identity on reload (cookie-only re-establish)."""
+        import base64
+        import json
+
+        client = self._client(monkeypatch, claims={
+            "email": "trader@example.com", "email_verified": True})
+        minted = client.post("/api/session",
+                             headers={"Authorization": "Bearer good"})
+        cookie = minted.cookies.get("__session")
+        header_b64, payload_b64, _sig = cookie.split(".")
+        decode = lambda part: json.loads(  # noqa: E731
+            base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))
+        assert decode(header_b64) == {"alg": "HS256", "typ": "JWT"}
+        payload = decode(payload_b64)
+        assert payload["sub"] == "trader@example.com"
+        assert payload["exp"] > payload["iat"]
+        # reload: cookie-only POST restores the identity from the claim
+        again = client.post("/api/session")
+        assert again.status_code == 200
+        assert again.json()["identity"] == "trader@example.com"
+
     def test_api_key_path_untouched(self, monkeypatch):
         client = self._client(monkeypatch, claims={
             "email": "trader@example.com", "email_verified": True})
