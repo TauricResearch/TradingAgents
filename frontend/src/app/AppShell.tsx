@@ -123,13 +123,15 @@ export function AppShell() {
         {/* ambient blur blobs behind everything (motion-safe via CSS) */}
         <div className="bg-blob bg-blob--brand" aria-hidden="true" />
         <div className="bg-blob bg-blob--violet" aria-hidden="true" />
-        <div className="flex h-screen flex-col gap-3 p-[14px] max-md:p-2">
-          <HaltBanner />
-          <ArmingBanner />
-          <StatusStrip />
-          <div className="flex min-h-0 grow gap-3">
-            <Sidebar />
-            <main className="min-w-0 grow overflow-y-auto max-md:pb-20">
+        {/* rail owns the full viewport column; banners + top bar + content
+            live entirely in the right column (mockup full-height sidebar) */}
+        <div className="flex h-screen flex-row gap-3 p-[14px] max-md:p-2">
+          <Sidebar />
+          <div className="flex min-w-0 grow flex-col gap-3">
+            <HaltBanner />
+            <ArmingBanner />
+            <StatusStrip />
+            <main className="min-h-0 min-w-0 grow overflow-y-auto max-md:pb-20">
               <ErrorBoundary label="This page">
                 <Outlet />
               </ErrorBoundary>
