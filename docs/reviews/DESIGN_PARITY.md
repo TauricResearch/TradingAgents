@@ -173,6 +173,21 @@ User annotated the deployed Home. Grounded via live DOM + prefs, fixed:
   `overrides` on hydrate (client + server prefs mirror) so the corrected defaults
   show — the root cause of the user's Prices-at-the-bottom + gap view.
 
+## Round 8 — Home card CTAs clipped (user report: "Open portfolio missing")
+
+Buttons existed in the DOM but were pushed below each card's internal fold by
+oversized content — a live-DOM probe measured the Decision cell overflowing 548px
+(the compact second slot rendered a rejected run's FULL critic reasons) and Alerts
+overflowing 518px (a full rejection paragraph in one alert); the Portfolio CTA fit
+with 0px slack, so any font-metric difference clipped it. Fixed:
+- Compact rejected DecisionCard: stage + first reason `line-clamp-2` + "+N more —
+  full reasoning →" link (full list stays on Decisions; honesty preserved).
+- Alert text `line-clamp-2` with full text in `title` (mockup one-liners).
+- Snapshot cell back to h7 (the flex-fill card absorbs slack — no dead space) and
+  Decision cell h10→h13; columns re-flowed; `LAYOUT_VERSION` → 3 one-time reset.
+- Verified by DOM probe at 1440/1280/1024: every widget `overflow ≤ 4px`, zero
+  clipped CTAs ("Open portfolio →", "Full reasoning →", every "view run").
+
 ## KEEP (remaining, by design)
 
 - **Gaps-v8 additions the mockup predates** — decision-board second slot, price

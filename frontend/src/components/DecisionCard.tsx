@@ -144,6 +144,7 @@ export function DecisionCard({
 
   if (rec.status === "rejected") {
     const reasons = (rec.rejection?.reasons as string[] | undefined) ?? [];
+    const meta = rec as { run_id?: string };
     return (
       <div data-testid="decision-rejected">
         <div className="flex items-center gap-3">
@@ -154,16 +155,40 @@ export function DecisionCard({
             at {String(rec.rejection?.stage ?? "unknown stage")}
           </span>
         </div>
-        {reasons.length > 0 && (
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-            {reasons.map((reason, i) => (
-              <li key={i}>{String(reason)}</li>
-            ))}
-          </ul>
+        {reasons.length > 0 &&
+          (compact ? (
+            // compact slots (decision board / trade rail) stay card-sized:
+            // first reason clamped; the full record is one click away
+            <p className="mt-2 line-clamp-2 text-sm text-fg-muted">
+              {String(reasons[0])}
+            </p>
+          ) : (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+              {reasons.map((reason, i) => (
+                <li key={i}>{String(reason)}</li>
+              ))}
+            </ul>
+          ))}
+        {compact && (reasons.length > 1 || meta.run_id || runId) && (
+          <p className="mt-1 text-xs text-fg-subtle">
+            {reasons.length > 1 && `+${reasons.length - 1} more reason${reasons.length > 2 ? "s" : ""} — `}
+            {(runId ?? meta.run_id) ? (
+              <Link
+                to={`/decisions/${runId ?? meta.run_id}`}
+                className="font-semibold text-accent hover:underline"
+              >
+                full reasoning →
+              </Link>
+            ) : (
+              "see the Decisions page"
+            )}
+          </p>
         )}
-        <p className="mt-2 text-xs text-fg-subtle">
-          A refused trade is a decision too — the gates exist to say no.
-        </p>
+        {!compact && (
+          <p className="mt-2 text-xs text-fg-subtle">
+            A refused trade is a decision too — the gates exist to say no.
+          </p>
+        )}
       </div>
     );
   }

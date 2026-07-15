@@ -47,7 +47,11 @@ export function AlertFeedList({
             {alert.severity}
           </span>
           <div className="min-w-0">
-            <span className="text-fg-muted">{alert.text}</span>
+            {/* mockup alerts are one-liners; long texts (a critic's full
+                rejection) clamp here — the run page has the whole record */}
+            <p className="line-clamp-2 text-fg-muted" title={alert.text}>
+              {alert.text}
+            </p>
             <div className="text-xs text-fg-subtle">
               {fmtDateTime(alert.time)} ·{" "}
               <Link to={`/decisions/${alert.run_id}`} className="text-accent underline underline-offset-2">
