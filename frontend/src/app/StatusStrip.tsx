@@ -4,11 +4,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, Moon, Search, Sun } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Kbd } from "@/components/ui/kbd";
 import { apiFetch } from "@/lib/api/client";
 import { qk } from "@/lib/api/queries";
 import { useNotifications, useOverview, useRegime, useStatus } from "@/lib/api/queries";
@@ -17,48 +15,6 @@ import { useConnectionState } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
 import { useUiStore } from "@/stores/ui";
-
-const ROUTE_TITLES: [prefix: string, title: string, subtitle: string][] = [
-  ["/trade", "Trade Workspace", "chart-first with decision overlays"],
-  ["/decisions", "Decision Center", "Every run's full reasoning — rejections included"],
-  ["/portfolio", "Portfolio", "Live paper P&L, backtest and the trade journal"],
-  ["/intel", "Market Intelligence", "Regime, metrics and feed coverage — honestly stated"],
-  ["/settings", "Settings", "Appearance, layouts, connections and the kill switch"],
-  ["/report", "Operations Report", "Print-ready summary — browser print produces the PDF"],
-  ["/", "Overview", "The 5-second briefing — stance, money, what changed"],
-];
-
-const DEFAULT_TITLE: (typeof ROUTE_TITLES)[number] = [
-  "/",
-  "Overview",
-  "The 5-second briefing — stance, money, what changed",
-];
-
-function PageTitle() {
-  const { pathname } = useLocation();
-  const symbol = useUiStore((s) => s.symbol);
-  const [prefix, title, rawSubtitle] =
-    ROUTE_TITLES.find(([p]) =>
-      p === "/" ? pathname === "/" : pathname.startsWith(p),
-    ) ?? DEFAULT_TITLE;
-  // Trade subtitle carries the active symbol (mockup: "BTC-USD · chart-first…")
-  const subtitle =
-    prefix === "/trade" ? `${symbol} · ${rawSubtitle}` : rawSubtitle;
-  return (
-    // the title is the mockup's left anchor. The block may shrink (min-w-0)
-    // to yield row space, but the title LINE is nowrap-without-truncate, so
-    // flexbox floors the block's min-content at the title width — the title
-    // never disappears. Only the subtitle truncates (…) when cramped.
-    <div className="min-w-0 shrink">
-      <div className="whitespace-nowrap text-base font-extrabold leading-tight">
-        {title}
-      </div>
-      <div className="truncate text-[11px] text-fg-subtle max-[1350px]:hidden">
-        {subtitle}
-      </div>
-    </div>
-  );
-}
 
 function ConnPill() {
   const { state, ageSeconds, lastSuccess } = useConnectionState();
@@ -233,18 +189,9 @@ export function StatusStrip() {
     <header className="z-40 rounded-[18px] border border-border bg-surface shadow-(--shadow-1) backdrop-blur-[16px]">
       {/* one row always: on mobile only safety-critical items stay
           (LIVE state, risk, degraded count) — context badges shrink away */}
+      {/* user-removed: page title + search field (⌘K still opens the
+          palette; the bell menu keeps a mouse path via its shortcut hint) */}
       <div className="flex items-center gap-x-3 gap-y-1 px-4 py-2.5 max-md:gap-x-2">
-        <PageTitle />
-        <button
-          type="button"
-          aria-label="Search and commands (Cmd+K)"
-          onClick={() => setPaletteOpen(true)}
-          className="flex w-[250px] shrink-0 items-center gap-2 rounded-xl bg-surface-2 px-3 py-1.5 text-left text-xs text-fg-subtle hover:text-fg max-[1550px]:w-[180px] max-[980px]:hidden"
-        >
-          <Search size={13} aria-hidden="true" />
-          <span className="grow">Search markets, runs…</span>
-          <Kbd>⌘K</Kbd>
-        </button>
         <span className="grow" />
         <ConnPill />
         <Badge
