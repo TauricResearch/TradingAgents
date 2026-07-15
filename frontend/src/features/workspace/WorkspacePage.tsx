@@ -17,7 +17,6 @@ import { SkeletonCard } from "@/components/ui/skeleton";
 import { ChartSyncProvider } from "@/components/charts/ChartSync";
 import {
   PriceChart,
-  type SeriesStyle,
   type TradeMarker,
 } from "@/components/charts/PriceChart";
 import {
@@ -45,14 +44,6 @@ import type { Recommendation } from "@/lib/api/types";
 import { fmtPnl, fmtPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
-
-const STYLES: { id: SeriesStyle; label: string }[] = [
-  { id: "candles", label: "Candles" },
-  { id: "heikin-ashi", label: "Heikin Ashi" },
-  { id: "bars", label: "OHLC" },
-  { id: "line", label: "Line" },
-  { id: "area", label: "Area" },
-];
 
 // the two tradable pairs (same set as the run dialog); the registry's other
 // symbols (DXY, US10Y, …) are correlation inputs, not chartable workspaces
@@ -125,7 +116,6 @@ export default function WorkspacePage() {
     compare,
     setCompare,
   } = useUiStore();
-  const [style, setStyle] = useState<SeriesStyle>("candles");
   const [toolMode, setToolMode] = useState<ToolMode>("select");
   const chartCardRef = useRef<HTMLDivElement | null>(null);
   const drawingCount = useDrawingsStore(
@@ -270,17 +260,6 @@ export default function WorkspacePage() {
                   </Segment>
                 ))}
               </Segmented>
-              <Segmented>
-                {STYLES.map((s) => (
-                  <Segment
-                    key={s.id}
-                    onClick={() => setStyle(s.id)}
-                    active={style === s.id}
-                  >
-                    {s.label}
-                  </Segment>
-                ))}
-              </Segmented>
               <IndicatorPicker
                 selected={selectedIndicators}
                 onToggle={toggleIndicator}
@@ -340,7 +319,7 @@ export default function WorkspacePage() {
                   <div className="min-w-0 grow">
                     <PriceChart
                       bars={visibleBars}
-                      style={style}
+                      style="candles"
                       recommendation={recForSymbol}
                       markers={markers}
                       liveSymbol={isLive ? symbol : undefined}
