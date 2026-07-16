@@ -15,6 +15,9 @@
 #   SERVICE=pro-dashboard
 #   ARTIFACT_REPO=pro-dashboard
 #   LLM_PROVIDER=deepseek
+#   PRO_LOOP_DISABLED=0   # the hourly paper loop RUNS by default (accrual
+#                         # clock, roadmap workstream T); set 1 to deploy
+#                         # dashboard-only with on-demand runs
 #
 # Usage:
 #   PROJECT_ID=my-project BUCKET=my-project-pro-data ./scripts/deploy_cloud_run.sh
@@ -72,7 +75,7 @@ gcloud run deploy "$SERVICE" \
   --max-instances 1 \
   --add-volume "name=data,type=cloud-storage,bucket=${BUCKET}" \
   --add-volume-mount "volume=data,mount-path=/data" \
-  --update-env-vars "TRADINGAGENTS_LLM_PROVIDER=${LLM_PROVIDER},PRO_LOOP_DISABLED=1" \
+  --update-env-vars "TRADINGAGENTS_LLM_PROVIDER=${LLM_PROVIDER},PRO_LOOP_DISABLED=${PRO_LOOP_DISABLED:-0}" \
   --update-secrets "PRO_DASHBOARD_TOKEN=pro-dashboard-token:latest,${LLM_KEY_ENV}=${LLM_PROVIDER}-api-key:latest" \
   --allow-unauthenticated
 
