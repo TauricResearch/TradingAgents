@@ -40,7 +40,10 @@ def fixed_risk_position_size(
         raise ValueError("entry and stop cannot be equal")
     quantity = (equity * risk_pct / 100.0) / per_unit_risk
     notional_cap = equity * max_position_pct / 100.0
-    if quantity * entry > notional_cap:
+    # >= — a size landing EXACTLY on the cap needs the drift headroom too
+    # (10% of a clean 100k == the cap; the strict > let it through at the
+    # boundary and the validator bounced it on the first equity dip)
+    if quantity * entry >= notional_cap:
         quantity = notional_cap * NOTIONAL_CAP_HEADROOM / entry
     notional = quantity * entry
     return PositionSize(

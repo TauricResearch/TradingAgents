@@ -225,6 +225,23 @@ export default function DecisionsPage() {
             <PipelineProgressChip />
           </CardHeader>
           <CardContent>
+            {/* venue truth: a verdict whose ORDER the venue refused must
+                never read as executed — the phantom-SELL gap */}
+            {timeline.data?.execution_status?.startsWith("rejected:order") && (
+              <div
+                data-testid="order-rejected-banner"
+                className="mb-3 flex items-start gap-2 rounded-[12px] border border-bear/40 bg-bear-muted px-3 py-2 text-[13px]"
+              >
+                <ShieldAlert size={15} className="mt-0.5 shrink-0 text-bear" aria-hidden />
+                <span>
+                  <span className="font-bold text-bear">Order rejected at venue</span>{" "}
+                  — no position was opened.{" "}
+                  <span className="text-fg-muted">
+                    {timeline.data.execution_status.replace(/^rejected:order\s*\(?/, "").replace(/\)$/, "")}
+                  </span>
+                </span>
+              </div>
+            )}
             {isLatest ? (
               recommendation.isPending ? (
                 <SkeletonCard lines={5} />

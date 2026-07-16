@@ -216,11 +216,16 @@ class PaperTradingService:
                 f"open: {non_quarantine_missing}", symbol=snapshot.symbol,
             )
 
+        # sizing must see the SAME equity the venue validator checks later
+        # (submit path reads adapter.account().equity): sizing on a static
+        # default while validating against live equity produced the phantom
+        # SELL — every at-cap order bounced after the first losing trade
         run = self.dashboard.recorder.record_run(
             self.llm, config, snapshot, memory=self.memory,
             on_node=lambda name: self._emit("stage", {"stage": name,
                                                       "symbol": snapshot.symbol}),
-            **self.pipeline_kwargs,
+            **{**self.pipeline_kwargs,
+               "equity": self.router.adapter.account().equity},
         )
         rec = run.recommendation
         summary: dict = {
@@ -287,6 +292,11 @@ class PaperTradingService:
                     f"order for {rec.symbol} rejected: {reason}",
                     symbol=rec.symbol,
                 )
+                # write the venue verdict back onto the run: every dashboard
+                # surface reads run.state["execution_status"], and leaving it
+                # "accepted:paper" painted an executed SELL over a flat book
+                run.state["execution_status"] = f"rejected:order ({reason})"
+                self.dashboard.recorder.repersist(run)
             if result.status == "filled":
                 self.metrics.inc("orders_filled_total")
                 self.open_positions[rec.symbol] = OpenPosition(

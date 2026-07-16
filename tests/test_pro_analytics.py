@@ -109,6 +109,17 @@ class TestRiskEngine:
         cap_at_execution = drifted_equity * 10.0 / 100
         assert size.notional <= cap_at_execution  # would have failed pre-fix
 
+    def test_exactly_at_cap_size_also_gets_headroom(self):
+        # incident #2 (2026-07-16 deploy): risk-based size landing EXACTLY on
+        # the cap (10% of a clean 100k, entry==per-unit math aligning) slipped
+        # through the strict `>` and bounced at the venue ("notional 10000.00
+        # exceeds cap 9991.35"). `>=` must apply the headroom at the boundary.
+        # entry 2000, stop 1980 => $20/unit; risk 0.2% = $200 => 10 units =
+        # 20,000 notional == 20% cap of 100k exactly
+        size = fixed_risk_position_size(100_000, 0.2, 2000.0, 1980.0, max_position_pct=20.0)
+        assert size.notional == pytest.approx(19_800.0)  # 20k cap - 1% headroom
+        assert size.notional <= 99_913.0 * 20.0 / 100  # survives the drift too
+
     def test_sizing_rejects_zero_stop_distance(self):
         with pytest.raises(ValueError, match="cannot be equal"):
             fixed_risk_position_size(100_000, 1.0, 2400.0, 2400.0)

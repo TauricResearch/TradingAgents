@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // production builds minify away React's own component-stack logging;
+    // without this line a crash in prod is an anonymous #185-style code
+    console.error(
+      `[ErrorBoundary:${this.props.label ?? "panel"}]`,
+      error,
+      info.componentStack,
+    );
   }
 
   render() {

@@ -21,7 +21,9 @@ export function connectionState(now = Date.now()): {
   lastSuccess: number;
 } {
   if (!lastSuccess) return { state: "disconnected", ageSeconds: 0, lastSuccess: 0 };
-  const ageSeconds = Math.floor((now - lastSuccess) / 1000);
+  // clamp: a success stamped a few ms ahead of `now` (clock read order)
+  // must read as age 0, not -1 — negative flicker churns the snapshot
+  const ageSeconds = Math.max(0, Math.floor((now - lastSuccess) / 1000));
   return {
     state: ageSeconds > STALE_AFTER_SECONDS ? "stale" : "live",
     ageSeconds,
@@ -43,14 +45,20 @@ function subscribe(listener: () => void) {
   };
 }
 
-// snapshot must be referentially stable between changes
+// snapshot must be referentially stable between changes — and stable at
+// SECOND granularity: recordSuccess fires on every query success, so a
+// mount-time burst (Trade page resolves ~10 queries in one flush) would
+// otherwise mint a new snapshot per fetch and loop useSyncExternalStore's
+// commit consistency check into React #185 (the production Trade crash).
+// lastSuccess is only ever displayed as a wall-clock time, so same-second
+// updates are invisible and must not churn the reference.
 let cached = connectionState();
 function snapshot() {
   const next = connectionState();
   if (
     next.state !== cached.state ||
     next.ageSeconds !== cached.ageSeconds ||
-    next.lastSuccess !== cached.lastSuccess
+    Math.floor(next.lastSuccess / 1000) !== Math.floor(cached.lastSuccess / 1000)
   ) {
     cached = next;
   }
@@ -61,8 +69,11 @@ export function useConnectionState() {
   return useSyncExternalStore(subscribe, snapshot);
 }
 
-/** test hook */
+/** test hooks */
 export function _resetForTests() {
   lastSuccess = 0;
   cached = connectionState();
+}
+export function _snapshotForTests() {
+  return snapshot();
 }

@@ -245,3 +245,13 @@ class PipelineRecorder:
             except Exception:
                 logger.exception("run %s not persisted; continuing", run.run_id)
         return run
+
+    def repersist(self, run: RunRecord) -> None:
+        """Re-write a run whose state changed after recording — e.g. the
+        venue's order verdict landing after the pipeline already stamped
+        execution_status (the phantom-SELL truth gap)."""
+        if self.store_dir is not None:
+            try:
+                self._persist(run)
+            except Exception:
+                logger.exception("run %s not re-persisted; continuing", run.run_id)

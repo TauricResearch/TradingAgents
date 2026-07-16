@@ -99,6 +99,20 @@ class TestEndToEnd:
         assert summary["closed_positions"][0]["pnl"] < 0
         assert service.router.breaker.consecutive_losses == 1
 
+    def test_venue_rejection_writes_back_to_run_state(self):
+        # phantom-SELL truth gap (2026-07-16 deploy): the venue refusing the
+        # order must overwrite run.state["execution_status"] — every dashboard
+        # surface reads that field, and the pipeline's optimistic
+        # "accepted:paper" painted an executed SELL over a flat book
+        service = make_service([130.0])
+        service.router.kill_switch.engage("test halt")
+        summary = service.run_once()
+        assert summary["order_status"] == "rejected"
+        run = service.dashboard.recorder.runs[-1]
+        status = run.state.get("execution_status") or ""
+        assert status.startswith("rejected:order"), status
+        assert "kill_switch" in status
+
     def test_no_double_entry_while_position_open(self):
         service = make_service([130.0, 131.0, 132.0])  # never hits stop/target
         service.run_once()
