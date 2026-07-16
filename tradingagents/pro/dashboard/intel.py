@@ -11,6 +11,7 @@ still serve. The UI renders gaps honestly; it never fakes a reading.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 from collections.abc import Callable
@@ -40,10 +41,10 @@ def _friendly_error(exc: Exception) -> str:
         return "timed out"
     if "Connection" in name:
         return "unreachable"
-    # deliberate, short messages ("FRED_API_KEY not set") stay; anything
-    # long or URL-bearing is vendor plumbing and shows only its kind
-    text = str(exc)
-    if text and len(text) <= 80 and "http://" not in text and "https://" not in text:
+    # deliberate, short messages ("FRED_API_KEY not set") stay — minus any
+    # embedded URLs; anything long is vendor plumbing and shows its kind
+    text = re.sub(r"https?://\S+", "", str(exc)).strip(" ;:,-")
+    if text and len(text) <= 80:
         return text
     return name
 
@@ -283,10 +284,19 @@ class IntelService:
         releases: list[dict] = []
         missing: list[str] = []
         try:
-            releases = self._calendar_fetch(days)
+            from tradingagents.pro.ingestion.econ_calendar import (
+                enrich_calendar,
+                next_major_event,
+            )
+
+            releases = enrich_calendar(self._calendar_fetch(days))
+            upcoming = next_major_event(releases, utc_now())
         except Exception as exc:
-            missing.append(f"fred_calendar: {exc}")
+            logger.warning("calendar fetch failed", exc_info=True)
+            missing.append(f"fred_calendar: {_friendly_error(exc)}")
+            upcoming = None
         view = {"releases": releases, "missing_feeds": missing,
+                "next_major": upcoming,
                 "as_of": utc_now().isoformat()}
         with self._lock:
             self._cached_calendar = (self._now(), view)

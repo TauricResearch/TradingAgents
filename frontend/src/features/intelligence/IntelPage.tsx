@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useCalendar, useCorrelations, useIntel, useOverview } from "@/lib/api/queries";
-import { fmtDateTime, fmtMetricValue } from "@/lib/format";
+import { fmtCountdown, fmtDateTime, fmtMetricValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const GROUPS: { title: string; names: string[] }[] = [
@@ -273,10 +273,7 @@ export default function IntelPage() {
                 const all = calendar.data!.releases;
                 const majors = all.filter((r) => r.major);
                 const shown = majorsOnly && majors.length > 0 ? majors : all;
-                const nextMajor = majors[0];
-                const daysTo = (date: string) =>
-                  Math.max(0, Math.round(
-                    (new Date(date).getTime() - Date.now()) / 86_400_000));
+                const nextMajor = calendar.data!.next_major;
                 const byDate = new Map<string, typeof shown>();
                 for (const release of shown) {
                   byDate.set(release.date,
@@ -287,9 +284,11 @@ export default function IntelPage() {
                     {nextMajor && (
                       <p className="text-xs text-fg-muted" data-testid="next-major">
                         next major:{" "}
-                        <span className="font-semibold">{nextMajor.release}</span>
-                        {" "}in {daysTo(nextMajor.date)}d ({nextMajor.date} —
-                        FRED publishes dates, not times)
+                        <span className="font-semibold">{nextMajor.release}</span>{" "}
+                        in {fmtCountdown(nextMajor.seconds_until)}
+                        {nextMajor.time_et
+                          ? ` (${nextMajor.date} ${nextMajor.time_et} ET)`
+                          : ` (${nextMajor.date} — time unknown)`}
                       </p>
                     )}
                     {majorsOnly && majors.length === 0 && (
@@ -308,11 +307,18 @@ export default function IntelPage() {
                               <li key={i}
                                   className="flex items-center justify-between gap-2 border-b border-border/40 py-0.5">
                                 <span className="text-fg-muted">{release.release}</span>
-                                {release.major && (
-                                  <Badge variant="accent" className="px-1.5 text-[10px]">
-                                    major
-                                  </Badge>
-                                )}
+                                <span className="flex shrink-0 items-center gap-1.5">
+                                  {release.time_et && (
+                                    <span className="font-mono text-[10px] tabular text-fg-subtle">
+                                      {release.time_et} ET
+                                    </span>
+                                  )}
+                                  {release.major && (
+                                    <Badge variant="accent" className="px-1.5 text-[10px]">
+                                      major
+                                    </Badge>
+                                  )}
+                                </span>
                               </li>
                             ))}
                           </ul>

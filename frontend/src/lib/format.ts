@@ -20,6 +20,18 @@ export function fmtPct(fraction: number | null | undefined, digits = 1): string 
   return `${(fraction * 100).toFixed(digits)}%`;
 }
 
+/** Compact countdown for event chips: "42m", "3h 12m", "2d 4h". Zero and
+ * negatives render "now" — the caller decides whether past events show. */
+export function fmtCountdown(seconds: number | null | undefined): string {
+  if (seconds == null || Number.isNaN(seconds) || seconds <= 0) return "now";
+  const d = Math.floor(seconds / 86_400);
+  const h = Math.floor((seconds % 86_400) / 3_600);
+  const m = Math.floor((seconds % 3_600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${Math.max(m, 1)}m`;
+}
+
 /** Metric-aware display: funding rates as %/8h with the annualized figure,
  * tiny fractions as plain decimals — never scientific notation (trader
  * review: "FUNDING RATE 8.57e-5" is a formatting fail, not a reading). */

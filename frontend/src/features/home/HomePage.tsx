@@ -24,7 +24,7 @@ import {
   useRuns,
   useStatus,
 } from "@/lib/api/queries";
-import { fmtPnl, fmtPrice, fmtDateTime, fmtPct } from "@/lib/format";
+import { fmtCountdown, fmtPnl, fmtPrice, fmtDateTime, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
 import { useLayoutStore } from "@/stores/layout";
@@ -323,15 +323,33 @@ function WhatNext() {
         }
       />
     );
+  const nextMajor = calendar.data?.next_major;
   return (
-    <ul className="space-y-1.5 text-[13px]">
-      {releases.map((release, i) => (
-        <li key={i} className="flex justify-between">
-          <span className="text-fg">{release.release}</span>
-          <span className="font-mono text-xs text-fg-subtle tabular">{release.date}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-2">
+      {nextMajor && (
+        <p
+          className="rounded-lg bg-accent-muted px-2.5 py-1.5 text-xs text-accent"
+          data-testid="next-major-countdown"
+        >
+          <span className="font-bold">{nextMajor.release}</span> in{" "}
+          <span className="font-mono tabular">
+            {fmtCountdown(nextMajor.seconds_until)}
+          </span>
+          {nextMajor.time_et && ` · ${nextMajor.time_et} ET`}
+        </p>
+      )}
+      <ul className="space-y-1.5 text-[13px]">
+        {releases.map((release, i) => (
+          <li key={i} className="flex justify-between gap-2">
+            <span className="text-fg">{release.release}</span>
+            <span className="shrink-0 font-mono text-xs text-fg-subtle tabular">
+              {release.date}
+              {release.time_et && ` ${release.time_et} ET`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

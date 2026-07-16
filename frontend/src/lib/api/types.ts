@@ -325,19 +325,29 @@ export const IntelSchema = z.object({
 });
 export type Intel = z.infer<typeof IntelSchema>;
 
+const CalendarReleaseSchema = z.object({
+  date: z.string(),
+  release: z.string(),
+  release_id: z.number().nullable().optional(),
+  major: z.boolean().optional(),
+  // agency publication time when fixed (BLS/BEA 08:30 ET, FOMC 14:00 ET);
+  // honest nulls when unknown — the UI never guesses a time
+  time_et: z.string().nullable().optional(),
+  ts_utc: z.string().nullable().optional(),
+});
 export const CalendarSchema = z.object({
-  releases: z.array(
-    z.object({
-      date: z.string(),
-      release: z.string(),
-      release_id: z.number().nullable().optional(),
-      major: z.boolean().optional(),
-    }),
-  ),
+  releases: z.array(CalendarReleaseSchema),
+  next_major: CalendarReleaseSchema.extend({
+    at: z.string(),
+    seconds_until: z.number(),
+  })
+    .nullable()
+    .optional(),
   missing_feeds: z.array(z.string()),
   as_of: z.string(),
 });
 export type Calendar = z.infer<typeof CalendarSchema>;
+export type CalendarRelease = z.infer<typeof CalendarReleaseSchema>;
 
 export const NotificationSchema = z.object({
   id: z.string(),

@@ -41,7 +41,7 @@ import {
 } from "@/lib/api/queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Recommendation } from "@/lib/api/types";
-import { fmtPnl, fmtPrice } from "@/lib/format";
+import { fmtCountdown, fmtPnl, fmtPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
 
@@ -216,7 +216,10 @@ export default function WorkspacePage() {
   const positions = (status.data?.open_positions ?? []).filter(
     (p) => p.symbol === symbol,
   );
-  const nextRelease = calendar.data?.releases[0];
+  // the server-computed next MAJOR event (countdown-capable) beats the
+  // first row of the raw release list (review P1.1)
+  const nextMajor = calendar.data?.next_major;
+  const nextRelease = nextMajor ?? calendar.data?.releases[0];
   const isLive = (spec?.live || symbol === "BTC-USD") && !replay.active;
 
   return (
@@ -358,8 +361,19 @@ export default function WorkspacePage() {
               </ChartSyncProvider>
             )}
             {nextRelease && !replay.active && (
-              <p className="mt-[10px] text-xs text-fg-subtle">
-                next macro event: {nextRelease.release} on {nextRelease.date}
+              <p className="mt-[10px] text-xs text-fg-subtle" data-testid="event-strip">
+                next macro event: <span className="text-fg-muted">{nextRelease.release}</span>
+                {nextMajor ? (
+                  <>
+                    {" in "}
+                    <span className="font-mono tabular text-fg-muted">
+                      {fmtCountdown(nextMajor.seconds_until)}
+                    </span>
+                    {nextMajor.time_et && ` (${nextMajor.date} ${nextMajor.time_et} ET)`}
+                  </>
+                ) : (
+                  <> on {nextRelease.date}</>
+                )}
               </p>
             )}
           </CardContent>

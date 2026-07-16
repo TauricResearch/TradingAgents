@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DIRECTION_GLYPH,
   directionOf,
+  fmtCountdown,
   fmtMetricValue,
   fmtPct,
   fmtPnl,
@@ -59,5 +60,14 @@ describe("formatters", () => {
   it("ordinary metric values keep localized formatting", () => {
     expect(fmtMetricValue("OPEN_INTEREST", 102240.19)).toBe("102,240.19");
     expect(fmtMetricValue("DXY", null)).toBe("—");
+  });
+
+  it("countdowns render compactly at every scale", () => {
+    expect(fmtCountdown(42 * 60)).toBe("42m");
+    expect(fmtCountdown(3 * 3600 + 12 * 60)).toBe("3h 12m");
+    expect(fmtCountdown(2 * 86_400 + 4 * 3600)).toBe("2d 4h");
+    expect(fmtCountdown(30)).toBe("1m"); // sub-minute rounds up, never "0m"
+    expect(fmtCountdown(0)).toBe("now");
+    expect(fmtCountdown(null)).toBe("now");
   });
 });
