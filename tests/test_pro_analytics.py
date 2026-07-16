@@ -14,6 +14,7 @@ from tradingagents.pro.analytics import (
     fixed_risk_position_size,
     historical_cvar,
     historical_var,
+    invalidation_stop_loss,
     kelly_fraction,
     realized_volatility,
     trend_slope,
@@ -146,3 +147,23 @@ class TestRiskEngine:
     def test_atr_ladder_rejects_unsorted_multiples(self):
         with pytest.raises(ValueError, match="ascending"):
             atr_take_profits(2400.0, 10.0, "BUY", multiples=(4.0, 2.0))
+
+    def test_invalidation_stop_sits_just_beyond_the_level(self):
+        # the review case: SELL from 4037.27, thesis dies above 4046.72,
+        # ATR 12.64 -> buffer min(0.25*12.64, max(0.25*9.45, 4.037)) = 3.16
+        stop = invalidation_stop_loss(4037.27, 4046.72, 12.64, "SELL")
+        assert stop == pytest.approx(4046.72 + 3.16)
+        # BUY mirror: buffer min(0.25*8=2.0, max(0.25*10=2.5, 2.4)) = 2.0
+        stop = invalidation_stop_loss(2400.0, 2390.0, 8.0, "BUY")
+        assert stop == pytest.approx(2388.0)
+
+    def test_invalidation_stop_buffer_capped_in_high_vol(self):
+        # huge ATR must not park the stop far beyond the thesis-death level
+        stop = invalidation_stop_loss(4037.27, 4046.72, 100.0, "SELL")
+        assert stop == pytest.approx(4046.72 + max(0.25 * 9.45, 4.03727))
+
+    def test_invalidation_stop_wrong_side_rejected(self):
+        with pytest.raises(ValueError, match="above entry"):
+            invalidation_stop_loss(4037.27, 4020.0, 12.64, "SELL")
+        with pytest.raises(ValueError, match="below entry"):
+            invalidation_stop_loss(2400.0, 2410.0, 8.0, "BUY")

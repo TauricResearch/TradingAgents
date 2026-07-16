@@ -166,6 +166,67 @@ def test_sell_ladder_must_descend():
         )
 
 
+def make_sell(**overrides) -> TradeRecommendation:
+    fields = {
+        "action": TradeAction.SELL,
+        "entry_price": 4037.27,
+        "stop_loss": 4049.88,
+        "take_profits": [
+            TakeProfitLevel(price=4011.99, size_fraction=0.5),
+            TakeProfitLevel(price=3986.71, size_fraction=0.5),
+        ],
+    }
+    fields.update(overrides)
+    return make_buy(**fields)
+
+
+def test_sell_stop_within_invalidation_buffer_accepted():
+    # invalidation 4046.72, stop 3.16 beyond it; distance to entry 9.45 ->
+    # allowed overshoot max(0.25*9.45, 0.001*4037.27) = 4.04 >= 3.16
+    rec = make_sell(invalidation_price=4046.72)
+    assert rec.invalidation_price == 4046.72
+
+
+def test_sell_stop_beyond_invalidation_rejected():
+    # the review's live finding: stop 4062.55 parked 15.83 beyond the
+    # stated thesis-death level 4046.72 — the trade outlives its thesis
+    with pytest.raises(ValidationError, match="outlive its own thesis"):
+        make_sell(stop_loss=4062.55, invalidation_price=4046.72)
+
+
+def test_sell_invalidation_below_entry_rejected():
+    with pytest.raises(ValidationError, match="above entry_price"):
+        make_sell(invalidation_price=4020.0)
+
+
+def test_buy_stop_within_invalidation_buffer_accepted():
+    # invalidation 2385, stop 2382.5: overshoot 2.5 <= max(0.25*15, 2.4)
+    rec = make_buy(stop_loss=2382.5, invalidation_price=2385.0)
+    assert rec.invalidation_price == 2385.0
+
+
+def test_buy_stop_beyond_invalidation_rejected():
+    with pytest.raises(ValidationError, match="outlive its own thesis"):
+        make_buy(stop_loss=2380.0, invalidation_price=2395.0)
+
+
+def test_buy_invalidation_above_entry_rejected():
+    with pytest.raises(ValidationError, match="below entry_price"):
+        make_buy(invalidation_price=2410.0)
+
+
+def test_hold_with_invalidation_price_rejected():
+    with pytest.raises(ValidationError, match="invalidation_price"):
+        make_buy(
+            action=TradeAction.HOLD,
+            entry_price=None,
+            stop_loss=None,
+            take_profits=[],
+            position_size=PositionSize(quantity=0),
+            invalidation_price=2385.0,
+        )
+
+
 def test_hold_carries_no_levels_and_no_risk_reward():
     rec = make_buy(
         action=TradeAction.HOLD,

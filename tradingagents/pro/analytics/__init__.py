@@ -16,6 +16,7 @@ from tradingagents.pro.analytics.risk import (
     fixed_risk_position_size,
     historical_cvar,
     historical_var,
+    invalidation_stop_loss,
     kelly_fraction,
 )
 
@@ -29,5 +30,6 @@ __all__ = [
     "fixed_risk_position_size",
     "historical_cvar",
     "historical_var",
+    "invalidation_stop_loss",
     "kelly_fraction",
 ]

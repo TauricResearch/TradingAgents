@@ -57,6 +57,17 @@ class ReflectionNote(BaseModel):
         min_length=1,
         description="What observable change would invalidate the thesis.",
     )
+    invalidation_price: float | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "When the invalidation is a price level, that level as a plain "
+            "number (no commas/units), copied from the evidence record. null "
+            "when the invalidation is not price-based (a data release, a "
+            "metric flip). The risk engine derives the stop from this level, "
+            "so only state a price the record actually supports."
+        ),
+    )
 
 
 class JudgeVerdict(BaseModel):

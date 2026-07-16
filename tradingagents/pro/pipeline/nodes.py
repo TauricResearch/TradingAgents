@@ -421,7 +421,11 @@ class PipelineNodes:
         }
         return {
             "debate": [*state["debate"], entry],
-            "reflection": {"weaknesses": note.weaknesses, "invalidation": note.invalidation},
+            "reflection": {
+                "weaknesses": note.weaknesses,
+                "invalidation": note.invalidation,
+                "invalidation_price": note.invalidation_price,
+            },
         }
 
     def judge(self, state: dict) -> dict:
@@ -493,11 +497,16 @@ class PipelineNodes:
                 "reasons": [f"judge ruled {action.value} but no evidence supports it"],
             }}
 
-        # Recompute engine levels for the ruled side (Constraint 2).
+        # Recompute engine levels for the ruled side (Constraint 2). The
+        # reflection's structured thesis-death level, when present, derives
+        # the stop (and therefore the size) — the gate below then judges the
+        # same numbers the ticket will carry.
         equity = state.get("equity") or self.equity
+        invalidation_price = (state.get("reflection") or {}).get("invalidation_price")
         sided = compute_risk_metrics(
             snapshot, self.config.risk, equity, side=action.value,
             timeframe=state.get("run_timeframe") or infer_timeframe(snapshot),
+            invalidation_price=invalidation_price,
         )
         gate = risk_gate(sided, self.config, proposed_action=action)
         if not gate.passed:
@@ -512,6 +521,10 @@ class PipelineNodes:
                 confidence=state["judge_confidence"],
                 entry_price=sided["ENTRY_REF_PRICE"].value,
                 stop_loss=sided["ATR_STOP"].value,
+                invalidation_price=(
+                    sided["INVALIDATION_PRICE"].value
+                    if "INVALIDATION_PRICE" in sided else None
+                ),
                 take_profits=[
                     TakeProfitLevel(price=sided["ATR_TP1"].value, size_fraction=0.5),
                     TakeProfitLevel(price=sided["ATR_TP2"].value, size_fraction=0.5),

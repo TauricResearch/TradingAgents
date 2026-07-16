@@ -99,6 +99,41 @@ def atr_stop_loss(entry: float, atr: float, side: str, multiple: float = 2.0) ->
     raise ValueError(f"side must be BUY or SELL, got {side!r}")
 
 
+def invalidation_stop_loss(
+    entry: float,
+    invalidation: float,
+    atr: float,
+    side: str,
+    buffer_multiple: float = 0.25,
+) -> float:
+    """Stop derived from the thesis-invalidation level, not a template.
+
+    The trade must die where its thesis dies: the stop sits just beyond the
+    invalidation price by a small ATR buffer (noise allowance), capped so the
+    overshoot never exceeds the contract bound TradeRecommendation enforces
+    (max of 25% of the entry->invalidation distance and 0.1% of entry).
+    Raises ValueError when the invalidation lies on the wrong side of entry
+    for the position — callers treat that as "no usable level" and fall back
+    to the ATR stop.
+    """
+    if entry <= 0 or invalidation <= 0 or atr <= 0:
+        raise ValueError("entry, invalidation, and atr must be positive")
+    if buffer_multiple <= 0:
+        raise ValueError("buffer_multiple must be positive")
+    if side == "BUY":
+        if not invalidation < entry:
+            raise ValueError("BUY invalidation must sit below entry")
+    elif side == "SELL":
+        if not invalidation > entry:
+            raise ValueError("SELL invalidation must sit above entry")
+    else:
+        raise ValueError(f"side must be BUY or SELL, got {side!r}")
+    distance = abs(entry - invalidation)
+    overshoot_cap = max(0.25 * distance, 0.001 * entry)
+    buffer = min(buffer_multiple * atr, overshoot_cap)
+    return invalidation - buffer if side == "BUY" else invalidation + buffer
+
+
 def atr_take_profits(
     entry: float,
     atr: float,

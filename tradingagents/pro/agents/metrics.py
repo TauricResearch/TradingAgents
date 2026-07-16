@@ -24,6 +24,7 @@ from tradingagents.pro.analytics import (
     fixed_risk_position_size,
     historical_cvar,
     historical_var,
+    invalidation_stop_loss,
     kelly_fraction,
     realized_volatility,
     trend_slope,
@@ -79,11 +80,16 @@ def compute_risk_metrics(
     win_rate: float | None = None,
     avg_win: float | None = None,
     avg_loss: float | None = None,
+    invalidation_price: float | None = None,
 ) -> dict[str, MetricReading]:
     """Risk-engine outputs for the risk team, from current snapshot state.
 
-    Entry is the latest close; the stop and take-profit ladder are
-    ATR-scaled. Kelly appears only when historical win statistics are
+    Entry is the latest close; the take-profit ladder is ATR-scaled. The
+    stop is ATR-scaled by default, but when ``invalidation_price`` is
+    supplied (the reflection stage's structured thesis-death level) the stop
+    derives from it instead — the trade must not outlive its own thesis.
+    A wrong-sided invalidation falls back to the ATR stop rather than
+    blocking the run. Kelly appears only when historical win statistics are
     supplied (they come from the memory layer in Phase 5; absent stats must
     not fabricate a Kelly). VaR/CVaR need >= 21 bars of returns.
     """
@@ -118,6 +124,14 @@ def compute_risk_metrics(
         atr = atr_reading.value["value"]
         if atr > 0 and not math.isnan(atr):
             stop = atr_stop_loss(entry, atr, side)
+            if invalidation_price is not None:
+                try:
+                    stop = invalidation_stop_loss(entry, invalidation_price, atr, side)
+                    out["INVALIDATION_PRICE"] = _reading(
+                        "INVALIDATION_PRICE", invalidation_price, RISK_SOURCE
+                    )
+                except ValueError:
+                    pass  # wrong-sided/unusable level: keep the ATR stop
             out["ENTRY_REF_PRICE"] = _reading("ENTRY_REF_PRICE", entry, RISK_SOURCE)
             out["ATR_STOP"] = _reading("ATR_STOP", stop, RISK_SOURCE)
             for i, tp in enumerate(atr_take_profits(entry, atr, side), start=1):

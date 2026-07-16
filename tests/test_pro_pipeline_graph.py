@@ -2,6 +2,8 @@
 
 from datetime import timedelta
 
+import pytest
+
 from tests.pro_fakes import BASE_TS
 from tests.test_pro_agents_base import make_snapshot
 from tradingagents.contracts import (
@@ -119,6 +121,40 @@ def test_happy_path_produces_validated_buy_recommendation():
     assert state["execution_status"] == "accepted:paper"
     # judge saw the computed vote tally
     assert "confidence weight" in llm.prompts["JudgeVerdict"][0]
+
+
+def test_reflection_invalidation_price_derives_the_stop():
+    llm = FakePipelineLLM(overrides={
+        ReflectionNote: ReflectionNote(
+            weaknesses="Momentum evidence is single-timeframe.",
+            invalidation="A sustained close below 128.0 breaks the structure.",
+            invalidation_price=128.0,
+        ),
+    })
+    state = run_pipeline(llm, CONFIG, pipeline_snapshot())
+    rec = state["recommendation"]
+    assert rec is not None and rec.action is TradeAction.BUY
+    # entry 130.0 (last close), ATR 2.5: stop derives from the thesis-death
+    # level 128.0 minus buffer min(0.25*2.5, max(0.25*2.0, 0.13)) = 0.5
+    assert rec.invalidation_price == 128.0
+    assert rec.stop_loss == pytest.approx(127.5)
+    # the trade no longer outlives its thesis (old ATR stop was 125.0)
+    assert rec.stop_loss > 125.0
+
+
+def test_wrong_sided_invalidation_falls_back_to_atr_stop():
+    llm = FakePipelineLLM(overrides={
+        ReflectionNote: ReflectionNote(
+            weaknesses="Momentum evidence is single-timeframe.",
+            invalidation="A close above 131.0 invalidates the bear case.",
+            invalidation_price=131.0,  # above entry: unusable for a BUY
+        ),
+    })
+    state = run_pipeline(llm, CONFIG, pipeline_snapshot())
+    rec = state["recommendation"]
+    assert rec is not None and rec.action is TradeAction.BUY
+    assert rec.invalidation_price is None
+    assert rec.stop_loss == pytest.approx(125.0)  # 130 - 2*ATR(2.5)
 
 
 def test_hold_ruling_yields_hold_recommendation_without_levels():

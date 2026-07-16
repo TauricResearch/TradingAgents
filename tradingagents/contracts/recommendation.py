@@ -79,6 +79,16 @@ class TradeRecommendation(ContractModel):
     confidence: int = Field(ge=0, le=100)
     entry_price: float | None = Field(default=None, gt=0)
     stop_loss: float | None = Field(default=None, gt=0)
+    invalidation_price: float | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "The reflection stage's structured thesis-death level, when the "
+            "invalidation is price-based. When present, the stop must sit at "
+            "or inside this level (small noise buffer allowed) — a trade may "
+            "not outlive its own thesis."
+        ),
+    )
     take_profits: list[TakeProfitLevel] = Field(default_factory=list)
     position_size: PositionSize
     market_regime: MarketRegime
@@ -104,6 +114,8 @@ class TradeRecommendation(ContractModel):
         if self.action is TradeAction.HOLD:
             if self.entry_price is not None or self.stop_loss is not None or self.take_profits:
                 raise ValueError("HOLD must not carry entry, stop, or take-profit levels")
+            if self.invalidation_price is not None:
+                raise ValueError("HOLD must not carry an invalidation_price")
             if self.position_size.quantity != 0:
                 raise ValueError("HOLD requires position_size.quantity == 0")
             return self._set_risk_reward()
@@ -130,7 +142,38 @@ class TradeRecommendation(ContractModel):
         total = math.fsum(tp.size_fraction for tp in self.take_profits)
         if total > 1 + _FRACTION_TOLERANCE:
             raise ValueError(f"take-profit size fractions sum to {total:.4f} (> 1)")
+        self._validate_invalidation()
         return self._set_risk_reward()
+
+    def _validate_invalidation(self) -> None:
+        """The stop may not outlive the thesis (review finding RISK-01).
+
+        When a structured invalidation level is present, the stop must sit at
+        or inside it, allowing a small noise buffer: the overshoot beyond the
+        invalidation is capped at max(25% of the entry->invalidation
+        distance, 0.1% of entry). A stop parked meaningfully beyond the level
+        where the thesis is already dead is template arithmetic, not the
+        trade's logic — rejected here, fail closed, like risk_reward.
+        """
+        if self.invalidation_price is None:
+            return
+        assert self.entry_price is not None and self.stop_loss is not None
+        if self.action is TradeAction.BUY:
+            if not self.invalidation_price < self.entry_price:
+                raise ValueError("BUY invalidation_price must sit below entry_price")
+            overshoot = self.invalidation_price - self.stop_loss
+        else:  # SELL
+            if not self.invalidation_price > self.entry_price:
+                raise ValueError("SELL invalidation_price must sit above entry_price")
+            overshoot = self.stop_loss - self.invalidation_price
+        distance = abs(self.entry_price - self.invalidation_price)
+        allowed = max(0.25 * distance, 0.001 * self.entry_price)
+        if overshoot > allowed:
+            raise ValueError(
+                f"stop_loss={self.stop_loss} sits {overshoot:.4f} beyond the "
+                f"invalidation_price={self.invalidation_price} (allowed buffer "
+                f"{allowed:.4f}): the trade would outlive its own thesis"
+            )
 
     def _compute_risk_reward(self) -> float | None:
         """Size-weighted reward distance over risk distance; None for HOLD.
