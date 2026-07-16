@@ -21,6 +21,14 @@ function themeOptions(): DeepPartial<ChartOptions> {
       fontFamily: v("--font-mono") || "ui-monospace, monospace",
       fontSize: 11,
       attributionLogo: false,
+      // draggable pane separators (review P2.3: adding two oscillators
+      // crushed the price pane with no way to re-expand). LWC v5 ships the
+      // drag behavior; visible colors make it discoverable.
+      panes: {
+        enableResize: true,
+        separatorColor: v("--border-strong") || "#c9cfdb",
+        separatorHoverColor: v("--accent") || "#2456c5",
+      },
     },
     grid: {
       vertLines: { color: v("--border") },

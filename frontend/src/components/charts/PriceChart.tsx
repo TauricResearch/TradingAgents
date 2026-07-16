@@ -20,6 +20,7 @@ import {
 import { useEffect, useRef } from "react";
 
 import { chartColors, useLightweightChart, hexToRgba } from "./useLightweightChart";
+import { loadPaneFactors, savePaneFactors } from "./paneLayout";
 import { toHeikinAshi } from "./transform";
 import { useChartSync } from "./ChartSync";
 import { DrawingsPrimitive } from "./drawings/primitive";
@@ -235,9 +236,31 @@ export function PriceChart({
       primitiveRef.current = primitive;
     }
 
+    // pane proportions (review P2.3): the price pane must stay dominant
+    // when oscillators join. Saved factors (user drags, keyed by pane
+    // count) win; otherwise price=3, volume=0.8, each oscillator=1.
+    const panes = chart.panes();
+    if (panes.length > 1) {
+      const saved = loadPaneFactors(panes.length);
+      panes.forEach((pane, i) => {
+        const fallback = i === 0 ? 3 : showVolume && i === 1 ? 0.8 : 1;
+        pane.setStretchFactor(saved?.[i] ?? fallback);
+      });
+    }
+    // persist proportions when a separator drag ends
+    const container = containerRef.current;
+    const persistFactors = () => {
+      if (chartRef.current !== chart) return;
+      const current = chart.panes();
+      if (current.length > 1)
+        savePaneFactors(current.length, current.map((p) => p.getStretchFactor()));
+    };
+    container?.addEventListener("pointerup", persistFactors);
+
     chart.timeScale().fitContent();
 
     return () => {
+      container?.removeEventListener("pointerup", persistFactors);
       // on unmount the hook cleanup has already run (chart disposed,
       // chartRef nulled) — touching the chart then throws; just drop refs.
       // Reading the ref at cleanup time is the point: it detects disposal.
@@ -252,7 +275,7 @@ export function PriceChart({
       extraSeriesRef.current = [];
       primitiveRef.current = null;
     };
-  }, [bars, style, indicators, showVolume, drawingsSymbol, theme, chartRef]);
+  }, [bars, style, indicators, showVolume, drawingsSymbol, theme, chartRef, containerRef]);
 
   // recommendation levels as price lines
   useEffect(() => {
