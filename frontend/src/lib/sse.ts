@@ -16,6 +16,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { apiFetch, fetchAuthConfig } from "./api/client";
 import { qk, setPollingInterval } from "./api/queries";
+import { maybeNotify } from "./desktopNotify";
 import { recordSuccess } from "./staleness";
 import { usePipelineLiveStore } from "@/stores/pipelineLive";
 import { useTickerStore } from "@/stores/ticker";
@@ -128,6 +129,25 @@ export function startEventStream(client: QueryClient): () => void {
       void client.invalidateQueries({ queryKey: qk.overview });
       void client.invalidateQueries({ queryKey: qk.journal });
       void client.invalidateQueries({ queryKey: qk.agents });
+      // tap the shoulder of a backgrounded trader (review P1.4)
+      try {
+        const run = JSON.parse((event as MessageEvent).data) as {
+          run_id?: string;
+          symbol?: string;
+          action?: string | null;
+          rejected_at?: string | null;
+        };
+        const outcome =
+          run.action ??
+          (run.rejected_at ? `rejected @ ${run.rejected_at}` : "no decision");
+        maybeNotify(
+          `Run complete — ${run.symbol ?? "?"}`,
+          `verdict: ${outcome}`,
+          `run-${run.run_id ?? "latest"}`,
+        );
+      } catch {
+        /* malformed run payload — skip the banner, cache refresh already ran */
+      }
     });
 
     source.addEventListener("stage", (event) => {
@@ -151,6 +171,24 @@ export function startEventStream(client: QueryClient): () => void {
       bump(event);
       void client.invalidateQueries({ queryKey: qk.alerts });
       void client.invalidateQueries({ queryKey: qk.notifications });
+      try {
+        const alert = JSON.parse((event as MessageEvent).data) as {
+          severity?: string;
+          event?: string;
+          text?: string;
+          time?: string;
+        };
+        // info-level stays in the bell; warnings and criticals earn a banner
+        if (alert.severity === "warning" || alert.severity === "critical") {
+          maybeNotify(
+            `${alert.severity === "critical" ? "CRITICAL" : "Warning"} — ${alert.event ?? "alert"}`,
+            alert.text ?? "",
+            `alert-${alert.event ?? "x"}-${alert.time ?? ""}`,
+          );
+        }
+      } catch {
+        /* malformed alert — bell refresh already queued */
+      }
     });
 
     source.addEventListener("position", (event) => {

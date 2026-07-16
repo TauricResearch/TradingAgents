@@ -28,6 +28,8 @@ import os
 import threading
 from pathlib import Path
 
+from tradingagents.contracts import utc_now
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_INTERVAL_SECONDS = 3600.0
@@ -153,19 +155,26 @@ class PipelineTrigger:
         return builder.build(symbol, asset, timeframes=(tf,), bar_limit=250)
 
 
-def _build_alert_sinks(broadcaster):
+def _build_alert_sinks(broadcaster, prefs=None):
     """Assemble alert sinks from the environment (go-live Phase 5). Log +
-    dashboard broadcast always; Telegram and webhook are added only when
-    their secrets are present, so paper/dev stays quiet by default."""
+    dashboard broadcast always, plus the bell (NotificationSink) when a
+    prefs store exists — the trader review caught the bell reading "All
+    clear" through a run start, a completion, and two feed outages because
+    nothing ever persisted notifications. Telegram and webhook are added
+    only when their secrets are present, so paper/dev stays quiet by
+    default."""
     from tradingagents.pro.alerting import (
         LogAlertSink,
         TelegramAlertSink,
         WebhookAlertSink,
     )
     from tradingagents.pro.dashboard.events import BroadcastAlertSink
+    from tradingagents.pro.dashboard.prefs import NotificationSink
     from tradingagents.pro.secrets import get_secret
 
     sinks = [LogAlertSink(), BroadcastAlertSink(broadcaster)]
+    if prefs is not None:
+        sinks.append(NotificationSink(prefs))
     bot_token = get_secret("PRO_TELEGRAM_BOT_TOKEN")
     chat_id = get_secret("PRO_TELEGRAM_CHAT_ID")
     if bot_token and chat_id:
@@ -176,6 +185,32 @@ def _build_alert_sinks(broadcaster):
         sinks.append(WebhookAlertSink(webhook_url))
         logger.info("webhook alert sink enabled")
     return sinks
+
+
+def _bell_on_event(state):
+    """SSE publish + bell persistence for run outcomes (review P1.4).
+
+    Alerts already reach the bell through NotificationSink; run completions
+    are not alerts (they'd spam Telegram), yet a verdict landing while the
+    trader was away is exactly what the bell exists to hold."""
+    def on_event(type_: str, data: dict) -> None:
+        state.broadcaster.publish(type_, data)
+        if type_ != "run":
+            return
+        try:
+            action = data.get("action")
+            outcome = action or (
+                f"rejected @ {data.get('rejected_at')}"
+                if data.get("rejected_at") else "no decision"
+            )
+            state.prefs.add_notification(
+                severity="info", event="run_complete",
+                text=f"run complete — {data.get('symbol', '?')}: {outcome}",
+                time=utc_now().isoformat(),
+            )
+        except Exception:
+            logger.exception("bell notification for run event failed")
+    return on_event
 
 
 def has_llm_key() -> bool:
@@ -285,8 +320,9 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     service = PaperTradingService(
         llm, config, snapshot_source,
         router=router, memory=memory, dashboard_state=state,
-        alerts=AlertManager(sinks=_build_alert_sinks(state.broadcaster)),
-        on_event=state.broadcaster.publish,
+        alerts=AlertManager(
+            sinks=_build_alert_sinks(state.broadcaster, state.prefs)),
+        on_event=_bell_on_event(state),
         calendar_fn=next_major_event,
     )
     state.metrics = service.metrics  # /metrics scrape target

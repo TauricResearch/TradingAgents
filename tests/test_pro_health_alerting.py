@@ -80,6 +80,56 @@ class TestSinkWiring:
         names = {type(s).__name__ for s in _build_alert_sinks(EventBroadcaster())}
         assert "TelegramAlertSink" in names and "WebhookAlertSink" in names
 
+    def test_bell_sink_wired_when_prefs_present(self, tmp_path):
+        # review P1.4: the bell read "All clear" through a run start, a
+        # completion, and two feed outages — alerts never reached it
+        from tradingagents.pro.dashboard.events import EventBroadcaster
+        from tradingagents.pro.dashboard.prefs import PrefsStore
+        from tradingagents.pro.main import _build_alert_sinks
+
+        prefs = PrefsStore(tmp_path / "prefs.json")
+        sinks = _build_alert_sinks(EventBroadcaster(), prefs)
+        assert "NotificationSink" in {type(s).__name__ for s in sinks}
+
+
+class TestBellOnEvent:
+    def _state(self, tmp_path):
+        from tradingagents.pro.dashboard.events import EventBroadcaster
+        from tradingagents.pro.dashboard.prefs import PrefsStore
+
+        class State:
+            broadcaster = EventBroadcaster()
+            prefs = PrefsStore(tmp_path / "prefs.json")
+
+        return State()
+
+    def test_run_events_land_in_the_bell(self, tmp_path):
+        from tradingagents.pro.main import _bell_on_event
+
+        state = self._state(tmp_path)
+        on_event = _bell_on_event(state)
+        on_event("run", {"symbol": "XAUUSD", "action": "SELL",
+                         "run_id": "r1"})
+        (note,) = state.prefs.notifications()
+        assert note["event"] == "run_complete"
+        assert "XAUUSD: SELL" in note["text"]
+
+    def test_rejections_name_their_stage(self, tmp_path):
+        from tradingagents.pro.main import _bell_on_event
+
+        state = self._state(tmp_path)
+        _bell_on_event(state)("run", {"symbol": "BTC-USD", "action": None,
+                                      "rejected_at": "event_gate"})
+        (note,) = state.prefs.notifications()
+        assert "rejected @ event_gate" in note["text"]
+
+    def test_non_run_events_do_not_touch_the_bell(self, tmp_path):
+        from tradingagents.pro.main import _bell_on_event
+
+        state = self._state(tmp_path)
+        _bell_on_event(state)("status", {"equity": 1.0})
+        assert state.prefs.notifications() == []
+
 
 class TestLiveHealth:
     def _state(self, tmp_path, missing=(), last_run_age=0.0):

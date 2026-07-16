@@ -2,6 +2,7 @@
  * mark-all. Fed by the alert stream through the backend store. */
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
+import { useState } from "react";
 
 import { EmptyState } from "./EmptyState";
 import { Button } from "./ui/button";
@@ -11,6 +12,7 @@ import {
   useNotifications,
   usePrefs,
 } from "@/lib/api/queries";
+import { desktopNotifyState, requestDesktopNotify } from "@/lib/desktopNotify";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
@@ -26,6 +28,8 @@ export function NotificationCenter() {
   const notifications = useNotifications();
   const prefs = usePrefs();
   const client = useQueryClient();
+  // re-render after the permission prompt resolves
+  const [notifyState, setNotifyState] = useState(desktopNotifyState);
 
   if (!notificationsOpen) return null;
   const muted = new Set(prefs.data?.muted_events ?? []);
@@ -70,6 +74,30 @@ export function NotificationCenter() {
         </div>
       </div>
       <div className="grow overflow-y-auto p-3">
+        {/* desktop banners are opt-in from HERE, never a page-load prompt
+            (review P1.4: the AI must be able to tap your shoulder) */}
+        {notifyState === "default" && (
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-accent-muted px-2.5 py-2 text-xs text-accent">
+            <span>Get a desktop banner when a verdict lands or a gate trips.</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              data-testid="enable-desktop-notify"
+              onClick={() => {
+                void requestDesktopNotify().then(() =>
+                  setNotifyState(desktopNotifyState()),
+                );
+              }}
+            >
+              Enable
+            </Button>
+          </div>
+        )}
+        {notifyState === "denied" && (
+          <p className="mb-2 text-xs text-fg-subtle">
+            Desktop banners are blocked in your browser's site settings.
+          </p>
+        )}
         {mutedCount > 0 && (
           <p className="mb-2 text-xs text-fg-subtle">
             {mutedCount} hidden by mute rules (manage in Settings)
