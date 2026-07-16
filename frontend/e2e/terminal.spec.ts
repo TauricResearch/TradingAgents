@@ -392,7 +392,9 @@ test.describe("v3 drawing tools", () => {
     await expect(chart).toHaveAttribute("data-drawings", "0");
 
     await page.waitForTimeout(800); // let the chart finish its layout settle
-    await placeTwoPoints(page, /Trendline/, [[0.3, 0.4], [0.6, 0.55]]);
+    // points sit in the top half: the volume pane (default-on) owns the
+    // bottom of the chart and drawing clicks there are ignored by design
+    await placeTwoPoints(page, /Trendline/, [[0.3, 0.15], [0.6, 0.35]]);
     await expect(chart).toHaveAttribute("data-drawings", "1");
 
     await page.reload();
@@ -402,11 +404,19 @@ test.describe("v3 drawing tools", () => {
 
     await page.getByRole("button", { name: /Erase/ }).click();
     const box2 = (await page.getByTestId("price-chart").boundingBox())!;
-    // click the segment midpoint
-    await page.mouse.click(box2.x + box2.width * 0.45, box2.y + box2.height * 0.475);
-    await expect(
-      page.getByTestId("price-chart"),
-    ).toHaveAttribute("data-drawings", "0");
+    // scan a short vertical line through the segment midpoint — autoscale
+    // can shift the re-projected segment a few px between sessions
+    await expect(async () => {
+      if ((await chart.getAttribute("data-drawings")) !== "0") {
+        for (const dy of [0, -0.03, 0.03, -0.06, 0.06]) {
+          await page.mouse.click(
+            box2.x + box2.width * 0.45,
+            box2.y + box2.height * (0.25 + dy),
+          );
+        }
+      }
+      expect(await chart.getAttribute("data-drawings")).toBe("0");
+    }).toPass({ timeout: 15_000 });
   });
 
   test("fib places with two clicks; Esc cancels in-progress", async ({
@@ -423,12 +433,12 @@ test.describe("v3 drawing tools", () => {
 
     // start a fib, then cancel — nothing persists
     await page.getByRole("button", { name: /Fib retracement/ }).click();
-    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.3);
+    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.2);
     await page.keyboard.press("Escape");
     await expect(chart).toHaveAttribute("data-drawings", "0");
 
-    // place a full fib
-    await placeTwoPoints(page, /Fib retracement/, [[0.3, 0.3], [0.6, 0.7]]);
+    // place a full fib (top half: the volume pane owns the bottom)
+    await placeTwoPoints(page, /Fib retracement/, [[0.3, 0.15], [0.6, 0.35]]);
     await expect(chart).toHaveAttribute("data-drawings", "1");
 
     // clear all
@@ -450,7 +460,9 @@ test.describe("v7 on-demand pipeline", () => {
     await expect(rail.locator("li").first()).toBeVisible();
     const before = await rail.locator("li").count();
 
-    await page.getByTestId("run-pipeline-open").click();
+    // the Run button lives on the pipeline board header now (the Runs
+    // card's duplicate was removed in the horizontal-board parity pass)
+    await page.getByTestId("pipeline-run").click();
     await expect(page.getByTestId("pipeline-start")).toBeVisible();
     await expect(page.getByText(/\$0\.10/)).toBeVisible(); // honest cost note
     await page.getByTestId("pipeline-start").click();

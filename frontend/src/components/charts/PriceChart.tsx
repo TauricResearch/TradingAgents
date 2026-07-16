@@ -362,11 +362,20 @@ export function PriceChart({
       onToolModeChangeRef.current?.("select");
     };
 
-    const onClick = (param: { point?: { x: number; y: number }; time?: unknown }) => {
+    const onClick = (param: {
+      point?: { x: number; y: number };
+      time?: unknown;
+      paneIndex?: number;
+    }) => {
       const mode = toolModeRef.current;
       const primitive = primitiveRef.current;
       const series = seriesRef.current;
       if (!param.point || !primitive || !series) return;
+      // drawings live on the PRICE pane only. param.point.y is pane-LOCAL
+      // in LWC v5: a click on the volume/oscillator pane fed into the main
+      // series' coordinateToPrice stores a garbage anchor (observed: 6297
+      // persisted on a ~4300-max chart — off-pane, unerasable). Ignore it.
+      if ((param.paneIndex ?? 0) !== 0) return;
       if (mode === "erase") {
         const id = primitive.findNearest(param.point);
         if (id) useDrawingsStore.getState().remove(drawingsSymbol, id);
@@ -400,8 +409,13 @@ export function PriceChart({
       }
     };
 
-    const onMove = (param: { point?: { x: number; y: number }; time?: unknown }) => {
+    const onMove = (param: {
+      point?: { x: number; y: number };
+      time?: unknown;
+      paneIndex?: number;
+    }) => {
       if (placedRef.current.length === 0 || !param.point) return;
+      if ((param.paneIndex ?? 0) !== 0) return; // price pane only (see onClick)
       const price = seriesRef.current?.coordinateToPrice(param.point.y);
       if (price == null || param.time == null) return;
       primitiveRef.current?.setPreview({
