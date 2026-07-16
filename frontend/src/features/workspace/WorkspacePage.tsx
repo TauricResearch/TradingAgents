@@ -45,6 +45,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Recommendation } from "@/lib/api/types";
 import { fmtCountdown, fmtPnl, fmtPrice } from "@/lib/format";
 import { computePositionPlan } from "@/lib/positionPlan";
+import { countdownExpired, useCountdown } from "@/lib/useCountdown";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
 
@@ -238,8 +239,10 @@ export default function WorkspacePage() {
     (p) => p.symbol === symbol,
   );
   // the server-computed next MAJOR event (countdown-capable) beats the
-  // first row of the raw release list (review P1.1)
+  // first row of the raw release list (review P1.1); the countdown ticks
+  // locally between refetches (R2.3)
   const nextMajor = calendar.data?.next_major;
+  const nextMajorRemaining = useCountdown(nextMajor?.at ?? null);
   const nextRelease = nextMajor ?? calendar.data?.releases[0];
   const isLive = (spec?.live || symbol === "BTC-USD") && !replay.active;
 
@@ -425,11 +428,11 @@ export default function WorkspacePage() {
             {nextRelease && !replay.active && (
               <p className="mt-[10px] text-xs text-fg-subtle" data-testid="event-strip">
                 next macro event: <span className="text-fg-muted">{nextRelease.release}</span>
-                {nextMajor ? (
+                {nextMajor && !countdownExpired(nextMajorRemaining) ? (
                   <>
                     {" in "}
                     <span className="font-mono tabular text-fg-muted">
-                      {fmtCountdown(nextMajor.seconds_until)}
+                      {fmtCountdown(nextMajorRemaining ?? nextMajor.seconds_until)}
                     </span>
                     {nextMajor.time_et && ` (${nextMajor.date} ${nextMajor.time_et} ET)`}
                   </>
@@ -546,6 +549,7 @@ export default function WorkspacePage() {
             <PositionPlanPanel
               symbol={symbol}
               rec={recForSymbol}
+              recPending={recommendation.isPending}
               anchorTime={allBars.length > 0 ? allBars[allBars.length - 1]!.time : null}
             />
           </CardContent>
@@ -571,10 +575,14 @@ export default function WorkspacePage() {
 function PositionPlanPanel({
   symbol,
   rec,
+  recPending = false,
   anchorTime,
 }: {
   symbol: string;
   rec: Recommendation | null;
+  /** ticket query still in flight (R2.7: a slow ticket fetch silently
+   * removed the adopt affordance — show a loading state instead) */
+  recPending?: boolean;
   /** last bar time — drawing anchors must be EXACT bar times or the
    * chart's timeToCoordinate returns null and nothing renders */
   anchorTime: number | null;
@@ -608,11 +616,18 @@ function PositionPlanPanel({
           Draw a position on the chart (long/short tool: entry → stop →
           target) to size it here.
         </p>
-        {rec?.entry_price != null && rec.action !== "HOLD" && (
-          <Button size="sm" variant="outline" onClick={adoptAiLevels}
-                  data-testid="adopt-ai-levels">
-            Adopt the AI's levels
+        {recPending ? (
+          <Button size="sm" variant="outline" disabled data-testid="adopt-ai-levels">
+            Adopt the AI's levels — loading ticket…
           </Button>
+        ) : (
+          rec?.entry_price != null &&
+          rec.action !== "HOLD" && (
+            <Button size="sm" variant="outline" onClick={adoptAiLevels}
+                    data-testid="adopt-ai-levels">
+              Adopt the AI's levels
+            </Button>
+          )
         )}
       </div>
     );

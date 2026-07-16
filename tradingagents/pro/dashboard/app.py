@@ -665,13 +665,17 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         view["timeframe"] = run.timeframe
         return view
 
+    # async on purpose (review R2.7): these are pure in-memory reads, yet as
+    # sync defs they shared the threadpool with vendor-bound handlers
+    # (intel/bars/calendar) and were observed queuing >30s behind them.
+    # On the event loop they cannot be starved.
     @app.get("/api/recommendation/latest")
-    def latest_recommendation(symbol: str | None = None) -> dict:
+    async def latest_recommendation(symbol: str | None = None) -> dict:
         run = state.latest_run_for(symbol) if symbol else state.latest_run()
         return _ticket_view(run)
 
     @app.get("/api/runs/{run_id}/recommendation")
-    def run_recommendation(run_id: str) -> dict:
+    async def run_recommendation(run_id: str) -> dict:
         return _ticket_view(_run_or_404(run_id))
 
     @app.get("/api/status")

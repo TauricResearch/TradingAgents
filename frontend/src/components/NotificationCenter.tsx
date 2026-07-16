@@ -1,6 +1,6 @@
 /** Slide-over notification center: persisted read state, mark-one /
  * mark-all. Fed by the alert stream through the backend store. */
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { useState } from "react";
 
@@ -12,6 +12,8 @@ import {
   useNotifications,
   usePrefs,
 } from "@/lib/api/queries";
+import type { Notification } from "@/lib/api/types";
+import { bySeverity, groupConsecutive, type BellRow } from "@/lib/bellGroups";
 import { desktopNotifyState, requestDesktopNotify } from "@/lib/desktopNotify";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -23,6 +25,101 @@ const TONE: Record<string, string> = {
   info: "text-fg-muted",
 };
 
+function NoteRow({
+  note,
+  client,
+  muted,
+}: {
+  note: Notification;
+  client: QueryClient;
+  muted: Set<string>;
+}) {
+  return (
+    <li
+      className={cn(
+        "rounded-md border px-3 py-2 text-sm",
+        note.read
+          ? "border-border text-fg-subtle"
+          : "border-border-strong bg-surface-2",
+      )}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={cn("text-xs uppercase", TONE[note.severity])}>
+          {note.severity} · {note.event}
+        </span>
+        <span className="flex gap-2">
+          {!note.read && (
+            <button
+              className="text-xs text-accent hover:underline"
+              onClick={() => void markNotificationsRead(client, [note.id])}
+            >
+              mark read
+            </button>
+          )}
+          {note.event && (
+            <button
+              className="text-xs text-fg-subtle hover:underline"
+              onClick={() =>
+                void patchPrefs(client, {
+                  muted_events: [...muted, note.event],
+                })
+              }
+            >
+              mute type
+            </button>
+          )}
+        </span>
+      </div>
+      <p className={note.read ? "" : "text-fg"}>{note.text}</p>
+      <div className="text-xs text-fg-subtle">{fmtDateTime(note.time)}</div>
+    </li>
+  );
+}
+
+/** Collapsed loop chatter (R2.5): one row for N consecutive run notes —
+ * the latest text shown, one action to read them all. */
+function GroupRow({
+  row,
+  client,
+}: {
+  row: Extract<BellRow, { kind: "group" }>;
+  client: QueryClient;
+}) {
+  const latest = row.notes[row.notes.length - 1]!;
+  const unreadIds = row.notes.filter((n) => !n.read).map((n) => n.id);
+  return (
+    <li
+      className={cn(
+        "rounded-md border px-3 py-2 text-sm",
+        unreadIds.length === 0
+          ? "border-border text-fg-subtle"
+          : "border-border-strong bg-surface-2",
+      )}
+      data-testid="bell-group"
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={cn("text-xs uppercase", TONE[latest.severity])}>
+          {latest.severity} · {row.event} ×{row.notes.length}
+        </span>
+        {unreadIds.length > 0 && (
+          <button
+            className="text-xs text-accent hover:underline"
+            onClick={() => void markNotificationsRead(client, unreadIds)}
+          >
+            mark {unreadIds.length} read
+          </button>
+        )}
+      </div>
+      <p className={unreadIds.length === 0 ? "" : "text-fg"}>
+        latest: {latest.text}
+      </p>
+      <div className="text-xs text-fg-subtle">
+        {fmtDateTime(row.notes[0]!.time)} → {fmtDateTime(latest.time)}
+      </div>
+    </li>
+  );
+}
+
 export function NotificationCenter() {
   const { notificationsOpen, setNotificationsOpen } = useUiStore();
   const notifications = useNotifications();
@@ -30,14 +127,23 @@ export function NotificationCenter() {
   const client = useQueryClient();
   // re-render after the permission prompt resolves
   const [notifyState, setNotifyState] = useState(desktopNotifyState);
+  const [severityFilter, setSeverityFilter] = useState<"all" | "important">("all");
 
   if (!notificationsOpen) return null;
   const muted = new Set(prefs.data?.muted_events ?? []);
   // muting hides, never deletes — the backend keeps everything
-  const items = (notifications.data?.notifications ?? []).filter(
-    (note) => !muted.has(note.event),
+  const items = bySeverity(
+    (notifications.data?.notifications ?? []).filter(
+      (note) => !muted.has(note.event),
+    ),
+    severityFilter,
   );
-  const mutedCount = (notifications.data?.notifications ?? []).length - items.length;
+  const mutedCount =
+    (notifications.data?.notifications ?? []).length -
+    (notifications.data?.notifications ?? []).filter((n) => !muted.has(n.event))
+      .length;
+  // consecutive loop chatter collapses into one row (R2.5)
+  const rows = groupConsecutive(items);
 
   return (
     <aside
@@ -98,56 +204,55 @@ export function NotificationCenter() {
             Desktop banners are blocked in your browser's site settings.
           </p>
         )}
+        {/* severity filter (R2.5): the loop's info chatter must never bury
+            a warning — "important" shows warning+critical only */}
+        <div className="mb-2 flex gap-1" role="group" aria-label="Severity filter">
+          {(["all", "important"] as const).map((option) => (
+            <button
+              key={option}
+              aria-pressed={severityFilter === option}
+              data-testid={`bell-filter-${option}`}
+              className={cn(
+                "rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                severityFilter === option
+                  ? "border-accent bg-accent-muted text-accent"
+                  : "border-border text-fg-subtle hover:text-fg",
+              )}
+              onClick={() => setSeverityFilter(option)}
+            >
+              {option === "all" ? "all" : "warnings+"}
+            </button>
+          ))}
+        </div>
         {mutedCount > 0 && (
           <p className="mb-2 text-xs text-fg-subtle">
             {mutedCount} hidden by mute rules (manage in Settings)
           </p>
         )}
-        {items.length === 0 ? (
-          <EmptyState kind="empty" title="All clear" detail="No notifications yet." />
+        {rows.length === 0 ? (
+          <EmptyState
+            kind="empty"
+            title="All clear"
+            detail={
+              severityFilter === "important"
+                ? "No warnings or criticals."
+                : "No notifications yet."
+            }
+          />
         ) : (
           <ul className="space-y-2">
-            {items.map((note) => (
-              <li
-                key={note.id}
-                className={cn(
-                  "rounded-md border px-3 py-2 text-sm",
-                  note.read
-                    ? "border-border text-fg-subtle"
-                    : "border-border-strong bg-surface-2",
-                )}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className={cn("text-xs uppercase", TONE[note.severity])}>
-                    {note.severity} · {note.event}
-                  </span>
-                  <span className="flex gap-2">
-                    {!note.read && (
-                      <button
-                        className="text-xs text-accent hover:underline"
-                        onClick={() => void markNotificationsRead(client, [note.id])}
-                      >
-                        mark read
-                      </button>
-                    )}
-                    {note.event && (
-                      <button
-                        className="text-xs text-fg-subtle hover:underline"
-                        onClick={() =>
-                          void patchPrefs(client, {
-                            muted_events: [...muted, note.event],
-                          })
-                        }
-                      >
-                        mute type
-                      </button>
-                    )}
-                  </span>
-                </div>
-                <p className={note.read ? "" : "text-fg"}>{note.text}</p>
-                <div className="text-xs text-fg-subtle">{fmtDateTime(note.time)}</div>
-              </li>
-            ))}
+            {rows.map((row) =>
+              row.kind === "group" ? (
+                <GroupRow key={row.notes[0]!.id} row={row} client={client} />
+              ) : (
+                <NoteRow
+                  key={row.note.id}
+                  note={row.note}
+                  client={client}
+                  muted={muted}
+                />
+              ),
+            )}
           </ul>
         )}
       </div>

@@ -250,7 +250,7 @@ class PipelineNodes:
                 blocks.append(relations)
             memory_context = "\n".join(blocks)
 
-        return {
+        update: dict[str, Any] = {
             "quant_metrics": quant,
             "risk_metrics": risk,
             "run_timeframe": run_timeframe,
@@ -261,6 +261,22 @@ class PipelineNodes:
             "historical_analogs": analogs,
             "memory_context": memory_context,
         }
+        # event window checked BEFORE any LLM spend (review R2.6: six
+        # event-day runs each paid for a full debate the gate then vetoed).
+        # The graph short-circuits to `rejected` on this rejection; the
+        # risk_gate re-check remains as an in-flight backstop.
+        event_result = self._event_gate_result()
+        if event_result is not None:
+            update["gate_results"] = {
+                **state.get("gate_results", {}),
+                "event": {"passed": event_result.passed,
+                          "checks": event_result.checks,
+                          "reasons": list(event_result.reasons)},
+            }
+            if not event_result.passed:
+                update["rejection"] = {"stage": "event_gate",
+                                       "reasons": list(event_result.reasons)}
+        return update
 
     def make_team_node(self, team: AgentTeam):
         """One node per team; the graph runs the five in the same superstep,
@@ -359,22 +375,25 @@ class PipelineNodes:
 
     # --- gates and judgment ------------------------------------------------------
 
+    def _event_gate_result(self):
+        """Deterministic event-window check (review P1.2). The calendar
+        callable is fetched fresh per use and guarded — a gate must never
+        raise into the graph. None = gate disabled/unavailable."""
+        if self.config.event_block_hours <= 0 or self.calendar_fn is None:
+            return None
+        try:
+            next_major = self.calendar_fn()
+        except Exception:
+            logger.warning("calendar_fn failed; event gate passes open",
+                           exc_info=True)
+            next_major = None
+        return event_gate(next_major, utc_now(), self.config.event_block_hours)
+
     def risk_gate(self, state: dict) -> dict:
-        # event window first (review P1.2): within N hours of a major
-        # scheduled release the run declines NEW entries before any risk
-        # arithmetic — the calendar callable is fetched fresh per run and
-        # is guarded (a gate must never raise into the graph)
-        event_result = None
-        if self.config.event_block_hours > 0 and self.calendar_fn is not None:
-            try:
-                next_major = self.calendar_fn()
-            except Exception:
-                logger.warning("calendar_fn failed; event gate passes open",
-                               exc_info=True)
-                next_major = None
-            event_result = event_gate(
-                next_major, utc_now(), self.config.event_block_hours
-            )
+        # event backstop (review R2.6: the primary check now runs at
+        # prepare, BEFORE any LLM spend; this re-check catches an event
+        # that entered the window while the debate ran)
+        event_result = self._event_gate_result()
         result = risk_gate(state["risk_metrics"], self.config)
         gates: dict[str, Any] = {
             **state.get("gate_results", {}),

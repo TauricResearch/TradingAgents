@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useCalendar, useCorrelations, useIntel, useOverview } from "@/lib/api/queries";
 import { fmtCountdown, fmtDateTime, fmtMetricValue, relativeAge } from "@/lib/format";
+import { countdownExpired, useCountdown } from "@/lib/useCountdown";
 import { cn } from "@/lib/utils";
 
 const GROUPS: { title: string; names: string[] }[] = [
@@ -103,6 +104,8 @@ export default function IntelPage() {
   const calendar = useCalendar();
   const [majorsOnly, setMajorsOnly] = useState(true);
   const overview = useOverview();
+  // live countdown (R2.3) — unconditional, before the early returns
+  const nextMajorRemaining = useCountdown(calendar.data?.next_major?.at ?? null);
 
   if (intel.isPending) return <SkeletonCard lines={8} />;
   if (intel.isError || !intel.data)
@@ -335,11 +338,11 @@ export default function IntelPage() {
                 }
                 return (
                   <div className="space-y-2">
-                    {nextMajor && (
+                    {nextMajor && !countdownExpired(nextMajorRemaining) && (
                       <p className="text-xs text-fg-muted" data-testid="next-major">
                         next major:{" "}
                         <span className="font-semibold">{nextMajor.release}</span>{" "}
-                        in {fmtCountdown(nextMajor.seconds_until)}
+                        in {fmtCountdown(nextMajorRemaining ?? nextMajor.seconds_until)}
                         {nextMajor.time_et
                           ? ` (${nextMajor.date} ${nextMajor.time_et} ET)`
                           : ` (${nextMajor.date} — time unknown)`}

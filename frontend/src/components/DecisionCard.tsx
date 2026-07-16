@@ -9,7 +9,7 @@ import { Badge } from "./ui/badge";
 import { EmptyState } from "./EmptyState";
 import type { Recommendation } from "@/lib/api/types";
 import { useRegime } from "@/lib/api/queries";
-import { fmtPrice } from "@/lib/format";
+import { fmtPrice, relativeAge } from "@/lib/format";
 import { MIN_ANALOG_SIMILARITY } from "@/lib/thresholds";
 import { cn } from "@/lib/utils";
 
@@ -252,6 +252,11 @@ export function DecisionCard({
     liveRegime != null &&
     rec.market_regime != null &&
     liveRegime !== rec.market_regime;
+  // decision age (review R2.4: a 9-hour-old HOLD rendered at full visual
+  // confidence — the loop trades gold only, so BTC opinions go stale).
+  // Past the staleness bar the chip goes dashed and demands re-reading.
+  const ageMs = rec.created_at ? Date.now() - Date.parse(rec.created_at) : null;
+  const decisionStale = ageMs != null && ageMs > 3 * 3600_000;
 
   return (
     <div className="space-y-3" data-testid="decision-card">
@@ -261,6 +266,17 @@ export function DecisionCard({
             {kicker}
           </span>
           <span className="flex items-center gap-1.5">
+            {ageMs != null && (
+              <Badge
+                variant={decisionStale ? "stale" : "default"}
+                title={decisionStale
+                  ? "this opinion predates recent market action — re-read before acting"
+                  : "when this decision was made"}
+                data-testid="decision-age"
+              >
+                decided {relativeAge(rec.created_at)}
+              </Badge>
+            )}
             <Badge variant="accent" title="deterministic regime when this run decided">
               {humanRegime(rec.market_regime)} at decision
             </Badge>
@@ -348,6 +364,17 @@ export function DecisionCard({
               <span className="font-mono tabular">{rec.confidence}</span>
               <span className="text-fg-subtle">/100</span>
             </span>
+            {ageMs != null && (
+              <Badge
+                variant={decisionStale ? "stale" : "default"}
+                title={decisionStale
+                  ? "this opinion predates recent market action — re-read before acting"
+                  : "when this decision was made"}
+                data-testid="decision-age"
+              >
+                decided {relativeAge(rec.created_at)}
+              </Badge>
+            )}
             <Badge variant="accent" title="deterministic regime when this run decided">
               {humanRegime(rec.market_regime)} at decision
             </Badge>

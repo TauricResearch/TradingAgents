@@ -140,6 +140,9 @@ def test_event_gate_blocks_new_entries_near_major_events():
     assert state["rejection"]["stage"] == "event_gate"
     assert "FOMC Press Release" in state["rejection"]["reasons"][0]
     assert state["gate_results"]["event"]["passed"] is False
+    # R2.6: the veto happens at prepare — a gated run buys ZERO LLM calls
+    # (six event-day runs each paid for a full debate before this fix)
+    assert llm.prompts == {}
 
 
 def test_event_gate_passes_when_no_event_is_near():

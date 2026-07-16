@@ -26,6 +26,7 @@ import {
 } from "@/lib/api/queries";
 import { fmtCountdown, fmtPnl, fmtPrice, fmtDateTime, fmtPct } from "@/lib/format";
 import { computeStanceFlips } from "@/lib/sinceYouLeft";
+import { countdownExpired, useCountdown } from "@/lib/useCountdown";
 import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
 import { useLayoutStore } from "@/stores/layout";
@@ -321,6 +322,10 @@ function SinceYouLeft() {
 
 function WhatNext() {
   const calendar = useCalendar();
+  // ticks locally between refetches (R2.3: a frozen snapshot once showed
+  // "in 1h 9m" for an event two hours past). Unconditional: hooks must
+  // precede the early returns below.
+  const remaining = useCountdown(calendar.data?.next_major?.at ?? null);
   const all = calendar.data?.releases ?? [];
   // market-moving releases first; fall back to everything if none flagged
   const majors = all.filter((r) => r.major);
@@ -341,14 +346,14 @@ function WhatNext() {
   const nextMajor = calendar.data?.next_major;
   return (
     <div className="space-y-2">
-      {nextMajor && (
+      {nextMajor && !countdownExpired(remaining) && (
         <p
           className="rounded-lg bg-accent-muted px-2.5 py-1.5 text-xs text-accent"
           data-testid="next-major-countdown"
         >
           <span className="font-bold">{nextMajor.release}</span> in{" "}
           <span className="font-mono tabular">
-            {fmtCountdown(nextMajor.seconds_until)}
+            {fmtCountdown(remaining ?? nextMajor.seconds_until)}
           </span>
           {nextMajor.time_et && ` · ${nextMajor.time_et} ET`}
         </p>

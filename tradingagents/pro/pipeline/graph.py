@@ -148,10 +148,21 @@ def build_pro_pipeline(
     graph.add_node("execution", nodes.execution)
     graph.add_node("rejected", nodes.rejected)
 
-    # fan-out / fan-in
+    # fan-out / fan-in. The fan-out is conditional: a prepare-time rejection
+    # (event gate, R2.6) routes straight to `rejected` so a vetoed run never
+    # spends a token on teams or debates.
     graph.add_edge(START, "prepare")
+
+    def prepare_router(state: PipelineState) -> str | list[str]:
+        if state.get("rejection"):
+            return "rejected"
+        return team_names
+
+    graph.add_conditional_edges(
+        "prepare", prepare_router,
+        {**{name: name for name in team_names}, "rejected": "rejected"},
+    )
     for name in team_names:
-        graph.add_edge("prepare", name)
         graph.add_edge(name, "join")
 
     stage_targets = {
