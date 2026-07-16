@@ -22,6 +22,32 @@ logger = logging.getLogger(__name__)
 CORRELATION_SYMBOLS = ("BTC-USD", "XAUUSD", "DXY", "SILVER", "US10Y")
 
 
+def _friendly_error(exc: Exception) -> str:
+    """One short human line for the UI; the raw exception goes to logs.
+
+    Vendor exceptions embed full request URLs and repr noise (the review
+    caught a raw '403 Client Error: Forbidden for url: https://...' on the
+    Intel page) — the dashboard shows the kind of failure, never the
+    plumbing."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status is not None:
+        hints = {401: "auth rejected", 403: "forbidden — subscription or rate limit?",
+                 404: "endpoint missing", 429: "rate limited"}
+        hint = hints.get(status, "server error" if status >= 500 else "request rejected")
+        return f"HTTP {status} ({hint})"
+    name = type(exc).__name__
+    if "Timeout" in name:
+        return "timed out"
+    if "Connection" in name:
+        return "unreachable"
+    # deliberate, short messages ("FRED_API_KEY not set") stay; anything
+    # long or URL-bearing is vendor plumbing and shows only its kind
+    text = str(exc)
+    if text and len(text) <= 80 and "http://" not in text and "https://" not in text:
+        return text
+    return name
+
+
 def correlation_matrix(marketdata, symbols, window: int = 30,
                        deadline: float = 10.0) -> dict:
     """Pairwise Pearson correlations of daily log returns (deterministic
@@ -60,7 +86,8 @@ def correlation_matrix(marketdata, symbols, window: int = 30,
             future.cancel()
             missing.append(f"{symbol}: no response within {deadline:.0f}s")
         except Exception as exc:
-            missing.append(f"{symbol}: {exc}")
+            logger.warning("correlation bars for %s failed", symbol, exc_info=True)
+            missing.append(f"{symbol}: {_friendly_error(exc)}")
     pool.shutdown(wait=False)  # never join a blackholed fetch
 
     matrix: dict[str, dict[str, float]] = {}
@@ -215,7 +242,8 @@ class IntelService:
                 missing.append(f"{feed_name}: no response within "
                                f"{self.deadline:.0f}s (vendor unreachable?)")
             except Exception as exc:
-                missing.append(f"{feed_name}: {exc}")
+                logger.warning("intel feed %s failed", feed_name, exc_info=True)
+                missing.append(f"{feed_name}: {_friendly_error(exc)}")
         view = {
             "as_of": utc_now().isoformat(),
             "session": current_session(utc_now()).value,

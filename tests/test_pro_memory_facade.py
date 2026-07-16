@@ -82,6 +82,19 @@ class TestTradeLifecycle:
 
 
 class TestAnalogs:
+    def test_outcome_text_never_duplicates_the_trade_description(self):
+        # review P0.6: outcome text embedded the ENTIRE trade description,
+        # so every analog rendered as the same wall of prose twice
+        memory = ProMemory()
+        trade = memory.record_trade(make_recommendation())
+        long_text = "X" * 500
+        trade_rec = memory._records[trade.id]
+        object.__setattr__(trade_rec, "text", long_text)
+        outcome, _lesson = memory.close_trade(trade.id, pnl=-86.50)
+        assert len(outcome.text) < 120
+        assert "pnl -86.5000 (loss)" in outcome.text
+        assert long_text not in outcome.text
+
     def test_only_closed_trades_become_analogs(self):
         memory = ProMemory()
         closed = memory.record_trade(make_recommendation())

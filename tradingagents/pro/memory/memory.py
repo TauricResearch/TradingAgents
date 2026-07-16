@@ -120,9 +120,14 @@ class ProMemory:
         payload = {"pnl": pnl, "won": won, "closed_at": utc_now().isoformat()}
         if details:
             payload.update(details)
+        # concise on purpose: the trade's full description lives on the TRADE
+        # record this outcome references (ref_id). Embedding it here rendered
+        # every historical analog as the same wall of text twice (trader
+        # review P0.6 — a 12%-similar analog shown as duplicated prose).
+        summary = trade.text if len(trade.text) <= 72 else trade.text[:72] + "…"
         added = [self._add(MemoryRecord(
             kind=MemoryKind.OUTCOME,
-            text=f"outcome of {trade.text}: pnl {pnl:+.4f} ({'win' if won else 'loss'})",
+            text=f"outcome of {summary}: pnl {pnl:+.4f} ({'win' if won else 'loss'})",
             symbol=trade.symbol,
             ref_id=trade.id,
             payload=payload,

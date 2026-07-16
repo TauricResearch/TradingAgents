@@ -32,6 +32,26 @@ class TestIntelService:
         assert any(f["provider"] == "Coinglass"
                    for f in view["unsubscribed_feeds"])
 
+    def test_vendor_error_never_leaks_urls(self):
+        # the review's live finding: a raw "403 Client Error: Forbidden for
+        # url: https://community-api.coinmetrics.io/..." on the Intel page
+        class FakeResponse:
+            status_code = 403
+
+        class VendorError(RuntimeError):
+            response = FakeResponse()
+
+        service = IntelService(feeds={
+            "coinmetrics": lambda: (_ for _ in ()).throw(VendorError(
+                "403 Client Error: Forbidden for url: "
+                "https://community-api.coinmetrics.io/v4/timeseries")),
+        })
+        view = service.snapshot()
+        assert view["missing_feeds"] == [
+            "coinmetrics: HTTP 403 (forbidden — subscription or rate limit?)"
+        ]
+        assert "https://" not in view["missing_feeds"][0]
+
     def test_snapshot_ttl_cache(self):
         calls = {"n": 0}
 
