@@ -53,8 +53,11 @@ gcloud builds submit \
 echo "==> Deploying ${SERVICE} to Cloud Run (${REGION})"
 # --max-instances=1 enforces the app's single-writer invariant over the
 # /data volume (memory.jsonl, run history, hash-chained audit log, arming
-# state — see docs/DEPLOYMENT.md); --min-instances=0 keeps it scale-to-zero
-# between visits since the automatic trading loop is disabled here.
+# state — see docs/DEPLOYMENT.md); --min-instances=1 keeps that singleton
+# WARM: with scale-to-zero, every cold boot briefly served "monitor only"
+# safety chrome before the paper service attached, so equity/status chips
+# flickered between page loads (trader review P0.4 — a control surface
+# whose LIVE state depends on which boot served you reads as broken).
 # --execution-environment gen2 is required for the Cloud Storage volume mount.
 # --update-env-vars/--update-secrets (not --set-*) MERGE with what's already
 # on the service, so redeploys never wipe env applied out-of-band (e.g. the
@@ -65,7 +68,7 @@ gcloud run deploy "$SERVICE" \
   --region "$REGION" \
   --image "$IMAGE" \
   --execution-environment gen2 \
-  --min-instances 0 \
+  --min-instances 1 \
   --max-instances 1 \
   --add-volume "name=data,type=cloud-storage,bucket=${BUCKET}" \
   --add-volume-mount "volume=data,mount-path=/data" \
