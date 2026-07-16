@@ -57,6 +57,53 @@ class TestIntelService:
         }]
         assert "news:BTC-USD:empty" in view["missing_feeds"]
 
+    def test_next_major_never_served_stale(self, monkeypatch):
+        """R2.1: the 16 Jul incident — next_major was cached for 6h, so a
+        just-passed Retail Sales masked FOMC and the event gate slept while
+        the loop shorted gold 3.5h before the Fed. The release LIST may
+        cache; next_major must be recomputed from it on every call."""
+        from datetime import datetime, timezone
+
+        from tradingagents.pro.dashboard import intel as intel_module
+
+        rows = [
+            {"date": "2026-07-16", "release": "Advance Monthly Sales for "
+             "Retail and Food Services", "release_id": 9, "major": True},
+            {"date": "2026-07-16", "release": "FOMC Press Release",
+             "release_id": 101, "major": True},
+        ]
+        fetches = {"n": 0}
+
+        def calendar_source(days):
+            fetches["n"] += 1
+            return rows
+
+        service = IntelService(feeds={}, news_fns={},
+                               calendar_source=calendar_source)
+
+        # 11:00Z: Retail Sales (12:30Z) is the next major
+        monkeypatch.setattr(
+            intel_module, "utc_now",
+            lambda: datetime(2026, 7, 16, 11, 0, tzinfo=timezone.utc))
+        first = service.calendar(days=7)
+        assert "Retail" in first["next_major"]["release"]
+
+        # 14:30Z, same cache window: Retail Sales has printed — FOMC
+        # (18:00Z) must surface WITHOUT a new vendor fetch
+        monkeypatch.setattr(
+            intel_module, "utc_now",
+            lambda: datetime(2026, 7, 16, 14, 30, tzinfo=timezone.utc))
+        second = service.calendar(days=7)
+        assert second["next_major"]["release"] == "FOMC Press Release"
+        assert second["next_major"]["seconds_until"] == int(3.5 * 3600)
+        assert fetches["n"] == 1  # release list stayed cached
+
+        # 19:00Z: FOMC printed too — nothing upcoming, honest None
+        monkeypatch.setattr(
+            intel_module, "utc_now",
+            lambda: datetime(2026, 7, 16, 19, 0, tzinfo=timezone.utc))
+        assert service.calendar(days=7)["next_major"] is None
+
     def test_vendor_error_never_leaks_urls(self):
         # the review's live finding: a raw "403 Client Error: Forbidden for
         # url: https://community-api.coinmetrics.io/..." on the Intel page

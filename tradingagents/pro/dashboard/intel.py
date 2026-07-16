@@ -322,28 +322,39 @@ class IntelService:
         return view
 
     def calendar(self, days: int = 30) -> dict:
+        """Release calendar with a LIVE next_major.
+
+        The vendor fetch (release dates) caches for ``calendar_ttl`` —
+        dates don't move intraday. ``next_major`` is time-sensitive and is
+        recomputed from the cached release list on EVERY call: serving it
+        frozen let a just-passed event mask the next one for hours, and
+        the pipeline's event gate slept through FOMC's approach while the
+        loop opened a gold short inside the declared window (trader review
+        R2.1). ``next_major_event`` scans the full list and skips past
+        instants, so look-ahead beyond the first event is inherent.
+        """
+        from tradingagents.pro.ingestion.econ_calendar import (
+            enrich_calendar,
+            next_major_event,
+        )
+
         days = max(1, min(days, 90))
         with self._lock:
-            if (self._cached_calendar
-                    and self._now() - self._cached_calendar[0] < self.calendar_ttl):
-                return self._cached_calendar[1]
+            cached = self._cached_calendar
+        if cached and self._now() - cached[0] < self.calendar_ttl:
+            view = dict(cached[1])
+            view["next_major"] = next_major_event(
+                view.get("releases") or [], utc_now())
+            return view
         releases: list[dict] = []
         missing: list[str] = []
         try:
-            from tradingagents.pro.ingestion.econ_calendar import (
-                enrich_calendar,
-                next_major_event,
-            )
-
             releases = enrich_calendar(self._calendar_fetch(days))
-            upcoming = next_major_event(releases, utc_now())
         except Exception as exc:
             logger.warning("calendar fetch failed", exc_info=True)
             missing.append(f"fred_calendar: {_friendly_error(exc)}")
-            upcoming = None
         view = {"releases": releases, "missing_feeds": missing,
-                "next_major": upcoming,
                 "as_of": utc_now().isoformat()}
         with self._lock:
             self._cached_calendar = (self._now(), view)
-        return view
+        return {**view, "next_major": next_major_event(releases, utc_now())}
