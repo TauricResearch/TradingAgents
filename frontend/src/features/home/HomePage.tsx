@@ -25,6 +25,7 @@ import {
   useStatus,
 } from "@/lib/api/queries";
 import { fmtCountdown, fmtPnl, fmtPrice, fmtDateTime, fmtPct } from "@/lib/format";
+import { computeStanceFlips } from "@/lib/sinceYouLeft";
 import { cn } from "@/lib/utils";
 import { useTick } from "@/stores/ticker";
 import { useLayoutStore } from "@/stores/layout";
@@ -248,6 +249,8 @@ function SinceYouLeft() {
   const newAlerts = (alerts.data?.alerts ?? []).filter(
     (a) => new Date(a.time) > since,
   );
+  // the AI changing its mind is the headline diff for a returning trader
+  const flips = computeStanceFlips(runs.data ?? [], since);
 
   if (newRuns.length + closed.length + newAlerts.length === 0) {
     return (
@@ -265,6 +268,18 @@ function SinceYouLeft() {
   }
   return (
     <div className="space-y-[7px] text-[13px]">
+      {flips.map((flip) => (
+        <p key={flip.symbol} data-testid="stance-flip">
+          <span className="font-bold text-stale">stance changed</span> —{" "}
+          {flip.symbol}{" "}
+          <Link
+            to={`/decisions/${flip.run_id}`}
+            className="font-mono font-semibold text-accent hover:underline"
+          >
+            {flip.from} → {flip.to}
+          </Link>
+        </p>
+      ))}
       {newRuns.length > 0 && (
         <p>
           <span className="font-bold">{newRuns.length}</span> new run(s) —
