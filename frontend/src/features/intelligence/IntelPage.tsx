@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useCalendar, useCorrelations, useIntel, useOverview } from "@/lib/api/queries";
-import { fmtDateTime, fmtPrice } from "@/lib/format";
+import { fmtDateTime, fmtMetricValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const GROUPS: { title: string; names: string[] }[] = [
@@ -166,11 +166,7 @@ export default function IntelPage() {
                       <StatCard
                         key={name}
                         label={name.replaceAll("_", " ")}
-                        value={
-                          Math.abs(metric.value) < 0.01 && metric.value !== 0
-                            ? metric.value.toExponential(2)
-                            : fmtPrice(metric.value, 2)
-                        }
+                        value={fmtMetricValue(name, metric.value)}
                         sub={metric.source ?? undefined}
                       />
                     ))}

@@ -4,10 +4,13 @@
 import { Link } from "react-router-dom";
 
 import { DirectionBadge } from "./DirectionBadge";
+import { Emphasis } from "./Emphasis";
 import { Badge } from "./ui/badge";
 import { EmptyState } from "./EmptyState";
 import type { Recommendation } from "@/lib/api/types";
+import { useRegime } from "@/lib/api/queries";
 import { fmtPrice } from "@/lib/format";
+import { MIN_ANALOG_SIMILARITY } from "@/lib/thresholds";
 import { cn } from "@/lib/utils";
 
 function pctFrom(entry: number, price: number): string {
@@ -146,6 +149,12 @@ export function DecisionCard({
   kicker?: string;
   runId?: string | null;
 }) {
+  // live deterministic regime for THIS symbol: the card's regime chip shows
+  // the regime AT DECISION TIME, and must say so — plus flag divergence,
+  // because a verdict from a different regime deserves fresh suspicion
+  // (review finding: strip said "high volatility" beside a card saying
+  // "low volatility regime" with no hint they measure different moments)
+  const liveRegimeQuery = useRegime();
   if (!rec) return <EmptyState kind="waiting" title="Waiting for first decision" />;
 
   if (rec.status === "rejected") {
@@ -226,7 +235,23 @@ export function DecisionCard({
   const counters = [...(rec.counterarguments ?? [])]
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, compact ? 1 : 3);
-  const analogs = (rec.historical_analogs ?? []).slice(0, 2);
+  // a 12%-similar "analog" is noise presented as meaning (review P0.6):
+  // only credible matches render; the best weak match is disclosed instead
+  const allAnalogs = rec.historical_analogs ?? [];
+  const analogs = allAnalogs
+    .filter((a) => a.similarity >= MIN_ANALOG_SIMILARITY)
+    .slice(0, 2);
+  const bestWeakAnalog =
+    analogs.length === 0 && allAnalogs.length > 0
+      ? Math.max(...allAnalogs.map((a) => a.similarity))
+      : null;
+  const liveRegime = rec.symbol
+    ? (liveRegimeQuery.data?.symbols?.[rec.symbol]?.regime ?? null)
+    : null;
+  const regimeChanged =
+    liveRegime != null &&
+    rec.market_regime != null &&
+    liveRegime !== rec.market_regime;
 
   return (
     <div className="space-y-3" data-testid="decision-card">
@@ -235,7 +260,20 @@ export function DecisionCard({
           <span className="text-[11px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
             {kicker}
           </span>
-          <Badge variant="accent">{humanRegime(rec.market_regime)} regime</Badge>
+          <span className="flex items-center gap-1.5">
+            <Badge variant="accent" title="deterministic regime when this run decided">
+              {humanRegime(rec.market_regime)} at decision
+            </Badge>
+            {regimeChanged && (
+              <Badge
+                variant="stale"
+                title="the live regime no longer matches the regime this decision was made in — treat the verdict with fresh suspicion"
+                data-testid="regime-drift"
+              >
+                now {humanRegime(liveRegime)}
+              </Badge>
+            )}
+          </span>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-5">
@@ -283,10 +321,23 @@ export function DecisionCard({
             )}
             <span className="border-l border-border pl-5">
               <span className="block text-xs text-fg-subtle">votes</span>
-              <span className="font-mono text-[17px] font-bold tabular">
-                <span className="text-bull">▲{tally.BUY ?? 0}</span>{" "}
-                <span className="text-neutral">–{tally.HOLD ?? 0}</span>{" "}
-                <span className="text-bear">▼{tally.SELL ?? 0}</span>
+              {/* labeled glyphs — the review couldn't tell what "–22" was */}
+              <span
+                className="font-mono text-[17px] font-bold tabular"
+                title={`${tally.BUY ?? 0} buy · ${tally.HOLD ?? 0} hold · ${tally.SELL ?? 0} sell`}
+              >
+                <span className="text-bull">
+                  ▲{tally.BUY ?? 0}
+                  <span className="ml-0.5 text-[10px] font-normal">buy</span>
+                </span>{" "}
+                <span className="text-neutral">
+                  –{tally.HOLD ?? 0}
+                  <span className="ml-0.5 text-[10px] font-normal">hold</span>
+                </span>{" "}
+                <span className="text-bear">
+                  ▼{tally.SELL ?? 0}
+                  <span className="ml-0.5 text-[10px] font-normal">sell</span>
+                </span>
               </span>
             </span>
           </>
@@ -297,7 +348,18 @@ export function DecisionCard({
               <span className="font-mono tabular">{rec.confidence}</span>
               <span className="text-fg-subtle">/100</span>
             </span>
-            <Badge variant="accent">{humanRegime(rec.market_regime)}</Badge>
+            <Badge variant="accent" title="deterministic regime when this run decided">
+              {humanRegime(rec.market_regime)} at decision
+            </Badge>
+            {regimeChanged && (
+              <Badge
+                variant="stale"
+                title="the live regime no longer matches the regime this decision was made in"
+                data-testid="regime-drift"
+              >
+                now {humanRegime(liveRegime)}
+              </Badge>
+            )}
             {rec.risk_reward != null && (
               <Badge>R:R {rec.risk_reward.toFixed(2)}</Badge>
             )}
@@ -357,7 +419,7 @@ export function DecisionCard({
           data-testid="invalidation"
         >
           <span className="font-bold text-neutral">Invalidation</span> —{" "}
-          {rec.invalidation}
+          <Emphasis text={rec.invalidation} />
         </div>
       )}
 
@@ -450,6 +512,13 @@ export function DecisionCard({
             ))}
           </ul>
         </div>
+      )}
+      {!compact && !hero && bestWeakAnalog != null && (
+        <p className="text-xs text-fg-subtle" data-testid="no-credible-analogs">
+          no sufficiently similar past setups (best match{" "}
+          {Math.round(bestWeakAnalog * 100)}%, shown from{" "}
+          {Math.round(MIN_ANALOG_SIMILARITY * 100)}%)
+        </p>
       )}
     </div>
   );

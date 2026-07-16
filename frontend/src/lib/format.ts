@@ -20,6 +20,27 @@ export function fmtPct(fraction: number | null | undefined, digits = 1): string 
   return `${(fraction * 100).toFixed(digits)}%`;
 }
 
+/** Metric-aware display: funding rates as %/8h with the annualized figure,
+ * tiny fractions as plain decimals — never scientific notation (trader
+ * review: "FUNDING RATE 8.57e-5" is a formatting fail, not a reading). */
+export function fmtMetricValue(
+  name: string,
+  value: number | null | undefined,
+): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  if (/FUNDING/i.test(name)) {
+    // per-8h fraction (Binance convention: 3 windows/day)
+    const pct = value * 100;
+    return `${pct.toFixed(4)}%/8h · ${(pct * 3 * 365).toFixed(1)}% ann.`;
+  }
+  const abs = Math.abs(value);
+  if (abs !== 0 && abs < 0.01) {
+    const decimals = Math.min(8, Math.ceil(-Math.log10(abs)) + 2);
+    return value.toFixed(decimals);
+  }
+  return fmtPrice(value, 2);
+}
+
 /** Short local timezone label ("IST", "GMT+5:30", ...) — every clock in a
  * cross-session product must say WHICH 22:41 it is (trader review G10). */
 export const TZ_LABEL: string =

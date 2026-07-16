@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DIRECTION_GLYPH,
   directionOf,
+  fmtMetricValue,
   fmtPct,
   fmtPnl,
   fmtPrice,
@@ -42,5 +43,21 @@ describe("formatters", () => {
     const now = new Date();
     expect(relativeAge(new Date(now.getTime() - 5_000).toISOString())).toMatch(/s ago/);
     expect(relativeAge(new Date(now.getTime() - 120_000).toISOString())).toBe("2m ago");
+  });
+
+  it("funding rates render as %/8h with annualization, never sci-notation", () => {
+    // the review's live finding: FUNDING RATE displayed as "8.57e-5"
+    expect(fmtMetricValue("FUNDING_RATE", 8.57e-5)).toBe("0.0086%/8h · 9.4% ann.");
+    expect(fmtMetricValue("FUNDING_RATE", -1.2e-4)).toBe("-0.0120%/8h · -13.1% ann.");
+  });
+
+  it("tiny non-funding values render as plain decimals", () => {
+    expect(fmtMetricValue("SOME_RATIO", 8.57e-5)).toBe("0.0000857");
+    expect(fmtMetricValue("SOME_RATIO", 8.57e-5)).not.toMatch(/e-/);
+  });
+
+  it("ordinary metric values keep localized formatting", () => {
+    expect(fmtMetricValue("OPEN_INTEREST", 102240.19)).toBe("102,240.19");
+    expect(fmtMetricValue("DXY", null)).toBe("—");
   });
 });

@@ -21,8 +21,10 @@
     },
     {
       "name": "frontend-dev",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "env",
       "runtimeArgs": [
+        "PRO_API_TARGET=http://127.0.0.1:8610",
+        "npm",
         "run",
         "dev",
         "--prefix",

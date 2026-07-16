@@ -15,6 +15,7 @@ import type {
   Recommendation,
   Timeline,
 } from "@/lib/api/types";
+import { bucketOf, PIPELINE_BUCKETS } from "@/lib/pipelineStages";
 import { cn } from "@/lib/utils";
 import { type PipelineProgress, useUiStore } from "@/stores/ui";
 
@@ -51,21 +52,9 @@ function uv(u: number, v: number): { x: number; y: number } {
 
 /* ------------------------------------------------------------------ tables */
 
-const BUCKETS = [
-  "prepare", "teams", "join", "debate", "risk_gate",
-  "review", "judge", "sizing", "approval", "execution",
-] as const;
-
-/** LangGraph node name → progress bucket. */
-function bucketOf(node: string): string {
-  if (node.startsWith("team_")) return "teams";
-  if (/^(technical|macro)_(bull|bear)$/.test(node) || node === "sentiment")
-    return "debate";
-  if (node === "critic" || node === "reflection") return "review";
-  if (node === "portfolio_manager") return "sizing";
-  if (node === "human_approval") return "approval";
-  return node; // prepare, join, risk_gate, judge, execution, rejected
-}
+// single progress vocabulary shared with the header chip (review P0.5:
+// the board and chip previously disagreed — "stage 2/10" vs "(5/18)")
+const BUCKETS = PIPELINE_BUCKETS;
 
 type LabelPos = "below" | "above" | "left";
 
@@ -697,9 +686,9 @@ export function DecisionPipeline3D({
     ? BUCKETS.indexOf(bucketOf(activeNode) as (typeof BUCKETS)[number])
     : -1;
   const subtitle = live
-    ? `running ${live.symbol} · stage ${Math.max(liveBucketIdx + 1, 1)}/10`
+    ? `running ${live.symbol} · stage ${Math.max(liveBucketIdx + 1, 1)}/${BUCKETS.length}`
     : replaying
-      ? `replaying recorded run · stage ${Math.max(liveBucketIdx + 1, 1)}/10`
+      ? `replaying recorded run · stage ${Math.max(liveBucketIdx + 1, 1)}/${BUCKETS.length}`
       : runLabel;
 
   const sel: Station =

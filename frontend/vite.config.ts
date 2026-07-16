@@ -67,7 +67,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": { target: "http://127.0.0.1:8600", changeOrigin: false },
+      "/api": {
+        // override when the demo backend runs on a non-default port
+        target: process.env.PRO_API_TARGET ?? "http://127.0.0.1:8600",
+        changeOrigin: false,
+      },
     },
   },
   resolve: {

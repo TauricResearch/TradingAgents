@@ -1,14 +1,19 @@
 /** Agent leaderboard with the honesty column: calibration gap =
  * avg confidence − realized hit rate. Sorted by hit rate, unscored
- * agents grayed at the bottom, never hidden. */
+ * agents grayed at the bottom, never hidden.
+ *
+ * Hit/gap render only from n >= MIN_SCORED closed outcomes — a 100%(n=1)
+ * next to a 0%(n=1) is statistical noise dressed as insight (trader
+ * review P0.6); below the bar the row shows "accruing" instead. */
 import type { AgentPerf } from "@/lib/api/types";
+import { MIN_SCORED } from "@/lib/thresholds";
 import { cn } from "@/lib/utils";
 
 export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
   const rows = Object.entries(perf).sort((a, b) => {
-    const ha = a[1].hit_rate ?? -1;
-    const hb = b[1].hit_rate ?? -1;
-    return hb - ha || b[1].votes - a[1].votes;
+    const scoredA = a[1].scored >= MIN_SCORED ? (a[1].hit_rate ?? -1) : -1;
+    const scoredB = b[1].scored >= MIN_SCORED ? (b[1].hit_rate ?? -1) : -1;
+    return scoredB - scoredA || b[1].votes - a[1].votes;
   });
 
   return (
@@ -25,9 +30,10 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
         </thead>
         <tbody className="tabular">
           {rows.map(([agentId, row]) => {
-            const unscored = row.hit_rate == null;
+            const accruing = row.hit_rate != null && row.scored < MIN_SCORED;
+            const unscored = row.hit_rate == null || accruing;
             const gap =
-              row.hit_rate != null
+              row.hit_rate != null && !accruing
                 ? row.avg_confidence / 100 - row.hit_rate
                 : null;
             return (
@@ -48,6 +54,13 @@ export function AgentLeaderboard({ perf }: { perf: AgentPerf }) {
                     <>
                       — <span className="text-fg-subtle">({row.scored})</span>
                     </>
+                  ) : accruing ? (
+                    <span
+                      className="text-fg-subtle"
+                      title={`hit rate hidden until ${MIN_SCORED} scored outcomes — n=${row.scored} is noise, not signal`}
+                    >
+                      accruing ({row.scored}/{MIN_SCORED})
+                    </span>
                   ) : (
                     <>
                       <span className="font-bold">{Math.round(row.hit_rate * 100)}%</span>{" "}

@@ -1,6 +1,7 @@
 /** Debate as a timeline, not a 59-node graph: team-colored lanes, stance
  * glyphs, citation chips. Reads like a transcript because it is one. */
 import { DirectionBadge } from "./DirectionBadge";
+import { Emphasis } from "./Emphasis";
 import type { Timeline } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +39,9 @@ export function DebateTimeline({ timeline }: { timeline: Timeline }) {
               {entry.stance ?? ""} · conf {entry.confidence ?? "–"}
             </span>
           </div>
-          <p className="mt-[3px] text-[13px] text-fg-muted">{entry.argument}</p>
+          <p className="mt-[3px] text-[13px] text-fg-muted">
+            <Emphasis text={entry.argument} />
+          </p>
           {entry.cited.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {entry.cited.map((ref) => (

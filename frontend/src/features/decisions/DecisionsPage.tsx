@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { MIN_ANALOG_SIMILARITY } from "@/lib/thresholds";
 import {
   useAgents,
   useOverview,
@@ -312,12 +313,20 @@ export default function DecisionsPage() {
           <CardContent>
             {(() => {
               const shown = isLatest ? recommendation.data : historicalTicket.data;
-              const analogs = shown?.historical_analogs ?? [];
+              const all = shown?.historical_analogs ?? [];
+              // weak matches are noise, not analogs (review P0.6): only
+              // credible similarity renders; the best reject is disclosed
+              const analogs = all.filter(
+                (a) => (a.similarity ?? 0) >= MIN_ANALOG_SIMILARITY,
+              );
               if (analogs.length === 0)
                 return (
                   <p className="text-xs text-fg-subtle">
-                    No closed analogs yet — this panel fills as similar
-                    setups resolve and their outcomes are recorded.
+                    {all.length > 0
+                      ? `no sufficiently similar past setups (best match ${Math.round(
+                          Math.max(...all.map((a) => a.similarity ?? 0)) * 100,
+                        )}%, shown from ${Math.round(MIN_ANALOG_SIMILARITY * 100)}%)`
+                      : "No closed analogs yet — this panel fills as similar setups resolve and their outcomes are recorded."}
                   </p>
                 );
               return (

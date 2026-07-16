@@ -180,9 +180,11 @@ export function StatusStrip() {
   // from the deterministic per-symbol endpoint, never another symbol's
   const activeRegime = regime.data?.symbols?.[symbol]?.regime ?? null;
   const regimeTitle = regime.data
-    ? Object.entries(regime.data.symbols)
+    ? "live regime — " +
+      Object.entries(regime.data.symbols)
         .map(([sym, r]) => `${sym}: ${r.regime ?? "—"}`)
-        .join(" · ")
+        .join(" · ") +
+      " (decision cards show the regime at decision time)"
     : undefined;
 
   return (
