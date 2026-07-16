@@ -1,6 +1,6 @@
 """Pro debate pipeline (Phase 4): evidence -> debate -> gates -> recommendation."""
 
-from tradingagents.pro.pipeline.gates import GateResult, risk_gate
+from tradingagents.pro.pipeline.gates import GateResult, event_gate, risk_gate
 from tradingagents.pro.pipeline.graph import (
     PipelineState,
     build_pro_pipeline,
@@ -22,6 +22,7 @@ from tradingagents.pro.pipeline.votes import (
 
 __all__ = [
     "GateResult",
+    "event_gate",
     "risk_gate",
     "PipelineState",
     "build_pro_pipeline",

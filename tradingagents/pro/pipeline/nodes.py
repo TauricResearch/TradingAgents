@@ -35,6 +35,7 @@ from tradingagents.contracts import (
     TradeAction,
     TradeRecommendation,
     TradingMode,
+    utc_now,
 )
 from tradingagents.pro.agents import (
     SPECS_BY_TEAM,
@@ -47,7 +48,7 @@ from tradingagents.pro.agents.metrics import compute_neutral_risk_metrics, infer
 from tradingagents.pro.agents.rendering import wrap_untrusted
 from tradingagents.pro.analytics import classify_regime
 from tradingagents.pro.models import ModelBundle
-from tradingagents.pro.pipeline.gates import risk_gate
+from tradingagents.pro.pipeline.gates import event_gate, risk_gate
 from tradingagents.pro.pipeline.schemas import (
     CriticReport,
     DebateTurn,
@@ -138,6 +139,7 @@ class PipelineNodes:
         advisor=None,
         llm_retries: int = 1,
         agent_workers: int = 1,
+        calendar_fn=None,
     ):
         if llm_retries < 0 or agent_workers < 1:
             raise ValueError("llm_retries must be >= 0 and agent_workers >= 1")
@@ -146,6 +148,9 @@ class PipelineNodes:
         self.equity = equity
         self.memory = memory  # ProMemory | None (duck-typed; tests may fake it)
         self.advisor = advisor  # RLAdvisor | None: advisory metrics only (ADR-0025)
+        # () -> next_major dict | None, fetched fresh per run for the event
+        # gate (review P1.2); None disables the gate alongside config=0
+        self.calendar_fn = calendar_fn
         self.llm_retries = llm_retries
         self.agent_workers = agent_workers
         self.retry_base_seconds = 0.5
@@ -355,14 +360,37 @@ class PipelineNodes:
     # --- gates and judgment ------------------------------------------------------
 
     def risk_gate(self, state: dict) -> dict:
+        # event window first (review P1.2): within N hours of a major
+        # scheduled release the run declines NEW entries before any risk
+        # arithmetic — the calendar callable is fetched fresh per run and
+        # is guarded (a gate must never raise into the graph)
+        event_result = None
+        if self.config.event_block_hours > 0 and self.calendar_fn is not None:
+            try:
+                next_major = self.calendar_fn()
+            except Exception:
+                logger.warning("calendar_fn failed; event gate passes open",
+                               exc_info=True)
+                next_major = None
+            event_result = event_gate(
+                next_major, utc_now(), self.config.event_block_hours
+            )
         result = risk_gate(state["risk_metrics"], self.config)
-        update: dict[str, Any] = {
-            "gate_results": {**state.get("gate_results", {}),
-                             "risk": {"passed": result.passed,
-                                      "checks": result.checks,
-                                      "reasons": list(result.reasons)}},
+        gates: dict[str, Any] = {
+            **state.get("gate_results", {}),
+            "risk": {"passed": result.passed,
+                     "checks": result.checks,
+                     "reasons": list(result.reasons)},
         }
-        if not result.passed:
+        if event_result is not None:
+            gates["event"] = {"passed": event_result.passed,
+                              "checks": event_result.checks,
+                              "reasons": list(event_result.reasons)}
+        update: dict[str, Any] = {"gate_results": gates}
+        if event_result is not None and not event_result.passed:
+            update["rejection"] = {"stage": "event_gate",
+                                   "reasons": list(event_result.reasons)}
+        elif not result.passed:
             update["rejection"] = {"stage": "risk_gate", "reasons": list(result.reasons)}
         return update
 

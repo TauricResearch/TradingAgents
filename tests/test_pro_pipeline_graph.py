@@ -123,6 +123,50 @@ def test_happy_path_produces_validated_buy_recommendation():
     assert "confidence weight" in llm.prompts["JudgeVerdict"][0]
 
 
+def test_event_gate_blocks_new_entries_near_major_events():
+    # review deal-breaker #2: the pipeline shorted gold on FOMC day with
+    # zero FOMC awareness. Inside the window the run must decline to trade.
+    from datetime import datetime, timedelta, timezone
+
+    imminent = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    llm = FakePipelineLLM()
+    state = run_pipeline(
+        llm, CONFIG, pipeline_snapshot(),
+        calendar_fn=lambda: {"release": "FOMC Press Release",
+                             "date": "2026-07-16", "major": True,
+                             "at": imminent},
+    )
+    assert state.get("recommendation") is None
+    assert state["rejection"]["stage"] == "event_gate"
+    assert "FOMC Press Release" in state["rejection"]["reasons"][0]
+    assert state["gate_results"]["event"]["passed"] is False
+
+
+def test_event_gate_passes_when_no_event_is_near():
+    from datetime import datetime, timedelta, timezone
+
+    far = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
+    llm = FakePipelineLLM()
+    state = run_pipeline(
+        llm, CONFIG, pipeline_snapshot(),
+        calendar_fn=lambda: {"release": "FOMC Press Release",
+                             "date": "2026-07-19", "major": True, "at": far},
+    )
+    assert state.get("rejection") is None
+    assert state["recommendation"] is not None
+    assert state["gate_results"]["event"]["passed"] is True
+
+
+def test_broken_calendar_never_blocks_the_run():
+    llm = FakePipelineLLM()
+    state = run_pipeline(
+        llm, CONFIG, pipeline_snapshot(),
+        calendar_fn=lambda: (_ for _ in ()).throw(RuntimeError("calendar down")),
+    )
+    assert state.get("rejection") is None
+    assert state["recommendation"] is not None
+
+
 def test_reflection_invalidation_price_derives_the_stop():
     llm = FakePipelineLLM(overrides={
         ReflectionNote: ReflectionNote(

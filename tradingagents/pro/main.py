@@ -277,11 +277,17 @@ def build_service(llm=None, data_dir: str | Path | None = None):
 
         return builder.build("XAUUSD", AC.GOLD, bar_limit=250)
 
+    def next_major_event():
+        # fresh countdown per run for the pipeline's event gate (P1.2);
+        # IntelService caches under its own TTL so this stays cheap
+        return state.intel.calendar(days=7).get("next_major")
+
     service = PaperTradingService(
         llm, config, snapshot_source,
         router=router, memory=memory, dashboard_state=state,
         alerts=AlertManager(sinks=_build_alert_sinks(state.broadcaster)),
         on_event=state.broadcaster.publish,
+        calendar_fn=next_major_event,
     )
     state.metrics = service.metrics  # /metrics scrape target
     service.alerts.metrics = service.metrics  # count deliveries + failures

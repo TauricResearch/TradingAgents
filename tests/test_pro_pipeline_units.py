@@ -20,6 +20,7 @@ from tradingagents.contracts import (
 from tradingagents.pro.pipeline import (
     build_vote_breakdown,
     confidence_weighted_consensus,
+    event_gate,
     risk_gate,
     votes_from_evidence,
 )
@@ -77,6 +78,42 @@ class TestVotes:
     def test_empty_votes_rejected(self):
         with pytest.raises(ValueError, match="no votes"):
             confidence_weighted_consensus([])
+
+
+class TestEventGate:
+    from datetime import datetime, timezone
+    NOW = datetime(2026, 7, 16, 16, 0, tzinfo=timezone.utc)
+
+    def event(self, at: str | None, release="FOMC Press Release"):
+        return {"release": release, "date": "2026-07-16", "major": True,
+                "at": at}
+
+    def test_blocks_inside_the_window(self):
+        # FOMC at 18:00Z, now 16:00Z, window 4h -> blocked
+        result = event_gate(self.event("2026-07-16T18:00:00+00:00"),
+                            self.NOW, 4.0)
+        assert not result.passed
+        assert "FOMC Press Release in 2.0h" in result.reasons[0]
+
+    def test_passes_outside_the_window(self):
+        result = event_gate(self.event("2026-07-16T22:30:00+00:00"),
+                            self.NOW, 4.0)
+        assert result.passed
+
+    def test_past_events_do_not_block(self):
+        result = event_gate(self.event("2026-07-16T12:30:00+00:00"),
+                            self.NOW, 4.0)
+        assert result.passed
+
+    def test_disabled_or_missing_calendar_passes_open(self):
+        assert event_gate(self.event("2026-07-16T18:00:00+00:00"),
+                          self.NOW, 0).passed
+        assert event_gate(None, self.NOW, 4.0).passed
+
+    def test_date_only_event_passes_open(self):
+        # blocking whole days on time-less events would be worse than
+        # the disease; honesty over paralysis
+        assert event_gate(self.event(None), self.NOW, 4.0).passed
 
 
 class TestRiskGate:

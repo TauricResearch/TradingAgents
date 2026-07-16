@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from tradingagents.contracts import MetricReading, ProConfig, TradeAction
 
@@ -60,3 +61,44 @@ def risk_gate(
     if not checks:
         reasons.append("risk gate had nothing to check; failing closed")
     return GateResult(passed=passed, checks=checks, reasons=tuple(reasons))
+
+
+def event_gate(
+    next_major: dict | None,
+    now: datetime,
+    block_hours: float,
+) -> GateResult:
+    """No NEW entries inside the pre-event window of a major release.
+
+    The trader review's deal-breaker #2: the pipeline shorted gold on FOMC
+    day and none of its 41 evidence items mentioned the Fed. This gate is
+    the structural fix — within ``block_hours`` of a scheduled major event
+    (calendar's ``next_major``: FOMC/CPI/NFP/...), the run declines to open
+    anything new. Exits are never blocked (this runs pre-entry only), and
+    a missing calendar or an event without a known instant passes open —
+    a broken calendar must not silently halt trading; feed degradation is
+    already surfaced through missing_feeds.
+    """
+    if block_hours <= 0 or not next_major:
+        return GateResult(passed=True, checks={"event_window_clear": True})
+    at_raw = next_major.get("at") or next_major.get("ts_utc")
+    if not at_raw:
+        # date-only event: blocking whole days would be worse than the
+        # disease; the debate prompt still sees the calendar context
+        return GateResult(passed=True, checks={"event_window_clear": True})
+    try:
+        instant = datetime.fromisoformat(str(at_raw))
+        seconds = (instant - now).total_seconds()
+    except (TypeError, ValueError):
+        return GateResult(passed=True, checks={"event_window_clear": True})
+    if 0 <= seconds <= block_hours * 3600:
+        release = next_major.get("release", "major scheduled event")
+        return GateResult(
+            passed=False,
+            checks={"event_window_clear": False},
+            reasons=(
+                f"{release} in {seconds / 3600:.1f}h — new entries are "
+                f"blocked within {block_hours:g}h of major scheduled events",
+            ),
+        )
+    return GateResult(passed=True, checks={"event_window_clear": True})

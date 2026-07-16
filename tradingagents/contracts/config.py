@@ -135,6 +135,14 @@ class ProConfig(ContractModel):
     models: ModelRouting = Field(default_factory=ModelRouting)
     max_debate_rounds: int = Field(default=1, ge=1, le=10)
     max_risk_discuss_rounds: int = Field(default=1, ge=1, le=10)
+    event_block_hours: float = Field(
+        default=4.0, ge=0, le=48,
+        description=(
+            "No NEW entries within this many hours before a major scheduled "
+            "release (FOMC/CPI/NFP...). 0 disables the event gate. Exits are "
+            "never blocked."
+        ),
+    )
 
     @model_validator(mode="after")
     def _default_symbol_and_live_guard(self) -> ProConfig:
