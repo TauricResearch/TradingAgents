@@ -24,6 +24,7 @@ import {
   useReplay,
 } from "@/components/charts/ReplayController";
 import { DrawingToolbar } from "@/components/charts/drawings/DrawingToolbar";
+import { GridChartCell } from "./GridChartCell";
 import type { ToolMode } from "@/components/charts/drawings/types";
 import { useDrawingsStore } from "@/stores/drawings";
 import {
@@ -119,6 +120,9 @@ export default function WorkspacePage() {
     toggleProfile,
     compare,
     setCompare,
+    gridCells,
+    setGridCells,
+    updateGridCell,
   } = useUiStore();
   const [toolMode, setToolMode] = useState<ToolMode>("select");
   const chartCardRef = useRef<HTMLDivElement | null>(null);
@@ -288,6 +292,27 @@ export default function WorkspacePage() {
               >
                 <Columns2 size={13} /> Compare
               </Button>
+              {/* multi-chart grid (P2.6): extra crosshair-synced cells */}
+              <Segmented aria-label="Chart grid" data-testid="grid-switch">
+                {[0, 1, 3].map((n) => (
+                  <Segment
+                    key={n}
+                    active={gridCells.length === n}
+                    onClick={() =>
+                      setGridCells(
+                        Array.from({ length: n }, (_, i) =>
+                          gridCells[i] ?? {
+                            symbol: i % 2 === 0 ? compareSymbol : symbol,
+                            timeframe: i < 1 ? activeTf : "1d",
+                          },
+                        ),
+                      )
+                    }
+                  >
+                    {n === 0 ? "1" : n === 1 ? "2×1" : "2×2"}
+                  </Segment>
+                ))}
+              </Segmented>
               <Button
                 size="icon"
                 variant="outline"
@@ -339,7 +364,7 @@ export default function WorkspacePage() {
                       liveSymbol={isLive ? symbol : undefined}
                       indicators={visibleIndicators}
                       showVolume={showVolume}
-                      syncId={compare ? "workspace" : undefined}
+                      syncId={compare || gridCells.length > 0 ? "workspace" : undefined}
                       drawingsSymbol={symbol}
                       toolMode={toolMode}
                       onToolModeChange={setToolMode}
@@ -368,6 +393,21 @@ export default function WorkspacePage() {
                     ) : (
                       <SkeletonCard lines={3} />
                     )}
+                  </div>
+                )}
+                {gridCells.length > 0 && (
+                  <div
+                    className="mt-3 grid gap-2 border-t border-border pt-[10px] md:grid-cols-2"
+                    data-testid="chart-grid"
+                  >
+                    {gridCells.map((cell, i) => (
+                      <GridChartCell
+                        key={i}
+                        cell={cell}
+                        syncId="workspace"
+                        onChange={(next) => updateGridCell(i, next)}
+                      />
+                    ))}
                   </div>
                 )}
               </ChartSyncProvider>

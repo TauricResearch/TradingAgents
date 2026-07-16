@@ -5,6 +5,11 @@ export type Theme = "dark" | "light";
 
 /** Live progress of an in-flight on-demand pipeline run (SSE `stage`
  * events; cleared by the terminal `run` event). Not persisted. */
+export interface GridCell {
+  symbol: string;
+  timeframe: string;
+}
+
 export interface PipelineProgress {
   symbol: string;
   stage: string;
@@ -29,6 +34,9 @@ interface UiState {
   toggleVolume: () => void;
   showProfile: boolean;
   toggleProfile: () => void;
+  gridCells: GridCell[];
+  setGridCells: (cells: GridCell[]) => void;
+  updateGridCell: (index: number, cell: Partial<GridCell>) => void;
   compare: boolean;
   setCompare: (on: boolean) => void;
   lastSeenAt: number; // powers the "since you left" diff panel
@@ -71,6 +79,15 @@ export const useUiStore = create<UiState>()(
       // volume profile off by default — opt-in visual weight
       showProfile: false,
       toggleProfile: () => set((state) => ({ showProfile: !state.showProfile })),
+      // multi-chart grid (P2.6): extra synced cells under the main chart
+      gridCells: [],
+      setGridCells: (cells) => set({ gridCells: cells }),
+      updateGridCell: (index, cell) =>
+        set((state) => ({
+          gridCells: state.gridCells.map((c, i) =>
+            i === index ? { ...c, ...cell } : c,
+          ),
+        })),
       compare: false,
       setCompare: (compare) => set({ compare }),
       lastSeenAt: Date.now(),
@@ -103,6 +120,7 @@ export const useUiStore = create<UiState>()(
         indicators: s.indicators,
         showVolume: s.showVolume,
         showProfile: s.showProfile,
+        gridCells: s.gridCells,
       }),
     },
   ),
