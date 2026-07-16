@@ -16,7 +16,7 @@ import type {
   Time,
 } from "lightweight-charts";
 
-import { fibPrices } from "./geometry";
+import { fibPrices, positionMetrics } from "./geometry";
 import type { Drawing, DrawingPoint, PreviewState } from "./types";
 
 export interface DrawingColors {
@@ -24,6 +24,10 @@ export interface DrawingColors {
   fib: string;
   fibFill: string;
   label: string;
+  bull: string;
+  bear: string;
+  bullFill: string;
+  bearFill: string;
 }
 
 interface Segment {
@@ -35,6 +39,9 @@ interface Segment {
   label?: string;
   dashed?: boolean;
   fillTo?: number; // y of previous fib level, for band fill
+  fillColor?: string; // overrides fibFill for position-tool zones
+  strokeColor?: string; // overrides the kind-derived stroke
+  labelColor?: string;
 }
 
 export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
@@ -50,6 +57,10 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     fib: "#8b610d",
     fibFill: "rgba(139,97,13,0.08)",
     label: "#646f84",
+    bull: "#16824a",
+    bear: "#c03434",
+    bullFill: "rgba(22,130,74,0.10)",
+    bearFill: "rgba(192,52,52,0.10)",
   };
   private paneView: IPrimitivePaneView;
 
@@ -68,7 +79,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
           ctx.font = `${Math.round(10 * vr)}px ui-monospace, monospace`;
           for (const seg of segments) {
             if (seg.fillTo != null) {
-              ctx.fillStyle = source.colors.fibFill;
+              ctx.fillStyle = seg.fillColor ?? source.colors.fibFill;
               ctx.fillRect(
                 seg.x1 * hr,
                 Math.min(seg.y1, seg.fillTo) * vr,
@@ -78,7 +89,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
             }
             ctx.beginPath();
             ctx.strokeStyle =
-              seg.kind === "fib" ? source.colors.fib : source.colors.line;
+              seg.strokeColor ??
+              (seg.kind === "fib" ? source.colors.fib : source.colors.line);
             ctx.lineWidth = (seg.kind === "preview" ? 1 : 1.5) * vr;
             ctx.setLineDash(
               seg.dashed || seg.kind === "preview" ? [4 * hr, 4 * hr] : [],
@@ -87,7 +99,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
             ctx.lineTo(seg.x2 * hr, seg.y2 * vr);
             ctx.stroke();
             if (seg.label) {
-              ctx.fillStyle = source.colors.label;
+              ctx.fillStyle = seg.labelColor ?? source.colors.label;
               ctx.fillText(
                 seg.label,
                 seg.x2 * hr - ctx.measureText(seg.label).width - 4 * hr,
@@ -157,7 +169,12 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       cursor: DrawingPoint | null = null,
     ) => {
       const anchors = [...points];
-      if (cursor && anchors.length === 1) anchors.push(cursor);
+      if (cursor && anchors.length < (realKind === "long" || realKind === "short" ? 3 : 2))
+        anchors.push(cursor);
+      if (realKind === "long" || realKind === "short") {
+        this.pushPosition(segments, kind, realKind, anchors, width);
+        return;
+      }
       if (realKind === "hray") {
         const origin = this.toCoord(anchors[0]!);
         if (origin) {
@@ -216,6 +233,54 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     return segments;
   }
 
+  /** Long/short position tool: entry line + stop zone + target zone from
+   * anchor-x to the right edge, labeled with pure price geometry (R:R).
+   * Sizing (account numbers) lives in the Workspace plan card, not here. */
+  private pushPosition(
+    segments: Segment[],
+    kind: Drawing["kind"] | "preview",
+    realKind: "long" | "short",
+    anchors: DrawingPoint[],
+    width: number,
+  ): void {
+    const entry = anchors[0] && this.toCoord(anchors[0]);
+    if (!entry) return;
+    const left = entry.x;
+    const stroke = realKind === "long" ? this.colors.bull : this.colors.bear;
+    // entry line always renders (even mid-placement)
+    segments.push({
+      kind, x1: left, y1: entry.y, x2: width, y2: entry.y,
+      strokeColor: stroke,
+      label: `${realKind.toUpperCase()} · entry ${anchors[0]!.price.toFixed(2)}`,
+      labelColor: stroke,
+    });
+    const stop = anchors[1] && this.toCoord(anchors[1]);
+    if (anchors[1] && stop) {
+      segments.push({
+        kind, x1: left, y1: stop.y, x2: width, y2: stop.y,
+        strokeColor: this.colors.bear, dashed: true,
+        fillTo: entry.y, fillColor: this.colors.bearFill,
+        label: `stop ${anchors[1]!.price.toFixed(2)}`,
+        labelColor: this.colors.bear,
+      });
+    }
+    const target = anchors[2] && this.toCoord(anchors[2]);
+    if (anchors[2] && target) {
+      const metrics = positionMetrics(
+        realKind, anchors[0]!.price, anchors[1]!.price, anchors[2]!.price,
+      );
+      segments.push({
+        kind, x1: left, y1: target.y, x2: width, y2: target.y,
+        strokeColor: this.colors.bull, dashed: true,
+        fillTo: entry.y, fillColor: this.colors.bullFill,
+        label: metrics.valid
+          ? `target ${anchors[2]!.price.toFixed(2)} · R:R ${metrics.rr?.toFixed(2) ?? "—"}`
+          : `target ${anchors[2]!.price.toFixed(2)} · invalid ${realKind} geometry`,
+        labelColor: metrics.valid ? this.colors.bull : this.colors.bear,
+      });
+    }
+  }
+
   /** Nearest drawing within `radius` px of the media-space point.
    * (Named to avoid ISeriesPrimitive's own optional hitTest(x, y).) */
   findNearest(point: { x: number; y: number }, radius = 8): string | null {
@@ -242,6 +307,19 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       // rightward ray
       if (p.x < origin.x - 4) return null;
       return Math.abs(p.y - origin.y);
+    }
+    if (drawing.kind === "long" || drawing.kind === "short") {
+      // nearest of the three horizontal lines, from anchor-x rightward
+      const entry = this.toCoord(drawing.points[0]!);
+      if (!entry || p.x < entry.x - 4) return null;
+      let best: number | null = null;
+      for (const anchor of drawing.points) {
+        const c = this.toCoord(anchor);
+        if (!c) continue;
+        const distance = Math.abs(p.y - c.y);
+        if (best == null || distance < best) best = distance;
+      }
+      return best;
     }
     const a = this.toCoord(drawing.points[0]!);
     const b = this.toCoord(drawing.points[1]!);

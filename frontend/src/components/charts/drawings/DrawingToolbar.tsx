@@ -2,6 +2,8 @@
  * eraser / clear-all. Desktop-only (touch drawing is out of scope and
  * we say so rather than ship a bad version). */
 import {
+  ArrowDownRight,
+  ArrowUpRight,
   Eraser,
   Minus,
   MousePointer2,
@@ -20,6 +22,8 @@ const TOOLS: { mode: ToolMode; icon: typeof MousePointer2; label: string }[] = [
   { mode: "trend", icon: TrendingUp, label: "Trendline (2 clicks)" },
   { mode: "hray", icon: Minus, label: "Horizontal ray (1 click)" },
   { mode: "fib", icon: AlignEndHorizontal, label: "Fib retracement (2 clicks)" },
+  { mode: "long", icon: ArrowUpRight, label: "Long position (entry → stop → target)" },
+  { mode: "short", icon: ArrowDownRight, label: "Short position (entry → stop → target)" },
   { mode: "erase", icon: Eraser, label: "Erase (click a drawing)" },
 ];
 

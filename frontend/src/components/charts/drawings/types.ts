@@ -7,12 +7,13 @@ export interface DrawingPoint {
   price: number;
 }
 
-export type DrawingKind = "trend" | "hray" | "fib";
+export type DrawingKind = "trend" | "hray" | "fib" | "long" | "short";
 
 export interface Drawing {
   id: string;
   kind: DrawingKind;
-  /** trend/fib: exactly 2 anchors; hray: exactly 1 */
+  /** trend/fib: exactly 2 anchors; hray: exactly 1;
+   *  long/short: exactly 3 (entry → stop → target) */
   points: DrawingPoint[];
 }
 
@@ -22,6 +23,8 @@ export const POINTS_REQUIRED: Record<DrawingKind, number> = {
   trend: 2,
   hray: 1,
   fib: 2,
+  long: 3,
+  short: 3,
 };
 
 export interface PreviewState {

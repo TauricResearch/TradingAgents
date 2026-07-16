@@ -347,6 +347,10 @@ export function PriceChart({
       fib: colors.neutral,
       fibFill: hexToRgba(colors.neutral, 0.08),
       label: colors.muted,
+      bull: colors.bull,
+      bear: colors.bear,
+      bullFill: hexToRgba(colors.bull, 0.1),
+      bearFill: hexToRgba(colors.bear, 0.1),
     });
   }, [drawings, theme, bars, style, indicators, showVolume]);
 

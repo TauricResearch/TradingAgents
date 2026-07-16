@@ -15,6 +15,23 @@ export function fibPrices(
   }));
 }
 
+/** Long/short position-tool metrics: pure price geometry (distances and
+ * their ratio), no account numbers — sizing lives in lib/positionPlan. */
+export function positionMetrics(
+  side: "long" | "short",
+  entry: number,
+  stop: number,
+  target: number,
+): { risk: number; reward: number; rr: number | null; valid: boolean } {
+  const risk = Math.abs(entry - stop);
+  const reward = Math.abs(target - entry);
+  const valid =
+    side === "long"
+      ? stop < entry && target > entry
+      : stop > entry && target < entry;
+  return { risk, reward, rr: risk > 0 ? reward / risk : null, valid };
+}
+
 export interface XY {
   x: number;
   y: number;
