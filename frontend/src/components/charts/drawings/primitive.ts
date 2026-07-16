@@ -16,7 +16,7 @@ import type {
   Time,
 } from "lightweight-charts";
 
-import { fibPrices, positionMetrics } from "./geometry";
+import { fibPrices, pointToSegmentDistance, positionMetrics } from "./geometry";
 import type { Drawing, DrawingPoint, PreviewState } from "./types";
 
 export interface DrawingColors {
@@ -42,6 +42,7 @@ interface Segment {
   fillColor?: string; // overrides fibFill for position-tool zones
   strokeColor?: string; // overrides the kind-derived stroke
   labelColor?: string;
+  labelAlign?: "left"; // default: right-aligned ending at x2
 }
 
 export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
@@ -102,7 +103,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
               ctx.fillStyle = seg.labelColor ?? source.colors.label;
               ctx.fillText(
                 seg.label,
-                seg.x2 * hr - ctx.measureText(seg.label).width - 4 * hr,
+                seg.labelAlign === "left"
+                  ? seg.x1 * hr + 4 * hr
+                  : seg.x2 * hr - ctx.measureText(seg.label).width - 4 * hr,
                 seg.y2 * vr - 3 * vr,
               );
             }
@@ -167,12 +170,38 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       realKind: Drawing["kind"],
       points: DrawingPoint[],
       cursor: DrawingPoint | null = null,
+      text?: string,
     ) => {
       const anchors = [...points];
-      if (cursor && anchors.length < (realKind === "long" || realKind === "short" ? 3 : 2))
-        anchors.push(cursor);
+      const required =
+        realKind === "long" || realKind === "short" || realKind === "channel"
+          ? 3
+          : 2;
+      if (cursor && anchors.length < required) anchors.push(cursor);
       if (realKind === "long" || realKind === "short") {
         this.pushPosition(segments, kind, realKind, anchors, width);
+        return;
+      }
+      if (realKind === "rect") {
+        this.pushRect(segments, kind, anchors);
+        return;
+      }
+      if (realKind === "channel") {
+        this.pushChannel(segments, kind, anchors);
+        return;
+      }
+      if (realKind === "text") {
+        const origin = anchors[0] && this.toCoord(anchors[0]);
+        if (origin) {
+          segments.push({
+            kind,
+            // 6px tick marks the anchor; the note reads to its right
+            x1: origin.x, y1: origin.y,
+            x2: origin.x + 6, y2: origin.y,
+            label: text || "…",
+            labelAlign: "left",
+          });
+        }
         return;
       }
       if (realKind === "hray") {
@@ -225,12 +254,70 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     };
 
     for (const drawing of this.drawings) {
-      pushDrawing(drawing.kind, drawing.kind, drawing.points);
+      if (drawing.hidden) continue;
+      pushDrawing(drawing.kind, drawing.kind, drawing.points, null, drawing.text);
     }
     if (this.preview) {
       pushDrawing("preview", this.preview.kind, this.preview.placed, this.preview.cursor);
     }
     return segments;
+  }
+
+  /** Zone: fill between two corners with top/bottom edges — the way
+   * traders mark supply/demand (side borders add noise, not meaning). */
+  private pushRect(
+    segments: Segment[],
+    kind: Drawing["kind"] | "preview",
+    anchors: DrawingPoint[],
+  ): void {
+    if (anchors.length < 2) return;
+    const a = this.toCoord(anchors[0]!);
+    const b = this.toCoord(anchors[1]!);
+    if (!a || !b) return;
+    const left = Math.min(a.x, b.x);
+    const right = Math.max(a.x, b.x);
+    const top = Math.min(a.y, b.y);
+    const bottom = Math.max(a.y, b.y);
+    const high = Math.max(anchors[0]!.price, anchors[1]!.price);
+    const low = Math.min(anchors[0]!.price, anchors[1]!.price);
+    segments.push({
+      kind, x1: left, y1: top, x2: right, y2: top,
+      fillTo: bottom, fillColor: this.colors.fibFill,
+      label: `${low.toFixed(2)} – ${high.toFixed(2)}`,
+    });
+    segments.push({ kind, x1: left, y1: bottom, x2: right, y2: bottom });
+  }
+
+  /** Parallel channel: base line a→b plus its translate through c.
+   * The offset is computed in DATA space (price at c minus the base
+   * line's price at c's time), so the channel stays parallel under
+   * pan/zoom — pixel-space offsets would shear. */
+  private pushChannel(
+    segments: Segment[],
+    kind: Drawing["kind"] | "preview",
+    anchors: DrawingPoint[],
+  ): void {
+    if (anchors.length < 2) return;
+    const [p1, p2, p3] = anchors;
+    const a = this.toCoord(p1!);
+    const b = this.toCoord(p2!);
+    if (!a || !b) return;
+    segments.push({ kind, x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+    if (!p3) return;
+    const dt = p2!.time - p1!.time;
+    const slope = dt !== 0 ? (p2!.price - p1!.price) / dt : 0;
+    const basePriceAtC = p1!.price + slope * (p3.time - p1!.time);
+    const offset = p3.price - basePriceAtC;
+    const a2 = this.toCoord({ time: p1!.time, price: p1!.price + offset });
+    const b2 = this.toCoord({ time: p2!.time, price: p2!.price + offset });
+    if (!a2 || !b2) return;
+    // fillRect only draws axis-aligned rectangles: flat channels get the
+    // faint band, slanted ones keep two clean rails (honest v1)
+    const flat = a.y === b.y && a2.y === b2.y;
+    segments.push({
+      kind, x1: a2.x, y1: a2.y, x2: b2.x, y2: b2.y, dashed: true,
+      ...(flat ? { fillTo: a.y, fillColor: this.colors.fibFill } : {}),
+    });
   }
 
   /** Long/short position tool: entry line + stop zone + target zone from
@@ -307,6 +394,35 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       // rightward ray
       if (p.x < origin.x - 4) return null;
       return Math.abs(p.y - origin.y);
+    }
+    if (drawing.kind === "text") {
+      const origin = this.toCoord(drawing.points[0]!);
+      return origin ? Math.hypot(p.x - origin.x, p.y - origin.y) : null;
+    }
+    if (drawing.kind === "rect") {
+      const a = this.toCoord(drawing.points[0]!);
+      const b = this.toCoord(drawing.points[1]!);
+      if (!a || !b) return null;
+      const inside =
+        p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x) &&
+        p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y);
+      return inside ? 0 : null;
+    }
+    if (drawing.kind === "channel") {
+      const [p1, p2, p3] = drawing.points;
+      const a = this.toCoord(p1!);
+      const b = this.toCoord(p2!);
+      if (!a || !b) return null;
+      let best = pointToSegmentDistance(p, a, b);
+      if (p3) {
+        const dt = p2!.time - p1!.time;
+        const slope = dt !== 0 ? (p2!.price - p1!.price) / dt : 0;
+        const offset = p3.price - (p1!.price + slope * (p3.time - p1!.time));
+        const a2 = this.toCoord({ time: p1!.time, price: p1!.price + offset });
+        const b2 = this.toCoord({ time: p2!.time, price: p2!.price + offset });
+        if (a2 && b2) best = Math.min(best, pointToSegmentDistance(p, a2, b2));
+      }
+      return best;
     }
     if (drawing.kind === "long" || drawing.kind === "short") {
       // nearest of the three horizontal lines, from anchor-x rightward

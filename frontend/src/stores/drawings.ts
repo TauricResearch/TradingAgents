@@ -12,6 +12,7 @@ interface DrawingsState {
   bySymbol: Record<string, Drawing[]>;
   add: (symbol: string, drawing: Drawing) => void;
   remove: (symbol: string, id: string) => void;
+  toggleHidden: (symbol: string, id: string) => void;
   clear: (symbol: string) => void;
   hydrate: (data: unknown) => void;
 }
@@ -34,6 +35,15 @@ export const useDrawingsStore = create<DrawingsState>()(
           bySymbol: {
             ...state.bySymbol,
             [symbol]: (state.bySymbol[symbol] ?? []).filter((d) => d.id !== id),
+          },
+        })),
+      toggleHidden: (symbol, id) =>
+        set((state) => ({
+          bySymbol: {
+            ...state.bySymbol,
+            [symbol]: (state.bySymbol[symbol] ?? []).map((d) =>
+              d.id === id ? { ...d, hidden: !d.hidden } : d,
+            ),
           },
         })),
       clear: (symbol) =>

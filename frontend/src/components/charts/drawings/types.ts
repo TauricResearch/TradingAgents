@@ -7,14 +7,27 @@ export interface DrawingPoint {
   price: number;
 }
 
-export type DrawingKind = "trend" | "hray" | "fib" | "long" | "short";
+export type DrawingKind =
+  | "trend"
+  | "hray"
+  | "fib"
+  | "long"
+  | "short"
+  | "rect"
+  | "channel"
+  | "text";
 
 export interface Drawing {
   id: string;
   kind: DrawingKind;
-  /** trend/fib: exactly 2 anchors; hray: exactly 1;
-   *  long/short: exactly 3 (entry → stop → target) */
+  /** trend/fib/rect: exactly 2 anchors; hray/text: exactly 1;
+   *  long/short: 3 (entry → stop → target);
+   *  channel: 3 (base line a→b, then the parallel offset point) */
   points: DrawingPoint[];
+  /** text notes only */
+  text?: string;
+  /** object list visibility toggle — hidden, never deleted */
+  hidden?: boolean;
 }
 
 export type ToolMode = "select" | "erase" | DrawingKind;
@@ -25,6 +38,9 @@ export const POINTS_REQUIRED: Record<DrawingKind, number> = {
   fib: 2,
   long: 3,
   short: 3,
+  rect: 2,
+  channel: 3,
+  text: 1,
 };
 
 export interface PreviewState {

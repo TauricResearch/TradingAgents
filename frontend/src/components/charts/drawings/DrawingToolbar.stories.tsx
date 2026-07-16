@@ -15,12 +15,22 @@ type Story = StoryObj<typeof DrawingToolbar>;
 
 function Interactive({ count }: { count: number }) {
   const [mode, setMode] = useState<ToolMode>("select");
+  const drawings = Array.from({ length: count }, (_, i) => ({
+    id: String(i),
+    kind: "trend" as const,
+    points: [
+      { time: 1_700_000_000 + i, price: 4000 + i },
+      { time: 1_700_003_600 + i, price: 4010 + i },
+    ],
+  }));
   return (
     <DrawingToolbar
       mode={mode}
       onModeChange={setMode}
-      count={count}
+      drawings={drawings}
       onClearAll={() => {}}
+      onToggleHidden={() => {}}
+      onRemove={() => {}}
     />
   );
 }

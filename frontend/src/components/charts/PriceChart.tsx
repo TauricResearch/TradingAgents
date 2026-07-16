@@ -420,10 +420,22 @@ export function PriceChart({
       lastEventRef.current = { ...point, at: Date.now() };
       const placed = [...placedRef.current, point];
       if (placed.length >= POINTS_REQUIRED[mode as DrawingKind]) {
+        // text notes ask for their content on placement (v1: native
+        // prompt — an inline editor needs focus plumbing the chart's
+        // event capture fights; empty/cancelled input places nothing)
+        let text: string | undefined;
+        if (mode === "text") {
+          text = window.prompt("Note text:")?.trim() || undefined;
+          if (!text) {
+            cancel();
+            return;
+          }
+        }
         useDrawingsStore.getState().add(drawingsSymbol, {
           id: crypto.randomUUID(),
           kind: mode as DrawingKind,
           points: placed,
+          ...(text ? { text } : {}),
         });
         cancel();
       } else {

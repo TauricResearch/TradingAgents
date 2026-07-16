@@ -119,10 +119,12 @@ export default function WorkspacePage() {
   } = useUiStore();
   const [toolMode, setToolMode] = useState<ToolMode>("select");
   const chartCardRef = useRef<HTMLDivElement | null>(null);
-  const drawingCount = useDrawingsStore(
-    (state) => (state.bySymbol[symbol] ?? []).length,
+  const symbolDrawings = useDrawingsStore(
+    (state) => state.bySymbol[symbol] ?? [],
   );
   const clearDrawings = useDrawingsStore((state) => state.clear);
+  const toggleDrawingHidden = useDrawingsStore((state) => state.toggleHidden);
+  const removeDrawing = useDrawingsStore((state) => state.remove);
 
   const symbols = useSymbols();
   const spec = symbols.data?.find((s) => s.symbol === symbol);
@@ -317,8 +319,10 @@ export default function WorkspacePage() {
                   <DrawingToolbar
                     mode={toolMode}
                     onModeChange={setToolMode}
-                    count={drawingCount}
+                    drawings={symbolDrawings}
                     onClearAll={() => clearDrawings(symbol)}
+                    onToggleHidden={(id) => toggleDrawingHidden(symbol, id)}
+                    onRemove={(id) => removeDrawing(symbol, id)}
                   />
                   <div className="min-w-0 grow">
                     <PriceChart
