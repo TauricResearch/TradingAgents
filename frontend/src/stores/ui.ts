@@ -27,6 +27,8 @@ interface UiState {
   toggleIndicator: (name: string) => void;
   showVolume: boolean;
   toggleVolume: () => void;
+  showProfile: boolean;
+  toggleProfile: () => void;
   compare: boolean;
   setCompare: (on: boolean) => void;
   lastSeenAt: number; // powers the "since you left" diff panel
@@ -66,6 +68,9 @@ export const useUiStore = create<UiState>()(
       // mockup default: volume pane on
       showVolume: true,
       toggleVolume: () => set((state) => ({ showVolume: !state.showVolume })),
+      // volume profile off by default — opt-in visual weight
+      showProfile: false,
+      toggleProfile: () => set((state) => ({ showProfile: !state.showProfile })),
       compare: false,
       setCompare: (compare) => set({ compare }),
       lastSeenAt: Date.now(),
@@ -97,6 +102,7 @@ export const useUiStore = create<UiState>()(
         lastSeenAt: s.lastSeenAt,
         indicators: s.indicators,
         showVolume: s.showVolume,
+        showProfile: s.showProfile,
       }),
     },
   ),

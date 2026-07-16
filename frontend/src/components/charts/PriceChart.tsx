@@ -30,7 +30,8 @@ import {
   type DrawingPoint,
   type ToolMode,
 } from "./drawings/types";
-import type { Bar, IndicatorSeries, Recommendation } from "@/lib/api/types";
+import { VolumeProfilePrimitive } from "./volumeProfilePrimitive";
+import type { Bar, IndicatorSeries, Recommendation, VolumeProfile } from "@/lib/api/types";
 import { directionOf } from "@/lib/format";
 import { useDrawingsStore } from "@/stores/drawings";
 import { useTickerStore } from "@/stores/ticker";
@@ -81,6 +82,7 @@ export function PriceChart({
   toolMode = "select",
   onToolModeChange,
   height = 420,
+  volumeProfile = null,
 }: {
   bars: Bar[];
   style?: SeriesStyle;
@@ -98,6 +100,8 @@ export function PriceChart({
   toolMode?: ToolMode;
   onToolModeChange?: (mode: ToolMode) => void;
   height?: number;
+  /** server-computed fixed-range profile (review P2.4); null hides it */
+  volumeProfile?: VolumeProfile | null;
 }) {
   const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const extraSeriesRef = useRef<ISeriesApi<SeriesType>[]>([]);
@@ -110,6 +114,7 @@ export function PriceChart({
 
   // --- user drawings (annotations; pure geometry) ------------------------------
   const primitiveRef = useRef<DrawingsPrimitive | null>(null);
+  const profileRef = useRef<VolumeProfilePrimitive | null>(null);
   const placedRef = useRef<DrawingPoint[]>([]);
   // click + dblclick both route to placement (LWC suppresses the second
   // click of a fast pair); dedupe identical events at the window boundary
@@ -235,6 +240,11 @@ export function PriceChart({
       seriesRef.current.attachPrimitive(primitive);
       primitiveRef.current = primitive;
     }
+    if (seriesRef.current) {
+      const profilePrimitive = new VolumeProfilePrimitive();
+      seriesRef.current.attachPrimitive(profilePrimitive);
+      profileRef.current = profilePrimitive;
+    }
 
     // pane proportions (review P2.3): the price pane must stay dominant
     // when oscillators join. Saved factors (user drags, keyed by pane
@@ -274,6 +284,7 @@ export function PriceChart({
       seriesRef.current = null;
       extraSeriesRef.current = [];
       primitiveRef.current = null;
+      profileRef.current = null;
     };
   }, [bars, style, indicators, showVolume, drawingsSymbol, theme, chartRef, containerRef]);
 
@@ -361,6 +372,16 @@ export function PriceChart({
       markersRef.current = null;
     };
   }, [markers, bars, style, indicators, showVolume]);
+
+  // push the server-computed profile + theme colors into its primitive
+  useEffect(() => {
+    const colors = chartColors();
+    profileRef.current?.setProfile(volumeProfile, {
+      bar: hexToRgba(colors.muted, 0.16),
+      valueArea: hexToRgba(colors.accent, 0.22),
+      poc: colors.bear,
+    });
+  }, [volumeProfile, theme, bars, style, indicators, showVolume]);
 
   // push drawings + theme colors into the primitive
   useEffect(() => {

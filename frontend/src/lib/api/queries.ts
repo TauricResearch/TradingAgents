@@ -25,6 +25,7 @@ import {
   StatusSchema,
   SymbolsSchema,
   TimelineSchema,
+  VolumeProfileSchema,
   WatchlistsSchema,
   PriceAlertListSchema,
   RegimeSchema,
@@ -197,6 +198,23 @@ export const useBars = (symbol: string, timeframe: string, limit = 300) =>
     ),
     staleTime: 15_000,
     refetchInterval: 30_000,
+  });
+
+export const useVolumeProfile = (
+  symbol: string,
+  timeframe: string,
+  enabled: boolean,
+  limit = 300,
+) =>
+  useQuery({
+    queryKey: ["volume-profile", symbol, timeframe, limit],
+    queryFn: fetchParsed(
+      `/api/bars/volume-profile?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}`,
+      VolumeProfileSchema,
+    ),
+    enabled,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
   });
 
 export const useIndicators = (symbol: string, timeframe: string, names: string[]) =>

@@ -567,6 +567,21 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         except ValueError as exc:  # unknown indicator names
             raise HTTPException(status_code=422, detail=str(exc)) from None
 
+    @app.get("/api/bars/volume-profile")
+    def bars_volume_profile(symbol: str, timeframe: str = "1d",
+                            limit: int = md.DEFAULT_LIMIT,
+                            bins: int = 24) -> dict:
+        """Fixed-range volume profile over the served bar window (review
+        P2.4) — deterministic server math; the chart renders, never
+        computes."""
+        from tradingagents.pro.ingestion.profile import volume_profile
+
+        fetched = _fetch_bars(symbol, timeframe, limit)
+        try:
+            return volume_profile(fetched, bins=bins)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+
     @app.get("/api/overview")
     def overview() -> dict:
         return service.market_overview(state.latest_run())

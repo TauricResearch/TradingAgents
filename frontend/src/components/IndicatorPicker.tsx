@@ -39,12 +39,17 @@ export function IndicatorPicker({
   onToggle,
   volume,
   onToggleVolume,
+  profile,
+  onToggleProfile,
   timeframe,
 }: {
   selected: string[];
   onToggle: (name: string) => void;
   volume: boolean;
   onToggleVolume: () => void;
+  /** volume profile overlay (P2.4); omit to hide the entry */
+  profile?: boolean;
+  onToggleProfile?: () => void;
   timeframe?: string;
 }) {
   const [periods, setPeriods] = useState<Record<string, number>>({});
@@ -73,6 +78,20 @@ export function IndicatorPicker({
           >
             {volume ? "✓ " : ""}Volume
           </DropdownMenu.CheckboxItem>
+          {onToggleProfile && (
+            <DropdownMenu.CheckboxItem
+              checked={profile}
+              onCheckedChange={onToggleProfile}
+              onSelect={(event) => event.preventDefault()}
+              className={cn(
+                "cursor-pointer rounded px-2 py-1.5 outline-none data-highlighted:bg-surface-2",
+                profile && "text-accent",
+              )}
+              data-testid="toggle-volume-profile"
+            >
+              {profile ? "✓ " : ""}Volume profile
+            </DropdownMenu.CheckboxItem>
+          )}
           <DropdownMenu.Separator className="my-1 h-px bg-border" />
           {INDICATOR_CATALOG.map((item) => {
             const family = "family" in item ? item.family : null;

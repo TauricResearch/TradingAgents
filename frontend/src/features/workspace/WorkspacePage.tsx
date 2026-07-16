@@ -32,6 +32,7 @@ import {
   useBars,
   useCalendar,
   useIndicators,
+  useVolumeProfile,
   useIntel,
   useJournal,
   usePriceAlerts,
@@ -114,6 +115,8 @@ export default function WorkspacePage() {
     toggleIndicator,
     showVolume,
     toggleVolume,
+    showProfile,
+    toggleProfile,
     compare,
     setCompare,
   } = useUiStore();
@@ -142,6 +145,7 @@ export default function WorkspacePage() {
   const bars = useBars(symbol, activeTf, 300);
   const compareBars = useBars(compareSymbol, compareTf, 300);
   const indicatorData = useIndicators(symbol, activeTf, selectedIndicators);
+  const volumeProfile = useVolumeProfile(symbol, activeTf, showProfile);
   const recommendation = useRecommendation(symbol);
   const journal = useJournal();
   const status = useStatus();
@@ -271,6 +275,8 @@ export default function WorkspacePage() {
                 onToggle={toggleIndicator}
                 volume={showVolume}
                 onToggleVolume={toggleVolume}
+                profile={showProfile}
+                onToggleProfile={toggleProfile}
                 timeframe={activeTf}
               />
               <Button
@@ -338,6 +344,7 @@ export default function WorkspacePage() {
                       toolMode={toolMode}
                       onToolModeChange={setToolMode}
                       height={compare ? 300 : 400}
+                      volumeProfile={showProfile ? (volumeProfile.data ?? null) : null}
                     />
                   </div>
                 </div>

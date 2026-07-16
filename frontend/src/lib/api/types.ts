@@ -346,6 +346,15 @@ const CalendarReleaseSchema = z.object({
   time_et: z.string().nullable().optional(),
   ts_utc: z.string().nullable().optional(),
 });
+export const VolumeProfileSchema = z.object({
+  levels: z.array(z.object({ price: z.number(), volume: z.number() })),
+  poc: z.number().nullable(),
+  value_area_low: z.number().nullable(),
+  value_area_high: z.number().nullable(),
+  total_volume: z.number(),
+});
+export type VolumeProfile = z.infer<typeof VolumeProfileSchema>;
+
 export const CalendarSchema = z.object({
   releases: z.array(CalendarReleaseSchema),
   next_major: CalendarReleaseSchema.extend({
