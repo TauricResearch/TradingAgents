@@ -55,6 +55,13 @@ const TRADE_SYMBOLS = [
   { value: "XAUUSD", label: "XAUUSD · Gold" },
 ] as const;
 
+// shared stable fallback for drawings selectors — `?? []` in a zustand
+// selector mints a fresh array per snapshot read, which React's
+// useSyncExternalStore treats as an endlessly-changing store → infinite
+// re-render (#185). This crashed /trade in production for any symbol
+// without saved drawings. Same pattern as PriceChart's private constant.
+const NO_DRAWINGS: never[] = [];
+
 function InternalsPanel({ symbol }: { symbol: string }) {
   const intel = useIntel();
   if (intel.isPending) return <SkeletonCard lines={4} />;
@@ -127,7 +134,10 @@ export default function WorkspacePage() {
   const [toolMode, setToolMode] = useState<ToolMode>("select");
   const chartCardRef = useRef<HTMLDivElement | null>(null);
   const symbolDrawings = useDrawingsStore(
-    (state) => state.bySymbol[symbol] ?? [],
+    // stable empty constant: `?? []` mints a fresh array per call, which
+    // useSyncExternalStore reads as an endlessly-changing snapshot →
+    // React #185 infinite render (crashed the Trade page in production)
+    (state) => state.bySymbol[symbol] ?? NO_DRAWINGS,
   );
   const clearDrawings = useDrawingsStore((state) => state.clear);
   const toggleDrawingHidden = useDrawingsStore((state) => state.toggleHidden);
@@ -570,7 +580,7 @@ function PositionPlanPanel({
   anchorTime: number | null;
 }) {
   const status = useStatus();
-  const drawings = useDrawingsStore((s) => s.bySymbol[symbol] ?? []);
+  const drawings = useDrawingsStore((s) => s.bySymbol[symbol] ?? NO_DRAWINGS);
   const [riskPct, setRiskPct] = useState("1");
   const position = [...drawings]
     .reverse()
