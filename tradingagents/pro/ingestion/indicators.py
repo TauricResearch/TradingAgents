@@ -37,6 +37,17 @@ INDICATOR_SPECS: dict[str, tuple[int, dict, dict[str, str]]] = {
         {"middle": "boll", "upper": "boll_ub", "lower": "boll_lb"},
     ),
     "ATR_14": (15, {"period": 14}, {"value": "atr_14"}),
+    # curated depth (trader review P2.5)
+    "STOCH": (12, {"k": 9, "d": 3}, {"k": "kdjk", "d": "kdjd"}),
+    "CCI_14": (15, {"period": 14}, {"value": "cci_14"}),
+    "WILLR_14": (15, {"period": 14}, {"value": "wr_14"}),
+    # ADX smooths twice (DX then ADX): give it a full double window
+    "ADX": (28, {"period": 14}, {"value": "adx"}),
+    "SUPERTREND": (
+        15,
+        {"period": 14, "multiplier": 3},
+        {"line": "supertrend", "upper": "supertrend_ub", "lower": "supertrend_lb"},
+    ),
 }
 
 DEFAULT_INDICATOR_NAMES = tuple(INDICATOR_SPECS)
@@ -92,8 +103,31 @@ def _vwap_series(bars: Sequence[OHLCVBar]) -> list[float | None]:
     return values
 
 
+OBV_NAME = "OBV"
+
+
+def _obv_series(bars: Sequence[OHLCVBar]) -> list[float | None]:
+    """On-balance volume: cumulative signed volume (Granville). Same
+    hand-rolled-and-tested pattern as VWAP — stockstats has no OBV."""
+    values: list[float | None] = []
+    obv = 0.0
+    prev_close: float | None = None
+    for bar in bars:
+        volume = bar.volume or 0.0
+        if prev_close is not None:
+            if bar.close > prev_close:
+                obv += volume
+            elif bar.close < prev_close:
+                obv -= volume
+        prev_close = bar.close
+        values.append(obv)
+    return values
+
+
 def _validate(bars: Sequence[OHLCVBar], names: Sequence[str]) -> None:
     for name in names:
+        if name == OBV_NAME:
+            continue
         if name == VWAP_NAME:
             if bars and bars[0].timeframe.value not in _INTRADAY:
                 raise ValueError(
@@ -104,7 +138,7 @@ def _validate(bars: Sequence[OHLCVBar], names: Sequence[str]) -> None:
             raise ValueError(
                 f"unknown indicator {name!r}; supported: fixed "
                 f"{sorted(INDICATOR_SPECS)}, parameterized EMA_n/SMA_n/"
-                f"RSI_n/ATR_n (n {MIN_PERIOD}-{MAX_PERIOD}), and VWAP "
+                f"RSI_n/ATR_n (n {MIN_PERIOD}-{MAX_PERIOD}), OBV, and VWAP "
                 f"(intraday)")
     timeframes = {b.timeframe for b in bars}
     if len(timeframes) != 1:
@@ -128,6 +162,10 @@ def compute_indicator_series(
         if name == VWAP_NAME:
             result[name] = {"params": {"anchor": "utc_day"},
                             "series": {"value": _vwap_series(bars)}}
+            continue
+        if name == OBV_NAME:
+            result[name] = {"params": {},
+                            "series": {"value": _obv_series(bars)}}
             continue
         min_bars, params, outputs = _spec_for(name)
         series: dict[str, list[float | None]] = {}
@@ -166,6 +204,13 @@ def compute_indicators(
                 readings.append(IndicatorReading(
                     name=name, timeframe=timeframe,
                     value={"value": last}, params={"anchor": "utc_day"}))
+            continue
+        if name == OBV_NAME:
+            last = _obv_series(bars)[-1]
+            if last is not None:
+                readings.append(IndicatorReading(
+                    name=name, timeframe=timeframe,
+                    value={"value": last}, params={}))
             continue
         min_bars, params, outputs = _spec_for(name)
         if len(bars) < min_bars:

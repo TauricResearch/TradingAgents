@@ -88,6 +88,30 @@ class TestIndicatorEngine:
         with pytest.raises(ValueError, match="unknown indicator"):
             compute_indicators(make_bars(n=30), ["ICHIMOKU"])
 
+    def test_curated_depth_additions_compute(self):
+        # trader review P2.5: STOCH/CCI/WILLR/ADX/SUPERTREND/OBV
+        bars = make_bars(n=60)
+        readings = {r.name: r for r in compute_indicators(
+            bars, ["STOCH", "CCI_14", "WILLR_14", "ADX", "SUPERTREND", "OBV"])}
+        assert set(readings["STOCH"].value) == {"k", "d"}
+        assert 0 <= readings["STOCH"].value["k"] <= 100
+        assert set(readings["SUPERTREND"].value) == {"line", "upper", "lower"}
+        assert -100 <= readings["WILLR_14"].value["value"] <= 0
+        assert readings["ADX"].value["value"] >= 0
+        assert "value" in readings["CCI_14"].value
+        assert "value" in readings["OBV"].value
+
+    def test_obv_matches_manual_cumulative_signed_volume(self):
+        bars = make_bars(n=30)
+        (obv,) = compute_indicators(bars, ["OBV"])
+        manual = 0.0
+        for prev, cur in zip(bars, bars[1:], strict=False):
+            if cur.close > prev.close:
+                manual += cur.volume
+            elif cur.close < prev.close:
+                manual -= cur.volume
+        assert obv.value["value"] == pytest.approx(manual)
+
     def test_mixed_timeframes_rejected(self):
         bars = make_bars(n=30, timeframe=Timeframe.D1) + make_bars(n=30, timeframe=Timeframe.H4)
         with pytest.raises(ValueError, match="multiple timeframes"):

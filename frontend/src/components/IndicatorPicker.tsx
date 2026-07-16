@@ -15,9 +15,15 @@ export const INDICATOR_CATALOG = [
   { name: "SMA_200", label: "SMA 200", overlay: true },
   { name: "BOLL", label: "Bollinger 20/2", overlay: true },
   { name: "VWAP", label: "VWAP (session)", overlay: true, intradayOnly: true },
+  { name: "SUPERTREND", label: "Supertrend 14/3", overlay: true },
   { name: "RSI_14", label: "RSI", overlay: false, family: "RSI", period: 14 },
   { name: "MACD", label: "MACD 12/26/9", overlay: false },
   { name: "ATR_14", label: "ATR", overlay: false, family: "ATR", period: 14 },
+  { name: "STOCH", label: "Stochastic 9/3", overlay: false },
+  { name: "CCI_14", label: "CCI 14", overlay: false },
+  { name: "WILLR_14", label: "Williams %R 14", overlay: false },
+  { name: "ADX", label: "ADX 14", overlay: false },
+  { name: "OBV", label: "OBV", overlay: false },
 ] as const;
 
 const INTRADAY_TFS = new Set(["1m", "5m", "15m", "30m", "1h", "4h"]);

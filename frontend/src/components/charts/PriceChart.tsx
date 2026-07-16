@@ -51,7 +51,7 @@ export interface TradeMarker {
 function isOverlayIndicator(name: string): boolean {
   return (
     name.startsWith("EMA_") || name.startsWith("SMA_") ||
-    name === "BOLL" || name === "VWAP"
+    name === "BOLL" || name === "VWAP" || name === "SUPERTREND"
   );
 }
 
