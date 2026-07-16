@@ -131,7 +131,9 @@ def test_gold_pipeline_end_to_end_with_fakes(monkeypatch):
     assert "US10Y" in macro_names
     assert "GOLD_COT_NET_NONCOMM" in macro_names  # DR-1 positioning
     assert "GOLD_VOL_INDEX" in macro_names        # DR-1 implied vol
-    assert snapshot.missing_feeds == []
+    # hermetic run: live vendors disabled -> the wired news feed returns
+    # nothing, and a wired-but-empty feed is DISCLOSED (review P1.3)
+    assert snapshot.missing_feeds == ["yahoo_news:empty"]
 
 
 def test_bitcoin_pipeline_end_to_end_with_fakes():
@@ -151,7 +153,8 @@ def test_bitcoin_pipeline_end_to_end_with_fakes():
     assert {"FUNDING_RATE", "OPEN_INTEREST", "MARK_PRICE"} <= macro_names
     onchain_names = {m.name for m in snapshot.onchain}
     assert {"MVRV", "HASH_RATE", "FEAR_GREED_INDEX", "ORDERBOOK_IMBALANCE_100"} <= onchain_names
-    assert snapshot.missing_feeds == []
+    # wired-but-empty news is disclosed, never silent (review P1.3)
+    assert snapshot.missing_feeds == ["yahoo_news:empty"]
     assert snapshot.session is None  # crypto: no session concept
 
 

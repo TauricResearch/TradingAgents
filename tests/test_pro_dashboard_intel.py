@@ -25,12 +25,37 @@ class TestIntelService:
             "derivatives": lambda: [reading("FUNDING_RATE", 0.0001)],
             "fred_macro": lambda: (_ for _ in ()).throw(
                 RuntimeError("FRED_API_KEY not set")),
-        })
+        }, news_fns={})
         view = service.snapshot()
         assert [m["name"] for m in view["metrics"]] == ["FUNDING_RATE"]
         assert view["missing_feeds"] == ["fred_macro: FRED_API_KEY not set"]
         assert any(f["provider"] == "Coinglass"
                    for f in view["unsubscribed_feeds"])
+
+    def test_headlines_surface_and_empty_news_is_disclosed(self):
+        # review P1.3: headlines were ingested somewhere, displayed nowhere,
+        # and an empty feed silently benched the whole sentiment team
+        from tradingagents.contracts import NewsItem
+
+        service = IntelService(
+            feeds={"derivatives": lambda: [reading("FUNDING_RATE", 0.0001)]},
+            news_fns={
+                "XAUUSD": lambda: [NewsItem(
+                    headline="Gold steadies as yields ease",
+                    source="reuters", published_at=utc_now(),
+                )],
+                "BTC-USD": lambda: [],
+            },
+        )
+        view = service.snapshot()
+        assert view["headlines"] == [{
+            "symbol": "XAUUSD",
+            "headline": "Gold steadies as yields ease",
+            "source": "reuters",
+            "published_at": view["headlines"][0]["published_at"],
+            "url": None,
+        }]
+        assert "news:BTC-USD:empty" in view["missing_feeds"]
 
     def test_vendor_error_never_leaks_urls(self):
         # the review's live finding: a raw "403 Client Error: Forbidden for
@@ -45,7 +70,7 @@ class TestIntelService:
             "coinmetrics": lambda: (_ for _ in ()).throw(VendorError(
                 "403 Client Error: Forbidden for url: "
                 "https://community-api.coinmetrics.io/v4/timeseries")),
-        })
+        }, news_fns={})
         view = service.snapshot()
         assert view["missing_feeds"] == [
             "coinmetrics: HTTP 403 (forbidden — subscription or rate limit?)"

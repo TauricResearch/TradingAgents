@@ -132,6 +132,7 @@ class IntelService:
         self,
         feeds: dict[str, Callable[[], list]] | None = None,
         calendar_source: Callable[[int], list[dict]] | None = None,
+        news_fns: dict[str, Callable[[], list]] | None = None,
         ttl: float = 60.0,
         calendar_ttl: float = 6 * 3600.0,
         deadline: float = 10.0,
@@ -139,6 +140,7 @@ class IntelService:
     ):
         self._feeds = feeds
         self._calendar_source = calendar_source
+        self._news_fns = news_fns
         self.ttl = ttl
         self.calendar_ttl = calendar_ttl
         self.deadline = deadline
@@ -204,6 +206,20 @@ class IntelService:
 
         return FredMacroFeed().get_release_dates(days_ahead=days)
 
+    @property
+    def news_fns(self) -> dict[str, Callable[[], list]]:
+        """Headline sources per symbol — the same feeds the pipeline's
+        sentiment team reads, surfaced in the UI (trader review P1.3:
+        headlines were ingested somewhere and displayed nowhere)."""
+        if self._news_fns is None:
+            from tradingagents.pro.ingestion.news import YahooFinanceNewsFeed
+
+            self._news_fns = {
+                "XAUUSD": YahooFinanceNewsFeed("GC=F").get_news,
+                "BTC-USD": YahooFinanceNewsFeed("BTC-USD").get_news,
+            }
+        return self._news_fns
+
     # --- views ---------------------------------------------------------------------
 
     def snapshot(self) -> dict:
@@ -245,10 +261,40 @@ class IntelService:
             except Exception as exc:
                 logger.warning("intel feed %s failed", feed_name, exc_info=True)
                 missing.append(f"{feed_name}: {_friendly_error(exc)}")
+
+        # headlines ride the same pool + deadline; empty from a wired
+        # source is disclosed, never silent (review P1.3)
+        headlines: list[dict] = []
+        news_futures = {sym: pool.submit(fn) for sym, fn in self.news_fns.items()}
+        for sym, future in news_futures.items():
+            remaining = max(0.05, 2 * self.deadline - (time.monotonic() - started))
+            try:
+                items = future.result(timeout=remaining)
+                if not items:
+                    missing.append(f"news:{sym}:empty")
+                for item in items:
+                    headlines.append({
+                        "symbol": sym,
+                        "headline": item.headline,
+                        "source": item.source,
+                        "published_at": (item.published_at.isoformat()
+                                         if item.published_at else None),
+                        "url": item.url,
+                    })
+            except FutureTimeout:
+                future.cancel()
+                missing.append(f"news:{sym}: no response within "
+                               f"{self.deadline:.0f}s (vendor unreachable?)")
+            except Exception as exc:
+                logger.warning("news for %s failed", sym, exc_info=True)
+                missing.append(f"news:{sym}: {_friendly_error(exc)}")
+        headlines.sort(key=lambda h: h["published_at"] or "", reverse=True)
+
         view = {
             "as_of": utc_now().isoformat(),
             "session": current_session(utc_now()).value,
             "metrics": metrics,
+            "headlines": headlines,
             "missing_feeds": missing,
             # honest map of what money hasn't bought yet (UX: trust signal)
             "unsubscribed_feeds": [

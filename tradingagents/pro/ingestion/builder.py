@@ -90,13 +90,20 @@ class SnapshotBuilder:
                 news = self._news_feed.get_news()
             except Exception:
                 # a raising vendor degrades like any other feed (and, when
-                # live-armed, blocks entries via the data-health gate); an
-                # EMPTY result is a normal market state, not degradation —
-                # agents still disclose "news" per-prompt when the list is
-                # empty (rendering.py)
+                # live-armed, blocks entries via the data-health gate)
                 logger.warning("news feed %s failed", self._news_feed.name,
                                exc_info=True)
                 missing.append(self._news_feed.name)
+            else:
+                if not news:
+                    # an empty result silently benched the entire news team
+                    # in production (trader review P1.3: "NEWS_SENTIMENT (0)"
+                    # with no disclosure anywhere — abstaining agents never
+                    # emit the per-prompt "news missing" note). A wired feed
+                    # returning nothing IS degradation; disclose it.
+                    logger.warning("news feed %s returned no items",
+                                   self._news_feed.name)
+                    missing.append(f"{self._news_feed.name}:empty")
 
         macro = self._collect(self._macro_feeds, missing)
         onchain = self._collect(self._onchain_feeds, missing)

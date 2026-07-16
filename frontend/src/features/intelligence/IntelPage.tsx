@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useCalendar, useCorrelations, useIntel, useOverview } from "@/lib/api/queries";
-import { fmtCountdown, fmtDateTime, fmtMetricValue } from "@/lib/format";
+import { fmtCountdown, fmtDateTime, fmtMetricValue, relativeAge } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const GROUPS: { title: string; names: string[] }[] = [
@@ -233,6 +233,60 @@ export default function IntelPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Headlines: the same feed the pipeline's sentiment team reads —
+          ingested-but-invisible was a trader-review finding (P1.3) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Headlines</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(intel.data.headlines?.length ?? 0) === 0 ? (
+            <EmptyState
+              kind="waiting"
+              title="No headlines this cycle"
+              detail={
+                intel.data.missing_feeds.find((f) => f.startsWith("news:")) ??
+                "news feed returned nothing"
+              }
+            />
+          ) : (
+            <ul
+              className="max-h-72 space-y-1.5 overflow-y-auto text-[13px]"
+              data-testid="headlines"
+            >
+              {intel.data.headlines!.slice(0, 16).map((h, i) => (
+                <li key={i} className="flex items-baseline gap-2 border-b border-border/40 pb-1">
+                  <Badge
+                    variant={h.symbol === "XAUUSD" ? "accent" : "default"}
+                    className="shrink-0 px-1.5 text-[10px]"
+                  >
+                    {h.symbol.replace("-USD", "")}
+                  </Badge>
+                  <span className="min-w-0 grow">
+                    {h.url ? (
+                      <a
+                        href={h.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-fg hover:underline"
+                      >
+                        {h.headline}
+                      </a>
+                    ) : (
+                      <span className="text-fg">{h.headline}</span>
+                    )}{" "}
+                    <span className="text-xs text-fg-subtle">
+                      {h.source}
+                      {h.published_at && ` · ${relativeAge(h.published_at)}`}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Economic calendar is an addition beyond the mockup (gaps-v8) */}
       <Card>

@@ -320,6 +320,17 @@ export const IntelSchema = z.object({
       source: z.string().nullable(),
     }),
   ),
+  headlines: z
+    .array(
+      z.object({
+        symbol: z.string(),
+        headline: z.string(),
+        source: z.string(),
+        published_at: z.string().nullable(),
+        url: z.string().nullable(),
+      }),
+    )
+    .optional(),
   missing_feeds: z.array(z.string()),
   unsubscribed_feeds: z.array(z.object({ name: z.string(), provider: z.string() })),
 });
