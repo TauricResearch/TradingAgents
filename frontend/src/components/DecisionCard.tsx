@@ -456,7 +456,8 @@ export function DecisionCard({
             <span className="tabular">
               size {rec.position_size.quantity.toFixed(4)}
               {rec.position_size.pct_of_equity != null &&
-                ` (${rec.position_size.pct_of_equity}% equity)`}
+                // headroom-adjusted sizes are floats (9.899999…) — round
+                ` (${(Math.round(rec.position_size.pct_of_equity * 10) / 10)}% equity)`}
             </span>
           )}
           {!hero && (
