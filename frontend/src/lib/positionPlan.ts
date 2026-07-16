@@ -48,7 +48,9 @@ export function computePositionPlan(input: PositionPlanInput): PositionPlan {
   let quantity = (equity * riskPct) / 100 / perUnitRisk;
   const notionalCap = (equity * maxPositionPct) / 100;
   const capped = quantity * entry > notionalCap;
-  if (capped) quantity = notionalCap / entry;
+  // mirror of the engine's cap headroom (R2.8): at-cap sizes must survive
+  // equity drift between sizing and the execution validator
+  if (capped) quantity = (notionalCap * 0.99) / entry;
   const notional = quantity * entry;
   const rr = perUnitReward / perUnitRisk;
   return {

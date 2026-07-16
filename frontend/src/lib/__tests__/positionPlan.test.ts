@@ -17,8 +17,9 @@ describe("position plan calculator", () => {
     // risk budget 1000, per-unit risk 20 -> 50 units... notional 200k > 10% cap
     expect(plan.valid).toBe(true);
     expect(plan.capped).toBe(true); // 50 * 4000 = 200k > 10k cap
-    expect(plan.quantity).toBeCloseTo(2.5); // 10k / 4000
-    expect(plan.riskAmount).toBeCloseTo(50); // capped size risks less
+    // cap minus the engine's 1% drift headroom (R2.8)
+    expect(plan.quantity).toBeCloseTo(2.475); // 10k * 0.99 / 4000
+    expect(plan.riskAmount).toBeCloseTo(49.5); // capped size risks less
     expect(plan.rr).toBeCloseTo(2);
     expect(plan.breakevenWinRate).toBeCloseTo(1 / 3);
   });

@@ -12,6 +12,14 @@ from collections.abc import Sequence
 
 from tradingagents.contracts import PositionSize, TakeProfitLevel
 
+# cap-bound sizes leave headroom (review R2.8): sizing uses sizing-time
+# equity while the execution validator re-checks against LIVE equity — a
+# size sitting exactly on the cap bounced on every ordinary equity dip
+# (observed in production: "notional 10000.00 exceeds cap 9991.35", every
+# at-cap order rejected, the paper track record silently frozen). The
+# validator stays strict; the size steps back from the boundary instead.
+NOTIONAL_CAP_HEADROOM = 0.99
+
 
 def fixed_risk_position_size(
     equity: float,
@@ -21,7 +29,8 @@ def fixed_risk_position_size(
     max_position_pct: float = 100.0,
 ) -> PositionSize:
     """Size so that (entry -> stop) loses exactly ``risk_pct`` of equity,
-    capped by ``max_position_pct`` of equity notional."""
+    capped by ``max_position_pct`` of equity notional (less a drift
+    headroom when the cap binds)."""
     if equity <= 0:
         raise ValueError("equity must be positive")
     if not 0 < risk_pct <= 100:
@@ -32,7 +41,7 @@ def fixed_risk_position_size(
     quantity = (equity * risk_pct / 100.0) / per_unit_risk
     notional_cap = equity * max_position_pct / 100.0
     if quantity * entry > notional_cap:
-        quantity = notional_cap / entry
+        quantity = notional_cap * NOTIONAL_CAP_HEADROOM / entry
     notional = quantity * entry
     return PositionSize(
         quantity=quantity,

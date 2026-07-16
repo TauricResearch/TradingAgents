@@ -87,16 +87,27 @@ class TestRiskEngine:
 
     def test_fixed_risk_sizing_default_cap_is_full_equity(self):
         # same trade with the default 100% cap: notional clamps to equity
+        # less the R2.8 drift headroom (applies whenever the cap binds)
         size = fixed_risk_position_size(100_000, 1.0, 2400.0, 2380.0)
-        assert size.notional == pytest.approx(100_000.0)
-        assert size.pct_of_equity == pytest.approx(100.0)
+        assert size.notional == pytest.approx(99_000.0)
+        assert size.pct_of_equity == pytest.approx(99.0)
 
-    def test_fixed_risk_sizing_respects_position_cap(self):
-        # uncapped would be 50 units = 120k notional; cap at 10% equity = 10k
+    def test_fixed_risk_sizing_respects_position_cap_with_headroom(self):
+        # uncapped would be 50 units = 120k notional; cap at 10% equity = 10k,
+        # minus the 1% drift headroom (R2.8: at-cap orders bounced whenever
+        # live equity dipped below sizing-time equity)
         size = fixed_risk_position_size(100_000, 1.0, 2400.0, 2380.0, max_position_pct=10.0)
-        assert size.notional == pytest.approx(10_000.0)
-        assert size.quantity == pytest.approx(10_000.0 / 2400.0)
-        assert size.pct_of_equity == pytest.approx(10.0)
+        assert size.notional == pytest.approx(9_900.0)
+        assert size.quantity == pytest.approx(9_900.0 / 2400.0)
+        assert size.pct_of_equity == pytest.approx(9.9)
+
+    def test_at_cap_size_survives_small_equity_drift(self):
+        # the production incident: sized on 100k, validated against 99,913 —
+        # the execution cap at the drifted equity must still admit the order
+        size = fixed_risk_position_size(100_000, 1.0, 2400.0, 2380.0, max_position_pct=10.0)
+        drifted_equity = 99_913.0
+        cap_at_execution = drifted_equity * 10.0 / 100
+        assert size.notional <= cap_at_execution  # would have failed pre-fix
 
     def test_sizing_rejects_zero_stop_distance(self):
         with pytest.raises(ValueError, match="cannot be equal"):
