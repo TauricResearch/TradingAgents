@@ -17,7 +17,7 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { chartColors, useLightweightChart, hexToRgba } from "./useLightweightChart";
 import { loadPaneFactors, savePaneFactors } from "./paneLayout";
@@ -30,8 +30,19 @@ import {
   type DrawingPoint,
   type ToolMode,
 } from "./drawings/types";
+import { snapToBar } from "./annotationSnap";
+import {
+  AnnotationsPrimitive,
+  type SnappedAnnotation,
+} from "./annotationsPrimitive";
 import { VolumeProfilePrimitive } from "./volumeProfilePrimitive";
-import type { Bar, IndicatorSeries, Recommendation, VolumeProfile } from "@/lib/api/types";
+import type {
+  Bar,
+  ChartAnnotations,
+  IndicatorSeries,
+  Recommendation,
+  VolumeProfile,
+} from "@/lib/api/types";
 import { directionOf } from "@/lib/format";
 import { useDrawingsStore } from "@/stores/drawings";
 import { useTickerStore } from "@/stores/ticker";
@@ -84,6 +95,9 @@ export function PriceChart({
   onCreateAlert,
   height = 420,
   volumeProfile = null,
+  annotations = null,
+  onExplainRun,
+  openPosition = null,
 }: {
   bars: Bar[];
   style?: SeriesStyle;
@@ -105,6 +119,12 @@ export function PriceChart({
   height?: number;
   /** server-computed fixed-range profile (review P2.4); null hides it */
   volumeProfile?: VolumeProfile | null;
+  /** AI decision history painted on price (chart Phase 1); null hides it */
+  annotations?: ChartAnnotations | null;
+  /** select-mode click on a decision zone/marker/ribbon segment */
+  onExplainRun?: (runId: string, point: { x: number; y: number }) => void;
+  /** open position for this symbol: server-computed entry line */
+  openPosition?: { entry_price?: number | null; quantity: number } | null;
 }) {
   const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const extraSeriesRef = useRef<ISeriesApi<SeriesType>[]>([]);
@@ -128,6 +148,9 @@ export function PriceChart({
   onToolModeChangeRef.current = onToolModeChange;
   const onCreateAlertRef = useRef(onCreateAlert);
   onCreateAlertRef.current = onCreateAlert;
+  const annotationsRef = useRef<AnnotationsPrimitive | null>(null);
+  const onExplainRunRef = useRef(onExplainRun);
+  onExplainRunRef.current = onExplainRun;
   const theme = useUiStore((s) => s.theme);
   const drawings = useDrawingsStore((state) =>
     drawingsSymbol ? (state.bySymbol[drawingsSymbol] ?? NO_DRAWINGS) : NO_DRAWINGS,
@@ -249,6 +272,9 @@ export function PriceChart({
       const profilePrimitive = new VolumeProfilePrimitive();
       seriesRef.current.attachPrimitive(profilePrimitive);
       profileRef.current = profilePrimitive;
+      const annotationsPrimitive = new AnnotationsPrimitive();
+      seriesRef.current.attachPrimitive(annotationsPrimitive);
+      annotationsRef.current = annotationsPrimitive;
     }
 
     // pane proportions (review P2.3): the price pane must stay dominant
@@ -290,6 +316,7 @@ export function PriceChart({
       extraSeriesRef.current = [];
       primitiveRef.current = null;
       profileRef.current = null;
+      annotationsRef.current = null;
     };
   }, [bars, style, indicators, showVolume, drawingsSymbol, theme, chartRef, containerRef]);
 
@@ -343,40 +370,148 @@ export function PriceChart({
     };
   }, [recommendation, bars, style, indicators, showVolume]);
 
-  // trade / run markers
+  // annotation times snapped to this chart's exact bar times (LWC v5:
+  // any other time renders nothing). Off-range annotations drop out and
+  // return when older bars are paged in.
+  const barTimes = useMemo(() => bars.map((b) => b.time), [bars]);
+  const snappedAnnotations = useMemo<SnappedAnnotation[]>(() => {
+    if (!annotations) return [];
+    const out: SnappedAnnotation[] = [];
+    for (const run of annotations.runs) {
+      if (run.time == null) continue;
+      const time = snapToBar(barTimes, run.time);
+      if (time == null) continue;
+      const span = run.span?.from != null
+        ? {
+            from: snapToBar(barTimes, run.span.from) ?? time,
+            to: run.span.to == null
+              ? null
+              : snapToBar(barTimes, run.span.to),
+          }
+        : null;
+      out.push({
+        runId: run.run_id,
+        time,
+        action: (run.action as SnappedAnnotation["action"]) ?? null,
+        rejectedAt: run.rejected_at,
+        confidence: run.confidence,
+        regime: run.market_regime,
+        geometry: run.geometry
+          ? {
+              entry: run.geometry.entry,
+              stop: run.geometry.stop,
+              invalidation: run.geometry.invalidation,
+              takeProfits: run.geometry.take_profits.map((tp) => ({
+                price: tp.price,
+                sizeFraction: tp.size_fraction,
+              })),
+              direction: run.geometry.direction,
+            }
+          : null,
+        span,
+      });
+    }
+    return out;
+  }, [annotations, barTimes]);
+
+  // trade / run markers (journal fills via the markers prop + AI decisions
+  // from annotations — merged into the ONE plugin instance per series)
   useEffect(() => {
     const series = seriesRef.current;
     if (!series) return;
     const colors = chartColors();
     markersRef.current?.detach();
+    const journalMarkers = markers
+      .filter((m) => m.time > 0)
+      .map((m) => {
+        const dir = directionOf(m.direction);
+        return {
+          time: m.time as UTCTimestamp,
+          position: dir === "bear" ? ("aboveBar" as const) : ("belowBar" as const),
+          color:
+            dir === "bull" ? colors.bull : dir === "bear" ? colors.bear : colors.neutral,
+          shape:
+            dir === "bull"
+              ? ("arrowUp" as const)
+              : dir === "bear"
+                ? ("arrowDown" as const)
+                : ("circle" as const),
+          text: m.label,
+        };
+      });
+    const decisionMarkers = snappedAnnotations
+      .filter((a) => a.action === "BUY" || a.action === "SELL" || a.rejectedAt)
+      .map((a) => {
+        if (a.action === "BUY" || a.action === "SELL") {
+          const bull = a.action === "BUY";
+          return {
+            time: a.time as UTCTimestamp,
+            position: bull ? ("belowBar" as const) : ("aboveBar" as const),
+            color: bull ? colors.bull : colors.bear,
+            shape: bull ? ("arrowUp" as const) : ("arrowDown" as const),
+            text: `AI ${a.action}`,
+          };
+        }
+        return {
+          time: a.time as UTCTimestamp,
+          position: "aboveBar" as const,
+          color: colors.neutral,
+          shape: "square" as const,
+          text: `✕ ${a.rejectedAt}`,
+        };
+      });
     markersRef.current = createSeriesMarkers(
       series,
-      markers
-        .filter((m) => m.time > 0)
-        .sort((a, b) => a.time - b.time)
-        .map((m) => {
-          const dir = directionOf(m.direction);
-          return {
-            time: m.time as UTCTimestamp,
-            position: dir === "bear" ? ("aboveBar" as const) : ("belowBar" as const),
-            color:
-              dir === "bull" ? colors.bull : dir === "bear" ? colors.bear : colors.neutral,
-            shape:
-              dir === "bull"
-                ? ("arrowUp" as const)
-                : dir === "bear"
-                  ? ("arrowDown" as const)
-                  : ("circle" as const),
-            text: m.label,
-          };
-        }),
+      [...journalMarkers, ...decisionMarkers].sort((a, b) =>
+        Number(a.time) - Number(b.time)),
     );
     return () => {
       // skip detach when the rebuild cleanup already removed the series
       if (seriesRef.current === series) markersRef.current?.detach();
       markersRef.current = null;
     };
-  }, [markers, bars, style, indicators, showVolume]);
+  }, [markers, snappedAnnotations, bars, style, indicators, showVolume]);
+
+  // push snapped annotations + theme colors into the AI layer primitive
+  useEffect(() => {
+    const colors = chartColors();
+    const hours = annotations ? annotations.cadence_seconds / 3600 : 0;
+    annotationsRef.current?.setAnnotations(
+      snappedAnnotations,
+      barTimes,
+      {
+        bull: colors.bull,
+        bear: colors.bear,
+        neutral: colors.neutral,
+        label: colors.muted,
+        bullFill: hexToRgba(colors.bull, 0.08),
+        bearFill: hexToRgba(colors.bear, 0.08),
+      },
+      snappedAnnotations.length
+        ? `AI decisions · ${hours >= 1 ? `${hours.toFixed(0)}h` : `${Math.round(hours * 60)}m`} cadence`
+        : "",
+    );
+  }, [snappedAnnotations, barTimes, annotations, theme, bars, style, indicators, showVolume]);
+
+  // open-position entry line: server-computed book truth (Constraint 2 —
+  // the P&L number itself renders in the workspace badge, not here)
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series || !openPosition?.entry_price) return;
+    const colors = chartColors();
+    const line = series.createPriceLine({
+      price: openPosition.entry_price,
+      color: colors.accent,
+      axisLabelTextColor: colors.onSolid,
+      lineWidth: 2,
+      lineStyle: 0,
+      title: `POSITION · ${openPosition.quantity}`,
+    });
+    return () => {
+      if (seriesRef.current !== series) return;
+      series.removePriceLine(line);
+    };
+  }, [openPosition, bars, style, indicators, showVolume]);
 
   // push the server-computed profile + theme colors into its primitive
   useEffect(() => {
@@ -442,7 +577,13 @@ export function PriceChart({
         onToolModeChangeRef.current?.("select");
         return;
       }
-      if (mode === "select") return;
+      if (mode === "select") {
+        // chart Phase 1: a plain click on a decision zone / marker bar /
+        // ribbon segment asks "explain this decision"
+        const runId = annotationsRef.current?.findNearestRun(param.point);
+        if (runId) onExplainRunRef.current?.(runId, param.point);
+        return;
+      }
       const price = series.coordinateToPrice(param.point.y);
       if (price == null || param.time == null) return;
       const point: DrawingPoint = { time: Number(param.time), price };
@@ -555,6 +696,7 @@ export function PriceChart({
       aria-label="price chart"
       data-testid="price-chart"
       data-drawings={drawingsSymbol ? drawings.length : undefined}
+      data-annotations={annotations ? snappedAnnotations.length : undefined}
     />
   );
 }

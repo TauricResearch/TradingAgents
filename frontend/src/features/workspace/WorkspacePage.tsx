@@ -38,12 +38,19 @@ import {
   useJournal,
   usePriceAlerts,
   useRecommendation,
+  useChartAnnotations,
   useStatus,
   useSymbols,
 } from "@/lib/api/queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Recommendation } from "@/lib/api/types";
 import { fmtCountdown, fmtPnl, fmtPrice } from "@/lib/format";
+import { snapToBar } from "@/components/charts/annotationSnap";
+import {
+  ExplainRunPopover,
+  type ExplainTarget,
+} from "./ExplainRunPopover";
+import { ReplayDecisionStrip } from "./ReplayDecisionStrip";
 import { computePositionPlan } from "@/lib/positionPlan";
 import { countdownExpired, useCountdown } from "@/lib/useCountdown";
 import { cn } from "@/lib/utils";
@@ -197,7 +204,23 @@ export default function WorkspacePage() {
     window.setTimeout(() => setAlertToast(null), 3500);
   };
 
-  const replay = useReplay(allBars.length);
+  // AI decision layer (chart Phase 1): fetched before replay so replay
+  // can pause on the bars where decisions happened
+  const chartAnnotations = useChartAnnotations(symbol);
+  const decisionBars = useMemo(() => {
+    const times = allBars.map((b) => b.time);
+    const byIndex = new Map<number, string>();
+    for (const run of chartAnnotations.data?.runs ?? []) {
+      if (run.time == null) continue;
+      const t = snapToBar(times, run.time);
+      if (t == null) continue;
+      const idx = times.indexOf(t);
+      if (idx >= 0 && !byIndex.has(idx)) byIndex.set(idx, run.run_id);
+    }
+    return { set: new Set(byIndex.keys()), byIndex };
+  }, [chartAnnotations.data, allBars]);
+
+  const replay = useReplay(allBars.length, decisionBars.set);
   const visibleBars = replay.active
     ? allBars.slice(0, replay.cursor)
     : allBars;
@@ -247,6 +270,35 @@ export default function WorkspacePage() {
         }))
         .filter((m) => !replay.active || cursorTime == null || m.time <= cursorTime),
     [journal.data, symbol, replay.active, cursorTime],
+  );
+
+  // During replay only runs decided as-of the cursor are visible — the
+  // future stays hidden (P0.2 rule).
+  const visibleAnnotations = useMemo(() => {
+    const data = chartAnnotations.data;
+    if (!data) return null;
+    if (!replay.active || cursorTime == null) return data;
+    return {
+      ...data,
+      runs: data.runs.filter((r) => r.time != null && r.time <= cursorTime),
+      fills: data.fills.filter(
+        (f) => f.closed_time != null && f.closed_time <= cursorTime,
+      ),
+    };
+  }, [chartAnnotations.data, replay.active, cursorTime]);
+
+  const [explain, setExplain] = useState<ExplainTarget | null>(null);
+  // a symbol/timeframe switch invalidates the anchor position
+  useEffect(() => setExplain(null), [symbol, activeTf]);
+
+  // open position for this symbol: entry line on the chart + the server's
+  // unrealized P&L in a badge (no client math — Constraint 2)
+  const openPosition = useMemo(
+    () =>
+      status.data?.open_positions?.find(
+        (p) => p.symbol === symbol && p.quantity !== 0,
+      ) ?? null,
+    [status.data, symbol],
   );
 
   // full-screen: button + `f` shortcut (dispatched as a window event)
@@ -386,6 +438,13 @@ export default function WorkspacePage() {
                 </span>
               )}
             </div>
+            {replay.active && replay.pausedOnBar != null &&
+              decisionBars.byIndex.get(replay.pausedOnBar) && (
+                <ReplayDecisionStrip
+                  runId={decisionBars.byIndex.get(replay.pausedOnBar)!}
+                  onResume={() => replay.setPlaying(true)}
+                />
+              )}
             {bars.isPending ? (
               <SkeletonCard lines={8} />
             ) : bars.isError ? (
@@ -405,7 +464,7 @@ export default function WorkspacePage() {
                     onToggleHidden={(id) => toggleDrawingHidden(symbol, id)}
                     onRemove={(id) => removeDrawing(symbol, id)}
                   />
-                  <div className="min-w-0 grow">
+                  <div className="relative min-w-0 grow">
                     <PriceChart
                       bars={visibleBars}
                       style="candles"
@@ -421,7 +480,34 @@ export default function WorkspacePage() {
                       onCreateAlert={createChartAlert}
                       height={compare ? 300 : 400}
                       volumeProfile={showProfile ? (volumeProfile.data ?? null) : null}
+                      annotations={visibleAnnotations}
+                      onExplainRun={(runId, point) =>
+                        setExplain({ runId, x: point.x, y: point.y })
+                      }
+                      openPosition={openPosition}
                     />
+                    {openPosition?.unrealized_pnl != null && (
+                      <div
+                        data-testid="position-badge"
+                        className={
+                          "absolute right-2 top-2 z-10 rounded-lg border border-border bg-surface/90 px-2 py-1 font-mono text-xs tabular " +
+                          (openPosition.unrealized_pnl >= 0
+                            ? "text-bull"
+                            : "text-bear")
+                        }
+                      >
+                        {openPosition.quantity > 0 ? "long" : "short"}{" "}
+                        {Math.abs(openPosition.quantity)} ·{" "}
+                        {fmtPnl(openPosition.unrealized_pnl)}
+                        <span className="ml-1 text-fg-subtle">paper</span>
+                      </div>
+                    )}
+                    {explain && (
+                      <ExplainRunPopover
+                        target={explain}
+                        onClose={() => setExplain(null)}
+                      />
+                    )}
                   </div>
                 </div>
                 {compare && (

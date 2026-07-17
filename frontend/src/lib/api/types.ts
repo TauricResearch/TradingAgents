@@ -379,6 +379,55 @@ export const BarSchema = z.object({
 export type Bar = z.infer<typeof BarSchema>;
 export const BarsSchema = z.array(BarSchema);
 
+/** AI decision history for the chart (chart Phase 1). Times are epoch
+ * seconds, UNSNAPPED — the chart snaps them to its own bar array. */
+export const ChartAnnotationsSchema = z.object({
+  symbol: z.string(),
+  cadence_seconds: z.number(),
+  runs: z.array(
+    z.object({
+      run_id: z.string(),
+      time: z.number().nullable(),
+      action: z.string().nullable(),
+      rejected_at: z.string().nullable(),
+      confidence: z.number().nullable(),
+      market_regime: z.string().nullable(),
+      geometry: z
+        .object({
+          entry: z.number(),
+          stop: z.number().nullable(),
+          invalidation: z.number().nullable(),
+          take_profits: z.array(
+            z.object({ price: z.number(), size_fraction: z.number() }),
+          ),
+          direction: z.enum(["long", "short"]),
+        })
+        .nullable(),
+      span: z
+        .object({
+          from: z.number().nullable(),
+          to: z.number().nullable(),
+          reason: z.string(),
+        })
+        .nullable(),
+    }),
+  ),
+  fills: z.array(
+    z.object({
+      run_id: z.string().nullable(),
+      link: z.string(),
+      entry_time: z.number().nullable(),
+      entry_price: z.number().nullable(),
+      closed_time: z.number().nullable(),
+      fill_price: z.number().nullable(),
+      pnl: z.number(),
+      won: z.boolean().nullable(),
+      mode: z.string(),
+    }),
+  ),
+});
+export type ChartAnnotations = z.infer<typeof ChartAnnotationsSchema>;
+
 export const IndicatorSeriesSchema = z.record(
   z.object({
     params: z.record(z.unknown()),

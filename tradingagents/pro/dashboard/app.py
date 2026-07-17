@@ -555,6 +555,23 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
              limit: int = md.DEFAULT_LIMIT) -> list[dict]:
         return md.bars_view(_fetch_bars(symbol, timeframe, limit))
 
+    @app.get("/api/chart/annotations")
+    async def chart_annotations_route(symbol: str) -> dict:
+        """The AI's record for one symbol, chart-paintable (chart Phase 1).
+        Async on purpose: pure in-memory read — never queued behind
+        vendor-bound threadpool handlers (the R2.7 lesson)."""
+        import os
+
+        from tradingagents.pro.dashboard.annotations import chart_annotations
+
+        known = {s["symbol"] for s in state.marketdata.symbols()}
+        if symbol not in known:
+            raise HTTPException(status_code=404,
+                                detail=f"unknown symbol {symbol!r}")
+        cadence = float(os.environ.get("PRO_LOOP_INTERVAL_SECONDS", "3600"))
+        return chart_annotations(state.runs, state.memory, symbol,
+                                 cadence_seconds=cadence)
+
     @app.get("/api/bars/indicators")
     def bar_indicators(symbol: str, timeframe: str = "1d",
                        names: str = "", limit: int = md.DEFAULT_LIMIT) -> dict:

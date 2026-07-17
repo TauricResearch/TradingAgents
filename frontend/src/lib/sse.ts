@@ -129,6 +129,8 @@ export function startEventStream(client: QueryClient): () => void {
       void client.invalidateQueries({ queryKey: qk.overview });
       void client.invalidateQueries({ queryKey: qk.journal });
       void client.invalidateQueries({ queryKey: qk.agents });
+      // repaint the chart's AI layer (chart Phase 1)
+      void client.invalidateQueries({ queryKey: ["chartAnnotations"] });
       // tap the shoulder of a backgrounded trader (review P1.4)
       try {
         const run = JSON.parse((event as MessageEvent).data) as {
@@ -195,6 +197,8 @@ export function startEventStream(client: QueryClient): () => void {
       bump(event);
       void client.invalidateQueries({ queryKey: qk.status });
       void client.invalidateQueries({ queryKey: qk.journal });
+      // fills close/open spans on the chart's AI layer
+      void client.invalidateQueries({ queryKey: ["chartAnnotations"] });
     });
 
     source.addEventListener("status", (event) => {

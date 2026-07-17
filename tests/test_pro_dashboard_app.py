@@ -77,6 +77,39 @@ def test_ask_run_503_without_model():
     assert resp.status_code == 503
 
 
+def test_chart_annotations_endpoint():
+    from tradingagents.contracts import Timeframe
+    from tradingagents.pro.dashboard import marketdata as md
+
+    # stub registry: the lazy default probes vendors over the network
+    spec = md.SymbolSpec(
+        symbol="XAUUSD", vendor_symbol="XAUUSD", source="test",
+        timeframes=(Timeframe.D1,), live=False, feed_factory=lambda: None,
+    )
+    state = DashboardState(
+        memory=ProMemory(),
+        marketdata=md.MarketDataService(registry={"XAUUSD": spec}),
+    )
+    run = state.recorder.record_run(
+        FakePipelineLLM(), CONFIG, pipeline_snapshot(), memory=state.memory
+    )
+    client = TestClient(create_app(state))
+
+    body = client.get("/api/chart/annotations",
+                      params={"symbol": "XAUUSD"}).json()
+    assert body["symbol"] == "XAUUSD"
+    assert body["cadence_seconds"] > 0
+    ids = [v["run_id"] for v in body["runs"]]
+    assert run.run_id in ids
+    view = body["runs"][ids.index(run.run_id)]
+    if view["action"] in ("BUY", "SELL"):  # scripted judge decides
+        assert view["geometry"]["entry"] > 0
+        assert view["span"]["reason"] in ("open", "closed", "superseded")
+
+    resp = client.get("/api/chart/annotations", params={"symbol": "NOPE"})
+    assert resp.status_code == 404
+
+
 def test_index_serves_dashboard_html(client):
     # "/" serves the SPA when a frontend build exists, else the legacy page;
     # both carry the product name. The legacy page stays at /legacy.

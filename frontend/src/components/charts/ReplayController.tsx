@@ -16,23 +16,38 @@ export interface ReplayState {
 const SPEEDS = [1, 2, 5, 10];
 const MIN_BARS = 10;
 
-export function useReplay(totalBars: number) {
+export function useReplay(totalBars: number, decisionBars?: Set<number>) {
   const [active, setActive] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
   const [cursor, setCursor] = useState(totalBars);
+  // chart Phase 1: auto-pause when a revealed bar carries an AI decision,
+  // so the trader can inspect the run's reasoning as-of that moment
+  const [pauseOnDecisions, setPauseOnDecisions] = useState(true);
+  const [pausedOnBar, setPausedOnBar] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const decisionRef = useRef(decisionBars);
+  decisionRef.current = decisionBars;
+  const pauseOnRef = useRef(pauseOnDecisions);
+  pauseOnRef.current = pauseOnDecisions;
 
   const start = () => {
     setCursor(Math.max(MIN_BARS, Math.floor(totalBars / 4)));
     setActive(true);
     setPlaying(true);
+    setPausedOnBar(null);
   };
   const stop = () => {
     setActive(false);
     setPlaying(false);
     setCursor(totalBars);
+    setPausedOnBar(null);
   };
+
+  // any resume (play button, strip) clears the decision-pause marker
+  useEffect(() => {
+    if (playing) setPausedOnBar(null);
+  }, [playing]);
 
   useEffect(() => {
     if (!active || !playing) return;
@@ -42,7 +57,13 @@ export function useReplay(totalBars: number) {
           setPlaying(false);
           return totalBars;
         }
-        return c + 1;
+        const next = c + 1;
+        // the newly revealed bar is index next-1
+        if (pauseOnRef.current && decisionRef.current?.has(next - 1)) {
+          setPlaying(false);
+          setPausedOnBar(next - 1);
+        }
+        return next;
       });
     }, 1000 / speed);
     return () => {
@@ -60,6 +81,9 @@ export function useReplay(totalBars: number) {
     setPlaying,
     setSpeed,
     setCursor,
+    pauseOnDecisions,
+    setPauseOnDecisions,
+    pausedOnBar,
   };
 }
 
@@ -100,6 +124,18 @@ export function ReplayControls({
       >
         <StepForward size={13} />
       </Button>
+      <button
+        onClick={() => replay.setPauseOnDecisions(!replay.pauseOnDecisions)}
+        aria-pressed={replay.pauseOnDecisions}
+        title="Pause when the AI made a decision on the revealed bar"
+        className={
+          replay.pauseOnDecisions
+            ? "rounded bg-accent-muted px-1.5 text-xs text-accent"
+            : "rounded px-1.5 text-xs text-fg-subtle hover:text-fg"
+        }
+      >
+        ⏸ AI
+      </button>
       {SPEEDS.map((s) => (
         <button
           key={s}

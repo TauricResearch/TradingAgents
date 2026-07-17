@@ -505,3 +505,61 @@ test.describe("v-golive Phase 5 ops", () => {
     expect(body).toHaveProperty("checks");
   });
 });
+
+test.describe("chart phase 1: AI annotations", () => {
+  test("decision layer renders and click-to-explain opens the popover", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "canvas hit-targets are desktop UX");
+    await unlock(page);
+    await page.goto("/trade/XAUUSD");
+    const chart = page.getByTestId("price-chart");
+    await expect(chart.locator("canvas").first()).toBeVisible({
+      timeout: 15_000,
+    });
+    // the demo's recorded run snaps onto the loaded bar window
+    await expect(chart).toHaveAttribute("data-annotations", /^[1-9]/, {
+      timeout: 15_000,
+    });
+
+    // the demo run decided "now" → its zone/marker sits at the last bar.
+    // sweep clicks leftward from the pane's right edge (axis ≈ 70px);
+    // the entry-bar hit-test is ±6px so an 8px stride will land.
+    const box = (await chart.boundingBox())!;
+    const paneRight = box.x + box.width - 70;
+    const y = box.y + box.height * 0.35;
+    let opened = false;
+    for (let dx = 2; dx <= 42 && !opened; dx += 8) {
+      await page.mouse.click(paneRight - dx, y);
+      opened = await page
+        .getByTestId("explain-run-popover")
+        .isVisible()
+        .catch(() => false);
+      if (!opened) await page.waitForTimeout(200);
+    }
+    expect(opened).toBe(true);
+    // grounded content: verdict + the link to the full decision record
+    await expect(page.getByTestId("explain-run-popover")).toContainText(
+      /Full decision/,
+    );
+    // Esc closes
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("explain-run-popover")).toHaveCount(0);
+  });
+
+  test("replay hides future AI decisions", async ({ page, isMobile }) => {
+    test.skip(isMobile, "replay controls are desktop UX");
+    await unlock(page);
+    await page.goto("/trade/XAUUSD");
+    const chart = page.getByTestId("price-chart");
+    await expect(chart).toHaveAttribute("data-annotations", /^[1-9]/, {
+      timeout: 15_000,
+    });
+    // start replay: cursor rewinds to 1/4 of history — the run decided
+    // at the last bar must disappear from the visible annotation set
+    await page.getByRole("button", { name: /Replay/ }).click();
+    await expect(page.getByTestId("replay-badge")).toBeVisible();
+    await expect(chart).toHaveAttribute("data-annotations", "0");
+  });
+});

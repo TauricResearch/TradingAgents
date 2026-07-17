@@ -32,6 +32,7 @@ import {
   WatchlistsSchema,
   PriceAlertListSchema,
   RegimeSchema,
+  ChartAnnotationsSchema,
 } from "./types";
 
 export const qk = {
@@ -56,6 +57,8 @@ export const qk = {
   symbols: ["symbols"] as const,
   bars: (symbol: string, tf: string, limit: number) =>
     ["bars", symbol, tf, limit] as const,
+  chartAnnotations: (symbol: string) =>
+    ["chartAnnotations", symbol] as const,
   indicators: (symbol: string, tf: string, names: string) =>
     ["indicators", symbol, tf, names] as const,
   intel: ["intel"] as const,
@@ -235,6 +238,19 @@ export const useSymbols = () =>
     queryKey: qk.symbols,
     queryFn: fetchParsed("/api/symbols", SymbolsSchema),
     staleTime: 300_000,
+  });
+
+/** The AI's record for one symbol, chart-paintable (chart Phase 1). SSE
+ * `run`/`position` events invalidate it, so it repaints without polling
+ * hard. */
+export const useChartAnnotations = (symbol: string) =>
+  useQuery({
+    queryKey: qk.chartAnnotations(symbol),
+    queryFn: fetchParsed(
+      `/api/chart/annotations?symbol=${encodeURIComponent(symbol)}`,
+      ChartAnnotationsSchema,
+    ),
+    staleTime: 60_000,
   });
 
 export const useBars = (symbol: string, timeframe: string, limit = 300) =>
