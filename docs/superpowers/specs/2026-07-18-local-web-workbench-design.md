@@ -1,6 +1,6 @@
 # TradingAgents Local Web Workbench Design
 
-**Status:** Approved in conversation; review-round-2 fixes complete, round 3 pending  
+**Status:** Approved in conversation; review-round-3 fixes complete, round 4 pending  
 **Date:** 2026-07-18  
 **Scope:** Localhost-only single-user web application for the existing TradingAgents repository
 
@@ -203,14 +203,43 @@ observer.store_artifact(kind, value, metadata) -> ArtifactRef
 Every executed role node is wrapped by `ObservedNode(actor_id, projection_fn, node_fn)`. A `turn_id` means one logical role turn, which may span `model -> tool -> model` graph re-entry. Before the first invocation of that logical turn, the wrapper:
 
 1. allocates a stable `turn_id` for the logical role turn;
-2. installs an `ObservationContext` in a Python `ContextVar` containing `run_id`, `actor_id`, `node_id`, and `turn_id`;
+2. installs an `ObservationContext` in a Python `ContextVar` containing `run_id`, `actor_id`, `node_id`, `turn_id`, `graph_task_id`, and candidate `graph_step` from the task stream/runnable config;
 3. captures the whitelisted node-entry projection;
 4. emits `turn.started` plus the aggregate `role.status_changed`; and
 5. restores the previous context after the Python invocation returns.
 
 Model callbacks read this context and add the LangChain callback run identifier as `model_call_id`. Each initial or fallback model call gets a distinct `attempt_id` under the same `turn_id`. If the model returns tool calls, the observer keeps the turn open and persists `tool.requested` with `tool_call_id -> RoleTurnRef` before the role node returns, so the event is durable before LangGraph checkpoints the transition. Each role-specific `ObservedToolNode` preserves the model-provided `tool_call_id`, looks up that reference, reinstalls the originating observation context, and matches the resulting `ToolMessage` by the same identifier. When the role node is entered again after tool completion, `ObservedNode` reuses the open `turn_id`; it closes the turn only after a final role output without unresolved tool calls, or on terminal failure. A later debate round receives a new `turn_id`. A model retry receives a new `attempt_id`; a repeated logical tool request receives a new `tool_call_id`.
 
-The mapping is restart-safe because `events.jsonl`, not memory, is authoritative. Startup reduces persisted turn/model/tool lifecycle events to rebuild open turns and pending tool references. Resume preflight also reads the LangGraph checkpoint's current `messages` and `next` nodes: every pending model `tool_call_id` must match exactly one persisted `tool.requested` event with the expected role-specific tool node. A missing, duplicate, or mismatched mapping is `checkpoint_observation_incompatible` and resume is rejected.
+The mapping is restart-safe because `events.jsonl`, not memory, is authoritative. Every graph node invocation also has a `graph_task_id` from LangGraph's `tasks` stream and a candidate `graph_step` equal to the preceding committed checkpoint step plus one. `ObservationContext`, state/prompt/tool/data events, and output-ready events persist both values. Startup reduces these events to rebuild open turns and pending tool references.
+
+#### Durable graph-commit frontier
+
+The installed LangGraph runtime can emit task/update/value output before its default asynchronous checkpoint write is durable. Therefore an update chunk is never treated as a commit barrier. For checkpoint-enabled web runs, `AnalysisRunner` calls:
+
+```python
+graph.stream(
+    ...,
+    stream_mode=["tasks", "updates", "checkpoints"],
+    durability="sync",
+)
+```
+
+Role final output is persisted first as `turn.output_ready`; tool execution is persisted as `tool.execution_completed`. Neither event completes the logical turn/tool request or aggregate role. After the subsequent `checkpoints` stream event confirms that SQLite has synchronously committed the superstep, the runner emits `graph.checkpoint_committed` with checkpoint ID, metadata step, state hash, next nodes, and every applied `graph_task_id`. Only then may it emit `state.updated`, `tool.committed`, `turn.completed`, report revisions, or aggregate-role completion for those tasks. Multiple tools inside one `ToolNode` are correlated by `tool_call_id` and `graph_task_id`, never callback completion order.
+
+Each observed role/tool node also returns one reserved `_observation_commit` state field containing schema version, `graph_task_id`, candidate `graph_step`, node/turn IDs, output-delta hash, and tool-call IDs. It is excluded from every prompt projection, report, and public state view. The applied checkpoint or its `pending_writes` therefore carries the exact same commit token as the candidate event, allowing recovery to match database state to JSONL without timestamp/order inference.
+
+Checkpoint-disabled runs use the yielded applied superstep as an in-process barrier and emit `graph.step_applied` with no checkpoint ID. They can never be resumed after process interruption; the stricter persisted-frontier reconciliation below applies only to checkpoint-enabled runs.
+
+Resume preflight obtains the full latest `CheckpointTuple` from `SqliteSaver.get_tuple()`, including checkpoint ID, metadata step, channel state/next nodes, and `pending_writes`; the existing step-only helper is insufficient. It compares that durable frontier with reduced `graph.checkpoint_committed` events and applies this append-only reconciliation:
+
+1. If the database checkpoint is ahead of the last event marker, match its `_observation_commit` token and output-delta hash to exactly one candidate task, append the missing `graph.checkpoint_committed`, then promote matching `turn.output_ready`/tool execution candidates to their committed terminal events.
+2. A task ahead of the checkpoint whose matching `_observation_commit` token appears in `pending_writes` is `executed_pending_apply`. Keep its logical turn/tool request open; LangGraph reuses the durable pending write on resume, and the next synchronous checkpoint promotes it without re-executing the task.
+3. Any remaining event-log tail task is `uncommitted_execution`. Append `graph.task_abandoned` plus interrupted lifecycle compensation. A `tool.requested` created by that abandoned task is cancelled with reason `checkpoint_not_committed`; a tool request from an earlier committed task stays pending. On resume, actual model/tool work receives a new `attempt_id`/`tool_execution_id` under the same open `turn_id`.
+4. Every checkpoint-pending model `tool_call_id` must still match exactly one committed or `executed_pending_apply` `tool.requested` event and the expected role-specific tool node. Missing, duplicate, state-hash, next-node, or task-ID mismatches are `checkpoint_observation_incompatible` and resume is rejected.
+
+JSONL history is never deleted or rewritten. Candidate and abandoned execution events remain visible as real calls that occurred but were not applied to graph state.
+
+The frontend reducer derives `candidate`, `committed`, `pending_apply`, or `abandoned` application status by joining every task-scoped event to frontier events. Candidate/abandoned model or tool output is visually labeled and is never rendered as an accepted report or debate turn.
 
 When interruption occurred inside a logical turn, resume reopens the same `turn_id` through `turn.resumed`; it never invents a disconnected turn. An interrupted in-flight model call gets a new `attempt_id`. An interrupted or merely requested tool keeps its logical `tool_call_id` but gets a new `tool_execution_id`, so a repeated read-only execution and its vendor calls remain distinguishable. The web workflow exposes only read-only research tools; adding side-effecting tools would require an idempotency contract before they could be resumed.
 
@@ -329,7 +358,7 @@ Ticker text is metadata and never determines a directory path.
 - configured/missing key status only
 - timestamps, latest sequence, final signal, and artifact references
 - failure or cancellation summary when applicable
-- immutable resume fingerprint, event schema version, and runtime semantics hash
+- immutable resume fingerprint, event schema version, runtime semantics hash, and dependency/Python manifest
 - `retry_of` or `resumed_from_sequence` when applicable
 
 It never contains secret values.
@@ -364,6 +393,10 @@ Before the first resumable checkpoint, the server computes and persists the reda
   },
   "effective_config": {},
   "runtime_semantics_hash": "sha256",
+  "runtime_environment": {
+    "python": {},
+    "distributions": []
+  },
   "event_schema_version": 1,
   "initial_context_hash": "sha256"
 }
@@ -373,9 +406,11 @@ Before the first resumable checkpoint, the server computes and persists the reda
 
 `runtime_semantics_hash` deterministically hashes every `*.py` file under the installed or editable `tradingagents/` package using sorted POSIX relative paths followed by file bytes. `__pycache__`, `.pyc`, tests/fixtures, frontend assets, caches, and generated outputs are excluded. This replaces the ambiguous notion of an application code version and catches runner, observer, prompt, schema, dataflow, and graph behavior changes. `initial_context_hash` hashes the resolved, redacted initial `past_context` and instrument identity placed in the checkpoint; if interruption occurs before this context and the first checkpoint are persisted, resume is unavailable.
 
+`runtime_environment.python` records `sys.implementation.name`, `platform.python_version()`, `sys.implementation.cache_tag`, `sys.abiflags` (or empty), and `sysconfig.get_platform()`. `runtime_environment.distributions` is the sorted transitive closure of installed distributions reachable from every `Requires-Dist` entry in TradingAgents package metadata, ignoring `extra` markers for closure discovery so installed optional provider/data/web packages are included. Each normalized entry contains PEP 503 name, exact version, SHA-256 of `RECORD` (or `SOURCES.txt` fallback), and SHA-256 of `direct_url.json` when present. Dependency names are followed recursively regardless of marker, but only installed distributions are recorded. An installed dependency with neither verifiable record/source metadata nor a version makes the run non-resumable with `unfingerprintable_dependency`; it may still run with checkpoint resume disabled. This captures the unpinned LangGraph, LangChain, checkpoint-saver, provider client, data adapter, and transitive versions that can alter callback, formatting, retry, or checkpoint semantics.
+
 Secret values are neither hashed nor compared. `resume` reuses the same `run_id`, checkpoint thread, event sequence, and directory only when a checkpoint exists and every canonical fingerprint component matches. Any mismatch returns a typed `checkpoint_incompatible` error. `retry` always creates a new run and checkpoint namespace.
 
-On server startup, a run left in `running` or `cancel_requested` is atomically changed to `interrupted`, and a `run.interrupted` event is appended. It is resumable only if its compatible checkpoint still exists; otherwise the UI offers retry.
+On server startup, a run left in `running` or `cancel_requested` is recovered under its run lock: first reconcile the database/event frontier, then append lifecycle compensation, then atomically set the snapshot to `interrupted` and append `run.interrupted`. It is resumable only if its compatible checkpoint still exists; otherwise the UI offers retry.
 
 ## 9. Event protocol
 
@@ -420,9 +455,14 @@ Run lifecycle:
 
 Execution lifecycle:
 
+- `graph.task_started`
+- `graph.step_applied`
+- `graph.checkpoint_committed`
+- `graph.task_abandoned`
 - `role.status_changed`
 - `turn.started`
 - `turn.resumed`
+- `turn.output_ready`
 - `turn.completed`
 - `turn.failed`
 - `turn.cancelled`
@@ -439,11 +479,12 @@ Execution lifecycle:
 Tool and data lifecycle:
 
 - `tool.requested`
-- `tool.started`
-- `tool.completed`
-- `tool.failed`
+- `tool.execution_started`
+- `tool.execution_completed`
+- `tool.execution_failed`
+- `tool.execution_interrupted`
+- `tool.committed`
 - `tool.cancelled`
-- `tool.interrupted`
 - `data.progress`
 - `data.completed`
 - `data.failed`
@@ -453,6 +494,7 @@ Tool and data lifecycle:
 Input audit lifecycle:
 
 - `input.state_snapshot`
+- `input.config_snapshot`
 - `input.prompt_snapshot`
 - `input.data_snapshot`
 
@@ -465,15 +507,17 @@ Artifacts:
 | Event family | Required payload fields |
 |---|---|
 | `run.*` | `run_status`; terminal events also include safe `summary` and optional `error_category`; resume/interruption includes `checkpoint_sequence` |
+| `graph.task_started/abandoned` | `graph_task_id`, candidate `graph_step`, node ID, optional `turn_id`, and reason for abandonment |
+| `graph.step_applied/checkpoint_committed` | `graph_step`, applied task IDs, state hash, next nodes; durable commit also requires checkpoint ID |
 | `role.status_changed` | `role_instance_id`, previous/new role status, reason, optional triggering `turn_id` |
-| `turn.*` | `role_instance_id`, `turn_id`, actor-local `turn_index`, turn status; resume includes `resumed_from_sequence`; terminal events include reason/duration |
-| `model.*` | `turn_id`, `attempt_id`, `model_call_id`, provider, model, structured/free-text path; terminal events include `duration_ms`, usage, and optional output/error artifact |
-| `agent.message` | `turn_id`, `message_id`, message kind, content or artifact reference |
+| `turn.*` | `role_instance_id`, `turn_id`, `graph_task_id`, candidate `graph_step`, actor-local `turn_index`, turn status; output-ready includes output artifact; resume includes `resumed_from_sequence`; terminal events include reason/duration |
+| `model.*` | `turn_id`, `graph_task_id`, `attempt_id`, `model_call_id`, provider, model, structured/free-text path; terminal events include `duration_ms`, usage, and optional output/error artifact |
+| `agent.message` | `turn_id`, `graph_task_id`, `message_id`, message kind, content or artifact reference |
 | `state.updated` | originating `turn_id`, changed top-level state keys, and content/artifact references; never an unbounded full-state dump |
-| `input.*` | `turn_id`, capture kind, `artifact_id`, content hash, redaction manifest; prompt input also includes `attempt_id` and `model_call_id` |
-| `tool.*` | `turn_id`, nearest `attempt_id`, `tool_call_id`, tool name; requested includes arguments and has no execution ID yet; start/terminal events include `tool_execution_id`, duration, and result/error artifact as applicable |
-| `data.progress/completed/failed/interrupted` | `turn_id`, optional `tool_call_id`, `vendor_call_id`, method, vendor, stage/status; terminal events include duration and raw/normalized artifacts or error |
-| `data.cache_hit` | `turn_id`, optional `tool_call_id`, `cache_hit_id`, cache-key hash, origin vendor-call IDs, origin raw/normalized artifacts, age |
+| `input.*` | `turn_id`, `graph_task_id`, capture kind, `artifact_id`, content hash, redaction manifest; prompt input also includes `attempt_id` and `model_call_id` |
+| `tool.*` | `turn_id`, `graph_task_id`, nearest `attempt_id`, `tool_call_id`, tool name; requested includes arguments and has no execution ID; execution events require `tool_execution_id`; committed requires the checkpoint/step event ID |
+| `data.progress/completed/failed/interrupted` | `turn_id`, `graph_task_id`, optional `tool_call_id`, `vendor_call_id`, method, vendor, stage/status; terminal events include duration and raw/normalized artifacts or error |
+| `data.cache_hit` | `turn_id`, `graph_task_id`, optional `tool_call_id`, `cache_hit_id`, cache-key hash, origin vendor-call IDs, origin raw/normalized artifacts, age |
 | `report.updated` | `turn_id`, report kind, revision, `artifact_id` |
 | `artifact.written` | `artifact_id`, kind, media type, content hash, byte size, safe relative locator |
 | `stats.updated` | cumulative calls/tokens/cost where available plus the triggering `turn_id` or `model_call_id` |
@@ -504,13 +548,14 @@ interrupted -> running   (explicit resume of the open turn)
 Each logical turn has its own lifecycle, independent from the aggregate card:
 
 ```text
-started -> completed | failed | cancelled | interrupted
-interrupted -> resumed -> completed | failed | cancelled | interrupted
+started -> output_ready -> completed (only after graph commit)
+started | output_ready -> failed | cancelled | interrupted
+interrupted -> resumed -> output_ready | failed | cancelled | interrupted
 ```
 
-Resume reuses the same `turn_id`; a later debate/risk round creates a new `turn_id` and increments `turn_index`. Model state is `started -> completed | failed | interrupted`; an interrupted turn resumes with a new `attempt_id`. Tool state is `requested -> started -> completed | failed | cancelled | interrupted`, and `interrupted -> started` uses a new `tool_execution_id`. Vendor data state is `progress -> completed | failed | interrupted`; multiple progress events may precede one terminal event. Invalid transitions are rejected by backend tests and ignored with a diagnostic by the frontend reducer.
+Resume reuses the same `turn_id`; a later debate/risk round creates a new `turn_id` and increments `turn_index`. Model call state is `started -> completed | failed | interrupted`; an interrupted turn resumes with a new `attempt_id`. A logical tool call is `requested -> committed | cancelled`. Under it, each execution is independently `started -> completed | failed | interrupted`; an uncommitted or interrupted retry uses a new `tool_execution_id` while preserving the checkpoint-visible `tool_call_id`. Vendor data state is `progress -> completed | failed | interrupted`; multiple progress events may precede one terminal event. Invalid transitions are rejected by backend tests and ignored with a diagnostic by the frontend reducer.
 
-At a cooperative cancellation boundary, the runner emits `tool.cancelled` for requested-but-unstarted tools, `turn.cancelled` for the open turn, `role.status_changed` to `cancelled`, changes all remaining pending roles to `not_reached`, and finally emits `run.cancelled`. An in-flight provider/vendor call first reaches its ordinary terminal event, so no model/tool/vendor lifecycle is left open. Unexpected run failure applies the analogous failed/not-reached terminalization. Startup interruption emits interrupted events for any open model/tool/turn and role before `run.interrupted`.
+At a cooperative cancellation boundary, the runner emits `tool.cancelled` for every requested but uncommitted logical tool, `turn.cancelled` for the open turn, `role.status_changed` to `cancelled`, changes all remaining pending roles to `not_reached`, and finally emits `run.cancelled`. An in-flight provider/vendor call first reaches its ordinary terminal event, so no model/tool-execution/vendor lifecycle is left open. Unexpected run failure applies the analogous failed/not-reached terminalization. Startup performs commit-frontier reconciliation, emits interrupted events for any remaining open execution/turn/role, and only then emits `run.interrupted`.
 
 ### 9.5 Replay, live handoff, reconnect, and backpressure
 
@@ -560,7 +605,7 @@ All 13 cards always render. Immediately after `run.started`, the backend emits a
 
 ## 11. Exact role input audit
 
-The input audit is a two-layer capture system.
+The input audit combines node-entry state, immutable run/config context, formatted model input, and data provenance.
 
 ### 11.1 Node-entry state snapshot
 
@@ -574,14 +619,22 @@ Reasons:
 
 The snapshot records:
 
-- `actor_id`, `node_id`, `turn_id`, attempt, and capture time
+- `actor_id`, `node_id`, `turn_id`, `graph_task_id`, candidate `graph_step`, attempt, and capture time
 - projected state fields
 - upstream report/event references
 - data artifact references
 - graph/debate counters needed to understand the turn
 - redaction metadata
 
-### 11.2 Formatted model-input snapshot
+### 11.2 Effective role-configuration snapshot
+
+Projection functions accept `(state, run_context)` rather than state alone. Every executed role references the immutable redacted effective-config artifact from `run.json`. Evidence Steward additionally emits `input.config_snapshot` at node entry from the actual process-global dataflow `get_config()` value because its evidence/advisor path reads configuration outside `AgentState`.
+
+`EvidenceConfigSnapshotV1` contains these exact current fields: `evidence_gate_enabled`, `evidence_max_enrichment_rounds`, `evidence_max_enrichment_seconds`, `news_min_company_items`, `news_min_mixed_items`, `evidence_stop_on_fail`, `credibility_enabled`, `credibility_domain_overrides`, `consistency_enabled`, `news_advisor_enabled`, `wrong_identity_hints`, `news_article_limit`, `global_news_article_limit`, `global_news_lookback_days`, `global_news_queries`, `news_curator_max_items`, `data_vendors`, `tool_vendors`, `halt_on_missing_data`, `llm_provider`, `quick_think_llm`, `deep_think_llm`, normalized `backend_url` endpoint identity, `google_thinking_level`, `openai_reasoning_effort`, `anthropic_effort`, `temperature`, `llm_max_retries`, `output_language`, and every effective key whose normalized name begins with `tavily_`. The artifact records the whitelist version and hash.
+
+At entry, its canonical hash must equal the corresponding projection from the run's immutable effective configuration. A mismatch means process-global configuration drift and fails the run before evidence evaluation; the UI shows both safe hashes and differing non-secret keys.
+
+### 11.3 Formatted model-input snapshot
 
 `on_chat_model_start` / `on_llm_start` is the authority for what was actually formatted and sent to the selected model. The observer captures:
 
@@ -595,7 +648,7 @@ The snapshot records:
 
 Structured-output fallback is recorded as another attempt of the same role turn, not as another debate turn.
 
-### 11.3 Direct-call coverage
+### 11.4 Direct-call coverage
 
 Two existing paths require explicit instrumentation:
 
@@ -606,7 +659,7 @@ Relying only on LangChain tool callbacks would leave these inputs invisible and 
 
 Every direct or tool-mediated vendor call is captured at the adapter and normalization boundaries by `DataProvenanceRecorder`. This is the authority for the "Raw values" view; `data.progress` text alone is not sufficient evidence.
 
-### 11.4 Artifact representation
+### 11.5 Artifact representation
 
 Every data artifact stores:
 
@@ -619,12 +672,13 @@ Every data artifact stores:
 - completeness or validation metadata already produced by the data layer
 - SHA-256 content hash
 
-The role input panel presents four views:
+The role input panel presents five views:
 
 1. **Data fields:** readable normalized values and tables.
 2. **Upstream material:** reports, debate responses, and history supplied to the role.
 3. **Prompt:** the redacted formatted model messages.
 4. **Raw values:** vendor field names, original values, periods, and artifact hashes.
+5. **Configuration:** immutable run settings and the executed role's whitelisted configuration snapshot.
 
 ## 12. API contract
 
@@ -715,7 +769,7 @@ Primary tabs:
 - Artifacts
 - Run Input
 
-Clicking a role selects it and opens Role Input. The panel supports normalized fields, upstream references, prompt messages, and raw vendor values. Tool calls expand on demand. Large bodies are fetched only when expanded.
+Clicking a role selects it and opens Role Input. The panel supports normalized fields, upstream references, prompt messages, raw vendor values, and whitelisted effective configuration. Tool calls expand on demand. Candidate or abandoned work is visibly separated from graph-committed output. Large bodies are fetched only when expanded.
 
 ### 13.4 Visual language
 
@@ -802,6 +856,12 @@ Only an `interrupted` run is resumable; failed and cancelled runs use retry. Res
 - Validate run and artifact IDs; never construct paths from ticker or request-provided filesystem fragments.
 - Explain in the UI that localhost does not prevent selected data vendors and model providers from receiving queries and model context.
 
+### 15.1 Credential-key registry
+
+Key names are normalized to lowercase snake case by replacing dots/hyphens/spaces with underscores. A value is secret only when the normalized key is in the exact registry (`authorization`, `proxy_authorization`, `cookie`, `set_cookie`, `password`, `passwd`, `secret`, `token`, `api_key`, `apikey`, `access_token`, `refresh_token`, `id_token`, `bearer_token`, `client_secret`, `private_key`, `aws_secret_access_key`) or ends with `_api_key`, `_token`, `_secret`, `_password`, or `_private_key`. Provider API-key environment names returned by the runtime provider registry are added as exact normalized entries. Arbitrary substring matching is forbidden.
+
+Canonical tests must redact `OPENAI_API_KEY`, `api-key`, `headers.Cookie`, `client-secret`, and `access_token`, while retaining semantic keys such as `max_tokens`, `token_budget`, `news_article_limit`, `secretary_name`, and `consistency_enabled`. The same registry and test vectors are used for HTTP/log/event/artifact redaction and resume-fingerprint exclusion.
+
 ## 16. Compatibility and migration
 
 - Existing `tradingagents` interactive behavior remains available.
@@ -831,6 +891,8 @@ Only an `interrupted` run is resumable; failed and cancelled runs use retry. Res
 - run, role, model, tool, and vendor lifecycle transition validation
 - resume fingerprint canonicalization and secret exclusion
 - complete effective-config inclusion, exact four-key exclusion, endpoint normalization, and runtime semantics hashing
+- Python/distribution closure fingerprinting, record/direct-URL digests, and unfingerprintable-dependency handling
+- credential registry canonical vectors that retain `max_tokens` and redact real credential keys
 - completed-only `AnalysisResult` typing and failure/cancellation exception mapping
 
 ### 17.2 Backend integration tests
@@ -847,7 +909,9 @@ Only an `interrupted` run is resumable; failed and cancelled runs use retry. Res
 - failure retains events and partial reports
 - retry creates a separate linked run
 - strict compatible and incompatible checkpoint resume behavior, including event-log reconstruction of a pending tool call and rejection of mismatches
+- crash injection after each task-scoped event, after pending-write durability, after SQLite commit, and before/after `graph.checkpoint_committed`; recovery must classify committed, pending-apply, and abandoned tails without rewriting JSONL
 - cancellation and startup interruption leave no open lifecycle; compatible resume reopens the same turn with new attempt/execution IDs
+- Evidence Steward config snapshot matches run config, and deliberate process-global drift fails before evaluation
 - immutable partial report revisions and atomic canonical final report publication before `run.completed`
 - successful `AnalysisResult`, failing `propagate()` exception, tuple, CLI save/no-save, and explicit `save_reports()` compatibility
 
@@ -858,6 +922,7 @@ Only an `interrupted` run is resumable; failed and cancelled runs use retry. Res
 - all 13 roles render with correct label, team, icon, and status
 - role selection opens the correct input audit
 - data, upstream, prompt, and raw-value audit tabs
+- role configuration audit view and committed/candidate/abandoned output labels
 - timeline filtering and per-turn debate rendering
 - tool expansion and lazy artifact loading
 - safe Markdown rendering
@@ -911,6 +976,8 @@ The work is complete only when all of the following are true:
 19. Resume is refused when any semantic fingerprint field differs, and an interrupted compatible run resumes without mixing configuration or event sequences.
 20. Same-run news cache reuse is visible and source-linked, while no in-memory cache entry leaks into a later run.
 21. Programmatic success tuples, failure exceptions, explicit report saving, and CLI save/no-save behavior remain compatible.
+22. Crash-frontier tests prove that no event-log tail is mistaken for committed graph state and no durable pending write is unnecessarily re-executed.
+23. Resume is rejected after Python or semantic dependency version/record changes even when repository source and user configuration are unchanged.
 
 ## 19. Alternatives considered
 

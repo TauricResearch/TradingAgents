@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-Formal specification review loop. Round 1's six gaps were resolved. Round 2 then found five deeper issues: per-turn versus aggregate-role lifecycle, restart-safe tool/turn correlation, deterministic resume fingerprinting, process-global news-cache provenance, and successful-result/CLI report compatibility. The specification now separates role and turn states, rebuilds pending tool mappings from persisted events plus the checkpoint, fingerprints the complete effective configuration and Python runtime semantics, makes news cache use run-scoped and source-linked, and preserves success-only `propagate()` semantics. Round 3 review is next.
+Formal specification review loop. Rounds 1 and 2 resolved eleven architecture and compatibility gaps. Round 3 narrowed the blockers to event-log/checkpoint crash-frontier reconciliation and third-party runtime dependency fingerprinting. The spec now uses synchronous LangGraph checkpoint durability, task/step commit tokens, full `CheckpointTuple.pending_writes` reconciliation, append-only abandoned-task compensation, and a Python plus transitive-distribution manifest. Credential redaction test vectors and Evidence Steward's process-global config snapshot were also made explicit. Round 4 review is next.
 
 ## Confirmed constraints
 
@@ -39,6 +39,9 @@ Formal specification review loop. Round 1's six gaps were resolved. Round 2 then
 - Resume is restricted to interrupted runs and requires a canonical full-config/runtime fingerprint plus event-log/checkpoint correlation reconciliation.
 - News-result caching is run-scoped; same-run cache hits reference the original raw and normalized artifacts.
 - `AnalysisResult` represents success only. Web cancellation/failure state stays in the run store, while programmatic tuple and exception behavior remain compatible.
+- Checkpoint-enabled web runs use synchronous durability and never treat ordinary stream updates as durable commits.
+- Every observed graph task carries a reserved checkpoint commit token; recovery classifies JSONL tails as committed, pending-apply, or abandoned without rewriting history.
+- Resume fingerprints include Python runtime identity and the installed transitive dependency closure with package metadata digests.
 - The V2 visual mockup exposes all 13 roles separately, uses custom inline SVG icons, and adds a role audit inspector with data fields, upstream inputs, prompt view, and raw vendor values.
 - V2 browser QA passed on 2026-07-18: Playwright confirmed all 13 role nodes are present, role selection switches the input composition, raw-value and main inspector tabs work, and closed tool details expand correctly.
 - The only initial browser console error was a missing favicon; the mockup now uses an empty data favicon and reloads without console errors.
