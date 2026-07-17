@@ -42,3 +42,20 @@ Companion to the review series ([V1](PRO_TRADER_REVIEW.md) 58 → [V2](PRO_TRADE
 
 ## Verification
 Re-run the trader-review rubric after Batch C; a category isn't "moved" until the change is observed live. Honest ceilings (Charting order-flow, Portfolio real-n) stay documented, not gamed.
+
+---
+
+## Execution outcome (17 Jul 2026)
+
+| Item | Result |
+|---|---|
+| **A1** ask-the-record | ✅ shipped + **verified live with the real model** — cited nfp/macro_bull/judge on a real gold run, refused an out-of-scope BTC question (`answerable:false`). Explainability → 10. |
+| **A2** chart-native alerts | ✅ shipped — "alert" tool mode, click a level → price alert, direction inferred from last close. |
+| **A3** Ichimoku | ⏸️ deferred (documented): honest cloud needs a forward-timestamped series contract + band-fill primitive; disproportionate for one indicator, Charting ceiling is order-flow breadth regardless. |
+| **B1** paper order ticket | ⏸️ skipped per user — adds a user-facing execution-write surface that cuts against the "AI decides" design. |
+| **B2** track-record page | ✅ shipped — `/track-record` consolidates live record + retro calibration + agent hit-rates, "proven" bar stated before the numbers. |
+| **C1** calendar consensus | ⏸️ vendor-gated (documented) — needs a licensed calendar API key; won't fabricate. |
+| **C2** horizon + EV on ticket | ✅ already live (p(win)/EV/median-hold render on the card). |
+| **C3** premium polish | ◑ partial — new surfaces use shared Card/Skeleton/EmptyState; a full visual sweep needs the browser preview (unavailable this session). |
+
+**Honest score read after this push:** the shippable engineering moved Explainability→10, Charting→~7.5, Portfolio→~9 (record now visible), with Decision/Value nudging up — landing ~87–89. **Clearing a hard 90 needs the two things engineering can't manufacture:** the accrual clock maturing the live track record (Portfolio/Value ceilings) and a visual polish pass (Premium Feel). Both are teed up, not faked.
