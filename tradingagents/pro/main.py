@@ -48,16 +48,48 @@ class _MappedBars:
                                    timeframe, limit=limit, end=end)
 
 
-class _DeltaBtcMetrics:
-    """MetricsFeed adapter: Delta funding/OI/mark for the BTC roster."""
+class _DeltaPerpMetrics:
+    """MetricsFeed adapter: Delta funding/OI/mark for a crypto roster."""
 
     name = "delta_exchange"
 
-    def __init__(self, feed):
+    def __init__(self, feed, vendor_symbol: str = "BTCUSD"):
         self._feed = feed
+        self._vendor = vendor_symbol
 
     def get_metrics(self):
-        return self._feed.get_metrics("BTCUSD")
+        return self._feed.get_metrics(self._vendor)
+
+
+# crypto universe wiring: dashboard symbol -> (Delta perp, CoinMetrics asset)
+CRYPTO_WIRING: dict[str, tuple[str, str]] = {
+    "BTC-USD": ("BTCUSD", "btc"),
+    "ETH-USD": ("ETHUSD", "eth"),
+    "SOL-USD": ("SOLUSD", "sol"),
+}
+
+
+def _crypto_snapshot_builder(symbol: str):
+    """One SnapshotBuilder per crypto symbol: Delta bars/derivatives +
+    CoinMetrics on-chain + Fear & Greed + Yahoo news — the BTC wiring,
+    parameterized (Phase 2 of the score plan: ETH/SOL are config, not code)."""
+    from tradingagents.pro.ingestion.builder import SnapshotBuilder
+    from tradingagents.pro.ingestion.delta_exchange import DeltaExchangeFeed
+    from tradingagents.pro.ingestion.fred_macro import FredMacroFeed
+    from tradingagents.pro.ingestion.news import YahooFinanceNewsFeed
+    from tradingagents.pro.ingestion.onchain import CoinMetricsFeed, FearGreedFeed
+    from tradingagents.pro.ingestion.sessions import current_session
+
+    vendor, cm_asset = CRYPTO_WIRING[symbol]
+    delta = DeltaExchangeFeed()
+    return SnapshotBuilder(
+        bars_feed=_MappedBars(delta, {symbol: vendor}),
+        macro_feeds=(FredMacroFeed(),),
+        onchain_feeds=(CoinMetricsFeed(asset=cm_asset), FearGreedFeed(),
+                       _DeltaPerpMetrics(delta, vendor)),
+        news_feed=YahooFinanceNewsFeed(symbol),
+        session_fn=current_session,
+    )
 
 
 class TriggerBusy(RuntimeError):
@@ -70,7 +102,7 @@ class PipelineTrigger:
     One at a time: `busy()` backs the API's 409; the service's run_lock
     additionally serializes against the loop itself."""
 
-    SYMBOLS = ("XAUUSD", "BTC-USD")
+    SYMBOLS = ("XAUUSD", "BTC-USD", "ETH-USD", "SOL-USD")
     TIMEFRAMES = ("1h", "4h", "1d")
 
     def __init__(self, service):
@@ -82,7 +114,11 @@ class PipelineTrigger:
         return self._busy.locked()
 
     def run(self, symbol: str, timeframe: str) -> dict:
-        from tradingagents.contracts import AssetClass, ProConfig, Timeframe
+        from tradingagents.contracts import (
+            DEFAULT_SYMBOLS,
+            ProConfig,
+            Timeframe,
+        )
 
         if symbol not in self.SYMBOLS:
             raise ValueError(f"symbol must be one of {self.SYMBOLS}")
@@ -92,7 +128,7 @@ class PipelineTrigger:
             raise TriggerBusy("a pipeline run is already in progress")
         try:
             self.current = {"symbol": symbol, "timeframe": timeframe}
-            asset = AssetClass.GOLD if symbol == "XAUUSD" else AssetClass.BITCOIN
+            asset = {sym: a for a, sym in DEFAULT_SYMBOLS.items()}[symbol]
             config = ProConfig(asset=asset, max_debate_rounds=1,
                                models=self.service.config.models)
             tf = Timeframe(timeframe)
@@ -112,11 +148,9 @@ class PipelineTrigger:
             GoldCrossAssetFeed,
             YFinanceDailyBarsFeed,
         )
-        from tradingagents.pro.ingestion.onchain import CoinMetricsFeed, FearGreedFeed
         from tradingagents.pro.ingestion.positioning import GoldCotFeed, GoldVolFeed
         from tradingagents.pro.ingestion.sessions import current_session
 
-        delta = DeltaExchangeFeed()
         if symbol == "XAUUSD":
             if tf is Timeframe.D1:
                 # the loop's canonical daily gold path (GC=F futures)
@@ -133,6 +167,7 @@ class PipelineTrigger:
                 )
             else:
                 # intraday gold: Delta XAUT (≈ spot) + the same macro context
+                delta = DeltaExchangeFeed()
                 yf = YFinanceDailyBarsFeed()
                 builder = SnapshotBuilder(
                     bars_feed=_MappedBars(delta, {"XAUUSD": "XAUTUSD"}),
@@ -145,13 +180,7 @@ class PipelineTrigger:
                     session_fn=current_session,
                 )
         else:
-            builder = SnapshotBuilder(
-                bars_feed=_MappedBars(delta, {"BTC-USD": "BTCUSD"}),
-                macro_feeds=(FredMacroFeed(),),
-                onchain_feeds=(CoinMetricsFeed(), FearGreedFeed(),
-                               _DeltaBtcMetrics(delta)),
-                session_fn=current_session,
-            )
+            builder = _crypto_snapshot_builder(symbol)
         return builder.build(symbol, asset, timeframes=(tf,), bar_limit=250)
 
 
@@ -277,7 +306,9 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     state.recorder = PipelineRecorder(store_dir=data_path / "runs")
     state.prefs = PrefsStore(data_path / "dashboard_prefs.json")
     router = ExecutionRouter(
-        adapter=PaperVenueAdapter(VENUES["mt5"], starting_cash=100_000.0,
+        # "paper" venue spans the full tradeable universe; mt5's gold-only
+        # map silently venue-rejected every approved BTC order (Phase 2)
+        adapter=PaperVenueAdapter(VENUES["paper"], starting_cash=100_000.0,
                                   state_path=data_path / "paper_state.json"),
         limits=limits,
         kill_switch=KillSwitch(data_path / "KILL"),
@@ -307,10 +338,29 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     builder = build_gold_pipeline(loader=gold_loader,
                                   cot_cache_path=data_path / "cot_cache.json")
 
-    def snapshot_source():
-        from tradingagents.contracts import AssetClass as AC
+    # multi-symbol rotation (Phase 2): one symbol per hourly tick, so LLM
+    # spend stays flat while the whole universe accrues decisions —
+    # XAUUSD every 4h, each crypto every 4h. Builders are shared across
+    # ticks (feed instances carry caches / respect rate limits).
+    import itertools
 
-        return builder.build("XAUUSD", AC.GOLD, bar_limit=250)
+    from tradingagents.contracts import DEFAULT_SYMBOLS
+    from tradingagents.contracts import AssetClass as AC
+
+    crypto_builders = {sym: _crypto_snapshot_builder(sym)
+                       for sym in CRYPTO_WIRING}
+    asset_by_symbol = {sym: a for a, sym in DEFAULT_SYMBOLS.items()}
+    rotation = itertools.cycle(("XAUUSD", "BTC-USD", "ETH-USD", "SOL-USD"))
+
+    def snapshot_source():
+        symbol = next(rotation)
+        run_config = ProConfig(asset=asset_by_symbol[symbol],
+                               max_debate_rounds=1, models=routing)
+        if symbol == "XAUUSD":
+            return builder.build("XAUUSD", AC.GOLD, bar_limit=250), run_config
+        snapshot = crypto_builders[symbol].build(
+            symbol, asset_by_symbol[symbol], bar_limit=250)
+        return snapshot, run_config
 
     def next_major_event():
         # fresh countdown per run for the pipeline's event gate (P1.2);

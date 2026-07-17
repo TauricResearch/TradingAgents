@@ -49,12 +49,16 @@ import { countdownExpired, useCountdown } from "@/lib/useCountdown";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
 
-// the two tradable pairs (same set as the run dialog); the registry's other
-// symbols (DXY, US10Y, …) are correlation inputs, not chartable workspaces
-const TRADE_SYMBOLS = [
-  { value: "BTC-USD", label: "BTC-USD · Bitcoin" },
-  { value: "XAUUSD", label: "XAUUSD · Gold" },
-] as const;
+// tradeable pairs come from /api/symbols (server-driven, same set as the
+// run dialog); the registry's other symbols (DXY, US10Y, …) are
+// correlation inputs, not chartable workspaces
+const TRADE_SYMBOL_LABELS: Record<string, string> = {
+  "BTC-USD": "BTC-USD · Bitcoin",
+  XAUUSD: "XAUUSD · Gold",
+  "ETH-USD": "ETH-USD · Ethereum",
+  "SOL-USD": "SOL-USD · Solana",
+};
+const FALLBACK_TRADE_SYMBOLS = ["BTC-USD", "XAUUSD"];
 
 // shared stable fallback for drawings selectors — `?? []` in a zustand
 // selector mints a fresh array per snapshot read, which React's
@@ -262,9 +266,10 @@ export default function WorkspacePage() {
                 onChange={(event) => navigate(`/trade/${event.target.value}`)}
                 className="cursor-pointer rounded-[10px] border border-border bg-transparent px-1.5 py-0.5 text-lg font-extrabold tracking-[-0.01em] text-fg hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                {TRADE_SYMBOLS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
+                {(symbols.data?.filter((s) => s.tradeable).map((s) => s.symbol) ??
+                  FALLBACK_TRADE_SYMBOLS).map((s) => (
+                  <option key={s} value={s}>
+                    {TRADE_SYMBOL_LABELS[s] ?? s}
                   </option>
                 ))}
               </select>

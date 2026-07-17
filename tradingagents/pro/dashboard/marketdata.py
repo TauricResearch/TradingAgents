@@ -57,6 +57,7 @@ class SymbolSpec:
     timeframes: tuple[Timeframe, ...]
     live: bool                        # true when a streaming transport exists
     feed_factory: Callable[[], object]
+    tradeable: bool = False           # pipeline + venue support exists
 
     def as_dict(self) -> dict:
         return {
@@ -65,6 +66,7 @@ class SymbolSpec:
             "source": self.source,
             "timeframes": [t.value for t in self.timeframes],
             "live": self.live,
+            "tradeable": self.tradeable,
         }
 
 
@@ -86,24 +88,32 @@ def default_registry() -> dict[str, SymbolSpec]:
         logger.info("Delta Exchange reachable — serving BTC-USD (BTCUSD perp) "
                     "and XAUUSD (XAUTUSD Tether Gold) live")
 
-    registry = {
-        "BTC-USD": SymbolSpec(
-            symbol="BTC-USD",
-            vendor_symbol="BTCUSD",
-            source="delta_exchange",
-            timeframes=tuple(TIMEFRAME_SECONDS),
-            live=True,
-            feed_factory=DeltaExchangeFeed,
-        )
-        if delta_alive
-        else SymbolSpec(
-            symbol="BTC-USD",
-            vendor_symbol="BTCUSDT",
+    # crypto perps share the Delta-first / Binance-fallback wiring
+    def crypto_spec(symbol: str, delta_sym: str, binance_sym: str) -> SymbolSpec:
+        if delta_alive:
+            return SymbolSpec(
+                symbol=symbol,
+                vendor_symbol=delta_sym,
+                source="delta_exchange",
+                timeframes=tuple(TIMEFRAME_SECONDS),
+                live=True,
+                feed_factory=DeltaExchangeFeed,
+                tradeable=True,
+            )
+        return SymbolSpec(
+            symbol=symbol,
+            vendor_symbol=binance_sym,
             source="binance_spot",
             timeframes=tuple(TIMEFRAME_SECONDS),
             live=True,
             feed_factory=BinanceSpotFeed,
-        ),
+            tradeable=True,
+        )
+
+    registry = {
+        "BTC-USD": crypto_spec("BTC-USD", "BTCUSD", "BTCUSDT"),
+        "ETH-USD": crypto_spec("ETH-USD", "ETHUSD", "ETHUSDT"),
+        "SOL-USD": crypto_spec("SOL-USD", "SOLUSD", "SOLUSDT"),
     }
     # daily-only cross-asset series (correlation matrix, context charts)
     for symbol, vendor in (("DXY", "DX-Y.NYB"), ("SILVER", "SI=F"),
@@ -124,6 +134,7 @@ def default_registry() -> dict[str, SymbolSpec]:
             timeframes=tuple(TIMEFRAME_SECONDS),
             live=True,
             feed_factory=DeltaExchangeFeed,
+            tradeable=True,
         )
     elif OandaGoldFeed.configured() and OandaGoldFeed.probe():
         registry["XAUUSD"] = SymbolSpec(
@@ -133,6 +144,7 @@ def default_registry() -> dict[str, SymbolSpec]:
             timeframes=tuple(OandaGoldFeed.GRANULARITY),
             live=True,
             feed_factory=OandaGoldFeed,
+            tradeable=True,
         )
     else:
         if OandaGoldFeed.configured():
@@ -149,6 +161,7 @@ def default_registry() -> dict[str, SymbolSpec]:
             timeframes=(Timeframe.D1,),
             live=False,
             feed_factory=YFinanceDailyBarsFeed,
+            tradeable=True,
         )
     return registry
 

@@ -187,7 +187,15 @@ class PaperTradingService:
 
     def _run_once(self, snapshot: MarketSnapshot | None = None,
                   config: ProConfig | None = None) -> dict:
-        snapshot = snapshot if snapshot is not None else self.snapshot_source()
+        if snapshot is None:
+            produced = self.snapshot_source()
+            # multi-symbol rotation: the source may pair each snapshot with
+            # its per-asset config (crypto vs gold rosters)
+            if isinstance(produced, tuple):
+                snapshot, source_config = produced
+                config = config or source_config
+            else:
+                snapshot = produced
         config = config or self.config
         self.metrics.inc("runs_total")
         # heartbeat for /health/live + the dead-man switch (go-live Phase 5)

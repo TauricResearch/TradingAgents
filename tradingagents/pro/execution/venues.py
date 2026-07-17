@@ -45,9 +45,22 @@ class VenueSpec:
 
 
 VENUES: dict[str, VenueSpec] = {
+    # multi-asset paper venue: the hourly loop's book covers the whole
+    # tradeable universe (Phase 2 — mt5's gold-only map silently venue-
+    # rejected every BTC order the judge approved)
+    "paper": VenueSpec(
+        name="paper",
+        symbol_map={"XAUUSD": "XAUUSD", "BTC-USD": "BTCUSD",
+                    "ETH-USD": "ETHUSD", "SOL-USD": "SOLUSD"},
+        quantity_precision=4,
+        min_quantity=0.0001,
+        commission=CommissionModel(rate_bps=5),
+        slippage=SlippageModel(bps=3),
+    ),
     "binance": VenueSpec(
         name="binance",
-        symbol_map={"BTC-USD": "BTCUSDT", "BTCUSDT": "BTCUSDT"},
+        symbol_map={"BTC-USD": "BTCUSDT", "BTCUSDT": "BTCUSDT",
+                    "ETH-USD": "ETHUSDT", "SOL-USD": "SOLUSDT"},
         quantity_precision=3,
         min_quantity=0.001,
         commission=CommissionModel(rate_bps=10),  # 0.1% taker

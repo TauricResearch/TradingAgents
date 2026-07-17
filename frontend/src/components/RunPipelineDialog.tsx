@@ -11,18 +11,29 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api/client";
+import { useSymbols } from "@/lib/api/queries";
 import { stageProgress } from "@/lib/pipelineStages";
 import { usePipelineProgress, useUiStore } from "@/stores/ui";
 
-const SYMBOLS = [
-  { value: "XAUUSD", label: "Gold (XAUUSD)" },
-  { value: "BTC-USD", label: "Bitcoin (BTC-USD)" },
-] as const;
+// display names for known pairs; anything the server adds later still
+// renders (symbol string as its own label) — the list itself is
+// server-driven via /api/symbols `tradeable`
+const SYMBOL_LABELS: Record<string, string> = {
+  XAUUSD: "Gold (XAUUSD)",
+  "BTC-USD": "Bitcoin (BTC-USD)",
+  "ETH-USD": "Ethereum (ETH-USD)",
+  "SOL-USD": "Solana (SOL-USD)",
+};
+const FALLBACK_SYMBOLS = ["XAUUSD", "BTC-USD"];
 const TIMEFRAMES = ["1h", "4h", "1d"] as const;
 
 export function RunPipelineDialog() {
   const open = useUiStore((s) => s.runDialogOpen);
   const setOpen = useUiStore((s) => s.setRunDialogOpen);
+  const symbolsQuery = useSymbols();
+  const tradeable =
+    symbolsQuery.data?.filter((s) => s.tradeable).map((s) => s.symbol) ??
+    FALLBACK_SYMBOLS;
   const [symbol, setSymbol] = useState<string>("XAUUSD");
   const [timeframe, setTimeframe] = useState<string>("1h");
   const [error, setError] = useState<string | null>(null);
@@ -67,16 +78,16 @@ export function RunPipelineDialog() {
             <div className="mb-1 text-xs uppercase tracking-wide text-fg-subtle">
               Pair
             </div>
-            <div className="flex gap-2">
-              {SYMBOLS.map((s) => (
+            <div className="flex flex-wrap gap-2">
+              {tradeable.map((s) => (
                 <Button
-                  key={s.value}
+                  key={s}
                   size="sm"
-                  variant={symbol === s.value ? "default" : "outline"}
-                  onClick={() => setSymbol(s.value)}
-                  aria-pressed={symbol === s.value}
+                  variant={symbol === s ? "default" : "outline"}
+                  onClick={() => setSymbol(s)}
+                  aria-pressed={symbol === s}
                 >
-                  {s.label}
+                  {SYMBOL_LABELS[s] ?? s}
                 </Button>
               ))}
             </div>

@@ -327,6 +327,7 @@ export const AgentPerfSchema = z.record(
 export type AgentPerf = z.infer<typeof AgentPerfSchema>;
 
 export const SymbolSpecSchema = z.object({
+  tradeable: z.boolean().optional(),
   symbol: z.string(),
   vendor_symbol: z.string(),
   source: z.string(),

@@ -99,6 +99,30 @@ class TestEndToEnd:
         assert summary["closed_positions"][0]["pnl"] < 0
         assert service.router.breaker.consecutive_losses == 1
 
+    def test_snapshot_source_tuple_carries_per_symbol_config(self):
+        # Phase 2 rotation: the source may return (snapshot, config) so the
+        # hourly loop can rotate assets with per-asset rosters
+        from tradingagents.contracts import AssetClass, ProConfig
+
+        service = make_service([130.0])
+        base = service.snapshot_source
+        crypto_config = ProConfig(asset=AssetClass.ETHEREUM,
+                                  max_debate_rounds=1,
+                                  models=CONFIG.models)
+        service.snapshot_source = lambda: (base(), crypto_config)
+        summary = service.run_once()
+        run = service.dashboard.recorder.runs[-1]
+        assert summary["run_id"] == run.run_id
+        # the run recorded under the tuple-supplied config's asset universe
+        assert run.state.get("execution_status") is not None
+
+    def test_paper_venue_supports_full_universe(self):
+        from tradingagents.pro.execution import VENUES
+
+        spec = VENUES["paper"]
+        for symbol in ("XAUUSD", "BTC-USD", "ETH-USD", "SOL-USD"):
+            assert spec.venue_symbol(symbol)
+
     def test_daily_order_cap_blocks_new_entries(self):
         # paper-mode daily order budget (trader review): live arming had
         # max_orders_per_day; paper had no churn brake at all

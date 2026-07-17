@@ -26,6 +26,8 @@ from tradingagents.contracts.config import (
     RiskLimits,
 )
 from tradingagents.contracts.enums import (
+    CRYPTO_ASSETS,
+    DEFAULT_SYMBOLS,
     AgentTeam,
     AssetClass,
     Direction,
@@ -60,6 +62,8 @@ __all__ = [
     "utc_now",
     "AgentTeam",
     "AssetClass",
+    "CRYPTO_ASSETS",
+    "DEFAULT_SYMBOLS",
     "Direction",
     "MarketRegime",
     "SourceType",

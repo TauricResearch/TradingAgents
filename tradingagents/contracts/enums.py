@@ -18,6 +18,8 @@ class AssetClass(str, Enum):
 
     GOLD = "XAU"
     BITCOIN = "BTC"
+    ETHEREUM = "ETH"
+    SOLANA = "SOL"
 
 
 # Default broker-style symbol per asset. The existing dataflows layer
@@ -26,7 +28,15 @@ class AssetClass(str, Enum):
 DEFAULT_SYMBOLS: dict[AssetClass, str] = {
     AssetClass.GOLD: "XAUUSD",
     AssetClass.BITCOIN: "BTC-USD",
+    AssetClass.ETHEREUM: "ETH-USD",
+    AssetClass.SOLANA: "SOL-USD",
 }
+
+# Crypto assets share one ingestion/agent wiring (derivatives + on-chain
+# + sentiment feeds parameterized by symbol).
+CRYPTO_ASSETS: frozenset[AssetClass] = frozenset(
+    {AssetClass.BITCOIN, AssetClass.ETHEREUM, AssetClass.SOLANA}
+)
 
 
 class TradingMode(str, Enum):
