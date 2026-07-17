@@ -958,12 +958,7 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             )
             from tradingagents.pro.memory import ProMemory as _IsolatedMemory
 
-            try:
-                from tests.test_pro_pipeline_graph import FakePipelineLLM
-            except ImportError:  # image built without the scripted provider
-                raise HTTPException(
-                    status_code=503,
-                    detail="deterministic replay provider unavailable")
+            from tradingagents.pro.evals.scripted import FakePipelineLLM
             asset_by_symbol = {sym: a for a, sym in DEFAULT_SYMBOLS.items()}
             if symbol not in asset_by_symbol:
                 raise HTTPException(status_code=422,
