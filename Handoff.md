@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-Formal specification review loop. Review round 1 found six blocking contract gaps: skipped-role semantics, callback correlation, event payload/state machines, vendor/tool provenance correlation, strict resume compatibility, and atomic SSE replay-to-live handoff. All six are now resolved in the written specification, including logical role turns across model/tool graph re-entry; a fresh independent review is next.
+Formal specification review loop. Round 1's six gaps were resolved. Round 2 then found five deeper issues: per-turn versus aggregate-role lifecycle, restart-safe tool/turn correlation, deterministic resume fingerprinting, process-global news-cache provenance, and successful-result/CLI report compatibility. The specification now separates role and turn states, rebuilds pending tool mappings from persisted events plus the checkpoint, fingerprints the complete effective configuration and Python runtime semantics, makes news cache use run-scoped and source-linked, and preserves success-only `propagate()` semantics. Round 3 review is next.
 
 ## Confirmed constraints
 
@@ -35,6 +35,10 @@ Formal specification review loop. Review round 1 found six blocking contract gap
 - Per-role input capture is now designed as two layers: a node-entry whitelist snapshot for the actual state fields each role reads, plus an LLM-start callback snapshot for the fully formatted prompt/messages actually sent to the model.
 - Shared financial tables and large tool results are content-addressed artifacts; role events reference their hashes instead of duplicating data.
 - Sentiment Analyst direct news/social prefetches and Evidence Steward advisor/enrichment calls require explicit observer injection because the current graph callbacks do not see them.
+- Aggregate role-card status is separate from immutable logical turn lifecycles, so repeated Bull/Bear and risk rounds remain auditable.
+- Resume is restricted to interrupted runs and requires a canonical full-config/runtime fingerprint plus event-log/checkpoint correlation reconciliation.
+- News-result caching is run-scoped; same-run cache hits reference the original raw and normalized artifacts.
+- `AnalysisResult` represents success only. Web cancellation/failure state stays in the run store, while programmatic tuple and exception behavior remain compatible.
 - The V2 visual mockup exposes all 13 roles separately, uses custom inline SVG icons, and adds a role audit inspector with data fields, upstream inputs, prompt view, and raw vendor values.
 - V2 browser QA passed on 2026-07-18: Playwright confirmed all 13 role nodes are present, role selection switches the input composition, raw-value and main inspector tabs work, and closed tool details expand correctly.
 - The only initial browser console error was a missing favicon; the mockup now uses an empty data favicon and reloads without console errors.

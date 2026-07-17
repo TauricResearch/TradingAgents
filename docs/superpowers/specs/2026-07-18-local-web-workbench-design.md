@@ -1,6 +1,6 @@
 # TradingAgents Local Web Workbench Design
 
-**Status:** Approved in conversation; independent review fixes in progress  
+**Status:** Approved in conversation; review-round-2 fixes complete, round 3 pending  
 **Date:** 2026-07-18  
 **Scope:** Localhost-only single-user web application for the existing TradingAgents repository
 
@@ -157,25 +157,23 @@ Responsibilities:
 - Preserve memory, identity resolution, checkpoint, final-state logging, and report behavior currently split across CLI and programmatic paths.
 - Stream node-keyed graph updates.
 - Merge graph deltas into the current final state.
-- Emit typed run, node, message, report, and artifact events.
-- Return the same final decision and report artifacts expected by existing callers.
+- Emit typed run, role, turn, message, report, and artifact events.
+- Return the same successful final state and decision expected by existing callers; consumer-specific report writing remains outside the runner.
 
-Interface and compatibility result:
+Successful-result interface:
 
 ```python
 runner.run(request: AnalysisRequest, observer: RunObserver) -> AnalysisResult
 
 @dataclass(frozen=True)
 class AnalysisResult:
-    run_id: str
-    status: Literal["completed", "cancelled", "failed", "interrupted"]
     final_state: AgentState
-    final_signal: str | None
-    artifact_refs: tuple[ArtifactRef, ...]
-    complete_report: ArtifactRef | None
+    final_signal: str
 ```
 
-The CLI and web layer consume this interface. CLI rendering remains a consumer, not a second graph execution implementation. The existing `propagate()` compatibility adapter returns `(result.final_state, result.final_signal)` so its tuple semantics do not change.
+`AnalysisRunner.run` returns only after successful graph completion. It raises `AnalysisCancelled(partial_state: AgentState | None)` on cooperative web cancellation and otherwise re-raises the original graph/provider/data exception with its traceback; early failures are not forced into a fabricated state. A hard process interruption returns nothing and is recovered from `RunStore` on the next server start.
+
+The CLI and web layer consume this interface. CLI rendering remains a consumer, not a second graph execution implementation. The existing `propagate()` compatibility adapter returns `(result.final_state, result.final_signal)` on success and preserves existing exception behavior on failure. Programmatic `propagate()` has no cancellation control and does not gain a partial-result tuple.
 
 ### 7.2 `RunObserver`
 
@@ -207,17 +205,23 @@ Every executed role node is wrapped by `ObservedNode(actor_id, projection_fn, no
 1. allocates a stable `turn_id` for the logical role turn;
 2. installs an `ObservationContext` in a Python `ContextVar` containing `run_id`, `actor_id`, `node_id`, and `turn_id`;
 3. captures the whitelisted node-entry projection;
-4. emits `node.started`; and
+4. emits `turn.started` plus the aggregate `role.status_changed`; and
 5. restores the previous context after the Python invocation returns.
 
-Model callbacks read this context and add the LangChain callback run identifier as `model_call_id`. Each initial or fallback model call gets a distinct `attempt_id` under the same `turn_id`. If the model returns tool calls, the observer keeps the turn open and records `tool_call_id -> RoleTurnRef` before the role node returns. Each role-specific `ObservedToolNode` preserves the model-provided `tool_call_id`, looks up that reference, reinstalls the originating observation context, and matches the resulting `ToolMessage` by the same identifier. When the role node is entered again after tool completion, `ObservedNode` reuses the open `turn_id`; it closes the turn and emits `node.completed` only after a final role output without unresolved tool calls, or `node.failed` on terminal failure. A later debate round receives a new `turn_id`. A model retry receives a new `attempt_id`; a repeated tool invocation receives a new `tool_call_id`.
+Model callbacks read this context and add the LangChain callback run identifier as `model_call_id`. Each initial or fallback model call gets a distinct `attempt_id` under the same `turn_id`. If the model returns tool calls, the observer keeps the turn open and persists `tool.requested` with `tool_call_id -> RoleTurnRef` before the role node returns, so the event is durable before LangGraph checkpoints the transition. Each role-specific `ObservedToolNode` preserves the model-provided `tool_call_id`, looks up that reference, reinstalls the originating observation context, and matches the resulting `ToolMessage` by the same identifier. When the role node is entered again after tool completion, `ObservedNode` reuses the open `turn_id`; it closes the turn only after a final role output without unresolved tool calls, or on terminal failure. A later debate round receives a new `turn_id`. A model retry receives a new `attempt_id`; a repeated logical tool request receives a new `tool_call_id`.
+
+The mapping is restart-safe because `events.jsonl`, not memory, is authoritative. Startup reduces persisted turn/model/tool lifecycle events to rebuild open turns and pending tool references. Resume preflight also reads the LangGraph checkpoint's current `messages` and `next` nodes: every pending model `tool_call_id` must match exactly one persisted `tool.requested` event with the expected role-specific tool node. A missing, duplicate, or mismatched mapping is `checkpoint_observation_incompatible` and resume is rejected.
+
+When interruption occurred inside a logical turn, resume reopens the same `turn_id` through `turn.resumed`; it never invents a disconnected turn. An interrupted in-flight model call gets a new `attempt_id`. An interrupted or merely requested tool keeps its logical `tool_call_id` but gets a new `tool_execution_id`, so a repeated read-only execution and its vendor calls remain distinguishable. The web workflow exposes only read-only research tools; adding side-effecting tools would require an idempotency contract before they could be resumed.
 
 Sentiment prefetch and Evidence Steward enrichment do not pass through `ObservedToolNode`. Their callers must enter an explicit `observer.direct_call_scope(...)` using the current `turn_id`; each provider attempt receives a `vendor_call_id`. Events without a valid current observation context fail a development assertion and are persisted as unattributed internal diagnostics in production, rather than being silently assigned to the wrong role.
 
-The immutable join chain is:
+The principal immutable join chains are:
 
 ```text
-run_id -> turn_id -> attempt_id/model_call_id -> tool_call_id -> vendor_call_id -> artifact_id
+run_id -> role_instance_id -> turn_id -> attempt_id/model_call_id
+turn_id -> tool_call_id -> tool_execution_id -> vendor_call_id -> artifact_id
+turn_id -> cache_hit_id -> origin vendor_call_id/artifact_id
 ```
 
 Not every call uses every level, but every child records its nearest available parent identifier.
@@ -271,11 +275,15 @@ Purpose: capture the actual vendor request, original response, normalized values
 
 Direct Sentiment and Evidence calls enter the same recorder through `direct_call_scope`, so direct and tool-mediated data use share one provenance model.
 
+The existing module-global news result cache becomes explicitly run-scoped. `SingleRunManager` installs a cache namespace keyed by `run_id` before graph construction and clears it in `finally`; a second run can never consume an earlier run's in-memory entry. A cache entry stores the returned value plus origin vendor-call IDs and raw/normalized artifact references. A same-run hit emits `data.cache_hit` with a new `cache_hit_id`, current `turn_id`/optional `tool_call_id`, cache-key hash, origin IDs/artifacts, and age. It does not pretend that a vendor was called again. A hit missing its origin provenance is treated as a cache miss.
+
 ### 7.8 `ReportArtifactWriter`
 
 Purpose: make partial reports durable without changing existing final report names.
 
-Each `report.updated` event atomically writes or replaces the latest revision of that report section and records its `artifact_id` and revision. On successful completion, the existing `write_report_tree` function remains authoritative for canonical final filenames and `complete_report.md`.
+Each `report.updated` event writes an immutable content-addressed revision under `report-revisions/<kind>/` and records its `artifact_id` and monotonic revision; no earlier revision is replaced. The canonical `reports/` directory is not pre-created. On successful completion, the web completion adapter invokes the existing `write_report_tree` into a temporary sibling directory, verifies its expected files, fsyncs them, and atomically renames the directory to `reports/`. Only then are final report artifacts recorded and `run.completed` emitted. The existing writer remains authoritative for canonical final filenames and `complete_report.md`.
+
+Report ownership stays outside `AnalysisRunner`. The web completion adapter always writes the canonical tree into the run directory. The CLI writes it only when its existing `save_report` selection is true and preserves the existing CLI destination. Programmatic `propagate()` still does not save reports automatically; `TradingAgentsGraph.save_reports()` remains the explicit programmatic writer.
 
 ## 8. Run model and storage
 
@@ -301,6 +309,9 @@ Ticker text is metadata and never determines a directory path.
     <sha256>.json
   tool-results/
     <sha256>.json
+  report-revisions/
+    <report-kind>/
+      <revision>-<sha256>.md
   reports/
     1_analysts/
     2_research/
@@ -318,7 +329,7 @@ Ticker text is metadata and never determines a directory path.
 - configured/missing key status only
 - timestamps, latest sequence, final signal, and artifact references
 - failure or cancellation summary when applicable
-- immutable resume fingerprint and code/prompt schema versions
+- immutable resume fingerprint, event schema version, and runtime semantics hash
 - `retry_of` or `resumed_from_sequence` when applicable
 
 It never contains secret values.
@@ -338,14 +349,31 @@ The UI therefore never observes an event that history cannot replay.
 
 The current checkpoint identity is derived from ticker/date plus graph shape. The web layer must not assume that this is sufficient semantic compatibility. Its checkpoint thread identifier is namespaced by `run_id` as well as the existing ticker/date/graph-shape values, preventing two history entries from sharing mutable checkpoint state.
 
-At run creation the server stores a secret-free, canonical resume fingerprint containing:
+Before the first resumable checkpoint, the server computes and persists the redacted canonical document plus SHA-256 digest for `ResumeFingerprintV1`. Its exact top-level shape is:
 
-- normalized ticker, analysis date, asset type, selected analysts, debate depth, and risk depth;
-- provider, quick/deep model names, backend endpoint identity, temperature/reasoning settings, and output language;
-- selected data vendors and evidence/news configuration that can alter graph semantics;
-- prompt schema version, event schema version, and application code version.
+```json
+{
+  "fingerprint_version": 1,
+  "request": {
+    "ticker": "normalized ticker",
+    "analysis_date": "YYYY-MM-DD",
+    "asset_type": "stock",
+    "selected_analysts": ["registry order"],
+    "max_debate_rounds": 1,
+    "max_risk_discuss_rounds": 1
+  },
+  "effective_config": {},
+  "runtime_semantics_hash": "sha256",
+  "event_schema_version": 1,
+  "initial_context_hash": "sha256"
+}
+```
 
-Secret values are excluded. `resume` reuses the same `run_id`, checkpoint thread, event sequence, and directory only when a checkpoint exists and the complete fingerprint matches. Any mismatch returns a typed `checkpoint_incompatible` error. `retry` always creates a new run and checkpoint namespace.
+`effective_config` is the complete effective graph/data/LLM configuration mapping after defaults, environment, local config, and request overrides. Keys are sorted recursively. Exactly four location-only keys are excluded: `project_dir`, `results_dir`, `data_cache_dir`, and `memory_log_path`. Credential-named keys are removed recursively using the same redaction-name registry as persistence. `backend_url` is replaced by endpoint identity `(scheme, host, explicit/default port, path)` after user-info, query, and fragment removal. All remaining values, including concurrency/recursion, missing-data policy, coverage thresholds, complete vendor fallback mappings, news queries/domains, credibility/consistency/evidence controls, model retry/thinking/temperature settings, output language, benchmark choices, and future configuration keys, must be JSON-serializable and are included automatically. A non-serializable value fails preflight.
+
+`runtime_semantics_hash` deterministically hashes every `*.py` file under the installed or editable `tradingagents/` package using sorted POSIX relative paths followed by file bytes. `__pycache__`, `.pyc`, tests/fixtures, frontend assets, caches, and generated outputs are excluded. This replaces the ambiguous notion of an application code version and catches runner, observer, prompt, schema, dataflow, and graph behavior changes. `initial_context_hash` hashes the resolved, redacted initial `past_context` and instrument identity placed in the checkpoint; if interruption occurs before this context and the first checkpoint are persisted, resume is unavailable.
+
+Secret values are neither hashed nor compared. `resume` reuses the same `run_id`, checkpoint thread, event sequence, and directory only when a checkpoint exists and every canonical fingerprint component matches. Any mismatch returns a typed `checkpoint_incompatible` error. `retry` always creates a new run and checkpoint namespace.
 
 On server startup, a run left in `running` or `cancel_requested` is atomically changed to `interrupted`, and a `run.interrupted` event is appended. It is resumable only if its compatible checkpoint still exists; otherwise the UI offers retry.
 
@@ -392,12 +420,13 @@ Run lifecycle:
 
 Execution lifecycle:
 
-- `node.started`
-- `node.skipped`
-- `node.not_reached`
-- `node.interrupted`
-- `node.completed`
-- `node.failed`
+- `role.status_changed`
+- `turn.started`
+- `turn.resumed`
+- `turn.completed`
+- `turn.failed`
+- `turn.cancelled`
+- `turn.interrupted`
 - `agent.message`
 - `state.updated`
 - `report.updated`
@@ -405,6 +434,7 @@ Execution lifecycle:
 - `model.started`
 - `model.completed`
 - `model.failed`
+- `model.interrupted`
 
 Tool and data lifecycle:
 
@@ -412,9 +442,13 @@ Tool and data lifecycle:
 - `tool.started`
 - `tool.completed`
 - `tool.failed`
+- `tool.cancelled`
+- `tool.interrupted`
 - `data.progress`
 - `data.completed`
 - `data.failed`
+- `data.interrupted`
+- `data.cache_hit`
 
 Input audit lifecycle:
 
@@ -431,12 +465,15 @@ Artifacts:
 | Event family | Required payload fields |
 |---|---|
 | `run.*` | `run_status`; terminal events also include safe `summary` and optional `error_category`; resume/interruption includes `checkpoint_sequence` |
-| `node.*` | `role_instance_id`, `role_status`; executed turns include `turn_id`; skip/not-reached/interrupted includes `reason`; completion includes `duration_ms` |
+| `role.status_changed` | `role_instance_id`, previous/new role status, reason, optional triggering `turn_id` |
+| `turn.*` | `role_instance_id`, `turn_id`, actor-local `turn_index`, turn status; resume includes `resumed_from_sequence`; terminal events include reason/duration |
 | `model.*` | `turn_id`, `attempt_id`, `model_call_id`, provider, model, structured/free-text path; terminal events include `duration_ms`, usage, and optional output/error artifact |
 | `agent.message` | `turn_id`, `message_id`, message kind, content or artifact reference |
+| `state.updated` | originating `turn_id`, changed top-level state keys, and content/artifact references; never an unbounded full-state dump |
 | `input.*` | `turn_id`, capture kind, `artifact_id`, content hash, redaction manifest; prompt input also includes `attempt_id` and `model_call_id` |
-| `tool.*` | `turn_id`, nearest `attempt_id`, `tool_call_id`, tool name; requested includes arguments; terminal events include duration and result/error artifact |
-| `data.*` | `turn_id`, optional `tool_call_id`, `vendor_call_id`, method, vendor, stage/status; terminal events include duration and raw/normalized artifacts or error |
+| `tool.*` | `turn_id`, nearest `attempt_id`, `tool_call_id`, tool name; requested includes arguments and has no execution ID yet; start/terminal events include `tool_execution_id`, duration, and result/error artifact as applicable |
+| `data.progress/completed/failed/interrupted` | `turn_id`, optional `tool_call_id`, `vendor_call_id`, method, vendor, stage/status; terminal events include duration and raw/normalized artifacts or error |
+| `data.cache_hit` | `turn_id`, optional `tool_call_id`, `cache_hit_id`, cache-key hash, origin vendor-call IDs, origin raw/normalized artifacts, age |
 | `report.updated` | `turn_id`, report kind, revision, `artifact_id` |
 | `artifact.written` | `artifact_id`, kind, media type, content hash, byte size, safe relative locator |
 | `stats.updated` | cumulative calls/tokens/cost where available plus the triggering `turn_id` or `model_call_id` |
@@ -453,16 +490,27 @@ created -> running -> completed | failed
 running | cancel_requested -> interrupted -> running (explicit resume)
 ```
 
-Role state for all 13 registry entries:
+Role-card aggregate state for all 13 registry entries:
 
 ```text
-pending -> running -> completed | failed
-pending -> skipped
-pending -> not_reached
-running -> interrupted  (process termination before a terminal node event)
+pending -> running | skipped | not_reached
+running -> completed | failed | cancelled | interrupted
+completed -> running     (a later debate/risk turn)
+interrupted -> running   (explicit resume of the open turn)
 ```
 
-Model state is `started -> completed | failed`. Tool state is `requested -> started -> completed | failed`. Vendor data state is `progress -> completed | failed`; multiple progress events may precede one terminal event. Invalid transitions are rejected by backend tests and ignored with a diagnostic by the frontend reducer.
+`skipped`, `not_reached`, `failed`, and `cancelled` are terminal for the run. On process interruption, only the currently running role becomes `interrupted`; roles that never started remain `pending` so resume can reach them. A terminal failure/cancellation converts every still-pending role to `not_reached`. A completed run has no pending/running/interrupted role.
+
+Each logical turn has its own lifecycle, independent from the aggregate card:
+
+```text
+started -> completed | failed | cancelled | interrupted
+interrupted -> resumed -> completed | failed | cancelled | interrupted
+```
+
+Resume reuses the same `turn_id`; a later debate/risk round creates a new `turn_id` and increments `turn_index`. Model state is `started -> completed | failed | interrupted`; an interrupted turn resumes with a new `attempt_id`. Tool state is `requested -> started -> completed | failed | cancelled | interrupted`, and `interrupted -> started` uses a new `tool_execution_id`. Vendor data state is `progress -> completed | failed | interrupted`; multiple progress events may precede one terminal event. Invalid transitions are rejected by backend tests and ignored with a diagnostic by the frontend reducer.
+
+At a cooperative cancellation boundary, the runner emits `tool.cancelled` for requested-but-unstarted tools, `turn.cancelled` for the open turn, `role.status_changed` to `cancelled`, changes all remaining pending roles to `not_reached`, and finally emits `run.cancelled`. An in-flight provider/vendor call first reaches its ordinary terminal event, so no model/tool/vendor lifecycle is left open. Unexpected run failure applies the analogous failed/not-reached terminalization. Startup interruption emits interrupted events for any open model/tool/turn and role before `run.interrupted`.
 
 ### 9.5 Replay, live handoff, reconnect, and backpressure
 
@@ -471,9 +519,10 @@ SSE responses emit `id: <sequence>`. The endpoint accepts an `after` query param
 Page load behavior:
 
 1. Fetch the run snapshot.
-2. Reduce persisted events through the latest stored sequence.
-3. If the run is active, open SSE after that sequence.
-4. Deduplicate by `sequence`.
+2. Open the SSE endpoint once, after the browser's last reduced sequence or `0` on a fresh load.
+3. Reduce its persisted replay and, for an active run, continue on the same connection into live events.
+4. For a terminal run, the server closes the stream after the captured watermark.
+5. Deduplicate by `sequence`.
 
 Replay-to-live subscription is atomic under a per-run broker lock:
 
@@ -485,7 +534,7 @@ Replay-to-live subscription is atomic under a per-run broker lock:
 
 Event publication holds the same lock while assigning sequence, appending and flushing the event, updating the snapshot, and enqueueing the persisted event. Therefore no event can fall between replay and subscription.
 
-Subscriber queues hold 512 events. If a client is too slow and its queue fills, the server closes only that SSE connection. The client reconnects from its last successfully reduced sequence and catches up from disk; persisted events are never dropped. A 15-second SSE comment acts as a keepalive. Browser disconnect does not cancel the analysis, and disconnected queues are unregistered promptly.
+Each subscriber has a 512-event deque, a `closed_reason`, and an async condition owned by the FastAPI event loop. The worker uses `loop.call_soon_threadsafe` to perform delivery on that loop. On overflow, the delivery callback sets `closed_reason=slow_consumer`, clears the deque, and notifies the condition; the SSE generator waits on `deque or closed_reason`, so it wakes and closes rather than blocking on a full queue. The client reconnects from its last successfully reduced sequence and catches up from disk; persisted events are never dropped. A 15-second SSE comment acts as a keepalive. Browser disconnect does not cancel the analysis, and disconnected subscribers are unregistered promptly.
 
 ## 10. Stable role registry
 
@@ -507,7 +556,7 @@ Subscriber queues hold 512 events. If a client is too slow and its queue fills, 
 
 User-facing labels may be localized. Actor IDs and event semantics do not change with language.
 
-All 13 cards always render. At run creation, each unselected analyst receives `node.skipped` with reason `not_selected`; its audit panel states that the role did not execute and therefore has no captured input or prompt. If failure, cancellation, or interruption prevents a selected/downstream role from starting, it receives `node.not_reached` with the terminal reason. Input and prompt acceptance requirements apply only to roles that reached `running`.
+All 13 cards always render. Immediately after `run.started`, the backend emits an initial `role.status_changed` for every registry entry: selected/fixed roles become `pending`, while unselected analysts become `skipped` with reason `not_selected`. A skipped role's audit panel states that it did not execute and therefore has no captured input or prompt. Terminal failure or cancellation changes selected/downstream roles that never started from `pending` to `not_reached`; process interruption leaves them pending for resume. Input and prompt acceptance requirements apply only to roles that reached `running`.
 
 ## 11. Exact role input audit
 
@@ -515,7 +564,7 @@ The input audit is a two-layer capture system.
 
 ### 11.1 Node-entry state snapshot
 
-At each of the 13 role node entries, the observer captures only the documented state fields that role reads. It does not dump the entire `AgentState`.
+At each executed role node entry, the observer captures only the documented state fields that role reads. It does not dump the entire `AgentState`.
 
 Reasons:
 
@@ -614,7 +663,7 @@ Creates a new run with the same safe input configuration and a new `run_id`.
 
 `POST /api/runs/{run_id}/resume`
 
-Available only when a checkpoint exists and the complete stored resume fingerprint matches the current runtime. It continues the same run directory and event sequence, emits `run.resumed`, and records `resumed_from_sequence`. A mismatch is returned as HTTP `409` with the safe fields that differ; secret values are never compared or returned.
+Available only for an `interrupted` run when a checkpoint exists, observation correlation reconciles, and the complete stored resume fingerprint matches the current runtime. It continues the same run directory and event sequence, emits `run.resumed`, and records `resumed_from_sequence`. A mismatch is returned as HTTP `409` with the safe fields that differ; secret values are never compared or returned.
 
 ### 12.3 Events and artifacts
 
@@ -643,7 +692,7 @@ The approved desktop workbench uses three persistent columns.
 - output language and checkpoint option
 - configured/missing key status
 - start or cancel state
-- recent completed, failed, cancelled, and active runs
+- recent completed, failed, cancelled, interrupted, and active runs
 
 ### 13.2 Center column: workflow and debate
 
@@ -696,13 +745,14 @@ Validation failures do not create a partially active run.
 
 ### 14.2 Execution
 
-- create run directory and `run.started`
+- create run directory, emit `run.started`, and initialize all 13 aggregate role states
 - start worker thread
 - resolve instrument identity and past context
+- finalize and persist `ResumeFingerprintV1` before the first resumable checkpoint
 - execute graph through `AnalysisRunner`
 - persist events and input/tool artifacts
-- write partial reports when sections become available
-- on success, write the existing complete report tree and `run.completed`
+- write immutable partial report revisions when sections become available
+- on success, atomically publish the canonical report tree and only then emit `run.completed`
 
 ### 14.3 Cancellation
 
@@ -711,6 +761,7 @@ Cancellation is cooperative:
 - API sets a cancellation flag and emits `run.cancel_requested`
 - an in-flight provider or vendor call is allowed to return
 - runner checks the flag at the nearest safe graph/node boundary
+- terminalize the open tool/turn/role and mark pending downstream roles `not_reached` as defined in section 9.4
 - partial artifacts remain readable
 - final status is `cancelled`
 
@@ -718,7 +769,7 @@ The application does not kill Python threads.
 
 ### 14.4 Failure
 
-All failures emit a typed node/tool/run event with a safe error category and message. The run remains in history with all prior events and partial artifacts.
+All failures terminalize open model/tool/data/turn lifecycles, update aggregate roles, and emit a safe run error category and message. The run remains in history with all prior events and partial artifacts. The web worker may retain a partial state for display, but it never returns that state through the existing `propagate()` tuple.
 
 Error categories include:
 
@@ -735,7 +786,7 @@ Error categories include:
 
 Retry creates a new run and links it to `retry_of`. This preserves audit independence.
 
-Resume is explicit and first requires the existing ticker/date/graph-shape compatibility check, then the complete immutable fingerprint in section 8.4. It continues the same history record; it never silently changes provider, model, language, data routing, prompt/schema version, or code version. A process restart converts an orphaned active run and any open role turn to `interrupted` before resume is offered.
+Only an `interrupted` run is resumable; failed and cancelled runs use retry. Resume is explicit and first requires the existing ticker/date/graph-shape compatibility check, then the complete immutable fingerprint and persisted observation/checkpoint reconciliation in sections 7.2 and 8.4. It continues the same history record and reopens the persisted logical turn when necessary; it never silently changes provider, model, language, data routing, prompt/schema version, or runtime semantics. A process restart converts an orphaned active run and its open lifecycles to `interrupted` before resume is offered.
 
 ## 15. Privacy and security
 
@@ -759,7 +810,9 @@ Resume is explicit and first requires the existing ticker/date/graph-shape compa
 - Provider choices come from the runtime registry rather than copied README text.
 - Existing report file names and report content remain compatible.
 - Existing graph-shape checkpoint signatures and validation rules are retained as a lower-level guard; the web resume fingerprint adds stricter semantic compatibility.
-- `AnalysisRunner` refactoring must preserve programmatic `propagate()` return behavior and the existing CLI output contract.
+- `AnalysisRunner` returns a successful state/signal only; web status and artifacts are composed by the web worker/observer rather than added to the programmatic tuple.
+- `propagate()` still returns `(final_state, final_signal)` only on success and raises on failure. `save_reports()` remains explicit.
+- The CLI consumes runner events for live rendering, preserves existing exception/exit behavior, and invokes the canonical report writer only under its existing save-report choice and destination.
 
 ## 17. Testing strategy
 
@@ -777,21 +830,26 @@ Resume is explicit and first requires the existing ticker/date/graph-shape compa
 - observation context propagation and assertion on unattributed callbacks
 - run, role, model, tool, and vendor lifecycle transition validation
 - resume fingerprint canonicalization and secret exclusion
+- complete effective-config inclusion, exact four-key exclusion, endpoint normalization, and runtime semantics hashing
+- completed-only `AnalysisResult` typing and failure/cancellation exception mapping
 
 ### 17.2 Backend integration tests
 
 - deterministic fake graph produces the full workflow lifecycle
 - graph node updates map to stable actor IDs
 - unselected analysts become `skipped`; unreachable roles become `not_reached`
+- repeated Bull/Bear and risk turns update one role card while retaining distinct turn IDs
 - direct Sentiment and Evidence Steward calls are observable
 - model/tool/vendor identifiers join retries, fallback calls, and artifacts to the correct role turn
 - tool completion, vendor fallback, raw/normalized data, failure, and output references persist correctly
+- same-run news cache hits reference origin artifacts; later runs cannot consume the prior in-memory cache
 - SSE initial replay, atomic replay-to-live handoff, slow-subscriber disconnect, reconnect, and deduplication
 - failure retains events and partial reports
 - retry creates a separate linked run
-- strict compatible and incompatible checkpoint resume behavior, including orphaned active runs
-- partial report revisions and canonical final report writer compatibility
-- `AnalysisResult`, `propagate()` tuple, and CLI compatibility
+- strict compatible and incompatible checkpoint resume behavior, including event-log reconstruction of a pending tool call and rejection of mismatches
+- cancellation and startup interruption leave no open lifecycle; compatible resume reopens the same turn with new attempt/execution IDs
+- immutable partial report revisions and atomic canonical final report publication before `run.completed`
+- successful `AnalysisResult`, failing `propagate()` exception, tuple, CLI save/no-save, and explicit `save_reports()` compatibility
 
 ### 17.3 Frontend tests
 
@@ -835,15 +893,15 @@ The work is complete only when all of the following are true:
 1. `tradingagents web` starts the service and prints a working localhost URL.
 2. The browser can submit a validated stock analysis.
 3. A second active submission is rejected clearly.
-4. The UI shows actual live node, debate, tool, data, and report events.
-5. All 13 roles have stable IDs, distinct icons, and correct `pending`, `running`, `completed`, `failed`, `skipped`, `not_reached`, or `interrupted` workflow status.
+4. The UI shows actual live role-turn, debate, tool, data, and report events.
+5. All 13 roles have stable IDs, distinct icons, and correct `pending`, `running`, `completed`, `failed`, `cancelled`, `skipped`, `not_reached`, or `interrupted` workflow status across repeated turns.
 6. Clicking an executed role shows its captured state inputs and formatted model input; clicking a skipped or not-reached role truthfully explains why no input exists.
 7. Fundamentals input exposes company profile, financial statements, periods, units, vendors, raw values, normalized values, and hashes.
 8. Market input exposes price data, indicators, and verified snapshot data.
 9. Bull/Bear and risk roles expose their upstream reports and current opponent inputs.
 10. Large results are referenced rather than duplicated in events.
 11. Refresh/reconnect produces no missing or duplicated events.
-12. Completed, failed, and cancelled runs remain in history after restart.
+12. Completed, failed, cancelled, and interrupted runs remain in history after restart.
 13. Partial artifacts remain visible after failure or cancellation.
 14. Secrets are absent from browser state, HTTP responses, events, prompts, logs, and artifacts.
 15. Existing CLI behavior and existing automated tests continue to pass.
@@ -851,6 +909,8 @@ The work is complete only when all of the following are true:
 17. One real minimum-depth analysis validates the end-to-end path.
 18. Every prompt, tool, direct vendor call, fallback attempt, raw/normalized artifact, and partial report can be joined to the correct role turn by persisted identifiers.
 19. Resume is refused when any semantic fingerprint field differs, and an interrupted compatible run resumes without mixing configuration or event sequences.
+20. Same-run news cache reuse is visible and source-linked, while no in-memory cache entry leaks into a later run.
+21. Programmatic success tuples, failure exceptions, explicit report saving, and CLI save/no-save behavior remain compatible.
 
 ## 19. Alternatives considered
 
