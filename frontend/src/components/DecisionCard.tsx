@@ -9,7 +9,7 @@ import { Badge } from "./ui/badge";
 import { EmptyState } from "./EmptyState";
 import type { Recommendation } from "@/lib/api/types";
 import { useRegime } from "@/lib/api/queries";
-import { fmtPrice, relativeAge } from "@/lib/format";
+import { fmtPnl, fmtPrice, relativeAge } from "@/lib/format";
 import { MIN_ANALOG_SIMILARITY } from "@/lib/thresholds";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,12 @@ function pctFrom(entry: number, price: number): string {
 
 function humanRegime(regime: string | null | undefined): string {
   return (regime ?? "unknown").replaceAll("_", " ");
+}
+
+function fmtHold(seconds: number): string {
+  if (seconds >= 86_400) return `${(seconds / 86_400).toFixed(1)}d`;
+  if (seconds >= 3_600) return `${(seconds / 3_600).toFixed(1)}h`;
+  return `${Math.max(1, Math.round(seconds / 60))}m`;
 }
 
 const CHIP_TONE: Record<string, string> = {
@@ -498,8 +504,47 @@ export function DecisionCard({
               {fmtPrice(math.rewardUsd, 0)} at first target
             </>
           )}
-          {" "}· stated confidence {rec.confidence ?? "—"}/100 (calibration
-          builds as trades close)
+          {rec.p_win != null ? (
+            <>
+              {" "}·{" "}
+              <span className="font-semibold text-fg">
+                p(win) {(rec.p_win.p_win * 100).toFixed(0)}%
+              </span>{" "}
+              <span className="text-fg-subtle">
+                (n={rec.p_win.n}, {rec.p_win.basis})
+              </span>
+              {math.riskUsd != null && math.rewardUsd != null && (
+                <>
+                  {" "}·{" "}
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      rec.p_win.p_win * math.rewardUsd -
+                        (1 - rec.p_win.p_win) * math.riskUsd >=
+                        0
+                        ? "text-bull"
+                        : "text-bear",
+                    )}
+                  >
+                    EV{" "}
+                    {fmtPnl(
+                      rec.p_win.p_win * math.rewardUsd -
+                        (1 - rec.p_win.p_win) * math.riskUsd,
+                    )}
+                  </span>{" "}
+                  at first target
+                </>
+              )}
+              {rec.p_win.median_hold_s != null && (
+                <> · median hold {fmtHold(rec.p_win.median_hold_s)}</>
+              )}
+            </>
+          ) : (
+            <>
+              {" "}· stated confidence {rec.confidence ?? "—"}/100 (calibration
+              builds as trades close)
+            </>
+          )}
         </div>
       )}
 

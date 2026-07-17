@@ -663,6 +663,11 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         view["run_id"] = run.run_id
         view["run_started_at"] = run.started_at.isoformat()
         view["timeframe"] = run.timeframe
+        # empirical p(win) from the system's own scored record (lived +
+        # retro outcomes); None below the sample floor — never invented
+        if run.recommendation is not None:
+            view["p_win"] = service.estimate_p_win(
+                state.memory, run.recommendation.confidence)
         return view
 
     # async on purpose (review R2.7): these are pure in-memory reads, yet as
@@ -840,6 +845,22 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         perf["exposure"] = service.portfolio_exposure(
             positions, state.equity, max_open)
         return perf
+
+    @app.post("/api/calibration/backfill")
+    def calibration_backfill() -> dict:
+        """Retro-score stored REAL runs against subsequent bars so the
+        calibration chart accrues (trader review: 'twenty scored trades').
+        Idempotent; provenance-tagged; excluded from the blotter."""
+        from tradingagents.contracts import Timeframe
+        from tradingagents.pro.analytics.retro import backfill_outcomes
+
+        def bars_for(run):
+            tf = Timeframe(run.timeframe or "1h")
+            bars = state.marketdata.get_bars(run.symbol, tf.value, limit=1000)
+            return [b for b in bars if b.start > run.started_at]
+
+        result = backfill_outcomes(state.runs, state.memory, bars_for)
+        return result
 
     @app.get("/api/risk/budget")
     def risk_budget() -> dict:

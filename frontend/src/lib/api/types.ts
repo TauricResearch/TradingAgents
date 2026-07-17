@@ -98,6 +98,16 @@ export const RecommendationSchema = z
     evidence: z.array(EvidenceItemSchema).optional(),
     historical_analogs: z.array(AnalogSchema).optional(),
     invalidation: z.string().nullable().optional(),
+    // empirical win probability from the system's own scored record
+    p_win: z
+      .object({
+        p_win: z.number(),
+        n: z.number(),
+        basis: z.string(),
+        median_hold_s: z.number().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
     created_at: z.string().optional(),
   })
   .passthrough();

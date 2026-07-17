@@ -247,11 +247,14 @@ def trade_journal(memory: ProMemory) -> dict:
     by_mode: dict[str, dict] = {}
     for outcome in memory.records(MemoryKind.OUTCOME):
         trade = trades.get(outcome.ref_id)
-        pnl = outcome.payload.get("pnl", 0.0)
-        total_pnl += pnl
         # venue truth + arming mode ride in the outcome payload (Phase 5);
         # paper trades default to mode "paper" with zero venue fields
         mode = outcome.payload.get("mode", "paper")
+        if mode == "retro":
+            # retro-scored predictions feed calibration, never the blotter
+            continue
+        pnl = outcome.payload.get("pnl", 0.0)
+        total_pnl += pnl
         won = outcome.payload.get("won")
         entries.append({
             "symbol": outcome.symbol,
@@ -282,6 +285,43 @@ def trade_journal(memory: ProMemory) -> dict:
         "win_rate": wins / len(entries) if entries else None,
         "by_mode": by_mode,
     }
+
+
+def estimate_p_win(memory: ProMemory, confidence: int | None,
+                   band: int = 10, min_n: int = 5) -> dict | None:
+    """Empirical win probability for a ticket, from the system's own
+    scored record (lived + retro outcomes). Prefers outcomes whose stated
+    confidence sat within ``band`` of this ticket's; falls back to the
+    overall record. Returns None below ``min_n`` — no invented numbers."""
+    trades = {r.id: r for r in memory.records(MemoryKind.TRADE)}
+    banded: list[bool] = []
+    overall: list[bool] = []
+    holds: list[float] = []
+    for outcome in memory.records(MemoryKind.OUTCOME):
+        trade = trades.get(outcome.ref_id)
+        if trade is None:
+            continue
+        won = bool(outcome.payload.get("won"))
+        overall.append(won)
+        held = (outcome.created_at - trade.created_at).total_seconds()
+        if held > 0:
+            holds.append(held)
+        conf = trade.payload.get("confidence")
+        if (confidence is not None and conf is not None
+                and abs(conf - confidence) <= band):
+            banded.append(won)
+    import statistics
+
+    median_hold_s = statistics.median(holds) if holds else None
+    if len(banded) >= min_n:
+        return {"p_win": sum(banded) / len(banded), "n": len(banded),
+                "basis": f"confidence ±{band}",
+                "median_hold_s": median_hold_s}
+    if len(overall) >= min_n:
+        return {"p_win": sum(overall) / len(overall), "n": len(overall),
+                "basis": "all scored decisions",
+                "median_hold_s": median_hold_s}
+    return None
 
 
 def journal_performance(memory: ProMemory,

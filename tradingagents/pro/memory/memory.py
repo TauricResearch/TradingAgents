@@ -106,6 +106,7 @@ class ProMemory:
     def close_trade(
         self, trade_record_id: str, pnl: float, lesson: str = "",
         event_time=None, details: dict | None = None,
+        write_lesson: bool = True,
     ) -> list[MemoryRecord]:
         """Record a trade outcome; derive a lesson record from the result.
 
@@ -133,16 +134,21 @@ class ProMemory:
             payload=payload,
             event_time=event_time,
         ))]
-        lesson_kind = MemoryKind.WINNING_PATTERN if won else MemoryKind.MISTAKE
-        lesson_text = lesson or (
-            f"{trade.payload.get('action')} {trade.symbol} in regime "
-            f"{trade.payload.get('regime')} {'worked' if won else 'failed'} "
-            f"(pnl {pnl:+.4f})"
-        )
-        added.append(self._add(MemoryRecord(
-            kind=lesson_kind, text=lesson_text, symbol=trade.symbol, ref_id=trade.id,
-            payload={"pnl": pnl}, event_time=event_time,
-        )))
+        # write_lesson=False: retro-scored outcomes (calibration backfill)
+        # must never masquerade as lived experience — lessons are reserved
+        # for trades the system actually took and closed
+        if write_lesson:
+            lesson_kind = MemoryKind.WINNING_PATTERN if won else MemoryKind.MISTAKE
+            lesson_text = lesson or (
+                f"{trade.payload.get('action')} {trade.symbol} in regime "
+                f"{trade.payload.get('regime')} {'worked' if won else 'failed'} "
+                f"(pnl {pnl:+.4f})"
+            )
+            added.append(self._add(MemoryRecord(
+                kind=lesson_kind, text=lesson_text, symbol=trade.symbol,
+                ref_id=trade.id,
+                payload={"pnl": pnl}, event_time=event_time,
+            )))
         return added
 
     def records(self, kind: MemoryKind | None = None) -> list[MemoryRecord]:
