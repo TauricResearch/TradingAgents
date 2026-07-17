@@ -148,6 +148,25 @@ class TestAlertFeed:
         assert "prompt injection" in quarantine["text"]
         assert all(a["run_id"] == run.run_id for a in feed)
 
+    def test_consecutive_same_stage_rejections_coalesce(self):
+        # trader review: five hourly event-gate refusals stacked as five
+        # near-duplicate warnings — they must merge (varying countdown text)
+        memory = ProMemory()
+        recorder = PipelineRecorder()
+        for i in range(3):
+            run = recorder.record_run(
+                FakePipelineLLM(), CONFIG, pipeline_snapshot(), memory=memory)
+            run.state["rejection"] = {
+                "stage": "event_gate",
+                "reasons": [f"Retail Sales in {3 - i}.0h — entries blocked"],
+            }
+        feed = alert_feed(recorder.runs)["alerts"]
+        gate = [a for a in feed if "event_gate" in a["text"]]
+        assert len(gate) == 1
+        assert gate[0]["count"] == 3
+        # newest occurrence wins the display text
+        assert "1.0h" in gate[0]["text"]
+
     def test_debate_timeline_orders_speakers(self, recorded):
         _, run, _ = recorded
         view = debate_timeline(run)
@@ -181,6 +200,62 @@ class TestPortfolioViews:
         assert journal["total_pnl"] == pytest.approx(60.0)
         assert journal["win_rate"] == pytest.approx(0.5)
         assert journal["entries"][0]["action"] == "BUY"
+
+    def test_journal_performance_reconstructs_equity_curve(self):
+        from tradingagents.pro.dashboard.service import journal_performance
+
+        memory = ProMemory()
+        for pnl in (120.0, -60.0, 90.0):
+            trade = memory.record_trade(make_recommendation())
+            memory.close_trade(trade.id, pnl=pnl)
+        perf = journal_performance(memory, starting_equity=1_000.0)
+        assert perf["equity_curve"] == [1_000.0, 1_120.0, 1_060.0, 1_150.0]
+        assert perf["n_trades"] == 3
+        assert perf["expectancy"] == pytest.approx(50.0)
+        assert perf["profit_factor"] == pytest.approx(210.0 / 60.0)
+        # peak 1120 -> trough 1060
+        assert perf["max_drawdown"] == pytest.approx(60.0 / 1_120.0)
+        assert perf["total_return"] == pytest.approx(0.15)
+
+    def test_portfolio_exposure_aggregates_directionally(self):
+        from tradingagents.pro.dashboard.service import portfolio_exposure
+
+        positions = [
+            {"symbol": "XAUUSD", "quantity": -2.0, "mark_price": 4000.0,
+             "mark_source": "live"},
+            {"symbol": "BTC-USD", "quantity": 0.1, "mark_price": 64000.0,
+             "mark_source": "eod"},
+            # unknown mark contributes nothing, never a fabricated number
+            {"symbol": "SOL-USD", "quantity": 5.0, "mark_price": None,
+             "mark_source": "entry"},
+        ]
+        view = portfolio_exposure(positions, equity=100_000.0,
+                                  max_open_positions=3)
+        assert view["n_positions"] == 3 and view["n_priced"] == 2
+        assert view["short_exposure_pct"] == pytest.approx(8.0)
+        assert view["long_exposure_pct"] == pytest.approx(6.4)
+        assert view["gross_exposure_pct"] == pytest.approx(14.4)
+        assert view["net_exposure_pct"] == pytest.approx(-1.6)
+        assert view["largest_position_pct"] == pytest.approx(8.0)
+
+    def test_risk_budget_exposes_daily_loss_vs_limit(self):
+        from tradingagents.pro.dashboard.service import risk_budget
+
+        limits = RiskLimits(max_daily_loss_pct=3.0)
+        breaker = CircuitBreaker(limits, equity_base=100_000.0)
+        breaker.record_trade_result(-1_500.0)
+        router = ExecutionRouter(
+            adapter=PaperVenueAdapter(VENUES["mt5"], starting_cash=100_000.0),
+            limits=limits, kill_switch=KillSwitch(), breaker=breaker,
+            audit=AuditLog(),
+        )
+        budget = risk_budget(router)
+        assert budget["attached"] is True
+        assert budget["daily_loss_limit_usd"] == pytest.approx(3_000.0)
+        assert budget["daily_loss_used_usd"] == pytest.approx(1_500.0)
+        assert budget["daily_loss_used_pct_of_budget"] == pytest.approx(50.0)
+        assert budget["tripped"] is False
+        assert risk_budget(None) == {"attached": False}
 
     def test_backtest_view_with_monte_carlo(self):
         from tests.pro_fakes import make_bars

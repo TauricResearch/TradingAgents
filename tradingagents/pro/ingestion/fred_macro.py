@@ -30,7 +30,10 @@ DEFAULT_SERIES: dict[str, tuple[str, str, str]] = {
     "US10Y_REAL": ("DFII10", "lin", "percent"),
     "DXY_BROAD": ("DTWEXBGS", "lin", "index"),
     "CPI_YOY": ("CPIAUCSL", "pc1", "percent"),
-    "PPI_YOY": ("PPIACO", "pc1", "percent"),
+    # PPIFIS = headline PPI (final demand) — what traders mean by "PPI YoY".
+    # The previous PPIACO (all-commodities) runs ~3x hotter and repeatedly
+    # steered macro debates toward "staggering 10% PPI" (trader review).
+    "PPI_YOY": ("PPIFIS", "pc1", "percent"),
     "NFP_CHANGE": ("PAYEMS", "chg", "thousands"),
     "GDP_YOY": ("GDP", "pc1", "percent"),
 }

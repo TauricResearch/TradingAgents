@@ -203,6 +203,8 @@ export const AlertSchema = z.object({
   run_id: z.string(),
   severity: z.enum(["critical", "warning", "info"]),
   text: z.string(),
+  // consecutive same-kind events coalesce server-side (×N)
+  count: z.number().optional(),
 });
 export type Alert = z.infer<typeof AlertSchema>;
 export const AlertFeedSchema = z.object({ alerts: z.array(AlertSchema) });
@@ -239,6 +241,51 @@ export const JournalSchema = z.object({
     .optional(),
 });
 export type Journal = z.infer<typeof JournalSchema>;
+
+export const PortfolioStatsSchema = z
+  .object({
+    equity_curve: z.array(z.number()),
+    n_trades: z.number(),
+    win_rate: z.number().nullable(),
+    total_pnl: z.number(),
+    expectancy: z.number(),
+    profit_factor: z.number().nullable(),
+    max_drawdown: z.number(),
+    total_return: z.number(),
+    starting_equity: z.number(),
+    exposure: z
+      .object({
+        n_positions: z.number(),
+        n_priced: z.number(),
+        max_open_positions: z.number(),
+        gross_exposure_pct: z.number().nullable(),
+        net_exposure_pct: z.number().nullable(),
+        long_exposure_pct: z.number().nullable(),
+        short_exposure_pct: z.number().nullable(),
+        largest_position_pct: z.number().nullable(),
+      })
+      .optional(),
+  })
+  .passthrough();
+export type PortfolioStats = z.infer<typeof PortfolioStatsSchema>;
+
+export const RiskBudgetSchema = z
+  .object({
+    attached: z.boolean(),
+    daily_pnl: z.number().optional(),
+    daily_loss_limit_pct: z.number().optional(),
+    daily_loss_limit_usd: z.number().optional(),
+    daily_loss_used_usd: z.number().optional(),
+    daily_loss_used_pct_of_budget: z.number().nullable().optional(),
+    consecutive_losses: z.number().optional(),
+    consecutive_loss_limit: z.number().optional(),
+    max_orders_per_day: z.number().nullable().optional(),
+    orders_today: z.number().nullable().optional(),
+    tripped: z.boolean().optional(),
+    reason: z.string().optional(),
+  })
+  .passthrough();
+export type RiskBudget = z.infer<typeof RiskBudgetSchema>;
 
 export const BacktestSchema = z
   .object({
@@ -314,6 +361,9 @@ export const IntelSchema = z.object({
   metrics: z.array(
     z.object({
       name: z.string(),
+      // data dictionary (trader review): human label + series note
+      label: z.string().nullable().optional(),
+      note: z.string().nullable().optional(),
       value: z.number(),
       unit: z.string().nullable(),
       as_of: z.string().nullable(),

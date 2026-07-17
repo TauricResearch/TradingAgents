@@ -13,10 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { Sparkline } from "@/components/Sparkline";
 import {
   useBacktest,
   useJournal,
   useMemoryInsights,
+  usePortfolioStats,
+  useRiskBudget,
   useRuns,
   useStatus,
 } from "@/lib/api/queries";
@@ -33,8 +36,12 @@ export default function PortfolioPage() {
   const [symbolFilter, setSymbolFilter] = useState("all");
   const [outcomeFilter, setOutcomeFilter] = useState("all");
 
-  const report = backtest.data?.report ?? {};
   const j = journal.data;
+  const stats = usePortfolioStats();
+  const budget = useRiskBudget();
+  const perf = stats.data;
+  const exposure = perf?.exposure;
+  const budgetUsedPct = budget.data?.daily_loss_used_pct_of_budget ?? null;
 
   const symbolsInJournal = useMemo(
     () => [...new Set((j?.entries ?? []).map((e) => e.symbol))],
@@ -75,6 +82,14 @@ export default function PortfolioPage() {
                   showDrawdown={showDrawdown}
                   height={170}
                 />
+                {backtest.data.report && (
+                  <div className="mt-2 flex flex-wrap gap-x-[18px] text-xs text-fg-muted tabular">
+                    <span>Sharpe <span className="font-bold">{backtest.data.report.sharpe?.toFixed(2) ?? "—"}</span></span>
+                    <span>Sortino <span className="font-bold">{backtest.data.report.sortino?.toFixed(2) ?? "—"}</span></span>
+                    <span>max DD <span className="font-bold text-bear">{backtest.data.report.max_drawdown != null ? fmtPct(backtest.data.report.max_drawdown) : "—"}</span></span>
+                    <span>PF <span className="font-bold">{backtest.data.report.profit_factor?.toFixed(2) ?? "—"}</span></span>
+                  </div>
+                )}
                 <p className="mt-2 text-xs text-fg-subtle">
                   {backtest.data.executed}/{backtest.data.decisions} decisions
                   executed · rejections{" "}
@@ -93,41 +108,93 @@ export default function PortfolioPage() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 content-start gap-2.5">
-          <StatCard
-            elevated
-            label="Live paper P&L"
-            value={fmtPnl(j?.total_pnl)}
-            tone={j && j.total_pnl >= 0 ? "bull" : "bear"}
-            n={j?.n_trades}
-          />
-          <StatCard
-            elevated
-            label="Win rate"
-            value={j?.win_rate != null ? fmtPct(j.win_rate, 0) : "—"}
-            n={j?.n_trades}
-          />
-          <StatCard
-            elevated
-            label="Backtest Sharpe"
-            value={report.sharpe != null ? report.sharpe.toFixed(2) : "—"}
-          />
-          <StatCard
-            elevated
-            label="Backtest Sortino"
-            value={report.sortino != null ? report.sortino.toFixed(2) : "—"}
-          />
-          <StatCard
-            elevated
-            label="Backtest max DD"
-            value={report.max_drawdown != null ? fmtPct(report.max_drawdown) : "—"}
-            tone="bear"
-          />
-          <StatCard
-            elevated
-            label="Profit factor"
-            value={report.profit_factor != null ? report.profit_factor.toFixed(2) : "—"}
-          />
+        <div className="content-start space-y-2.5">
+          <div className="grid grid-cols-2 gap-2.5">
+            <StatCard
+              elevated
+              label="Live paper P&L"
+              value={fmtPnl(j?.total_pnl)}
+              tone={j && j.total_pnl >= 0 ? "bull" : "bear"}
+              n={j?.n_trades}
+            />
+            <StatCard
+              elevated
+              label="Win rate"
+              value={j?.win_rate != null ? fmtPct(j.win_rate, 0) : "—"}
+              n={j?.n_trades}
+            />
+            <StatCard
+              elevated
+              label="Expectancy / trade"
+              value={perf && perf.n_trades > 0 ? fmtPnl(perf.expectancy) : "—"}
+              n={perf?.n_trades}
+            />
+            <StatCard
+              elevated
+              label="Profit factor"
+              value={
+                perf?.profit_factor != null ? perf.profit_factor.toFixed(2) : "—"
+              }
+              n={perf?.n_trades}
+            />
+            <StatCard
+              elevated
+              label="Max drawdown"
+              value={
+                perf && perf.n_trades > 0 ? fmtPct(perf.max_drawdown) : "—"
+              }
+              tone="bear"
+              n={perf?.n_trades}
+            />
+            <StatCard
+              elevated
+              label="Day loss budget"
+              value={
+                budgetUsedPct != null ? `${budgetUsedPct.toFixed(0)}%` : "—"
+              }
+              tone={
+                budgetUsedPct != null && budgetUsedPct >= 67
+                  ? "bear"
+                  : budgetUsedPct != null && budgetUsedPct >= 33
+                    ? "neutral"
+                    : undefined
+              }
+              sub={
+                budget.data?.daily_loss_limit_usd != null
+                  ? `${fmtPnl(budget.data.daily_pnl)} today · limit ${fmtPrice(
+                      budget.data.daily_loss_limit_usd,
+                      0,
+                    )}`
+                  : undefined
+              }
+            />
+          </div>
+          {perf && perf.n_trades >= 2 && (
+            <div
+              className="rounded-[14px] bg-surface-2 px-3.5 py-2.5"
+              data-testid="live-equity-spark"
+            >
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[9.5px] font-bold uppercase tracking-[0.09em] text-fg-subtle">
+                  Closed-trade equity
+                </span>
+                <span
+                  className={cn(
+                    "font-mono text-xs font-bold tabular",
+                    perf.total_return >= 0 ? "text-bull" : "text-bear",
+                  )}
+                >
+                  {fmtPct(perf.total_return)}
+                </span>
+              </div>
+              <Sparkline
+                values={perf.equity_curve}
+                width={260}
+                height={36}
+                ariaLabel="closed-trade equity curve"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -141,6 +208,19 @@ export default function PortfolioPage() {
                         detail="Open risk appears here the moment the book is non-flat." />
           ) : (
             <div className="space-y-2">
+              {exposure && exposure.n_priced > 0 && (
+                <div
+                  className="flex flex-wrap gap-x-[18px] gap-y-1 rounded-[12px] bg-surface-2 px-3.5 py-2 text-xs text-fg-muted tabular"
+                  data-testid="exposure-summary"
+                >
+                  <span>gross <span className="font-bold text-fg">{exposure.gross_exposure_pct?.toFixed(1)}%</span></span>
+                  <span>net <span className={cn("font-bold", (exposure.net_exposure_pct ?? 0) >= 0 ? "text-bull" : "text-bear")}>{exposure.net_exposure_pct?.toFixed(1)}%</span></span>
+                  <span>long <span className="font-bold text-bull">{exposure.long_exposure_pct?.toFixed(1)}%</span></span>
+                  <span>short <span className="font-bold text-bear">{exposure.short_exposure_pct?.toFixed(1)}%</span></span>
+                  <span>largest <span className="font-bold text-fg">{exposure.largest_position_pct?.toFixed(1)}%</span></span>
+                  <span>slots <span className="font-bold text-fg">{exposure.n_positions}/{exposure.max_open_positions}</span></span>
+                </div>
+              )}
               <table className="w-full text-sm tabular">
                 <thead>
                   <tr className="border-b border-border text-left text-xs text-fg-subtle">

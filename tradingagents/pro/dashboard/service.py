@@ -134,12 +134,17 @@ def alert_feed(runs: Sequence[RunRecord], limit: int = 50) -> dict:
     """
     alerts: list[dict] = []
     for run in runs:
-        def add(severity: str, text: str, run=run) -> None:
+        def add(severity: str, text: str, key: str | None = None,
+                run=run) -> None:
             alerts.append({
                 "time": run.started_at.isoformat(),
                 "run_id": run.run_id,
                 "severity": severity,
                 "text": text,
+                # coalescing identity: rejections keyed by stage so five
+                # hourly event-gate refusals (whose countdown text varies)
+                # merge into one entry
+                "_key": key or text,
             })
 
         snapshot = run.state.get("snapshot")
@@ -149,15 +154,29 @@ def alert_feed(runs: Sequence[RunRecord], limit: int = 50) -> dict:
             else:
                 add("info", f"feed unavailable: {feed}")
         if run.rejection:
+            stage = run.rejection.get("stage")
             reasons = "; ".join(str(r) for r in run.rejection.get("reasons", []))
             add("warning",
-                f"trade rejected at {run.rejection.get('stage')}"
-                + (f": {reasons}" if reasons else ""))
+                f"trade rejected at {stage}" + (f": {reasons}" if reasons else ""),
+                key=f"rejected@{stage}")
         execution_status = run.state.get("execution_status") or ""
         if execution_status.startswith("blocked:"):
             add("warning", f"execution {execution_status}")
     alerts.reverse()
-    return {"alerts": alerts[:limit]}
+    # coalesce consecutive same-key events (trader review: five hourly
+    # event-gate rejections stacked as near-duplicate warnings) — keep the
+    # newest text/time, count the occurrences
+    deduped: list[dict] = []
+    for alert in alerts:
+        prev = deduped[-1] if deduped else None
+        if (prev is not None and prev["severity"] == alert["severity"]
+                and prev["_key"] == alert["_key"]):
+            prev["count"] += 1
+            continue
+        deduped.append({**alert, "count": 1})
+    for alert in deduped:
+        del alert["_key"]
+    return {"alerts": deduped[:limit]}
 
 
 def recommendation_view(rec: TradeRecommendation | None,
@@ -262,6 +281,104 @@ def trade_journal(memory: ProMemory) -> dict:
         "n_trades": len(entries),
         "win_rate": wins / len(entries) if entries else None,
         "by_mode": by_mode,
+    }
+
+
+def journal_performance(memory: ProMemory,
+                        starting_equity: float = 100_000.0) -> dict:
+    """Live-book performance over CLOSED trades (trader review): equity
+    curve reconstructed from realized PnLs plus the shared deterministic
+    metrics. Sharpe/Sortino are deliberately omitted — per-trade curves
+    have no time basis, and an annualized ratio over a handful of trades
+    would be the kind of number this product refuses to fake."""
+    from types import SimpleNamespace
+
+    from tradingagents.pro.backtest.metrics import (
+        max_drawdown,
+        performance_report,
+    )
+
+    journal = trade_journal(memory)
+    entries = sorted(journal["entries"], key=lambda e: e["closed_at"])
+    curve = [starting_equity]
+    for entry in entries:
+        curve.append(curve[-1] + entry["pnl"])
+    trades = [SimpleNamespace(pnl=e["pnl"]) for e in entries]
+    report = performance_report(curve, trades)
+    return {
+        "equity_curve": curve,
+        "n_trades": report.n_trades,
+        "win_rate": journal["win_rate"],
+        "total_pnl": journal["total_pnl"],
+        "expectancy": report.expectancy,
+        "profit_factor": (None if report.profit_factor == float("inf")
+                          else report.profit_factor),
+        "max_drawdown": max_drawdown(curve),
+        "total_return": report.total_return,
+        "starting_equity": starting_equity,
+    }
+
+
+def portfolio_exposure(positions: list[dict], equity: float | None,
+                       max_open_positions: int) -> dict:
+    """Aggregate book risk (trader review): net/gross exposure, direction
+    split, concentration. Pure arithmetic over open_positions_view rows —
+    unknown marks contribute nothing rather than a fabricated number."""
+    long_notional = 0.0
+    short_notional = 0.0
+    largest = 0.0
+    priced = 0
+    for pos in positions:
+        mark = pos.get("mark_price")
+        qty = pos.get("quantity") or 0.0
+        if mark is None or pos.get("mark_source") == "entry":
+            continue
+        notional = qty * mark
+        priced += 1
+        if notional >= 0:
+            long_notional += notional
+        else:
+            short_notional += -notional
+        largest = max(largest, abs(notional))
+    gross = long_notional + short_notional
+    net = long_notional - short_notional
+    def pct(x: float) -> float | None:
+        return x / equity * 100.0 if equity else None
+    return {
+        "n_positions": len(positions),
+        "n_priced": priced,
+        "max_open_positions": max_open_positions,
+        "gross_exposure_pct": pct(gross),
+        "net_exposure_pct": pct(net),
+        "long_exposure_pct": pct(long_notional),
+        "short_exposure_pct": pct(short_notional),
+        "largest_position_pct": pct(largest),
+    }
+
+
+def risk_budget(router) -> dict:
+    """Today's realized loss vs the enforced daily limit (trader review:
+    'the single most important prop-desk risk control' must be VISIBLE,
+    not just enforced). Read-only view over the CircuitBreaker state."""
+    if router is None or getattr(router, "breaker", None) is None:
+        return {"attached": False}
+    breaker = router.breaker
+    state = breaker.check()
+    limit_usd = breaker.equity_base * breaker.limits.max_daily_loss_pct / 100
+    used_usd = max(0.0, -breaker.daily_pnl)
+    return {
+        "attached": True,
+        "daily_pnl": breaker.daily_pnl,
+        "daily_loss_limit_pct": breaker.limits.max_daily_loss_pct,
+        "daily_loss_limit_usd": limit_usd,
+        "daily_loss_used_usd": used_usd,
+        "daily_loss_used_pct_of_budget": (
+            used_usd / limit_usd * 100.0 if limit_usd else None),
+        "consecutive_losses": breaker.consecutive_losses,
+        "consecutive_loss_limit": breaker.limits.circuit_breaker_consecutive_losses,
+        "max_orders_per_day": getattr(breaker.limits, "max_orders_per_day", None),
+        "tripped": state.tripped,
+        "reason": state.reason,
     }
 
 

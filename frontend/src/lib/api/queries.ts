@@ -16,6 +16,8 @@ import {
   IndicatorSeriesSchema,
   IntelSchema,
   JournalSchema,
+  PortfolioStatsSchema,
+  RiskBudgetSchema,
   MemorySchema,
   NotificationsSchema,
   OverviewSchema,
@@ -44,6 +46,8 @@ export const qk = {
   regime: ["regime"] as const,
   priceAlerts: ["price-alerts"] as const,
   journal: ["journal"] as const,
+  portfolioStats: ["portfolio", "stats"] as const,
+  riskBudget: ["risk", "budget"] as const,
   backtest: ["backtest"] as const,
   memory: ["memory"] as const,
   agents: ["agents"] as const,
@@ -168,6 +172,20 @@ export const useRegime = () =>
 
 export const useJournal = () =>
   useQuery({ queryKey: qk.journal, queryFn: fetchParsed("/api/journal", JournalSchema), ...live() });
+
+export const usePortfolioStats = () =>
+  useQuery({
+    queryKey: qk.portfolioStats,
+    queryFn: fetchParsed("/api/portfolio/stats", PortfolioStatsSchema),
+    ...live(),
+  });
+
+export const useRiskBudget = () =>
+  useQuery({
+    queryKey: qk.riskBudget,
+    queryFn: fetchParsed("/api/risk/budget", RiskBudgetSchema),
+    ...live(),
+  });
 
 export const useBacktest = () =>
   useQuery({

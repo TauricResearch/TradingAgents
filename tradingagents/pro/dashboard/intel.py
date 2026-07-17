@@ -117,9 +117,54 @@ def correlation_matrix(marketdata, symbols, window: int = 30,
     }
 
 
+# Data dictionary (trader review): every tile says WHICH series it is and
+# what it means — a mislabeled series (PPIACO shown as "PPI") once steered
+# the macro debate. Keys are metric names; absent keys fall back to the
+# raw name in the UI.
+METRIC_INFO: dict[str, dict[str, str]] = {
+    "FED_FUNDS_RATE": {"label": "Fed funds rate",
+                       "note": "Effective federal funds rate (FRED DFF)."},
+    "US10Y": {"label": "US 10Y yield",
+              "note": "10-year Treasury constant maturity (FRED DGS10)."},
+    "US10Y_REAL": {"label": "US 10Y real yield",
+                   "note": "10-year TIPS yield (FRED DFII10) — gold's opportunity cost."},
+    "DXY_BROAD": {"label": "Dollar index (broad)",
+                  "note": "Trade-weighted broad dollar index (FRED DTWEXBGS)."},
+    "CPI_YOY": {"label": "CPI YoY",
+                "note": "Headline consumer inflation, year over year (FRED CPIAUCSL)."},
+    "PPI_YOY": {"label": "PPI YoY (final demand)",
+                "note": "Headline producer prices, final demand (FRED PPIFIS) — "
+                        "the series traders quote as 'PPI'."},
+    "NFP_CHANGE": {"label": "NFP change",
+                   "note": "Monthly change in nonfarm payrolls, thousands (FRED PAYEMS)."},
+    "GDP_YOY": {"label": "GDP YoY", "note": "Nominal GDP, year over year (FRED GDP)."},
+    "FUNDING_RATE": {"label": "Funding rate",
+                     "note": "Perpetual funding per 8h — positive = longs pay shorts."},
+    "OPEN_INTEREST": {"label": "Open interest",
+                      "note": "Outstanding perp contracts on the venue."},
+    "FEAR_GREED_INDEX": {"label": "Fear & Greed",
+                         "note": "alternative.me crypto sentiment index, 0 (fear) – 100 (greed)."},
+    "GOLD_COT_NET_NONCOMM": {"label": "Gold COT net (non-comm)",
+                             "note": "CFTC net non-commercial gold futures positioning."},
+    "GOLD_COT_NET_PCT_OI": {"label": "Gold COT net % of OI",
+                            "note": "Net speculative positioning as % of open interest."},
+    "GOLD_COT_NET_CHANGE_1W": {"label": "Gold COT 1w change",
+                               "note": "Week-over-week change in net positioning."},
+    "GOLD_VOL_INDEX": {"label": "Gold vol index",
+                       "note": "CBOE gold ETF volatility index (GVZ)."},
+    "GOLD_VOL_INDEX_CHANGE_1D": {"label": "Gold vol 1d change",
+                                 "note": "Day-over-day change in GVZ."},
+    "XAU_XAG_CORR_30D": {"label": "XAU/XAG corr 30d",
+                         "note": "30-day gold–silver return correlation."},
+}
+
+
 def _reading_view(reading) -> dict:
+    info = METRIC_INFO.get(reading.name, {})
     return {
         "name": reading.name,
+        "label": info.get("label"),
+        "note": info.get("note"),
         "value": reading.value,
         "unit": reading.unit,
         "as_of": reading.as_of.isoformat() if reading.as_of else None,

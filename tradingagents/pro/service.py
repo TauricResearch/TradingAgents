@@ -91,7 +91,18 @@ class PaperTradingService:
         self.run_lock = run_lock or threading.Lock()
         self.pipeline_kwargs = pipeline_kwargs
         self.open_positions: dict[str, OpenPosition] = {}
+        # paper-mode daily order cap (trader review): live arming has
+        # max_orders_per_day; paper had none — a runaway loop could churn
+        self._orders_today = 0
+        self._orders_day: object = None
         self.rehydrate()
+
+    def _order_budget_left(self) -> bool:
+        today = utc_now().date()
+        if self._orders_day != today:
+            self._orders_day = today
+            self._orders_today = 0
+        return self._orders_today < self.config.risk.max_orders_per_day
 
     # --- durability (REL-01) ---------------------------------------------------
 
@@ -279,9 +290,19 @@ class PaperTradingService:
                 if mid > 0:
                     spread_bps = 10_000.0 * (
                         snapshot.quote.ask - snapshot.quote.bid) / mid
+            if not self._order_budget_left():
+                self.alerts.emit(
+                    "warning", "order_rejected",
+                    f"entry for {rec.symbol} blocked: daily order cap "
+                    f"({self.config.risk.max_orders_per_day}) reached",
+                    symbol=rec.symbol,
+                )
+                summary["order_status"] = "blocked:daily_order_cap"
+                return summary
             equity = self.router.adapter.account().equity
             result = self.router.submit_recommendation(
                 rec, equity, spread_bps=spread_bps)
+            self._orders_today += 1
             summary["order_status"] = result.status
             if result.status == "rejected":
                 reason = result.reason or ""

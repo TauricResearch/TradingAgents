@@ -99,6 +99,18 @@ class TestEndToEnd:
         assert summary["closed_positions"][0]["pnl"] < 0
         assert service.router.breaker.consecutive_losses == 1
 
+    def test_daily_order_cap_blocks_new_entries(self):
+        # paper-mode daily order budget (trader review): live arming had
+        # max_orders_per_day; paper had no churn brake at all
+        from tradingagents.contracts import utc_now
+
+        service = make_service([130.0])
+        service._orders_day = utc_now().date()
+        service._orders_today = service.config.risk.max_orders_per_day
+        summary = service.run_once()
+        assert summary["order_status"] == "blocked:daily_order_cap"
+        assert "XAUUSD" not in service.open_positions
+
     def test_venue_rejection_writes_back_to_run_state(self):
         # phantom-SELL truth gap (2026-07-16 deploy): the venue refusing the
         # order must overwrite run.state["execution_status"] — every dashboard

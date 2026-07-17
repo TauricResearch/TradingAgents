@@ -45,6 +45,9 @@ export function AlertFeedList({
               <ShieldAlert size={11} aria-hidden="true" />
             )}
             {alert.severity}
+            {(alert.count ?? 1) > 1 && (
+              <span className="font-mono">×{alert.count}</span>
+            )}
           </span>
           <div className="min-w-0">
             {/* mockup alerts are one-liners; long texts (a critic's full

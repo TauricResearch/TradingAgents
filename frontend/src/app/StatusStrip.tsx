@@ -9,7 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api/client";
 import { qk } from "@/lib/api/queries";
-import { useNotifications, useOverview, useRegime, useStatus } from "@/lib/api/queries";
+import {
+  useNotifications,
+  useOverview,
+  useRegime,
+  useRiskBudget,
+  useStatus,
+} from "@/lib/api/queries";
 import { fmtPnl, fmtPrice, TZ_LABEL } from "@/lib/format";
 import { useConnectionState } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
@@ -169,6 +175,7 @@ export function StatusStrip() {
   const status = useStatus();
   const overview = useOverview();
   const regime = useRegime();
+  const budget = useRiskBudget();
   const notifications = useNotifications();
   const { theme, symbol, setTheme, setPaletteOpen, setNotificationsOpen } =
     useUiStore();
@@ -214,6 +221,13 @@ export function StatusStrip() {
           <Badge
             variant={s.trading_halted ? "bear" : "bull"}
             data-testid="risk-badge"
+            title={
+              budget.data?.attached && budget.data.daily_loss_limit_usd != null
+                ? `day P&L ${fmtPnl(budget.data.daily_pnl)} · daily loss budget ` +
+                  `$${fmtPrice(budget.data.daily_loss_limit_usd, 0)} ` +
+                  `(${(budget.data.daily_loss_used_pct_of_budget ?? 0).toFixed(0)}% used)`
+                : undefined
+            }
           >
             {s.trading_halted
               ? s.kill_switch?.engaged
@@ -221,6 +235,11 @@ export function StatusStrip() {
                 : "BREAKER TRIPPED"
               : "risk OK"}
             {s.equity != null && ` · $${fmtPrice(s.equity, 0)}`}
+            {(budget.data?.daily_loss_used_pct_of_budget ?? 0) >= 33 && (
+              <span className="font-mono">
+                {" "}· day {(budget.data!.daily_loss_used_pct_of_budget!).toFixed(0)}%
+              </span>
+            )}
           </Badge>
         ) : (
           <Badge variant="locked" data-testid="risk-badge">

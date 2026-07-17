@@ -27,6 +27,11 @@ class RiskLimits(ContractModel):
     max_drawdown_pct: float = Field(default=15.0, gt=0, le=100)
     max_leverage: float = Field(default=1.0, ge=1)
     max_open_positions: int = Field(default=3, ge=1)
+    max_orders_per_day: int = Field(
+        default=24, ge=1,
+        description="Cap on new entries per UTC day, enforced in every mode "
+        "(paper included) — live arming adds its own stricter cap.",
+    )
     circuit_breaker_consecutive_losses: int = Field(
         default=3, ge=1, description="Halt new entries after this many consecutive losses."
     )

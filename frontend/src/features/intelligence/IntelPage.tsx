@@ -166,12 +166,16 @@ export default function IntelPage() {
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
                     {rows.map(([name, metric]) => (
-                      <StatCard
-                        key={name}
-                        label={name.replaceAll("_", " ")}
-                        value={fmtMetricValue(name, metric.value)}
-                        sub={metric.source ?? undefined}
-                      />
+                      // data dictionary: server label + a hover note saying
+                      // exactly WHICH series this is (PPIACO-as-"PPI" once
+                      // steered the macro debate — never again)
+                      <div key={name} title={metric.note ?? undefined}>
+                        <StatCard
+                          label={metric.label ?? name.replaceAll("_", " ")}
+                          value={fmtMetricValue(name, metric.value)}
+                          sub={metric.source ?? undefined}
+                        />
+                      </div>
                     ))}
                   </div>
                 )}

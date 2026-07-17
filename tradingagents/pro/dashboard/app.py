@@ -823,6 +823,33 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     def journal() -> dict:
         return service.trade_journal(state.memory)
 
+    @app.get("/api/portfolio/stats")
+    def portfolio_stats() -> dict:
+        """Live-book analytics (trader review): closed-trade performance
+        + aggregate open exposure — the real record, not the backtest."""
+        base = (state.router.breaker.equity_base
+                if state.router is not None
+                and getattr(state.router, "breaker", None) is not None
+                else 100_000.0)
+        perf = service.journal_performance(state.memory, starting_equity=base)
+        positions, _ = service.open_positions_view(
+            state.router, state.equity, ticks=state.ticks,
+            marketdata=state.marketdata) if state.router is not None else ([], None)
+        max_open = (state.router.limits.max_open_positions
+                    if state.router is not None else 3)
+        perf["exposure"] = service.portfolio_exposure(
+            positions, state.equity, max_open)
+        return perf
+
+    @app.get("/api/risk/budget")
+    def risk_budget() -> dict:
+        budget = service.risk_budget(state.router)
+        if budget.get("attached"):
+            trigger = state.trigger
+            budget["orders_today"] = getattr(
+                getattr(trigger, "service", None), "_orders_today", None)
+        return budget
+
     @app.get("/api/backtest")
     def backtest() -> dict:
         return service.backtest_view(state.backtest, state.monte_carlo)
