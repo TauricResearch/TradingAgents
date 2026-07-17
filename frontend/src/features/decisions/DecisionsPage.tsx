@@ -111,6 +111,17 @@ function RunRail({
                     @ {run.rejected_at}
                   </span>
                 )}
+                {/* provenance (R3.2): unexplained cadence reads as
+                    instability — say who asked for the run */}
+                {run.trigger === "operator" && (
+                  <span
+                    className="inline-flex items-center rounded-[6px] bg-accent-muted px-1.5 font-mono text-[9.5px] text-accent"
+                    title="triggered from the Run dialog / API, not the schedule"
+                    data-testid="run-trigger-manual"
+                  >
+                    manual
+                  </span>
+                )}
               </div>
             </button>
           </li>

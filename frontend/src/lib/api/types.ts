@@ -29,6 +29,8 @@ export const RunListItemSchema = z.object({
   action: z.string().nullable(),
   rejected_at: z.string().nullable(),
   timeframe: z.string().nullable().optional(),
+  // run provenance (R3.2): "loop" (schedule) or "operator" (run dialog)
+  trigger: z.string().optional(),
 });
 export type RunListItem = z.infer<typeof RunListItemSchema>;
 export const RunListSchema = z.array(RunListItemSchema);

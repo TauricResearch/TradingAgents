@@ -120,6 +120,31 @@ class TestServiceAlerts:
                 if a.severity in ("warning", "critical")] == []
         assert all(a.event == "daily_pnl" for a in sink.alerts)
 
+    def test_daily_pnl_survives_process_restart_without_reemitting(self, tmp_path):
+        """R3.1: the in-memory dedupe died with the process — ten 'daily'
+        notes in twelve hours during a deploy burst. The durable
+        notification log is the tiebreaker across restarts."""
+        from tradingagents.pro.dashboard.prefs import NotificationSink, PrefsStore
+
+        prefs = PrefsStore(tmp_path / "prefs.json")
+
+        def boot_service():
+            service, _ = make_alerting_service([130.0])
+            service.alerts.sinks.append(NotificationSink(prefs))
+            service.dashboard.prefs = prefs
+            return service
+
+        first = boot_service()
+        first.run_once()
+        notes = [n for n in prefs.notifications() if n["event"] == "daily_pnl"]
+        assert len(notes) == 1
+
+        # "restart": a brand-new service (fresh in-memory marker), same store
+        second = boot_service()
+        second.run_once()
+        notes = [n for n in prefs.notifications() if n["event"] == "daily_pnl"]
+        assert len(notes) == 1  # pre-fix this was 2
+
     def test_kill_switch_refusal_is_critical(self):
         service, sink = make_alerting_service([130.0], kill_reason="drill")
         summary = service.run_once()

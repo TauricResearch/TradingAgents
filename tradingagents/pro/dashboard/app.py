@@ -631,6 +631,7 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
                 "action": run.recommendation.action.value if run.recommendation else None,
                 "rejected_at": run.rejection and run.rejection.get("stage"),
                 "timeframe": run.timeframe,
+                "trigger": run.trigger,
             }
             for run in state.runs
         ]
@@ -960,9 +961,8 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
                 SimBroker,
                 monte_carlo_summary,
             )
-            from tradingagents.pro.memory import ProMemory as _IsolatedMemory
-
             from tradingagents.pro.evals.scripted import FakePipelineLLM
+            from tradingagents.pro.memory import ProMemory as _IsolatedMemory
             asset_by_symbol = {sym: a for a, sym in DEFAULT_SYMBOLS.items()}
             if symbol not in asset_by_symbol:
                 raise HTTPException(status_code=422,

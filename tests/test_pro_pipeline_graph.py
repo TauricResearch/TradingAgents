@@ -16,12 +16,6 @@ from tradingagents.contracts import (
     TradingMode,
 )
 from tradingagents.pro.agents import EvidenceDraft
-from tradingagents.pro.pipeline import (
-    CriticReport,
-    JudgeVerdict,
-    ReflectionNote,
-    run_pipeline,
-)
 
 # the scripted provider lives in the package so the dashboard's replay
 # endpoint can use it in production; tests re-import from here
@@ -29,6 +23,12 @@ from tradingagents.pro.evals.scripted import (  # noqa: E402,F401
     DEFAULT_DRAFTS,
     FakePipelineLLM,
     FakeRunnable,
+)
+from tradingagents.pro.pipeline import (
+    CriticReport,
+    JudgeVerdict,
+    ReflectionNote,
+    run_pipeline,
 )
 
 

@@ -154,9 +154,11 @@ class PaperTradingService:
     # --- one iteration -----------------------------------------------------------
 
     def run_once(self, snapshot: MarketSnapshot | None = None,
-                 config: ProConfig | None = None) -> dict:
+                 config: ProConfig | None = None,
+                 trigger: str = "loop") -> dict:
         with self.run_lock:
-            summary = self._run_once(snapshot=snapshot, config=config)
+            summary = self._run_once(snapshot=snapshot, config=config,
+                                     trigger=trigger)
         self._emit("run", summary)
         for closed in summary.get("closed_positions", []):
             self._emit("position", {"state": "closed", **closed})
@@ -186,7 +188,8 @@ class PaperTradingService:
         return views.system_status(self.router, equity)
 
     def _run_once(self, snapshot: MarketSnapshot | None = None,
-                  config: ProConfig | None = None) -> dict:
+                  config: ProConfig | None = None,
+                  trigger: str = "loop") -> dict:
         if snapshot is None:
             produced = self.snapshot_source()
             # multi-symbol rotation: the source may pair each snapshot with
@@ -243,6 +246,7 @@ class PaperTradingService:
             self.llm, config, snapshot, memory=self.memory,
             on_node=lambda name: self._emit("stage", {"stage": name,
                                                       "symbol": snapshot.symbol}),
+            trigger=trigger,
             **{**self.pipeline_kwargs,
                "equity": self.router.adapter.account().equity},
         )
@@ -444,6 +448,21 @@ class PaperTradingService:
         today = utc_now().date().isoformat()
         if getattr(self, "_last_pnl_day", None) == today:
             return
+        # restart-proof (review R3.1): the in-memory marker dies with the
+        # process, so every deploy re-emitted a fresh "daily" summary — ten
+        # in twelve hours during a deploy burst. The durable notification
+        # log is the tiebreaker; a "daily" event must mean what it says.
+        prefs = getattr(self.dashboard, "prefs", None)
+        if prefs is not None:
+            try:
+                if any(n.get("event") == "daily_pnl"
+                       and str(n.get("time", "")).startswith(today)
+                       for n in prefs.notifications()):
+                    self._last_pnl_day = today
+                    return
+            except Exception:
+                logger.warning("daily_pnl dedupe probe failed; may re-emit",
+                               exc_info=True)
         self._last_pnl_day = today
         journal = trade_journal(self.memory)
         try:

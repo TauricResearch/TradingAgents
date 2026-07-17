@@ -81,8 +81,9 @@ class TestPipelineTrigger:
             config = CONFIG
             run_lock = None
 
-            def run_once(self, snapshot=None, config=None):
+            def run_once(self, snapshot=None, config=None, trigger="loop"):
                 calls["config"] = config
+                calls["trigger"] = trigger
                 return {"symbol": snapshot.symbol, "run_id": "r1"}
 
         class FakeSnapshotTrigger(PipelineTrigger):

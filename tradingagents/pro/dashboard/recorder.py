@@ -46,6 +46,10 @@ class RunRecord:
     # per-node wall time, parallel to node_sequence: [{"node", "elapsed_s"}].
     # Runs persisted before this field exists load as [] (UI omits latency).
     node_times: list[dict] = field(default_factory=list)
+    # who asked for this run: "loop" (schedule) or "operator" (run dialog /
+    # API). Review R3.2: an unexplained run cadence reads as instability —
+    # provenance makes the rail self-explanatory. Pre-field runs load "loop".
+    trigger: str = "loop"
     state: dict = field(default_factory=dict)
 
     @property
@@ -171,6 +175,7 @@ class PipelineRecorder:
                     asset=raw["asset"],
                     node_sequence=list(raw.get("node_sequence", [])),
                     node_times=list(raw.get("node_times", [])),
+                    trigger=raw.get("trigger", "loop"),
                     state=_state_from_json(raw.get("state", {})),
                 ))
             except Exception:
@@ -190,6 +195,7 @@ class PipelineRecorder:
             "asset": run.asset,
             "node_sequence": run.node_sequence,
             "node_times": run.node_times,
+            "trigger": run.trigger,
             "state": _state_to_json(run.state),
         })
         atomic_write_text(self.store_dir / f"{run.run_id}.json", payload)
@@ -206,6 +212,7 @@ class PipelineRecorder:
         config: ProConfig,
         snapshot: MarketSnapshot,
         on_node=None,
+        trigger: str = "loop",
         **pipeline_kwargs,
     ) -> RunRecord:
         run = RunRecord(
@@ -213,6 +220,7 @@ class PipelineRecorder:
             started_at=utc_now(),
             symbol=snapshot.symbol,
             asset=snapshot.asset.value,
+            trigger=trigger,
             state={"snapshot": snapshot},
         )
         clock = time.monotonic()

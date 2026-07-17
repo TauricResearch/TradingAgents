@@ -103,6 +103,28 @@ class TestRunPersistence:
         assert loaded.recommendation.action == run.recommendation.action
         assert loaded.timeframe == "1d"
 
+    def test_trigger_provenance_persists_and_defaults(self, tmp_path):
+        """R3.2: runs carry who asked for them; pre-field files load 'loop'."""
+        import json
+
+        from tradingagents.pro.dashboard.recorder import PipelineRecorder
+
+        memory = ProMemory()
+        recorder = PipelineRecorder(store_dir=tmp_path)
+        run = recorder.record_run(
+            FakePipelineLLM(), CONFIG, pipeline_snapshot(), memory=memory,
+            trigger="operator",
+        )
+        assert run.trigger == "operator"
+        reloaded = PipelineRecorder(store_dir=tmp_path)
+        assert reloaded.runs[0].trigger == "operator"
+        # a pre-provenance file (no trigger key) loads as the schedule
+        raw = json.loads((tmp_path / f"{run.run_id}.json").read_text())
+        del raw["trigger"]
+        (tmp_path / f"{run.run_id}.json").write_text(json.dumps(raw))
+        legacy = PipelineRecorder(store_dir=tmp_path)
+        assert legacy.runs[0].trigger == "loop"
+
     def test_pre_timing_file_loads_with_empty_node_times(self, tmp_path):
         """Runs persisted before node_times existed load fine (UI omits latency)."""
         import json

@@ -133,7 +133,8 @@ class PipelineTrigger:
                                models=self.service.config.models)
             tf = Timeframe(timeframe)
             snapshot = self._build_snapshot(symbol, asset, tf)
-            return self.service.run_once(snapshot=snapshot, config=config)
+            return self.service.run_once(snapshot=snapshot, config=config,
+                                         trigger="operator")
         finally:
             self.current = None
             self._busy.release()
@@ -344,8 +345,7 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     # ticks (feed instances carry caches / respect rate limits).
     import itertools
 
-    from tradingagents.contracts import DEFAULT_SYMBOLS
-    from tradingagents.contracts import AssetClass as AC
+    from tradingagents.contracts import DEFAULT_SYMBOLS, AssetClass as AC
 
     crypto_builders = {sym: _crypto_snapshot_builder(sym)
                        for sym in CRYPTO_WIRING}
