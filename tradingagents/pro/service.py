@@ -247,6 +247,8 @@ class PaperTradingService:
                "equity": self.router.adapter.account().equity},
         )
         rec = run.recommendation
+        self._emit_regime_change(snapshot.symbol)
+        self._evaluate_intel_alerts()
         summary: dict = {
             "run_id": run.run_id,
             "symbol": snapshot.symbol,
@@ -336,6 +338,104 @@ class PaperTradingService:
                 )
         self._maybe_daily_pnl_summary(snapshot)
         return summary
+
+    # intel condition thresholds (Phase 4 v1 — operator defaults; a
+    # prefs-backed builder can layer on later). Fires on CROSSINGS only:
+    # each key remembers its last state so steady conditions stay quiet.
+    FUNDING_EXTREME = 0.03      # %/8h ≈ 33% annualized — crowded carry
+    VOL_SPIKE_1D = 2.0          # GVZ points day-over-day
+    EVENT_TMINUS_S = 3900.0     # warn inside ~65 minutes of a major release
+
+    def _evaluate_intel_alerts(self) -> None:
+        """Condition alerts over the intel snapshot (trader review: 'the
+        platform HAS this data' — funding, positioning, vol, calendar —
+        'but never calls me'). Reuses the 60s-TTL intel cache; no extra
+        vendor spend."""
+        intel = getattr(self.dashboard, "intel", None)
+        if intel is None:
+            return
+        if not hasattr(self, "_intel_state"):
+            self._intel_state: dict = {}
+        try:
+            snapshot = intel.snapshot()
+            metrics = {m["name"]: m["value"]
+                       for m in snapshot.get("metrics", [])}
+        except Exception:
+            return
+
+        def crossed(key: str, active: bool, severity: str, text: str) -> None:
+            was = self._intel_state.get(key, False)
+            if active and not was:
+                self.alerts.emit(severity, "intel_alert", text)
+            self._intel_state[key] = active
+
+        funding = metrics.get("FUNDING_RATE")
+        if funding is not None:
+            crossed(
+                "funding_extreme", abs(funding) >= self.FUNDING_EXTREME,
+                "warning",
+                f"funding rate {funding:+.4f}%/8h — crowded "
+                f"{'longs' if funding > 0 else 'shorts'} paying carry",
+            )
+        vol_chg = metrics.get("GOLD_VOL_INDEX_CHANGE_1D")
+        if vol_chg is not None:
+            crossed(
+                "gold_vol_spike", vol_chg >= self.VOL_SPIKE_1D, "warning",
+                f"gold vol index jumped {vol_chg:+.2f} in a day — "
+                "regime shift risk",
+            )
+        cot_chg = metrics.get("GOLD_COT_NET_CHANGE_1W")
+        prev_cot = self._intel_state.get("cot_sign")
+        if cot_chg is not None:
+            sign = 1 if cot_chg > 0 else -1 if cot_chg < 0 else 0
+            if prev_cot is not None and sign != 0 and sign != prev_cot:
+                self.alerts.emit(
+                    "info", "intel_alert",
+                    f"gold COT weekly positioning flipped "
+                    f"{'bullish' if sign > 0 else 'bearish'} "
+                    f"({cot_chg:+,.0f} contracts w/w)",
+                )
+            if sign != 0:
+                self._intel_state["cot_sign"] = sign
+        try:
+            calendar_fn = self.pipeline_kwargs.get("calendar_fn")
+            nxt = calendar_fn() if calendar_fn else None
+            if nxt and nxt.get("seconds_until") is not None:
+                key = f"tminus:{nxt.get('release')}:{nxt.get('date')}"
+                if (0 < nxt["seconds_until"] <= self.EVENT_TMINUS_S
+                        and not self._intel_state.get(key)):
+                    minutes = int(nxt["seconds_until"] // 60)
+                    self.alerts.emit(
+                        "warning", "intel_alert",
+                        f"major release in {minutes}m: {nxt.get('release')} — "
+                        "the event gate will block new entries",
+                    )
+                    self._intel_state[key] = True
+        except Exception:
+            pass
+
+    def _emit_regime_change(self, symbol: str) -> None:
+        """Alert on regime TRANSITIONS (trader review Phase 4): the regime
+        records already accrue per run; a flip between the last two is the
+        event a trader wants pushed, not the steady state."""
+        from tradingagents.pro.memory import MemoryKind
+
+        try:
+            regimes = [r for r in self.memory.records(MemoryKind.REGIME)
+                       if r.symbol == symbol]
+            if len(regimes) < 2:
+                return
+            prev = regimes[-2].payload.get("regime")
+            curr = regimes[-1].payload.get("regime")
+            if prev and curr and prev != curr:
+                self.alerts.emit(
+                    "info", "regime_change",
+                    f"{symbol} regime changed: {prev} → {curr}",
+                    symbol=symbol,
+                )
+        except Exception:
+            logger.warning("regime-change detection failed; continuing",
+                           exc_info=True)
 
     def _maybe_daily_pnl_summary(self, snapshot) -> None:
         """Emit one info/daily_pnl alert per UTC day (go-live Phase 5)."""

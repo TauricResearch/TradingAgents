@@ -846,6 +846,58 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             positions, state.equity, max_open)
         return perf
 
+    @app.get("/api/scanner")
+    def scanner() -> dict:
+        """Deterministic universe scan (trader review: 'today's best
+        opportunity immediately'): the pipeline's zero-LLM prepare-stage
+        features across every tradeable symbol, ranked. Running the full
+        agent debate stays a deliberate, priced action."""
+        from tradingagents.contracts import utc_now
+        from tradingagents.pro.analytics.features import (
+            classify_regime,
+            close_zscore,
+            realized_volatility,
+            trend_slope,
+        )
+
+        rows = []
+        for spec in state.marketdata.registry.values():
+            if not spec.tradeable:
+                continue
+            try:
+                tf = "1h" if any(t.value == "1h" for t in spec.timeframes) else "1d"
+                bars = state.marketdata.get_bars(spec.symbol, tf, limit=120)
+                if len(bars) < 60:
+                    continue
+                regime = classify_regime(bars)
+                slope, r2 = trend_slope(bars)
+                zscore = close_zscore(bars)
+                vol = realized_volatility(bars)
+                # setup score: stretched price (|z|) in a directional regime
+                # scores highest; pure chop scores lowest. Deterministic and
+                # explainable — not a prediction.
+                regime_weight = {
+                    "trending_up": 1.0, "trending_down": 1.0,
+                    "high_volatility": 0.8, "crisis": 0.8,
+                    "low_volatility": 0.5, "ranging": 0.4,
+                }.get(regime.value, 0.3)
+                score = round((abs(zscore) + abs(slope) * 50) * regime_weight, 2)
+                rows.append({
+                    "symbol": spec.symbol,
+                    "timeframe": tf,
+                    "regime": regime.value,
+                    "trend_slope": slope,
+                    "trend_r2": r2,
+                    "zscore": zscore,
+                    "realized_vol": vol,
+                    "last_close": bars[-1].close,
+                    "score": score,
+                })
+            except Exception:  # one degraded vendor never blanks the scan
+                continue
+        rows.sort(key=lambda r: r["score"], reverse=True)
+        return {"rows": rows, "as_of": utc_now().isoformat()}
+
     @app.post("/api/calibration/backfill")
     def calibration_backfill() -> dict:
         """Retro-score stored REAL runs against subsequent bars so the
@@ -874,6 +926,73 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     @app.get("/api/backtest")
     def backtest() -> dict:
         return service.backtest_view(state.backtest, state.monte_carlo)
+
+    import threading as _bt_threading
+
+    _backtest_lock = _bt_threading.Lock()
+
+    @app.post("/api/backtest/run")
+    def run_backtest(symbol: str = "XAUUSD", timeframe: str = "1d",
+                     bars: int = 240) -> dict:
+        """Deterministic mechanics replay (Phase 5): the REAL pipeline over
+        REAL bars with the scripted no-cost LLM — exercises gates, sizing,
+        fills and exits, not model skill (and says so). Uses an ISOLATED
+        memory so simulations never touch the live record."""
+        if not _backtest_lock.acquire(blocking=False):
+            raise HTTPException(status_code=409,
+                                detail="a backtest is already running")
+        try:
+            from tradingagents.contracts import (
+                DEFAULT_SYMBOLS,
+                ProConfig,
+                TradingMode,
+            )
+            from tradingagents.pro.backtest import (
+                BacktestEngine,
+                BarReplay,
+                SimBroker,
+                monte_carlo_summary,
+            )
+            from tradingagents.pro.memory import ProMemory as _IsolatedMemory
+
+            try:
+                from tests.test_pro_pipeline_graph import FakePipelineLLM
+            except ImportError:  # image built without the scripted provider
+                raise HTTPException(
+                    status_code=503,
+                    detail="deterministic replay provider unavailable")
+            asset_by_symbol = {sym: a for a, sym in DEFAULT_SYMBOLS.items()}
+            if symbol not in asset_by_symbol:
+                raise HTTPException(status_code=422,
+                                    detail=f"unknown symbol {symbol}")
+            series = state.marketdata.get_bars(
+                symbol, timeframe, limit=min(int(bars) + 60, 1000))
+            if len(series) < 90:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"only {len(series)} bars available; need >= 90")
+            config = ProConfig(asset=asset_by_symbol[symbol],
+                               mode=TradingMode.BACKTEST,
+                               max_debate_rounds=1)
+            replay = BarReplay(symbol, asset_by_symbol[symbol], series,
+                               window=60)
+            result = BacktestEngine(
+                FakePipelineLLM(), config, replay,
+                broker=SimBroker(initial_equity=100_000.0),
+                memory=_IsolatedMemory(),  # never the live memory.jsonl
+                min_history=60, decide_every=5,
+            ).run()
+            mc = (monte_carlo_summary([t.pnl for t in result.trades],
+                                      100_000.0)
+                  if result.trades else None)
+            state.backtest, state.monte_carlo = result, mc
+            view = service.backtest_view(result, mc)
+            view["provider"] = "deterministic"
+            view["symbol"] = symbol
+            view["timeframe"] = timeframe
+            return view
+        finally:
+            _backtest_lock.release()
 
     @app.get("/api/memory")
     def memory_view() -> dict:

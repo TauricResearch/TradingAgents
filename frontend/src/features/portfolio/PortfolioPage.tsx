@@ -13,8 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { Sparkline } from "@/components/Sparkline";
+import { apiFetch } from "@/lib/api/client";
 import {
+  qk,
   useBacktest,
   useJournal,
   useMemoryInsights,
@@ -39,6 +43,19 @@ export default function PortfolioPage() {
   const j = journal.data;
   const stats = usePortfolioStats();
   const budget = useRiskBudget();
+  const client = useQueryClient();
+  const [btRunning, setBtRunning] = useState(false);
+  const runReplay = async () => {
+    setBtRunning(true);
+    try {
+      await apiFetch("/api/backtest/run?symbol=XAUUSD&timeframe=1d", {
+        method: "POST",
+      });
+      await client.invalidateQueries({ queryKey: qk.backtest });
+    } finally {
+      setBtRunning(false);
+    }
+  };
   const perf = stats.data;
   const exposure = perf?.exposure;
   const budgetUsedPct = budget.data?.daily_loss_used_pct_of_budget ?? null;
@@ -102,7 +119,17 @@ export default function PortfolioPage() {
               <EmptyState
                 kind="empty"
                 title="No backtest yet"
-                detail="Run scripts/pro_real_replay.py to populate this panel with a real-data replay."
+                detail="Run a deterministic replay: the real pipeline over real bars with a scripted no-cost model — it exercises gates, sizing and exits, not model skill."
+                action={
+                  <Button
+                    size="sm"
+                    disabled={btRunning}
+                    onClick={() => void runReplay()}
+                    data-testid="run-backtest"
+                  >
+                    {btRunning ? "Replaying…" : "Run replay (free)"}
+                  </Button>
+                }
               />
             )}
           </CardContent>

@@ -252,6 +252,25 @@ export const JournalSchema = z.object({
 });
 export type Journal = z.infer<typeof JournalSchema>;
 
+export const ScannerSchema = z.object({
+  rows: z.array(
+    z
+      .object({
+        symbol: z.string(),
+        timeframe: z.string(),
+        regime: z.string(),
+        trend_slope: z.number(),
+        zscore: z.number(),
+        realized_vol: z.number(),
+        last_close: z.number(),
+        score: z.number(),
+      })
+      .passthrough(),
+  ),
+  as_of: z.string(),
+});
+export type Scanner = z.infer<typeof ScannerSchema>;
+
 export const PortfolioStatsSchema = z
   .object({
     equity_curve: z.array(z.number()),

@@ -22,6 +22,7 @@ import {
   useOverview,
   useRecommendation,
   useRuns,
+  useScanner,
   useStatus,
 } from "@/lib/api/queries";
 import { fmtCountdown, fmtPnl, fmtPrice, fmtDateTime, fmtPct } from "@/lib/format";
@@ -320,6 +321,42 @@ function SinceYouLeft() {
   );
 }
 
+function Opportunities() {
+  // deterministic prepare-stage scan across the tradeable universe —
+  // "today's best opportunity immediately" (trader review). Explainable
+  // ranking, not a prediction; the full debate stays a priced action.
+  const scanner = useScanner();
+  const rows = scanner.data?.rows ?? [];
+  if (scanner.isPending) return <SkeletonCard lines={4} />;
+  if (rows.length === 0)
+    return <EmptyState kind="waiting" title="Scanner warming up" />;
+  return (
+    <ol className="space-y-1.5 text-[13px]" data-testid="opportunities">
+      {rows.map((row, i) => (
+        <li key={row.symbol}>
+          <Link
+            to={`/trade/${row.symbol}`}
+            className="flex items-center gap-3 rounded-[12px] bg-surface-2 px-3 py-[7px] hover:bg-surface-solid hover:shadow-sm"
+          >
+            <span className="w-4 font-mono text-xs text-fg-subtle">{i + 1}</span>
+            <span className="w-20 font-mono font-semibold">{row.symbol}</span>
+            <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-bold text-accent">
+              {row.regime.replaceAll("_", " ")}
+            </span>
+            <span className="grow" />
+            <span className="font-mono text-xs text-fg-subtle" title="close z-score (50-bar)">
+              z {row.zscore.toFixed(1)}
+            </span>
+            <span className="font-mono text-xs font-bold" title="setup score: |z| + trend, weighted by regime">
+              {row.score.toFixed(1)}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function WhatNext() {
   const calendar = useCalendar();
   // ticks locally between refetches (R2.3: a frozen snapshot once showed
@@ -387,7 +424,8 @@ const WIDGETS: WidgetDef[] = [
   { id: "prices", title: "Prices", render: () => <PriceRibbon />, layout: { x: 7, y: 7, w: 5, h: 4, minW: 3, minH: 4 } },
   { id: "alerts", title: "Alerts", render: () => <AlertsWidget />, layout: { x: 0, y: 14, w: 7, h: 8, minW: 3, minH: 4 } },
   { id: "diff", title: "Since you left", render: () => <SinceYouLeft />, layout: { x: 7, y: 11, w: 5, h: 6, minW: 3, minH: 4 } },
-  { id: "watchlist", title: "Watchlist", render: () => <WatchlistPanel />, layout: { x: 0, y: 22, w: 7, h: 6, minW: 4, minH: 4 } },
+  { id: "opportunities", title: "Opportunities (deterministic scan)", render: () => <Opportunities />, layout: { x: 0, y: 22, w: 7, h: 6, minW: 3, minH: 4 } },
+  { id: "watchlist", title: "Watchlist", render: () => <WatchlistPanel />, layout: { x: 0, y: 28, w: 7, h: 6, minW: 4, minH: 4 } },
   { id: "next", title: "What's next", render: () => <WhatNext />, layout: { x: 7, y: 17, w: 5, h: 6, minW: 4, minH: 4 } },
 ];
 

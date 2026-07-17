@@ -17,6 +17,7 @@ import {
   IntelSchema,
   JournalSchema,
   PortfolioStatsSchema,
+  ScannerSchema,
   RiskBudgetSchema,
   MemorySchema,
   NotificationsSchema,
@@ -47,6 +48,7 @@ export const qk = {
   priceAlerts: ["price-alerts"] as const,
   journal: ["journal"] as const,
   portfolioStats: ["portfolio", "stats"] as const,
+  scanner: ["scanner"] as const,
   riskBudget: ["risk", "budget"] as const,
   backtest: ["backtest"] as const,
   memory: ["memory"] as const,
@@ -172,6 +174,14 @@ export const useRegime = () =>
 
 export const useJournal = () =>
   useQuery({ queryKey: qk.journal, queryFn: fetchParsed("/api/journal", JournalSchema), ...live() });
+
+export const useScanner = () =>
+  useQuery({
+    queryKey: qk.scanner,
+    queryFn: fetchParsed("/api/scanner", ScannerSchema),
+    staleTime: 120_000,
+    refetchInterval: 300_000,
+  });
 
 export const usePortfolioStats = () =>
   useQuery({
