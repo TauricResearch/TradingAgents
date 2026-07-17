@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-Formal specification and independent spec review. Architecture, event model, V2 UI, failure handling, privacy, and testing design are approved. Implementation remains paused until the written spec review and user review gates pass.
+Formal specification review loop. Review round 1 found six blocking contract gaps: skipped-role semantics, callback correlation, event payload/state machines, vendor/tool provenance correlation, strict resume compatibility, and atomic SSE replay-to-live handoff. All six are now resolved in the written specification, including logical role turns across model/tool graph re-entry; a fresh independent review is next.
 
 ## Confirmed constraints
 
@@ -53,7 +53,7 @@ Formal specification and independent spec review. Architecture, event model, V2 
 
 ## Pending decisions
 
-None inside the approved design. The written spec still requires independent review and user review before implementation planning.
+No new product decision is required. The written spec must resolve the independent review issues, pass re-review, and then receive user review before implementation planning.
 
 ## Next steps
 

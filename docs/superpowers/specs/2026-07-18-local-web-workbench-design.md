@@ -1,6 +1,6 @@
 # TradingAgents Local Web Workbench Design
 
-**Status:** Approved in conversation; ready for independent spec review  
+**Status:** Approved in conversation; independent review fixes in progress  
 **Date:** 2026-07-18  
 **Scope:** Localhost-only single-user web application for the existing TradingAgents repository
 
@@ -160,13 +160,22 @@ Responsibilities:
 - Emit typed run, node, message, report, and artifact events.
 - Return the same final decision and report artifacts expected by existing callers.
 
-Interface:
+Interface and compatibility result:
 
 ```python
 runner.run(request: AnalysisRequest, observer: RunObserver) -> AnalysisResult
+
+@dataclass(frozen=True)
+class AnalysisResult:
+    run_id: str
+    status: Literal["completed", "cancelled", "failed", "interrupted"]
+    final_state: AgentState
+    final_signal: str | None
+    artifact_refs: tuple[ArtifactRef, ...]
+    complete_report: ArtifactRef | None
 ```
 
-The CLI and web layer consume this interface. CLI rendering remains a consumer, not a second graph execution implementation.
+The CLI and web layer consume this interface. CLI rendering remains a consumer, not a second graph execution implementation. The existing `propagate()` compatibility adapter returns `(result.final_state, result.final_signal)` so its tuple semantics do not change.
 
 ### 7.2 `RunObserver`
 
@@ -190,6 +199,28 @@ Interface:
 observer.emit(event: RunEvent) -> PersistedEvent
 observer.store_artifact(kind, value, metadata) -> ArtifactRef
 ```
+
+#### Observation and correlation contract
+
+Every executed role node is wrapped by `ObservedNode(actor_id, projection_fn, node_fn)`. A `turn_id` means one logical role turn, which may span `model -> tool -> model` graph re-entry. Before the first invocation of that logical turn, the wrapper:
+
+1. allocates a stable `turn_id` for the logical role turn;
+2. installs an `ObservationContext` in a Python `ContextVar` containing `run_id`, `actor_id`, `node_id`, and `turn_id`;
+3. captures the whitelisted node-entry projection;
+4. emits `node.started`; and
+5. restores the previous context after the Python invocation returns.
+
+Model callbacks read this context and add the LangChain callback run identifier as `model_call_id`. Each initial or fallback model call gets a distinct `attempt_id` under the same `turn_id`. If the model returns tool calls, the observer keeps the turn open and records `tool_call_id -> RoleTurnRef` before the role node returns. Each role-specific `ObservedToolNode` preserves the model-provided `tool_call_id`, looks up that reference, reinstalls the originating observation context, and matches the resulting `ToolMessage` by the same identifier. When the role node is entered again after tool completion, `ObservedNode` reuses the open `turn_id`; it closes the turn and emits `node.completed` only after a final role output without unresolved tool calls, or `node.failed` on terminal failure. A later debate round receives a new `turn_id`. A model retry receives a new `attempt_id`; a repeated tool invocation receives a new `tool_call_id`.
+
+Sentiment prefetch and Evidence Steward enrichment do not pass through `ObservedToolNode`. Their callers must enter an explicit `observer.direct_call_scope(...)` using the current `turn_id`; each provider attempt receives a `vendor_call_id`. Events without a valid current observation context fail a development assertion and are persisted as unattributed internal diagnostics in production, rather than being silently assigned to the wrong role.
+
+The immutable join chain is:
+
+```text
+run_id -> turn_id -> attempt_id/model_call_id -> tool_call_id -> vendor_call_id -> artifact_id
+```
+
+Not every call uses every level, but every child records its nearest available parent identifier.
 
 ### 7.3 `SingleRunManager`
 
@@ -232,6 +263,20 @@ Purpose: render the persisted event model and let the user inspect it.
 
 It contains no TradingAgents business logic. A single reducer processes both live SSE events and historical replay, preventing live/history drift.
 
+### 7.7 `DataProvenanceRecorder`
+
+Purpose: capture the actual vendor request, original response, normalized values, and fallback chain at the data routing/normalization boundary.
+
+`DataProgressEvent` keeps its current CLI-facing stage/method/vendor/message fields and gains optional `run_id`, `turn_id`, `tool_call_id`, `vendor_call_id`, and `artifact_id` fields. The recorder is invoked where a concrete vendor adapter is selected and where its response is normalized, not only from LangChain callbacks. Each fallback vendor attempt has its own `vendor_call_id`, status, duration, error category, and raw/normalized artifact references. The value returned to the agent remains unchanged.
+
+Direct Sentiment and Evidence calls enter the same recorder through `direct_call_scope`, so direct and tool-mediated data use share one provenance model.
+
+### 7.8 `ReportArtifactWriter`
+
+Purpose: make partial reports durable without changing existing final report names.
+
+Each `report.updated` event atomically writes or replaces the latest revision of that report section and records its `artifact_id` and revision. On successful completion, the existing `write_report_tree` function remains authoritative for canonical final filenames and `complete_report.md`.
+
 ## 8. Run model and storage
 
 ### 8.1 Run identifier
@@ -273,6 +318,8 @@ Ticker text is metadata and never determines a directory path.
 - configured/missing key status only
 - timestamps, latest sequence, final signal, and artifact references
 - failure or cancellation summary when applicable
+- immutable resume fingerprint and code/prompt schema versions
+- `retry_of` or `resumed_from_sequence` when applicable
 
 It never contains secret values.
 
@@ -286,6 +333,21 @@ For every event:
 4. Publish the same persisted event to SSE subscribers.
 
 The UI therefore never observes an event that history cannot replay.
+
+### 8.4 Checkpoint identity and resume fingerprint
+
+The current checkpoint identity is derived from ticker/date plus graph shape. The web layer must not assume that this is sufficient semantic compatibility. Its checkpoint thread identifier is namespaced by `run_id` as well as the existing ticker/date/graph-shape values, preventing two history entries from sharing mutable checkpoint state.
+
+At run creation the server stores a secret-free, canonical resume fingerprint containing:
+
+- normalized ticker, analysis date, asset type, selected analysts, debate depth, and risk depth;
+- provider, quick/deep model names, backend endpoint identity, temperature/reasoning settings, and output language;
+- selected data vendors and evidence/news configuration that can alter graph semantics;
+- prompt schema version, event schema version, and application code version.
+
+Secret values are excluded. `resume` reuses the same `run_id`, checkpoint thread, event sequence, and directory only when a checkpoint exists and the complete fingerprint matches. Any mismatch returns a typed `checkpoint_incompatible` error. `retry` always creates a new run and checkpoint namespace.
+
+On server startup, a run left in `running` or `cancel_requested` is atomically changed to `interrupted`, and a `run.interrupted` event is appended. It is resumable only if its compatible checkpoint still exists; otherwise the UI offers retry.
 
 ## 9. Event protocol
 
@@ -323,25 +385,36 @@ Run lifecycle:
 - `run.started`
 - `run.cancel_requested`
 - `run.cancelled`
+- `run.interrupted`
+- `run.resumed`
 - `run.completed`
 - `run.failed`
 
 Execution lifecycle:
 
 - `node.started`
+- `node.skipped`
+- `node.not_reached`
+- `node.interrupted`
 - `node.completed`
 - `node.failed`
 - `agent.message`
 - `state.updated`
 - `report.updated`
 - `stats.updated`
+- `model.started`
+- `model.completed`
+- `model.failed`
 
 Tool and data lifecycle:
 
+- `tool.requested`
 - `tool.started`
 - `tool.completed`
 - `tool.failed`
 - `data.progress`
+- `data.completed`
+- `data.failed`
 
 Input audit lifecycle:
 
@@ -353,7 +426,45 @@ Artifacts:
 
 - `artifact.written`
 
-### 9.3 Replay and reconnect
+### 9.3 Required payloads and relationship identifiers
+
+| Event family | Required payload fields |
+|---|---|
+| `run.*` | `run_status`; terminal events also include safe `summary` and optional `error_category`; resume/interruption includes `checkpoint_sequence` |
+| `node.*` | `role_instance_id`, `role_status`; executed turns include `turn_id`; skip/not-reached/interrupted includes `reason`; completion includes `duration_ms` |
+| `model.*` | `turn_id`, `attempt_id`, `model_call_id`, provider, model, structured/free-text path; terminal events include `duration_ms`, usage, and optional output/error artifact |
+| `agent.message` | `turn_id`, `message_id`, message kind, content or artifact reference |
+| `input.*` | `turn_id`, capture kind, `artifact_id`, content hash, redaction manifest; prompt input also includes `attempt_id` and `model_call_id` |
+| `tool.*` | `turn_id`, nearest `attempt_id`, `tool_call_id`, tool name; requested includes arguments; terminal events include duration and result/error artifact |
+| `data.*` | `turn_id`, optional `tool_call_id`, `vendor_call_id`, method, vendor, stage/status; terminal events include duration and raw/normalized artifacts or error |
+| `report.updated` | `turn_id`, report kind, revision, `artifact_id` |
+| `artifact.written` | `artifact_id`, kind, media type, content hash, byte size, safe relative locator |
+| `stats.updated` | cumulative calls/tokens/cost where available plus the triggering `turn_id` or `model_call_id` |
+
+`role_instance_id` is deterministically `<run_id>:<actor_id>`. The envelope `parent_event_id` points to the lifecycle event that directly caused the event when known. Reducers join business objects by immutable identifiers, never by display label, timestamp, or array position.
+
+### 9.4 State-transition rules
+
+Run state:
+
+```text
+created -> running -> completed | failed
+                   -> cancel_requested -> cancelled | failed
+running | cancel_requested -> interrupted -> running (explicit resume)
+```
+
+Role state for all 13 registry entries:
+
+```text
+pending -> running -> completed | failed
+pending -> skipped
+pending -> not_reached
+running -> interrupted  (process termination before a terminal node event)
+```
+
+Model state is `started -> completed | failed`. Tool state is `requested -> started -> completed | failed`. Vendor data state is `progress -> completed | failed`; multiple progress events may precede one terminal event. Invalid transitions are rejected by backend tests and ignored with a diagnostic by the frontend reducer.
+
+### 9.5 Replay, live handoff, reconnect, and backpressure
 
 SSE responses emit `id: <sequence>`. The endpoint accepts an `after` query parameter and honors `Last-Event-ID` on automatic reconnect.
 
@@ -363,6 +474,18 @@ Page load behavior:
 2. Reduce persisted events through the latest stored sequence.
 3. If the run is active, open SSE after that sequence.
 4. Deduplicate by `sequence`.
+
+Replay-to-live subscription is atomic under a per-run broker lock:
+
+1. acquire the lock shared with event persistence/publication;
+2. register a bounded subscriber queue and capture the current persisted watermark;
+3. read persisted events in `(after, watermark]`;
+4. release the lock;
+5. yield that replay, then queued events with sequence greater than the watermark.
+
+Event publication holds the same lock while assigning sequence, appending and flushing the event, updating the snapshot, and enqueueing the persisted event. Therefore no event can fall between replay and subscription.
+
+Subscriber queues hold 512 events. If a client is too slow and its queue fills, the server closes only that SSE connection. The client reconnects from its last successfully reduced sequence and catches up from disk; persisted events are never dropped. A 15-second SSE comment acts as a keepalive. Browser disconnect does not cancel the analysis, and disconnected queues are unregistered promptly.
 
 ## 10. Stable role registry
 
@@ -384,6 +507,8 @@ Page load behavior:
 
 User-facing labels may be localized. Actor IDs and event semantics do not change with language.
 
+All 13 cards always render. At run creation, each unselected analyst receives `node.skipped` with reason `not_selected`; its audit panel states that the role did not execute and therefore has no captured input or prompt. If failure, cancellation, or interruption prevents a selected/downstream role from starting, it receives `node.not_reached` with the terminal reason. Input and prompt acceptance requirements apply only to roles that reached `running`.
+
 ## 11. Exact role input audit
 
 The input audit is a two-layer capture system.
@@ -400,7 +525,7 @@ Reasons:
 
 The snapshot records:
 
-- `actor_id`, `node_id`, attempt, and capture time
+- `actor_id`, `node_id`, `turn_id`, attempt, and capture time
 - projected state fields
 - upstream report/event references
 - data artifact references
@@ -429,6 +554,8 @@ Two existing paths require explicit instrumentation:
 - Evidence Steward injects the observer into its temporary advisor LLM and Tavily enrichment calls.
 
 Relying only on LangChain tool callbacks would leave these inputs invisible and is not acceptable.
+
+Every direct or tool-mediated vendor call is captured at the adapter and normalization boundaries by `DataProvenanceRecorder`. This is the authority for the "Raw values" view; `data.progress` text alone is not sufficient evidence.
 
 ### 11.4 Artifact representation
 
@@ -487,7 +614,7 @@ Creates a new run with the same safe input configuration and a new `run_id`.
 
 `POST /api/runs/{run_id}/resume`
 
-Available only when a compatible checkpoint exists and its graph-shape signature matches.
+Available only when a checkpoint exists and the complete stored resume fingerprint matches the current runtime. It continues the same run directory and event sequence, emits `run.resumed`, and records `resumed_from_sequence`. A mismatch is returned as HTTP `409` with the safe fields that differ; secret values are never compared or returned.
 
 ### 12.3 Events and artifacts
 
@@ -608,7 +735,7 @@ Error categories include:
 
 Retry creates a new run and links it to `retry_of`. This preserves audit independence.
 
-Resume is explicit and only uses the existing checkpoint mechanism when the ticker, date, selected analysts, debate depth, risk depth, and asset type produce the same graph-shape signature.
+Resume is explicit and first requires the existing ticker/date/graph-shape compatibility check, then the complete immutable fingerprint in section 8.4. It continues the same history record; it never silently changes provider, model, language, data routing, prompt/schema version, or code version. A process restart converts an orphaned active run and any open role turn to `interrupted` before resume is offered.
 
 ## 15. Privacy and security
 
@@ -631,7 +758,7 @@ Resume is explicit and only uses the existing checkpoint mechanism when the tick
 - Existing environment variables and local JSON config remain the source of secret/provider configuration.
 - Provider choices come from the runtime registry rather than copied README text.
 - Existing report file names and report content remain compatible.
-- Existing checkpoint signatures and validation rules are reused.
+- Existing graph-shape checkpoint signatures and validation rules are retained as a lower-level guard; the web resume fingerprint adds stricter semantic compatibility.
 - `AnalysisRunner` refactoring must preserve programmatic `propagate()` return behavior and the existing CLI output contract.
 
 ## 17. Testing strategy
@@ -647,17 +774,24 @@ Resume is explicit and only uses the existing checkpoint mechanism when the tick
 - cancellation state transitions
 - all 13 role input projection functions
 - structured-output retry/fallback attempt attribution
+- observation context propagation and assertion on unattributed callbacks
+- run, role, model, tool, and vendor lifecycle transition validation
+- resume fingerprint canonicalization and secret exclusion
 
 ### 17.2 Backend integration tests
 
 - deterministic fake graph produces the full workflow lifecycle
 - graph node updates map to stable actor IDs
+- unselected analysts become `skipped`; unreachable roles become `not_reached`
 - direct Sentiment and Evidence Steward calls are observable
-- tool completion, failure, and output references persist correctly
-- SSE initial replay, live delivery, reconnect, and deduplication
+- model/tool/vendor identifiers join retries, fallback calls, and artifacts to the correct role turn
+- tool completion, vendor fallback, raw/normalized data, failure, and output references persist correctly
+- SSE initial replay, atomic replay-to-live handoff, slow-subscriber disconnect, reconnect, and deduplication
 - failure retains events and partial reports
 - retry creates a separate linked run
-- compatible and incompatible checkpoint resume behavior
+- strict compatible and incompatible checkpoint resume behavior, including orphaned active runs
+- partial report revisions and canonical final report writer compatibility
+- `AnalysisResult`, `propagate()` tuple, and CLI compatibility
 
 ### 17.3 Frontend tests
 
@@ -674,7 +808,7 @@ Resume is explicit and only uses the existing checkpoint mechanism when the tick
 ### 17.4 Browser tests
 
 - create a fake deterministic run from the UI
-- observe all workflow phases and 13 roles
+- observe all workflow phases and 13 roles, including explicit skipped/not-reached states
 - inspect Fundamentals company profile and financial statements
 - inspect Market data and indicators
 - inspect Bull/Bear upstream reports and opponent responses
@@ -702,8 +836,8 @@ The work is complete only when all of the following are true:
 2. The browser can submit a validated stock analysis.
 3. A second active submission is rejected clearly.
 4. The UI shows actual live node, debate, tool, data, and report events.
-5. All 13 roles have stable IDs, distinct icons, and correct workflow status.
-6. Clicking a role shows its captured state inputs and formatted model input.
+5. All 13 roles have stable IDs, distinct icons, and correct `pending`, `running`, `completed`, `failed`, `skipped`, `not_reached`, or `interrupted` workflow status.
+6. Clicking an executed role shows its captured state inputs and formatted model input; clicking a skipped or not-reached role truthfully explains why no input exists.
 7. Fundamentals input exposes company profile, financial statements, periods, units, vendors, raw values, normalized values, and hashes.
 8. Market input exposes price data, indicators, and verified snapshot data.
 9. Bull/Bear and risk roles expose their upstream reports and current opponent inputs.
@@ -715,6 +849,8 @@ The work is complete only when all of the following are true:
 15. Existing CLI behavior and existing automated tests continue to pass.
 16. Backend, frontend, and Playwright tests for the web workflow pass.
 17. One real minimum-depth analysis validates the end-to-end path.
+18. Every prompt, tool, direct vendor call, fallback attempt, raw/normalized artifact, and partial report can be joined to the correct role turn by persisted identifiers.
+19. Resume is refused when any semantic fingerprint field differs, and an interrupted compatible run resumes without mixing configuration or event sequences.
 
 ## 19. Alternatives considered
 
@@ -740,4 +876,3 @@ Deferred because current dataflow configuration and progress sinks are process-g
 - The V2 interactive mockup was approved on 2026-07-18.
 - The V2 mockup was inspected in a real browser with Playwright; 13 role nodes, role input switching, raw input view, primary tabs, and tool expansion worked without console errors after the favicon fix.
 - Progress and current decisions are mirrored in `Handoff.md`.
-
