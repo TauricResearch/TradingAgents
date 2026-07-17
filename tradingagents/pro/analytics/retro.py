@@ -38,10 +38,12 @@ class RetroOutcome:
 def simulate_ticket(
     rec: TradeRecommendation, bars: list[OHLCVBar],
 ) -> RetroOutcome | None:
-    """Walk bars AFTER the decision; first touch of stop or final target
-    resolves the ticket. Conservative tie-break: a bar spanning both the
-    stop and the target counts as a stop (worst case). Returns None while
-    unresolved — the honest answer for a live thesis."""
+    """Walk bars AFTER the decision; first touch of stop or FIRST target
+    resolves the ticket — the calibration question is "was the direction
+    right before the stop", and TP1 is the ticket's own first proof point.
+    Conservative tie-break: a bar spanning both counts as a stop (worst
+    case). Returns None while unresolved — the honest answer for a live
+    thesis."""
     if rec.action is TradeAction.HOLD:
         return None
     entry = rec.entry_price
@@ -49,14 +51,14 @@ def simulate_ticket(
     targets = rec.take_profits or []
     if entry is None or stop is None or not targets:
         return None
-    final_target = targets[-1].price
+    first_target = targets[0].price
     qty = rec.position_size.quantity if rec.position_size else 1.0
     direction = 1.0 if rec.action is TradeAction.BUY else -1.0
 
     for bar in bars:
         stop_hit = bar.low <= stop if direction > 0 else bar.high >= stop
-        target_hit = (bar.high >= final_target if direction > 0
-                      else bar.low <= final_target)
+        target_hit = (bar.high >= first_target if direction > 0
+                      else bar.low <= first_target)
         if stop_hit:  # conservative: stop wins ties within one bar
             return RetroOutcome(
                 pnl=(stop - entry) * qty * direction,
@@ -64,20 +66,21 @@ def simulate_ticket(
             )
         if target_hit:
             return RetroOutcome(
-                pnl=(final_target - entry) * qty * direction,
-                exit_price=final_target, exit_reason="take_profit",
+                pnl=(first_target - entry) * qty * direction,
+                exit_price=first_target, exit_reason="take_profit",
                 closed_at=bar.start,
             )
     return None
 
 
 def backfill_outcomes(runs, memory, bars_for,
-                      open_symbols: frozenset | set = frozenset()) -> dict:
+                      open_rec_ids: frozenset | set = frozenset()) -> dict:
     """Score every eligible stored run. ``bars_for(run)`` returns the bars
     strictly AFTER the run's decision bar for its symbol/timeframe (the
-    caller owns data access). ``open_symbols`` = symbols with a live open
-    position — their tickets belong to the live loop, never to retro.
-    Returns counters for the operator."""
+    caller owns data access). ``open_rec_ids`` = recommendation ids whose
+    tickets OWN a live open position — those belong to the live loop,
+    never to retro; older never-filled tickets on the same symbol are
+    fair game. Returns counters for the operator."""
     from tradingagents.pro.memory import MemoryKind
 
     scored = 0
@@ -96,7 +99,7 @@ def backfill_outcomes(runs, memory, bars_for,
         if existing is not None and existing.id in closed_refs:
             skipped_already += 1  # lived close or a prior backfill
             continue
-        if existing is not None and run.symbol in open_symbols:
+        if rec.id in open_rec_ids:
             skipped_unresolved += 1  # a live open position owns this ticket
             continue
         try:

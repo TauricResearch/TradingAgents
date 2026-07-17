@@ -89,9 +89,9 @@ class TestBackfill:
         runs = [make_run(rec)]
         bars = [bar(1, 2405, 2445)]
 
-        # symbol currently open on the book → hands off
+        # this exact ticket owns a live open position → hands off
         held = backfill_outcomes(runs, memory, lambda run: bars,
-                                 open_symbols={rec.symbol})
+                                 open_rec_ids={rec.id})
         assert held["scored"] == 0 and held["skipped_unresolved"] == 1
 
         # book flat → close the existing record in place

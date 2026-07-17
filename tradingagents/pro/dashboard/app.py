@@ -911,10 +911,14 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             bars = state.marketdata.get_bars(run.symbol, tf.value, limit=1000)
             return [b for b in bars if b.start > run.started_at]
 
-        open_symbols = (set(state.router.local_book)
-                        if state.router is not None else set())
+        service_obj = getattr(state.trigger, "service", None)
+        open_rec_ids = {
+            pos.recommendation.id
+            for pos in getattr(service_obj, "open_positions", {}).values()
+            if getattr(pos, "recommendation", None) is not None
+        }
         result = backfill_outcomes(state.runs, state.memory, bars_for,
-                                   open_symbols=open_symbols)
+                                   open_rec_ids=open_rec_ids)
         return result
 
     @app.get("/api/risk/budget")
