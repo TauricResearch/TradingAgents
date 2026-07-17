@@ -7,6 +7,7 @@
 import {
   AreaSeries,
   BarSeries,
+  BaselineSeries,
   CandlestickSeries,
   HistogramSeries,
   LineSeries,
@@ -51,7 +52,14 @@ import { useUiStore } from "@/stores/ui";
 
 const NO_DRAWINGS: never[] = [];
 
-export type SeriesStyle = "candles" | "heikin-ashi" | "bars" | "line" | "area";
+export type SeriesStyle =
+  | "candles"
+  | "hollow"
+  | "heikin-ashi"
+  | "bars"
+  | "line"
+  | "area"
+  | "baseline";
 
 export interface TradeMarker {
   time: number;
@@ -194,9 +202,10 @@ export function PriceChart({
       value: b.close,
     }));
 
-    if (style === "candles" || style === "heikin-ashi") {
+    if (style === "candles" || style === "heikin-ashi" || style === "hollow") {
       const series = chart.addSeries(CandlestickSeries, {
-        upColor: colors.bull,
+        // hollow: up candles keep only their border (classic hollow style)
+        upColor: style === "hollow" ? "rgba(0,0,0,0)" : colors.bull,
         downColor: colors.bear,
         borderUpColor: colors.bull,
         borderDownColor: colors.bear,
@@ -204,6 +213,22 @@ export function PriceChart({
         wickDownColor: colors.bear,
       });
       series.setData(ohlc);
+      seriesRef.current = series;
+    } else if (style === "baseline") {
+      // anchored at the window's first close: green above where the
+      // window started, red below — a "since here" read, and labeled so
+      const base = data[0]?.close ?? 0;
+      const series = chart.addSeries(BaselineSeries, {
+        baseValue: { type: "price", price: base },
+        topLineColor: colors.bull,
+        topFillColor1: hexToRgba(colors.bull, 0.2),
+        topFillColor2: hexToRgba(colors.bull, 0.02),
+        bottomLineColor: colors.bear,
+        bottomFillColor1: hexToRgba(colors.bear, 0.02),
+        bottomFillColor2: hexToRgba(colors.bear, 0.2),
+        lineWidth: 2,
+      });
+      series.setData(closes);
       seriesRef.current = series;
     } else if (style === "bars") {
       const series = chart.addSeries(BarSeries, {
@@ -786,7 +811,8 @@ export function PriceChart({
       const tick = state.ticks[liveSymbol];
       const series = seriesRef.current;
       if (!tick || !series) return;
-      if (styleRef.current === "candles" || styleRef.current === "bars") {
+      if (styleRef.current === "candles" || styleRef.current === "bars" ||
+          styleRef.current === "hollow") {
         (series as ISeriesApi<"Candlestick">).update({
           time: lastBar.time as UTCTimestamp,
           open: lastBar.open,
@@ -794,7 +820,8 @@ export function PriceChart({
           low: Math.min(lastBar.low, tick.last),
           close: tick.last,
         });
-      } else if (styleRef.current === "line" || styleRef.current === "area") {
+      } else if (styleRef.current === "line" || styleRef.current === "area" ||
+                 styleRef.current === "baseline") {
         (series as ISeriesApi<"Line">).update({
           time: lastBar.time as UTCTimestamp,
           value: tick.last,

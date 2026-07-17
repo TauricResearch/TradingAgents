@@ -34,6 +34,8 @@ interface UiState {
   toggleVolume: () => void;
   logScale: boolean;
   toggleLogScale: () => void;
+  chartStyle: string;
+  setChartStyle: (style: string) => void;
   showProfile: boolean;
   toggleProfile: () => void;
   gridCells: GridCell[];
@@ -80,6 +82,8 @@ export const useUiStore = create<UiState>()(
       toggleVolume: () => set((state) => ({ showVolume: !state.showVolume })),
       logScale: false,
       toggleLogScale: () => set((state) => ({ logScale: !state.logScale })),
+      chartStyle: "candles",
+      setChartStyle: (chartStyle) => set({ chartStyle }),
       // volume profile off by default — opt-in visual weight
       showProfile: false,
       toggleProfile: () => set((state) => ({ showProfile: !state.showProfile })),
@@ -124,6 +128,7 @@ export const useUiStore = create<UiState>()(
         indicators: s.indicators,
         showVolume: s.showVolume,
         logScale: s.logScale,
+        chartStyle: s.chartStyle,
         showProfile: s.showProfile,
         gridCells: s.gridCells,
       }),
