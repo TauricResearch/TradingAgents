@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-Formal specification review loop. Rounds 1 and 2 resolved eleven architecture and compatibility gaps. Round 3 narrowed the blockers to event-log/checkpoint crash-frontier reconciliation and third-party runtime dependency fingerprinting. The spec now uses synchronous LangGraph checkpoint durability, task/step commit tokens, full `CheckpointTuple.pending_writes` reconciliation, append-only abandoned-task compensation, and a Python plus transitive-distribution manifest. Credential redaction test vectors and Evidence Steward's process-global config snapshot were also made explicit. Round 4 review is next.
+Formal specification review loop. Rounds 1–3 resolved the architecture, compatibility, and crash-frontier gaps. Round 4 found three final protocol ambiguities: not every graph task exposed its commit token in JSONL, commit hashes lacked one canonical serializer, and dotted credential paths contradicted a test vector. The spec now requires `graph.task_output_ready` plus `ObservationCommitV1` for every successful role/tool task, defines RFC 8785 business delta/state hashing, and evaluates redaction by normalized leaf path segment. Final round 5 review is next.
 
 ## Confirmed constraints
 

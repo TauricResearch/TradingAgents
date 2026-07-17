@@ -1,6 +1,6 @@
 # TradingAgents Local Web Workbench Design
 
-**Status:** Approved in conversation; review-round-3 fixes complete, round 4 pending  
+**Status:** Approved in conversation; review-round-4 fixes complete, final round 5 pending  
 **Date:** 2026-07-18  
 **Scope:** Localhost-only single-user web application for the existing TradingAgents repository
 
@@ -224,15 +224,17 @@ graph.stream(
 )
 ```
 
-Role final output is persisted first as `turn.output_ready`; tool execution is persisted as `tool.execution_completed`. Neither event completes the logical turn/tool request or aggregate role. After the subsequent `checkpoints` stream event confirms that SQLite has synchronously committed the superstep, the runner emits `graph.checkpoint_committed` with checkpoint ID, metadata step, state hash, next nodes, and every applied `graph_task_id`. Only then may it emit `state.updated`, `tool.committed`, `turn.completed`, report revisions, or aggregate-role completion for those tasks. Multiple tools inside one `ToolNode` are correlated by `tool_call_id` and `graph_task_id`, never callback completion order.
+Every successfully returned role or tool-node task first emits `graph.task_output_ready` containing the complete `ObservationCommitV1` token and a business-delta artifact reference. This event exists for final role output, role output that only requests tools, model re-entry, and the enclosing multi-tool `ToolNode` task. Role final output also emits `turn.output_ready`; each individual tool execution emits `tool.execution_completed`. None of these candidate events completes the logical turn/tool request or aggregate role.
 
-Each observed role/tool node also returns one reserved `_observation_commit` state field containing schema version, `graph_task_id`, candidate `graph_step`, node/turn IDs, output-delta hash, and tool-call IDs. It is excluded from every prompt projection, report, and public state view. The applied checkpoint or its `pending_writes` therefore carries the exact same commit token as the candidate event, allowing recovery to match database state to JSONL without timestamp/order inference.
+Each observed role/tool node returns its ordinary business delta plus one reserved `_observation_commit: ObservationCommitV1` state field. The token contains serializer version, `graph_task_id`, candidate `graph_step`, node/turn IDs, business-delta SHA-256, and ordered tool-call IDs. It is excluded from every prompt projection, report, public state view, and the business hash itself. Because the exact token is both in `graph.task_output_ready` and the node's checkpoint write, an applied checkpoint or its `pending_writes` can be matched to JSONL without timestamp/order inference.
+
+After the subsequent `checkpoints` stream event confirms that SQLite has synchronously committed the superstep, the runner emits `graph.checkpoint_committed` with checkpoint ID, metadata step, canonical business-state hash, next nodes, and every applied `graph_task_id`/token. Only then may it emit `state.updated`, `tool.committed`, `turn.completed`, report revisions, or aggregate-role completion for those tasks. Multiple tools inside one `ToolNode` are correlated by `tool_call_id` and `graph_task_id`, never callback completion order.
 
 Checkpoint-disabled runs use the yielded applied superstep as an in-process barrier and emit `graph.step_applied` with no checkpoint ID. They can never be resumed after process interruption; the stricter persisted-frontier reconciliation below applies only to checkpoint-enabled runs.
 
 Resume preflight obtains the full latest `CheckpointTuple` from `SqliteSaver.get_tuple()`, including checkpoint ID, metadata step, channel state/next nodes, and `pending_writes`; the existing step-only helper is insufficient. It compares that durable frontier with reduced `graph.checkpoint_committed` events and applies this append-only reconciliation:
 
-1. If the database checkpoint is ahead of the last event marker, match its `_observation_commit` token and output-delta hash to exactly one candidate task, append the missing `graph.checkpoint_committed`, then promote matching `turn.output_ready`/tool execution candidates to their committed terminal events.
+1. If the database checkpoint is ahead of the last event marker, match its `_observation_commit` token to exactly one `graph.task_output_ready` event, append the missing `graph.checkpoint_committed`, then promote matching `turn.output_ready`/tool execution candidates to their committed terminal events.
 2. A task ahead of the checkpoint whose matching `_observation_commit` token appears in `pending_writes` is `executed_pending_apply`. Keep its logical turn/tool request open; LangGraph reuses the durable pending write on resume, and the next synchronous checkpoint promotes it without re-executing the task.
 3. Any remaining event-log tail task is `uncommitted_execution`. Append `graph.task_abandoned` plus interrupted lifecycle compensation. A `tool.requested` created by that abandoned task is cancelled with reason `checkpoint_not_committed`; a tool request from an earlier committed task stays pending. On resume, actual model/tool work receives a new `attempt_id`/`tool_execution_id` under the same open `turn_id`.
 4. Every checkpoint-pending model `tool_call_id` must still match exactly one committed or `executed_pending_apply` `tool.requested` event and the expected role-specific tool node. Missing, duplicate, state-hash, next-node, or task-ID mismatches are `checkpoint_observation_incompatible` and resume is rejected.
@@ -240,6 +242,12 @@ Resume preflight obtains the full latest `CheckpointTuple` from `SqliteSaver.get
 JSONL history is never deleted or rewritten. Candidate and abandoned execution events remain visible as real calls that occurred but were not applied to graph state.
 
 The frontend reducer derives `candidate`, `committed`, `pending_apply`, or `abandoned` application status by joining every task-scoped event to frontier events. Candidate/abandoned model or tool output is visually labeled and is never rendered as an accepted report or debate turn.
+
+#### Canonical commit hashing
+
+`CanonicalBusinessValueV1` converts values before hashing: mappings use UTF-8 string keys sorted lexicographically; lists/tuples preserve order; sets sort by each member's canonical bytes; strings/booleans/null/integers remain native; finite floats use RFC 8785 number form; NaN and infinities become tagged strings; bytes become tagged base64; dates/times become tagged ISO 8601 values; enums use their value; Pydantic/dataclass values use their declared field mapping. LangChain messages use `langchain_core.messages.message_to_dict()` and then the same recursive conversion. Unsupported objects fail the task before a commit token is emitted.
+
+`business_delta_sha256` is SHA-256 of RFC 8785 canonical JSON UTF-8 for the recursively redacted node output mapping after removing the top-level `_observation_commit` field. `business_state_sha256` applies the same redaction and serializer to committed checkpoint channel values with that reserved field removed. No other observer-only state key is permitted. Serializer version is part of every token and resume fingerprint. Unit tests freeze representative AI/Human/Tool messages, tool-call lists, unordered maps/sets, bytes, dates, NaN/infinity, and redaction cases.
 
 When interruption occurred inside a logical turn, resume reopens the same `turn_id` through `turn.resumed`; it never invents a disconnected turn. An interrupted in-flight model call gets a new `attempt_id`. An interrupted or merely requested tool keeps its logical `tool_call_id` but gets a new `tool_execution_id`, so a repeated read-only execution and its vendor calls remain distinguishable. The web workflow exposes only read-only research tools; adding side-effecting tools would require an idempotency contract before they could be resumed.
 
@@ -456,6 +464,7 @@ Run lifecycle:
 Execution lifecycle:
 
 - `graph.task_started`
+- `graph.task_output_ready`
 - `graph.step_applied`
 - `graph.checkpoint_committed`
 - `graph.task_abandoned`
@@ -508,6 +517,7 @@ Artifacts:
 |---|---|
 | `run.*` | `run_status`; terminal events also include safe `summary` and optional `error_category`; resume/interruption includes `checkpoint_sequence` |
 | `graph.task_started/abandoned` | `graph_task_id`, candidate `graph_step`, node ID, optional `turn_id`, and reason for abandonment |
+| `graph.task_output_ready` | complete `ObservationCommitV1`, candidate `graph_step`, node/turn IDs, business-delta artifact ID, media type, and hash |
 | `graph.step_applied/checkpoint_committed` | `graph_step`, applied task IDs, state hash, next nodes; durable commit also requires checkpoint ID |
 | `role.status_changed` | `role_instance_id`, previous/new role status, reason, optional triggering `turn_id` |
 | `turn.*` | `role_instance_id`, `turn_id`, `graph_task_id`, candidate `graph_step`, actor-local `turn_index`, turn status; output-ready includes output artifact; resume includes `resumed_from_sequence`; terminal events include reason/duration |
@@ -858,9 +868,9 @@ Only an `interrupted` run is resumable; failed and cancelled runs use retry. Res
 
 ### 15.1 Credential-key registry
 
-Key names are normalized to lowercase snake case by replacing dots/hyphens/spaces with underscores. A value is secret only when the normalized key is in the exact registry (`authorization`, `proxy_authorization`, `cookie`, `set_cookie`, `password`, `passwd`, `secret`, `token`, `api_key`, `apikey`, `access_token`, `refresh_token`, `id_token`, `bearer_token`, `client_secret`, `private_key`, `aws_secret_access_key`) or ends with `_api_key`, `_token`, `_secret`, `_password`, or `_private_key`. Provider API-key environment names returned by the runtime provider registry are added as exact normalized entries. Arbitrary substring matching is forbidden.
+Traversal keeps an array of object-key path segments. For secret detection, a raw key containing literal dots is first split into additional segments; each segment is then lowercased and has hyphens/spaces replaced by underscores. The leaf segment is tested independently, and the full normalized path is retained only for the redaction manifest. A value is secret when the normalized leaf is in the exact registry (`authorization`, `proxy_authorization`, `cookie`, `set_cookie`, `password`, `passwd`, `secret`, `token`, `api_key`, `apikey`, `access_token`, `refresh_token`, `id_token`, `bearer_token`, `client_secret`, `private_key`, `aws_secret_access_key`) or ends with `_api_key`, `_token`, `_secret`, `_password`, or `_private_key`. Provider API-key environment names returned by the runtime provider registry are added as exact normalized leaves. Arbitrary substring matching is forbidden.
 
-Canonical tests must redact `OPENAI_API_KEY`, `api-key`, `headers.Cookie`, `client-secret`, and `access_token`, while retaining semantic keys such as `max_tokens`, `token_budget`, `news_article_limit`, `secretary_name`, and `consistency_enabled`. The same registry and test vectors are used for HTTP/log/event/artifact redaction and resume-fingerprint exclusion.
+Canonical tests redact both nested `{"headers": {"Cookie": "..."}}` and literal `{"headers.Cookie": "..."}`, plus `OPENAI_API_KEY`, `api-key`, `client-secret`, and `access_token`. They retain semantic keys such as `max_tokens`, `token_budget`, `news_article_limit`, `secretary_name`, and `consistency_enabled`. The same registry, path algorithm, and test vectors are used for HTTP/log/event/artifact redaction, commit hashing, and resume-fingerprint exclusion.
 
 ## 16. Compatibility and migration
 
@@ -888,6 +898,8 @@ Canonical tests must redact `OPENAI_API_KEY`, `api-key`, `headers.Cookie`, `clie
 - all 13 role input projection functions
 - structured-output retry/fallback attempt attribution
 - observation context propagation and assertion on unattributed callbacks
+- one `graph.task_output_ready`/`ObservationCommitV1` candidate for every successful role and tool-node graph task
+- canonical business delta/state serialization and frozen hash vectors
 - run, role, model, tool, and vendor lifecycle transition validation
 - resume fingerprint canonicalization and secret exclusion
 - complete effective-config inclusion, exact four-key exclusion, endpoint normalization, and runtime semantics hashing
@@ -978,6 +990,7 @@ The work is complete only when all of the following are true:
 21. Programmatic success tuples, failure exceptions, explicit report saving, and CLI save/no-save behavior remain compatible.
 22. Crash-frontier tests prove that no event-log tail is mistaken for committed graph state and no durable pending write is unnecessarily re-executed.
 23. Resume is rejected after Python or semantic dependency version/record changes even when repository source and user configuration are unchanged.
+24. Every checkpoint commit token has exactly one persisted task candidate, including tool-requesting role tasks and multi-tool `ToolNode` tasks.
 
 ## 19. Alternatives considered
 
