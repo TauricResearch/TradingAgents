@@ -30,7 +30,10 @@ export interface Drawing {
   hidden?: boolean;
 }
 
-export type ToolMode = "select" | "erase" | DrawingKind;
+// "alert" is an interaction, not a persisted drawing: one click on a price
+// creates a price alert at that level (A2). It never enters the store, so
+// it stays out of DrawingKind / POINTS_REQUIRED / the primitive.
+export type ToolMode = "select" | "erase" | "alert" | DrawingKind;
 
 export const POINTS_REQUIRED: Record<DrawingKind, number> = {
   trend: 2,

@@ -3,20 +3,21 @@
  * we say so rather than ship a bad version). */
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
+  AlignEndHorizontal,
   ArrowDownRight,
   ArrowUpRight,
+  Bell,
   Eraser,
   Eye,
   EyeOff,
   List,
   Minus,
   MousePointer2,
-  Square,
-  TrendingUp,
-  Trash2,
-  Type,
-  AlignEndHorizontal,
   Rows3,
+  Square,
+  Trash2,
+  TrendingUp,
+  Type,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const TOOLS: { mode: ToolMode; icon: typeof MousePointer2; label: string }[] = [
   { mode: "rect", icon: Square, label: "Zone / rectangle (2 clicks)" },
   { mode: "channel", icon: Rows3, label: "Parallel channel (base line, then offset)" },
   { mode: "text", icon: Type, label: "Text note (1 click)" },
+  { mode: "alert", icon: Bell, label: "Price alert (click a level)" },
   { mode: "erase", icon: Eraser, label: "Erase (click a drawing)" },
 ];
 

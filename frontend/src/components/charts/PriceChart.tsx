@@ -81,6 +81,7 @@ export function PriceChart({
   drawingsSymbol,
   toolMode = "select",
   onToolModeChange,
+  onCreateAlert,
   height = 420,
   volumeProfile = null,
 }: {
@@ -99,6 +100,8 @@ export function PriceChart({
   drawingsSymbol?: string;
   toolMode?: ToolMode;
   onToolModeChange?: (mode: ToolMode) => void;
+  /** A2: click-to-alert callback; receives the clicked price */
+  onCreateAlert?: (price: number) => void;
   height?: number;
   /** server-computed fixed-range profile (review P2.4); null hides it */
   volumeProfile?: VolumeProfile | null;
@@ -123,6 +126,8 @@ export function PriceChart({
   toolModeRef.current = toolMode;
   const onToolModeChangeRef = useRef(onToolModeChange);
   onToolModeChangeRef.current = onToolModeChange;
+  const onCreateAlertRef = useRef(onCreateAlert);
+  onCreateAlertRef.current = onCreateAlert;
   const theme = useUiStore((s) => s.theme);
   const drawings = useDrawingsStore((state) =>
     drawingsSymbol ? (state.bySymbol[drawingsSymbol] ?? NO_DRAWINGS) : NO_DRAWINGS,
@@ -427,6 +432,14 @@ export function PriceChart({
       if (mode === "erase") {
         const id = primitive.findNearest(param.point);
         if (id) useDrawingsStore.getState().remove(drawingsSymbol, id);
+        return;
+      }
+      // A2: one click sets a price alert at that level, then drops back to
+      // select — an interaction, not a persisted drawing.
+      if (mode === "alert") {
+        const price = series.coordinateToPrice(param.point.y);
+        if (price != null) onCreateAlertRef.current?.(price);
+        onToolModeChangeRef.current?.("select");
         return;
       }
       if (mode === "select") return;

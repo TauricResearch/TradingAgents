@@ -169,11 +169,34 @@ export default function WorkspacePage() {
   const journal = useJournal();
   const status = useStatus();
   const calendar = useCalendar();
+  const alertClient = useQueryClient();
+  const [alertToast, setAlertToast] = useState<string | null>(null);
 
   // keep global symbol in sync with the route
   if (useUiStore.getState().symbol !== symbol) setSymbol(symbol);
 
   const allBars = useMemo(() => bars.data ?? [], [bars.data]);
+
+  // A2: click-to-alert. Direction is inferred from the last close — an
+  // alert above spot fires on a rally, below on a break.
+  const createChartAlert = (price: number) => {
+    const lastClose = allBars.length
+      ? allBars[allBars.length - 1]!.close
+      : price;
+    const direction = price >= lastClose ? "above" : "below";
+    void createPriceAlert(alertClient, {
+      symbol,
+      level: price,
+      direction,
+      note: "from chart",
+    })
+      .then(() =>
+        setAlertToast(`Alert set: ${symbol} ${direction} ${fmtPrice(price)}`),
+      )
+      .catch(() => setAlertToast("Could not set alert — try again"));
+    window.setTimeout(() => setAlertToast(null), 3500);
+  };
+
   const replay = useReplay(allBars.length);
   const visibleBars = replay.active
     ? allBars.slice(0, replay.cursor)
@@ -342,6 +365,15 @@ export default function WorkspacePage() {
             </div>
           </CardHeader>
           <CardContent>
+            {alertToast && (
+              <div
+                className="mb-2 rounded-lg bg-accent-muted px-2.5 py-1.5 text-xs text-accent"
+                data-testid="alert-toast"
+                role="status"
+              >
+                {alertToast}
+              </div>
+            )}
             <div className="mb-2 flex items-center justify-between no-print">
               <ReplayControls
                 replay={replay}
@@ -386,6 +418,7 @@ export default function WorkspacePage() {
                       drawingsSymbol={symbol}
                       toolMode={toolMode}
                       onToolModeChange={setToolMode}
+                      onCreateAlert={createChartAlert}
                       height={compare ? 300 : 400}
                       volumeProfile={showProfile ? (volumeProfile.data ?? null) : null}
                     />
