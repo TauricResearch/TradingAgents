@@ -1,6 +1,6 @@
 # TradingAgents Local Web Workbench Design
 
-**Status:** Approved in conversation; review-round-4 fixes complete, final round 5 pending  
+**Status:** Approved in conversation; five review rounds completed, final issues fixed, human guidance required  
 **Date:** 2026-07-18  
 **Scope:** Localhost-only single-user web application for the existing TradingAgents repository
 
@@ -126,7 +126,18 @@ Frontend:
 
 The `web` Python dependencies belong in an optional dependency group. Normal runtime serves the compiled frontend assets through FastAPI. Node/npm are required for frontend development and rebuilding, not for running an already-built package.
 
-### 6.2 Launch contract
+### 6.2 Web runtime capability floor
+
+The existing broad core requirement may remain for legacy CLI compatibility, but the new `[project.optional-dependencies].web` extra must impose these known-good minimums for the checkpoint contract:
+
+- `langgraph>=1.1.10,<2`
+- `langgraph-checkpoint>=4.0.3,<5`
+- `langgraph-checkpoint-sqlite>=3.0.3,<4`
+- the selected FastAPI/Uvicorn and web support dependencies
+
+`tradingagents web` performs a hard capability preflight before serving: verify installed distribution versions, inspect that `Pregel.stream` accepts `durability`, and execute a tiny temporary SQLite graph proving `stream_mode=["tasks", "checkpoints"]`, `durability="sync"`, task IDs, checkpoint IDs/steps, and `CheckpointTuple.pending_writes` are available. Failure exits with a concise command to install/upgrade `tradingagents[web]`; it never silently falls back to asynchronous or tokenless resume. The capability result and exact versions enter `runtime_environment`.
+
+### 6.3 Launch contract
 
 The installed command is:
 
@@ -224,9 +235,9 @@ graph.stream(
 )
 ```
 
-Every successfully returned role or tool-node task first emits `graph.task_output_ready` containing the complete `ObservationCommitV1` token and a business-delta artifact reference. This event exists for final role output, role output that only requests tools, model re-entry, and the enclosing multi-tool `ToolNode` task. Role final output also emits `turn.output_ready`; each individual tool execution emits `tool.execution_completed`. None of these candidate events completes the logical turn/tool request or aggregate role.
+Every checkpoint-producing state mutation is observed, not only the 13 role and tool nodes. `ObservedGraphTask` wraps role nodes, tool nodes, and maintenance nodes such as every analyst `Msg Clear`. Every successfully returned task first emits `graph.task_output_ready` containing its complete `ObservationCommitV1` token and a business-delta artifact reference. This includes final role output, role output that only requests tools, model re-entry, the enclosing multi-tool `ToolNode`, and message-clearing tasks. Role final output also emits `turn.output_ready`; each individual tool execution emits `tool.execution_completed`. None of these candidate events completes the logical turn/tool request or aggregate role.
 
-Each observed role/tool node returns its ordinary business delta plus one reserved `_observation_commit: ObservationCommitV1` state field. The token contains serializer version, `graph_task_id`, candidate `graph_step`, node/turn IDs, business-delta SHA-256, and ordered tool-call IDs. It is excluded from every prompt projection, report, public state view, and the business hash itself. Because the exact token is both in `graph.task_output_ready` and the node's checkpoint write, an applied checkpoint or its `pending_writes` can be matched to JSONL without timestamp/order inference.
+The initial/input superstep receives a deterministic synthetic `graph_task_id=<run_id>:input` before `graph.stream()` starts, emits its own candidate, and places its token in the initial state. Each observed task returns its ordinary business delta plus a reserved `_observation_commits` map update keyed by `graph_task_id`. `ObservationCommitV1` contains serializer version, task kind (`input`, `role`, `tool`, or `maintenance`), `graph_task_id`, candidate `graph_step`, optional node/turn IDs, business-delta SHA-256, and ordered tool-call IDs. A map-merge reducer preserves distinct tokens if a future graph superstep has parallel tasks. The reserved map is excluded from every prompt projection, report, public state view, and business hash. Because the exact token is both in `graph.task_output_ready` and the checkpoint write, an applied checkpoint or its `pending_writes` can be matched to JSONL without stale-token or timestamp/order inference.
 
 After the subsequent `checkpoints` stream event confirms that SQLite has synchronously committed the superstep, the runner emits `graph.checkpoint_committed` with checkpoint ID, metadata step, canonical business-state hash, next nodes, and every applied `graph_task_id`/token. Only then may it emit `state.updated`, `tool.committed`, `turn.completed`, report revisions, or aggregate-role completion for those tasks. Multiple tools inside one `ToolNode` are correlated by `tool_call_id` and `graph_task_id`, never callback completion order.
 
@@ -234,10 +245,12 @@ Checkpoint-disabled runs use the yielded applied superstep as an in-process barr
 
 Resume preflight obtains the full latest `CheckpointTuple` from `SqliteSaver.get_tuple()`, including checkpoint ID, metadata step, channel state/next nodes, and `pending_writes`; the existing step-only helper is insufficient. It compares that durable frontier with reduced `graph.checkpoint_committed` events and applies this append-only reconciliation:
 
-1. If the database checkpoint is ahead of the last event marker, match its `_observation_commit` token to exactly one `graph.task_output_ready` event, append the missing `graph.checkpoint_committed`, then promote matching `turn.output_ready`/tool execution candidates to their committed terminal events.
-2. A task ahead of the checkpoint whose matching `_observation_commit` token appears in `pending_writes` is `executed_pending_apply`. Keep its logical turn/tool request open; LangGraph reuses the durable pending write on resume, and the next synchronous checkpoint promotes it without re-executing the task.
+1. If the database checkpoint is ahead of the last event marker, diff its `_observation_commits` map against its parent checkpoint, match every new token to exactly one `graph.task_output_ready` event, append the missing `graph.checkpoint_committed`, then promote matching turn/tool candidates.
+2. A task ahead of the checkpoint whose matching map update appears in `pending_writes` is `executed_pending_apply`. Keep its logical turn/tool request open; LangGraph reuses the durable pending write on resume, and the next synchronous checkpoint promotes it without re-executing the task.
 3. Any remaining event-log tail task is `uncommitted_execution`. Append `graph.task_abandoned` plus interrupted lifecycle compensation. A `tool.requested` created by that abandoned task is cancelled with reason `checkpoint_not_committed`; a tool request from an earlier committed task stays pending. On resume, actual model/tool work receives a new `attempt_id`/`tool_execution_id` under the same open `turn_id`.
 4. Every checkpoint-pending model `tool_call_id` must still match exactly one committed or `executed_pending_apply` `tool.requested` event and the expected role-specific tool node. Missing, duplicate, state-hash, next-node, or task-ID mismatches are `checkpoint_observation_incompatible` and resume is rejected.
+
+A checkpoint with no new token is legal only when its canonical business-state hash equals its parent's and `pending_writes` contains no business-channel write. It is classified as a framework `barrier_only` checkpoint and emits a commit marker with `mutation=false`. Any tokenless checkpoint that changes business state is incompatible and cannot be resumed.
 
 JSONL history is never deleted or rewritten. Candidate and abandoned execution events remain visible as real calls that occurred but were not applied to graph state.
 
@@ -247,7 +260,7 @@ The frontend reducer derives `candidate`, `committed`, `pending_apply`, or `aban
 
 `CanonicalBusinessValueV1` converts values before hashing: mappings use UTF-8 string keys sorted lexicographically; lists/tuples preserve order; sets sort by each member's canonical bytes; strings/booleans/null/integers remain native; finite floats use RFC 8785 number form; NaN and infinities become tagged strings; bytes become tagged base64; dates/times become tagged ISO 8601 values; enums use their value; Pydantic/dataclass values use their declared field mapping. LangChain messages use `langchain_core.messages.message_to_dict()` and then the same recursive conversion. Unsupported objects fail the task before a commit token is emitted.
 
-`business_delta_sha256` is SHA-256 of RFC 8785 canonical JSON UTF-8 for the recursively redacted node output mapping after removing the top-level `_observation_commit` field. `business_state_sha256` applies the same redaction and serializer to committed checkpoint channel values with that reserved field removed. No other observer-only state key is permitted. Serializer version is part of every token and resume fingerprint. Unit tests freeze representative AI/Human/Tool messages, tool-call lists, unordered maps/sets, bytes, dates, NaN/infinity, and redaction cases.
+`business_delta_sha256` is SHA-256 of RFC 8785 canonical JSON UTF-8 for the recursively redacted node output mapping after removing the top-level `_observation_commits` field. `business_state_sha256` applies the same redaction and serializer to committed checkpoint channel values with that reserved field removed. No other observer-only state key is permitted. Serializer version is part of every token and resume fingerprint. Unit tests freeze representative AI/Human/Tool messages, tool-call lists, unordered maps/sets, bytes, dates, NaN/infinity, and redaction cases.
 
 When interruption occurred inside a logical turn, resume reopens the same `turn_id` through `turn.resumed`; it never invents a disconnected turn. An interrupted in-flight model call gets a new `attempt_id`. An interrupted or merely requested tool keeps its logical `tool_call_id` but gets a new `tool_execution_id`, so a repeated read-only execution and its vendor calls remain distinguishable. The web workflow exposes only read-only research tools; adding side-effecting tools would require an idempotency contract before they could be resumed.
 
@@ -898,12 +911,13 @@ Canonical tests redact both nested `{"headers": {"Cookie": "..."}}` and literal 
 - all 13 role input projection functions
 - structured-output retry/fallback attempt attribution
 - observation context propagation and assertion on unattributed callbacks
-- one `graph.task_output_ready`/`ObservationCommitV1` candidate for every successful role and tool-node graph task
+- one `graph.task_output_ready`/`ObservationCommitV1` candidate for initial input and every successful state-mutating role, tool, and maintenance task
 - canonical business delta/state serialization and frozen hash vectors
 - run, role, model, tool, and vendor lifecycle transition validation
 - resume fingerprint canonicalization and secret exclusion
 - complete effective-config inclusion, exact four-key exclusion, endpoint normalization, and runtime semantics hashing
 - Python/distribution closure fingerprinting, record/direct-URL digests, and unfingerprintable-dependency handling
+- web runtime version/capability preflight, including sync durability, task/checkpoint streams, and pending writes
 - credential registry canonical vectors that retain `max_tokens` and redact real credential keys
 - completed-only `AnalysisResult` typing and failure/cancellation exception mapping
 
@@ -922,6 +936,7 @@ Canonical tests redact both nested `{"headers": {"Cookie": "..."}}` and literal 
 - retry creates a separate linked run
 - strict compatible and incompatible checkpoint resume behavior, including event-log reconstruction of a pending tool call and rejection of mismatches
 - crash injection after each task-scoped event, after pending-write durability, after SQLite commit, and before/after `graph.checkpoint_committed`; recovery must classify committed, pending-apply, and abandoned tails without rewriting JSONL
+- crash injection around initial input and every `Msg Clear` checkpoint; tokenless checkpoints are accepted only when business-state hash is unchanged
 - cancellation and startup interruption leave no open lifecycle; compatible resume reopens the same turn with new attempt/execution IDs
 - Evidence Steward config snapshot matches run config, and deliberate process-global drift fails before evaluation
 - immutable partial report revisions and atomic canonical final report publication before `run.completed`
@@ -990,7 +1005,8 @@ The work is complete only when all of the following are true:
 21. Programmatic success tuples, failure exceptions, explicit report saving, and CLI save/no-save behavior remain compatible.
 22. Crash-frontier tests prove that no event-log tail is mistaken for committed graph state and no durable pending write is unnecessarily re-executed.
 23. Resume is rejected after Python or semantic dependency version/record changes even when repository source and user configuration are unchanged.
-24. Every checkpoint commit token has exactly one persisted task candidate, including tool-requesting role tasks and multi-tool `ToolNode` tasks.
+24. Every state-mutating checkpoint commit token has exactly one persisted task candidate, including initial input, `Msg Clear`, tool-requesting role tasks, and multi-tool `ToolNode` tasks; tokenless barriers must prove no business-state change.
+25. `tradingagents web` refuses runtimes below the tested LangGraph/checkpointer feature floor or missing the required sync/task/checkpoint/pending-write capabilities.
 
 ## 19. Alternatives considered
 

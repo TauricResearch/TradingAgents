@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-Formal specification review loop. Rounds 1–3 resolved the architecture, compatibility, and crash-frontier gaps. Round 4 found three final protocol ambiguities: not every graph task exposed its commit token in JSONL, commit hashes lacked one canonical serializer, and dotted credential paths contradicted a test vector. The spec now requires `graph.task_output_ready` plus `ObservationCommitV1` for every successful role/tool task, defines RFC 8785 business delta/state hashing, and evaluates redaction by normalized leaf path segment. Final round 5 review is next.
+Formal specification review reached the brainstorming skill's five-round limit. Round 5 found two remaining issues: non-role mutations such as `Msg Clear` and initial input also needed commit tokens, and the repository's broad LangGraph minimum did not guarantee the required APIs. Both are now fixed in the spec through tokens for every state-mutating graph task plus deterministic tokenless-barrier handling, and a strict `[web]` runtime feature floor/capability probe. The process now requires human guidance before any further independent review or implementation planning.
 
 ## Confirmed constraints
 
@@ -60,14 +60,13 @@ Formal specification review loop. Rounds 1–3 resolved the architecture, compat
 
 ## Pending decisions
 
-No new product decision is required. The written spec must resolve the independent review issues, pass re-review, and then receive user review before implementation planning.
+The five-round automated review limit was reached. The user must choose whether to authorize one exceptional extra independent review or directly review the now-corrected written specification. Implementation planning remains blocked until that guidance and written-spec approval.
 
 ## Next steps
 
-1. Review `docs/superpowers/specs/2026-07-18-local-web-workbench-design.md` with an independent spec reviewer.
-2. Resolve any blocking review issues and repeat review until approved.
-3. Ask the user to review the final written spec.
-4. After user approval, create the detailed implementation plan.
+1. Ask the user whether to authorize one exceptional extra independent review or proceed to human review of the corrected spec.
+2. Obtain explicit user approval of the written specification.
+3. After user approval, create the detailed implementation plan.
 
 ## Notes
 
