@@ -71,21 +71,33 @@ def simulate_ticket(
     return None
 
 
-def backfill_outcomes(runs, memory, bars_for) -> dict:
+def backfill_outcomes(runs, memory, bars_for,
+                      open_symbols: frozenset | set = frozenset()) -> dict:
     """Score every eligible stored run. ``bars_for(run)`` returns the bars
     strictly AFTER the run's decision bar for its symbol/timeframe (the
-    caller owns data access). Returns counters for the operator."""
+    caller owns data access). ``open_symbols`` = symbols with a live open
+    position — their tickets belong to the live loop, never to retro.
+    Returns counters for the operator."""
+    from tradingagents.pro.memory import MemoryKind
+
     scored = 0
     skipped_unresolved = 0
     skipped_ineligible = 0
     skipped_already = 0
+    closed_refs = {o.ref_id for o in memory.records(MemoryKind.OUTCOME)}
     for run in runs:
         rec = getattr(run, "recommendation", None)
         if rec is None or rec.action is TradeAction.HOLD:
             skipped_ineligible += 1
             continue
-        if memory.find_trade_by_recommendation(rec.id) is not None:
-            skipped_already += 1  # lived trade or a prior backfill
+        # the pipeline records a TRADE for every recommendation at decision
+        # time — idempotency is "has an OUTCOME", not "has a record"
+        existing = memory.find_trade_by_recommendation(rec.id)
+        if existing is not None and existing.id in closed_refs:
+            skipped_already += 1  # lived close or a prior backfill
+            continue
+        if existing is not None and run.symbol in open_symbols:
+            skipped_unresolved += 1  # a live open position owns this ticket
             continue
         try:
             bars = bars_for(run)
@@ -96,7 +108,7 @@ def backfill_outcomes(runs, memory, bars_for) -> dict:
         if sim is None:
             skipped_unresolved += 1
             continue
-        trade = memory.record_trade(rec, event_time=run.started_at)
+        trade = existing or memory.record_trade(rec, event_time=run.started_at)
         memory.close_trade(
             trade.id,
             pnl=sim.pnl,

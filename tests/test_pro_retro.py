@@ -28,6 +28,7 @@ def bar(i: int, low: float, high: float) -> OHLCVBar:
 
 def make_run(rec, run_id="run-1"):
     return SimpleNamespace(run_id=run_id, recommendation=rec,
+                           symbol=rec.symbol,
                            started_at=BASE_TS, timeframe="1h")
 
 
@@ -77,6 +78,29 @@ class TestBackfill:
         assert memory.records(MemoryKind.WINNING_PATTERN) == []
         # the blotter never shows graded predictions
         assert trade_journal(memory)["n_trades"] == 0
+
+    def test_outcome_less_pipeline_ticket_is_retro_closed_in_place(self):
+        # the pipeline records a TRADE for every recommendation at decision
+        # time; an outcome-less one (gated/never-filled) must be scored on
+        # the EXISTING record — no duplicates — unless its symbol is live
+        memory = ProMemory()
+        rec = make_recommendation()
+        memory.record_trade(rec)  # what the pipeline already wrote
+        runs = [make_run(rec)]
+        bars = [bar(1, 2405, 2445)]
+
+        # symbol currently open on the book → hands off
+        held = backfill_outcomes(runs, memory, lambda run: bars,
+                                 open_symbols={rec.symbol})
+        assert held["scored"] == 0 and held["skipped_unresolved"] == 1
+
+        # book flat → close the existing record in place
+        result = backfill_outcomes(runs, memory, lambda run: bars)
+        assert result["scored"] == 1
+        trades = memory.records(MemoryKind.TRADE)
+        assert len(trades) == 1  # no duplicate trade record
+        outcomes = memory.records(MemoryKind.OUTCOME)
+        assert len(outcomes) == 1 and outcomes[0].ref_id == trades[0].id
 
     def test_unresolved_runs_are_skipped_not_guessed(self):
         memory = ProMemory()
