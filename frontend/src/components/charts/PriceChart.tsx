@@ -31,6 +31,7 @@ import {
   type ToolMode,
 } from "./drawings/types";
 import { snapToBar } from "./annotationSnap";
+import { snapPriceToOHLC } from "./drawings/geometry";
 import {
   AnnotationsPrimitive,
   type SnappedAnnotation,
@@ -98,6 +99,9 @@ export function PriceChart({
   annotations = null,
   onExplainRun,
   openPosition = null,
+  logScale = false,
+  magnet = false,
+  legend = false,
 }: {
   bars: Bar[];
   style?: SeriesStyle;
@@ -125,6 +129,12 @@ export function PriceChart({
   onExplainRun?: (runId: string, point: { x: number; y: number }) => void;
   /** open position for this symbol: server-computed entry line */
   openPosition?: { entry_price?: number | null; quantity: number } | null;
+  /** logarithmic price scale (long-horizon gold/BTC reads honestly in log) */
+  logScale?: boolean;
+  /** magnet mode: drawing anchors snap to the clicked bar's O/H/L/C */
+  magnet?: boolean;
+  /** crosshair-follow OHLCV readout (top-left) */
+  legend?: boolean;
 }) {
   const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const extraSeriesRef = useRef<ISeriesApi<SeriesType>[]>([]);
@@ -151,6 +161,14 @@ export function PriceChart({
   const annotationsRef = useRef<AnnotationsPrimitive | null>(null);
   const onExplainRunRef = useRef(onExplainRun);
   onExplainRunRef.current = onExplainRun;
+  const magnetRef = useRef(magnet);
+  magnetRef.current = magnet;
+  const measureStartRef = useRef<DrawingPoint | null>(null);
+  const barsByTimeRef = useRef<Map<number, Bar>>(new Map());
+  barsByTimeRef.current = useMemo(
+    () => new Map(bars.map((b) => [b.time, b])),
+    [bars],
+  );
   const theme = useUiStore((s) => s.theme);
   const drawings = useDrawingsStore((state) =>
     drawingsSymbol ? (state.bySymbol[drawingsSymbol] ?? NO_DRAWINGS) : NO_DRAWINGS,
@@ -493,6 +511,14 @@ export function PriceChart({
     );
   }, [snappedAnnotations, barTimes, annotations, theme, bars, style, indicators, showVolume]);
 
+  // log/linear price scale (LWC PriceScaleMode: 0 normal, 1 logarithmic).
+  // Applied as an option, not a rebuild — pan/zoom state survives the flip.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !seriesRef.current) return;
+    chart.priceScale("right").applyOptions({ mode: logScale ? 1 : 0 });
+  }, [logScale, chartRef, bars, style, indicators, showVolume]);
+
   // open-position entry line: server-computed book truth (Constraint 2 —
   // the P&L number itself renders in the workspace badge, not here)
   useEffect(() => {
@@ -546,8 +572,24 @@ export function PriceChart({
     const cancel = () => {
       placedRef.current = [];
       lastEventRef.current = null; // dedupe only spans one tap gesture
+      measureStartRef.current = null;
       primitiveRef.current?.setPreview(null);
+      primitiveRef.current?.setMeasure(null);
       onToolModeChangeRef.current?.("select");
+    };
+
+    // measure ruler label: presentation arithmetic over two anchors
+    const measureLabel = (a: DrawingPoint, b: DrawingPoint) => {
+      const dp = b.price - a.price;
+      const pct = a.price !== 0 ? (dp / a.price) * 100 : 0;
+      const times = [...barsByTimeRef.current.keys()];
+      const ia = times.indexOf(a.time);
+      const ib = times.indexOf(b.time);
+      const dBars = ia >= 0 && ib >= 0 ? Math.abs(ib - ia) : null;
+      return (
+        `${dp >= 0 ? "+" : ""}${dp.toFixed(2)} (${pct >= 0 ? "+" : ""}` +
+        `${pct.toFixed(2)}%)${dBars != null ? ` · ${dBars} bars` : ""}`
+      );
     };
 
     const onClick = (param: {
@@ -584,8 +626,31 @@ export function PriceChart({
         if (runId) onExplainRunRef.current?.(runId, param.point);
         return;
       }
-      const price = series.coordinateToPrice(param.point.y);
+      // chart Phase 2: two-click ephemeral ruler; the second click pins
+      // the readout until Esc / mode change
+      if (mode === "measure") {
+        const price = series.coordinateToPrice(param.point.y);
+        if (price == null || param.time == null) return;
+        const point: DrawingPoint = { time: Number(param.time), price };
+        if (measureStartRef.current == null) {
+          measureStartRef.current = point;
+        } else {
+          primitive.setMeasure({
+            a: measureStartRef.current,
+            b: point,
+            label: measureLabel(measureStartRef.current, point),
+          });
+          measureStartRef.current = null;
+        }
+        return;
+      }
+      let price = series.coordinateToPrice(param.point.y);
       if (price == null || param.time == null) return;
+      if (magnetRef.current) {
+        // magnet: the trader means the wick/close they clicked near
+        const bar = barsByTimeRef.current.get(Number(param.time));
+        if (bar) price = snapPriceToOHLC(bar, price) as typeof price;
+      }
       const point: DrawingPoint = { time: Number(param.time), price };
       const last = lastEventRef.current;
       if (last && Date.now() - last.at < 300 &&
@@ -628,8 +693,22 @@ export function PriceChart({
       time?: unknown;
       paneIndex?: number;
     }) => {
-      if (placedRef.current.length === 0 || !param.point) return;
+      if (!param.point) return;
       if ((param.paneIndex ?? 0) !== 0) return; // price pane only (see onClick)
+      // live ruler while the second measure point is unplaced
+      if (measureStartRef.current != null && param.time != null) {
+        const p = seriesRef.current?.coordinateToPrice(param.point.y);
+        if (p != null) {
+          const cursor: DrawingPoint = { time: Number(param.time), price: p };
+          primitiveRef.current?.setMeasure({
+            a: measureStartRef.current,
+            b: cursor,
+            label: measureLabel(measureStartRef.current, cursor),
+          });
+        }
+        return;
+      }
+      if (placedRef.current.length === 0) return;
       const price = seriesRef.current?.coordinateToPrice(param.point.y);
       if (price == null || param.time == null) return;
       primitiveRef.current?.setPreview({
@@ -662,6 +741,43 @@ export function PriceChart({
     };
   }, [drawingsSymbol, chartRef]);
 
+  // OHLCV legend: written imperatively — routing mousemove through React
+  // state disrupts the chart's own click/tap tracking (documented above)
+  const legendRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !legend) return;
+    const write = (bar: Bar | undefined) => {
+      const el = legendRef.current;
+      if (!el) return;
+      if (!bar) {
+        el.textContent = "";
+        return;
+      }
+      const change = bar.open !== 0
+        ? ((bar.close - bar.open) / bar.open) * 100
+        : 0;
+      el.textContent =
+        `O ${bar.open.toFixed(2)}  H ${bar.high.toFixed(2)}  ` +
+        `L ${bar.low.toFixed(2)}  C ${bar.close.toFixed(2)}  ` +
+        `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` +
+        (bar.volume ? `  V ${Intl.NumberFormat("en", { notation: "compact" }).format(bar.volume)}` : "");
+    };
+    write(bars[bars.length - 1]);
+    const onLegendMove = (param: { time?: unknown }) => {
+      const bar = param.time != null
+        ? barsByTimeRef.current.get(Number(param.time))
+        : undefined;
+      write(bar ?? bars[bars.length - 1]);
+    };
+    chart.subscribeCrosshairMove(onLegendMove);
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (chartRef.current !== chart) return; // disposed (see above)
+      chart.unsubscribeCrosshairMove(onLegendMove);
+    };
+  }, [legend, bars, chartRef]);
+
   // live last-price via series.update (never setData on tick)
   const lastBar = bars[bars.length - 1];
   useEffect(() => {
@@ -691,12 +807,21 @@ export function PriceChart({
   return (
     <div
       ref={containerRef}
+      className="relative"
       style={{ height, cursor: toolMode !== "select" ? "crosshair" : undefined }}
       role="img"
       aria-label="price chart"
       data-testid="price-chart"
       data-drawings={drawingsSymbol ? drawings.length : undefined}
       data-annotations={annotations ? snappedAnnotations.length : undefined}
-    />
+    >
+      {legend && (
+        <div
+          ref={legendRef}
+          data-testid="chart-legend"
+          className="pointer-events-none absolute left-1.5 top-1.5 z-10 rounded bg-surface/80 px-1.5 py-0.5 font-mono text-[10px] text-fg-muted"
+        />
+      )}
+    </div>
   );
 }

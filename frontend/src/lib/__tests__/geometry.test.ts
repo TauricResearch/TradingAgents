@@ -5,6 +5,7 @@ import {
   fibPrices,
   pointToRayDistance,
   pointToSegmentDistance,
+  snapPriceToOHLC,
 } from "@/components/charts/drawings/geometry";
 import { useDrawingsStore } from "@/stores/drawings";
 import type { Drawing } from "@/components/charts/drawings/types";
@@ -91,5 +92,19 @@ describe("drawings store", () => {
     expect(useDrawingsStore.getState().bySymbol["XAUUSD"]).toHaveLength(1);
     store.hydrate("garbage");
     expect(useDrawingsStore.getState().bySymbol["XAUUSD"]).toHaveLength(1);
+  });
+});
+
+describe("snapPriceToOHLC (magnet mode)", () => {
+  const bar = { open: 100, high: 110, low: 95, close: 104 };
+  it("snaps to the nearest OHLC level", () => {
+    expect(snapPriceToOHLC(bar, 109)).toBe(110);
+    expect(snapPriceToOHLC(bar, 96)).toBe(95);
+    expect(snapPriceToOHLC(bar, 103)).toBe(104);
+    expect(snapPriceToOHLC(bar, 100.4)).toBe(100);
+  });
+  it("exact levels stay put", () => {
+    expect(snapPriceToOHLC(bar, 110)).toBe(110);
+    expect(snapPriceToOHLC(bar, 95)).toBe(95);
   });
 });

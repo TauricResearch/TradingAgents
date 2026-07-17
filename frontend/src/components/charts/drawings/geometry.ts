@@ -53,3 +53,17 @@ export function pointToSegmentDistance(p: XY, a: XY, b: XY): number {
 export function pointToRayDistance(p: XY, origin: XY, rightEdgeX: number): number {
   return pointToSegmentDistance(p, origin, { x: rightEdgeX, y: origin.y });
 }
+
+/** Magnet mode: snap a clicked price to the nearest of the bar's
+ * open/high/low/close — the levels a trader actually means when they
+ * click near a wick. Pure; the caller decides whether magnet is on. */
+export function snapPriceToOHLC(
+  bar: { open: number; high: number; low: number; close: number },
+  price: number,
+): number {
+  let best = bar.open;
+  for (const level of [bar.high, bar.low, bar.close]) {
+    if (Math.abs(level - price) < Math.abs(best - price)) best = level;
+  }
+  return best;
+}

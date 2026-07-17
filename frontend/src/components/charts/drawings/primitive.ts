@@ -51,6 +51,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private requestUpdateFn: (() => void) | null = null;
   private drawings: Drawing[] = [];
   private preview: PreviewState | null = null;
+  // measure tool (chart Phase 2): ephemeral ruler, never persisted
+  private measure: { a: DrawingPoint; b: DrawingPoint; label: string } | null =
+    null;
   // fallbacks only — PriceChart overrides all of these with theme tokens
   // via setDrawings before anything is drawn
   private colors: DrawingColors = {
@@ -147,6 +150,16 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this.requestUpdateFn?.();
   }
 
+  /** Measure ruler: same imperative discipline as setPreview. The label
+   * is computed by the caller (Δprice/Δ%/Δbars are presentation
+   * arithmetic, not trading numbers). */
+  setMeasure(
+    measure: { a: DrawingPoint; b: DrawingPoint; label: string } | null,
+  ): void {
+    this.measure = measure;
+    this.requestUpdateFn?.();
+  }
+
   /** media-space coordinates or null when the anchor is off-scale */
   toCoord(point: DrawingPoint): { x: number; y: number } | null {
     if (!this.chart || !this.series) return null;
@@ -219,12 +232,43 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         }
         return;
       }
+      if (realKind === "vline") {
+        const origin = this.toCoord(anchors[0]!);
+        if (origin) {
+          // full-pane vertical: a generous y-extent, clipped by the canvas
+          segments.push({
+            kind,
+            x1: origin.x, y1: 0, x2: origin.x, y2: 10_000,
+            dashed: true,
+            label: new Date(anchors[0]!.time * 1000)
+              .toISOString().slice(0, 10),
+            labelAlign: "left",
+          });
+        }
+        return;
+      }
       if (anchors.length < 2) return;
       const a = this.toCoord(anchors[0]!);
       const b = this.toCoord(anchors[1]!);
       if (!a || !b) return;
       if (realKind === "trend") {
         segments.push({ kind, x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+        return;
+      }
+      if (realKind === "arrow") {
+        // shaft + two head strokes, computed in pixel space so the head
+        // keeps its shape under zoom
+        segments.push({ kind, x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+        const angle = Math.atan2(b.y - a.y, b.x - a.x);
+        const head = 9;
+        for (const spread of [Math.PI * 0.85, -Math.PI * 0.85]) {
+          segments.push({
+            kind,
+            x1: b.x, y1: b.y,
+            x2: b.x + head * Math.cos(angle + spread),
+            y2: b.y + head * Math.sin(angle + spread),
+          });
+        }
         return;
       }
       // fib: level lines spanning the anchor x-range, extended right
@@ -259,6 +303,18 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     }
     if (this.preview) {
       pushDrawing("preview", this.preview.kind, this.preview.placed, this.preview.cursor);
+    }
+    if (this.measure) {
+      const a = this.toCoord(this.measure.a);
+      const b = this.toCoord(this.measure.b);
+      if (a && b) {
+        segments.push({
+          kind: "preview",
+          x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+          dashed: true,
+          label: this.measure.label,
+        });
+      }
     }
     return segments;
   }
@@ -399,6 +455,10 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       const origin = this.toCoord(drawing.points[0]!);
       return origin ? Math.hypot(p.x - origin.x, p.y - origin.y) : null;
     }
+    if (drawing.kind === "vline") {
+      const origin = this.toCoord(drawing.points[0]!);
+      return origin ? Math.abs(p.x - origin.x) : null;
+    }
     if (drawing.kind === "rect") {
       const a = this.toCoord(drawing.points[0]!);
       const b = this.toCoord(drawing.points[1]!);
@@ -440,7 +500,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     const a = this.toCoord(drawing.points[0]!);
     const b = this.toCoord(drawing.points[1]!);
     if (!a || !b) return null;
-    if (drawing.kind === "trend") {
+    if (drawing.kind === "trend" || drawing.kind === "arrow") {
       const abx = b.x - a.x;
       const aby = b.y - a.y;
       const lengthSquared = abx * abx + aby * aby || 1;

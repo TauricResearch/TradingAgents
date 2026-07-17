@@ -563,3 +563,30 @@ test.describe("chart phase 1: AI annotations", () => {
     await expect(chart).toHaveAttribute("data-annotations", "0");
   });
 });
+
+test.describe("chart phase 2: drawing kinds", () => {
+  test("vertical line places with one click and persists", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "drawing toolbar is desktop-only");
+    await unlock(page);
+    await page.goto("/trade/XAUUSD");
+    const chart = page.getByTestId("price-chart");
+    await expect(chart.locator("canvas").first()).toBeVisible({
+      timeout: 15_000,
+    });
+    const before = Number(await chart.getAttribute("data-drawings"));
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await page.getByRole("button", { name: /Vertical line/ }).click();
+      const box = (await chart.boundingBox())!;
+      await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.2);
+      await page.waitForTimeout(650);
+      if (Number(await chart.getAttribute("data-drawings")) > before) break;
+      await page.keyboard.press("Escape");
+    }
+    expect(Number(await chart.getAttribute("data-drawings"))).toBe(before + 1);
+    // legend readout renders OHLC values (phase 2)
+    await expect(page.getByTestId("chart-legend")).toContainText(/O \d/);
+  });
+});

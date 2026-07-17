@@ -11,8 +11,12 @@ import {
   Eye,
   EyeOff,
   List,
+  Magnet,
   Minus,
   MousePointer2,
+  MoveUpRight,
+  MoveVertical,
+  Ruler,
   Rows3,
   Square,
   Trash2,
@@ -29,6 +33,8 @@ const TOOLS: { mode: ToolMode; icon: typeof MousePointer2; label: string }[] = [
   { mode: "select", icon: MousePointer2, label: "Select / pan" },
   { mode: "trend", icon: TrendingUp, label: "Trendline (2 clicks)" },
   { mode: "hray", icon: Minus, label: "Horizontal ray (1 click)" },
+  { mode: "vline", icon: MoveVertical, label: "Vertical line (1 click)" },
+  { mode: "arrow", icon: MoveUpRight, label: "Arrow (2 clicks)" },
   { mode: "fib", icon: AlignEndHorizontal, label: "Fib retracement (2 clicks)" },
   { mode: "long", icon: ArrowUpRight, label: "Long position (entry → stop → target)" },
   { mode: "short", icon: ArrowDownRight, label: "Short position (entry → stop → target)" },
@@ -36,6 +42,7 @@ const TOOLS: { mode: ToolMode; icon: typeof MousePointer2; label: string }[] = [
   { mode: "channel", icon: Rows3, label: "Parallel channel (base line, then offset)" },
   { mode: "text", icon: Type, label: "Text note (1 click)" },
   { mode: "alert", icon: Bell, label: "Price alert (click a level)" },
+  { mode: "measure", icon: Ruler, label: "Measure (2 clicks; Esc clears)" },
   { mode: "erase", icon: Eraser, label: "Erase (click a drawing)" },
 ];
 
@@ -55,6 +62,8 @@ export function DrawingToolbar({
   onClearAll,
   onToggleHidden,
   onRemove,
+  magnet = false,
+  onMagnetChange,
 }: {
   mode: ToolMode;
   onModeChange: (mode: ToolMode) => void;
@@ -62,6 +71,9 @@ export function DrawingToolbar({
   onClearAll: () => void;
   onToggleHidden: (id: string) => void;
   onRemove: (id: string) => void;
+  /** snap drawing anchors to the clicked bar's O/H/L/C */
+  magnet?: boolean;
+  onMagnetChange?: (on: boolean) => void;
 }) {
   const count = drawings.length;
   return (
@@ -88,6 +100,23 @@ export function DrawingToolbar({
           </Button>
         </Tip>
       ))}
+      {onMagnetChange && (
+        <Tip content={magnet ? "Magnet on: anchors snap to O/H/L/C" : "Magnet off"}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Magnet mode (snap to OHLC)"
+            aria-pressed={magnet}
+            className={cn(
+              "h-[30px] w-[30px] rounded-[9px] border border-border",
+              magnet && "bg-accent-muted text-accent",
+            )}
+            onClick={() => onMagnetChange(!magnet)}
+          >
+            <Magnet size={13} />
+          </Button>
+        </Tip>
+      )}
       {/* object list (review P2.2): every drawing, hide/show + delete —
           hiding is reversible, deleting is not, both one click away */}
       <DropdownMenu.Root>

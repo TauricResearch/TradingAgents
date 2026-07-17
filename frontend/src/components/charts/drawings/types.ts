@@ -10,6 +10,8 @@ export interface DrawingPoint {
 export type DrawingKind =
   | "trend"
   | "hray"
+  | "vline"
+  | "arrow"
   | "fib"
   | "long"
   | "short"
@@ -30,14 +32,17 @@ export interface Drawing {
   hidden?: boolean;
 }
 
-// "alert" is an interaction, not a persisted drawing: one click on a price
-// creates a price alert at that level (A2). It never enters the store, so
-// it stays out of DrawingKind / POINTS_REQUIRED / the primitive.
-export type ToolMode = "select" | "erase" | "alert" | DrawingKind;
+// "alert" and "measure" are interactions, not persisted drawings: alert
+// creates a price alert at the clicked level (A2); measure is a two-click
+// ephemeral ruler (chart Phase 2). Neither enters the store, so they stay
+// out of DrawingKind / POINTS_REQUIRED.
+export type ToolMode = "select" | "erase" | "alert" | "measure" | DrawingKind;
 
 export const POINTS_REQUIRED: Record<DrawingKind, number> = {
   trend: 2,
   hray: 1,
+  vline: 1,
+  arrow: 2,
   fib: 2,
   long: 3,
   short: 3,

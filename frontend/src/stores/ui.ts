@@ -32,6 +32,8 @@ interface UiState {
   toggleIndicator: (name: string) => void;
   showVolume: boolean;
   toggleVolume: () => void;
+  logScale: boolean;
+  toggleLogScale: () => void;
   showProfile: boolean;
   toggleProfile: () => void;
   gridCells: GridCell[];
@@ -76,6 +78,8 @@ export const useUiStore = create<UiState>()(
       // mockup default: volume pane on
       showVolume: true,
       toggleVolume: () => set((state) => ({ showVolume: !state.showVolume })),
+      logScale: false,
+      toggleLogScale: () => set((state) => ({ logScale: !state.logScale })),
       // volume profile off by default — opt-in visual weight
       showProfile: false,
       toggleProfile: () => set((state) => ({ showProfile: !state.showProfile })),
@@ -119,6 +123,7 @@ export const useUiStore = create<UiState>()(
         lastSeenAt: s.lastSeenAt,
         indicators: s.indicators,
         showVolume: s.showVolume,
+        logScale: s.logScale,
         showProfile: s.showProfile,
         gridCells: s.gridCells,
       }),

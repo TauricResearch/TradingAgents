@@ -137,6 +137,8 @@ export default function WorkspacePage() {
     toggleVolume,
     showProfile,
     toggleProfile,
+    logScale,
+    toggleLogScale,
     compare,
     setCompare,
     gridCells,
@@ -144,6 +146,7 @@ export default function WorkspacePage() {
     updateGridCell,
   } = useUiStore();
   const [toolMode, setToolMode] = useState<ToolMode>("select");
+  const [magnet, setMagnet] = useState(false);
   const chartCardRef = useRef<HTMLDivElement | null>(null);
   const symbolDrawings = useDrawingsStore(
     // stable empty constant: `?? []` mints a fresh array per call, which
@@ -407,6 +410,16 @@ export default function WorkspacePage() {
                 ))}
               </Segmented>
               <Button
+                size="sm"
+                variant="outline"
+                aria-label="Toggle logarithmic price scale"
+                aria-pressed={logScale}
+                className={logScale ? "text-accent" : "text-fg-subtle"}
+                onClick={toggleLogScale}
+              >
+                log
+              </Button>
+              <Button
                 size="icon"
                 variant="outline"
                 aria-label="Full screen (f)"
@@ -463,6 +476,8 @@ export default function WorkspacePage() {
                     onClearAll={() => clearDrawings(symbol)}
                     onToggleHidden={(id) => toggleDrawingHidden(symbol, id)}
                     onRemove={(id) => removeDrawing(symbol, id)}
+                    magnet={magnet}
+                    onMagnetChange={setMagnet}
                   />
                   <div className="relative min-w-0 grow">
                     <PriceChart
@@ -485,6 +500,9 @@ export default function WorkspacePage() {
                         setExplain({ runId, x: point.x, y: point.y })
                       }
                       openPosition={openPosition}
+                      logScale={logScale}
+                      magnet={magnet}
+                      legend
                     />
                     {openPosition?.unrealized_pnl != null && (
                       <div
