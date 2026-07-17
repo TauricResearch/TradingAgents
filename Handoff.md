@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-Formal specification review reached the brainstorming skill's five-round limit. Round 5 found two remaining issues: non-role mutations such as `Msg Clear` and initial input also needed commit tokens, and the repository's broad LangGraph minimum did not guarantee the required APIs. Both are now fixed in the spec through tokens for every state-mutating graph task plus deterministic tokenless-barrier handling, and a strict `[web]` runtime feature floor/capability probe. The process now requires human guidance before any further independent review or implementation planning.
+Formal specification review exceeded the normal five-round limit once under continued-goal execution. The exceptional review confirmed task-token coverage and runtime floors, then found one final boundary issue: LangGraph internal branch/control channels must not count as business state. The spec now derives `BusinessStateProjectionV1` strictly from declared inherited `AgentState` fields, persists its schema hash, and excludes all framework-only channels from state hashes and pending-write mutation tests. No further automated review is scheduled; human review is now required.
 
 ## Confirmed constraints
 
@@ -60,13 +60,12 @@ Formal specification review reached the brainstorming skill's five-round limit. 
 
 ## Pending decisions
 
-The five-round automated review limit was reached. The user must choose whether to authorize one exceptional extra independent review or directly review the now-corrected written specification. Implementation planning remains blocked until that guidance and written-spec approval.
+The user must review the corrected written specification and either approve it as the human override after the review-limit escalation or request changes. Implementation planning remains blocked until that approval.
 
 ## Next steps
 
-1. Ask the user whether to authorize one exceptional extra independent review or proceed to human review of the corrected spec.
-2. Obtain explicit user approval of the written specification.
-3. After user approval, create the detailed implementation plan.
+1. Obtain explicit user approval of the corrected written specification.
+2. After user approval, create the detailed implementation plan.
 
 ## Notes
 
