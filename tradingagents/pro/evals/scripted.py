@@ -16,8 +16,14 @@ from tradingagents.pro.pipeline import (
     JudgeVerdict,
     ReflectionNote,
 )
+from tradingagents.pro.pipeline.qa import EvidenceAnswer
 
 DEFAULT_DRAFTS = {
+    EvidenceAnswer: EvidenceAnswer(
+        answerable=True,
+        answer="Per the cited evidence, the prevailing side carried the debate.",
+        cited_agent_ids=["rsi"],
+    ),
     EvidenceDraft: EvidenceDraft(
         claim="Signal favors upside per the shown values.",
         direction="bullish",

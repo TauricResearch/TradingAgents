@@ -684,6 +684,71 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     async def run_recommendation(run_id: str) -> dict:
         return _ticket_view(_run_or_404(run_id))
 
+    @app.post("/api/runs/{run_id}/ask")
+    async def ask_run(run_id: str, request: Request) -> dict:
+        """Grounded Q&A over ONE run's record (evidence/debate/verdict).
+        Answers only from that record with agent-id citations; refuses to
+        reach beyond it. Needs the pipeline LLM (the loop's own bundle)."""
+        from tradingagents.pro.models import ModelBundle
+        from tradingagents.pro.pipeline.nodes import _all_evidence, _debate_block
+        from tradingagents.pro.pipeline.qa import (
+            MAX_QUESTION_CHARS,
+            EvidenceAnswer,
+            build_qa_prompt,
+        )
+
+        run = _run_or_404(run_id)
+        service_obj = getattr(state.trigger, "service", None)
+        llm = getattr(service_obj, "llm", None)
+        if llm is None:
+            raise HTTPException(
+                status_code=503,
+                detail="ask is unavailable in monitor mode (no model attached)")
+        body = await request.json()
+        question = str(body.get("question", "")).strip()
+        if not question:
+            raise HTTPException(status_code=422, detail="question is required")
+        if len(question) > MAX_QUESTION_CHARS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"question exceeds {MAX_QUESTION_CHARS} characters")
+
+        rec = run.recommendation
+        if rec is not None:
+            supporting = list(rec.evidence)
+            counters = list(rec.counterarguments)
+        else:  # rejected / HOLD: pull whatever evidence the run gathered
+            try:
+                supporting = _all_evidence(run.state)
+            except Exception:
+                supporting = []
+            counters = []
+        prompt = build_qa_prompt(
+            question,
+            symbol=run.symbol,
+            recommendation=rec,
+            supporting=supporting,
+            counterarguments=counters,
+            debate_block=_debate_block(run.debate),
+            invalidation=(run.state.get("reflection") or {}).get("invalidation"),
+        )
+        bundle = ModelBundle.coerce(llm)
+        try:
+            answer = await asyncio.to_thread(
+                bundle.deep.with_structured_output(EvidenceAnswer).invoke, prompt)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"model call failed: {type(exc).__name__}") from None
+        if answer is None:
+            raise HTTPException(status_code=502, detail="model returned nothing")
+        return {
+            "run_id": run.run_id,
+            "answerable": answer.answerable,
+            "answer": answer.answer,
+            "cited_agent_ids": list(answer.cited_agent_ids),
+        }
+
     @app.get("/api/status")
     def status() -> dict:
         return service.system_status(state.router, state.equity, state.arming,

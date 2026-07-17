@@ -20,6 +20,63 @@ def client():
     return TestClient(create_app(state))
 
 
+class _StubStructured:
+    def __init__(self, answer):
+        self._answer = answer
+
+    def invoke(self, prompt):
+        self._captured = prompt
+        return self._answer
+
+
+class _StubLLM:
+    """Minimal ModelBundle-coercible llm returning a canned EvidenceAnswer."""
+
+    def __init__(self, answer):
+        self._answer = answer
+
+    def with_structured_output(self, schema):
+        return _StubStructured(self._answer)
+
+
+def test_ask_run_answers_from_the_record():
+    from tradingagents.pro.pipeline.qa import EvidenceAnswer
+
+    state = DashboardState(memory=ProMemory())
+    run = state.recorder.record_run(
+        FakePipelineLLM(), CONFIG, pipeline_snapshot(), memory=state.memory
+    )
+    answer = EvidenceAnswer(
+        answerable=True, answer="The bull side led per rsi.",
+        cited_agent_ids=["rsi"],
+    )
+    state.trigger = type("T", (), {"service": type("S", (), {"llm": _StubLLM(answer)})()})()
+    client = TestClient(create_app(state))
+
+    resp = client.post(f"/api/runs/{run.run_id}/ask",
+                       json={"question": "What decided it?"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["answerable"] is True
+    assert body["cited_agent_ids"] == ["rsi"]
+
+    # guards
+    assert client.post(f"/api/runs/{run.run_id}/ask", json={}).status_code == 422
+    assert client.post("/api/runs/nope/ask",
+                       json={"question": "x"}).status_code == 404
+
+
+def test_ask_run_503_without_model():
+    state = DashboardState(memory=ProMemory())
+    run = state.recorder.record_run(
+        FakePipelineLLM(), CONFIG, pipeline_snapshot(), memory=state.memory
+    )
+    client = TestClient(create_app(state))  # no trigger/service attached
+    resp = client.post(f"/api/runs/{run.run_id}/ask",
+                       json={"question": "why?"})
+    assert resp.status_code == 503
+
+
 def test_index_serves_dashboard_html(client):
     # "/" serves the SPA when a frontend build exists, else the legacy page;
     # both carry the product name. The legacy page stays at /legacy.

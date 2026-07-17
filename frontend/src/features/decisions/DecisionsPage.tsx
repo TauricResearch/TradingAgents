@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { AgentLeaderboard } from "@/components/AgentLeaderboard";
+import { EvidenceChat } from "@/components/EvidenceChat";
 import { CalibrationChart } from "@/components/CalibrationChart";
 import { ConsensusBar } from "@/components/ConsensusBar";
 import { DebateTimeline } from "@/components/DebateTimeline";
@@ -334,6 +335,14 @@ export default function DecisionsPage() {
       </div>
 
       <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Ask the record</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EvidenceChat runId={selected} />
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Similar past setups</CardTitle>

@@ -147,6 +147,26 @@ export const usePriceAlerts = () =>
 
 /** Notify-only by design: a triggered alert raises a notification, it
  * can never place or modify an order. */
+export interface EvidenceAnswer {
+  run_id: string;
+  answerable: boolean;
+  answer: string;
+  cited_agent_ids: string[];
+}
+
+/** Grounded Q&A over one run's record (A1). Not cached — each question is
+ * a one-shot POST; the model answers only from that run's evidence. */
+export async function askRun(
+  runId: string,
+  question: string,
+): Promise<EvidenceAnswer> {
+  return apiFetch<EvidenceAnswer>(`/api/runs/${runId}/ask`, {
+    method: "POST",
+    body: JSON.stringify({ question }),
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 export async function createPriceAlert(
   client: QueryClient,
   alert: { symbol: string; level: number; direction: "above" | "below"; note?: string },
