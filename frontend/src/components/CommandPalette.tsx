@@ -60,6 +60,7 @@ export function CommandPalette() {
             ["Trading Workspace", `/trade/${symbol}`, "g t"],
             ["AI Decision Center", "/decisions", "g d"],
             ["Portfolio", "/portfolio", "g p"],
+            ["Track Record", "/track-record", "g r"],
             ["Market Intelligence", "/intel", "g i"],
             ["Settings", "/settings", "g s"],
             ["Monthly report (print/PDF)", "/report", ""],

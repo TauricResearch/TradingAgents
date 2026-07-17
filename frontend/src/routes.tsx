@@ -8,6 +8,9 @@ const HomePage = lazy(() => import("./features/home/HomePage"));
 const WorkspacePage = lazy(() => import("./features/workspace/WorkspacePage"));
 const DecisionsPage = lazy(() => import("./features/decisions/DecisionsPage"));
 const PortfolioPage = lazy(() => import("./features/portfolio/PortfolioPage"));
+const TrackRecordPage = lazy(
+  () => import("./features/track-record/TrackRecordPage"),
+);
 const IntelPage = lazy(() => import("./features/intelligence/IntelPage"));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
 const ReportPage = lazy(() => import("./features/report/ReportPage"));
@@ -27,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "decisions", element: page(<DecisionsPage />) },
       { path: "decisions/:runId", element: page(<DecisionsPage />) },
       { path: "portfolio", element: page(<PortfolioPage />) },
+      { path: "track-record", element: page(<TrackRecordPage />) },
       { path: "intel", element: page(<IntelPage />) },
       { path: "settings", element: page(<SettingsPage />) },
       { path: "report", element: page(<ReportPage />) },
