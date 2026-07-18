@@ -165,6 +165,26 @@ export function NotificationCenter() {
           <Button
             size="sm"
             variant="ghost"
+            title="Mark info-level chatter read; warnings stay unread"
+            onClick={() => {
+              const infoIds = (notifications.data?.notifications ?? [])
+                .filter(
+                  (n) =>
+                    !n.read &&
+                    n.severity !== "warning" &&
+                    n.severity !== "critical",
+                )
+                .map((n) => n.id);
+              if (infoIds.length) {
+                void markNotificationsRead(client, infoIds);
+              }
+            }}
+          >
+            Clear chatter
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
             onClick={() => void markNotificationsRead(client)}
           >
             Mark all read

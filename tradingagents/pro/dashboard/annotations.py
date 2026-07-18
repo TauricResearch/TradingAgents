@@ -33,6 +33,15 @@ def _parse_iso(value) -> int | None:
         return None
 
 
+def _first_reason(rejection: dict | None) -> str | None:
+    """The gate's own words, e.g. 'FOMC in 3.2h — new entries are blocked…'
+    (R4.3: the chart popover names the event, not just the stage)."""
+    reasons = (rejection or {}).get("reasons") or []
+    if not reasons:
+        return None
+    return str(reasons[0])[:160]
+
+
 def _run_view(run) -> dict:
     rec = run.recommendation
     view: dict = {
@@ -40,6 +49,7 @@ def _run_view(run) -> dict:
         "time": _epoch(run.started_at),
         "action": rec.action.value if rec is not None else None,
         "rejected_at": (run.rejection or {}).get("stage"),
+        "rejected_reason": _first_reason(run.rejection),
         "confidence": rec.confidence if rec is not None else None,
         "market_regime": rec.market_regime.value if rec is not None else None,
         "geometry": None,

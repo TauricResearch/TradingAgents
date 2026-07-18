@@ -183,7 +183,9 @@ export default function WorkspacePage() {
   const status = useStatus();
   const calendar = useCalendar();
   const alertClient = useQueryClient();
-  const [alertToast, setAlertToast] = useState<string | null>(null);
+  const [alertToast, setAlertToast] = useState<
+    { text: string; alertId: string | null } | null
+  >(null);
 
   // keep global symbol in sync with the route
   if (useUiStore.getState().symbol !== symbol) setSymbol(symbol);
@@ -191,7 +193,8 @@ export default function WorkspacePage() {
   const allBars = useMemo(() => bars.data ?? [], [bars.data]);
 
   // A2: click-to-alert. Direction is inferred from the last close — an
-  // alert above spot fires on a rally, below on a break.
+  // alert above spot fires on a rally, below on a break. Toast holds 6s
+  // with an Undo (V4 finding: 3.5s blinked out before the eye landed).
   const createChartAlert = (price: number) => {
     const lastClose = allBars.length
       ? allBars[allBars.length - 1]!.close
@@ -203,11 +206,16 @@ export default function WorkspacePage() {
       direction,
       note: "from chart",
     })
-      .then(() =>
-        setAlertToast(`Alert set: ${symbol} ${direction} ${fmtPrice(price)}`),
+      .then((created) =>
+        setAlertToast({
+          text: `Alert set: ${symbol} ${direction} ${fmtPrice(price)}`,
+          alertId: created.id ?? null,
+        }),
       )
-      .catch(() => setAlertToast("Could not set alert — try again"));
-    window.setTimeout(() => setAlertToast(null), 3500);
+      .catch(() =>
+        setAlertToast({ text: "Could not set alert — try again", alertId: null }),
+      );
+    window.setTimeout(() => setAlertToast(null), 6000);
   };
 
   // AI decision layer (chart Phase 1): fetched before replay so replay
@@ -274,8 +282,13 @@ export default function WorkspacePage() {
           direction: entry.pnl >= 0 ? "bull" : "bear",
           label: `${entry.action ?? ""} ${fmtPnl(entry.pnl)}`,
         }))
-        .filter((m) => !replay.active || cursorTime == null || m.time <= cursorTime),
-    [journal.data, symbol, replay.active, cursorTime],
+        .filter((m) => {
+          if (!replay.active || cursorTime == null) return true;
+          // snapped comparison, same basis as the pause logic (R4.2)
+          const snapped = snapToBar(allBars.map((b) => b.time), m.time);
+          return snapped != null && snapped <= cursorTime;
+        }),
+    [journal.data, symbol, replay.active, cursorTime, allBars],
   );
 
   // During replay only runs decided as-of the cursor are visible — the
@@ -284,14 +297,22 @@ export default function WorkspacePage() {
     const data = chartAnnotations.data;
     if (!data) return null;
     if (!replay.active || cursorTime == null) return data;
+    // R4.2: compare SNAPPED times — the same basis the pause-on-decision
+    // logic uses. Raw run times sit mid-bar (e.g. 14:23 in the 14:00 bar),
+    // so a raw comparison hid the paused decision's own zone until the
+    // NEXT bar was revealed.
+    const times = allBars.map((b) => b.time);
+    const asOf = (t: number | null) => {
+      if (t == null) return false;
+      const snapped = snapToBar(times, t);
+      return snapped != null && snapped <= cursorTime;
+    };
     return {
       ...data,
-      runs: data.runs.filter((r) => r.time != null && r.time <= cursorTime),
-      fills: data.fills.filter(
-        (f) => f.closed_time != null && f.closed_time <= cursorTime,
-      ),
+      runs: data.runs.filter((r) => asOf(r.time)),
+      fills: data.fills.filter((f) => asOf(f.closed_time)),
     };
-  }, [chartAnnotations.data, replay.active, cursorTime]);
+  }, [chartAnnotations.data, replay.active, cursorTime, allBars]);
 
   const [explain, setExplain] = useState<ExplainTarget | null>(null);
   // a symbol/timeframe switch invalidates the anchor position
@@ -449,11 +470,22 @@ export default function WorkspacePage() {
           <CardContent>
             {alertToast && (
               <div
-                className="mb-2 rounded-lg bg-accent-muted px-2.5 py-1.5 text-xs text-accent"
+                className="mb-2 flex items-center justify-between rounded-lg bg-accent-muted px-2.5 py-1.5 text-xs text-accent"
                 data-testid="alert-toast"
                 role="status"
               >
-                {alertToast}
+                <span>{alertToast.text}</span>
+                {alertToast.alertId && (
+                  <button
+                    className="ml-2 font-semibold underline"
+                    onClick={() => {
+                      void deletePriceAlert(alertClient, alertToast.alertId!);
+                      setAlertToast(null);
+                    }}
+                  >
+                    Undo
+                  </button>
+                )}
               </div>
             )}
             <div className="mb-2 flex items-center justify-between no-print">

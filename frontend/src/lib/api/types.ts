@@ -72,7 +72,12 @@ export const RecommendationSchema = z
   .object({
     status: z.string().optional(), // "rejected" | "no recommendation"
     rejection: z
-      .object({ stage: z.string().nullable().optional() })
+      .object({
+        stage: z.string().nullable().optional(),
+        // the gate's own words, e.g. "FOMC in 3.2h — new entries are
+        // blocked…" (R4.3: name the event, not just the stage)
+        reasons: z.array(z.string()).optional(),
+      })
       .catchall(z.unknown())
       .nullable()
       .optional(),
@@ -390,6 +395,7 @@ export const ChartAnnotationsSchema = z.object({
       time: z.number().nullable(),
       action: z.string().nullable(),
       rejected_at: z.string().nullable(),
+      rejected_reason: z.string().nullable().optional(),
       confidence: z.number().nullable(),
       market_regime: z.string().nullable(),
       geometry: z

@@ -67,7 +67,14 @@ export function ExplainRunPopover({
           {rec.isPending ? (
             "Loading decision…"
           ) : d?.rejection ? (
-            <>Rejected at {d.rejection.stage ?? "gate"}</>
+            <>
+              Rejected at {d.rejection.stage ?? "gate"}
+              {d.rejection.reasons?.[0] && (
+                <span className="block font-normal text-fg-muted">
+                  {d.rejection.reasons[0]}
+                </span>
+              )}
+            </>
           ) : (
             <>
               <span

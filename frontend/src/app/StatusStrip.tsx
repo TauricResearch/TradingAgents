@@ -183,6 +183,12 @@ export function StatusStrip() {
   const s = status.data;
   const o = overview.data;
   const unread = notifications.data?.unread ?? 0;
+  // R4 bell fix: the badge number counts only unread warnings/criticals —
+  // the things a trader must act on. Info chatter (the hourly loop's run
+  // notes) shows as a muted dot, never a screaming 99+.
+  const unreadImportant = (notifications.data?.notifications ?? []).filter(
+    (n) => !n.read && (n.severity === "warning" || n.severity === "critical"),
+  ).length;
   // symbol-aware regime (G3): the chip shows the ACTIVE symbol's regime
   // from the deterministic per-symbol endpoint, never another symbol's
   const activeRegime = regime.data?.symbols?.[symbol]?.regime ?? null;
@@ -293,11 +299,16 @@ export function StatusStrip() {
           onClick={() => setNotificationsOpen(true)}
         >
           <Bell size={15} />
-          {unread > 0 && (
+          {unreadImportant > 0 ? (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-bear px-1 text-[10px] font-bold text-on-solid">
-              {unread > 99 ? "99+" : unread}
+              {unreadImportant > 25 ? "25+" : unreadImportant}
             </span>
-          )}
+          ) : unread > 0 ? (
+            <span
+              className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-fg-subtle"
+              data-testid="bell-info-dot"
+            />
+          ) : null}
         </Button>
         <Button
           variant="ghost"

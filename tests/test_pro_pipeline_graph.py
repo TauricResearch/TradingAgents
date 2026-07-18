@@ -150,7 +150,10 @@ def test_reflection_invalidation_price_derives_the_stop():
     assert rec.stop_loss > 125.0
 
 
-def test_wrong_sided_invalidation_falls_back_to_atr_stop():
+def test_wrong_sided_invalidation_suppresses_and_stop_becomes_thesis_death():
+    """R4.1: a note written for the other side must never ship as-is. With
+    no regeneration available (the fake returns the same wrong-sided note),
+    the prose is suppressed and the stop IS the thesis-death level."""
     llm = FakePipelineLLM(overrides={
         ReflectionNote: ReflectionNote(
             weaknesses="Momentum evidence is single-timeframe.",
@@ -161,8 +164,95 @@ def test_wrong_sided_invalidation_falls_back_to_atr_stop():
     state = run_pipeline(llm, CONFIG, pipeline_snapshot())
     rec = state["recommendation"]
     assert rec is not None and rec.action is TradeAction.BUY
-    assert rec.invalidation_price is None
     assert rec.stop_loss == pytest.approx(125.0)  # 130 - 2*ATR(2.5)
+    # directional tickets never ship null invalidation anymore
+    assert rec.invalidation_price == pytest.approx(rec.stop_loss)
+    reflection = state["reflection"]
+    assert reflection["restated"] == "suppressed after judge direction change"
+    assert "Restated for the final BUY direction" in reflection["invalidation"]
+    assert "bear case" not in reflection["invalidation"]
+
+
+def test_r41_sell_verdict_with_long_thesis_reflection_never_contradicts():
+    """The production R4.1 shape (run 39a7db07): bearish evidence, judge
+    rules SELL, but reflection wrote a LONG-thesis invalidation with a
+    below-entry level. The ticket must not carry the contradictory prose,
+    and invalidation_price must be non-null."""
+    llm = FakePipelineLLM(overrides={
+        EvidenceDraft: EvidenceDraft(
+            claim="Signal points down.", direction="bearish", confidence=60,
+        ),
+        JudgeVerdict: JudgeVerdict(action="SELL", confidence=58,
+                                   rationale="Bear side carried it."),
+        ReflectionNote: ReflectionNote(
+            weaknesses="Volume climax may be absorption.",
+            invalidation=("For a long thesis (bullish reversal from 128): a "
+                          "close below 128 would invalidate the reversal."),
+            invalidation_price=128.0,  # below entry: a LONG level on a SELL
+        ),
+    })
+    state = run_pipeline(llm, CONFIG, pipeline_snapshot())
+    rec = state["recommendation"]
+    assert rec is not None and rec.action is TradeAction.SELL
+    assert rec.invalidation_price is not None
+    assert rec.invalidation_price > rec.entry_price  # right side for a SELL
+    reflection = state["reflection"]
+    assert "long thesis" not in reflection["invalidation"].lower()
+    assert "Restated for the final SELL direction" in reflection["invalidation"]
+
+
+def test_r41_regeneration_repairs_the_note_when_the_model_cooperates():
+    """When the targeted second call returns a right-sided level, the
+    regenerated prose + price ship (no suppression)."""
+    wrong = ReflectionNote(
+        weaknesses="w", invalidation="close below 128 kills the long.",
+        invalidation_price=128.0)
+    repaired = ReflectionNote(
+        weaknesses="w",
+        invalidation="A close above 134 kills the short thesis.",
+        invalidation_price=134.0)
+
+    class QueueRunnable:
+        """Pipeline caches the structured runnable per schema, so the
+        per-call sequencing must live in invoke(), not construction."""
+
+        def __init__(self, payloads, log):
+            self.payloads = list(payloads)
+            self.log = log
+
+        def invoke(self, prompt):
+            self.log.append(prompt)
+            return (self.payloads.pop(0) if len(self.payloads) > 1
+                    else self.payloads[0])
+
+    class SequencedLLM(FakePipelineLLM):
+        def __init__(self):
+            super().__init__(overrides={
+                EvidenceDraft: EvidenceDraft(
+                    claim="Down.", direction="bearish", confidence=60),
+                JudgeVerdict: JudgeVerdict(action="SELL", confidence=60,
+                                           rationale="bear"),
+            })
+
+        def with_structured_output(self, schema):
+            if schema is ReflectionNote:
+                return QueueRunnable(
+                    [wrong, repaired],
+                    self.prompts.setdefault("ReflectionNote", []))
+            return super().with_structured_output(schema)
+
+    llm = SequencedLLM()
+    state = run_pipeline(llm, CONFIG, pipeline_snapshot())
+    rec = state["recommendation"]
+    assert rec is not None and rec.action is TradeAction.SELL
+    assert rec.invalidation_price == pytest.approx(134.0)
+    reflection = state["reflection"]
+    assert reflection["restated"] == "regenerated after judge direction change"
+    assert "above 134" in reflection["invalidation"]
+    # the targeted second prompt pinned the ruled side
+    regen_prompt = llm.prompts["ReflectionNote"][-1]
+    assert "SHORT THESIS ONLY" in regen_prompt
+    assert "ABOVE" in regen_prompt
 
 
 def test_hold_ruling_yields_hold_recommendation_without_levels():

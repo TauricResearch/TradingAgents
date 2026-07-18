@@ -517,6 +517,70 @@ class PipelineNodes:
             "vote_breakdown": build_vote_breakdown(evidence, judge_vote),
         }
 
+    def _reconcile_invalidation(
+        self, state: dict, action: TradeAction, timeframe,
+    ) -> tuple[float | None, dict | None]:
+        """R4.1: reflection writes its invalidation BEFORE the judge rules.
+
+        When the judge lands on the other side, the note's prose (and any
+        structured level) describes a thesis the ticket does not carry — a
+        production SELL shipped with 'a close below 3963 would invalidate
+        the bullish reversal'. Direction is checked deterministically via
+        the level's side of entry; a null or wrong-sided level triggers ONE
+        targeted regeneration pinned to the ruled side, and on failure the
+        prose is suppressed (never displayed contradictory) — the caller
+        then makes the stop itself the thesis-death level.
+
+        Returns (invalidation_price, reflection_patch) — the patch, when
+        present, replaces the run's reflection record.
+        """
+        snapshot = state["snapshot"]
+        reflection = dict(state.get("reflection") or {})
+        price = reflection.get("invalidation_price")
+        bars = [b for b in snapshot.bars if b.timeframe == timeframe] or list(
+            snapshot.bars)
+        entry_ref = bars[-1].close if bars else None
+
+        def right_sided(level: float | None) -> bool:
+            if level is None or entry_ref is None:
+                return False
+            return (level < entry_ref if action is TradeAction.BUY
+                    else level > entry_ref)
+
+        if right_sided(price):
+            return price, None
+
+        side_word = "LONG" if action is TradeAction.BUY else "SHORT"
+        must_sit = "BELOW" if action is TradeAction.BUY else "ABOVE"
+        prompt = (
+            f"The final verdict is {action.value} {snapshot.symbol} — a "
+            f"{side_word} thesis with reference entry {entry_ref}. State the "
+            f"weaknesses and the invalidation condition FOR THIS {side_word} "
+            f"THESIS ONLY. The structured invalidation_price must sit "
+            f"{must_sit} the reference entry: it is the level whose breach "
+            f"kills the {side_word} thesis.\n\n"
+            f"Evidence:\n{_evidence_block(_all_evidence(state))}\n\n"
+            f"Debate record:\n{_debate_block(state['debate'])}"
+        )
+        note = self._invoke(ReflectionNote, prompt, deep=True)
+        if note is not None and right_sided(note.invalidation_price):
+            return note.invalidation_price, {
+                "weaknesses": reflection.get("weaknesses") or note.weaknesses,
+                "invalidation": note.invalidation,
+                "invalidation_price": note.invalidation_price,
+                "restated": "regenerated after judge direction change",
+            }
+        return None, {
+            **reflection,
+            "invalidation": (
+                f"Restated for the final {action.value} direction: the stop "
+                f"is the thesis-death level — a close beyond it invalidates "
+                f"the {side_word.lower()} thesis."
+            ),
+            "invalidation_price": None,
+            "restated": "suppressed after judge direction change",
+        }
+
     def portfolio_manager(self, state: dict) -> dict:
         snapshot = state["snapshot"]
         action: TradeAction = state["judge_action"]
@@ -549,16 +613,35 @@ class PipelineNodes:
         # the stop (and therefore the size) — the gate below then judges the
         # same numbers the ticket will carry.
         equity = state.get("equity") or self.equity
-        invalidation_price = (state.get("reflection") or {}).get("invalidation_price")
+        timeframe = state.get("run_timeframe") or infer_timeframe(snapshot)
+        # R4.1: the note may predate the verdict's direction — reconcile
+        invalidation_price, reflection_patch = self._reconcile_invalidation(
+            state, action, timeframe)
         sided = compute_risk_metrics(
             snapshot, self.config.risk, equity, side=action.value,
-            timeframe=state.get("run_timeframe") or infer_timeframe(snapshot),
+            timeframe=timeframe,
             invalidation_price=invalidation_price,
         )
+        update: dict[str, Any] = {}
+        if reflection_patch is not None:
+            update["reflection"] = reflection_patch
         gate = risk_gate(sided, self.config, proposed_action=action)
         if not gate.passed:
-            return {"rejection": {"stage": "portfolio_manager",
+            return {**update,
+                    "rejection": {"stage": "portfolio_manager",
                                   "reasons": list(gate.reasons)}}
+        if "INVALIDATION_PRICE" in sided:
+            final_invalidation = sided["INVALIDATION_PRICE"].value
+        elif "ATR_STOP" in sided:
+            # deterministic fallback: no usable direction-consistent level,
+            # so the stop IS the thesis-death level (overshoot 0 —
+            # contract-clean by construction). Directional tickets never
+            # ship a null invalidation_price again (R4.1).
+            final_invalidation = sided["ATR_STOP"].value
+            if reflection_patch is not None:
+                reflection_patch["invalidation_price"] = final_invalidation
+        else:
+            final_invalidation = None
 
         try:
             recommendation = TradeRecommendation(
@@ -568,10 +651,7 @@ class PipelineNodes:
                 confidence=state["judge_confidence"],
                 entry_price=sided["ENTRY_REF_PRICE"].value,
                 stop_loss=sided["ATR_STOP"].value,
-                invalidation_price=(
-                    sided["INVALIDATION_PRICE"].value
-                    if "INVALIDATION_PRICE" in sided else None
-                ),
+                invalidation_price=final_invalidation,
                 take_profits=[
                     TakeProfitLevel(price=sided["ATR_TP1"].value, size_fraction=0.5),
                     TakeProfitLevel(price=sided["ATR_TP2"].value, size_fraction=0.5),
@@ -588,11 +668,11 @@ class PipelineNodes:
                 historical_analogs=state.get("historical_analogs", []),
             )
         except (ValidationError, KeyError) as exc:
-            return {"rejection": {
+            return {**update, "rejection": {
                 "stage": "portfolio_manager",
                 "reasons": [f"recommendation failed contract validation: {exc}"],
             }}
-        return {"recommendation": recommendation}
+        return {**update, "recommendation": recommendation}
 
     def human_approval(self, state: dict) -> dict:
         """Mandatory human gate for live mode (Constraint 5).

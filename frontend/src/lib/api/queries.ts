@@ -173,13 +173,14 @@ export async function askRun(
 export async function createPriceAlert(
   client: QueryClient,
   alert: { symbol: string; level: number; direction: "above" | "below"; note?: string },
-) {
-  await apiFetch("/api/price-alerts", {
+): Promise<{ id?: string }> {
+  const created = await apiFetch<{ id?: string }>("/api/price-alerts", {
     method: "POST",
     body: JSON.stringify(alert),
     headers: { "Content-Type": "application/json" },
   });
   await client.invalidateQueries({ queryKey: qk.priceAlerts });
+  return created ?? {};
 }
 
 export async function deletePriceAlert(client: QueryClient, id: string) {
