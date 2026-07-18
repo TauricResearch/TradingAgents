@@ -655,6 +655,7 @@ export function PriceChart({
       label: colors.muted,
       bullFill: hexToRgba(colors.bull, 0.08),
       bearFill: hexToRgba(colors.bear, 0.08),
+      bg: colors.bg,
     });
     annotationsRef.current?.setVisible(showAnnotations);
   }, [snappedAnnotations, barTimes, annotations, theme, showAnnotations, bars, style, indicators, showVolume]);

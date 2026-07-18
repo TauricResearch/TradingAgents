@@ -95,5 +95,6 @@ export function chartColors() {
     accent: v("--accent"),
     muted: v("--fg-subtle"),
     onSolid: v("--on-solid"),
+    bg: v("--surface-solid") || v("--surface"),
   };
 }

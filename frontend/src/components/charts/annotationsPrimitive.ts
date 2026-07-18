@@ -48,6 +48,8 @@ export interface AnnotationColors {
   label: string;
   bullFill: string;
   bearFill: string;
+  /** chart surface — the badge disc fill (ringed badge, mockup style) */
+  bg: string;
 }
 
 export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
@@ -73,6 +75,7 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     label: "#646f84",
     bullFill: "rgba(22,130,74,0.08)",
     bearFill: "rgba(192,52,52,0.08)",
+    bg: "#ffffff",
   };
   private paneView: IPrimitivePaneView;
 
@@ -245,8 +248,9 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     return null;
   }
 
-  /** Circular decision badge: colored disc + white ring + white glyph
-   * (▲ BUY / ▼ SELL / ✕ rejected). */
+  /** Circular decision badge (mockup style): a light surface disc with a
+   * colored ring, a soft colored glow, and a colored glyph inside —
+   * ▲ BUY / ▼ SELL / ✕ rejected. */
   private drawBadge(
     ctx: CanvasRenderingContext2D, hr: number, vr: number,
     x: number, y: number, color: string,
@@ -255,23 +259,32 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     const cx = x * hr;
     const cy = y * vr;
     const R = 8 * vr;
-    const g = 3.4 * vr;
+    const g = 3.3 * vr;
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+    // surface disc + soft colored glow (halo)
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 5 * vr;
     ctx.beginPath();
     ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.fillStyle = color;
+    ctx.fillStyle = this.colors.bg;
     ctx.fill();
+    ctx.restore();
+    // crisp colored ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
     ctx.lineWidth = 2 * vr;
-    ctx.strokeStyle = "rgba(255,255,255,0.95)";
+    ctx.strokeStyle = color;
     ctx.stroke();
-    ctx.fillStyle = "#fff";
-    ctx.strokeStyle = "#fff";
+    // colored glyph
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
     ctx.beginPath();
     if (rejected) {
-      ctx.lineWidth = 1.6 * vr;
+      ctx.lineWidth = 1.8 * vr;
       ctx.moveTo(cx - g, cy - g);
       ctx.lineTo(cx + g, cy + g);
       ctx.moveTo(cx + g, cy - g);
