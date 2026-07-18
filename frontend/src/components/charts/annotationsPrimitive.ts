@@ -1,6 +1,9 @@
-/** AI decision history painted on price (chart Phase 1): time-bounded
- * entry/stop/target zones per decision run, a regime+confidence ribbon,
- * and hit-testing so a click can ask "explain this decision."
+/** AI decision history painted on price (chart Phase 1): a clean, quiet
+ * layer — one dashed entry-level line projected right from each decision
+ * (the ▲/▼/✕ badges are LWC series markers), plus hit-testing so a click
+ * can ask "explain this decision." The full plan (stop/targets) and regime
+ * detail live behind the AI-Plan toggle and the explain card, not on the
+ * chart.
  *
  * All numbers come from the backend record (Constraint 2) — this layer
  * only converts them to pixels. Times must be pre-snapped to exact bar
@@ -47,36 +50,17 @@ export interface AnnotationColors {
   bearFill: string;
 }
 
-const RIBBON_HEIGHT = 6;
-const RIBBON_HIT = 12;
-
-/** regime -> which theme color keys the ribbon segment. */
-function regimeColorKey(regime: string | null): keyof AnnotationColors {
-  if (!regime) return "label";
-  if (regime.includes("trend") || regime.includes("bull")) return "bull";
-  if (regime.includes("volatil") || regime.includes("bear")) return "bear";
-  return "neutral";
-}
-
 export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
   private chart: IChartApi | null = null;
   private series: ISeriesApi<SeriesType> | null = null;
   private requestUpdateFn: (() => void) | null = null;
   private annotations: SnappedAnnotation[] = [];
   private barTimes: number[] = [];
-  private cadenceLabel = "";
   private visible = true;
-  // beyond this many zones in view, older ones collapse to a light entry
-  // tick — only the newest decision keeps its full bands. The hourly loop
-  // clusters recent runs, so a low ceiling keeps the layer as clean as the
-  // mockup (the active plan is also drawn by the recommendation lines, and
-  // every decision's full geometry stays one click away via findNearestRun).
-  private static readonly DENSITY_LIMIT = 2;
-  private static readonly FULL_WHEN_DENSE = 1;
-  // minimum on-pane width for a decision band: a same-bar close or a
-  // last-bar decision would otherwise collapse to zero width (invisible +
-  // unclickable). Wide enough to see and to hit-test reliably.
-  private static readonly MIN_ZONE_PX = 10;
+  // minimum on-pane length for an entry-level projection: a same-bar close
+  // or a last-bar decision would otherwise collapse to zero width
+  // (invisible + unclickable). Wide enough to see and to hit-test reliably.
+  private static readonly MIN_PROJECTION_PX = 12;
   // fallbacks only — PriceChart pushes theme tokens before first draw
   private colors: AnnotationColors = {
     bull: "#16824a",
@@ -122,17 +106,15 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     annotations: SnappedAnnotation[],
     barTimes: number[],
     colors?: Partial<AnnotationColors>,
-    cadenceLabel?: string,
   ): void {
     this.annotations = annotations;
     this.barTimes = barTimes;
     if (colors) this.colors = { ...this.colors, ...colors };
-    if (cadenceLabel != null) this.cadenceLabel = cadenceLabel;
     this.requestUpdateFn?.();
   }
 
-  /** Toggle the whole AI layer (zones + ribbon) — the "collapse it" the
-   * review asked for. Hit-testing also respects this. */
+  /** Toggle the whole AI history layer — the "collapse it" the review
+   * asked for. Hit-testing also respects this. */
   setVisible(on: boolean): void {
     if (this.visible === on) return;
     this.visible = on;
@@ -166,8 +148,11 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     return this.chart?.timeScale().width() ?? 0;
   }
 
-  /** Span edges in media x, clamped to the pane; null if fully off-pane. */
-  private spanX(span: { from: number; to: number | null }):
+  /** Entry-level projection from the decision bar rightward, in media x,
+   * clamped to the pane. to=null (open) runs to the right edge; a same-bar
+   * or last-bar decision gets a minimum length so it stays visible +
+   * clickable. null if fully off-pane. */
+  private projectionX(span: { from: number; to: number | null }):
     { x1: number; x2: number } | null {
     const width = this.width();
     const rawX1 = this.xOf(span.from);
@@ -176,191 +161,65 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
       ? width
       : this.xOf(Math.min(span.to, lastTime ?? span.to));
     if (rawX1 == null || rawX2 == null) return null;
-    let x1 = Math.max(0, Math.min(width, rawX1));
+    const x1 = Math.max(0, Math.min(width, rawX1));
     let x2 = Math.max(0, Math.min(width, rawX2));
-    // fully off-pane → nothing to paint
     if (x2 <= 0 || x1 >= width) return null;
-    // a same-bar close (to == from) or an open decision pinned to the last
-    // bar collapses to zero width — it would draw invisibly and be
-    // unclickable. Guarantee a minimum band, extending LEFT when the entry
-    // sits at the right edge (no room to grow right).
-    if (x2 - x1 < AnnotationsPrimitive.MIN_ZONE_PX) {
-      x2 = Math.min(width, x1 + AnnotationsPrimitive.MIN_ZONE_PX);
-      if (x2 - x1 < AnnotationsPrimitive.MIN_ZONE_PX) {
-        x1 = Math.max(0, x2 - AnnotationsPrimitive.MIN_ZONE_PX);
-      }
+    if (x2 - x1 < AnnotationsPrimitive.MIN_PROJECTION_PX) {
+      x2 = Math.min(width, x1 + AnnotationsPrimitive.MIN_PROJECTION_PX);
     }
     if (x2 <= x1) return null;
     return { x1, x2 };
   }
 
+  /** The clean history layer (matches the mockup): one colored dashed
+   * entry-level line projected right from each decision. The ▲/▼/✕ badges
+   * are LWC series markers; the full plan (stop/targets) lives behind the
+   * AI-Plan toggle and the click-to-explain card, so history stays quiet. */
   private drawAll(
     ctx: CanvasRenderingContext2D, hr: number, vr: number,
   ): void {
     if (!this.visible || !this.series || this.annotations.length === 0) return;
     ctx.save();
-    ctx.font = `${Math.round(9 * vr)}px ui-monospace, monospace`;
-    this.drawRibbon(ctx, hr, vr);
-    // decision zones actually in view, oldest→newest
-    const inView = this.annotations.filter(
-      (a) => a.geometry && a.span && this.spanX(a.span),
-    );
-    // when dense, only the newest FULL_WHEN_DENSE keep full bands; older
-    // ones collapse to an entry tick (still clickable via findNearestRun)
-    const dense = inView.length > AnnotationsPrimitive.DENSITY_LIMIT;
-    const fullFrom = dense
-      ? inView.length - AnnotationsPrimitive.FULL_WHEN_DENSE
-      : 0;
-    inView.forEach((a, i) => {
-      const xs = this.spanX(a.span!)!;
-      if (dense && i < fullFrom) this.drawTick(ctx, hr, vr, a, xs.x1);
-      else this.drawZone(ctx, hr, vr, a, xs.x1, xs.x2);
-    });
+    for (const a of this.annotations) {
+      if (!a.geometry || !a.span) continue; // rejected: badge only, no line
+      const xs = this.projectionX(a.span);
+      if (!xs) continue;
+      const y = this.series.priceToCoordinate(a.geometry.entry);
+      if (y == null) continue;
+      const color =
+        a.geometry.direction === "long" ? this.colors.bull : this.colors.bear;
+      // open plans brighter than settled ones
+      ctx.globalAlpha = a.span.to == null ? 0.9 : 0.45;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5 * vr;
+      ctx.setLineDash([4 * hr, 3 * hr]);
+      ctx.beginPath();
+      ctx.moveTo(xs.x1 * hr, y * vr);
+      ctx.lineTo(xs.x2 * hr, y * vr);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
-  /** Collapsed representation for older decisions: a short colored stub at
-   * the entry price. No text — the merged BUY/SELL arrow markers already
-   * label each decision bar, so a tick label would just be stacked noise. */
-  private drawTick(
-    ctx: CanvasRenderingContext2D, hr: number, vr: number,
-    a: SnappedAnnotation, x1: number,
-  ): void {
-    const entryY = this.series!.priceToCoordinate(a.geometry!.entry);
-    if (entryY == null) return;
-    const color =
-      a.geometry!.direction === "long" ? this.colors.bull : this.colors.bear;
-    this.line(ctx, hr, vr, x1, x1 + 8, entryY, color, false);
-  }
-
-  private line(
-    ctx: CanvasRenderingContext2D, hr: number, vr: number,
-    x1: number, x2: number, y: number, color: string, dashed: boolean,
-  ): void {
-    ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1 * vr;
-    ctx.setLineDash(dashed ? [3 * hr, 3 * hr] : []);
-    ctx.moveTo(x1 * hr, y * vr);
-    ctx.lineTo(x2 * hr, y * vr);
-    ctx.stroke();
-  }
-
-  private drawZone(
-    ctx: CanvasRenderingContext2D, hr: number, vr: number,
-    a: SnappedAnnotation, x1: number, x2: number,
-  ): void {
-    const g = a.geometry!;
-    const yOf = (price: number | null) =>
-      price == null ? null : this.series!.priceToCoordinate(price);
-    const entryY = yOf(g.entry);
-    if (entryY == null) return;
-    const sideColor = g.direction === "long" ? this.colors.bull : this.colors.bear;
-
-    const stopY = yOf(g.stop);
-    if (stopY != null) {
-      ctx.fillStyle = this.colors.bearFill;
-      ctx.fillRect(x1 * hr, Math.min(entryY, stopY) * vr,
-        (x2 - x1) * hr, Math.abs(stopY - entryY) * vr);
-      this.line(ctx, hr, vr, x1, x2, stopY, this.colors.bear, true);
-    }
-    const firstTp = g.takeProfits[0];
-    const tp0Y = firstTp ? yOf(firstTp.price) : null;
-    if (tp0Y != null) {
-      ctx.fillStyle = this.colors.bullFill;
-      ctx.fillRect(x1 * hr, Math.min(entryY, tp0Y) * vr,
-        (x2 - x1) * hr, Math.abs(tp0Y - entryY) * vr);
-    }
-    for (const tp of g.takeProfits) {
-      const y = yOf(tp.price);
-      if (y != null) this.line(ctx, hr, vr, x1, x2, y, this.colors.bull, true);
-    }
-    const invY = yOf(g.invalidation);
-    if (invY != null) {
-      this.line(ctx, hr, vr, x1, x2, invY, this.colors.label, true);
-    }
-    this.line(ctx, hr, vr, x1, x2, entryY, sideColor, false);
-    ctx.fillStyle = sideColor;
-    const label = `${a.action} ${g.entry.toFixed(2)}${
-      a.confidence != null ? ` · ${a.confidence}%` : ""}`;
-    ctx.fillText(label, x1 * hr + 3 * hr, entryY * vr - 3 * vr);
-  }
-
-  /** Regime + confidence ribbon pinned to the top of the price pane; the
-   * cadence label states the honest granularity of the segments. */
-  private drawRibbon(
-    ctx: CanvasRenderingContext2D, hr: number, vr: number,
-  ): void {
-    const width = this.width();
-    let drewAny = false;
-    for (let i = 0; i < this.annotations.length; i++) {
-      const a = this.annotations[i]!;
-      const x1 = this.xOf(a.time);
-      if (x1 == null) continue;
-      const next = this.annotations[i + 1];
-      const x2 = next ? (this.xOf(next.time) ?? width) : width;
-      const left = Math.max(0, Math.min(width, x1));
-      const right = Math.max(0, Math.min(width, x2));
-      if (right <= left) continue;
-      const alpha = a.rejectedAt
-        ? 0.12
-        : 0.15 + 0.5 * ((a.confidence ?? 40) / 100);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = this.colors[regimeColorKey(a.regime)];
-      ctx.fillRect(left * hr, 0, (right - left) * hr, RIBBON_HEIGHT * vr);
-      ctx.globalAlpha = 1;
-      drewAny = true;
-    }
-    if (drewAny && this.cadenceLabel) {
-      ctx.fillStyle = this.colors.label;
-      ctx.fillText(this.cadenceLabel, 4 * hr, (RIBBON_HEIGHT + 9) * vr);
-    }
-  }
-
-  /** Run whose zone, entry-bar vicinity, or ribbon segment contains the
+  /** Run whose badge (entry-bar vicinity) or dashed entry line contains the
    * point. (Named like DrawingsPrimitive.findNearest — LWC has its own
    * optional hitTest.) */
   findNearestRun(point: { x: number; y: number }, radius = 8): string | null {
     if (!this.visible || !this.series) return null;
-    // ribbon: any annotation whose x-segment contains the point
-    if (point.y <= RIBBON_HIT) {
-      const width = this.width();
-      for (let i = this.annotations.length - 1; i >= 0; i--) {
-        const a = this.annotations[i]!;
-        const x1 = this.xOf(a.time);
-        if (x1 == null) continue;
-        const next = this.annotations[i + 1];
-        const x2 = next ? (this.xOf(next.time) ?? width) : width;
-        if (point.x >= x1 && point.x <= x2) return a.runId;
-      }
-    }
-    // entry-bar vicinity (covers the BUY/SELL/rejected markers LWC draws)
+    // entry-bar vicinity — covers the ▲/▼/✕ badge markers (y-independent)
     for (let i = this.annotations.length - 1; i >= 0; i--) {
       const a = this.annotations[i]!;
       const x = this.xOf(a.time);
       if (x != null && Math.abs(point.x - x) <= radius) return a.runId;
     }
-    // zone containment: newest first so overlapping spans prefer recency
+    // the dashed entry-level projection line
     for (let i = this.annotations.length - 1; i >= 0; i--) {
       const a = this.annotations[i]!;
       if (!a.geometry || !a.span) continue;
-      const xs = this.spanX(a.span);
+      const xs = this.projectionX(a.span);
       if (!xs || point.x < xs.x1 || point.x > xs.x2) continue;
-      const ys: number[] = [];
-      for (const price of [
-        a.geometry.entry, a.geometry.stop,
-        ...a.geometry.takeProfits.map((tp) => tp.price),
-      ]) {
-        if (price == null) continue;
-        const y = this.series.priceToCoordinate(price);
-        if (y != null) ys.push(y);
-      }
-      if (ys.length < 2) continue;
-      const top = Math.min(...ys);
-      const bottom = Math.max(...ys);
-      if (point.y >= top - radius && point.y <= bottom + radius) {
-        return a.runId;
-      }
+      const y = this.series.priceToCoordinate(a.geometry.entry);
+      if (y != null && Math.abs(point.y - y) <= radius) return a.runId;
     }
     return null;
   }

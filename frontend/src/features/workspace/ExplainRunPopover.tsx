@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { EvidenceChat } from "@/components/EvidenceChat";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useRunRecommendation } from "@/lib/api/queries";
+import { fmtPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export interface ExplainTarget {
@@ -62,6 +63,39 @@ export function ExplainRunPopover({
   const counters = d?.counterarguments ?? [];
   const tally = d?.vote_tally ?? {};
 
+  // card header (matches the AI-History mockup): glyph + action + status
+  const rejected = !!d?.rejection;
+  const glyph = rejected
+    ? "✕"
+    : action === "BUY"
+      ? "▲"
+      : action === "SELL"
+        ? "▼"
+        : "—";
+  const headColor = cn(
+    rejected ? "text-neutral" : action === "BUY" ? "text-bull"
+    : action === "SELL" ? "text-bear" : "text-fg",
+  );
+  const statusLabel = rejected
+    ? "rejected"
+    : fill
+      ? "closed"
+      : d?.status && d.status !== ""
+        ? d.status
+        : "open";
+  const when = d?.created_at ? new Date(d.created_at) : null;
+  const dateStr =
+    when && !Number.isNaN(when.getTime())
+      ? when.toLocaleString(undefined, {
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+      : null;
+  const regimeStr = d?.market_regime ? d.market_regime.replace(/_/g, " ") : null;
+
   return (
     <div
       ref={boxRef}
@@ -73,39 +107,28 @@ export function ExplainRunPopover({
       }}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="font-semibold text-fg">
-          {rec.isPending ? (
-            "Loading decision…"
-          ) : d?.rejection ? (
-            <>
-              Rejected at {d.rejection.stage ?? "gate"}
-              {d.rejection.reasons?.[0] && (
-                <span className="block font-normal text-fg-muted">
-                  {d.rejection.reasons[0]}
-                </span>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={cn("text-sm font-extrabold", headColor)}>
+              {glyph} {rejected ? "REJECTED" : (action ?? "—")}
+            </span>
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">
+              {rec.isPending ? "…" : statusLabel}
+            </span>
+          </div>
+          {!rec.isPending && (dateStr || d?.entry_price != null) && (
+            <div className="mt-0.5 font-mono text-[11px] tabular text-fg-muted">
+              {dateStr}
+              {d?.entry_price != null && (
+                <> · {fmtPrice(d.entry_price, 0)}</>
               )}
-            </>
-          ) : (
-            <>
-              <span
-                className={cn(
-                  action === "BUY" && "text-bull",
-                  action === "SELL" && "text-bear",
-                )}
-              >
-                {action ?? "—"}
-              </span>{" "}
-              {d?.symbol}
-              {d?.confidence != null && (
-                <span className="text-fg-muted"> · {d.confidence}%</span>
-              )}
-            </>
+            </div>
           )}
         </div>
         <button
           aria-label="Close explanation"
           onClick={onClose}
-          className="rounded p-0.5 text-fg-subtle hover:text-fg"
+          className="shrink-0 rounded p-0.5 text-fg-subtle hover:text-fg"
         >
           <X size={13} />
         </button>
@@ -119,6 +142,30 @@ export function ExplainRunPopover({
         </p>
       ) : (
         <div className="mt-2 space-y-2">
+          {/* chips: confidence + regime, like the mockup */}
+          {(d.confidence != null || regimeStr) && (
+            <div className="flex flex-wrap gap-1.5">
+              {d.confidence != null && (
+                <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+                  conf {d.confidence}
+                </span>
+              )}
+              {regimeStr && (
+                <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-fg-muted">
+                  {regimeStr}
+                </span>
+              )}
+            </div>
+          )}
+          {d.rejection && (
+            <p className="text-fg-muted">
+              rejected at{" "}
+              <span className="font-mono text-neutral">
+                {d.rejection.stage ?? "gate"}
+              </span>
+              {d.rejection.reasons?.[0] && <> — {d.rejection.reasons[0]}</>}
+            </p>
+          )}
           {fill && (
             <div
               className={cn(
@@ -136,7 +183,6 @@ export function ExplainRunPopover({
             </div>
           )}
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-fg-muted">
-            {d.market_regime && <span>regime {d.market_regime}</span>}
             {d.p_win != null && (
               <span>
                 p(win) {(d.p_win.p_win * 100).toFixed(0)}%{" "}

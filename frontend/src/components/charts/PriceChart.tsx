@@ -631,6 +631,9 @@ export function PriceChart({
           text: m.label,
         };
       });
+    // clean badge markers, no on-chart text (the clutter): a green ▲ below
+    // the bar for BUY, a red ▼ above for SELL, an amber ✕/dot for rejected.
+    // The detail lives in the click-to-explain card, not stacked labels.
     const decisionMarkers = (showAnnotations ? snappedAnnotations : [])
       .filter((a) => a.action === "BUY" || a.action === "SELL" || a.rejectedAt)
       .map((a) => {
@@ -641,15 +644,13 @@ export function PriceChart({
             position: bull ? ("belowBar" as const) : ("aboveBar" as const),
             color: bull ? colors.bull : colors.bear,
             shape: bull ? ("arrowUp" as const) : ("arrowDown" as const),
-            text: `AI ${a.action}`,
           };
         }
         return {
           time: a.time as UTCTimestamp,
           position: "aboveBar" as const,
           color: colors.neutral,
-          shape: "square" as const,
-          text: `✕ ${a.rejectedAt}`,
+          shape: "circle" as const,
         };
       });
     markersRef.current = createSeriesMarkers(
@@ -667,22 +668,14 @@ export function PriceChart({
   // push snapped annotations + theme colors into the AI layer primitive
   useEffect(() => {
     const colors = chartColors();
-    const hours = annotations ? annotations.cadence_seconds / 3600 : 0;
-    annotationsRef.current?.setAnnotations(
-      snappedAnnotations,
-      barTimes,
-      {
-        bull: colors.bull,
-        bear: colors.bear,
-        neutral: colors.neutral,
-        label: colors.muted,
-        bullFill: hexToRgba(colors.bull, 0.08),
-        bearFill: hexToRgba(colors.bear, 0.08),
-      },
-      snappedAnnotations.length
-        ? `AI decisions · ${hours >= 1 ? `${hours.toFixed(0)}h` : `${Math.round(hours * 60)}m`} cadence`
-        : "",
-    );
+    annotationsRef.current?.setAnnotations(snappedAnnotations, barTimes, {
+      bull: colors.bull,
+      bear: colors.bear,
+      neutral: colors.neutral,
+      label: colors.muted,
+      bullFill: hexToRgba(colors.bull, 0.08),
+      bearFill: hexToRgba(colors.bear, 0.08),
+    });
     annotationsRef.current?.setVisible(showAnnotations);
   }, [snappedAnnotations, barTimes, annotations, theme, showAnnotations, bars, style, indicators, showVolume]);
 
