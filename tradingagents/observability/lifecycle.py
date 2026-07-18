@@ -21,6 +21,7 @@ RUN_TRANSITIONS = {
 }
 
 ROLE_TRANSITIONS = {
+    "uninitialized": frozenset({"pending", "skipped"}),
     "pending": frozenset({"running", "skipped", "not_reached"}),
     "running": frozenset({"completed", "failed", "cancelled", "interrupted"}),
     "completed": frozenset({"running"}),
@@ -76,4 +77,3 @@ def transition_is_valid(lifecycle: str, previous: str, new: str) -> bool:
     except InvalidLifecycleTransition:
         return False
     return True
-

@@ -1,3 +1,5 @@
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from copy import deepcopy
 
 import tradingagents.default_config as default_config
@@ -28,6 +30,23 @@ def set_config(config: dict):
             _config[key].update(value)
         else:
             _config[key] = value
+
+
+def replace_config(config: Mapping) -> None:
+    """Replace the process-global configuration with an exact deep copy."""
+    global _config
+    _config = deepcopy(dict(config))
+
+
+@contextmanager
+def config_scope(config: Mapping) -> Iterator[None]:
+    """Install one run's config and restore the exact previous mapping."""
+    previous = get_config()
+    replace_config(config)
+    try:
+        yield
+    finally:
+        replace_config(previous)
 
 
 def get_config() -> dict:

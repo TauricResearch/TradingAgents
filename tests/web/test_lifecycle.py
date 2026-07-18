@@ -24,6 +24,8 @@ EXPECTED_TRANSITIONS = {
         ("interrupted", "running"),
     },
     "role": {
+        ("uninitialized", "pending"),
+        ("uninitialized", "skipped"),
         ("pending", "running"),
         ("pending", "skipped"),
         ("pending", "not_reached"),
@@ -111,4 +113,3 @@ def test_illegal_transitions_are_rejected(lifecycle, previous, new):
 
     assert exc_info.value.lifecycle == lifecycle
     assert transition_is_valid(lifecycle, previous, new) is False
-

@@ -1027,6 +1027,78 @@ def test_production_checkpoint_guard_persists_fresh_and_authorizes_matching_resu
     assert persisted.agent_state_schema_sha256 == AGENT_STATE_SCHEMA_SHA256
 
 
+def test_checkpoint_guard_consumes_one_frozen_resume_preauthorization(
+    tmp_path,
+    monkeypatch,
+):
+    run_id = generate_run_id()
+    store = RunStore(tmp_path)
+    store.create_run(_guard_snapshot(run_id))
+    request = _request()
+    fingerprint = _build(request)
+    monkeypatch.setattr(
+        "tradingagents.web.fingerprint.build_resume_fingerprint",
+        lambda *_args, **_kwargs: fingerprint,
+    )
+    guard = FingerprintCheckpointGuard(
+        store,
+        run_id,
+        request,
+        request.effective_config,
+    )
+    initial_context = PreparedInitialContext({"instrument_context": "Apple"})
+    guard(initial_context, SimpleNamespace(latest=None))
+    access = SimpleNamespace(
+        latest=SimpleNamespace(
+            config={"configurable": {"checkpoint_id": "checkpoint-1"}},
+            checkpoint={"id": "checkpoint-1"},
+        )
+    )
+
+    authorized = guard.preauthorize(initial_context, access)
+    monkeypatch.setattr(
+        "tradingagents.web.fingerprint.build_resume_fingerprint",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("worker must consume the frozen authorization")
+        ),
+    )
+
+    consumed = guard(PreparedInitialContext({"instrument_context": "changed"}), access)
+    assert consumed == authorized
+    assert consumed.mode == "resume"
+
+
+def test_resume_preauthorization_without_checkpoint_never_mutates_snapshot(
+    tmp_path,
+    monkeypatch,
+):
+    run_id = generate_run_id()
+    store = RunStore(tmp_path)
+    store.create_run(_guard_snapshot(run_id))
+    request = _request()
+    fingerprint = _build(request)
+    monkeypatch.setattr(
+        "tradingagents.web.fingerprint.build_resume_fingerprint",
+        lambda *_args, **_kwargs: fingerprint,
+    )
+    guard = FingerprintCheckpointGuard(
+        store,
+        run_id,
+        request,
+        request.effective_config,
+    )
+    before = store.read_snapshot(run_id)
+
+    with pytest.raises(CheckpointIncompatible) as missing:
+        guard.preauthorize(
+            PreparedInitialContext({"instrument_context": "Apple"}),
+            SimpleNamespace(latest=None),
+        )
+
+    assert missing.value.mismatch_categories == ("checkpoint_missing",)
+    assert store.read_snapshot(run_id) == before
+
+
 def test_production_checkpoint_guard_rejects_missing_or_incompatible_fingerprint(
     tmp_path,
     monkeypatch,

@@ -437,8 +437,39 @@ class FingerprintCheckpointGuard:
         self.request = request
         self.effective_config = effective_config
         self.capability_report = capability_report
+        self._preauthorized: tuple[CheckpointAuthorization, str | None] | None = None
+
+    def preauthorize(
+        self,
+        initial_context: PreparedInitialContext,
+        checkpoint_access: Any,
+    ) -> CheckpointAuthorization:
+        """Freeze one resume authorization before any resumed event is appended."""
+        if self._preauthorized is not None:
+            raise RuntimeError("checkpoint guard already has a preauthorization")
+        if getattr(checkpoint_access, "latest", None) is None:
+            raise CheckpointIncompatible(("checkpoint_missing",))
+        authorization = self._authorize(initial_context, checkpoint_access)
+        self._preauthorized = (
+            authorization,
+            _checkpoint_access_id(checkpoint_access),
+        )
+        return authorization
 
     def __call__(
+        self,
+        initial_context: PreparedInitialContext,
+        checkpoint_access: Any,
+    ) -> CheckpointAuthorization:
+        if self._preauthorized is not None:
+            authorization, expected_checkpoint_id = self._preauthorized
+            self._preauthorized = None
+            if _checkpoint_access_id(checkpoint_access) != expected_checkpoint_id:
+                raise CheckpointIncompatible(("checkpoint_frontier_drift",))
+            return authorization
+        return self._authorize(initial_context, checkpoint_access)
+
+    def _authorize(
         self,
         initial_context: PreparedInitialContext,
         checkpoint_access: Any,
@@ -480,6 +511,23 @@ class FingerprintCheckpointGuard:
             fingerprint_sha256=current.sha256,
             mode=mode,
         )
+
+
+def _checkpoint_access_id(checkpoint_access: Any) -> str | None:
+    latest = getattr(checkpoint_access, "latest", None)
+    if latest is None:
+        return None
+    config = getattr(latest, "config", None)
+    checkpoint = getattr(latest, "checkpoint", None)
+    configurable = config.get("configurable") if isinstance(config, Mapping) else None
+    checkpoint_id = (
+        configurable.get("checkpoint_id")
+        if isinstance(configurable, Mapping)
+        else None
+    )
+    if checkpoint_id is None and isinstance(checkpoint, Mapping):
+        checkpoint_id = checkpoint.get("id")
+    return str(checkpoint_id) if checkpoint_id else None
 
 
 def _fingerprint_payload(fingerprint: ResumeFingerprintV1) -> dict[str, Any]:

@@ -473,7 +473,7 @@ class AnalysisRunner:
             ),
             observer=observer,
         )
-        self._promote_reconciled_tasks(observer, plan)
+        self.promote_reconciled_tasks(observer, plan)
         return streamed.channel_values
 
     def _accept_in_process_barrier(
@@ -574,10 +574,11 @@ class AnalysisRunner:
             ),
             observer=observer,
         )
-        self._promote_reconciled_tasks(observer, plan)
+        self.promote_reconciled_tasks(observer, plan)
 
     @staticmethod
-    def _promote_reconciled_tasks(observer: Any, plan: Any) -> None:
+    def promote_reconciled_tasks(observer: Any, plan: Any) -> None:
+        """Apply already-durable checkpoint candidates during restart recovery."""
         transition = plan.latest_transition
         events = observer.store.read_events(observer.run_id)
         marker = next(
