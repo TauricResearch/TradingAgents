@@ -171,9 +171,9 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     return { x1, x2 };
   }
 
-  /** The clean history layer (matches the mockup): one colored dashed
-   * entry-level line projected right from each decision. The ▲/▼/✕ badges
-   * are LWC series markers; the full plan (stop/targets) lives behind the
+  /** The clean history layer (matches the mockup): a circular ▲/▼/✕ badge
+   * on each decision plus, for executed plans, a colored dashed entry-level
+   * line projected right. The full plan (stop/targets) lives behind the
    * AI-Plan toggle and the click-to-explain card, so history stays quiet. */
   private drawAll(
     ctx: CanvasRenderingContext2D, hr: number, vr: number,
@@ -181,24 +181,100 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     if (!this.visible || !this.series || this.annotations.length === 0) return;
     ctx.save();
     for (const a of this.annotations) {
-      if (!a.geometry || !a.span) continue; // rejected: badge only, no line
-      const xs = this.projectionX(a.span);
-      if (!xs) continue;
-      const y = this.series.priceToCoordinate(a.geometry.entry);
+      const x = this.xOf(a.time);
+      if (x == null) continue;
+      // executed plans: dashed entry-level projection + badge on the entry.
+      // rejected: no plan line; badge sits on the bar's own price.
+      const price = a.geometry
+        ? a.geometry.entry
+        : this.priceAt(a.time);
+      if (price == null) continue;
+      const y = this.series.priceToCoordinate(price);
       if (y == null) continue;
-      const color =
-        a.geometry.direction === "long" ? this.colors.bull : this.colors.bear;
-      // open plans brighter than settled ones
-      ctx.globalAlpha = a.span.to == null ? 0.9 : 0.45;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5 * vr;
-      ctx.setLineDash([4 * hr, 3 * hr]);
-      ctx.beginPath();
-      ctx.moveTo(xs.x1 * hr, y * vr);
-      ctx.lineTo(xs.x2 * hr, y * vr);
-      ctx.stroke();
+      const rejected = a.geometry == null;
+      const color = rejected
+        ? this.colors.neutral
+        : a.geometry!.direction === "long"
+          ? this.colors.bull
+          : this.colors.bear;
+      if (a.geometry && a.span) {
+        const xs = this.projectionX(a.span);
+        if (xs) {
+          ctx.globalAlpha = a.span.to == null ? 0.9 : 0.4; // open brighter
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.5 * vr;
+          ctx.setLineDash([4 * hr, 3 * hr]);
+          ctx.beginPath();
+          ctx.moveTo(xs.x1 * hr, y * vr);
+          ctx.lineTo(xs.x2 * hr, y * vr);
+          ctx.stroke();
+        }
+      }
+      this.drawBadge(ctx, hr, vr, x, y, color, a.action, rejected);
     }
     ctx.restore();
+  }
+
+  /** bar close at a snapped time (from the candle series) — the honest
+   * price to anchor a rejected badge, which has no geometry. */
+  private priceAt(time: number): number | null {
+    const data = this.series?.data() as
+      | ReadonlyArray<{ time: unknown; close?: number; value?: number }>
+      | undefined;
+    if (!data) return null;
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (data[i]!.time === time) {
+        return data[i]!.close ?? data[i]!.value ?? null;
+      }
+    }
+    return null;
+  }
+
+  /** Circular decision badge: colored disc + white ring + white glyph
+   * (▲ BUY / ▼ SELL / ✕ rejected). */
+  private drawBadge(
+    ctx: CanvasRenderingContext2D, hr: number, vr: number,
+    x: number, y: number, color: string,
+    action: SnappedAnnotation["action"], rejected: boolean,
+  ): void {
+    const cx = x * hr;
+    const cy = y * vr;
+    const R = 8 * vr;
+    const g = 3.4 * vr;
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2 * vr;
+    ctx.strokeStyle = "rgba(255,255,255,0.95)";
+    ctx.stroke();
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#fff";
+    ctx.beginPath();
+    if (rejected) {
+      ctx.lineWidth = 1.6 * vr;
+      ctx.moveTo(cx - g, cy - g);
+      ctx.lineTo(cx + g, cy + g);
+      ctx.moveTo(cx + g, cy - g);
+      ctx.lineTo(cx - g, cy + g);
+      ctx.stroke();
+    } else if (action === "BUY") {
+      ctx.moveTo(cx, cy - g);
+      ctx.lineTo(cx - g, cy + g);
+      ctx.lineTo(cx + g, cy + g);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.moveTo(cx, cy + g);
+      ctx.lineTo(cx - g, cy - g);
+      ctx.lineTo(cx + g, cy - g);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   /** Run whose badge (entry-bar vicinity) or dashed entry line contains the

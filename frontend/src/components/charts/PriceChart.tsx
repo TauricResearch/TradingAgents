@@ -631,31 +631,11 @@ export function PriceChart({
           text: m.label,
         };
       });
-    // clean badge markers, no on-chart text (the clutter): a green ▲ below
-    // the bar for BUY, a red ▼ above for SELL, an amber ✕/dot for rejected.
-    // The detail lives in the click-to-explain card, not stacked labels.
-    const decisionMarkers = (showAnnotations ? snappedAnnotations : [])
-      .filter((a) => a.action === "BUY" || a.action === "SELL" || a.rejectedAt)
-      .map((a) => {
-        if (a.action === "BUY" || a.action === "SELL") {
-          const bull = a.action === "BUY";
-          return {
-            time: a.time as UTCTimestamp,
-            position: bull ? ("belowBar" as const) : ("aboveBar" as const),
-            color: bull ? colors.bull : colors.bear,
-            shape: bull ? ("arrowUp" as const) : ("arrowDown" as const),
-          };
-        }
-        return {
-          time: a.time as UTCTimestamp,
-          position: "aboveBar" as const,
-          color: colors.neutral,
-          shape: "circle" as const,
-        };
-      });
+    // decision badges (▲/▼/✕) are drawn as circular badges by the
+    // AnnotationsPrimitive — not LWC markers — so they match the mockup.
     markersRef.current = createSeriesMarkers(
       series,
-      [...journalMarkers, ...fillMarkers, ...decisionMarkers].sort((a, b) =>
+      [...journalMarkers, ...fillMarkers].sort((a, b) =>
         Number(a.time) - Number(b.time)),
     );
     return () => {
