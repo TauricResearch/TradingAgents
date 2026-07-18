@@ -537,10 +537,11 @@ export default function WorkspacePage() {
                     canUndo={canUndo}
                     canRedo={canRedo}
                   />
-                  <div className="relative min-w-0 grow">
+                  <div className="relative flex min-h-0 min-w-0 grow flex-col">
                     <PriceChart
                       bars={visibleBars}
                       style="candles"
+                      fill
                       recommendation={recForSymbol}
                       markers={markers}
                       liveSymbol={isLive ? symbol : undefined}

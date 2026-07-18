@@ -111,6 +111,7 @@ export function PriceChart({
   onToolModeChange,
   onCreateAlert,
   height = 420,
+  fill = false,
   volumeProfile = null,
   annotations = null,
   onExplainRun,
@@ -140,7 +141,13 @@ export function PriceChart({
   onToolModeChange?: (mode: ToolMode) => void;
   /** A2: click-to-alert callback; receives the clicked price */
   onCreateAlert?: (price: number) => void;
+  /** price-pane height in px. In `fill` mode this is only the floor. */
   height?: number;
+  /** grow to fill the parent's height (chart-only Trade page) instead of
+   * sitting at a fixed height. `height` (+ panes) becomes a min-height so
+   * an oscillator stack still expands past the viewport rather than
+   * squishing. The parent must be a flex column with a definite height. */
+  fill?: boolean;
   /** server-computed fixed-range profile (review P2.4); null hides it */
   volumeProfile?: VolumeProfile | null;
   /** AI decision history painted on price (chart Phase 1); null hides it */
@@ -1078,8 +1085,14 @@ export function PriceChart({
   return (
     <div
       ref={containerRef}
-      className="relative"
-      style={{ height: chartHeight, cursor: toolMode !== "select" ? "crosshair" : undefined }}
+      className={fill ? "relative min-h-0 flex-1" : "relative"}
+      style={{
+        // fill mode: grow to the parent, floored at the pane-sum so
+        // oscillator stacks expand instead of squishing. fixed mode: the
+        // exact pane-sum (grid cells, other embeds).
+        ...(fill ? { minHeight: chartHeight } : { height: chartHeight }),
+        cursor: toolMode !== "select" ? "crosshair" : undefined,
+      }}
       role="img"
       aria-label="price chart"
       data-testid="price-chart"
