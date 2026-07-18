@@ -307,6 +307,36 @@ test.describe("v2 features", () => {
       .toBeGreaterThan(before);
   });
 
+  test("multi-chart grid adds and removes synced cells", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "the chart grid is a desktop layout");
+    await page.goto("/trade/XAUUSD");
+    await expect(
+      page.getByTestId("price-chart").locator("canvas").first(),
+    ).toBeVisible({ timeout: 20_000 });
+    const gridSwitch = page.getByTestId("grid-switch");
+    const grid = page.getByTestId("chart-grid");
+
+    // 2×2 = main chart + 3 extra crosshair-synced cells stacked below
+    await gridSwitch.getByRole("button", { name: "2×2" }).click();
+    await expect(grid).toBeVisible({ timeout: 10_000 });
+    await expect(grid.getByTestId("price-chart")).toHaveCount(3);
+    // each cell is a real chart with its own symbol + timeframe selectors
+    await expect(
+      grid.locator("canvas").first(),
+    ).toBeVisible();
+
+    // 2×1 = main + 1 extra cell
+    await gridSwitch.getByRole("button", { name: "2×1" }).click();
+    await expect(grid.getByTestId("price-chart")).toHaveCount(1);
+
+    // back to 1 = grid gone
+    await gridSwitch.getByRole("button", { name: "1", exact: true }).click();
+    await expect(grid).toHaveCount(0);
+  });
+
   test("watchlist add and remove persists", async ({ page, isMobile }) => {
     // per-project symbol: both projects share one server + prefs store
     const symbol = isMobile ? "SILVER" : "DXY";
