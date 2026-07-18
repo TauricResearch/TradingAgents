@@ -12,6 +12,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from tradingagents.observability.provenance import capture_vendor_raw
+
 from .config import get_config
 from .ticker_utils import is_a_share_ticker, to_akshare_symbol
 
@@ -102,10 +104,27 @@ def _search_tavily(
     _apply_domain_filters(payload, cfg, method)
 
     response_data = _post_search(payload, api_key)
+    capture_vendor_raw(
+        response_data,
+        metadata={
+            "provider": "tavily",
+            "topic": payload["topic"],
+            "transport_attempt": 1,
+        },
+    )
     fallback_topic = _fallback_topic(payload["topic"], response_data, method, cfg)
     if fallback_topic:
         payload["topic"] = fallback_topic
         response_data = _post_search(payload, api_key)
+        capture_vendor_raw(
+            response_data,
+            metadata={
+                "provider": "tavily",
+                "topic": payload["topic"],
+                "transport_attempt": 2,
+                "fallback_reason": "topic_retry",
+            },
+        )
 
     _save_raw_response(log_key, log_date, method, payload, response_data)
     return {

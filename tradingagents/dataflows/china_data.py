@@ -11,6 +11,8 @@ from typing import Any
 
 import pandas as pd
 
+from tradingagents.observability.provenance import capture_vendor_raw
+
 from .config import get_config
 from .ticker_utils import (
     is_a_share_ticker,
@@ -402,6 +404,15 @@ def _save_raw_data(
     method: str,
     data: Any,
 ) -> None:
+    capture_vendor_raw(
+        _df_to_records(data),
+        metadata={
+            "provider": "tushare" if method.startswith("tushare") else "akshare",
+            "dataset": method,
+            "ticker": ticker,
+            "as_of": log_date,
+        },
+    )
     cfg = get_config()
     results_dir = cfg.get("results_dir")
     if not results_dir:

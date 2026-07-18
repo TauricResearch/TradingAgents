@@ -15,6 +15,11 @@ from urllib.parse import urlparse
 import pandas as pd
 import requests
 
+from tradingagents.observability.provenance import (
+    capture_direct_call,
+    capture_vendor_raw,
+)
+
 from .config import get_config
 from .consistency import attach_cross_source_info, create_llm_from_config
 from .credibility import attach_credibility
@@ -94,7 +99,11 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
     advisor = analyze_news_coverage(original_items, profile, llm)
     if advisor.should_enrich and advisor.queries:
         enriched_items = _run_tavily_enrichment_with_queries(
-            advisor.queries, str(state.get("trade_date") or ""), deadline,
+            advisor.queries,
+            profile,
+            str(state.get("trade_date") or ""),
+            max_rounds,
+            deadline,
         )
     else:
         enriched_items = _run_tavily_enrichment(profile, str(state.get("trade_date") or ""), max_rounds, deadline)
@@ -441,20 +450,25 @@ def _run_tavily_enrichment(
             break
         payload = _build_tavily_payload(spec, trade_date)
         try:
-            response = requests.post(
-                TAVILY_SEARCH_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
+            result = capture_direct_call(
+                invocation_path=f"evidence.enrichment.fallback.{index}",
+                method="evidence_tavily_enrichment",
+                vendor="tavily",
+                function=_request_tavily_enrichment,
+                kwargs={
+                    "payload": payload,
+                    "api_key": api_key,
+                    "timeout": min(30, max(1, int(deadline - time.monotonic()))),
+                    "metadata": {"mode": "fallback", "round": index},
                 },
-                json=payload,
-                timeout=min(30, max(1, int(deadline - time.monotonic()))),
+                normalize=lambda value: _items_from_tavily_response(value["data"]),
             )
-            data = response.json()
         except Exception:
             continue
+        response_status = result["status_code"]
+        data = result["data"]
         _save_enrichment_raw_response(profile, trade_date, index, payload, data)
-        if response.status_code >= 400:
+        if response_status >= 400:
             continue
         items.extend(_items_from_tavily_response(data))
     return _dedupe_news_items(items)
@@ -462,7 +476,9 @@ def _run_tavily_enrichment(
 
 def _run_tavily_enrichment_with_queries(
     queries: list[dict[str, Any]],
+    profile: dict[str, Any],
     trade_date: str,
+    rounds: int,
     deadline: float,
 ) -> list[dict[str, Any]]:
     """Run Tavily enrichment with pre-built queries (e.g. from news advisor)."""
@@ -471,28 +487,58 @@ def _run_tavily_enrichment_with_queries(
         return []
 
     items: list[dict[str, Any]] = []
-    for index, spec in enumerate(queries[:3], start=1):
+    for index, spec in enumerate(queries[:rounds], start=1):
         if time.monotonic() >= deadline:
             break
         payload = _build_tavily_payload(spec, trade_date)
         try:
-            response = requests.post(
-                TAVILY_SEARCH_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
+            result = capture_direct_call(
+                invocation_path=f"evidence.enrichment.advisor.{index}",
+                method="evidence_tavily_enrichment",
+                vendor="tavily",
+                function=_request_tavily_enrichment,
+                kwargs={
+                    "payload": payload,
+                    "api_key": api_key,
+                    "timeout": min(30, max(1, int(deadline - time.monotonic()))),
+                    "metadata": {"mode": "advisor", "round": index},
                 },
-                json=payload,
-                timeout=min(30, max(1, int(deadline - time.monotonic()))),
+                normalize=lambda value: _items_from_tavily_response(value["data"]),
             )
-            data = response.json()
         except Exception:
             continue
-        _save_enrichment_raw_response({"ticker": "advisor"}, trade_date, index, payload, data)
-        if response.status_code >= 400:
+        response_status = result["status_code"]
+        data = result["data"]
+        _save_enrichment_raw_response(profile, trade_date, index, payload, data)
+        if response_status >= 400:
             continue
         items.extend(_items_from_tavily_response(data))
     return _dedupe_news_items(items)
+
+
+def _request_tavily_enrichment(
+    *,
+    payload: dict[str, Any],
+    api_key: str,
+    timeout: int,
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    """One direct Tavily request with a true pre-normalization capture point."""
+    response = requests.post(
+        TAVILY_SEARCH_URL,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=timeout,
+    )
+    data = response.json()
+    capture_vendor_raw(
+        data,
+        metadata={"provider": "tavily", **metadata},
+    )
+    return {"status_code": response.status_code, "data": data}
 
 
 def _build_enrichment_queries(profile: dict[str, Any]) -> list[dict[str, Any]]:

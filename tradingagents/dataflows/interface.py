@@ -2,6 +2,10 @@ import json
 import logging
 import os
 import re
+import time
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime
 from io import StringIO
 from typing import Any
@@ -59,6 +63,13 @@ except Exception:  # pragma: no cover - curl_cffi is an indirect yfinance depend
     CurlCffiRequestException = ()
 
 # Configuration and routing logic
+from tradingagents.observability.context import current_observation_context
+from tradingagents.observability.provenance import (
+    CacheOrigin,
+    DataRequestObservation,
+    begin_data_request,
+)
+
 from .config import get_config
 from .consistency import attach_cross_source_info, create_llm_from_config, cross_source_summary
 from .credibility import attach_credibility, credibility_summary
@@ -198,14 +209,87 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
-# Simple in-memory cache for news results within a single graph execution.
-# Prevents duplicate API calls when Sentiment Analyst and News Analyst both
-# request the same news data.  Cleared automatically when the module is
-# re-imported (i.e., each graph run starts fresh).
-_news_result_cache: dict[tuple, str] = {}
+# News results may be reused only inside one explicitly owned analysis run.
+# The localhost process is long-lived, so module lifetime is not a run boundary.
+@dataclass(frozen=True)
+class _NewsCacheEntry:
+    result: str
+    origin: CacheOrigin
+
+
+_news_result_cache: dict[tuple, _NewsCacheEntry] = {}
+_news_cache_namespace: ContextVar[str | None] = ContextVar(
+    "tradingagents_news_cache_namespace",
+    default=None,
+)
+
+
+@contextmanager
+def news_cache_scope(run_id: str):
+    """Own and destroy one run's news cache namespace."""
+    token = _news_cache_namespace.set(run_id)
+    try:
+        yield
+    finally:
+        stale_keys = [key for key in _news_result_cache if key[0] == run_id]
+        for key in stale_keys:
+            _news_result_cache.pop(key, None)
+        _news_cache_namespace.reset(token)
+
+
+def _build_news_cache_key(method: str, args: tuple[Any, ...], kwargs: dict[str, Any]):
+    if method not in {"get_news", "get_global_news"}:
+        return None
+    context = current_observation_context()
+    namespace = _news_cache_namespace.get()
+    if namespace is None:
+        return None
+    if context is not None and context.run_id != namespace:
+        raise RuntimeError(
+            "news cache scope does not match the active observation run"
+        )
+    vendor_config = get_vendor(get_category_for_method(method), method)
+    return (
+        namespace,
+        method,
+        vendor_config,
+        tuple(str(arg) for arg in args),
+        tuple(sorted((key, str(value)) for key, value in kwargs.items() if value is not None)),
+    )
 
 
 def route_to_vendor(method: str, *args, **kwargs):
+    """Route one request and persist its normalized provenance when observed."""
+    provenance = begin_data_request(method, args, kwargs)
+    cache_key = _build_news_cache_key(method, args, kwargs)
+    if cache_key is not None and cache_key in _news_result_cache:
+        entry = _news_result_cache[cache_key]
+        origin_is_complete = bool(
+            entry.origin.vendor_call_ids and entry.origin.artifact_ids
+        )
+        if not provenance.active or origin_is_complete:
+            provenance.cache_hit(cache_key=cache_key, origin=entry.origin)
+            return entry.result
+    try:
+        result = _route_to_vendor_impl(method, *args, _provenance=provenance, **kwargs)
+    except Exception as exc:
+        provenance.request_failed(exc)
+        raise
+    origin = provenance.complete(result)
+    if cache_key is not None and (not provenance.active or origin is not None):
+        _news_result_cache[cache_key] = _NewsCacheEntry(
+            result=result,
+            origin=origin or CacheOrigin((), (), time.monotonic()),
+        )
+    return result
+
+
+def _route_to_vendor_impl(
+    method: str,
+    *args,
+    _provenance: DataRequestObservation,
+    **kwargs,
+):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
@@ -229,26 +313,14 @@ def route_to_vendor(method: str, *args, **kwargs):
                 f"Known vendors: {', '.join(VENDOR_LIST)}"
             )
 
-    cache_key = None
-    # Check cache for news methods to avoid duplicate calls across analysts.
-    # vendor_config is part of the key so a config change or a test that
-    # repatches vendors does not return a stale cached result.
     if method in {"get_news", "get_global_news"}:
-        cache_key = (
+        return _route_news_to_vendors(
             method,
-            vendor_config,
-            tuple(str(a) for a in args),
-            tuple(sorted((k, str(v)) for k, v in kwargs.items() if v is not None)),
+            primary_vendors,
+            *args,
+            _provenance=_provenance,
+            **kwargs,
         )
-        if cache_key in _news_result_cache:
-            return _news_result_cache[cache_key]
-
-    if method in {"get_news", "get_global_news"}:
-        result = _route_news_to_vendors(method, primary_vendors, *args, **kwargs)
-        # Cache the result for subsequent calls with the same parameters
-        if cache_key is not None:
-            _news_result_cache[cache_key] = result
-        return result
 
     # Build fallback chain. "default" keeps the resilient full-chain behavior.
     # An explicit vendor choice is honored strictly: only the configured
@@ -279,20 +351,32 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_impl = VENDOR_METHODS[method][vendor]
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
-        _emit_data_progress("start", method, vendor, args)
+        attempt = _provenance.start_attempt(vendor, fallback_chain=tuple(fallback_vendors))
         try:
-            result = impl_func(*args, **kwargs)
+            with _provenance.attempt_scope(attempt):
+                _emit_data_progress("start", method, vendor, args)
+                result = impl_func(*args, **kwargs)
         except NoMarketDataError as e:
+            artifact_id = _provenance.fail(attempt, e)
             last_no_data = e
-            _emit_data_progress("failure", method, vendor, args, str(e))
+            _emit_data_progress(
+                "failure", method, vendor, args, str(e),
+                vendor_call_id=attempt.vendor_call_id,
+                artifact_id=artifact_id,
+            )
             logger.warning("vendor %s reported no market data for %s: %s", vendor, method, e)
             recoverable_errors.append((vendor, e))
             if first_error is None:
                 first_error = e
             continue
         except Exception as exc:
+            artifact_id = _provenance.fail(attempt, exc)
             if _is_recoverable_vendor_error(vendor, exc):
-                _emit_data_progress("failure", method, vendor, args, _summarize_vendor_error(exc))
+                _emit_data_progress(
+                    "failure", method, vendor, args, _summarize_vendor_error(exc),
+                    vendor_call_id=attempt.vendor_call_id,
+                    artifact_id=artifact_id,
+                )
                 # Log the real error so a broken primary is visible in logs,
                 # not masked by a later fallback's no-data sentinel (#989).
                 logger.warning("vendor %s failed for %s: %s", vendor, method, exc)
@@ -315,11 +399,17 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         if _is_missing_required_data_result(result):
             summary = str(result).strip()[:300]
-            _emit_data_progress("failure", method, vendor, args, summary)
+            artifact_id = _provenance.fail(attempt, summary)
+            _emit_data_progress(
+                "failure", method, vendor, args, summary,
+                vendor_call_id=attempt.vendor_call_id,
+                artifact_id=artifact_id,
+            )
             recoverable_errors.append((vendor, ChinaDataUnavailableError(summary)))
             continue
 
         if _should_supplement_yfinance_result(method, vendor, args, result):
+            artifact_id = _provenance.succeed(attempt, result)
             reason = _summarize_yfinance_incompleteness(method, args, result)
             incomplete_primary = (vendor, result, reason)
             recoverable_errors.append((vendor, ChinaDataUnavailableError(reason)))
@@ -329,7 +419,12 @@ def route_to_vendor(method: str, *args, **kwargs):
             continue
 
         if incomplete_primary and _is_china_supplemental_vendor(vendor):
-            _emit_data_progress("success", method, vendor, args, _summarize_data_result(method, result))
+            artifact_id = _provenance.succeed(attempt, result)
+            _emit_data_progress(
+                "success", method, vendor, args, _summarize_data_result(method, result),
+                vendor_call_id=attempt.vendor_call_id,
+                artifact_id=artifact_id,
+            )
             return _format_supplemental_result(
                 method=method,
                 primary_vendor=incomplete_primary[0],
@@ -339,7 +434,12 @@ def route_to_vendor(method: str, *args, **kwargs):
                 supplemental_result=result,
             )
 
-        _emit_data_progress("success", method, vendor, args, _summarize_data_result(method, result))
+        artifact_id = _provenance.succeed(attempt, result)
+        _emit_data_progress(
+            "success", method, vendor, args, _summarize_data_result(method, result),
+            vendor_call_id=attempt.vendor_call_id,
+            artifact_id=artifact_id,
+        )
         return result
 
     # If any vendor reported "no data", the symbol is genuinely unavailable.
@@ -389,7 +489,13 @@ def route_to_vendor(method: str, *args, **kwargs):
     raise RuntimeError(f"No available vendor for '{method}'")
 
 
-def _route_news_to_vendors(method: str, vendors: list[str], *args, **kwargs) -> str:
+def _route_news_to_vendors(
+    method: str,
+    vendors: list[str],
+    *args,
+    _provenance: DataRequestObservation,
+    **kwargs,
+) -> str:
     """Fetch news from configured sources and curate a compact source-labeled package."""
     configured_vendors = [vendor for vendor in vendors if vendor != "default"]
     if not configured_vendors:
@@ -400,30 +506,58 @@ def _route_news_to_vendors(method: str, vendors: list[str], *args, **kwargs) -> 
     for vendor in configured_vendors:
         if vendor not in VENDOR_METHODS[method]:
             message = f"vendor does not support {method}"
-            _emit_data_progress("failure", method, vendor, args, message)
+            attempt = _provenance.start_attempt(vendor, fallback_chain=tuple(configured_vendors))
+            artifact_id = _provenance.fail(attempt, message)
+            _emit_data_progress(
+                "failure", method, vendor, args, message,
+                vendor_call_id=attempt.vendor_call_id,
+                artifact_id=artifact_id,
+            )
             errors.append((vendor, message))
             continue
 
-        _emit_data_progress("start", method, vendor, args)
+        attempt = _provenance.start_attempt(vendor, fallback_chain=tuple(configured_vendors))
         try:
-            result = VENDOR_METHODS[method][vendor](*args, **kwargs)
+            with _provenance.attempt_scope(attempt):
+                _emit_data_progress("start", method, vendor, args)
+                result = VENDOR_METHODS[method][vendor](*args, **kwargs)
         except Exception as exc:
-            _emit_data_progress("failure", method, vendor, args, _summarize_vendor_error_for_news(exc))
+            artifact_id = _provenance.fail(attempt, exc)
+            _emit_data_progress(
+                "failure", method, vendor, args, _summarize_vendor_error_for_news(exc),
+                vendor_call_id=attempt.vendor_call_id,
+                artifact_id=artifact_id,
+            )
             errors.append((vendor, exc))
             continue
 
         if _is_error_news_result(result):
             message = _summarize_error_news_result(result)
-            _emit_data_progress("failure", method, vendor, args, message)
+            artifact_id = _provenance.fail(attempt, message)
+            _emit_data_progress(
+                "failure", method, vendor, args, message,
+                vendor_call_id=attempt.vendor_call_id,
+                artifact_id=artifact_id,
+            )
             errors.append((vendor, message))
             continue
 
         if _is_empty_news_result(result):
             message = _summarize_empty_news_result(result)
-            _emit_data_progress("failure", method, vendor, args, message)
+            artifact_id = _provenance.fail(attempt, message)
+            _emit_data_progress(
+                "failure", method, vendor, args, message,
+                vendor_call_id=attempt.vendor_call_id,
+                artifact_id=artifact_id,
+            )
             errors.append((vendor, message))
             continue
-        _emit_data_progress("success", method, vendor, args, _summarize_news_result(result))
+        artifact_id = _provenance.succeed(attempt, result)
+        _emit_data_progress(
+            "success", method, vendor, args, _summarize_news_result(result),
+            vendor_call_id=attempt.vendor_call_id,
+            artifact_id=artifact_id,
+        )
         successes.append((vendor, result))
 
     if successes:
@@ -454,6 +588,9 @@ def _emit_data_progress(
     vendor: str,
     args: tuple[Any, ...],
     detail: str | None = None,
+    *,
+    vendor_call_id: str | None = None,
+    artifact_id: str | None = None,
 ) -> None:
     labels = {
         "start": "数据调用开始",
@@ -466,7 +603,14 @@ def _emit_data_progress(
         parts.append(context)
     if detail:
         parts.append(_sanitize_progress_text(detail))
-    emit_progress(stage, method, vendor, " | ".join(parts))
+    emit_progress(
+        stage,
+        method,
+        vendor,
+        " | ".join(parts),
+        vendor_call_id=vendor_call_id,
+        artifact_id=artifact_id,
+    )
 
 
 def _emit_supplement_progress(method: str, primary_vendor: str, next_vendor: str) -> None:

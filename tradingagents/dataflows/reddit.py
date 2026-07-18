@@ -30,6 +30,8 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from tradingagents.observability.provenance import capture_vendor_raw
+
 from .symbol_utils import crypto_base
 
 logger = logging.getLogger(__name__)
@@ -108,7 +110,12 @@ def _fetch_subreddit_rss(
     req = Request(url, headers={"User-Agent": _UA})
     try:
         with urlopen(req, timeout=timeout) as resp:
-            root = ET.fromstring(resp.read())
+            response_body = resp.read()
+            capture_vendor_raw(
+                response_body.decode("utf-8", errors="replace"),
+                metadata={"provider": "reddit", "transport": "rss", "subreddit": sub},
+            )
+            root = ET.fromstring(response_body)
     except HTTPError as exc:
         if exc.code == 429 and _retry:
             wait = _retry_after_seconds(exc) or 5.0
@@ -162,7 +169,12 @@ def _fetch_subreddit_json(
     req = Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
     try:
         with urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read())
+            response_body = resp.read()
+            payload = json.loads(response_body)
+            capture_vendor_raw(
+                payload,
+                metadata={"provider": "reddit", "transport": "json", "subreddit": sub},
+            )
         children = (payload.get("data") or {}).get("children") or []
         return [c.get("data", {}) for c in children if isinstance(c, dict)]
     except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:

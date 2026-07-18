@@ -6,6 +6,8 @@ from datetime import datetime
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
+from tradingagents.observability.provenance import capture_vendor_raw
+
 from .config import get_config
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
@@ -96,6 +98,10 @@ def get_news_yfinance(
     try:
         stock = yf.Ticker(canonical)
         news = yf_retry(lambda: stock.get_news(count=article_limit))
+        capture_vendor_raw(
+            news,
+            metadata={"provider": "yfinance", "dataset": "company_news", "symbol": canonical},
+        )
 
         if not news:
             return f"No news found for {ticker}{resolved}"
@@ -166,6 +172,14 @@ def get_global_news_yfinance(
                 news_count=limit,
                 enable_fuzzy_query=True,
             ))
+            capture_vendor_raw(
+                search.news or [],
+                metadata={
+                    "provider": "yfinance",
+                    "dataset": "global_news",
+                    "query": query,
+                },
+            )
 
             if search.news:
                 for article in search.news:

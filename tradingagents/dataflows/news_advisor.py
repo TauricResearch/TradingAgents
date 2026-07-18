@@ -16,6 +16,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from tradingagents.observability.provenance import direct_data_scope
+
 from .config import get_config
 from .consistency import create_llm_from_config
 from .ticker_utils import is_a_share_ticker
@@ -133,7 +135,8 @@ def _analyze_via_llm(
         headlines=headlines,
     )
 
-    response = llm.invoke(prompt)
+    with direct_data_scope("evidence.news_advisor"):
+        response = llm.invoke(prompt)
     content = response.content if hasattr(response, "content") else str(response)
     return _parse_advisor_response(content)
 

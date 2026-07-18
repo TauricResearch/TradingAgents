@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A and B plus Stories C1 and C2 are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Observation separates stable logical turns from concrete LangGraph task invocations, durably correlates prompts, model attempts, logical tool requests, tool executions, retries, failures, and direct-call scopes, and rebuilds only committed or pending-apply tool requests after restart. All 13 roles now have exact code-audited state projections, Evidence Steward configuration drift protection, and observed role/tool/maintenance/input tasks that return checkpoint commit tokens. Story C3 is next.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A, B, and C are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Observation separates stable logical turns from concrete LangGraph task invocations, durably correlates prompts, model attempts, logical tool requests, tool executions, retries, failures, and direct-call scopes, and rebuilds only committed or pending-apply tool requests after restart. All 13 roles now have exact code-audited state projections, Evidence Steward configuration drift protection, and observed role/tool/maintenance/input tasks that return checkpoint commit tokens. Vendor attempts now preserve raw provider values where an adapter exposes them, keep adapter output distinct from normalized Agent input, record fallback lineage, and isolate news caching by analysis run. Phase D shared execution is next.
 
 ## Confirmed constraints
 
@@ -77,6 +77,11 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - Observed graph tasks use the public `Runtime.execution_info.task_id` and `metadata.langgraph_step`. A real LangGraph role -> ToolNode -> role re-entry test proves one stable turn with three distinct task IDs and tool joins by model `tool_call_id`; initial input and every maintenance writer receive their own commit token.
 - Observation persistence failures are now distinct from provider/model failures and cannot be swallowed by structured-output fallback.
 - All web tests through Story C2 pass with 109 tests. The affected compatibility matrix passes with 152 tests. The complete repository suite passes with 812 tests and 68 subtests; the same 18 existing model-catalog warnings remain. Python compilation and `git diff --check` pass; Ruff remains unavailable in the authoritative interpreter.
+- Story C3 uses one provenance model for routed tools and direct data calls. Every vendor attempt receives a stable `vendor_call_id`, duration, safe terminal status, period/unit/currency fields, fallback lineage, adapter-output artifact, normalized-result artifact, and true raw artifacts when the provider seam exposes them. Missing raw capture is explicitly recorded as `unavailable`; normalized adapter output is never mislabeled as raw.
+- Raw capture seams now cover yfinance company profiles, OHLCV, technical indicators, statements, and news; Alpha Vantage responses; Tushare/AKShare profiles, OHLCV, fundamentals, and statements; Tavily news and enrichment; FRED responses; StockTwits JSON; and Reddit RSS/JSON. Artifact persistence redacts before writing, and provider exceptions persist only a safe type/generic message rather than credential-bearing exception text.
+- Sentiment's direct news, StockTwits, and Reddit prefetches, plus Evidence Advisor, consistency clustering, and Tavily enrichment, now inherit the active observer. Dynamically created Evidence LLMs receive the same callback, so these calls remain attached to the correct role turn and graph task.
+- News caching now requires an explicit run-owned scope, is destroyed on scope exit, cannot leak across runs, and treats provenance-free entries as misses in observed execution. Cache-hit events reference the original ordered vendor attempts and artifacts instead of synthesizing new provider calls.
+- C3's focused verification passes with 65 tests; additional China/FRED/provider coverage passes with 41 tests; C3 Ruff checks pass. The complete repository suite after C3 passes with 821 tests and 68 subtests in 183.74 seconds; the same 18 existing model-catalog warnings remain.
 
 ## Pending decisions
 
@@ -84,8 +89,8 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Implement Story C3 vendor provenance and the run-scoped news cache.
-2. Implement Phase D shared execution and durable checkpoint frontier.
+1. Implement Phase D shared `AnalysisRunner` and durable checkpoint frontier.
+2. Implement the single-run manager, REST/SSE boundary, and restart reconciliation.
 3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes

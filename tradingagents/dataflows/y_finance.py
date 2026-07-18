@@ -1,9 +1,12 @@
+import json
 from datetime import datetime
 from typing import Annotated
 
 import pandas as pd
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
+
+from tradingagents.observability.provenance import capture_vendor_raw
 
 from .stockstats_utils import (
     StockstatsUtils,
@@ -18,6 +21,18 @@ try:
     from curl_cffi.requests.exceptions import RequestException as CurlCffiRequestException
 except Exception:  # pragma: no cover - curl_cffi is an indirect yfinance dependency
     CurlCffiRequestException = ()
+
+
+def _capture_yfinance_frame(data: pd.DataFrame, dataset: str, **metadata) -> None:
+    """Capture the provider frame before report/date normalization."""
+    try:
+        value = json.loads(data.to_json(orient="split", date_format="iso"))
+    except (TypeError, ValueError):
+        value = {"capture_error": "dataframe_serialization_failed"}
+    capture_vendor_raw(
+        value,
+        metadata={"provider": "yfinance", "dataset": dataset, **metadata},
+    )
 
 
 def get_YFin_data_online(
@@ -52,6 +67,8 @@ def get_YFin_data_online(
             data = data[(data["Date"] >= start_dt) & (data["Date"] <= end_dt)]
             data = data.set_index("Date")
         source = "yfinance cache"
+
+    _capture_yfinance_frame(data, "ohlcv", source=source, symbol=canonical)
 
     # Empty result means the symbol is unknown/delisted. Raise a typed error
     # instead of returning prose: the routing layer turns it into a single
@@ -266,6 +283,16 @@ def _get_stock_stats_bulk(
         else:
             result_dict[date_str] = str(indicator_value)
 
+    capture_vendor_raw(
+        result_dict,
+        metadata={
+            "provider": "yfinance",
+            "dataset": "technical_indicator",
+            "symbol": symbol,
+            "indicator": indicator,
+        },
+    )
+
     return result_dict
 
 
@@ -306,6 +333,10 @@ def get_fundamentals(
     try:
         ticker_obj = yf.Ticker(canonical)
         info = yf_retry(lambda: ticker_obj.info)
+        capture_vendor_raw(
+            info,
+            metadata={"provider": "yfinance", "dataset": "company_profile", "symbol": canonical},
+        )
 
         if not info:
             raise NoMarketDataError(ticker, canonical, "no fundamentals returned")
@@ -379,6 +410,8 @@ def get_balance_sheet(
         else:
             data = yf_retry(lambda: ticker_obj.balance_sheet)
 
+        _capture_yfinance_frame(data, "balance_sheet", frequency=freq, symbol=canonical)
+
         data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
@@ -414,6 +447,8 @@ def get_cashflow(
         else:
             data = yf_retry(lambda: ticker_obj.cashflow)
 
+        _capture_yfinance_frame(data, "cash_flow", frequency=freq, symbol=canonical)
+
         data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
@@ -448,6 +483,8 @@ def get_income_statement(
             data = yf_retry(lambda: ticker_obj.quarterly_income_stmt)
         else:
             data = yf_retry(lambda: ticker_obj.income_stmt)
+
+        _capture_yfinance_frame(data, "income_statement", frequency=freq, symbol=canonical)
 
         data = filter_financials_by_date(data, curr_date)
 

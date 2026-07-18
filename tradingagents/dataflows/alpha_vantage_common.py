@@ -6,6 +6,8 @@ from io import StringIO
 import pandas as pd
 import requests
 
+from tradingagents.observability.provenance import capture_vendor_raw
+
 from .errors import VendorNotConfiguredError, VendorRateLimitError
 
 API_BASE_URL = "https://www.alphavantage.co/query"
@@ -87,6 +89,14 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
     response.raise_for_status()
 
     response_text = response.text
+    capture_vendor_raw(
+        response_text,
+        metadata={
+            "provider": "alpha_vantage",
+            "function": function_name,
+            "content_type": getattr(response, "headers", {}).get("content-type"),
+        },
+    )
 
     # Error responses are JSON; data responses are usually CSV (or data-keyed
     # JSON). A non-JSON body is normal data.

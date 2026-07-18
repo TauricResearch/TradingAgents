@@ -5,14 +5,15 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from typing import Any, Iterator, Mapping
+from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from tradingagents.observability.events import ArtifactRef, PersistedEvent, RunEventDraft
 from tradingagents.observability.errors import ObservationPersistenceError
+from tradingagents.observability.events import ArtifactRef, PersistedEvent, RunEventDraft
 from tradingagents.observability.redaction import redact_recursive
 from tradingagents.observability.roles import ROLES_BY_ACTOR_ID, role_instance_id
 from tradingagents.web.store import RunStore
@@ -240,7 +241,9 @@ class DurableRunObserver(BaseCallbackHandler):
             if known != turn_ref:
                 raise ValueError("unknown or mismatched logical turn")
             self._turn_contexts[turn_ref.turn_id] = context
-        with observation_scope(context):
+        from tradingagents.observability.provenance import provenance_scope
+
+        with observation_scope(context), provenance_scope(self):
             yield context
 
     def open_turn_for_actor(self, actor_id: str) -> RoleTurnRef | None:

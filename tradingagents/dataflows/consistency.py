@@ -12,6 +12,11 @@ import re
 from collections import defaultdict
 from typing import Any
 
+from tradingagents.observability.provenance import (
+    current_provenance_observer,
+    direct_data_scope,
+)
+
 from .config import get_config
 
 logger = logging.getLogger(__name__)
@@ -37,10 +42,12 @@ def create_llm_from_config() -> Any | None:
     try:
         from tradingagents.llm_clients import create_llm_client
 
+        observer = current_provenance_observer()
         client = create_llm_client(
             provider=provider,
             model=model,
             base_url=cfg.get("backend_url"),
+            **({"callbacks": [observer]} if observer is not None else {}),
         )
         return client.get_llm()
     except Exception as exc:
@@ -97,7 +104,8 @@ def _cluster_via_llm(
         "Do NOT include any explanation — only the JSON."
     )
 
-    response = llm.invoke(prompt)
+    with direct_data_scope("consistency.clustering"):
+        response = llm.invoke(prompt)
     content = response.content if hasattr(response, "content") else str(response)
     clusters = _parse_cluster_json(content, len(items))
 

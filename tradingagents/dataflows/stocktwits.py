@@ -19,6 +19,8 @@ import json
 import logging
 from urllib.request import Request, urlopen
 
+from tradingagents.observability.provenance import capture_vendor_raw
+
 from .symbol_utils import crypto_base
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,10 @@ def fetch_stocktwits_messages(ticker: str, limit: int = 30, timeout: float = 10.
     try:
         with urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read())
+            capture_vendor_raw(
+                data,
+                metadata={"provider": "stocktwits", "symbol": _stocktwits_symbol(ticker)},
+            )
     except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
         # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).

@@ -13,6 +13,12 @@ class DataProgressEvent:
     method: str
     vendor: str
     message: str
+    run_id: str | None = None
+    turn_id: str | None = None
+    graph_task_id: str | None = None
+    tool_call_id: str | None = None
+    vendor_call_id: str | None = None
+    artifact_id: str | None = None
 
 
 ProgressSink = Callable[[DataProgressEvent], None]
@@ -24,11 +30,34 @@ def set_progress_sink(sink: ProgressSink | None) -> None:
     _progress_sink = sink
 
 
-def emit_progress(stage: str, method: str, vendor: str, message: str) -> None:
+def emit_progress(
+    stage: str,
+    method: str,
+    vendor: str,
+    message: str,
+    *,
+    vendor_call_id: str | None = None,
+    artifact_id: str | None = None,
+) -> None:
     if _progress_sink is None:
         return
     try:
-        _progress_sink(DataProgressEvent(stage=stage, method=method, vendor=vendor, message=message))
+        from tradingagents.observability.provenance import current_progress_correlation
+
+        correlation = current_progress_correlation()
+        if vendor_call_id is not None:
+            correlation["vendor_call_id"] = vendor_call_id
+        if artifact_id is not None:
+            correlation["artifact_id"] = artifact_id
+        _progress_sink(
+            DataProgressEvent(
+                stage=stage,
+                method=method,
+                vendor=vendor,
+                message=message,
+                **correlation,
+            )
+        )
     except Exception:
         return
 

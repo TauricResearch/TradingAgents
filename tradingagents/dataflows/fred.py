@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 
 import requests
 
+from tradingagents.observability.provenance import capture_vendor_raw
+
 from .errors import VendorNotConfiguredError
 
 logger = logging.getLogger(__name__)
@@ -130,7 +132,12 @@ def _request(path: str, params: dict) -> dict:
             message = response.text
         raise ValueError(f"FRED request failed: {message}")
     response.raise_for_status()
-    return response.json()
+    data = response.json()
+    capture_vendor_raw(
+        data,
+        metadata={"provider": "fred", "endpoint": path},
+    )
+    return data
 
 
 def get_macro_data(
