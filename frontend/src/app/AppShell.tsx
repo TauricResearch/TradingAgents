@@ -81,7 +81,6 @@ function Wiring() {
             indicators: ui.indicators,
             showVolume: ui.showVolume,
             logScale: ui.logScale,
-            chartStyle: ui.chartStyle,
             indicatorTemplates: ui.indicatorTemplates,
           },
         },
@@ -92,7 +91,7 @@ function Wiring() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layoutStore.overrides, layoutStore.preset, ui.theme, ui.symbol,
       drawingsBySymbol, ui.indicators, ui.showVolume, ui.logScale,
-      ui.chartStyle, ui.indicatorTemplates]);
+      ui.indicatorTemplates]);
 
   // keyboard chords
   useEffect(

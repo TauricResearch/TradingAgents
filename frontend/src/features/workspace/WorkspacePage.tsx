@@ -16,7 +16,6 @@ import { SkeletonCard } from "@/components/ui/skeleton";
 import { ChartSyncProvider } from "@/components/charts/ChartSync";
 import {
   PriceChart,
-  type SeriesStyle,
   type TradeMarker,
 } from "@/components/charts/PriceChart";
 import {
@@ -91,8 +90,6 @@ export default function WorkspacePage() {
     toggleProfile,
     logScale,
     toggleLogScale,
-    chartStyle,
-    setChartStyle,
     gridCells,
     setGridCells,
     updateGridCell,
@@ -425,20 +422,6 @@ export default function WorkspacePage() {
                   </Segment>
                 ))}
               </Segmented>
-              <select
-                aria-label="Chart style"
-                value={chartStyle}
-                onChange={(e) => setChartStyle(e.target.value)}
-                className="h-7 rounded-md border border-border bg-surface px-1.5 text-xs text-fg"
-              >
-                <option value="candles">Candles</option>
-                <option value="hollow">Hollow</option>
-                <option value="heikin-ashi">Heikin Ashi</option>
-                <option value="bars">OHLC</option>
-                <option value="line">Line</option>
-                <option value="area">Area</option>
-                <option value="baseline">Baseline</option>
-              </select>
               <Button
                 size="sm"
                 variant="outline"
@@ -557,7 +540,7 @@ export default function WorkspacePage() {
                   <div className="relative min-w-0 grow">
                     <PriceChart
                       bars={visibleBars}
-                      style={chartStyle as SeriesStyle}
+                      style="candles"
                       recommendation={recForSymbol}
                       markers={markers}
                       liveSymbol={isLive ? symbol : undefined}
