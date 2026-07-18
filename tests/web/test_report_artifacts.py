@@ -49,6 +49,29 @@ def test_partial_report_revisions_are_monotonic_content_addressed_and_immutable(
     assert not (tmp_path / snapshot.run_id / "reports").exists()
 
 
+def test_retryable_report_promotion_reuses_identical_revision(tmp_path):
+    store, snapshot = _store_and_run(tmp_path)
+    writer = ReportArtifactWriter(store)
+
+    first = writer.write_revision_once(snapshot.run_id, "market", "same content")
+    retried = writer.write_revision_once(snapshot.run_id, "market", "same content")
+
+    assert retried == first
+    revision_dir = tmp_path / snapshot.run_id / "report-revisions" / "market"
+    assert len(list(revision_dir.iterdir())) == 1
+
+
+def test_content_addressed_report_is_readable_across_multiple_report_kinds(tmp_path):
+    store, snapshot = _store_and_run(tmp_path)
+    writer = ReportArtifactWriter(store)
+
+    market = writer.write_revision_once(snapshot.run_id, "market", "shared")
+    news = writer.write_revision_once(snapshot.run_id, "news", "shared")
+
+    assert market.artifact.artifact_id == news.artifact.artifact_id
+    assert store.read_artifact(snapshot.run_id, market.artifact.artifact_id) == b"shared"
+
+
 def test_run_completed_is_rejected_until_atomic_final_tree_exists(tmp_path):
     store, snapshot = _store_and_run(tmp_path)
 
@@ -131,4 +154,3 @@ def test_failed_run_retains_partial_report_without_false_final_tree(tmp_path):
     assert (run_dir / partial.artifact.locator).is_file()
     assert not (run_dir / "reports").exists()
     assert store.read_snapshot(snapshot.run_id).status == "failed"
-

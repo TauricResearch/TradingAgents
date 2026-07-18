@@ -17,7 +17,6 @@ from tradingagents.reporting import write_report_tree
 from .run_models import utc_timestamp
 from .store import RunStore, RunStoreError
 
-
 REPORT_KIND_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 REVISION_PATTERN = re.compile(r"^(\d{6})-([0-9a-f]{64})\.md$")
 
@@ -87,6 +86,54 @@ class ReportArtifactWriter:
                 byte_size=len(encoded),
                 locator=locator,
             ),
+        )
+
+    def write_revision_once(
+        self,
+        run_id: str,
+        report_kind: str,
+        content: str,
+    ) -> ReportRevision:
+        """Return the existing content-addressed revision after a promotion retry."""
+        if not REPORT_KIND_PATTERN.fullmatch(report_kind):
+            raise ReportPublicationError("invalid report kind")
+        if not isinstance(content, str) or not content:
+            raise ReportPublicationError("report revision content is required")
+        run_dir = self.store._run_dir(run_id)
+        revision_dir = run_dir / "report-revisions" / report_kind
+        digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        with self.store.lock_for(run_id):
+            if revision_dir.is_dir():
+                matches = sorted(revision_dir.glob(f"*-{digest}.md"))
+                if len(matches) > 1:
+                    raise ReportPublicationError(
+                        "duplicate content-addressed report revisions"
+                    )
+                if matches:
+                    match = REVISION_PATTERN.fullmatch(matches[0].name)
+                    if match is None or matches[0].read_text(encoding="utf-8") != content:
+                        raise ReportPublicationError("report revision integrity mismatch")
+                    return ReportRevision(
+                        report_kind=report_kind,
+                        revision=int(match.group(1)),
+                        artifact=self._revision_artifact(run_dir, matches[0], digest),
+                    )
+            return self.write_revision(run_id, report_kind, content)
+
+    @staticmethod
+    def _revision_artifact(
+        run_dir: Path,
+        destination: Path,
+        digest: str,
+    ) -> ArtifactRef:
+        content = destination.read_bytes()
+        return ArtifactRef(
+            artifact_id=f"report-revision:{digest}",
+            kind="report-revision",
+            media_type="text/markdown",
+            content_sha256=digest,
+            byte_size=len(content),
+            locator=destination.relative_to(run_dir).as_posix(),
         )
 
     def publish_final(
@@ -166,7 +213,7 @@ class ReportArtifactWriter:
     @staticmethod
     def _fsync_tree(root: Path) -> None:
         directories = []
-        for current, dirnames, filenames in os.walk(root):
+        for current, _dirnames, filenames in os.walk(root):
             current_path = Path(current)
             directories.append(current_path)
             for filename in filenames:
@@ -194,4 +241,3 @@ class ReportArtifactWriter:
                 byte_size=len(content),
                 locator=path.relative_to(run_dir).as_posix(),
             )
-

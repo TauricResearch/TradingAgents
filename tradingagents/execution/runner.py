@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -59,7 +60,7 @@ class PreparedInitialContext:
 class PreparedAnalysis:
     """The exact initial state and its already-authorized source context."""
 
-    initial_state: Mapping[str, Any]
+    initial_state: Mapping[str, Any] | None
     initial_context: PreparedInitialContext
 
 
@@ -110,6 +111,10 @@ class AnalysisRunner:
         self._checkpoint_context_owned = False
         self._checkpoint_entered = False
         self._checkpoint_graph_recompiled = False
+        self._checkpoint_saver: Any | None = None
+        self._checkpoint_authorization: CheckpointAuthorization | None = None
+        self._active_thread_id: str | None = None
+        self._resume_state: Mapping[str, Any] | None = None
 
     def run(
         self,
@@ -161,20 +166,29 @@ class AnalysisRunner:
                     access,
                     checkpoint_run_id,
                 )
+                self._checkpoint_authorization = authorization
                 token.raise_if_cancelled()
-                prepared = self._create_initial_state(
-                    request,
-                    initial_context,
-                    observation_context=observation_context,
-                )
             self._open_legacy_checkpoint(request, run_id=checkpoint_run_id)
             if prepared is None:
-                initial_context = self._resolve_initial_context(request)
-                prepared = self._create_initial_state(
-                    request,
-                    initial_context,
-                    observation_context=observation_context,
-                )
+                if (
+                    self._checkpoint_authorization is not None
+                    and self._checkpoint_authorization.mode == "resume"
+                ):
+                    prepared = PreparedAnalysis(None, initial_context)
+                    self._reconcile_resume_frontier(
+                        observation_context,
+                        checkpoint_run_id,
+                    )
+                else:
+                    if checkpoint_run_id is None or not owner.config.get(
+                        "checkpoint_enabled"
+                    ):
+                        initial_context = self._resolve_initial_context(request)
+                    prepared = self._create_initial_state(
+                        request,
+                        initial_context,
+                        observation_context=observation_context,
+                    )
             result = self._execute(
                 request,
                 prepared,
@@ -213,12 +227,13 @@ class AnalysisRunner:
                 "configurable",
                 {},
             )
-            configurable["thread_id"] = thread_id(
+            configurable["thread_id"] = self._active_thread_id or thread_id(
                 request.ticker,
                 request.analysis_date,
                 run_shape,
                 **_run_id_kwargs(checkpoint_run_id),
             )
+            self._active_thread_id = configurable["thread_id"]
 
         cancellation_token.raise_if_cancelled()
         should_stream = (
@@ -233,6 +248,7 @@ class AnalysisRunner:
                 graph_args,
                 cancellation_token,
                 observation_context,
+                checkpoint_run_id=checkpoint_run_id,
             )
         else:
             final_state = owner.graph.invoke(initial_state, **graph_args)
@@ -304,40 +320,358 @@ class AnalysisRunner:
 
     def _stream_graph(
         self,
-        initial_state: Mapping[str, Any],
+        initial_state: Mapping[str, Any] | None,
         graph_args: dict[str, Any],
         cancellation_token: CancellationToken,
         observation_context: Any | None,
+        *,
+        checkpoint_run_id: str | None,
     ) -> Mapping[str, Any]:
         owner = self.owner
         invocation_args = dict(graph_args)
         if observation_context is not None:
             invocation_args["context"] = observation_context
+        checkpointed_web = (
+            checkpoint_run_id is not None
+            and getattr(getattr(observation_context, "observer", None), "store", None)
+            is not None
+            and owner.config.get("checkpoint_enabled")
+        )
+        observed_without_checkpoint = (
+            getattr(observation_context, "observer", None) is not None
+            and not owner.config.get("checkpoint_enabled")
+        )
+        if checkpointed_web:
+            invocation_args["stream_mode"] = ["tasks", "updates", "checkpoints"]
+            invocation_args["durability"] = "sync"
+            invocation_args["version"] = "v1"
+        elif observed_without_checkpoint:
+            invocation_args["stream_mode"] = ["tasks", "updates", "values"]
+            invocation_args.pop("durability", None)
+            invocation_args["version"] = "v1"
         stream_mode = invocation_args.get("stream_mode", "values")
         final_state: Mapping[str, Any] | None = None
         merged: dict[str, Any] = {}
         last_printed = None
 
         for chunk in owner.graph.stream(initial_state, **invocation_args):
-            if not isinstance(chunk, Mapping):
+            mode: str | None = None
+            payload: Any = chunk
+            if isinstance(stream_mode, list):
+                if (
+                    not isinstance(chunk, tuple)
+                    or len(chunk) != 2
+                    or not isinstance(chunk[0], str)
+                ):
+                    raise TypeError("multi-mode graph stream must yield (mode, payload)")
+                mode, payload = chunk
+            if not isinstance(payload, Mapping):
                 raise TypeError("graph state stream must yield mappings")
-            if stream_mode == "values":
-                final_state = chunk
+            barrier = False
+            if checkpointed_web:
+                if mode == "checkpoints":
+                    final_state = self._accept_checkpoint_payload(
+                        payload,
+                        observation_context,
+                    )
+                    barrier = True
+            elif observed_without_checkpoint:
+                if mode == "values":
+                    final_state = payload
+                    self._accept_in_process_barrier(payload, observation_context)
+                    barrier = True
+            elif stream_mode == "values":
+                final_state = payload
+                barrier = True
             else:
-                merged.update(chunk)
+                merged.update(payload)
                 final_state = merged
+                barrier = True
 
-            if owner.debug and chunk.get("messages"):
-                message = chunk["messages"][-1]
+            debug_state = final_state if barrier else None
+            if owner.debug and debug_state and debug_state.get("messages"):
+                message = debug_state["messages"][-1]
                 signature = (type(message).__name__, getattr(message, "content", None))
                 if signature != last_printed:
                     message.pretty_print()
                     last_printed = signature
-            cancellation_token.raise_if_cancelled(final_state)
+            if barrier:
+                cancellation_token.raise_if_cancelled(final_state)
 
         if final_state is None:
+            if initial_state is None and self._resume_state is not None:
+                return self._resume_state
             raise RuntimeError("graph completed without yielding final state")
         return final_state
+
+    def _accept_checkpoint_payload(
+        self,
+        payload: Mapping[str, Any],
+        observation_context: Any,
+    ) -> Mapping[str, Any]:
+        from tradingagents.web.reconciliation import (
+            DurableCheckpoint,
+            apply_reconciliation_plan,
+            reconcile_checkpoint_frontier,
+        )
+
+        observer = getattr(observation_context, "observer", None)
+        if observer is None or self._checkpoint_saver is None:
+            raise RuntimeError("checkpoint observation requires observer and active saver")
+        streamed = DurableCheckpoint.from_stream_payload(payload)
+        durable_tuple = self._checkpoint_saver.get_tuple(payload["config"])
+        if durable_tuple is None:
+            raise RuntimeError("synchronous checkpoint was not durable")
+        durable_id = _checkpoint_id(durable_tuple)
+        if durable_id != streamed.checkpoint_id:
+            raise RuntimeError("streamed and durable checkpoint IDs do not match")
+
+        if streamed.graph_step == -1:
+            return streamed.channel_values
+
+        parent_tuple = (
+            self._checkpoint_saver.get_tuple(durable_tuple.parent_config)
+            if durable_tuple.parent_config is not None
+            else None
+        )
+        latest_next = tuple(self.owner.graph.get_state(durable_tuple.config).next)
+        parent_next = (
+            tuple(self.owner.graph.get_state(parent_tuple.config).next)
+            if parent_tuple is not None
+            else None
+        )
+        durable = DurableCheckpoint.from_checkpoint_tuple(
+            durable_tuple,
+            next_nodes=latest_next,
+        )
+        if (
+            durable.graph_step != streamed.graph_step
+            or durable.state_sha256 != streamed.state_sha256
+            or durable.next_nodes != streamed.next_nodes
+        ):
+            raise RuntimeError("streamed checkpoint payload does not match durable state")
+        store = observer.store
+        events = store.read_events(observer.run_id)
+        plan = reconcile_checkpoint_frontier(
+            events,
+            durable_tuple,
+            parent_tuple,
+            latest_next_nodes=latest_next,
+            parent_next_nodes=parent_next,
+            read_artifact=lambda artifact_id: store.read_artifact(
+                observer.run_id,
+                artifact_id,
+            ),
+        )
+        apply_reconciliation_plan(
+            store,
+            observer.run_id,
+            plan,
+            current_checkpoint_id=lambda: _latest_checkpoint_id(
+                self._checkpoint_saver,
+                self._active_thread_id,
+            ),
+            observer=observer,
+        )
+        self._promote_reconciled_tasks(observer, plan)
+        return streamed.channel_values
+
+    def _accept_in_process_barrier(
+        self,
+        values: Mapping[str, Any],
+        observation_context: Any,
+    ) -> None:
+        from tradingagents.observability.canonical import BusinessStateProjectionV1
+        from tradingagents.web.reconciliation import candidate_map
+
+        observer = getattr(observation_context, "observer", None)
+        if observer is None:
+            return
+        events = observer.store.read_events(observer.run_id)
+        candidates = candidate_map(events)
+        applied = tuple(
+            sorted(
+                task_id
+                for task_id in candidates
+                if observer.application_status(task_id) not in {"committed", "abandoned"}
+            )
+        )
+        if not applied:
+            return
+        graph_step = max(candidates[task_id].graph_step for task_id in applied)
+        marker = observer.emit(
+            _step_applied_draft(
+                observer.run_id,
+                graph_step,
+                applied,
+                BusinessStateProjectionV1.from_channel_values(values).sha256,
+            )
+        )
+        observer.refresh_from_events()
+        self._promote_commits(
+            observer,
+            tuple(candidates[task_id].commit for task_id in applied),
+            candidates,
+            marker,
+        )
+
+    def _reconcile_resume_frontier(
+        self,
+        observation_context: Any | None,
+        checkpoint_run_id: str | None,
+    ) -> None:
+        if observation_context is None or checkpoint_run_id is None:
+            return
+        observer = getattr(observation_context, "observer", None)
+        if observer is None or self._checkpoint_saver is None:
+            raise RuntimeError("resume reconciliation requires observer and active saver")
+        from tradingagents.web.reconciliation import (
+            apply_reconciliation_plan,
+            reconcile_checkpoint_frontier,
+        )
+
+        configurable = {
+            "configurable": {
+                "thread_id": self._active_thread_id,
+            }
+        }
+        latest = self._checkpoint_saver.get_tuple(configurable)
+        if latest is None:
+            raise RuntimeError("authorized resume checkpoint disappeared")
+        parent = (
+            self._checkpoint_saver.get_tuple(latest.parent_config)
+            if latest.parent_config is not None
+            else None
+        )
+        latest_next = tuple(self.owner.graph.get_state(latest.config).next)
+        self._resume_state = dict(latest.checkpoint["channel_values"])
+        if latest.metadata.get("step") == -1:
+            return
+        parent_next = (
+            tuple(self.owner.graph.get_state(parent.config).next)
+            if parent is not None
+            else None
+        )
+        store = observer.store
+        plan = reconcile_checkpoint_frontier(
+            store.read_events(observer.run_id),
+            latest,
+            parent,
+            latest_next_nodes=latest_next,
+            parent_next_nodes=parent_next,
+            read_artifact=lambda artifact_id: store.read_artifact(
+                observer.run_id,
+                artifact_id,
+            ),
+        )
+        apply_reconciliation_plan(
+            store,
+            observer.run_id,
+            plan,
+            current_checkpoint_id=lambda: _latest_checkpoint_id(
+                self._checkpoint_saver,
+                self._active_thread_id,
+            ),
+            observer=observer,
+        )
+        self._promote_reconciled_tasks(observer, plan)
+
+    @staticmethod
+    def _promote_reconciled_tasks(observer: Any, plan: Any) -> None:
+        transition = plan.latest_transition
+        events = observer.store.read_events(observer.run_id)
+        marker = next(
+            event
+            for event in reversed(events)
+            if event.type == "graph.checkpoint_committed"
+            and event.payload.get("checkpoint_id")
+            == transition.checkpoint.checkpoint_id
+        )
+        AnalysisRunner._promote_commits(
+            observer,
+            transition.applied_commits,
+            plan.candidates,
+            marker,
+        )
+
+    @staticmethod
+    def _promote_commits(
+        observer: Any,
+        commits: tuple[Any, ...],
+        candidates: Mapping[str, Any],
+        marker: Any,
+    ) -> None:
+        events = observer.store.read_events(observer.run_id)
+        committed_tools = {
+            str(event.payload["tool_call_id"])
+            for event in events
+            if event.type == "tool.committed"
+        }
+        terminal_turns = {
+            str(event.payload["turn_id"])
+            for event in events
+            if event.type
+            in {"turn.completed", "turn.failed", "turn.cancelled", "turn.interrupted"}
+        }
+        completed_turns = {
+            str(event.payload["turn_id"])
+            for event in events
+            if event.type == "turn.completed"
+        }
+        promoted_state_tasks = {
+            str(event.payload.get("graph_task_id"))
+            for event in events
+            if event.type == "state.updated" and event.payload.get("graph_task_id")
+        }
+        promoted_reports = {
+            (
+                str(event.payload.get("graph_task_id")),
+                str(event.payload.get("report_kind")),
+            )
+            for event in events
+            if event.type == "report.updated" and event.payload.get("graph_task_id")
+        }
+        observer.refresh_from_events()
+        for commit in commits:
+            candidate = candidates[commit.graph_task_id]
+            delta = _read_candidate_delta(observer, candidate.artifact_id)
+            if commit.turn_id and commit.graph_task_id not in promoted_state_tasks:
+                observer.emit(
+                    _state_updated_draft(
+                        observer.run_id,
+                        commit,
+                        tuple(sorted(delta)),
+                        marker.event_id,
+                    )
+                )
+                promoted_state_tasks.add(commit.graph_task_id)
+            _promote_report_revisions(
+                observer,
+                commit,
+                delta,
+                marker.event_id,
+                promoted_reports,
+            )
+            if commit.task_kind == "tool":
+                for tool_call_id in commit.tool_call_ids:
+                    if tool_call_id not in committed_tools:
+                        observer.commit_tool(tool_call_id, marker.event_id)
+                        committed_tools.add(tool_call_id)
+            if (
+                commit.task_kind == "role"
+                and not commit.tool_call_ids
+                and commit.turn_id
+                and commit.turn_id not in terminal_turns
+            ):
+                observer.complete_turn(commit.turn_id, duration_ms=0)
+                terminal_turns.add(commit.turn_id)
+                completed_turns.add(commit.turn_id)
+            if commit.turn_id in completed_turns:
+                _ensure_role_completion(
+                    observer,
+                    commit.turn_id,
+                    marker.event_id,
+                )
 
     def _open_legacy_checkpoint(
         self,
@@ -357,8 +691,15 @@ class AnalysisRunner:
         self._checkpoint_context_owned = True
         saver = owner._checkpointer_ctx.__enter__()
         self._checkpoint_entered = True
+        self._checkpoint_saver = saver
         owner.graph = owner.workflow.compile(checkpointer=saver)
         self._checkpoint_graph_recompiled = True
+        self._active_thread_id = thread_id(
+            request.ticker,
+            request.analysis_date,
+            owner._run_signature(request.asset_type),
+            **_run_id_kwargs(run_id),
+        )
         step = checkpoint_step(
             owner.config["data_cache_dir"],
             request.ticker,
@@ -392,6 +733,10 @@ class AnalysisRunner:
             cleanup_error = exc
         finally:
             owner._checkpointer_ctx = None
+            self._checkpoint_saver = None
+            self._active_thread_id = None
+            self._checkpoint_authorization = None
+            self._resume_state = None
             self._checkpoint_context_owned = False
             self._checkpoint_entered = False
             if self._checkpoint_graph_recompiled:
@@ -499,3 +844,206 @@ class AnalysisRunner:
 
 def _run_id_kwargs(run_id: str | None) -> dict[str, str]:
     return {"run_id": run_id} if run_id is not None else {}
+
+
+def _checkpoint_id(checkpoint_tuple: Any | None) -> str | None:
+    if checkpoint_tuple is None:
+        return None
+    config = getattr(checkpoint_tuple, "config", None)
+    checkpoint = getattr(checkpoint_tuple, "checkpoint", None)
+    configurable = config.get("configurable") if isinstance(config, Mapping) else None
+    value = (
+        configurable.get("checkpoint_id")
+        if isinstance(configurable, Mapping)
+        else None
+    )
+    if value is None and isinstance(checkpoint, Mapping):
+        value = checkpoint.get("id")
+    return value if isinstance(value, str) and value else None
+
+
+def _latest_checkpoint_id(saver: Any, thread_identity: str | None) -> str | None:
+    if saver is None or not thread_identity:
+        return None
+    return _checkpoint_id(
+        saver.get_tuple({"configurable": {"thread_id": thread_identity}})
+    )
+
+
+def _step_applied_draft(
+    run_id: str,
+    graph_step: int,
+    applied_task_ids: tuple[str, ...],
+    state_sha256: str,
+):
+    from tradingagents.observability.events import RunEventDraft
+
+    return RunEventDraft(
+        run_id,
+        "graph.step_applied",
+        {
+            "graph_step": graph_step,
+            "applied_task_ids": list(applied_task_ids),
+            "state_sha256": state_sha256,
+            "next_nodes": [],
+        },
+        status="committed",
+    )
+
+
+def _read_candidate_delta(observer: Any, artifact_id: str) -> dict[str, Any]:
+    try:
+        value = json.loads(observer.store.read_artifact(observer.run_id, artifact_id))
+    except (OSError, TypeError, ValueError) as exc:
+        raise RuntimeError("committed candidate artifact is unreadable") from exc
+    if not isinstance(value, dict):
+        raise RuntimeError("committed candidate artifact must contain an object")
+    return value
+
+
+def _state_updated_draft(
+    run_id: str,
+    commit: Any,
+    changed_keys: tuple[str, ...],
+    checkpoint_event_id: str,
+):
+    from tradingagents.observability.events import RunEventDraft
+
+    return RunEventDraft(
+        run_id,
+        "state.updated",
+        {
+            "turn_id": commit.turn_id,
+            "graph_task_id": commit.graph_task_id,
+            "changed_keys": list(changed_keys),
+            "checkpoint_event_id": checkpoint_event_id,
+        },
+        node_id=commit.node_id,
+        parent_event_id=checkpoint_event_id,
+        status="committed",
+    )
+
+
+_REPORT_FIELDS = {
+    "market_report": "market",
+    "sentiment_report": "sentiment",
+    "news_report": "news",
+    "fundamentals_report": "fundamentals",
+    "trader_investment_plan": "trader",
+    "final_trade_decision": "portfolio",
+}
+
+
+def _promote_report_revisions(
+    observer: Any,
+    commit: Any,
+    delta: Mapping[str, Any],
+    checkpoint_event_id: str,
+    promoted_reports: set[tuple[str, str]],
+) -> None:
+    if not commit.turn_id:
+        return
+    from tradingagents.observability.events import RunEventDraft
+    from tradingagents.web.reports import ReportArtifactWriter
+
+    writer = ReportArtifactWriter(observer.store)
+    for state_field, report_kind in _REPORT_FIELDS.items():
+        content = delta.get(state_field)
+        identity = (commit.graph_task_id, report_kind)
+        if not isinstance(content, str) or not content or identity in promoted_reports:
+            continue
+        revision = writer.write_revision_once(observer.run_id, report_kind, content)
+        events = observer.store.read_events(observer.run_id)
+        if not any(
+            event.type == "artifact.written"
+            and event.payload.get("artifact_id") == revision.artifact.artifact_id
+            for event in events
+        ):
+            observer.emit(
+                RunEventDraft(
+                    observer.run_id,
+                    "artifact.written",
+                    {
+                        "artifact_id": revision.artifact.artifact_id,
+                        "kind": revision.artifact.kind,
+                        "media_type": revision.artifact.media_type,
+                        "content_sha256": revision.artifact.content_sha256,
+                        "byte_size": revision.artifact.byte_size,
+                        "locator": revision.artifact.locator,
+                    },
+                    parent_event_id=checkpoint_event_id,
+                )
+            )
+        observer.emit(
+            RunEventDraft(
+                observer.run_id,
+                "report.updated",
+                {
+                    "turn_id": commit.turn_id,
+                    "graph_task_id": commit.graph_task_id,
+                    "report_kind": report_kind,
+                    "revision": revision.revision,
+                    "artifact_id": revision.artifact.artifact_id,
+                    "checkpoint_event_id": checkpoint_event_id,
+                },
+                node_id=commit.node_id,
+                parent_event_id=checkpoint_event_id,
+                status="committed",
+            )
+        )
+        promoted_reports.add(identity)
+
+
+def _ensure_role_completion(
+    observer: Any,
+    turn_id: str,
+    checkpoint_event_id: str,
+) -> None:
+    from tradingagents.observability.events import RunEventDraft
+
+    events = observer.store.read_events(observer.run_id)
+    if any(
+        event.type == "role.status_changed"
+        and event.payload.get("turn_id") == turn_id
+        and event.payload.get("new_status") == "completed"
+        for event in events
+    ):
+        return
+    turn_event = next(
+        (
+            event
+            for event in events
+            if event.type.startswith("turn.")
+            and event.payload.get("turn_id") == turn_id
+        ),
+        None,
+    )
+    if turn_event is None or turn_event.actor_id is None:
+        raise RuntimeError("committed turn has no durable role identity")
+    previous = next(
+        (
+            event.payload.get("new_status")
+            for event in reversed(events)
+            if event.type == "role.status_changed"
+            and event.actor_id == turn_event.actor_id
+        ),
+        "running",
+    )
+    observer.emit(
+        RunEventDraft(
+            observer.run_id,
+            "role.status_changed",
+            {
+                "role_instance_id": turn_event.payload["role_instance_id"],
+                "previous_status": previous,
+                "new_status": "completed",
+                "reason": "checkpoint_committed",
+                "turn_id": turn_id,
+            },
+            team_id=turn_event.team_id,
+            actor_id=turn_event.actor_id,
+            node_id=turn_event.node_id,
+            parent_event_id=checkpoint_event_id,
+            status="completed",
+        )
+    )

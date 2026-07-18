@@ -1115,3 +1115,11 @@ class DurableRunObserver(BaseCallbackHandler):
                 )
             elif event.type in {"tool.committed", "tool.cancelled"}:
                 self._logical_tools.pop(str(payload["tool_call_id"]), None)
+
+    def refresh_from_events(self) -> None:
+        """Refresh restart-safe lifecycle indexes after frontier reconciliation."""
+        self._rebuild_from_events()
+
+    def application_status(self, graph_task_id: str) -> str | None:
+        """Return the reduced candidate/application status for one graph task."""
+        return self._application_status_by_task.get(graph_task_id)

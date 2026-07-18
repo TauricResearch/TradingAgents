@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -18,6 +19,7 @@ from tradingagents.observability.canonical import (
     business_delta_sha256,
     project_business_delta,
 )
+from tradingagents.observability.errors import ObservationPersistenceError
 from tradingagents.observability.events import ArtifactRef, ObservationCommitV1, RunEventDraft
 from tradingagents.observability.observer import DurableRunObserver
 from tradingagents.observability.projections import (
@@ -27,7 +29,6 @@ from tradingagents.observability.projections import (
     project_role_input,
 )
 from tradingagents.observability.redaction import redact_recursive
-
 
 TaskKind = Literal["input", "role", "tool", "maintenance"]
 
@@ -212,6 +213,13 @@ def observe_initial_input(
 ) -> dict[str, Any]:
     graph_task_id = f"{run_context.observer.run_id}:input"
     _emit_task_started(run_context.observer, graph_task_id, 0, "__input__")
+    reused = _reuse_synthetic_input_candidate(
+        run_context.observer,
+        graph_task_id,
+        state,
+    )
+    if reused is not None:
+        return reused
     return _persist_output_candidate(
         run_context.observer,
         dict(state),
@@ -220,6 +228,89 @@ def observe_initial_input(
         node_id=None,
         task_kind="input",
     ).output
+
+
+def _reuse_synthetic_input_candidate(
+    observer: DurableRunObserver,
+    graph_task_id: str,
+    state: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    existing = [
+        event
+        for event in observer.store.read_events(observer.run_id)
+        if event.type == "graph.task_output_ready"
+        and isinstance(event.payload.get("observation_commit"), Mapping)
+        and event.payload["observation_commit"].get("graph_task_id") == graph_task_id
+    ]
+    if not existing:
+        return None
+    if len(existing) != 1:
+        raise ObservationPersistenceError("duplicate synthetic input candidate")
+    event = existing[0]
+    events = observer.store.read_events(observer.run_id)
+    if any(
+        candidate.type in {"graph.checkpoint_committed", "graph.step_applied"}
+        and graph_task_id in candidate.payload.get("applied_task_ids", ())
+        for candidate in events
+    ):
+        raise ObservationPersistenceError("synthetic input is already committed")
+    if any(
+        candidate.type == "graph.task_abandoned"
+        and candidate.payload.get("graph_task_id") == graph_task_id
+        and candidate.sequence > event.sequence
+        for candidate in events
+    ):
+        return None
+    raw = event.payload["observation_commit"]
+    expected_hash = business_delta_sha256(state)
+    if (
+        set(raw)
+        != {
+            "serializer_version",
+            "projection_version",
+            "agent_state_schema_sha256",
+            "task_kind",
+            "graph_task_id",
+            "graph_step",
+            "business_delta_sha256",
+            "node_id",
+            "turn_id",
+            "tool_call_ids",
+        }
+        or raw.get("serializer_version") != SERIALIZER_VERSION
+        or raw.get("projection_version") != BUSINESS_PROJECTION_VERSION
+        or raw.get("agent_state_schema_sha256") != AGENT_STATE_SCHEMA_SHA256
+        or raw.get("task_kind") != "input"
+        or raw.get("graph_task_id") != graph_task_id
+        or raw.get("graph_step") != 0
+        or raw.get("business_delta_sha256") != expected_hash
+        or raw.get("node_id") is not None
+        or raw.get("turn_id") is not None
+        or raw.get("tool_call_ids") not in ([], ())
+        or event.payload.get("graph_step") != 0
+        or event.payload.get("node_id") != "__input__"
+        or event.payload.get("media_type") != "application/json"
+        or event.payload.get("content_sha256") != expected_hash
+        or event.status != "candidate"
+    ):
+        raise ObservationPersistenceError("synthetic input candidate mismatch")
+    artifact_id = event.payload.get("business_delta_artifact_id")
+    if (
+        not isinstance(artifact_id, str)
+        or artifact_id.rsplit(":", 1)[-1] != expected_hash
+    ):
+        raise ObservationPersistenceError("synthetic input artifact is missing")
+    try:
+        content = observer.store.read_artifact(observer.run_id, artifact_id)
+    except Exception as exc:
+        raise ObservationPersistenceError(
+            "synthetic input artifact is unreadable"
+        ) from exc
+    if hashlib.sha256(content).hexdigest() != expected_hash:
+        raise ObservationPersistenceError("synthetic input artifact mismatch")
+    output = dict(state)
+    output["_observation_commits"] = {graph_task_id: dict(raw)}
+    return output
 
 
 def _task_identity(
@@ -241,6 +332,19 @@ def _emit_task_started(
     graph_step: int,
     node_id: str,
 ) -> None:
+    existing = [
+        event
+        for event in observer.store.read_events(observer.run_id)
+        if event.type == "graph.task_started"
+        and event.payload.get("graph_task_id") == graph_task_id
+    ]
+    if existing:
+        if len(existing) != 1 or (
+            existing[0].payload.get("graph_step") != graph_step
+            or existing[0].payload.get("node_id") != node_id
+        ):
+            raise AssertionError("graph task restart identity changed")
+        return
     observer.emit(
         RunEventDraft(
             observer.run_id,

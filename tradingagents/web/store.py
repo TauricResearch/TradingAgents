@@ -8,6 +8,7 @@ import os
 import re
 import threading
 import uuid
+from contextlib import suppress
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,6 @@ from tradingagents.observability.events import ArtifactRef, PersistedEvent, RunE
 from tradingagents.observability.redaction import redact_recursive
 
 from .run_models import RunSnapshot, RunSummary, utc_timestamp, validate_run_id
-
 
 ARTIFACT_KIND_DIRECTORIES = {
     "data": "data",
@@ -273,10 +273,16 @@ class RunStore:
         artifact_dir = run_dir / directory_name
         if artifact_dir.parent.resolve() != run_dir.resolve():
             raise InvalidStorePath("artifact path escapes run directory")
-        matches = list(artifact_dir.glob(f"{digest}.*")) if artifact_dir.is_dir() else []
-        if len(matches) != 1 or not matches[0].is_file():
+        if artifact_dir.is_dir() and kind == "report-revision":
+            matches = list(artifact_dir.rglob(f"*-{digest}.md"))
+        else:
+            matches = list(artifact_dir.glob(f"{digest}.*")) if artifact_dir.is_dir() else []
+        if not matches or any(not match.is_file() for match in matches):
             raise RunNotFound(f"artifact {artifact_id}")
-        return matches[0].read_bytes()
+        contents = [match.read_bytes() for match in matches]
+        if any(hashlib.sha256(content).hexdigest() != digest for content in contents):
+            raise RunStoreCorruption(f"artifact {artifact_id} failed integrity check")
+        return contents[0]
 
     def _write_snapshot_file(self, run_dir: Path, snapshot: RunSnapshot) -> None:
         raw = snapshot.as_dict()
@@ -298,10 +304,8 @@ class RunStore:
                 os.fsync(handle.fileno())
             os.replace(temporary, destination)
         finally:
-            try:
+            with suppress(FileNotFoundError):
                 temporary.unlink()
-            except FileNotFoundError:
-                pass
 
     @staticmethod
     def _fsync_directory(directory: Path) -> None:
