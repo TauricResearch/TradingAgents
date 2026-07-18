@@ -22,6 +22,7 @@ from tradingagents.agents import (
     create_trader,
 )
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.observability.roles import ROLES_BY_NODE_ID
 
 from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
@@ -60,7 +61,10 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=("market", "social", "news", "fundamentals")
+        self,
+        selected_analysts=("market", "social", "news", "fundamentals"),
+        *,
+        observation_enabled: bool = False,
     ):
         """Set up and compile the agent workflow graph.
 
@@ -96,24 +100,62 @@ class GraphSetup:
         portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
 
         # Create workflow
-        workflow = StateGraph(AgentState)
+        if observation_enabled:
+            from tradingagents.observability.graph_tasks import (
+                GraphObservationRunContext,
+                ObservedGraphTask,
+                ObservedNode,
+                ObservedToolNode,
+            )
+
+            context_schema = GraphObservationRunContext
+        else:
+            ObservedGraphTask = ObservedNode = ObservedToolNode = None
+            context_schema = None
+
+        workflow = StateGraph(AgentState, context_schema=context_schema)
+
+        def role_node(node_name: str, node: Any):
+            if not observation_enabled:
+                return node
+            assert ObservedNode is not None
+            return ObservedNode(ROLES_BY_NODE_ID[node_name].actor_id, node_name, node)
 
         # Add analyst nodes to the graph
         for spec in plan.specs:
-            workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
-            workflow.add_node(spec.clear_node, create_msg_delete())
-            workflow.add_node(spec.tool_node, self.tool_nodes[spec.key])
+            workflow.add_node(
+                spec.agent_node,
+                role_node(spec.agent_node, analyst_factories[spec.key]()),
+            )
+            clear_node = create_msg_delete()
+            tool_node = self.tool_nodes[spec.key]
+            if observation_enabled:
+                assert ObservedGraphTask is not None and ObservedToolNode is not None
+                clear_node = ObservedGraphTask(spec.clear_node, "maintenance", clear_node)
+                tool_node = ObservedToolNode(spec.tool_node, tool_node)
+            workflow.add_node(spec.clear_node, clear_node)
+            workflow.add_node(spec.tool_node, tool_node)
 
         # Add other nodes
-        workflow.add_node("Evidence Steward", evidence_steward_node)
-        workflow.add_node("Bull Researcher", bull_researcher_node)
-        workflow.add_node("Bear Researcher", bear_researcher_node)
-        workflow.add_node("Research Manager", research_manager_node)
-        workflow.add_node("Trader", trader_node)
-        workflow.add_node("Aggressive Analyst", aggressive_analyst)
-        workflow.add_node("Neutral Analyst", neutral_analyst)
-        workflow.add_node("Conservative Analyst", conservative_analyst)
-        workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        workflow.add_node(
+            "Evidence Steward", role_node("Evidence Steward", evidence_steward_node)
+        )
+        workflow.add_node("Bull Researcher", role_node("Bull Researcher", bull_researcher_node))
+        workflow.add_node("Bear Researcher", role_node("Bear Researcher", bear_researcher_node))
+        workflow.add_node(
+            "Research Manager", role_node("Research Manager", research_manager_node)
+        )
+        workflow.add_node("Trader", role_node("Trader", trader_node))
+        workflow.add_node(
+            "Aggressive Analyst", role_node("Aggressive Analyst", aggressive_analyst)
+        )
+        workflow.add_node("Neutral Analyst", role_node("Neutral Analyst", neutral_analyst))
+        workflow.add_node(
+            "Conservative Analyst", role_node("Conservative Analyst", conservative_analyst)
+        )
+        workflow.add_node(
+            "Portfolio Manager", role_node("Portfolio Manager", portfolio_manager_node)
+        )
 
         # Define edges
         # Start with the first analyst

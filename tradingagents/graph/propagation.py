@@ -22,6 +22,7 @@ class Propagator:
         asset_type: str = "stock",
         past_context: str = "",
         instrument_context: str = "",
+        observation_context=None,
     ) -> dict[str, Any]:
         """Create the initial state for the agent graph.
 
@@ -31,7 +32,7 @@ class Propagator:
         fall back to ticker-only context via
         ``get_instrument_context_from_state``.
         """
-        return {
+        state = {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
             "asset_type": asset_type,
@@ -66,7 +67,15 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "canonical_company_profile": {},
+            "evidence_status": "",
+            "evidence_report": "",
         }
+        if observation_context is not None:
+            from tradingagents.observability.graph_tasks import observe_initial_input
+
+            return observe_initial_input(state, observation_context)
+        return state
 
     def get_graph_args(self, callbacks: list | None = None) -> dict[str, Any]:
         """Get arguments for the graph invocation.

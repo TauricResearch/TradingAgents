@@ -171,6 +171,26 @@ def test_invoke_structured_falls_back_when_result_is_none():
 
 
 @pytest.mark.unit
+def test_invoke_structured_never_swallows_observation_persistence_failure():
+    from tradingagents.agents.utils.structured import invoke_structured_or_freetext
+    from tradingagents.observability.errors import ObservationPersistenceError
+
+    structured = MagicMock()
+    structured.invoke.side_effect = ObservationPersistenceError("disk event failed")
+    plain = MagicMock()
+
+    with pytest.raises(ObservationPersistenceError, match="disk event failed"):
+        invoke_structured_or_freetext(
+            structured,
+            plain,
+            "prompt",
+            render=lambda result: result.rating,
+            agent_name="t",
+        )
+    plain.invoke.assert_not_called()
+
+
+@pytest.mark.unit
 class TestTraderAgent:
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}

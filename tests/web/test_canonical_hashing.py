@@ -98,7 +98,10 @@ def test_business_projection_selects_only_declared_agent_state_channels():
     assert "messages" in APPLICATION_STATE_FIELDS
     assert APPLICATION_STATE_FIELDS == (
         "asset_type",
+        "canonical_company_profile",
         "company_of_interest",
+        "evidence_report",
+        "evidence_status",
         "final_trade_decision",
         "fundamentals_report",
         "instrument_context",

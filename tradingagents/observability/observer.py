@@ -12,6 +12,7 @@ from typing import Any, Iterator, Mapping
 from langchain_core.callbacks import BaseCallbackHandler
 
 from tradingagents.observability.events import ArtifactRef, PersistedEvent, RunEventDraft
+from tradingagents.observability.errors import ObservationPersistenceError
 from tradingagents.observability.redaction import redact_recursive
 from tradingagents.observability.roles import ROLES_BY_ACTOR_ID, role_instance_id
 from tradingagents.web.store import RunStore
@@ -82,6 +83,8 @@ class DurableRunObserver(BaseCallbackHandler):
         self._open_turn_ids: set[str] = set()
         self._logical_tools: dict[str, _LogicalTool] = {}
         self._model_attempts: dict[str, _ModelAttempt] = {}
+        self._latest_attempt_by_turn: dict[str, str] = {}
+        self._latest_attempt_by_invocation: dict[tuple[str, str], str] = {}
         self._tool_executions: dict[str, _ToolExecution] = {}
         self._application_status_by_task = dict(application_status_by_task or {})
         self._state_lock = threading.RLock()
@@ -90,7 +93,14 @@ class DurableRunObserver(BaseCallbackHandler):
     def emit(self, draft: RunEventDraft) -> PersistedEvent:
         if draft.run_id != self.run_id:
             raise ValueError("observer cannot emit into another run")
-        return self._event_sink(draft)
+        try:
+            return self._event_sink(draft)
+        except ObservationPersistenceError:
+            raise
+        except Exception as exc:
+            raise ObservationPersistenceError(
+                f"unable to persist observation event {draft.type}"
+            ) from exc
 
     def store_artifact(
         self,
@@ -99,12 +109,19 @@ class DurableRunObserver(BaseCallbackHandler):
         *,
         media_type: str = "application/json",
     ) -> ArtifactRef:
-        artifact = self.store.store_artifact(
-            self.run_id,
-            kind=kind,
-            value=value,
-            media_type=media_type,
-        )
+        try:
+            artifact = self.store.store_artifact(
+                self.run_id,
+                kind=kind,
+                value=value,
+                media_type=media_type,
+            )
+        except ObservationPersistenceError:
+            raise
+        except Exception as exc:
+            raise ObservationPersistenceError(
+                f"unable to persist observation artifact {kind}"
+            ) from exc
         self.emit(
             RunEventDraft(
                 self.run_id,
@@ -235,9 +252,34 @@ class DurableRunObserver(BaseCallbackHandler):
             ]
         return max(candidates, key=lambda ref: ref.turn_index) if candidates else None
 
+    def next_turn_index(self, actor_id: str) -> int:
+        with self._state_lock:
+            indexes = [
+                ref.turn_index for ref in self._turns.values() if ref.actor_id == actor_id
+            ]
+        return max(indexes, default=0) + 1
+
     def tool_turn_ref(self, tool_call_id: str) -> RoleTurnRef:
         with self._state_lock:
             return self._logical_tools[tool_call_id].turn_ref
+
+    def latest_attempt_id(
+        self,
+        turn_id: str,
+        graph_task_id: str | None = None,
+    ) -> str | None:
+        with self._state_lock:
+            if graph_task_id is not None:
+                return self._latest_attempt_by_invocation.get((turn_id, graph_task_id))
+            return self._latest_attempt_by_turn.get(turn_id)
+
+    def unresolved_tool_call_ids(self, turn_id: str) -> tuple[str, ...]:
+        with self._state_lock:
+            return tuple(
+                tool_call_id
+                for tool_call_id, logical in self._logical_tools.items()
+                if logical.turn_ref.turn_id == turn_id
+            )
 
     def resume_turn(
         self,
@@ -297,15 +339,17 @@ class DurableRunObserver(BaseCallbackHandler):
     def mark_turn_output_ready(
         self,
         turn_id: str,
-        output: Any,
+        output: Any = None,
         *,
+        artifact: ArtifactRef | None = None,
         context: ObservationContext | None = None,
     ) -> ArtifactRef:
         with self._state_lock:
             ref = self._turns[turn_id]
             event_context = context or current_observation_context() or self._turn_contexts[turn_id]
         self._assert_context_matches_turn(event_context, ref)
-        artifact = self.store_artifact("data", output)
+        if artifact is None:
+            artifact = self.store_artifact("data", output)
         role = ROLES_BY_ACTOR_ID[ref.actor_id]
         self.emit(
             RunEventDraft(
@@ -783,6 +827,10 @@ class DurableRunObserver(BaseCallbackHandler):
         )
         with self._state_lock:
             self._model_attempts[model_call_id] = attempt
+            self._latest_attempt_by_turn[context.turn_id] = attempt_id
+            self._latest_attempt_by_invocation[
+                (context.turn_id, context.graph_task_id)
+            ] = attempt_id
 
     def _require_context(
         self,
@@ -1057,6 +1105,10 @@ class DurableRunObserver(BaseCallbackHandler):
                     request_context=request_context,
                     attempt_id=str(payload["attempt_id"]),
                     tool_name=str(payload["tool_name"]),
+                )
+                self._latest_attempt_by_turn[ref.turn_id] = str(payload["attempt_id"])
+                self._latest_attempt_by_invocation[(ref.turn_id, task_id)] = str(
+                    payload["attempt_id"]
                 )
             elif event.type in {"tool.committed", "tool.cancelled"}:
                 self._logical_tools.pop(str(payload["tool_call_id"]), None)

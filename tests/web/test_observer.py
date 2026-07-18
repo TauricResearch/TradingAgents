@@ -9,6 +9,7 @@ from tradingagents.observability.context import (
     current_observation_context,
     observation_scope,
 )
+from tradingagents.observability.errors import ObservationPersistenceError
 from tradingagents.observability.observer import DurableRunObserver
 from tradingagents.web.run_models import RunSnapshot
 from tradingagents.web.store import RunStore
@@ -473,7 +474,7 @@ def test_model_attempt_is_not_forgotten_before_terminal_event_is_durable(tmp_pat
     ):
         observer.on_llm_start({}, ["Decide"], run_id="model-durable")
 
-    with pytest.raises(OSError, match="durability failure"):
+    with pytest.raises(ObservationPersistenceError, match="unable to persist"):
         observer.on_llm_end(SimpleNamespace(llm_output={}), run_id="model-durable")
     fail_terminal = False
     observer.on_llm_end(SimpleNamespace(llm_output={}), run_id="model-durable")

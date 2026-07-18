@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A and B and Story C1 are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Observation now separates stable logical turns from each concrete LangGraph task invocation, durably correlates prompts, model attempts, logical tool requests, tool executions, retries, failures, and direct-call scopes, and rebuilds only committed or pending-apply tool requests after restart. Story C2 is next.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A and B plus Stories C1 and C2 are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Observation separates stable logical turns from concrete LangGraph task invocations, durably correlates prompts, model attempts, logical tool requests, tool executions, retries, failures, and direct-call scopes, and rebuilds only committed or pending-apply tool requests after restart. All 13 roles now have exact code-audited state projections, Evidence Steward configuration drift protection, and observed role/tool/maintenance/input tasks that return checkpoint commit tokens. Story C3 is next.
 
 ## Confirmed constraints
 
@@ -71,6 +71,12 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - Story C1 callback capture uses the installed LangChain callback signatures and public LangGraph task identity boundary. One logical turn can now truthfully carry distinct role, tool, and role-reentry task IDs without losing its debate-turn identity.
 - C1 tests cover callback-manager assertion propagation, AI message usage metadata, callback-order-independent tool joins, restart filtering of candidate versus pending-apply requests, direct-call correlation, retries, interruption/resume, and durable-before-forget terminal callbacks.
 - All web tests through Story C1 pass with 81 tests. Python compilation and `git diff --check` pass. Ruff is declared only in the optional development dependencies and is not installed in the authoritative interpreter, so no Ruff result is claimed.
+- The C2 role projection matrix was audited against each role's real state access. Instrument identity fallback fields are captured only when the helper would read them; debate and risk nested dictionaries exclude fields the specific role does not read; every role references the immutable effective-config artifact instead of duplicating it.
+- `EvidenceConfigSnapshotV1` freezes the approved exact configuration whitelist plus every normalized `tavily_*` key, redacts credentials, normalizes endpoint identity, and fails before Evidence Steward evaluation when actual process configuration drifts from the run's frozen configuration.
+- Evidence Steward's `canonical_company_profile`, `evidence_status`, and `evidence_report` outputs were previously undeclared and therefore silently discarded by LangGraph. They are now declared application channels, initialized in input state, included in business hashing, and covered by checkpoint-candidate tests.
+- Observed graph tasks use the public `Runtime.execution_info.task_id` and `metadata.langgraph_step`. A real LangGraph role -> ToolNode -> role re-entry test proves one stable turn with three distinct task IDs and tool joins by model `tool_call_id`; initial input and every maintenance writer receive their own commit token.
+- Observation persistence failures are now distinct from provider/model failures and cannot be swallowed by structured-output fallback.
+- All web tests through Story C2 pass with 109 tests. The affected compatibility matrix passes with 152 tests. The complete repository suite passes with 812 tests and 68 subtests; the same 18 existing model-catalog warnings remain. Python compilation and `git diff --check` pass; Ruff remains unavailable in the authoritative interpreter.
 
 ## Pending decisions
 
@@ -78,8 +84,8 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Implement Story C2 all 13 role input projections and observed graph tasks.
-2. Implement Story C3 vendor provenance and the run-scoped news cache.
+1. Implement Story C3 vendor provenance and the run-scoped news cache.
+2. Implement Phase D shared execution and durable checkpoint frontier.
 3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes
