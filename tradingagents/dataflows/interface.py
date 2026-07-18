@@ -1,5 +1,17 @@
 import logging
 
+from .akshare_utils import (
+    get_balance_sheet_akshare,
+    get_cashflow_akshare,
+    get_fundamentals_akshare,
+    get_global_news_akshare,
+    get_income_statement_akshare,
+    get_indicators_akshare,
+    get_insider_transactions_akshare,
+    get_news_akshare,
+    get_stock_data_akshare,
+    is_a_share,
+)
 from .alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
     get_cashflow as get_alpha_vantage_cashflow,
@@ -82,6 +94,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "akshare",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -95,41 +108,50 @@ OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
 VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
+        "akshare": get_stock_data_akshare,
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
     },
     # technical_indicators
     "get_indicators": {
+        "akshare": get_indicators_akshare,
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
     },
     # fundamental_data
     "get_fundamentals": {
+        "akshare": get_fundamentals_akshare,
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
     },
     "get_balance_sheet": {
+        "akshare": get_balance_sheet_akshare,
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
     },
     "get_cashflow": {
+        "akshare": get_cashflow_akshare,
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
     },
     "get_income_statement": {
+        "akshare": get_income_statement_akshare,
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
     },
     # news_data
     "get_news": {
+        "akshare": get_news_akshare,
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
     },
     "get_global_news": {
+        "akshare": get_global_news_akshare,
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
+        "akshare": get_insider_transactions_akshare,
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
@@ -191,6 +213,18 @@ def route_to_vendor(method: str, *args, **kwargs):
             )
     else:
         vendor_chain = all_available_vendors
+
+    # Chinese A-shares (.SS / .SZ): the akshare vendor pulls domestic data
+    # (东方财富 / 同花顺). It is A-share-only, so for non-Chinese tickers it is
+    # never auto-tried; for A-shares it is always tried first, regardless of the
+    # configured vendor order, so domestic tickers get domestic data with no
+    # per-user configuration.
+    ticker_arg = args[0] if args else kwargs.get("symbol", kwargs.get("ticker", ""))
+    is_ashare = isinstance(ticker_arg, str) and is_a_share(ticker_arg)
+    if "akshare" in VENDOR_METHODS[method]:
+        vendor_chain = [v for v in vendor_chain if v != "akshare"]
+        if is_ashare:
+            vendor_chain = ["akshare"] + vendor_chain
 
     last_no_data: NoMarketDataError | None = None
     first_error: Exception | None = None

@@ -44,6 +44,13 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Chinese A-share data (东方财富 / 同花顺). Optional because it pulls extra
+# data-scraping deps not needed for non-China use cases.
+# pip install "tradingagents[china]"
+china = [
+    "akshare>=1.14.0",
+    "curl_cffi>=0.7.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
