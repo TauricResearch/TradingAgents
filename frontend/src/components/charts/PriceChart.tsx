@@ -77,6 +77,13 @@ function isOverlayIndicator(name: string): boolean {
   );
 }
 
+// The price pane is the hero at its full `height`; volume + each oscillator
+// add SHORT panes BELOW it (mockup: price ~400px, panes ~90px) rather than
+// dividing a fixed total. Pane stretch factors are set to these px so LWC
+// renders each pane at ~its target within the grown container.
+const VOLUME_PANE_PX = 78;
+const OSCILLATOR_PANE_PX = 104;
+
 /** theme-resolved per-line colors (review finding: hardcoded dark-theme
  * hexes washed out on light backgrounds) */
 function indicatorLineColors(colors: ReturnType<typeof chartColors>) {
@@ -386,7 +393,15 @@ export function PriceChart({
     if (panes.length > 1) {
       const saved = loadPaneFactors(panes.length);
       panes.forEach((pane, i) => {
-        const fallback = i === 0 ? 3 : showVolume && i === 1 ? 0.8 : 1;
+        // px-scaled factors: price = full height, volume/oscillators = their
+        // short target px. With the container grown to the sum (below), LWC
+        // renders each pane at ~its px. Saved user drags still win.
+        const fallback =
+          i === 0
+            ? height
+            : showVolume && i === 1
+              ? VOLUME_PANE_PX
+              : OSCILLATOR_PANE_PX;
         pane.setStretchFactor(saved?.[i] ?? fallback);
       });
     }
@@ -440,7 +455,7 @@ export function PriceChart({
       profileRef.current = null;
       annotationsRef.current = null;
     };
-  }, [bars, style, indicators, showVolume, drawingsSymbol, theme, chartRef, containerRef]);
+  }, [bars, style, indicators, showVolume, drawingsSymbol, theme, height, chartRef, containerRef]);
 
   // recommendation levels as price lines
   useEffect(() => {
@@ -495,6 +510,19 @@ export function PriceChart({
   // annotation times snapped to this chart's exact bar times (LWC v5:
   // any other time renders nothing). Off-range annotations drop out and
   // return when older bars are paged in.
+  // container grows with the panes so the price pane keeps its full height
+  // and oscillators add short panes below (mockup layout), instead of
+  // dividing a fixed total and cramping price.
+  const oscillatorCount = useMemo(
+    () =>
+      Object.keys(indicators ?? {}).filter((n) => !isOverlayIndicator(n)).length,
+    [indicators],
+  );
+  const chartHeight =
+    height +
+    (showVolume ? VOLUME_PANE_PX : 0) +
+    oscillatorCount * OSCILLATOR_PANE_PX;
+
   const barTimes = useMemo(() => bars.map((b) => b.time), [bars]);
   const snappedAnnotations = useMemo<SnappedAnnotation[]>(() => {
     if (!annotations) return [];
@@ -1048,7 +1076,7 @@ export function PriceChart({
     <div
       ref={containerRef}
       className="relative"
-      style={{ height, cursor: toolMode !== "select" ? "crosshair" : undefined }}
+      style={{ height: chartHeight, cursor: toolMode !== "select" ? "crosshair" : undefined }}
       role="img"
       aria-label="price chart"
       data-testid="price-chart"
