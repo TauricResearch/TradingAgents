@@ -629,9 +629,15 @@ test.describe("chart phase 2: drawing kinds", () => {
       timeout: 15_000,
     });
     const before = Number(await chart.getAttribute("data-drawings"));
+    // vline lives in the clubbed "Lines" group: open its flyout (corner
+    // caret) and pick the tool. Afterwards the group's main button reflects
+    // the active tool (aria-label + aria-pressed).
+    const linesFlyout = page.getByRole("button", { name: "Lines tools" });
+    const vlineItem = page.getByRole("menuitem", { name: /Vertical line/ });
     const vlineBtn = page.getByRole("button", { name: /Vertical line/ });
     for (let attempt = 0; attempt < 3; attempt++) {
-      await vlineBtn.click();
+      await linesFlyout.click();
+      await vlineItem.click();
       // wait for the tool to actually arm before clicking the canvas — the
       // click handler reads the mode off a ref that updates on React's next
       // commit, so a same-tick canvas click would run in select mode

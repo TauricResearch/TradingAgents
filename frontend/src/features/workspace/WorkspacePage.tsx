@@ -353,7 +353,7 @@ export default function WorkspacePage() {
   const isLive = (spec?.live || symbol === "BTC-USD") && !replay.active;
 
   return (
-    <Card ref={chartCardRef} className="bg-surface">
+    <Card ref={chartCardRef} className="flex h-full flex-col bg-surface">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 whitespace-nowrap !text-lg !font-extrabold !normal-case !tracking-normal !text-fg">
               <label htmlFor="trade-symbol" className="sr-only">
@@ -472,7 +472,7 @@ export default function WorkspacePage() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex min-h-0 flex-1 flex-col">
             {alertToast && (
               <div
                 className="mb-2 flex items-center justify-between rounded-lg bg-accent-muted px-2.5 py-1.5 text-xs text-accent"
@@ -522,7 +522,7 @@ export default function WorkspacePage() {
               />
             ) : (
               <ChartSyncProvider>
-                <div className="flex gap-2">
+                <div className="flex min-h-0 flex-1 gap-2">
                   <DrawingToolbar
                     mode={toolMode}
                     onModeChange={setToolMode}
