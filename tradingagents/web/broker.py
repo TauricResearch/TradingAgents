@@ -57,7 +57,7 @@ class EventSubscription:
         self.queue: deque[PersistedEvent] = deque()
         self.condition = asyncio.Condition()
         self.closed_reason: str | None = None
-        self._last_live_sequence = watermark
+        self._last_live_sequence = max(watermark, after)
         self._registered = True
 
     @property

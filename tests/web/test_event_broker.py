@@ -186,6 +186,23 @@ def test_after_sequence_filters_replay_then_continues_live(tmp_path):
     _run(scenario())
 
 
+def test_future_after_cursor_does_not_deliver_lower_live_sequences(tmp_path):
+    async def scenario() -> None:
+        store, run_id = _store_with_run(tmp_path)
+        broker = EventBroker(store)
+        subscription = await broker.subscribe(run_id, after=3)
+
+        for index in range(1, 4):
+            await asyncio.to_thread(broker.persist, _draft(run_id, index))
+        assert isinstance(await subscription.next_event(timeout=0), Keepalive)
+
+        await asyncio.to_thread(broker.persist, _draft(run_id, 4))
+        assert (await subscription.next_event()).sequence == 4
+        await subscription.close()
+
+    _run(scenario())
+
+
 def test_overflow_closes_only_slow_subscription_and_disk_replay_recovers(tmp_path):
     async def scenario() -> None:
         store, run_id = _store_with_run(tmp_path)
