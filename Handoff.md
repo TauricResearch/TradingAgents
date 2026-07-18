@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-Formal specification review exceeded the normal five-round limit once under continued-goal execution. The exceptional review confirmed task-token coverage and runtime floors, then found one final boundary issue: LangGraph internal branch/control channels must not count as business state. The spec now derives `BusinessStateProjectionV1` strictly from declared inherited `AgentState` fields, persists its schema hash, and excludes all framework-only channels from state hashes and pending-write mutation tests. No further automated review is scheduled; human review is now required.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`: 26 stories cover compatibility, durable observation, provenance, execution, reconciliation, REST/SSE, the React workbench, packaging, browser verification, and one real provider-backed smoke run. Implementation begins with Story A1, which freezes the existing programmatic and CLI contracts before shared execution code is introduced.
 
 ## Confirmed constraints
 
@@ -60,12 +60,13 @@ Formal specification review exceeded the normal five-round limit once under cont
 
 ## Pending decisions
 
-The user must review the corrected written specification and either approve it as the human override after the review-limit escalation or request changes. Implementation planning remains blocked until that approval.
+None. Material product and architecture decisions are approved. Pause only if implementation evidence exposes a new choice that would change the agreed scope or truthfulness of the audit trail.
 
 ## Next steps
 
-1. Obtain explicit user approval of the corrected written specification.
-2. After user approval, create the detailed implementation plan.
+1. Establish the authoritative project Python environment and run the focused legacy baseline.
+2. Implement Story A1 compatibility tests, followed by the remaining Phase A runtime contracts.
+3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes
 
