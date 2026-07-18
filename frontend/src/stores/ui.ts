@@ -51,8 +51,6 @@ interface UiState {
   gridCells: GridCell[];
   setGridCells: (cells: GridCell[]) => void;
   updateGridCell: (index: number, cell: Partial<GridCell>) => void;
-  compare: boolean;
-  setCompare: (on: boolean) => void;
   lastSeenAt: number; // powers the "since you left" diff panel
   markSeen: () => void;
   runDialogOpen: boolean;
@@ -143,8 +141,6 @@ export const useUiStore = create<UiState>()(
             i === index ? { ...c, ...cell } : c,
           ),
         })),
-      compare: false,
-      setCompare: (compare) => set({ compare }),
       lastSeenAt: Date.now(),
       markSeen: () => set({ lastSeenAt: Date.now() }),
       runDialogOpen: false,

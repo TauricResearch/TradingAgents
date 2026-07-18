@@ -1,8 +1,8 @@
 /** Trading Workspace: chart-first with decision-level overlays, indicator
- * panes, volume, compare mode (crosshair-synced, separate scales),
- * client-side market replay (REPLAY badge, ticks suspended), full-screen.
+ * panes, volume, a multi-chart grid (crosshair-synced), client-side market
+ * replay (REPLAY badge, ticks suspended), full-screen.
  * Honestly cut: no fake DOM ladder, no manual order ticket. */
-import { Columns2, Maximize2 } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -93,8 +93,6 @@ export default function WorkspacePage() {
     toggleLogScale,
     chartStyle,
     setChartStyle,
-    compare,
-    setCompare,
     gridCells,
     setGridCells,
     updateGridCell,
@@ -126,14 +124,10 @@ export default function WorkspacePage() {
     ? timeframe
     : available[available.length - 1]!;
 
+  // still the default seed symbol for the multi-chart grid cells
   const compareSymbol = symbol === "BTC-USD" ? "XAUUSD" : "BTC-USD";
-  const compareSpec = symbols.data?.find((s) => s.symbol === compareSymbol);
-  const compareTf = (compareSpec?.timeframes ?? ["1d"]).includes(activeTf)
-    ? activeTf
-    : "1d";
 
   const bars = useBars(symbol, activeTf, 300);
-  const compareBars = useBars(compareSymbol, compareTf, 300);
   const indicatorData = useIndicators(symbol, activeTf, selectedIndicators);
   const volumeProfile = useVolumeProfile(symbol, activeTf, showProfile);
   const recommendation = useRecommendation(symbol);
@@ -410,15 +404,6 @@ export default function WorkspacePage() {
                 onToggleProfile={toggleProfile}
                 timeframe={activeTf}
               />
-              <Button
-                size="sm"
-                variant="outline"
-                aria-pressed={compare}
-                onClick={() => setCompare(!compare)}
-                className={compare ? "border-accent bg-brand-muted text-accent" : ""}
-              >
-                <Columns2 size={13} /> Compare
-              </Button>
               {/* multi-chart grid (P2.6): extra crosshair-synced cells */}
               <Segmented aria-label="Chart grid" data-testid="grid-switch">
                 {[0, 1, 3].map((n) => (
@@ -578,12 +563,12 @@ export default function WorkspacePage() {
                       liveSymbol={isLive ? symbol : undefined}
                       indicators={visibleIndicators}
                       showVolume={showVolume}
-                      syncId={compare || gridCells.length > 0 ? "workspace" : undefined}
+                      syncId={gridCells.length > 0 ? "workspace" : undefined}
                       drawingsSymbol={symbol}
                       toolMode={toolMode}
                       onToolModeChange={setToolMode}
                       onCreateAlert={createChartAlert}
-                      height={compare ? 300 : 400}
+                      height={400}
                       volumeProfile={showProfile ? (volumeProfile.data ?? null) : null}
                       annotations={visibleAnnotations}
                       onExplainRun={(runId, point) =>
@@ -645,28 +630,6 @@ export default function WorkspacePage() {
                     )}
                   </div>
                 </div>
-                {compare && (
-                  <div className="mt-3 border-t border-border pt-[10px]">
-                    <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">
-                      <span className="font-mono font-bold">{compareSymbol}</span>
-                      <span>({compareTf}) — crosshair synced, own price scale</span>
-                    </div>
-                    {compareBars.data ? (
-                      <PriceChart
-                        bars={
-                          replay.active && cursorTime != null
-                            ? compareBars.data.filter((b) => b.time <= cursorTime)
-                            : compareBars.data
-                        }
-                        style="line"
-                        syncId="workspace"
-                        height={180}
-                      />
-                    ) : (
-                      <SkeletonCard lines={3} />
-                    )}
-                  </div>
-                )}
                 {gridCells.length > 0 && (
                   <div
                     className="mt-3 grid gap-2 border-t border-border pt-[10px] md:grid-cols-2"
