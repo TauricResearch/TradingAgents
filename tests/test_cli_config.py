@@ -80,6 +80,7 @@ def test_build_configured_selections_uses_config_without_prompting_for_llm():
     )
 
     assert selections["ticker"] == "002636.SZ"
+    assert selections["asset_type"] == "stock"
     assert [analyst.value for analyst in selections["analysts"]] == ["market", "social"]
     assert selections["llm_provider"] == "mimo"
     assert selections["shallow_thinker"] == "mimo-v2.5"
@@ -88,3 +89,14 @@ def test_build_configured_selections_uses_config_without_prompting_for_llm():
     assert selections["checkpoint_enabled"] is True
     assert selections["save_report"] is False
     assert selections["display_report"] is False
+
+
+def test_build_configured_selections_detects_crypto_after_normalization():
+    selections = build_configured_selections(
+        {"run": {"analysts": ["market"]}},
+        ticker="BTCUSD",
+        analysis_date="2026-07-17",
+    )
+
+    assert selections["ticker"] == "BTC-USD"
+    assert selections["asset_type"] == "crypto"

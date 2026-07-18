@@ -69,6 +69,8 @@ app = typer.Typer(
     name="TradingAgents",
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
+    invoke_without_command=True,
+    no_args_is_help=False,
 )
 
 
@@ -1064,6 +1066,38 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
+def _publish_cli_outputs(final_state, selections: dict, cli_config: dict) -> None:
+    """Apply the existing CLI save/display choices after a completed analysis."""
+    should_save = bool(selections.get("save_report", True))
+    if not cli_config:
+        save_choice = typer.prompt("是否保存报告？", default="Y").strip().upper()
+        should_save = save_choice in ("Y", "YES", "")
+    if should_save:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
+        if cli_config:
+            save_path_str = str(default_path)
+        else:
+            save_path_str = typer.prompt(
+                "保存路径（直接回车使用默认路径）",
+                default=str(default_path),
+            ).strip()
+        save_path = Path(save_path_str)
+        try:
+            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            console.print(f"\n[green]报告已保存到：[/green] {save_path.resolve()}")
+            console.print(f"  [dim]完整报告：[/dim] {report_file.name}")
+        except Exception as e:
+            console.print(f"[red]保存报告失败：{e}[/red]")
+
+    should_display = bool(selections.get("display_report", True))
+    if not cli_config:
+        display_choice = typer.prompt("\n是否在终端展示完整报告？", default="Y").strip().upper()
+        should_display = display_choice in ("Y", "YES", "")
+    if should_display:
+        display_complete_report(final_state)
+
+
 def run_analysis(checkpoint: bool | None = None, config_path: Path | None = None):
     # First get all user selections
     try:
@@ -1328,36 +1362,45 @@ def run_analysis(checkpoint: bool | None = None, config_path: Path | None = None
     console.print("\n[bold cyan]分析完成。[/bold cyan]\n")
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
-    # Prompt to save report
-    should_save = bool(selections.get("save_report", True))
-    if not cli_config:
-        save_choice = typer.prompt("是否保存报告？", default="Y").strip().upper()
-        should_save = save_choice in ("Y", "YES", "")
-    if should_save:
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
-        if cli_config:
-            save_path_str = str(default_path)
-        else:
-            save_path_str = typer.prompt(
-                "保存路径（直接回车使用默认路径）",
-                default=str(default_path)
-            ).strip()
-        save_path = Path(save_path_str)
-        try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
-            console.print(f"\n[green]报告已保存到：[/green] {save_path.resolve()}")
-            console.print(f"  [dim]完整报告：[/dim] {report_file.name}")
-        except Exception as e:
-            console.print(f"[red]保存报告失败：{e}[/red]")
+    _publish_cli_outputs(final_state, selections, cli_config)
 
-    # Prompt to display full report
-    should_display = bool(selections.get("display_report", True))
-    if not cli_config:
-        display_choice = typer.prompt("\n是否在终端展示完整报告？", default="Y").strip().upper()
-        should_display = display_choice in ("Y", "YES", "")
-    if should_display:
-        display_complete_report(final_state)
+
+def _execute_analyze(
+    checkpoint: bool | None,
+    config: Path | None,
+    clear_checkpoints: bool,
+) -> None:
+    """Shared dispatch for the legacy root command and explicit analyze command."""
+    if clear_checkpoints:
+        from tradingagents.graph.checkpointer import clear_all_checkpoints
+
+        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
+        console.print(f"[yellow]已清除 {n} 个 checkpoint。[/yellow]")
+    run_analysis(checkpoint=checkpoint, config_path=config)
+
+
+@app.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    checkpoint: bool | None = typer.Option(
+        None,
+        "--checkpoint/--no-checkpoint",
+        help="启用/禁用 checkpoint-resume；省略时遵循环境配置。",
+    ),
+    config: Path | None = typer.Option(
+        DEFAULT_LOCAL_CONFIG_PATH,
+        "--config",
+        help="本地 JSON 配置文件路径；默认尝试 tradingagents.local.json。",
+    ),
+    clear_checkpoints: bool = typer.Option(
+        False,
+        "--clear-checkpoints",
+        help="运行前删除所有 checkpoint，强制重新开始。",
+    ),
+):
+    """Preserve the historical ``tradingagents [OPTIONS]`` invocation."""
+    if ctx.invoked_subcommand is None:
+        _execute_analyze(checkpoint, config, clear_checkpoints)
 
 
 @app.command()
@@ -1379,11 +1422,7 @@ def analyze(
         help="运行前删除所有 checkpoint，强制重新开始。",
     ),
 ):
-    if clear_checkpoints:
-        from tradingagents.graph.checkpointer import clear_all_checkpoints
-        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
-        console.print(f"[yellow]已清除 {n} 个 checkpoint。[/yellow]")
-    run_analysis(checkpoint=checkpoint, config_path=config)
+    _execute_analyze(checkpoint, config, clear_checkpoints)
 
 
 if __name__ == "__main__":

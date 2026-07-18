@@ -48,3 +48,22 @@ def test_save_reports_defaults_under_results_dir(tmp_path):
     assert out.exists()
     assert out.parent.parent.name == "reports"  # results_dir/reports/AAPL_<stamp>/...
     assert out.parent.name.startswith("AAPL_")
+
+
+@pytest.mark.unit
+def test_cli_report_adapter_uses_the_shared_writer(tmp_path, monkeypatch):
+    from cli import main as cli_main
+
+    expected = tmp_path / "complete_report.md"
+    calls = []
+
+    def fake_writer(state, ticker, destination):
+        calls.append((state, ticker, destination))
+        return expected
+
+    monkeypatch.setattr(cli_main, "write_report_tree", fake_writer)
+
+    result = cli_main.save_report_to_disk(_state(), "AAPL", tmp_path)
+
+    assert result == expected
+    assert calls == [(_state(), "AAPL", tmp_path)]

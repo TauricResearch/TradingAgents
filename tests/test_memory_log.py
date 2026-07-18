@@ -858,13 +858,15 @@ class TestLegacyRemoval:
         mock_graph.graph.invoke.return_value = fake_state
         mock_graph.propagator.create_initial_state.return_value = fake_state
         mock_graph.propagator.get_graph_args.return_value = {}
-        mock_graph.signal_processor.process_signal.return_value = "Buy"
+        mock_graph.process_signal.return_value = "Buy"
         # Bind the real _run_graph so propagate's call to self._run_graph executes
         # the actual write path instead of the auto-MagicMock.
         mock_graph._run_graph = functools.partial(
             TradingAgentsGraph._run_graph, mock_graph
         )
-        TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
+        result = TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
+        assert result[0] is fake_state
+        assert result[1] == "Buy"
         entries = mock_graph.memory_log.load_entries()
         assert len(entries) == 1
         assert entries[0]["ticker"] == "NVDA"

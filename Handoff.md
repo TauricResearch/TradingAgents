@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`: 26 stories cover compatibility, durable observation, provenance, execution, reconciliation, REST/SSE, the React workbench, packaging, browser verification, and one real provider-backed smoke run. Implementation begins with Story A1, which freezes the existing programmatic and CLI contracts before shared execution code is introduced.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Story A1 is implemented: programmatic tuple/exception/checkpoint contracts, explicit report publication, legacy root CLI dispatch, explicit `analyze` dispatch, checkpoint/config option routing, and configured save/display choices are now protected by tests. The configured-run path now also carries a canonical `asset_type`, fixing a pre-existing failure that would have blocked JSON-configured CLI and web runs. Phase A continues with runtime preflight and event/lifecycle contracts.
 
 ## Confirmed constraints
 
@@ -57,6 +57,10 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - The CLI already extracts agent messages, tool arguments, tool results, debate state, risk state, and data-vendor progress from the real graph stream.
 - The synchronous LangGraph stream must run in a worker thread so the web server event loop stays responsive.
 - A shared `AnalysisRunner`/event adapter should serve both CLI and Web paths to avoid creating a third execution implementation.
+- The authoritative interpreter is `/Users/david/miniconda3/bin/python` (Python 3.13.5) from a login shell; it provides pytest and LangGraph.
+- The focused pre-change legacy baseline passed with 41 tests. After Story A1, the expanded legacy matrix passed with 43 tests and the A1/relevant compatibility matrix passed with 97 tests.
+- Typer's prior single-command collapse made `tradingagents [OPTIONS]` work while README-documented `tradingagents analyze [OPTIONS]` failed. The callback/group boundary now supports both, so adding `web` will not silently break the legacy root invocation.
+- Configured selections previously omitted `asset_type` and used only A-share ticker normalization. They now use the canonical CLI normalizer and explicitly classify stock versus crypto.
 
 ## Pending decisions
 
@@ -64,8 +68,8 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Establish the authoritative project Python environment and run the focused legacy baseline.
-2. Implement Story A1 compatibility tests, followed by the remaining Phase A runtime contracts.
+1. Implement Story A2 web runtime capability preflight and dependency floors.
+2. Implement Story A3 event, role, request, and lifecycle contracts.
 3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes

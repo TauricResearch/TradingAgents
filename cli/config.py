@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from cli.models import AnalystType
-from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol
+from cli.utils import detect_asset_type, normalize_ticker_symbol
 
 CLI_CONFIG = {
     # Announcements
@@ -47,9 +47,11 @@ def build_configured_selections(
     run = config.get("run") or {}
     provider = str(llm.get("provider") or "mimo").lower()
     analysts = run.get("analysts") or ["market", "social", "news", "fundamentals"]
+    canonical_ticker = normalize_ticker_symbol(ticker)
 
     return {
-        "ticker": normalize_ticker_symbol(ticker),
+        "ticker": canonical_ticker,
+        "asset_type": detect_asset_type(canonical_ticker).value,
         "analysis_date": analysis_date,
         "analysts": [_analyst_from_value(value) for value in analysts],
         "research_depth": int(run.get("research_depth", 1)),
