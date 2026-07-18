@@ -8,6 +8,8 @@ import { Link } from "react-router-dom";
 import { EquityCurve } from "@/components/charts/EquityCurve";
 import { DirectionBadge } from "@/components/DirectionBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { PositionPlanPanel } from "@/components/PositionPlanPanel";
+import { PriceAlertsPanel } from "@/components/PriceAlertsPanel";
 import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,12 +25,14 @@ import {
   useJournal,
   useMemoryInsights,
   usePortfolioStats,
+  useRecommendation,
   useRiskBudget,
   useRuns,
   useStatus,
 } from "@/lib/api/queries";
 import { fmtDateTime, fmtPct, fmtPnl, fmtPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui";
 
 export default function PortfolioPage() {
   const journal = useJournal();
@@ -36,6 +40,13 @@ export default function PortfolioPage() {
   const status = useStatus();
   const memory = useMemoryInsights();
   const runs = useRuns();
+  // active symbol drives the relocated position-plan + alerts cards
+  const planSymbol = useUiStore((s) => s.symbol);
+  const planRecQuery = useRecommendation(planSymbol);
+  const planRec =
+    planRecQuery.data && planRecQuery.data.symbol === planSymbol
+      ? planRecQuery.data
+      : null;
   const [showDrawdown, setShowDrawdown] = useState(true);
   const [symbolFilter, setSymbolFilter] = useState("all");
   const [outcomeFilter, setOutcomeFilter] = useState("all");
@@ -275,7 +286,9 @@ export default function PortfolioPage() {
                           </span>
                         )}
                       </td>
-                      <td className={cn(
+                      <td
+                        data-testid="position-unrealized"
+                        className={cn(
                         "py-1 text-right font-mono",
                         p.unrealized_pnl != null &&
                           (p.unrealized_pnl >= 0 ? "text-bull" : "text-bear"),
@@ -306,6 +319,32 @@ export default function PortfolioPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* position sizing + notify-only alerts (relocated from the now
+          chart-only Trade page) — they sit with the book here */}
+      <div className="grid gap-[14px] lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Position plan — {planSymbol}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PositionPlanPanel
+              symbol={planSymbol}
+              rec={planRec}
+              recPending={planRecQuery.isPending}
+              anchorTime={null}
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Price alerts — {planSymbol}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PriceAlertsPanel symbol={planSymbol} rec={planRec} />
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>

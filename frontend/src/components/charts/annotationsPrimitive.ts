@@ -73,6 +73,10 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
   // every decision's full geometry stays one click away via findNearestRun).
   private static readonly DENSITY_LIMIT = 2;
   private static readonly FULL_WHEN_DENSE = 1;
+  // minimum on-pane width for a decision band: a same-bar close or a
+  // last-bar decision would otherwise collapse to zero width (invisible +
+  // unclickable). Wide enough to see and to hit-test reliably.
+  private static readonly MIN_ZONE_PX = 10;
   // fallbacks only — PriceChart pushes theme tokens before first draw
   private colors: AnnotationColors = {
     bull: "#16824a",
@@ -172,9 +176,21 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
       ? width
       : this.xOf(Math.min(span.to, lastTime ?? span.to));
     if (rawX1 == null || rawX2 == null) return null;
-    const x1 = Math.max(0, Math.min(width, rawX1));
-    const x2 = Math.max(0, Math.min(width, rawX2));
-    if (x2 <= 0 || x1 >= width || x2 <= x1) return null;
+    let x1 = Math.max(0, Math.min(width, rawX1));
+    let x2 = Math.max(0, Math.min(width, rawX2));
+    // fully off-pane → nothing to paint
+    if (x2 <= 0 || x1 >= width) return null;
+    // a same-bar close (to == from) or an open decision pinned to the last
+    // bar collapses to zero width — it would draw invisibly and be
+    // unclickable. Guarantee a minimum band, extending LEFT when the entry
+    // sits at the right edge (no room to grow right).
+    if (x2 - x1 < AnnotationsPrimitive.MIN_ZONE_PX) {
+      x2 = Math.min(width, x1 + AnnotationsPrimitive.MIN_ZONE_PX);
+      if (x2 - x1 < AnnotationsPrimitive.MIN_ZONE_PX) {
+        x1 = Math.max(0, x2 - AnnotationsPrimitive.MIN_ZONE_PX);
+      }
+    }
+    if (x2 <= x1) return null;
     return { x1, x2 };
   }
 
@@ -304,7 +320,7 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
   /** Run whose zone, entry-bar vicinity, or ribbon segment contains the
    * point. (Named like DrawingsPrimitive.findNearest — LWC has its own
    * optional hitTest.) */
-  findNearestRun(point: { x: number; y: number }, radius = 6): string | null {
+  findNearestRun(point: { x: number; y: number }, radius = 8): string | null {
     if (!this.visible || !this.series) return null;
     // ribbon: any annotation whose x-segment contains the point
     if (point.y <= RIBBON_HIT) {

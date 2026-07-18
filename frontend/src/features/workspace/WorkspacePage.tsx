@@ -6,7 +6,6 @@ import { Columns2, Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { DecisionCard } from "@/components/DecisionCard";
 import { EmptyState } from "@/components/EmptyState";
 import { IndicatorPicker } from "@/components/IndicatorPicker";
 import { Badge } from "@/components/ui/badge";
@@ -35,9 +34,7 @@ import {
   useCalendar,
   useIndicators,
   useVolumeProfile,
-  useIntel,
   useJournal,
-  usePriceAlerts,
   useRecommendation,
   useChartAnnotations,
   useStatus,
@@ -45,7 +42,7 @@ import {
 } from "@/lib/api/queries";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api/client";
-import type { Bar, Recommendation } from "@/lib/api/types";
+import type { Bar } from "@/lib/api/types";
 import { fmtCountdown, fmtPnl, fmtPrice } from "@/lib/format";
 import { snapToBar } from "@/components/charts/annotationSnap";
 import {
@@ -57,9 +54,7 @@ import {
   type ContextTarget,
 } from "./ChartContextMenu";
 import { ReplayDecisionStrip } from "./ReplayDecisionStrip";
-import { computePositionPlan } from "@/lib/positionPlan";
 import { countdownExpired, useCountdown } from "@/lib/useCountdown";
-import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
 
 // tradeable pairs come from /api/symbols (server-driven, same set as the
@@ -79,55 +74,6 @@ const FALLBACK_TRADE_SYMBOLS = ["BTC-USD", "XAUUSD"];
 // re-render (#185). This crashed /trade in production for any symbol
 // without saved drawings. Same pattern as PriceChart's private constant.
 const NO_DRAWINGS: never[] = [];
-
-function InternalsPanel({ symbol }: { symbol: string }) {
-  const intel = useIntel();
-  if (intel.isPending) return <SkeletonCard lines={4} />;
-  if (!intel.data) return <EmptyState kind="error" title="Internals unavailable" />;
-  const metrics = new Map(intel.data.metrics.map((m) => [m.name, m]));
-  const wanted =
-    symbol === "BTC-USD"
-      ? ["FUNDING_RATE", "OPEN_INTEREST", "MARK_PRICE", "ORDERBOOK_IMBALANCE", "FEAR_GREED"]
-      : ["DXY", "US10Y_NOMINAL", "XAU_XAG_CORR", "US10Y_REAL"];
-  const available = wanted.filter((name) => metrics.has(name));
-  return (
-    <div className="space-y-2">
-      {available.length === 0 && (
-        <EmptyState
-          kind="waiting"
-          title="No internals yet"
-          detail={intel.data.missing_feeds.join("; ") || "feeds warming up"}
-        />
-      )}
-      {available.map((name) => {
-        const metric = metrics.get(name)!;
-        const value =
-          Math.abs(metric.value) < 0.01 && metric.value !== 0
-            ? metric.value.toExponential(2)
-            : fmtPrice(metric.value, 2);
-        return (
-          <div
-            key={name}
-            className="flex items-center justify-between rounded-[14px] bg-surface-2 px-3.5 py-2.5"
-            title={`${metric.source ?? ""} ${metric.unit ?? ""}`.trim()}
-          >
-            <span className="text-[11px] font-semibold text-fg-subtle">
-              {name.replaceAll("_", " ")}
-            </span>
-            <span className="font-mono text-sm font-bold tabular">
-              {value}
-            </span>
-          </div>
-        );
-      })}
-      {intel.data.missing_feeds.length > 0 && available.length > 0 && (
-        <p className="text-xs text-stale">
-          degraded: {intel.data.missing_feeds.map((f) => f.split(":")[0]).join(", ")}
-        </p>
-      )}
-    </div>
-  );
-}
 
 export default function WorkspacePage() {
   const params = useParams<{ symbol: string }>();
@@ -320,8 +266,6 @@ export default function WorkspacePage() {
     recommendation.data && recommendation.data.symbol === symbol
       ? recommendation.data
       : null;
-  const recRunId =
-    (recommendation.data as { run_id?: string } | undefined)?.run_id ?? null;
 
   const markers: TradeMarker[] = useMemo(
     () =>
@@ -409,9 +353,6 @@ export default function WorkspacePage() {
     return () => window.removeEventListener("pro:fullscreen", handler);
   }, []);
 
-  const positions = (status.data?.open_positions ?? []).filter(
-    (p) => p.symbol === symbol,
-  );
   // the server-computed next MAJOR event (countdown-capable) beats the
   // first row of the raw release list (review P1.1); the countdown ticks
   // locally between refetches (R2.3)
@@ -421,9 +362,7 @@ export default function WorkspacePage() {
   const isLive = (spec?.live || symbol === "BTC-USD") && !replay.active;
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-      <div className="min-w-0 space-y-4">
-        <Card ref={chartCardRef} className="bg-surface">
+    <Card ref={chartCardRef} className="bg-surface">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 whitespace-nowrap !text-lg !font-extrabold !normal-case !tracking-normal !text-fg">
               <label htmlFor="trade-symbol" className="sr-only">
@@ -763,374 +702,5 @@ export default function WorkspacePage() {
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Open positions — {symbol}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {positions.length === 0 ? (
-              <EmptyState
-                kind="empty"
-                title="No open position"
-                detail={
-                  status.data?.attached
-                    ? "The loop will enter when a recommendation clears every gate."
-                    : "Monitor mode — no execution router attached."
-                }
-              />
-            ) : (
-              <table className="w-full text-[13px] tabular">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs text-fg-subtle">
-                    <th className="py-1.5 font-semibold">symbol</th>
-                    <th className="py-1.5 text-right font-semibold">quantity</th>
-                    <th className="py-1.5 text-right font-semibold">entry</th>
-                    <th className="py-1.5 text-right font-semibold">mark</th>
-                    <th className="py-1.5 text-right font-semibold">unrealized</th>
-                    <th className="py-1.5 text-right font-semibold">book state</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positions.map((p) => (
-                    <tr key={p.symbol}>
-                      <td className="py-2 font-mono">{p.symbol}</td>
-                      <td className="py-2 text-right">
-                        {p.quantity > 0 ? "+" : ""}
-                        {p.quantity}
-                      </td>
-                      <td className="py-2 text-right font-mono">
-                        {fmtPrice(p.entry_price)}
-                      </td>
-                      <td className="py-2 text-right font-mono">
-                        {fmtPrice(p.mark_price)}
-                        {p.mark_source && p.mark_source !== "live" && (
-                          <span className="ml-1 text-[10px] uppercase text-stale">
-                            {p.mark_source}
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className={cn(
-                          "py-2 text-right font-mono",
-                          p.unrealized_pnl != null &&
-                            (p.unrealized_pnl >= 0 ? "text-bull" : "text-bear"),
-                        )}
-                        data-testid="position-unrealized"
-                      >
-                        {fmtPnl(p.unrealized_pnl)}
-                      </td>
-                      <td className="py-2 text-right">
-                        <span className="inline-flex rounded-full bg-bull-muted px-2.5 py-0.5 text-[11px] font-bold text-bull">
-                          reconciled
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Decision</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recommendation.isPending ? (
-              <SkeletonCard lines={4} />
-            ) : recForSymbol ? (
-              <DecisionCard rec={recForSymbol} compact runId={recRunId} />
-            ) : (
-              <EmptyState
-                kind="empty"
-                title={`No decision yet for ${symbol}`}
-                detail="No pipeline run has targeted this symbol."
-              />
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Market internals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <InternalsPanel symbol={symbol} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Position plan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PositionPlanPanel
-              symbol={symbol}
-              rec={recForSymbol}
-              recPending={recommendation.isPending}
-              anchorTime={allBars.length > 0 ? allBars[allBars.length - 1]!.time : null}
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Price alerts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PriceAlertsPanel symbol={symbol} rec={recForSymbol} />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-
-/** What-if planner over the long/short chart tool (review P2.1): reads the
- * newest position drawing for this symbol, sizes it with the same fixed-risk
- * rule the backend uses, and can prefill a drawing from the AI's own levels.
- * A plan over user-chosen levels — not platform advice. */
-function PositionPlanPanel({
-  symbol,
-  rec,
-  recPending = false,
-  anchorTime,
-}: {
-  symbol: string;
-  rec: Recommendation | null;
-  /** ticket query still in flight (R2.7: a slow ticket fetch silently
-   * removed the adopt affordance — show a loading state instead) */
-  recPending?: boolean;
-  /** last bar time — drawing anchors must be EXACT bar times or the
-   * chart's timeToCoordinate returns null and nothing renders */
-  anchorTime: number | null;
-}) {
-  const status = useStatus();
-  const drawings = useDrawingsStore((s) => s.bySymbol[symbol] ?? NO_DRAWINGS);
-  const [riskPct, setRiskPct] = useState("1");
-  const position = [...drawings]
-    .reverse()
-    .find((d) => (d.kind === "long" || d.kind === "short") && d.points.length === 3);
-
-  const adoptAiLevels = () => {
-    if (!rec?.entry_price || !rec.stop_loss || !rec.take_profits?.length) return;
-    if (anchorTime == null) return;
-    const side = rec.action === "BUY" ? "long" : "short";
-    useDrawingsStore.getState().add(symbol, {
-      id: crypto.randomUUID(),
-      kind: side,
-      points: [
-        { time: anchorTime, price: rec.entry_price },
-        { time: anchorTime, price: rec.stop_loss },
-        { time: anchorTime, price: rec.take_profits[0]!.price },
-      ],
-    });
-  };
-
-  if (!position) {
-    return (
-      <div className="space-y-2 text-xs text-fg-subtle" data-testid="position-plan">
-        <p>
-          Draw a position on the chart (long/short tool: entry → stop →
-          target) to size it here.
-        </p>
-        {recPending ? (
-          <Button size="sm" variant="outline" disabled data-testid="adopt-ai-levels">
-            Adopt the AI's levels — loading ticket…
-          </Button>
-        ) : (
-          rec?.entry_price != null &&
-          rec.action !== "HOLD" && (
-            <Button size="sm" variant="outline" onClick={adoptAiLevels}
-                    data-testid="adopt-ai-levels">
-              Adopt the AI's levels
-            </Button>
-          )
-        )}
-      </div>
-    );
-  }
-
-  const equity = status.data?.equity ?? null;
-  const parsedRisk = Number.parseFloat(riskPct);
-  const plan = equity != null
-    ? computePositionPlan({
-        side: position.kind as "long" | "short",
-        entry: position.points[0]!.price,
-        stop: position.points[1]!.price,
-        target: position.points[2]!.price,
-        equity,
-        riskPct: Number.isFinite(parsedRisk) ? parsedRisk : 1,
-      })
-    : null;
-
-  return (
-    <div className="space-y-2 text-sm" data-testid="position-plan">
-      <p className="font-mono text-xs tabular text-fg-muted">
-        {position.kind.toUpperCase()} · entry {fmtPrice(position.points[0]!.price)} ·
-        stop {fmtPrice(position.points[1]!.price)} · target {fmtPrice(position.points[2]!.price)}
-      </p>
-      <label className="flex items-center gap-2 text-xs text-fg-subtle">
-        risk % of equity
-        <input
-          value={riskPct}
-          onChange={(e) => setRiskPct(e.target.value)}
-          inputMode="decimal"
-          className="w-16 rounded-md border border-border bg-surface px-2 py-1 font-mono text-xs tabular"
-          data-testid="plan-risk-pct"
-        />
-      </label>
-      {plan == null ? (
-        <p className="text-xs text-fg-subtle">equity unavailable (monitor mode)</p>
-      ) : !plan.valid ? (
-        <p className="text-xs text-bear">{plan.reason}</p>
-      ) : (
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-xs tabular">
-          <dt className="text-fg-subtle">size</dt>
-          <dd>{plan.quantity.toFixed(4)}{plan.capped && " (capped)"}</dd>
-          <dt className="text-fg-subtle">notional</dt>
-          <dd>{fmtPrice(plan.notional, 0)} ({plan.pctOfEquity.toFixed(1)}%)</dd>
-          <dt className="text-fg-subtle">risk → reward</dt>
-          <dd>
-            <span className="text-bear">{fmtPrice(plan.riskAmount, 0)}</span>
-            {" → "}
-            <span className="text-bull">{fmtPrice(plan.rewardAmount, 0)}</span>
-          </dd>
-          <dt className="text-fg-subtle">R:R</dt>
-          <dd>{plan.rr.toFixed(2)} · breakeven {Math.round(plan.breakevenWinRate * 100)}%</dd>
-        </dl>
-      )}
-      <p className="text-[10px] text-fg-subtle">
-        your plan over your levels — not a platform recommendation
-      </p>
-    </div>
-  );
-}
-
-
-/** Notify-only user price alerts (G4) with one-click presets from the
- * current ticket's own levels — set an alert on the AI's invalidation
- * price in one tap. */
-function PriceAlertsPanel({
-  symbol,
-  rec,
-}: {
-  symbol: string;
-  rec: Recommendation | null;
-}) {
-  const client = useQueryClient();
-  const alerts = usePriceAlerts();
-  const [level, setLevel] = useState("");
-  const [direction, setDirection] = useState<"above" | "below">("above");
-  const [error, setError] = useState<string | null>(null);
-
-  const mine = (alerts.data ?? []).filter(
-    (a) => a.symbol === symbol && a.active,
-  );
-  const presets = rec
-    ? ([
-        ["ENTRY", rec.entry_price],
-        ["STOP", rec.stop_loss],
-        ["TP1", rec.take_profits?.[0]?.price],
-      ] as const).filter(([, price]) => price != null)
-    : [];
-
-  const submit = async (lvl: number, dir: "above" | "below", note = "") => {
-    setError(null);
-    try {
-      await createPriceAlert(client, { symbol, level: lvl, direction: dir, note });
-      setLevel("");
-    } catch (err) {
-      setError(String(err));
-    }
-  };
-
-  return (
-    <div className="space-y-2 text-sm" data-testid="price-alerts">
-      {mine.length === 0 ? (
-        <p className="text-xs text-fg-subtle">
-          No alerts for {symbol}. Alerts notify (bell, Telegram when
-          configured) — they never trade.
-        </p>
-      ) : (
-        <ul className="space-y-1.5">
-          {mine.map((alert) => (
-            <li
-              key={alert.id}
-              className="flex items-center justify-between gap-2 rounded-[12px] bg-surface-2 px-3 py-[7px] text-[12.5px]"
-            >
-              <span className="font-mono font-bold tabular">
-                {alert.direction === "above" ? "≥" : "≤"} {fmtPrice(alert.level)}
-              </span>
-              <span className="grow truncate text-xs text-fg-subtle">
-                {alert.note}
-              </span>
-              <button
-                onClick={() => void deletePriceAlert(client, alert.id)}
-                aria-label={`Delete alert at ${alert.level}`}
-                className="flex size-[22px] shrink-0 items-center justify-center rounded-[7px] text-fg-subtle hover:bg-bear-muted hover:text-bear"
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <form
-        className="flex items-center gap-1.5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const lvl = Number(level);
-          if (Number.isFinite(lvl) && lvl > 0) void submit(lvl, direction);
-        }}
-      >
-        <input
-          type="number"
-          step="any"
-          min="0"
-          placeholder="price level"
-          value={level}
-          onChange={(event) => setLevel(event.target.value)}
-          aria-label="Alert price level"
-          data-testid="price-alert-level"
-          className="w-24 rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs tabular outline-none focus:border-accent"
-        />
-        <button
-          type="button"
-          onClick={() => setDirection(direction === "above" ? "below" : "above")}
-          aria-label="Toggle direction"
-          className="rounded-lg border border-border px-2 py-1 text-xs font-semibold"
-        >
-          {direction === "above" ? "↑ above" : "↓ below"}
-        </button>
-        <Button size="sm" type="submit" data-testid="price-alert-create">
-          Alert
-        </Button>
-      </form>
-      {presets.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {presets.map(([label, price]) => (
-            <button
-              key={label}
-              onClick={() =>
-                void submit(
-                  price!,
-                  rec && rec.entry_price != null && price! >= rec.entry_price
-                    ? "above"
-                    : "below",
-                  `${label} from run ${rec?.id ?? ""}`.trim(),
-                )
-              }
-              className="rounded-full border border-accent/40 bg-accent-muted px-2 py-0.5 text-[11px] font-semibold text-accent"
-            >
-              alert @ {label} {fmtPrice(price)}
-            </button>
-          ))}
-        </div>
-      )}
-      {error && <p className="text-xs text-bear">{error}</p>}
-    </div>
   );
 }

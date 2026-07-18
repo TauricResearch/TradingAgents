@@ -195,9 +195,10 @@ test.describe("gaps v8", () => {
   }) => {
     // Home: board with a hero and the second symbol's compact slot (G1)
     await expect(page.getByTestId("decision-board")).toBeVisible();
-    // Trade page for the demo's traded symbol shows a ticket, and the
-    // per-symbol endpoint answers for the OTHER symbol without lying
-    await page.goto("/trade/XAUUSD");
+    // the ticket UI lives on /decisions now (Trade is chart-only); it
+    // shows the demo symbol's decision, and the per-symbol endpoint answers
+    // for the OTHER symbol without lying
+    await page.goto("/decisions");
     await expect(
       page.getByTestId("decision-card").or(
         page.getByText("No decision yet for XAUUSD")),
@@ -219,21 +220,25 @@ test.describe("gaps v8", () => {
       const pos = body.open_positions[0];
       expect(pos).toHaveProperty("entry_price");
       expect(pos).toHaveProperty("mark_source");
-      await page.goto(`/trade/${pos.symbol}`);
+      // open positions live on Portfolio now (Trade is chart-only)
+      await page.goto("/portfolio");
       await expect(
         page.getByTestId("position-unrealized").first(),
       ).toBeVisible({ timeout: 10_000 });
     }
   });
 
-  test("price alert: create from the trade rail, list, delete", async ({
+  test("price alert: create from the portfolio panel, list, delete", async ({
     page,
     isMobile,
   }) => {
-    test.skip(isMobile, "alert rail is a desktop panel");
-    await page.goto("/trade/XAUUSD");
+    test.skip(isMobile, "alert panel is a desktop panel");
+    // price alerts + position plan relocated to Portfolio when Trade
+    // became chart-only
+    await page.goto("/portfolio");
     const panel = page.getByTestId("price-alerts");
     await expect(panel).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("position-plan")).toBeVisible();
     await page.getByTestId("price-alert-level").fill("4321.5");
     await page.getByTestId("price-alert-create").click();
     await expect(panel.getByText("4,321.50")).toBeVisible({ timeout: 5_000 });
@@ -529,14 +534,32 @@ test.describe("chart phase 1: AI annotations", () => {
     // let the annotations primitive paint + register hit-testing
     await page.waitForTimeout(400);
 
-    // click the regime/confidence RIBBON near the right edge (the recent
-    // demo run's segment runs from its bar to the right edge, so ~85% width
-    // is reliably inside it) at the top of the pane (y <= ~12px full-width
-    // hit target). ONE click, then wait for the popover to mount — clicking
-    // again would land outside and close it.
+    // click the regime/confidence RIBBON (top ~12px, full-width hit target).
+    // The recent demo run sits at the last bar, so its segment is a right-
+    // edge band — sweep right→left just inside the price-axis gutter until
+    // the popover opens. Each miss leaves the popover closed, so the next
+    // click can't accidentally dismiss it.
+    // The demo's recorded run sits at (or near) the LAST bar. Its decision
+    // marker is the reliable hit target: findNearestRun matches any click
+    // within a few px of the entry bar's x, regardless of y (see
+    // annotationsPrimitive "entry-bar vicinity"). The entry bar lands just
+    // left of the ~68px price-axis gutter, so sweep x offsets around it at
+    // a y comfortably inside the price pane. Each miss leaves the popover
+    // closed, so the next click can't accidentally dismiss it.
     const box = (await chart.boundingBox())!;
     const popover = page.getByTestId("explain-run-popover");
-    await page.mouse.click(box.x + box.width * 0.85, box.y + 4);
+    let opened = false;
+    outer: for (const off of [71, 68, 74, 65, 77, 62, 80, 59, 84] as const) {
+      for (const fy of [0.28, 0.42, 0.16] as const) {
+        await page.mouse.click(
+          box.x + box.width - off,
+          box.y + box.height * fy,
+        );
+        opened = await popover.isVisible().catch(() => false);
+        if (opened) break outer;
+        await page.waitForTimeout(90);
+      }
+    }
     await expect(popover).toBeVisible({ timeout: 5_000 });
     // grounded content: verdict + the link to the full decision record
     await expect(popover).toContainText(/Full decision/);
