@@ -77,6 +77,38 @@ class TestMarketDataService:
         service.get_bars("XAUUSD", Timeframe.D1, 10)
         assert feed.calls == 2
 
+    def test_paging_end_is_a_distinct_cache_key(self):
+        """A paged (end=...) window must not evict or reuse the hot live
+        window — distinct end buckets are distinct vendor calls (PB.1)."""
+        from datetime import datetime, timezone
+
+        feed = CountingFeed()
+        service = MarketDataService(make_registry(feed))
+        service.get_bars("XAUUSD", Timeframe.D1, 50)  # live window
+        assert feed.calls == 1
+        end = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        service.get_bars("XAUUSD", Timeframe.D1, 50, end=end)  # paged
+        assert feed.calls == 2  # different key → vendor hit
+        service.get_bars("XAUUSD", Timeframe.D1, 50, end=end)  # paged, cached
+        assert feed.calls == 2
+        service.get_bars("XAUUSD", Timeframe.D1, 50)  # live still cached
+        assert feed.calls == 2
+
+    def test_paging_passes_end_to_the_feed(self):
+        from datetime import datetime, timezone
+
+        captured = {}
+
+        class EndFeed(CountingFeed):
+            def get_bars(self, symbol, timeframe, *, limit=250, end=None):
+                captured["end"] = end
+                return super().get_bars(symbol, timeframe, limit=limit, end=end)
+
+        service = MarketDataService(make_registry(EndFeed()))
+        end = datetime(2026, 3, 1, tzinfo=timezone.utc)
+        service.get_bars("XAUUSD", Timeframe.D1, 20, end=end)
+        assert captured["end"] == end
+
     def test_single_flight_under_concurrency(self):
         feed = CountingFeed()
         slow = threading.Event()

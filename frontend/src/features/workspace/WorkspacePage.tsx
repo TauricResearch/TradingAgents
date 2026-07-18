@@ -3,7 +3,7 @@
  * client-side market replay (REPLAY badge, ticks suspended), full-screen.
  * Honestly cut: no fake DOM ladder, no manual order ticket. */
 import { Columns2, Maximize2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { DecisionCard } from "@/components/DecisionCard";
@@ -44,7 +44,8 @@ import {
   useSymbols,
 } from "@/lib/api/queries";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Recommendation } from "@/lib/api/types";
+import { apiFetch } from "@/lib/api/client";
+import type { Bar, Recommendation } from "@/lib/api/types";
 import { fmtCountdown, fmtPnl, fmtPrice } from "@/lib/format";
 import { snapToBar } from "@/components/charts/annotationSnap";
 import {
@@ -150,6 +151,7 @@ export default function WorkspacePage() {
   } = useUiStore();
   const [toolMode, setToolMode] = useState<ToolMode>("select");
   const [magnet, setMagnet] = useState(false);
+  const [showAnnotations, setShowAnnotations] = useState(true);
   const chartCardRef = useRef<HTMLDivElement | null>(null);
   const symbolDrawings = useDrawingsStore(
     // stable empty constant: `?? []` mints a fresh array per call, which
@@ -190,7 +192,45 @@ export default function WorkspacePage() {
   // keep global symbol in sync with the route
   if (useUiStore.getState().symbol !== symbol) setSymbol(symbol);
 
-  const allBars = useMemo(() => bars.data ?? [], [bars.data]);
+  // history paging (PB.1): older bars fetched on demand, prepended to the
+  // live 300-bar window. Keyed by symbol+tf so a switch resets it.
+  const [olderBars, setOlderBars] = useState<Bar[]>([]);
+  const [historyExhausted, setHistoryExhausted] = useState(false);
+  const loadingOlderRef = useRef(false);
+  useEffect(() => {
+    setOlderBars([]);
+    setHistoryExhausted(false);
+    loadingOlderRef.current = false;
+  }, [symbol, activeTf]);
+
+  const liveBars = bars.data;
+  const allBars = useMemo(() => {
+    const live = liveBars ?? [];
+    if (olderBars.length === 0) return live;
+    // dedup at the seam (older window may overlap the live window's head)
+    const liveStart = live.length ? live[0]!.time : Infinity;
+    return [...olderBars.filter((b) => b.time < liveStart), ...live];
+  }, [olderBars, liveBars]);
+
+  const loadOlder = useCallback(() => {
+    if (loadingOlderRef.current || historyExhausted) return;
+    const earliest = (olderBars[0] ?? liveBars?.[0])?.time;
+    if (earliest == null) return;
+    loadingOlderRef.current = true;
+    apiFetch<Bar[]>(
+      `/api/bars?symbol=${encodeURIComponent(symbol)}` +
+        `&timeframe=${activeTf}&limit=300&end=${earliest}`,
+    )
+      .then((older) => {
+        const fresh = (older ?? []).filter((b) => b.time < earliest);
+        if (fresh.length === 0) setHistoryExhausted(true);
+        else setOlderBars((prev) => [...fresh, ...prev]);
+      })
+      .catch(() => setHistoryExhausted(true))
+      .finally(() => {
+        loadingOlderRef.current = false;
+      });
+  }, [symbol, activeTf, olderBars, liveBars, historyExhausted]);
 
   // A2: click-to-alert. Direction is inferred from the last close — an
   // alert above spot fires on a rally, below on a break. Toast holds 6s
@@ -450,6 +490,16 @@ export default function WorkspacePage() {
               <Button
                 size="sm"
                 variant="outline"
+                aria-label="Toggle AI decision layer"
+                aria-pressed={showAnnotations}
+                className={showAnnotations ? "text-accent" : "text-fg-subtle"}
+                onClick={() => setShowAnnotations((v) => !v)}
+              >
+                AI
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 aria-label="Toggle logarithmic price scale"
                 aria-pressed={logScale}
                 className={logScale ? "text-accent" : "text-fg-subtle"}
@@ -552,6 +602,8 @@ export default function WorkspacePage() {
                       logScale={logScale}
                       magnet={magnet}
                       legend
+                      onLoadOlder={replay.active ? undefined : loadOlder}
+                      showAnnotations={showAnnotations}
                     />
                     {openPosition?.unrealized_pnl != null && (
                       <div

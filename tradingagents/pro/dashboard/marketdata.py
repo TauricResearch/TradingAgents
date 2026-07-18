@@ -18,6 +18,7 @@ import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from tradingagents.contracts import OHLCVBar, Timeframe
 
@@ -178,7 +179,10 @@ class MarketDataService:
         self.ttl_floor = ttl_floor
         self.ttl_cap = ttl_cap
         self._now = now
-        self._cache: dict[tuple[str, Timeframe], tuple[float, list[OHLCVBar]]] = {}
+        # key: (symbol, timeframe, end_bucket|None) — None is the live window
+        self._cache: dict[
+            tuple[str, Timeframe, int | None], tuple[float, list[OHLCVBar]]
+        ] = {}
         self._feeds: dict[str, object] = {}
         self._lock = threading.Lock()
         self._flights: dict[tuple[str, Timeframe], threading.Lock] = {}
@@ -208,27 +212,39 @@ class MarketDataService:
             return self._feeds[spec.symbol]
 
     def get_bars(
-        self, symbol: str, timeframe: Timeframe, limit: int = DEFAULT_LIMIT
+        self, symbol: str, timeframe: Timeframe, limit: int = DEFAULT_LIMIT,
+        end: datetime | None = None,
     ) -> list[OHLCVBar]:
+        """Latest ``limit`` bars, or the ``limit`` bars ending strictly
+        before ``end`` (history paging — the chart's "load more"). The live
+        (end=None) window keeps its short TTL cache + single-flight; paged
+        windows key the cache by the end bucket so scrolling back never
+        evicts the hot live window, and older history (immutable once
+        closed) caches for the full cap."""
         spec = self.spec(symbol)
         if timeframe not in spec.timeframes:
             raise UnsupportedTimeframeError(symbol, timeframe, spec.timeframes)
         limit = max(1, min(limit, MAX_LIMIT))
-        key = (symbol, timeframe)
+        # paged windows bucket by end-epoch so distinct scroll positions are
+        # distinct cache entries; the live window (end=None) is unchanged
+        end_bucket = int(end.timestamp()) if end is not None else None
+        key = (symbol, timeframe, end_bucket)
+        ttl = self._ttl(timeframe) if end is None else self.ttl_cap
 
         with self._lock:
             cached = self._cache.get(key)
-            if cached and self._now() - cached[0] < self._ttl(timeframe):
+            if cached and self._now() - cached[0] < ttl:
                 return cached[1][-limit:]
             flight = self._flights.setdefault(key, threading.Lock())
 
         with flight:  # single-flight: one vendor call per key
             with self._lock:
                 cached = self._cache.get(key)
-                if cached and self._now() - cached[0] < self._ttl(timeframe):
+                if cached and self._now() - cached[0] < ttl:
                     return cached[1][-limit:]
             bars = self._feed(spec).get_bars(
-                spec.vendor_symbol, timeframe, limit=max(limit, DEFAULT_LIMIT)
+                spec.vendor_symbol, timeframe,
+                limit=max(limit, DEFAULT_LIMIT), end=end,
             )
             with self._lock:
                 self._cache[key] = (self._now(), list(bars))

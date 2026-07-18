@@ -110,6 +110,8 @@ export function PriceChart({
   logScale = false,
   magnet = false,
   legend = false,
+  onLoadOlder,
+  showAnnotations = true,
 }: {
   bars: Bar[];
   style?: SeriesStyle;
@@ -143,6 +145,10 @@ export function PriceChart({
   magnet?: boolean;
   /** crosshair-follow OHLCV readout (top-left) */
   legend?: boolean;
+  /** fired when the user scrolls near the earliest loaded bar (PB.1) */
+  onLoadOlder?: () => void;
+  /** show/hide the AI decision layer (zones + ribbon + markers) */
+  showAnnotations?: boolean;
 }) {
   const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const extraSeriesRef = useRef<ISeriesApi<SeriesType>[]>([]);
@@ -172,6 +178,11 @@ export function PriceChart({
   const magnetRef = useRef(magnet);
   magnetRef.current = magnet;
   const measureStartRef = useRef<DrawingPoint | null>(null);
+  // history paging (PB.1): the last user-visible logical range, tracked
+  // continuously so a prepend of older bars can restore the viewport
+  // (shifted) instead of fitContent() snapping the whole history in.
+  const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
+  const prevBarsMetaRef = useRef<{ lastTime: number; len: number } | null>(null);
   const barsByTimeRef = useRef<Map<number, Bar>>(new Map());
   barsByTimeRef.current = useMemo(
     () => new Map(bars.map((b) => [b.time, b])),
@@ -341,7 +352,27 @@ export function PriceChart({
     };
     container?.addEventListener("pointerup", persistFactors);
 
-    chart.timeScale().fitContent();
+    // PB.1: preserve the viewport when older bars are prepended (same
+    // last bar, longer array). Otherwise (symbol/timeframe change, live
+    // append) fit the content as before.
+    const meta = prevBarsMetaRef.current;
+    const lastTime = bars.length ? bars[bars.length - 1]!.time : 0;
+    const prepended =
+      meta != null &&
+      meta.lastTime === lastTime &&
+      bars.length > meta.len &&
+      visibleRangeRef.current != null;
+    if (prepended) {
+      const delta = bars.length - meta!.len;
+      const r = visibleRangeRef.current!;
+      chart.timeScale().setVisibleLogicalRange({
+        from: r.from + delta,
+        to: r.to + delta,
+      });
+    } else {
+      chart.timeScale().fitContent();
+    }
+    prevBarsMetaRef.current = { lastTime, len: bars.length };
 
     return () => {
       container?.removeEventListener("pointerup", persistFactors);
@@ -482,7 +513,7 @@ export function PriceChart({
           text: m.label,
         };
       });
-    const decisionMarkers = snappedAnnotations
+    const decisionMarkers = (showAnnotations ? snappedAnnotations : [])
       .filter((a) => a.action === "BUY" || a.action === "SELL" || a.rejectedAt)
       .map((a) => {
         if (a.action === "BUY" || a.action === "SELL") {
@@ -513,7 +544,7 @@ export function PriceChart({
       if (seriesRef.current === series) markersRef.current?.detach();
       markersRef.current = null;
     };
-  }, [markers, snappedAnnotations, bars, style, indicators, showVolume]);
+  }, [markers, snappedAnnotations, showAnnotations, bars, style, indicators, showVolume]);
 
   // push snapped annotations + theme colors into the AI layer primitive
   useEffect(() => {
@@ -534,7 +565,8 @@ export function PriceChart({
         ? `AI decisions · ${hours >= 1 ? `${hours.toFixed(0)}h` : `${Math.round(hours * 60)}m`} cadence`
         : "",
     );
-  }, [snappedAnnotations, barTimes, annotations, theme, bars, style, indicators, showVolume]);
+    annotationsRef.current?.setVisible(showAnnotations);
+  }, [snappedAnnotations, barTimes, annotations, theme, showAnnotations, bars, style, indicators, showVolume]);
 
   // log/linear price scale (LWC PriceScaleMode: 0 normal, 1 logarithmic).
   // Applied as an option, not a rebuild — pan/zoom state survives the flip.
@@ -802,6 +834,30 @@ export function PriceChart({
       chart.unsubscribeCrosshairMove(onLegendMove);
     };
   }, [legend, bars, chartRef]);
+
+  // track the user's visible logical range + fire load-older at the left
+  // edge (PB.1). Subscribed once per chart instance so it survives the
+  // series rebuilds that a prepend triggers.
+  const onLoadOlderRef = useRef(onLoadOlder);
+  onLoadOlderRef.current = onLoadOlder;
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const onRange = (range: { from: number; to: number } | null) => {
+      if (!range) return;
+      visibleRangeRef.current = { from: range.from, to: range.to };
+      // only when the user scrolls PAST the first bar into the pre-history
+      // whitespace (negative logical index) — fitContent sits at from≈0, so
+      // a positive threshold would auto-page on mount and churn the chart.
+      if (range.from < -5) onLoadOlderRef.current?.();
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onRange);
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (chartRef.current !== chart) return; // disposed
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
+    };
+  }, [chartRef]);
 
   // live last-price via series.update (never setData on tick)
   const lastBar = bars[bars.length - 1];

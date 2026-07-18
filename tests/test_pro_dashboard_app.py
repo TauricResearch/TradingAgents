@@ -29,14 +29,25 @@ class _StubStructured:
         return self._answer
 
 
-class _StubLLM:
-    """Minimal ModelBundle-coercible llm returning a canned EvidenceAnswer."""
+class _Chunk:
+    def __init__(self, content):
+        self.content = content
 
-    def __init__(self, answer):
+
+class _StubLLM:
+    """Minimal ModelBundle-coercible llm: canned EvidenceAnswer for the
+    structured endpoint + a token stream for the streaming endpoint."""
+
+    def __init__(self, answer, stream_chunks=None):
         self._answer = answer
+        self._stream = stream_chunks or []
 
     def with_structured_output(self, schema):
         return _StubStructured(self._answer)
+
+    def stream(self, prompt):
+        for text in self._stream:
+            yield _Chunk(text)
 
 
 def test_ask_run_answers_from_the_record():
@@ -64,6 +75,33 @@ def test_ask_run_answers_from_the_record():
     assert client.post(f"/api/runs/{run.run_id}/ask", json={}).status_code == 422
     assert client.post("/api/runs/nope/ask",
                        json={"question": "x"}).status_code == 404
+
+
+def test_ask_run_stream_yields_prose_and_sources(tmp_path):
+    from tradingagents.pro.pipeline.qa import EvidenceAnswer
+
+    state = DashboardState(memory=ProMemory())
+    run = state.recorder.record_run(
+        FakePipelineLLM(), CONFIG, pipeline_snapshot(), memory=state.memory
+    )
+    chunks = ["The bear side ", "carried it per rsi.", "\nSOURCES: rsi, macd"]
+    llm = _StubLLM(
+        EvidenceAnswer(answerable=True, answer="x", cited_agent_ids=["rsi"]),
+        stream_chunks=chunks,
+    )
+    state.trigger = type("T", (), {"service": type("S", (), {"llm": llm})()})()
+    client = TestClient(create_app(state))
+
+    with client.stream("POST", f"/api/runs/{run.run_id}/ask/stream",
+                       json={"question": "why?"}) as resp:
+        assert resp.status_code == 200
+        body = "".join(resp.iter_text())
+    assert "carried it per rsi." in body
+    assert body.endswith("SOURCES: rsi, macd")
+
+    # guards shared with /ask
+    assert client.post(f"/api/runs/{run.run_id}/ask/stream",
+                       json={}).status_code == 422
 
 
 def test_ask_run_503_without_model():

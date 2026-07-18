@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { Button } from "./ui/button";
 import { ApiError } from "@/lib/api/client";
-import { askRun, type EvidenceAnswer } from "@/lib/api/queries";
+import { askRun, askRunStream } from "@/lib/api/queries";
 import { cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
@@ -15,13 +15,33 @@ const SUGGESTIONS = [
   "Which evidence drove the confidence?",
 ];
 
+interface Turn {
+  q: string;
+  answer: string;
+  cited: string[];
+  answerable: boolean;
+  streaming: boolean;
+}
+
+/** Split a streamed reply into prose + citation tags at the trailing
+ * "SOURCES: id1, id2" line the stream prompt asks for. */
+function splitSources(text: string): { prose: string; cited: string[] } {
+  const idx = text.lastIndexOf("SOURCES:");
+  if (idx === -1) return { prose: text, cited: [] };
+  const prose = text.slice(0, idx).trimEnd();
+  const rest = text.slice(idx + "SOURCES:".length).trim();
+  const cited =
+    rest && rest.toLowerCase() !== "none"
+      ? rest.split(/[,\s]+/).filter(Boolean)
+      : [];
+  return { prose, cited };
+}
+
 export function EvidenceChat({ runId }: { runId: string | null }) {
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [turns, setTurns] = useState<
-    { q: string; a: EvidenceAnswer }[]
-  >([]);
+  const [turns, setTurns] = useState<Turn[]>([]);
 
   if (!runId) return null;
 
@@ -30,16 +50,46 @@ export function EvidenceChat({ runId }: { runId: string | null }) {
     if (!query || pending) return;
     setPending(true);
     setError(null);
-    try {
-      const a = await askRun(runId, query);
-      setTurns((prev) => [...prev, { q: query, a }]);
-      setQuestion("");
-    } catch (e) {
-      setError(
-        e instanceof ApiError && e.status === 503
-          ? "Ask is unavailable in monitor mode (no model attached)."
-          : "The model couldn't answer — try again.",
+    const index = turns.length;
+    setTurns((prev) => [
+      ...prev,
+      { q: query, answer: "", cited: [], answerable: true, streaming: true },
+    ]);
+    setQuestion("");
+
+    const patch = (fields: Partial<Turn>) =>
+      setTurns((prev) =>
+        prev.map((t, i) => (i === index ? { ...t, ...fields } : t)),
       );
+
+    try {
+      let raw = "";
+      await askRunStream(runId, query, (chunk) => {
+        raw += chunk;
+        // render prose live, hiding the SOURCES trailer until it completes
+        patch({ answer: splitSources(raw).prose });
+      });
+      const { prose, cited } = splitSources(raw);
+      patch({ answer: prose, cited, streaming: false });
+    } catch (streamErr) {
+      // fall back to the structured endpoint (also handles 503 messaging)
+      try {
+        const a = await askRun(runId, query);
+        patch({
+          answer: a.answer,
+          cited: a.cited_agent_ids,
+          answerable: a.answerable,
+          streaming: false,
+        });
+      } catch (e) {
+        setTurns((prev) => prev.filter((_, i) => i !== index));
+        setError(
+          (streamErr instanceof ApiError && streamErr.status === 503) ||
+            (e instanceof ApiError && e.status === 503)
+            ? "Ask is unavailable in monitor mode (no model attached)."
+            : "The model couldn't answer — try again.",
+        );
+      }
     } finally {
       setPending(false);
     }
@@ -53,14 +103,17 @@ export function EvidenceChat({ runId }: { runId: string | null }) {
             <p className="font-semibold text-fg">{turn.q}</p>
             <p
               className={cn(
-                turn.a.answerable ? "text-fg-muted" : "text-stale italic",
+                turn.answerable ? "text-fg-muted" : "text-stale italic",
               )}
             >
-              {turn.a.answer}
+              {turn.answer}
+              {turn.streaming && (
+                <span className="ml-0.5 animate-pulse text-fg-subtle">▍</span>
+              )}
             </p>
-            {turn.a.cited_agent_ids.length > 0 && (
+            {turn.cited.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {turn.a.cited_agent_ids.map((id) => (
+                {turn.cited.map((id) => (
                   <span
                     key={id}
                     className="inline-flex items-center rounded-[6px] bg-surface-2 px-1.5 font-mono text-[10px] text-fg-muted"

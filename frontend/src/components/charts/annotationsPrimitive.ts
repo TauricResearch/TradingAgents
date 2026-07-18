@@ -65,6 +65,11 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
   private annotations: SnappedAnnotation[] = [];
   private barTimes: number[] = [];
   private cadenceLabel = "";
+  private visible = true;
+  // above this many zones in view, older ones collapse to an entry tick so
+  // dense clusters stay readable (V4: "zones overlap into visual mud")
+  private static readonly DENSITY_LIMIT = 8;
+  private static readonly FULL_WHEN_DENSE = 4;
   // fallbacks only — PriceChart pushes theme tokens before first draw
   private colors: AnnotationColors = {
     bull: "#16824a",
@@ -119,6 +124,14 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     this.requestUpdateFn?.();
   }
 
+  /** Toggle the whole AI layer (zones + ribbon) — the "collapse it" the
+   * review asked for. Hit-testing also respects this. */
+  setVisible(on: boolean): void {
+    if (this.visible === on) return;
+    this.visible = on;
+    this.requestUpdateFn?.();
+  }
+
   /** x of a snapped bar time via its logical index — defined (and
    * clampable) even when the bar is scrolled out of view. */
   private xOf(time: number): number | null {
@@ -165,17 +178,41 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
   private drawAll(
     ctx: CanvasRenderingContext2D, hr: number, vr: number,
   ): void {
-    if (!this.series || this.annotations.length === 0) return;
+    if (!this.visible || !this.series || this.annotations.length === 0) return;
     ctx.save();
     ctx.font = `${Math.round(9 * vr)}px ui-monospace, monospace`;
     this.drawRibbon(ctx, hr, vr);
-    for (const a of this.annotations) {
-      if (!a.geometry || !a.span) continue;
-      const xs = this.spanX(a.span);
-      if (!xs) continue;
-      this.drawZone(ctx, hr, vr, a, xs.x1, xs.x2);
-    }
+    // decision zones actually in view, oldest→newest
+    const inView = this.annotations.filter(
+      (a) => a.geometry && a.span && this.spanX(a.span),
+    );
+    // when dense, only the newest FULL_WHEN_DENSE keep full bands; older
+    // ones collapse to an entry tick (still clickable via findNearestRun)
+    const dense = inView.length > AnnotationsPrimitive.DENSITY_LIMIT;
+    const fullFrom = dense
+      ? inView.length - AnnotationsPrimitive.FULL_WHEN_DENSE
+      : 0;
+    inView.forEach((a, i) => {
+      const xs = this.spanX(a.span!)!;
+      if (dense && i < fullFrom) this.drawTick(ctx, hr, vr, a, xs.x1);
+      else this.drawZone(ctx, hr, vr, a, xs.x1, xs.x2);
+    });
     ctx.restore();
+  }
+
+  /** Collapsed representation for dense clusters: just the entry line +
+   * short label at the decision bar. */
+  private drawTick(
+    ctx: CanvasRenderingContext2D, hr: number, vr: number,
+    a: SnappedAnnotation, x1: number,
+  ): void {
+    const entryY = this.series!.priceToCoordinate(a.geometry!.entry);
+    if (entryY == null) return;
+    const color =
+      a.geometry!.direction === "long" ? this.colors.bull : this.colors.bear;
+    this.line(ctx, hr, vr, x1, x1 + 8, entryY, color, false);
+    ctx.fillStyle = color;
+    ctx.fillText(a.action ?? "", x1 * hr + 10 * hr, entryY * vr - 2 * vr);
   }
 
   private line(
@@ -266,7 +303,7 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
    * point. (Named like DrawingsPrimitive.findNearest — LWC has its own
    * optional hitTest.) */
   findNearestRun(point: { x: number; y: number }, radius = 6): string | null {
-    if (!this.series) return null;
+    if (!this.visible || !this.series) return null;
     // ribbon: any annotation whose x-segment contains the point
     if (point.y <= RIBBON_HIT) {
       const width = this.width();

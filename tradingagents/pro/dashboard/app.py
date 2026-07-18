@@ -524,15 +524,20 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
                        f"{[t.value for t in Timeframe]}",
             ) from None
 
-    def _fetch_bars(symbol: str, timeframe: str, limit: int):
+    def _fetch_bars(symbol: str, timeframe: str, limit: int,
+                    end: int | None = None):
+        from datetime import datetime, timezone
+
         from tradingagents.dataflows.errors import (
             NoMarketDataError,
             VendorRateLimitError,
         )
 
         tf = _parse_timeframe(timeframe)
+        end_dt = (datetime.fromtimestamp(end, tz=timezone.utc)
+                  if end is not None else None)
         try:
-            return state.marketdata.get_bars(symbol, tf, limit)
+            return state.marketdata.get_bars(symbol, tf, limit, end=end_dt)
         except md.UnknownSymbolError:
             raise HTTPException(status_code=404,
                                 detail=f"unknown symbol {symbol!r}") from None
@@ -552,8 +557,11 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
 
     @app.get("/api/bars")
     def bars(symbol: str, timeframe: str = "1d",
-             limit: int = md.DEFAULT_LIMIT) -> list[dict]:
-        return md.bars_view(_fetch_bars(symbol, timeframe, limit))
+             limit: int = md.DEFAULT_LIMIT,
+             end: int | None = None) -> list[dict]:
+        """``end`` (epoch seconds, exclusive) pages history backward — the
+        chart's load-more. Omitted = the latest window (unchanged)."""
+        return md.bars_view(_fetch_bars(symbol, timeframe, limit, end))
 
     @app.get("/api/chart/annotations")
     async def chart_annotations_route(symbol: str) -> dict:
@@ -701,18 +709,11 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     async def run_recommendation(run_id: str) -> dict:
         return _ticket_view(_run_or_404(run_id))
 
-    @app.post("/api/runs/{run_id}/ask")
-    async def ask_run(run_id: str, request: Request) -> dict:
-        """Grounded Q&A over ONE run's record (evidence/debate/verdict).
-        Answers only from that record with agent-id citations; refuses to
-        reach beyond it. Needs the pipeline LLM (the loop's own bundle)."""
-        from tradingagents.pro.models import ModelBundle
-        from tradingagents.pro.pipeline.nodes import _all_evidence, _debate_block
-        from tradingagents.pro.pipeline.qa import (
-            MAX_QUESTION_CHARS,
-            EvidenceAnswer,
-            build_qa_prompt,
-        )
+    def _ask_prep(run_id: str, body: dict):
+        """Shared validation + prompt inputs for the ask endpoints. Returns
+        (run, llm, question, supporting, counters, invalidation)."""
+        from tradingagents.pro.pipeline.nodes import _all_evidence
+        from tradingagents.pro.pipeline.qa import MAX_QUESTION_CHARS
 
         run = _run_or_404(run_id)
         service_obj = getattr(state.trigger, "service", None)
@@ -721,7 +722,6 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             raise HTTPException(
                 status_code=503,
                 detail="ask is unavailable in monitor mode (no model attached)")
-        body = await request.json()
         question = str(body.get("question", "")).strip()
         if not question:
             raise HTTPException(status_code=422, detail="question is required")
@@ -729,7 +729,6 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             raise HTTPException(
                 status_code=422,
                 detail=f"question exceeds {MAX_QUESTION_CHARS} characters")
-
         rec = run.recommendation
         if rec is not None:
             supporting = list(rec.evidence)
@@ -740,15 +739,24 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             except Exception:
                 supporting = []
             counters = []
+        invalidation = (run.state.get("reflection") or {}).get("invalidation")
+        return run, llm, question, supporting, counters, invalidation
+
+    @app.post("/api/runs/{run_id}/ask")
+    async def ask_run(run_id: str, request: Request) -> dict:
+        """Grounded Q&A over ONE run's record (evidence/debate/verdict).
+        Answers only from that record with agent-id citations; refuses to
+        reach beyond it. Needs the pipeline LLM (the loop's own bundle)."""
+        from tradingagents.pro.models import ModelBundle
+        from tradingagents.pro.pipeline.nodes import _debate_block
+        from tradingagents.pro.pipeline.qa import EvidenceAnswer, build_qa_prompt
+
+        run, llm, question, supporting, counters, invalidation = _ask_prep(
+            run_id, await request.json())
         prompt = build_qa_prompt(
-            question,
-            symbol=run.symbol,
-            recommendation=rec,
-            supporting=supporting,
-            counterarguments=counters,
-            debate_block=_debate_block(run.debate),
-            invalidation=(run.state.get("reflection") or {}).get("invalidation"),
-        )
+            question, symbol=run.symbol, recommendation=run.recommendation,
+            supporting=supporting, counterarguments=counters,
+            debate_block=_debate_block(run.debate), invalidation=invalidation)
         bundle = ModelBundle.coerce(llm)
         try:
             answer = await asyncio.to_thread(
@@ -765,6 +773,36 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             "answer": answer.answer,
             "cited_agent_ids": list(answer.cited_agent_ids),
         }
+
+    @app.post("/api/runs/{run_id}/ask/stream")
+    async def ask_run_stream(run_id: str, request: Request) -> StreamingResponse:
+        """Streaming grounded Q&A (PB.2): same record-only discipline, but
+        the answer prose streams token-by-token (<5s to first token vs the
+        structured endpoint's ~30s wait), ending with a 'SOURCES:' line the
+        client splits into citation tags. Falls back to /ask on the client
+        if the model can't stream."""
+        from tradingagents.pro.models import ModelBundle
+        from tradingagents.pro.pipeline.nodes import _debate_block
+        from tradingagents.pro.pipeline.qa import build_qa_stream_prompt
+
+        run, llm, question, supporting, counters, invalidation = _ask_prep(
+            run_id, await request.json())
+        prompt = build_qa_stream_prompt(
+            question, symbol=run.symbol, recommendation=run.recommendation,
+            supporting=supporting, counterarguments=counters,
+            debate_block=_debate_block(run.debate), invalidation=invalidation)
+        bundle = ModelBundle.coerce(llm)
+
+        def generate():
+            try:
+                for chunk in bundle.deep.stream(prompt):
+                    text = getattr(chunk, "content", None)
+                    if text:
+                        yield text if isinstance(text, str) else str(text)
+            except Exception as exc:  # surface as an in-band note, never 500
+                yield f"\n[stream interrupted: {type(exc).__name__}]"
+
+        return StreamingResponse(generate(), media_type="text/plain")
 
     @app.get("/api/status")
     def status() -> dict:

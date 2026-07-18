@@ -4,7 +4,7 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 
-import { apiFetch } from "./client";
+import { ApiError, apiFetch, apiHeaders } from "./client";
 import {
   AgentPerfSchema,
   CorrelationsSchema,
@@ -168,6 +168,32 @@ export async function askRun(
     body: JSON.stringify({ question }),
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/** Streaming ask (PB.2): calls onToken with each text chunk as it arrives.
+ * Throws so the caller can fall back to the structured askRun. */
+export async function askRunStream(
+  runId: string,
+  question: string,
+  onToken: (text: string) => void,
+): Promise<void> {
+  const resp = await fetch(`/api/runs/${runId}/ask/stream`, {
+    method: "POST",
+    body: JSON.stringify({ question }),
+    headers: { ...apiHeaders(), "Content-Type": "application/json" },
+  });
+  // any non-ok (incl. 401) throws → caller falls back to askRun, whose
+  // apiFetch triggers the shared unauthorized handler
+  if (!resp.ok || !resp.body) {
+    throw new ApiError(resp.status, resp.statusText, resp.url);
+  }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) onToken(decoder.decode(value, { stream: true }));
+  }
 }
 
 export async function createPriceAlert(
