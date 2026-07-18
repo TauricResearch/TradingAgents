@@ -66,10 +66,13 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
   private barTimes: number[] = [];
   private cadenceLabel = "";
   private visible = true;
-  // above this many zones in view, older ones collapse to an entry tick so
-  // dense clusters stay readable (V4: "zones overlap into visual mud")
-  private static readonly DENSITY_LIMIT = 8;
-  private static readonly FULL_WHEN_DENSE = 4;
+  // beyond this many zones in view, older ones collapse to a light entry
+  // tick — only the newest decision keeps its full bands. The hourly loop
+  // clusters recent runs, so a low ceiling keeps the layer as clean as the
+  // mockup (the active plan is also drawn by the recommendation lines, and
+  // every decision's full geometry stays one click away via findNearestRun).
+  private static readonly DENSITY_LIMIT = 2;
+  private static readonly FULL_WHEN_DENSE = 1;
   // fallbacks only — PriceChart pushes theme tokens before first draw
   private colors: AnnotationColors = {
     bull: "#16824a",
@@ -200,8 +203,9 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     ctx.restore();
   }
 
-  /** Collapsed representation for dense clusters: just the entry line +
-   * short label at the decision bar. */
+  /** Collapsed representation for older decisions: a short colored stub at
+   * the entry price. No text — the merged BUY/SELL arrow markers already
+   * label each decision bar, so a tick label would just be stacked noise. */
   private drawTick(
     ctx: CanvasRenderingContext2D, hr: number, vr: number,
     a: SnappedAnnotation, x1: number,
@@ -211,8 +215,6 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
     const color =
       a.geometry!.direction === "long" ? this.colors.bull : this.colors.bear;
     this.line(ctx, hr, vr, x1, x1 + 8, entryY, color, false);
-    ctx.fillStyle = color;
-    ctx.fillText(a.action ?? "", x1 * hr + 10 * hr, entryY * vr - 2 * vr);
   }
 
   private line(
