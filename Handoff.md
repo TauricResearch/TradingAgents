@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phase A and Stories B1–B2 are implemented. The new `RunStore` creates ticker-independent safe run directories, writes redacted atomic snapshots, appends and fsyncs strictly sequenced events before returning them, allocates sequences under per-run locks, rebuilds history after restart, rejects traversal, and stores deduplicated content-addressed artifacts. Phase B continues with immutable partial reports and atomic canonical final reports.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A and B are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Phase C begins with observation context and callback correlation.
 
 ## Confirmed constraints
 
@@ -67,6 +67,7 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - B1 focused redaction, canonicalization, provider-registry, checkpoint, and analyst-graph tests pass with 57 tests. The preflight suite still passes after installing the complete web extra.
 - `mimo` was selectable but absent from the canonical provider credential registry; it now resolves to `MIMO_API_KEY`, matching the existing provider client and local config behavior.
 - B2 RunStore/event/artifact coverage passes together with the event/redaction/canonical contracts: 44 focused tests.
+- All web tests through Phase B pass with 67 tests. The complete repository suite after the web dependency install and AgentState/report changes passes with 769 tests and 68 subtests; the same 18 model-catalog warnings remain.
 
 ## Pending decisions
 
@@ -74,8 +75,8 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Implement Story B3 immutable partial report revisions and atomic final report publication.
-2. Begin Story C1 observation context and callback capture.
+1. Implement Story C1 observation context and callback capture.
+2. Implement Story C2 all 13 role input projections and observed graph tasks.
 3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes

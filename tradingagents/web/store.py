@@ -132,6 +132,12 @@ class RunStore:
     def append_event(self, draft: RunEventDraft) -> PersistedEvent:
         run_dir = self._run_dir(draft.run_id)
         with self.lock_for(draft.run_id):
+            if draft.type == "run.completed" and not (
+                run_dir / "reports" / "complete_report.md"
+            ).is_file():
+                raise RunStoreError(
+                    "run.completed requires an atomically published canonical report tree"
+                )
             snapshot = self.read_snapshot(draft.run_id)
             sequence = max(snapshot.latest_sequence, self._last_event_sequence(run_dir)) + 1
             redacted_payload = redact_recursive(draft.payload)
