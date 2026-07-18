@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A and B are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Phase C begins with observation context and callback correlation.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A and B and Story C1 are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Observation now separates stable logical turns from each concrete LangGraph task invocation, durably correlates prompts, model attempts, logical tool requests, tool executions, retries, failures, and direct-call scopes, and rebuilds only committed or pending-apply tool requests after restart. Story C2 is next.
 
 ## Confirmed constraints
 
@@ -68,6 +68,9 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - `mimo` was selectable but absent from the canonical provider credential registry; it now resolves to `MIMO_API_KEY`, matching the existing provider client and local config behavior.
 - B2 RunStore/event/artifact coverage passes together with the event/redaction/canonical contracts: 44 focused tests.
 - All web tests through Phase B pass with 67 tests. The complete repository suite after the web dependency install and AgentState/report changes passes with 769 tests and 68 subtests; the same 18 model-catalog warnings remain.
+- Story C1 callback capture uses the installed LangChain callback signatures and public LangGraph task identity boundary. One logical turn can now truthfully carry distinct role, tool, and role-reentry task IDs without losing its debate-turn identity.
+- C1 tests cover callback-manager assertion propagation, AI message usage metadata, callback-order-independent tool joins, restart filtering of candidate versus pending-apply requests, direct-call correlation, retries, interruption/resume, and durable-before-forget terminal callbacks.
+- All web tests through Story C1 pass with 81 tests. Python compilation and `git diff --check` pass. Ruff is declared only in the optional development dependencies and is not installed in the authoritative interpreter, so no Ruff result is claimed.
 
 ## Pending decisions
 
@@ -75,8 +78,8 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Implement Story C1 observation context and callback capture.
-2. Implement Story C2 all 13 role input projections and observed graph tasks.
+1. Implement Story C2 all 13 role input projections and observed graph tasks.
+2. Implement Story C3 vendor provenance and the run-scoped news cache.
 3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes
