@@ -30,6 +30,13 @@ interface UiState {
   setTimeframe: (tf: string) => void;
   indicators: string[];
   toggleIndicator: (name: string) => void;
+  // named indicator sets (PC.4), synced to server prefs
+  indicatorTemplates: Record<string, string[]>;
+  saveIndicatorTemplate: (name: string) => void;
+  applyIndicatorTemplate: (name: string) => void;
+  deleteIndicatorTemplate: (name: string) => void;
+  /** hydrate chart prefs from the server layouts.chart blob (once, on boot) */
+  hydrateChart: (chart: unknown) => void;
   showVolume: boolean;
   toggleVolume: () => void;
   logScale: boolean;
@@ -77,6 +84,40 @@ export const useUiStore = create<UiState>()(
             ? state.indicators.filter((n) => n !== name)
             : [...state.indicators, name],
         })),
+      indicatorTemplates: {},
+      saveIndicatorTemplate: (name) =>
+        set((state) => ({
+          indicatorTemplates: {
+            ...state.indicatorTemplates,
+            [name]: [...state.indicators],
+          },
+        })),
+      applyIndicatorTemplate: (name) =>
+        set((state) => ({
+          indicators: [...(state.indicatorTemplates[name] ?? state.indicators)],
+        })),
+      deleteIndicatorTemplate: (name) =>
+        set((state) => {
+          const next = { ...state.indicatorTemplates };
+          delete next[name];
+          return { indicatorTemplates: next };
+        }),
+      hydrateChart: (chart) => {
+        if (!chart || typeof chart !== "object") return;
+        const c = chart as Partial<UiState>;
+        set((state) => ({
+          indicators: Array.isArray(c.indicators) ? c.indicators : state.indicators,
+          showVolume:
+            typeof c.showVolume === "boolean" ? c.showVolume : state.showVolume,
+          logScale: typeof c.logScale === "boolean" ? c.logScale : state.logScale,
+          chartStyle:
+            typeof c.chartStyle === "string" ? c.chartStyle : state.chartStyle,
+          indicatorTemplates:
+            c.indicatorTemplates && typeof c.indicatorTemplates === "object"
+              ? (c.indicatorTemplates as Record<string, string[]>)
+              : state.indicatorTemplates,
+        }));
+      },
       // mockup default: volume pane on
       showVolume: true,
       toggleVolume: () => set((state) => ({ showVolume: !state.showVolume })),
@@ -129,6 +170,7 @@ export const useUiStore = create<UiState>()(
         showVolume: s.showVolume,
         logScale: s.logScale,
         chartStyle: s.chartStyle,
+        indicatorTemplates: s.indicatorTemplates,
         showProfile: s.showProfile,
         gridCells: s.gridCells,
       }),

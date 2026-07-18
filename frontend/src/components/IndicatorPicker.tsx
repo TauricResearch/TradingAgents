@@ -8,6 +8,7 @@ import { useState } from "react";
 
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui";
 
 export const INDICATOR_CATALOG = [
   { name: "EMA_10", label: "EMA", overlay: true, family: "EMA", period: 10 },
@@ -53,6 +54,10 @@ export function IndicatorPicker({
   timeframe?: string;
 }) {
   const [periods, setPeriods] = useState<Record<string, number>>({});
+  const templates = useUiStore((s) => s.indicatorTemplates);
+  const saveIndicatorTemplate = useUiStore((s) => s.saveIndicatorTemplate);
+  const applyIndicatorTemplate = useUiStore((s) => s.applyIndicatorTemplate);
+  const deleteIndicatorTemplate = useUiStore((s) => s.deleteIndicatorTemplate);
   const vwapAllowed = timeframe == null || INTRADAY_TFS.has(timeframe);
   return (
     <DropdownMenu.Root>
@@ -156,6 +161,49 @@ export function IndicatorPicker({
               </DropdownMenu.CheckboxItem>
             );
           })}
+          {/* PC.4: named indicator templates, synced across devices */}
+          <DropdownMenu.Separator className="my-1 h-px bg-border" />
+          <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-fg-subtle">
+            Templates
+          </div>
+          {Object.keys(templates).length === 0 && (
+            <div className="px-2 pb-1 text-xs text-fg-subtle">
+              none saved yet
+            </div>
+          )}
+          {Object.keys(templates).map((name) => (
+            <div
+              key={name}
+              className="flex items-center justify-between rounded px-2 py-1 hover:bg-surface-2"
+            >
+              <button
+                className="grow text-left text-sm"
+                onClick={() => applyIndicatorTemplate(name)}
+              >
+                {name}{" "}
+                <span className="text-xs text-fg-subtle">
+                  ({templates[name]!.length})
+                </span>
+              </button>
+              <button
+                aria-label={`Delete template ${name}`}
+                className="rounded px-1 text-fg-subtle hover:text-bear"
+                onClick={() => deleteIndicatorTemplate(name)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <button
+            className="mt-1 w-full rounded px-2 py-1.5 text-left text-sm text-accent hover:bg-surface-2 disabled:opacity-40"
+            disabled={selected.length === 0}
+            onClick={() => {
+              const name = window.prompt("Template name:")?.trim();
+              if (name) saveIndicatorTemplate(name);
+            }}
+          >
+            + Save current as template
+          </button>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

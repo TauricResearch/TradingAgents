@@ -54,8 +54,12 @@ function Wiring() {
     if (prefs.data && !hydratedRef.current) {
       hydratedRef.current = true;
       layoutStore.hydrate(prefs.data.layouts);
-      const layouts = prefs.data.layouts as { drawings?: unknown };
+      const layouts = prefs.data.layouts as {
+        drawings?: unknown;
+        chart?: unknown;
+      };
       useDrawingsStore.getState().hydrate(layouts?.drawings);
+      useUiStore.getState().hydrateChart(layouts?.chart); // PC.4
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefs.data]);
@@ -72,6 +76,14 @@ function Wiring() {
         layouts: {
           ...layoutStore.exportForPrefs(),
           drawings: useDrawingsStore.getState().bySymbol,
+          // PC.4: chart prefs follow the operator across machines
+          chart: {
+            indicators: ui.indicators,
+            showVolume: ui.showVolume,
+            logScale: ui.logScale,
+            chartStyle: ui.chartStyle,
+            indicatorTemplates: ui.indicatorTemplates,
+          },
         },
         version: 1,
       }).catch(() => undefined); // offline is fine; localStorage still has it
@@ -79,7 +91,8 @@ function Wiring() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layoutStore.overrides, layoutStore.preset, ui.theme, ui.symbol,
-      drawingsBySymbol]);
+      drawingsBySymbol, ui.indicators, ui.showVolume, ui.logScale,
+      ui.chartStyle, ui.indicatorTemplates]);
 
   // keyboard chords
   useEffect(
