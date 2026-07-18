@@ -48,9 +48,36 @@ def _mark_for(symbol: str, ticks, marketdata) -> tuple[float | None, str]:
     return None, "entry"
 
 
+def _open_stops(memory) -> dict[str, float]:
+    """Symbol -> stop_loss of the trade that OPENED the current position.
+
+    A position is opened by exactly one TRADE until it closes (its id then
+    appears as an OUTCOME.ref_id). The stop the position was opened with is
+    the latest still-open TRADE's payload stop — the honest stop line, not
+    a fabricated trailing level (the system doesn't trail)."""
+    if memory is None:
+        return {}
+    try:
+        from tradingagents.pro.memory import MemoryKind
+
+        closed = {o.ref_id for o in memory.records(MemoryKind.OUTCOME)}
+        stops: dict[str, float] = {}
+        for trade in memory.records(MemoryKind.TRADE):  # oldest→newest
+            if trade.id in closed or trade.symbol is None:
+                continue
+            stop = trade.payload.get("stop_loss")
+            if stop is not None:
+                stops[trade.symbol] = stop  # latest open trade wins
+        return stops
+    except Exception:
+        return {}
+
+
 def open_positions_view(router, equity: float | None,
-                        ticks=None, marketdata=None) -> tuple[list[dict], float | None]:
-    """Positions with entry/mark/unrealized P&L (trader review G2).
+                        ticks=None, marketdata=None,
+                        memory=None) -> tuple[list[dict], float | None]:
+    """Positions with entry/mark/unrealized P&L (trader review G2) + the
+    opening stop level (PC.1).
 
     Entry comes from the venue adapter's book (avg_price); mark from the
     tick cache or daily close, labeled. Anything unknowable is null —
@@ -64,6 +91,7 @@ def open_positions_view(router, equity: float | None,
                 entries[pos.symbol] = pos.avg_price
         except Exception:
             pass
+    stops = _open_stops(memory)
     positions: list[dict] = []
     unrealized_total: float | None = None
     for symbol, quantity in sorted(router.local_book.items()):
@@ -90,12 +118,13 @@ def open_positions_view(router, equity: float | None,
             "mark_source": mark_source,
             "unrealized_pnl": unrealized,
             "exposure_pct": exposure_pct,
+            "stop_price": stops.get(symbol),
         })
     return positions, unrealized_total
 
 
 def system_status(router, equity: float | None = None, arming=None,
-                  ticks=None, marketdata=None) -> dict:
+                  ticks=None, marketdata=None, memory=None) -> dict:
     """Kill switch, circuit breaker, open book, and per-pair arming
     (UX review RISK-01; go-live Phase 4).
 
@@ -112,7 +141,7 @@ def system_status(router, equity: float | None = None, arming=None,
     breaker = router.breaker.check()
     engaged = router.kill_switch.engaged
     positions, unrealized_total = open_positions_view(
-        router, equity, ticks=ticks, marketdata=marketdata)
+        router, equity, ticks=ticks, marketdata=marketdata, memory=memory)
     return {
         "attached": True,
         "kill_switch": {"engaged": engaged, "reason": router.kill_switch.reason},

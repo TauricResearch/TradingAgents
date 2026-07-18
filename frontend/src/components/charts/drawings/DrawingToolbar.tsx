@@ -16,12 +16,14 @@ import {
   MousePointer2,
   MoveUpRight,
   MoveVertical,
-  Ruler,
+  Redo2,
   Rows3,
+  Ruler,
   Square,
   Trash2,
   TrendingUp,
   Type,
+  Undo2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -64,6 +66,10 @@ export function DrawingToolbar({
   onRemove,
   magnet = false,
   onMagnetChange,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: {
   mode: ToolMode;
   onModeChange: (mode: ToolMode) => void;
@@ -74,6 +80,10 @@ export function DrawingToolbar({
   /** snap drawing anchors to the clicked bar's O/H/L/C */
   magnet?: boolean;
   onMagnetChange?: (on: boolean) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }) {
   const count = drawings.length;
   return (
@@ -100,6 +110,34 @@ export function DrawingToolbar({
           </Button>
         </Tip>
       ))}
+      {onUndo && (
+        <Tip content="Undo (⌘Z)">
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Undo drawing"
+            disabled={!canUndo}
+            className="h-[30px] w-[30px] rounded-[9px] border border-border"
+            onClick={onUndo}
+          >
+            <Undo2 size={13} />
+          </Button>
+        </Tip>
+      )}
+      {onRedo && (
+        <Tip content="Redo (⇧⌘Z)">
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Redo drawing"
+            disabled={!canRedo}
+            className="h-[30px] w-[30px] rounded-[9px] border border-border"
+            onClick={onRedo}
+          >
+            <Redo2 size={13} />
+          </Button>
+        </Tip>
+      )}
       {onMagnetChange && (
         <Tip content={magnet ? "Magnet on: anchors snap to O/H/L/C" : "Magnet off"}>
           <Button

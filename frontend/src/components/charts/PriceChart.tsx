@@ -112,6 +112,7 @@ export function PriceChart({
   legend = false,
   onLoadOlder,
   showAnnotations = true,
+  onContextMenu,
 }: {
   bars: Bar[];
   style?: SeriesStyle;
@@ -137,8 +138,12 @@ export function PriceChart({
   annotations?: ChartAnnotations | null;
   /** select-mode click on a decision zone/marker/ribbon segment */
   onExplainRun?: (runId: string, point: { x: number; y: number }) => void;
-  /** open position for this symbol: server-computed entry line */
-  openPosition?: { entry_price?: number | null; quantity: number } | null;
+  /** open position for this symbol: server-computed entry + stop line */
+  openPosition?: {
+    entry_price?: number | null;
+    quantity: number;
+    stop_price?: number | null;
+  } | null;
   /** logarithmic price scale (long-horizon gold/BTC reads honestly in log) */
   logScale?: boolean;
   /** magnet mode: drawing anchors snap to the clicked bar's O/H/L/C */
@@ -149,6 +154,13 @@ export function PriceChart({
   onLoadOlder?: () => void;
   /** show/hide the AI decision layer (zones + ribbon + markers) */
   showAnnotations?: boolean;
+  /** right-click on the price pane → menu payload (PC.2) */
+  onContextMenu?: (p: {
+    x: number;
+    y: number;
+    price: number | null;
+    runId: string | null;
+  }) => void;
 }) {
   const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const extraSeriesRef = useRef<ISeriesApi<SeriesType>[]>([]);
@@ -581,18 +593,42 @@ export function PriceChart({
   useEffect(() => {
     const series = seriesRef.current;
     if (!series || !openPosition?.entry_price) return;
+    // guard against a stale/mismatched position price (e.g. an old trade on
+    // a different price scale) dragging LWC's autoscale off the bars and
+    // making the chart unusable — a real open position sits near price.
+    const ref = bars.length ? bars[bars.length - 1]!.close : null;
+    if (ref != null && (openPosition.entry_price > ref * 3 ||
+                        openPosition.entry_price < ref / 3)) {
+      return;
+    }
     const colors = chartColors();
-    const line = series.createPriceLine({
-      price: openPosition.entry_price,
-      color: colors.accent,
-      axisLabelTextColor: colors.onSolid,
-      lineWidth: 2,
-      lineStyle: 0,
-      title: `POSITION · ${openPosition.quantity}`,
-    });
+    const lines = [
+      series.createPriceLine({
+        price: openPosition.entry_price,
+        color: colors.accent,
+        axisLabelTextColor: colors.onSolid,
+        lineWidth: 2,
+        lineStyle: 0,
+        title: `POSITION · ${openPosition.quantity}`,
+      }),
+    ];
+    // PC.1: the stop the position was opened with (not a trailing level —
+    // the system doesn't trail; it's the honest thesis-death line)
+    if (openPosition.stop_price != null) {
+      lines.push(
+        series.createPriceLine({
+          price: openPosition.stop_price,
+          color: colors.bear,
+          axisLabelTextColor: colors.onSolid,
+          lineWidth: 1,
+          lineStyle: 1,
+          title: "POSITION STOP",
+        }),
+      );
+    }
     return () => {
       if (seriesRef.current !== series) return;
-      series.removePriceLine(line);
+      lines.forEach((l) => series.removePriceLine(l));
     };
   }, [openPosition, bars, style, indicators, showVolume]);
 
@@ -858,6 +894,28 @@ export function PriceChart({
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
     };
   }, [chartRef]);
+
+  // right-click context menu (PC.2): resolve the clicked price + nearest
+  // AI decision from raw DOM coords (no LWC click param on contextmenu)
+  const onContextMenuRef = useRef(onContextMenu);
+  onContextMenuRef.current = onContextMenu;
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handler = (e: MouseEvent) => {
+      const cb = onContextMenuRef.current;
+      const series = seriesRef.current;
+      if (!cb || !series) return;
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const price = series.coordinateToPrice(point.y);
+      const runId = annotationsRef.current?.findNearestRun(point) ?? null;
+      cb({ x: point.x, y: point.y, price: price ?? null, runId });
+    };
+    container.addEventListener("contextmenu", handler);
+    return () => container.removeEventListener("contextmenu", handler);
+  }, [containerRef]);
 
   // live last-price via series.update (never setData on tick)
   const lastBar = bars[bars.length - 1];

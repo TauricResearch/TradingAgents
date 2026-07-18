@@ -807,7 +807,8 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     @app.get("/api/status")
     def status() -> dict:
         return service.system_status(state.router, state.equity, state.arming,
-                                     ticks=state.ticks, marketdata=state.marketdata)
+                                     ticks=state.ticks, marketdata=state.marketdata,
+                                     memory=state.memory)
 
     @app.post("/api/flatten")
     async def flatten(request: Request) -> JSONResponse:
@@ -960,7 +961,8 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         perf = service.journal_performance(state.memory, starting_equity=base)
         positions, _ = service.open_positions_view(
             state.router, state.equity, ticks=state.ticks,
-            marketdata=state.marketdata) if state.router is not None else ([], None)
+            marketdata=state.marketdata,
+            memory=state.memory) if state.router is not None else ([], None)
         max_open = (state.router.limits.max_open_positions
                     if state.router is not None else 3)
         perf["exposure"] = service.portfolio_exposure(

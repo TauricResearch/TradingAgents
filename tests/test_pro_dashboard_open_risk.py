@@ -52,6 +52,28 @@ class FakeMarketData:
 
 
 class TestOpenPositionsView:
+    def test_open_stop_from_opening_trade(self):
+        from tradingagents.pro.memory import MemoryKind, MemoryRecord, ProMemory
+
+        memory = ProMemory()
+        # an open XAUUSD trade (no OUTCOME) carries the stop; a closed one
+        # (has an OUTCOME) must not leak its stop into the open view
+        memory._add(MemoryRecord(
+            kind=MemoryKind.TRADE, text="open", symbol="XAUUSD",
+            payload={"stop_loss": 4190.5}))
+        closed = memory._add(MemoryRecord(
+            kind=MemoryKind.TRADE, text="closed", symbol="BTC-USD",
+            payload={"stop_loss": 61000.0}))
+        memory._add(MemoryRecord(
+            kind=MemoryKind.OUTCOME, text="o", symbol="BTC-USD",
+            ref_id=closed.id, payload={"pnl": 1.0}))
+        router = FakeRouter({"XAUUSD": -2.0, "BTC-USD": 0.5},
+                            {"XAUUSD": (-2.0, 4000.0), "BTC-USD": (0.5, 62000.0)})
+        positions, _ = open_positions_view(router, 100_000.0, memory=memory)
+        by = {p["symbol"]: p for p in positions}
+        assert by["XAUUSD"]["stop_price"] == pytest.approx(4190.5)
+        assert by["BTC-USD"]["stop_price"] is None  # closed trade, no leak
+
     def test_live_mark_long_and_short(self):
         ticks = TickCache()
         ticks.put("XAUUSD", 3900.0, "t")

@@ -166,6 +166,7 @@ export const StatusSchema = z
           mark_source: z.enum(["live", "eod", "entry"]).optional(),
           unrealized_pnl: z.number().nullable().optional(),
           exposure_pct: z.number().nullable().optional(),
+          stop_price: z.number().nullable().optional(),
         }),
       )
       .optional(),

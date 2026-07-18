@@ -52,6 +52,10 @@ import {
   ExplainRunPopover,
   type ExplainTarget,
 } from "./ExplainRunPopover";
+import {
+  ChartContextMenu,
+  type ContextTarget,
+} from "./ChartContextMenu";
 import { ReplayDecisionStrip } from "./ReplayDecisionStrip";
 import { computePositionPlan } from "@/lib/positionPlan";
 import { countdownExpired, useCountdown } from "@/lib/useCountdown";
@@ -162,6 +166,11 @@ export default function WorkspacePage() {
   const clearDrawings = useDrawingsStore((state) => state.clear);
   const toggleDrawingHidden = useDrawingsStore((state) => state.toggleHidden);
   const removeDrawing = useDrawingsStore((state) => state.remove);
+  const undoDrawing = useDrawingsStore((state) => state.undo);
+  const redoDrawing = useDrawingsStore((state) => state.redo);
+  // subscribe to history depth so the toolbar buttons enable/disable live
+  const canUndo = useDrawingsStore((s) => (s.past[symbol]?.length ?? 0) > 0);
+  const canRedo = useDrawingsStore((s) => (s.future[symbol]?.length ?? 0) > 0);
 
   const symbols = useSymbols();
   const spec = symbols.data?.find((s) => s.symbol === symbol);
@@ -355,8 +364,26 @@ export default function WorkspacePage() {
   }, [chartAnnotations.data, replay.active, cursorTime, allBars]);
 
   const [explain, setExplain] = useState<ExplainTarget | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<ContextTarget | null>(null);
   // a symbol/timeframe switch invalidates the anchor position
-  useEffect(() => setExplain(null), [symbol, activeTf]);
+  useEffect(() => {
+    setExplain(null);
+    setCtxMenu(null);
+  }, [symbol, activeTf]);
+
+  // ⌘Z / ⇧⌘Z drawing undo/redo (PC.2), ignored while typing in a field
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      e.preventDefault();
+      if (e.shiftKey) redoDrawing(symbol);
+      else undoDrawing(symbol);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [symbol, undoDrawing, redoDrawing]);
 
   // open position for this symbol: entry line on the chart + the server's
   // unrealized P&L in a badge (no client math — Constraint 2)
@@ -577,6 +604,10 @@ export default function WorkspacePage() {
                     onRemove={(id) => removeDrawing(symbol, id)}
                     magnet={magnet}
                     onMagnetChange={setMagnet}
+                    onUndo={() => undoDrawing(symbol)}
+                    onRedo={() => redoDrawing(symbol)}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
                   />
                   <div className="relative min-w-0 grow">
                     <PriceChart
@@ -604,6 +635,7 @@ export default function WorkspacePage() {
                       legend
                       onLoadOlder={replay.active ? undefined : loadOlder}
                       showAnnotations={showAnnotations}
+                      onContextMenu={(p) => setCtxMenu(p)}
                     />
                     {openPosition?.unrealized_pnl != null && (
                       <div
@@ -625,6 +657,16 @@ export default function WorkspacePage() {
                       <ExplainRunPopover
                         target={explain}
                         onClose={() => setExplain(null)}
+                      />
+                    )}
+                    {ctxMenu && (
+                      <ChartContextMenu
+                        target={ctxMenu}
+                        onClose={() => setCtxMenu(null)}
+                        onAlertHere={createChartAlert}
+                        onExplain={(runId, x, y) =>
+                          setExplain({ runId, x, y })
+                        }
                       />
                     )}
                   </div>

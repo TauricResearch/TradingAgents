@@ -62,7 +62,26 @@ describe("drawings store", () => {
   });
 
   beforeEach(() => {
-    useDrawingsStore.setState({ bySymbol: {} });
+    useDrawingsStore.setState({ bySymbol: {}, past: {}, future: {} });
+  });
+
+  it("undo/redo walk per-symbol history", () => {
+    const store = useDrawingsStore.getState();
+    store.add("XAUUSD", drawing("a"));
+    store.add("XAUUSD", drawing("b"));
+    expect(useDrawingsStore.getState().canUndo("XAUUSD")).toBe(true);
+    store.undo("XAUUSD"); // → [a]
+    expect(useDrawingsStore.getState().bySymbol["XAUUSD"]!.map((d) => d.id)).toEqual(["a"]);
+    store.undo("XAUUSD"); // → []
+    expect(useDrawingsStore.getState().bySymbol["XAUUSD"]).toEqual([]);
+    expect(useDrawingsStore.getState().canUndo("XAUUSD")).toBe(false);
+    store.redo("XAUUSD"); // → [a]
+    store.redo("XAUUSD"); // → [a, b]
+    expect(useDrawingsStore.getState().bySymbol["XAUUSD"]!.map((d) => d.id)).toEqual(["a", "b"]);
+    // a fresh mutation clears the redo stack
+    store.undo("XAUUSD");
+    store.add("XAUUSD", drawing("c"));
+    expect(useDrawingsStore.getState().canRedo("XAUUSD")).toBe(false);
   });
 
   it("adds, removes, clears per symbol", () => {
