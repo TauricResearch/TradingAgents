@@ -11,9 +11,33 @@ from tradingagents.execution.models import (
     AnalysisResult,
     CancellationToken,
 )
-from tradingagents.execution.runner import AnalysisRunner
+from tradingagents.execution.runner import AnalysisRunner, CheckpointAuthorization
+from tradingagents.web.fingerprint import FingerprintCheckpointGuard
+from tradingagents.web.run_models import RunSnapshot, generate_run_id
+from tradingagents.web.store import RunStore
 
 pytestmark = pytest.mark.unit
+
+
+def _durable_checkpoint_guard(tmp_path, owner, request, run_id):
+    store = RunStore(tmp_path)
+    store.create_run(
+        RunSnapshot.create(
+            run_id=run_id,
+            ticker=request.ticker,
+            analysis_date=request.analysis_date,
+            selected_analysts=request.selected_analysts,
+            llm_provider="openai",
+            quick_think_llm="quick",
+            deep_think_llm="deep",
+        )
+    )
+    return FingerprintCheckpointGuard(
+        store,
+        run_id,
+        request,
+        owner.config,
+    )
 
 
 def _request(**overrides):
@@ -271,3 +295,263 @@ def test_cleanup_failure_never_masks_original_graph_failure():
     assert exc_info.value is original
     assert owner._checkpointer_ctx is None
     assert owner.graph is restored
+
+
+def test_web_checkpoint_namespace_is_used_for_probe_invoke_and_clear(tmp_path):
+    owner, _events = _owner(checkpoint_enabled=True)
+    compiled = MagicMock()
+    compiled.invoke.return_value = {"final_trade_decision": "Rating: Hold"}
+    owner.workflow.compile.side_effect = [compiled, MagicMock()]
+    context = MagicMock()
+    context.__enter__.return_value = object()
+    run_id = generate_run_id()
+    request = _request(effective_config=dict(owner.config))
+    checkpoint_guard = _durable_checkpoint_guard(
+        tmp_path,
+        owner,
+        request,
+        run_id,
+    )
+    checkpoint_frontier = object()
+
+    with (
+        patch("tradingagents.execution.runner.get_checkpointer", return_value=context),
+        patch(
+            "tradingagents.execution.runner.checkpoint_access",
+            return_value=checkpoint_frontier,
+        ) as access,
+        patch("tradingagents.execution.runner.checkpoint_step", return_value=None) as step,
+        patch("tradingagents.execution.runner.thread_id", return_value="web-thread") as identity,
+        patch("tradingagents.execution.runner.clear_checkpoint") as clear,
+    ):
+        AnalysisRunner(owner).run(
+            request,
+            checkpoint_run_id=run_id,
+            checkpoint_guard=checkpoint_guard,
+        )
+
+    access.assert_called_once_with(
+        "/tmp/tradingagents-runner-test",
+        "AAPL",
+        "2026-07-18",
+        "shape",
+        run_id=run_id,
+    )
+    step.assert_called_once_with(
+        "/tmp/tradingagents-runner-test",
+        "AAPL",
+        "2026-07-18",
+        "shape",
+        run_id=run_id,
+    )
+    identity.assert_called_once_with(
+        "AAPL",
+        "2026-07-18",
+        "shape",
+        run_id=run_id,
+    )
+    clear.assert_called_once_with(
+        "/tmp/tradingagents-runner-test",
+        "AAPL",
+        "2026-07-18",
+        "shape",
+        run_id=run_id,
+    )
+    assert compiled.invoke.call_args.kwargs["config"]["configurable"]["thread_id"] == "web-thread"
+
+
+def test_web_checkpoint_rejects_missing_or_drifted_effective_config_before_work():
+    owner, events = _owner(checkpoint_enabled=True)
+    runner = AnalysisRunner(owner)
+
+    with pytest.raises(ValueError, match="complete effective_config"):
+        runner.run(
+            _request(),
+            checkpoint_run_id="run-123",
+            checkpoint_guard=MagicMock(),
+        )
+    assert events == []
+
+    changed = dict(owner.config)
+    changed["quick_think_llm"] = "different-model"
+    with pytest.raises(ValueError, match="does not match"):
+        runner.run(
+            _request(effective_config=changed),
+            checkpoint_run_id="run-123",
+            checkpoint_guard=MagicMock(),
+        )
+    assert events == []
+
+
+def test_checkpoint_guard_is_required_before_any_web_checkpoint_work():
+    owner, events = _owner(checkpoint_enabled=True)
+
+    with pytest.raises(ValueError, match="checkpoint guard"):
+        AnalysisRunner(owner).run(
+            _request(effective_config=dict(owner.config)),
+            checkpoint_run_id="run-123",
+        )
+
+    assert events == []
+
+
+def test_observation_run_id_is_derived_and_mismatch_is_rejected(tmp_path):
+    owner, _events = _owner(checkpoint_enabled=True)
+    run_id = generate_run_id()
+    observed = SimpleNamespace(observer=SimpleNamespace(run_id=run_id))
+    compiled = MagicMock()
+    compiled.stream.return_value = [{"final_trade_decision": "Rating: Hold"}]
+    owner.workflow.compile.side_effect = [compiled, MagicMock()]
+    context = MagicMock()
+    context.__enter__.return_value = object()
+
+    with (
+        patch("tradingagents.execution.runner.get_checkpointer", return_value=context),
+        patch("tradingagents.execution.runner.checkpoint_access", return_value=object()),
+        patch("tradingagents.execution.runner.checkpoint_step", return_value=None),
+        patch("tradingagents.execution.runner.thread_id", return_value="derived") as identity,
+        patch("tradingagents.execution.runner.clear_checkpoint"),
+    ):
+        request = _request(effective_config=dict(owner.config))
+        AnalysisRunner(owner).run(
+            request,
+            observation_context=observed,
+            checkpoint_guard=_durable_checkpoint_guard(
+                tmp_path,
+                owner,
+                request,
+                run_id,
+            ),
+        )
+
+    identity.assert_called_once_with(
+        "AAPL",
+        "2026-07-18",
+        "shape",
+        run_id=run_id,
+    )
+
+    owner, events = _owner(checkpoint_enabled=True)
+    with pytest.raises(ValueError, match="do not match"):
+        AnalysisRunner(owner).run(
+            _request(effective_config=dict(owner.config)),
+            observation_context=observed,
+            checkpoint_run_id="other-run",
+            checkpoint_guard=MagicMock(),
+        )
+    assert events == []
+
+
+def test_web_checkpoint_requires_canonical_analyst_order():
+    owner, events = _owner(checkpoint_enabled=True)
+    owner.selected_analysts = ("news", "market")
+
+    with pytest.raises(ValueError, match="canonical registry order"):
+        AnalysisRunner(owner).run(
+            _request(
+                selected_analysts=("news", "market"),
+                effective_config=dict(owner.config),
+            ),
+            checkpoint_run_id="run-123",
+            checkpoint_guard=MagicMock(),
+        )
+    assert events == []
+
+
+def test_config_validation_compares_semantics_without_secret_values():
+    owner, _events = _owner()
+    owner.config["OPENAI_API_KEY"] = "current-secret"
+    owner.graph.invoke.return_value = {"final_trade_decision": "Rating: Hold"}
+    request_config = dict(owner.config)
+    request_config["OPENAI_API_KEY"] = "rotated-secret"
+
+    result = AnalysisRunner(owner).run(_request(effective_config=request_config))
+
+    assert result.final_signal == "BUY"
+
+    owner, _events = _owner()
+    owner.config["OPENAI_API_KEY"] = "current-secret"
+    owner.graph.invoke.return_value = {"final_trade_decision": "Rating: Hold"}
+    safe_request_config = {
+        key: value for key, value in owner.config.items() if key != "OPENAI_API_KEY"
+    }
+
+    result = AnalysisRunner(owner).run(
+        _request(effective_config=safe_request_config)
+    )
+
+    assert result.final_signal == "BUY"
+
+
+def test_rejected_checkpoint_guard_cannot_persist_synthetic_input_observation(tmp_path):
+    owner, events = _owner(checkpoint_enabled=True)
+    original = RuntimeError("checkpoint_incompatible")
+    run_id = generate_run_id()
+    request = _request(effective_config=dict(owner.config))
+    guard = _durable_checkpoint_guard(tmp_path, owner, request, run_id)
+
+    with (
+        patch(
+            "tradingagents.execution.runner.checkpoint_access",
+            return_value=SimpleNamespace(latest=None),
+        ),
+        patch(
+            "tradingagents.web.fingerprint.build_resume_fingerprint",
+            side_effect=original,
+        ),
+        patch("tradingagents.execution.runner.get_checkpointer") as open_checkpoint,
+        pytest.raises(RuntimeError, match="checkpoint_incompatible") as exc_info,
+    ):
+        AnalysisRunner(owner).run(
+            request,
+            observation_context=SimpleNamespace(
+                observer=SimpleNamespace(run_id=run_id)
+            ),
+            checkpoint_guard=guard,
+        )
+
+    assert exc_info.value is original
+    assert events == ["pending", "past_context", "identity"]
+    owner.propagator.create_initial_state.assert_not_called()
+    open_checkpoint.assert_not_called()
+
+
+def test_noop_checkpoint_guard_cannot_authorize_graph_execution():
+    owner, events = _owner(checkpoint_enabled=True)
+
+    with (
+        patch("tradingagents.execution.runner.get_checkpointer") as open_checkpoint,
+        pytest.raises(ValueError, match="FingerprintCheckpointGuard"),
+    ):
+        AnalysisRunner(owner).run(
+            _request(effective_config=dict(owner.config)),
+            checkpoint_run_id="run-123",
+            checkpoint_guard=lambda *_args: None,
+        )
+
+    assert events == []
+    owner.propagator.create_initial_state.assert_not_called()
+    open_checkpoint.assert_not_called()
+
+
+def test_issued_token_from_non_durable_callback_is_rejected_before_graph_execution():
+    owner, events = _owner(checkpoint_enabled=True)
+    forged = CheckpointAuthorization._issue(
+        run_id="run-123",
+        fingerprint_sha256="a" * 64,
+        mode="fresh",
+    )
+
+    with (
+        patch("tradingagents.execution.runner.get_checkpointer") as open_checkpoint,
+        pytest.raises(ValueError, match="FingerprintCheckpointGuard"),
+    ):
+        AnalysisRunner(owner).run(
+            _request(effective_config=dict(owner.config)),
+            checkpoint_run_id="run-123",
+            checkpoint_guard=lambda *_args: forged,
+        )
+
+    assert events == []
+    owner.propagator.create_initial_state.assert_not_called()
+    open_checkpoint.assert_not_called()

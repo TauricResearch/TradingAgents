@@ -395,6 +395,8 @@ class TradingAgentsGraph:
         cancellation_token: CancellationToken | None = None,
         observation_context=None,
         callbacks: list | None = None,
+        checkpoint_run_id: str | None = None,
+        checkpoint_guard=None,
     ) -> AnalysisResult:
         """Run one analysis through the consumer-neutral execution boundary."""
         if observation_context is not None and not self.observation_enabled:
@@ -404,6 +406,8 @@ class TradingAgentsGraph:
             cancellation_token=cancellation_token,
             observation_context=observation_context,
             callbacks=callbacks,
+            checkpoint_run_id=checkpoint_run_id,
+            checkpoint_guard=checkpoint_guard,
         )
 
     def _analysis_request(

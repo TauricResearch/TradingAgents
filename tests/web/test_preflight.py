@@ -1,9 +1,11 @@
+import subprocess
+import sys
+import textwrap
 from importlib import import_module
 
 import pytest
 
 from tradingagents.web import preflight
-
 
 pytestmark = pytest.mark.unit
 
@@ -102,3 +104,30 @@ def test_web_package_import_does_not_import_optional_frameworks(monkeypatch):
     assert module is not None
     assert imported == []
 
+
+def test_base_graph_import_does_not_require_web_only_rfc8785():
+    script = textwrap.dedent(
+        """
+        import builtins
+
+        real_import = builtins.__import__
+
+        def guarded_import(name, *args, **kwargs):
+            if name.split('.', 1)[0] == 'rfc8785':
+                raise ModuleNotFoundError('rfc8785 intentionally unavailable')
+            return real_import(name, *args, **kwargs)
+
+        builtins.__import__ = guarded_import
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        assert TradingAgentsGraph is not None
+        """
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
