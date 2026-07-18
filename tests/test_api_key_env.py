@@ -19,7 +19,7 @@ def test_every_select_llm_provider_choice_has_an_entry():
     # stay in lockstep. Region-specific keys (qwen-cn / minimax-cn / glm-cn)
     # are reached via the secondary region prompt, so they must also be present.
     expected = {
-        "openai", "google", "anthropic", "xai", "deepseek",
+        "openai", "google", "anthropic", "mimo", "xai", "deepseek",
         "qwen", "qwen-cn",
         "glm", "glm-cn",
         "minimax", "minimax-cn",
@@ -33,6 +33,7 @@ def test_every_select_llm_provider_choice_has_an_entry():
     [
         ("openai",     "OPENAI_API_KEY"),
         ("anthropic",  "ANTHROPIC_API_KEY"),
+        ("mimo",       "MIMO_API_KEY"),
         ("google",     "GOOGLE_API_KEY"),
         ("azure",      "AZURE_OPENAI_API_KEY"),
         ("xai",        "XAI_API_KEY"),

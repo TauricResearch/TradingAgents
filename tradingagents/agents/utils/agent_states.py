@@ -1,7 +1,20 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from langgraph.graph import MessagesState
 from typing_extensions import TypedDict
+
+def merge_observation_commits(
+    left: dict[str, dict[str, Any]] | None,
+    right: dict[str, dict[str, Any]] | None,
+) -> dict[str, dict[str, Any]]:
+    """Preserve distinct task commit tokens across parallel graph writes."""
+    merged = dict(left or {})
+    for graph_task_id, commit in (right or {}).items():
+        existing = merged.get(graph_task_id)
+        if existing is not None and existing != commit:
+            raise ValueError(f"conflicting observation commit for task {graph_task_id}")
+        merged[graph_task_id] = commit
+    return merged
 
 
 # Researcher team state
@@ -45,6 +58,10 @@ class RiskDebateState(TypedDict):
 
 
 class AgentState(MessagesState):
+    _observation_commits: Annotated[
+        dict[str, dict[str, Any]],
+        merge_observation_commits,
+    ]
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     instrument_context: Annotated[str, "Deterministic ticker identity resolved at run start"]
     trade_date: Annotated[str, "What date we are trading at"]

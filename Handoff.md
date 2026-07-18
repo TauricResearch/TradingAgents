@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phase A is implemented. Story A1 protects programmatic execution, report publication, legacy root CLI dispatch, explicit `analyze` dispatch, checkpoint/config routing, and configured output choices. Story A2 adds the `[web]` dependency floor plus a hard runtime preflight that proves the real installed LangGraph/SQLite task, checkpoint, durability, ID, step, and pending-write capabilities. Story A3 defines the versioned event envelope, required relationship identifiers, exact 13-role registry, shared request/result/cancellation types, and strict run/role/turn/model/tool/vendor lifecycle state machines. Phase B begins with redaction and canonical hashing.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phase A is implemented. Story B1 is also implemented: one exact credential-key registry now drives recursive persistence redaction and fingerprint credential removal; canonical values use RFC 8785 with frozen message/tool/special-value vectors; `BusinessStateProjectionV1` derives the complete inherited `AgentState` field set; `_observation_commits` has an idempotent map reducer; and business hashes/pending-write checks exclude the reserved token plus every undeclared LangGraph control channel. Phase B continues with durable run storage.
 
 ## Confirmed constraints
 
@@ -62,8 +62,10 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - Typer's prior single-command collapse made `tradingagents [OPTIONS]` work while README-documented `tradingagents analyze [OPTIONS]` failed. The callback/group boundary now supports both, so adding `web` will not silently break the legacy root invocation.
 - Configured selections previously omitted `asset_type` and used only A-share ticker normalization. They now use the canonical CLI normalizer and explicitly classify stock versus crypto.
 - The installed graph runtime is exactly at the approved floors: LangGraph 1.1.10, langgraph-checkpoint 4.0.3, and langgraph-checkpoint-sqlite 3.0.3. The temporary SQLite capability probe passes all required checks.
-- FastAPI and RFC 8785 are not installed in the authoritative Python environment yet. This is now reported as an actionable preflight failure rather than a late import error; install the `[web]` extra before the API/server phase.
+- The approved `[web]` extra is installed in the authoritative environment. Full preflight currently passes with FastAPI 0.139.2, Uvicorn 0.51.0, RFC 8785 0.1.4, and the exact approved LangGraph floors.
 - Phase A focused web-contract tests passed with 36 tests. The complete repository suite then passed with 737 tests and 68 subtests; 18 existing model-catalog warnings remain.
+- B1 focused redaction, canonicalization, provider-registry, checkpoint, and analyst-graph tests pass with 57 tests. The preflight suite still passes after installing the complete web extra.
+- `mimo` was selectable but absent from the canonical provider credential registry; it now resolves to `MIMO_API_KEY`, matching the existing provider client and local config behavior.
 
 ## Pending decisions
 
@@ -71,8 +73,8 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Implement Story B1 recursive credential redaction and canonical business hashing.
-2. Implement Story B2 append-only run storage and content-addressed artifacts.
+1. Implement Story B2 append-only run storage and content-addressed artifacts.
+2. Implement Story B3 immutable partial report revisions and atomic final report publication.
 3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes
