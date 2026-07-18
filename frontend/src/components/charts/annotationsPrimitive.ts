@@ -61,6 +61,10 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
   // or a last-bar decision would otherwise collapse to zero width
   // (invisible + unclickable). Wide enough to see and to hit-test reliably.
   private static readonly MIN_PROJECTION_PX = 12;
+  // min center-to-center spacing between drawn badges: a dense hourly
+  // cluster thins to a few spaced badges (the mockup look) instead of an
+  // unreadable pile. Skipped badges stay click-explainable.
+  private static readonly BADGE_GAP_PX = 22;
   // fallbacks only — PriceChart pushes theme tokens before first draw
   private colors: AnnotationColors = {
     bull: "#16824a",
@@ -180,7 +184,13 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
   ): void {
     if (!this.visible || !this.series || this.annotations.length === 0) return;
     ctx.save();
-    for (const a of this.annotations) {
+    // newest first so a dense intraday cluster keeps its most recent badges;
+    // an older badge that would overlap one already drawn is skipped (still
+    // click-explainable via entry-bar vicinity) — this is what keeps the
+    // layer as sparse and clean as the mockup on hourly data.
+    const drawn: { x: number; y: number }[] = [];
+    for (let k = this.annotations.length - 1; k >= 0; k--) {
+      const a = this.annotations[k]!;
       const x = this.xOf(a.time);
       if (x == null) continue;
       // executed plans: dashed entry-level projection + badge on the entry.
@@ -191,6 +201,11 @@ export class AnnotationsPrimitive implements ISeriesPrimitive<Time> {
       if (price == null) continue;
       const y = this.series.priceToCoordinate(price);
       if (y == null) continue;
+      const gap = AnnotationsPrimitive.BADGE_GAP_PX;
+      if (drawn.some((d) => Math.abs(d.x - x) < gap && Math.abs(d.y - y) < gap)) {
+        continue;
+      }
+      drawn.push({ x, y });
       const rejected = a.geometry == null;
       const color = rejected
         ? this.colors.neutral
