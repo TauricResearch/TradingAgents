@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phase A is implemented. Story B1 is also implemented: one exact credential-key registry now drives recursive persistence redaction and fingerprint credential removal; canonical values use RFC 8785 with frozen message/tool/special-value vectors; `BusinessStateProjectionV1` derives the complete inherited `AgentState` field set; `_observation_commits` has an idempotent map reducer; and business hashes/pending-write checks exclude the reserved token plus every undeclared LangGraph control channel. Phase B continues with durable run storage.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phase A and Stories B1–B2 are implemented. The new `RunStore` creates ticker-independent safe run directories, writes redacted atomic snapshots, appends and fsyncs strictly sequenced events before returning them, allocates sequences under per-run locks, rebuilds history after restart, rejects traversal, and stores deduplicated content-addressed artifacts. Phase B continues with immutable partial reports and atomic canonical final reports.
 
 ## Confirmed constraints
 
@@ -66,6 +66,7 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - Phase A focused web-contract tests passed with 36 tests. The complete repository suite then passed with 737 tests and 68 subtests; 18 existing model-catalog warnings remain.
 - B1 focused redaction, canonicalization, provider-registry, checkpoint, and analyst-graph tests pass with 57 tests. The preflight suite still passes after installing the complete web extra.
 - `mimo` was selectable but absent from the canonical provider credential registry; it now resolves to `MIMO_API_KEY`, matching the existing provider client and local config behavior.
+- B2 RunStore/event/artifact coverage passes together with the event/redaction/canonical contracts: 44 focused tests.
 
 ## Pending decisions
 
@@ -73,8 +74,8 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Implement Story B2 append-only run storage and content-addressed artifacts.
-2. Implement Story B3 immutable partial report revisions and atomic final report publication.
+1. Implement Story B3 immutable partial report revisions and atomic final report publication.
+2. Begin Story C1 observation context and callback capture.
 3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes
