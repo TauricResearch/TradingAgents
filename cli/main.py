@@ -32,6 +32,7 @@ from cli.utils import (
     confirm_ollama_endpoint,
     detect_asset_type,
     ensure_api_key,
+    ensure_openai_codex_auth,
     get_ticker,
     prompt_openai_compatible_url,
     resolve_backend_url,
@@ -635,6 +636,7 @@ def get_user_selections():
         console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
         # Still confirm/persist the API key so the run doesn't fail later.
         ensure_api_key(selected_llm_provider)
+        ensure_openai_codex_auth(selected_llm_provider)
     else:
         console.print(
             create_question_box(
@@ -673,6 +675,7 @@ def get_user_selections():
         # one and persist it to .env if it's missing, so the analysis run
         # doesn't fail later at the first API call.
         ensure_api_key(selected_llm_provider)
+        ensure_openai_codex_auth(selected_llm_provider)
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
     if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
@@ -711,7 +714,7 @@ def get_user_selections():
             "Gemini thinking mode", "Step 8: Thinking Mode",
             "Configure Gemini thinking mode", ask_gemini_thinking_config,
         )
-    elif provider_lower == "openai":
+    elif provider_lower in ("openai", "openai_codex", "chatgpt_codex"):
         reasoning_effort = thinking_value_or_prompt(
             "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
             "Reasoning effort", "Step 8: Reasoning Effort",

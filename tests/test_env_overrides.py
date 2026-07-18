@@ -72,11 +72,11 @@ def test_reasoning_thinking_overrides(monkeypatch):
     """The provider reasoning/thinking knobs are env-configurable (non-interactive runs)."""
     dc = _reload_with_env(
         monkeypatch,
-        TRADINGAGENTS_OPENAI_REASONING_EFFORT="high",
+        TRADINGAGENTS_OPENAI_REASONING_EFFORT="xhigh",
         TRADINGAGENTS_GOOGLE_THINKING_LEVEL="minimal",
         TRADINGAGENTS_ANTHROPIC_EFFORT="low",
     )
-    assert dc.DEFAULT_CONFIG["openai_reasoning_effort"] == "high"
+    assert dc.DEFAULT_CONFIG["openai_reasoning_effort"] == "xhigh"
     assert dc.DEFAULT_CONFIG["google_thinking_level"] == "minimal"
     assert dc.DEFAULT_CONFIG["anthropic_effort"] == "low"
 

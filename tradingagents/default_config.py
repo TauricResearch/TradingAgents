@@ -89,7 +89,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "backend_url": None,
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
-    "openai_reasoning_effort": None,    # "medium", "high", "low"
+    "openai_reasoning_effort": None,    # "xhigh", "high", "medium", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
     # Sampling temperature, forwarded to every provider when set. None leaves
     # each provider at its own default. Lower values reduce run-to-run

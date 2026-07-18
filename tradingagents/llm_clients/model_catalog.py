@@ -92,6 +92,22 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.5 Pro - Most capable, expensive ($30/$180 per 1M tokens)", "gpt-5.5-pro"),
         ],
     },
+    "openai_codex": {
+        "quick": [
+            ("GPT-5.3 Codex Spark - Fast ChatGPT/Codex subscription model", "gpt-5.3-codex-spark"),
+            ("GPT-5.1 Codex mini - Lightweight ChatGPT/Codex model", "gpt-5.1-codex-mini"),
+            ("GPT-5.4 Mini - General GPT model via ChatGPT/Codex auth", "gpt-5.4-mini"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("GPT-5.3 Codex - Strong ChatGPT/Codex subscription model", "gpt-5.3-codex"),
+            ("GPT-5.2 Codex - Previous Codex reasoning model", "gpt-5.2-codex"),
+            ("GPT-5.1 Codex Max - Higher-capacity Codex model", "gpt-5.1-codex-max"),
+            ("GPT-5.5 - General GPT model via ChatGPT/Codex auth", "gpt-5.5"),
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "chatgpt_codex": _CUSTOM_ONLY,
     "anthropic": {
         "quick": [
             ("Claude Sonnet 5 - Best speed and intelligence balance", "claude-sonnet-5"),

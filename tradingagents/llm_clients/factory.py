@@ -47,6 +47,10 @@ def create_llm_client(
         from .bedrock_client import BedrockClient
         return BedrockClient(model, base_url, **kwargs)
 
+    if provider_lower in ("openai_codex", "chatgpt_codex"):
+        from .codex_client import OpenAICodexClient
+        return OpenAICodexClient(model, base_url, **kwargs)
+
     from .openai_client import OpenAIClient, is_openai_compatible
     if is_openai_compatible(provider_lower):
         return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)

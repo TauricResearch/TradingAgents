@@ -207,6 +207,7 @@ _OPENROUTER_MAINSTREAM = {
     "openai", "anthropic", "google", "deepseek", "qwen", "mistralai",
     "meta-llama", "x-ai", "z-ai", "minimax", "moonshotai",
 }
+_CODEX_MODEL_OPTIONS_CACHE: list[tuple[str, str]] | None = None
 
 
 def _fetch_openrouter_models() -> list[tuple[str, str]]:
@@ -284,6 +285,150 @@ def select_openrouter_model(mode: str) -> str:
     return choice
 
 
+def _is_openai_codex_provider(provider: str) -> bool:
+    return provider.lower() in ("openai_codex", "chatgpt_codex")
+
+
+def _codex_include_hidden_models() -> bool:
+    return os.environ.get("TRADINGAGENTS_CODEX_INCLUDE_HIDDEN_MODELS", "").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def ensure_openai_codex_auth(provider: str) -> None:
+    """Ensure ChatGPT OAuth is ready for the OpenAI Codex provider."""
+    if not _is_openai_codex_provider(provider):
+        return
+
+    from tradingagents.llm_clients.codex_oauth import (
+        CodexOAuthMissingTokenError,
+        CodexOAuthUnavailableError,
+        get_chatgpt_oauth_status,
+        login_chatgpt_oauth,
+    )
+
+    try:
+        status = get_chatgpt_oauth_status()
+        plan = f" ({status.plan_type})" if status.plan_type else ""
+        console.print(f"[green]✓ ChatGPT sign-in ready[/green]{plan}")
+        return
+    except CodexOAuthMissingTokenError:
+        pass
+    except CodexOAuthUnavailableError as exc:
+        console.print(f"\n[red]{exc}[/red]")
+        console.print(
+            "[yellow]Install/upgrade with: pip install -U "
+            "'langchain-openai>=1.3.3' 'langchain-core>=1.4.7' "
+            "'openai>=2.26.0'[/yellow]"
+        )
+        exit(1)
+    except Exception as exc:
+        console.print(f"\n[yellow]Could not refresh ChatGPT sign-in: {exc}[/yellow]")
+
+    console.print(
+        "\n[yellow]ChatGPT sign-in is required for the OpenAI Codex provider.[/yellow]"
+    )
+    choice = questionary.select(
+        "Sign in with ChatGPT now:",
+        choices=[
+            questionary.Choice("Browser sign-in (recommended)", "browser"),
+            questionary.Choice("Device code sign-in", "device"),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+    if choice is None:
+        console.print("\n[red]ChatGPT sign-in cancelled. Exiting...[/red]")
+        exit(1)
+
+    try:
+        status = login_chatgpt_oauth(device_code=(choice == "device"))
+    except Exception as exc:
+        console.print(f"\n[red]ChatGPT sign-in failed: {exc}[/red]")
+        exit(1)
+
+    plan = f" ({status.plan_type})" if status.plan_type else ""
+    console.print(f"[green]✓ ChatGPT sign-in complete[/green]{plan}")
+
+
+def _fetch_codex_model_options() -> list[tuple[str, str]]:
+    """Fetch model labels/ids from Codex app-server, falling back on failure."""
+    global _CODEX_MODEL_OPTIONS_CACHE
+    if _CODEX_MODEL_OPTIONS_CACHE is not None:
+        return _CODEX_MODEL_OPTIONS_CACHE
+
+    from tradingagents.llm_clients.codex_app_server import list_codex_app_server_models
+
+    timeout = float(os.environ.get("TRADINGAGENTS_CODEX_MODEL_LIST_TIMEOUT", "8"))
+    models = list_codex_app_server_models(
+        include_hidden=_codex_include_hidden_models(),
+        timeout=timeout,
+    )
+    include_hidden = _codex_include_hidden_models()
+    visible = [model for model in models if include_hidden or not model.hidden]
+    options: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for model in visible:
+        if model.model in seen:
+            continue
+        seen.add(model.model)
+        suffixes = []
+        if model.is_default:
+            suffixes.append("default")
+        if model.default_reasoning_effort:
+            suffixes.append(f"effort: {model.default_reasoning_effort}")
+        suffix = f" ({', '.join(suffixes)})" if suffixes else ""
+        label = model.display_name
+        if model.model != model.display_name:
+            label = f"{label} [{model.model}]"
+        options.append((f"{label}{suffix}", model.model))
+    _CODEX_MODEL_OPTIONS_CACHE = options
+    return options
+
+
+def select_openai_codex_model(mode: str) -> str:
+    """Select a ChatGPT/Codex model, preferring live app-server catalog data."""
+    try:
+        options = _fetch_codex_model_options()
+    except Exception as exc:
+        console.print(
+            "\n[yellow]Could not fetch Codex model list from app-server; "
+            f"using bundled fallback list. Details: {exc}[/yellow]"
+        )
+        options = get_model_options("openai_codex", mode)
+
+    if not options:
+        options = get_model_options("openai_codex", mode)
+
+    choices = [questionary.Choice(display, value=value) for display, value in options]
+    if "custom" not in {value for _, value in options}:
+        choices.append(questionary.Choice("Custom model ID", value="custom"))
+
+    choice = questionary.select(
+        f"Select Your [{mode.title()}-Thinking] OpenAI Codex Model:",
+        choices=choices,
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:magenta noinherit"),
+            ("highlighted", "fg:magenta noinherit"),
+            ("pointer", "fg:magenta noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None:
+        console.print(f"\n[red]No {mode} thinking llm engine selected. Exiting...[/red]")
+        exit(1)
+    if choice == "custom":
+        return _prompt_custom_model_id()
+    return choice
+
+
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
     return _require_text("Enter model ID:", "Please enter a model ID.")
@@ -291,6 +436,9 @@ def _prompt_custom_model_id() -> str:
 
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
+    if _is_openai_codex_provider(provider):
+        return select_openai_codex_model(mode)
+
     if provider.lower() == "openrouter":
         return select_openrouter_model(mode)
 
@@ -335,6 +483,7 @@ def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
     return _select_model(provider, "deep")
 
+
 def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     """(display_name, provider_key, base_url) for every supported provider.
 
@@ -347,6 +496,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
     return [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
+        ("OpenAI Codex (ChatGPT sign-in, experimental)", "openai_codex", None),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("xAI", "xai", "https://api.x.ai/v1"),
@@ -435,6 +585,7 @@ def ask_openai_reasoning_effort() -> str:
     choices = [
         questionary.Choice("Medium (Default)", "medium"),
         questionary.Choice("High (More thorough)", "high"),
+        questionary.Choice("XHigh (Maximum reasoning, slower)", "xhigh"),
         questionary.Choice("Low (Faster)", "low"),
     ]
     return questionary.select(

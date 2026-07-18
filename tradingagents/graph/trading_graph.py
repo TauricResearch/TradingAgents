@@ -160,7 +160,7 @@ class TradingAgentsGraph:
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
 
-        elif provider == "openai":
+        elif provider in ("openai", "openai_codex", "chatgpt_codex"):
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort

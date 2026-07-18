@@ -16,6 +16,11 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "anthropic":  "ANTHROPIC_API_KEY",
     "google":     "GOOGLE_API_KEY",
     "azure":      "AZURE_OPENAI_API_KEY",
+    # ChatGPT OAuth via LangChain's experimental Codex client. Authentication
+    # lives in ~/.langchain/chatgpt-auth.json after login_chatgpt(), not in an
+    # OpenAI Platform API key.
+    "openai_codex": None,
+    "chatgpt_codex": None,
     # Bedrock authenticates via the AWS credential chain, not a single key env.
     "bedrock":    None,
     "xai":        "XAI_API_KEY",

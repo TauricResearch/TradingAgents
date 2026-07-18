@@ -19,15 +19,29 @@ so that:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, WithJsonSchema, field_validator
 
 # LLMs sometimes write a placeholder string ("None", "N/A", ...) into an optional
 # numeric field instead of omitting it. Coerce those to None so the structured
 # call validates instead of erroring (#1058). Pydantic still parses real numeric
 # strings ("189.5") to float.
 _NULLISH_FLOAT = {"", "none", "n/a", "na", "null", "nil", "-", "tbd", "unknown"}
+
+def _inline_enum(enum_cls: type[Enum]) -> WithJsonSchema:
+    """Inline an enum into the property schema instead of a $defs $ref.
+
+    OpenAI's structured-output validator rejects a $ref with sibling
+    keywords, and every enum field here carries a description, so the
+    default pydantic $ref schema 400s and silently degrades the call to
+    free text. Inlining keeps the description AND the closed value set.
+    """
+    return WithJsonSchema(
+        {"type": "string", "enum": [member.value for member in enum_cls]}
+    )
+
+
 
 
 def _coerce_optional_float(value):
@@ -79,7 +93,7 @@ class ResearchPlan(BaseModel):
     instructions the trader can execute against.
     """
 
-    recommendation: PortfolioRating = Field(
+    recommendation: Annotated[PortfolioRating, _inline_enum(PortfolioRating)] = Field(
         description=(
             "The investment recommendation. Exactly one of Buy / Overweight / "
             "Hold / Underweight / Sell. Reserve Hold for situations where the "
@@ -127,7 +141,7 @@ class TraderProposal(BaseModel):
     entry, stop-loss, and sizing.
     """
 
-    action: TraderAction = Field(
+    action: Annotated[TraderAction, _inline_enum(TraderAction)] = Field(
         description="The transaction direction. Exactly one of Buy / Hold / Sell.",
     )
     reasoning: str = Field(
@@ -194,7 +208,7 @@ class PortfolioDecision(BaseModel):
     the rating-scale guidance.
     """
 
-    rating: PortfolioRating = Field(
+    rating: Annotated[PortfolioRating, _inline_enum(PortfolioRating)] = Field(
         description=(
             "The final position rating. Exactly one of Buy / Overweight / Hold / "
             "Underweight / Sell, picked based on the analysts' debate."
@@ -281,7 +295,7 @@ class SentimentReport(BaseModel):
     deterministic header so the saved report stays human-readable.
     """
 
-    overall_band: SentimentBand = Field(
+    overall_band: Annotated[SentimentBand, _inline_enum(SentimentBand)] = Field(
         description=(
             "Overall sentiment direction. Exactly one of: "
             "Bullish / Mildly Bullish / Neutral / Mixed / Mildly Bearish / Bearish. "
