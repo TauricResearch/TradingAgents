@@ -120,6 +120,7 @@ export function PriceChart({
   legend = false,
   onLoadOlder,
   showAnnotations = true,
+  showPlan = true,
   onContextMenu,
 }: {
   bars: Bar[];
@@ -162,6 +163,8 @@ export function PriceChart({
   onLoadOlder?: () => void;
   /** show/hide the AI decision layer (zones + ribbon + markers) */
   showAnnotations?: boolean;
+  /** show/hide the AI's active plan lines (recommendation + position) */
+  showPlan?: boolean;
   /** right-click on the price pane → menu payload (PC.2) */
   onContextMenu?: (p: {
     x: number;
@@ -457,13 +460,13 @@ export function PriceChart({
     };
   }, [bars, style, indicators, showVolume, drawingsSymbol, theme, height, chartRef, containerRef]);
 
-  // recommendation levels as price lines
+  // recommendation levels as price lines (the AI's active plan)
   useEffect(() => {
     const series = seriesRef.current;
     if (!series) return;
     const colors = chartColors();
     const lines: ReturnType<typeof series.createPriceLine>[] = [];
-    if (recommendation && !recommendation.status && recommendation.entry_price) {
+    if (showPlan && recommendation && !recommendation.status && recommendation.entry_price) {
       lines.push(
         series.createPriceLine({
           price: recommendation.entry_price,
@@ -505,7 +508,7 @@ export function PriceChart({
       if (seriesRef.current !== series) return;
       lines.forEach((line) => series.removePriceLine(line));
     };
-  }, [recommendation, bars, style, indicators, showVolume]);
+  }, [recommendation, showPlan, bars, style, indicators, showVolume]);
 
   // annotation times snapped to this chart's exact bar times (LWC v5:
   // any other time renders nothing). Off-range annotations drop out and
@@ -688,7 +691,7 @@ export function PriceChart({
   // the P&L number itself renders in the workspace badge, not here)
   useEffect(() => {
     const series = seriesRef.current;
-    if (!series || !openPosition?.entry_price) return;
+    if (!series || !showPlan || !openPosition?.entry_price) return;
     // guard against a stale/mismatched position price (e.g. an old trade on
     // a different price scale) dragging LWC's autoscale off the bars and
     // making the chart unusable — a real open position sits near price.
@@ -726,7 +729,7 @@ export function PriceChart({
       if (seriesRef.current !== series) return;
       lines.forEach((l) => series.removePriceLine(l));
     };
-  }, [openPosition, bars, style, indicators, showVolume]);
+  }, [openPosition, showPlan, bars, style, indicators, showVolume]);
 
   // push the server-computed profile + theme colors into its primitive
   useEffect(() => {

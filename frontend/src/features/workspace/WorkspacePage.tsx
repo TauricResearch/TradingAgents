@@ -156,6 +156,7 @@ export default function WorkspacePage() {
   const [toolMode, setToolMode] = useState<ToolMode>("select");
   const [magnet, setMagnet] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(true);
+  const [showPlan, setShowPlan] = useState(true);
   const chartCardRef = useRef<HTMLDivElement | null>(null);
   const symbolDrawings = useDrawingsStore(
     // stable empty constant: `?? []` mints a fresh array per call, which
@@ -517,12 +518,32 @@ export default function WorkspacePage() {
               <Button
                 size="sm"
                 variant="outline"
-                aria-label="Toggle AI decision layer"
+                aria-label="Toggle the AI's active plan (entry / stop / targets)"
+                aria-pressed={showPlan}
+                className={showPlan ? "text-accent" : "text-fg-subtle"}
+                onClick={() => setShowPlan((v) => !v)}
+              >
+                AI Plan
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label="Toggle AI decision history"
                 aria-pressed={showAnnotations}
                 className={showAnnotations ? "text-accent" : "text-fg-subtle"}
                 onClick={() => setShowAnnotations((v) => !v)}
               >
-                AI
+                AI History
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label="Toggle volume profile"
+                aria-pressed={showProfile}
+                className={showProfile ? "text-accent" : "text-fg-subtle"}
+                onClick={toggleProfile}
+              >
+                Profile
               </Button>
               <Button
                 size="sm"
@@ -635,6 +656,7 @@ export default function WorkspacePage() {
                       legend
                       onLoadOlder={replay.active ? undefined : loadOlder}
                       showAnnotations={showAnnotations}
+                      showPlan={showPlan}
                       onContextMenu={(p) => setCtxMenu(p)}
                     />
                     {openPosition?.unrealized_pnl != null && (
