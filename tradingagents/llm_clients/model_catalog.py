@@ -153,7 +153,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # so the two provider keys share one model list.
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
-    # OpenRouter: fetched dynamically. Azure: any deployed model name.
+    # OpenRouter and Requesty: fetched dynamically. Azure: any deployed model name.
     # Ollama display labels intentionally omit a "local" marker — the
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
     # apply whether the user runs ollama-serve on localhost or against a

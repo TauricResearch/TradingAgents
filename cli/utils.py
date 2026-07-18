@@ -289,10 +289,91 @@ def _prompt_custom_model_id() -> str:
     return _require_text("Enter model ID:", "Please enter a model ID.")
 
 
+# Mainstream Requesty chat-LLM provider namespaces, mirroring the OpenRouter
+# shortlist above. Requesty exposes the same provider/model naming scheme, so
+# the newest models from these general-purpose namespaces are surfaced ahead of
+# niche/experimental ones. Anything not here is still reachable via Custom ID.
+_REQUESTY_MAINSTREAM = {
+    "openai", "anthropic", "google", "deepseek", "xai",
+    "mistral", "groq", "nebius", "novita", "coding",
+}
+
+
+def _fetch_requesty_models() -> list[tuple[str, str]]:
+    """Fetch available models from the Requesty router.
+
+    Requesty's /v1/models is an authenticated OpenAI-shaped listing; it returns
+    no per-model ``name``, so the id doubles as the label. When REQUESTY_API_KEY
+    is unset the endpoint 401s, which is caught and reported like OpenRouter's
+    fetch so the user can still fall back to Custom model ID.
+    """
+    import requests
+    headers = {}
+    key = os.environ.get("REQUESTY_API_KEY")
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    try:
+        resp = requests.get(
+            "https://router.requesty.ai/v1/models", headers=headers, timeout=10
+        )
+        resp.raise_for_status()
+        models = resp.json().get("data", [])
+        # Newest first so the top-N shown really is the latest available, sorting
+        # explicitly so the prompt's "latest available" label holds regardless of
+        # response ordering (mirrors the OpenRouter fetch).
+        models.sort(key=lambda m: m.get("created") or 0, reverse=True)
+        return [(m.get("name") or m["id"], m["id"]) for m in models]
+    except Exception as e:
+        console.print(f"\n[yellow]Could not fetch Requesty models: {e}[/yellow]")
+        return []
+
+
+def select_requesty_model(mode: str) -> str:
+    """Select a Requesty model from the newest available, or enter a custom ID.
+
+    Mirrors ``select_openrouter_model``: ``mode`` ("quick"/"deep") labels the
+    prompt so the two consecutive selections are distinguishable, and the
+    shortlist prefers mainstream namespaces before falling back to all.
+    """
+    models = _fetch_requesty_models()  # newest first
+    mainstream = [
+        (name, mid) for name, mid in models
+        if mid.split("/", 1)[0] in _REQUESTY_MAINSTREAM
+    ]
+    top = (mainstream or models)[:5]
+
+    choices = [questionary.Choice(name, value=mid) for name, mid in top]
+    choices.append(questionary.Choice("Custom model ID", value="custom"))
+
+    choice = questionary.select(
+        f"Select Your [{mode.title()}-Thinking] Requesty Model (latest available):",
+        choices=choices,
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:magenta noinherit"),
+            ("highlighted", "fg:magenta noinherit"),
+            ("pointer", "fg:magenta noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No model selected. Exiting...[/red]")
+        exit(1)
+    if choice == "custom":
+        return _require_text(
+            "Enter Requesty model ID (e.g. openai/gpt-4o-mini):",
+            "Please enter a model ID.",
+        )
+    return choice
+
+
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
     if provider.lower() == "openrouter":
         return select_openrouter_model(mode)
+
+    if provider.lower() == "requesty":
+        return select_requesty_model(mode)
 
     if provider.lower() == "azure":
         return _require_text(
@@ -355,6 +436,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
+        ("Requesty", "requesty", "https://router.requesty.ai/v1"),
         ("Mistral", "mistral", "https://api.mistral.ai/v1"),
         ("Kimi (Moonshot)", "kimi", "https://api.moonshot.ai/v1"),
         ("Groq", "groq", "https://api.groq.com/openai/v1"),

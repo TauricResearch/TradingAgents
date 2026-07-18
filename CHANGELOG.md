@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Requesty provider.** An OpenAI-compatible LLM router registered on the
+  provider registry with a fixed base URL (`https://router.requesty.ai/v1`) and
+  `REQUESTY_API_KEY`, plus a CLI menu entry and dynamic newest-first model
+  selection. Mirrors the existing OpenRouter provider.
+
 ## [0.3.1] — 2026-07-05
 
 Correctness and stability patch: data look-ahead, graph-router crash-safety,
