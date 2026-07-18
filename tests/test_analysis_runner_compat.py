@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tradingagents.execution.models import AnalysisResult
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-
 
 pytestmark = pytest.mark.unit
 
@@ -93,43 +93,27 @@ def test_run_graph_re_raises_original_failure_before_completion_side_effects():
 
 
 @pytest.mark.parametrize("fails", [False, True])
-def test_propagate_always_closes_checkpoint_context_and_restores_plain_graph(fails):
-    graph = _bare_graph(checkpoint_enabled=True)
-    saver = object()
-    compiled_with_saver = object()
-    restored_graph = object()
-    graph.workflow.compile.side_effect = [compiled_with_saver, restored_graph]
-    context = MagicMock()
-    context.__enter__.return_value = saver
-    legacy_result = ({"final_trade_decision": "Rating: Hold"}, "HOLD")
+def test_propagate_is_thin_tuple_adapter_and_preserves_runner_failure(fails):
+    graph = _bare_graph()
+    final_state = {"final_trade_decision": "Rating: Hold"}
     original = RuntimeError("graph failed")
-    graph._run_graph = MagicMock(side_effect=original if fails else None)
-    if not fails:
-        graph._run_graph.return_value = legacy_result
+    graph.run_analysis = MagicMock(
+        side_effect=original if fails else None,
+        return_value=None if fails else AnalysisResult(final_state, "HOLD"),
+    )
 
-    with (
-        patch(
-            "tradingagents.graph.trading_graph.get_checkpointer",
-            return_value=context,
-        ),
-        patch(
-            "tradingagents.graph.trading_graph.checkpoint_step",
-            return_value=None,
-        ),
-    ):
-        if fails:
-            with pytest.raises(RuntimeError, match="graph failed") as exc_info:
-                TradingAgentsGraph.propagate(graph, "AAPL", "2026-07-17")
-            assert exc_info.value is original
-        else:
-            result = TradingAgentsGraph.propagate(graph, "AAPL", "2026-07-17")
-            assert result is legacy_result
+    if fails:
+        with pytest.raises(RuntimeError, match="graph failed") as exc_info:
+            TradingAgentsGraph.propagate(graph, "AAPL", "2026-07-17")
+        assert exc_info.value is original
+    else:
+        result = TradingAgentsGraph.propagate(graph, "AAPL", "2026-07-17")
+        assert result == (final_state, "HOLD")
 
-    assert graph.ticker == "AAPL"
-    graph._resolve_pending_entries.assert_called_once_with("AAPL")
-    assert context.__exit__.call_count == 1
-    assert graph._checkpointer_ctx is None
-    assert graph.graph is restored_graph
+    request = graph.run_analysis.call_args.args[0]
+    assert request.ticker == "AAPL"
+    assert request.analysis_date == "2026-07-17"
+    assert request.selected_analysts == ("market",)
 
 
 def test_success_clears_checkpoint_after_state_and_memory_are_persisted():
@@ -137,10 +121,19 @@ def test_success_clears_checkpoint_after_state_and_memory_are_persisted():
     graph.memory_log.get_past_context.return_value = ""
     graph.propagator.create_initial_state.return_value = {"input": True}
     graph.propagator.get_graph_args.return_value = {}
-    graph.graph.invoke.return_value = {"final_trade_decision": "Rating: Hold"}
+    compiled = MagicMock()
+    restored = MagicMock()
+    graph.workflow.compile.side_effect = [compiled, restored]
+    compiled.invoke.return_value = {"final_trade_decision": "Rating: Hold"}
     graph.signal_processor.process_signal.return_value = "HOLD"
+    context = MagicMock()
+    context.__enter__.return_value = object()
 
-    with patch("tradingagents.graph.trading_graph.clear_checkpoint") as clear:
+    with (
+        patch("tradingagents.execution.runner.get_checkpointer", return_value=context),
+        patch("tradingagents.execution.runner.checkpoint_step", return_value=None),
+        patch("tradingagents.execution.runner.clear_checkpoint") as clear,
+    ):
         TradingAgentsGraph._run_graph(graph, "AAPL", "2026-07-17")
 
     graph._log_state.assert_called_once()

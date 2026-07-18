@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A, B, and C are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Observation separates stable logical turns from concrete LangGraph task invocations, durably correlates prompts, model attempts, logical tool requests, tool executions, retries, failures, and direct-call scopes, and rebuilds only committed or pending-apply tool requests after restart. All 13 roles now have exact code-audited state projections, Evidence Steward configuration drift protection, and observed role/tool/maintenance/input tasks that return checkpoint commit tokens. Vendor attempts now preserve raw provider values where an adapter exposes them, keep adapter output distinct from normalized Agent input, record fallback lineage, and isolate news caching by analysis run. Phase D shared execution is next.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A, B, and C plus Story D1 are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Observation separates stable logical turns from concrete LangGraph task invocations, durably correlates prompts, model attempts, logical tool requests, tool executions, retries, failures, and direct-call scopes, and rebuilds only committed or pending-apply tool requests after restart. All 13 roles now have exact code-audited state projections, Evidence Steward configuration drift protection, and observed role/tool/maintenance/input tasks that return checkpoint commit tokens. Vendor attempts preserve raw provider values where an adapter exposes them, keep adapter output distinct from normalized Agent input, record fallback lineage, and isolate news caching by analysis run. CLI, web, and programmatic execution now converge on one successful-result-only `AnalysisRunner`; Story D2 resume fingerprinting is next.
 
 ## Confirmed constraints
 
@@ -82,6 +82,10 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - Sentiment's direct news, StockTwits, and Reddit prefetches, plus Evidence Advisor, consistency clustering, and Tavily enrichment, now inherit the active observer. Dynamically created Evidence LLMs receive the same callback, so these calls remain attached to the correct role turn and graph task.
 - News caching now requires an explicit run-owned scope, is destroyed on scope exit, cannot leak across runs, and treats provenance-free entries as misses in observed execution. Cache-hit events reference the original ordered vendor attempts and artifacts instead of synthesizing new provider calls.
 - C3's focused verification passes with 65 tests; additional China/FRED/provider coverage passes with 41 tests; C3 Ruff checks pass. The complete repository suite after C3 passes with 821 tests and 68 subtests in 183.74 seconds; the same 18 existing model-catalog warnings remain.
+- Story D1 moves pending-memory resolution, past context and identity resolution, initial-state construction, graph invocation/streaming, state logging, decision-memory writes, checkpoint lifecycle, and signal processing behind one consumer-neutral `AnalysisRunner`. `propagate()` is now only the legacy `(final_state, final_signal)` adapter, while `run_analysis()` returns `AnalysisResult` and accepts cooperative cancellation plus an observed graph context.
+- Completion preserves the legacy order `curr_state -> state log -> decision memory -> checkpoint clear -> signal`; original provider/graph exceptions retain identity, reports remain explicit/outside the runner, and cancellation is checked only before work or after a completed graph stream boundary. Once the completion tail begins, success wins the cancellation race.
+- Checkpoint ownership is fail-safe across context enter, graph compile, checkpoint inspection, graph execution, close, and plain-graph restoration. A cleanup failure cannot mask the active analysis error, and no partially entered saver remains attached.
+- D1's focused compatibility matrix passes with 107 tests; its dedicated runner matrix covers 10 execution/cancellation/checkpoint cases. The complete repository suite after D1 passes with 831 tests and 68 subtests in 189.97 seconds; the same 18 existing model-catalog warnings remain.
 
 ## Pending decisions
 
@@ -89,9 +93,9 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Implement Phase D shared `AnalysisRunner` and durable checkpoint frontier.
-2. Implement the single-run manager, REST/SSE boundary, and restart reconciliation.
-3. Keep this file current after every implementation phase and record exact verification evidence.
+1. Implement Story D2 resume fingerprinting and full checkpoint-tuple access.
+2. Implement Story D3 durable checkpoint frontier and crash reconciliation.
+3. Implement the single-run manager, REST/SSE boundary, and restart reconciliation.
 
 ## Notes
 

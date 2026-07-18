@@ -854,15 +854,25 @@ class TestLegacyRemoval:
         mock_graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "mem.md")})
         mock_graph.log_states_dict = {}
         mock_graph.debug = False
-        mock_graph.config = {"results_dir": str(tmp_path)}
+        mock_graph.config = {
+            "results_dir": str(tmp_path),
+            "checkpoint_enabled": False,
+            "max_debate_rounds": 1,
+            "max_risk_discuss_rounds": 1,
+        }
+        mock_graph.selected_analysts = ("market",)
+        mock_graph.observation_enabled = False
         mock_graph.graph.invoke.return_value = fake_state
         mock_graph.propagator.create_initial_state.return_value = fake_state
         mock_graph.propagator.get_graph_args.return_value = {}
         mock_graph.process_signal.return_value = "Buy"
-        # Bind the real _run_graph so propagate's call to self._run_graph executes
-        # the actual write path instead of the auto-MagicMock.
-        mock_graph._run_graph = functools.partial(
-            TradingAgentsGraph._run_graph, mock_graph
+        # Bind the shared runner adapter so propagate executes the real path
+        # instead of MagicMock's auto-created run_analysis attribute.
+        mock_graph.run_analysis = functools.partial(
+            TradingAgentsGraph.run_analysis, mock_graph
+        )
+        mock_graph._analysis_request = functools.partial(
+            TradingAgentsGraph._analysis_request, mock_graph
         )
         result = TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
         assert result[0] is fake_state

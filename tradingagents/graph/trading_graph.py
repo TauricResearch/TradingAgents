@@ -30,10 +30,15 @@ from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.execution.models import (
+    AnalysisRequest,
+    AnalysisResult,
+    CancellationToken,
+)
+from tradingagents.execution.runner import AnalysisRunner
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.reporting import write_report_tree
 
-from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
 from .propagation import Propagator
 from .reflection import Reflector
@@ -70,6 +75,7 @@ class TradingAgentsGraph:
         debug=False,
         config: dict[str, Any] = None,
         callbacks: list | None = None,
+        observation_enabled: bool = False,
     ):
         """Initialize the trading agents graph and components.
 
@@ -78,10 +84,12 @@ class TradingAgentsGraph:
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
+            observation_enabled: Build graph nodes with durable observation wrappers.
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        self.observation_enabled = observation_enabled
 
         # Update the interface's config
         set_config(self.config)
@@ -145,7 +153,10 @@ class TradingAgentsGraph:
         self.selected_analysts = tuple(selected_analysts)
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts)
+        self.workflow = self.graph_setup.setup_graph(
+            selected_analysts,
+            observation_enabled=observation_enabled,
+        )
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 
@@ -371,46 +382,45 @@ class TradingAgentsGraph:
         ])
 
     def propagate(self, company_name, trade_date, asset_type: str = "stock"):
-        """Run the trading agents graph for a company on a specific date.
+        """Compatibility tuple adapter over the shared AnalysisRunner."""
+        result = self.run_analysis(
+            self._analysis_request(company_name, trade_date, asset_type),
+        )
+        return result.final_state, result.final_signal
 
-        ``asset_type`` selects between the stock pipeline (default) and the
-        crypto pipeline (``"crypto"``) shipped in #567 — the CLI auto-detects
-        from the ticker; programmatic callers pass it explicitly. When
-        ``checkpoint_enabled`` is set in config, the graph is recompiled with
-        a per-ticker SqliteSaver so a crashed run can resume from the last
-        successful node on a subsequent invocation with the same ticker+date.
-        """
-        self.ticker = company_name
+    def run_analysis(
+        self,
+        request: AnalysisRequest,
+        *,
+        cancellation_token: CancellationToken | None = None,
+        observation_context=None,
+        callbacks: list | None = None,
+    ) -> AnalysisResult:
+        """Run one analysis through the consumer-neutral execution boundary."""
+        if observation_context is not None and not self.observation_enabled:
+            raise ValueError("observation context requires an observed graph")
+        return AnalysisRunner(self).run(
+            request,
+            cancellation_token=cancellation_token,
+            observation_context=observation_context,
+            callbacks=callbacks,
+        )
 
-        # Resolve any pending memory-log entries for this ticker before the pipeline runs.
-        self._resolve_pending_entries(company_name)
-
-        # Recompile with a checkpointer if the user opted in.
-        if self.config.get("checkpoint_enabled"):
-            self._checkpointer_ctx = get_checkpointer(
-                self.config["data_cache_dir"], company_name
-            )
-            saver = self._checkpointer_ctx.__enter__()
-            self.graph = self.workflow.compile(checkpointer=saver)
-
-            step = checkpoint_step(
-                self.config["data_cache_dir"], company_name, str(trade_date),
-                self._run_signature(asset_type),
-            )
-            if step is not None:
-                logger.info(
-                    "Resuming from step %d for %s on %s", step, company_name, trade_date
-                )
-            else:
-                logger.info("Starting fresh for %s on %s", company_name, trade_date)
-
-        try:
-            return self._run_graph(company_name, trade_date, asset_type=asset_type)
-        finally:
-            if self._checkpointer_ctx is not None:
-                self._checkpointer_ctx.__exit__(None, None, None)
-                self._checkpointer_ctx = None
-                self.graph = self.workflow.compile()
+    def _analysis_request(
+        self,
+        company_name: str,
+        trade_date,
+        asset_type: str,
+    ) -> AnalysisRequest:
+        return AnalysisRequest(
+            ticker=company_name,
+            analysis_date=str(trade_date),
+            asset_type=asset_type,
+            selected_analysts=tuple(self.selected_analysts),
+            max_debate_rounds=int(self.config["max_debate_rounds"]),
+            max_risk_discuss_rounds=int(self.config["max_risk_discuss_rounds"]),
+            effective_config=dict(self.config),
+        )
 
     def save_reports(self, final_state, ticker, save_path=None) -> Path:
         """Write the markdown report tree for a completed run, like the CLI does.
@@ -428,69 +438,11 @@ class TradingAgentsGraph:
         return write_report_tree(final_state, ticker, save_path)
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
-        """Execute the graph and write the resulting state to disk and memory log."""
-        # Initialize state — inject memory log context for PM and the
-        # deterministically resolved instrument identity for all agents.
-        past_context = self.memory_log.get_past_context(company_name)
-        instrument_context = self.resolve_instrument_context(company_name, asset_type)
-        init_agent_state = self.propagator.create_initial_state(
-            company_name,
-            trade_date,
-            asset_type=asset_type,
-            past_context=past_context,
-            instrument_context=instrument_context,
+        """Backward-compatible private adapter retained for downstream callers."""
+        result = self.run_analysis(
+            self._analysis_request(company_name, trade_date, asset_type),
         )
-        args = self.propagator.get_graph_args()
-
-        # Inject thread_id so same ticker+date+graph-shape resumes; a different
-        # date or graph shape starts fresh (#1089).
-        if self.config.get("checkpoint_enabled"):
-            tid = thread_id(company_name, str(trade_date), self._run_signature(asset_type))
-            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
-
-        if self.debug:
-            trace = []
-            last_printed = None
-            for chunk in self.graph.stream(init_agent_state, **args):
-                if chunk["messages"]:
-                    msg = chunk["messages"][-1]
-                    # Nodes after the trader don't append to messages, so the
-                    # same trailing message repeats across chunks. Print it only
-                    # when it changes (#1027); the trace/state merge is unchanged.
-                    signature = (type(msg).__name__, getattr(msg, "content", None))
-                    if signature != last_printed:
-                        msg.pretty_print()
-                        last_printed = signature
-                    trace.append(chunk)
-            # Streamed chunks are per-node deltas. Merge them so the returned
-            # state matches what graph.invoke() yields in the non-debug path.
-            final_state = {}
-            for chunk in trace:
-                final_state.update(chunk)
-        else:
-            final_state = self.graph.invoke(init_agent_state, **args)
-
-        # Store current state for reflection.
-        self.curr_state = final_state
-
-        # Log state to disk.
-        self._log_state(trade_date, final_state)
-
-        # Store decision for deferred reflection on the next same-ticker run.
-        self.memory_log.store_decision(
-            ticker=company_name,
-            trade_date=trade_date,
-            final_trade_decision=final_state["final_trade_decision"],
-        )
-
-        # Clear checkpoint on successful completion to avoid stale state.
-        if self.config.get("checkpoint_enabled"):
-            clear_checkpoint(
-                self.config["data_cache_dir"], company_name, str(trade_date),
-                self._run_signature(asset_type),
-            )
-
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        return result.final_state, result.final_signal
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
