@@ -24,6 +24,9 @@ interface UiState {
   setNotificationsOpen: (open: boolean) => void;
   shortcutsOpen: boolean;
   setShortcutsOpen: (open: boolean) => void;
+  // manual sidebar collapse (icon-only) to reclaim chart width on demand
+  sidebarCollapsed: boolean;
+  toggleSidebar: () => void;
   symbol: string;
   setSymbol: (symbol: string) => void;
   timeframe: string;
@@ -72,6 +75,9 @@ export const useUiStore = create<UiState>()(
       setNotificationsOpen: (notificationsOpen) => set({ notificationsOpen }),
       shortcutsOpen: false,
       setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+      sidebarCollapsed: false,
+      toggleSidebar: () =>
+        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       symbol: "BTC-USD",
       setSymbol: (symbol) => set({ symbol }),
       timeframe: "1h",
@@ -173,6 +179,7 @@ export const useUiStore = create<UiState>()(
         indicatorTemplates: s.indicatorTemplates,
         showProfile: s.showProfile,
         gridCells: s.gridCells,
+        sidebarCollapsed: s.sidebarCollapsed,
       }),
     },
   ),
