@@ -32,7 +32,6 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
-from tradingagents.reporting import write_report_tree
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -129,6 +128,7 @@ class TradingAgentsGraph:
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
+            analyst_concurrency_limit=self.config.get("analyst_concurrency_limit", 1),
         )
 
         self.propagator = Propagator(
@@ -401,21 +401,6 @@ class TradingAgentsGraph:
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
 
-    def save_reports(self, final_state, ticker, save_path=None) -> Path:
-        """Write the markdown report tree for a completed run, like the CLI does.
-
-        Programmatic callers get the same on-disk reports the CLI produces. Pass
-        an explicit ``save_path`` or let it default under ``results_dir``.
-        """
-        if save_path is None:
-            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            save_path = (
-                Path(self.config["results_dir"])
-                / "reports"
-                / f"{safe_ticker_component(ticker)}_{stamp}"
-            )
-        return write_report_tree(final_state, ticker, save_path)
-
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
@@ -439,17 +424,11 @@ class TradingAgentsGraph:
 
         if self.debug:
             trace = []
-            last_printed = None
             for chunk in self.graph.stream(init_agent_state, **args):
-                if chunk["messages"]:
-                    msg = chunk["messages"][-1]
-                    # Nodes after the trader don't append to messages, so the
-                    # same trailing message repeats across chunks. Print it only
-                    # when it changes (#1027); the trace/state merge is unchanged.
-                    signature = (type(msg).__name__, getattr(msg, "content", None))
-                    if signature != last_printed:
-                        msg.pretty_print()
-                        last_printed = signature
+                if len(chunk["messages"]) == 0:
+                    pass
+                else:
+                    chunk["messages"][-1].pretty_print()
                     trace.append(chunk)
             # Streamed chunks are per-node deltas. Merge them so the returned
             # state matches what graph.invoke() yields in the non-debug path.
@@ -521,8 +500,72 @@ class TradingAgentsGraph:
 
         log_path = directory / f"full_states_log_{trade_date}.json"
         with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
+<<<<<<< HEAD
+            json.dump(self.log_states_dict[str(trade_date)], f, indent=4,ensure_ascii=False)
+        
+        md_path = directory / f"full_states_log_{trade_date}.md"
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(self._render_state_markdown(trade_date, final_state))
+=======
+            json.dump(self.log_states_dict[str(trade_date)], f, indent=4, ensure_ascii=False)
+>>>>>>> 4b59496595ed673734246a9d388a2090fdfb8d42
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    @staticmethod
+    def _render_state_markdown(trade_date, final_state) -> str:
+        """Render the final state into a Markdown report.
+
+        Section / subsection headers mirror the JSON field names produced by
+        ``_log_state`` so the Markdown and JSON outputs stay in lockstep.
+        """
+        invest = final_state["investment_debate_state"]
+        risk = final_state["risk_debate_state"]
+
+        def _value(v: str) -> str:
+            return v if v else "_(empty)_"
+
+        sections = [
+            "# full_states_log",
+            f"- **company_of_interest**: {final_state['company_of_interest']}",
+            f"- **trade_date**: {trade_date}",
+            "## market_report",
+            _value(final_state.get("market_report", "")),
+            "## sentiment_report",
+            _value(final_state.get("sentiment_report", "")),
+            "## news_report",
+            _value(final_state.get("news_report", "")),
+            "## fundamentals_report",
+            _value(final_state.get("fundamentals_report", "")),
+            "## investment_debate_state",
+            "### bull_history",
+            _value(invest.get("bull_history", "")),
+            "### bear_history",
+            _value(invest.get("bear_history", "")),
+            "### history",
+            _value(invest.get("history", "")),
+            "### current_response",
+            _value(invest.get("current_response", "")),
+            "### judge_decision",
+            _value(invest.get("judge_decision", "")),
+            "## trader_investment_decision",
+            _value(final_state.get("trader_investment_plan", "")),
+            "## risk_debate_state",
+            "### aggressive_history",
+            _value(risk.get("aggressive_history", "")),
+            "### conservative_history",
+            _value(risk.get("conservative_history", "")),
+            "### neutral_history",
+            _value(risk.get("neutral_history", "")),
+            "### history",
+            _value(risk.get("history", "")),
+            "### judge_decision",
+            _value(risk.get("judge_decision", "")),
+            "## investment_plan",
+            _value(final_state.get("investment_plan", "")),
+            "## final_trade_decision",
+            _value(final_state.get("final_trade_decision", "")),
+        ]
+        return "\n\n".join(sections) + "\n"
