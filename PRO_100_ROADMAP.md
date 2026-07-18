@@ -76,5 +76,20 @@ Root cause: reflection writes invalidation prose *before* the judge decides; a d
 ## Deliberately out (still)
 Manual live-order execution, simulated tick/DOM data, any faked feed, seconds timeframes without a vendor that supplies them. **User decisions locked (18 Jul): the manual paper ticket stays skipped** — the product remains a pure decision terminal (the AI trades, the human supervises); **data lanes stay free-only** — keyless Binance funding/OI ships, calendar-vendor keys and paid L2 remain documented options with prices, not defaults.
 
+## Execution status (18 Jul 2026)
+
+**Shipped + verified live** (from the V4 82/100 base):
+- **Phase A — trust patch** (`bb0b052`): R4.1 invalidation direction-consistency (verified live: a fresh SELL now carries a non-null, correctly-sided invalidation), R4.2 replay-pause paint, R4.3 gating-event names, bell digest (99+ → warnings-only badge), alert toast 6s+undo.
+- **Phase B — history + speed** (`2c135d6`): bar paging (`/api/bars?end=` + infinite prepend, verified older windows), streaming ask (first byte ~2.2s vs ~30s, verified live), AI-layer toggle + density declutter.
+- **Phase C batch 1** (`19f0364`): position stop line + **autoscale guard** (a real robustness fix — a stale/mismatched position price no longer distorts the chart), drawing undo/redo (⌘Z/⇧⌘Z + toolbar), right-click context menu.
+- **Phase C batch 2** (`dcb4c83`): indicator templates + chart-prefs cross-device sync (`prefs.layouts.chart`).
+
+**Remaining (documented, harder batch):**
+- **Ichimoku (forward-shifted cloud)** — deferred a 4th time on purpose: the honest senkou-span projection needs the `indicator_series_view` time contract to emit future timestamps (it currently zips values to bar times with `strict=True`) + frontend whitespace axis-extension. Real work, modest marginal score; tenkan/kijun/chikou (no forward shift) could ship first if charting breadth is reprioritized.
+- **Anchored VWAP** — reuses `_vwap_series` with a click-set anchor; needs a click-anchor tool mode + dynamic indicator-request plumbing (the indicators hook uses a fixed names list).
+- **Renko/Kagi/P&F** — deterministic backend transforms (`/api/bars/transform`, Constraint 2); new synthetic-bar infra.
+
+These three are the canvas/series-contract-heavy items; batched separately so they don't hold up the verified wins above.
+
 ## Verification discipline (unchanged)
 Every phase: backend `~/.venvs/tradingagents-pro/bin/python -m pytest -q` + ruff; frontend `tsc -b`, lint, vitest, Playwright with real clicks; deploy via `scripts/deploy_cloud_run.sh`; then live verification on prod (the review only credits what it can click). Score movement is claimed only by the next review round, never by the changelog.
