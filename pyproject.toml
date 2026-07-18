@@ -43,6 +43,15 @@ china = [
     "akshare>=1.16.0",
     "tushare>=1.4.0",
 ]
+web = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "rfc8785>=0.1.4,<1",
+    "packaging>=24,<26",
+    "langgraph>=1.1.10,<2",
+    "langgraph-checkpoint>=4.0.3,<5",
+    "langgraph-checkpoint-sqlite>=3.0.3,<4",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

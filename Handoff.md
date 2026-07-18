@@ -8,7 +8,7 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Story A1 is implemented: programmatic tuple/exception/checkpoint contracts, explicit report publication, legacy root CLI dispatch, explicit `analyze` dispatch, checkpoint/config option routing, and configured save/display choices are now protected by tests. The configured-run path now also carries a canonical `asset_type`, fixing a pre-existing failure that would have blocked JSON-configured CLI and web runs. Phase A continues with runtime preflight and event/lifecycle contracts.
+The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phase A is implemented. Story A1 protects programmatic execution, report publication, legacy root CLI dispatch, explicit `analyze` dispatch, checkpoint/config routing, and configured output choices. Story A2 adds the `[web]` dependency floor plus a hard runtime preflight that proves the real installed LangGraph/SQLite task, checkpoint, durability, ID, step, and pending-write capabilities. Story A3 defines the versioned event envelope, required relationship identifiers, exact 13-role registry, shared request/result/cancellation types, and strict run/role/turn/model/tool/vendor lifecycle state machines. Phase B begins with redaction and canonical hashing.
 
 ## Confirmed constraints
 
@@ -61,6 +61,9 @@ The user explicitly approved the corrected formal specification on 2026-07-18. T
 - The focused pre-change legacy baseline passed with 41 tests. After Story A1, the expanded legacy matrix passed with 43 tests and the A1/relevant compatibility matrix passed with 97 tests.
 - Typer's prior single-command collapse made `tradingagents [OPTIONS]` work while README-documented `tradingagents analyze [OPTIONS]` failed. The callback/group boundary now supports both, so adding `web` will not silently break the legacy root invocation.
 - Configured selections previously omitted `asset_type` and used only A-share ticker normalization. They now use the canonical CLI normalizer and explicitly classify stock versus crypto.
+- The installed graph runtime is exactly at the approved floors: LangGraph 1.1.10, langgraph-checkpoint 4.0.3, and langgraph-checkpoint-sqlite 3.0.3. The temporary SQLite capability probe passes all required checks.
+- FastAPI and RFC 8785 are not installed in the authoritative Python environment yet. This is now reported as an actionable preflight failure rather than a late import error; install the `[web]` extra before the API/server phase.
+- Phase A focused web-contract tests passed with 36 tests. The complete repository suite then passed with 737 tests and 68 subtests; 18 existing model-catalog warnings remain.
 
 ## Pending decisions
 
@@ -68,8 +71,8 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Implement Story A2 web runtime capability preflight and dependency floors.
-2. Implement Story A3 event, role, request, and lifecycle contracts.
+1. Implement Story B1 recursive credential redaction and canonical business hashing.
+2. Implement Story B2 append-only run storage and content-addressed artifacts.
 3. Keep this file current after every implementation phase and record exact verification evidence.
 
 ## Notes
