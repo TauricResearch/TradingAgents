@@ -18,11 +18,21 @@ export interface ExplainTarget {
   y: number;
 }
 
+/** Closed-trade outcome for the run, from the chart annotations fills[]. */
+export interface ExplainFill {
+  pnl: number;
+  won: boolean | null;
+  mode: string;
+  inferred: boolean;
+}
+
 export function ExplainRunPopover({
   target,
+  fill,
   onClose,
 }: {
   target: ExplainTarget;
+  fill?: ExplainFill | null;
   onClose: () => void;
 }) {
   const rec = useRunRecommendation(target.runId);
@@ -109,6 +119,22 @@ export function ExplainRunPopover({
         </p>
       ) : (
         <div className="mt-2 space-y-2">
+          {fill && (
+            <div
+              className={cn(
+                "rounded-md px-2 py-1 text-xs font-semibold",
+                fill.won ? "bg-bull/10 text-bull" : "bg-bear/10 text-bear",
+              )}
+            >
+              {fill.won ? "WON" : "LOST"} · {fill.pnl >= 0 ? "+" : ""}
+              {fill.pnl.toFixed(2)} {fill.mode}
+              {fill.inferred && (
+                <span className="ml-1 font-normal text-fg-subtle">
+                  (inferred match)
+                </span>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-fg-muted">
             {d.market_regime && <span>regime {d.market_regime}</span>}
             {d.p_win != null && (

@@ -656,6 +656,19 @@ export default function WorkspacePage() {
                     {explain && (
                       <ExplainRunPopover
                         target={explain}
+                        fill={(() => {
+                          const f = (chartAnnotations.data?.fills ?? []).find(
+                            (x) => x.run_id === explain.runId,
+                          );
+                          return f
+                            ? {
+                                pnl: f.pnl,
+                                won: f.won,
+                                mode: f.mode,
+                                inferred: f.link === "inferred",
+                              }
+                            : null;
+                        })()}
                         onClose={() => setExplain(null)}
                       />
                     )}

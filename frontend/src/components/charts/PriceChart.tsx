@@ -32,6 +32,7 @@ import {
   type ToolMode,
 } from "./drawings/types";
 import { snapToBar } from "./annotationSnap";
+import { macdCrossLabel, oscillatorLevels } from "./oscillators";
 import { snapPriceToOHLC } from "./drawings/geometry";
 import {
   AnnotationsPrimitive,
@@ -307,12 +308,13 @@ export function PriceChart({
       const overlay = isOverlayIndicator(name);
       const paneIndex = overlay ? 0 : nextPane;
       if (!overlay) nextPane += 1;
+      let primary: ISeriesApi<SeriesType> | null = null;
       for (const [lineName, points] of Object.entries(block.series)) {
         const isHistogram = lineName === "histogram";
         const series = chart.addSeries(
           isHistogram ? HistogramSeries : LineSeries,
           isHistogram
-            ? { color: hexToRgba(colors.accent, 0.4) }
+            ? { priceLineVisible: false }
             : {
                 color: lineColors[lineName] ?? colors.neutral,
                 lineWidth: 1,
@@ -323,9 +325,43 @@ export function PriceChart({
           paneIndex,
         );
         series.setData(
-          points.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+          points.map((p) => ({
+            time: p.time as UTCTimestamp,
+            value: p.value,
+            // MACD histogram: per-bar bull/bear by sign (rendering the sign
+            // of a served value, not computing an indicator — Constraint 2)
+            ...(isHistogram
+              ? {
+                  color: hexToRgba(
+                    p.value >= 0 ? colors.bull : colors.bear,
+                    0.5,
+                  ),
+                }
+              : {}),
+          })),
         );
+        if (!overlay && primary == null && !isHistogram) primary = series;
         extraSeriesRef.current.push(series);
+      }
+      // conventional reference levels on the oscillator's own pane
+      if (!overlay && primary) {
+        for (const lvl of oscillatorLevels(name)) {
+          primary.createPriceLine({
+            price: lvl.price,
+            color: hexToRgba(colors.muted, lvl.mid ? 0.25 : 0.45),
+            lineWidth: 1,
+            lineStyle: 2,
+            axisLabelVisible: true,
+            title: String(lvl.price),
+          });
+        }
+      }
+      // MACD line/signal cross state → surface on the macd line title
+      if (name === "MACD" && primary) {
+        const macd = block.series["macd"] ?? [];
+        const signal = block.series["signal"] ?? [];
+        const cross = macdCrossLabel(macd, signal);
+        if (cross) primary.applyOptions({ title: `MACD · ${cross}` });
       }
     }
 
@@ -500,6 +536,25 @@ export function PriceChart({
     return out;
   }, [annotations, barTimes]);
 
+  // fills painted from the AI record (G3): carry link provenance so
+  // inferred matches are labeled honestly. Snapped to bar times.
+  const snappedFills = useMemo(() => {
+    if (!annotations) return [];
+    return annotations.fills
+      .map((f) => {
+        if (f.closed_time == null) return null;
+        const time = snapToBar(barTimes, f.closed_time);
+        if (time == null) return null;
+        return {
+          time,
+          won: f.won,
+          pnl: f.pnl,
+          inferred: f.link === "inferred",
+        };
+      })
+      .filter((f): f is NonNullable<typeof f> => f != null);
+  }, [annotations, barTimes]);
+
   // trade / run markers (journal fills via the markers prop + AI decisions
   // from annotations — merged into the ONE plugin instance per series)
   useEffect(() => {
@@ -507,7 +562,20 @@ export function PriceChart({
     if (!series) return;
     const colors = chartColors();
     markersRef.current?.detach();
-    const journalMarkers = markers
+    // when the AI layer is on, its fills[] (run-linked, provenance-aware)
+    // supersede the journal markers for the same closed trades — avoids
+    // double markers and lets inferred fills be labeled
+    const fillMarkers = (showAnnotations ? snappedFills : []).map((f) => ({
+      time: f.time as UTCTimestamp,
+      position: (f.won ? "belowBar" : "aboveBar") as "belowBar" | "aboveBar",
+      color: f.won ? colors.bull : colors.bear,
+      shape: "circle" as const,
+      text:
+        (f.inferred ? "~" : "") +
+        (f.pnl >= 0 ? "+" : "") +
+        f.pnl.toFixed(0),
+    }));
+    const journalMarkers = (showAnnotations ? [] : markers)
       .filter((m) => m.time > 0)
       .map((m) => {
         const dir = directionOf(m.direction);
@@ -548,7 +616,7 @@ export function PriceChart({
       });
     markersRef.current = createSeriesMarkers(
       series,
-      [...journalMarkers, ...decisionMarkers].sort((a, b) =>
+      [...journalMarkers, ...fillMarkers, ...decisionMarkers].sort((a, b) =>
         Number(a.time) - Number(b.time)),
     );
     return () => {
@@ -556,7 +624,7 @@ export function PriceChart({
       if (seriesRef.current === series) markersRef.current?.detach();
       markersRef.current = null;
     };
-  }, [markers, snappedAnnotations, showAnnotations, bars, style, indicators, showVolume]);
+  }, [markers, snappedAnnotations, snappedFills, showAnnotations, bars, style, indicators, showVolume]);
 
   // push snapped annotations + theme colors into the AI layer primitive
   useEffect(() => {
@@ -834,13 +902,34 @@ export function PriceChart({
     };
   }, [drawingsSymbol, chartRef]);
 
+  // per-indicator time→value maps for the hover legend (G2): pick one
+  // representative line per indicator; read served values, never compute.
+  const indicatorLegend = useMemo(() => {
+    const out: { label: string; at: Map<number, number> }[] = [];
+    for (const [name, block] of Object.entries(indicators ?? {}).sort()) {
+      const lines = block.series;
+      const key =
+        "value" in lines ? "value"
+        : "macd" in lines ? "macd"
+        : "middle" in lines ? "middle"
+        : "k" in lines ? "k"
+        : Object.keys(lines)[0];
+      if (!key || !lines[key]) continue;
+      out.push({
+        label: name.replace(/_/g, ""),
+        at: new Map(lines[key]!.map((p) => [p.time, p.value])),
+      });
+    }
+    return out;
+  }, [indicators]);
+
   // OHLCV legend: written imperatively — routing mousemove through React
   // state disrupts the chart's own click/tap tracking (documented above)
   const legendRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !legend) return;
-    const write = (bar: Bar | undefined) => {
+    const write = (bar: Bar | undefined, time: number | null) => {
       const el = legendRef.current;
       if (!el) return;
       if (!bar) {
@@ -850,18 +939,28 @@ export function PriceChart({
       const change = bar.open !== 0
         ? ((bar.close - bar.open) / bar.open) * 100
         : 0;
+      const t = time ?? bar.time;
+      // append each active indicator's value at the hovered bar (G2)
+      const ind = indicatorLegend
+        .map(({ label, at }) => {
+          const v = at.get(t);
+          return v == null ? null : `${label} ${v.toFixed(2)}`;
+        })
+        .filter(Boolean)
+        .join("  ");
       el.textContent =
         `O ${bar.open.toFixed(2)}  H ${bar.high.toFixed(2)}  ` +
         `L ${bar.low.toFixed(2)}  C ${bar.close.toFixed(2)}  ` +
         `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` +
-        (bar.volume ? `  V ${Intl.NumberFormat("en", { notation: "compact" }).format(bar.volume)}` : "");
+        (bar.volume ? `  V ${Intl.NumberFormat("en", { notation: "compact" }).format(bar.volume)}` : "") +
+        (ind ? `   ${ind}` : "");
     };
-    write(bars[bars.length - 1]);
+    const last = bars[bars.length - 1];
+    write(last, last?.time ?? null);
     const onLegendMove = (param: { time?: unknown }) => {
-      const bar = param.time != null
-        ? barsByTimeRef.current.get(Number(param.time))
-        : undefined;
-      write(bar ?? bars[bars.length - 1]);
+      const t = param.time != null ? Number(param.time) : null;
+      const bar = t != null ? barsByTimeRef.current.get(t) : undefined;
+      write(bar ?? last, bar ? t : (last?.time ?? null));
     };
     chart.subscribeCrosshairMove(onLegendMove);
     return () => {
@@ -869,7 +968,7 @@ export function PriceChart({
       if (chartRef.current !== chart) return; // disposed (see above)
       chart.unsubscribeCrosshairMove(onLegendMove);
     };
-  }, [legend, bars, chartRef]);
+  }, [legend, bars, indicatorLegend, chartRef]);
 
   // track the user's visible logical range + fire load-older at the left
   // edge (PB.1). Subscribed once per chart instance so it survives the
