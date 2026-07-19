@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -24,6 +25,16 @@ pytestmark = pytest.mark.unit
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 LOCAL_URL = "http://127.0.0.1:8765"
+
+# Rich honors ``FORCE_COLOR`` in the test environment, so the CliRunner output
+# carries ANSI color spans that split substrings like ``--port`` or the install
+# command across styled runs. Strip ANSI before substring assertions so the
+# contracts are checked against the plain text, not its color markup.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _plain(text: str) -> str:
+    return _ANSI_RE.sub("", text)
 
 
 def test_importing_cli_and_web_launcher_does_not_import_optional_web_stack():
@@ -101,10 +112,11 @@ def test_web_command_exposes_no_host_override(monkeypatch):
     )
 
     assert help_result.exit_code == 0, help_result.output
-    assert "--port" in help_result.output
-    assert "--open" in help_result.output
-    assert "--no-open" in help_result.output
-    assert "--host" not in help_result.output
+    help_plain = _plain(help_result.output)
+    assert "--port" in help_plain
+    assert "--open" in help_plain
+    assert "--no-open" in help_plain
+    assert "--host" not in help_plain
     assert override_result.exit_code != 0
     launcher.assert_not_called()
 
@@ -194,5 +206,5 @@ def test_runtime_failure_prints_exact_install_command_and_exits_nonzero():
         result = CliRunner().invoke(app, ["web", "--no-open"])
 
     assert result.exit_code != 0
-    assert INSTALL_COMMAND in result.output
-    assert result.output.count(INSTALL_COMMAND) == 1
+    assert INSTALL_COMMAND in _plain(result.output)
+    assert _plain(result.output).count(INSTALL_COMMAND) == 1

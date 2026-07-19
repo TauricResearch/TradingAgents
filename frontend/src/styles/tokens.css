@@ -1,0 +1,30 @@
+/* Visual tokens ported from the approved V2 mockup
+   (.superpowers/brainstorm/20260717-tradingagents-web/workbench-v2.html).
+   A dark financial-research console with restrained gold as the active/verified
+   emphasis; green/red for Bull/Bear only where semantically meaningful; cyan for
+   risk roles. One radius, shared by every surface. */
+
+:root {
+  --bg: #080b10;
+  --panel: #0f141c;
+  --panel-2: #141a24;
+  --line: #252d3a;
+  --muted: #7f8a9a;
+  --text: #eef1f5;
+  --gold: #e5b65e;
+  --gold-soft: #17150f;
+  --green: #42c88a;
+  --red: #ed6a6a;
+  --blue: #66a7ff;
+  --cyan: #58c7cf;
+  --purple: #ad8cff;
+  --radius: 14px;
+
+  /* Surfaces tuned a hair off pure so panels separate visually. */
+  --surface-input: #0a0e14;
+  --surface-node: #111721;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
