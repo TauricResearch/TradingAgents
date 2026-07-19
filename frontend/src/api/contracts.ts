@@ -236,6 +236,11 @@ export interface RunStartedPayload {
   run_status: RunStatusLiteral;
 }
 
+/** run.cancel_requested is a non-terminal intermediate state (only run_status). */
+export interface RunCancelRequestedPayload {
+  run_status: "cancel_requested";
+}
+
 export interface RunTerminalPayload {
   run_status: RunStatusLiteral;
   summary?: string | null;
@@ -539,6 +544,7 @@ export interface ArtifactWrittenPayload {
  */
 export type EventPayloadByType =
   | { type: "run.started"; payload: RunStartedPayload }
+  | { type: "run.cancel_requested"; payload: RunCancelRequestedPayload }
   | { type: "run.completed"; payload: RunTerminalPayload }
   | { type: "run.failed"; payload: RunTerminalPayload }
   | { type: "run.cancelled"; payload: RunTerminalPayload }
