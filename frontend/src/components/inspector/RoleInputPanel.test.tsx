@@ -209,6 +209,69 @@ describe("RoleInputPanel", () => {
     expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
   });
 
+  it("shows 上游资料 tab content from a state_snapshot artifact", async () => {
+    mockClient.readArtifactText.mockResolvedValue(
+      JSON.stringify({ market_report: "bullish", investment_debate_state: { count: 2 } }),
+    );
+    const turn = buildTurn("t1", "researcher.bull", "completed");
+    const artifact = buildArtifact("s1", {
+      kind: "state_snapshot",
+      turn_id: "t1",
+      input_capture_kinds: ["state_snapshot"],
+    });
+    setStoreState(buildState([turn], [artifact]));
+    render(<RoleInputPanel turn_id="t1" />);
+
+    // Default 数据字段 tab has no matching artifact.
+    expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("上游资料"));
+    await waitFor(() => {
+      expect(screen.getByText("market_report")).toBeInTheDocument();
+      expect(screen.getByText("investment_debate_state")).toBeInTheDocument();
+    });
+  });
+
+  it("shows 原始值 tab with vendor/sha256 lineage for data artifacts", async () => {
+    mockClient.readArtifactText.mockResolvedValue(JSON.stringify({ cash: 82.1 }));
+    const turn = buildTurn("t1", "analyst.fundamentals", "completed");
+    const artifact = buildArtifact("d1", {
+      kind: "data_snapshot",
+      turn_id: "t1",
+      input_capture_kinds: ["data_snapshot"],
+      content_sha256: "abc123def456",
+      locator: "data/d1.json",
+    });
+    setStoreState(buildState([turn], [artifact]));
+    render(<RoleInputPanel turn_id="t1" />);
+
+    // 原始值 tab shares data_snapshot artifacts but emphasizes lineage.
+    fireEvent.click(screen.getByText("原始值"));
+    await waitFor(() => {
+      // lineage shows the sha256 + locator
+      expect(screen.getByText(/abc123def456/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows 配置 tab content from a config_snapshot artifact", async () => {
+    mockClient.readArtifactText.mockResolvedValue(
+      JSON.stringify({ llm_provider: "deepseek", checkpoint_enabled: false }),
+    );
+    const turn = buildTurn("t1", "evidence.steward", "completed");
+    const artifact = buildArtifact("c1", {
+      kind: "config_snapshot",
+      turn_id: "t1",
+      input_capture_kinds: ["config_snapshot"],
+    });
+    setStoreState(buildState([turn], [artifact]));
+    render(<RoleInputPanel turn_id="t1" />);
+
+    fireEvent.click(screen.getByText("配置"));
+    await waitFor(() => {
+      expect(screen.getByText("llm_provider")).toBeInTheDocument();
+      expect(screen.getByText("deepseek")).toBeInTheDocument();
+    });
+  });
+
   it("shows the correct Chinese label and icon in role-header", () => {
     const turn = buildTurn("t1", "researcher.bull", "completed");
     setStoreState(buildState([turn]));
