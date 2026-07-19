@@ -129,3 +129,90 @@
   font-size: 9px;
   line-height: 1.5;
 }
+/* G1 - 13-role workflow map (ported from V2 mockup) */
+.workflow {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.flow-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  position: relative;
+}
+.flow-row + .flow-row {
+  margin-top: 8px;
+}
+.node {
+  min-height: 62px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  background: var(--surface-node);
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+.node:hover,
+.node.selected {
+  border-color: #77613b;
+  transform: translateY(-1px);
+}
+.node.wide {
+  grid-column: span 2;
+}
+.node-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  background: #202938;
+  color: var(--blue);
+  margin-bottom: 7px;
+}
+.node-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.node.bull .node-icon {
+  color: var(--green);
+  background: #11271d;
+}
+.node.bear .node-icon {
+  color: var(--red);
+  background: #2a1618;
+}
+.node.risk .node-icon {
+  color: var(--cyan);
+  background: #102328;
+}
+.node.done {
+  border-color: #244a3a;
+}
+.node.live {
+  border-color: #8a6a31;
+  box-shadow: inset 0 0 0 1px rgba(229, 182, 94, 0.12);
+}
+.node-name {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.node-status {
+  margin-top: 4px;
+  font-size: 9px;
+  color: var(--muted);
+}
+.node.live .node-status {
+  color: var(--gold);
+}

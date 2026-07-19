@@ -16,6 +16,7 @@
  */
 import { Controls } from "../controls/Controls";
 import { RunHistory } from "../history/RunHistory";
+import { WorkflowMap } from "../workflow/WorkflowMap";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
 import { currentRunStatus } from "../../state/selectors";
 
@@ -53,12 +54,19 @@ export function WorkbenchLayout(): JSX.Element {
                   {currentRunStatus(state)} · #{state.meta.latest_sequence}
                 </span>
               </div>
+              <WorkflowMap />
               <p className="placeholder">
-                工作流全景与辩论时间线将在 G1 / G2 接入真实事件流后渲染。
+                辩论时间线将在 G2 接入真实事件流后渲染。
               </p>
             </>
           ) : (
-            <p className="placeholder">选择一次运行或发起新分析</p>
+            <>
+              <div className="eyebrow">Workflow</div>
+              <div className="section-title">
+                <h2>工作流全景</h2>
+              </div>
+              <WorkflowMap />
+            </>
           )}
         </main>
 
