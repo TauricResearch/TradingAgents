@@ -61,7 +61,5 @@ export function artifactsForTurn(
   state: ReducerState,
   turn_id: string,
 ): ArtifactRecord[] {
-  void state;
-  void turn_id;
-  return [];
+  return Object.values(state.artifacts).filter((a) => a.turn_id === turn_id);
 }

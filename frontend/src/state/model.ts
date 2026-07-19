@@ -140,6 +140,12 @@ export interface ArtifactRecord extends ArtifactMetadataDTO {
   written_sequence: number;
   /** input.* capture kinds that reference this artifact, if any. */
   input_capture_kinds: string[];
+  /** turn_id from the input.* event that linked this artifact (G3 join key). */
+  turn_id?: string;
+  /** attempt_id from input.prompt_snapshot, if this is a prompt artifact. */
+  attempt_id?: string;
+  /** model_call_id from input.prompt_snapshot, if this is a prompt artifact. */
+  model_call_id?: string;
 }
 
 export type ReportKind = string;

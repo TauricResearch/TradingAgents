@@ -680,6 +680,9 @@ function applyDataCacheHit(state: ReducerState, p: Record<string, unknown>): Red
 function applyInputSnapshot(state: ReducerState, p: Record<string, unknown>): ReducerState {
   const artifact_id = str(p.artifact_id);
   const capture_kind = str(p.capture_kind);
+  const turn_id = str(p.turn_id) || undefined;
+  const attempt_id = str(p.attempt_id) || undefined;
+  const model_call_id = str(p.model_call_id) || undefined;
   const existing = state.artifacts[artifact_id];
   const ar: ArtifactRecord = {
     artifact_id,
@@ -690,20 +693,23 @@ function applyInputSnapshot(state: ReducerState, p: Record<string, unknown>): Re
     locator: existing?.locator ?? "",
     written_sequence: existing?.written_sequence ?? 0,
     input_capture_kinds: dedupeAdd(existing?.input_capture_kinds ?? [], capture_kind),
+    turn_id: turn_id ?? existing?.turn_id,
+    attempt_id: attempt_id ?? existing?.attempt_id,
+    model_call_id: model_call_id ?? existing?.model_call_id,
   };
   let next: ReducerState = {
     ...state,
     artifacts: { ...state.artifacts, [artifact_id]: ar },
   };
   if (capture_kind === "prompt_snapshot") {
-    const model_call_id = str(p.model_call_id);
-    const mc = next.model_calls[model_call_id];
+    const mcId = model_call_id ?? "";
+    const mc = next.model_calls[mcId];
     if (mc) {
       next = {
         ...next,
         model_calls: {
           ...next.model_calls,
-          [model_call_id]: {
+          [mcId]: {
             ...mc,
             prompt_artifact_ids: dedupeAdd(mc.prompt_artifact_ids, artifact_id),
           },

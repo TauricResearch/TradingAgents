@@ -19,6 +19,7 @@ import { Controls } from "../controls/Controls";
 import { RunHistory } from "../history/RunHistory";
 import { WorkflowMap } from "../workflow/WorkflowMap";
 import { Timeline } from "../timeline/Timeline";
+import { Inspector } from "../inspector/Inspector";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
 import { currentRunStatus } from "../../state/selectors";
 
@@ -27,9 +28,6 @@ export function WorkbenchLayout(): JSX.Element {
   const state = stream.state;
   const [timelineFilter, setTimelineFilter] = useState<string>("");
   const [selectedTurn, setSelectedTurn] = useState<string | null>(null);
-  // selectedTurn is consumed by the G3 audit inspector (role-input panel); keep
-  // the state here so Timeline selection survives re-renders until G3 lands.
-  void selectedTurn;
 
   return (
     <div className="app">
@@ -80,17 +78,7 @@ export function WorkbenchLayout(): JSX.Element {
         </main>
 
         <aside className="inspector">
-          <div className="eyebrow">Audit inspector</div>
-          <div className="section-title">
-            <h2>审计检查器</h2>
-          </div>
-          <p className="placeholder">
-            角色输入 / 数据与工具 / 产物 / 本次输入 四个审计视图将在 G3 接入。
-          </p>
-          <p className="disclaimer">
-            股票数据、新闻内容和提示上下文仍会发送给本次选择的数据商与 LLM
-            Provider。localhost 仅表示网页不对公网提供服务。
-          </p>
+          <Inspector selectedTurnId={selectedTurn} />
         </aside>
       </div>
     </div>

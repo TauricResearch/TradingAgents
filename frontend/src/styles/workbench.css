@@ -332,3 +332,233 @@
   color: #c7b891;
   font-size: 10px;
 }
+
+/* G3 - audit inspector (ported from V2 mockup) */
+.inspector-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  margin: -2px 0 12px;
+}
+.inspector-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 7px;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.inspector-tabs button.active {
+  color: var(--text);
+  border-color: var(--gold);
+}
+.role-header {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.role-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  background: #211b11;
+  border: 1px solid #66512e;
+}
+.role-badge svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.role-title {
+  font: 600 15px var(--font-serif);
+}
+.role-sub {
+  color: var(--muted);
+  font-size: 9px;
+  margin-top: 3px;
+}
+.snapshot {
+  border: 1px solid #3b3528;
+  background: var(--gold-soft);
+  border-radius: 9px;
+  padding: 8px 9px;
+  color: #c7b991;
+  font-size: 9px;
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+.snapshot strong {
+  color: var(--gold);
+}
+.audit-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 9px;
+}
+.audit-tabs button {
+  flex: 1;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: #101620;
+  padding: 6px 4px;
+  border-radius: 6px;
+  font-size: 9px;
+  cursor: pointer;
+}
+.audit-tabs button.active {
+  color: var(--text);
+  border-color: #685533;
+  background: #1c1913;
+}
+.packet {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0b1017;
+  overflow: hidden;
+  margin: 9px 0;
+}
+.packet-head {
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+.packet-head h4 {
+  margin: 0;
+  font-size: 11px;
+}
+.packet-head span {
+  color: var(--muted);
+  font-size: 8px;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+}
+.data-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.data-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid #1c232e;
+  color: #cbd3dd;
+}
+.data-table td:nth-child(2) {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.input-ref {
+  border-left: 2px solid #39485d;
+  padding: 7px 9px;
+  margin: 7px 0;
+  background: #0e141d;
+  font-size: 9px;
+  color: #b7c0cc;
+}
+.lineage {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 8px;
+}
+.lineage b {
+  color: #c9d1db;
+}
+.verified {
+  color: var(--green);
+}
+.tool {
+  border: 1px solid var(--line);
+  background: #0b1017;
+  border-radius: 10px;
+  margin: 9px 0;
+  overflow: hidden;
+}
+.tool-head {
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+}
+.tool-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: #172231;
+  color: var(--blue);
+  font-size: 11px;
+}
+.tool-name {
+  font-size: 11px;
+  font-weight: 700;
+}
+.tool-meta {
+  color: var(--muted);
+  font-size: 9px;
+}
+.tool-status {
+  font-size: 9px;
+}
+.tool-body {
+  border-top: 1px solid var(--line);
+  padding: 10px;
+  font: 10px/1.5 var(--font-mono);
+  color: #aab5c4;
+  background: #090d12;
+  white-space: pre-wrap;
+}
+.source-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  padding: 6px 1px;
+  list-style: none;
+}
+.source-line .vendor,
+.source-line b {
+  color: #cad2dd;
+  font-weight: 600;
+}
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.safe-markdown {
+  font: 10px/1.5 var(--font-mono);
+  color: #aab5c4;
+  background: #090d12;
+  padding: 10px;
+  border-radius: 6px;
+  margin: 0;
+}
