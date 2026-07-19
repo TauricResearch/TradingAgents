@@ -216,3 +216,119 @@
 .node.live .node-status {
   color: var(--gold);
 }
+
+/* G2 - debate/verdict timeline (ported from V2 mockup) */
+.timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin: 18px 0 10px;
+}
+.timeline-head h2 {
+  margin: 3px 0 0;
+  font: 600 19px var(--font-serif);
+}
+.filters {
+  display: flex;
+  gap: 5px;
+}
+.filters button,
+.filters .filter {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  background: var(--surface-node);
+  border-radius: 99px;
+  color: var(--muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+.filters button.active,
+.filters .filter.active {
+  color: var(--text);
+  border-color: #6f5b38;
+  background: #1d1a14;
+}
+.event {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  margin: 10px 0;
+}
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  background: #182131;
+  color: var(--blue);
+  border: 1px solid #2a374a;
+}
+.avatar svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.event[data-team="research"] .avatar {
+  color: var(--green);
+  background: #11241b;
+  border-color: #244b38;
+}
+.event.bear .avatar {
+  color: var(--red);
+  background: #2a1618;
+  border-color: #533033;
+}
+.event[data-team="risk"] .avatar {
+  color: var(--cyan);
+  background: #102428;
+  border-color: #275059;
+}
+.bubble {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 4px 13px 13px 13px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.bubble.manager {
+  border-color: #5c4d31;
+  background: linear-gradient(135deg, #191711, #11151b);
+}
+.bubble-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tag {
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 8px;
+}
+.tag.candidate {
+  border-color: var(--gold);
+}
+.bubble p {
+  color: #c6ced9;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.evidence {
+  margin-top: 9px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--gold);
+  background: var(--gold-soft);
+  color: #c7b891;
+  font-size: 10px;
+}

@@ -14,15 +14,22 @@
  *       .main      (run status strip when a run is selected, else placeholder)
  *       .inspector (audit placeholder, G3)
  */
+import { useState } from "react";
 import { Controls } from "../controls/Controls";
 import { RunHistory } from "../history/RunHistory";
 import { WorkflowMap } from "../workflow/WorkflowMap";
+import { Timeline } from "../timeline/Timeline";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
 import { currentRunStatus } from "../../state/selectors";
 
 export function WorkbenchLayout(): JSX.Element {
   const { stream } = useWorkbenchStore();
   const state = stream.state;
+  const [timelineFilter, setTimelineFilter] = useState<string>("");
+  const [selectedTurn, setSelectedTurn] = useState<string | null>(null);
+  // selectedTurn is consumed by the G3 audit inspector (role-input panel); keep
+  // the state here so Timeline selection survives re-renders until G3 lands.
+  void selectedTurn;
 
   return (
     <div className="app">
@@ -55,9 +62,11 @@ export function WorkbenchLayout(): JSX.Element {
                 </span>
               </div>
               <WorkflowMap />
-              <p className="placeholder">
-                辩论时间线将在 G2 接入真实事件流后渲染。
-              </p>
+              <Timeline
+                filter={timelineFilter}
+                onTurnSelected={setSelectedTurn}
+                onFilterChange={setTimelineFilter}
+              />
             </>
           ) : (
             <>
