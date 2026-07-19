@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from cli.main import MessageBuffer, app
 from cli.models import AnalystType
+from tradingagents.execution.models import AnalysisResult
 
 
 pytestmark = pytest.mark.unit
@@ -131,10 +132,7 @@ def test_cli_runner_uses_configured_asset_type_without_prompting(tmp_path, monke
     }
     final_state = {"messages": [], "market_report": "market"}
     fake_graph = MagicMock()
-    fake_graph.resolve_instrument_context.return_value = {"symbol": "BTC-USD"}
-    fake_graph.propagator.create_initial_state.return_value = {"input": True}
-    fake_graph.propagator.get_graph_args.return_value = {}
-    fake_graph.graph.stream.return_value = [final_state]
+    fake_graph.run_analysis.return_value = AnalysisResult(final_state, "HOLD")
     monkeypatch.setattr(cli_main, "message_buffer", MessageBuffer())
     monkeypatch.setattr(cli_main, "load_cli_config", lambda _path: {"run": {}})
     monkeypatch.setattr(cli_main, "get_user_selections", lambda _config: selections)
@@ -153,13 +151,13 @@ def test_cli_runner_uses_configured_asset_type_without_prompting(tmp_path, monke
 
     cli_main.run_analysis(config_path=tmp_path / "configured.json")
 
-    fake_graph.resolve_instrument_context.assert_called_once_with("BTC-USD", "crypto")
-    fake_graph.propagator.create_initial_state.assert_called_once_with(
-        "BTC-USD",
-        "2026-07-17",
-        asset_type="crypto",
-        instrument_context={"symbol": "BTC-USD"},
-    )
+    fake_graph.run_analysis.assert_called_once()
+    request = fake_graph.run_analysis.call_args.args[0]
+    assert request.ticker == "BTC-USD"
+    assert request.analysis_date == "2026-07-17"
+    assert request.asset_type == "crypto"
+    assert request.selected_analysts == ("market",)
+    assert callable(fake_graph.run_analysis.call_args.kwargs["state_update_sink"])
 
 
 class _NullContext:

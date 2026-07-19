@@ -31,6 +31,7 @@ from cli.config import (
     build_configured_selections,
     load_cli_config,
 )
+from cli.run_observer import CliRunObserver
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
     ask_anthropic_effort,
@@ -53,6 +54,7 @@ from cli.utils import (
 )
 from tradingagents.dataflows.progress import progress_sink
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.execution.models import AnalysisRequest
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
@@ -888,13 +890,6 @@ def display_complete_report(final_state):
             console.print(Panel(Markdown(risk["judge_decision"]), title="组合经理", border_style="blue", padding=(1, 2)))
 
 
-def update_research_team_status(status):
-    """Update status for research team members (not Trader)."""
-    research_team = ["Bull Researcher", "Bear Researcher", "Research Manager"]
-    for agent in research_team:
-        message_buffer.update_agent_status(agent, status)
-
-
 # Ordered list of analysts for status transitions
 ANALYST_ORDER = ["market", "social", "news", "fundamentals"]
 ANALYST_AGENT_NAMES = {
@@ -1122,7 +1117,7 @@ def run_analysis(checkpoint: bool | None = None, config_path: Path | None = None
     graph = TradingAgentsGraph(
         selected_analyst_keys,
         config=config,
-        debug=True,
+        debug=False,
         callbacks=[stats_handler],
     )
 
@@ -1215,132 +1210,36 @@ def run_analysis(checkpoint: bool | None = None, config_path: Path | None = None
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-        # Initialize state and get graph args with callbacks.
-        # Resolve the instrument identity once here so all agents anchor to
-        # the real company (#814); the CLI builds state directly rather than
-        # going through propagate(), so this must happen on the CLI path too.
-        instrument_context = graph.resolve_instrument_context(
-            selections["ticker"], selections["asset_type"]
+        run_observer = CliRunObserver(
+            message_buffer,
+            wall_time_tracker=analyst_wall_time_tracker,
+            classify_message=classify_message_type,
+            update_analysts=update_analyst_statuses,
+            refresh_display=lambda: update_display(
+                layout,
+                stats_handler=stats_handler,
+                start_time=start_time,
+            ),
         )
-        init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"],
-            selections["analysis_date"],
+        request = AnalysisRequest(
+            ticker=selections["ticker"],
+            analysis_date=selections["analysis_date"],
             asset_type=selections["asset_type"],
-            instrument_context=instrument_context,
+            selected_analysts=tuple(selected_analyst_keys),
+            max_debate_rounds=int(
+                config.get("max_debate_rounds", selections["research_depth"])
+            ),
+            max_risk_discuss_rounds=int(
+                config.get("max_risk_discuss_rounds", selections["research_depth"])
+            ),
+            effective_config=config,
         )
-        # Pass callbacks to graph config for tool execution tracking
-        # (LLM tracking is handled separately via LLM constructor)
-        args = graph.propagator.get_graph_args(callbacks=[stats_handler])
-
-        # Stream the analysis
-        trace = []
-        for chunk in graph.graph.stream(init_agent_state, **args):
-            # Process all messages in chunk, deduplicating by message ID
-            for message in chunk.get("messages", []):
-                msg_id = getattr(message, "id", None)
-                if msg_id is not None:
-                    if msg_id in message_buffer._processed_message_ids:
-                        continue
-                    message_buffer._processed_message_ids.add(msg_id)
-
-                msg_type, content = classify_message_type(message)
-                if content and content.strip():
-                    message_buffer.add_message(msg_type, content)
-
-                if hasattr(message, "tool_calls") and message.tool_calls:
-                    for tool_call in message.tool_calls:
-                        if isinstance(tool_call, dict):
-                            message_buffer.add_tool_call(tool_call["name"], tool_call["args"])
-                        else:
-                            message_buffer.add_tool_call(tool_call.name, tool_call.args)
-
-            # Update analyst statuses based on report state (runs on every chunk)
-            update_analyst_statuses(
-                message_buffer,
-                chunk,
-                wall_time_tracker=analyst_wall_time_tracker,
-            )
-
-            # Research Team - Handle Investment Debate State
-            if chunk.get("investment_debate_state"):
-                debate_state = chunk["investment_debate_state"]
-                bull_hist = debate_state.get("bull_history", "").strip()
-                bear_hist = debate_state.get("bear_history", "").strip()
-                judge = debate_state.get("judge_decision", "").strip()
-
-                # Only update status when there's actual content
-                if bull_hist or bear_hist:
-                    update_research_team_status("in_progress")
-                if bull_hist:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### 多方研究员分析\n{bull_hist}"
-                    )
-                if bear_hist:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### 空方研究员分析\n{bear_hist}"
-                    )
-                if judge:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### 研究经理决策\n{judge}"
-                    )
-                    update_research_team_status("completed")
-                    message_buffer.update_agent_status("Trader", "in_progress")
-
-            # Trading Team
-            if chunk.get("trader_investment_plan"):
-                message_buffer.update_report_section(
-                    "trader_investment_plan", chunk["trader_investment_plan"]
-                )
-                if message_buffer.agent_status.get("Trader") != "completed":
-                    message_buffer.update_agent_status("Trader", "completed")
-                    message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
-
-            # Risk Management Team - Handle Risk Debate State
-            if chunk.get("risk_debate_state"):
-                risk_state = chunk["risk_debate_state"]
-                agg_hist = risk_state.get("aggressive_history", "").strip()
-                con_hist = risk_state.get("conservative_history", "").strip()
-                neu_hist = risk_state.get("neutral_history", "").strip()
-                judge = risk_state.get("judge_decision", "").strip()
-
-                if agg_hist:
-                    if message_buffer.agent_status.get("Aggressive Analyst") != "completed":
-                        message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### 激进风险分析师分析\n{agg_hist}"
-                    )
-                if con_hist:
-                    if message_buffer.agent_status.get("Conservative Analyst") != "completed":
-                        message_buffer.update_agent_status("Conservative Analyst", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### 保守风险分析师分析\n{con_hist}"
-                    )
-                if neu_hist:
-                    if message_buffer.agent_status.get("Neutral Analyst") != "completed":
-                        message_buffer.update_agent_status("Neutral Analyst", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### 中性风险分析师分析\n{neu_hist}"
-                    )
-                if judge and message_buffer.agent_status.get("Portfolio Manager") != "completed":
-                    message_buffer.update_agent_status("Portfolio Manager", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### 组合经理决策\n{judge}"
-                    )
-                    message_buffer.update_agent_status("Aggressive Analyst", "completed")
-                    message_buffer.update_agent_status("Conservative Analyst", "completed")
-                    message_buffer.update_agent_status("Neutral Analyst", "completed")
-                    message_buffer.update_agent_status("Portfolio Manager", "completed")
-
-            # Update the display
-            update_display(layout, stats_handler=stats_handler, start_time=start_time)
-
-            trace.append(chunk)
-
-        # Streamed chunks are per-node deltas, not full state. Merge them
-        # so every report field populated across the run is present.
-        final_state = {}
-        for chunk in trace:
-            final_state.update(chunk)
+        result = graph.run_analysis(
+            request,
+            callbacks=[stats_handler],
+            state_update_sink=run_observer,
+        )
+        final_state = result.final_state
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
@@ -1423,6 +1322,44 @@ def analyze(
     ),
 ):
     _execute_analyze(checkpoint, config, clear_checkpoints)
+
+
+@app.command("web")
+def web_command(
+    port: int = typer.Option(
+        8000,
+        "--port",
+        min=1,
+        max=65535,
+        help="本地网页端口；服务始终只绑定 127.0.0.1。",
+    ),
+    open_browser: bool = typer.Option(
+        False,
+        "--open/--no-open",
+        help="服务启动时是否打开本机默认浏览器。",
+    ),
+):
+    """Start the localhost-only TradingAgents research workbench."""
+    try:
+        from tradingagents.web.cli import launch_web
+
+        launch_web(port=port, open_browser=open_browser)
+    except ModuleNotFoundError as exc:
+        from tradingagents.web.preflight import INSTALL_COMMAND
+
+        console.print(
+            f"Web 运行依赖缺失：{exc.name or type(exc).__name__}。",
+            style="red",
+        )
+        console.print(f"请运行：{INSTALL_COMMAND}", markup=False, soft_wrap=True)
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        from tradingagents.web.preflight import WebRuntimeError
+
+        if not isinstance(exc, WebRuntimeError):
+            raise
+        console.print(str(exc), style="red", markup=False, soft_wrap=True)
+        raise typer.Exit(code=1) from exc
 
 
 if __name__ == "__main__":

@@ -124,6 +124,30 @@ def test_runner_returns_success_object_and_preserves_completion_order():
     )
 
 
+def test_runner_streams_raw_state_updates_to_consumer_without_a_second_execution():
+    owner, _events = _owner()
+    owner.propagator.get_graph_args.return_value = {"stream_mode": "updates"}
+    chunks = [
+        {"market_report": "market evidence"},
+        {"final_trade_decision": "Rating: Hold"},
+    ]
+    owner.graph.stream.return_value = chunks
+    received = []
+
+    result = AnalysisRunner(owner).run(
+        _request(),
+        state_update_sink=received.append,
+    )
+
+    assert received == chunks
+    assert result.final_state == {
+        "market_report": "market evidence",
+        "final_trade_decision": "Rating: Hold",
+    }
+    owner.graph.stream.assert_called_once()
+    owner.graph.invoke.assert_not_called()
+
+
 def test_runner_preserves_original_failure_and_skips_completion_side_effects():
     owner, events = _owner()
     original = RuntimeError("provider exploded")

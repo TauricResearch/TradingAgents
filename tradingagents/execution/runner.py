@@ -101,6 +101,7 @@ class CheckpointAuthorization:
 
 
 CheckpointGuard = Callable[[PreparedInitialContext, Any], CheckpointAuthorization]
+StateUpdateSink = Callable[[Mapping[str, Any]], None]
 
 
 class AnalysisRunner:
@@ -123,6 +124,7 @@ class AnalysisRunner:
         cancellation_token: CancellationToken | None = None,
         observation_context: Any | None = None,
         callbacks: list[Any] | None = None,
+        state_update_sink: StateUpdateSink | None = None,
         checkpoint_run_id: str | None = None,
         checkpoint_guard: CheckpointGuard | None = None,
     ) -> AnalysisResult:
@@ -196,6 +198,7 @@ class AnalysisRunner:
                 cooperative_cancellation=cooperative_cancellation,
                 observation_context=observation_context,
                 callbacks=callbacks,
+                state_update_sink=state_update_sink,
                 checkpoint_run_id=checkpoint_run_id,
             )
         except BaseException:
@@ -213,6 +216,7 @@ class AnalysisRunner:
         cooperative_cancellation: bool,
         observation_context: Any | None,
         callbacks: list[Any] | None,
+        state_update_sink: StateUpdateSink | None,
         checkpoint_run_id: str | None,
     ) -> AnalysisResult:
         owner = self.owner
@@ -241,6 +245,7 @@ class AnalysisRunner:
             or observation_context is not None
             or cooperative_cancellation
             or callbacks is not None
+            or state_update_sink is not None
         )
         if should_stream:
             final_state = self._stream_graph(
@@ -248,6 +253,7 @@ class AnalysisRunner:
                 graph_args,
                 cancellation_token,
                 observation_context,
+                state_update_sink,
                 checkpoint_run_id=checkpoint_run_id,
             )
         else:
@@ -324,6 +330,7 @@ class AnalysisRunner:
         graph_args: dict[str, Any],
         cancellation_token: CancellationToken,
         observation_context: Any | None,
+        state_update_sink: StateUpdateSink | None,
         *,
         checkpoint_run_id: str | None,
     ) -> Mapping[str, Any]:
@@ -367,6 +374,8 @@ class AnalysisRunner:
                 mode, payload = chunk
             if not isinstance(payload, Mapping):
                 raise TypeError("graph state stream must yield mappings")
+            if state_update_sink is not None and mode in {None, "updates", "values"}:
+                state_update_sink(payload)
             barrier = False
             if checkpointed_web:
                 if mode == "checkpoints":

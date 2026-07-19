@@ -395,6 +395,7 @@ class TradingAgentsGraph:
         cancellation_token: CancellationToken | None = None,
         observation_context=None,
         callbacks: list | None = None,
+        state_update_sink=None,
         checkpoint_run_id: str | None = None,
         checkpoint_guard=None,
     ) -> AnalysisResult:
@@ -406,6 +407,7 @@ class TradingAgentsGraph:
             cancellation_token=cancellation_token,
             observation_context=observation_context,
             callbacks=callbacks,
+            state_update_sink=state_update_sink,
             checkpoint_run_id=checkpoint_run_id,
             checkpoint_guard=checkpoint_guard,
         )
