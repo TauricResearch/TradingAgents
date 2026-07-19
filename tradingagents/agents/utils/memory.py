@@ -12,6 +12,7 @@ class TradingMemoryLog:
     # HTML comment: cannot appear in LLM prose output, safe as a hard delimiter
     _SEPARATOR = "\n\n<!-- ENTRY_END -->\n\n"
     # Precompiled patterns — avoids re-compilation on every load_entries() call
+    _EXPECTED_RETURN_RE = re.compile(r"EXPECTED_RETURN:\s*([+-]?\d+(?:\.\d+)?)%")
     _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nREFLECTION:|\Z)", re.DOTALL)
     _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*?)$", re.DOTALL)
 
@@ -32,6 +33,7 @@ class TradingMemoryLog:
         ticker: str,
         trade_date: str,
         final_trade_decision: str,
+        expected_return: float | None = None,
     ) -> None:
         """Append pending entry at end of propagate(). No LLM call."""
         if not self._log_path:
@@ -44,7 +46,12 @@ class TradingMemoryLog:
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+        expected_block = (
+            f"EXPECTED_RETURN: {expected_return:+.1%}\n\n"
+            if expected_return is not None
+            else ""
+        )
+        entry = f"{tag}\n\n{expected_block}DECISION:\n{final_trade_decision}{self._SEPARATOR}"
         with open(self._log_path, "a", encoding="utf-8") as f:
             f.write(entry)
 
@@ -276,8 +283,12 @@ class TradingMemoryLog:
         body = "\n".join(lines[1:]).strip()
         decision_match = self._DECISION_RE.search(body)
         reflection_match = self._REFLECTION_RE.search(body)
+        expected_match = self._EXPECTED_RETURN_RE.search(body)
         entry["decision"] = decision_match.group(1).strip() if decision_match else ""
         entry["reflection"] = reflection_match.group(1).strip() if reflection_match else ""
+        entry["expected_return"] = (
+            float(expected_match.group(1)) / 100 if expected_match else None
+        )
         return entry
 
     def _format_full(self, e: dict) -> str:
