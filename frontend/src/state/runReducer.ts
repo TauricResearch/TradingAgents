@@ -129,7 +129,7 @@ function seedFromSnapshot(s: RunSnapshotDTO): ReducerState {
     checkpoint_enabled: false,
     created_at: s.created_at,
     updated_at: s.updated_at,
-    latest_sequence: s.latest_sequence,
+    latest_sequence: 0,  // replay all events from 0 to rebuild state
     final_signal: s.final_signal,
     summary: s.summary,
     error_category: s.error_category,

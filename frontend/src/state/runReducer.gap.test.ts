@@ -164,13 +164,21 @@ describe("G4 reducer gap coverage", () => {
     expect(fromSnapshot.meta.run_id).toBe(fromScratch.meta.run_id);
     expect(fromSnapshot.meta.ticker).toBe(fromScratch.meta.ticker);
     expect(fromSnapshot.meta.selected_analysts).toEqual(fromScratch.meta.selected_analysts);
-    expect(fromSnapshot.meta.latest_sequence).toBe(3);
+    // latest_sequence is seeded to 0 (not snapshot.latest_sequence) so the
+    // full event history can replay and rebuild role/turn state from events;
+    // the snapshot only provides the run identity skeleton.
+    expect(fromSnapshot.meta.latest_sequence).toBe(0);
     // Roles seeded identically (both pending for selected analysts).
     expect(fromSnapshot.roles["analyst.market"]?.status).toBe("pending");
     expect(fromSnapshot.roles["analyst.fundamentals"]?.status).toBe("pending");
-    // Re-feeding an already-applied event after snapshot is a no-op (dedupe).
+    // Re-feeding an already-applied event after snapshot: with latest_sequence=0
+    // the event IS applied (advances latest_sequence to its sequence). This is
+    // intentional - replay rebuilds state. Feeding the same event twice then
+    // dedupes (second application is a no-op).
     const reFed = runReducer(fromSnapshot, { type: "event", event: events[2] });
-    expect(JSON.stringify(reFed)).toEqual(JSON.stringify(fromSnapshot));
+    expect(reFed.meta.latest_sequence).toBe(events[2].sequence);
+    const reFedAgain = runReducer(reFed, { type: "event", event: events[2] });
+    expect(reFedAgain.meta.latest_sequence).toBe(reFed.meta.latest_sequence);
   });
 
   it("graph.task_abandoned is recorded without throwing and marks the task abandoned", () => {

@@ -3,27 +3,12 @@
  *
  * Lifecycle per run_id:
  *   mount / run_id change -> status "loading"
- *   getRun(run_id) resolves -> dispatch seed(createInitialState(snapshot))
- *                              -> status "replaying"
- *   openRunStream(run_id, snapshot.latest_sequence, ...)
- *   first event with sequence > snapshot.latest_sequence -> status "live"
- *   terminal event or stream close -> status "closed"
- *   fetch / stream error -> status "error"
- *   run_id === null -> status "idle", state null
- *
- * Sequence dedup is handled inside runReducer (per task statement); this hook
- * does not perform its own dedup. Cleanup on unmount or run_id change closes
- * the subscription and invalidates in-flight fetches.
- *
- * Assumed ./reducer module exports (sibling F2 deliverable):
- *   export function createInitialState(snapshot: RunSnapshotDTO): ReducerState;
- *   export function runReducer(
- *     state: ReducerState | null,
- *     action: { type: "seed"; state: ReducerState | null }
- *            | { type: "event"; event: PersistedEventDTO },
- *   ): ReducerState | null;
- * The reducer must accept `ReducerState | null` so useReducer can be seeded
- * with null before the snapshot arrives.
+ *   getRun(run_id) resolves -> dispatch snapshot -> status "replaying"
+ *   openRunStream(run_id, 0, ...) -> live events fold into reducer
+ *   terminal event or stream close -> if terminal, status "closed"; else
+ *     reconnect after a short backoff to recover any events the broker live
+ *     queue missed (resilience against fast runs / transport drops).
+ *   run_id === null -> status "idle", state reset.
  */
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { ReducerState } from "../state/model";
@@ -49,6 +34,10 @@ export interface UseRunStreamResult {
   close: () => void;
 }
 
+const TERMINAL_RUN_STATUSES = new Set(["completed", "failed", "cancelled", "interrupted"]);
+const RECONNECT_DELAY_MS = 800;
+const MAX_RECONNECTS = 20;
+
 export function useRunStream(run_id: string | null): UseRunStreamResult {
   const [state, dispatch] = useReducer(
     runReducer as (s: ReducerState, a: ReducerAction) => ReducerState,
@@ -59,16 +48,20 @@ export function useRunStream(run_id: string | null): UseRunStreamResult {
   );
   const [error, setError] = useState<Error | null>(null);
   const subscriptionRef = useRef<SseSubscription | null>(null);
-  /** Guards manual close() against late-arriving callbacks / in-flight fetch. */
   const closedRef = useRef(false);
-  /** Mirrors run_id during render so close() can no-op when idle. */
   const runIdRef = useRef<string | null>(run_id);
   runIdRef.current = run_id;
+  const lastSeqRef = useRef(0);
+  const reconnectCountRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const close = useCallback((): void => {
-    // No-op when there is no active run; preserves the "idle" contract.
     if (runIdRef.current === null) return;
     closedRef.current = true;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     const sub = subscriptionRef.current;
     if (sub) {
       sub.close();
@@ -91,43 +84,79 @@ export function useRunStream(run_id: string | null): UseRunStreamResult {
       return;
     }
 
-    // Capture as const so the narrowing (string, not string | null) is
-    // preserved inside the async .then closure below.
     const id: string = run_id;
     closedRef.current = false;
     let cancelled = false;
     setStatus("loading");
     setError(null);
 
+    const streamFrom = (after: number): void => {
+      if (cancelled || closedRef.current) return;
+      const subscription = openRunStream(id, after, {
+        onEvent: (event: PersistedEventDTO) => {
+          if (cancelled || closedRef.current) return;
+          lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+          dispatch({ type: "event", event });
+          setStatus("live");
+        },
+        onClose: () => {
+          if (cancelled || closedRef.current) return;
+          // The stream closed. Re-fetch the snapshot to decide: if the run
+          // is terminal AND we have already seen its last event, we are done.
+          // Otherwise reconnect from the last seen sequence to drain any
+          // events the broker live queue missed (fast-worker resilience).
+          if (reconnectCountRef.current >= MAX_RECONNECTS) {
+            setStatus("error");
+            setError(new Error("SSE reconnected too many times without reaching a terminal state"));
+            return;
+          }
+          reconnectCountRef.current += 1;
+          reconnectTimerRef.current = setTimeout(() => {
+            if (cancelled || closedRef.current) return;
+            getRun(id)
+              .then((snap: RunSnapshotDTO) => {
+                if (cancelled || closedRef.current) return;
+                dispatch({ type: "snapshot", snapshot: snap });
+                if (
+                  TERMINAL_RUN_STATUSES.has(snap.status) &&
+                  snap.latest_sequence <= lastSeqRef.current
+                ) {
+                  // Terminal and we have seen every event.
+                  setStatus("closed");
+                  return;
+                }
+                // Either still running, or terminal but we missed events:
+                // re-subscribe from the last seen sequence.
+                streamFrom(lastSeqRef.current);
+              })
+              .catch((err: unknown) => {
+                if (cancelled || closedRef.current) return;
+                setError(err instanceof Error ? err : new Error(String(err)));
+                setStatus("error");
+              });
+          }, RECONNECT_DELAY_MS);
+        },
+        onError: (err: Error) => {
+          if (cancelled || closedRef.current) return;
+          setError(err);
+          setStatus("error");
+        },
+      });
+      if (cancelled || closedRef.current) {
+        subscription.close();
+        return;
+      }
+      subscriptionRef.current = subscription;
+    };
+
     getRun(id)
       .then((snapshot: RunSnapshotDTO) => {
         if (cancelled || closedRef.current) return;
+        lastSeqRef.current = 0;
+        reconnectCountRef.current = 0;
         dispatch({ type: "snapshot", snapshot });
         setStatus("replaying");
-        const subscription = openRunStream(id, snapshot.latest_sequence, {
-          onEvent: (event: PersistedEventDTO) => {
-            if (cancelled || closedRef.current) return;
-            dispatch({ type: "event", event });
-            if (event.sequence > snapshot.latest_sequence) {
-              setStatus("live");
-            }
-          },
-          onClose: () => {
-            if (cancelled || closedRef.current) return;
-            setStatus("closed");
-          },
-          onError: (err: Error) => {
-            if (cancelled || closedRef.current) return;
-            setError(err);
-            setStatus("error");
-          },
-        });
-        // If close() or unmount raced with stream open, tear it down immediately.
-        if (cancelled || closedRef.current) {
-          subscription.close();
-          return;
-        }
-        subscriptionRef.current = subscription;
+        streamFrom(0);
       })
       .catch((err: unknown) => {
         if (cancelled || closedRef.current) return;
@@ -137,6 +166,10 @@ export function useRunStream(run_id: string | null): UseRunStreamResult {
 
     return () => {
       cancelled = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       const sub = subscriptionRef.current;
       if (sub) {
         sub.close();
