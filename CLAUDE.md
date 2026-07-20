@@ -31,6 +31,15 @@ pytest -k "test_name_pattern"             # filter by name
 # Docker
 docker compose up tradingagents           # run tradingagents service
 docker compose --profile ollama up        # with local Ollama
+
+# Local web workbench (localhost-only; requires the [web] extra + Node only for rebuild)
+pip install -e ".[web]"                   # FastAPI/Uvicorn/RFC8785 + the approved LangGraph/checkpointer floor
+tradingagents web                         # serve the built SPA at http://127.0.0.1:8000 (127.0.0.1 only; no --host)
+tradingagents web --port 8765 --open      # custom port + open the browser
+npm --prefix frontend run build          # rebuild frontend into tradingagents/web/static/ (run when src/ui changes)
+npm --prefix frontend run typecheck      # strict TS check (tsc -b --noEmit)
+npm --prefix frontend run test -- --run  # vitest unit tests
+npm --prefix frontend run test:e2e       # Playwright (python scripts/e2e_server.py must start; some specs skipped, see Handoff.md)
 ```
 
 ## Core Architecture
@@ -93,6 +102,7 @@ Data calls route through `tradingagents/dataflows/interface.py` → `route_to_ve
 7. **Market Data Validator**: `tradingagents/dataflows/market_data_validator.py`, deterministic snapshot to ground numeric claims (stops LLM confabulation of prices/indicators)
 8. **Symbol Normalization**: `tradingagents/dataflows/symbol_utils.py`, normalize commodity/forex/crypto/A-share tickers
 9. **Progress events**: `tradingagents/dataflows/progress.py`, lightweight data-call progress events surfaced in the Chinese CLI
+10. **Local web workbench**: `tradingagents web` (loopback-only) runs the real LangGraph and visualizes the 13-role debate via a React+TS+Vite SPA served by FastAPI (SSE). Frontend lives in `frontend/`; its committed build output is `tradingagents/web/static/` so an installed wheel serves without Node. Backend under `tradingagents/observability/` (events/roles/observer/projections) + `tradingagents/web/` (api/broker/manager/store) + `tradingagents/execution/runner.py`; detailed progress is in `Handoff.md`. Rebuild the frontend and commit the static drift whenever `frontend/src` changes.
 
 ## Design Principles
 
