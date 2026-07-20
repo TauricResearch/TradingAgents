@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import re
 import time
@@ -200,31 +202,88 @@ def format_company_profile(profile: dict[str, Any] | None) -> str:
     return "Canonical company profile: " + "; ".join(parts) + "."
 
 
+_A_SHARE_CODE_NAME_CACHE: dict[str, str] | None = None
+
+
 def _apply_akshare_profile(profile: dict[str, Any]) -> None:
     try:
         from .china_data import _import_optional
 
         ak = _import_optional("akshare", "pip install akshare")
-        df = ak.stock_individual_info_em(symbol=str(profile.get("symbol") or ""))
-        if not isinstance(df, pd.DataFrame) or df.empty:
+        symbol = str(profile.get("symbol") or "")
+        if not symbol:
             return
-        rows = {
-            str(row.get("item") or "").strip(): str(row.get("value") or "").strip()
-            for row in df.to_dict("records")
-        }
-        if rows.get("股票简称"):
-            profile["name"] = rows["股票简称"]
-        if rows.get("行业"):
-            profile["industry"] = rows["行业"]
-        if rows.get("股票代码"):
-            profile["symbol"] = rows["股票代码"].zfill(6)
-            suffix = str(profile.get("ticker", "")).split(".")[-1]
-            profile["ticker"] = normalize_ticker_symbol(f"{profile['symbol']}.{suffix}")
-            profile["ts_code"] = to_tushare_symbol(str(profile["ticker"]))
-            profile["exchange"] = _exchange_name(str(profile["ticker"]))
-        profile["profile_source"] = "akshare"
+
+        # Primary: East Wealth stock_individual_info_em (rich - name + industry).
+        # This endpoint is rate-limited / frequently drops connections, so a
+        # failure here must not abort the akshare tier - fall through to the
+        # Sina-backed code/name list below.
+        try:
+            df = ak.stock_individual_info_em(symbol=symbol)
+        except Exception:
+            df = None
+
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            rows = {
+                str(row.get("item") or "").strip(): str(row.get("value") or "").strip()
+                for row in df.to_dict("records")
+            }
+            if rows.get("股票简称"):
+                profile["name"] = rows["股票简称"]
+            if rows.get("行业"):
+                profile["industry"] = rows["行业"]
+            if rows.get("股票代码"):
+                profile["symbol"] = rows["股票代码"].zfill(6)
+                suffix = str(profile.get("ticker", "")).split(".")[-1]
+                profile["ticker"] = normalize_ticker_symbol(f"{profile['symbol']}.{suffix}")
+                profile["ts_code"] = to_tushare_symbol(str(profile["ticker"]))
+                profile["exchange"] = _exchange_name(str(profile["ticker"]))
+            profile["profile_source"] = "akshare"
+
+        # Fallback: Sina stock_info_a_code_name (name only, reliable when East
+        # Wealth is unreachable). Cached module-level because the list is large
+        # (~5500 rows) and changes rarely. Without this fallback the akshare
+        # tier silently returns an empty name whenever East Wealth drops the
+        # connection, leaving canonical_company_profile without a name and
+        # tripping the Evidence Steward A-share gate.
+        if not profile.get("name"):
+            name = _lookup_a_share_name_from_code_list(ak, symbol)
+            if name:
+                profile["name"] = name
+                if not profile.get("full_name"):
+                    profile["full_name"] = name
+                profile["profile_source"] = "akshare_code_name"
     except Exception as exc:
         profile["akshare_resolution_error"] = str(exc)
+
+
+def _lookup_a_share_name_from_code_list(ak: Any, symbol: str) -> str:
+    """Look up company name from the full A-share code/name list (Sina source).
+
+    Cached module-level: the list covers both SSE and SZSE, is large, and
+    changes rarely. Suppresses stderr while paginating because akshare emits
+    a tqdm progress bar for the multi-page fetch.
+    """
+    global _A_SHARE_CODE_NAME_CACHE
+    try:
+        if _A_SHARE_CODE_NAME_CACHE is None:
+            saved = os.environ.get("TQDM_DISABLE")
+            os.environ["TQDM_DISABLE"] = "1"
+            try:
+                with contextlib.redirect_stderr(io.StringIO()):
+                    df = ak.stock_info_a_code_name()
+            finally:
+                if saved is None:
+                    os.environ.pop("TQDM_DISABLE", None)
+                else:
+                    os.environ["TQDM_DISABLE"] = saved
+            _A_SHARE_CODE_NAME_CACHE = {
+                str(row.get("code") or "").zfill(6): str(row.get("name") or "").strip()
+                for row in df.to_dict("records")
+            }
+        return _A_SHARE_CODE_NAME_CACHE.get(str(symbol).zfill(6), "")
+    except Exception:
+        return ""
 
 
 def _apply_yfinance_profile(profile: dict[str, Any]) -> None:
