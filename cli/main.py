@@ -41,6 +41,7 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
+from tradingagents.agents.utils.agent_utils import resolve_instrument_identity
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
@@ -554,7 +555,8 @@ def get_user_selections():
         )
     )
     selected_ticker = get_ticker()
-    asset_type = detect_asset_type(selected_ticker)
+    identity = resolve_instrument_identity(selected_ticker)
+    asset_type = detect_asset_type(selected_ticker, identity)
     # Only announce when it's not the default stock path, to avoid printing
     # "stock" on every run.
     if asset_type.value != "stock":

@@ -1,5 +1,7 @@
 from enum import Enum
 
+from tradingagents.asset_types import AssetType as AssetType
+
 
 class AnalystType(str, Enum):
     MARKET = "market"
@@ -8,8 +10,3 @@ class AnalystType(str, Enum):
     SOCIAL = "social"
     NEWS = "news"
     FUNDAMENTALS = "fundamentals"
-
-
-class AssetType(str, Enum):
-    STOCK = "stock"
-    CRYPTO = "crypto"

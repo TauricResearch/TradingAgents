@@ -25,6 +25,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_prediction_markets,
     get_stock_data,
     get_verified_market_snapshot,
+    resolve_asset_type,
     resolve_instrument_identity,
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
@@ -34,6 +35,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.reporting import write_report_tree
 
+from .analyst_execution import build_analyst_execution_plan
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
 from .propagation import Propagator
@@ -148,6 +150,7 @@ class TradingAgentsGraph:
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
         self.graph = self.workflow.compile()
+        self._active_analysts = self._analysts_for_asset_type("stock")
         self._checkpointer_ctx = None
 
     def _get_provider_kwargs(self) -> dict[str, Any]:
@@ -343,7 +346,31 @@ class TradingAgentsGraph:
         graph regardless of entry point.
         """
         identity = resolve_instrument_identity(ticker)
-        return build_instrument_context(ticker, asset_type, identity)
+        resolved_asset_type = resolve_asset_type(ticker, asset_type, identity)
+        return build_instrument_context(ticker, resolved_asset_type, identity)
+
+    def _analysts_for_asset_type(self, asset_type: str) -> tuple[str, ...]:
+        """Return the effective analyst keys for a run's asset type."""
+        plan = build_analyst_execution_plan(
+            self.selected_analysts,
+            asset_type=asset_type,
+        )
+        return tuple(spec.key for spec in plan.specs)
+
+    def _configure_workflow(self, asset_type: str) -> None:
+        """Compile the graph shape required by ``asset_type`` when it changes."""
+        effective_analysts = self._analysts_for_asset_type(asset_type)
+        if effective_analysts == self._active_analysts:
+            return
+
+        workflow = self.graph_setup.setup_graph(
+            self.selected_analysts,
+            asset_type=asset_type,
+        )
+        graph = workflow.compile()
+        self.workflow = workflow
+        self.graph = graph
+        self._active_analysts = effective_analysts
 
     def _run_signature(self, asset_type: str) -> str:
         """Graph-shape inputs that must invalidate a checkpoint if changed.
@@ -352,8 +379,9 @@ class TradingAgentsGraph:
         selection, debate/risk depth, or asset mode starts fresh instead of
         silently continuing the previous graph (#1089).
         """
+        effective_analysts = self._analysts_for_asset_type(asset_type)
         return "|".join([
-            "analysts=" + ",".join(self.selected_analysts),
+            "analysts=" + ",".join(effective_analysts),
             f"debate={self.config['max_debate_rounds']}",
             f"risk={self.config['max_risk_discuss_rounds']}",
             f"asset={asset_type}",
@@ -362,14 +390,18 @@ class TradingAgentsGraph:
     def propagate(self, company_name, trade_date, asset_type: str = "stock"):
         """Run the trading agents graph for a company on a specific date.
 
-        ``asset_type`` selects between the stock pipeline (default) and the
-        crypto pipeline (``"crypto"``) shipped in #567 — the CLI auto-detects
-        from the ticker; programmatic callers pass it explicitly. When
-        ``checkpoint_enabled`` is set in config, the graph is recompiled with
+        ``asset_type`` selects the stock (default), crypto, or futures pipeline.
+        Futures are promoted deterministically from a canonical ``=F`` symbol
+        or resolved Yahoo ``quoteType`` even when the caller leaves the default.
+        When ``checkpoint_enabled`` is set in config, the graph is recompiled with
         a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
         """
         self.ticker = company_name
+
+        identity = resolve_instrument_identity(company_name)
+        asset_type = resolve_asset_type(company_name, asset_type, identity)
+        self._configure_workflow(asset_type)
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
         self._resolve_pending_entries(company_name)

@@ -59,7 +59,9 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=("market", "social", "news", "fundamentals")
+        self,
+        selected_analysts=("market", "social", "news", "fundamentals"),
+        asset_type: str = "stock",
     ):
         """Set up and compile the agent workflow graph.
 
@@ -69,8 +71,9 @@ class GraphSetup:
                 - "social": Social media analyst
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
+            asset_type: Instrument mode used to omit unsupported analyst stages.
         """
-        plan = build_analyst_execution_plan(selected_analysts)
+        plan = build_analyst_execution_plan(selected_analysts, asset_type=asset_type)
 
         analyst_factories = {
             "market": lambda: create_market_analyst(self.quick_thinking_llm),

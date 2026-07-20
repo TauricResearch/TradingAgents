@@ -23,6 +23,7 @@ from tradingagents.agents.utils.news_data_tools import (
 )
 from tradingagents.agents.utils.prediction_markets_tools import get_prediction_markets
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
+from tradingagents.asset_types import coerce_asset_type, resolve_asset_type
 
 # Public surface: the data tools are imported here so agents and the graph
 # import them from one place, plus the instrument/language helpers defined below.
@@ -40,6 +41,7 @@ __all__ = [
     "get_prediction_markets",
     "get_verified_market_snapshot",
     "build_instrument_context",
+    "resolve_asset_type",
     "resolve_instrument_identity",
     "get_instrument_context_from_state",
     "get_language_instruction",
@@ -131,19 +133,30 @@ def build_instrument_context(
     classification are injected so agents anchor to the real company rather
     than pattern-matching the price chart to a wrong one (#814).
     """
+    asset_type = coerce_asset_type(asset_type)
     is_crypto = asset_type == "crypto"
+    is_futures = asset_type == "futures"
     instrument_label = "asset" if is_crypto else "instrument"
+    suffix_examples = "`.TO`, `.L`, `.HK`, `.T`, `-USD`"
+    if is_futures:
+        suffix_examples += ", `=F`"
     context = (
         f"The {instrument_label} to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
-        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
+        f"preserving any exchange suffix (e.g. {suffix_examples})."
     )
 
     details = []
     if identity:
         name = identity.get("company_name") or identity.get("name")
         if name:
-            details.append(f"{'Name' if is_crypto else 'Company'}: {name}")
+            if is_crypto:
+                name_label = "Name"
+            elif is_futures:
+                name_label = "Contract"
+            else:
+                name_label = "Company"
+            details.append(f"{name_label}: {name}")
         sector, industry = identity.get("sector"), identity.get("industry")
         if sector and industry:
             details.append(f"Business classification: {sector} / {industry}")
@@ -155,9 +168,10 @@ def build_instrument_context(
             details.append(f"Exchange: {identity['exchange']}")
 
     if details:
+        identity_target = "instrument" if is_futures else "company"
         context += (
             f" Resolved identity: {'; '.join(details)}. "
-            "Do not substitute a different company or ticker unless a tool "
+            f"Do not substitute a different {identity_target} or ticker unless a tool "
             "result explicitly disproves this resolved identity."
         )
 
@@ -165,6 +179,12 @@ def build_instrument_context(
         context += (
             " Treat it as a crypto asset rather than a company, and do not "
             "assume company fundamentals are available."
+        )
+    elif is_futures:
+        context += (
+            " Treat it as a commodity or index derivative rather than a company. "
+            "Do not assume company fundamentals or equity-style sentiment coverage "
+            "are available."
         )
     return context
 

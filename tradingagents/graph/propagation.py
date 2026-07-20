@@ -6,6 +6,7 @@ from tradingagents.agents.utils.agent_states import (
     InvestDebateState,
     RiskDebateState,
 )
+from tradingagents.asset_types import coerce_asset_type
 
 
 class Propagator:
@@ -31,6 +32,7 @@ class Propagator:
         fall back to ticker-only context via
         ``get_instrument_context_from_state``.
         """
+        asset_type = coerce_asset_type(asset_type)
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,

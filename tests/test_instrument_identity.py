@@ -11,8 +11,10 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     create_msg_delete,
     get_instrument_context_from_state,
+    resolve_asset_type,
     resolve_instrument_identity,
 )
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 
 @pytest.mark.unit
@@ -36,6 +38,7 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
         self.assertEqual(identity["sector"], "Industrials")
         self.assertEqual(identity["industry"], "Building Products & Equipment")
         self.assertEqual(identity["exchange"], "PNK")
+        self.assertEqual(identity["quote_type"], "EQUITY")
 
     def test_falls_back_to_short_name(self):
         with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
@@ -63,6 +66,36 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
             second = resolve_instrument_identity("TOTDY")
         mock.assert_called_once()  # second call served from cache
         self.assertEqual(first, second)
+
+
+@pytest.mark.unit
+class ResolveAssetTypeTests(unittest.TestCase):
+    def test_native_symbol_and_broker_alias_identify_futures(self):
+        self.assertEqual(resolve_asset_type("GC=F"), "futures")
+        self.assertEqual(resolve_asset_type("GOLD"), "futures")
+
+    def test_quote_type_identifies_futures_without_symbol_suffix(self):
+        self.assertEqual(
+            resolve_asset_type("YGZ26", "stock", {"quote_type": "FUTURE"}),
+            "futures",
+        )
+
+    def test_non_futures_preserve_existing_modes(self):
+        self.assertEqual(resolve_asset_type("AAPL", "stock"), "stock")
+        self.assertEqual(resolve_asset_type("BTC-USD", "crypto"), "crypto")
+
+    def test_rejects_unknown_asset_type(self):
+        with self.assertRaisesRegex(ValueError, "asset_type must be one of"):
+            resolve_asset_type("AAPL", "bond")
+
+    @patch(
+        "tradingagents.graph.trading_graph.resolve_instrument_identity",
+        return_value={"quote_type": "FUTURE"},
+    )
+    def test_graph_context_uses_resolved_futures_type(self, _resolve_identity):
+        context = TradingAgentsGraph.resolve_instrument_context(None, "YGZ26")
+
+        self.assertIn("commodity or index derivative", context)
 
 
 @pytest.mark.unit
@@ -94,6 +127,21 @@ class BuildInstrumentContextTests(unittest.TestCase):
         )
         self.assertIn("Name: Bitcoin USD", context)
         self.assertIn("crypto asset rather than a company", context)
+
+    def test_futures_describes_derivative_data_constraints(self):
+        context = build_instrument_context(
+            "GC=F", "futures", {"company_name": "Gold Dec 26", "exchange": "CMX"}
+        )
+
+        self.assertIn("Contract: Gold Dec 26", context)
+        self.assertIn("commodity or index derivative", context)
+        self.assertIn("company fundamentals", context)
+        self.assertIn("equity-style sentiment coverage", context)
+
+    def test_futures_suffix_example_does_not_change_other_asset_prompts(self):
+        self.assertNotIn("`=F`", build_instrument_context("AAPL", "stock"))
+        self.assertNotIn("`=F`", build_instrument_context("BTC-USD", "crypto"))
+        self.assertIn("`=F`", build_instrument_context("GC=F", "futures"))
 
 
 @pytest.mark.unit

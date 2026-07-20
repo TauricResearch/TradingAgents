@@ -2,6 +2,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from time import monotonic
 
+from tradingagents.asset_types import coerce_asset_type
+
 
 @dataclass(frozen=True)
 class AnalystNodeSpec:
@@ -55,15 +57,23 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
 
 def build_analyst_execution_plan(
     selected_analysts: Iterable[str],
+    asset_type: str = "stock",
 ) -> AnalystExecutionPlan:
+    asset_type = coerce_asset_type(asset_type)
     specs: list[AnalystNodeSpec] = []
+    skipped_fundamentals = False
     for analyst_key in selected_analysts:
         spec = ANALYST_NODE_SPECS.get(analyst_key)
         if spec is None:
             raise ValueError(f"unknown analyst key: {analyst_key}")
+        if asset_type == "futures" and analyst_key == "fundamentals":
+            skipped_fundamentals = True
+            continue
         specs.append(spec)
 
     if not specs:
+        if skipped_fundamentals:
+            raise ValueError("at least one futures-compatible analyst must be selected")
         raise ValueError("at least one analyst must be selected")
 
     return AnalystExecutionPlan(specs=specs)

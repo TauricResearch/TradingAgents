@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 import questionary
@@ -6,12 +7,13 @@ from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
+from tradingagents.asset_types import resolve_asset_type
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
+TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD, GC=F"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -78,19 +80,24 @@ def normalize_ticker_symbol(ticker: str) -> str:
         return ticker.strip().upper()
 
 
-def detect_asset_type(ticker: str) -> AssetType:
-    """Classify on the canonical symbol so e.g. BTCUSD and BTC-USDT both read as
-    crypto (#981/#982), matching what the data path will actually fetch."""
+def detect_asset_type(
+    ticker: str,
+    identity: Mapping[str, str] | None = None,
+) -> AssetType:
+    """Classify the canonical symbol and optional resolved Yahoo identity."""
     canonical = normalize_ticker_symbol(ticker)
-    if canonical.endswith(CRYPTO_SUFFIXES):
-        return AssetType.CRYPTO
-    return AssetType.STOCK
+    requested_type = (
+        AssetType.CRYPTO
+        if canonical.endswith(CRYPTO_SUFFIXES)
+        else AssetType.STOCK
+    )
+    return AssetType(resolve_asset_type(canonical, requested_type, identity))
 
 
 def filter_analysts_for_asset_type(
     analysts: list[AnalystType], asset_type: AssetType
 ) -> list[AnalystType]:
-    if asset_type != AssetType.CRYPTO:
+    if asset_type not in {AssetType.CRYPTO, AssetType.FUTURES}:
         return analysts
     return [
         analyst

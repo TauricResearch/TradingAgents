@@ -11,6 +11,8 @@ from unittest import mock
 
 import pytest
 
+from cli.models import AssetType
+
 
 @pytest.mark.unit
 class TestProviderDefaultUrl(unittest.TestCase):
@@ -55,9 +57,14 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
              mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
              mock.patch.object(m, "fetch_announcements", return_value=None), \
              mock.patch.object(m, "display_announcements"), \
-             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "get_ticker", return_value="YGZ26"), \
+             mock.patch.object(
+                 m,
+                 "resolve_instrument_identity",
+                 return_value={"quote_type": "FUTURE"},
+             ) as resolve_identity, \
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
-             mock.patch.object(m, "select_analysts", return_value=[]), \
+             mock.patch.object(m, "select_analysts", return_value=[]) as select_analysts, \
              mock.patch.object(m, "select_research_depth", return_value=1), \
              mock.patch.object(m, "ensure_api_key") as ensure_key, \
              mock.patch.object(m, "select_llm_provider") as prompt_provider, \
@@ -73,6 +80,8 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         prompt_deep.assert_not_called()
         # API key is still verified for the env-configured provider.
         ensure_key.assert_called_once()
+        resolve_identity.assert_called_once_with("YGZ26")
+        select_analysts.assert_called_once_with(AssetType.FUTURES)
 
         # The env values flow into the returned selections.
         self.assertEqual(sel["llm_provider"], "openai")
@@ -80,6 +89,7 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         self.assertEqual(sel["shallow_thinker"], "deepseek-v4-pro")
         self.assertEqual(sel["deep_thinker"], "kimi-k2.5")
         self.assertEqual(sel["output_language"], "Japanese")
+        self.assertEqual(sel["asset_type"], AssetType.FUTURES.value)
 
 
 @pytest.mark.unit
@@ -99,6 +109,7 @@ class TestResearchDepthSkippedFromEnv(unittest.TestCase):
              mock.patch.object(m, "fetch_announcements", return_value=None), \
              mock.patch.object(m, "display_announcements"), \
              mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "resolve_instrument_identity", return_value={}), \
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth") as prompt_depth, \
@@ -129,6 +140,7 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
              mock.patch.object(m, "fetch_announcements", return_value=None), \
              mock.patch.object(m, "display_announcements"), \
              mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "resolve_instrument_identity", return_value={}), \
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth", return_value=1), \

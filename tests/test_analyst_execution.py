@@ -40,6 +40,21 @@ class AnalystExecutionPlanTests(unittest.TestCase):
         self.assertEqual(spec.agent_node, "Sentiment Analyst")
         self.assertEqual(spec.report_key, "sentiment_report")
 
+    def test_futures_plan_skips_fundamentals(self):
+        plan = build_analyst_execution_plan(
+            ["market", "fundamentals", "news"],
+            asset_type="futures",
+        )
+
+        self.assertEqual([spec.key for spec in plan.specs], ["market", "news"])
+
+    def test_fundamentals_only_futures_plan_has_clear_error(self):
+        with self.assertRaisesRegex(ValueError, "futures-compatible analyst"):
+            build_analyst_execution_plan(
+                ["fundamentals"],
+                asset_type="futures",
+            )
+
 
 class AnalystWallTimeTrackerTests(unittest.TestCase):
     def test_records_wall_time_when_analyst_completes(self):

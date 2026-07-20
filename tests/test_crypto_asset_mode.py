@@ -31,6 +31,23 @@ class CryptoAssetModeTests(unittest.TestCase):
             ],
         )
 
+    def test_filters_out_fundamentals_analyst_for_futures(self):
+        analysts = [
+            AnalystType.MARKET,
+            AnalystType.SOCIAL,
+            AnalystType.NEWS,
+            AnalystType.FUNDAMENTALS,
+        ]
+
+        self.assertEqual(
+            filter_analysts_for_asset_type(analysts, AssetType.FUTURES),
+            [
+                AnalystType.MARKET,
+                AnalystType.SOCIAL,
+                AnalystType.NEWS,
+            ],
+        )
+
     def test_keeps_all_analysts_for_stock(self):
         analysts = [
             AnalystType.MARKET,
