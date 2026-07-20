@@ -1,30 +1,65 @@
-/* Visual tokens ported from the approved V2 mockup
-   (.superpowers/brainstorm/20260717-tradingagents-web/workbench-v2.html).
-   A dark financial-research console with restrained gold as the active/verified
-   emphasis; green/red for Bull/Bear only where semantically meaningful; cyan for
-   risk roles. One radius, shared by every surface. */
+/* Light "natural research desk" theme — a full token replacement for the old
+   dark console. Warm paper neutrals carry the hierarchy, ONE restrained
+   ink-blue accent marks action/active state, and semantic green/red appear
+   only where the market meaning is real (bull/bear). Amber marks transient
+   "running / verified" states. `--gold` is kept as an alias of `--amber` so
+   existing `var(--gold)` references in components keep working. */
 
 :root {
-  --bg: #080b10;
-  --panel: #0f141c;
-  --panel-2: #141a24;
-  --line: #252d3a;
-  --muted: #7f8a9a;
-  --text: #eef1f5;
-  --gold: #e5b65e;
-  --gold-soft: #17150f;
-  --green: #42c88a;
-  --red: #ed6a6a;
-  --blue: #66a7ff;
-  --cyan: #58c7cf;
-  --purple: #ad8cff;
-  --radius: 14px;
+  /* ---- Surfaces (warm paper neutrals) ---- */
+  --bg: #f4f3ef;            /* app background: warm paper, not pure white */
+  --panel: #fbfaf7;         /* raised panels (sidebar / cards) */
+  --panel-2: #eceae3;       /* recessed fills, recessed tracks, icon wells */
+  --surface-input: #ffffff; /* form fields read as clean paper */
+  --surface-node: #fbfaf7;  /* workflow nodes */
 
-  /* Surfaces tuned a hair off pure so panels separate visually. */
-  --surface-input: #0a0e14;
-  --surface-node: #111721;
-  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  --font-serif: Georgia, "Times New Roman", serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* ---- Lines (low-contrast hairlines; tone separates, not heavy borders) ---- */
+  --line: #e7e4dc;
+  --line-2: #d9d5c9;
+
+  /* ---- Text ---- */
+  --text: #23262b;          /* near-black, faintly cool to balance the warm bg */
+  --muted: #6b7280;
+  --faint: #9aa0a8;         /* placeholders, tertiary labels */
+
+  /* ---- Single accent: ink blue ---- */
+  --accent: #3e5a78;
+  --accent-strong: #2f475f; /* hover / active */
+  --accent-soft: #e9eef3;   /* tint bg for selected / active surfaces */
+  --accent-line: #c3d0dd;   /* tinted border for selected states */
+  --accent-contrast: #ffffff;
+
+  /* ---- Semantic (desaturated "natural" tones; only where meaning is real) ---- */
+  --green: #4a8f6d;         /* bull */
+  --green-soft: #e7f0ea;
+  --red: #be5a4c;           /* bear */
+  --red-soft: #f6e9e5;
+  --amber: #b9881f;         /* running / interrupted / verified */
+  --amber-soft: #f6eeda;
+  --gold: #b9881f;          /* alias of --amber (legacy var(--gold) refs) */
+
+  /* ---- Radius ---- */
+  --radius: 10px;
+  --radius-sm: 7px;
+  --radius-lg: 14px;
+
+  /* ---- Spacing scale (4 / 8 / 12 / 16 / 24 / 32) ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* ---- Soft, low-alpha elevation (Linear-style restraint: barely there) ---- */
+  --shadow-sm: 0 1px 2px rgba(32, 34, 38, 0.05);
+  --shadow-md: 0 1px 2px rgba(32, 34, 38, 0.04), 0 3px 10px rgba(32, 34, 38, 0.06);
+  --shadow-lg: 0 10px 28px rgba(32, 34, 38, 0.1);
+
+  /* ---- Type ---- */
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC",
+    "Noto Serif CJK SC", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }

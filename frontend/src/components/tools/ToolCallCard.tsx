@@ -30,11 +30,11 @@ interface StatusTone {
 }
 
 const STATUS_TONE: Record<LogicalToolCallStatus, StatusTone> = {
-  committed: { label: "已提交", tone: "green", color: "#3fb950" },
-  requested: { label: "已请求", tone: "gold", color: "#d29922" },
-  running: { label: "运行中", tone: "gold", color: "#d29922" },
-  cancelled: { label: "已取消", tone: "muted", color: "#6e7681" },
-  failed: { label: "失败", tone: "red", color: "#f85149" },
+  committed: { label: "已提交", tone: "green", color: "var(--green)" },
+  requested: { label: "已请求", tone: "gold", color: "var(--amber)" },
+  running: { label: "运行中", tone: "gold", color: "var(--amber)" },
+  cancelled: { label: "已取消", tone: "muted", color: "var(--muted)" },
+  failed: { label: "失败", tone: "red", color: "var(--red)" },
 };
 
 const EXECUTION_STATUS_LABEL: Record<ToolExecutionStatus, string> = {

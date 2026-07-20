@@ -20,10 +20,10 @@ export interface VendorProvenanceProps {
 type VendorStatus = VendorCall["status"];
 
 const VENDOR_STATUS_COLOR: Record<VendorStatus, string> = {
-  completed: "#3fb950",
-  failed: "#f85149",
-  progress: "#d29922",
-  interrupted: "#6e7681",
+  completed: "var(--green)",
+  failed: "var(--red)",
+  progress: "var(--amber)",
+  interrupted: "var(--muted)",
 };
 
 const VENDOR_STATUS_LABEL: Record<VendorStatus, string> = {

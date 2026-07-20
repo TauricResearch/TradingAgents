@@ -2,6 +2,8 @@
 
 Last updated: 2026-07-20
 
+> 2026-07-20 visual restyle: the workbench shell was restyled from the original dark-console mockup to a light "natural research desk" theme (warm paper neutrals + a single ink-blue accent; semantic green/red reserved for bull/bear; amber for running/verified). Per-story color details in the notes below (cyan-for-risk, gold candidate tag, blue-default icons) reflect the original 2026-07-18 build and are superseded for the current visual; see `frontend/src/styles/tokens.css` for the source of truth.
+
 ## Goal
 
 Build a localhost-only web application that starts from the terminal, accepts a stock and analysis inputs, runs the real TradingAgents workflow, and visualizes agent outputs, debate turns, data/tool calls, run inputs, and final artifacts with clear role icons.

@@ -18,8 +18,9 @@ evidence trail.
   below the approved LangGraph/checkpointer floor.
 - React + TypeScript + Vite frontend (`frontend/`) building straight into the
   tracked `tradingagents/web/static/` package, so an installed wheel serves the
-  SPA without Node at runtime. V2 dark financial-research console visual
-  language ported from the approved mockup.
+  SPA without Node at runtime. Light "natural research desk" visual
+  language: warm paper neutrals, a single restrained ink-blue accent, and
+  semantic green/red reserved for bull/bear.
 - Shared live/history event reducer (`runReducer.ts`): one pure deterministic
   reducer processes both batch replay and one-by-one live SSE delivery, so
   historical and live views cannot drift. Covers every backend event family

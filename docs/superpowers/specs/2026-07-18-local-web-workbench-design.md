@@ -803,6 +803,8 @@ Clicking a role selects it and opens Role Input. The panel supports normalized f
 
 ### 13.4 Visual language
 
+> Superseded 2026-07-20: restyled to a light "natural research desk" theme (warm paper neutrals, single ink-blue accent, semantic green/red for bull/bear, amber for running/verified). The bullets below record the original 2026-07-18 dark-console direction, kept for history; current source of truth is `frontend/src/styles/tokens.css`.
+
 - dark financial-research console rather than a generic SaaS dashboard
 - restrained gold for active/verified emphasis
 - green/red for Bull/Bear only where semantically meaningful
