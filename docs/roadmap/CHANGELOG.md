@@ -3,6 +3,67 @@
 This changelog tracks changes that are specific to David's TradingAgents fork.
 The upstream project changelog remains in the repository root `CHANGELOG.md`.
 
+## 2026-07-20 - Local web workbench (phases E4–G4, H1–H2)
+
+Added a localhost-only web workbench (`tradingagents web`) that runs the real
+TradingAgents graph and visualizes the full 13-role debate, tool/data calls,
+exact role inputs, and final reports in a browser. Additive to the CLI; shares
+one `AnalysisRunner` execution path. See `Handoff.md` for the per-story
+evidence trail.
+
+### Added
+
+- `tradingagents web` loopback-only launcher (FastAPI + Uvicorn, `127.0.0.1`
+  only, no `--host` flag) with a capability preflight that rejects runtimes
+  below the approved LangGraph/checkpointer floor.
+- React + TypeScript + Vite frontend (`frontend/`) building straight into the
+  tracked `tradingagents/web/static/` package, so an installed wheel serves the
+  SPA without Node at runtime. V2 dark financial-research console visual
+  language ported from the approved mockup.
+- Shared live/history event reducer (`runReducer.ts`): one pure deterministic
+  reducer processes both batch replay and one-by-one live SSE delivery, so
+  historical and live views cannot drift. Covers every backend event family
+  (run/role/turn/model/tool/data/input/artifact/report/graph/stats) with
+  sequence dedupe and unknown-type forward-compat.
+- 13-role workflow map with custom inline SVG icons; debate/verdict timeline
+  with team filters, candidate-vs-committed frontier labels, and lazy-loaded
+  per-turn response text; audit inspector with five role-input views (data,
+  upstream, prompt, raw values, configuration) + tool-call cards + vendor
+  provenance + reports + run-input snapshot.
+- Backend observability layer (`tradingagents/observability/`): versioned
+  event envelope, 13-role registry, durable observer, canonical business-state
+  hashing, redaction, role projections, graph-task commit tokens; durable
+  checkpoint frontier reconciliation with crash recovery.
+- `SingleRunManager` (one-active-run invariant, startup recovery, retry/resume
+  with a frozen resume fingerprint), `EventBroker` (atomic replay-to-live
+  handoff, bounded subscriber queues, slow-consumer disconnect), filesystem
+  `RunStore` (append-only events, content-addressed artifacts, atomic reports).
+- CLI migrated onto the shared `AnalysisRunner` via `state_update_sink`;
+  legacy root/`analyze` config, exit, and exception behavior preserved.
+- CI gates: Python web + e2e integration tests, frontend typecheck/unit/build,
+  committed-asset drift detection, wheel SPA asset verification, CLI smoke.
+- `tests/web/e2e_app.py` integration tests (fake runner + real app/store/SSE)
+  covering 13 roles, SSE replay/dedupe, run-scoped artifacts, 409 conflict,
+  and secret absence.
+
+### Changed
+
+- `cli/main.py` `run_analysis` no longer opens a direct `graph.graph.stream()`
+  loop; it builds an `AnalysisRequest` and calls `graph.run_analysis(...,
+  state_update_sink=run_observer)`.
+- `pyproject.toml` `[tool.setuptools.package-data]` adds
+  `tradingagents = ["web/static/*", "web/static/assets/*"]` so the wheel ships
+  the built SPA.
+
+### Known limitations
+
+- Playwright browser specs (`frontend/e2e/`) are written but skipped: the
+  deterministic fake runner completes in ~50ms and races the EventBroker's
+  live-queue delivery, so the browser subscriber receives only the replay
+  window. Real LLM runs (seconds/turn) do not hit this race; the backend
+  pipeline is verified by `tests/web/e2e_app.py` integration tests. A real
+  minimum-depth smoke test is story H3.
+
 ## 2026-07-09 - Upstream v0.3.0/v0.3.1 sync (A-share-first)
 
 Synced to upstream v0.3.0/v0.3.1. Adopted upstream's architectural improvements

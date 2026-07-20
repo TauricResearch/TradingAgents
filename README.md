@@ -228,6 +228,44 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+### Local web workbench
+
+This fork also ships a localhost-only web workbench that runs the real
+TradingAgents graph and visualizes the 13-role debate, tool/data calls, exact
+role inputs, and final reports in a browser. It is additive to the CLI and
+shares the same execution path.
+
+```bash
+pip install -e ".[web]"   # FastAPI/Uvicorn/RFC8785 + the approved LangGraph floor
+tradingagents web         # serve at http://127.0.0.1:8000 (loopback only)
+tradingagents web --port 8765 --open   # custom port + open the browser
+```
+
+The browser page lets you enter a ticker, analysis date, analysts, research
+depth, provider/models, output language, and checkpoint option, then watch the
+workflow map fill in role-by-role, the debate/verdict timeline, and a per-role
+audit inspector (data fields, upstream material, prompt, raw values,
+configuration). Only one analysis may run at a time.
+
+- **History & artifacts**: each run lives under `~/.tradingagents/web/runs/<run_id>/`
+  with an append-only `events.jsonl`, content-addressed data/prompt/tool/report
+  artifacts, and the canonical Markdown report tree. Completed, failed,
+  cancelled, and interrupted runs remain available after a server restart.
+- **Privacy boundary**: the server binds to `127.0.0.1` only and never returns
+  API-key values to the browser (only configured/missing status). Stock data,
+  news content, and prompt context are still sent to your selected data vendors
+  and LLM provider — `localhost` means the web page is not public, not that
+  your queries stay local.
+- **Frontend development** (only needed when editing `frontend/src`): the
+  committed build output is `tradingagents/web/static/`, so an installed wheel
+  serves the SPA without Node. After changing `frontend/src`, rebuild and
+  commit the drift:
+  ```bash
+  npm --prefix frontend ci
+  npm --prefix frontend run build   # writes to tradingagents/web/static/
+  npm --prefix frontend run typecheck && npm --prefix frontend run test -- --run
+  ```
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.

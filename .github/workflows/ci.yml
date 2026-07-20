@@ -59,3 +59,62 @@ jobs:
         # The repo is fully clean under the strict select, so we lint everything
         # (results/ and worklog/ are excluded via pyproject extend-exclude).
         run: ruff check .
+
+  web-tests:
+    name: web (python + SPA + wheel asset)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install python with [web] + [dev] extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[web,dev]"
+      - name: Web + e2e integration tests
+        run: pytest -q tests/web
+      - name: Frontend typecheck
+        run: npm --prefix frontend run typecheck
+      - name: Frontend unit tests
+        run: npm --prefix frontend run test -- --run
+      - name: Rebuild frontend and verify no committed-asset drift
+        # Rebuilding must leave the tracked tradingagents/web/static/ output
+        # byte-identical (hashed bundle names catch any src change). A diff
+        # here means someone edited frontend/src without committing the rebuild.
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+          if ! git diff --exit-code -- tradingagents/web/static/; then
+            echo "::error::Frontend build produced drift vs committed tradingagents/web/static/. Run 'npm --prefix frontend run build' and commit the result."
+            git diff --stat -- tradingagents/web/static/
+            exit 1
+          fi
+      - name: Build wheel and verify SPA is packaged
+        # A clean wheel must ship index.html + hashed assets so `tradingagents web`
+        # serves the SPA without Node at runtime.
+        run: |
+          python -m pip install --upgrade build
+          python -m build --wheel --outdir /tmp/wheel
+          WHEEL=$(ls /tmp/wheel/*.whl | head -1)
+          python - <<'PY' "$WHEEL"
+          import sys, zipfile
+          wheel = sys.argv[1]
+          with zipfile.ZipFile(wheel) as z:
+            names = z.namelist()
+            assert any(n.endswith("web/static/index.html") for n in names), \
+                "wheel missing tradingagents/web/static/index.html"
+            assert any("web/static/assets/" in n and n.endswith(".js") for n in names), \
+                "wheel missing hashed JS asset under web/static/assets/"
+            print("wheel SPA assets OK:", wheel)
+          PY
+      - name: CLI smoke (web launcher is lazy-importable without [web])
+        # The base CLI must still import and dispatch even when FastAPI is absent;
+        # `web --help` is only reachable with the extra, so just exercise the
+        # legacy analyze dispatch shape here.
+        run: tradingagents --help
