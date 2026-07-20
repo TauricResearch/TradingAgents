@@ -46,6 +46,22 @@ evidence trail.
   covering 13 roles, SSE replay/dedupe, run-scoped artifacts, 409 conflict,
   and secret absence.
 
+### Added (H3 - real smoke + identity fix)
+
+- `scripts/smoke_web.py`: end-to-end smoke that starts the real launcher,
+  submits a run via REST, and asserts the full contract (artifacts, real
+  tool/data events, report tree, history survival, secret scan). Verified
+  with a real 600519.SS run (DeepSeek v4 flash, depth=1): status=completed,
+  final_signal=Hold, 1093 events, 188 artifacts, 69KB complete_report.md,
+  history survived a restart-equivalent read, zero secret leaks.
+- `TRADINGAGENTS_EVIDENCE_GATE_ENABLED` env override (`default_config.py`) to
+  toggle the Evidence Steward gate without a config file.
+- A-share identity fix: `evidence.py _apply_akshare_profile` now falls back to
+  `ak.stock_info_a_code_name` (Sina source, module-level cached) when the East
+  Wealth endpoint is rate-limited/blocked - previously a single East Wealth
+  failure aborted the akshare tier and `canonical_company_profile` returned an
+  empty name, causing Evidence Steward to reject. 3-tier chain preserved.
+
 ### Changed
 
 - `cli/main.py` `run_analysis` no longer opens a direct `graph.graph.stream()`
@@ -61,8 +77,9 @@ evidence trail.
   deterministic fake runner completes in ~50ms and races the EventBroker's
   live-queue delivery, so the browser subscriber receives only the replay
   window. Real LLM runs (seconds/turn) do not hit this race; the backend
-  pipeline is verified by `tests/web/e2e_app.py` integration tests. A real
-  minimum-depth smoke test is story H3.
+  pipeline is verified by `tests/web/e2e_app.py` integration tests and the real `scripts/smoke_web.py` smoke (story H3, passed).
+- Tushare token without the paid tier lacks income/cashflow/balancesheet access; fundamentals notes the missing statements but the run completes via fail-open.
+- yfinance intermittently rate-limits Yahoo Finance; A-share runs lean on tushare/akshare which are unaffected.
 
 ## 2026-07-09 - Upstream v0.3.0/v0.3.1 sync (A-share-first)
 

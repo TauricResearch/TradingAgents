@@ -230,41 +230,29 @@ You will see a screen where you can select your desired tickers, analysis date, 
 
 ### Local web workbench
 
-This fork also ships a localhost-only web workbench that runs the real
-TradingAgents graph and visualizes the 13-role debate, tool/data calls, exact
-role inputs, and final reports in a browser. It is additive to the CLI and
-shares the same execution path.
+A localhost-only web UI that runs the real TradingAgents graph and visualizes
+the 13-role debate, tool/data calls, exact role inputs, and final reports in a
+browser. Additive to the CLI; shares the same execution path.
 
 ```bash
-pip install -e ".[web]"   # FastAPI/Uvicorn/RFC8785 + the approved LangGraph floor
-tradingagents web         # serve at http://127.0.0.1:8000 (loopback only)
-tradingagents web --port 8765 --open   # custom port + open the browser
+pip install -e ".[web]"          # FastAPI/Uvicorn/RFC8785 + LangGraph floor (plus .[china] for A-share data)
+tradingagents web                # open http://127.0.0.1:8000 (loopback only; --port/--open optional)
 ```
 
-The browser page lets you enter a ticker, analysis date, analysts, research
-depth, provider/models, output language, and checkpoint option, then watch the
-workflow map fill in role-by-role, the debate/verdict timeline, and a per-role
-audit inspector (data fields, upstream material, prompt, raw values,
-configuration). Only one analysis may run at a time.
+Enter a ticker, date, analysts, depth, and provider/models, then watch the
+workflow map fill role-by-role, the debate timeline, and a per-role audit
+inspector. Only one analysis runs at a time; history persists across restarts.
 
-- **History & artifacts**: each run lives under `~/.tradingagents/web/runs/<run_id>/`
-  with an append-only `events.jsonl`, content-addressed data/prompt/tool/report
-  artifacts, and the canonical Markdown report tree. Completed, failed,
-  cancelled, and interrupted runs remain available after a server restart.
-- **Privacy boundary**: the server binds to `127.0.0.1` only and never returns
-  API-key values to the browser (only configured/missing status). Stock data,
-  news content, and prompt context are still sent to your selected data vendors
-  and LLM provider — `localhost` means the web page is not public, not that
-  your queries stay local.
-- **Frontend development** (only needed when editing `frontend/src`): the
-  committed build output is `tradingagents/web/static/`, so an installed wheel
-  serves the SPA without Node. After changing `frontend/src`, rebuild and
-  commit the drift:
-  ```bash
-  npm --prefix frontend ci
-  npm --prefix frontend run build   # writes to tradingagents/web/static/
-  npm --prefix frontend run typecheck && npm --prefix frontend run test -- --run
-  ```
+- **Where data lives**: each run is under `~/.tradingagents/web/runs/<run_id>/`
+  (append-only `events.jsonl`, content-addressed artifacts, Markdown reports).
+- **Privacy**: the server binds `127.0.0.1` and never sends API-key values to
+  the browser (only configured/missing status). Stock data, news, and prompts
+  still go to your chosen vendors/LLM - `localhost` means the page is not
+  public, not that queries stay local.
+- **Editing the frontend** (only when changing `frontend/src`): the committed
+  `tradingagents/web/static/` build ships in the wheel, so Node is not needed
+  at runtime. After a src change, rebuild and commit the drift:
+  `npm --prefix frontend ci && npm --prefix frontend run build`.
 
 ### Markets and tickers
 
