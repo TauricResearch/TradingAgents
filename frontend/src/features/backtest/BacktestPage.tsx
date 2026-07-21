@@ -14,16 +14,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Segment, Segmented } from "@/components/ui/segmented";
+import { useQueryClient } from "@tanstack/react-query";
+
 import {
   BacktestCostConfirmation,
+  qk,
   runBacktest,
+  useBacktestJob,
   useBacktestRun,
   useBacktestRuns,
   useSymbols,
 } from "@/lib/api/queries";
 import type { BacktestRunView, BacktestTrade } from "@/lib/api/types";
 import { fmtDateTime, fmtPct, fmtPnl, fmtPrice } from "@/lib/format";
-import { useBacktestLiveStore } from "@/stores/backtestLive";
+import { useBacktestLiveStore, type BacktestProgress } from "@/stores/backtestLive";
 
 const SYMBOL_LABELS: Record<string, string> = {
   XAUUSD: "Gold (XAUUSD)",
@@ -65,6 +69,35 @@ export default function BacktestPage() {
   }, [timeframes, timeframe]);
 
   const running = live.status === "running";
+
+  // Polling fallback: the SSE progress stream can stall while a CPU-bound
+  // run holds the event loop, freezing the bar mid-run. /api/backtest/job
+  // reports accurate live state, so poll it while running and reconcile —
+  // the bar keeps advancing and completion/errors are always caught even if
+  // the terminal SSE frame was missed.
+  const qc = useQueryClient();
+  const jobPoll = useBacktestJob(running);
+  useEffect(() => {
+    const j = jobPoll.data;
+    if (!j) return;
+    const store = useBacktestLiveStore.getState();
+    if (store.status !== "running") return;
+    // ignore a stale cached snapshot from a previous run
+    if (j.job_id && store.jobId && j.job_id !== store.jobId) return;
+    if (j.status === "done" && j.result) {
+      store.setDone(j.result);
+      void qc.invalidateQueries({ queryKey: qk.backtestRuns });
+      void qc.invalidateQueries({ queryKey: qk.backtest });
+    } else if (j.status === "error") {
+      store.setError(j.error ?? "backtest failed");
+    } else if (j.progress) {
+      store.setProgress(
+        j.progress as unknown as BacktestProgress,
+        (j.open_trades ?? []) as BacktestTrade[],
+      );
+      if (j.closed_trades) store.syncClosed(j.closed_trades as BacktestTrade[]);
+    }
+  }, [jobPoll.data, qc]);
 
   const start = async (confirmCost: boolean) => {
     setError(null);
