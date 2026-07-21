@@ -54,6 +54,12 @@ dashboard = [
     "fastapi>=0.110",
     "uvicorn>=0.30",
 ]
+# Institutional backtest report: matplotlib charts for the visual dashboard.
+# Report-only so the core install stays lean:
+# pip install "tradingagents[backtest-report]".
+backtest-report = [
+    "matplotlib>=3.8",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

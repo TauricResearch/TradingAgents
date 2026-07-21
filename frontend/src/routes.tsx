@@ -14,6 +14,7 @@ const TrackRecordPage = lazy(
 const IntelPage = lazy(() => import("./features/intelligence/IntelPage"));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
 const ReportPage = lazy(() => import("./features/report/ReportPage"));
+const BacktestPage = lazy(() => import("./features/backtest/BacktestPage"));
 
 const page = (element: React.ReactNode) => (
   <Suspense fallback={<SkeletonCard lines={6} />}>{element}</Suspense>
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: "decisions", element: page(<DecisionsPage />) },
       { path: "decisions/:runId", element: page(<DecisionsPage />) },
       { path: "portfolio", element: page(<PortfolioPage />) },
+      { path: "backtest", element: page(<BacktestPage />) },
       { path: "track-record", element: page(<TrackRecordPage />) },
       { path: "intel", element: page(<IntelPage />) },
       { path: "settings", element: page(<SettingsPage />) },

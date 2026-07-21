@@ -347,6 +347,86 @@ export const BacktestSchema = z
   .passthrough();
 export type Backtest = z.infer<typeof BacktestSchema>;
 
+/** One trade row — open (has mark_price/unrealized_pnl) or closed (has
+ * exit_price/pnl/closed_at). Permissive so the same table renders both. */
+export const BacktestTradeSchema = z
+  .object({
+    id: z.string(),
+    symbol: z.string(),
+    side: z.string(),
+    quantity: z.number(),
+    entry_price: z.number(),
+    exit_price: z.number().optional(),
+    mark_price: z.number().optional(),
+    stop: z.number().optional(),
+    pnl: z.number().optional(),
+    unrealized_pnl: z.number().optional(),
+    reason: z.string().optional(),
+    opened_at: z.string().optional(),
+    closed_at: z.string().optional(),
+  })
+  .passthrough();
+export type BacktestTrade = z.infer<typeof BacktestTradeSchema>;
+
+/** The full result view of a completed run (backtest_view + run metadata). */
+export const BacktestRunViewSchema = BacktestSchema.extend({
+  provider: z.string().optional(),
+  symbol: z.string().optional(),
+  timeframe: z.string().optional(),
+  duration: z.string().optional(),
+  window: z.array(z.string()).optional(),
+  trades: z.array(BacktestTradeSchema).optional(),
+  est_cost_usd: z.number().optional(),
+  llm_calls: z.number().optional(),
+});
+export type BacktestRunView = z.infer<typeof BacktestRunViewSchema>;
+
+/** In-flight (or last) job snapshot from GET /api/backtest/job. */
+export const BacktestJobSchema = z
+  .object({
+    status: z.string(),
+    job_id: z.string().optional(),
+    params: z.record(z.unknown()).optional(),
+    progress: z.record(z.unknown()).optional(),
+    open_trades: z.array(BacktestTradeSchema).optional(),
+    closed_trades: z.array(BacktestTradeSchema).optional(),
+    error: z.string().nullable().optional(),
+    result: BacktestRunViewSchema.nullable().optional(),
+    started_at: z.string().optional(),
+  })
+  .passthrough();
+export type BacktestJob = z.infer<typeof BacktestJobSchema>;
+
+export const BacktestRunListItemSchema = z
+  .object({
+    id: z.string(),
+    created_at: z.string().nullable().optional(),
+    symbol: z.string().nullable().optional(),
+    timeframe: z.string().nullable().optional(),
+    duration: z.string().nullable().optional(),
+    provider: z.string().nullable().optional(),
+    n_trades: z.number().nullable().optional(),
+    final_equity: z.number().nullable().optional(),
+    total_return: z.number().nullable().optional(),
+    win_rate: z.number().nullable().optional(),
+    window: z.array(z.string()).nullable().optional(),
+  })
+  .passthrough();
+export type BacktestRunListItem = z.infer<typeof BacktestRunListItemSchema>;
+export const BacktestRunsSchema = z.object({
+  runs: z.array(BacktestRunListItemSchema),
+});
+
+export const BacktestRunSchema = z
+  .object({
+    id: z.string(),
+    created_at: z.string().optional(),
+    params: z.record(z.unknown()).optional(),
+    view: BacktestRunViewSchema,
+  })
+  .passthrough();
+export type BacktestRun = z.infer<typeof BacktestRunSchema>;
+
 export const MemorySchema = z.object({
   counts: z.record(z.number()),
   recent_lessons: z.array(z.object({ kind: z.string(), text: z.string() })),

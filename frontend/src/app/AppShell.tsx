@@ -103,6 +103,7 @@ function Wiring() {
             t: `/trade/${useUiStore.getState().symbol}`,
             d: "/decisions",
             p: "/portfolio",
+            b: "/backtest",
             i: "/intel",
             s: "/settings",
           };

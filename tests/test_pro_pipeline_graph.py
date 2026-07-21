@@ -46,14 +46,18 @@ def pipeline_snapshot(**overrides):
 
 
 def lossy_bars(n: int = 30) -> list[OHLCVBar]:
-    """Bars losing 5% per bar: VaR95 = 5%/bar, breaching the 3% default limit."""
+    """Wildly volatile bars: ±35% alternating swings → VaR95 ≈ 0.35, so the
+    position-scaled gate (0.35 × 10% max position = 0.035) breaches the 3%
+    daily-loss budget — reckless volatility the gate must still veto. The
+    oscillation keeps price bounded (no zero-price contract violation)."""
     bars, price = [], 100.0
     for i in range(n):
-        close = price * 0.95
+        close = price * (0.65 if i % 2 == 0 else 1.35)
+        hi = max(price, close) * 1.01
+        lo = min(price, close) * 0.99
         bars.append(OHLCVBar(
             timeframe=Timeframe.D1, start=BASE_TS + timedelta(days=i),
-            open=price, high=price * 1.01, low=close * 0.99, close=close,
-            volume=1000.0,
+            open=price, high=hi, low=lo, close=close, volume=1000.0,
         ))
         price = close
     return bars

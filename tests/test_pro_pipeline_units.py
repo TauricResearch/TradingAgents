@@ -128,14 +128,22 @@ class TestRiskGate:
         assert result.checks == {"var_available": True, "var_within_limit": True}
 
     def test_fails_on_var_breach(self):
-        result = risk_gate({"VAR_95": self.metric("VAR_95", 0.05)}, self.CONFIG)
+        # position-scaled: asset VaR 0.40 × 10% max position = 0.04 > 0.03 budget
+        result = risk_gate({"VAR_95": self.metric("VAR_95", 0.40)}, self.CONFIG)
         assert not result.passed
         assert "exceeds max daily loss" in result.reasons[0]
 
+    def test_var_within_limit_when_position_scaled(self):
+        # asset VaR 0.05 (BTC-like) × 10% = 0.005 <= 0.03 → passes; the raw
+        # asset VaR would have wrongly rejected before the position-scaling fix
+        result = risk_gate({"VAR_95": self.metric("VAR_95", 0.05)}, self.CONFIG)
+        assert result.passed
+
     def test_fails_on_cvar_tail_breach(self):
+        # position-scaled: CVaR 0.70 × 10% = 0.07 > 0.06 (2× budget)
         metrics = {
             "VAR_95": self.metric("VAR_95", 0.01),
-            "CVAR_95": self.metric("CVAR_95", 0.09),
+            "CVAR_95": self.metric("CVAR_95", 0.70),
         }
         result = risk_gate(metrics, self.CONFIG)
         assert not result.passed

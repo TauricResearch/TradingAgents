@@ -4,6 +4,7 @@
 import {
   BrainCircuit,
   CandlestickChart,
+  FlaskConical,
   Globe,
   LayoutDashboard,
   PanelLeftClose,
@@ -23,6 +24,7 @@ export const NAV_ITEMS = [
   { to: "/trade", label: "Trade", icon: CandlestickChart, key: "t" },
   { to: "/decisions", label: "Decisions", icon: BrainCircuit, key: "d" },
   { to: "/portfolio", label: "Portfolio", icon: Wallet, key: "p" },
+  { to: "/backtest", label: "Backtest", icon: FlaskConical, key: "b" },
   { to: "/track-record", label: "Record", icon: Trophy, key: "r" },
   { to: "/intel", label: "Intel", icon: Globe, key: "i" },
 ] as const;

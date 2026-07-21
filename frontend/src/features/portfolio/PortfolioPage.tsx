@@ -15,12 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/ui/skeleton";
-import { useQueryClient } from "@tanstack/react-query";
 
 import { Sparkline } from "@/components/Sparkline";
-import { apiFetch } from "@/lib/api/client";
 import {
-  qk,
+  runBacktest,
   useBacktest,
   useJournal,
   useMemoryInsights,
@@ -32,6 +30,7 @@ import {
 } from "@/lib/api/queries";
 import { fmtDateTime, fmtPct, fmtPnl, fmtPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useBacktestLiveStore } from "@/stores/backtestLive";
 import { useUiStore } from "@/stores/ui";
 
 export default function PortfolioPage() {
@@ -54,17 +53,20 @@ export default function PortfolioPage() {
   const j = journal.data;
   const stats = usePortfolioStats();
   const budget = useRiskBudget();
-  const client = useQueryClient();
-  const [btRunning, setBtRunning] = useState(false);
+  const startBt = useBacktestLiveStore((s) => s.start);
+  // the run streams; SSE `backtest_done` invalidates qk.backtest so this card
+  // refreshes when it finishes (full controls live on the Backtest page)
+  const btRunning = useBacktestLiveStore((s) => s.status === "running");
   const runReplay = async () => {
-    setBtRunning(true);
     try {
-      await apiFetch("/api/backtest/run?symbol=XAUUSD&timeframe=1d", {
-        method: "POST",
+      const { job_id } = await runBacktest({
+        symbol: "XAUUSD",
+        timeframe: "1d",
+        duration: "30D",
       });
-      await client.invalidateQueries({ queryKey: qk.backtest });
-    } finally {
-      setBtRunning(false);
+      startBt(job_id);
+    } catch {
+      /* a run is already in flight, or transient — the card is unchanged */
     }
   };
   const perf = stats.data;

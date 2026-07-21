@@ -49,48 +49,75 @@ class _OpenPosition:
 
 @dataclass
 class SimBroker:
+    """Holds up to ``max_open_positions`` concurrent positions in one symbol,
+    each with its own stop + take-profit ladder. New entries are refused once
+    the count cap or the aggregate gross-exposure cap (``max_gross_exposure_pct``
+    of equity) is reached — so N fixed-fractional positions can't silently
+    stack to N× exposure. Positions are keyed by recommendation id."""
+
     initial_equity: float = 100_000.0
     slippage: SlippageModel = field(default_factory=SlippageModel)
     commission: CommissionModel = field(default_factory=CommissionModel)
     liquidity: LiquidityModel = field(default_factory=LiquidityModel)
+    max_open_positions: int = 3
+    max_gross_exposure_pct: float = 30.0
+    max_same_direction: int = 2
 
     def __post_init__(self):
         self.cash_pnl = 0.0  # realized pnl net of costs
-        self.position: _OpenPosition | None = None
+        self.positions: dict[str, _OpenPosition] = {}
         self.closed: list[ClosedTrade] = []
 
     # --- equity ---------------------------------------------------------------
 
     def equity(self, mark_price: float | None = None) -> float:
         value = self.initial_equity + self.cash_pnl
-        if self.position and mark_price is not None:
-            sign = 1 if self.position.side == "BUY" else -1
-            value += sign * (mark_price - self.position.entry_price) * self.position.quantity
+        if mark_price is not None:
+            for pos in self.positions.values():
+                sign = 1 if pos.side == "BUY" else -1
+                value += sign * (mark_price - pos.entry_price) * pos.quantity
         return value
 
     @property
     def position_open(self) -> bool:
-        return self.position is not None
+        return bool(self.positions)
+
+    @property
+    def open_count(self) -> int:
+        return len(self.positions)
+
+    def _gross_notional(self, mark_price: float) -> float:
+        """Aggregate open exposure at ``mark_price`` (single symbol)."""
+        return sum(mark_price * pos.quantity for pos in self.positions.values())
 
     # --- entries ----------------------------------------------------------------
 
     def open_from_recommendation(
         self, rec: TradeRecommendation, fill_bar: OHLCVBar
-    ) -> bool:
+    ) -> str | None:
         """Open at the fill bar's open (the bar after the decision), with
-        slippage, commission, and the participation cap. Returns False when
-        liquidity caps the order to nothing."""
-        if self.position is not None:
-            raise RuntimeError("v1 broker holds one position at a time")
+        slippage, commission, and the participation cap. Returns None on
+        success, else a rejection reason: ``max_open_positions`` (count cap),
+        ``exposure_cap`` (aggregate gross exposure would exceed the limit), or
+        ``liquidity`` (participation caps the order to nothing)."""
         if rec.action is TradeAction.HOLD:
             raise ValueError("cannot open a HOLD recommendation")
+        if len(self.positions) >= self.max_open_positions:
+            return "max_open_positions"
         side = rec.action.value
+        if sum(1 for p in self.positions.values() if p.side == side) >= self.max_same_direction:
+            return "same_direction_cap"
         quantity = self.liquidity.cap_quantity(rec.position_size.quantity, fill_bar.volume)
         if quantity <= 0:
-            return False
+            return "liquidity"
+        mark = fill_bar.open
+        equity = self.equity(mark_price=mark)
+        prospective_gross = self._gross_notional(mark) + mark * quantity
+        if equity > 0 and prospective_gross > (self.max_gross_exposure_pct / 100.0) * equity:
+            return "exposure_cap"
         entry = self.slippage.fill_price(fill_bar.open, side)
         fee = self.commission.cost(quantity, entry)
-        self.position = _OpenPosition(
+        self.positions[rec.id] = _OpenPosition(
             recommendation=rec,
             side=side,
             quantity=quantity,
@@ -102,18 +129,22 @@ class SimBroker:
             entry_commission=fee,
         )
         self.cash_pnl -= fee
-        return True
+        return None
 
     # --- bar processing -----------------------------------------------------------
 
-    def process_bar(self, bar: OHLCVBar) -> ClosedTrade | None:
-        """Manage the open position against one bar; returns the trade if it
-        fully closed on this bar."""
-        pos = self.position
-        if pos is None:
-            return None
-        long = pos.side == "BUY"
+    def process_bar(self, bar: OHLCVBar) -> list[ClosedTrade]:
+        """Manage every open position against one bar; returns the trades that
+        fully closed on this bar (may be empty)."""
+        closed: list[ClosedTrade] = []
+        for pos in list(self.positions.values()):
+            trade = self._manage(pos, bar)
+            if trade is not None:
+                closed.append(trade)
+        return closed
 
+    def _manage(self, pos: _OpenPosition, bar: OHLCVBar) -> ClosedTrade | None:
+        long = pos.side == "BUY"
         stop_hit = bar.low <= pos.stop if long else bar.high >= pos.stop
         if stop_hit:
             exit_price = self.slippage.fill_price(pos.stop, "SELL" if long else "BUY")
@@ -132,15 +163,15 @@ class SimBroker:
                 return self._finalize(pos, bar.start)
         return None
 
-    def close_all(self, bar: OHLCVBar) -> ClosedTrade | None:
-        """Force-close at the bar's close (end of data)."""
-        pos = self.position
-        if pos is None:
-            return None
-        long = pos.side == "BUY"
-        exit_price = self.slippage.fill_price(bar.close, "SELL" if long else "BUY")
-        self._exit(pos, pos.quantity, exit_price, bar.start, "end_of_data")
-        return self._finalize(pos, bar.start)
+    def close_all(self, bar: OHLCVBar) -> list[ClosedTrade]:
+        """Force-close every open position at the bar's close (end of data)."""
+        closed: list[ClosedTrade] = []
+        for pos in list(self.positions.values()):
+            long = pos.side == "BUY"
+            exit_price = self.slippage.fill_price(bar.close, "SELL" if long else "BUY")
+            self._exit(pos, pos.quantity, exit_price, bar.start, "end_of_data")
+            closed.append(self._finalize(pos, bar.start))
+        return closed
 
     # --- internals ------------------------------------------------------------------
 
@@ -170,5 +201,5 @@ class SimBroker:
             recommendation_id=pos.recommendation.id,
         )
         self.closed.append(trade)
-        self.position = None
+        self.positions.pop(pos.recommendation.id, None)
         return trade

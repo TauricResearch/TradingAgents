@@ -22,33 +22,45 @@ def risk_gate(
 ) -> GateResult:
     """Hard risk checks before any qualitative judgment happens.
 
-    - VaR(95) per bar must not exceed the configured max daily loss.
-    - CVaR must not exceed twice the daily-loss limit (tail sanity).
-    - A directional trade needs engine levels (entry/stop) to exist —
-      without them Constraint 2 leaves nothing valid to execute against.
+    The daily-loss budget bounds the *portfolio's* loss, so it is compared
+    against the daily VaR of the largest position we would actually take
+    (``VaR × max_position_pct_equity``), not the asset's raw volatility.
+    Gating raw asset VaR vetoed volatile assets (BTC's ~5%/day VaR) on
+    essentially every bar regardless of setup quality, even though
+    fixed-fractional sizing caps their equity exposure; position-scaling
+    makes the gate correct for every asset. CVaR gets the same scaling
+    (tail sanity, 2× the budget). A directional trade also needs engine
+    levels (entry/stop) — without them Constraint 2 leaves nothing valid to
+    execute against.
     """
     checks: dict[str, bool] = {}
     reasons: list[str] = []
 
     var = risk_metrics.get("VAR_95")
     daily_limit = config.risk.max_daily_loss_pct / 100.0
+    max_pos = config.risk.max_position_pct_equity / 100.0
     if var is None:
         checks["var_available"] = False
         reasons.append("VAR_95 unavailable (insufficient return history)")
     else:
         checks["var_available"] = True
-        checks["var_within_limit"] = var.value <= daily_limit
+        position_var = var.value * max_pos
+        checks["var_within_limit"] = position_var <= daily_limit
         if not checks["var_within_limit"]:
             reasons.append(
-                f"VaR95 {var.value:.4f} exceeds max daily loss {daily_limit:.4f}"
+                f"position VaR95 {position_var:.4f} (asset {var.value:.4f} × "
+                f"{max_pos:.0%} max position) exceeds max daily loss {daily_limit:.4f}"
             )
 
     cvar = risk_metrics.get("CVAR_95")
     if cvar is not None:
-        checks["cvar_within_limit"] = cvar.value <= 2 * daily_limit
+        position_cvar = cvar.value * max_pos
+        checks["cvar_within_limit"] = position_cvar <= 2 * daily_limit
         if not checks["cvar_within_limit"]:
             reasons.append(
-                f"CVaR95 {cvar.value:.4f} exceeds 2x max daily loss {2 * daily_limit:.4f}"
+                f"position CVaR95 {position_cvar:.4f} (asset {cvar.value:.4f} × "
+                f"{max_pos:.0%} max position) exceeds 2x max daily loss "
+                f"{2 * daily_limit:.4f}"
             )
 
     if proposed_action in (TradeAction.BUY, TradeAction.SELL):

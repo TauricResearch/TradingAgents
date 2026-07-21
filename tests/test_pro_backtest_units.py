@@ -64,40 +64,46 @@ def make_broker(**kw) -> SimBroker:
 
 
 class TestSimBroker:
+    @staticmethod
+    def _only(broker):
+        """The single open position (tests that open exactly one)."""
+        return next(iter(broker.positions.values()))
+
     def test_entry_fills_at_bar_open_with_slippage_and_fee(self):
         broker = make_broker(slippage=SlippageModel(bps=10),
                              commission=CommissionModel(rate_bps=1))
-        assert broker.open_from_recommendation(buy_rec(qty=10), bar(100, 101, 99, 100))
-        assert broker.position.entry_price == pytest.approx(100.10)
+        # open returns None on success
+        assert broker.open_from_recommendation(buy_rec(qty=10), bar(100, 101, 99, 100)) is None
+        assert self._only(broker).entry_price == pytest.approx(100.10)
         # entry fee deducted immediately
         assert broker.cash_pnl == pytest.approx(-10 * 100.10 * 1e-4)
 
     def test_liquidity_can_reject_entry_entirely(self):
         broker = make_broker(liquidity=LiquidityModel(max_participation=0.1))
-        assert not broker.open_from_recommendation(
+        assert broker.open_from_recommendation(
             buy_rec(qty=10), bar(100, 101, 99, 100, volume=0.0)
-        )
-        assert broker.position is None
+        ) == "liquidity"
+        assert not broker.positions
 
     def test_stop_fills_before_tp_when_both_touched(self):
         broker = make_broker()
         broker.open_from_recommendation(buy_rec(), bar(100, 101, 99, 100))
-        trade = broker.process_bar(bar(100, 120, 90, 110, day=1))  # touches both
-        assert trade is not None and trade.reason == "stop"
-        assert trade.exit_price == pytest.approx(95.0)
-        assert trade.pnl == pytest.approx((95 - 100) * 10)
+        trades = broker.process_bar(bar(100, 120, 90, 110, day=1))  # touches both
+        assert len(trades) == 1 and trades[0].reason == "stop"
+        assert trades[0].exit_price == pytest.approx(95.0)
+        assert trades[0].pnl == pytest.approx((95 - 100) * 10)
 
     def test_tp_ladder_closes_fractions_then_finalizes(self):
         broker = make_broker()
         broker.open_from_recommendation(buy_rec(qty=10), bar(100, 101, 99, 100))
-        assert broker.process_bar(bar(104, 106, 103, 105, day=1)) is None  # TP1 only
-        assert broker.position.quantity == pytest.approx(5.0)
-        trade = broker.process_bar(bar(109, 111, 108, 110, day=2))  # TP2
-        assert trade is not None and trade.reason == "take_profit"
+        assert broker.process_bar(bar(104, 106, 103, 105, day=1)) == []  # TP1 only
+        assert self._only(broker).quantity == pytest.approx(5.0)
+        trades = broker.process_bar(bar(109, 111, 108, 110, day=2))  # TP2
+        assert len(trades) == 1 and trades[0].reason == "take_profit"
         # exits: 5@105 + 5@110 -> weighted 107.5; pnl = 5*5 + 5*10 = 75
-        assert trade.exit_price == pytest.approx(107.5)
-        assert trade.pnl == pytest.approx(75.0)
-        assert broker.position is None
+        assert trades[0].exit_price == pytest.approx(107.5)
+        assert trades[0].pnl == pytest.approx(75.0)
+        assert not broker.positions
 
     def test_short_side_mirrors(self):
         broker = make_broker()
@@ -107,9 +113,9 @@ class TestSimBroker:
             "risk_reward": None,
         })
         broker.open_from_recommendation(rec, bar(100, 101, 99, 100))
-        trade = broker.process_bar(bar(95, 96, 89, 90, day=1))
-        assert trade.reason == "take_profit"
-        assert trade.pnl == pytest.approx((100 - 90) * 1.0)
+        trades = broker.process_bar(bar(95, 96, 89, 90, day=1))
+        assert trades[0].reason == "take_profit"
+        assert trades[0].pnl == pytest.approx((100 - 90) * 1.0)
 
     def test_mark_to_market_equity(self):
         broker = make_broker()
@@ -119,9 +125,52 @@ class TestSimBroker:
     def test_end_of_data_close(self):
         broker = make_broker()
         broker.open_from_recommendation(buy_rec(qty=10), bar(100, 101, 99, 100))
-        trade = broker.close_all(bar(101, 102, 100, 101.5, day=5))
-        assert trade.reason == "end_of_data"
-        assert trade.pnl == pytest.approx(15.0)
+        trades = broker.close_all(bar(101, 102, 100, 101.5, day=5))
+        assert len(trades) == 1 and trades[0].reason == "end_of_data"
+        assert trades[0].pnl == pytest.approx(15.0)
+
+    def test_holds_multiple_concurrent_positions(self):
+        broker = make_broker(max_open_positions=3, max_gross_exposure_pct=100.0,
+                             max_same_direction=3)
+        # three distinct recommendations open concurrently (unique ids)
+        for _ in range(3):
+            assert broker.open_from_recommendation(buy_rec(qty=1), bar(100, 101, 99, 100)) is None
+        assert broker.open_count == 3
+
+    def test_count_cap_rejects_extra_entry(self):
+        broker = make_broker(max_open_positions=2, max_gross_exposure_pct=100.0)
+        broker.open_from_recommendation(buy_rec(qty=1), bar(100, 101, 99, 100))
+        broker.open_from_recommendation(buy_rec(qty=1), bar(100, 101, 99, 100))
+        assert broker.open_from_recommendation(
+            buy_rec(qty=1), bar(100, 101, 99, 100)
+        ) == "max_open_positions"
+
+    def test_gross_exposure_cap_rejects_entry(self):
+        # equity 10k, cap 15% → 1500 notional; a 20-unit @100 = 2000 > 1500
+        broker = make_broker(max_open_positions=5, max_gross_exposure_pct=15.0)
+        assert broker.open_from_recommendation(
+            buy_rec(qty=20), bar(100, 101, 99, 100)
+        ) == "exposure_cap"
+        assert not broker.positions
+
+    def test_same_direction_cap_blocks_correlated_stacking(self):
+        # cap 2 same-side (default); exposure/count caps kept clear
+        broker = make_broker(max_open_positions=5, max_gross_exposure_pct=100.0,
+                             max_same_direction=2)
+        assert broker.open_from_recommendation(buy_rec(qty=1), bar(100, 101, 99, 100)) is None
+        assert broker.open_from_recommendation(buy_rec(qty=1), bar(100, 101, 99, 100)) is None
+        # a 3rd BUY is refused — concentration limit, not the count/exposure cap
+        assert broker.open_from_recommendation(
+            buy_rec(qty=1), bar(100, 101, 99, 100)
+        ) == "same_direction_cap"
+        # the opposite side is still allowed
+        sell = make_recommendation(action=TradeAction.SELL).model_copy(update={
+            "entry_price": 100.0, "stop_loss": 105.0,
+            "take_profits": [TakeProfitLevel(price=90.0, size_fraction=1.0)],
+            "risk_reward": None,
+        })
+        assert broker.open_from_recommendation(sell, bar(100, 101, 99, 100)) is None
+        assert broker.open_count == 3
 
 
 class TestBarReplay:

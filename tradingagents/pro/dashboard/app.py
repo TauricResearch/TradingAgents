@@ -32,6 +32,7 @@ from importlib import resources
 
 from tradingagents.pro.backtest import BacktestResult
 from tradingagents.pro.dashboard import marketdata as md, service
+from tradingagents.pro.dashboard.backtest_store import BacktestRunStore
 from tradingagents.pro.dashboard.events import EventBroadcaster
 from tradingagents.pro.dashboard.intel import IntelService
 from tradingagents.pro.dashboard.prefs import PrefsStore
@@ -63,6 +64,8 @@ class DashboardState:
     recorder: PipelineRecorder = field(default_factory=PipelineRecorder)
     memory: ProMemory = field(default_factory=ProMemory)
     backtest: BacktestResult | None = None
+    backtest_runs: BacktestRunStore = field(default_factory=BacktestRunStore)
+    backtest_job = None      # BacktestJob, while an interactive run is in flight
     monte_carlo = None
     router = None            # ExecutionRouter, when attached to live/paper loop
     equity: float | None = None
@@ -1062,61 +1065,67 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
     _backtest_lock = _bt_threading.Lock()
 
     @app.post("/api/backtest/run")
-    def run_backtest(symbol: str = "XAUUSD", timeframe: str = "1d",
-                     bars: int = 240) -> dict:
-        """Deterministic mechanics replay (Phase 5): the REAL pipeline over
-        REAL bars with the scripted no-cost LLM — exercises gates, sizing,
-        fills and exits, not model skill (and says so). Uses an ISOLATED
-        memory so simulations never touch the live record."""
+    async def run_backtest(request: Request) -> JSONResponse:
+        """Start an interactive backtest as a background job (returns 202 +
+        job_id). Progress + trades stream over /api/stream (backtest_progress
+        / backtest_trade / backtest_done). Deterministic by default (scripted
+        no-cost LLM — mechanics, not model skill); ``use_llm`` runs the real
+        pipeline from .env keys (costs money, capped, requires confirm_cost).
+        Uses an ISOLATED memory so simulations never touch the live record."""
+        from pydantic import ValidationError
+
+        from tradingagents.pro.dashboard import backtest_job as btjob
+
+        body = await request.json()
+        try:
+            req = btjob.BacktestRunRequest.model_validate(body)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+        params = req.model_dump()
+        # validate + cost-gate before taking the lock or spawning a thread
+        try:
+            btjob.resolve_request(state.marketdata, params)
+        except btjob._CostConfirmationRequired as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "cost_confirmation_required",
+                        "estimate": exc.estimate},
+            ) from exc
+        except (ValueError, md.UnknownSymbolError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
         if not _backtest_lock.acquire(blocking=False):
             raise HTTPException(status_code=409,
                                 detail="a backtest is already running")
-        try:
-            from tradingagents.contracts import (
-                DEFAULT_SYMBOLS,
-                ProConfig,
-                TradingMode,
-            )
-            from tradingagents.pro.backtest import (
-                BacktestEngine,
-                BarReplay,
-                SimBroker,
-                monte_carlo_summary,
-            )
-            from tradingagents.pro.evals.scripted import FakePipelineLLM
-            from tradingagents.pro.memory import ProMemory as _IsolatedMemory
-            asset_by_symbol = {sym: a for a, sym in DEFAULT_SYMBOLS.items()}
-            if symbol not in asset_by_symbol:
-                raise HTTPException(status_code=422,
-                                    detail=f"unknown symbol {symbol}")
-            series = state.marketdata.get_bars(
-                symbol, timeframe, limit=min(int(bars) + 60, 1000))
-            if len(series) < 90:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"only {len(series)} bars available; need >= 90")
-            config = ProConfig(asset=asset_by_symbol[symbol],
-                               mode=TradingMode.BACKTEST,
-                               max_debate_rounds=1)
-            replay = BarReplay(symbol, asset_by_symbol[symbol], series,
-                               window=60)
-            result = BacktestEngine(
-                FakePipelineLLM(), config, replay,
-                broker=SimBroker(initial_equity=100_000.0),
-                memory=_IsolatedMemory(),  # never the live memory.jsonl
-                min_history=60, decide_every=5,
-            ).run()
-            mc = (monte_carlo_summary([t.pnl for t in result.trades],
-                                      100_000.0)
-                  if result.trades else None)
-            state.backtest, state.monte_carlo = result, mc
-            view = service.backtest_view(result, mc)
-            view["provider"] = "deterministic"
-            view["symbol"] = symbol
-            view["timeframe"] = timeframe
-            return view
-        finally:
-            _backtest_lock.release()
+        job = btjob.new_job(params)
+        state.backtest_job = job
+
+        def work():
+            try:
+                btjob.run_job(state, job, params)
+            finally:
+                _backtest_lock.release()
+
+        _bt_threading.Thread(target=work, name="backtest-run",
+                             daemon=True).start()
+        return JSONResponse({"job_id": job.id, "status": "started"},
+                            status_code=202)
+
+    @app.get("/api/backtest/job")
+    def backtest_job_status() -> dict:
+        job = state.backtest_job
+        return job.snapshot() if job is not None else {"status": "idle"}
+
+    @app.get("/api/backtest/runs")
+    def backtest_runs() -> dict:
+        return {"runs": state.backtest_runs.list()}
+
+    @app.get("/api/backtest/runs/{run_id}")
+    def backtest_run(run_id: str) -> dict:
+        record = state.backtest_runs.get(run_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="unknown backtest run")
+        return record
 
     @app.get("/api/memory")
     def memory_view() -> dict:

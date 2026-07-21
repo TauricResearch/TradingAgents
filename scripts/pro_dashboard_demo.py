@@ -31,6 +31,7 @@ from tradingagents.pro.backtest import (
     SimBroker,
     monte_carlo_summary,
 )
+from tradingagents.pro.dashboard import marketdata as md, service as dashboard_service
 from tradingagents.pro.dashboard.app import DashboardState, create_app
 from tradingagents.pro.execution import (
     VENUES,
@@ -58,8 +59,19 @@ def wavy_bars(n: int = 300) -> list[OHLCVBar]:
     return bars
 
 
+class _DemoMarket(md.MarketDataService):
+    """Serve synthetic bars for any (symbol, timeframe) so the interactive
+    Backtest page runs end-to-end offline (no vendor calls in the demo)."""
+
+    def get_bars(self, symbol, timeframe, limit=md.DEFAULT_LIMIT, end=None):
+        bars = wavy_bars(1200)
+        pool = [b for b in bars if end is None or b.start < end]
+        return pool[-min(limit, md.MAX_LIMIT):]
+
+
 def build_state() -> DashboardState:
     state = DashboardState(memory=ProMemory())
+    state.marketdata = _DemoMarket()
     config = ProConfig(asset=AssetClass.GOLD, mode=TradingMode.BACKTEST)
 
     replay = BarReplay("XAUUSD", AssetClass.GOLD, wavy_bars(), window=100)
@@ -117,6 +129,19 @@ def build_state() -> DashboardState:
     # PRO_DEMO_ARM=BTC-USD:canary arms a pair so the live banner +
     # Emergency Flatten control are exercisable in the demo (go-live P4).
     import os
+
+    # seed one auto-archived backtest run so the Saved Runs list + result
+    # view render on first load (and the e2e can reload it without a network run)
+    seeded_view = dashboard_service.backtest_view(result, state.monte_carlo)
+    seeded_view.update({
+        "provider": "deterministic", "symbol": "XAUUSD", "timeframe": "1d",
+        "duration": "30D", "window": ["2024-01-01", "2024-10-26"], "trades": [],
+    })
+    state.backtest_runs.save({
+        "id": "demo-seed", "created_at": BASE_TS.isoformat(),
+        "params": {"symbol": "XAUUSD", "timeframe": "1d", "duration": "30D"},
+        "view": seeded_view,
+    })
 
     demo_arm = os.environ.get("PRO_DEMO_ARM")
     if demo_arm:

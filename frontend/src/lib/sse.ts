@@ -18,6 +18,7 @@ import { apiFetch, fetchAuthConfig } from "./api/client";
 import { qk, setPollingInterval } from "./api/queries";
 import { maybeNotify } from "./desktopNotify";
 import { recordSuccess } from "./staleness";
+import { useBacktestLiveStore } from "@/stores/backtestLive";
 import { usePipelineLiveStore } from "@/stores/pipelineLive";
 import { useTickerStore } from "@/stores/ticker";
 import { useUiStore } from "@/stores/ui";
@@ -166,6 +167,54 @@ export function startEventStream(client: QueryClient): () => void {
         usePipelineLiveStore.getState().push(stage.stage);
       } catch {
         /* malformed stage — ignore */
+      }
+    });
+
+    source.addEventListener("backtest_progress", (event) => {
+      bump(event);
+      try {
+        const p = JSON.parse((event as MessageEvent).data) as {
+          job_id?: string;
+          open_trades?: unknown[];
+        } & Record<string, number>;
+        useBacktestLiveStore
+          .getState()
+          .setProgress(p as never, (p.open_trades ?? []) as never);
+      } catch {
+        /* malformed progress — ignore */
+      }
+    });
+
+    source.addEventListener("backtest_trade", (event) => {
+      bump(event);
+      try {
+        useBacktestLiveStore
+          .getState()
+          .addTrade(JSON.parse((event as MessageEvent).data));
+      } catch {
+        /* malformed trade — ignore */
+      }
+    });
+
+    source.addEventListener("backtest_done", (event) => {
+      bump(event);
+      try {
+        const done = JSON.parse((event as MessageEvent).data) as { view: never };
+        useBacktestLiveStore.getState().setDone(done.view);
+      } catch {
+        /* malformed payload — cache refresh below still runs */
+      }
+      void client.invalidateQueries({ queryKey: qk.backtest });
+      void client.invalidateQueries({ queryKey: qk.backtestRuns });
+    });
+
+    source.addEventListener("backtest_error", (event) => {
+      bump(event);
+      try {
+        const err = JSON.parse((event as MessageEvent).data) as { error?: string };
+        useBacktestLiveStore.getState().setError(err.error ?? "backtest failed");
+      } catch {
+        useBacktestLiveStore.getState().setError("backtest failed");
       }
     });
 

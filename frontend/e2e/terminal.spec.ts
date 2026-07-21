@@ -655,3 +655,34 @@ test.describe("chart phase 2: drawing kinds", () => {
     await expect(page.getByTestId("chart-legend")).toContainText(/O \d/);
   });
 });
+
+test.describe("backtesting", () => {
+  test.beforeEach(async ({ page }) => unlock(page));
+
+  test("configure, view a saved run, and run a live deterministic backtest", async ({
+    page,
+  }) => {
+    await page.goto("/backtest");
+    await expect(page.getByTestId("backtest-page")).toBeVisible();
+    // controls render
+    await expect(page.getByTestId("backtest-asset")).toBeVisible();
+    await expect(page.getByTestId("backtest-run")).toBeVisible();
+
+    // the demo seeds one auto-archived run → Saved Runs + a result view
+    await expect(page.getByTestId("backtest-saved-runs")).toContainText("XAUUSD");
+    await expect(page.getByText(/Saved run —/)).toBeVisible();
+
+    // run a fresh deterministic backtest (synthetic bars in the demo → offline)
+    await page.getByTestId("backtest-asset").selectOption("BTC-USD");
+    await page.getByTestId("backtest-run").click();
+    // progress/live PnL appears, then a completed result panel
+    await expect(
+      page.getByTestId("backtest-pnl").or(page.getByText(/Result —/)),
+    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Result — BTC-USD/)).toBeVisible({ timeout: 30_000 });
+    // the completed run is auto-archived alongside the seed
+    await expect(
+      page.getByTestId("backtest-saved-runs").getByText("BTC-USD"),
+    ).toBeVisible();
+  });
+});

@@ -10,6 +10,9 @@ import {
   CorrelationsSchema,
   AlertFeedSchema,
   BacktestSchema,
+  BacktestJobSchema,
+  BacktestRunSchema,
+  BacktestRunsSchema,
   BarsSchema,
   CalendarSchema,
   EvidencePanelsSchema,
@@ -52,6 +55,9 @@ export const qk = {
   scanner: ["scanner"] as const,
   riskBudget: ["risk", "budget"] as const,
   backtest: ["backtest"] as const,
+  backtestJob: ["backtest", "job"] as const,
+  backtestRuns: ["backtest", "runs"] as const,
+  backtestRun: (id: string) => ["backtest", "runs", id] as const,
   memory: ["memory"] as const,
   agents: ["agents"] as const,
   symbols: ["symbols"] as const,
@@ -253,6 +259,71 @@ export const useBacktest = () =>
     queryFn: fetchParsed("/api/backtest", BacktestSchema),
     staleTime: 60_000,
   });
+
+export const useBacktestRuns = () =>
+  useQuery({
+    queryKey: qk.backtestRuns,
+    queryFn: fetchParsed("/api/backtest/runs", BacktestRunsSchema),
+    staleTime: 30_000,
+  });
+
+export const useBacktestRun = (id: string | null) =>
+  useQuery({
+    queryKey: qk.backtestRun(id ?? "none"),
+    queryFn: fetchParsed(`/api/backtest/runs/${id}`, BacktestRunSchema),
+    enabled: id != null,
+    staleTime: Infinity,
+  });
+
+/** Live/last job snapshot — the reconnect fallback when SSE frames are
+ * missed (progress + partial trades also arrive over the stream). */
+export const useBacktestJob = (enabled: boolean) =>
+  useQuery({
+    queryKey: qk.backtestJob,
+    queryFn: fetchParsed("/api/backtest/job", BacktestJobSchema),
+    enabled,
+    refetchInterval: enabled ? 2_000 : false,
+  });
+
+export class BacktestCostConfirmation extends Error {
+  constructor(readonly estimate: { decisions: number; est_cost_usd: number; est_minutes: number }) {
+    super("cost confirmation required");
+  }
+}
+
+/** Start a backtest job (202 → { job_id }). A 400 for an unconfirmed LLM
+ * run throws BacktestCostConfirmation carrying the estimate so the caller
+ * can show the warning and re-submit with confirm_cost. */
+export async function runBacktest(
+  req: {
+    symbol: string;
+    timeframe: string;
+    duration: string;
+    use_llm?: boolean;
+    confirm_cost?: boolean;
+    initial_equity?: number;
+  },
+): Promise<{ job_id: string }> {
+  try {
+    return await apiFetch<{ job_id: string }>("/api/backtest/run", {
+      method: "POST",
+      body: JSON.stringify(req),
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 400) {
+      try {
+        const detail = JSON.parse(err.detail) as {
+          estimate?: BacktestCostConfirmation["estimate"];
+        };
+        if (detail?.estimate) throw new BacktestCostConfirmation(detail.estimate);
+      } catch (parseErr) {
+        if (parseErr instanceof BacktestCostConfirmation) throw parseErr;
+      }
+    }
+    throw err;
+  }
+}
 
 export const useMemoryInsights = () =>
   useQuery({ queryKey: qk.memory, queryFn: fetchParsed("/api/memory", MemorySchema), ...live() });

@@ -27,6 +27,12 @@ class RiskLimits(ContractModel):
     max_drawdown_pct: float = Field(default=15.0, gt=0, le=100)
     max_leverage: float = Field(default=1.0, ge=1)
     max_open_positions: int = Field(default=3, ge=1)
+    max_same_direction_positions: int = Field(
+        default=2, ge=1,
+        description="Concentration limit: at most this many concurrent open "
+        "positions on the same side (BUY/SELL), so correlated entries can't "
+        "stack the whole book onto one directional thesis.",
+    )
     max_orders_per_day: int = Field(
         default=24, ge=1,
         description="Cap on new entries per UTC day, enforced in every mode "

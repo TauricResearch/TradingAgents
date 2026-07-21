@@ -9,8 +9,10 @@ Loop invariants:
 - every closed trade reports its realized pnl to memory
   (``close_trade``), which is what feeds analogs and Kelly statistics.
 
-v1 holds one position at a time; multi-asset portfolio simulation arrives
-with the Phase 9 reconciliation layer.
+The broker holds up to ``max_open_positions`` concurrent positions in the
+single backtested symbol, bounded by an aggregate gross-exposure cap; the
+engine decides on every eligible bar (not only when flat). Multi-*asset*
+portfolio reconciliation still arrives with the Phase 9 layer.
 """
 
 from __future__ import annotations
@@ -75,11 +77,13 @@ class BacktestEngine:
 
         for i in range(self.min_history, len(bars) - 1):
             bar = bars[i]
-            closed = self.broker.process_bar(bar)
-            if closed is not None:
+            for closed in self.broker.process_bar(bar):
                 self._report_outcome(closed)
 
-            if not self.broker.position_open and (i - self.min_history) % self.decide_every == 0:
+            # decide on every eligible bar (throttled by decide_every) even
+            # while positions are open — the broker's count/exposure caps, not
+            # single-position serialization, bound how many trades run.
+            if (i - self.min_history) % self.decide_every == 0:
                 snapshot = self.replay.snapshot_at(i)
                 state = self._pipeline.invoke({
                     "snapshot": snapshot,
@@ -94,9 +98,8 @@ class BacktestEngine:
 
             equity_curve.append(self.broker.equity(mark_price=bar.close))
 
-        final = self.broker.close_all(bars[-1])
-        if final is not None:
-            self._report_outcome(final)
+        for closed in self.broker.close_all(bars[-1]):
+            self._report_outcome(closed)
         equity_curve.append(self.broker.equity(mark_price=bars[-1].close))
 
         return BacktestResult(
@@ -122,9 +125,8 @@ class BacktestEngine:
         if rec is None or rec.action is TradeAction.HOLD:
             return None
         fill_bar = self.replay.bars[i + 1]
-        if self.broker.open_from_recommendation(rec, fill_bar):
-            return "executed"
-        return "liquidity"
+        reason = self.broker.open_from_recommendation(rec, fill_bar)
+        return "executed" if reason is None else reason
 
     def _report_outcome(self, trade: ClosedTrade) -> None:
         if self.memory is None:

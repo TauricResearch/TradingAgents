@@ -306,6 +306,9 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     state = DashboardState(memory=memory)
     state.recorder = PipelineRecorder(store_dir=data_path / "runs")
     state.prefs = PrefsStore(data_path / "dashboard_prefs.json")
+    from tradingagents.pro.dashboard.backtest_store import BacktestRunStore
+
+    state.backtest_runs = BacktestRunStore(data_path / "backtest_runs.json")
     router = ExecutionRouter(
         # "paper" venue spans the full tradeable universe; mt5's gold-only
         # map silently venue-rejected every approved BTC order (Phase 2)
