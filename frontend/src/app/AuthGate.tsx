@@ -95,7 +95,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (phase === "need-login") {
     const google = config?.google === true;
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen flex-col items-center justify-center gap-3">
         {google ? (
           <div className="w-full max-w-sm space-y-3 rounded-[20px] border border-border bg-surface p-7 shadow-(--shadow-1) backdrop-blur-[16px]">
             <h1 className="text-lg font-bold">TradingAgents Pro</h1>
@@ -156,6 +156,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             </p>
           </form>
         )}
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setPhase("checking");
+            void attempt();
+          }}
+          className="text-xs text-fg-subtle underline-offset-2 hover:text-fg hover:underline"
+          data-testid="auth-retry"
+        >
+          Trouble connecting? Retry
+        </button>
       </div>
     );
   }

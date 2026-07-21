@@ -66,13 +66,30 @@ export async function apiFetch<T = unknown>(
   return (await response.json()) as T;
 }
 
+/** fetch with a hard timeout so a stalled boot request can never wedge the
+ * AuthGate on "Connecting…" — an aborted request rejects and the gate falls
+ * through to the login screen instead of hanging forever. */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  ms = 8_000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Exchange the API key for the HttpOnly session cookie. Returns whether
  * the backend requires auth at all (open localhost dev = false). */
 export async function establishSession(): Promise<{
   authenticated: boolean;
   auth_required: boolean;
 }> {
-  const response = await fetch("/api/session", {
+  const response = await fetchWithTimeout("/api/session", {
     method: "POST",
     headers: apiHeaders(),
   });
@@ -94,7 +111,7 @@ export interface AuthConfig {
 }
 
 export async function fetchAuthConfig(): Promise<AuthConfig> {
-  const response = await fetch("/api/auth/config");
+  const response = await fetchWithTimeout("/api/auth/config");
   if (!response.ok)
     throw new ApiError(response.status, response.statusText, "/api/auth/config");
   return (await response.json()) as AuthConfig;
