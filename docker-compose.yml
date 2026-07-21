@@ -8,6 +8,28 @@ services:
     tty: true
     stdin_open: true
 
+  # Local web UI. The host-side publish below is loopback-only on purpose:
+  # the server has no authentication, so binding 0.0.0.0 inside the container
+  # is safe ONLY because the port is published to 127.0.0.1. Never change the
+  # mapping to "0.0.0.0:8035:8035" or "8035:8035" — that would expose the
+  # unauthenticated server (and your API-key spend) to the network.
+  tradingagents-web:
+    build: .
+    command: ["web", "--host", "0.0.0.0", "--port", "8035"]
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8035:8035"
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8035/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles:
+      - web
+
   ollama:
     image: ollama/ollama:latest
     volumes:

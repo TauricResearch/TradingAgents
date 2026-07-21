@@ -114,6 +114,11 @@ Install the package and its dependencies:
 pip install .
 ```
 
+To also use the local web UI, install the `web` extra:
+```bash
+pip install ".[web]"
+```
+
 ### Docker
 
 Alternatively, run with Docker:
@@ -126,6 +131,17 @@ For local models with Ollama:
 ```bash
 docker compose --profile ollama run --rm tradingagents-ollama
 ```
+
+For the web UI:
+```bash
+docker compose up tradingagents-web   # then open http://127.0.0.1:8035
+```
+
+> **Warning:** the web server has no authentication. The compose service
+> publishes the port to `127.0.0.1` only — never change the mapping to
+> `0.0.0.0:8035:8035` or `8035:8035`, which would expose the server (and
+> your API-key spend) to the network. Container CLI runs and web runs share
+> the same `tradingagents_data` volume, so both appear in one run history.
 
 ### Required APIs
 
@@ -164,10 +180,29 @@ cp .env.example .env
 
 Launch the interactive CLI:
 ```bash
-tradingagents          # installed command
+tradingagents          # installed command (same as `tradingagents analyze`)
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+
+### Web UI
+
+With the `web` extra installed, serve the browser UI locally:
+```bash
+tradingagents web                # http://127.0.0.1:8035
+tradingagents web --port 9000    # custom port
+```
+The web UI covers the full CLI flow: configure a run, watch live multi-agent
+progress (pipeline status, streaming report sections, tool calls), cancel a
+run, and browse current and past reports. CLI and web runs share one history
+under `results_dir`. API keys are never entered in the browser — the UI only
+shows which env vars are set; keys stay in `.env`.
+
+The server binds `127.0.0.1` and rejects non-local `Host` headers. It is a
+single-user tool: one analysis runs at a time, and stopping the server stops
+the active run (partial reports stay on disk). Note that "Stop run" waits for
+the in-flight agent to finish its current step — LLM calls already in flight
+cannot be interrupted.
 
 ### Markets and tickers
 

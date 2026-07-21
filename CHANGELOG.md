@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Local web UI.** `pip install "tradingagents[web]"` + `tradingagents web`
+  serves a single-user browser UI at `http://127.0.0.1:8035`: configure a run,
+  watch live multi-agent progress over SSE (pipeline status, streaming report
+  sections, tool-call ticker), cancel runs, and browse CLI-era and web-era
+  reports from one shared history. Web runs write the same report tree the CLI
+  writes plus a `run.json` manifest (decision, models, duration). Hardened for
+  localhost: Host-header allowlist (DNS-rebinding defense), strict CSP with
+  sanitized markdown rendering, API keys exposed as presence booleans only.
+  A `tradingagents-web` compose service (loopback-only port publish) ships in
+  docker-compose.yml.
+- **`tradingagents analyze` subcommand.** Bare `tradingagents` still launches
+  the interactive analysis; `analyze` is now also a proper subcommand, making
+  the long-documented `tradingagents analyze --checkpoint` form work.
+
 ## [0.3.1] — 2026-07-05
 
 Correctness and stability patch: data look-ahead, graph-router crash-safety,

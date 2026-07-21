@@ -1280,20 +1280,8 @@ def run_analysis(checkpoint: bool | None = None):
         display_complete_report(final_state)
 
 
-@app.command()
-def analyze(
-    checkpoint: bool | None = typer.Option(
-        None,
-        "--checkpoint/--no-checkpoint",
-        help="Enable/disable checkpoint-resume (save state after each node so a "
-        "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
-    ),
-    clear_checkpoints: bool = typer.Option(
-        False,
-        "--clear-checkpoints",
-        help="Delete all saved checkpoints before running (force fresh start).",
-    ),
-):
+def _run_analyze(checkpoint: bool | None, clear_checkpoints: bool) -> None:
+    """Shared body of the ``analyze`` command and the bare-invocation callback."""
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
@@ -1311,6 +1299,71 @@ def analyze(
             err=True,
         )
         raise typer.Exit(code=1) from None
+
+
+_CHECKPOINT_OPTION = typer.Option(
+    None,
+    "--checkpoint/--no-checkpoint",
+    help="Enable/disable checkpoint-resume (save state after each node so a "
+    "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
+)
+_CLEAR_CHECKPOINTS_OPTION = typer.Option(
+    False,
+    "--clear-checkpoints",
+    help="Delete all saved checkpoints before running (force fresh start).",
+)
+
+
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    checkpoint: bool | None = _CHECKPOINT_OPTION,
+    clear_checkpoints: bool = _CLEAR_CHECKPOINTS_OPTION,
+):
+    """Run the interactive analysis when no subcommand is given.
+
+    Adding the ``web`` subcommand flipped the typer app into multi-command
+    mode; this callback keeps bare ``tradingagents`` (Dockerfile ENTRYPOINT,
+    compose quickstart, README) behaving exactly as before, top-level
+    ``--checkpoint``/``--clear-checkpoints`` included.
+    """
+    if ctx.invoked_subcommand is None:
+        _run_analyze(checkpoint, clear_checkpoints)
+
+
+@app.command()
+def analyze(
+    checkpoint: bool | None = _CHECKPOINT_OPTION,
+    clear_checkpoints: bool = _CLEAR_CHECKPOINTS_OPTION,
+):
+    """Run the interactive trading analysis (same as bare ``tradingagents``)."""
+    _run_analyze(checkpoint, clear_checkpoints)
+
+
+@app.command()
+def web(
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Interface to bind. Keep the default loopback unless the server is "
+        "isolated behind a loopback-only port mapping (see Docker docs).",
+    ),
+    port: int = typer.Option(8035, "--port", help="Port to listen on."),
+):
+    """Serve the local web UI (requires: pip install "tradingagents[web]")."""
+    try:
+        import uvicorn
+
+        from tradingagents.web.app import create_app
+    except ImportError:
+        typer.echo(
+            'Error: the web UI dependencies are not installed. '
+            'Run: pip install "tradingagents[web]"',
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+
+    uvicorn.run(create_app(), host=host, port=port, workers=1)
 
 
 if __name__ == "__main__":

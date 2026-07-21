@@ -44,6 +44,14 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Local web UI (FastAPI server + browser frontend). Optional so the core
+# install stays lean: pip install "tradingagents[web]". fastapi>=0.135 is a
+# hard floor: the SSE endpoint uses native FastAPI SSE (fastapi.sse), added
+# in 0.135.0.
+web = [
+    "fastapi>=0.135",
+    "uvicorn",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
@@ -53,6 +61,9 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+# Recursive glob: the web UI ships nested js/css/vendor assets; the single-level
+# pattern used for cli would silently drop them from wheels.
+"tradingagents.web" = ["static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

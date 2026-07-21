@@ -183,6 +183,13 @@ class TradingAgentsGraph:
         if max_retries is not None and max_retries != "":
             kwargs["max_retries"] = _coerce_max_retries(max_retries)
 
+        # Per-call SDK timeout, also cross-provider. Forwarded only when set;
+        # the web server sets it so a hung provider call cannot block process
+        # exit on the executor-thread join.
+        timeout = self.config.get("llm_timeout")
+        if timeout is not None and timeout != "":
+            kwargs["timeout"] = float(timeout)
+
         return kwargs
 
     def _create_tool_nodes(self) -> dict[str, ToolNode]:

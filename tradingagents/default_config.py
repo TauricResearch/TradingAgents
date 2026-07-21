@@ -100,6 +100,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # provider/SDK at its own default (usually 2). Raise it to ride out bursty
     # 429 throttling on rate-limited deployments instead of aborting a run (#1091).
     "llm_max_retries": None,
+    # Per-call SDK timeout in seconds, forwarded to every provider chat client
+    # when set. None leaves each provider/SDK at its own default. The web
+    # server defaults this to 600s so a hung call cannot block server exit.
+    "llm_timeout": None,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
