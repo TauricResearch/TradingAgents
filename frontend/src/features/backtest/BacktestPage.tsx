@@ -90,7 +90,11 @@ export default function BacktestPage() {
       void qc.invalidateQueries({ queryKey: qk.backtest });
     } else if (j.status === "error") {
       store.setError(j.error ?? "backtest failed");
-    } else if (j.progress) {
+    } else if (
+      j.progress &&
+      typeof (j.progress as { decisions?: unknown }).decisions === "number"
+    ) {
+      // only a real frame — the job starts with an empty progress {}
       store.setProgress(
         j.progress as unknown as BacktestProgress,
         (j.open_trades ?? []) as BacktestTrade[],
@@ -322,11 +326,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function LivePanel() {
-  const progress = useBacktestLiveStore((s) => s.progress)!;
+  const progress = useBacktestLiveStore((s) => s.progress);
   const openTrades = useBacktestLiveStore((s) => s.openTrades);
   const closed = useBacktestLiveStore((s) => s.closedTrades);
   const equityCurve = useBacktestLiveStore((s) => s.equityCurve);
-  const pnlTone = progress.pnl >= 0 ? "bull" : "bear";
+  if (!progress) return null;
+  // defensive: never assume a frame is fully populated (a stray/partial
+  // payload must not crash the whole page)
+  const decisions = progress.decisions ?? 0;
+  const total = progress.total ?? 0;
+  const pct = progress.pct ?? 0;
+  const equity = progress.equity ?? 0;
+  const pnl = progress.pnl ?? 0;
+  const openCount = progress.open_count ?? openTrades.length;
+  const closedCount = progress.closed_trades ?? closed.length;
+  const pnlTone = pnl >= 0 ? "bull" : "bear";
   return (
     <Card>
       <CardHeader>
@@ -336,22 +350,22 @@ function LivePanel() {
         <div>
           <div className="mb-1 flex justify-between text-xs text-fg-muted">
             <span>
-              decision {progress.decisions} / {progress.total}
+              decision {decisions} / {total}
             </span>
-            <span className="font-mono">{progress.pct.toFixed(0)}%</span>
+            <span className="font-mono">{pct.toFixed(0)}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-surface-2" data-testid="backtest-progress">
             <div
               className="h-full rounded-full bg-accent transition-[width]"
-              style={{ width: `${Math.min(100, progress.pct)}%` }}
+              style={{ width: `${Math.min(100, pct)}%` }}
             />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="backtest-pnl">
-          <StatCard label="Equity" value={fmtPrice(progress.equity, 0)} />
-          <StatCard label="P&L" value={fmtPnl(progress.pnl)} tone={pnlTone} />
-          <StatCard label="Open" value={progress.open_count} />
-          <StatCard label="Closed" value={progress.closed_trades} />
+          <StatCard label="Equity" value={fmtPrice(equity, 0)} />
+          <StatCard label="P&L" value={fmtPnl(pnl)} tone={pnlTone} />
+          <StatCard label="Open" value={openCount} />
+          <StatCard label="Closed" value={closedCount} />
         </div>
         {equityCurve.length >= 2 && <EquityCurve curve={equityCurve} height={160} />}
         <TradesTable
