@@ -353,6 +353,11 @@ class _StreamingEngine(BacktestEngine):
     def _apply_decision(self, state: dict, i: int):
         if self._cancel is not None and self._cancel.is_set():
             raise BacktestCancelled()
+        # breathe: this CPU-bound loop shares one process (and the GIL) with
+        # the request-serving event loop — without an explicit yield each
+        # decision, responses slow to a crawl during long runs, requests
+        # stack up, and Cloud Run sheds load with 429s (cancel included)
+        _time.sleep(0.002)
         outcome = super()._apply_decision(state, i)
         self._decision_num += 1
 

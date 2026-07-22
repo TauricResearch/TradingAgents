@@ -75,6 +75,7 @@ gcloud run deploy "$SERVICE" \
   --max-instances 1 \
   --no-cpu-throttling \
   --memory 1Gi \
+  --concurrency 250 \
   --add-volume "name=data,type=cloud-storage,bucket=${BUCKET}" \
   --add-volume-mount "volume=data,mount-path=/data" \
   --update-env-vars "TRADINGAGENTS_LLM_PROVIDER=${LLM_PROVIDER},PRO_LOOP_DISABLED=${PRO_LOOP_DISABLED:-0},PRO_BACKTEST_STORE=firestore" \

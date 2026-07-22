@@ -39,6 +39,10 @@ class Event:
 
 
 KEEPALIVE_SECONDS = 15.0
+# streams self-terminate after this long; clients reconnect with
+# Last-Event-ID (see subscribe docstring — zombie streams exhaust Cloud
+# Run's request concurrency)
+STREAM_MAX_LIFETIME_SECONDS = 15 * 60.0
 
 
 class EventBroadcaster:
@@ -107,7 +111,15 @@ class EventBroadcaster:
     # --- subscribing (loop thread only) -------------------------------------------
 
     async def subscribe(self, last_event_id: int | None = None) -> AsyncIterator[str]:
-        """Yields SSE frames (or keepalive comments) forever; caller cancels."""
+        """Yields SSE frames (or keepalive comments) until the lifetime cap;
+        caller cancels earlier. The cap matters on Cloud Run: every open
+        stream counts against the instance's request-concurrency limit, and
+        zombie streams from abandoned tabs accumulated until the load
+        balancer started shedding requests with 429s (observed live —
+        including a Cancel click). Healthy clients reconnect immediately
+        with Last-Event-ID and the ring replays anything missed."""
+        import time as _time
+
         queue: asyncio.Queue[Event] = asyncio.Queue(maxsize=self._queue_size)
         with self._lock:
             sub_id = next(self._sub_ids)
@@ -118,11 +130,12 @@ class EventBroadcaster:
         # fan-out (call_soon_threadsafe) fires after — the event would
         # arrive via both paths. Monotonic id filtering dedupes.
         last_sent = last_event_id or 0
+        deadline = _time.monotonic() + STREAM_MAX_LIFETIME_SECONDS
         try:
             for event in backlog:
                 yield event.frame()
                 last_sent = event.id
-            while True:
+            while _time.monotonic() < deadline:
                 try:
                     event = await asyncio.wait_for(queue.get(),
                                                    timeout=KEEPALIVE_SECONDS)
