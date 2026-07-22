@@ -7,8 +7,9 @@
 export const MIN_HISTORY = 60;
 export const MAX_LLM_DECISIONS = 300;
 export const LARGE_RUN_DECISIONS = 20_000;
-/** measured full-pipeline throughput with precomputed indicators */
-const EST_DECISIONS_PER_SECOND = 60;
+/** measured full-pipeline throughput on the PRODUCTION instance (1 vCPU
+ * ≈ 8/s; a dev laptop does ~100/s) — estimate for the slow case */
+const EST_DECISIONS_PER_SECOND = 10;
 
 const DURATION_SECONDS: Record<string, number> = {
   "1D": 86_400,

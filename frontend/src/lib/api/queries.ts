@@ -305,9 +305,23 @@ export const useBacktestTradesArtifact = (id: string | null) =>
     retry: 1,
   });
 
-/** Stop the in-flight run; the partial is saved labeled "cancelled". */
+/** Stop the in-flight run; the partial is saved labeled "cancelled".
+ * Retries through transient edge failures (Firebase Hosting 429s under a
+ * busy session) — a cancel click must not be silently dropped. A 409 means
+ * the run already ended: success, not an error. */
 export async function cancelBacktest(): Promise<void> {
-  await apiFetch("/api/backtest/cancel", { method: "POST" });
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      await apiFetch("/api/backtest/cancel", { method: "POST" });
+      return;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) return; // already idle
+      lastError = err;
+      await new Promise((r) => setTimeout(r, 1_500 * (attempt + 1)));
+    }
+  }
+  throw lastError;
 }
 
 export async function deleteBacktestRun(client: QueryClient, id: string) {
@@ -318,12 +332,17 @@ export async function deleteBacktestRun(client: QueryClient, id: string) {
 /** Live/last job snapshot — the reconnect fallback when SSE frames are
  * missed (progress + partial trades also arrive over the stream). Always
  * fetched fresh on mount so a reload/new tab can re-attach to a run that
- * is already in flight server-side; polls while one is running. */
+ * is already in flight server-side; polls while one is running. The poll
+ * relaxes when SSE is healthy (it's only a safety net then) — an aggressive
+ * fixed 2s poll tripped Firebase Hosting's per-client rate limit on long
+ * runs, which then starved OTHER requests (observed: cancel got 429'd). */
 export const useBacktestJob = (polling: boolean) =>
   useQuery({
     queryKey: qk.backtestJob,
     queryFn: fetchParsed("/api/backtest/job", BacktestJobSchema),
-    refetchInterval: polling ? 2_000 : false,
+    refetchInterval: polling
+      ? () => (pollingInterval > 10_000 ? 10_000 : 3_000)
+      : false,
     staleTime: 0,
     refetchOnMount: "always",
   });

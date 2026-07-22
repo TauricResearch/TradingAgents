@@ -425,13 +425,16 @@ function LivePanel() {
   const closedTotal = useBacktestLiveStore((s) => s.closedTotal);
   const equityCurve = useBacktestLiveStore((s) => s.equityCurve);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const cancel = async () => {
     setCancelling(true);
+    setCancelError(null);
     try {
-      await cancelBacktest();
+      await cancelBacktest(); // retries through transient 429s internally
     } catch {
-      setCancelling(false); // idle race — the run already ended
+      setCancelling(false);
+      setCancelError("Cancel didn't reach the server — try again.");
     }
   };
 
@@ -459,6 +462,7 @@ function LivePanel() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
+        {cancelError && <p className="text-xs text-bear">{cancelError}</p>}
         {!progress && (
           <p className="text-sm text-fg-muted">Starting run…</p>
         )}

@@ -86,9 +86,10 @@ MAX_LLM_DECISIONS = 300
 # deterministic runs above this many decisions require an explicit confirm
 # (same 400-with-estimate flow as the LLM cost gate) — they can take a while
 LARGE_RUN_DECISIONS = 20_000
-# roughly measured full-pipeline throughput with precomputed indicators;
-# used only for the operator-facing time estimate
-_EST_DECISIONS_PER_SECOND = 60
+# measured full-pipeline throughput ON CLOUD RUN (1 vCPU: ~8/s; a dev laptop
+# does ~100/s) — used only for the operator-facing time estimate, so estimate
+# for the slow case and over-deliver elsewhere
+_EST_DECISIONS_PER_SECOND = 10
 # how many closed trades the poll snapshot carries (full list is in the
 # artifact — this bounds a 2s-interval poll payload, it loses nothing)
 SNAPSHOT_TRADES = 100
