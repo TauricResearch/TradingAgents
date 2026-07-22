@@ -830,8 +830,20 @@ docs/superpowers/specs/2026-07-22-web-research-workbench-optimization-design.md
 - 限流。
 - 无数据。
 - 无效股票代码。
+- 未配置和无效凭证。
+- 格式错误响应和不完整响应。
+- vendor 边界内未知错误。
 
-断言只有可恢复错误进入 fallback；无效股票代码停止并提示用户。
+逐项断言设计文档 11.2 的固定行为表：
+
+- `invalid_symbol` 不 fallback，并在输入校验阶段停止。
+- `network_unreachable`、`timeout`、`rate_limited`、`no_data_for_symbol`、`malformed_response` 尝试剩余来源，耗尽后按能力矩阵阻断或降级。
+- `not_configured`、`invalid_credentials` 直接跳过该源，不做瞬时重试，并给出安全配置指引。
+- `incomplete_data` 允许补充或合并，且保留每段 provenance。
+- `unknown_vendor_error` 只容纳 vendor 边界内异常；编程错误和非 vendor 异常必须重新抛出并令运行失败。
+- 单一 vendor 的 `no_data_for_symbol` 不得直接升级为 `invalid_symbol`。
+
+错误对普通页面只暴露 code、安全摘要和已尝试来源；fixture 中加入疑似密钥与堆栈文本，断言它们不进入 DOM、SSE 摘要或最终报告。
 
 #### V3-B2 能力覆盖
 
@@ -844,6 +856,36 @@ docs/superpowers/specs/2026-07-22-web-research-workbench-optimization-design.md
 - 新闻。
 
 不能只覆盖 get_stock_data。测试需要找出仍绕过统一 route_to_vendor 的直接 yfinance 调用。
+
+全局最低能力使用同一个 `MinimumMarketSnapshot` predicate：分析日或之前最近 10 个自然日内至少 2 个不同交易日，且每条记录都具有有限、正数 close。测试表驱动覆盖：
+
+- 两个不同交易日和合法 close 通过；同日相同 close 去重后只算 1 条；同日 close 冲突则整日无效并记录 malformed_response。
+- 仅 volume 非空、close 缺失、close 为 0/负数/NaN/Infinity 都失败。
+- open/high/low/volume 可以缺失；存在时验证有限数、正数或非负数规则。
+- high 低于 close/open、low 高于 close/open、high 低于 low 时该行无效。
+- 窗口外和分析日之后的记录不计数。
+
+测试必须证明预检结果被后续阶段复用，没有重复消耗同一 vendor 请求。
+
+按能力穷尽来源后分别断言：
+
+- 最小行情快照不足：在第一次 LLM 调用前阻断。
+- 技术指标不足：市场章节只基于行情降级继续。
+- 基本面不足：生成确定性的“基本面数据不可用”章节，后续角色继续且收到缺失证据清单。
+- company_news、global_news、macro 三类都不足：生成确定性的“新闻数据不可用”章节；任一类可用时调用 LLM 并标记其余输入缺失。
+- 情绪分析的 company_news 与 social_sentiment 都不足：生成确定性的“情绪数据不可用”章节；任一类仍可用时调用 LLM，但明确标记另一类缺失。
+- FRED 不足：宏观降级，不终止股票分析。
+
+对 news、fundamentals、sentiment 的确定性不可用路径逐项断言：正常创建 graph task/turn；不出现 `model.started`；写入脱敏 `UnavailableEvidence`；business delta 填入 7.3 对应字段；applied 前保持 candidate；applied 后产生 `turn.completed(reason=data_unavailable_deterministic)`、canonical Markdown artifact 和 `report.updated`。页面显示“确定性数据不可用”，不能显示成 LLM 结论。未选择 analyst 不生成上述事件；macro unavailable 不伪造 analyst turn。
+
+#### V3-B2a 被动健康状态
+
+- health key 至少按 `vendor + capability + symbol` 隔离；AAPL 的无数据不得污染 MSFT。
+- timeout 或 rate limit 后，在 TTL 内同一来源被跳过并尝试备用源。
+- TTL 到期后下一次真实请求允许重新验证并恢复 available。
+- 配置错误可以按 vendor + capability 缓存，不要求 symbol 维度。
+- 不启动后台探测，不实现未经延迟数据证明的复杂 circuit breaker。
+- TTL 测试使用可注入时钟推进时间，不调用真实 sleep。
 
 #### V3-B3 关闭 VPN 的真实验收
 
@@ -866,17 +908,33 @@ docs/superpowers/specs/2026-07-22-web-research-workbench-optimization-design.md
 - 完整报告可展开。
 - 未选分析师只在配置中标记未选择。
 
+fixture 至少覆盖 market、sentiment、news、fundamentals、Evidence Steward、Trader、Research Manager 和 Portfolio Manager，不能只用四位分析师证明整个卷宗成立。
+
 #### V3-C2 多空轮次
 
 - Bull 和 Bear 按真实 turn_index 配对。
 - 第 N 轮顺序稳定。
 - output_ready 与 committed 状态可区分。
 - 研究经理裁决显示在所有多空轮次之后。
+- 中断发生在 Bull 之后时，本轮 Bear 显示“本轮未完成”；不得与下一轮 Bear 错配。
 
 #### V3-C3 风险轮次
 
-- Aggressive、Conservative、Neutral 顺序与 graph 一致。
+- 至少构造 2 轮；按相同 `turn_index` 把 Aggressive、Conservative、Neutral 分为一轮，轮内顺序与 graph 一致。
+- 中断在 Aggressive 后时 Conservative、Neutral 留在同一轮显示“本轮未完成”；中断在 Conservative 后时只缺 Neutral。
+- resume 填回原 turn_index，不把下一轮角色拼入半轮，也不重复已提交角色。
 - 组合经理裁决显示在风险轮次之后。
+
+#### V3-C3a 确定性输出映射
+
+按设计文档 7.3 的 actor 映射逐项测试：
+
+- 有 `report.updated` 的 market、sentiment、news、fundamentals、trader、portfolio 取同 kind 的最高 revision。
+- Evidence Steward、多空角色、Research Manager 和三类风险角色从 committed business delta 的明确字段读取。
+- `turn.output_ready` 只能成为“生成中”候选；graph task 未 applied 或 turn 未 completed 时不得进入 committed 卷宗。
+- 同 kind 的较低 revision 保留在审计但不覆盖正文。
+- 同一 kind + revision 对应两个不同 artifact 时产生完整性错误，不任意选一个。
+- 重复 sequence、重复 turn 和 resume 后重放不产生重复章节。
 
 #### V3-C4 实时、刷新和历史一致
 
@@ -885,22 +943,42 @@ docs/superpowers/specs/2026-07-22-web-research-workbench-optimization-design.md
 - SSE 实时 fold。
 - snapshot + replay。
 - completed 历史运行。
+- interrupted snapshot + resume + 重复 replay。
 
 断言生成完全一致的 ResearchDocument。
+
+resume fixture 必须包含尚未 applied 的 output_ready、半轮辩论、恢复后 committed 输出和重复 revision；并与不中断等价事件流比较。断言候选不冒充最终内容、半轮位置稳定、无重复 turn/revision。
 
 ### V3-D：最终报告与 Markdown
 
 #### V3-D1 明确最终报告契约
 
-- run.completed 和 RunSnapshot 提供 final_report_artifact_id。
+- 新运行的 run.completed 和 RunSnapshot 始终提供 `final_report_artifact_id`、`final_signal`、`completed_at`、`degraded_data_sources`；非 completed 使用 null/null/null/[]。
+- 新 completed 运行的前三项非空，`completed_at` 等于 terminal event 时间且回放不重算。
+- `degraded_data_sources` 按 capability、vendor、error code 去重，并包含 attempted vendors、selected vendors、status 和稳定的 affected section IDs。
+- 正常且无 fallback 的能力不产生条目；degraded 必须有至少一个 selected vendor；unavailable 的 selected vendors 必须为空。
+- attempted vendors 保持路由评估顺序，并包含 not_configured/invalid_credentials 跳过项；selected vendors 包含所有被采用或合并的来源。
+- capability 只允许 price_history、technical_indicators、fundamentals、company_news、global_news、social_sentiment、macro；affected section 只允许设计文档 8.2 的领域 ID 枚举。
+- 各 capability 先产生设计文档 8.2 表中的直接 section，再只追加本次实际存在的稳定下游 section IDs；不追加未选择的 analyst。
+- 降级摘要在最终报告状态条可见，并以确定性“数据可用性”附录写入新运行的 complete_report.md。
 - 新运行不依赖文件名猜测。
-- 旧运行可以用 reports/complete_report.md locator 回退。
+- 旧运行只有在 reports/complete_report.md locator 唯一匹配时回退。
+
+#### V3-D1a 最终报告失败边界
+
+- 旧运行 locator 0 个匹配：显示“完整报告不可用”，但保留可读分节报告。
+- 旧运行 locator 多个匹配：显示完整性错误，不猜测。
+- artifact 读取失败或 hash 不匹配：最终报告显示可重试错误卡，其他章节不受影响。
+- 新运行报告发布失败：run 进入 failed，code 为 `report_publication_failed`，不得产生 run.completed。
+- 新 completed 运行缺少 explicit ID：测试环境失败；生产投影显示契约错误。
 
 #### V3-D2 默认展示
 
 - 运行完成后默认打开完整报告。
 - 打开 completed 历史运行时默认打开完整报告。
 - 用户手动选择其他内容后不被实时事件强行抢焦点。
+- 手动选择状态按 run_id 隔离；切换运行时重置。
+- 同一 run resume 时保留仍有效的选择，目标已不存在时重置并选择当前阶段。
 
 #### V3-D3 Markdown 功能
 
@@ -988,13 +1066,22 @@ AuditBundle 必须从以下事实构建：
 2. 确认运行继续。
 3. 确认页面显示“降级运行”。
 4. 确认最终报告注明受影响来源。
+5. 核对 `degraded_data_sources` 与确定性“数据可用性”附录一致，且不含原始异常或密钥。
 
-### 17.3 必要来源全部失败
+### 17.3 最小行情快照来源全部失败
 
 1. 在隔离环境让 Yahoo Finance 与 Alpha Vantage 都失败。
 2. 确认在 LLM 调用前停止。
 3. 确认页面列出已尝试来源和失败原因。
 4. 确认没有生成无行情依据的投资结论。
+
+### 17.4 中断与恢复
+
+1. 在一轮辩论中断后保留已提交发言与“本轮未完成”占位。
+2. 恢复同一运行并完成后续阶段。
+3. 刷新并从历史记录重新打开。
+4. 对比不中断等价运行的 ResearchDocument，确认无重复角色、轮次和 report revision。
+5. 确认 graph task 未 applied 的候选内容没有进入最终报告。
 
 ## 18. v0.3 权威命令
 

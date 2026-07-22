@@ -52,8 +52,8 @@
 
 ### 2.5 失败必须分为阻断、降级和不适用
 
-- 阻断：缺少必要行情，不能形成有依据的结论。
-- 降级：FRED、新闻或某些补充数据不可用，但仍可完成有限分析。
+- 阻断：ticker 无法规范化、缺少最低行情快照或所选 LLM 不可调用，不能形成有依据的结论。
+- 降级：技术指标、基本面、新闻、社交情绪、FRED 或其他补充数据不可用，但仍可完成有限分析。
 - 不适用：某个角色或数据类型本次没有选择，不应显示为空白 Bug。
 
 ## 3. 范围与非目标
@@ -186,6 +186,13 @@
 - 打开历史 completed 运行时直接打开最终完整报告。
 - 不出现“请先选择角色”作为首屏主要内容。
 
+`userHasSelected` 必须按 `run_id` 隔离，而不是全局布尔值：
+
+- 新建运行或切换到另一条历史运行时重置为 `false`。
+- 同一运行断点恢复时，如果原选择仍存在则保留；目标不存在时重置并选择当前阶段。
+- 同一运行从 running 进入 completed 时，只有 `userHasSelected=false` 才自动打开最终报告。
+- 重新打开 completed 历史运行时，默认打开最终报告，不继承上一条运行的手动选择。
+
 ### 5.3 角色识别与颜色
 
 用户已确认图标不是重点。角色名称必须始终可见；颜色用于表达立场与团队：
@@ -265,7 +272,36 @@
 
 报告正文在章节进入视口时加载；摘要和状态立即显示。
 
-### 7.3 多空辩论
+### 7.3 确定性输出映射
+
+投影层必须使用显式映射，不能按 Markdown 标题或角色显示名猜测输出：
+
+| actor_id | 研究阶段 | 已提交业务字段 | 对应 canonical report_kind |
+|---|---|---|---|
+| analyst.market | 分析师 | market_report | market |
+| analyst.sentiment | 分析师 | sentiment_report | sentiment |
+| analyst.news | 分析师 | news_report | news |
+| analyst.fundamentals | 分析师 | fundamentals_report | fundamentals |
+| evidence.steward | 证据门 | evidence_report | 无；读取 committed business delta |
+| researcher.bull | 多空辩论 | investment_debate_state.current_response | 无；读取 committed business delta |
+| researcher.bear | 多空辩论 | investment_debate_state.current_response | 无；读取 committed business delta |
+| manager.research | 研究裁决 | investment_debate_state.judge_decision | 无；读取 committed business delta |
+| trader | 交易计划 | trader_investment_plan | trader |
+| risk.aggressive | 风险讨论 | risk_debate_state.current_aggressive_response | 无；读取 committed business delta |
+| risk.conservative | 风险讨论 | risk_debate_state.current_conservative_response | 无；读取 committed business delta |
+| risk.neutral | 风险讨论 | risk_debate_state.current_neutral_response | 无；读取 committed business delta |
+| manager.portfolio | 最终裁决 | final_trade_decision | portfolio |
+
+冲突消解规则按以下优先级执行：
+
+1. `turn.output_ready` 只是实时候选内容；只有对应 graph task 被 applied、并产生 `turn.completed` 后才能进入已提交研究卷宗。被放弃或失败的候选不得进入最终报告。
+2. 对存在 `report.updated` 的角色，使用同一 `report_kind` 的最高 revision 作为 canonical 正文；较低 revision 仍留在审计记录中。
+3. 同一 `report_kind + revision` 指向不同 artifact 时属于完整性错误，页面显示诊断并拒绝任意选一个。
+4. 没有 `report.updated` 的角色从已提交 business delta artifact 按上表读取，不得回退到最后一条任意模型响应。
+5. 实时、刷新、历史和 resume 都按持久化 `sequence` 与 `turn_index` 排序，并以 `run_id + turn_id + sequence` 去重。
+6. 中断发生在一轮中间时，保留已提交发言，并把缺少的角色显示为“本轮未完成”；不得把相邻轮次重新配对。
+
+### 7.4 多空辩论
 
 DebateRound 以 turn_index 和 actor_id 配对：
 
@@ -274,19 +310,19 @@ DebateRound 以 turn_index 和 actor_id 配对：
 - 依此类推
 - 研究经理裁决位于所有轮次之后
 
-候选 output_ready 与 committed 状态必须保留，但作为次要状态标签。
+候选 output_ready 与 committed 状态必须区分；候选可以在实时界面显示“生成中”，但不能当作已完成结论。
 
-### 7.4 风险讨论
+### 7.5 风险讨论
 
-RiskRound 按以下顺序组织：
+RiskRound 与多空辩论一样按 `turn_index` 分组；每一轮内部顺序固定为：
 
 - Aggressive
 - Conservative
 - Neutral
 
-组合经理裁决位于风险轮次之后。
+第 1 轮三位角色的 `turn_index` 都为 1，第 N 轮都为 N。中断在 Aggressive 后发生时，本轮 Conservative 和 Neutral 显示“本轮未完成”；中断在 Conservative 后发生时只为 Neutral 留缺位。resume 后继续填充原 `turn_index`，不得把下一轮角色合并到半轮中。组合经理裁决位于所有风险轮次之后。
 
-### 7.5 不推断不存在的语义
+### 7.6 不推断不存在的语义
 
 如果现有自然语言输出没有明确观点引用，页面只能展示“综合裁决”和关联辩论轮次，不能自行标注“采纳了多方第 2 条”。
 
@@ -307,12 +343,59 @@ RiskRound 按以下顺序组织：
 
 ### 8.2 目标契约
 
-RunSnapshot 和 run.completed 增加：
+RunSnapshot 和 `run.completed` 使用同一终态契约：
 
-- final_report_artifact_id
-- final_signal
-- completed_at
-- degraded_data_sources
+    final_report_artifact_id: string | null
+    final_signal: string | null
+    completed_at: ISO-8601 UTC string | null
+    degraded_data_sources: DegradedSourceSummary[]
+
+    DegradedSourceSummary = {
+      capability: "price_history" | "technical_indicators" |
+                  "fundamentals" | "company_news" | "global_news" |
+                  "social_sentiment" | "macro",
+      status: "degraded" | "unavailable",
+      attempted_vendors: string[],
+      selected_vendors: string[],
+      reasons: Array<{ vendor: string, code: VendorErrorCode }>,
+      affected_sections: AffectedSectionId[]
+    }
+
+    AffectedSectionId =
+      "analyst.market" | "analyst.sentiment" | "analyst.news" |
+      "analyst.fundamentals" | "evidence.steward" |
+      "research.debate" | "research.verdict" | "trading.plan" |
+      "risk.debate" | "portfolio.verdict" | "final.report"
+
+字段不变量：
+
+- 对新建运行，四个字段始终存在；非 completed 状态使用 `null`、`null`、`null` 和 `[]`。
+- 新运行只有在完整报告成功原子发布后才能进入 completed；此时 `final_report_artifact_id`、`final_signal`、`completed_at` 必须非空。
+- `completed_at` 取成功提交 `run.completed` 的事件时间，不取文件 mtime，也不在回放时重算。
+- `degraded_data_sources` 在终态发布时从 provenance 聚合，并按 capability、vendor、error code 去重；浏览器只接收错误 code，不接收可能含密钥或底层堆栈的原始异常。
+- 降级摘要同时显示在最终报告旁的状态条，并由后端以确定性“数据可用性”附录写入新运行的 `complete_report.md`；它不是 LLM 自由生成内容。
+
+降级对象只记录本次实际需要的能力；未选择、未调用的能力不进入数组。状态判定如下：
+
+| 状态 | usable 数据 | selected_vendors | 含义 |
+|---|---|---|---|
+| 不产生条目 | 预期数据完整，且没有 fallback 或异常 | 非契约内容 | 正常路径无需噪声 |
+| degraded | 至少一个来源返回可用数据，但发生 fallback、补充源缺失或结果不完整 | 必须至少 1 个 | 可以分析，但证据质量或覆盖率低于预期 |
+| unavailable | 所有候选源都未返回可用数据 | 必须为空数组 | 对必要行情阻断；对其他能力进入确定性不可用或降级路径 |
+
+`attempted_vendors` 按路由评估顺序记录，包含因 `not_configured` 或 `invalid_credentials` 被跳过的候选；`selected_vendors` 记录最终被采用或合并的全部来源。`affected_sections` 只能使用上面的稳定领域 ID，不能写显示标题、文件名或任意 actor 文本。
+
+能力到直接受影响章节的映射固定如下；一旦直接分析章节受影响，还要追加所有本次实际存在的下游章节：`evidence.steward`、`research.debate`、`research.verdict`、`trading.plan`、`risk.debate`、`portfolio.verdict`、`final.report`，但不能追加未选择的分析师章节：
+
+| capability | 直接 affected_sections |
+|---|---|
+| price_history | analyst.market |
+| technical_indicators | analyst.market |
+| fundamentals | analyst.fundamentals |
+| company_news | analyst.news、analyst.sentiment |
+| global_news | analyst.news |
+| social_sentiment | analyst.sentiment |
+| macro | analyst.news |
 
 如需要章节导航，可再提供 report_sections；第一阶段也可以从最终 Markdown 的标题生成目录，不要求后端复制正文。
 
@@ -320,9 +403,13 @@ RunSnapshot 和 run.completed 增加：
 
 ### 8.3 兼容性
 
-- 新字段必须是可选字段，旧运行仍可回放。
-- 对旧运行可以用 locator 精确匹配 reports/complete_report.md 作为兼容回退。
-- 新运行必须写入 explicit final_report_artifact_id。
+- API schema 为兼容旧快照允许读到缺失字段，但序列化新运行时必须显式写出上述字段。
+- 旧 completed 运行缺少显式 ID 时，只能用精确 locator `reports/complete_report.md` 回退：唯一匹配才可读取。
+- 回退得到 0 个匹配时显示“完整报告不可用”，并继续展示已有分节报告；不得把任意 Markdown 冒充最终报告。
+- 回退得到多个匹配时显示完整性错误并拒绝猜测。
+- artifact 读取失败或 hash 校验失败时，最终报告区域显示可重试错误卡；其他研究章节仍可阅读。
+- 新运行在完整报告发布失败时进入 failed，错误 code 为 `report_publication_failed`，不得发送 `run.completed`。
+- 生产环境读到“新 completed 运行缺少 explicit ID”时按契约违例展示错误；开发和测试环境同时令断言失败。
 - 前端不得长期依赖文件名猜测作为主契约。
 
 ## 9. Markdown 渲染与安全
@@ -416,14 +503,45 @@ artifact 有真实价值：
 
 ### 11.1 能力矩阵
 
-| 数据能力 | 首选 | 备用 | 全部失败 |
+| 数据能力 | 首选 | 备用 | 全部失败后的确定行为 |
 |---|---|---|---|
-| 美股行情 | Yahoo Finance | Alpha Vantage | 阻断，禁止无行情继续推理 |
-| 技术指标 | Yahoo Finance | Alpha Vantage 或本地行情计算 | 关键指标缺失时阻断或明确降级 |
-| 基本面 | Yahoo Finance | Alpha Vantage | 允许部分分析，但必须标记证据不完整 |
-| 公司新闻 | Tavily | Yahoo Finance、Alpha Vantage | 降级继续 |
-| 宏观 | FRED | 暂无同等备用 | 降级继续 |
-| A 股 | Tushare | AKShare、Yahoo Finance | 按覆盖率选择或组合 |
+| 最小行情快照 | Yahoo Finance | Alpha Vantage；A 股按覆盖率使用 Tushare、AKShare、Yahoo Finance | 全局阻断，禁止调用 LLM |
+| 技术指标 | Yahoo Finance | Alpha Vantage 或用已取得行情本地计算 | 市场分析只基于行情降级继续 |
+| 基本面 | Yahoo Finance | Alpha Vantage；A 股使用已配置覆盖源 | 生成确定性的“基本面数据不可用”章节，后续继续但标记证据不完整 |
+| 公司新闻 | Tavily | Yahoo Finance、Alpha Vantage | 与全球新闻和宏观共同决定新闻章节是否完全 unavailable |
+| 全球新闻 | Tavily | Yahoo Finance、Alpha Vantage | 与公司新闻和宏观共同决定新闻章节是否完全 unavailable |
+| 社交情绪 | StockTwits、Reddit 并行聚合 | 无同等备用；公司新闻属于独立输入 | 公司新闻与社交情绪都不可用时，生成确定性的“情绪数据不可用”章节 |
+| 宏观 | FRED | 暂无同等备用 | 降级继续并写入数据可用性附录 |
+
+全局阻断条件只有三项：
+
+1. ticker 无法规范化为受支持资产；
+2. 所有候选行情源都不能提供 `MinimumMarketSnapshot`；
+3. 所选 LLM 未配置或不可调用。
+
+`MinimumMarketSnapshot` 定义为：分析日或之前、最近 10 个自然日窗口内至少 2 个不同交易日的有效日线记录。逐条记录使用同一个 predicate：
+
+- `trading_date` 必须能解析为日期、不得晚于分析日，并在窗口内；按日期分组后每个日期最多算 1 条。组内先丢弃无效行；剩余行若 close 一致则保留 1 条，若 close 冲突则整组丢弃并记录 `malformed_response`。
+- `close` 必填，必须是有限数且大于 0；仅 volume 非空不能通过闸门。
+- `open`、`high`、`low`、`volume` 可缺失，因为全局闸门只保证最低价格依据；但存在时必须为有限数，前三者大于 0、volume 大于等于 0。
+- `high` 存在时必须大于等于 close 以及存在的 open；`low` 存在时必须小于等于 close 以及存在的 open；high 与 low 同时存在时还必须满足 `high >= low`。任一约束不满足则该记录无效。
+
+闸门通过只代表有最低价格依据，不代表技术指标完整。预检取得的数据必须缓存并复用于后续分析，不能为了验证再消耗一次相同 vendor 配额。
+
+所选分析师只决定要生成哪些章节，不改变上述全局阻断边界：市场分析师在技术指标缺失时降级；基本面能力耗尽时使用确定性不可用说明；新闻分析把 `company_news`、`global_news`、`macro` 视为三类输入，三类都 unavailable 才走确定性不可用路径；情绪分析把 `company_news` 与 `social_sentiment` 视为两类输入，两类都 unavailable 才走确定性不可用路径。复合输入有任一类可用时，在明确列出其他缺失输入的前提下调用 LLM。不能要求 LLM 猜测缺失事实。Evidence Steward、经理、Trader、风险角色和 Portfolio Manager 继续处理仍可用材料，同时收到缺失证据清单，最终结论标记为 degraded。
+
+#### 确定性不可用章节的唯一生产路径
+
+该章节由 graph runner 与 analyst node 之间的分析编排层生成，不由 React、LLM 或最终报告拼接器临时补字。对本次已选择但所需能力全部 unavailable 的 news、fundamentals 或 sentiment analyst：
+
+1. 正常创建该角色的 graph task 和 turn，但不产生任何 `model.started` 或模型计费。
+2. 写入一份脱敏的 `UnavailableEvidence` artifact，包含 capability、错误 code、已评估来源和受影响章节。
+3. 生成与 7.3 映射一致的 business delta：分别填入 `news_report`、`fundamentals_report` 或 `sentiment_report`，正文使用版本化确定性模板。
+4. 正常产生 `graph.task_output_ready` 和 `turn.output_ready` 候选；只有 graph task applied/checkpoint committed 后，才产生 `turn.completed(reason=data_unavailable_deterministic)`。
+5. 提交后写入对应 canonical Markdown artifact，并产生 `report.updated`；revision 规则与普通分析师一致。
+6. provenance 将 canonical report 关联到 `UnavailableEvidence`，投影层因此无需特殊猜测，仍按 7.3 读取正文。
+
+这种 turn 在流程上是 completed、在数据质量上是 unavailable；页面用降级标签表达，不能把它伪装成 LLM 分析。未选择的 analyst 仍是 not applicable，不生成 turn 或不可用章节。宏观能力没有独立 analyst turn，因此只进入 provenance、`degraded_data_sources` 和确定性数据可用性附录。
 
 ### 11.2 错误分类
 
@@ -440,20 +558,29 @@ artifact 有真实价值：
 - incomplete_data
 - unknown_vendor_error
 
-行为：
+每个错误的行为必须固定：
 
-- 网络、超时、限流：自动尝试下一个来源。
-- 未配置：跳过并记录配置缺失。
-- 当前来源无数据：继续尝试其他来源。
-- 股票代码无效：停止并提示用户。
-- 数据不完整：尝试补充源并保留组合 provenance。
+| code | 是否继续 fallback | 缓存/重试 | 候选源耗尽后的行为 |
+|---|---|---|---|
+| invalid_symbol | 否 | 不重试 | 输入校验失败，阻断运行 |
+| network_unreachable | 是 | vendor + capability + symbol 短 TTL | 按能力矩阵阻断或降级 |
+| timeout | 是 | 同上 | 按能力矩阵阻断或降级 |
+| rate_limited | 是 | 记录限流 TTL，不立即重试该源 | 按能力矩阵阻断或降级 |
+| not_configured | 是，直接跳过 | 进程内记配置状态 | 按能力矩阵阻断或降级，并给配置指引 |
+| invalid_credentials | 是，直接跳过 | 不做瞬时重试 | 按能力矩阵阻断或降级，并给配置指引 |
+| no_data_for_symbol | 是 | 只对 vendor + capability + symbol 缓存 | 按能力矩阵阻断或降级；不能仅凭单源无数据判定 ticker 无效 |
+| malformed_response | 是 | 将该 vendor/capability 标记短期不健康 | 按能力矩阵阻断或降级 |
+| incomplete_data | 是，并允许补充/合并 | 保留各源 provenance | 必要行情仍不足则阻断；其他能力使用部分数据降级 |
+| unknown_vendor_error | 是，每个剩余源至多尝试一次 | 保留安全诊断 | 仅 vendor 边界内未知错误可降级；编程错误和非 vendor 异常必须重新抛出并令运行 failed |
+
+普通页面只显示安全的错误摘要、已尝试来源与下一步；原始异常和调用细节只进入高级审计，并在持久化前脱敏。
 
 ### 11.3 最低成本预检
 
 在正式 LLM 调用前验证：
 
 - 股票代码可解析。
-- 至少一个必要行情源能返回最小行情快照。
+- 至少一个必要行情源能返回上文定义的 `MinimumMarketSnapshot`。
 - 所选 LLM 已配置。
 - 可选新闻与宏观源的配置状态。
 
@@ -469,7 +596,7 @@ artifact 有真实价值：
 - not_configured
 - no_data_for_symbol
 
-只根据真实调用更新，不增加后台主动探测。网络失败或限流后设置短 TTL，避免同一次运行反复等待同一来源超时。没有延迟证据时不实现复杂熔断器。
+健康状态的键至少包含 `vendor + capability + symbol`；配置类错误可以省略 symbol。只根据真实调用更新，不增加后台主动探测。网络失败或限流后设置短 TTL，避免同一次运行反复等待同一来源超时；TTL 到期后允许下一次真实请求重新验证。没有延迟证据时不实现复杂熔断器。
 
 ### 11.5 不修改 VPN
 
@@ -535,6 +662,16 @@ artifact 有真实价值：
 - 旧运行缺少新字段时可以回退。
 - completed 历史运行默认打开最终报告。
 
+当前范围必须提供一个确定性 resume fixture，而不是只验证普通历史回放：
+
+1. 构造 snapshot 与事件直到某轮中断，并包含尚未 applied 的 `output_ready` 候选。
+2. 追加 resume 事件、重复重放事件和最终 committed 事件。
+3. 与不中断的等价事件流比较 `ResearchDocument`。
+4. 断言无重复 turn、无重复 report revision、候选内容未冒充 committed 输出、未完成轮次位置稳定。
+5. 断言同一 run 的有效手动选择被保留；选择目标不存在时按 5.2 重置。
+
+真实 checkpoint 的浏览器端断点恢复 E2E 可以在基础 fixture 通过后单列慢测试，但不能用“后续再测”替代上述投影契约测试。
+
 ## 14. 组件与模块边界
 
 建议边界如下：
@@ -577,6 +714,8 @@ artifact 有真实价值：
 每个组件必须可以用一个小型投影 fixture 独立测试，不要求加载完整 709 事件运行。
 
 ## 15. 实施顺序
+
+依赖闸门：P0 可以先落 `final_report_artifact_id`、终态字段形状和最终报告阅读闭环，但在 P2 的错误分类、provenance 聚合和确定性不可用章节完成前，`degraded_data_sources` 与“数据可用性”附录只能算结构占位，不能宣称达到 17 节验收。实现计划应先抽出共享的 `VendorErrorCode` 与 provenance 聚合接口，再让 P0、P2 分别消费，避免前后端出现两套降级语义。
 
 ### P0：恢复完整用户闭环
 
