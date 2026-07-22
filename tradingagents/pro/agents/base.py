@@ -112,7 +112,13 @@ class EvidenceAgent:
             return None
         prompt = self.build_prompt(snapshot, extra_metrics, ctx=ctx)
         try:
-            draft = self._structured.invoke(prompt)
+            if hasattr(self._structured, "invoke_with_refs"):
+                # deterministic rules engines vote on the SAME rendered
+                # values the prompt shows (no prompt parsing, no fabrication)
+                draft = self._structured.invoke_with_refs(
+                    prompt, self.spec, ctx.data_refs)
+            else:
+                draft = self._structured.invoke(prompt)
         except Exception:
             logger.warning("%s: structured output failed; abstaining",
                            self.spec.agent_id, exc_info=True)

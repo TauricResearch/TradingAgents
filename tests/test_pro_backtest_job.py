@@ -209,7 +209,7 @@ def test_run_job_streams_persists_and_writes_full_artifacts(tmp_path):
     assert len(saved) == 1 and saved[0]["symbol"] == "XAUUSD"
     assert saved[0]["status"] == "done"
     assert saved[0]["indicator_mode"] == "full_history"
-    assert job.result["provider"] == "deterministic"
+    assert job.result["provider"] == "rules"
 
     # zero-loss artifacts: one equity row + one decision row PER DECISION,
     # and every closed trade

@@ -75,6 +75,67 @@ def risk_gate(
     return GateResult(passed=passed, checks=checks, reasons=tuple(reasons))
 
 
+def trade_quality_gate(
+    sided_metrics: dict[str, MetricReading],
+    config: ProConfig,
+) -> GateResult:
+    """Pre-trade quality checks on the SIDED engine levels (post-judge).
+
+    Evidence-driven (BTC 5m audit): median stop distance was only ~4× the
+    round-trip cost, so friction consumed ~24% of every R and turned a
+    gross-positive strategy net-negative — and nothing enforced the planned
+    R:R. Two deterministic checks close that:
+
+    - cost_gate: stop distance must be at least ``min_stop_to_cost_ratio``
+      round-trip costs (``assumed_round_trip_cost_bps``) — a noise-level
+      stop on a fast timeframe means the correct trade is no trade;
+    - risk_reward_gate: the size-weighted planned R:R of the ladder must be
+      at least ``min_risk_reward`` (the R-based ladder yields 2.0 by
+      construction; this guards odd invalidation-stop geometry).
+    """
+    checks: dict[str, bool] = {}
+    reasons: list[str] = []
+    limits = config.risk
+
+    entry = sided_metrics.get("ENTRY_REF_PRICE")
+    stop = sided_metrics.get("ATR_STOP")
+    if entry is None or stop is None or entry.value <= 0:
+        return GateResult(passed=False, checks={"levels_available": False},
+                          reasons=("no engine levels for quality checks",))
+
+    stop_distance_pct = abs(entry.value - stop.value) / entry.value
+    if limits.min_stop_to_cost_ratio > 0:
+        cost_pct = limits.assumed_round_trip_cost_bps / 10_000.0
+        floor = limits.min_stop_to_cost_ratio * cost_pct
+        checks["cost_gate"] = stop_distance_pct >= floor
+        if not checks["cost_gate"]:
+            reasons.append(
+                f"stop distance {stop_distance_pct:.4%} is under "
+                f"{limits.min_stop_to_cost_ratio:.0f}x round-trip costs "
+                f"({floor:.4%}) — friction would eat the edge"
+            )
+
+    fractions = limits.tp_fractions
+    tps = [sided_metrics.get(f"ATR_TP{i + 1}") for i in range(len(fractions))]
+    if all(tp is not None for tp in tps):
+        risk = abs(entry.value - stop.value)
+        deployed = sum(fractions) or 1.0
+        reward = sum(abs(tp.value - entry.value) * (f / deployed)
+                     for tp, f in zip(tps, fractions, strict=True))
+        planned_rr = reward / risk if risk > 0 else 0.0
+        checks["risk_reward_gate"] = planned_rr >= limits.min_risk_reward
+        if not checks["risk_reward_gate"]:
+            reasons.append(
+                f"planned R:R {planned_rr:.2f} below minimum "
+                f"{limits.min_risk_reward:.2f}"
+            )
+
+    passed = all(checks.values()) if checks else False
+    if not checks:
+        reasons.append("quality gate had nothing to check; failing closed")
+    return GateResult(passed=passed, checks=checks, reasons=tuple(reasons))
+
+
 def event_gate(
     next_major: dict | None,
     now: datetime,

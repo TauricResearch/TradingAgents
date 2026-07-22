@@ -38,6 +38,46 @@ class RiskLimits(ContractModel):
         description="Cap on new entries per UTC day, enforced in every mode "
         "(paper included) — live arming adds its own stricter cap.",
     )
+    # --- profit-taking geometry (R-based: derived from the actual stop
+    # distance so tighter invalidation stops keep the same reward shape) ---
+    tp_r_multiples: list[float] = Field(
+        default=[1.0, 3.0],
+        description="Take-profit ladder in R (multiples of entry→stop risk). "
+        "Defaults give a size-weighted planned R:R of exactly 2.0.",
+    )
+    tp_fractions: list[float] = Field(
+        default=[0.5, 0.5],
+        description="Position fraction closed at each ladder rung.",
+    )
+    breakeven_after_tp1: bool = Field(
+        default=True,
+        description="After the first ladder rung fills, move the stop to "
+        "entry (plus a cost buffer) so a trade that reached +1R can no "
+        "longer become a loss.",
+    )
+    min_risk_reward: float = Field(
+        default=1.8, gt=0,
+        description="Reject directional tickets whose size-weighted planned "
+        "R:R falls below this (guards odd invalidation-stop geometry).",
+    )
+    assumed_round_trip_cost_bps: float = Field(
+        default=6.0, ge=0,
+        description="Slippage+commission both sides, in bps of notional, "
+        "assumed by the pre-trade cost gate (sim models 2bps slip + 1bp "
+        "commission per side).",
+    )
+    min_stop_to_cost_ratio: float = Field(
+        default=8.0, ge=0,
+        description="Reject entries whose stop distance is under this "
+        "multiple of round-trip costs — friction would eat the edge "
+        "(kills noise-level stops on fast timeframes). 0 disables.",
+    )
+    stop_cooldown_bars: int = Field(
+        default=10, ge=0,
+        description="After a stop-out, no new same-side entry for this many "
+        "bars (anti-churn: instant re-entries after losses re-pay costs "
+        "into the same move). 0 disables.",
+    )
     circuit_breaker_consecutive_losses: int = Field(
         default=3, ge=1, description="Halt new entries after this many consecutive losses."
     )

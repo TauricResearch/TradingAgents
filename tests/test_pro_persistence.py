@@ -87,6 +87,15 @@ class TestPaperAdapterDurability:
         assert list(tmp_path.iterdir()) == []  # nothing written anywhere
 
 
+# routing/persistence/audit tests need a trade to flow, not a quality
+# opinion: the fixture's ATR (2.5 on a 4000 tape = 0.125% stop) is far
+# inside the cost gate's floor, so disable that gate here — entry-quality
+# behavior has its own suite (test_pro_strategy_quality.py)
+ROUTING_CONFIG = CONFIG.model_copy(update={
+    "risk": CONFIG.risk.model_copy(update={"min_stop_to_cost_ratio": 0.0}),
+})
+
+
 def _build_service(tmp_path, closes):
     """Production-shaped wiring: every stateful piece backed by tmp_path."""
     memory = ProMemory(store_path=tmp_path / "memory.jsonl")
@@ -99,7 +108,7 @@ def _build_service(tmp_path, closes):
         audit=AuditLog(tmp_path / "audit.jsonl"),
     )
     service = PaperTradingService(
-        FakePipelineLLM(), CONFIG, ScriptedSnapshots(closes),
+        FakePipelineLLM(), ROUTING_CONFIG, ScriptedSnapshots(closes),
         router=router, memory=memory,
     )
     return service

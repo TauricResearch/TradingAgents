@@ -360,9 +360,10 @@ function RunControls(props: {
             </>
           ) : (
             <>
-              <span className="font-semibold text-fg-muted">Deterministic:</span>{" "}
-              scripted no-cost pipeline over real bars, one decision EVERY bar —
-              exercises gates, sizing, fills and exits, <em>not</em> model skill.
+              <span className="font-semibold text-fg-muted">Rules strategy:</span>{" "}
+              deterministic indicator rules (trend/momentum votes, ADX chop
+              filter, long &amp; short), one decision EVERY bar, 1:2 profit
+              ladder with breakeven lock-in — no model calls.
             </>
           )}
         </p>
@@ -572,30 +573,56 @@ function ResultPanel({
               {status}
             </Badge>
           )}
-          <Badge variant={view.provider === "deterministic" ? "default" : "accent"}>
+          <Badge variant={view.provider === "deterministic" || view.provider === "rules" ? "default" : "accent"}>
             {view.provider}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
           <StatCard
             label="Return"
             value={fmtPct(ret)}
             tone={ret != null ? (ret >= 0 ? "bull" : "bear") : undefined}
           />
           <StatCard label="Final equity" value={fmtPrice(view.final_equity, 0)} />
-          <StatCard label="Win rate" value={fmtPct(report.win_rate)} n={view.n_trades} />
+          <StatCard
+            label="Win rate"
+            value={fmtPct(report.win_rate_ex_scratch ?? report.win_rate)}
+            n={view.n_trades}
+            sub={
+              report.scratches
+                ? `${report.scratches} scratch${report.scratches === 1 ? "" : "es"} excluded`
+                : undefined
+            }
+          />
+          <StatCard
+            label="Avg R"
+            value={report.avg_r != null ? `${report.avg_r >= 0 ? "+" : ""}${report.avg_r.toFixed(2)}R` : "—"}
+            tone={report.avg_r != null ? (report.avg_r >= 0 ? "bull" : "bear") : undefined}
+          />
+          <StatCard
+            label="Planned R:R"
+            value={report.avg_planned_rr ? `1:${report.avg_planned_rr.toFixed(1)}` : "—"}
+          />
           <StatCard label="Profit factor" value={fmtNum(report.profit_factor)} />
           <StatCard label="Max DD" value={fmtPct(report.max_drawdown)} tone="bear" />
           <StatCard label="Trades" value={view.n_trades ?? 0} />
         </div>
+        {report.exit_reasons && (
+          <p className="text-xs text-fg-subtle" data-testid="backtest-exits">
+            Exits:{" "}
+            {Object.entries(report.exit_reasons)
+              .map(([reason, count]) => `${reason.replace("_", " ")} ${count}`)
+              .join(" · ")}
+          </p>
+        )}
         <p className="text-xs text-fg-subtle" data-testid="backtest-provenance">
           {view.decisions != null && (
             <>{view.decisions.toLocaleString()} decisions · one per bar (full density)</>
           )}
           {view.indicator_mode && <> · indicators: {view.indicator_mode}</>}
-          {view.provider !== "deterministic" && view.est_cost_usd != null && (
+          {view.provider !== "deterministic" && view.provider !== "rules" && view.est_cost_usd != null && (
             <>
               {" "}· {view.llm_calls} model calls · est ${view.est_cost_usd.toFixed(2)}
             </>
@@ -621,7 +648,7 @@ function ResultPanel({
             checkpoint; metrics are partial.
           </p>
         )}
-        {view.provider === "deterministic" && (
+        {(view.provider === "deterministic" || view.provider === "rules") && (
           <p className="text-xs text-fg-subtle">
             Deterministic replay — mechanics only, not an edge measurement.
           </p>
@@ -661,6 +688,7 @@ function TradesTable({
               <th className="px-2 py-1 text-right">Entry</th>
               <th className="px-2 py-1 text-right">{open ? "Mark" : "Exit"}</th>
               <th className="px-2 py-1 text-right">P&L</th>
+              {!open && <th className="px-2 py-1 text-right">R</th>}
               {!open && <th className="px-2 py-1 text-left">Why</th>}
               <th className="px-2 py-1 text-left">{open ? "Opened" : "Closed"}</th>
             </tr>
@@ -685,6 +713,21 @@ function TradesTable({
                   >
                     {fmtPnl(pnl)}
                   </td>
+                  {!open && (
+                    <td
+                      className={`px-2 py-1 text-right font-mono ${
+                        t.r_multiple != null
+                          ? t.r_multiple >= 0
+                            ? "text-bull"
+                            : "text-bear"
+                          : ""
+                      }`}
+                    >
+                      {t.r_multiple != null
+                        ? `${t.r_multiple >= 0 ? "+" : ""}${t.r_multiple.toFixed(2)}R`
+                        : "—"}
+                    </td>
+                  )}
                   {!open && <td className="px-2 py-1">{t.reason ?? "—"}</td>}
                   <td className="px-2 py-1">
                     {fmtDateTime(open ? t.opened_at : t.closed_at)}
@@ -759,7 +802,7 @@ function SavedRuns({
                     <td className="px-2 py-1 font-mono">{r.timeframe}</td>
                     <td className="px-2 py-1 font-mono">{r.duration}</td>
                     <td className="px-2 py-1">
-                      {r.provider === "deterministic" ? "det" : "AI"}
+                      {r.provider === "deterministic" || r.provider === "rules" ? "rules" : "AI"}
                     </td>
                     <td className="px-2 py-1">
                       {(r.status ?? "done") === "done" ? (

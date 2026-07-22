@@ -26,8 +26,12 @@ class ClosedTrade:
     opened_at: datetime
     closed_at: datetime
     pnl: float  # net of commissions and slippage
-    reason: str  # "stop" | "take_profit" | "end_of_data"
+    reason: str  # "stop" | "take_profit" | "breakeven" | "end_of_data"
     recommendation_id: str
+    # R accounting: risk unit = original quantity × |entry - initial stop|
+    initial_stop: float | None = None
+    r_multiple: float | None = None  # realized pnl in R units
+    planned_rr: float | None = None  # the ticket's size-weighted R:R
 
 
 @dataclass
@@ -41,6 +45,8 @@ class _OpenPosition:
     tp_levels: list[tuple[float, float]]  # (price, fraction of original) unfilled
     opened_at: datetime
     entry_commission: float
+    initial_stop: float = 0.0  # R unit; never mutated (stop may move to BE)
+    at_breakeven: bool = False
     realized: float = 0.0
     exit_notional: float = 0.0
     exit_quantity: float = 0.0
@@ -62,6 +68,12 @@ class SimBroker:
     max_open_positions: int = 3
     max_gross_exposure_pct: float = 30.0
     max_same_direction: int = 2
+    # after the first take-profit rung fills, move the stop to entry plus a
+    # small cost buffer: a trade that reached +1R can no longer become a
+    # loss (exit reason "breakeven"). The buffer covers round-trip costs so
+    # a breakeven exit nets ~0 instead of a costs-sized loss.
+    breakeven_after_tp1: bool = True
+    breakeven_buffer_pct: float = 0.0006
 
     def __post_init__(self):
         self.cash_pnl = 0.0  # realized pnl net of costs
@@ -124,6 +136,7 @@ class SimBroker:
             original_quantity=quantity,
             entry_price=entry,
             stop=rec.stop_loss,
+            initial_stop=rec.stop_loss,
             tp_levels=[(tp.price, tp.size_fraction) for tp in rec.take_profits],
             opened_at=fill_bar.start,
             entry_commission=fee,
@@ -148,7 +161,8 @@ class SimBroker:
         stop_hit = bar.low <= pos.stop if long else bar.high >= pos.stop
         if stop_hit:
             exit_price = self.slippage.fill_price(pos.stop, "SELL" if long else "BUY")
-            self._exit(pos, pos.quantity, exit_price, bar.start, "stop")
+            reason = "breakeven" if pos.at_breakeven else "stop"
+            self._exit(pos, pos.quantity, exit_price, bar.start, reason)
             return self._finalize(pos, bar.start)
 
         for price, fraction in list(pos.tp_levels):
@@ -161,6 +175,13 @@ class SimBroker:
             pos.tp_levels.remove((price, fraction))
             if pos.quantity <= 1e-12:
                 return self._finalize(pos, bar.start)
+            if self.breakeven_after_tp1 and not pos.at_breakeven:
+                # +1R is banked: the remainder can no longer lose. Stop
+                # moves to entry ± cost buffer (a later touch exits ~flat).
+                buffer = pos.entry_price * self.breakeven_buffer_pct
+                pos.stop = (pos.entry_price + buffer if long
+                            else pos.entry_price - buffer)
+                pos.at_breakeven = True
         return None
 
     def close_all(self, bar: OHLCVBar) -> list[ClosedTrade]:
@@ -188,6 +209,8 @@ class SimBroker:
         self.cash_pnl += pnl
 
     def _finalize(self, pos: _OpenPosition, ts: datetime) -> ClosedTrade:
+        net_pnl = pos.realized - pos.entry_commission
+        risk_unit = pos.original_quantity * abs(pos.entry_price - pos.initial_stop)
         trade = ClosedTrade(
             symbol=pos.recommendation.symbol,
             side=pos.side,
@@ -196,9 +219,12 @@ class SimBroker:
             exit_price=pos.exit_notional / pos.exit_quantity,
             opened_at=pos.opened_at,
             closed_at=ts,
-            pnl=pos.realized - pos.entry_commission,
+            pnl=net_pnl,
             reason=pos.last_reason,
             recommendation_id=pos.recommendation.id,
+            initial_stop=pos.initial_stop,
+            r_multiple=(net_pnl / risk_unit) if risk_unit > 0 else None,
+            planned_rr=pos.recommendation.risk_reward,
         )
         self.closed.append(trade)
         self.positions.pop(pos.recommendation.id, None)

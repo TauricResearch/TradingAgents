@@ -19,7 +19,6 @@ from tradingagents.contracts import (
 )
 from tradingagents.pro.analytics import (
     atr_stop_loss,
-    atr_take_profits,
     close_zscore,
     fixed_risk_position_size,
     historical_cvar,
@@ -27,6 +26,7 @@ from tradingagents.pro.analytics import (
     invalidation_stop_loss,
     kelly_fraction,
     realized_volatility,
+    take_profits_from_risk,
     trend_slope,
 )
 
@@ -134,7 +134,14 @@ def compute_risk_metrics(
                     pass  # wrong-sided/unusable level: keep the ATR stop
             out["ENTRY_REF_PRICE"] = _reading("ENTRY_REF_PRICE", entry, RISK_SOURCE)
             out["ATR_STOP"] = _reading("ATR_STOP", stop, RISK_SOURCE)
-            for i, tp in enumerate(atr_take_profits(entry, atr, side), start=1):
+            # R-based ladder from the ACTUAL stop distance (invalidation-
+            # derived stops keep the same reward geometry; defaults → 2.0 R:R)
+            ladder = take_profits_from_risk(
+                entry, stop, side,
+                r_multiples=limits.tp_r_multiples,
+                fractions=limits.tp_fractions,
+            )
+            for i, tp in enumerate(ladder, start=1):
                 out[f"ATR_TP{i}"] = _reading(f"ATR_TP{i}", tp.price, RISK_SOURCE)
             size = fixed_risk_position_size(
                 equity,
@@ -193,10 +200,16 @@ def compute_neutral_risk_metrics(
     if atr_reading is not None and entry is not None:
         atr = atr_reading.value["value"]
         if atr > 0 and not math.isnan(atr):
+            short_stop = atr_stop_loss(entry.value, atr, "SELL")
             out["ATR_STOP_SHORT"] = _reading(
-                "ATR_STOP_SHORT", atr_stop_loss(entry.value, atr, "SELL"), RISK_SOURCE
+                "ATR_STOP_SHORT", short_stop, RISK_SOURCE
             )
-            for i, tp in enumerate(atr_take_profits(entry.value, atr, "SELL"), start=1):
+            short_ladder = take_profits_from_risk(
+                entry.value, short_stop, "SELL",
+                r_multiples=limits.tp_r_multiples,
+                fractions=limits.tp_fractions,
+            )
+            for i, tp in enumerate(short_ladder, start=1):
                 out[f"ATR_TP{i}_SHORT"] = _reading(
                     f"ATR_TP{i}_SHORT", tp.price, RISK_SOURCE
                 )

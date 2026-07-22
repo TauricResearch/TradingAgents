@@ -27,6 +27,13 @@ class PerformanceReport:
     profit_factor: float
     expectancy: float
     n_trades: int
+    # R accounting (risk unit = qty × |entry − initial stop| per trade)
+    avg_r: float = 0.0            # mean realized R-multiple
+    avg_planned_rr: float = 0.0   # mean ticket R:R (ladder geometry)
+    expectancy_r: float = 0.0     # mean realized R — the headline edge number
+    win_rate_ex_scratch: float = 0.0  # wins / decided trades (|R| > scratch band)
+    scratches: int = 0            # breakeven-band exits (|R| <= 0.1)
+    exit_reasons: dict = None     # reason -> count
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -87,6 +94,22 @@ def performance_report(
         if len(equity_curve) >= 2 and equity_curve[0] > 0
         else 0.0
     )
+    # R accounting: scratches (|R| inside the breakeven band, e.g. a stop
+    # moved to breakeven after TP1's partial) are neither wins nor losses —
+    # counting them as losses would misstate the strategy's hit rate.
+    # getattr: callers reconstruct trade-like objects (journal views) that
+    # may predate the R fields
+    r_values = [r for t in trades
+                if (r := getattr(t, "r_multiple", None)) is not None]
+    scratch_band = 0.1
+    decided = [r for r in r_values if abs(r) > scratch_band]
+    decided_wins = sum(1 for r in decided if r > 0)
+    planned = [p for t in trades
+               if (p := getattr(t, "planned_rr", None)) is not None]
+    reasons: dict[str, int] = {}
+    for t in trades:
+        reason = getattr(t, "reason", "unknown")
+        reasons[reason] = reasons.get(reason, 0) + 1
     return PerformanceReport(
         total_return=total_return,
         max_drawdown=max_drawdown(equity_curve),
@@ -98,4 +121,10 @@ def performance_report(
         ),
         expectancy=statistics.mean(pnls) if pnls else 0.0,
         n_trades=len(pnls),
+        avg_r=statistics.mean(r_values) if r_values else 0.0,
+        avg_planned_rr=statistics.mean(planned) if planned else 0.0,
+        expectancy_r=statistics.mean(r_values) if r_values else 0.0,
+        win_rate_ex_scratch=(decided_wins / len(decided)) if decided else 0.0,
+        scratches=len(r_values) - len(decided),
+        exit_reasons=reasons,
     )

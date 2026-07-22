@@ -48,7 +48,7 @@ from tradingagents.pro.agents.metrics import compute_neutral_risk_metrics, infer
 from tradingagents.pro.agents.rendering import wrap_untrusted
 from tradingagents.pro.analytics import classify_regime
 from tradingagents.pro.models import ModelBundle
-from tradingagents.pro.pipeline.gates import event_gate, risk_gate
+from tradingagents.pro.pipeline.gates import event_gate, risk_gate, trade_quality_gate
 from tradingagents.pro.pipeline.schemas import (
     CriticReport,
     DebateTurn,
@@ -483,6 +483,51 @@ class PipelineNodes:
         directional = [e for e in evidence if e.team is not AgentTeam.RISK]
         votes = votes_from_evidence(directional or evidence)
         consensus_action, share = confidence_weighted_consensus(votes)
+
+        if getattr(self.models.quick, "is_rules_engine", False):
+            # rules mode: the judge IS the deterministic consensus, with an
+            # ADX chop filter — no trend worth trading means HOLD regardless
+            # of a directional plurality (weak-trend entries were the
+            # measured failure mode: coin-flip trades minus costs)
+            from tradingagents.pro.analytics.signals import adx_says_chop
+
+            snapshot = state["snapshot"]
+            timeframe = state.get("run_timeframe") or infer_timeframe(snapshot)
+            adx = snapshot.get_indicator("ADX", timeframe)
+            adx_value = adx.value.get("value") if adx is not None else None
+            if adx_says_chop(adx_value):
+                adx_text = (f"ADX {adx_value:.1f} below trend threshold"
+                            if adx_value is not None
+                            else "no ADX reading (fail closed)")
+                verdict = JudgeVerdict(
+                    action="HOLD", confidence=int(share * 100),
+                    rationale=(f"chop filter: {adx_text} — consensus "
+                               f"{consensus_action.value} not tradeable"),
+                )
+            else:
+                verdict = JudgeVerdict(
+                    action=consensus_action.value,
+                    confidence=int(share * 100),
+                    rationale=(f"deterministic consensus: "
+                               f"{consensus_action.value} carries "
+                               f"{share:.0%} of confidence weight across "
+                               f"{len(votes)} rule votes"),
+                )
+            action = TradeAction(verdict.action)
+            judge_vote = AgentVote(agent_id="judge", vote=action,
+                                   confidence=verdict.confidence)
+            return {
+                "debate": [*state["debate"], {
+                    "speaker": "judge", "stance": action.value,
+                    "argument": verdict.rationale, "cited": [],
+                    "confidence": verdict.confidence,
+                }],
+                "judge_action": action,
+                "judge_confidence": verdict.confidence,
+                "judge_rationale": verdict.rationale,
+                "vote_breakdown": build_vote_breakdown(evidence, judge_vote),
+            }
+
         prompt = self._prompts["judge"].format(
             symbol=state["snapshot"].symbol,
             asset=state["snapshot"].asset.value,
@@ -630,6 +675,11 @@ class PipelineNodes:
             return {**update,
                     "rejection": {"stage": "portfolio_manager",
                                   "reasons": list(gate.reasons)}}
+        quality = trade_quality_gate(sided, self.config)
+        if not quality.passed:
+            return {**update,
+                    "rejection": {"stage": "quality_gate",
+                                  "reasons": list(quality.reasons)}}
         if "INVALIDATION_PRICE" in sided:
             final_invalidation = sided["INVALIDATION_PRICE"].value
         elif "ATR_STOP" in sided:
@@ -653,8 +703,9 @@ class PipelineNodes:
                 stop_loss=sided["ATR_STOP"].value,
                 invalidation_price=final_invalidation,
                 take_profits=[
-                    TakeProfitLevel(price=sided["ATR_TP1"].value, size_fraction=0.5),
-                    TakeProfitLevel(price=sided["ATR_TP2"].value, size_fraction=0.5),
+                    TakeProfitLevel(price=sided[f"ATR_TP{i + 1}"].value,
+                                    size_fraction=fraction)
+                    for i, fraction in enumerate(self.config.risk.tp_fractions)
                 ],
                 position_size=PositionSize(
                     quantity=sided["POSITION_SIZE_UNITS"].value,

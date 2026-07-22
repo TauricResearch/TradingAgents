@@ -18,6 +18,7 @@ from tradingagents.pro.analytics.risk import (
     historical_var,
     invalidation_stop_loss,
     kelly_fraction,
+    take_profits_from_risk,
 )
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "trend_slope",
     "atr_stop_loss",
     "atr_take_profits",
+    "take_profits_from_risk",
     "fixed_risk_position_size",
     "historical_cvar",
     "historical_var",

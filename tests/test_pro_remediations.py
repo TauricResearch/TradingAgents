@@ -85,7 +85,13 @@ class TestQuant02TimeframeRisk:
             macro=[MetricReading(name="FUNDING_RATE", value=0.0001,
                                  source="binance_derivatives")],
         )
-        config = ProConfig(asset=AssetClass.BITCOIN, max_debate_rounds=1)
+        # the fixture's near-flat H1 tape (0.008% stop distance) is exactly
+        # what the cost gate rejects in production; this test verifies the
+        # QUANT-02 timeframe scaling completes, not entry quality
+        from tradingagents.contracts import RiskLimits
+
+        config = ProConfig(asset=AssetClass.BITCOIN, max_debate_rounds=1,
+                           risk=RiskLimits(min_stop_to_cost_ratio=0.0))
         state = run_pipeline(FakePipelineLLM(), config, snapshot)
         assert state.get("rejection") is None, state.get("rejection")
         rec = state["recommendation"]

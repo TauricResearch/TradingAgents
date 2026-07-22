@@ -146,6 +146,49 @@ def invalidation_stop_loss(
     return invalidation - buffer if side == "BUY" else invalidation + buffer
 
 
+def take_profits_from_risk(
+    entry: float,
+    stop: float,
+    side: str,
+    r_multiples: Sequence[float] = (1.0, 3.0),
+    fractions: Sequence[float] = (0.5, 0.5),
+) -> list[TakeProfitLevel]:
+    """R-based take-profit ladder: rungs at multiples of the ACTUAL
+    entry→stop risk, not raw ATR — so a tighter invalidation-derived stop
+    keeps the same reward geometry. Defaults (1R for half, 3R for half)
+    give a size-weighted planned R:R of exactly 2.0.
+    """
+    if entry <= 0:
+        raise ValueError("entry must be positive")
+    if side not in ("BUY", "SELL"):
+        raise ValueError(f"side must be BUY or SELL, got {side!r}")
+    risk = abs(entry - stop)
+    if risk <= 0:
+        raise ValueError("entry and stop cannot be equal")
+    if (list(r_multiples) != sorted(r_multiples)
+            or len(set(r_multiples)) != len(r_multiples)
+            or any(m <= 0 for m in r_multiples)):
+        raise ValueError("r_multiples must be positive and strictly ascending")
+    if len(fractions) != len(r_multiples):
+        raise ValueError("fractions and r_multiples must have equal length")
+    sign = 1 if side == "BUY" else -1
+    multiples = list(r_multiples)
+    if side == "SELL":
+        # a deep-R short target can cross zero when the stop distance is a
+        # large fraction of price; scale the ladder to keep targets positive
+        # (proportions preserved — the quality gate rejects the trade if the
+        # squeezed R:R drops below the configured minimum, which is correct
+        # for such degenerate geometry)
+        deepest = entry - multiples[-1] * risk
+        if deepest <= 0:
+            scale = 0.95 * entry / (multiples[-1] * risk)
+            multiples = [m * scale for m in multiples]
+    return [
+        TakeProfitLevel(price=entry + sign * m * risk, size_fraction=f)
+        for m, f in zip(multiples, fractions, strict=True)
+    ]
+
+
 def atr_take_profits(
     entry: float,
     atr: float,

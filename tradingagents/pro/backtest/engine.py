@@ -124,9 +124,25 @@ class BacktestEngine:
         rec = state.get("recommendation")
         if rec is None or rec.action is TradeAction.HOLD:
             return None
+        if self._in_cooldown(rec.action.value, i):
+            return "cooldown"
         fill_bar = self.replay.bars[i + 1]
         reason = self.broker.open_from_recommendation(rec, fill_bar)
         return "executed" if reason is None else reason
+
+    def _in_cooldown(self, side: str, i: int) -> bool:
+        """Anti-churn: after a stop-out, no same-side re-entry for
+        ``stop_cooldown_bars`` bars (measured: instant re-buys after stops
+        were 64% of all entries on 5m and re-paid costs into the same
+        move). Breakeven exits don't trigger it — they banked a profit."""
+        cooldown = self.config.risk.stop_cooldown_bars
+        if cooldown <= 0:
+            return False
+        window_start = self.replay.bars[max(0, i - cooldown)].start
+        return any(
+            t.reason == "stop" and t.side == side and t.closed_at >= window_start
+            for t in reversed(self.broker.closed[-20:])
+        )
 
     def _report_outcome(self, trade: ClosedTrade) -> None:
         if self.memory is None:

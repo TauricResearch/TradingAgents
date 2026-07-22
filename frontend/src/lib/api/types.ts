@@ -324,10 +324,30 @@ export const RiskBudgetSchema = z
   .passthrough();
 export type RiskBudget = z.infer<typeof RiskBudgetSchema>;
 
+export const BacktestReportSchema = z
+  .object({
+    total_return: z.number().optional(),
+    max_drawdown: z.number().optional(),
+    sharpe: z.number().optional(),
+    sortino: z.number().optional(),
+    win_rate: z.number().optional(),
+    profit_factor: z.number().nullable().optional(),
+    expectancy: z.number().optional(),
+    n_trades: z.number().optional(),
+    // R accounting (risk unit = qty × |entry − initial stop|)
+    avg_r: z.number().optional(),
+    avg_planned_rr: z.number().optional(),
+    expectancy_r: z.number().optional(),
+    win_rate_ex_scratch: z.number().optional(),
+    scratches: z.number().optional(),
+    exit_reasons: z.record(z.number()).nullable().optional(),
+  })
+  .passthrough();
+
 export const BacktestSchema = z
   .object({
     status: z.string().optional(), // done | cancelled | interrupted
-    report: z.record(z.number()).optional(),
+    report: BacktestReportSchema.optional(),
     final_equity: z.number().optional(),
     decisions: z.number().optional(),
     executed: z.number().optional(),
@@ -364,6 +384,9 @@ export const BacktestTradeSchema = z
     reason: z.string().optional(),
     opened_at: z.string().optional(),
     closed_at: z.string().optional(),
+    initial_stop: z.number().nullable().optional(),
+    r_multiple: z.number().nullable().optional(),
+    planned_rr: z.number().nullable().optional(),
   })
   .passthrough();
 export type BacktestTrade = z.infer<typeof BacktestTradeSchema>;

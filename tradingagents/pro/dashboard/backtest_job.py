@@ -181,6 +181,9 @@ def closed_trade_view(trade: ClosedTrade) -> dict:
         "reason": trade.reason,
         "opened_at": trade.opened_at.isoformat(),
         "closed_at": trade.closed_at.isoformat(),
+        "initial_stop": trade.initial_stop,
+        "r_multiple": trade.r_multiple,
+        "planned_rr": trade.planned_rr,
     }
 
 
@@ -468,9 +471,11 @@ class _CostConfirmationRequired(Exception):
 
 def _build_llm(use_llm: bool, config: ProConfig, cache_dir):
     if not use_llm:
-        from tradingagents.pro.evals.scripted import FakePipelineLLM
+        # indicator-driven rules engine (long/short/HOLD), not the canned
+        # always-BUY scripted model — same geometry/gates as the LLM path
+        from tradingagents.pro.evals.rules import RulesPipelineLLM
 
-        return FakePipelineLLM(), (), "deterministic"
+        return RulesPipelineLLM(), (), "rules"
     from tradingagents.pro.backtest.llm_cache import CachingLLM
     from tradingagents.pro.models import bundle_from_config
     from tradingagents.pro.observability import CostTrackingLLM, price_for
