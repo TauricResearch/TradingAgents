@@ -406,6 +406,8 @@ export const BacktestRunViewSchema = BacktestSchema.extend({
   bars: z.number().optional(),
   indicator_mode: z.string().optional(),
   initial_equity: z.number().optional(),
+  risk_per_trade_pct: z.number().optional(),
+  max_position_pct: z.number().optional(),
   artifacts: z.array(z.string()).optional(),
 });
 export type BacktestRunView = z.infer<typeof BacktestRunViewSchema>;

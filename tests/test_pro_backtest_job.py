@@ -182,6 +182,31 @@ def test_resolve_large_deterministic_run_requires_confirmation():
     assert resolved["bars"] == btjob.bars_for_duration("1Y", Timeframe.M5)
 
 
+def test_resolve_carries_sizing_defaults_and_overrides():
+    market = _StubMarket(make_bars(n=80))
+    params = {"symbol": "XAUUSD", "timeframe": "1d", "duration": "7D"}
+    resolved = btjob.resolve_request(market, params)
+    # spot-max defaults: 1% risk target, 33% notional cap per position
+    assert resolved["risk_per_trade_pct"] == 1.0
+    assert resolved["max_position_pct"] == 33.0
+    resolved = btjob.resolve_request(
+        market, {**params, "risk_per_trade_pct": 0.5, "max_position_pct": 50.0})
+    assert resolved["risk_per_trade_pct"] == 0.5
+    assert resolved["max_position_pct"] == 50.0
+
+
+def test_run_request_sizing_bounds():
+    base = {"symbol": "BTC-USD", "timeframe": "5m"}
+    req = btjob.BacktestRunRequest(**base)
+    assert req.risk_per_trade_pct == 1.0 and req.max_position_pct == 33.0
+    with pytest.raises(ValueError):
+        btjob.BacktestRunRequest(**base, risk_per_trade_pct=0)
+    with pytest.raises(ValueError):
+        btjob.BacktestRunRequest(**base, risk_per_trade_pct=5.1)
+    with pytest.raises(ValueError):
+        btjob.BacktestRunRequest(**base, max_position_pct=101)
+
+
 # --- streaming worker (deterministic, offline) ------------------------------
 
 
@@ -222,6 +247,33 @@ def test_run_job_streams_persists_and_writes_full_artifacts(tmp_path):
     assert len(trades) == job.result["n_trades"]
     # checkpoint cleared on completion
     assert state.backtest_runs.read_checkpoint() is None
+
+    # sizing provenance: view + summary record exactly what sized the run
+    assert job.result["risk_per_trade_pct"] == 1.0
+    assert job.result["max_position_pct"] == 33.0
+    assert saved[0]["risk_per_trade_pct"] == 1.0
+    assert saved[0]["max_position_pct"] == 33.0
+
+
+def test_run_job_honors_sizing_overrides(tmp_path):
+    state = _state(make_bars(n=140), tmp_path)
+    job = btjob.new_job({"symbol": "XAUUSD", "timeframe": "1d",
+                         "duration": "30D", "risk_per_trade_pct": 2.0,
+                         "max_position_pct": 20.0})
+    state.backtest_job = job
+    btjob.run_job(state, job, job.params)
+    assert job.status == "done", job.error
+    assert job.result["risk_per_trade_pct"] == 2.0
+    assert job.result["max_position_pct"] == 20.0
+    saved = state.backtest_runs.list()
+    assert saved[0]["max_position_pct"] == 20.0
+    # the cap is enforced per trade: no fill's notional exceeds 20% of the
+    # equity in force when it was sized (initial equity + closed P&L bound)
+    trades = RunArtifacts(job.id).read("trades")
+    if trades:
+        equity_bound = 100_000.0 + sum(abs(t["pnl"]) for t in trades)
+        for t in trades:
+            assert t["quantity"] * t["entry_price"] <= 0.2 * equity_bound
 
 
 def test_cancel_mid_run_saves_labeled_partial(tmp_path):
@@ -426,6 +478,14 @@ def test_run_endpoint_validation(tmp_path):
     assert client.post("/api/backtest/run",
                        json={"symbol": "XAUUSD", "timeframe": "1d",
                              "duration": "7D", "bogus": 1}).status_code == 422
+    assert client.post("/api/backtest/run",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "7D",
+                             "risk_per_trade_pct": 0}).status_code == 422
+    assert client.post("/api/backtest/run",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "7D",
+                             "max_position_pct": 150}).status_code == 422
     llm = client.post("/api/backtest/run",
                       json={"symbol": "XAUUSD", "timeframe": "1d",
                             "duration": "7D", "use_llm": True})

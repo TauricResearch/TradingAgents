@@ -364,6 +364,8 @@ export async function runBacktest(
     use_llm?: boolean;
     confirm_cost?: boolean;
     initial_equity?: number;
+    risk_per_trade_pct?: number;
+    max_position_pct?: number;
   },
 ): Promise<{ job_id: string }> {
   try {

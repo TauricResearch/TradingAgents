@@ -72,6 +72,10 @@ export default function BacktestPage() {
   const [duration, setDuration] = useState<string>("7D");
   const [useLlm, setUseLlm] = useState(false);
   const [initialEquity, setInitialEquity] = useState(100_000);
+  // sizing: 1% risk target; spot-max 33%/position (3 positions ≈ 99% gross,
+  // no leverage) — the caps mirror the backend request-model bounds
+  const [riskPct, setRiskPct] = useState(1.0);
+  const [maxPositionPct, setMaxPositionPct] = useState(33);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [cost, setCost] = useState<BacktestCostConfirmation["estimate"] | null>(null);
@@ -154,6 +158,8 @@ export default function BacktestPage() {
         use_llm: useLlm,
         confirm_cost: confirmCost,
         initial_equity: initialEquity,
+        risk_per_trade_pct: riskPct,
+        max_position_pct: maxPositionPct,
       });
       live.start(job_id);
       setSelectedRunId(null); // switch the results view to the live run
@@ -194,6 +200,10 @@ export default function BacktestPage() {
         setUseLlm={setUseLlm}
         initialEquity={initialEquity}
         setInitialEquity={setInitialEquity}
+        riskPct={riskPct}
+        setRiskPct={setRiskPct}
+        maxPositionPct={maxPositionPct}
+        setMaxPositionPct={setMaxPositionPct}
         running={running}
         starting={starting}
         error={error}
@@ -250,6 +260,10 @@ function RunControls(props: {
   setUseLlm: (b: boolean) => void;
   initialEquity: number;
   setInitialEquity: (n: number) => void;
+  riskPct: number;
+  setRiskPct: (n: number) => void;
+  maxPositionPct: number;
+  setMaxPositionPct: (n: number) => void;
   running: boolean;
   starting: boolean;
   error: string | null;
@@ -333,6 +347,40 @@ function RunControls(props: {
                 props.setInitialEquity(Math.max(1, Number(e.target.value) || 0))
               }
               className="h-[30px] w-28 rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs tabular"
+            />
+          </Field>
+          <Field label="Risk %/trade">
+            <input
+              type="number"
+              aria-label="Risk percent per trade"
+              data-testid="backtest-risk-pct"
+              min={0.1}
+              max={5}
+              step={0.1}
+              value={props.riskPct}
+              onChange={(e) =>
+                props.setRiskPct(
+                  Math.min(5, Math.max(0.1, Number(e.target.value) || 0.1)),
+                )
+              }
+              className="h-[30px] w-16 rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs tabular"
+            />
+          </Field>
+          <Field label="Max position %">
+            <input
+              type="number"
+              aria-label="Max position percent of equity"
+              data-testid="backtest-max-position-pct"
+              min={1}
+              max={100}
+              step={1}
+              value={props.maxPositionPct}
+              onChange={(e) =>
+                props.setMaxPositionPct(
+                  Math.min(100, Math.max(1, Number(e.target.value) || 1)),
+                )
+              }
+              className="h-[30px] w-16 rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs tabular"
             />
           </Field>
           <Button
@@ -622,6 +670,12 @@ function ResultPanel({
             <>{view.decisions.toLocaleString()} decisions · one per bar (full density)</>
           )}
           {view.indicator_mode && <> · indicators: {view.indicator_mode}</>}
+          {view.risk_per_trade_pct != null && view.max_position_pct != null && (
+            <>
+              {" "}· sizing: {view.risk_per_trade_pct}% risk, ≤
+              {view.max_position_pct}% notional/position
+            </>
+          )}
           {view.provider !== "deterministic" && view.provider !== "rules" && view.est_cost_usd != null && (
             <>
               {" "}· {view.llm_calls} model calls · est ${view.est_cost_usd.toFixed(2)}

@@ -36,6 +36,7 @@ from tradingagents.contracts import (
     AssetClass,
     OHLCVBar,
     ProConfig,
+    RiskLimits,
     Timeframe,
     TradingMode,
 )
@@ -110,6 +111,13 @@ class BacktestRunRequest(BaseModel):
     use_llm: bool = False
     initial_equity: float = Field(default=100_000.0, gt=0)
     confirm_cost: bool = False
+    # per-run sizing (backtest-only overrides; the live paper loop keeps the
+    # RiskLimits defaults). Spot-max default: 33%/position × 3 positions
+    # ≈ 99% gross — full capital deployable with zero leverage. On tight
+    # intraday stops the notional cap is what actually bounds risk, so the
+    # cap, not risk_pct, sets realized risk per trade.
+    risk_per_trade_pct: float = Field(default=1.0, gt=0, le=5)
+    max_position_pct: float = Field(default=33.0, gt=0, le=100)
 
 
 def bars_for_duration(duration: str, timeframe: Timeframe,
@@ -207,6 +215,8 @@ def summary_from_view(record_id: str, created_at: str, view: dict) -> dict:
         "decisions": view.get("decisions"),
         "indicator_mode": view.get("indicator_mode"),
         "initial_equity": view.get("initial_equity"),
+        "risk_per_trade_pct": view.get("risk_per_trade_pct"),
+        "max_position_pct": view.get("max_position_pct"),
         "est_cost_usd": view.get("est_cost_usd"),
     }
 
@@ -460,6 +470,8 @@ def resolve_request(marketdata: MarketDataService, params: dict) -> dict:
         "bars": bars,
         "use_llm": use_llm,
         "initial_equity": float(params.get("initial_equity", 100_000.0)),
+        "risk_per_trade_pct": float(params.get("risk_per_trade_pct", 1.0)),
+        "max_position_pct": float(params.get("max_position_pct", 33.0)),
     }
 
 
@@ -578,8 +590,15 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
             raise ValueError(
                 f"only {len(bars)} bars available; need >= {MIN_HISTORY + 5}")
 
+        # per-run sizing overrides; every other RiskLimits knob (ladder,
+        # gates, cooldown) keeps its contract default
+        risk = RiskLimits(
+            max_risk_per_trade_pct=resolved["risk_per_trade_pct"],
+            max_position_pct_equity=resolved["max_position_pct"],
+        )
         config = ProConfig(asset=resolved["asset"], mode=TradingMode.BACKTEST,
-                           max_debate_rounds=1, models=_routing(resolved["use_llm"]))
+                           max_debate_rounds=1, risk=risk,
+                           models=_routing(resolved["use_llm"]))
         cache_dir = _cache_dir(symbol, tf)
         llm, trackers, provider = _build_llm(resolved["use_llm"], config, cache_dir)
 
@@ -633,6 +652,8 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                 "bars": len(bars),
                 "indicator_mode": replay.indicator_mode,
                 "initial_equity": resolved["initial_equity"],
+                "risk_per_trade_pct": resolved["risk_per_trade_pct"],
+                "max_position_pct": resolved["max_position_pct"],
                 "artifacts": ["equity", "trades", "decisions"],
             })
             if trackers:

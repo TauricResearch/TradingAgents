@@ -129,6 +129,45 @@ class TestRLadder:
         assert ladder[0].price > ladder[1].price  # still descending
 
 
+# --- spot-max sizing ------------------------------------------------------------
+
+
+class TestSpotMaxSizing:
+    """Realized risk per trade = min(risk target, notional cap × stop
+    distance). On tight intraday stops the notional cap is what binds, so
+    raising it from 10% to the spot-max 33% is what scales deployed risk."""
+
+    def test_tight_stop_risk_scales_with_the_notional_cap(self):
+        from tradingagents.pro.analytics.risk import fixed_risk_position_size
+
+        # 0.5% stop (typical 5m ATR stop on BTC): 1% risk wants 200% notional
+        def realized_risk(max_position_pct):
+            size = fixed_risk_position_size(
+                100_000.0, 1.0, entry=100.0, stop=99.5,
+                max_position_pct=max_position_pct)
+            return size.quantity * 0.5
+
+        # 10% cap: $49.5 risk (0.05% of equity — the observed prod throttle)
+        assert realized_risk(10.0) == pytest.approx(49.5)
+        # spot-max 33% cap: ~3.3x more capital deployed per trade
+        assert realized_risk(33.0) == pytest.approx(163.35)
+
+    def test_wide_stop_reaches_the_full_risk_target(self):
+        from tradingagents.pro.analytics.risk import fixed_risk_position_size
+
+        # 4% stop (daily timeframe): 1% risk needs only 25% notional — the
+        # 33% cap doesn't bind and the full risk target deploys
+        size = fixed_risk_position_size(100_000.0, 1.0, entry=100.0,
+                                        stop=96.0, max_position_pct=33.0)
+        assert size.quantity * 4.0 == pytest.approx(1_000.0)  # exactly 1%
+        assert size.notional < 33_000.0
+
+    def test_gross_exposure_stays_spot_honest(self):
+        # 3 concurrent positions × 33% ≈ 99% gross: full capital, no leverage
+        limits = CONFIG.risk
+        assert limits.max_open_positions * 33.0 <= 100.0
+
+
 # --- quality gate --------------------------------------------------------------
 
 
