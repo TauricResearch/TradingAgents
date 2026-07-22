@@ -80,8 +80,28 @@ export default function BacktestPage() {
   useEffect(() => {
     const j = jobPoll.data;
     if (!j) return;
+    // re-attach: a reload or a second tab finds a run already in flight
+    // server-side — hydrate and start following it
+    if (
+      useBacktestLiveStore.getState().status === "idle" &&
+      j.status === "running" &&
+      j.job_id
+    ) {
+      useBacktestLiveStore.getState().start(j.job_id);
+    }
     const store = useBacktestLiveStore.getState();
     if (store.status !== "running") return;
+    if (j.status === "idle") {
+      // the in-memory job vanished (instance restarted mid-run). Grace
+      // window covers a just-started run racing a stale poll response.
+      if (store.startedAt && Date.now() - store.startedAt > 15_000) {
+        store.setError(
+          "The run was interrupted by a server restart. Start it again — " +
+            "completed runs always land in Saved runs.",
+        );
+      }
+      return;
+    }
     // ignore a stale cached snapshot from a previous run
     if (j.job_id && store.jobId && j.job_id !== store.jobId) return;
     if (j.status === "done" && j.result) {
@@ -164,6 +184,20 @@ export default function BacktestPage() {
         onCancelCost={() => setCost(null)}
       />
 
+      {live.status === "error" && live.error && (
+        <div
+          className="rounded-[14px] border border-bear/40 bg-bear-muted px-4 py-2.5 text-sm text-bear"
+          data-testid="backtest-error"
+        >
+          {live.error}
+        </div>
+      )}
+
+      {running && !live.progress && (
+        <div className="rounded-[14px] border border-border bg-surface px-4 py-3 text-sm text-fg-muted">
+          Starting run — fetching bars…
+        </div>
+      )}
       {running && live.progress && <LivePanel />}
 
       {view && <ResultPanel view={view} live={!selectedRunId && !!live.result} />}

@@ -276,13 +276,16 @@ export const useBacktestRun = (id: string | null) =>
   });
 
 /** Live/last job snapshot — the reconnect fallback when SSE frames are
- * missed (progress + partial trades also arrive over the stream). */
-export const useBacktestJob = (enabled: boolean) =>
+ * missed (progress + partial trades also arrive over the stream). Always
+ * fetched fresh on mount so a reload/new tab can re-attach to a run that
+ * is already in flight server-side; polls while one is running. */
+export const useBacktestJob = (polling: boolean) =>
   useQuery({
     queryKey: qk.backtestJob,
     queryFn: fetchParsed("/api/backtest/job", BacktestJobSchema),
-    enabled,
-    refetchInterval: enabled ? 2_000 : false,
+    refetchInterval: polling ? 2_000 : false,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
 export class BacktestCostConfirmation extends Error {

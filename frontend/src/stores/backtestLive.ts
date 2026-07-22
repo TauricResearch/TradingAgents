@@ -19,6 +19,9 @@ export interface BacktestProgress {
 
 interface BacktestLiveState {
   jobId: string | null;
+  /** wall-clock ms when the client learned the run started — grace window
+   * before an "idle" poll is treated as a lost job */
+  startedAt: number | null;
   status: "idle" | "running" | "done" | "error";
   progress: BacktestProgress | null;
   openTrades: BacktestTrade[];
@@ -37,6 +40,7 @@ interface BacktestLiveState {
 
 const EMPTY = {
   jobId: null,
+  startedAt: null,
   status: "idle" as const,
   progress: null,
   openTrades: [] as BacktestTrade[],
@@ -48,7 +52,8 @@ const EMPTY = {
 
 export const useBacktestLiveStore = create<BacktestLiveState>()((set) => ({
   ...EMPTY,
-  start: (jobId) => set({ ...EMPTY, jobId, status: "running" }),
+  start: (jobId) =>
+    set({ ...EMPTY, jobId, startedAt: Date.now(), status: "running" }),
   // monotonic: ignore stale frames (SSE and the polling fallback can arrive
   // out of order); only append to the equity curve when the run advances
   setProgress: (progress, openTrades) =>

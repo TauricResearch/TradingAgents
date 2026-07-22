@@ -1,19 +1,31 @@
-/** Service-worker update prompt. registerType is "prompt": a trading UI
- * must never be silently swapped mid-session, but without this toast the
- * new version would wait forever and users would strand on stale
- * bundles (review finding: exactly that bit us during development). */
+/** Service-worker updates. New versions apply AUTOMATICALLY (reload) as
+ * soon as nothing live would be lost — the old manual prompt repeatedly
+ * stranded users on stale bundles, re-hitting bugs that were already
+ * fixed. While a backtest or pipeline run is in flight the reload is
+ * deferred behind the prompt instead (and the backtest page re-attaches
+ * to a server-side run after reload anyway, so even that is safe). */
 import { RefreshCw, X } from "lucide-react";
+import { useEffect } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 import { Button } from "./ui/button";
+import { useBacktestLiveStore } from "@/stores/backtestLive";
+import { usePipelineProgress } from "@/stores/ui";
 
 export function UpdateToast() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW();
+  const backtestRunning = useBacktestLiveStore((s) => s.status === "running");
+  const pipelineRunning = usePipelineProgress() != null;
+  const busy = backtestRunning || pipelineRunning;
 
-  if (!needRefresh) return null;
+  useEffect(() => {
+    if (needRefresh && !busy) void updateServiceWorker(true);
+  }, [needRefresh, busy, updateServiceWorker]);
+
+  if (!needRefresh || !busy) return null;
   return (
     <div
       role="status"
