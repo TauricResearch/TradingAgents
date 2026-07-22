@@ -326,7 +326,7 @@ export type RiskBudget = z.infer<typeof RiskBudgetSchema>;
 
 export const BacktestSchema = z
   .object({
-    status: z.string().optional(),
+    status: z.string().optional(), // done | cancelled | interrupted
     report: z.record(z.number()).optional(),
     final_equity: z.number().optional(),
     decisions: z.number().optional(),
@@ -368,18 +368,30 @@ export const BacktestTradeSchema = z
   .passthrough();
 export type BacktestTrade = z.infer<typeof BacktestTradeSchema>;
 
-/** The full result view of a completed run (backtest_view + run metadata). */
+/** The result view of a run (metrics + metadata; bulk arrays live in the
+ * per-run artifacts, fetched separately). */
 export const BacktestRunViewSchema = BacktestSchema.extend({
   provider: z.string().optional(),
   symbol: z.string().optional(),
   timeframe: z.string().optional(),
   duration: z.string().optional(),
-  window: z.array(z.string()).optional(),
+  window: z.array(z.string()).nullable().optional(),
+  window_truncated: z.boolean().optional(),
   trades: z.array(BacktestTradeSchema).optional(),
   est_cost_usd: z.number().optional(),
   llm_calls: z.number().optional(),
+  bars: z.number().optional(),
+  indicator_mode: z.string().optional(),
+  initial_equity: z.number().optional(),
+  artifacts: z.array(z.string()).optional(),
 });
 export type BacktestRunView = z.infer<typeof BacktestRunViewSchema>;
+
+/** equity artifact rows: [iso_time, equity] — every decision, nothing dropped */
+export const BacktestEquityArtifactSchema = z.array(
+  z.tuple([z.string(), z.number()]),
+);
+export const BacktestTradesArtifactSchema = z.array(BacktestTradeSchema);
 
 /** In-flight (or last) job snapshot from GET /api/backtest/job. */
 export const BacktestJobSchema = z
@@ -390,6 +402,7 @@ export const BacktestJobSchema = z
     progress: z.record(z.unknown()).optional(),
     open_trades: z.array(BacktestTradeSchema).optional(),
     closed_trades: z.array(BacktestTradeSchema).optional(),
+    closed_total: z.number().optional(),
     error: z.string().nullable().optional(),
     result: BacktestRunViewSchema.nullable().optional(),
     started_at: z.string().optional(),
@@ -405,11 +418,14 @@ export const BacktestRunListItemSchema = z
     timeframe: z.string().nullable().optional(),
     duration: z.string().nullable().optional(),
     provider: z.string().nullable().optional(),
+    status: z.string().nullable().optional(),
     n_trades: z.number().nullable().optional(),
     final_equity: z.number().nullable().optional(),
     total_return: z.number().nullable().optional(),
     win_rate: z.number().nullable().optional(),
     window: z.array(z.string()).nullable().optional(),
+    decisions: z.number().nullable().optional(),
+    indicator_mode: z.string().nullable().optional(),
   })
   .passthrough();
 export type BacktestRunListItem = z.infer<typeof BacktestRunListItemSchema>;

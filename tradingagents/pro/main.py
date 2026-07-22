@@ -306,9 +306,16 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     state = DashboardState(memory=memory)
     state.recorder = PipelineRecorder(store_dir=data_path / "runs")
     state.prefs = PrefsStore(data_path / "dashboard_prefs.json")
-    from tradingagents.pro.dashboard.backtest_store import BacktestRunStore
+    from tradingagents.pro.dashboard.backtest_firestore import build_run_store
+    from tradingagents.pro.dashboard.backtest_job import recover_interrupted
 
-    state.backtest_runs = BacktestRunStore(data_path / "backtest_runs.json")
+    state.backtest_runs = build_run_store(data_path)
+    try:
+        # a leftover running checkpoint = the instance restarted mid-backtest;
+        # surface it as a saved partial instead of losing the run
+        recover_interrupted(state.backtest_runs)
+    except Exception:
+        logging.getLogger(__name__).exception("backtest recovery failed")
     router = ExecutionRouter(
         # "paper" venue spans the full tradeable universe; mt5's gold-only
         # map silently venue-rejected every approved BTC order (Phase 2)

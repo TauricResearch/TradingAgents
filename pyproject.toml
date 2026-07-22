@@ -53,6 +53,8 @@ qdrant = [
 dashboard = [
     "fastapi>=0.110",
     "uvicorn>=0.30",
+    # backtest run metadata store (production; file store remains the fallback)
+    "google-cloud-firestore>=2.19",
 ]
 # Institutional backtest report: matplotlib charts for the visual dashboard.
 # Report-only so the core install stays lean:

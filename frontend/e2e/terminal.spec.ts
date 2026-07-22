@@ -657,16 +657,34 @@ test.describe("chart phase 2: drawing kinds", () => {
 });
 
 test.describe("backtesting", () => {
-  test.beforeEach(async ({ page }) => unlock(page));
+  test.beforeEach(async ({ page }) => {
+    await unlock(page);
+    // one job at a time server-side: a previous spec's run may still be
+    // draining — starting a new one would 409 and flake the suite
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await page.request.get("/api/backtest/job", {
+                headers: { "X-API-Key": TOKEN },
+              })
+            ).json()
+          ).status,
+        { timeout: 30_000 },
+      )
+      .not.toBe("running");
+  });
 
   test("configure, view a saved run, and run a live deterministic backtest", async ({
     page,
   }) => {
     await page.goto("/backtest");
     await expect(page.getByTestId("backtest-page")).toBeVisible();
-    // controls render
+    // controls render, incl. the pre-run plan (decisions + time estimate)
     await expect(page.getByTestId("backtest-asset")).toBeVisible();
     await expect(page.getByTestId("backtest-run")).toBeVisible();
+    await expect(page.getByTestId("backtest-plan")).toContainText("decisions");
 
     // the demo seeds one auto-archived run → Saved Runs + a result view
     await expect(page.getByTestId("backtest-saved-runs")).toContainText("XAUUSD");
@@ -680,9 +698,42 @@ test.describe("backtesting", () => {
       page.getByTestId("backtest-pnl").or(page.getByText(/Result —/)),
     ).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/Result — BTC-USD/)).toBeVisible({ timeout: 30_000 });
-    // the completed run is auto-archived alongside the seed
+    // full-density provenance is disclosed on the result
+    await expect(page.getByTestId("backtest-provenance")).toContainText(
+      "full density",
+    );
+    // the completed run is auto-archived alongside the seed (earlier specs
+    // on the shared server may have archived their own BTC runs — any match)
     await expect(
-      page.getByTestId("backtest-saved-runs").getByText("BTC-USD"),
+      page.getByTestId("backtest-saved-runs").getByText("BTC-USD").first(),
     ).toBeVisible();
+  });
+
+  test("cancel keeps a labeled partial and delete removes a run", async ({
+    page,
+  }) => {
+    await page.goto("/backtest");
+    // a longer run (30D at 1h) leaves time to cancel mid-flight
+    await page.getByTestId("backtest-asset").selectOption("BTC-USD");
+    await page.getByTestId("backtest-duration").getByText("30D").click();
+    await page.getByTestId("backtest-run").click();
+    await expect(page.getByTestId("backtest-cancel")).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByTestId("backtest-cancel").click();
+    // the partial is saved and labeled
+    await expect(
+      page.getByTestId("backtest-saved-runs").getByText("cancelled"),
+    ).toBeVisible({ timeout: 30_000 });
+
+    // delete the cancelled run; its row disappears
+    const row = page
+      .getByTestId("backtest-saved-runs")
+      .locator("tr", { hasText: "cancelled" })
+      .first();
+    await row.locator('button[aria-label^="Delete run"]').click();
+    await expect(
+      page.getByTestId("backtest-saved-runs").getByText("cancelled"),
+    ).toHaveCount(0, { timeout: 10_000 });
   });
 });

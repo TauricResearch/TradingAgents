@@ -70,8 +70,13 @@ class EvidenceAgent:
             self._structured = None
 
     def build_prompt(self, snapshot: MarketSnapshot,
-                     extra_metrics: dict[str, MetricReading] | None = None) -> str | None:
-        ctx = render_context(snapshot, self.spec, extra_metrics)
+                     extra_metrics: dict[str, MetricReading] | None = None,
+                     ctx=None) -> str | None:
+        # ``ctx`` lets analyze() reuse its already-rendered context — the
+        # render is deterministic in (snapshot, spec, extra_metrics), and
+        # rendering twice per agent per decision was a measured hot spot.
+        if ctx is None:
+            ctx = render_context(snapshot, self.spec, extra_metrics)
         if ctx.empty:
             return None
         missing_note = (
@@ -105,7 +110,7 @@ class EvidenceAgent:
             logger.info("%s: primary inputs %s unavailable; abstaining",
                         self.spec.agent_id, self.spec.primary)
             return None
-        prompt = self.build_prompt(snapshot, extra_metrics)
+        prompt = self.build_prompt(snapshot, extra_metrics, ctx=ctx)
         try:
             draft = self._structured.invoke(prompt)
         except Exception:

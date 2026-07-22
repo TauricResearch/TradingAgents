@@ -1,19 +1,24 @@
 /** Live state of the CURRENT interactive backtest run, fed by SSE
- * (backtest_progress / backtest_trade / backtest_done / backtest_error).
- * Reset when a new run starts. Not persisted — the completed run is
- * durable server-side in the Saved Runs history. */
+ * (backtest_progress / backtest_trade / backtest_done / backtest_error)
+ * with a polling fallback. Terminal events are SLIM — the saved record +
+ * artifacts carry the full result, fetched via queries — so this store
+ * only tracks the in-flight view. Reset when a new run starts. */
 import { create } from "zustand";
 
-import type { BacktestRunView, BacktestTrade } from "@/lib/api/types";
+import type { BacktestTrade } from "@/lib/api/types";
 
 export interface BacktestProgress {
-  decisions: number;
-  total: number;
-  pct: number;
-  open_count: number;
-  closed_trades: number;
-  equity: number;
-  pnl: number;
+  /** "fetching" while bars are paged from the vendor; absent while deciding */
+  phase?: string;
+  bars_have?: number;
+  bars_needed?: number;
+  decisions?: number;
+  total?: number;
+  pct?: number;
+  open_count?: number;
+  closed_trades?: number;
+  equity?: number;
+  pnl?: number;
   last_time?: string;
 }
 
@@ -22,18 +27,21 @@ interface BacktestLiveState {
   /** wall-clock ms when the client learned the run started — grace window
    * before an "idle" poll is treated as a lost job */
   startedAt: number | null;
-  status: "idle" | "running" | "done" | "error";
+  status: "idle" | "running" | "done" | "cancelled" | "error";
+  /** id of the finished run to show as the result (set by the slim
+   * terminal event; the page fetches the record + artifacts) */
+  finishedRunId: string | null;
   progress: BacktestProgress | null;
   openTrades: BacktestTrade[];
   closedTrades: BacktestTrade[];
+  closedTotal: number;
   equityCurve: number[];
-  result: BacktestRunView | null;
   error: string | null;
   start: (jobId: string) => void;
   setProgress: (p: BacktestProgress, open: BacktestTrade[]) => void;
   addTrade: (t: BacktestTrade) => void;
-  syncClosed: (trades: BacktestTrade[]) => void;
-  setDone: (view: BacktestRunView) => void;
+  syncClosed: (trades: BacktestTrade[], total: number) => void;
+  finish: (status: "done" | "cancelled", runId: string | null) => void;
   setError: (message: string) => void;
   reset: () => void;
 }
@@ -42,11 +50,12 @@ const EMPTY = {
   jobId: null,
   startedAt: null,
   status: "idle" as const,
+  finishedRunId: null,
   progress: null,
   openTrades: [] as BacktestTrade[],
   closedTrades: [] as BacktestTrade[],
+  closedTotal: 0,
   equityCurve: [] as number[],
-  result: null,
   error: null,
 };
 
@@ -58,22 +67,31 @@ export const useBacktestLiveStore = create<BacktestLiveState>()((set) => ({
   // out of order); only append to the equity curve when the run advances
   setProgress: (progress, openTrades) =>
     set((s) => {
-      if (s.progress && progress.decisions < s.progress.decisions) return s;
-      const advanced = !s.progress || progress.decisions > s.progress.decisions;
+      const prev = s.progress?.decisions ?? -1;
+      const next = progress.decisions ?? -1;
+      if (progress.phase !== "fetching" && next >= 0 && next < prev) return s;
+      const advanced = next > prev && progress.equity != null;
       return {
         status: "running",
         progress,
         openTrades,
         equityCurve: advanced
-          ? [...s.equityCurve, progress.equity]
+          ? [...s.equityCurve, progress.equity!]
           : s.equityCurve,
       };
     }),
-  addTrade: (t) => set((s) => ({ closedTrades: [...s.closedTrades, t] })),
-  // reconcile the closed list from a polled snapshot when SSE dropped some
-  syncClosed: (trades) =>
-    set((s) => (trades.length > s.closedTrades.length ? { closedTrades: trades } : s)),
-  setDone: (result) => set({ status: "done", result, progress: null, openTrades: [] }),
+  addTrade: (t) =>
+    set((s) => ({
+      closedTrades: [...s.closedTrades, t],
+      closedTotal: Math.max(s.closedTotal + 1, s.closedTrades.length + 1),
+    })),
+  // reconcile from a polled snapshot (last-100 tail + authoritative total)
+  syncClosed: (trades, total) =>
+    set((s) =>
+      total > s.closedTotal ? { closedTrades: trades, closedTotal: total } : s,
+    ),
+  finish: (status, runId) =>
+    set({ status, finishedRunId: runId, progress: null, openTrades: [] }),
   setError: (error) => set({ status: "error", error }),
   reset: () => set({ ...EMPTY }),
 }));

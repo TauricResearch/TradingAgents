@@ -1,6 +1,8 @@
-"""Interactive backtest job: paging, request validation, streaming worker,
-run store, and the async endpoints."""
+"""Interactive backtest job: paging + retry, request validation, streaming
+worker, cancel/interrupted lifecycle, zero-loss artifacts, run store, and the
+async endpoints."""
 
+import json
 import threading
 import time
 from types import SimpleNamespace
@@ -10,6 +12,7 @@ import pytest
 from tests.pro_fakes import make_bars
 from tradingagents.contracts import Timeframe
 from tradingagents.pro.dashboard import backtest_job as btjob
+from tradingagents.pro.dashboard.backtest_artifacts import RunArtifacts
 from tradingagents.pro.dashboard.backtest_store import BacktestRunStore
 from tradingagents.pro.dashboard.marketdata import MAX_LIMIT
 from tradingagents.pro.memory import ProMemory
@@ -18,6 +21,14 @@ fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from tradingagents.pro.dashboard.app import DashboardState, create_app  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _isolated_data_dir(tmp_path, monkeypatch):
+    """Artifacts + caches land in a per-test dir, never the operator's."""
+    monkeypatch.setenv("TRADINGAGENTS_PRO_DATA", str(tmp_path / "data"))
+    return tmp_path
+
 
 # --- stubs ------------------------------------------------------------------
 
@@ -36,14 +47,18 @@ class _Bus:
 
 
 class _StubMarket:
-    def __init__(self, bars, timeframes=(Timeframe.D1,)):
+    def __init__(self, bars, timeframes=(Timeframe.D1,), fail_first=0):
         self._bars = bars
         self._tf = timeframes
+        self._fail_remaining = fail_first  # raise on the first N calls
 
     def spec(self, symbol):
         return SimpleNamespace(timeframes=self._tf)
 
     def get_bars(self, symbol, timeframe, limit=1000, end=None):
+        if self._fail_remaining > 0:
+            self._fail_remaining -= 1
+            raise TimeoutError("vendor rate limited")
         limit = min(limit, MAX_LIMIT)
         pool = [b for b in self._bars if end is None or b.start < end]
         return pool[-limit:]
@@ -64,16 +79,29 @@ def _state(bars, tmp_path, timeframes=(Timeframe.D1,)):
 def test_bars_for_duration_scales_with_timeframe():
     assert btjob.bars_for_duration("7D", Timeframe.D1) == 7 + btjob.MIN_HISTORY
     assert btjob.bars_for_duration("1D", Timeframe.H1) == 24 + btjob.MIN_HISTORY
-    # sub-hour long window is large (paged later)
     assert btjob.bars_for_duration("1Y", Timeframe.H1) > 8000
 
 
-# --- paging -----------------------------------------------------------------
+def test_gold_daily_durations_use_trading_days():
+    from tradingagents.contracts import AssetClass
+
+    # 1Y of daily gold ≈ 252 trading days, not 365 calendar days
+    bars = btjob.bars_for_duration("1Y", Timeframe.D1, AssetClass.GOLD)
+    assert bars == 261 + btjob.MIN_HISTORY  # ceil(365 * 5/7)
+    assert btjob.periods_per_year(Timeframe.D1, AssetClass.GOLD) == 252
+    # crypto trades 24/7: calendar == market
+    assert btjob.periods_per_year(Timeframe.D1, AssetClass.BITCOIN) == 365
+    assert btjob.bars_for_duration("1Y", Timeframe.D1, AssetClass.BITCOIN) \
+        == 365 + btjob.MIN_HISTORY
+
+
+# --- paging + retry ---------------------------------------------------------
 
 
 def test_fetch_window_pages_beyond_the_request_cap():
     market = _StubMarket(make_bars(n=1500))
-    bars = btjob.fetch_window(market, "XAUUSD", Timeframe.D1, 1300)
+    bars, truncated = btjob.fetch_window(market, "XAUUSD", Timeframe.D1, 1300)
+    assert not truncated
     assert len(bars) == 1300
     starts = [b.start for b in bars]
     assert starts == sorted(starts)  # oldest → newest
@@ -82,8 +110,31 @@ def test_fetch_window_pages_beyond_the_request_cap():
 
 def test_fetch_window_stops_when_history_exhausted():
     market = _StubMarket(make_bars(n=120))
-    bars = btjob.fetch_window(market, "XAUUSD", Timeframe.D1, 500)
+    bars, truncated = btjob.fetch_window(market, "XAUUSD", Timeframe.D1, 500)
+    assert not truncated
     assert len(bars) == 120  # can't fabricate more than exists
+
+
+def test_fetch_window_retries_transient_vendor_errors():
+    market = _StubMarket(make_bars(n=200), fail_first=2)  # 2 failures then ok
+    bars, truncated = btjob.fetch_window(market, "XAUUSD", Timeframe.D1, 150,
+                                         backoff=0.0)
+    assert not truncated and len(bars) == 150
+
+
+def test_fetch_window_reports_progress():
+    market = _StubMarket(make_bars(n=1500))
+    seen = []
+    btjob.fetch_window(market, "XAUUSD", Timeframe.D1, 1300,
+                       on_page=lambda have, need: seen.append((have, need)))
+    assert seen and seen[-1] == (1300, 1300)
+    assert all(n == 1300 for _, n in seen)
+
+
+def test_fetch_window_persistent_failure_with_no_bars_raises():
+    market = _StubMarket(make_bars(n=200), fail_first=99)
+    with pytest.raises(ValueError, match="bar fetch failed"):
+        btjob.fetch_window(market, "XAUUSD", Timeframe.D1, 150, backoff=0.0)
 
 
 # --- request validation -----------------------------------------------------
@@ -119,10 +170,22 @@ def test_resolve_llm_caps_decisions_when_confirmed():
     assert resolved["bars"] == btjob.MIN_HISTORY + btjob.MAX_LLM_DECISIONS
 
 
+def test_resolve_large_deterministic_run_requires_confirmation():
+    market = _StubMarket(make_bars(n=80), timeframes=tuple(Timeframe))
+    params = {"symbol": "BTC-USD", "timeframe": "5m", "duration": "1Y"}
+    with pytest.raises(btjob._CostConfirmationRequired) as exc:
+        btjob.resolve_request(market, params)
+    assert exc.value.estimate["decisions"] > btjob.LARGE_RUN_DECISIONS
+    assert exc.value.estimate["est_cost_usd"] == 0.0
+    # confirmed → full density, NO window trim, NO subsampling
+    resolved = btjob.resolve_request(market, {**params, "confirm_cost": True})
+    assert resolved["bars"] == btjob.bars_for_duration("1Y", Timeframe.M5)
+
+
 # --- streaming worker (deterministic, offline) ------------------------------
 
 
-def test_run_job_streams_progress_trades_and_persists(tmp_path):
+def test_run_job_streams_persists_and_writes_full_artifacts(tmp_path):
     state = _state(make_bars(n=140), tmp_path)
     job = btjob.new_job({"symbol": "XAUUSD", "timeframe": "1d", "duration": "30D"})
     state.backtest_job = job
@@ -133,13 +196,105 @@ def test_run_job_streams_progress_trades_and_persists(tmp_path):
     types = state.broadcaster.types()
     assert "backtest_progress" in types
     assert types[-1] == "backtest_done"
-    # rising synthetic market → the scripted pipeline buys and trades close
     assert job.closed_trades
     assert "backtest_trade" in types
     assert state.backtest is not None
+
+    # slim transport: the terminal event carries a summary, never bulk arrays
+    done = next(d for t, d in state.broadcaster.events if t == "backtest_done")
+    assert "view" not in done and done["summary"]["n_trades"] >= 1
+    assert "equity_curve" not in (job.result or {})
+
     saved = state.backtest_runs.list()
     assert len(saved) == 1 and saved[0]["symbol"] == "XAUUSD"
+    assert saved[0]["status"] == "done"
+    assert saved[0]["indicator_mode"] == "full_history"
     assert job.result["provider"] == "deterministic"
+
+    # zero-loss artifacts: one equity row + one decision row PER DECISION,
+    # and every closed trade
+    artifacts = RunArtifacts(job.id)
+    equity = artifacts.read("equity")
+    decisions = artifacts.read("decisions")
+    trades = artifacts.read("trades")
+    assert len(decisions) == job.result["decisions"]
+    assert len(equity) == len(decisions)
+    assert len(trades) == job.result["n_trades"]
+    # checkpoint cleared on completion
+    assert state.backtest_runs.read_checkpoint() is None
+
+
+def test_cancel_mid_run_saves_labeled_partial(tmp_path):
+    state = _state(make_bars(n=200), tmp_path)
+    job = btjob.new_job({"symbol": "XAUUSD", "timeframe": "1d", "duration": "30D"})
+    state.backtest_job = job
+
+    # set the cancel flag once the 10th decision completes; the engine
+    # notices at the start of the 11th and raises BacktestCancelled
+    fired = {"n": 0}
+    original = btjob._StreamingEngine._apply_decision
+
+    def cancel_after_10(self, s, i):
+        out = original(self, s, i)
+        fired["n"] += 1
+        if fired["n"] == 10:
+            job.cancel.set()
+        return out
+
+    try:
+        btjob._StreamingEngine._apply_decision = cancel_after_10
+        btjob.run_job(state, job, job.params)
+    finally:
+        btjob._StreamingEngine._apply_decision = original
+
+    assert job.status == "cancelled"
+    saved = state.backtest_runs.list()
+    assert len(saved) == 1 and saved[0]["status"] == "cancelled"
+    assert job.result["status"] == "cancelled"
+    # the partial kept its decisions + equity up to the cancel point
+    artifacts = RunArtifacts(job.id)
+    assert len(artifacts.read("decisions")) == 10
+    assert len(artifacts.read("equity")) == 10
+    assert state.backtest_runs.read_checkpoint() is None
+
+
+def test_interrupted_checkpoint_recovers_to_saved_partial(tmp_path):
+    store = BacktestRunStore(tmp_path / "runs.json")
+    run_id = "deadbeef1234"
+    RunArtifacts(run_id).write(
+        equity=[["2026-01-01T00:00:00+00:00", 100_000.0],
+                ["2026-01-02T00:00:00+00:00", 100_500.0]],
+        trades=[{"id": "t1", "pnl": 500.0}],
+        decisions=[{"index": 60, "outcome": "executed"},
+                   {"index": 61, "outcome": "hold"}],
+    )
+    store.write_checkpoint({
+        "job_id": run_id, "status": "running",
+        "params": {"symbol": "BTC-USD", "timeframe": "1h", "duration": "7D",
+                   "initial_equity": 100_000.0},
+        "started_at": "2026-01-01T00:00:00+00:00",
+        "updated_at": "2026-01-02T00:00:00+00:00",
+    })
+
+    record = btjob.recover_interrupted(store)
+
+    assert record is not None and record["status"] == "interrupted"
+    listed = store.list()
+    assert listed[0]["status"] == "interrupted"
+    assert listed[0]["n_trades"] == 1
+    assert listed[0]["final_equity"] == 100_500.0
+    assert store.read_checkpoint() is None
+    # idempotent: nothing left to recover
+    assert btjob.recover_interrupted(store) is None
+
+
+def test_snapshot_caps_closed_trades_but_reports_total():
+    job = btjob.new_job({"symbol": "BTC-USD"})
+    job.closed_trades = [{"id": str(i)} for i in range(250)]
+    snap = job.snapshot()
+    assert len(snap["closed_trades"]) == btjob.SNAPSHOT_TRADES
+    assert snap["closed_total"] == 250
+    assert snap["closed_trades"][-1]["id"] == "249"  # the most recent tail
 
 
 # --- run store --------------------------------------------------------------
@@ -156,11 +311,47 @@ def test_run_store_ring_keeps_newest(tmp_path):
     assert store.get("r4")["id"] == "r4"
 
 
+def test_run_store_delete(tmp_path):
+    store = BacktestRunStore(tmp_path / "r.json")
+    store.save({"id": "a", "created_at": "1", "view": {}})
+    store.save({"id": "b", "created_at": "2", "view": {}})
+    assert store.delete("a") is True
+    assert store.delete("a") is False
+    assert [r["id"] for r in store.list()] == ["b"]
+    # deletion persists across reload
+    assert [r["id"] for r in BacktestRunStore(tmp_path / "r.json").list()] == ["b"]
+
+
 def test_run_store_survives_corrupt_file(tmp_path):
     path = tmp_path / "r.json"
     path.write_text("{not json", encoding="utf-8")
     store = BacktestRunStore(path)
     assert store.list() == []
+
+
+def test_run_store_checkpoint_roundtrip(tmp_path):
+    store = BacktestRunStore(tmp_path / "r.json")
+    assert store.read_checkpoint() is None
+    store.write_checkpoint({"job_id": "x", "status": "running"})
+    assert store.read_checkpoint()["job_id"] == "x"
+    store.clear_checkpoint()
+    assert store.read_checkpoint() is None
+    store.clear_checkpoint()  # idempotent
+
+
+# --- artifacts ---------------------------------------------------------------
+
+
+def test_artifacts_roundtrip_and_delete(tmp_path):
+    artifacts = RunArtifacts("run1", tmp_path / "arts")
+    artifacts.write(equity=[["t0", 1.0]], trades=[{"id": "a"}],
+                    decisions=[{"index": 1}])
+    assert artifacts.read("equity") == [["t0", 1.0]]
+    assert json.loads(artifacts.path("trades").read_text()) == [{"id": "a"}]
+    artifacts.delete()
+    assert artifacts.read("equity") == []
+    with pytest.raises(KeyError):
+        artifacts.path("nope")
 
 
 # --- endpoints --------------------------------------------------------------
@@ -175,7 +366,7 @@ def test_run_endpoint_starts_job_and_records_it(tmp_path):
     assert resp.status_code == 202
     job_id = resp.json()["job_id"]
 
-    for _ in range(100):  # poll up to ~5s for the daemon thread to finish
+    for _ in range(200):  # poll up to ~10s for the daemon thread to finish
         status = client.get("/api/backtest/job").json()
         if status.get("status") in ("done", "error"):
             break
@@ -185,6 +376,45 @@ def test_run_endpoint_starts_job_and_records_it(tmp_path):
     runs = client.get("/api/backtest/runs").json()["runs"]
     assert len(runs) == 1 and runs[0]["id"] == job_id
     assert client.get(f"/api/backtest/runs/{job_id}").status_code == 200
+
+    # artifacts are served in full
+    equity = client.get(f"/api/backtest/runs/{job_id}/artifacts/equity")
+    assert equity.status_code == 200
+    assert len(equity.json()) == status["result"]["decisions"]
+    assert client.get(
+        f"/api/backtest/runs/{job_id}/artifacts/bogus").status_code == 404
+
+    # delete removes record + artifacts
+    assert client.delete(f"/api/backtest/runs/{job_id}").status_code == 200
+    assert client.get(f"/api/backtest/runs/{job_id}").status_code == 404
+    assert client.get(
+        f"/api/backtest/runs/{job_id}/artifacts/equity").status_code == 404
+
+
+def test_cancel_endpoint(tmp_path, monkeypatch):
+    state = _state(make_bars(n=140), tmp_path)
+    client = TestClient(create_app(state))
+    # idle → 409
+    assert client.post("/api/backtest/cancel").status_code == 409
+
+    gate = threading.Event()
+
+    def _blocking_run(st, job, params):
+        gate.wait(timeout=5)
+        job.status = "cancelled" if job.cancel.is_set() else "done"
+
+    monkeypatch.setattr(btjob, "run_job", _blocking_run)
+    assert client.post("/api/backtest/run",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "7D"}).status_code == 202
+    resp = client.post("/api/backtest/cancel")
+    assert resp.status_code == 200 and resp.json()["status"] == "cancelling"
+    gate.set()
+    for _ in range(100):
+        if client.get("/api/backtest/job").json().get("status") == "cancelled":
+            break
+        time.sleep(0.05)
+    assert client.get("/api/backtest/job").json()["status"] == "cancelled"
 
 
 def test_run_endpoint_validation(tmp_path):

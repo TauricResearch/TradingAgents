@@ -10,9 +10,11 @@ import {
   CorrelationsSchema,
   AlertFeedSchema,
   BacktestSchema,
+  BacktestEquityArtifactSchema,
   BacktestJobSchema,
   BacktestRunSchema,
   BacktestRunsSchema,
+  BacktestTradesArtifactSchema,
   BarsSchema,
   CalendarSchema,
   EvidencePanelsSchema,
@@ -58,6 +60,8 @@ export const qk = {
   backtestJob: ["backtest", "job"] as const,
   backtestRuns: ["backtest", "runs"] as const,
   backtestRun: (id: string) => ["backtest", "runs", id] as const,
+  backtestArtifact: (id: string, name: string) =>
+    ["backtest", "runs", id, "artifacts", name] as const,
   memory: ["memory"] as const,
   agents: ["agents"] as const,
   symbols: ["symbols"] as const,
@@ -274,6 +278,42 @@ export const useBacktestRun = (id: string | null) =>
     enabled: id != null,
     staleTime: Infinity,
   });
+
+/** Full-fidelity bulk data (every equity point / trade / decision) for one
+ * run — streamed from the per-run artifact files. Immutable once written. */
+export const useBacktestEquityArtifact = (id: string | null) =>
+  useQuery({
+    queryKey: qk.backtestArtifact(id ?? "none", "equity"),
+    queryFn: fetchParsed(
+      `/api/backtest/runs/${id}/artifacts/equity`,
+      BacktestEquityArtifactSchema,
+    ),
+    enabled: id != null,
+    staleTime: Infinity,
+    retry: 1, // legacy runs predate artifacts — 404 is expected there
+  });
+
+export const useBacktestTradesArtifact = (id: string | null) =>
+  useQuery({
+    queryKey: qk.backtestArtifact(id ?? "none", "trades"),
+    queryFn: fetchParsed(
+      `/api/backtest/runs/${id}/artifacts/trades`,
+      BacktestTradesArtifactSchema,
+    ),
+    enabled: id != null,
+    staleTime: Infinity,
+    retry: 1,
+  });
+
+/** Stop the in-flight run; the partial is saved labeled "cancelled". */
+export async function cancelBacktest(): Promise<void> {
+  await apiFetch("/api/backtest/cancel", { method: "POST" });
+}
+
+export async function deleteBacktestRun(client: QueryClient, id: string) {
+  await apiFetch(`/api/backtest/runs/${id}`, { method: "DELETE" });
+  await client.invalidateQueries({ queryKey: qk.backtestRuns });
+}
 
 /** Live/last job snapshot — the reconnect fallback when SSE frames are
  * missed (progress + partial trades also arrive over the stream). Always

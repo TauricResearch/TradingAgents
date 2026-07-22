@@ -60,13 +60,43 @@ def wavy_bars(n: int = 300) -> list[OHLCVBar]:
 
 
 class _DemoMarket(md.MarketDataService):
-    """Serve synthetic bars for any (symbol, timeframe) so the interactive
-    Backtest page runs end-to-end offline (no vendor calls in the demo)."""
+    """Deterministic synthetic bars for ANY (symbol, timeframe), spaced by
+    the REQUESTED timeframe and anchored just past the seeded run's as-of —
+    so chart windows cover the recorded run (annotations snap onto them)
+    and the Backtest page pages arbitrarily deep history, all offline."""
+
+    anchor = BASE_TS + timedelta(days=36)  # recorded run as-of ≈ BASE_TS+35.6d
+    history_bars = 200_000  # paging depth: effectively unlimited for the demo
+
+    @staticmethod
+    def _price(i: int) -> float:
+        # closed-form wavy walk (two 25-bar legs up, one down → +20/75 bars)
+        cycles, pos = divmod(i, 75)
+        price = 2300.0 + 20.0 * cycles
+        up = min(pos, 50)
+        price += 1.2 * up - 1.6 * (pos - up)
+        return price
 
     def get_bars(self, symbol, timeframe, limit=md.DEFAULT_LIMIT, end=None):
-        bars = wavy_bars(1200)
-        pool = [b for b in bars if end is None or b.start < end]
-        return pool[-min(limit, md.MAX_LIMIT):]
+        step = md.TIMEFRAME_SECONDS[timeframe]
+        # bar i starts at anchor - (history_bars - i)*step; the last bar
+        # strictly before ``end`` excludes floor((anchor-end)/step) newest
+        excluded = 0
+        if end is not None and end < self.anchor:
+            excluded = int((self.anchor - end).total_seconds() // step)
+        last = self.history_bars - 1 - excluded
+        limit = min(limit, md.MAX_LIMIT)
+        first = max(0, last - limit + 1)
+        bars = []
+        for i in range(first, last + 1):
+            open_, close = self._price(i), self._price(i + 1)
+            bars.append(OHLCVBar(
+                timeframe=timeframe,
+                start=self.anchor - timedelta(seconds=(self.history_bars - i) * step),
+                open=open_, high=max(open_, close) + 4.0,
+                low=min(open_, close) - 4.0, close=close, volume=5_000.0,
+            ))
+        return bars
 
 
 def build_state() -> DashboardState:
@@ -132,14 +162,33 @@ def build_state() -> DashboardState:
 
     # seed one auto-archived backtest run so the Saved Runs list + result
     # view render on first load (and the e2e can reload it without a network run)
+    from tradingagents.pro.dashboard.backtest_artifacts import RunArtifacts
+    from tradingagents.pro.dashboard.backtest_job import (
+        closed_trade_view,
+        summary_from_view,
+    )
+
     seeded_view = dashboard_service.backtest_view(result, state.monte_carlo)
+    equity_rows = [[t.isoformat(), e] for t, e in zip(
+        (b.start for b in wavy_bars()[100:]), seeded_view.pop("equity_curve", []),
+        strict=False)]
     seeded_view.update({
         "provider": "deterministic", "symbol": "XAUUSD", "timeframe": "1d",
-        "duration": "30D", "window": ["2024-01-01", "2024-10-26"], "trades": [],
+        "duration": "30D", "window": ["2024-01-01", "2024-10-26"],
+        "status": "done", "indicator_mode": "windowed",
+        "initial_equity": 100_000.0,
     })
+    RunArtifacts("demo-seed").write(
+        equity=equity_rows,
+        trades=[closed_trade_view(t) for t in result.trades],
+        decisions=[],
+    )
+    seed_created = BASE_TS.isoformat()
     state.backtest_runs.save({
-        "id": "demo-seed", "created_at": BASE_TS.isoformat(),
+        "id": "demo-seed", "created_at": seed_created,
         "params": {"symbol": "XAUUSD", "timeframe": "1d", "duration": "30D"},
+        "status": "done",
+        "summary": summary_from_view("demo-seed", seed_created, seeded_view),
         "view": seeded_view,
     })
 

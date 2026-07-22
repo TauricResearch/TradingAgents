@@ -1111,6 +1111,16 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         return JSONResponse({"job_id": job.id, "status": "started"},
                             status_code=202)
 
+    @app.post("/api/backtest/cancel")
+    def cancel_backtest() -> dict:
+        """Stop the in-flight run; the partial (trades, equity, decisions so
+        far) is saved to the run history labeled ``cancelled``."""
+        job = state.backtest_job
+        if job is None or job.status != "running":
+            raise HTTPException(status_code=409, detail="no backtest running")
+        job.cancel.set()
+        return {"status": "cancelling", "job_id": job.id}
+
     @app.get("/api/backtest/job")
     def backtest_job_status() -> dict:
         job = state.backtest_job
@@ -1126,6 +1136,33 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         if record is None:
             raise HTTPException(status_code=404, detail="unknown backtest run")
         return record
+
+    @app.get("/api/backtest/runs/{run_id}/artifacts/{name}")
+    def backtest_artifact(run_id: str, name: str):
+        """Full-fidelity bulk data for one run (every equity point / trade /
+        decision) — streamed from the per-run artifact files, never embedded
+        in the record."""
+        from fastapi.responses import FileResponse
+
+        from tradingagents.pro.dashboard.backtest_artifacts import (
+            ARTIFACT_NAMES,
+            RunArtifacts,
+        )
+        if name not in ARTIFACT_NAMES:
+            raise HTTPException(status_code=404, detail="unknown artifact")
+        path = RunArtifacts(run_id).path(name)
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="artifact not found")
+        return FileResponse(path, media_type="application/json")
+
+    @app.delete("/api/backtest/runs/{run_id}")
+    def delete_backtest_run(run_id: str) -> dict:
+        from tradingagents.pro.dashboard.backtest_artifacts import RunArtifacts
+
+        if not state.backtest_runs.delete(run_id):
+            raise HTTPException(status_code=404, detail="unknown backtest run")
+        RunArtifacts(run_id).delete()
+        return {"status": "deleted", "id": run_id}
 
     @app.get("/api/memory")
     def memory_view() -> dict:

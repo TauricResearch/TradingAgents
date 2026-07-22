@@ -74,9 +74,10 @@ gcloud run deploy "$SERVICE" \
   --min-instances 1 \
   --max-instances 1 \
   --no-cpu-throttling \
+  --memory 1Gi \
   --add-volume "name=data,type=cloud-storage,bucket=${BUCKET}" \
   --add-volume-mount "volume=data,mount-path=/data" \
-  --update-env-vars "TRADINGAGENTS_LLM_PROVIDER=${LLM_PROVIDER},PRO_LOOP_DISABLED=${PRO_LOOP_DISABLED:-0}" \
+  --update-env-vars "TRADINGAGENTS_LLM_PROVIDER=${LLM_PROVIDER},PRO_LOOP_DISABLED=${PRO_LOOP_DISABLED:-0},PRO_BACKTEST_STORE=firestore" \
   --update-secrets "PRO_DASHBOARD_TOKEN=pro-dashboard-token:latest,${LLM_KEY_ENV}=${LLM_PROVIDER}-api-key:latest" \
   --allow-unauthenticated
 

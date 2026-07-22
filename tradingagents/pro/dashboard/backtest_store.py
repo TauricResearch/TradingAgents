@@ -18,10 +18,7 @@ from tradingagents.pro.dashboard.prefs import default_data_dir
 
 logger = logging.getLogger(__name__)
 
-MAX_RUNS = 10
-# each record carries a full equity curve + trade list; cap the file so a
-# runaway series can't balloon it
-MAX_DOCUMENT_BYTES = 8 * 1024 * 1024
+MAX_RUNS = 25
 
 
 class BacktestRunStore:
@@ -62,6 +59,10 @@ class BacktestRunStore:
         with self._lock:
             out = []
             for r in reversed(self._runs):
+                if r.get("summary"):  # written by current runs
+                    out.append(dict(r["summary"]))
+                    continue
+                # legacy records predate the summary field
                 view = r.get("view", {})
                 report = view.get("report", {})
                 out.append({
@@ -71,6 +72,7 @@ class BacktestRunStore:
                     "timeframe": view.get("timeframe"),
                     "duration": view.get("duration"),
                     "provider": view.get("provider"),
+                    "status": view.get("status", "done"),
                     "n_trades": view.get("n_trades"),
                     "final_equity": view.get("final_equity"),
                     "total_return": report.get("total_return"),
@@ -85,6 +87,37 @@ class BacktestRunStore:
                 if r.get("id") == run_id:
                     return r
             return None
+
+    def delete(self, run_id: str) -> bool:
+        with self._lock:
+            before = len(self._runs)
+            self._runs = [r for r in self._runs if r.get("id") != run_id]
+            changed = len(self._runs) != before
+            if changed:
+                self._write()
+            return changed
+
+    # --- live-job checkpoint (survives instance restarts) ------------------------
+
+    def _checkpoint_path(self) -> Path:
+        return self.path.with_name("backtest_checkpoint.json")
+
+    def write_checkpoint(self, data: dict) -> None:
+        from tradingagents.pro.persistence import atomic_write_text
+
+        atomic_write_text(self._checkpoint_path(), json.dumps(data, default=str))
+
+    def read_checkpoint(self) -> dict | None:
+        try:
+            return json.loads(self._checkpoint_path().read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return None
+        except Exception:
+            logger.warning("corrupt backtest checkpoint; ignoring")
+            return None
+
+    def clear_checkpoint(self) -> None:
+        self._checkpoint_path().unlink(missing_ok=True)
 
 
 __all__ = ["BacktestRunStore", "MAX_RUNS"]

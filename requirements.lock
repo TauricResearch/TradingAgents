@@ -21,8 +21,13 @@ docstring_parser==0.18.0
 fastapi==0.139.0
 filetype==1.2.0
 frozenlist==1.8.0
+google-api-core==2.32.0
 google-auth==2.55.1
+google-cloud-firestore==2.28.0
 google-genai==2.10.0
+googleapis-common-protos==1.75.0
+grpcio==1.82.1
+grpcio-status==1.82.1
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -65,6 +70,7 @@ platformdirs==4.10.0
 pluggy==1.6.0
 prompt_toolkit==3.0.52
 propcache==0.5.2
+proto-plus==1.28.1
 protobuf==7.35.1
 pyasn1==0.6.3
 pyasn1_modules==0.4.2

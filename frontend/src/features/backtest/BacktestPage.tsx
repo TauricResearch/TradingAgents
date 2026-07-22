@@ -1,10 +1,13 @@
 /** Interactive backtesting: pick asset / timeframe / run length, watch the
- * replay pipeline run live (progress, open + closed trades, PnL), and reload
- * any of the auto-archived past runs. Deterministic by default (free, fast,
- * mechanics-only); the AI toggle runs the real pipeline (costs money, capped,
- * confirmed). */
-import { FlaskConical, Play } from "lucide-react";
+ * replay pipeline run live (fetch progress, decision progress, open + closed
+ * trades, PnL), cancel mid-run (the partial is saved), and reload any of the
+ * auto-archived past runs. Full decision density — every bar gets a decision
+ * — and full-fidelity artifacts: the equity chart + trade table come from
+ * the per-run artifact files, never a downsampled copy. */
+import { FlaskConical, Play, Square, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
 
 import { EquityCurve } from "@/components/charts/EquityCurve";
 import { DirectionBadge } from "@/components/DirectionBadge";
@@ -14,20 +17,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Segment, Segmented } from "@/components/ui/segmented";
-import { useQueryClient } from "@tanstack/react-query";
-
 import {
   BacktestCostConfirmation,
+  cancelBacktest,
+  deleteBacktestRun,
   qk,
   runBacktest,
+  useBacktestEquityArtifact,
   useBacktestJob,
   useBacktestRun,
   useBacktestRuns,
+  useBacktestTradesArtifact,
   useSymbols,
 } from "@/lib/api/queries";
 import type { BacktestRunView, BacktestTrade } from "@/lib/api/types";
+import { planRun } from "@/lib/backtestPlan";
 import { fmtDateTime, fmtPct, fmtPnl, fmtPrice } from "@/lib/format";
-import { useBacktestLiveStore, type BacktestProgress } from "@/stores/backtestLive";
+import {
+  useBacktestLiveStore,
+  type BacktestProgress,
+} from "@/stores/backtestLive";
 
 const SYMBOL_LABELS: Record<string, string> = {
   XAUUSD: "Gold (XAUUSD)",
@@ -37,6 +46,12 @@ const SYMBOL_LABELS: Record<string, string> = {
 };
 const TF_CHOICES = ["5m", "15m", "1h", "4h", "1d"] as const;
 const DURATIONS = ["1D", "7D", "30D", "1Y"] as const;
+
+const STATUS_BADGE: Record<string, "default" | "bear" | "neutral"> = {
+  done: "default",
+  cancelled: "neutral",
+  interrupted: "bear",
+};
 
 export default function BacktestPage() {
   const symbolsQuery = useSymbols();
@@ -56,6 +71,7 @@ export default function BacktestPage() {
   const [timeframe, setTimeframe] = useState<string>("1h");
   const [duration, setDuration] = useState<string>("7D");
   const [useLlm, setUseLlm] = useState(false);
+  const [initialEquity, setInitialEquity] = useState(100_000);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [cost, setCost] = useState<BacktestCostConfirmation["estimate"] | null>(null);
@@ -71,17 +87,14 @@ export default function BacktestPage() {
   const running = live.status === "running";
 
   // Polling fallback: the SSE progress stream can stall while a CPU-bound
-  // run holds the event loop, freezing the bar mid-run. /api/backtest/job
-  // reports accurate live state, so poll it while running and reconcile —
-  // the bar keeps advancing and completion/errors are always caught even if
-  // the terminal SSE frame was missed.
+  // run holds the event loop. /api/backtest/job reports accurate live state,
+  // so poll it while running and reconcile — and on mount, re-attach to a
+  // run already in flight server-side (reload / second tab).
   const qc = useQueryClient();
   const jobPoll = useBacktestJob(running);
   useEffect(() => {
     const j = jobPoll.data;
     if (!j) return;
-    // re-attach: a reload or a second tab finds a run already in flight
-    // server-side — hydrate and start following it
     if (
       useBacktestLiveStore.getState().status === "idle" &&
       j.status === "running" &&
@@ -94,32 +107,38 @@ export default function BacktestPage() {
     if (j.status === "idle") {
       // the in-memory job vanished (instance restarted mid-run). Grace
       // window covers a just-started run racing a stale poll response.
+      // The interrupted partial is auto-saved server-side on next boot.
       if (store.startedAt && Date.now() - store.startedAt > 15_000) {
         store.setError(
-          "The run was interrupted by a server restart. Start it again — " +
-            "completed runs always land in Saved runs.",
+          "The run was interrupted by a server restart. The partial is " +
+            "saved to Saved runs on recovery — or just run it again.",
         );
       }
       return;
     }
     // ignore a stale cached snapshot from a previous run
     if (j.job_id && store.jobId && j.job_id !== store.jobId) return;
-    if (j.status === "done" && j.result) {
-      store.setDone(j.result);
+    if (j.status === "done" || j.status === "cancelled") {
+      store.finish(j.status === "cancelled" ? "cancelled" : "done", j.job_id ?? null);
       void qc.invalidateQueries({ queryKey: qk.backtestRuns });
       void qc.invalidateQueries({ queryKey: qk.backtest });
     } else if (j.status === "error") {
       store.setError(j.error ?? "backtest failed");
     } else if (
       j.progress &&
-      typeof (j.progress as { decisions?: unknown }).decisions === "number"
+      (typeof (j.progress as { decisions?: unknown }).decisions === "number" ||
+        (j.progress as { phase?: unknown }).phase === "fetching")
     ) {
-      // only a real frame — the job starts with an empty progress {}
       store.setProgress(
         j.progress as unknown as BacktestProgress,
         (j.open_trades ?? []) as BacktestTrade[],
       );
-      if (j.closed_trades) store.syncClosed(j.closed_trades as BacktestTrade[]);
+      if (j.closed_trades) {
+        store.syncClosed(
+          j.closed_trades as BacktestTrade[],
+          j.closed_total ?? j.closed_trades.length,
+        );
+      }
     }
   }, [jobPoll.data, qc]);
 
@@ -134,6 +153,7 @@ export default function BacktestPage() {
         duration,
         use_llm: useLlm,
         confirm_cost: confirmCost,
+        initial_equity: initialEquity,
       });
       live.start(job_id);
       setSelectedRunId(null); // switch the results view to the live run
@@ -145,17 +165,14 @@ export default function BacktestPage() {
     }
   };
 
-  // which completed run to show: an explicitly picked one, else the just-
-  // finished live run, else the newest saved run
+  // which completed run to show: an explicitly picked one, else the run
+  // that just finished, else the newest saved run
   const newestId = runsQuery.data?.runs[0]?.id ?? null;
-  const effectiveRunId =
-    selectedRunId ?? (live.result ? null : running ? null : newestId);
-  const runDetail = useBacktestRun(effectiveRunId);
-  const view: BacktestRunView | null = running
+  const effectiveRunId = running
     ? null
-    : selectedRunId
-      ? (runDetail.data?.view ?? null)
-      : (live.result ?? runDetail.data?.view ?? null);
+    : (selectedRunId ?? live.finishedRunId ?? newestId);
+  const runDetail = useBacktestRun(effectiveRunId);
+  const view: BacktestRunView | null = runDetail.data?.view ?? null;
 
   return (
     <div className="space-y-4" data-testid="backtest-page">
@@ -175,6 +192,8 @@ export default function BacktestPage() {
         setDuration={setDuration}
         useLlm={useLlm}
         setUseLlm={setUseLlm}
+        initialEquity={initialEquity}
+        setInitialEquity={setInitialEquity}
         running={running}
         starting={starting}
         error={error}
@@ -193,15 +212,16 @@ export default function BacktestPage() {
         </div>
       )}
 
-      {running && !live.progress && (
-        <div className="rounded-[14px] border border-border bg-surface px-4 py-3 text-sm text-fg-muted">
-          Starting run — fetching bars…
-        </div>
-      )}
-      {running && live.progress && <LivePanel />}
+      {running && <LivePanel />}
 
-      {view && <ResultPanel view={view} live={!selectedRunId && !!live.result} />}
-      {!view && !running && (
+      {!running && view && effectiveRunId && (
+        <ResultPanel
+          runId={effectiveRunId}
+          view={view}
+          live={!selectedRunId && live.finishedRunId === effectiveRunId}
+        />
+      )}
+      {!running && !view && (
         <EmptyState
           title="No backtest yet"
           detail="Pick an asset, timeframe and run length above, then Run."
@@ -228,6 +248,8 @@ function RunControls(props: {
   setDuration: (s: string) => void;
   useLlm: boolean;
   setUseLlm: (b: boolean) => void;
+  initialEquity: number;
+  setInitialEquity: (n: number) => void;
   running: boolean;
   starting: boolean;
   error: string | null;
@@ -237,6 +259,8 @@ function RunControls(props: {
   onCancelCost: () => void;
 }) {
   const symbols = props.tradeable.length ? props.tradeable : ["BTC-USD", "XAUUSD"];
+  const plan = planRun(props.symbol, props.timeframe, props.duration, props.useLlm);
+  const freeConfirm = props.cost != null && props.cost.est_cost_usd === 0;
   return (
     <Card>
       <CardHeader>
@@ -297,6 +321,20 @@ function RunControls(props: {
               </Segment>
             </Segmented>
           </Field>
+          <Field label="Starting equity">
+            <input
+              type="number"
+              aria-label="Starting equity"
+              data-testid="backtest-equity"
+              min={1000}
+              step={1000}
+              value={props.initialEquity}
+              onChange={(e) =>
+                props.setInitialEquity(Math.max(1, Number(e.target.value) || 0))
+              }
+              className="h-[30px] w-28 rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs tabular"
+            />
+          </Field>
           <Button
             onClick={props.onRun}
             disabled={props.running || props.starting || props.cost != null}
@@ -307,18 +345,24 @@ function RunControls(props: {
           </Button>
         </div>
 
-        <p className="text-xs text-fg-subtle">
+        <p className="text-xs text-fg-subtle" data-testid="backtest-plan">
+          {plan && (
+            <span className="font-mono">
+              ≈{plan.decisions.toLocaleString()} decisions
+              {plan.llmCapped && " (LLM cost cap: most recent window)"} · est ~
+              {plan.estMinutes} min.{" "}
+            </span>
+          )}
           {props.useLlm ? (
             <>
               <span className="font-semibold text-fg-muted">Real pipeline:</span>{" "}
-              makes live model calls — costs money and is capped to the most
-              recent ~300 decisions. Measures model skill.
+              makes live model calls — costs money. Measures model skill.
             </>
           ) : (
             <>
               <span className="font-semibold text-fg-muted">Deterministic:</span>{" "}
-              scripted no-cost pipeline over real bars — exercises gates, sizing,
-              fills and exits, <em>not</em> model skill.
+              scripted no-cost pipeline over real bars, one decision EVERY bar —
+              exercises gates, sizing, fills and exits, <em>not</em> model skill.
             </>
           )}
         </p>
@@ -329,10 +373,25 @@ function RunControls(props: {
             data-testid="backtest-cost-confirm"
           >
             <div className="mb-1.5">
-              A real-LLM run is about{" "}
-              <span className="font-bold">${props.cost.est_cost_usd.toFixed(2)}</span>{" "}
-              in model calls over ~{props.cost.est_minutes} min (
-              {props.cost.decisions} decisions). Proceed?
+              {freeConfirm ? (
+                <>
+                  This is a big full-density run:{" "}
+                  <span className="font-bold">
+                    {props.cost.decisions.toLocaleString()} decisions
+                  </span>{" "}
+                  over ~{props.cost.est_minutes} min (free, cancellable, saved
+                  incrementally). Proceed?
+                </>
+              ) : (
+                <>
+                  A real-LLM run is about{" "}
+                  <span className="font-bold">
+                    ${props.cost.est_cost_usd.toFixed(2)}
+                  </span>{" "}
+                  in model calls over ~{props.cost.est_minutes} min (
+                  {props.cost.decisions} decisions). Proceed?
+                </>
+              )}
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={props.onConfirmCost} data-testid="backtest-cost-ok">
@@ -363,65 +422,133 @@ function LivePanel() {
   const progress = useBacktestLiveStore((s) => s.progress);
   const openTrades = useBacktestLiveStore((s) => s.openTrades);
   const closed = useBacktestLiveStore((s) => s.closedTrades);
+  const closedTotal = useBacktestLiveStore((s) => s.closedTotal);
   const equityCurve = useBacktestLiveStore((s) => s.equityCurve);
-  if (!progress) return null;
-  // defensive: never assume a frame is fully populated (a stray/partial
-  // payload must not crash the whole page)
-  const decisions = progress.decisions ?? 0;
-  const total = progress.total ?? 0;
-  const pct = progress.pct ?? 0;
-  const equity = progress.equity ?? 0;
-  const pnl = progress.pnl ?? 0;
-  const openCount = progress.open_count ?? openTrades.length;
-  const closedCount = progress.closed_trades ?? closed.length;
+  const [cancelling, setCancelling] = useState(false);
+
+  const cancel = async () => {
+    setCancelling(true);
+    try {
+      await cancelBacktest();
+    } catch {
+      setCancelling(false); // idle race — the run already ended
+    }
+  };
+
+  const fetching = progress?.phase === "fetching";
+  const decisions = progress?.decisions ?? 0;
+  const total = progress?.total ?? 0;
+  const pct = progress?.pct ?? 0;
+  const equity = progress?.equity ?? 0;
+  const pnl = progress?.pnl ?? 0;
+  const openCount = progress?.open_count ?? openTrades.length;
   const pnlTone = pnl >= 0 ? "bull" : "bear";
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Live run</CardTitle>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void cancel()}
+          disabled={cancelling}
+          data-testid="backtest-cancel"
+        >
+          <Square size={12} />
+          {cancelling ? "Cancelling…" : "Cancel (keeps partial)"}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div>
-          <div className="mb-1 flex justify-between text-xs text-fg-muted">
-            <span>
-              decision {decisions} / {total}
-            </span>
-            <span className="font-mono">{pct.toFixed(0)}%</span>
+        {!progress && (
+          <p className="text-sm text-fg-muted">Starting run…</p>
+        )}
+        {fetching && (
+          <div data-testid="backtest-fetch">
+            <div className="mb-1 flex justify-between text-xs text-fg-muted">
+              <span>
+                fetching bars {progress?.bars_have?.toLocaleString()} /{" "}
+                {progress?.bars_needed?.toLocaleString()}
+              </span>
+              <span className="font-mono">{pct.toFixed(0)}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="h-full rounded-full bg-neutral transition-[width]"
+                style={{ width: `${Math.min(100, pct)}%` }}
+              />
+            </div>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-surface-2" data-testid="backtest-progress">
-            <div
-              className="h-full rounded-full bg-accent transition-[width]"
-              style={{ width: `${Math.min(100, pct)}%` }}
+        )}
+        {progress && !fetching && (
+          <>
+            <div>
+              <div className="mb-1 flex justify-between text-xs text-fg-muted">
+                <span>
+                  decision {decisions.toLocaleString()} / {total.toLocaleString()}
+                </span>
+                <span className="font-mono">{pct.toFixed(0)}%</span>
+              </div>
+              <div
+                className="h-2 overflow-hidden rounded-full bg-surface-2"
+                data-testid="backtest-progress"
+              >
+                <div
+                  className="h-full rounded-full bg-accent transition-[width]"
+                  style={{ width: `${Math.min(100, pct)}%` }}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="backtest-pnl">
+              <StatCard label="Equity" value={fmtPrice(equity, 0)} />
+              <StatCard label="P&L" value={fmtPnl(pnl)} tone={pnlTone} />
+              <StatCard label="Open" value={openCount} />
+              <StatCard label="Closed" value={closedTotal} />
+            </div>
+            {equityCurve.length >= 2 && <EquityCurve curve={equityCurve} height={160} />}
+            <TradesTable
+              title="Open positions"
+              testid="backtest-open-trades"
+              trades={openTrades}
+              open
             />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="backtest-pnl">
-          <StatCard label="Equity" value={fmtPrice(equity, 0)} />
-          <StatCard label="P&L" value={fmtPnl(pnl)} tone={pnlTone} />
-          <StatCard label="Open" value={openCount} />
-          <StatCard label="Closed" value={closedCount} />
-        </div>
-        {equityCurve.length >= 2 && <EquityCurve curve={equityCurve} height={160} />}
-        <TradesTable
-          title="Open positions"
-          testid="backtest-open-trades"
-          trades={openTrades}
-          open
-        />
-        <TradesTable
-          title="Closed trades"
-          testid="backtest-closed-trades"
-          trades={[...closed].reverse()}
-        />
+            <TradesTable
+              title={`Closed trades${closedTotal > closed.length ? ` (latest ${closed.length} of ${closedTotal})` : ""}`}
+              testid="backtest-closed-trades"
+              trades={[...closed].reverse()}
+            />
+          </>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function ResultPanel({ view, live }: { view: BacktestRunView; live: boolean }) {
+function ResultPanel({
+  runId,
+  view,
+  live,
+}: {
+  runId: string;
+  view: BacktestRunView;
+  live: boolean;
+}) {
   const report = view.report ?? {};
   const ret = report.total_return;
-  const trades = view.trades ?? [];
+  const status = view.status ?? "done";
+  // full-fidelity artifacts: every equity point + every trade
+  const equityArtifact = useBacktestEquityArtifact(runId);
+  const tradesArtifact = useBacktestTradesArtifact(runId);
+  const curve = useMemo(() => {
+    const rows = equityArtifact.data;
+    if (rows && rows.length >= 2) {
+      const values = rows.map(([, v]) => v);
+      return view.initial_equity != null
+        ? [view.initial_equity, ...values]
+        : values;
+    }
+    return view.equity_curve ?? []; // legacy records embedded the curve
+  }, [equityArtifact.data, view]);
+  const trades = tradesArtifact.data ?? view.trades ?? [];
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
@@ -433,7 +560,13 @@ function ResultPanel({ view, live }: { view: BacktestRunView; live: boolean }) {
           {view.window && (
             <span className="text-xs text-fg-subtle">
               {view.window[0]} → {view.window[1]}
+              {view.window_truncated && " (truncated by vendor)"}
             </span>
+          )}
+          {status !== "done" && (
+            <Badge variant={STATUS_BADGE[status] ?? "neutral"} data-testid="backtest-status">
+              {status}
+            </Badge>
           )}
           <Badge variant={view.provider === "deterministic" ? "default" : "accent"}>
             {view.provider}
@@ -453,24 +586,37 @@ function ResultPanel({ view, live }: { view: BacktestRunView; live: boolean }) {
           <StatCard label="Max DD" value={fmtPct(report.max_drawdown)} tone="bear" />
           <StatCard label="Trades" value={view.n_trades ?? 0} />
         </div>
-        {view.provider !== "deterministic" && view.est_cost_usd != null && (
-          <p className="text-xs text-fg-subtle">
-            {view.llm_calls} model calls · est ${view.est_cost_usd.toFixed(2)}
-          </p>
-        )}
-        {view.equity_curve && view.equity_curve.length >= 2 && (
+        <p className="text-xs text-fg-subtle" data-testid="backtest-provenance">
+          {view.decisions != null && (
+            <>{view.decisions.toLocaleString()} decisions · one per bar (full density)</>
+          )}
+          {view.indicator_mode && <> · indicators: {view.indicator_mode}</>}
+          {view.provider !== "deterministic" && view.est_cost_usd != null && (
+            <>
+              {" "}· {view.llm_calls} model calls · est ${view.est_cost_usd.toFixed(2)}
+            </>
+          )}
+        </p>
+        {curve.length >= 2 && (
           <EquityCurve
-            curve={view.equity_curve}
+            curve={curve}
             monteCarlo={view.monte_carlo}
             showDrawdown
             height={220}
           />
         )}
-        <TradesTable
-          title="Trades"
-          testid="backtest-result-trades"
-          trades={trades}
-        />
+        <TradesTable title="Trades" testid="backtest-result-trades" trades={trades} />
+        {status === "cancelled" && (
+          <p className="text-xs text-fg-subtle">
+            Cancelled mid-run — metrics cover the completed portion only.
+          </p>
+        )}
+        {status === "interrupted" && (
+          <p className="text-xs text-fg-subtle">
+            Interrupted by a server restart — recovered up to the last
+            checkpoint; metrics are partial.
+          </p>
+        )}
         {view.provider === "deterministic" && (
           <p className="text-xs text-fg-subtle">
             Deterministic replay — mechanics only, not an edge measurement.
@@ -555,11 +701,16 @@ function SavedRuns({
   onLive,
 }: {
   selectedRunId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   onLive: () => void;
 }) {
   const runsQuery = useBacktestRuns();
+  const qc = useQueryClient();
   const runs = runsQuery.data?.runs ?? [];
+  const remove = async (id: string) => {
+    await deleteBacktestRun(qc, id);
+    if (selectedRunId === id) onSelect(null);
+  };
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
@@ -573,7 +724,7 @@ function SavedRuns({
       <CardContent>
         {runs.length === 0 ? (
           <p className="text-xs text-fg-subtle">
-            Completed runs are auto-saved here (last {10}). None yet.
+            Completed runs are auto-saved here (last 25). None yet.
           </p>
         ) : (
           <div className="overflow-x-auto" data-testid="backtest-saved-runs">
@@ -585,6 +736,7 @@ function SavedRuns({
                   <th className="px-2 py-1 text-left">TF</th>
                   <th className="px-2 py-1 text-left">Len</th>
                   <th className="px-2 py-1 text-left">Engine</th>
+                  <th className="px-2 py-1 text-left">Status</th>
                   <th className="px-2 py-1 text-right">Return</th>
                   <th className="px-2 py-1 text-right">Trades</th>
                   <th className="px-2 py-1" />
@@ -605,6 +757,15 @@ function SavedRuns({
                     <td className="px-2 py-1">
                       {r.provider === "deterministic" ? "det" : "AI"}
                     </td>
+                    <td className="px-2 py-1">
+                      {(r.status ?? "done") === "done" ? (
+                        <span className="text-fg-subtle">done</span>
+                      ) : (
+                        <Badge variant={STATUS_BADGE[r.status ?? ""] ?? "neutral"}>
+                          {r.status}
+                        </Badge>
+                      )}
+                    </td>
                     <td
                       className={`px-2 py-1 text-right ${
                         r.total_return != null
@@ -618,9 +779,21 @@ function SavedRuns({
                     </td>
                     <td className="px-2 py-1 text-right">{r.n_trades ?? 0}</td>
                     <td className="px-2 py-1 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => onSelect(r.id)}>
-                        View
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => onSelect(r.id)}>
+                          View
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-fg-subtle hover:text-bear"
+                          aria-label={`Delete run ${r.id}`}
+                          data-testid={`backtest-delete-${r.id}`}
+                          onClick={() => void remove(r.id)}
+                        >
+                          <Trash2 size={12} />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

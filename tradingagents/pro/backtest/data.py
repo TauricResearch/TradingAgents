@@ -30,7 +30,11 @@ from tradingagents.contracts import (
     NewsItem,
     OHLCVBar,
 )
-from tradingagents.pro.ingestion.indicators import DEFAULT_INDICATOR_NAMES, compute_indicators
+from tradingagents.pro.ingestion.indicators import (
+    DEFAULT_INDICATOR_NAMES,
+    compute_indicator_series,
+    compute_indicators,
+)
 
 
 class HistoricalCorpus:
@@ -103,6 +107,7 @@ class BarReplay:
         window: int = 250,
         indicator_names: Sequence[str] = DEFAULT_INDICATOR_NAMES,
         corpus: HistoricalCorpus | None = None,
+        precompute_indicators: bool = False,
     ):
         bars = sorted(bars, key=lambda b: b.start)
         timeframes = {b.timeframe for b in bars}
@@ -116,9 +121,49 @@ class BarReplay:
         self.window = window
         self.indicator_names = tuple(indicator_names)
         self.corpus = corpus
+        self.precompute_indicators = precompute_indicators
+        self._series: dict[str, dict] | None = None  # lazy full-run series
 
     def __len__(self) -> int:
         return len(self.bars)
+
+    @property
+    def indicator_mode(self) -> str:
+        """Provenance label recorded with every backtest result."""
+        return "full_history" if self.precompute_indicators else "windowed"
+
+    def _indicators_at(self, i: int):
+        """Point-in-time readings at bar ``i`` from series computed ONCE over
+        the whole run — O(total) instead of O(bars × window × indicators).
+
+        Look-ahead-safe by construction: every supported indicator's value at
+        index i is a function of bars ≤ i only (rolling windows, Wilder/EMA
+        recursions from the series start, day-anchored VWAP, cumulative OBV).
+        Warm-up discipline is inherited from compute_indicator_series (None
+        inside the warm-up window → the reading is omitted, exactly like the
+        windowed path omits it). Fidelity note: recursive indicators (RSI,
+        EMA, MACD, ADX) are seeded from the series START here — the textbook
+        form — whereas the windowed path truncates history to ``window`` bars;
+        results carry ``indicator_mode`` so runs are never silently mixed.
+        """
+        from tradingagents.contracts import IndicatorReading
+
+        if self._series is None:
+            self._series = compute_indicator_series(self.bars, self.indicator_names)
+        timeframe = self.bars[0].timeframe
+        readings = []
+        for name, block in self._series.items():
+            value = {
+                key: values[i]
+                for key, values in block["series"].items()
+                if values[i] is not None
+            }
+            if len(value) == len(block["series"]):  # all lines warmed up
+                readings.append(IndicatorReading(
+                    name=name, timeframe=timeframe,
+                    value=value, params=block["params"],
+                ))
+        return readings
 
     def snapshot_at(self, i: int) -> MarketSnapshot:
         """Snapshot as of the close of bar ``i`` — bars after i do not exist."""
@@ -131,12 +176,16 @@ class BarReplay:
             if self.corpus is not None
             else {"macro": [], "onchain": [], "news": []}
         )
+        indicators = (
+            self._indicators_at(i) if self.precompute_indicators
+            else compute_indicators(visible, self.indicator_names)
+        )
         return MarketSnapshot(
             symbol=self.symbol,
             asset=self.asset,
             as_of=as_of,
             bars=visible,
-            indicators=compute_indicators(visible, self.indicator_names),
+            indicators=indicators,
             macro=context["macro"],
             onchain=context["onchain"],
             news=context["news"],

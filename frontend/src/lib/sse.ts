@@ -198,14 +198,25 @@ export function startEventStream(client: QueryClient): () => void {
 
     source.addEventListener("backtest_done", (event) => {
       bump(event);
+      // slim terminal event: {job_id, status, summary} — the record +
+      // artifacts are fetched via queries, never carried on the stream
       try {
-        const done = JSON.parse((event as MessageEvent).data) as { view: never };
-        useBacktestLiveStore.getState().setDone(done.view);
+        const done = JSON.parse((event as MessageEvent).data) as {
+          job_id?: string;
+          status?: string;
+          summary?: { id?: string } | null;
+        };
+        useBacktestLiveStore
+          .getState()
+          .finish(
+            done.status === "cancelled" ? "cancelled" : "done",
+            done.summary?.id ?? done.job_id ?? null,
+          );
       } catch {
         /* malformed payload — cache refresh below still runs */
       }
       void client.invalidateQueries({ queryKey: qk.backtest });
-      void client.invalidateQueries({ queryKey: qk.backtestRuns });
+      void client.invalidateQueries({ queryKey: ["backtest", "runs"] });
     });
 
     source.addEventListener("backtest_error", (event) => {
