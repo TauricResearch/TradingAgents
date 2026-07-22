@@ -278,7 +278,9 @@ class TestRel01Durability:
         from tradingagents.pro.service import PaperTradingService
 
         revived = PaperTradingService(
-            FakePipelineLLM(), CONFIG, ScriptedSnapshots([131.0, 145.0]),
+            # 150 clears the final ladder rung (3.5R ≈ entry + 17.5 on the
+            # fixture's 2.5 ATR) so the revived service closes via TP
+            FakePipelineLLM(), CONFIG, ScriptedSnapshots([131.0, 150.0]),
             router=router, memory=memory,
             dashboard_state=DashboardState(memory=memory),
         )

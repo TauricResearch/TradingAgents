@@ -65,7 +65,7 @@ class TestEndToEnd:
         # Fake bars close ~130; ATR levels put stop ~125, final target ~140.
         memory = ProMemory()
         metrics = MetricsRegistry()
-        service = make_service([130.0, 145.0], memory=memory, metrics=metrics)
+        service = make_service([130.0, 150.0], memory=memory, metrics=metrics)
 
         first = service.run_once()
         assert first["order_status"] == "filled"
@@ -211,7 +211,7 @@ class TestEventHookAndRecorderCap:
     def test_on_event_receives_run_position_status(self):
         events = []
         memory = ProMemory()
-        service = make_service([130.0, 145.0], memory=memory)
+        service = make_service([130.0, 150.0], memory=memory)
         service.on_event = lambda t, d: events.append((t, d))
 
         service.run_once()

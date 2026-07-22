@@ -41,9 +41,14 @@ class RiskLimits(ContractModel):
     # --- profit-taking geometry (R-based: derived from the actual stop
     # distance so tighter invalidation stops keep the same reward shape) ---
     tp_r_multiples: list[float] = Field(
-        default=[1.0, 3.0],
+        default=[0.5, 3.5],
         description="Take-profit ladder in R (multiples of entry→stop risk). "
-        "Defaults give a size-weighted planned R:R of exactly 2.0.",
+        "Defaults give a size-weighted planned R:R of exactly 2.0 AND a "
+        "structural ~67% hit rate: price reaches +0.5R before -1R about "
+        "two-thirds of the time (first-passage asymmetry), and the "
+        "breakeven-after-TP1 lock converts every such touch into a win. "
+        "Geometry redistributes outcomes (many small wins, occasional "
+        "runners); expectancy still comes from entry quality.",
     )
     tp_fractions: list[float] = Field(
         default=[0.5, 0.5],

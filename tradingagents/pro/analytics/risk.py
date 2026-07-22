@@ -150,13 +150,14 @@ def take_profits_from_risk(
     entry: float,
     stop: float,
     side: str,
-    r_multiples: Sequence[float] = (1.0, 3.0),
+    r_multiples: Sequence[float] = (0.5, 3.5),
     fractions: Sequence[float] = (0.5, 0.5),
 ) -> list[TakeProfitLevel]:
     """R-based take-profit ladder: rungs at multiples of the ACTUAL
     entry→stop risk, not raw ATR — so a tighter invalidation-derived stop
-    keeps the same reward geometry. Defaults (1R for half, 3R for half)
-    give a size-weighted planned R:R of exactly 2.0.
+    keeps the same reward geometry. Defaults (0.5R for half, 3.5R for half)
+    give a size-weighted planned R:R of exactly 2.0 and a structural ~67%
+    hit rate (see RiskLimits.tp_r_multiples).
     """
     if entry <= 0:
         raise ValueError("entry must be positive")
