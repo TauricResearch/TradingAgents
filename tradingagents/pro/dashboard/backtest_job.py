@@ -95,6 +95,10 @@ _EST_DECISIONS_PER_SECOND = 10
 # artifact — this bounds a 2s-interval poll payload, it loses nothing)
 SNAPSHOT_TRADES = 100
 _ASSET_BY_SYMBOL = {sym: asset for asset, sym in DEFAULT_SYMBOLS.items()}
+# strategies the dashboard job can run (track T1). rules_v1 is the
+# deterministic pipeline; pipeline_llm is the same pipeline on the operator's
+# model bundle (built here, since the bundle is environment, not a param).
+_KNOWN_STRATEGIES = ("rules_v1", "pipeline_llm")
 # assets that do NOT trade 24/7: daily bar counts scale by trading days
 _MARKET_CLOSURE_ASSETS = {AssetClass.GOLD}
 _TRADING_DAYS_PER_YEAR = 252
@@ -118,6 +122,12 @@ class BacktestRunRequest(BaseModel):
     # cap, not risk_pct, sets realized risk per trade.
     risk_per_trade_pct: float = Field(default=1.0, gt=0, le=5)
     max_position_pct: float = Field(default=33.0, gt=0, le=100)
+    # Strategy SDK (track T1). None ⇒ derive from use_llm (back-compat:
+    # use_llm True → pipeline_llm, else rules_v1). strategy_params are
+    # validated against the strategy's declared ParamSpace (→ 422 on a bad
+    # name/value) and recorded for reproducibility.
+    strategy_id: str | None = Field(default=None, max_length=32)
+    strategy_params: dict = Field(default_factory=dict)
 
 
 def bars_for_duration(duration: str, timeframe: Timeframe,
@@ -217,6 +227,7 @@ def summary_from_view(record_id: str, created_at: str, view: dict) -> dict:
         "initial_equity": view.get("initial_equity"),
         "risk_per_trade_pct": view.get("risk_per_trade_pct"),
         "max_position_pct": view.get("max_position_pct"),
+        "strategy_id": view.get("strategy_id"),
         "est_cost_usd": view.get("est_cost_usd"),
     }
 
@@ -449,8 +460,19 @@ def resolve_request(marketdata: MarketDataService, params: dict) -> dict:
     if duration not in DURATION_SECONDS:
         raise ValueError(f"unknown duration {duration}")
 
+    # strategy selection (track T1). strategy_id wins over use_llm; when
+    # absent, derive it so pre-SDK requests keep working unchanged.
+    strategy_id = params.get("strategy_id") or (
+        "pipeline_llm" if params.get("use_llm") else "rules_v1")
+    if strategy_id not in _KNOWN_STRATEGIES:
+        raise ValueError(
+            f"unknown strategy {strategy_id}; available: {sorted(_KNOWN_STRATEGIES)}")
+    from tradingagents.pro.backtest.strategies import RULES_V1_PARAMS
+
+    strategy_params = RULES_V1_PARAMS.resolve(params.get("strategy_params") or {})
+    use_llm = strategy_id == "pipeline_llm"
+
     bars = bars_for_duration(duration, tf, asset)
-    use_llm = bool(params.get("use_llm"))
     decisions = max(1, bars - MIN_HISTORY)
     if use_llm:
         # hard cost cap: trim to the most-recent MAX_LLM_DECISIONS window
@@ -469,6 +491,8 @@ def resolve_request(marketdata: MarketDataService, params: dict) -> dict:
         "duration": duration,
         "bars": bars,
         "use_llm": use_llm,
+        "strategy_id": strategy_id,
+        "strategy_params": strategy_params,
         "initial_equity": float(params.get("initial_equity", 100_000.0)),
         "risk_per_trade_pct": float(params.get("risk_per_trade_pct", 1.0)),
         "max_position_pct": float(params.get("max_position_pct", 33.0)),
@@ -553,6 +577,7 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
         record = {
             "id": job.id,
             "created_at": created_at,
+            "schema_version": 1,
             "params": job.params,
             "status": status,
             "summary": summary,
@@ -600,7 +625,21 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                            max_debate_rounds=1, risk=risk,
                            models=_routing(resolved["use_llm"]))
         cache_dir = _cache_dir(symbol, tf)
-        llm, trackers, provider = _build_llm(resolved["use_llm"], config, cache_dir)
+        # build the strategy (track T1). rules_v1 is self-contained; pipeline_llm
+        # wraps the cost-tracked/cached operator bundle (built here — it's
+        # environment, not a tunable). strategy.bind() applies strategy_params
+        # to config and builds the pipeline; the engine adopts that config.
+        from tradingagents.pro.backtest import PipelineStrategy, build_strategy
+        from tradingagents.pro.backtest.strategies import apply_rules_v1_params
+
+        if resolved["strategy_id"] == "pipeline_llm":
+            bundle, trackers, provider = _build_llm(True, config, cache_dir)
+            strategy = PipelineStrategy(
+                "pipeline_llm", resolved["strategy_params"],
+                llm_factory=lambda: bundle, config_patch=apply_rules_v1_params)
+        else:
+            trackers, provider = (), "rules"
+            strategy = build_strategy("rules_v1", resolved["strategy_params"])
 
         from tradingagents.pro.memory import ProMemory
 
@@ -610,8 +649,9 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                            precompute_indicators=True)
         total_decisions = max(1, len(bars) - 1 - MIN_HISTORY)
         engine = _StreamingEngine(
-            llm, config,
+            None, config,
             replay,
+            strategy=strategy,
             broker=SimBroker(
                 initial_equity=resolved["initial_equity"],
                 max_open_positions=config.risk.max_open_positions,
@@ -654,6 +694,9 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                 "initial_equity": resolved["initial_equity"],
                 "risk_per_trade_pct": resolved["risk_per_trade_pct"],
                 "max_position_pct": resolved["max_position_pct"],
+                "strategy_id": resolved["strategy_id"],
+                "strategy_params": resolved["strategy_params"],
+                "schema_version": 1,
                 "artifacts": ["equity", "trades", "decisions"],
             })
             if trackers:
@@ -747,6 +790,8 @@ def recover_interrupted(store, artifacts_base=None) -> dict | None:
         "final_equity": final_equity,
         "n_trades": len(trades),
         "decisions": len(decisions),
+        "strategy_id": params.get("strategy_id"),
+        "schema_version": 1,
         "report": {
             "total_return": (final_equity - initial_equity) / initial_equity
             if initial_equity else 0.0,
@@ -758,6 +803,7 @@ def recover_interrupted(store, artifacts_base=None) -> dict | None:
     record = {
         "id": run_id,
         "created_at": created_at,
+        "schema_version": 1,
         "params": params,
         "status": "interrupted",
         "summary": summary_from_view(run_id, created_at, view),

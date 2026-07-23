@@ -207,6 +207,40 @@ def test_run_request_sizing_bounds():
         btjob.BacktestRunRequest(**base, max_position_pct=101)
 
 
+def test_resolve_strategy_defaults_and_back_compat():
+    market = _StubMarket(make_bars(n=80), timeframes=tuple(Timeframe))
+    base = {"symbol": "BTC-USD", "timeframe": "1d", "duration": "7D"}
+    # no strategy_id, no use_llm -> rules_v1 (deterministic)
+    r = btjob.resolve_request(market, base)
+    assert r["strategy_id"] == "rules_v1" and r["use_llm"] is False
+    assert r["strategy_params"] == {"tp_ladder": "0.5/3.5",
+                                    "min_risk_reward": 1.8,
+                                    "stop_cooldown_bars": 10}
+    # use_llm=True (legacy toggle) -> pipeline_llm (needs cost confirm)
+    with pytest.raises(btjob._CostConfirmationRequired):
+        btjob.resolve_request(market, {**base, "use_llm": True})
+    r = btjob.resolve_request(market, {**base, "use_llm": True,
+                                       "confirm_cost": True})
+    assert r["strategy_id"] == "pipeline_llm" and r["use_llm"] is True
+    # explicit strategy_id wins over use_llm
+    r = btjob.resolve_request(market, {**base, "strategy_id": "rules_v1",
+                                       "use_llm": True})
+    assert r["strategy_id"] == "rules_v1" and r["use_llm"] is False
+
+
+def test_resolve_rejects_unknown_strategy_and_bad_params():
+    market = _StubMarket(make_bars(n=80), timeframes=tuple(Timeframe))
+    base = {"symbol": "BTC-USD", "timeframe": "1d", "duration": "7D"}
+    with pytest.raises(ValueError, match="unknown strategy"):
+        btjob.resolve_request(market, {**base, "strategy_id": "nope_v9"})
+    with pytest.raises(ValueError, match="outside declared domain"):
+        btjob.resolve_request(
+            market, {**base, "strategy_params": {"stop_cooldown_bars": 99}})
+    with pytest.raises(ValueError, match="unknown parameter"):
+        btjob.resolve_request(
+            market, {**base, "strategy_params": {"typo": 1}})
+
+
 # --- streaming worker (deterministic, offline) ------------------------------
 
 
@@ -235,6 +269,11 @@ def test_run_job_streams_persists_and_writes_full_artifacts(tmp_path):
     assert saved[0]["status"] == "done"
     assert saved[0]["indicator_mode"] == "full_history"
     assert job.result["provider"] == "rules"
+    # strategy provenance (track T1): a no-strategy_id request defaults to
+    # rules_v1 and records the resolved params + schema version
+    assert job.result["strategy_id"] == "rules_v1"
+    assert job.result["strategy_params"]["tp_ladder"] == "0.5/3.5"
+    assert saved[0]["strategy_id"] == "rules_v1"
 
     # zero-loss artifacts: one equity row + one decision row PER DECISION,
     # and every closed trade
@@ -467,6 +506,30 @@ def test_cancel_endpoint(tmp_path, monkeypatch):
             break
         time.sleep(0.05)
     assert client.get("/api/backtest/job").json()["status"] == "cancelled"
+
+
+def test_strategies_endpoint_lists_rules_and_pipeline_llm(tmp_path):
+    state = _state(make_bars(n=140), tmp_path)
+    client = TestClient(create_app(state))
+    resp = client.get("/api/backtest/strategies")
+    assert resp.status_code == 200
+    strategies = {s["id"]: s for s in resp.json()["strategies"]}
+    assert set(strategies) == {"rules_v1", "pipeline_llm"}
+    # both advertise the declared param schema for the UI
+    names = [p["name"] for p in strategies["rules_v1"]["params"]]
+    assert names == ["tp_ladder", "min_risk_reward", "stop_cooldown_bars"]
+    ladder = next(p for p in strategies["rules_v1"]["params"]
+                  if p["name"] == "tp_ladder")
+    assert ladder["default"] == "0.5/3.5" and "1.5/3.0" in ladder["choices"]
+
+
+def test_run_endpoint_rejects_unknown_strategy(tmp_path):
+    state = _state(make_bars(n=140), tmp_path)
+    client = TestClient(create_app(state))
+    resp = client.post("/api/backtest/run",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "7D", "strategy_id": "nope_v9"})
+    assert resp.status_code == 422
 
 
 def test_run_endpoint_validation(tmp_path):
