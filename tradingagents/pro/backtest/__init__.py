@@ -19,11 +19,15 @@ from tradingagents.pro.backtest.engine import BacktestEngine, BacktestResult
 from tradingagents.pro.backtest.llm_cache import CacheMiss, CachingLLM
 from tradingagents.pro.backtest.metrics import (
     PerformanceReport,
+    annualized_return,
     equity_returns,
+    mar_ratio,
     max_drawdown,
+    omega_ratio,
     performance_report,
     sharpe_ratio,
     sortino_ratio,
+    ulcer_index,
 )
 from tradingagents.pro.backtest.montecarlo import (
     MonteCarloSummary,
@@ -112,11 +116,15 @@ __all__ = [
     "PortfolioBacktestResult",
     "PortfolioEngine",
     "PortfolioReplay",
+    "annualized_return",
     "equity_returns",
+    "mar_ratio",
     "max_drawdown",
+    "omega_ratio",
     "performance_report",
     "sharpe_ratio",
     "sortino_ratio",
+    "ulcer_index",
     "MonteCarloSummary",
     "bootstrap_paths",
     "monte_carlo_summary",
