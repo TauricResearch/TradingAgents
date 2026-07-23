@@ -832,6 +832,10 @@ def recover_interrupted(store, artifacts_base=None) -> dict | None:
 # a grid this size or larger requires an explicit confirm (each trial is a full
 # backtest — same time-estimate gate as a large deterministic run)
 OPT_TRIALS_CONFIRM = 50
+# cap optimization worker processes: each holds the window's bars +
+# precomputed indicator series, so unbounded fan-out on a big grid thrashes
+# RAM. min(cpu_count, n_trials, this) picks the effective pool size.
+OPT_MAX_WORKERS = 4
 
 
 class OptimizeRequest(BaseModel):
@@ -918,10 +922,12 @@ def run_optimization_job(state: Any, job: BacktestJob, params: dict) -> None:
     """Worker body (daemon thread): fetch the window once, grid-search the
     strategy's params (each trial a child backtest on the same bars), attach
     the overfitting guards, persist the result, and emit slim SSE events."""
+    import os
+
     from tradingagents.pro.backtest import (
+        EngineTrial,
         Param,
         ParamSpace,
-        engine_backtest_fn,
         run_optimization,
     )
 
@@ -957,10 +963,11 @@ def run_optimization_job(state: Any, job: BacktestJob, params: dict) -> None:
             Param(name, "categorical", choices=tuple(values), default=values[0])
             for name, values in resolved["param_grid"].items()
         ])
-        fn = engine_backtest_fn(
-            resolved["strategy_id"], config,
-            lambda: BarReplay(symbol, resolved["asset"], bars,
-                              window=MIN_HISTORY, precompute_indicators=True),
+        # EngineTrial (not the engine_backtest_fn closure) so the work ships
+        # to worker processes — the trial is a pure function of its params
+        fn = EngineTrial(
+            strategy_id=resolved["strategy_id"], config=config,
+            symbol=symbol, asset=resolved["asset"], bars=bars,
             min_history=MIN_HISTORY,
             periods_per_year=periods_per_year(tf, resolved["asset"]),
             initial_equity=resolved["initial_equity"],
@@ -973,9 +980,13 @@ def run_optimization_job(state: Any, job: BacktestJob, params: dict) -> None:
                             "best_objective": best}
             publish("optimization_progress", job.progress)
 
+        # roadmap R1: trials are embarrassingly parallel — fan them across
+        # cores when the box has them (1-vCPU prod resolves to 1 = serial).
+        # Capped so a big grid can't spawn a worker per trial and thrash RAM.
+        workers = min(os.cpu_count() or 1, resolved["n_trials"], OPT_MAX_WORKERS)
         result = run_optimization(
             space, fn, search="grid", objective_name=resolved["objective"],
-            on_trial=on_trial, cancel=job.cancel.is_set)
+            on_trial=on_trial, cancel=job.cancel.is_set, max_workers=workers)
 
         created_at = datetime.now(timezone.utc).isoformat()
         cancelled = job.cancel.is_set()

@@ -19,6 +19,7 @@ from tradingagents.pro.backtest.montecarlo import (
     monte_carlo_summary,
 )
 from tradingagents.pro.backtest.optimize import (
+    EngineTrial,
     OptResult,
     Trial,
     engine_backtest_fn,
@@ -99,6 +100,7 @@ __all__ = [
     "OptResult",
     "Trial",
     "deflated_sharpe_ratio",
+    "EngineTrial",
     "engine_backtest_fn",
     "objective_choices",
     "probability_of_backtest_overfitting",

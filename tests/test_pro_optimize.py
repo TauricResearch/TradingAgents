@@ -17,6 +17,7 @@ from tradingagents.contracts import (
 )
 from tradingagents.pro.backtest import (
     BarReplay,
+    EngineTrial,
     Param,
     ParamSpace,
     engine_backtest_fn,
@@ -25,6 +26,14 @@ from tradingagents.pro.backtest import (
 
 CONFIG = ProConfig(asset=AssetClass.GOLD, mode=TradingMode.BACKTEST,
                    max_debate_rounds=1)
+
+
+def _picklable_trial(params):
+    """Module-level (picklable) synthetic trial for the process-pool tests."""
+    x = params["x"]
+    objective = -((x - 3) ** 2)
+    returns = [0.001 * x + (0.004 if i % 2 else -0.004) for i in range(60)]
+    return objective, returns
 
 
 # --- pure driver (synthetic backtest_fn) -------------------------------------
@@ -108,3 +117,55 @@ class TestEngineAdapter:
         assert result.best_params["donchian_period"] in (15, 20, 25)
         # a real objective was produced for the winner
         assert isinstance(result.best_objective, float)
+
+
+# --- process-pool parallelism (roadmap R1) -----------------------------------
+
+
+class TestParallel:
+    def _space(self):
+        return ParamSpace(Param("x", "int", 1, 5, default=3))
+
+    def test_parallel_matches_serial_exactly(self):
+        # determinism guarantee: fanning trials across processes must not
+        # change the selected best, ranking, or the guards
+        serial = run_optimization(self._space(), _picklable_trial,
+                                  search="grid", max_workers=1)
+        parallel = run_optimization(self._space(), _picklable_trial,
+                                    search="grid", max_workers=3)
+        assert [t.params for t in parallel.trials] == \
+               [t.params for t in serial.trials]
+        assert [t.objective for t in parallel.trials] == \
+               [t.objective for t in serial.trials]
+        assert parallel.best_params == serial.best_params
+        assert parallel.deflated_sharpe == serial.deflated_sharpe
+        assert parallel.pbo == serial.pbo
+
+    def test_on_trial_fires_for_every_completed_trial(self):
+        seen = []
+        run_optimization(self._space(), _picklable_trial, search="grid",
+                         max_workers=3,
+                         on_trial=lambda done, total, best: seen.append((done, total)))
+        assert len(seen) == 5  # one per trial
+        assert seen[-1] == (5, 5)  # final progress reaches the full count
+
+    def test_engine_trial_is_picklable_and_parallelizes(self):
+        import pickle
+
+        bars = _uptrend()
+        trial = EngineTrial(
+            strategy_id="trend_following_v1", config=CONFIG,
+            symbol="XAUUSD", asset=AssetClass.GOLD, bars=bars,
+            min_history=60, objective_name="total_return")
+        # the whole point: it survives a pickle round-trip (closures don't)
+        assert pickle.loads(pickle.dumps(trial)).strategy_id == "trend_following_v1"
+        space = ParamSpace(Param("donchian_period", "int", 15, 25, step=5,
+                                 default=20))
+        serial = run_optimization(space, trial, search="grid",
+                                  objective_name="total_return", max_workers=1)
+        parallel = run_optimization(space, trial, search="grid",
+                                    objective_name="total_return", max_workers=3)
+        assert parallel.n_trials == 3
+        assert [t.objective for t in parallel.trials] == \
+               [t.objective for t in serial.trials]
+        assert parallel.best_params == serial.best_params
