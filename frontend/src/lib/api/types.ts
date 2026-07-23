@@ -408,7 +408,31 @@ export const BacktestRunViewSchema = BacktestSchema.extend({
   initial_equity: z.number().optional(),
   risk_per_trade_pct: z.number().optional(),
   max_position_pct: z.number().optional(),
+  strategy_id: z.string().optional(),
+  strategy_params: z.record(z.unknown()).optional(),
   artifacts: z.array(z.string()).optional(),
+});
+
+/** Strategy discovery (GET /api/backtest/strategies) — drives the run
+ * controls' strategy picker + dynamic parameter inputs (track T1). */
+export const BacktestStrategyParamSchema = z.object({
+  name: z.string(),
+  kind: z.enum(["float", "int", "categorical"]),
+  low: z.number().nullable().optional(),
+  high: z.number().nullable().optional(),
+  step: z.number().nullable().optional(),
+  choices: z.array(z.union([z.string(), z.number()])).default([]),
+  default: z.union([z.string(), z.number()]).nullable().optional(),
+});
+export type BacktestStrategyParam = z.infer<typeof BacktestStrategyParamSchema>;
+export const BacktestStrategySchema = z.object({
+  id: z.string(),
+  description: z.string().default(""),
+  params: z.array(BacktestStrategyParamSchema).default([]),
+});
+export type BacktestStrategy = z.infer<typeof BacktestStrategySchema>;
+export const BacktestStrategiesSchema = z.object({
+  strategies: z.array(BacktestStrategySchema),
 });
 export type BacktestRunView = z.infer<typeof BacktestRunViewSchema>;
 

@@ -27,10 +27,16 @@ import {
   useBacktestJob,
   useBacktestRun,
   useBacktestRuns,
+  useBacktestStrategies,
   useBacktestTradesArtifact,
   useSymbols,
 } from "@/lib/api/queries";
-import type { BacktestRunView, BacktestTrade } from "@/lib/api/types";
+import type {
+  BacktestRunView,
+  BacktestStrategy,
+  BacktestStrategyParam,
+  BacktestTrade,
+} from "@/lib/api/types";
 import { planRun } from "@/lib/backtestPlan";
 import { fmtDateTime, fmtPct, fmtPnl, fmtPrice } from "@/lib/format";
 import {
@@ -46,6 +52,16 @@ const SYMBOL_LABELS: Record<string, string> = {
 };
 const TF_CHOICES = ["5m", "15m", "1h", "4h", "1d"] as const;
 const DURATIONS = ["1D", "7D", "30D", "1Y"] as const;
+const STRATEGY_LABELS: Record<string, string> = {
+  rules_v1: "Rules (deterministic)",
+  pipeline_llm: "AI pipeline (LLM)",
+};
+// friendlier labels for the declared strategy params (fallback: the raw name)
+const PARAM_LABELS: Record<string, string> = {
+  tp_ladder: "TP ladder (R)",
+  min_risk_reward: "Min R:R",
+  stop_cooldown_bars: "Cooldown bars",
+};
 
 const STATUS_BADGE: Record<string, "default" | "bear" | "neutral"> = {
   done: "default",
@@ -70,7 +86,29 @@ export default function BacktestPage() {
   }, [spec]);
   const [timeframe, setTimeframe] = useState<string>("1h");
   const [duration, setDuration] = useState<string>("7D");
-  const [useLlm, setUseLlm] = useState(false);
+  // strategy picker (track T1): the registered strategies + their declared
+  // param schema drive the controls dynamically. useLlm is derived so the
+  // plan line + cost-confirm keep working (pipeline_llm still triggers the
+  // 400 cost gate server-side).
+  const strategiesQuery = useBacktestStrategies();
+  const strategies = useMemo(
+    () => strategiesQuery.data?.strategies ?? [],
+    [strategiesQuery.data],
+  );
+  const [strategyId, setStrategyId] = useState("rules_v1");
+  const [strategyParams, setStrategyParams] = useState<
+    Record<string, string | number>
+  >({});
+  const useLlm = strategyId === "pipeline_llm";
+  // reset params to the selected strategy's declared defaults when the
+  // strategy changes (or the schema first loads)
+  useEffect(() => {
+    const s = strategies.find((x) => x.id === strategyId);
+    if (!s) return;
+    const defaults: Record<string, string | number> = {};
+    for (const p of s.params) if (p.default != null) defaults[p.name] = p.default;
+    setStrategyParams(defaults);
+  }, [strategyId, strategies]);
   const [initialEquity, setInitialEquity] = useState(100_000);
   // sizing: 1% risk target; spot-max 33%/position (3 positions ≈ 99% gross,
   // no leverage) — the caps mirror the backend request-model bounds
@@ -155,7 +193,8 @@ export default function BacktestPage() {
         symbol,
         timeframe,
         duration,
-        use_llm: useLlm,
+        strategy_id: strategyId,
+        strategy_params: strategyParams,
         confirm_cost: confirmCost,
         initial_equity: initialEquity,
         risk_per_trade_pct: riskPct,
@@ -196,8 +235,12 @@ export default function BacktestPage() {
         setTimeframe={setTimeframe}
         duration={duration}
         setDuration={setDuration}
+        strategies={strategies}
+        strategyId={strategyId}
+        setStrategyId={setStrategyId}
+        strategyParams={strategyParams}
+        setStrategyParams={setStrategyParams}
         useLlm={useLlm}
-        setUseLlm={setUseLlm}
         initialEquity={initialEquity}
         setInitialEquity={setInitialEquity}
         riskPct={riskPct}
@@ -256,8 +299,12 @@ function RunControls(props: {
   setTimeframe: (s: string) => void;
   duration: string;
   setDuration: (s: string) => void;
+  strategies: BacktestStrategy[];
+  strategyId: string;
+  setStrategyId: (s: string) => void;
+  strategyParams: Record<string, string | number>;
+  setStrategyParams: (p: Record<string, string | number>) => void;
   useLlm: boolean;
-  setUseLlm: (b: boolean) => void;
   initialEquity: number;
   setInitialEquity: (n: number) => void;
   riskPct: number;
@@ -275,6 +322,14 @@ function RunControls(props: {
   const symbols = props.tradeable.length ? props.tradeable : ["BTC-USD", "XAUUSD"];
   const plan = planRun(props.symbol, props.timeframe, props.duration, props.useLlm);
   const freeConfirm = props.cost != null && props.cost.est_cost_usd === 0;
+  // fall back to the known strategy ids until /strategies resolves, so the
+  // picker is never empty
+  const strategyOptions = props.strategies.length
+    ? props.strategies.map((s) => s.id)
+    : ["rules_v1", "pipeline_llm"];
+  const selectedStrategy = props.strategies.find((s) => s.id === props.strategyId);
+  const setParam = (name: string, value: string | number) =>
+    props.setStrategyParams({ ...props.strategyParams, [name]: value });
   return (
     <Card>
       <CardHeader>
@@ -325,16 +380,29 @@ function RunControls(props: {
               ))}
             </Segmented>
           </Field>
-          <Field label="Engine">
-            <Segmented data-testid="backtest-llm-toggle">
-              <Segment active={!props.useLlm} onClick={() => props.setUseLlm(false)}>
-                Deterministic
-              </Segment>
-              <Segment active={props.useLlm} onClick={() => props.setUseLlm(true)}>
-                Use AI (LLM)
-              </Segment>
-            </Segmented>
+          <Field label="Strategy">
+            <select
+              aria-label="Strategy"
+              data-testid="backtest-strategy"
+              value={props.strategyId}
+              onChange={(e) => props.setStrategyId(e.target.value)}
+              className="h-[30px] rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs"
+            >
+              {strategyOptions.map((id) => (
+                <option key={id} value={id}>
+                  {STRATEGY_LABELS[id] ?? id}
+                </option>
+              ))}
+            </select>
           </Field>
+          {selectedStrategy?.params.map((param) => (
+            <StrategyParamField
+              key={param.name}
+              param={param}
+              value={props.strategyParams[param.name]}
+              onChange={(v) => setParam(param.name, v)}
+            />
+          ))}
           <Field label="Starting equity">
             <input
               type="number"
@@ -465,6 +533,59 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </div>
   );
+}
+
+/** One declared strategy parameter, rendered per its kind: categorical →
+ * select of choices; int/float → bounded number input. Values flow back up
+ * so the run request carries strategy_params (recorded for reproducibility). */
+function StrategyParamField({
+  param,
+  value,
+  onChange,
+}: {
+  param: BacktestStrategyParam;
+  value: string | number | undefined;
+  onChange: (v: string | number) => void;
+}) {
+  const label = PARAM_LABELS[param.name] ?? param.name.replace(/_/g, " ");
+  const current = value ?? param.default ?? "";
+  const input =
+    param.kind === "categorical" ? (
+      <select
+        aria-label={label}
+        data-testid={`backtest-param-${param.name}`}
+        value={String(current)}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-[30px] rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs"
+      >
+        {param.choices.map((c) => (
+          <option key={String(c)} value={String(c)}>
+            {String(c)}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <input
+        type="number"
+        aria-label={label}
+        data-testid={`backtest-param-${param.name}`}
+        min={param.low ?? undefined}
+        max={param.high ?? undefined}
+        step={param.step ?? (param.kind === "int" ? 1 : 0.1)}
+        value={current}
+        onChange={(e) => {
+          const raw = Number(e.target.value);
+          if (Number.isNaN(raw)) return;
+          const clamped = Math.min(
+            param.high ?? raw,
+            Math.max(param.low ?? raw, raw),
+          );
+          onChange(param.kind === "int" ? Math.round(clamped) : clamped);
+        }}
+        className="h-[30px] w-20 rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-xs tabular"
+      />
+    );
+  return <Field label={label}>{input}</Field>;
 }
 
 function LivePanel() {
@@ -669,6 +790,7 @@ function ResultPanel({
           {view.decisions != null && (
             <>{view.decisions.toLocaleString()} decisions · one per bar (full density)</>
           )}
+          {view.strategy_id && <> · strategy: {view.strategy_id}</>}
           {view.indicator_mode && <> · indicators: {view.indicator_mode}</>}
           {view.risk_per_trade_pct != null && view.max_position_pct != null && (
             <>

@@ -14,6 +14,7 @@ import {
   BacktestJobSchema,
   BacktestRunSchema,
   BacktestRunsSchema,
+  BacktestStrategiesSchema,
   BacktestTradesArtifactSchema,
   BarsSchema,
   CalendarSchema,
@@ -62,6 +63,7 @@ export const qk = {
   backtestRun: (id: string) => ["backtest", "runs", id] as const,
   backtestArtifact: (id: string, name: string) =>
     ["backtest", "runs", id, "artifacts", name] as const,
+  backtestStrategies: ["backtest", "strategies"] as const,
   memory: ["memory"] as const,
   agents: ["agents"] as const,
   symbols: ["symbols"] as const,
@@ -271,6 +273,16 @@ export const useBacktestRuns = () =>
     staleTime: 30_000,
   });
 
+/** Registered strategies + their declared parameter schema (track T1),
+ * so the run controls render the strategy picker + param inputs dynamically.
+ * The set changes only on deploy, so it's effectively static. */
+export const useBacktestStrategies = () =>
+  useQuery({
+    queryKey: qk.backtestStrategies,
+    queryFn: fetchParsed("/api/backtest/strategies", BacktestStrategiesSchema),
+    staleTime: Infinity,
+  });
+
 export const useBacktestRun = (id: string | null) =>
   useQuery({
     queryKey: qk.backtestRun(id ?? "none"),
@@ -366,6 +378,8 @@ export async function runBacktest(
     initial_equity?: number;
     risk_per_trade_pct?: number;
     max_position_pct?: number;
+    strategy_id?: string;
+    strategy_params?: Record<string, string | number>;
   },
 ): Promise<{ job_id: string }> {
   try {
