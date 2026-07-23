@@ -18,12 +18,12 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 | 4 | Institutional best-practices report | [03_institutional_best_practices.md](03_institutional_best_practices.md) | **done (S4)** |
 | 5 | Framework comparison matrix | [04_framework_comparison.md](04_framework_comparison.md), [data/frameworks.csv](data/frameworks.csv) | **done (S5)** |
 | 6 | Gap analysis (TradingView + best-in-class vs ours) | [05_gap_analysis.md](05_gap_analysis.md) | **done (S5)** |
-| 7 | HLD / LLD (evolve-in-place, six tracks) | 06_hld.md, 07_lld.md | pending (S6) |
-| 8 | Data/artifact schema deltas | 08_data_schema.md | pending (S6) |
-| 9 | API specification | 09_api_spec.md | pending (S6) |
-| 10 | Strategy SDK design | 10_strategy_sdk.md | pending (S6) |
+| 7 | HLD / LLD (evolve-in-place, six tracks) | [06_hld.md](06_hld.md), [07_lld.md](07_lld.md) | **done (S6)** |
+| 8 | Data/artifact schema deltas | [08_data_schema.md](08_data_schema.md) | **done (S6)** |
+| 9 | API specification | [09_api_spec.md](09_api_spec.md) | **done (S6)** |
+| 10 | Strategy SDK design | [10_strategy_sdk.md](10_strategy_sdk.md) | **done (S6)** |
 | 11 | Performance recommendations | 11_performance_recommendations.md | pending (S7) |
-| 12 | Validation methodology (anti-overfit / look-ahead) | 12_validation_methodology.md | pending (S6) |
+| 12 | Validation methodology (anti-overfit / look-ahead) | [12_validation_methodology.md](12_validation_methodology.md) | **done (S6)** |
 | 13 | Implementation roadmap | 13_roadmap.md | pending (S7) |
 | 14 | Prioritized backlog with estimates | 14_backlog.md | pending (S7) |
 | 15 | Final recommendation | 15_final_recommendation.md | pending (S7) |
@@ -37,7 +37,7 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 | S3 ✅ | Research C4–C8 → KB frozen at 146 (waves A+B), full dedup + tier audit | **KB freeze**; review missing-data report |
 | S4 ✅ | Pattern mining → derived/ → deliverables 2–4 written | Veto pseudo-precision |
 | S5 ✅ | Framework desk study (10 frameworks + ours) → deliverables 5–6 | Confirm gap priorities |
-| S6 | Architecture → deliverables 7–10, 12 | **Design review** |
+| S6 ✅ | Architecture → deliverables 7–10, 12 (HLD/LLD/schema/API/SDK/validation) | **Design review** |
 | S7 | Deliverables 11, 13–15; wrap | Final sign-off |
 
 ## Commands
