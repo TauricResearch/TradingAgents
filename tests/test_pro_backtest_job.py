@@ -5,12 +5,13 @@ async endpoints."""
 import json
 import threading
 import time
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
 
-from tests.pro_fakes import make_bars
-from tradingagents.contracts import Timeframe
+from tests.pro_fakes import BASE_TS, make_bars
+from tradingagents.contracts import OHLCVBar, Timeframe
 from tradingagents.pro.dashboard import backtest_job as btjob
 from tradingagents.pro.dashboard.backtest_artifacts import RunArtifacts
 from tradingagents.pro.dashboard.backtest_store import BacktestRunStore
@@ -597,6 +598,124 @@ def test_run_endpoint_conflicts_when_busy(tmp_path, monkeypatch):
         busy = client.post("/api/backtest/run",
                            json={"symbol": "XAUUSD", "timeframe": "1d",
                                  "duration": "7D"})
+        assert busy.status_code == 409
+    finally:
+        gate.set()
+
+
+# --- optimization endpoints -------------------------------------------------
+
+
+def _trend_bars(n=200):
+    """Steady uptrend with tight wicks — makes trend_following_v1 break out
+    and trade (a flat series would leave every trial at return 0)."""
+    bars, price = [], 1000.0
+    for i in range(n):
+        price += 2.0
+        bars.append(OHLCVBar(
+            timeframe=Timeframe.D1, start=BASE_TS + timedelta(days=i),
+            open=price, high=price + 0.5, low=price - 0.5, close=price,
+            volume=1_000_000.0))
+    return bars
+
+
+def test_optimize_endpoint_runs_grid_and_records_guards(tmp_path):
+    state = _state(_trend_bars(200), tmp_path)
+    client = TestClient(create_app(state))
+    resp = client.post("/api/backtest/optimize",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "30D", "objective": "total_return",
+                             "param_grid": {"donchian_period": [15, 25],
+                                            "trail_pct": [0.03, 0.05]}})
+    assert resp.status_code == 202, resp.text
+    job_id = resp.json()["job_id"]
+
+    for _ in range(400):  # grid of 4 child backtests — poll up to ~20s
+        status = client.get("/api/backtest/optimize/job").json()
+        if status.get("status") in ("done", "error", "cancelled"):
+            break
+        time.sleep(0.05)
+    assert status["status"] == "done", status.get("error")
+
+    listed = client.get("/api/backtest/optimizations").json()["optimizations"]
+    assert len(listed) == 1 and listed[0]["id"] == job_id
+    assert listed[0]["type"] == "optimization" and listed[0]["n_trials"] == 4
+
+    record = client.get(f"/api/backtest/optimizations/{job_id}").json()
+    view = record["view"]
+    assert view["best_params"]["donchian_period"] in (15, 25)
+    assert view["best_params"]["trail_pct"] in (0.03, 0.05)
+    assert len(view["trials"]) == 4
+    assert view["deflated_sharpe"] is not None and view["pbo"] is not None
+    assert isinstance(view["verdict"], str) and view["verdict"]
+    assert client.get("/api/backtest/optimizations/missing").status_code == 404
+
+
+def test_optimize_endpoint_validation(tmp_path):
+    state = _state(_trend_bars(200), tmp_path)
+    client = TestClient(create_app(state))
+    # unknown symbol
+    assert client.post("/api/backtest/optimize",
+                       json={"symbol": "NOPE", "timeframe": "1d",
+                             "duration": "30D",
+                             "param_grid": {"donchian_period": [15]}}
+                       ).status_code == 422
+    # empty grid — nothing to sweep
+    assert client.post("/api/backtest/optimize",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "30D", "param_grid": {}}
+                       ).status_code == 422
+    # a grid value outside the strategy's declared domain
+    assert client.post("/api/backtest/optimize",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "30D",
+                             "param_grid": {"donchian_period": [999]}}
+                       ).status_code == 422
+    # unknown objective
+    assert client.post("/api/backtest/optimize",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "30D", "objective": "magic",
+                             "param_grid": {"donchian_period": [15]}}
+                       ).status_code == 422
+    # unknown field rejected by the model
+    assert client.post("/api/backtest/optimize",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "30D", "bogus": 1,
+                             "param_grid": {"donchian_period": [15]}}
+                       ).status_code == 422
+
+
+def test_optimize_endpoint_large_grid_needs_cost_confirm(tmp_path):
+    state = _state(_trend_bars(200), tmp_path)
+    client = TestClient(create_app(state))
+    big = {"donchian_period": list(range(10, 60))}  # 50 trials >= confirm gate
+    resp = client.post("/api/backtest/optimize",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "30D", "param_grid": big})
+    assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert detail["error"] == "cost_confirmation_required"
+    assert detail["estimate"]["trials"] == 50
+
+
+def test_optimize_endpoint_conflicts_with_running_backtest(tmp_path, monkeypatch):
+    state = _state(_trend_bars(200), tmp_path)
+    client = TestClient(create_app(state))
+    gate = threading.Event()
+
+    def _blocking_run(st, job, params):
+        gate.wait(timeout=5)
+        job.status = "done"
+
+    monkeypatch.setattr(btjob, "run_job", _blocking_run)
+    assert client.post("/api/backtest/run",
+                       json={"symbol": "XAUUSD", "timeframe": "1d",
+                             "duration": "7D"}).status_code == 202
+    try:
+        busy = client.post("/api/backtest/optimize",
+                           json={"symbol": "XAUUSD", "timeframe": "1d",
+                                 "duration": "30D",
+                                 "param_grid": {"donchian_period": [15, 25]}})
         assert busy.status_code == 409
     finally:
         gate.set()

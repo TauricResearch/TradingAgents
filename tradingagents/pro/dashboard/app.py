@@ -35,7 +35,7 @@ from tradingagents.pro.dashboard import marketdata as md, service
 from tradingagents.pro.dashboard.backtest_store import BacktestRunStore
 from tradingagents.pro.dashboard.events import EventBroadcaster
 from tradingagents.pro.dashboard.intel import IntelService
-from tradingagents.pro.dashboard.prefs import PrefsStore
+from tradingagents.pro.dashboard.prefs import PrefsStore, default_data_dir
 from tradingagents.pro.dashboard.recorder import PipelineRecorder, RunRecord
 from tradingagents.pro.dashboard.ticker import TickCache
 from tradingagents.pro.memory import ProMemory
@@ -65,7 +65,11 @@ class DashboardState:
     memory: ProMemory = field(default_factory=ProMemory)
     backtest: BacktestResult | None = None
     backtest_runs: BacktestRunStore = field(default_factory=BacktestRunStore)
+    backtest_optimizations: BacktestRunStore = field(
+        default_factory=lambda: BacktestRunStore(
+            default_data_dir() / "backtest_optimizations.json"))
     backtest_job = None      # BacktestJob, while an interactive run is in flight
+    backtest_opt_job = None  # BacktestJob, while an optimization is in flight
     monte_carlo = None
     router = None            # ExecutionRouter, when attached to live/paper loop
     equity: float | None = None
@@ -1120,6 +1124,66 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             raise HTTPException(status_code=409, detail="no backtest running")
         job.cancel.set()
         return {"status": "cancelling", "job_id": job.id}
+
+    @app.post("/api/backtest/optimize")
+    async def optimize_backtest(request: Request) -> JSONResponse:
+        """Grid-search a strategy's parameters as a background job (202 +
+        job_id). Each trial is a child backtest on the same window; the result
+        carries the overfitting guards (deflated Sharpe, PBO) + a verdict.
+        Shares the single backtest worker (409 if a run/optimization is
+        already in flight); large grids need confirm_cost (400 + estimate)."""
+        from pydantic import ValidationError
+
+        from tradingagents.pro.dashboard import backtest_job as btjob
+
+        body = await request.json()
+        try:
+            req = btjob.OptimizeRequest.model_validate(body)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+        params = req.model_dump()
+        try:
+            btjob.resolve_optimize_request(state.marketdata, params)
+        except btjob._CostConfirmationRequired as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "cost_confirmation_required",
+                        "estimate": exc.estimate}) from exc
+        except (ValueError, md.UnknownSymbolError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        if not _backtest_lock.acquire(blocking=False):
+            raise HTTPException(status_code=409,
+                                detail="a backtest or optimization is already running")
+        job = btjob.new_job(params)
+        state.backtest_opt_job = job
+
+        def work():
+            try:
+                btjob.run_optimization_job(state, job, params)
+            finally:
+                _backtest_lock.release()
+
+        _bt_threading.Thread(target=work, name="backtest-optimize",
+                             daemon=True).start()
+        return JSONResponse({"job_id": job.id, "status": "started"},
+                            status_code=202)
+
+    @app.get("/api/backtest/optimize/job")
+    def optimize_job_status() -> dict:
+        job = state.backtest_opt_job
+        return job.snapshot() if job is not None else {"status": "idle"}
+
+    @app.get("/api/backtest/optimizations")
+    def optimizations() -> dict:
+        return {"optimizations": state.backtest_optimizations.list()}
+
+    @app.get("/api/backtest/optimizations/{opt_id}")
+    def optimization(opt_id: str) -> dict:
+        record = state.backtest_optimizations.get(opt_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="optimization not found")
+        return record
 
     @app.get("/api/backtest/job")
     def backtest_job_status() -> dict:

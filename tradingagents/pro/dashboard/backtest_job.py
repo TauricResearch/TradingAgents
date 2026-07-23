@@ -827,6 +827,204 @@ def recover_interrupted(store, artifacts_base=None) -> dict | None:
     return record
 
 
+# --- optimization jobs (roadmap P2.5/P2.6 / track T3) ------------------------
+
+# a grid this size or larger requires an explicit confirm (each trial is a full
+# backtest — same time-estimate gate as a large deterministic run)
+OPT_TRIALS_CONFIRM = 50
+
+
+class OptimizeRequest(BaseModel):
+    """Parameter-optimization request (rejects unknown fields → 422). A grid
+    search: ``param_grid`` maps a swept parameter name to the explicit values
+    to try; parameters left out keep the strategy's defaults."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1, max_length=32)
+    timeframe: str = Field(min_length=1, max_length=8)
+    duration: str = Field(default="1Y")
+    strategy_id: str = Field(default="trend_following_v1", max_length=32)
+    param_grid: dict[str, list] = Field(default_factory=dict)
+    objective: str = Field(default="sharpe", max_length=32)
+    initial_equity: float = Field(default=100_000.0, gt=0)
+    confirm_cost: bool = False
+
+
+def _opt_estimate(n_trials: int, decisions: int) -> dict:
+    """Time envelope for a grid: n_trials full backtests, serial."""
+    return {
+        "trials": n_trials,
+        "est_cost_usd": 0.0,
+        "est_minutes": max(1, round(
+            n_trials * decisions / _EST_DECISIONS_PER_SECOND / 60)),
+    }
+
+
+def resolve_optimize_request(marketdata: MarketDataService, params: dict) -> dict:
+    """Validate + normalize an optimization request. Raises ValueError (→422)
+    for unknown symbol/timeframe/duration/strategy or a param outside the
+    strategy's declared domain, and ``_CostConfirmationRequired`` (→400) for a
+    large unconfirmed grid."""
+    from tradingagents.pro.backtest import is_registered, objective_choices
+    from tradingagents.pro.backtest.registry import strategy_param_space
+
+    symbol = params["symbol"]
+    if symbol not in _ASSET_BY_SYMBOL:
+        raise ValueError(f"unknown symbol {symbol}")
+    asset = _ASSET_BY_SYMBOL[symbol]
+    try:
+        tf = Timeframe(params["timeframe"])
+    except ValueError as exc:
+        raise ValueError(f"unknown timeframe {params['timeframe']}") from exc
+    if tf not in marketdata.spec(symbol).timeframes:
+        raise ValueError(f"{symbol} does not support {tf.value}")
+    duration = params["duration"]
+    if duration not in DURATION_SECONDS:
+        raise ValueError(f"unknown duration {duration}")
+
+    strategy_id = params["strategy_id"]
+    if not is_registered(strategy_id):
+        raise ValueError(f"strategy {strategy_id} is not optimizable")
+    space = strategy_param_space(strategy_id)
+    grid = params.get("param_grid") or {}
+    if not grid:
+        raise ValueError("param_grid must sweep at least one parameter")
+    n_trials = 1
+    for name, values in grid.items():
+        if not isinstance(values, list) or not values:
+            raise ValueError(f"param_grid[{name}] must be a non-empty list")
+        for v in values:  # each candidate must be in the strategy's domain
+            space.resolve({name: v})
+        n_trials *= len(values)
+    objective = params.get("objective", "sharpe")
+    if objective not in objective_choices():
+        raise ValueError(
+            f"unknown objective {objective}; choices: {list(objective_choices())}")
+
+    bars = bars_for_duration(duration, tf, asset)
+    decisions = max(1, bars - MIN_HISTORY)
+    if n_trials >= OPT_TRIALS_CONFIRM and not params.get("confirm_cost"):
+        raise _CostConfirmationRequired(_opt_estimate(n_trials, decisions))
+    return {
+        "symbol": symbol, "asset": asset, "timeframe": tf, "duration": duration,
+        "bars": bars, "strategy_id": strategy_id, "param_grid": grid,
+        "objective": objective, "n_trials": n_trials,
+        "initial_equity": float(params.get("initial_equity", 100_000.0)),
+    }
+
+
+def run_optimization_job(state: Any, job: BacktestJob, params: dict) -> None:
+    """Worker body (daemon thread): fetch the window once, grid-search the
+    strategy's params (each trial a child backtest on the same bars), attach
+    the overfitting guards, persist the result, and emit slim SSE events."""
+    from tradingagents.pro.backtest import (
+        Param,
+        ParamSpace,
+        engine_backtest_fn,
+        run_optimization,
+    )
+
+    broadcaster = state.broadcaster
+    store = getattr(state, "backtest_optimizations", None)
+
+    def publish(kind: str, data: dict) -> None:
+        try:
+            broadcaster.publish(kind, {"job_id": job.id, **data})
+        except Exception:
+            logger.debug("broadcast %s failed", kind, exc_info=True)
+
+    try:
+        resolved = resolve_optimize_request(state.marketdata, params)
+        tf: Timeframe = resolved["timeframe"]
+        symbol = resolved["symbol"]
+
+        def on_page(have: int, need: int) -> None:
+            job.progress = {"phase": "fetching", "bars_have": have,
+                            "bars_needed": need,
+                            "pct": round(100.0 * have / max(1, need), 1)}
+            publish("optimization_progress", job.progress)
+
+        bars, truncated = fetch_window(state.marketdata, symbol, tf,
+                                       resolved["bars"], on_page=on_page,
+                                       cancel=job.cancel)
+        if len(bars) < MIN_HISTORY + 5:
+            raise ValueError(f"only {len(bars)} bars available")
+
+        config = ProConfig(asset=resolved["asset"], mode=TradingMode.BACKTEST,
+                           max_debate_rounds=1)
+        space = ParamSpace(*[
+            Param(name, "categorical", choices=tuple(values), default=values[0])
+            for name, values in resolved["param_grid"].items()
+        ])
+        fn = engine_backtest_fn(
+            resolved["strategy_id"], config,
+            lambda: BarReplay(symbol, resolved["asset"], bars,
+                              window=MIN_HISTORY, precompute_indicators=True),
+            min_history=MIN_HISTORY,
+            periods_per_year=periods_per_year(tf, resolved["asset"]),
+            initial_equity=resolved["initial_equity"],
+            objective_name=resolved["objective"])
+
+        def on_trial(done: int, total: int, best: float) -> None:
+            job.progress = {"phase": "optimizing", "trials_done": done,
+                            "n_trials": total,
+                            "pct": round(100.0 * done / max(1, total), 1),
+                            "best_objective": best}
+            publish("optimization_progress", job.progress)
+
+        result = run_optimization(
+            space, fn, search="grid", objective_name=resolved["objective"],
+            on_trial=on_trial, cancel=job.cancel.is_set)
+
+        created_at = datetime.now(timezone.utc).isoformat()
+        cancelled = job.cancel.is_set()
+        status = "cancelled" if cancelled else "done"
+        summary = {
+            "id": job.id, "created_at": created_at, "type": "optimization",
+            "symbol": symbol, "timeframe": tf.value, "duration": resolved["duration"],
+            "strategy_id": resolved["strategy_id"], "objective": resolved["objective"],
+            "n_trials": result.n_trials, "status": status,
+            "best_objective": result.best_objective,
+            "deflated_sharpe": result.deflated_sharpe, "pbo": result.pbo,
+        }
+        record = {
+            "id": job.id, "created_at": created_at, "schema_version": 1,
+            "type": "optimization", "params": job.params, "status": status,
+            "summary": summary,
+            "view": {
+                "strategy_id": resolved["strategy_id"], "symbol": symbol,
+                "timeframe": tf.value, "duration": resolved["duration"],
+                "objective": resolved["objective"], "n_trials": result.n_trials,
+                "param_grid": resolved["param_grid"],
+                "best_params": result.best_params,
+                "best_objective": result.best_objective,
+                "deflated_sharpe": result.deflated_sharpe, "pbo": result.pbo,
+                "verdict": result.verdict(), "guard_note": result.guard_note,
+                "window": [bars[0].start.date().isoformat(),
+                           bars[-1].start.date().isoformat()],
+                "window_truncated": truncated,
+                "trials": [{"params": t.params, "objective": t.objective}
+                           for t in result.trials],
+            },
+        }
+        if store is not None:
+            try:
+                store.save(record)
+            except Exception:
+                logger.exception("failed to persist optimization %s", job.id)
+        job.result = record
+        job.status = status
+        publish("optimization_done", {"status": status, "summary": summary})
+    except _CostConfirmationRequired:
+        raise  # resolved before the thread starts; never reached here
+    except Exception as exc:  # noqa: BLE001 — surface, never crash the server
+        logger.exception("optimization job %s failed", job.id)
+        job.status = "error"
+        job.error = str(exc)
+        publish("optimization_error", {"status": "error", "error": str(exc)})
+
+
 def _routing(use_llm: bool):
     from tradingagents.contracts import ModelRouting
 
@@ -870,6 +1068,10 @@ __all__ = [
     "BacktestCancelled",
     "BacktestJob",
     "BacktestRunRequest",
+    "OptimizeRequest",
+    "OPT_TRIALS_CONFIRM",
+    "resolve_optimize_request",
+    "run_optimization_job",
     "DURATION_SECONDS",
     "LARGE_RUN_DECISIONS",
     "MAX_LLM_DECISIONS",

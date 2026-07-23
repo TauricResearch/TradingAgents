@@ -86,20 +86,31 @@ def run_optimization(
     seed: int = 0,
     objective_name: str = "sharpe",
     compute_guards: bool = True,
+    on_trial: Callable[[int, int, float], None] | None = None,
+    cancel: Callable[[], bool] | None = None,
 ) -> OptResult:
     """Run the search and return the ranked trials + the selected best with its
     overfitting guards. ``backtest_fn(params)`` returns
-    ``(objective_value, per_period_returns)``; higher objective is better."""
+    ``(objective_value, per_period_returns)``; higher objective is better.
+    ``on_trial(done, total, best_so_far)`` streams progress; ``cancel()``
+    returning True stops the sweep early (the partial is still scored)."""
     param_sets = _param_sets(space, search, n_trials, seed)
     if not param_sets:
         raise ValueError("parameter space produced no trials")
 
     trials: list[Trial] = []
     returns_by_trial: list[list[float]] = []
-    for params in param_sets:
+    total = len(param_sets)
+    for n, params in enumerate(param_sets, 1):
+        if cancel is not None and cancel():
+            break
         objective, returns = backtest_fn(params)
         trials.append(Trial(params=params, objective=float(objective)))
         returns_by_trial.append(list(returns))
+        if on_trial is not None:
+            on_trial(n, total, max(t.objective for t in trials))
+    if not trials:
+        raise ValueError("no trials completed")
 
     best_idx = max(range(len(trials)), key=lambda i: trials[i].objective)
     dsr = pbo = None

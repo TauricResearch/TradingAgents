@@ -308,8 +308,11 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     state.prefs = PrefsStore(data_path / "dashboard_prefs.json")
     from tradingagents.pro.dashboard.backtest_firestore import build_run_store
     from tradingagents.pro.dashboard.backtest_job import recover_interrupted
+    from tradingagents.pro.dashboard.backtest_store import BacktestRunStore
 
     state.backtest_runs = build_run_store(data_path)
+    state.backtest_optimizations = BacktestRunStore(
+        data_path / "backtest_optimizations.json")
     try:
         # a leftover running checkpoint = the instance restarted mid-backtest;
         # surface it as a saved partial instead of losing the run
