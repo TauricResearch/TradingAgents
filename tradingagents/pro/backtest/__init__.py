@@ -52,9 +52,13 @@ from tradingagents.pro.backtest.validation import (
     probability_of_backtest_overfitting,
 )
 from tradingagents.pro.backtest.walkforward import (
+    WalkForwardOptResult,
     WalkForwardResult,
+    WFWindow,
     Window,
     run_walk_forward,
+    run_walk_forward_optimization,
+    walk_forward_opt_windows,
     walk_forward_windows,
 )
 
@@ -104,7 +108,11 @@ __all__ = [
     "list_strategies",
     "register",
     "WalkForwardResult",
+    "WalkForwardOptResult",
+    "WFWindow",
     "Window",
     "run_walk_forward",
+    "run_walk_forward_optimization",
+    "walk_forward_opt_windows",
     "walk_forward_windows",
 ]
