@@ -8,38 +8,38 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 
 | Candidate | Notes | Status |
 |---|---|---|
-| Ed Seykota | systems trend pioneer | pending |
-| Michael Marcus | | pending |
-| Bruce Kovner | Caxton | pending |
-| Paul Tudor Jones | Tudor; documentary *Trader* (1987) | pending |
-| Richard Dennis | Turtles founder | pending |
-| William Eckhardt | Turtles co-founder; ETC audited — consider tier A | pending |
-| Stanley Druckenmiller | Duquesne | pending |
-| George Soros | Quantum | pending |
-| Larry Hite | Mint — audited records may reach tier A | pending |
-| Michael Steinhardt | | pending |
-| Marty Schwartz | US Investing Championship 1984 | pending |
-| Tom Baldwin | T-bond pit | pending |
-| Tony Saliba | options (dedup: profiled here, not C6) | pending |
-| Gary Bielfeldt | | pending |
-| Bill Lipschutz | Salomon FX | pending |
-| Randy McKay | | pending |
-| Victor Sperandeo | | pending |
-| Tom Basso | Trendstat — audited CTA, consider tier A | pending |
-| Linda Bradford Raschke | LBRGroup; dedup: here, not C5 | pending |
-| Monroe Trout | audited — consider tier A | pending |
-| Al Weiss | | pending |
-| Gil Blake | | pending |
-| Stuart Walton | | pending |
-| Mark Weinstein | verification difficult — may fail QA | pending |
-| Jim Rogers | | pending |
-| Ray Dalio | Bridgewater | pending |
+| Ed Seykota | systems trend pioneer | qa_ok |
+| Michael Marcus | | qa_ok |
+| Bruce Kovner | Caxton | qa_ok |
+| Paul Tudor Jones | Tudor; documentary *Trader* (1987) | qa_ok |
+| Richard Dennis | Turtles founder | qa_ok |
+| William Eckhardt | Turtles co-founder; ETC audited — consider tier A | qa_ok |
+| Stanley Druckenmiller | Duquesne | qa_ok |
+| George Soros | Quantum | qa_ok |
+| Larry Hite | Mint — audited records may reach tier A | qa_ok |
+| Michael Steinhardt | | qa_ok |
+| Marty Schwartz | US Investing Championship 1984 | qa_ok |
+| Tom Baldwin | T-bond pit | qa_ok |
+| Tony Saliba | options (dedup: profiled here, not C6) | qa_ok |
+| Gary Bielfeldt | | qa_ok |
+| Bill Lipschutz | Salomon FX | qa_ok |
+| Randy McKay | | qa_ok |
+| Victor Sperandeo | | qa_ok |
+| Tom Basso | Trendstat — audited CTA, consider tier A | qa_ok |
+| Linda Bradford Raschke | LBRGroup; dedup: here, not C5 | qa_ok |
+| Monroe Trout | audited — consider tier A | qa_ok |
+| Al Weiss | | qa_ok |
+| Gil Blake | | qa_ok |
+| Stuart Walton | | qa_ok |
+| Mark Weinstein | verification difficult — may fail QA | qa_ok |
+| Jim Rogers | | qa_ok |
+| Ray Dalio | Bridgewater | qa_ok |
 | Bruce Kovner | duplicate guard (listed once above) | — |
-| Michael Platt | BlueCrest | pending |
-| Colm O'Shea | *Hedge Fund Market Wizards* | pending |
+| Michael Platt | BlueCrest | qa_ok |
+| Colm O'Shea | *Hedge Fund Market Wizards* | qa_ok |
 | Ray Dalio | duplicate guard | — |
-| Joel Greenblatt | *Stock Market Wizards*-era value | pending |
-| Steve Cohen | SAC/Point72 — record caution flags (2013 SEC action) | pending |
+| Joel Greenblatt | *Stock Market Wizards*-era value | qa_ok |
+| Steve Cohen | SAC/Point72 — record caution flags (2013 SEC action) | qa_ok |
 
 ## C2 — Trend-following CTAs, audited (target 20, tier A expected)
 
@@ -208,7 +208,7 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 
 | Cohort | Target | Researched | QA-ok | Batch(es) |
 |---|---|---|---|---|
-| C1 market_wizards_classics | 30 | 0 | 0 | — |
+| C1 market_wizards_classics | 30 | 30 | 30 | B1 |
 | C2 trend_following_ctas | 20 | 0 | 0 | — |
 | C3 systematic_quant | 20 | 0 | 0 | — |
 | C4 momentum_growth_equities | 20 | 0 | 0 | — |
@@ -216,4 +216,4 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 | C6 options_volatility | 15 | 0 | 0 | — |
 | C7 market_makers_hft | 15 | 0 | 0 | — |
 | C8 crypto_modern | 15 | 0 | 0 | — |
-| **Total** | **155** | 0 | 0 | |
+| **Total** | **155** | 30 | 30 | |
