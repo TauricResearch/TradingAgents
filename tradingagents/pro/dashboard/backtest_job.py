@@ -175,8 +175,8 @@ def estimate_large_run(decisions: int) -> dict:
 def open_trade_view(pos: _OpenPosition, mark: float) -> dict:
     sign = 1 if pos.side == "BUY" else -1
     return {
-        "id": pos.recommendation.id,
-        "symbol": pos.recommendation.symbol,
+        "id": pos.recommendation_id,
+        "symbol": pos.symbol,
         "side": pos.side,
         "quantity": pos.quantity,
         "entry_price": pos.entry_price,

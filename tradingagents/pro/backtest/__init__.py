@@ -1,6 +1,6 @@
 """Pro backtesting engine (Phase 7): same pipeline as live, replayed data."""
 
-from tradingagents.pro.backtest.broker import ClosedTrade, SimBroker
+from tradingagents.pro.backtest.broker import ClosedTrade, PendingOrder, SimBroker
 from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
 from tradingagents.pro.backtest.data import BarReplay, HistoricalCorpus
 from tradingagents.pro.backtest.engine import BacktestEngine, BacktestResult
@@ -49,6 +49,7 @@ from tradingagents.pro.backtest.walkforward import (
 
 __all__ = [
     "ClosedTrade",
+    "PendingOrder",
     "SimBroker",
     "CommissionModel",
     "LiquidityModel",

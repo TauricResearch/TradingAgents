@@ -36,7 +36,10 @@ class ClosedTrade:
 
 @dataclass
 class _OpenPosition:
-    recommendation: TradeRecommendation
+    # identity carried directly (not a TradeRecommendation) so a position can
+    # be opened from either a recommendation OR a bare order-book fill (T2).
+    symbol: str
+    recommendation_id: str  # id that keys the position + joins memory/artifacts
     side: str
     quantity: float  # remaining
     original_quantity: float
@@ -45,12 +48,38 @@ class _OpenPosition:
     tp_levels: list[tuple[float, float]]  # (price, fraction of original) unfilled
     opened_at: datetime
     entry_commission: float
+    planned_rr: float | None = None  # ticket's size-weighted R:R (for reporting)
     initial_stop: float = 0.0  # R unit; never mutated (stop may move to BE)
     at_breakeven: bool = False
     realized: float = 0.0
     exit_notional: float = 0.0
     exit_quantity: float = 0.0
     last_reason: str = ""
+
+
+@dataclass
+class PendingOrder:
+    """A resting order in the book (track T2). Submitted on a decision bar and
+    matched against subsequent bars until it fills, expires, or is cancelled.
+    Entry orders carry their bracket (protective stop + take-profit ladder) so
+    the same geometry attaches on fill that ``open_from_recommendation`` builds
+    for the recommendation path."""
+
+    id: str
+    kind: str  # market | limit | stop_entry | stop_limit
+    side: str  # BUY | SELL
+    quantity: float
+    limit_price: float | None = None
+    stop_price: float | None = None
+    stop_loss: float | None = None  # bracket: protective stop attached on fill
+    take_profits: list[tuple[float, float]] = field(default_factory=list)
+    planned_rr: float | None = None
+    symbol: str = ""
+    expires_after: int | None = None  # bars from submit; None = rest all run
+    submitted_index: int = 0
+    tag: str = ""
+    state: str = "WORKING"  # WORKING | FILLED | CANCELLED | EXPIRED
+    triggered: bool = False  # stop_limit: stop touched, now a resting limit
 
 
 @dataclass
@@ -79,6 +108,7 @@ class SimBroker:
         self.cash_pnl = 0.0  # realized pnl net of costs
         self.positions: dict[str, _OpenPosition] = {}
         self.closed: list[ClosedTrade] = []
+        self.pending: dict[str, PendingOrder] = {}  # order book (T2)
 
     # --- equity ---------------------------------------------------------------
 
@@ -130,7 +160,9 @@ class SimBroker:
         entry = self.slippage.fill_price(fill_bar.open, side)
         fee = self.commission.cost(quantity, entry)
         self.positions[rec.id] = _OpenPosition(
-            recommendation=rec,
+            symbol=rec.symbol,
+            recommendation_id=rec.id,
+            planned_rr=rec.risk_reward,
             side=side,
             quantity=quantity,
             original_quantity=quantity,
@@ -139,6 +171,121 @@ class SimBroker:
             initial_stop=rec.stop_loss,
             tp_levels=[(tp.price, tp.size_fraction) for tp in rec.take_profits],
             opened_at=fill_bar.start,
+            entry_commission=fee,
+        )
+        self.cash_pnl -= fee
+        return None
+
+    # --- pending-order book (T2) --------------------------------------------------
+
+    def submit(self, order: PendingOrder) -> None:
+        """Add a resting order to the book (matched from the next bar on)."""
+        self.pending[order.id] = order
+
+    def cancel(self, order_id: str) -> bool:
+        """Cancel a working order; returns True if one was cancelled."""
+        order = self.pending.pop(order_id, None)
+        if order is None:
+            return False
+        order.state = "CANCELLED"
+        return True
+
+    def match_pending(self, bar: OHLCVBar, index: int) -> list[str]:
+        """Match every working order against one bar, opening a position for
+        each fill. Returns the filled order ids. Conservative intrabar policy,
+        consistent with ``_manage``: a limit fills no better than its price
+        unless the bar opened through it; a stop-entry that gaps through fills
+        at the open (pessimistic). Terminal orders leave the book."""
+        filled: list[str] = []
+        for order in list(self.pending.values()):
+            if order.state != "WORKING":
+                continue
+            raw = self._fill_price(order, bar)
+            if raw is None:
+                if (order.expires_after is not None
+                        and index - order.submitted_index >= order.expires_after):
+                    order.state = "EXPIRED"
+                    self.pending.pop(order.id, None)
+                continue
+            reason = self._open_from_fill(order, raw, bar)
+            if reason is None:
+                order.state = "FILLED"
+                filled.append(order.id)
+            else:
+                # a real fill level but a cap/parameter blocked the open — don't
+                # let the order retry forever; drop it (rejection is terminal)
+                order.state = "CANCELLED"
+            self.pending.pop(order.id, None)
+        return filled
+
+    def _fill_price(self, order: PendingOrder, bar: OHLCVBar) -> float | None:
+        """Pre-slippage fill level for one order against a bar, or None if it
+        does not trigger this bar."""
+        long = order.side == "BUY"
+        kind = order.kind
+        if kind == "market":
+            return bar.open
+        if kind == "limit":
+            if long and bar.low <= order.limit_price:
+                return min(order.limit_price, bar.open)
+            if not long and bar.high >= order.limit_price:
+                return max(order.limit_price, bar.open)
+            return None
+        if kind == "stop_limit":
+            if not order.triggered:
+                hit = (bar.high >= order.stop_price if long
+                       else bar.low <= order.stop_price)
+                if not hit:
+                    return None
+                order.triggered = True  # becomes a resting limit from here
+            # fill AT the limit when it lies within the bar's traded range —
+            # no open-based improvement: the intrabar trigger time is unknown,
+            # so we cannot assume the open (which may precede it) was fillable
+            if bar.low <= order.limit_price <= bar.high:
+                return order.limit_price
+            return None
+        if kind == "stop_entry":
+            if long and bar.high >= order.stop_price:
+                return max(order.stop_price, bar.open)  # gap-through → open
+            if not long and bar.low <= order.stop_price:
+                return min(order.stop_price, bar.open)
+            return None
+        return None
+
+    def _open_from_fill(
+        self, order: PendingOrder, raw_price: float, bar: OHLCVBar
+    ) -> str | None:
+        """Open a position from a filled order, applying the same caps/costs as
+        the recommendation path. Returns None on success or a rejection reason.
+        Entry orders must carry a protective stop (this engine is stop-based)."""
+        if order.stop_loss is None:
+            return "no_stop"
+        if len(self.positions) >= self.max_open_positions:
+            return "max_open_positions"
+        if sum(1 for p in self.positions.values()
+               if p.side == order.side) >= self.max_same_direction:
+            return "same_direction_cap"
+        quantity = self.liquidity.cap_quantity(order.quantity, bar.volume)
+        if quantity <= 0:
+            return "liquidity"
+        equity = self.equity(mark_price=raw_price)
+        prospective_gross = self._gross_notional(raw_price) + raw_price * quantity
+        if equity > 0 and prospective_gross > (self.max_gross_exposure_pct / 100.0) * equity:
+            return "exposure_cap"
+        entry = self.slippage.fill_price(raw_price, order.side)
+        fee = self.commission.cost(quantity, entry)
+        self.positions[order.id] = _OpenPosition(
+            symbol=order.symbol,
+            recommendation_id=order.id,
+            planned_rr=order.planned_rr,
+            side=order.side,
+            quantity=quantity,
+            original_quantity=quantity,
+            entry_price=entry,
+            stop=order.stop_loss,
+            initial_stop=order.stop_loss,
+            tp_levels=list(order.take_profits),
+            opened_at=bar.start,
             entry_commission=fee,
         )
         self.cash_pnl -= fee
@@ -212,7 +359,7 @@ class SimBroker:
         net_pnl = pos.realized - pos.entry_commission
         risk_unit = pos.original_quantity * abs(pos.entry_price - pos.initial_stop)
         trade = ClosedTrade(
-            symbol=pos.recommendation.symbol,
+            symbol=pos.symbol,
             side=pos.side,
             quantity=pos.original_quantity,
             entry_price=pos.entry_price,
@@ -221,11 +368,11 @@ class SimBroker:
             closed_at=ts,
             pnl=net_pnl,
             reason=pos.last_reason,
-            recommendation_id=pos.recommendation.id,
+            recommendation_id=pos.recommendation_id,
             initial_stop=pos.initial_stop,
             r_multiple=(net_pnl / risk_unit) if risk_unit > 0 else None,
-            planned_rr=pos.recommendation.risk_reward,
+            planned_rr=pos.planned_rr,
         )
         self.closed.append(trade)
-        self.positions.pop(pos.recommendation.id, None)
+        self.positions.pop(pos.recommendation_id, None)
         return trade
