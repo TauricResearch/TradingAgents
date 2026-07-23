@@ -95,51 +95,51 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 
 | Candidate | Notes | Status |
 |---|---|---|
-| William O'Neil | CANSLIM | pending |
-| Mark Minervini | US Investing Championship 1997, 2021 — competition records | pending |
-| David Ryan | 3× USIC winner | pending |
-| Dan Zanger | claimed 29,000% — verify what's checkable, flag rest | pending |
-| Nicolas Darvas | *How I Made $2M* — historical, claims disputed | pending |
-| Jesse Livermore | historical; boom-bust caution flags | pending |
-| Kristjan Kullamägi | modern swing; mostly self-published → likely C | pending |
-| Stan Weinstein | stage analysis | pending |
-| Gerald Loeb | historical | pending |
-| Richard Wyckoff | method pioneer (historical) | pending |
-| Jack Dreyfus | | pending |
-| Gary Kaltbaum | | pending |
-| Oliver Kell | USIC 2020 winner (competition record) | pending |
-| Leif Soreide | USIC 2019 winner | pending |
-| Mark Ritchie II | USIC verified | pending |
-| Jim Roppel | | pending |
-| Ross Haber | ex-O'Neil PM | pending |
-| Eve Boboch | *Momentum Masters* contributor | pending |
-| Ed Langevad | flag: thin sourcing | pending |
-| Peter Brandt | classical charting; Factor — long documented record | pending |
+| William O'Neil | CANSLIM | qa_ok |
+| Mark Minervini | US Investing Championship 1997, 2021 — competition records | qa_ok |
+| David Ryan | 3× USIC winner | qa_ok |
+| Dan Zanger | claimed 29,000% — verify what's checkable, flag rest | qa_ok |
+| Nicolas Darvas | *How I Made $2M* — historical, claims disputed | qa_ok |
+| Jesse Livermore | historical; boom-bust caution flags | qa_ok |
+| Kristjan Kullamägi | modern swing; mostly self-published → likely C | qa_ok |
+| Stan Weinstein | stage analysis | qa_ok |
+| Gerald Loeb | historical | qa_ok |
+| Richard Wyckoff | method pioneer (historical) | qa_ok |
+| Jack Dreyfus | | qa_ok |
+| Gary Kaltbaum | | qa_ok |
+| Oliver Kell | USIC 2020 winner (competition record) | qa_ok |
+| Leif Soreide | USIC 2019 winner | qa_ok |
+| Mark Ritchie II | USIC verified | qa_ok |
+| Jim Roppel | | qa_ok |
+| Ross Haber | ex-O'Neil PM | qa_ok |
+| Eve Boboch | *Momentum Masters* contributor | qa_ok |
+| Ed Langevad | flag: thin sourcing | dropped — zero real sources |
+| Peter Brandt | classical charting; Factor — long documented record | qa_ok |
 
 ## C5 — Day / prop traders (target 20, tier B/C — C flagged)
 
 | Candidate | Notes | Status |
 |---|---|---|
-| Mark D. Cook | USIC winner | pending |
-| Mike Bellafiore | SMB; *One Good Trade* | pending |
-| Steve Spencer | SMB | pending |
-| Paul Rotter | Eurex scalper ("the flipper") — interviews | pending |
-| Lewis Borsellino | S&P pit | pending |
-| John F. Carter | flag C | pending |
-| Ross Cameron | flag C — self-reported | pending |
-| Tim Grittani | flag C — broker statements shown publicly but unaudited | pending |
-| Steven Dux | flag C | pending |
-| Kunal Desai | flag C | pending |
-| Andrew Aziz | flag C | pending |
-| Tom Hougaard | flag C | pending |
+| Mark D. Cook | USIC winner | qa_ok |
+| Mike Bellafiore | SMB; *One Good Trade* | qa_ok |
+| Steve Spencer | SMB | qa_ok |
+| Paul Rotter | Eurex scalper ("the flipper") — interviews | qa_ok |
+| Lewis Borsellino | S&P pit | qa_ok |
+| John F. Carter | flag C | qa_ok |
+| Ross Cameron | flag C — self-reported | qa_ok |
+| Tim Grittani | flag C — broker statements shown publicly but unaudited | qa_ok |
+| Steven Dux | flag C | qa_ok |
+| Kunal Desai | flag C | qa_ok |
+| Andrew Aziz | flag C | qa_ok |
+| Tom Hougaard | flag C | qa_ok |
 | Rande Howell trainees | drop — coach, not trader | — |
-| Danny Riley | floor veteran | pending |
-| Don Miller | S&P journal documented | pending |
+| Danny Riley | floor veteran | qa_ok |
+| Don Miller | S&P journal documented | qa_ok |
 | Anthony Saliba trainees (LiquidPoint era) | agent expands with named, sourced individuals only | pending |
-| Bob Bright / Don Bright | Bright Trading founders | pending |
+| Bob Bright / Don Bright | Bright Trading founders | qa_ok (Bob + Don profiled separately) |
 | Sam Zell? | drop — not a trader | — |
-| Blake Morrow | FX | pending |
-| Assad Tannous | flag C | pending |
+| Blake Morrow | FX | qa_ok |
+| Assad Tannous | flag C | qa_ok |
 | Qullamaggie dedup | profiled in C4 | — |
 
 ## C6 — Options / volatility (target 15, tier B expected)
@@ -211,9 +211,9 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 | C1 market_wizards_classics | 30 | 30 | 30 | B1 |
 | C2 trend_following_ctas | 20 | 20 | 20 | B2 |
 | C3 systematic_quant | 20 | 18 | 18 | B3 (Siegel, Derman dropped — honest N) |
-| C4 momentum_growth_equities | 20 | 0 | 0 | — |
-| C5 day_prop_traders | 20 | 0 | 0 | — |
+| C4 momentum_growth_equities | 20 | 19 | 19 | B4 (Langevad dropped) |
+| C5 day_prop_traders | 20 | 18 | 18 | B5 |
 | C6 options_volatility | 15 | 0 | 0 | — |
 | C7 market_makers_hft | 15 | 0 | 0 | — |
 | C8 crypto_modern | 15 | 0 | 0 | — |
-| **Total** | **155** | 68 | 68 | |
+| **Total** | **155** | 105 | 105 | |
