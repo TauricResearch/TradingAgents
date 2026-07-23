@@ -71,3 +71,38 @@ def test_bigger_orders_pay_more_impact_at_entry():
 
 def test_zero_impact_leaves_entry_at_reference():
     assert _entry_price(volume=10_000, quantity=2_500, impact_bps=0.0) == 100.0
+
+
+# --- per-asset cost profiles ------------------------------------------------
+
+
+class TestCostProfiles:
+    def test_each_asset_gets_a_tuned_profile(self):
+        from tradingagents.contracts import AssetClass
+        from tradingagents.pro.backtest import cost_profile_for
+
+        gold = cost_profile_for(AssetClass.GOLD)[0]
+        sol = cost_profile_for(AssetClass.SOLANA)[0]
+        # gold (deep, liquid) is cheaper to cross than an alt-coin
+        assert gold.spread_bps < sol.spread_bps
+        assert gold.impact_bps < sol.impact_bps
+
+    def test_returns_three_models_and_crypto_commission(self):
+        from tradingagents.contracts import AssetClass
+        from tradingagents.pro.backtest import (
+            CommissionModel,
+            LiquidityModel,
+            SlippageModel,
+            cost_profile_for,
+        )
+
+        slip, commission, liq = cost_profile_for(AssetClass.BITCOIN)
+        assert isinstance(slip, SlippageModel)
+        assert isinstance(commission, CommissionModel) and commission.rate_bps > 0
+        assert isinstance(liq, LiquidityModel)
+
+    def test_unknown_asset_falls_back_to_cautious_default(self):
+        from tradingagents.pro.backtest import cost_profile_for
+
+        slip, commission, _ = cost_profile_for("MYSTERY")
+        assert slip.impact_bps > 0 and commission.rate_bps > 0

@@ -7,12 +7,12 @@ from tradingagents.pro.backtest.allocator import (
 )
 from tradingagents.pro.backtest.broker import ClosedTrade, PendingOrder, SimBroker
 from tradingagents.pro.backtest.correlation import CorrelationGuard, pearson
-from tradingagents.pro.backtest.multitf import (
-    MultiTimeframeReplay,
-    aggregate_htf,
-    htf_bars_as_of,
+from tradingagents.pro.backtest.costs import (
+    CommissionModel,
+    LiquidityModel,
+    SlippageModel,
+    cost_profile_for,
 )
-from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
 from tradingagents.pro.backtest.data import BarReplay, HistoricalCorpus
 from tradingagents.pro.backtest.engine import BacktestEngine, BacktestResult
 from tradingagents.pro.backtest.llm_cache import CacheMiss, CachingLLM
@@ -28,6 +28,11 @@ from tradingagents.pro.backtest.montecarlo import (
     MonteCarloSummary,
     bootstrap_paths,
     monte_carlo_summary,
+)
+from tradingagents.pro.backtest.multitf import (
+    MultiTimeframeReplay,
+    aggregate_htf,
+    htf_bars_as_of,
 )
 from tradingagents.pro.backtest.optimize import (
     EngineTrial,
@@ -86,6 +91,7 @@ __all__ = [
     "CommissionModel",
     "LiquidityModel",
     "SlippageModel",
+    "cost_profile_for",
     "BarReplay",
     "HistoricalCorpus",
     "BacktestEngine",

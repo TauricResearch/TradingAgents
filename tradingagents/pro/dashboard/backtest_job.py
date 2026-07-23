@@ -47,6 +47,7 @@ from tradingagents.pro.backtest import (
     monte_carlo_summary,
     performance_report,
 )
+from tradingagents.pro.backtest.costs import cost_profile_for
 from tradingagents.pro.dashboard import service
 from tradingagents.pro.dashboard.backtest_artifacts import (
     RunArtifacts,
@@ -654,12 +655,16 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
         replay = BarReplay(symbol, resolved["asset"], bars, window=MIN_HISTORY,
                            precompute_indicators=True)
         total_decisions = max(1, len(bars) - 1 - MIN_HISTORY)
+        # per-asset execution costs (track T5): spread + sqrt-impact + venue
+        # commission tuned to the instrument, disclosed in the view
+        slip, commission, liquidity = cost_profile_for(resolved["asset"])
         engine = _StreamingEngine(
             None, config,
             replay,
             strategy=strategy,
             broker=SimBroker(
                 initial_equity=resolved["initial_equity"],
+                slippage=slip, commission=commission, liquidity=liquidity,
                 max_open_positions=config.risk.max_open_positions,
                 max_gross_exposure_pct=(config.risk.max_open_positions
                                         * config.risk.max_position_pct_equity),
@@ -702,6 +707,9 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                 "max_position_pct": resolved["max_position_pct"],
                 "strategy_id": resolved["strategy_id"],
                 "strategy_params": resolved["strategy_params"],
+                "costs": {"slippage_bps": slip.bps, "spread_bps": slip.spread_bps,
+                          "impact_bps": slip.impact_bps,
+                          "commission_bps": commission.rate_bps},
                 "schema_version": 1,
                 "artifacts": (["equity", "trades", "decisions", "orders"]
                               if engine.broker.order_log
@@ -1164,8 +1172,12 @@ def run_portfolio_job(state: Any, job: BacktestJob, params: dict) -> None:
                            max_debate_rounds=1, risk=risk)
         strategy = build_strategy(resolved["strategy_id"],
                                   resolved["strategy_params"])
+        # one shared broker → one cost profile; use the primary (first) asset's
+        # (per-symbol cost models would need a broker change — future work)
+        slip, commission, liquidity = cost_profile_for(primary_asset)
         broker = SimBroker(
             initial_equity=resolved["initial_equity"],
+            slippage=slip, commission=commission, liquidity=liquidity,
             max_open_positions=config.risk.max_open_positions,
             max_gross_exposure_pct=(config.risk.max_open_positions
                                     * config.risk.max_position_pct_equity),

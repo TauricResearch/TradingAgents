@@ -65,3 +65,34 @@ class LiquidityModel:
         if desired < 0:
             raise ValueError("desired quantity must be >= 0")
         return min(desired, self.max_participation * bar_volume)
+
+
+# --- per-asset cost profiles (roadmap P4 / track T5) ------------------------
+#
+# CONSERVATIVE MODELLING ASSUMPTIONS, not measured venue data — calibrate to
+# your own broker/exchange before trusting absolute net returns. The point is
+# that costs are asset-specific: a gold-spot fill is cheaper than an alt-coin
+# fill, and a size-taking order pays square-root impact on top. Values are
+# (slippage_bps, spread_bps, impact_bps, commission_bps); every asset keeps the
+# default 10%-of-bar participation cap.
+_COST_PROFILES: dict[str, tuple[float, float, float, float]] = {
+    # asset name       slip  spread  impact  commission
+    "GOLD":           (1.0,  0.5,    5.0,    0.5),
+    "BITCOIN":        (1.0,  1.0,    8.0,    7.0),
+    "ETHEREUM":       (1.5,  1.5,   10.0,    7.0),
+    "SOLANA":         (3.0,  3.0,   15.0,    7.0),
+}
+_DEFAULT_PROFILE = (2.0, 1.0, 10.0, 7.0)  # unknown asset → a cautious crypto-ish default
+
+
+def cost_profile_for(asset) -> tuple[SlippageModel, CommissionModel, LiquidityModel]:
+    """Return (slippage, commission, liquidity) models tuned per asset class.
+    ``asset`` may be an ``AssetClass`` or its name. See ``_COST_PROFILES`` for
+    the (assumed, conservative) parameters."""
+    name = getattr(asset, "name", str(asset)).upper()
+    slip, spread, impact, commission = _COST_PROFILES.get(name, _DEFAULT_PROFILE)
+    return (
+        SlippageModel(bps=slip, spread_bps=spread, impact_bps=impact),
+        CommissionModel(rate_bps=commission),
+        LiquidityModel(),
+    )
