@@ -12,7 +12,7 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 | — | Profile schema + vocabularies | [data/traders.schema.json](data/traders.schema.json), [data/vocabularies.json](data/vocabularies.json) v1.0.0 | **done (S1)** — awaiting operator approval |
 | — | Cohort rosters (8 cohorts, ~155 candidates) | [data/cohorts.md](data/cohorts.md) | **done (S1)** — awaiting operator approval |
 | — | Validator / exporter / miner | [data/analyze_traders.py](data/analyze_traders.py) | **done (S1)** |
-| 1 | Trader knowledge base (JSON + CSV) | [data/traders.json](data/traders.json), data/traders.csv | **in progress — 68 profiles** (C1–C3 done: 15 A / 52 B / 1 C; Siegel + Derman dropped, honest N) |
+| 1 | Trader knowledge base (JSON + CSV) | [data/traders.json](data/traders.json), data/traders.csv | **FROZEN — 146 profiles** (all 8 cohorts; 22 A / 96 B / 28 C; 5 candidates dropped as unverifiable) |
 | 2 | Statistical analysis (honest Ns) | 01_trader_statistics.md + data/derived/ | pending (S4) |
 | 3 | Pattern report (recurring combinations) | 02_pattern_report.md | pending (S4) |
 | 4 | Institutional best-practices report | 03_institutional_best_practices.md | pending (S4) |
@@ -34,7 +34,7 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 |---|---|---|
 | S1 ✅ | Scaffolding: methodology, schema, vocabularies, rosters, tooling | **Approve schema + vocabularies + rosters** |
 | S2 ✅ | Research cohorts C1–C3 → 68 profiles merged (B1: 30, B2: 20, B3: 18), QA'd | Sample-check 5 profiles |
-| S3 | Research C4–C8 (~85), dedup, tier audit, honest final N | **KB freeze**; review missing-data report |
+| S3 ✅ | Research C4–C8 → KB frozen at 146 (waves A+B), full dedup + tier audit | **KB freeze**; review missing-data report |
 | S4 | Pattern mining → derived/ → deliverables 2–4 | Veto pseudo-precision |
 | S5 | Framework desk study → deliverables 5–6 | Confirm gap priorities |
 | S6 | Architecture → deliverables 7–10, 12 | **Design review** |

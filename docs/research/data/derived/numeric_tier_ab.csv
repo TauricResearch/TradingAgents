@@ -1,0 +1,7 @@
+field,basis,n,min,q1,median,q3,max,n_total
+risk.risk_per_trade_pct,disclosed,12,1.0,1.0,2.0,8.75,10.0,118
+risk.risk_per_trade_pct,inferred,5,2.0,2.0,2.0,2.0,2.0,118
+risk.max_drawdown_rule,disclosed,9,3.0,8.0,10.0,10.0,20.0,118
+risk.loss_limit,disclosed,1,4.0,,4.0,,4.0,118
+risk.portfolio_heat_cap,disclosed,6,12.0,12.0,12.0,14.0,20.0,118
+sizing.typical_leverage,disclosed,1,25.0,,25.0,,25.0,118

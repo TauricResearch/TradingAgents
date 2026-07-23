@@ -146,63 +146,63 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 
 | Candidate | Notes | Status |
 |---|---|---|
-| Nassim Taleb | Empirica/Universa lineage | pending |
-| Mark Spitznagel | Universa | pending |
-| Victor Niederhoffer | **cautionary case** — 1997 and 2007 blow-ups | pending |
-| Jon Najarian | | pending |
-| Pete Najarian | | pending |
-| Tom Sosnoff | thinkorswim/tastytrade | pending |
-| Sheldon Natenberg | flag: educator | pending |
-| Karen Bruton | **cautionary case** — SEC action | pending |
+| Nassim Taleb | Empirica/Universa lineage | qa_ok |
+| Mark Spitznagel | Universa | qa_ok |
+| Victor Niederhoffer | **cautionary case** — 1997 and 2007 blow-ups | qa_ok |
+| Jon Najarian | | qa_ok |
+| Pete Najarian | | qa_ok |
+| Tom Sosnoff | thinkorswim/tastytrade | qa_ok |
+| Sheldon Natenberg | flag: educator | qa_ok |
+| Karen Bruton | **cautionary case** — SEC action | qa_ok |
 | Jeff Yass | dedup: profiled in C7 | — |
 | Allen (Sang) Lucas? | drop unless sourced | — |
-| Jim Bittman | CBOE educator flag | pending |
-| Euan Sinclair | vol trader + author | pending |
-| Benn Eifert | QVR | pending |
-| Cem Karsan | Kai Volatility | pending |
-| Christopher Cole | Artemis | pending |
-| Nancy Davis | Quadratic | pending |
+| Jim Bittman | CBOE educator flag | qa_ok |
+| Euan Sinclair | vol trader + author | qa_ok |
+| Benn Eifert | QVR | qa_ok |
+| Cem Karsan | Kai Volatility | qa_ok |
+| Christopher Cole | Artemis | qa_ok |
+| Nancy Davis | Quadratic | qa_ok |
 
 ## C7 — Market makers / HFT founders (target 15, tier B expected)
 
 | Candidate | Notes | Status |
 |---|---|---|
-| Thomas Peterffy | Timber Hill/IBKR | pending |
-| Blair Hull | Hull Trading | pending |
-| Jeff Yass | SIG | pending |
-| Vincent Viola | Virtu | pending |
-| Doug Cifu | Virtu | pending |
-| Dave Cummings | Tradebot/BATS | pending |
-| Stephen Schuler | GETCO | pending |
-| Dan Tierney | GETCO | pending |
-| Mark Gorton | Tower Research | pending |
-| Manoj Narang | Tradeworx | pending |
-| Richard Gorelick | RGM | pending |
+| Thomas Peterffy | Timber Hill/IBKR | qa_ok |
+| Blair Hull | Hull Trading | qa_ok |
+| Jeff Yass | SIG | qa_ok |
+| Vincent Viola | Virtu | qa_ok |
+| Doug Cifu | Virtu | qa_ok |
+| Dave Cummings | Tradebot/BATS | qa_ok |
+| Stephen Schuler | GETCO | qa_ok |
+| Dan Tierney | GETCO | qa_ok |
+| Mark Gorton | Tower Research | qa_ok |
+| Manoj Narang | Tradeworx | qa_ok |
+| Richard Gorelick | RGM | qa_ok |
 | Cameron Smith? | flag: executive not trader | pending |
-| Haim Bodek | HFT structure whistleblower — practices documented | pending |
-| Alex Gerko | XTX | pending |
+| Haim Bodek | HFT structure whistleblower — practices documented | qa_ok |
+| Alex Gerko | XTX | qa_ok |
 | Ken Griffin | dedup: profiled in C3 | — |
 
 ## C8 — Crypto / modern (target 15 cap, strictest QA; tier C heavy and flagged)
 
 | Candidate | Notes | Status |
 |---|---|---|
-| Arthur Hayes | BitMEX; essays document methods | pending |
-| Dan Morehead | Pantera (fund letters → possible B/A) | pending |
-| Su Zhu / Kyle Davies | 3AC — **cautionary case** | pending |
-| Sam Trabucco | Alameda — **cautionary case**; public threads | pending |
-| Sam Bankman-Fried | **cautionary case** — fraud conviction; methods documented in trial record (tier B ironically) | pending |
-| GCR | anonymous; documented public calls — flag C | pending |
-| Light | flag C | pending |
-| DonAlt | flag C | pending |
+| Arthur Hayes | BitMEX; essays document methods | qa_ok |
+| Dan Morehead | Pantera (fund letters → possible B/A) | qa_ok |
+| Su Zhu / Kyle Davies | 3AC — **cautionary case** | qa_ok |
+| Sam Trabucco | Alameda — **cautionary case**; public threads | qa_ok |
+| Sam Bankman-Fried | **cautionary case** — fraud conviction; methods documented in trial record (tier B ironically) | qa_ok |
+| GCR | anonymous; documented public calls — flag C | dropped — influencer/marketing sources only |
+| Light | flag C | dropped — influencer/marketing sources only |
+| DonAlt | flag C | qa_ok |
 | CL (Chapter Legend) | flag C | pending |
-| Jordi Alexander | Selini | pending |
-| Joe McCann | Asymmetric | pending |
+| Jordi Alexander | Selini | qa_ok |
+| Joe McCann | Asymmetric | qa_ok |
 | CMS Holdings (Dan Matuszewski) | interviews | pending |
-| Mike Novogratz | Galaxy (fund records) | pending |
+| Mike Novogratz | Galaxy (fund records) | qa_ok |
 | Paul Veradittakit? | drop — VC not trader | — |
-| Ari Paul | BlockTower | pending |
-| Avi Felman | GoldenTree/Cumberland-adjacent, podcasts | pending |
+| Ari Paul | BlockTower | qa_ok |
+| Avi Felman | GoldenTree/Cumberland-adjacent, podcasts | qa_ok |
 
 ## Coverage summary
 
@@ -213,7 +213,7 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 | C3 systematic_quant | 20 | 18 | 18 | B3 (Siegel, Derman dropped — honest N) |
 | C4 momentum_growth_equities | 20 | 19 | 19 | B4 (Langevad dropped) |
 | C5 day_prop_traders | 20 | 18 | 18 | B5 |
-| C6 options_volatility | 15 | 0 | 0 | — |
-| C7 market_makers_hft | 15 | 0 | 0 | — |
-| C8 crypto_modern | 15 | 0 | 0 | — |
-| **Total** | **155** | 105 | 105 | |
+| C6 options_volatility | 15 | 14 | 14 | B6 |
+| C7 market_makers_hft | 15 | 14 | 14 | B7 (+ATD's Swanson added) |
+| C8 crypto_modern | 13 | 13 | 13 | B8 (GCR, Cantering Clark, Light, CL dropped — unverifiable) |
+| **Total** | **~150** | 146 | 146 | |
