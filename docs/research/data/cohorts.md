@@ -45,51 +45,51 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 
 | Candidate | Notes | Status |
 |---|---|---|
-| Bill Dunn (DUNN Capital) | long audited record | pending |
-| John W. Henry | JWH audited CTA | pending |
-| Jerry Parker (Chesapeake) | Turtle → CTA | pending |
-| Salem Abraham | Abraham Trading | pending |
-| David Harding | Winton; earlier AHL co-founder | pending |
-| Paul Mulvaney | Mulvaney Capital | pending |
-| Curtis Faith | Turtle — `caution_flags`: later reputation disputes | pending |
-| Liz Cheval | EMC Capital (Turtle) | pending |
-| Tom Shanks | Hawksbill (Turtle) | pending |
-| Howard Seidler | Saxon (Turtle) | pending |
-| Paul Rabar | Rabar Market Research (Turtle) | pending |
-| Jim DiMaria | JPD (Turtle) | pending |
-| Keith Campbell | Campbell & Company | pending |
-| Ken Tropin | Graham Global | pending |
-| Martin Lueck | Aspect (A of AHL) | pending |
-| Michael Adam | AHL co-founder | pending |
-| Leda Braga | Systematica | pending |
-| Ewan Kirk | Cantab | pending |
-| Richard Donchian | channel-breakout pioneer (historical) | pending |
-| Kathryn Kaminski | researcher-practitioner (AlphaSimplex) — B-tier | pending |
+| Bill Dunn (DUNN Capital) | long audited record | qa_ok |
+| John W. Henry | JWH audited CTA | qa_ok |
+| Jerry Parker (Chesapeake) | Turtle → CTA | qa_ok |
+| Salem Abraham | Abraham Trading | qa_ok |
+| David Harding | Winton; earlier AHL co-founder | qa_ok |
+| Paul Mulvaney | Mulvaney Capital | qa_ok |
+| Curtis Faith | Turtle — `caution_flags`: later reputation disputes | qa_ok |
+| Liz Cheval | EMC Capital (Turtle) | qa_ok |
+| Tom Shanks | Hawksbill (Turtle) | qa_ok |
+| Howard Seidler | Saxon (Turtle) | qa_ok |
+| Paul Rabar | Rabar Market Research (Turtle) | qa_ok |
+| Jim DiMaria | JPD (Turtle) | qa_ok |
+| Keith Campbell | Campbell & Company | qa_ok |
+| Ken Tropin | Graham Global | qa_ok |
+| Martin Lueck | Aspect (A of AHL) | qa_ok |
+| Michael Adam | AHL co-founder | qa_ok |
+| Leda Braga | Systematica | qa_ok |
+| Ewan Kirk | Cantab | qa_ok |
+| Richard Donchian | channel-breakout pioneer (historical) | qa_ok |
+| Kathryn Kaminski | researcher-practitioner (AlphaSimplex) — B-tier | qa_ok |
 
 ## C3 — Systematic / quant institutions (target 20, tier A/B; public info only)
 
 | Candidate | Notes | Status |
 |---|---|---|
-| Jim Simons / RenTech | public info only (Zuckerman book, fund letters) | pending |
-| Ed Thorp | PNP audited; *A Man for All Markets* | pending |
-| Cliff Asness | AQR papers + fund records | pending |
-| David E. Shaw | DESCO | pending |
-| Peter Muller | PDT | pending |
-| Ken Griffin | Citadel (dedup: here, not C7) | pending |
-| John Overdeck & David Siegel | Two Sigma (joint profile or two thin ones — QA decides) | pending |
-| Jaffray Woodriff | QIM | pending |
-| Robert Frey | ex-RenTech | pending |
-| Elwyn Berlekamp | Axcom/Medallion era | pending |
+| Jim Simons / RenTech | public info only (Zuckerman book, fund letters) | qa_ok |
+| Ed Thorp | PNP audited; *A Man for All Markets* | qa_ok |
+| Cliff Asness | AQR papers + fund records | qa_ok |
+| David E. Shaw | DESCO | qa_ok |
+| Peter Muller | PDT | qa_ok |
+| Ken Griffin | Citadel (dedup: here, not C7) | qa_ok |
+| John Overdeck & David Siegel | Two Sigma (joint profile or two thin ones — QA decides) | qa_ok (Overdeck only; Siegel dropped — no individually attributable record) |
+| Jaffray Woodriff | QIM | qa_ok |
+| Robert Frey | ex-RenTech | qa_ok |
+| Elwyn Berlekamp | Axcom/Medallion era | qa_ok |
 | Ray Dalio | dedup guard — profiled in C1 | — |
-| Harry Markowitz | portfolio theory practitioner — flag: academic | pending |
-| Victor Haghani | LTCM (cautionary) + Elm | pending |
-| John Meriwether | LTCM cautionary case | pending |
-| Emanuel Derman | quant researcher — flag: not a PM; may fail "trader" bar | pending |
-| Andrew Lo | academic-practitioner (AlphaSimplex) | pending |
-| Marcos López de Prado | methodology authority (backtest overfitting) | pending |
-| Igor Tulchinsky | WorldQuant | pending |
-| Sandy Grossman | QFS | pending |
-| Bernard Baruch | historical speculator — B via memoirs | pending |
+| Harry Markowitz | portfolio theory practitioner — flag: academic | qa_ok |
+| Victor Haghani | LTCM (cautionary) + Elm | qa_ok |
+| John Meriwether | LTCM cautionary case | qa_ok |
+| Emanuel Derman | quant researcher — flag: not a PM; may fail "trader" bar | dropped — fails trader bar (modeler, never ran a book) |
+| Andrew Lo | academic-practitioner (AlphaSimplex) | qa_ok |
+| Marcos López de Prado | methodology authority (backtest overfitting) | qa_ok |
+| Igor Tulchinsky | WorldQuant | qa_ok |
+| Sandy Grossman | QFS | qa_ok |
+| Bernard Baruch | historical speculator — B via memoirs | qa_ok |
 
 ## C4 — Momentum / growth equities (target 20, tier B expected)
 
@@ -209,11 +209,11 @@ Status legend: `pending` → `researched` (batch merged) → `qa_ok`.
 | Cohort | Target | Researched | QA-ok | Batch(es) |
 |---|---|---|---|---|
 | C1 market_wizards_classics | 30 | 30 | 30 | B1 |
-| C2 trend_following_ctas | 20 | 0 | 0 | — |
-| C3 systematic_quant | 20 | 0 | 0 | — |
+| C2 trend_following_ctas | 20 | 20 | 20 | B2 |
+| C3 systematic_quant | 20 | 18 | 18 | B3 (Siegel, Derman dropped — honest N) |
 | C4 momentum_growth_equities | 20 | 0 | 0 | — |
 | C5 day_prop_traders | 20 | 0 | 0 | — |
 | C6 options_volatility | 15 | 0 | 0 | — |
 | C7 market_makers_hft | 15 | 0 | 0 | — |
 | C8 crypto_modern | 15 | 0 | 0 | — |
-| **Total** | **155** | 30 | 30 | |
+| **Total** | **155** | 68 | 68 | |
