@@ -346,6 +346,7 @@ export const BacktestReportSchema = z
     omega: z.number().optional(),
     ulcer_index: z.number().optional(),
     mar: z.number().optional(),
+    sharpe_stability: z.number().optional(),
   })
   .passthrough();
 

@@ -11,6 +11,7 @@ from tradingagents.pro.backtest import (
     mar_ratio,
     omega_ratio,
     performance_report,
+    rolling_sharpe,
     ulcer_index,
 )
 
@@ -61,10 +62,24 @@ class TestMar:
         assert m > 0
 
 
+class TestRollingSharpe:
+    def test_windowed_length_and_short_series(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.015, -0.008, 0.012]
+        roll = rolling_sharpe(returns, window=3, periods_per_year=252)
+        assert len(roll) == len(returns) - 3 + 1
+        assert rolling_sharpe([0.01, 0.02], window=5) == []  # too short
+
+    def test_steady_positive_edge_is_stable(self):
+        # a consistently rising curve → most rolling windows have Sharpe > 0
+        curve = [100.0 * (1.01 ** i) for i in range(80)]
+        report = performance_report(curve, trades=[], periods_per_year=252)
+        assert report.sharpe_stability > 0.9
+
+
 def test_report_carries_the_extended_metrics():
     curve = [100.0 * (1.01 ** i) for i in range(60)]
     report = performance_report(curve, trades=[], periods_per_year=252)
     d = report.as_dict()
-    for key in ("annualized_return", "omega", "ulcer_index", "mar"):
+    for key in ("annualized_return", "omega", "ulcer_index", "mar", "sharpe_stability"):
         assert key in d
     assert d["annualized_return"] > 0  # a rising curve compounds positive

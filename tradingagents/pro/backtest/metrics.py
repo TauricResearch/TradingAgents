@@ -40,6 +40,7 @@ class PerformanceReport:
     omega: float = 0.0              # gain/loss mass ratio at a 0 threshold
     ulcer_index: float = 0.0        # RMS drawdown (depth + duration), percent
     mar: float = 0.0                # annualized return / max drawdown
+    sharpe_stability: float = 0.0   # share of 30-bar rolling windows w/ Sharpe > 0
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -124,6 +125,22 @@ def ulcer_index(equity_curve: Sequence[float]) -> float:
     return math.sqrt(sq / len(equity_curve))
 
 
+def rolling_sharpe(
+    returns: Sequence[float], window: int = 30,
+    periods_per_year: int = PERIODS_PER_YEAR,
+) -> list[float]:
+    """Sharpe computed over a sliding ``window`` of returns — shows whether the
+    risk-adjusted edge is stable or decaying across the run (a flat-then-fading
+    curve is the classic overfit tell). Returns one value per window position
+    (length ``len(returns) - window + 1``; empty when too short)."""
+    if window < 2 or len(returns) < window:
+        return []
+    return [
+        sharpe_ratio(returns[i - window + 1 : i + 1], periods_per_year)
+        for i in range(window - 1, len(returns))
+    ]
+
+
 def mar_ratio(
     equity_curve: Sequence[float], periods_per_year: int = PERIODS_PER_YEAR
 ) -> float:
@@ -165,6 +182,8 @@ def performance_report(
     for t in trades:
         reason = getattr(t, "reason", "unknown")
         reasons[reason] = reasons.get(reason, 0) + 1
+    roll = rolling_sharpe(returns, window=30, periods_per_year=periods_per_year)
+    sharpe_stability = (sum(1 for s in roll if s > 0) / len(roll)) if roll else 0.0
     return PerformanceReport(
         total_return=total_return,
         max_drawdown=max_drawdown(equity_curve),
@@ -186,4 +205,5 @@ def performance_report(
         omega=omega_ratio(returns),
         ulcer_index=ulcer_index(equity_curve),
         mar=mar_ratio(equity_curve, periods_per_year),
+        sharpe_stability=sharpe_stability,
     )

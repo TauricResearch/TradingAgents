@@ -822,7 +822,7 @@ function ResultPanel({
         {(report.mar != null || report.omega != null ||
           report.ulcer_index != null || report.annualized_return != null) && (
           <div
-            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+            className="grid grid-cols-2 gap-2 sm:grid-cols-5"
             data-testid="backtest-extended-metrics"
           >
             <StatCard label="Annualized" value={fmtPct(report.annualized_return)} />
@@ -843,6 +843,11 @@ function ResultPanel({
                 ? `${report.ulcer_index.toFixed(1)}%` : "—"}
               tone="bear"
               sub="RMS drawdown"
+            />
+            <StatCard
+              label="Edge stability"
+              value={fmtPct(report.sharpe_stability)}
+              sub="rolling Sharpe > 0"
             />
           </div>
         )}
