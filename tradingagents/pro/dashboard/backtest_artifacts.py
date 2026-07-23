@@ -23,7 +23,7 @@ from tradingagents.pro.dashboard.prefs import default_data_dir
 
 logger = logging.getLogger(__name__)
 
-ARTIFACT_NAMES = ("equity", "trades", "decisions")
+ARTIFACT_NAMES = ("equity", "trades", "decisions", "orders")
 
 
 def artifacts_root(base_dir: str | Path | None = None) -> Path:
@@ -40,13 +40,18 @@ class RunArtifacts:
     # --- writing ---------------------------------------------------------------
 
     def write(self, *, equity: list[dict], trades: list[dict],
-              decisions: list[dict]) -> None:
-        """Atomic full snapshot of all three artifacts (crash-safe)."""
+              decisions: list[dict], orders: list[dict] | None = None) -> None:
+        """Atomic full snapshot of the artifacts (crash-safe). ``orders`` (the
+        order-book lifecycle) is written only when present — the recommendation
+        path produces none, so its runs keep exactly the three prior files."""
         from tradingagents.pro.persistence import atomic_write_text
 
         self.dir.mkdir(parents=True, exist_ok=True)
-        for name, rows in (("equity", equity), ("trades", trades),
-                           ("decisions", decisions)):
+        rows_by_name = [("equity", equity), ("trades", trades),
+                        ("decisions", decisions)]
+        if orders:
+            rows_by_name.append(("orders", orders))
+        for name, rows in rows_by_name:
             atomic_write_text(self.dir / f"{name}.json",
                               json.dumps(rows, default=str))
 

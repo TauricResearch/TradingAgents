@@ -114,6 +114,27 @@ class SimBroker:
         self.positions: dict[str, _OpenPosition] = {}
         self.closed: list[ClosedTrade] = []
         self.pending: dict[str, PendingOrder] = {}  # order book (T2)
+        self._orders: dict[str, dict] = {}  # id -> lifecycle record (artifact)
+
+    @property
+    def order_log(self) -> list[dict]:
+        """Every order the book has seen, with its final disposition — the
+        source for the per-run ``orders`` artifact (empty on the
+        recommendation path, which never touches the book)."""
+        return list(self._orders.values())
+
+    def _record_order(self, order: PendingOrder, **updates) -> None:
+        rec = self._orders.get(order.id)
+        if rec is None:
+            rec = {
+                "id": order.id, "kind": order.kind, "side": order.side,
+                "quantity": order.quantity, "limit_price": order.limit_price,
+                "stop_price": order.stop_price, "stop_loss": order.stop_loss,
+                "submitted_index": order.submitted_index, "tag": order.tag,
+                "state": order.state, "fill_price": None, "filled_index": None,
+            }
+            self._orders[order.id] = rec
+        rec.update(updates)
 
     # --- equity ---------------------------------------------------------------
 
@@ -186,6 +207,7 @@ class SimBroker:
     def submit(self, order: PendingOrder) -> None:
         """Add a resting order to the book (matched from the next bar on)."""
         self.pending[order.id] = order
+        self._record_order(order)
 
     def cancel(self, order_id: str) -> bool:
         """Cancel a working order; returns True if one was cancelled."""
@@ -193,6 +215,7 @@ class SimBroker:
         if order is None:
             return False
         order.state = "CANCELLED"
+        self._record_order(order, state="CANCELLED")
         return True
 
     def match_pending(self, bar: OHLCVBar, index: int) -> list[str]:
@@ -210,16 +233,21 @@ class SimBroker:
                 if (order.expires_after is not None
                         and index - order.submitted_index >= order.expires_after):
                     order.state = "EXPIRED"
+                    self._record_order(order, state="EXPIRED")
                     self.pending.pop(order.id, None)
                 continue
             reason = self._open_from_fill(order, raw, bar)
             if reason is None:
                 order.state = "FILLED"
+                self._record_order(
+                    order, state="FILLED", filled_index=index,
+                    fill_price=self.positions[order.id].entry_price)
                 filled.append(order.id)
             else:
                 # a real fill level but a cap/parameter blocked the open — don't
                 # let the order retry forever; drop it (rejection is terminal)
                 order.state = "CANCELLED"
+                self._record_order(order, state=f"rejected:{reason}")
             self.pending.pop(order.id, None)
         return filled
 

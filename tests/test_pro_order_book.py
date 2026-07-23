@@ -195,6 +195,37 @@ class TestLifecycle:
 # --- fill → managed exit round trip ------------------------------------------
 
 
+class TestOrderLog:
+    def test_records_lifecycle_for_the_orders_artifact(self):
+        b = broker()
+        b.submit(order("market", "BUY", id="filled", stop_loss=95.0,
+                       take_profits=[(110.0, 1.0)]))
+        b.submit(order("limit", "BUY", id="resting", limit_price=50.0,
+                       stop_loss=45.0))  # far below → never fills
+        b.submit(order("limit", "BUY", id="cancelled", limit_price=50.0,
+                       stop_loss=45.0))
+        b.cancel("cancelled")
+        b.match_pending(bar(100, 101, 99, 100, day=1), index=1)
+        log = {r["id"]: r for r in b.order_log}
+        assert log["filled"]["state"] == "FILLED"
+        assert log["filled"]["fill_price"] == 100.0 and log["filled"]["filled_index"] == 1
+        assert log["cancelled"]["state"] == "CANCELLED"
+        assert log["resting"]["state"] == "WORKING"  # still on the book
+
+    def test_recommendation_path_has_no_orders(self):
+        # opening via the recommendation path never touches the book
+        from tests.test_pro_memory_facade import make_recommendation
+        from tradingagents.contracts import TakeProfitLevel, TradeAction
+        b = broker()
+        rec = make_recommendation(action=TradeAction.BUY).model_copy(update={
+            "entry_price": 100.0, "stop_loss": 95.0,
+            "take_profits": [TakeProfitLevel(price=110.0, size_fraction=1.0)],
+            "position_size": make_recommendation().position_size.model_copy(
+                update={"quantity": 10.0}), "risk_reward": None})
+        b.open_from_recommendation(rec, bar(100, 101, 99, 100, day=1))
+        assert b.order_log == []
+
+
 class TestFilledPositionManaged:
     def test_filled_order_then_stops_out(self):
         b = broker()

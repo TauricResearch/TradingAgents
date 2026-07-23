@@ -308,6 +308,9 @@ def test_run_job_runs_native_trend_following_strategy(tmp_path):
     assert job.result["strategy_id"] == "trend_following_v1"
     assert job.result["strategy_params"]["donchian_period"] == 15
     assert job.result["provider"] == "rules"  # deterministic, no LLM
+    # orders artifact: listed iff the order book actually produced orders
+    orders = RunArtifacts(job.id).read("orders")
+    assert ("orders" in job.result["artifacts"]) == bool(orders)
 
 
 def test_run_job_honors_sizing_overrides(tmp_path):

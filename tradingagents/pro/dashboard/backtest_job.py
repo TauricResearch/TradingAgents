@@ -557,7 +557,8 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
         try:
             artifacts.write(equity=engine.equity_rows,
                             trades=job.closed_trades,
-                            decisions=engine.decisions_log)
+                            decisions=engine.decisions_log,
+                            orders=engine.broker.order_log)
             if store is not None:
                 store.write_checkpoint({
                     "job_id": job.id,
@@ -702,7 +703,9 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                 "strategy_id": resolved["strategy_id"],
                 "strategy_params": resolved["strategy_params"],
                 "schema_version": 1,
-                "artifacts": ["equity", "trades", "decisions"],
+                "artifacts": (["equity", "trades", "decisions", "orders"]
+                              if engine.broker.order_log
+                              else ["equity", "trades", "decisions"]),
             })
             if trackers:
                 view["est_cost_usd"] = round(
@@ -741,6 +744,7 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
             equity=engine.equity_rows,
             trades=job.closed_trades,
             decisions=engine.decisions_log,
+            orders=engine.broker.order_log,
         )
         finalize(build_view(result, partial=False), "done")
     except BacktestCancelled:
