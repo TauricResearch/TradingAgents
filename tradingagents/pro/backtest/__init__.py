@@ -26,6 +26,7 @@ from tradingagents.pro.backtest.optimize import (
     objective_choices,
     run_optimization,
 )
+from tradingagents.pro.backtest.portfolio import PortfolioReplay
 from tradingagents.pro.backtest.registry import (
     StrategyInfo,
     build_strategy,
@@ -77,6 +78,7 @@ __all__ = [
     "CacheMiss",
     "CachingLLM",
     "PerformanceReport",
+    "PortfolioReplay",
     "equity_returns",
     "max_drawdown",
     "performance_report",
