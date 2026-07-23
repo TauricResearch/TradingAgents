@@ -483,6 +483,41 @@ export async function runOptimization(req: {
   }
 }
 
+/** Start a multi-symbol portfolio backtest (202 → { job_id }). Result is a
+ * normal run record, so it flows through the same job poll + Saved runs. A
+ * 400 for a big unconfirmed basket throws BacktestCostConfirmation. */
+export async function runPortfolioBacktest(req: {
+  symbols: string[];
+  timeframe: string;
+  duration: string;
+  strategy_id: string;
+  strategy_params?: Record<string, string | number>;
+  initial_equity?: number;
+  risk_per_trade_pct?: number;
+  max_position_pct?: number;
+  confirm_cost?: boolean;
+}): Promise<{ job_id: string }> {
+  try {
+    return await apiFetch<{ job_id: string }>("/api/backtest/portfolio", {
+      method: "POST",
+      body: JSON.stringify(req),
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 400) {
+      try {
+        const detail = JSON.parse(err.detail) as {
+          estimate?: BacktestCostConfirmation["estimate"];
+        };
+        if (detail?.estimate) throw new BacktestCostConfirmation(detail.estimate);
+      } catch (parseErr) {
+        if (parseErr instanceof BacktestCostConfirmation) throw parseErr;
+      }
+    }
+    throw err;
+  }
+}
+
 export const useMemoryInsights = () =>
   useQuery({ queryKey: qk.memory, queryFn: fetchParsed("/api/memory", MemorySchema), ...live() });
 

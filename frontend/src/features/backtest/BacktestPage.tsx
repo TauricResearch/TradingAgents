@@ -45,6 +45,7 @@ import {
 } from "@/stores/backtestLive";
 
 import OptimizePanel from "./OptimizePanel";
+import PortfolioControls from "./PortfolioControls";
 
 const SYMBOL_LABELS: Record<string, string> = {
   XAUUSD: "Gold (XAUUSD)",
@@ -120,7 +121,7 @@ export default function BacktestPage() {
   const [starting, setStarting] = useState(false);
   const [cost, setCost] = useState<BacktestCostConfirmation["estimate"] | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"run" | "optimize">("run");
+  const [mode, setMode] = useState<"run" | "portfolio" | "optimize">("run");
 
   // keep the timeframe valid for the selected asset (Gold-on-yfinance is 1d-only)
   useEffect(() => {
@@ -234,6 +235,13 @@ export default function BacktestPage() {
             Single run
           </Segment>
           <Segment
+            active={mode === "portfolio"}
+            onClick={() => setMode("portfolio")}
+            data-testid="backtest-mode-portfolio"
+          >
+            Portfolio
+          </Segment>
+          <Segment
             active={mode === "optimize"}
             onClick={() => setMode("optimize")}
             data-testid="backtest-mode-optimize"
@@ -247,6 +255,15 @@ export default function BacktestPage() {
         <OptimizePanel />
       ) : (
         <>
+      {mode === "portfolio" ? (
+        <PortfolioControls
+          symbols={tradeable.map((s) => s.symbol)}
+          onStarted={(jobId) => {
+            live.start(jobId);
+            setSelectedRunId(null);
+          }}
+        />
+      ) : (
       <RunControls
         tradeable={tradeable.map((s) => s.symbol)}
         symbol={symbol}
@@ -276,6 +293,7 @@ export default function BacktestPage() {
         onConfirmCost={() => void start(true)}
         onCancelCost={() => setCost(null)}
       />
+      )}
 
       {live.status === "error" && live.error && (
         <div
