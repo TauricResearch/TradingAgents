@@ -22,11 +22,11 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 | 8 | Data/artifact schema deltas | [08_data_schema.md](08_data_schema.md) | **done (S6)** |
 | 9 | API specification | [09_api_spec.md](09_api_spec.md) | **done (S6)** |
 | 10 | Strategy SDK design | [10_strategy_sdk.md](10_strategy_sdk.md) | **done (S6)** |
-| 11 | Performance recommendations | 11_performance_recommendations.md | pending (S7) |
+| 11 | Performance recommendations | [11_performance_recommendations.md](11_performance_recommendations.md) | **done (S7)** |
 | 12 | Validation methodology (anti-overfit / look-ahead) | [12_validation_methodology.md](12_validation_methodology.md) | **done (S6)** |
-| 13 | Implementation roadmap | 13_roadmap.md | pending (S7) |
-| 14 | Prioritized backlog with estimates | 14_backlog.md | pending (S7) |
-| 15 | Final recommendation | 15_final_recommendation.md | pending (S7) |
+| 13 | Implementation roadmap | [13_roadmap.md](13_roadmap.md) | **done (S7)** |
+| 14 | Prioritized backlog with estimates | [14_backlog.md](14_backlog.md) | **done (S7)** |
+| 15 | Final recommendation | [15_final_recommendation.md](15_final_recommendation.md) | **done (S7)** |
 
 ## Session plan (checkpoints in bold)
 
@@ -38,7 +38,9 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 | S4 ✅ | Pattern mining → derived/ → deliverables 2–4 written | Veto pseudo-precision |
 | S5 ✅ | Framework desk study (10 frameworks + ours) → deliverables 5–6 | Confirm gap priorities |
 | S6 ✅ | Architecture → deliverables 7–10, 12 (HLD/LLD/schema/API/SDK/validation) | **Design review** |
-| S7 | Deliverables 11, 13–15; wrap | Final sign-off |
+| S7 ✅ | Deliverables 11, 13–15; wrap | Final sign-off |
+
+**All 15 deliverables complete.** Research + design package done; implementation (P0→P5 per [13_roadmap.md](13_roadmap.md)) is future work in separate sessions.
 
 ## Commands
 
