@@ -18,6 +18,13 @@ from tradingagents.pro.backtest.montecarlo import (
     bootstrap_paths,
     monte_carlo_summary,
 )
+from tradingagents.pro.backtest.registry import (
+    StrategyInfo,
+    build_strategy,
+    is_registered,
+    list_strategies,
+    register,
+)
 from tradingagents.pro.backtest.strategy import (
     AccountView,
     BracketIntent,
@@ -68,6 +75,11 @@ __all__ = [
     "RegimeView",
     "Strategy",
     "StrategyContext",
+    "StrategyInfo",
+    "build_strategy",
+    "is_registered",
+    "list_strategies",
+    "register",
     "WalkForwardResult",
     "Window",
     "run_walk_forward",
