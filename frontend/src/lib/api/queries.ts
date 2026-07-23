@@ -16,6 +16,8 @@ import {
   BacktestRunsSchema,
   BacktestStrategiesSchema,
   BacktestTradesArtifactSchema,
+  OptimizationSchema,
+  OptimizationsSchema,
   BarsSchema,
   CalendarSchema,
   EvidencePanelsSchema,
@@ -64,6 +66,10 @@ export const qk = {
   backtestArtifact: (id: string, name: string) =>
     ["backtest", "runs", id, "artifacts", name] as const,
   backtestStrategies: ["backtest", "strategies"] as const,
+  backtestOptimizeJob: ["backtest", "optimize", "job"] as const,
+  backtestOptimizations: ["backtest", "optimizations"] as const,
+  backtestOptimization: (id: string) =>
+    ["backtest", "optimizations", id] as const,
   memory: ["memory"] as const,
   agents: ["agents"] as const,
   symbols: ["symbols"] as const,
@@ -397,6 +403,80 @@ export async function runBacktest(
         if (detail?.estimate) throw new BacktestCostConfirmation(detail.estimate);
       } catch (parseErr) {
         if (parseErr instanceof BacktestCostConfirmation) throw parseErr;
+      }
+    }
+    throw err;
+  }
+}
+
+// --- parameter optimization (track T3) -------------------------------------
+
+/** Past grid searches (newest first). Each carries the selected best + its
+ * overfitting guards. Shares the ring-store shape with saved runs. */
+export const useBacktestOptimizations = () =>
+  useQuery({
+    queryKey: qk.backtestOptimizations,
+    queryFn: fetchParsed("/api/backtest/optimizations", OptimizationsSchema),
+    staleTime: 30_000,
+  });
+
+export const useBacktestOptimization = (id: string | null) =>
+  useQuery({
+    queryKey: qk.backtestOptimization(id ?? "none"),
+    queryFn: fetchParsed(
+      `/api/backtest/optimizations/${id}`,
+      OptimizationSchema,
+    ),
+    enabled: id != null,
+    staleTime: Infinity,
+  });
+
+/** Live/last optimization-job snapshot — the progress source (trial N of M,
+ * best-so-far). Fetched fresh on mount so a reload re-attaches; polls while
+ * one is running. */
+export const useBacktestOptimizeJob = (polling: boolean) =>
+  useQuery({
+    queryKey: qk.backtestOptimizeJob,
+    queryFn: fetchParsed("/api/backtest/optimize/job", BacktestJobSchema),
+    refetchInterval: polling ? 2_000 : false,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+export class OptimizeCostConfirmation extends Error {
+  constructor(readonly estimate: { trials: number; est_cost_usd: number; est_minutes: number }) {
+    super("cost confirmation required");
+  }
+}
+
+/** Start a grid-search optimization job (202 → { job_id }). A 400 for a big
+ * unconfirmed grid throws OptimizeCostConfirmation carrying the estimate so
+ * the caller can show the warning and re-submit with confirm_cost. */
+export async function runOptimization(req: {
+  symbol: string;
+  timeframe: string;
+  duration: string;
+  strategy_id: string;
+  param_grid: Record<string, Array<string | number>>;
+  objective: string;
+  initial_equity?: number;
+  confirm_cost?: boolean;
+}): Promise<{ job_id: string }> {
+  try {
+    return await apiFetch<{ job_id: string }>("/api/backtest/optimize", {
+      method: "POST",
+      body: JSON.stringify(req),
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 400) {
+      try {
+        const detail = JSON.parse(err.detail) as {
+          estimate?: OptimizeCostConfirmation["estimate"];
+        };
+        if (detail?.estimate) throw new OptimizeCostConfirmation(detail.estimate);
+      } catch (parseErr) {
+        if (parseErr instanceof OptimizeCostConfirmation) throw parseErr;
       }
     }
     throw err;

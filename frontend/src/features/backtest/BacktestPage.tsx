@@ -44,6 +44,8 @@ import {
   type BacktestProgress,
 } from "@/stores/backtestLive";
 
+import OptimizePanel from "./OptimizePanel";
+
 const SYMBOL_LABELS: Record<string, string> = {
   XAUUSD: "Gold (XAUUSD)",
   "BTC-USD": "Bitcoin (BTC-USD)",
@@ -118,6 +120,7 @@ export default function BacktestPage() {
   const [starting, setStarting] = useState(false);
   const [cost, setCost] = useState<BacktestCostConfirmation["estimate"] | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [mode, setMode] = useState<"run" | "optimize">("run");
 
   // keep the timeframe valid for the selected asset (Gold-on-yfinance is 1d-only)
   useEffect(() => {
@@ -221,11 +224,29 @@ export default function BacktestPage() {
 
   return (
     <div className="space-y-4" data-testid="backtest-page">
-      <div className="flex items-center gap-2">
-        <FlaskConical size={18} className="text-accent" />
-        <h1 className="text-lg font-bold">Backtesting</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <FlaskConical size={18} className="text-accent" />
+          <h1 className="text-lg font-bold">Backtesting</h1>
+        </div>
+        <Segmented data-testid="backtest-mode">
+          <Segment active={mode === "run"} onClick={() => setMode("run")}>
+            Single run
+          </Segment>
+          <Segment
+            active={mode === "optimize"}
+            onClick={() => setMode("optimize")}
+            data-testid="backtest-mode-optimize"
+          >
+            Optimize
+          </Segment>
+        </Segmented>
       </div>
 
+      {mode === "optimize" ? (
+        <OptimizePanel />
+      ) : (
+        <>
       <RunControls
         tradeable={tradeable.map((s) => s.symbol)}
         symbol={symbol}
@@ -286,6 +307,8 @@ export default function BacktestPage() {
         onSelect={setSelectedRunId}
         onLive={() => setSelectedRunId(null)}
       />
+        </>
+      )}
     </div>
   );
 }

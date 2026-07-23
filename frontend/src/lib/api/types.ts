@@ -492,6 +492,72 @@ export const BacktestRunSchema = z
   .passthrough();
 export type BacktestRun = z.infer<typeof BacktestRunSchema>;
 
+/** Parameter optimization (track T3): a grid sweep whose selected "best"
+ * always ships with the overfitting guards (deflated Sharpe + PBO) and a
+ * plain-language verdict, so a config that only looks good because it won a
+ * many-trial search is visibly flagged, never silently promoted. */
+export const OptimizationTrialSchema = z.object({
+  params: z.record(z.union([z.string(), z.number()])),
+  objective: z.number(),
+});
+export type OptimizationTrial = z.infer<typeof OptimizationTrialSchema>;
+
+export const OptimizationViewSchema = z
+  .object({
+    strategy_id: z.string(),
+    symbol: z.string(),
+    timeframe: z.string(),
+    duration: z.string(),
+    objective: z.string(),
+    n_trials: z.number(),
+    param_grid: z.record(z.array(z.union([z.string(), z.number()]))),
+    best_params: z.record(z.union([z.string(), z.number()])),
+    best_objective: z.number(),
+    deflated_sharpe: z.number().nullable().optional(),
+    pbo: z.number().nullable().optional(),
+    verdict: z.string(),
+    guard_note: z.string().default(""),
+    window: z.array(z.string()).nullable().optional(),
+    window_truncated: z.boolean().optional(),
+    trials: z.array(OptimizationTrialSchema).default([]),
+  })
+  .passthrough();
+export type OptimizationView = z.infer<typeof OptimizationViewSchema>;
+
+export const OptimizationSchema = z
+  .object({
+    id: z.string(),
+    created_at: z.string().optional(),
+    type: z.string().optional(),
+    status: z.string().optional(),
+    params: z.record(z.unknown()).optional(),
+    view: OptimizationViewSchema,
+  })
+  .passthrough();
+export type Optimization = z.infer<typeof OptimizationSchema>;
+
+export const OptimizationListItemSchema = z
+  .object({
+    id: z.string(),
+    created_at: z.string().nullable().optional(),
+    type: z.string().nullable().optional(),
+    symbol: z.string().nullable().optional(),
+    timeframe: z.string().nullable().optional(),
+    duration: z.string().nullable().optional(),
+    strategy_id: z.string().nullable().optional(),
+    objective: z.string().nullable().optional(),
+    n_trials: z.number().nullable().optional(),
+    status: z.string().nullable().optional(),
+    best_objective: z.number().nullable().optional(),
+    deflated_sharpe: z.number().nullable().optional(),
+    pbo: z.number().nullable().optional(),
+  })
+  .passthrough();
+export type OptimizationListItem = z.infer<typeof OptimizationListItemSchema>;
+export const OptimizationsSchema = z.object({
+  optimizations: z.array(OptimizationListItemSchema),
+});
+
 export const MemorySchema = z.object({
   counts: z.record(z.number()),
   recent_lessons: z.array(z.object({ kind: z.string(), text: z.string() })),
