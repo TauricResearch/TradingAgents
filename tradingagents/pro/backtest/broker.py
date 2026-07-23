@@ -16,6 +16,12 @@ from tradingagents.contracts import OHLCVBar, TradeAction, TradeRecommendation
 from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
 
 
+def _participation(quantity: float, bar_volume: float) -> float:
+    """Order size as a fraction of the bar's traded volume — the market-impact
+    input for the slippage model. 0 when volume is unknown/zero."""
+    return quantity / bar_volume if bar_volume and bar_volume > 0 else 0.0
+
+
 @dataclass
 class ClosedTrade:
     symbol: str
@@ -201,7 +207,8 @@ class SimBroker:
         prospective_gross = self._gross_notional(mark) + mark * quantity
         if equity > 0 and prospective_gross > (self.max_gross_exposure_pct / 100.0) * equity:
             return "exposure_cap"
-        entry = self.slippage.fill_price(fill_bar.open, side)
+        entry = self.slippage.fill_price_at(
+            fill_bar.open, side, _participation(quantity, fill_bar.volume))
         fee = self.commission.cost(quantity, entry)
         self.positions[rec.id] = _OpenPosition(
             symbol=rec.symbol,
@@ -329,7 +336,8 @@ class SimBroker:
         prospective_gross = self._gross_notional(raw_price) + raw_price * quantity
         if equity > 0 and prospective_gross > (self.max_gross_exposure_pct / 100.0) * equity:
             return "exposure_cap"
-        entry = self.slippage.fill_price(raw_price, order.side)
+        entry = self.slippage.fill_price_at(
+            raw_price, order.side, _participation(quantity, bar.volume))
         fee = self.commission.cost(quantity, entry)
         self.positions[order.id] = _OpenPosition(
             symbol=order.symbol,
@@ -373,7 +381,9 @@ class SimBroker:
         long = pos.side == "BUY"
         stop_hit = bar.low <= pos.stop if long else bar.high >= pos.stop
         if stop_hit:
-            exit_price = self.slippage.fill_price(pos.stop, "SELL" if long else "BUY")
+            exit_price = self.slippage.fill_price_at(
+                pos.stop, "SELL" if long else "BUY",
+                _participation(pos.quantity, bar.volume))
             reason = "breakeven" if pos.at_breakeven else "stop"
             self._exit(pos, pos.quantity, exit_price, bar.start, reason)
             return self._finalize(pos, bar.start)
@@ -383,7 +393,9 @@ class SimBroker:
             if not tp_hit:
                 continue
             close_quantity = min(fraction * pos.original_quantity, pos.quantity)
-            exit_price = self.slippage.fill_price(price, "SELL" if long else "BUY")
+            exit_price = self.slippage.fill_price_at(
+                price, "SELL" if long else "BUY",
+                _participation(close_quantity, bar.volume))
             self._exit(pos, close_quantity, exit_price, bar.start, "take_profit")
             pos.tp_levels.remove((price, fraction))
             if pos.quantity <= 1e-12:
@@ -424,7 +436,9 @@ class SimBroker:
             if symbol is not None and pos.symbol != symbol:
                 continue
             long = pos.side == "BUY"
-            exit_price = self.slippage.fill_price(bar.close, "SELL" if long else "BUY")
+            exit_price = self.slippage.fill_price_at(
+                bar.close, "SELL" if long else "BUY",
+                _participation(pos.quantity, bar.volume))
             self._exit(pos, pos.quantity, exit_price, bar.start, "end_of_data")
             closed.append(self._finalize(pos, bar.start))
         return closed

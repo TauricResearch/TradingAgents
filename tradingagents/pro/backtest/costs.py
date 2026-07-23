@@ -8,20 +8,39 @@ dropped, never magically filled.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class SlippageModel:
-    bps: float = 2.0  # basis points of the reference price, against the trader
+    """Side-aware execution slippage against the trader. Total adverse move =
+    a fixed ``bps`` + a half-spread (``spread_bps``) + a square-root MARKET
+    IMPACT term ``impact_bps * sqrt(participation)`` (roadmap P4 / track T5 —
+    the standard model: cost per share grows with order size relative to the
+    bar's liquidity). ``spread_bps``/``impact_bps`` default 0, so a model with
+    only ``bps`` is byte-identical to before."""
+
+    bps: float = 2.0            # fixed basis points of the reference price
+    spread_bps: float = 0.0     # half the quoted bid/ask spread, paid each side
+    impact_bps: float = 0.0     # coefficient on sqrt(participation) impact
 
     def fill_price(self, reference: float, side: str) -> float:
+        """Fixed-cost fill (no size impact) — the zero-participation case."""
+        return self.fill_price_at(reference, side, 0.0)
+
+    def fill_price_at(self, reference: float, side: str,
+                      participation: float = 0.0) -> float:
+        """Fill price including market impact for an order taking
+        ``participation`` (order size / bar volume) of the bar's liquidity."""
         if reference <= 0:
             raise ValueError("reference price must be positive")
+        adverse = (self.bps + self.spread_bps
+                   + self.impact_bps * math.sqrt(max(0.0, participation)))
         if side == "BUY":
-            return reference * (1 + self.bps / 10_000)
+            return reference * (1 + adverse / 10_000)
         if side == "SELL":
-            return reference * (1 - self.bps / 10_000)
+            return reference * (1 - adverse / 10_000)
         raise ValueError(f"side must be BUY or SELL, got {side!r}")
 
 
