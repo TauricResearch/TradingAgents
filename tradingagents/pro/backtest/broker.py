@@ -236,15 +236,21 @@ class SimBroker:
         self._record_order(order, state="CANCELLED")
         return True
 
-    def match_pending(self, bar: OHLCVBar, index: int) -> list[str]:
-        """Match every working order against one bar, opening a position for
-        each fill. Returns the filled order ids. Conservative intrabar policy,
+    def match_pending(self, bar: OHLCVBar, index: int,
+                      symbol: str | None = None) -> list[str]:
+        """Match working orders against one bar, opening a position for each
+        fill. Returns the filled order ids. Conservative intrabar policy,
         consistent with ``_manage``: a limit fills no better than its price
         unless the bar opened through it; a stop-entry that gaps through fills
-        at the open (pessimistic). Terminal orders leave the book."""
+        at the open (pessimistic). Terminal orders leave the book. ``symbol``
+        restricts matching to that symbol's orders (the multi-symbol engine
+        matches each symbol against its own bar); ``None`` matches all,
+        byte-identical to the single-symbol path."""
         filled: list[str] = []
         for order in list(self.pending.values()):
             if order.state != "WORKING":
+                continue
+            if symbol is not None and order.symbol != symbol:
                 continue
             raw = self._fill_price(order, bar)
             if raw is None:
