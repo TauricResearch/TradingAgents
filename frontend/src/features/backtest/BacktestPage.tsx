@@ -819,6 +819,33 @@ function ResultPanel({
           <StatCard label="Max DD" value={fmtPct(report.max_drawdown)} tone="bear" />
           <StatCard label="Trades" value={view.n_trades ?? 0} />
         </div>
+        {(report.mar != null || report.omega != null ||
+          report.ulcer_index != null || report.annualized_return != null) && (
+          <div
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+            data-testid="backtest-extended-metrics"
+          >
+            <StatCard label="Annualized" value={fmtPct(report.annualized_return)} />
+            <StatCard
+              label="MAR"
+              value={report.mar != null && Number.isFinite(report.mar)
+                ? report.mar.toFixed(2) : "—"}
+              sub="return / max DD"
+            />
+            <StatCard
+              label="Omega"
+              value={report.omega != null && Number.isFinite(report.omega)
+                ? report.omega.toFixed(2) : "—"}
+            />
+            <StatCard
+              label="Ulcer"
+              value={report.ulcer_index != null
+                ? `${report.ulcer_index.toFixed(1)}%` : "—"}
+              tone="bear"
+              sub="RMS drawdown"
+            />
+          </div>
+        )}
         {report.exit_reasons && (
           <p className="text-xs text-fg-subtle" data-testid="backtest-exits">
             Exits:{" "}

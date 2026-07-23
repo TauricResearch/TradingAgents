@@ -341,6 +341,11 @@ export const BacktestReportSchema = z
     win_rate_ex_scratch: z.number().optional(),
     scratches: z.number().optional(),
     exit_reasons: z.record(z.number()).nullable().optional(),
+    // extended analytics (track T6)
+    annualized_return: z.number().optional(),
+    omega: z.number().optional(),
+    ulcer_index: z.number().optional(),
+    mar: z.number().optional(),
   })
   .passthrough();
 
