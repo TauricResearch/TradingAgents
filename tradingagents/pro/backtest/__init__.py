@@ -18,6 +18,13 @@ from tradingagents.pro.backtest.montecarlo import (
     bootstrap_paths,
     monte_carlo_summary,
 )
+from tradingagents.pro.backtest.optimize import (
+    OptResult,
+    Trial,
+    engine_backtest_fn,
+    objective_choices,
+    run_optimization,
+)
 from tradingagents.pro.backtest.registry import (
     StrategyInfo,
     build_strategy,
@@ -39,6 +46,10 @@ from tradingagents.pro.backtest.strategy import (
     RegimeView,
     Strategy,
     StrategyContext,
+)
+from tradingagents.pro.backtest.validation import (
+    deflated_sharpe_ratio,
+    probability_of_backtest_overfitting,
 )
 from tradingagents.pro.backtest.walkforward import (
     WalkForwardResult,
@@ -81,6 +92,13 @@ __all__ = [
     "StrategyContext",
     "StrategyInfo",
     "PipelineStrategy",
+    "OptResult",
+    "Trial",
+    "deflated_sharpe_ratio",
+    "engine_backtest_fn",
+    "objective_choices",
+    "probability_of_backtest_overfitting",
+    "run_optimization",
     "build_strategy",
     "is_registered",
     "list_strategies",
