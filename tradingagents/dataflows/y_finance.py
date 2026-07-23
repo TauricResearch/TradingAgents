@@ -9,6 +9,7 @@ from .stockstats_utils import (
     StockstatsUtils,
     _assert_ohlcv_not_stale,
     filter_financials_by_date,
+    is_historical_date,
     load_ohlcv,
     yf_retry,
 )
@@ -271,11 +272,30 @@ def get_stockstats_indicator(
     return str(indicator_value)
 
 
+# `.info` is a live snapshot: market cap, TTM ratios, the 52-week range and the
+# 50/200-day averages all describe today regardless of the date being analyzed.
+# Only these descriptive fields are safe to serve while replaying the past.
+_POINT_IN_TIME_SAFE_FIELDS = frozenset({"Name", "Sector", "Industry"})
+
+_STALE_SNAPSHOT_NOTE = (
+    "# NOTE: {curr_date} is in the past and yfinance provides no point-in-time\n"
+    "# snapshot, so live-quote metrics (market cap, PE, 52-week range, 50/200-day\n"
+    "# averages) are omitted here to avoid look-ahead bias. Use\n"
+    "# get_income_statement / get_balance_sheet / get_cashflow for as-of-date\n"
+    "# financials, and get_indicators for as-of-date price statistics such as\n"
+    "# close_50_sma and close_200_sma.\n"
+)
+
+
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
-    """Get company fundamentals overview from yfinance."""
+    """Get company fundamentals overview from yfinance.
+
+    For a historical ``curr_date`` the live-snapshot metrics are withheld; see
+    ``_POINT_IN_TIME_SAFE_FIELDS``.
+    """
     canonical = normalize_symbol(ticker)
     try:
         ticker_obj = yf.Ticker(canonical)
@@ -315,6 +335,10 @@ def get_fundamentals(
             ("Free Cash Flow", info.get("freeCashflow")),
         ]
 
+        is_stale_snapshot = is_historical_date(curr_date)
+        if is_stale_snapshot:
+            fields = [f for f in fields if f[0] in _POINT_IN_TIME_SAFE_FIELDS]
+
         lines = []
         for label, value in fields:
             if value is not None:
@@ -324,11 +348,16 @@ def get_fundamentals(
         # unknown symbols, so `info` is truthy but every field is empty. Treat
         # "no usable fields" as no data rather than emitting a bare header the
         # agent might fabricate around.
-        if not lines:
+        # An empty result under a historical date means we withheld the fields,
+        # not that the symbol is unknown — the note still has to reach the agent.
+        if not lines and not is_stale_snapshot:
             raise NoMarketDataError(ticker, canonical, "no fundamental fields returned")
 
         header = f"# Company Fundamentals for {canonical}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        if is_stale_snapshot:
+            header += _STALE_SNAPSHOT_NOTE.format(curr_date=curr_date)
+        header += "\n"
 
         return header + "\n".join(lines)
 
