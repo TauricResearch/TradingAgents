@@ -56,6 +56,7 @@ class BacktestEngine:
         periods_per_year: int = 252,
         strategy=None,
         htf_timeframes=None,
+        funding=None,
         **pipeline_kwargs,
     ):
         if min_history < 3:
@@ -63,6 +64,9 @@ class BacktestEngine:
         if decide_every < 1:
             raise ValueError("decide_every must be >= 1")
         self.replay = replay
+        # optional perp funding (track T5): accrued on open positions each bar.
+        # None → no funding (spot; existing behavior).
+        self._funding = funding
         # optional higher-timeframe context (track T4): completed HTF snapshots
         # aggregated from this replay's bars, exposed look-ahead-safe via
         # StrategyContext.htf. None → no HTF (existing single-TF behavior).
@@ -139,6 +143,12 @@ class BacktestEngine:
                         executed += 1
                     elif outcome is not None:
                         rejections[outcome] = rejections.get(outcome, 0) + 1
+
+            # perp funding on open positions for holding this bar → next
+            if self._funding is not None and self.broker.positions:
+                hours = (bars[i + 1].start - bar.start).total_seconds() / 3600.0
+                self.broker.accrue_funding(
+                    self._funding, {self.replay.symbol: bar.close}, hours)
 
             equity_curve.append(self.broker.equity(mark_price=bar.close))
 

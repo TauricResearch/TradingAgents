@@ -85,6 +85,28 @@ _COST_PROFILES: dict[str, tuple[float, float, float, float]] = {
 _DEFAULT_PROFILE = (2.0, 1.0, 10.0, 7.0)  # unknown asset → a cautious crypto-ish default
 
 
+@dataclass(frozen=True)
+class FundingModel:
+    """Perpetual-swap funding accrual (roadmap P4 / track T5). Perps have no
+    expiry; instead longs and shorts exchange a periodic funding payment.
+    ``annual_rate_pct`` is the ASSUMED average funding (positive → longs pay
+    shorts, the usual state in a bull market); accrual is continuous in elapsed
+    hours — a smooth approximation of the discrete 8h ticks, deterministic and
+    order-independent. Opt-in: only relevant when backtesting a perp, never a
+    spot instrument."""
+
+    annual_rate_pct: float = 0.0
+
+    def cash_delta(self, notional: float, side: str, hours: float) -> float:
+        """Signed cash change for holding ``notional`` on ``side`` for
+        ``hours``. Longs pay (negative) when the rate is positive; shorts
+        receive (positive), and vice-versa."""
+        if notional < 0 or hours < 0:
+            raise ValueError("notional and hours must be >= 0")
+        pay = notional * (self.annual_rate_pct / 100.0) * (hours / (365 * 24))
+        return -pay if side == "BUY" else pay
+
+
 def cost_profile_for(asset) -> tuple[SlippageModel, CommissionModel, LiquidityModel]:
     """Return (slippage, commission, liquidity) models tuned per asset class.
     ``asset`` may be an ``AssetClass`` or its name. See ``_COST_PROFILES`` for

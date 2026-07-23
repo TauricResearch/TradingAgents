@@ -9,6 +9,7 @@ from tradingagents.pro.backtest.broker import ClosedTrade, PendingOrder, SimBrok
 from tradingagents.pro.backtest.correlation import CorrelationGuard, pearson
 from tradingagents.pro.backtest.costs import (
     CommissionModel,
+    FundingModel,
     LiquidityModel,
     SlippageModel,
     cost_profile_for,
@@ -89,6 +90,7 @@ __all__ = [
     "PendingOrder",
     "SimBroker",
     "CommissionModel",
+    "FundingModel",
     "LiquidityModel",
     "SlippageModel",
     "cost_profile_for",

@@ -170,6 +170,18 @@ class SimBroker:
         return sum(marks.get(p.symbol, p.entry_price) * p.quantity
                    for p in self.positions.values())
 
+    def accrue_funding(self, funding, marks: dict[str, float], hours: float) -> float:
+        """Charge/credit perp funding on every open position for ``hours`` of
+        holding, each marked at its symbol's price. Returns the net cash delta
+        (also applied to ``cash_pnl``). Opt-in via a FundingModel; a spot
+        backtest never calls this."""
+        total = 0.0
+        for pos in self.positions.values():
+            mark = marks.get(pos.symbol, pos.entry_price)
+            total += funding.cash_delta(mark * pos.quantity, pos.side, hours)
+        self.cash_pnl += total
+        return total
+
     @property
     def position_open(self) -> bool:
         return bool(self.positions)
