@@ -7,6 +7,11 @@ from tradingagents.pro.backtest.allocator import (
 )
 from tradingagents.pro.backtest.broker import ClosedTrade, PendingOrder, SimBroker
 from tradingagents.pro.backtest.correlation import CorrelationGuard, pearson
+from tradingagents.pro.backtest.multitf import (
+    MultiTimeframeReplay,
+    aggregate_htf,
+    htf_bars_as_of,
+)
 from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
 from tradingagents.pro.backtest.data import BarReplay, HistoricalCorpus
 from tradingagents.pro.backtest.engine import BacktestEngine, BacktestResult
@@ -90,7 +95,10 @@ __all__ = [
     "CapitalAllocator",
     "CorrelationGuard",
     "EqualWeightAllocator",
+    "MultiTimeframeReplay",
     "WeightedAllocator",
+    "aggregate_htf",
+    "htf_bars_as_of",
     "pearson",
     "PerformanceReport",
     "PortfolioBacktestResult",

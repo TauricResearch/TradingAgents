@@ -55,6 +55,7 @@ class BacktestEngine:
         decide_every: int = 1,
         periods_per_year: int = 252,
         strategy=None,
+        htf_timeframes=None,
         **pipeline_kwargs,
     ):
         if min_history < 3:
@@ -62,6 +63,13 @@ class BacktestEngine:
         if decide_every < 1:
             raise ValueError("decide_every must be >= 1")
         self.replay = replay
+        # optional higher-timeframe context (track T4): completed HTF snapshots
+        # aggregated from this replay's bars, exposed look-ahead-safe via
+        # StrategyContext.htf. None → no HTF (existing single-TF behavior).
+        self._mtf = None
+        if htf_timeframes:
+            from tradingagents.pro.backtest.multitf import MultiTimeframeReplay
+            self._mtf = MultiTimeframeReplay(replay, htf_timeframes)
         self.broker = broker or SimBroker()
         self.memory = memory
         self.min_history = min_history
@@ -204,6 +212,7 @@ class BacktestEngine:
             equity=equity,
             params=params if isinstance(params, dict) else {},
             positions=positions,
+            htf=self._mtf.htf_map(i) if self._mtf is not None else {},
             account=AccountView(
                 equity=equity, cash_pnl=self.broker.cash_pnl,
                 gross_exposure=self.broker._gross_notional(mark),
