@@ -16,8 +16,8 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 | 2 | Statistical analysis (honest Ns) | [01_trader_statistics.md](01_trader_statistics.md) + data/derived/ | **done (S4)** |
 | 3 | Pattern report (recurring combinations) | [02_pattern_report.md](02_pattern_report.md) | **done (S4)** |
 | 4 | Institutional best-practices report | [03_institutional_best_practices.md](03_institutional_best_practices.md) | **done (S4)** |
-| 5 | Framework comparison matrix | 04_framework_comparison.md, data/frameworks.csv | pending (S5) |
-| 6 | Gap analysis (TradingView + best-in-class vs ours) | 05_gap_analysis.md | pending (S5) |
+| 5 | Framework comparison matrix | [04_framework_comparison.md](04_framework_comparison.md), [data/frameworks.csv](data/frameworks.csv) | **done (S5)** |
+| 6 | Gap analysis (TradingView + best-in-class vs ours) | [05_gap_analysis.md](05_gap_analysis.md) | **done (S5)** |
 | 7 | HLD / LLD (evolve-in-place, six tracks) | 06_hld.md, 07_lld.md | pending (S6) |
 | 8 | Data/artifact schema deltas | 08_data_schema.md | pending (S6) |
 | 9 | API specification | 09_api_spec.md | pending (S6) |
@@ -36,7 +36,7 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 | S2 ✅ | Research cohorts C1–C3 → 68 profiles merged (B1: 30, B2: 20, B3: 18), QA'd | Sample-check 5 profiles |
 | S3 ✅ | Research C4–C8 → KB frozen at 146 (waves A+B), full dedup + tier audit | **KB freeze**; review missing-data report |
 | S4 ✅ | Pattern mining → derived/ → deliverables 2–4 written | Veto pseudo-precision |
-| S5 | Framework desk study → deliverables 5–6 | Confirm gap priorities |
+| S5 ✅ | Framework desk study (10 frameworks + ours) → deliverables 5–6 | Confirm gap priorities |
 | S6 | Architecture → deliverables 7–10, 12 | **Design review** |
 | S7 | Deliverables 11, 13–15; wrap | Final sign-off |
 
