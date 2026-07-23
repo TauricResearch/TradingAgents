@@ -1,5 +1,10 @@
 """Pro backtesting engine (Phase 7): same pipeline as live, replayed data."""
 
+from tradingagents.pro.backtest.allocator import (
+    CapitalAllocator,
+    EqualWeightAllocator,
+    WeightedAllocator,
+)
 from tradingagents.pro.backtest.broker import ClosedTrade, PendingOrder, SimBroker
 from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
 from tradingagents.pro.backtest.data import BarReplay, HistoricalCorpus
@@ -81,6 +86,9 @@ __all__ = [
     "BacktestResult",
     "CacheMiss",
     "CachingLLM",
+    "CapitalAllocator",
+    "EqualWeightAllocator",
+    "WeightedAllocator",
     "PerformanceReport",
     "PortfolioBacktestResult",
     "PortfolioEngine",

@@ -1116,6 +1116,7 @@ def run_portfolio_job(state: Any, job: BacktestJob, params: dict) -> None:
     views render it), and emit the usual backtest_* SSE events."""
     from tradingagents.pro.backtest import (
         BarReplay,
+        EqualWeightAllocator,
         PortfolioEngine,
         PortfolioReplay,
         build_strategy,
@@ -1180,7 +1181,9 @@ def run_portfolio_job(state: Any, job: BacktestJob, params: dict) -> None:
         engine = PortfolioEngine(
             pr, strategy, config, broker=broker, min_history=MIN_HISTORY,
             periods_per_year=periods_per_year(tf, primary_asset),
-            on_progress=on_progress)
+            on_progress=on_progress,
+            # equal-weight budget so no single symbol consumes the book
+            allocator=EqualWeightAllocator(n_symbols=len(symbols)))
         result = engine.run()
 
         mc = (monte_carlo_summary([t.pnl for t in result.trades],
@@ -1207,6 +1210,7 @@ def run_portfolio_job(state: Any, job: BacktestJob, params: dict) -> None:
             "max_position_pct": resolved["max_position_pct"],
             "strategy_id": resolved["strategy_id"],
             "strategy_params": resolved["strategy_params"],
+            "allocation": "equal_weight",
             "schema_version": 1,
             "artifacts": ["equity", "trades"],
         })

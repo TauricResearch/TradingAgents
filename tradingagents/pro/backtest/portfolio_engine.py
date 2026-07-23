@@ -60,6 +60,7 @@ class PortfolioEngine:
         decide_every: int = 1,
         periods_per_year: int = 252,
         on_progress=None,
+        allocator=None,
     ):
         if min_history < 3:
             raise ValueError("min_history must be >= 3")
@@ -72,6 +73,8 @@ class PortfolioEngine:
         self.decide_every = decide_every
         self.periods_per_year = periods_per_year
         self._on_progress = on_progress  # (done_steps, total_steps) per step
+        # optional per-symbol capital budget (CapitalAllocator); None = unbudgeted
+        self._allocator = allocator
         # one strategy per symbol; a bare strategy is shared across all symbols
         self._strategies: dict[str, object] = (
             dict(strategy) if isinstance(strategy, Mapping)
@@ -204,16 +207,26 @@ class PortfolioEngine:
 
         bracket = intent.bracket
         stop_loss = bracket.stop_loss if bracket else None
+        entry_ref = intent.limit_price or intent.stop_price or ref_bar.close
         if intent.quantity is not None:
             quantity = intent.quantity
         elif intent.risk_pct is not None and stop_loss is not None:
-            entry_ref = intent.limit_price or intent.stop_price or ref_bar.close
             quantity = fixed_risk_position_size(
                 equity, intent.risk_pct, entry=entry_ref, stop=stop_loss,
                 max_position_pct=self.config.risk.max_position_pct_equity,
             ).quantity
         else:
             return "no_sizing"  # risk_pct sizing needs a bracket stop
+        # per-symbol capital budget (portfolio heat): trim the order so this
+        # symbol's gross notional stays within its allocation; 0 budget vetoes
+        if self._allocator is not None and entry_ref > 0:
+            mark = ref_bar.close
+            existing = sum(p.quantity * mark for p in self.broker.positions.values()
+                           if p.symbol == symbol)
+            budget = self._allocator.max_notional(symbol, equity, existing)
+            quantity = min(quantity, budget / entry_ref)
+            if quantity <= 1e-9:
+                return "allocation_cap"
         self.broker.submit(PendingOrder(
             id=f"{symbol}-{i}-{intent.tag or uuid.uuid4().hex[:8]}",
             kind=intent.kind, side=intent.side, quantity=quantity,
