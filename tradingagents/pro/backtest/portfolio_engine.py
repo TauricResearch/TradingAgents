@@ -59,6 +59,7 @@ class PortfolioEngine:
         min_history: int = 60,
         decide_every: int = 1,
         periods_per_year: int = 252,
+        on_progress=None,
     ):
         if min_history < 3:
             raise ValueError("min_history must be >= 3")
@@ -70,6 +71,7 @@ class PortfolioEngine:
         self.min_history = min_history
         self.decide_every = decide_every
         self.periods_per_year = periods_per_year
+        self._on_progress = on_progress  # (done_steps, total_steps) per step
         # one strategy per symbol; a bare strategy is shared across all symbols
         self._strategies: dict[str, object] = (
             dict(strategy) if isinstance(strategy, Mapping)
@@ -119,6 +121,8 @@ class PortfolioEngine:
                         if outcome is not None:
                             rejections[outcome] = rejections.get(outcome, 0) + 1
             equity_curve.append(self.broker.equity_marks(self._marks_at(step)))
+            if self._on_progress is not None:
+                self._on_progress(step + 1, len(replay))
 
         # force-close every symbol at ITS final bar (end of its data)
         for symbol in replay.symbols:

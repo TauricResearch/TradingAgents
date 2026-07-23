@@ -1036,6 +1036,214 @@ def run_optimization_job(state: Any, job: BacktestJob, params: dict) -> None:
         publish("optimization_error", {"status": "error", "error": str(exc)})
 
 
+# --- portfolio (multi-symbol) runs (roadmap P3 / track T4) -------------------
+
+PORTFOLIO_MAX_SYMBOLS = 6
+
+
+class PortfolioRunRequest(BaseModel):
+    """Multi-symbol backtest request (rejects unknown fields → 422). One
+    native strategy trades a basket on a shared broker; the broker's caps bind
+    across the whole portfolio (portfolio heat)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbols: list[str] = Field(min_length=2, max_length=PORTFOLIO_MAX_SYMBOLS)
+    timeframe: str = Field(min_length=1, max_length=8)
+    duration: str = Field(default="1Y")
+    strategy_id: str = Field(default="trend_following_v1", max_length=32)
+    strategy_params: dict = Field(default_factory=dict)
+    initial_equity: float = Field(default=100_000.0, gt=0)
+    risk_per_trade_pct: float = Field(default=1.0, gt=0, le=5)
+    max_position_pct: float = Field(default=33.0, gt=0, le=100)
+    confirm_cost: bool = False
+
+
+def resolve_portfolio_request(marketdata: MarketDataService, params: dict) -> dict:
+    """Validate + normalize a portfolio request. Raises ValueError (→422) for
+    unknown/duplicate symbols, an unsupported timeframe/duration, or a
+    non-native strategy, and ``_CostConfirmationRequired`` (→400) for a large
+    unconfirmed run (summed decisions across the basket)."""
+    from tradingagents.pro.backtest import build_strategy, is_registered
+    from tradingagents.pro.backtest.registry import strategy_param_space
+
+    symbols = params["symbols"]
+    if len(set(symbols)) != len(symbols):
+        raise ValueError("duplicate symbol in portfolio")
+    try:
+        tf = Timeframe(params["timeframe"])
+    except ValueError as exc:
+        raise ValueError(f"unknown timeframe {params['timeframe']}") from exc
+    duration = params["duration"]
+    if duration not in DURATION_SECONDS:
+        raise ValueError(f"unknown duration {duration}")
+    assets: dict[str, AssetClass] = {}
+    for symbol in symbols:
+        if symbol not in _ASSET_BY_SYMBOL:
+            raise ValueError(f"unknown symbol {symbol}")
+        if tf not in marketdata.spec(symbol).timeframes:
+            raise ValueError(f"{symbol} does not support {tf.value}")
+        assets[symbol] = _ASSET_BY_SYMBOL[symbol]
+
+    strategy_id = params["strategy_id"]
+    if not is_registered(strategy_id):
+        raise ValueError(f"strategy {strategy_id} is not registered")
+    space = strategy_param_space(strategy_id)
+    resolved_params = space.resolve(params.get("strategy_params") or {})
+    if hasattr(build_strategy(strategy_id, resolved_params), "decide"):
+        raise ValueError(
+            f"{strategy_id} is a pipeline strategy; portfolio runs need a "
+            "native (order-book) strategy such as trend_following_v1")
+
+    bars_per_symbol = {s: bars_for_duration(duration, tf, assets[s]) for s in symbols}
+    decisions = sum(max(1, b - MIN_HISTORY) for b in bars_per_symbol.values())
+    if decisions >= LARGE_RUN_DECISIONS and not params.get("confirm_cost"):
+        raise _CostConfirmationRequired(estimate_large_run(decisions))
+    return {
+        "symbols": symbols, "assets": assets, "timeframe": tf, "duration": duration,
+        "strategy_id": strategy_id, "strategy_params": resolved_params,
+        "bars_per_symbol": bars_per_symbol, "decisions": decisions,
+        "initial_equity": float(params.get("initial_equity", 100_000.0)),
+        "risk_per_trade_pct": float(params.get("risk_per_trade_pct", 1.0)),
+        "max_position_pct": float(params.get("max_position_pct", 33.0)),
+    }
+
+
+def run_portfolio_job(state: Any, job: BacktestJob, params: dict) -> None:
+    """Worker body (daemon thread): fetch each symbol's window, merge them on
+    one clock, run the shared-broker PortfolioEngine, persist a run record in
+    the SAME shape as a single-symbol run (so the existing history + result
+    views render it), and emit the usual backtest_* SSE events."""
+    from tradingagents.pro.backtest import (
+        BarReplay,
+        PortfolioEngine,
+        PortfolioReplay,
+        build_strategy,
+    )
+
+    broadcaster = state.broadcaster
+    store = getattr(state, "backtest_runs", None)
+
+    def publish(kind: str, data: dict) -> None:
+        try:
+            broadcaster.publish(kind, {"job_id": job.id, **data})
+        except Exception:
+            logger.debug("broadcast %s failed", kind, exc_info=True)
+
+    try:
+        resolved = resolve_portfolio_request(state.marketdata, params)
+        tf: Timeframe = resolved["timeframe"]
+        symbols = resolved["symbols"]
+        assets = resolved["assets"]
+
+        replays: dict[str, BarReplay] = {}
+        truncated = False
+        for symbol in symbols:
+            def on_page(have: int, need: int, symbol=symbol) -> None:
+                job.progress = {"phase": "fetching", "symbol": symbol,
+                                "bars_have": have, "bars_needed": need,
+                                "pct": round(100.0 * have / max(1, need), 1)}
+                publish("backtest_progress", job.progress)
+
+            bars, was_trunc = fetch_window(state.marketdata, symbol, tf,
+                                           resolved["bars_per_symbol"][symbol],
+                                           on_page=on_page, cancel=job.cancel)
+            if len(bars) < MIN_HISTORY + 5:
+                raise ValueError(f"{symbol}: only {len(bars)} bars available")
+            truncated = truncated or was_trunc
+            replays[symbol] = BarReplay(symbol, assets[symbol], bars,
+                                        window=MIN_HISTORY,
+                                        precompute_indicators=True)
+
+        pr = PortfolioReplay(replays)
+        primary_asset = assets[symbols[0]]  # cost/periods reference of the basket
+        risk = RiskLimits(max_risk_per_trade_pct=resolved["risk_per_trade_pct"],
+                          max_position_pct_equity=resolved["max_position_pct"])
+        config = ProConfig(asset=primary_asset, mode=TradingMode.BACKTEST,
+                           max_debate_rounds=1, risk=risk)
+        strategy = build_strategy(resolved["strategy_id"],
+                                  resolved["strategy_params"])
+        broker = SimBroker(
+            initial_equity=resolved["initial_equity"],
+            max_open_positions=config.risk.max_open_positions,
+            max_gross_exposure_pct=(config.risk.max_open_positions
+                                    * config.risk.max_position_pct_equity),
+            max_same_direction=config.risk.max_same_direction_positions,
+        )
+        total_steps = len(pr)
+
+        def on_progress(done: int, total: int) -> None:
+            job.progress = {"decisions": done, "total": total,
+                            "pct": round(100.0 * done / max(1, total), 1)}
+            publish("backtest_progress", job.progress)
+
+        engine = PortfolioEngine(
+            pr, strategy, config, broker=broker, min_history=MIN_HISTORY,
+            periods_per_year=periods_per_year(tf, primary_asset),
+            on_progress=on_progress)
+        result = engine.run()
+
+        mc = (monte_carlo_summary([t.pnl for t in result.trades],
+                                  resolved["initial_equity"])
+              if len(result.trades) >= 2 else None)
+        view = service.backtest_view(result, mc)
+        equity_curve = view.pop("equity_curve", [])
+        starts = [pr.replay(s).bars[0].start for s in symbols]
+        ends = [pr.replay(s).bars[-1].start for s in symbols]
+        total_bars = sum(len(pr.replay(s).bars) for s in symbols)
+        view.update({
+            "provider": "rules",
+            "is_portfolio": True,
+            "symbols": symbols,
+            "symbol": ", ".join(symbols),
+            "timeframe": tf.value,
+            "duration": resolved["duration"],
+            "window": [min(starts).date().isoformat(), max(ends).date().isoformat()],
+            "window_truncated": truncated,
+            "bars": total_bars,
+            "indicator_mode": "full_history",
+            "initial_equity": resolved["initial_equity"],
+            "risk_per_trade_pct": resolved["risk_per_trade_pct"],
+            "max_position_pct": resolved["max_position_pct"],
+            "strategy_id": resolved["strategy_id"],
+            "strategy_params": resolved["strategy_params"],
+            "schema_version": 1,
+            "artifacts": ["equity", "trades"],
+        })
+
+        equity_rows = [[pr.timestamp_at(i).isoformat(), equity_curve[i]]
+                       for i in range(min(total_steps, len(equity_curve)))]
+        if len(equity_curve) > total_steps:  # the final end-of-data mark
+            equity_rows.append([max(ends).isoformat(), equity_curve[-1]])
+        trades = [closed_trade_view(t) for t in result.trades]
+        job.closed_trades = trades
+        RunArtifacts(job.id).write(equity=equity_rows, trades=trades, decisions=[])
+
+        created_at = datetime.now(timezone.utc).isoformat()
+        view["status"] = "done"
+        summary = summary_from_view(job.id, created_at, view)
+        summary["symbols"] = symbols
+        summary["is_portfolio"] = True
+        record = {"id": job.id, "created_at": created_at, "schema_version": 1,
+                  "params": job.params, "status": "done",
+                  "summary": summary, "view": view}
+        if store is not None:
+            try:
+                store.save(record)
+            except Exception:
+                logger.exception("failed to persist portfolio run %s", job.id)
+        job.result = view
+        job.status = "done"
+        publish("backtest_done", {"status": "done", "summary": summary})
+    except _CostConfirmationRequired:
+        raise  # resolved before the thread starts; never reached here
+    except Exception as exc:  # noqa: BLE001 — surface, never crash the server
+        logger.exception("portfolio job %s failed", job.id)
+        job.status = "error"
+        job.error = str(exc)
+        publish("backtest_error", {"status": "error", "error": str(exc)})
+
+
 def _routing(use_llm: bool):
     from tradingagents.contracts import ModelRouting
 
@@ -1083,6 +1291,10 @@ __all__ = [
     "OPT_TRIALS_CONFIRM",
     "resolve_optimize_request",
     "run_optimization_job",
+    "PortfolioRunRequest",
+    "PORTFOLIO_MAX_SYMBOLS",
+    "resolve_portfolio_request",
+    "run_portfolio_job",
     "DURATION_SECONDS",
     "LARGE_RUN_DECISIONS",
     "MAX_LLM_DECISIONS",

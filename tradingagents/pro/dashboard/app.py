@@ -1169,6 +1169,51 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         return JSONResponse({"job_id": job.id, "status": "started"},
                             status_code=202)
 
+    @app.post("/api/backtest/portfolio")
+    async def portfolio_backtest(request: Request) -> JSONResponse:
+        """Run a multi-symbol backtest as a background job (202 + job_id): one
+        native strategy trades a basket on a shared broker whose caps bind
+        across the whole portfolio. Shares the single backtest worker (409 if
+        a run/optimization is already in flight); large baskets need
+        confirm_cost (400 + estimate). The result is a normal run record, so
+        it appears in Saved runs and the result view renders it."""
+        from pydantic import ValidationError
+
+        from tradingagents.pro.dashboard import backtest_job as btjob
+
+        body = await request.json()
+        try:
+            req = btjob.PortfolioRunRequest.model_validate(body)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+        params = req.model_dump()
+        try:
+            btjob.resolve_portfolio_request(state.marketdata, params)
+        except btjob._CostConfirmationRequired as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "cost_confirmation_required",
+                        "estimate": exc.estimate}) from exc
+        except (ValueError, md.UnknownSymbolError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        if not _backtest_lock.acquire(blocking=False):
+            raise HTTPException(status_code=409,
+                                detail="a backtest or optimization is already running")
+        job = btjob.new_job(params)
+        state.backtest_job = job
+
+        def work():
+            try:
+                btjob.run_portfolio_job(state, job, params)
+            finally:
+                _backtest_lock.release()
+
+        _bt_threading.Thread(target=work, name="backtest-portfolio",
+                             daemon=True).start()
+        return JSONResponse({"job_id": job.id, "status": "started"},
+                            status_code=202)
+
     @app.get("/api/backtest/optimize/job")
     def optimize_job_status() -> dict:
         job = state.backtest_opt_job

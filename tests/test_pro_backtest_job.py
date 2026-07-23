@@ -719,3 +719,52 @@ def test_optimize_endpoint_conflicts_with_running_backtest(tmp_path, monkeypatch
         assert busy.status_code == 409
     finally:
         gate.set()
+
+
+# --- portfolio (multi-symbol) endpoint --------------------------------------
+
+
+def test_portfolio_endpoint_runs_and_records_a_multi_symbol_run(tmp_path):
+    state = _state(_trend_bars(200), tmp_path, timeframes=(Timeframe.D1,))
+    client = TestClient(create_app(state))
+    resp = client.post("/api/backtest/portfolio",
+                       json={"symbols": ["XAUUSD", "BTC-USD"], "timeframe": "1d",
+                             "duration": "30D", "strategy_id": "trend_following_v1"})
+    assert resp.status_code == 202, resp.text
+    job_id = resp.json()["job_id"]
+
+    for _ in range(400):
+        status = client.get("/api/backtest/job").json()
+        if status.get("status") in ("done", "error"):
+            break
+        time.sleep(0.05)
+    assert status["status"] == "done", status.get("error")
+
+    record = client.get(f"/api/backtest/runs/{job_id}").json()
+    view = record["view"]
+    assert view["is_portfolio"] is True
+    assert view["symbols"] == ["XAUUSD", "BTC-USD"]
+    assert view["strategy_id"] == "trend_following_v1"
+    # the run is a normal record: it lists + serves its equity/trades artifacts
+    runs = client.get("/api/backtest/runs").json()["runs"]
+    assert any(r["id"] == job_id for r in runs)
+    assert client.get(
+        f"/api/backtest/runs/{job_id}/artifacts/equity").status_code == 200
+
+
+def test_portfolio_endpoint_validation(tmp_path):
+    state = _state(_trend_bars(200), tmp_path, timeframes=(Timeframe.D1,))
+    client = TestClient(create_app(state))
+    # fewer than two symbols → model rejects
+    assert client.post("/api/backtest/portfolio",
+                       json={"symbols": ["BTC-USD"], "timeframe": "1d",
+                             "duration": "30D"}).status_code == 422
+    # unknown symbol in the basket
+    assert client.post("/api/backtest/portfolio",
+                       json={"symbols": ["BTC-USD", "NOPE"], "timeframe": "1d",
+                             "duration": "30D"}).status_code == 422
+    # a pipeline strategy is not allowed for portfolio runs
+    assert client.post("/api/backtest/portfolio",
+                       json={"symbols": ["BTC-USD", "XAUUSD"], "timeframe": "1d",
+                             "duration": "30D",
+                             "strategy_id": "rules_v1"}).status_code == 422
