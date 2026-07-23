@@ -95,10 +95,6 @@ _EST_DECISIONS_PER_SECOND = 10
 # artifact — this bounds a 2s-interval poll payload, it loses nothing)
 SNAPSHOT_TRADES = 100
 _ASSET_BY_SYMBOL = {sym: asset for asset, sym in DEFAULT_SYMBOLS.items()}
-# strategies the dashboard job can run (track T1). rules_v1 is the
-# deterministic pipeline; pipeline_llm is the same pipeline on the operator's
-# model bundle (built here, since the bundle is environment, not a param).
-_KNOWN_STRATEGIES = ("rules_v1", "pipeline_llm")
 # assets that do NOT trade 24/7: daily bar counts scale by trading days
 _MARKET_CLOSURE_ASSETS = {AssetClass.GOLD}
 _TRADING_DAYS_PER_YEAR = 252
@@ -461,15 +457,21 @@ def resolve_request(marketdata: MarketDataService, params: dict) -> dict:
         raise ValueError(f"unknown duration {duration}")
 
     # strategy selection (track T1). strategy_id wins over use_llm; when
-    # absent, derive it so pre-SDK requests keep working unchanged.
-    strategy_id = params.get("strategy_id") or (
-        "pipeline_llm" if params.get("use_llm") else "rules_v1")
-    if strategy_id not in _KNOWN_STRATEGIES:
-        raise ValueError(
-            f"unknown strategy {strategy_id}; available: {sorted(_KNOWN_STRATEGIES)}")
+    # absent, derive it so pre-SDK requests keep working unchanged. Any
+    # registered strategy is runnable, plus the job-built pipeline_llm.
+    from tradingagents.pro.backtest import is_registered
+    from tradingagents.pro.backtest.registry import strategy_param_space
     from tradingagents.pro.backtest.strategies import RULES_V1_PARAMS
 
-    strategy_params = RULES_V1_PARAMS.resolve(params.get("strategy_params") or {})
+    strategy_id = params.get("strategy_id") or (
+        "pipeline_llm" if params.get("use_llm") else "rules_v1")
+    if strategy_id != "pipeline_llm" and not is_registered(strategy_id):
+        raise ValueError(f"unknown strategy {strategy_id}")
+    # validate strategy_params against the chosen strategy's declared schema
+    # (pipeline_llm shares the rules_v1 knobs); a bad name/value → 422
+    space = (RULES_V1_PARAMS if strategy_id == "pipeline_llm"
+             else strategy_param_space(strategy_id))
+    strategy_params = space.resolve(params.get("strategy_params") or {})
     use_llm = strategy_id == "pipeline_llm"
 
     bars = bars_for_duration(duration, tf, asset)
@@ -638,8 +640,11 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                 "pipeline_llm", resolved["strategy_params"],
                 llm_factory=lambda: bundle, config_patch=apply_rules_v1_params)
         else:
+            # any registered strategy (rules_v1 pipeline adapter, or a native
+            # order-book strategy like trend_following_v1) — all deterministic
             trackers, provider = (), "rules"
-            strategy = build_strategy("rules_v1", resolved["strategy_params"])
+            strategy = build_strategy(
+                resolved["strategy_id"], resolved["strategy_params"])
 
         from tradingagents.pro.memory import ProMemory
 

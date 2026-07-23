@@ -1132,22 +1132,20 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         so the UI can render the strategy picker + param inputs dynamically."""
         from tradingagents.pro.backtest import list_strategies
 
-        # pipeline_llm is job-built (needs the model bundle, not the registry)
-        # so it is advertised alongside the registered rules_v1 with the same
-        # declared parameter schema.
-        infos = {s.id: s for s in list_strategies()}
-        rules = infos.get("rules_v1")
-        rules_params = rules.params if rules is not None else []
-        return {"strategies": [
-            {"id": "rules_v1",
-             "description": rules.description if rules is not None else "",
-             "params": rules_params},
-            {"id": "pipeline_llm",
-             "description": "Real multi-agent LLM pipeline on the operator's "
-                            "model bundle — costs money, measures model skill. "
-                            "Same risk geometry and gates as rules_v1.",
-             "params": rules_params},
-        ]}
+        # every registered strategy (rules_v1, trend_following_v1, …) plus the
+        # job-built pipeline_llm (needs the model bundle, not the registry — it
+        # shares rules_v1's declared knobs).
+        out = [{"id": s.id, "description": s.description, "params": s.params}
+               for s in list_strategies()]
+        rules = next((s for s in list_strategies() if s.id == "rules_v1"), None)
+        out.append({
+            "id": "pipeline_llm",
+            "description": "Real multi-agent LLM pipeline on the operator's "
+                           "model bundle — costs money, measures model skill. "
+                           "Same risk geometry and gates as rules_v1.",
+            "params": rules.params if rules is not None else [],
+        })
+        return {"strategies": out}
 
     @app.get("/api/backtest/runs")
     def backtest_runs() -> dict:

@@ -294,6 +294,22 @@ def test_run_job_streams_persists_and_writes_full_artifacts(tmp_path):
     assert saved[0]["max_position_pct"] == 33.0
 
 
+def test_run_job_runs_native_trend_following_strategy(tmp_path):
+    # a steady uptrend so the Donchian breakout fires; the job must build and
+    # run the native (order-book) strategy end to end and record its identity
+    bars = make_bars(n=140)
+    state = _state(bars, tmp_path)
+    job = btjob.new_job({"symbol": "XAUUSD", "timeframe": "1d",
+                         "duration": "30D", "strategy_id": "trend_following_v1",
+                         "strategy_params": {"donchian_period": 15}})
+    state.backtest_job = job
+    btjob.run_job(state, job, job.params)
+    assert job.status == "done", job.error
+    assert job.result["strategy_id"] == "trend_following_v1"
+    assert job.result["strategy_params"]["donchian_period"] == 15
+    assert job.result["provider"] == "rules"  # deterministic, no LLM
+
+
 def test_run_job_honors_sizing_overrides(tmp_path):
     state = _state(make_bars(n=140), tmp_path)
     job = btjob.new_job({"symbol": "XAUUSD", "timeframe": "1d",
@@ -514,7 +530,10 @@ def test_strategies_endpoint_lists_rules_and_pipeline_llm(tmp_path):
     resp = client.get("/api/backtest/strategies")
     assert resp.status_code == 200
     strategies = {s["id"]: s for s in resp.json()["strategies"]}
-    assert set(strategies) == {"rules_v1", "pipeline_llm"}
+    assert {"rules_v1", "pipeline_llm", "trend_following_v1"} <= set(strategies)
+    # the native strategy advertises its own (different) schema
+    tf_params = [p["name"] for p in strategies["trend_following_v1"]["params"]]
+    assert "donchian_period" in tf_params
     # both advertise the declared param schema for the UI
     names = [p["name"] for p in strategies["rules_v1"]["params"]]
     assert names == ["tp_ladder", "min_risk_reward", "stop_cooldown_bars"]

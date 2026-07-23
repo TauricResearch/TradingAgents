@@ -74,6 +74,14 @@ def is_registered(strategy_id: str) -> bool:
     return strategy_id in _REGISTRY
 
 
+def strategy_param_space(strategy_id: str) -> ParamSpace | None:
+    """The declared ParamSpace for a registered strategy (or None). Lets the
+    dashboard job validate strategy_params against the chosen strategy's own
+    schema rather than hard-coding one strategy's params."""
+    entry = _REGISTRY.get(strategy_id)
+    return entry[1] if entry else None
+
+
 def _clear_registry() -> None:
     """Test-only: drop all registrations (keeps tests hermetic)."""
     _REGISTRY.clear()
@@ -85,4 +93,5 @@ __all__ = [
     "is_registered",
     "list_strategies",
     "register",
+    "strategy_param_space",
 ]
