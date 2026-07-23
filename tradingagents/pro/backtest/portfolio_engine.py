@@ -61,6 +61,7 @@ class PortfolioEngine:
         periods_per_year: int = 252,
         on_progress=None,
         allocator=None,
+        corr_guard=None,
     ):
         if min_history < 3:
             raise ValueError("min_history must be >= 3")
@@ -75,6 +76,8 @@ class PortfolioEngine:
         self._on_progress = on_progress  # (done_steps, total_steps) per step
         # optional per-symbol capital budget (CapitalAllocator); None = unbudgeted
         self._allocator = allocator
+        # optional correlation-exposure filter (CorrelationGuard); None = off
+        self._corr_guard = corr_guard
         # one strategy per symbol; a bare strategy is shared across all symbols
         self._strategies: dict[str, object] = (
             dict(strategy) if isinstance(strategy, Mapping)
@@ -119,7 +122,19 @@ class PortfolioEngine:
                         and (i - self.min_history) % self.decide_every == 0):
                     decisions += 1
                     equity = self.broker.equity_marks(self._marks_at(step))
-                    for intent in strat.on_bar(self._context(symbol, step)):
+                    intents = strat.on_bar(self._context(symbol, step))
+                    # correlation-exposure filter: veto this symbol's entries
+                    # when it is too correlated with a symbol already open
+                    if intents and self._corr_guard is not None:
+                        open_syms = {p.symbol for p in self.broker.positions.values()
+                                     if p.symbol != symbol}
+                        if open_syms and not self._corr_guard.allow(
+                                symbol, open_syms,
+                                self._trailing_returns(step, self._corr_guard.lookback)):
+                            rejections["correlation"] = (
+                                rejections.get("correlation", 0) + len(intents))
+                            intents = []
+                    for intent in intents:
                         outcome = self._submit_intent(symbol, intent, i, bar, equity)
                         if outcome is not None:
                             rejections[outcome] = rejections.get(outcome, 0) + 1
@@ -163,6 +178,26 @@ class PortfolioEngine:
 
     def _final_marks(self) -> dict[str, float]:
         return {s: self.replay.replay(s).bars[-1].close for s in self.replay.symbols}
+
+    def _trailing_returns(self, step: int, lookback: int) -> dict[str, list[float]]:
+        """Per-symbol close-to-close returns over the last ``lookback`` master
+        steps (using each symbol's as-of close — look-ahead-safe). A symbol
+        without a full window (started late) is omitted, so the guard sees only
+        genuinely comparable series."""
+        out: dict[str, list[float]] = {}
+        for symbol in self.replay.symbols:
+            closes: list[float] = []
+            for k in range(lookback, -1, -1):
+                prior = step - k
+                bar = self.replay.bar_at(symbol, prior) if prior >= 0 else None
+                if bar is None:
+                    closes = []
+                    break
+                closes.append(bar.close)
+            if len(closes) >= 2:
+                out[symbol] = [(closes[j] - closes[j - 1]) / closes[j - 1]
+                               for j in range(1, len(closes)) if closes[j - 1]]
+        return out
 
     def _context(self, symbol: str, step: int):
         from tradingagents.pro.backtest.strategy import (

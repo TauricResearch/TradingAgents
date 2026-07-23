@@ -6,6 +6,7 @@ from tradingagents.pro.backtest.allocator import (
     WeightedAllocator,
 )
 from tradingagents.pro.backtest.broker import ClosedTrade, PendingOrder, SimBroker
+from tradingagents.pro.backtest.correlation import CorrelationGuard, pearson
 from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
 from tradingagents.pro.backtest.data import BarReplay, HistoricalCorpus
 from tradingagents.pro.backtest.engine import BacktestEngine, BacktestResult
@@ -87,8 +88,10 @@ __all__ = [
     "CacheMiss",
     "CachingLLM",
     "CapitalAllocator",
+    "CorrelationGuard",
     "EqualWeightAllocator",
     "WeightedAllocator",
+    "pearson",
     "PerformanceReport",
     "PortfolioBacktestResult",
     "PortfolioEngine",
