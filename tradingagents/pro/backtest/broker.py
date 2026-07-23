@@ -146,6 +146,24 @@ class SimBroker:
                 value += sign * (mark_price - pos.entry_price) * pos.quantity
         return value
 
+    def equity_marks(self, marks: dict[str, float]) -> float:
+        """Portfolio equity: every open position marked at its OWN symbol's
+        price (``marks[symbol]``); a symbol absent from ``marks`` is held at
+        entry (zero unrealized). Foundation for the multi-symbol engine — the
+        single-symbol ``equity(mark_price)`` above is unchanged."""
+        value = self.initial_equity + self.cash_pnl
+        for pos in self.positions.values():
+            mark = marks.get(pos.symbol, pos.entry_price)
+            sign = 1 if pos.side == "BUY" else -1
+            value += sign * (mark - pos.entry_price) * pos.quantity
+        return value
+
+    def gross_notional_marks(self, marks: dict[str, float]) -> float:
+        """Aggregate open exposure across symbols, each marked at its own
+        price — the portfolio-heat input for the multi-symbol allocator."""
+        return sum(marks.get(p.symbol, p.entry_price) * p.quantity
+                   for p in self.positions.values())
+
     @property
     def position_open(self) -> bool:
         return bool(self.positions)
@@ -329,11 +347,17 @@ class SimBroker:
 
     # --- bar processing -----------------------------------------------------------
 
-    def process_bar(self, bar: OHLCVBar) -> list[ClosedTrade]:
-        """Manage every open position against one bar; returns the trades that
-        fully closed on this bar (may be empty)."""
+    def process_bar(self, bar: OHLCVBar, symbol: str | None = None) -> list[ClosedTrade]:
+        """Manage open positions against one bar; returns the trades that fully
+        closed on this bar (may be empty). ``symbol`` restricts management to
+        that symbol's positions — the multi-symbol engine calls it once per
+        symbol with that symbol's bar, so a position is only ever managed
+        against its own instrument. ``None`` (single-symbol default) manages
+        every position, byte-identical to before."""
         closed: list[ClosedTrade] = []
         for pos in list(self.positions.values()):
+            if symbol is not None and pos.symbol != symbol:
+                continue
             trade = self._manage(pos, bar)
             if trade is not None:
                 closed.append(trade)
@@ -384,10 +408,15 @@ class SimBroker:
                  else pos.extreme * (1 + pos.trailing_mult))
         pos.stop = max(pos.stop, trail) if long else min(pos.stop, trail)
 
-    def close_all(self, bar: OHLCVBar) -> list[ClosedTrade]:
-        """Force-close every open position at the bar's close (end of data)."""
+    def close_all(self, bar: OHLCVBar, symbol: str | None = None) -> list[ClosedTrade]:
+        """Force-close open positions at the bar's close (end of data).
+        ``symbol`` restricts the close to that symbol (the multi-symbol engine
+        force-closes each symbol at ITS own final bar); ``None`` closes every
+        position, byte-identical to before."""
         closed: list[ClosedTrade] = []
         for pos in list(self.positions.values()):
+            if symbol is not None and pos.symbol != symbol:
+                continue
             long = pos.side == "BUY"
             exit_price = self.slippage.fill_price(bar.close, "SELL" if long else "BUY")
             self._exit(pos, pos.quantity, exit_price, bar.start, "end_of_data")
