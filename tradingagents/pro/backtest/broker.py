@@ -51,6 +51,9 @@ class _OpenPosition:
     planned_rr: float | None = None  # ticket's size-weighted R:R (for reporting)
     initial_stop: float = 0.0  # R unit; never mutated (stop may move to BE)
     at_breakeven: bool = False
+    trailing_mode: str | None = None  # None | "pct"
+    trailing_mult: float | None = None
+    extreme: float | None = None  # best price seen since entry (trailing anchor)
     realized: float = 0.0
     exit_notional: float = 0.0
     exit_quantity: float = 0.0
@@ -73,6 +76,8 @@ class PendingOrder:
     stop_price: float | None = None
     stop_loss: float | None = None  # bracket: protective stop attached on fill
     take_profits: list[tuple[float, float]] = field(default_factory=list)
+    trailing_mode: str | None = None  # None | "pct" (ratchet stop by a % of the
+    trailing_mult: float | None = None  # favorable extreme; e.g. 0.05 = 5%)
     planned_rr: float | None = None
     symbol: str = ""
     expires_after: int | None = None  # bars from submit; None = rest all run
@@ -287,6 +292,9 @@ class SimBroker:
             tp_levels=list(order.take_profits),
             opened_at=bar.start,
             entry_commission=fee,
+            trailing_mode=order.trailing_mode,
+            trailing_mult=order.trailing_mult,
+            extreme=entry,
         )
         self.cash_pnl -= fee
         return None
@@ -329,7 +337,24 @@ class SimBroker:
                 pos.stop = (pos.entry_price + buffer if long
                             else pos.entry_price - buffer)
                 pos.at_breakeven = True
+        # position survived this bar: ratchet the trailing stop for NEXT bar
+        # (using this bar's extreme, never to check this bar's own low/high —
+        # the stop check above used the level the position entered the bar with)
+        self._update_trailing(pos, bar, long)
         return None
+
+    def _update_trailing(self, pos: _OpenPosition, bar: OHLCVBar, long: bool) -> None:
+        """Ratchet a percentage trailing stop toward the favorable extreme.
+        Ratchet-only (never loosens); ``initial_stop`` stays fixed so the R
+        unit is unchanged. Composes with breakeven (takes the tighter stop)."""
+        if pos.trailing_mode != "pct" or not pos.trailing_mult:
+            return
+        price = bar.high if long else bar.low
+        pos.extreme = (max(pos.extreme, price) if long
+                       else min(pos.extreme, price)) if pos.extreme is not None else price
+        trail = (pos.extreme * (1 - pos.trailing_mult) if long
+                 else pos.extreme * (1 + pos.trailing_mult))
+        pos.stop = max(pos.stop, trail) if long else min(pos.stop, trail)
 
     def close_all(self, bar: OHLCVBar) -> list[ClosedTrade]:
         """Force-close every open position at the bar's close (end of data)."""
