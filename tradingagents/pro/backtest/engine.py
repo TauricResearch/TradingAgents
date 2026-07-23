@@ -74,7 +74,10 @@ class BacktestEngine:
         # builds the pipeline directly from ``llm`` (unchanged).
         self._strategy = strategy
         if strategy is not None:
-            self.config = strategy.bind(config, memory=memory, **pipeline_kwargs)
+            # pipeline adapters build their own pipeline at bind (and may patch
+            # the config); native strategies use the engine's config directly.
+            self.config = (strategy.bind(config, memory=memory, **pipeline_kwargs)
+                           if hasattr(strategy, "bind") else config)
             self._pipeline = None
         else:
             self.config = config
@@ -86,9 +89,24 @@ class BacktestEngine:
         equity_curve: list[float] = []
         decisions = executed = 0
         rejections: dict[str, int] = {}
+        strategy = self._strategy
+        # a native strategy emits OrderIntents from on_bar (executed via the
+        # broker's pending-order book); a pipeline adapter exposes decide and
+        # keeps the recommendation path (bit-for-bit unchanged).
+        native = strategy is not None and not hasattr(strategy, "decide")
+        if native:
+            strategy.on_start(self._strategy_context(self.min_history))
 
         for i in range(self.min_history, len(bars) - 1):
             bar = bars[i]
+            # native: fill orders resting from prior bars AT this bar (before
+            # managing) so a position opens at this bar's open and is then
+            # managed against this bar — matching the recommendation path's
+            # decision→next-bar-open→manage timing.
+            if native:
+                for order_id in self.broker.match_pending(bar, i):
+                    executed += 1
+                    self._fire_fill(strategy, order_id, bar)
             for closed in self.broker.process_bar(bar):
                 self._report_outcome(closed)
 
@@ -98,23 +116,34 @@ class BacktestEngine:
             if (i - self.min_history) % self.decide_every == 0:
                 snapshot = self.replay.snapshot_at(i)
                 equity = self.broker.equity(mark_price=bar.close)
-                if self._strategy is not None:
-                    state = self._strategy.decide(snapshot, equity)
-                else:
-                    state = self._pipeline.invoke(
-                        {"snapshot": snapshot, "equity": equity})
                 decisions += 1
-                outcome = self._apply_decision(state, i)
-                if outcome == "executed":
-                    executed += 1
-                elif outcome is not None:
-                    rejections[outcome] = rejections.get(outcome, 0) + 1
+                if native:
+                    for intent in strategy.on_bar(self._strategy_context(i)):
+                        self._submit_intent(intent, i, bar, equity)
+                else:
+                    if strategy is not None:
+                        state = strategy.decide(snapshot, equity)
+                    else:
+                        state = self._pipeline.invoke(
+                            {"snapshot": snapshot, "equity": equity})
+                    outcome = self._apply_decision(state, i)
+                    if outcome == "executed":
+                        executed += 1
+                    elif outcome is not None:
+                        rejections[outcome] = rejections.get(outcome, 0) + 1
 
             equity_curve.append(self.broker.equity(mark_price=bar.close))
 
+        # fill anything resting into the final bar, then force-close
+        if native:
+            for order_id in self.broker.match_pending(bars[-1], len(bars) - 1):
+                executed += 1
+                self._fire_fill(strategy, order_id, bars[-1])
         for closed in self.broker.close_all(bars[-1]):
             self._report_outcome(closed)
         equity_curve.append(self.broker.equity(mark_price=bars[-1].close))
+        if native:
+            strategy.on_stop(self._strategy_context(len(bars) - 1))
 
         return BacktestResult(
             equity_curve=equity_curve,
@@ -143,6 +172,90 @@ class BacktestEngine:
         fill_bar = self.replay.bars[i + 1]
         reason = self.broker.open_from_recommendation(rec, fill_bar)
         return "executed" if reason is None else reason
+
+    # --- native strategy execution (order book) ------------------------------
+
+    def _strategy_context(self, i: int):
+        """Read-only view for a native strategy's on_bar/on_start/on_stop —
+        the same snapshot+equity the pipeline sees, plus open positions and
+        account state assembled from the broker."""
+        from tradingagents.pro.backtest.strategy import (
+            AccountView,
+            PositionView,
+            StrategyContext,
+        )
+
+        bar = self.replay.bars[i]
+        mark = bar.close
+        equity = self.broker.equity(mark_price=mark)
+        positions = tuple(
+            PositionView(
+                id=oid, symbol=p.symbol, side=p.side, quantity=p.quantity,
+                entry_price=p.entry_price, stop=p.stop,
+                unrealized_pnl=(1 if p.side == "BUY" else -1)
+                * (mark - p.entry_price) * p.quantity,
+                opened_at=p.opened_at,
+            )
+            for oid, p in self.broker.positions.items()
+        )
+        params = getattr(self._strategy, "params", {})
+        return StrategyContext(
+            snapshot=self.replay.snapshot_at(i),
+            equity=equity,
+            params=params if isinstance(params, dict) else {},
+            positions=positions,
+            account=AccountView(
+                equity=equity, cash_pnl=self.broker.cash_pnl,
+                gross_exposure=self.broker._gross_notional(mark),
+                open_positions=self.broker.open_count,
+            ),
+        )
+
+    def _submit_intent(self, intent, i: int, ref_bar, equity: float) -> None:
+        """Translate one OrderIntent into a pending order and submit it. Sizes
+        risk_pct intents off the entry reference (limit/stop price, else the
+        decision bar's close) and the bracket stop, capped by the config's
+        max position — the same equity-aware sizing the pipeline uses."""
+        import uuid
+
+        from tradingagents.pro.analytics.risk import fixed_risk_position_size
+        from tradingagents.pro.backtest.broker import PendingOrder
+
+        bracket = intent.bracket
+        stop_loss = bracket.stop_loss if bracket else None
+        if intent.quantity is not None:
+            quantity = intent.quantity
+        elif intent.risk_pct is not None and stop_loss is not None:
+            entry_ref = intent.limit_price or intent.stop_price or ref_bar.close
+            quantity = fixed_risk_position_size(
+                equity, intent.risk_pct, entry=entry_ref, stop=stop_loss,
+                max_position_pct=self.config.risk.max_position_pct_equity,
+            ).quantity
+        else:
+            return  # risk_pct sizing needs a bracket stop; nothing to submit
+        self.broker.submit(PendingOrder(
+            id=f"{i}-{intent.tag or uuid.uuid4().hex[:8]}",
+            kind=intent.kind, side=intent.side, quantity=quantity,
+            limit_price=intent.limit_price, stop_price=intent.stop_price,
+            stop_loss=stop_loss,
+            take_profits=list(bracket.take_profits) if bracket else [],
+            trailing_mode=bracket.trailing if bracket else None,
+            trailing_mult=bracket.trailing_mult if bracket else None,
+            symbol=self.replay.symbol, submitted_index=i, tag=intent.tag,
+        ))
+
+    def _fire_fill(self, strategy, order_id: str, bar) -> None:
+        """Notify a native strategy that one of its orders filled (opened)."""
+        from tradingagents.pro.backtest.strategy import Fill
+
+        pos = self.broker.positions.get(order_id)
+        if pos is None:
+            return
+        strategy.on_fill(Fill(
+            order_tag=order_id, symbol=pos.symbol, side=pos.side,
+            quantity=pos.quantity, price=pos.entry_price,
+            at=bar.start, is_entry=True,
+        ))
 
     def _in_cooldown(self, side: str, i: int) -> bool:
         """Anti-churn: after a stop-out, no same-side re-entry for
