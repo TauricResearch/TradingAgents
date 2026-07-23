@@ -54,20 +54,32 @@ class BacktestEngine:
         min_history: int = 60,
         decide_every: int = 1,
         periods_per_year: int = 252,
+        strategy=None,
         **pipeline_kwargs,
     ):
         if min_history < 3:
             raise ValueError("min_history must be >= 3")
         if decide_every < 1:
             raise ValueError("decide_every must be >= 1")
-        self.config = config
         self.replay = replay
         self.broker = broker or SimBroker()
         self.memory = memory
         self.min_history = min_history
         self.decide_every = decide_every
         self.periods_per_year = periods_per_year
-        self._pipeline = build_pro_pipeline(llm, config, memory=memory, **pipeline_kwargs)
+        # Strategy SDK (track T1): when a strategy is supplied it owns the
+        # decision — bind it (it builds its own pipeline with its params
+        # applied) and use its (possibly patched) config so the engine's
+        # cooldown check reads the same RiskLimits. Otherwise the legacy path
+        # builds the pipeline directly from ``llm`` (unchanged).
+        self._strategy = strategy
+        if strategy is not None:
+            self.config = strategy.bind(config, memory=memory, **pipeline_kwargs)
+            self._pipeline = None
+        else:
+            self.config = config
+            self._pipeline = build_pro_pipeline(
+                llm, config, memory=memory, **pipeline_kwargs)
 
     def run(self) -> BacktestResult:
         bars = self.replay.bars
@@ -85,10 +97,12 @@ class BacktestEngine:
             # single-position serialization, bound how many trades run.
             if (i - self.min_history) % self.decide_every == 0:
                 snapshot = self.replay.snapshot_at(i)
-                state = self._pipeline.invoke({
-                    "snapshot": snapshot,
-                    "equity": self.broker.equity(mark_price=bar.close),
-                })
+                equity = self.broker.equity(mark_price=bar.close)
+                if self._strategy is not None:
+                    state = self._strategy.decide(snapshot, equity)
+                else:
+                    state = self._pipeline.invoke(
+                        {"snapshot": snapshot, "equity": equity})
                 decisions += 1
                 outcome = self._apply_decision(state, i)
                 if outcome == "executed":

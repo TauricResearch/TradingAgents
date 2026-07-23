@@ -25,6 +25,9 @@ from tradingagents.pro.backtest.registry import (
     list_strategies,
     register,
 )
+
+# import last: registers built-in strategies (rules_v1) via @register on import
+from tradingagents.pro.backtest.strategies import PipelineStrategy  # noqa: E402
 from tradingagents.pro.backtest.strategy import (
     AccountView,
     BracketIntent,
@@ -76,6 +79,7 @@ __all__ = [
     "Strategy",
     "StrategyContext",
     "StrategyInfo",
+    "PipelineStrategy",
     "build_strategy",
     "is_registered",
     "list_strategies",
