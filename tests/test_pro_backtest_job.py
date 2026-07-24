@@ -295,6 +295,37 @@ def test_run_job_streams_persists_and_writes_full_artifacts(tmp_path):
     assert saved[0]["max_position_pct"] == 33.0
 
 
+def test_run_job_wires_extended_report(tmp_path):
+    # a completed run carries the flat ExtendedReport scalars on the record and
+    # writes the full bundle (with series) to the 'extended' artifact, its
+    # series aligned to result.equity_curve (= decisions + 1 end-of-data mark).
+    state = _state(make_bars(n=140), tmp_path)
+    job = btjob.new_job({"symbol": "XAUUSD", "timeframe": "1d", "duration": "30D"})
+    state.backtest_job = job
+    btjob.run_job(state, job, job.params)
+    assert job.status == "done", job.error
+
+    ext = job.result.get("extended")
+    assert ext is not None, "extended scalars missing from the record"
+    for key in ("cagr", "calmar", "recovery_factor", "alpha", "beta",
+                "benchmark_total_return", "max_consecutive_losses"):
+        assert key in ext and isinstance(ext[key], (int, float))
+    # series never ride inline on the record — only in the artifact
+    assert "drawdown_curve" not in ext
+    assert "extended" in job.result["artifacts"]
+
+    artifacts = RunArtifacts(job.id)
+    bundle = artifacts.read("extended")
+    assert isinstance(bundle, dict)
+    # scalars round-trip identically between record and artifact
+    assert bundle["cagr"] == ext["cagr"]
+    # the underwater series aligns to the full equity curve (decisions + the
+    # post-loop end-of-data mark that engine.equity_rows omits)
+    equity = artifacts.read("equity")
+    assert len(equity) == job.result["decisions"]
+    assert len(bundle["drawdown_curve"]) == job.result["decisions"] + 1
+
+
 def test_run_job_runs_native_trend_following_strategy(tmp_path):
     # a steady uptrend so the Donchian breakout fires; the job must build and
     # run the native (order-book) strategy end to end and record its identity

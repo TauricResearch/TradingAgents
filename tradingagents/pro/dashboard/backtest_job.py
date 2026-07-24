@@ -229,6 +229,40 @@ def summary_from_view(record_id: str, created_at: str, view: dict) -> dict:
     }
 
 
+def _extended_bundle(
+    curve, trades, timestamps, benchmark_closes, initial_equity,
+    tf: Timeframe, asset: AssetClass | None,
+) -> tuple[dict | None, dict | None]:
+    """Compute the institutional ExtendedReport (CAGR, Calmar, risk-of-ruin,
+    alpha/beta, underwater curve, rolling Sharpe, calendar returns) aligned to
+    an equity curve. Returns ``(scalar_dict, full_dict)`` — the flat scalars
+    ride in the run record; the full bundle (incl. series) is written to the
+    ``extended`` artifact. Best-effort: any failure (too few points, pandas
+    absent) returns ``(None, None)`` and is logged — a reporting metric must
+    never break a run."""
+    try:
+        from dataclasses import asdict
+
+        from tradingagents.pro.backtest.report import extended_report
+
+        n = min(len(curve), len(timestamps), len(benchmark_closes))
+        if n < 2:
+            return None, None
+        curve = list(curve[:n])
+        timestamps = list(timestamps[:n])
+        benchmark_closes = list(benchmark_closes[:n])
+        # fractional years from the real span (sub-day aware, so intraday
+        # windows get an honest CAGR base rather than a 0-day divide)
+        years = (timestamps[-1] - timestamps[0]).total_seconds() / (365.25 * 86400)
+        ext = extended_report(
+            curve, trades, timestamps, benchmark_closes, initial_equity, years,
+            periods_per_year=periods_per_year(tf, asset))
+        return ext.scalar_dict(), asdict(ext)
+    except Exception:  # noqa: BLE001 — reporting is best-effort, never fatal
+        logger.warning("extended report unavailable", exc_info=True)
+        return None, None
+
+
 # --- job state --------------------------------------------------------------
 
 
@@ -693,6 +727,11 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
             cancel=job.cancel,
         )
 
+        # full ExtendedReport (incl. series) for the completed/partial run —
+        # stashed here so the finalize-time artifact write can persist it; the
+        # flat scalars go on the view (see below).
+        extended_holder: dict = {}
+
         def build_view(result, partial: bool) -> dict:
             mc = (monte_carlo_summary([t.pnl for t in result.trades],
                                       resolved["initial_equity"])
@@ -702,6 +741,9 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
             view = service.backtest_view(result, mc)
             # bulk arrays live in the artifacts, not the record/event
             view.pop("equity_curve", None)
+            artifact_names = (["equity", "trades", "decisions", "orders"]
+                              if engine.broker.order_log
+                              else ["equity", "trades", "decisions"])
             view.update({
                 "provider": provider,
                 "symbol": symbol,
@@ -722,10 +764,32 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                           "impact_bps": slip.impact_bps,
                           "commission_bps": commission.rate_bps},
                 "schema_version": 1,
-                "artifacts": (["equity", "trades", "decisions", "orders"]
-                              if engine.broker.order_log
-                              else ["equity", "trades", "decisions"]),
             })
+            # extended analytics (track T1 reporting). Align timestamps +
+            # benchmark closes to result.equity_curve: the complete curve maps
+            # 1:1 to bars[MIN_HISTORY:] (one point per decided bar + the final
+            # mark); the partial (cancelled) curve is [initial]+per-decision, so
+            # anchor it on the recorded decision indices.
+            if not partial:
+                slice_bars = bars[MIN_HISTORY:]
+                ext_ts = [b.start for b in slice_bars]
+                ext_bench = [b.close for b in slice_bars]
+            else:
+                dec_idxs = [d["index"] for d in engine.decisions_log]
+                if dec_idxs:
+                    anchor = dec_idxs[0]
+                    ext_ts = [bars[anchor].start] + [bars[i].start for i in dec_idxs]
+                    ext_bench = [bars[anchor].close] + [bars[i].close for i in dec_idxs]
+                else:
+                    ext_ts = ext_bench = []
+            scalar, full = _extended_bundle(
+                result.equity_curve, result.trades, ext_ts, ext_bench,
+                resolved["initial_equity"], tf, resolved["asset"])
+            if scalar is not None:
+                view["extended"] = scalar
+                extended_holder["full"] = full
+                artifact_names = [*artifact_names, "extended"]
+            view["artifacts"] = artifact_names
             if trackers:
                 view["est_cost_usd"] = round(
                     sum(t.report.est_cost_usd for t in trackers), 4)
@@ -752,20 +816,33 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
                 decisions=len(engine.decisions_log),
                 executed=executed,
             )
+            view = build_view(partial, partial=True)
             on_checkpoint(engine)  # final artifact flush of the partial
-            finalize(build_view(partial, partial=True), "cancelled")
+            if extended_holder.get("full"):  # persist the extended series too
+                try:
+                    artifacts.write(
+                        equity=engine.equity_rows, trades=job.closed_trades,
+                        decisions=engine.decisions_log,
+                        orders=engine.broker.order_log,
+                        extended=extended_holder["full"])
+                except Exception:  # noqa: BLE001 — best-effort finalize flush
+                    logger.warning("extended artifact flush failed", exc_info=True)
+            finalize(view, "cancelled")
             return
 
         # final artifact flush with the complete record (incl. end-of-data
-        # closes that happen after the last decision)
+        # closes that happen after the last decision). build_view first so the
+        # extended bundle is computed and can ride into the artifact write.
         job.closed_trades = [closed_trade_view(t) for t in result.trades]
+        view = build_view(result, partial=False)
         artifacts.write(
             equity=engine.equity_rows,
             trades=job.closed_trades,
             decisions=engine.decisions_log,
             orders=engine.broker.order_log,
+            extended=extended_holder.get("full"),
         )
-        finalize(build_view(result, partial=False), "done")
+        finalize(view, "done")
     except BacktestCancelled:
         # cancelled during the fetch phase: nothing ran yet
         job.status = "cancelled"
