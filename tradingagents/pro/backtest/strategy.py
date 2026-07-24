@@ -72,6 +72,8 @@ class OrderIntent:
     reduce_only: bool = False
     oco_group: str | None = None  # one-cancels-other: a filled leg cancels the
     #                               group's other resting legs (track T2)
+    display_qty: float | None = None  # iceberg: fill ≤ this per bar, resting
+    #                                   until `quantity` is filled (track T2)
     tag: str = ""
 
     def __post_init__(self) -> None:

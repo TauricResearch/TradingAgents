@@ -263,6 +263,7 @@ class BacktestEngine:
             trailing_period=bracket.trailing_period if bracket else None,
             reduce_only=intent.reduce_only,
             oco_group=intent.oco_group,
+            display_qty=intent.display_qty,
             symbol=self.replay.symbol, submitted_index=i, tag=intent.tag,
         ))
 

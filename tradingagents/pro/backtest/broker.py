@@ -107,6 +107,9 @@ class PendingOrder:
     #                            never opens or flips (track T2 risk realism)
     oco_group: str | None = None  # one-cancels-other: a filled leg cancels the
     #                               group's other WORKING legs (track T2)
+    display_qty: float | None = None  # iceberg: max size shown/filled per bar;
+    #                                   the order rests until `quantity` is done
+    filled_qty: float = 0.0  # iceberg: cumulative filled so far (track T2)
 
 
 @dataclass
@@ -305,6 +308,8 @@ class SimBroker:
         fill, else None. Handles the conservative fill level, reduce-vs-open
         routing, expiry, terminal rejection, and the lifecycle record; a
         terminal order (filled/expired/rejected) is popped from the book."""
+        if order.display_qty is not None:
+            return self._attempt_iceberg_fill(order, bar, index)
         raw = self._fill_price(order, bar)
         if raw is None:
             if (order.expires_after is not None
@@ -330,6 +335,85 @@ class SimBroker:
         order.state = "CANCELLED"
         self._record_order(order, state=f"rejected:{reason}")
         self.pending.pop(order.id, None)
+        return None
+
+    def _attempt_iceberg_fill(self, order: PendingOrder, bar: OHLCVBar,
+                              index: int) -> str | None:
+        """Fill one iceberg slice this bar: at most ``display_qty`` (and the
+        liquidity cap), building/averaging one position via ``_add_to_position``
+        until ``quantity`` is exhausted. Stays WORKING between slices; returns
+        the order id only on the FIRST slice (the position-opening fill), so the
+        engine fires on_fill once. Expiry/rejection are terminal."""
+        raw = self._fill_price(order, bar)
+        if raw is None:
+            if (order.expires_after is not None
+                    and index - order.submitted_index >= order.expires_after):
+                order.state = "EXPIRED"
+                self._record_order(order, state="EXPIRED",
+                                   filled_index=index, fill_price=order.filled_qty)
+                self.pending.pop(order.id, None)
+            return None
+        remaining = order.quantity - order.filled_qty
+        slice_qty = self.liquidity.cap_quantity(
+            min(order.display_qty, remaining), bar.volume)
+        if slice_qty <= 0:
+            return None  # no liquidity this bar — keep resting
+        is_new = order.id not in self.positions
+        reason = self._add_to_position(order, raw, bar, slice_qty)
+        if reason is not None:
+            order.state = "CANCELLED"
+            self._record_order(order, state=f"rejected:{reason}")
+            self.pending.pop(order.id, None)
+            return None
+        order.filled_qty += slice_qty
+        if order.filled_qty >= order.quantity - 1e-12:
+            order.state = "FILLED"
+            self._record_order(order, state="FILLED", filled_index=index,
+                               fill_price=self.positions[order.id].entry_price)
+            self.pending.pop(order.id, None)
+        return order.id if is_new else None
+
+    def _add_to_position(self, order: PendingOrder, raw_price: float,
+                         bar: OHLCVBar, quantity: float) -> str | None:
+        """Open (first slice) or size-weighted average into (later slices) a
+        position for an incremental order. Scale-ins keep the original
+        ``initial_stop``; ``original_quantity`` grows so the R unit grows with
+        size. Returns None on success or a rejection reason. Applies the same
+        caps/costs as ``_open_from_fill`` (exposure checked on every slice)."""
+        pos = self.positions.get(order.id)
+        if pos is None:
+            if order.stop_loss is None:
+                return "no_stop"
+            if len(self.positions) >= self.max_open_positions:
+                return "max_open_positions"
+            if sum(1 for p in self.positions.values()
+                   if p.side == order.side) >= self.max_same_direction:
+                return "same_direction_cap"
+        equity = self.equity(mark_price=raw_price)
+        prospective_gross = self._gross_notional(raw_price) + raw_price * quantity
+        if equity > 0 and prospective_gross > (self.max_gross_exposure_pct / 100.0) * equity:
+            return "exposure_cap"
+        entry = self.slippage.fill_price_at(
+            raw_price, order.side, _participation(quantity, bar.volume))
+        fee = self.commission.cost(quantity, entry)
+        if pos is None:
+            self.positions[order.id] = _OpenPosition(
+                symbol=order.symbol, recommendation_id=order.id,
+                planned_rr=order.planned_rr, side=order.side, quantity=quantity,
+                original_quantity=quantity, entry_price=entry,
+                stop=order.stop_loss, initial_stop=order.stop_loss,
+                tp_levels=list(order.take_profits), opened_at=bar.start,
+                entry_commission=fee, trailing_mode=order.trailing_mode,
+                trailing_mult=order.trailing_mult,
+                trailing_period=order.trailing_period, extreme=entry)
+        else:
+            new_qty = pos.quantity + quantity
+            pos.entry_price = (pos.entry_price * pos.quantity
+                               + entry * quantity) / new_qty
+            pos.quantity = new_qty
+            pos.original_quantity += quantity
+            pos.entry_commission += fee
+        self.cash_pnl -= fee
         return None
 
     def _match_oco_groups(self, bar: OHLCVBar, index: int,
