@@ -20,6 +20,11 @@ from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, Sl
 # for a long run; a trailing period beyond this is clamped to what's retained
 _TRAIL_WINDOW_MAX = 512
 
+# same-bar OCO tie-break: when several legs of one group could fill on the same
+# bar, evaluate the adverse (stop-triggered) leg before the profit (limit) leg,
+# mirroring the conservative stop-before-take-profit intrabar policy.
+_OCO_RANK = {"stop_entry": 0, "stop_limit": 0, "market": 1, "limit": 2}
+
 
 def _participation(quantity: float, bar_volume: float) -> float:
     """Order size as a fraction of the bar's traded volume — the market-impact
@@ -100,6 +105,8 @@ class PendingOrder:
     triggered: bool = False  # stop_limit: stop touched, now a resting limit
     reduce_only: bool = False  # only reduces/closes opposing same-symbol size,
     #                            never opens or flips (track T2 risk realism)
+    oco_group: str | None = None  # one-cancels-other: a filled leg cancels the
+    #                               group's other WORKING legs (track T2)
 
 
 @dataclass
@@ -277,38 +284,81 @@ class SimBroker:
         restricts matching to that symbol's orders (the multi-symbol engine
         matches each symbol against its own bar); ``None`` matches all,
         byte-identical to the single-symbol path."""
-        filled: list[str] = []
+        # OCO groups resolve first (adverse-first within each group; the first
+        # leg to fill cancels its siblings). Non-grouped orders then match in
+        # insertion order exactly as before — with no OCO orders in the book
+        # (the default), this pre-pass is empty and the path is byte-identical.
+        filled: list[str] = self._match_oco_groups(bar, index, symbol)
         for order in list(self.pending.values()):
-            if order.state != "WORKING":
+            if order.state != "WORKING" or order.oco_group is not None:
                 continue
             if symbol is not None and order.symbol != symbol:
                 continue
-            raw = self._fill_price(order, bar)
-            if raw is None:
-                if (order.expires_after is not None
-                        and index - order.submitted_index >= order.expires_after):
-                    order.state = "EXPIRED"
-                    self._record_order(order, state="EXPIRED")
-                    self.pending.pop(order.id, None)
-                continue
-            reason = (self._reduce_from_fill(order, raw, bar) if order.reduce_only
-                      else self._open_from_fill(order, raw, bar))
-            if reason is None:
-                order.state = "FILLED"
-                # a reduce_only fill opens no position under order.id, so record
-                # the reference fill level; an entry records its opened price
-                fill_price = (raw if order.reduce_only
-                              else self.positions[order.id].entry_price)
-                self._record_order(
-                    order, state="FILLED", filled_index=index,
-                    fill_price=fill_price)
-                filled.append(order.id)
-            else:
-                # a real fill level but a cap/parameter blocked the open — don't
-                # let the order retry forever; drop it (rejection is terminal)
-                order.state = "CANCELLED"
-                self._record_order(order, state=f"rejected:{reason}")
+            oid = self._attempt_fill(order, bar, index)
+            if oid is not None:
+                filled.append(oid)
+        return filled
+
+    def _attempt_fill(self, order: PendingOrder, bar: OHLCVBar,
+                      index: int) -> str | None:
+        """Try to fill one WORKING order against a bar. Returns the order id on
+        fill, else None. Handles the conservative fill level, reduce-vs-open
+        routing, expiry, terminal rejection, and the lifecycle record; a
+        terminal order (filled/expired/rejected) is popped from the book."""
+        raw = self._fill_price(order, bar)
+        if raw is None:
+            if (order.expires_after is not None
+                    and index - order.submitted_index >= order.expires_after):
+                order.state = "EXPIRED"
+                self._record_order(order, state="EXPIRED")
+                self.pending.pop(order.id, None)
+            return None
+        reason = (self._reduce_from_fill(order, raw, bar) if order.reduce_only
+                  else self._open_from_fill(order, raw, bar))
+        if reason is None:
+            order.state = "FILLED"
+            # a reduce_only fill opens no position under order.id, so record the
+            # reference fill level; an entry records its opened price
+            fill_price = (raw if order.reduce_only
+                          else self.positions[order.id].entry_price)
+            self._record_order(order, state="FILLED", filled_index=index,
+                               fill_price=fill_price)
             self.pending.pop(order.id, None)
+            return order.id
+        # a real fill level but a cap/parameter blocked the open — don't let the
+        # order retry forever; drop it (rejection is terminal)
+        order.state = "CANCELLED"
+        self._record_order(order, state=f"rejected:{reason}")
+        self.pending.pop(order.id, None)
+        return None
+
+    def _match_oco_groups(self, bar: OHLCVBar, index: int,
+                          symbol: str | None) -> list[str]:
+        """Resolve one-cancels-other groups: within each group evaluate legs
+        adverse-first (stop before limit — pessimistic), fill at most one, and
+        cancel the rest. Returns the filled order ids."""
+        groups: dict[str, list[PendingOrder]] = {}
+        for order in list(self.pending.values()):
+            if order.state != "WORKING" or order.oco_group is None:
+                continue
+            if symbol is not None and order.symbol != symbol:
+                continue
+            groups.setdefault(order.oco_group, []).append(order)
+        filled: list[str] = []
+        for members in groups.values():
+            members.sort(key=lambda o: (_OCO_RANK.get(o.kind, 1),
+                                        o.submitted_index))
+            won = False
+            for order in members:
+                if won:
+                    order.state = "CANCELLED"
+                    self._record_order(order, state="cancelled:oco")
+                    self.pending.pop(order.id, None)
+                    continue
+                oid = self._attempt_fill(order, bar, index)
+                if oid is not None:
+                    filled.append(oid)
+                    won = True
         return filled
 
     def _fill_price(self, order: PendingOrder, bar: OHLCVBar) -> float | None:

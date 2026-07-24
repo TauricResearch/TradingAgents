@@ -278,6 +278,7 @@ class PortfolioEngine:
             trailing_mult=bracket.trailing_mult if bracket else None,
             trailing_period=bracket.trailing_period if bracket else None,
             reduce_only=intent.reduce_only,
+            oco_group=intent.oco_group,
             symbol=symbol, submitted_index=i, tag=intent.tag,
         ))
         return None
