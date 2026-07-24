@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.utils.agent_utils import (
+    build_cacheable_system_content,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -22,7 +23,7 @@ from tradingagents.agents.utils.structured import (
 )
 
 
-def create_portfolio_manager(llm, cache=None):
+def create_portfolio_manager(llm):
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
@@ -40,11 +41,8 @@ def create_portfolio_manager(llm, cache=None):
             else ""
         )
 
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
-
-{instrument_context}
-
----
+        system_content = build_cacheable_system_content(
+            """You are the Portfolio Manager. Synthesize the risk analysts' debate and deliver the final trading decision.
 
 **Rating Scale** (use exactly one):
 - **Buy**: Strong conviction to enter or add to position
@@ -53,18 +51,25 @@ def create_portfolio_manager(llm, cache=None):
 - **Underweight**: Reduce exposure, take partial profits
 - **Sell**: Exit position or avoid entry
 
-**Context:**
-- Research Manager's investment plan: **{research_plan}**
-- Trader's transaction proposal: **{trader_plan}**
-{lessons_line}
-**Risk Analysts Debate History:**
-{history}
-
----
-
 Be decisive and ground every conclusion in specific evidence from the analysts.
 
-{NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
+"""
+            + NO_EXTERNAL_TOOLS
+            + get_language_instruction(),
+            llm,
+        )
+        prompt = [
+            {"role": "system", "content": system_content},
+            {
+                "role": "user",
+                "content": (
+                    f"Analysis context:\nInstrument context: {instrument_context}\n"
+                    f"- Research Manager's investment plan: **{research_plan}**\n"
+                    f"- Trader's transaction proposal: **{trader_plan}**\n"
+                    f"{lessons_line}Risk Analysts Debate History:\n{history}"
+                ),
+            },
+        ]
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,
@@ -72,7 +77,6 @@ Be decisive and ground every conclusion in specific evidence from the analysts.
             prompt,
             render_pm_decision,
             "Portfolio Manager",
-            cache=cache,
         )
 
         new_risk_debate_state = {

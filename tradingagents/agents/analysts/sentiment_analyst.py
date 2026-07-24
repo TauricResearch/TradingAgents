@@ -82,6 +82,7 @@ def create_sentiment_analyst(llm):
                 SystemMessage(content=system_message),
                 (
                     "human",
+                    "Analysis context:\n"
                     "Today's date is {current_date}; treat it as 'now' for all analysis.\n"
                     "Instrument context: {instrument_context}\n"
                     "Pre-fetched data:\n\n"
@@ -126,7 +127,9 @@ def create_sentiment_analyst(llm):
 
 def _build_system_message() -> str:
     """Build stable sentiment-analysis instructions for provider prompt caching."""
-    return f"""You are a financial market sentiment analyst. Produce a comprehensive sentiment report from the three complementary data sources supplied in the human message.
+    return f"""You are a financial market sentiment analyst collaborating with other assistants. Produce a comprehensive sentiment report from the three complementary data sources supplied in the human message.
+
+If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable, prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop.
 
 ## How to analyze this data (best practices)
 
