@@ -13,6 +13,7 @@ from tradingagents.pro.backtest.costs import (
     CommissionModel,
     FundingModel,
     LiquidityModel,
+    MarginModel,
     SlippageModel,
     cost_profile_for,
 )
@@ -98,6 +99,7 @@ __all__ = [
     "SimBroker",
     "CommissionModel",
     "FundingModel",
+    "MarginModel",
     "LiquidityModel",
     "SlippageModel",
     "cost_profile_for",

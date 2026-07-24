@@ -107,6 +107,33 @@ class FundingModel:
         return -pay if side == "BUY" else pay
 
 
+@dataclass(frozen=True)
+class MarginModel:
+    """Leverage + maintenance-margin + forced-liquidation (roadmap P4 / track
+    T5). ``leverage`` lifts the broker's gross-exposure cap (initial margin =
+    notional / leverage); ``maintenance_margin_pct`` is the equity floor below
+    which open positions are force-liquidated; ``liquidation_penalty_bps`` is
+    the extra adverse slippage a forced close pays. Opt-in: the neutral
+    setting (``leverage=1, maintenance_margin_pct=0``) is byte-identical to no
+    margin model at all — no cap change, no liquidation."""
+
+    leverage: float = 1.0
+    maintenance_margin_pct: float = 0.0
+    liquidation_penalty_bps: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.leverage <= 0:
+            raise ValueError("leverage must be > 0")
+        if not 0 <= self.maintenance_margin_pct < 100:
+            raise ValueError("maintenance_margin_pct must be in [0, 100)")
+
+    @property
+    def is_neutral(self) -> bool:
+        """True when the model changes nothing vs. having no margin model."""
+        return (self.leverage <= 1.0 and self.maintenance_margin_pct <= 0.0
+                and self.liquidation_penalty_bps <= 0.0)
+
+
 def cost_profile_for(asset) -> tuple[SlippageModel, CommissionModel, LiquidityModel]:
     """Return (slippage, commission, liquidity) models tuned per asset class.
     ``asset`` may be an ``AssetClass`` or its name. See ``_COST_PROFILES`` for

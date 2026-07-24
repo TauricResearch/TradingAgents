@@ -121,6 +121,12 @@ class BacktestEngine:
                     self._fire_fill(strategy, order_id, bar)
             for closed in self.broker.process_bar(bar):
                 self._report_outcome(closed)
+            # forced liquidation backstop (track T5): only fires when the broker
+            # carries a non-neutral margin model — otherwise a no-op, so the
+            # default path is unchanged. Runs after _manage, so a reachable
+            # protective stop pre-empts it.
+            for closed in self.broker.check_liquidation(bar):
+                self._report_outcome(closed)
 
             # decide on every eligible bar (throttled by decide_every) even
             # while positions are open — the broker's count/exposure caps, not

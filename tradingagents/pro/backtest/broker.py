@@ -14,7 +14,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from tradingagents.contracts import OHLCVBar, TradeAction, TradeRecommendation
-from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
+from tradingagents.pro.backtest.costs import (
+    CommissionModel,
+    LiquidityModel,
+    MarginModel,
+    SlippageModel,
+)
 
 # max bars retained per symbol for ATR/chandelier trailing — bounds memory even
 # for a long run; a trailing period beyond this is clamped to what's retained
@@ -135,6 +140,10 @@ class SimBroker:
     # a breakeven exit nets ~0 instead of a costs-sized loss.
     breakeven_after_tp1: bool = True
     breakeven_buffer_pct: float = 0.0006
+    # optional leverage/margin/liquidation (track T5). None or a neutral model
+    # (leverage 1, maintenance 0) → the gross cap and fills are byte-identical
+    # to before and no position is ever force-liquidated.
+    margin: MarginModel | None = None
 
     def __post_init__(self):
         self.cash_pnl = 0.0  # realized pnl net of costs
@@ -167,6 +176,15 @@ class SimBroker:
         rec.update(updates)
 
     # --- equity ---------------------------------------------------------------
+
+    def _leverage(self) -> float:
+        return self.margin.leverage if self.margin is not None else 1.0
+
+    def _max_gross(self, equity: float) -> float:
+        """Gross-notional ceiling: the base cap, lifted by leverage when a
+        margin model is set (initial margin = notional / leverage). No margin
+        model → leverage 1 → the exact prior cap."""
+        return (self.max_gross_exposure_pct / 100.0) * equity * self._leverage()
 
     def equity(self, mark_price: float | None = None) -> float:
         value = self.initial_equity + self.cash_pnl
@@ -241,7 +259,7 @@ class SimBroker:
         mark = fill_bar.open
         equity = self.equity(mark_price=mark)
         prospective_gross = self._gross_notional(mark) + mark * quantity
-        if equity > 0 and prospective_gross > (self.max_gross_exposure_pct / 100.0) * equity:
+        if equity > 0 and prospective_gross > self._max_gross(equity):
             return "exposure_cap"
         entry = self.slippage.fill_price_at(
             fill_bar.open, side, _participation(quantity, fill_bar.volume))
@@ -418,7 +436,7 @@ class SimBroker:
                 return "same_direction_cap"
         equity = self.equity(mark_price=raw_price)
         prospective_gross = self._gross_notional(raw_price) + raw_price * quantity
-        if equity > 0 and prospective_gross > (self.max_gross_exposure_pct / 100.0) * equity:
+        if equity > 0 and prospective_gross > self._max_gross(equity):
             return "exposure_cap"
         entry = self.slippage.fill_price_at(
             raw_price, order.side, _participation(quantity, bar.volume))
@@ -524,7 +542,7 @@ class SimBroker:
             return "liquidity"
         equity = self.equity(mark_price=raw_price)
         prospective_gross = self._gross_notional(raw_price) + raw_price * quantity
-        if equity > 0 and prospective_gross > (self.max_gross_exposure_pct / 100.0) * equity:
+        if equity > 0 and prospective_gross > self._max_gross(equity):
             return "exposure_cap"
         entry = self.slippage.fill_price_at(
             raw_price, order.side, _participation(quantity, bar.volume))
@@ -692,6 +710,51 @@ class SimBroker:
             trs.append(tr)
             prev_close = b.close
         return sum(trs) / len(trs)
+
+    def check_liquidation(self, bar: OHLCVBar,
+                          symbol: str | None = None) -> list[ClosedTrade]:
+        """Forced liquidation (track T5): if marked equity at the bar's ADVERSE
+        extreme (low for longs, high for shorts — conservative) falls below the
+        total maintenance requirement, force-close the affected positions at
+        that extreme plus a liquidation penalty (reason "liquidation"). No-op
+        (returns []) when there is no margin model or a neutral one, so the
+        "liquidation" reason never appears on the default path."""
+        if self.margin is None or self.margin.is_neutral:
+            return []
+        positions = [p for p in self.positions.values()
+                     if symbol is None or p.symbol == symbol]
+        if not positions:
+            return []
+        adverse_pnl = 0.0
+        maintenance = 0.0
+        mm = self.margin.maintenance_margin_pct / 100.0
+        for pos in positions:
+            adv = bar.low if pos.side == "BUY" else bar.high
+            sign = 1 if pos.side == "BUY" else -1
+            adverse_pnl += sign * (adv - pos.entry_price) * pos.quantity
+            maintenance += mm * adv * pos.quantity
+        marked_equity = self.initial_equity + self.cash_pnl + adverse_pnl
+        if marked_equity >= maintenance:
+            return []  # still solvent at the worst-case mark
+        # breach: liquidate worst-marked first (deterministic, id tie-break)
+        penalty = self.margin.liquidation_penalty_bps / 10_000.0
+        closed: list[ClosedTrade] = []
+        for pos in sorted(
+                positions,
+                key=lambda p: ((1 if p.side == "BUY" else -1)
+                               * ((bar.low if p.side == "BUY" else bar.high)
+                                  - p.entry_price) * p.quantity,
+                               p.recommendation_id)):
+            adv = bar.low if pos.side == "BUY" else bar.high
+            long = pos.side == "BUY"
+            exit_price = self.slippage.fill_price_at(
+                adv, "SELL" if long else "BUY",
+                _participation(pos.quantity, bar.volume))
+            # penalty makes the forced fill worse for the position
+            exit_price *= (1 - penalty) if long else (1 + penalty)
+            self._exit(pos, pos.quantity, exit_price, bar.start, "liquidation")
+            closed.append(self._finalize(pos, bar.start))
+        return closed
 
     def close_all(self, bar: OHLCVBar, symbol: str | None = None) -> list[ClosedTrade]:
         """Force-close open positions at the bar's close (end of data).
