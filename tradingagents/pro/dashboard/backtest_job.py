@@ -655,6 +655,16 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
         replay = BarReplay(symbol, resolved["asset"], bars, window=MIN_HISTORY,
                            precompute_indicators=True)
         total_decisions = max(1, len(bars) - 1 - MIN_HISTORY)
+        # multi-TF (track T4): if the strategy declares higher timeframes it
+        # wants to consult, aggregate whichever are strictly coarser than the
+        # run's timeframe and hand them to the engine (populates ctx.htf).
+        from tradingagents.pro.backtest.multitf import HTF_SECONDS
+
+        want_htf = getattr(strategy, "htf_timeframes", None)
+        htf_timeframes = (
+            [t for t in want_htf if HTF_SECONDS[t] > HTF_SECONDS[tf]]
+            if want_htf else None) or None
+
         # per-asset execution costs (track T5): spread + sqrt-impact + venue
         # commission tuned to the instrument, disclosed in the view
         slip, commission, liquidity = cost_profile_for(resolved["asset"])
@@ -674,6 +684,7 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
             min_history=MIN_HISTORY,
             decide_every=1,
             periods_per_year=periods_per_year(tf, resolved["asset"]),
+            htf_timeframes=htf_timeframes,
             on_progress=on_progress,
             on_trade=on_trade,
             on_checkpoint=on_checkpoint,
