@@ -10,6 +10,12 @@ from tradingagents.pro.analytics.features import (
     realized_volatility,
     trend_slope,
 )
+from tradingagents.pro.analytics.importance import (
+    FeatureImportance,
+    feature_importance_report,
+    negative_mse_scorer,
+    permutation_importance,
+)
 from tradingagents.pro.analytics.risk import (
     atr_stop_loss,
     atr_take_profits,
@@ -26,6 +32,10 @@ __all__ = [
     "close_zscore",
     "realized_volatility",
     "trend_slope",
+    "FeatureImportance",
+    "feature_importance_report",
+    "negative_mse_scorer",
+    "permutation_importance",
     "atr_stop_loss",
     "atr_take_profits",
     "take_profits_from_risk",
