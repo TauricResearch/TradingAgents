@@ -323,6 +323,85 @@ def _build_mean_reversion_v1(params: dict[str, Any]) -> MeanReversionV1:
     return MeanReversionV1(params)
 
 
+MOMENTUM_V1_PARAMS = ParamSpace(
+    Param("roc_period", "int", 5, 40, default=14),
+    Param("roc_threshold", "float", 1.0, 15.0, step=1.0, default=5.0),
+    Param("stop_atr_mult", "float", 1.0, 4.0, step=0.5, default=2.0),
+    Param("target_atr_mult", "float", 1.0, 6.0, step=0.5, default=3.0),
+    Param("risk_pct", "float", 0.1, 3.0, step=0.1, default=1.0),
+    Param("allow_short", "categorical", choices=("yes", "no"), default="yes"),
+)
+
+
+class MomentumV1:
+    """Rate-of-change momentum — enter in the direction of a strong recent move
+    (|ROC| over ``roc_period`` beyond ``roc_threshold`` percent) and take a
+    FIXED-R outcome (ATR stop + ATR target, no trailing). Distinct from the
+    breakout (channel + trailing) and mean-reversion (fade the mean) packages;
+    the momentum/relative-strength archetype from the research. Long & short,
+    computed from the look-ahead-safe snapshot window."""
+
+    def __init__(self, params: dict[str, Any]):
+        self.id = "momentum_v1"
+        self.params = params
+
+    def on_start(self, ctx: StrategyContext) -> None: ...
+
+    def on_bar(self, ctx: StrategyContext) -> list[OrderIntent]:
+        bars = ctx.snapshot.bars
+        p = int(self.params["roc_period"])
+        if len(bars) < p + 2:
+            return []
+        atr = self._atr(bars, p)
+        ref = bars[-(p + 1)]
+        if atr <= 0 or ref.close <= 0:
+            return []
+        last = bars[-1]
+        roc = (last.close / ref.close - 1.0) * 100.0
+        thr = float(self.params["roc_threshold"])
+        stop_m = float(self.params["stop_atr_mult"])
+        tgt_m = float(self.params["target_atr_mult"])
+        risk = float(self.params["risk_pct"])
+        open_sides = {pos.side for pos in ctx.positions}
+
+        if roc > thr and "BUY" not in open_sides:
+            return [self._entry("BUY", last.close - stop_m * atr,
+                                last.close + tgt_m * atr, risk)]
+        if (self.params["allow_short"] == "yes"
+                and roc < -thr and "SELL" not in open_sides):
+            return [self._entry("SELL", last.close + stop_m * atr,
+                                last.close - tgt_m * atr, risk)]
+        return []
+
+    def on_fill(self, fill) -> None: ...
+
+    def on_stop(self, ctx: StrategyContext) -> None: ...
+
+    @staticmethod
+    def _atr(bars, period: int) -> float:
+        recent = bars[-(period + 1):]
+        trs = [max(c.high - c.low, abs(c.high - p.close), abs(c.low - p.close))
+               for p, c in zip(recent, recent[1:], strict=False)]
+        return sum(trs) / len(trs) if trs else 0.0
+
+    @staticmethod
+    def _entry(side, stop, target, risk) -> OrderIntent:
+        return OrderIntent(
+            kind="market", side=side, risk_pct=risk,
+            bracket=BracketIntent(stop_loss=stop, take_profits=((target, 1.0),)),
+            tag=f"mom_{side.lower()}")
+
+
+@register("momentum_v1", MOMENTUM_V1_PARAMS,
+          description="Rate-of-change momentum — enter with a strong recent "
+                      "move (ROC beyond a threshold) for a fixed-R ATR "
+                      "stop/target (long & short). A native order-book strategy "
+                      "implementing the research's momentum/relative-strength "
+                      "pattern. No model calls.")
+def _build_momentum_v1(params: dict[str, Any]) -> MomentumV1:
+    return MomentumV1(params)
+
+
 def _rules_llm():
     from tradingagents.pro.evals.rules import RulesPipelineLLM
 
@@ -341,9 +420,11 @@ def _build_rules_v1(params: dict[str, Any]) -> PipelineStrategy:
 
 __all__ = [
     "MEAN_REVERSION_V1_PARAMS",
+    "MOMENTUM_V1_PARAMS",
     "RULES_V1_PARAMS",
     "TREND_V1_PARAMS",
     "MeanReversionV1",
+    "MomentumV1",
     "PipelineStrategy",
     "TrendFollowingV1",
     "apply_rules_v1_params",
