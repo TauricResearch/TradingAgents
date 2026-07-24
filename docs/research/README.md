@@ -40,7 +40,9 @@ Everything here obeys the honesty contract in [00_methodology.md](00_methodology
 | S6 ✅ | Architecture → deliverables 7–10, 12 (HLD/LLD/schema/API/SDK/validation) | **Design review** |
 | S7 ✅ | Deliverables 11, 13–15; wrap | Final sign-off |
 
-**All 15 deliverables complete.** Research + design package done; implementation (P0→P5 per [13_roadmap.md](13_roadmap.md)) is future work in separate sessions.
+**All 15 deliverables complete.** Research + design package done.
+
+**Implementation complete + deployed.** The full P0→P5 roadmap ([13_roadmap.md](13_roadmap.md)) shipped: Strategy SDK, order lifecycle, optimization + overfitting guards, portfolio + multi-timeframe, per-asset cost realism, and extended analytics — plus a six-archetype native strategy library. See the as-built guide: [../BACKTESTING_GUIDE.md](../BACKTESTING_GUIDE.md).
 
 ## Commands
 
