@@ -15,8 +15,11 @@ are pure and stateless; ``None`` on the engine keeps sizing unbudgeted.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import statistics
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
+
+_VOL_FLOOR = 1e-9  # clamp so a zero-vol symbol doesn't produce an infinite weight
 
 
 @runtime_checkable
@@ -72,4 +75,78 @@ class WeightedAllocator:
         return max(0.0, weight * equity - existing_symbol_notional)
 
 
-__all__ = ["CapitalAllocator", "EqualWeightAllocator", "WeightedAllocator"]
+@dataclass
+class InverseVolAllocator:
+    """Risk-parity-style budgeting: each symbol's share of the gross book is
+    proportional to the inverse of its volatility (lower-vol symbols get more
+    notional), so every symbol contributes roughly equal risk rather than equal
+    capital. ``vol_by_symbol`` is a caller-supplied as-of volatility estimate;
+    ``update`` refreshes it from trailing returns (the engine calls it when
+    present). A symbol with no volatility estimate is uncapped here (the
+    broker's gross cap still binds)."""
+
+    vol_by_symbol: dict[str, float] = field(default_factory=dict)
+    target_gross_pct: float = 100.0  # total gross budget as a % of equity
+    max_weight_pct: float | None = None
+    lookback: int = 30
+
+    def update(self, returns_by_symbol: dict[str, list[float]]) -> None:
+        for symbol, returns in returns_by_symbol.items():
+            if len(returns) >= 2:
+                self.vol_by_symbol[symbol] = statistics.pstdev(returns)
+
+    def _weight(self, symbol: str) -> float | None:
+        if symbol not in self.vol_by_symbol:
+            return None
+        inv = {s: 1.0 / max(v, _VOL_FLOOR) for s, v in self.vol_by_symbol.items()}
+        total = sum(inv.values())
+        if total <= 0:
+            return None
+        weight = (inv[symbol] / total) * (self.target_gross_pct / 100.0)
+        if self.max_weight_pct is not None:
+            weight = min(weight, self.max_weight_pct / 100.0)
+        return weight
+
+    def max_notional(self, symbol: str, equity: float,
+                     existing_symbol_notional: float) -> float:
+        weight = self._weight(symbol)
+        if weight is None:
+            return float("inf")
+        return max(0.0, weight * equity - existing_symbol_notional)
+
+
+@dataclass
+class VolatilityTargetAllocator:
+    """Size each symbol so its expected position volatility ≈ ``target_vol_pct``
+    of equity: weight = target_vol / symbol_vol, capped at ``max_weight_pct``.
+    Low-vol symbols get larger positions, high-vol smaller — volatility
+    targeting rather than fixed notional. ``update`` refreshes the estimates
+    from trailing returns."""
+
+    vol_by_symbol: dict[str, float] = field(default_factory=dict)
+    target_vol_pct: float = 2.0  # per-period target position vol, % of equity
+    max_weight_pct: float = 100.0
+    lookback: int = 30
+
+    def update(self, returns_by_symbol: dict[str, list[float]]) -> None:
+        for symbol, returns in returns_by_symbol.items():
+            if len(returns) >= 2:
+                self.vol_by_symbol[symbol] = statistics.pstdev(returns)
+
+    def max_notional(self, symbol: str, equity: float,
+                     existing_symbol_notional: float) -> float:
+        vol = self.vol_by_symbol.get(symbol)
+        if vol is None:
+            return float("inf")  # no estimate yet; broker gross cap still binds
+        weight = (self.target_vol_pct / 100.0) / max(vol, _VOL_FLOOR)
+        weight = min(weight, self.max_weight_pct / 100.0)
+        return max(0.0, weight * equity - existing_symbol_notional)
+
+
+__all__ = [
+    "CapitalAllocator",
+    "EqualWeightAllocator",
+    "InverseVolAllocator",
+    "VolatilityTargetAllocator",
+    "WeightedAllocator",
+]

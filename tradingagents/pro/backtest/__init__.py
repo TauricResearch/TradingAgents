@@ -3,6 +3,8 @@
 from tradingagents.pro.backtest.allocator import (
     CapitalAllocator,
     EqualWeightAllocator,
+    InverseVolAllocator,
+    VolatilityTargetAllocator,
     WeightedAllocator,
 )
 from tradingagents.pro.backtest.broker import ClosedTrade, PendingOrder, SimBroker
@@ -106,6 +108,8 @@ __all__ = [
     "CacheMiss",
     "CachingLLM",
     "CapitalAllocator",
+    "InverseVolAllocator",
+    "VolatilityTargetAllocator",
     "CorrelationGuard",
     "EqualWeightAllocator",
     "MultiTimeframeReplay",

@@ -260,6 +260,7 @@ class BacktestEngine:
             take_profits=list(bracket.take_profits) if bracket else [],
             trailing_mode=bracket.trailing if bracket else None,
             trailing_mult=bracket.trailing_mult if bracket else None,
+            reduce_only=intent.reduce_only,
             symbol=self.replay.symbol, submitted_index=i, tag=intent.tag,
         ))
 

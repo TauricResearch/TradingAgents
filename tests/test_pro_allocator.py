@@ -121,3 +121,55 @@ def test_no_allocator_allows_larger_positions_than_a_tight_budget():
     biggest_unbudgeted = max(t.entry_price * t.quantity for t in unbudgeted.trades)
     biggest_budgeted = max(t.entry_price * t.quantity for t in budgeted.trades)
     assert biggest_budgeted < biggest_unbudgeted  # the budget shrank positions
+
+
+# --- volatility-aware allocators (track T2 / risk realism) -------------------
+
+
+def test_inverse_vol_weights_are_risk_parity():
+    from tradingagents.pro.backtest import InverseVolAllocator
+
+    # symbol "a" is half as volatile as "b" → twice the notional (equal risk)
+    alloc = InverseVolAllocator(vol_by_symbol={"a": 0.01, "b": 0.02})
+    a = alloc.max_notional("a", 90_000.0, 0.0)
+    b = alloc.max_notional("b", 90_000.0, 0.0)
+    assert a == pytest.approx(60_000.0)   # weight 2/3 of 90k
+    assert b == pytest.approx(30_000.0)   # weight 1/3 of 90k
+    # existing notional is netted out of the remaining budget
+    assert alloc.max_notional("a", 90_000.0, 50_000.0) == pytest.approx(10_000.0)
+
+
+def test_inverse_vol_unknown_symbol_is_uncapped():
+    from tradingagents.pro.backtest import InverseVolAllocator
+
+    alloc = InverseVolAllocator(vol_by_symbol={"a": 0.01})
+    assert alloc.max_notional("unknown", 100_000.0, 0.0) == float("inf")
+
+
+def test_volatility_target_scales_inverse_to_vol():
+    from tradingagents.pro.backtest import VolatilityTargetAllocator
+
+    alloc = VolatilityTargetAllocator(
+        vol_by_symbol={"a": 0.02, "b": 0.04}, target_vol_pct=2.0)
+    # a: 0.02 target / 0.02 vol → weight 1.0 → full equity
+    assert alloc.max_notional("a", 100_000.0, 0.0) == pytest.approx(100_000.0)
+    # b: 0.02 / 0.04 → weight 0.5 → half equity
+    assert alloc.max_notional("b", 100_000.0, 0.0) == pytest.approx(50_000.0)
+
+
+def test_update_refreshes_vols_from_returns():
+    from tradingagents.pro.backtest import InverseVolAllocator
+
+    alloc = InverseVolAllocator()
+    alloc.update({"a": [0.01, -0.01, 0.01, -0.01], "b": [0.0, 0.0]})
+    assert alloc.vol_by_symbol["a"] > 0
+    # a single-element series is ignored (needs >= 2 points)
+    alloc.update({"c": [0.05]})
+    assert "c" not in alloc.vol_by_symbol
+
+
+def test_static_allocators_have_no_update_hook():
+    # the engine's refresh is hasattr-gated; the static allocators must not
+    # expose update (so their behaviour is byte-identical to before)
+    assert not hasattr(EqualWeightAllocator(2), "update")
+    assert not hasattr(WeightedAllocator({"a": 0.5}), "update")

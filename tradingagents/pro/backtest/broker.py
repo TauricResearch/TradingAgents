@@ -91,6 +91,8 @@ class PendingOrder:
     tag: str = ""
     state: str = "WORKING"  # WORKING | FILLED | CANCELLED | EXPIRED
     triggered: bool = False  # stop_limit: stop touched, now a resting limit
+    reduce_only: bool = False  # only reduces/closes opposing same-symbol size,
+    #                            never opens or flips (track T2 risk realism)
 
 
 @dataclass
@@ -279,12 +281,17 @@ class SimBroker:
                     self._record_order(order, state="EXPIRED")
                     self.pending.pop(order.id, None)
                 continue
-            reason = self._open_from_fill(order, raw, bar)
+            reason = (self._reduce_from_fill(order, raw, bar) if order.reduce_only
+                      else self._open_from_fill(order, raw, bar))
             if reason is None:
                 order.state = "FILLED"
+                # a reduce_only fill opens no position under order.id, so record
+                # the reference fill level; an entry records its opened price
+                fill_price = (raw if order.reduce_only
+                              else self.positions[order.id].entry_price)
                 self._record_order(
                     order, state="FILLED", filled_index=index,
-                    fill_price=self.positions[order.id].entry_price)
+                    fill_price=fill_price)
                 filled.append(order.id)
             else:
                 # a real fill level but a cap/parameter blocked the open — don't
@@ -369,6 +376,32 @@ class SimBroker:
             extreme=entry,
         )
         self.cash_pnl -= fee
+        return None
+
+    def _reduce_from_fill(
+        self, order: PendingOrder, raw_price: float, bar: OHLCVBar
+    ) -> str | None:
+        """Apply a reduce-only fill: close opposing same-symbol quantity (a SELL
+        reduces longs, a BUY reduces shorts), capped at the order quantity so it
+        can only shrink exposure — never open a new position or flip to the
+        other side. Returns None on success, or a reason when there is nothing
+        to reduce. Positions are reduced in insertion order (deterministic)."""
+        opposing_side = "BUY" if order.side == "SELL" else "SELL"
+        targets = [p for p in self.positions.values()
+                   if p.symbol == order.symbol and p.side == opposing_side]
+        if not targets:
+            return "reduce_only_no_position"
+        exit_price = self.slippage.fill_price_at(
+            raw_price, order.side, _participation(order.quantity, bar.volume))
+        remaining = order.quantity
+        for pos in targets:
+            if remaining <= 0:
+                break
+            qty = min(remaining, pos.quantity)
+            self._exit(pos, qty, exit_price, bar.start, "reduce_only")
+            remaining -= qty
+            if pos.quantity <= 1e-12:
+                self._finalize(pos, bar.start)
         return None
 
     # --- bar processing -----------------------------------------------------------

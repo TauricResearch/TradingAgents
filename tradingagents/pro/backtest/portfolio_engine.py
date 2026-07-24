@@ -104,6 +104,11 @@ class PortfolioEngine:
                 started.add(id(strat))
 
         for step in range(len(replay)):
+            # refresh a dynamic (vol-aware) allocator from trailing returns —
+            # hasattr-gated so static allocators (equal/weighted) are untouched
+            if self._allocator is not None and hasattr(self._allocator, "update"):
+                self._allocator.update(
+                    self._trailing_returns(step, self._allocator.lookback))
             for symbol in replay.active_symbols_at(step):
                 i = replay.local_index(symbol, step)
                 bar = replay.bar_at(symbol, step)
@@ -253,8 +258,9 @@ class PortfolioEngine:
         else:
             return "no_sizing"  # risk_pct sizing needs a bracket stop
         # per-symbol capital budget (portfolio heat): trim the order so this
-        # symbol's gross notional stays within its allocation; 0 budget vetoes
-        if self._allocator is not None and entry_ref > 0:
+        # symbol's gross notional stays within its allocation; 0 budget vetoes.
+        # reduce_only orders only shrink exposure, so the budget never applies.
+        if self._allocator is not None and entry_ref > 0 and not intent.reduce_only:
             mark = ref_bar.close
             existing = sum(p.quantity * mark for p in self.broker.positions.values()
                            if p.symbol == symbol)
@@ -270,6 +276,7 @@ class PortfolioEngine:
             take_profits=list(bracket.take_profits) if bracket else [],
             trailing_mode=bracket.trailing if bracket else None,
             trailing_mult=bracket.trailing_mult if bracket else None,
+            reduce_only=intent.reduce_only,
             symbol=symbol, submitted_index=i, tag=intent.tag,
         ))
         return None
