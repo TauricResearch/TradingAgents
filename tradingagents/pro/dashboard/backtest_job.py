@@ -125,6 +125,10 @@ class BacktestRunRequest(BaseModel):
     # name/value) and recorded for reproducibility.
     strategy_id: str | None = Field(default=None, max_length=32)
     strategy_params: dict = Field(default_factory=dict)
+    # opt-in institutional report (PNG charts + self-contained report.html +
+    # report.pdf). Off by default — it's heavy, so the hot path never pays for
+    # it and the equivalence suite is untouched.
+    emit_report: bool = False
 
 
 def bars_for_duration(duration: str, timeframe: Timeframe,
@@ -404,6 +408,10 @@ class _StreamingEngine(BacktestEngine):
         # full-fidelity capture: one row per decision, nothing sampled
         self.decisions_log: list[dict] = []
         self.equity_rows: list[list] = []  # [iso_time, equity] per decision
+        # executed-decision debate state, keyed by recommendation id — the one
+        # extra input the report's regime/agent charts need (bounded: only the
+        # trades that actually opened). Pure observer; no behavioural effect.
+        self.states_by_rec_id: dict[str, dict] = {}
 
     def _apply_decision(self, state: dict, i: int):
         if self._cancel is not None and self._cancel.is_set():
@@ -433,6 +441,13 @@ class _StreamingEngine(BacktestEngine):
             "regime": getattr(regime, "value", regime),
         })
         self.equity_rows.append([bar.start.isoformat(), equity])
+        if outcome == "executed" and rec is not None:
+            rec_id = getattr(rec, "id", None)
+            if rec_id is not None:
+                self.states_by_rec_id[rec_id] = {
+                    "recommendation": rec,
+                    "gate_results": state.get("gate_results", {}),
+                }
 
         if (self._on_checkpoint is not None and self._checkpoint_every
                 and self._decision_num % self._checkpoint_every == 0):
@@ -533,6 +548,7 @@ def resolve_request(marketdata: MarketDataService, params: dict) -> dict:
         "initial_equity": float(params.get("initial_equity", 100_000.0)),
         "risk_per_trade_pct": float(params.get("risk_per_trade_pct", 1.0)),
         "max_position_pct": float(params.get("max_position_pct", 33.0)),
+        "emit_report": bool(params.get("emit_report", False)),
     }
 
 
@@ -842,6 +858,29 @@ def run_job(state: Any, job: BacktestJob, params: dict) -> None:
             orders=engine.broker.order_log,
             extended=extended_holder.get("full"),
         )
+        if resolved["emit_report"]:
+            # heavy, opt-in: PNG charts + self-contained report.html + report.pdf.
+            # best-effort — a chart/PDF failure never fails the run.
+            try:
+                from tradingagents.pro.backtest.report_html import generate_report
+
+                slice_bars = bars[MIN_HISTORY:]
+                view["report_files"] = generate_report(
+                    RunArtifacts(job.id).dir,
+                    meta={"title": f"{symbol} · {resolved['strategy_id']}",
+                          "symbol": symbol, "timeframe": tf.value,
+                          "duration": resolved["duration"],
+                          "window": " → ".join(view.get("window") or [])},
+                    report=result.report.as_dict(),
+                    extended=extended_holder.get("full"),
+                    equity_curve=result.equity_curve,
+                    timestamps=[b.start for b in slice_bars],
+                    benchmark_closes=[b.close for b in slice_bars],
+                    initial_equity=resolved["initial_equity"],
+                    trades=result.trades,
+                    states_by_rec_id=engine.states_by_rec_id)
+            except Exception:  # noqa: BLE001 — report is best-effort
+                logger.warning("report generation failed", exc_info=True)
         finalize(view, "done")
     except BacktestCancelled:
         # cancelled during the fetch phase: nothing ran yet

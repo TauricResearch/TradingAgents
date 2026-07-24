@@ -326,6 +326,32 @@ def test_run_job_wires_extended_report(tmp_path):
     assert len(bundle["drawdown_curve"]) == job.result["decisions"] + 1
 
 
+def test_run_job_emit_report_generates_files(tmp_path):
+    pytest.importorskip("matplotlib")  # backtest-report extra
+    state = _state(make_bars(n=140), tmp_path)
+    job = btjob.new_job({"symbol": "XAUUSD", "timeframe": "1d",
+                         "duration": "30D", "emit_report": True})
+    state.backtest_job = job
+    btjob.run_job(state, job, job.params)
+    assert job.status == "done", job.error
+    files = job.result.get("report_files")
+    assert files and "report.html" in files and "report.pdf" in files
+    run_dir = RunArtifacts(job.id).dir
+    assert (run_dir / "report.html").is_file()
+    assert (run_dir / "report.pdf").read_bytes()[:5] == b"%PDF-"
+
+
+def test_run_job_without_emit_report_writes_none(tmp_path):
+    # opt-in proof: the default run produces no report files (and stays fast)
+    state = _state(make_bars(n=140), tmp_path)
+    job = btjob.new_job({"symbol": "XAUUSD", "timeframe": "1d", "duration": "30D"})
+    state.backtest_job = job
+    btjob.run_job(state, job, job.params)
+    assert job.status == "done", job.error
+    assert "report_files" not in job.result
+    assert not (RunArtifacts(job.id).dir / "report.html").is_file()
+
+
 def test_run_job_runs_native_trend_following_strategy(tmp_path):
     # a steady uptrend so the Donchian breakout fires; the job must build and
     # run the native (order-book) strategy end to end and record its identity

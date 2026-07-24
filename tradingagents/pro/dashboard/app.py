@@ -1349,6 +1349,44 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
             raise HTTPException(status_code=404, detail="artifact not found")
         return FileResponse(path, media_type="application/json")
 
+    @app.get("/api/backtest/runs/{run_id}/report.html")
+    def backtest_report_html(run_id: str):
+        """Self-contained institutional report (opt-in ``emit_report`` runs);
+        404 when the run was executed without report generation."""
+        from fastapi.responses import FileResponse
+
+        from tradingagents.pro.dashboard.backtest_artifacts import RunArtifacts
+        path = RunArtifacts(run_id).dir / "report.html"
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="report not found")
+        return FileResponse(path, media_type="text/html")
+
+    @app.get("/api/backtest/runs/{run_id}/report.pdf")
+    def backtest_report_pdf(run_id: str):
+        from fastapi.responses import FileResponse
+
+        from tradingagents.pro.dashboard.backtest_artifacts import RunArtifacts
+        path = RunArtifacts(run_id).dir / "report.pdf"
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="report not found")
+        return FileResponse(path, media_type="application/pdf")
+
+    @app.get("/api/backtest/runs/{run_id}/charts/{name}")
+    def backtest_chart(run_id: str, name: str):
+        """One report chart PNG. Name is allowlisted (``[a-z_]+.png``) so it
+        can't escape the run's chart directory."""
+        import re
+
+        from fastapi.responses import FileResponse
+
+        from tradingagents.pro.dashboard.backtest_artifacts import RunArtifacts
+        if not re.fullmatch(r"[a-z_]+\.png", name):
+            raise HTTPException(status_code=404, detail="unknown chart")
+        path = RunArtifacts(run_id).dir / "charts" / name
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="chart not found")
+        return FileResponse(path, media_type="image/png")
+
     @app.delete("/api/backtest/runs/{run_id}")
     def delete_backtest_run(run_id: str) -> dict:
         from tradingagents.pro.dashboard.backtest_artifacts import RunArtifacts
