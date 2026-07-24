@@ -18,6 +18,8 @@ import {
   BacktestTradesArtifactSchema,
   OptimizationSchema,
   OptimizationsSchema,
+  BakeoffSchema,
+  BakeoffsSchema,
   BarsSchema,
   CalendarSchema,
   EvidencePanelsSchema,
@@ -70,6 +72,9 @@ export const qk = {
   backtestOptimizations: ["backtest", "optimizations"] as const,
   backtestOptimization: (id: string) =>
     ["backtest", "optimizations", id] as const,
+  backtestBakeoffJob: ["backtest", "bakeoff", "job"] as const,
+  backtestBakeoffs: ["backtest", "bakeoffs"] as const,
+  backtestBakeoff: (id: string) => ["backtest", "bakeoffs", id] as const,
   memory: ["memory"] as const,
   agents: ["agents"] as const,
   symbols: ["symbols"] as const,
@@ -499,6 +504,66 @@ export async function runPortfolioBacktest(req: {
 }): Promise<{ job_id: string }> {
   try {
     return await apiFetch<{ job_id: string }>("/api/backtest/portfolio", {
+      method: "POST",
+      body: JSON.stringify(req),
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 400) {
+      try {
+        const detail = JSON.parse(err.detail) as {
+          estimate?: BacktestCostConfirmation["estimate"];
+        };
+        if (detail?.estimate) throw new BacktestCostConfirmation(detail.estimate);
+      } catch (parseErr) {
+        if (parseErr instanceof BacktestCostConfirmation) throw parseErr;
+      }
+    }
+    throw err;
+  }
+}
+
+// --- strategy bake-off ------------------------------------------------------
+
+export const useBacktestBakeoffs = () =>
+  useQuery({
+    queryKey: qk.backtestBakeoffs,
+    queryFn: fetchParsed("/api/backtest/bakeoffs", BakeoffsSchema),
+    staleTime: 30_000,
+  });
+
+export const useBacktestBakeoff = (id: string | null) =>
+  useQuery({
+    queryKey: qk.backtestBakeoff(id ?? "none"),
+    queryFn: fetchParsed(`/api/backtest/bakeoffs/${id}`, BakeoffSchema),
+    enabled: id != null,
+    staleTime: Infinity,
+  });
+
+export const useBacktestBakeoffJob = (polling: boolean) =>
+  useQuery({
+    queryKey: qk.backtestBakeoffJob,
+    queryFn: fetchParsed("/api/backtest/bakeoff/job", BacktestJobSchema),
+    refetchInterval: polling ? 2_000 : false,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+/** Start a strategy bake-off (202 → { job_id }); empty strategy_ids = the whole
+ * library. A 400 for a big basket throws BacktestCostConfirmation. */
+export async function runBakeoff(req: {
+  symbol: string;
+  timeframe: string;
+  duration: string;
+  strategy_ids?: string[];
+  objective: string;
+  initial_equity?: number;
+  risk_per_trade_pct?: number;
+  max_position_pct?: number;
+  confirm_cost?: boolean;
+}): Promise<{ job_id: string }> {
+  try {
+    return await apiFetch<{ job_id: string }>("/api/backtest/bakeoff", {
       method: "POST",
       body: JSON.stringify(req),
       headers: { "Content-Type": "application/json" },

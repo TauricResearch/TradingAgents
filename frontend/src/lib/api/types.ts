@@ -542,6 +542,71 @@ export const OptimizationSchema = z
   .passthrough();
 export type Optimization = z.infer<typeof OptimizationSchema>;
 
+/** Strategy bake-off: several strategies run over one window, ranked by an
+ * honest objective. */
+export const BakeoffResultSchema = z
+  .object({
+    strategy_id: z.string(),
+    objective_value: z.number(),
+    total_return: z.number().nullable().optional(),
+    sharpe: z.number().nullable().optional(),
+    sortino: z.number().nullable().optional(),
+    max_drawdown: z.number().nullable().optional(),
+    mar: z.number().nullable().optional(),
+    profit_factor: z.number().nullable().optional(),
+    win_rate: z.number().nullable().optional(),
+    expectancy_r: z.number().nullable().optional(),
+    sharpe_stability: z.number().nullable().optional(),
+    n_trades: z.number().nullable().optional(),
+    final_equity: z.number().nullable().optional(),
+  })
+  .passthrough();
+export type BakeoffResult = z.infer<typeof BakeoffResultSchema>;
+
+export const BakeoffViewSchema = z
+  .object({
+    symbol: z.string(),
+    timeframe: z.string(),
+    duration: z.string(),
+    objective: z.string(),
+    window: z.array(z.string()).nullable().optional(),
+    window_truncated: z.boolean().optional(),
+    initial_equity: z.number().optional(),
+    results: z.array(BakeoffResultSchema).default([]),
+  })
+  .passthrough();
+export type BakeoffView = z.infer<typeof BakeoffViewSchema>;
+
+export const BakeoffSchema = z
+  .object({
+    id: z.string(),
+    created_at: z.string().optional(),
+    type: z.string().optional(),
+    status: z.string().optional(),
+    params: z.record(z.unknown()).optional(),
+    view: BakeoffViewSchema,
+  })
+  .passthrough();
+export type Bakeoff = z.infer<typeof BakeoffSchema>;
+
+export const BakeoffListItemSchema = z
+  .object({
+    id: z.string(),
+    created_at: z.string().nullable().optional(),
+    symbol: z.string().nullable().optional(),
+    timeframe: z.string().nullable().optional(),
+    duration: z.string().nullable().optional(),
+    objective: z.string().nullable().optional(),
+    n_strategies: z.number().nullable().optional(),
+    winner: z.string().nullable().optional(),
+    status: z.string().nullable().optional(),
+  })
+  .passthrough();
+export type BakeoffListItem = z.infer<typeof BakeoffListItemSchema>;
+export const BakeoffsSchema = z.object({
+  bakeoffs: z.array(BakeoffListItemSchema),
+});
+
 export const OptimizationListItemSchema = z
   .object({
     id: z.string(),

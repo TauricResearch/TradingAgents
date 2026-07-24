@@ -44,6 +44,7 @@ import {
   type BacktestProgress,
 } from "@/stores/backtestLive";
 
+import BakeoffPanel from "./BakeoffPanel";
 import OptimizePanel from "./OptimizePanel";
 import PortfolioControls from "./PortfolioControls";
 
@@ -121,7 +122,8 @@ export default function BacktestPage() {
   const [starting, setStarting] = useState(false);
   const [cost, setCost] = useState<BacktestCostConfirmation["estimate"] | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"run" | "portfolio" | "optimize">("run");
+  const [mode, setMode] =
+    useState<"run" | "portfolio" | "optimize" | "compare">("run");
 
   // keep the timeframe valid for the selected asset (Gold-on-yfinance is 1d-only)
   useEffect(() => {
@@ -248,11 +250,20 @@ export default function BacktestPage() {
           >
             Optimize
           </Segment>
+          <Segment
+            active={mode === "compare"}
+            onClick={() => setMode("compare")}
+            data-testid="backtest-mode-compare"
+          >
+            Compare
+          </Segment>
         </Segmented>
       </div>
 
       {mode === "optimize" ? (
         <OptimizePanel />
+      ) : mode === "compare" ? (
+        <BakeoffPanel />
       ) : (
         <>
       {mode === "portfolio" ? (
