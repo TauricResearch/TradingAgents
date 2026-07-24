@@ -397,6 +397,34 @@ export const BacktestTradeSchema = z
   .passthrough();
 export type BacktestTrade = z.infer<typeof BacktestTradeSchema>;
 
+/** extended analytics (track T1 reporting): flat scalars ride on the run view;
+ * the same schema serves the artifact, which additionally carries the series
+ * (underwater curve, rolling Sharpe, calendar returns). All optional/passthrough
+ * so a scalar-only view and the full bundle both parse. */
+export const BacktestExtendedSchema = z
+  .object({
+    cagr: z.number().optional(),
+    calmar: z.number().optional(),
+    recovery_factor: z.number().optional(),
+    risk_of_ruin: z.number().optional(),
+    alpha: z.number().optional(),
+    beta: z.number().optional(),
+    avg_win: z.number().optional(),
+    avg_loss: z.number().optional(),
+    largest_win: z.number().optional(),
+    largest_loss: z.number().optional(),
+    max_consecutive_wins: z.number().optional(),
+    max_consecutive_losses: z.number().optional(),
+    benchmark_total_return: z.number().optional(),
+    drawdown_curve: z.array(z.number()).optional(),
+    rolling_sharpe: z.array(z.number()).optional(),
+    monthly_returns: z.array(z.tuple([z.string(), z.number()])).optional(),
+    weekly_returns: z.array(z.tuple([z.string(), z.number()])).optional(),
+    daily_returns: z.array(z.tuple([z.string(), z.number()])).optional(),
+  })
+  .passthrough();
+export type BacktestExtended = z.infer<typeof BacktestExtendedSchema>;
+
 /** The result view of a run (metrics + metadata; bulk arrays live in the
  * per-run artifacts, fetched separately). */
 export const BacktestRunViewSchema = BacktestSchema.extend({
@@ -417,6 +445,10 @@ export const BacktestRunViewSchema = BacktestSchema.extend({
   strategy_id: z.string().optional(),
   strategy_params: z.record(z.unknown()).optional(),
   artifacts: z.array(z.string()).optional(),
+  // institutional reporting (track T1): flat extended scalars + generated
+  // report file names (report.html / report.pdf / charts/*.png), when present
+  extended: BacktestExtendedSchema.optional(),
+  report_files: z.array(z.string()).optional(),
 });
 
 /** Strategy discovery (GET /api/backtest/strategies) — drives the run
@@ -447,6 +479,21 @@ export const BacktestEquityArtifactSchema = z.array(
   z.tuple([z.string(), z.number()]),
 );
 export const BacktestTradesArtifactSchema = z.array(BacktestTradeSchema);
+
+/** decisions artifact: the per-decision funnel row (1:1 with equity rows). */
+export const BacktestDecisionRowSchema = z
+  .object({
+    index: z.number(),
+    time: z.string(),
+    outcome: z.string(),
+    action: z.string().nullable().optional(),
+    confidence: z.number().nullable().optional(),
+    reasons: z.string().optional(),
+    regime: z.string().nullable().optional(),
+  })
+  .passthrough();
+export type BacktestDecisionRow = z.infer<typeof BacktestDecisionRowSchema>;
+export const BacktestDecisionsArtifactSchema = z.array(BacktestDecisionRowSchema);
 
 /** In-flight (or last) job snapshot from GET /api/backtest/job. */
 export const BacktestJobSchema = z

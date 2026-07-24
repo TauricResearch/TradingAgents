@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { EquityCurve } from "@/components/charts/EquityCurve";
+import { BacktestReplay, openReportFile } from "./BacktestReplay";
 import { DirectionBadge } from "@/components/DirectionBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
@@ -896,6 +897,41 @@ function ResultPanel({
             height={220}
           />
         )}
+        {view.extended && (
+          <div
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"
+            data-testid="backtest-institutional-metrics"
+          >
+            <StatCard label="CAGR" value={fmtPct(view.extended.cagr)} />
+            <StatCard label="Calmar" value={fmtNum(view.extended.calmar)} />
+            <StatCard label="Recovery" value={fmtNum(view.extended.recovery_factor)} />
+            <StatCard label="Risk of ruin" value={fmtPct(view.extended.risk_of_ruin)} tone="bear" />
+            <StatCard label="Alpha" value={fmtPct(view.extended.alpha)} />
+            <StatCard label="Beta" value={fmtNum(view.extended.beta)} />
+            <StatCard
+              label="Buy & hold"
+              value={fmtPct(view.extended.benchmark_total_return)}
+            />
+          </div>
+        )}
+        {view.report_files && view.report_files.length > 0 && (
+          <div className="flex items-center gap-2" data-testid="backtest-report-links">
+            <span className="text-xs text-fg-subtle">Report:</span>
+            {view.report_files.includes("report.html") && (
+              <Button size="sm" variant="ghost"
+                onClick={() => openReportFile(runId, "report.html")}>
+                Open HTML
+              </Button>
+            )}
+            {view.report_files.includes("report.pdf") && (
+              <Button size="sm" variant="ghost"
+                onClick={() => openReportFile(runId, "report.pdf")}>
+                Download PDF
+              </Button>
+            )}
+          </div>
+        )}
+        <BacktestReplay runId={runId} />
         <TradesTable title="Trades" testid="backtest-result-trades" trades={trades} />
         {status === "cancelled" && (
           <p className="text-xs text-fg-subtle">

@@ -11,6 +11,8 @@ import {
   AlertFeedSchema,
   BacktestSchema,
   BacktestEquityArtifactSchema,
+  BacktestDecisionsArtifactSchema,
+  BacktestExtendedSchema,
   BacktestJobSchema,
   BacktestRunSchema,
   BacktestRunsSchema,
@@ -326,6 +328,34 @@ export const useBacktestTradesArtifact = (id: string | null) =>
     enabled: id != null,
     staleTime: Infinity,
     retry: 1,
+  });
+
+/** Per-decision funnel (1:1 with equity rows) — drives replay auto-pause and
+ * the as-of decision panel. */
+export const useBacktestDecisionsArtifact = (id: string | null) =>
+  useQuery({
+    queryKey: qk.backtestArtifact(id ?? "none", "decisions"),
+    queryFn: fetchParsed(
+      `/api/backtest/runs/${id}/artifacts/decisions`,
+      BacktestDecisionsArtifactSchema,
+    ),
+    enabled: id != null,
+    staleTime: Infinity,
+    retry: 1,
+  });
+
+/** Extended analytics series (underwater curve, rolling Sharpe, calendar
+ * returns) — the flat scalars already ride on the run view. */
+export const useBacktestExtendedArtifact = (id: string | null) =>
+  useQuery({
+    queryKey: qk.backtestArtifact(id ?? "none", "extended"),
+    queryFn: fetchParsed(
+      `/api/backtest/runs/${id}/artifacts/extended`,
+      BacktestExtendedSchema,
+    ),
+    enabled: id != null,
+    staleTime: Infinity,
+    retry: 1, // runs predating the extended artifact 404 here
   });
 
 /** Stop the in-flight run; the partial is saved labeled "cancelled".
