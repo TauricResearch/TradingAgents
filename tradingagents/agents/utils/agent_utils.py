@@ -43,6 +43,7 @@ __all__ = [
     "resolve_instrument_identity",
     "get_instrument_context_from_state",
     "get_language_instruction",
+    "build_cacheable_system_content",
     "create_msg_delete",
 ]
 
@@ -81,10 +82,12 @@ def opponent_argument_or_opening(text: str, opponent: str) -> str:
 
 def build_cacheable_system_content(text: str, llm: object, ttl: str = "5m"):
     """Return a cacheable Anthropic system block when the model supports it."""
-    class_name = llm.__class__.__name__.lower()
-    module_name = llm.__class__.__module__.lower()
-    is_anthropic = "anthropic" in class_name or "anthropic" in module_name
-    if not is_anthropic or not text.strip():
+    is_native_anthropic = any(
+        cls.__module__ == "langchain_anthropic"
+        or cls.__module__.startswith("langchain_anthropic.")
+        for cls in llm.__class__.__mro__
+    )
+    if not is_native_anthropic or not text.strip():
         return text
     return [
         {
@@ -242,5 +245,3 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
-

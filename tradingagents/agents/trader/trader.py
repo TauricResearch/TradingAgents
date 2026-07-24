@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage
 
 from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.utils.agent_utils import (
+    build_cacheable_system_content,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -18,7 +19,7 @@ from tradingagents.agents.utils.structured import (
 )
 
 
-def create_trader(llm, cache=None):
+def create_trader(llm):
     structured_llm = bind_structured(llm, TraderProposal, "Trader")
 
     def trader_node(state, name):
@@ -46,7 +47,7 @@ def create_trader(llm, cache=None):
         messages = [
             {
                 "role": "system",
-                "content": (
+                "content": build_cacheable_system_content(
                     "You are a trading agent analyzing market data to make investment decisions. "
                     "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
                     + grounding
@@ -58,7 +59,8 @@ def create_trader(llm, cache=None):
                     "or a range; convert a percentage distance to the price level it "
                     "implies, or omit the field if you cannot state a number. "
                     + NO_EXTERNAL_TOOLS
-                    + get_language_instruction()
+                    + get_language_instruction(),
+                    llm,
                 ),
             },
             {
@@ -79,7 +81,6 @@ def create_trader(llm, cache=None):
             messages,
             render_trader_proposal,
             "Trader",
-            cache=cache,
         )
 
         return {

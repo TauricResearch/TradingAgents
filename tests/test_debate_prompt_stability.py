@@ -20,7 +20,7 @@ class CapturingLlm:
     def __init__(self):
         self.calls = []
 
-    def __call__(self, prompt):
+    def invoke(self, prompt):
         if hasattr(prompt, "to_messages"):
             prompt = prompt.to_messages()
         elif hasattr(prompt, "messages"):
@@ -29,32 +29,33 @@ class CapturingLlm:
         return AIMessage(content="captured argument")
 
 
-def _state():
+def _state(suffix="one"):
     return {
         "asset_type": "stock",
-        "company_of_interest": "NVDA",
-        "market_report": "market report",
-        "sentiment_report": "sentiment report",
-        "news_report": "news report",
-        "fundamentals_report": "fundamentals report",
-        "trader_investment_plan": "trader plan",
+        "company_of_interest": f"ticker {suffix}",
+        "instrument_context": f"instrument context {suffix}",
+        "market_report": f"market report {suffix}",
+        "sentiment_report": f"sentiment report {suffix}",
+        "news_report": f"news report {suffix}",
+        "fundamentals_report": f"fundamentals report {suffix}",
+        "trader_investment_plan": f"trader plan {suffix}",
         "investment_debate_state": {
-            "history": "history",
-            "bull_history": "bull history",
-            "bear_history": "bear history",
-            "current_response": "current response",
+            "history": f"history {suffix}",
+            "bull_history": f"bull history {suffix}",
+            "bear_history": f"bear history {suffix}",
+            "current_response": f"current response {suffix}",
             "judge_decision": "",
             "count": 0,
         },
         "risk_debate_state": {
-            "history": "risk history",
-            "aggressive_history": "aggressive history",
-            "conservative_history": "conservative history",
-            "neutral_history": "neutral history",
+            "history": f"risk history {suffix}",
+            "aggressive_history": f"aggressive history {suffix}",
+            "conservative_history": f"conservative history {suffix}",
+            "neutral_history": f"neutral history {suffix}",
             "latest_speaker": "",
-            "current_aggressive_response": "aggressive response",
-            "current_conservative_response": "conservative response",
-            "current_neutral_response": "neutral response",
+            "current_aggressive_response": f"aggressive response {suffix}",
+            "current_conservative_response": f"conservative response {suffix}",
+            "current_neutral_response": f"neutral response {suffix}",
             "judge_decision": "",
             "count": 0,
         },
@@ -70,6 +71,72 @@ def _human_message(messages):
 
 
 class DebatePromptStabilityTests(unittest.TestCase):
+    factories = (
+        create_bull_researcher,
+        create_bear_researcher,
+        create_aggressive_debator,
+        create_neutral_debator,
+        create_conservative_debator,
+    )
+
+    def test_all_debate_system_prompts_are_stable_and_context_is_dynamic(self):
+        dynamic_values = (
+            "instrument context",
+            "market report",
+            "sentiment report",
+            "news report",
+            "fundamentals report",
+            "history",
+            "current response",
+            "trader plan",
+            "aggressive response",
+            "conservative response",
+            "neutral response",
+        )
+        for factory in self.factories:
+            with self.subTest(factory=factory.__name__):
+                llm = CapturingLlm()
+                node = factory(llm)
+                node(_state("one"))
+                node(_state("two"))
+                first_system = _system_message(llm.calls[-2])
+                second_system = _system_message(llm.calls[-1])
+                first_human = _human_message(llm.calls[-2])
+                second_human = _human_message(llm.calls[-1])
+
+                self.assertEqual(first_system, second_system)
+                for value in dynamic_values:
+                    self.assertNotIn(value, first_system.lower())
+                self.assertIn("one", first_human)
+                self.assertIn("two", second_human)
+
+    def test_risk_system_prompts_preserve_debate_behavior(self):
+        for factory in (
+            create_aggressive_debator,
+            create_neutral_debator,
+            create_conservative_debator,
+        ):
+            with self.subTest(factory=factory.__name__):
+                llm = CapturingLlm()
+                factory(llm)(_state())
+                system_prompt = _system_message(llm.calls[-1]).lower()
+                self.assertIn("no responses", system_prompt)
+                self.assertIn("present your own argument", system_prompt)
+                self.assertIn("debating", system_prompt)
+                self.assertIn("not just presenting data", system_prompt)
+                self.assertIn("output conversationally", system_prompt)
+                self.assertIn("without any special formatting", system_prompt)
+
+    def test_dynamic_json_braces_are_passed_as_literal_content(self):
+        json_evidence = '{"score": 7}'
+        state = _state(json_evidence)
+
+        for factory in self.factories:
+            with self.subTest(factory=factory.__name__):
+                llm = CapturingLlm()
+                factory(llm)(state)
+                self.assertIn(json_evidence, _human_message(llm.calls[-1]))
+
     def test_bull_prompt_keeps_static_system_message(self):
         llm = CapturingLlm()
         node = create_bull_researcher(llm)
