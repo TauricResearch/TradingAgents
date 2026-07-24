@@ -986,6 +986,11 @@ class OptimizeRequest(BaseModel):
     strategy_id: str = Field(default="trend_following_v1", max_length=32)
     param_grid: dict[str, list] = Field(default_factory=dict)
     objective: str = Field(default="sharpe", max_length=32)
+    # search mode (track T3): grid (default, exhaustive) | genetic | bayesian
+    # (iterative samplers over the swept param values). search_config tunes the
+    # sampler (population/generations, or n_trials/n_startup/batch).
+    search: str = Field(default="grid", max_length=16)
+    search_config: dict = Field(default_factory=dict)
     initial_equity: float = Field(default=100_000.0, gt=0)
     confirm_cost: bool = False
 
@@ -1041,14 +1046,30 @@ def resolve_optimize_request(marketdata: MarketDataService, params: dict) -> dic
         raise ValueError(
             f"unknown objective {objective}; choices: {list(objective_choices())}")
 
+    search = params.get("search", "grid")
+    if search not in ("grid", "random", "genetic", "bayesian"):
+        raise ValueError(
+            f"unknown search {search}; choices: grid | random | genetic | bayesian")
+    search_config = params.get("search_config") or {}
+    # trials that will actually run (drives the confirm gate + time estimate):
+    # grid is the full product; the iterative samplers run a fixed budget.
+    if search == "genetic":
+        est_trials = (int(search_config.get("population", 12))
+                      * int(search_config.get("generations", 5)))
+    elif search == "bayesian":
+        est_trials = int(search_config.get("n_trials", 40))
+    else:
+        est_trials = n_trials
+
     bars = bars_for_duration(duration, tf, asset)
     decisions = max(1, bars - MIN_HISTORY)
-    if n_trials >= OPT_TRIALS_CONFIRM and not params.get("confirm_cost"):
-        raise _CostConfirmationRequired(_opt_estimate(n_trials, decisions))
+    if est_trials >= OPT_TRIALS_CONFIRM and not params.get("confirm_cost"):
+        raise _CostConfirmationRequired(_opt_estimate(est_trials, decisions))
     return {
         "symbol": symbol, "asset": asset, "timeframe": tf, "duration": duration,
         "bars": bars, "strategy_id": strategy_id, "param_grid": grid,
-        "objective": objective, "n_trials": n_trials,
+        "objective": objective, "n_trials": n_trials, "search": search,
+        "search_config": search_config, "est_trials": est_trials,
         "initial_equity": float(params.get("initial_equity", 100_000.0)),
     }
 
@@ -1117,10 +1138,12 @@ def run_optimization_job(state: Any, job: BacktestJob, params: dict) -> None:
 
         # roadmap R1: trials are embarrassingly parallel — fan them across
         # cores when the box has them (1-vCPU prod resolves to 1 = serial).
-        # Capped so a big grid can't spawn a worker per trial and thrash RAM.
-        workers = min(os.cpu_count() or 1, resolved["n_trials"], OPT_MAX_WORKERS)
+        # Capped so a big search can't spawn a worker per trial and thrash RAM.
+        workers = min(os.cpu_count() or 1, resolved["est_trials"], OPT_MAX_WORKERS)
         result = run_optimization(
-            space, fn, search="grid", objective_name=resolved["objective"],
+            space, fn, search=resolved["search"],
+            search_config=resolved["search_config"],
+            objective_name=resolved["objective"],
             on_trial=on_trial, cancel=job.cancel.is_set, max_workers=workers)
 
         created_at = datetime.now(timezone.utc).isoformat()
@@ -1130,7 +1153,7 @@ def run_optimization_job(state: Any, job: BacktestJob, params: dict) -> None:
             "id": job.id, "created_at": created_at, "type": "optimization",
             "symbol": symbol, "timeframe": tf.value, "duration": resolved["duration"],
             "strategy_id": resolved["strategy_id"], "objective": resolved["objective"],
-            "n_trials": result.n_trials, "status": status,
+            "n_trials": result.n_trials, "status": status, "search": resolved["search"],
             "best_objective": result.best_objective,
             "deflated_sharpe": result.deflated_sharpe, "pbo": result.pbo,
         }
@@ -1142,7 +1165,7 @@ def run_optimization_job(state: Any, job: BacktestJob, params: dict) -> None:
                 "strategy_id": resolved["strategy_id"], "symbol": symbol,
                 "timeframe": tf.value, "duration": resolved["duration"],
                 "objective": resolved["objective"], "n_trials": result.n_trials,
-                "param_grid": resolved["param_grid"],
+                "search": resolved["search"], "param_grid": resolved["param_grid"],
                 "best_params": result.best_params,
                 "best_objective": result.best_objective,
                 "deflated_sharpe": result.deflated_sharpe, "pbo": result.pbo,

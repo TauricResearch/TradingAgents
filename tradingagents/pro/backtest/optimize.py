@@ -90,6 +90,7 @@ def run_optimization(
     on_trial: Callable[[int, int, float], None] | None = None,
     cancel: Callable[[], bool] | None = None,
     max_workers: int | None = None,
+    search_config: dict | None = None,
 ) -> OptResult:
     """Run the search and return the ranked trials + the selected best with its
     overfitting guards. ``backtest_fn(params)`` returns
@@ -103,7 +104,26 @@ def run_optimization(
     order — trials are re-sorted into submission order before selection — so
     determinism is preserved. ``backtest_fn`` MUST be picklable for the pool
     (use ``EngineTrial``, not the ``engine_backtest_fn`` closure). ``None`` /
-    ``1`` keeps the exact serial behaviour."""
+    ``1`` keeps the exact serial behaviour.
+
+    ``search="genetic"|"bayesian"`` runs an iterative ask/tell sampler
+    (search.py) instead of a static set; ``search_config`` tunes it
+    (population/generations, or n_trials/n_startup/batch). Every evaluated
+    trial still flows through ``_finalize``, so the guards reflect the FULL
+    amount of searching (not just the surviving population)."""
+    if search in ("genetic", "bayesian"):
+        from tradingagents.pro.backtest.search import build_sampler
+
+        sampler, total_hint = build_sampler(
+            space, search, seed, search_config or {})
+        trials, returns_by_trial = _run_iterative(
+            sampler, backtest_fn, on_trial=on_trial, cancel=cancel,
+            max_workers=max_workers, total_hint=total_hint)
+        if not trials:
+            raise ValueError("no trials completed")
+        return _finalize(trials, returns_by_trial, objective_name=objective_name,
+                         search=search, compute_guards=compute_guards)
+
     param_sets = _param_sets(space, search, n_trials, seed)
     if not param_sets:
         raise ValueError("parameter space produced no trials")
@@ -168,6 +188,39 @@ def _run_parallel(param_sets, backtest_fn, max_workers, on_trial, cancel):
         objective, returns = results[i]
         trials.append(Trial(params=param_sets[i], objective=objective))
         returns_by_trial.append(returns)
+    return trials, returns_by_trial
+
+
+def _run_iterative(sampler, backtest_fn, *, on_trial, cancel, max_workers,
+                   total_hint):
+    """Drive an ask/tell sampler: evaluate each generation/batch through the
+    same serial/parallel helpers (reassembled in submission order), then
+    ``tell`` the sampler the results in that order so its RNG advances
+    deterministically regardless of worker completion order. Accumulates EVERY
+    evaluated trial (not just the final population) for the guards."""
+    trials: list[Trial] = []
+    returns_by_trial: list[list[float]] = []
+    while True:
+        if cancel is not None and cancel():
+            break
+        batch = sampler.ask()
+        if not batch:
+            break
+        # evaluate the whole batch (no per-item cancel: batches are small, and
+        # a mid-batch cut would desync the sampler's trial counter)
+        if max_workers and max_workers > 1 and len(batch) > 1:
+            batch_trials, batch_returns = _run_parallel(
+                batch, backtest_fn, max_workers, None, None)
+        else:
+            batch_trials, batch_returns = _run_serial(
+                batch, backtest_fn, None, None)
+        sampler.tell([t.params for t in batch_trials],
+                     [t.objective for t in batch_trials])
+        trials.extend(batch_trials)
+        returns_by_trial.extend(batch_returns)
+        if on_trial is not None:
+            on_trial(len(trials), max(total_hint, len(trials)),
+                     max(t.objective for t in trials))
     return trials, returns_by_trial
 
 
