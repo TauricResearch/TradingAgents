@@ -9,11 +9,16 @@ commissions are charged per fill on both sides.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from tradingagents.contracts import OHLCVBar, TradeAction, TradeRecommendation
 from tradingagents.pro.backtest.costs import CommissionModel, LiquidityModel, SlippageModel
+
+# max bars retained per symbol for ATR/chandelier trailing — bounds memory even
+# for a long run; a trailing period beyond this is clamped to what's retained
+_TRAIL_WINDOW_MAX = 512
 
 
 def _participation(quantity: float, bar_volume: float) -> float:
@@ -57,8 +62,9 @@ class _OpenPosition:
     planned_rr: float | None = None  # ticket's size-weighted R:R (for reporting)
     initial_stop: float = 0.0  # R unit; never mutated (stop may move to BE)
     at_breakeven: bool = False
-    trailing_mode: str | None = None  # None | "pct"
+    trailing_mode: str | None = None  # None | "pct" | "atr" | "chandelier"
     trailing_mult: float | None = None
+    trailing_period: int | None = None  # ATR/chandelier lookback (bars)
     extreme: float | None = None  # best price seen since entry (trailing anchor)
     realized: float = 0.0
     exit_notional: float = 0.0
@@ -82,8 +88,9 @@ class PendingOrder:
     stop_price: float | None = None
     stop_loss: float | None = None  # bracket: protective stop attached on fill
     take_profits: list[tuple[float, float]] = field(default_factory=list)
-    trailing_mode: str | None = None  # None | "pct" (ratchet stop by a % of the
-    trailing_mult: float | None = None  # favorable extreme; e.g. 0.05 = 5%)
+    trailing_mode: str | None = None  # None | "pct" | "atr" | "chandelier"
+    trailing_mult: float | None = None  # % of extreme (pct) or ATR multiple
+    trailing_period: int | None = None  # ATR/chandelier lookback (bars)
     planned_rr: float | None = None
     symbol: str = ""
     expires_after: int | None = None  # bars from submit; None = rest all run
@@ -123,6 +130,9 @@ class SimBroker:
         self.closed: list[ClosedTrade] = []
         self.pending: dict[str, PendingOrder] = {}  # order book (T2)
         self._orders: dict[str, dict] = {}  # id -> lifecycle record (artifact)
+        # per-symbol trailing-bar window, populated ONLY while an ATR/chandelier
+        # position is open (the pct/none path never allocates → byte-identical)
+        self._trail_bars: dict[str, deque] = {}
 
     @property
     def order_log(self) -> list[dict]:
@@ -373,6 +383,7 @@ class SimBroker:
             entry_commission=fee,
             trailing_mode=order.trailing_mode,
             trailing_mult=order.trailing_mult,
+            trailing_period=order.trailing_period,
             extreme=entry,
         )
         self.cash_pnl -= fee
@@ -413,6 +424,7 @@ class SimBroker:
         symbol with that symbol's bar, so a position is only ever managed
         against its own instrument. ``None`` (single-symbol default) manages
         every position, byte-identical to before."""
+        self._feed_trailing_window(bar, symbol)
         closed: list[ClosedTrade] = []
         for pos in list(self.positions.values()):
             if symbol is not None and pos.symbol != symbol:
@@ -421,6 +433,18 @@ class SimBroker:
             if trade is not None:
                 closed.append(trade)
         return closed
+
+    def _feed_trailing_window(self, bar: OHLCVBar, symbol: str | None) -> None:
+        """Append this bar to the trailing window of each symbol that has an
+        open ATR/chandelier position. No such position → nothing is stored, so
+        the pct/none path is byte-identical to before."""
+        symbols = {p.symbol for p in self.positions.values()
+                   if (symbol is None or p.symbol == symbol)
+                   and p.trailing_mode in ("atr", "chandelier")}
+        for sym in symbols:
+            window = self._trail_bars.setdefault(
+                sym, deque(maxlen=_TRAIL_WINDOW_MAX))
+            window.append(bar)
 
     def _manage(self, pos: _OpenPosition, bar: OHLCVBar) -> ClosedTrade | None:
         long = pos.side == "BUY"
@@ -459,17 +483,54 @@ class SimBroker:
         return None
 
     def _update_trailing(self, pos: _OpenPosition, bar: OHLCVBar, long: bool) -> None:
-        """Ratchet a percentage trailing stop toward the favorable extreme.
-        Ratchet-only (never loosens); ``initial_stop`` stays fixed so the R
-        unit is unchanged. Composes with breakeven (takes the tighter stop)."""
-        if pos.trailing_mode != "pct" or not pos.trailing_mult:
+        """Ratchet the trailing stop toward the favorable extreme. Ratchet-only
+        (never loosens); ``initial_stop`` stays fixed so the R unit is
+        unchanged. Composes with breakeven (takes the tighter stop). Modes:
+        ``pct`` (% of the extreme), ``atr`` (extreme − mult×ATR), ``chandelier``
+        (highest-high/lowest-low over the lookback − mult×ATR)."""
+        mode = pos.trailing_mode
+        if not pos.trailing_mult or mode not in ("pct", "atr", "chandelier"):
             return
         price = bar.high if long else bar.low
         pos.extreme = (max(pos.extreme, price) if long
                        else min(pos.extreme, price)) if pos.extreme is not None else price
-        trail = (pos.extreme * (1 - pos.trailing_mult) if long
-                 else pos.extreme * (1 + pos.trailing_mult))
+        if mode == "pct":
+            trail = (pos.extreme * (1 - pos.trailing_mult) if long
+                     else pos.extreme * (1 + pos.trailing_mult))
+        else:
+            window = self._trail_bars.get(pos.symbol)
+            if not window:
+                return
+            period = pos.trailing_period or 14
+            recent = list(window)[-period:]
+            atr = self._atr(recent)
+            if atr <= 0:
+                return
+            if mode == "atr":
+                trail = (pos.extreme - pos.trailing_mult * atr if long
+                         else pos.extreme + pos.trailing_mult * atr)
+            else:  # chandelier: anchor on the window's extreme, not the position's
+                hh = max(b.high for b in recent)
+                ll = min(b.low for b in recent)
+                trail = (hh - pos.trailing_mult * atr if long
+                         else ll + pos.trailing_mult * atr)
         pos.stop = max(pos.stop, trail) if long else min(pos.stop, trail)
+
+    @staticmethod
+    def _atr(bars: list[OHLCVBar]) -> float:
+        """Average true range over the bars (simple mean of per-bar true range;
+        the first bar has no prior close, so its TR is just high−low)."""
+        if not bars:
+            return 0.0
+        trs: list[float] = []
+        prev_close: float | None = None
+        for b in bars:
+            tr = b.high - b.low
+            if prev_close is not None:
+                tr = max(tr, abs(b.high - prev_close), abs(b.low - prev_close))
+            trs.append(tr)
+            prev_close = b.close
+        return sum(trs) / len(trs)
 
     def close_all(self, bar: OHLCVBar, symbol: str | None = None) -> list[ClosedTrade]:
         """Force-close open positions at the bar's close (end of data).

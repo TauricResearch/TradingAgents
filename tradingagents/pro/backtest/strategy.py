@@ -52,6 +52,7 @@ class BracketIntent:
     take_profits: tuple[tuple[float, float], ...] = ()
     trailing: str | None = None  # None | "atr" | "pct" | "chandelier"
     trailing_mult: float | None = None
+    trailing_period: int | None = None  # ATR/chandelier lookback (bars)
 
 
 @dataclass(frozen=True)
