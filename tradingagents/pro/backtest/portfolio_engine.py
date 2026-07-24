@@ -268,6 +268,9 @@ class PortfolioEngine:
             quantity = min(quantity, budget / entry_ref)
             if quantity <= 1e-9:
                 return "allocation_cap"
+        from tradingagents.pro.backtest.execution import schedule_for
+        schedule = schedule_for(intent.algo, intent.algo_bars,
+                                intent.volume_profile, quantity)
         self.broker.submit(PendingOrder(
             id=f"{symbol}-{i}-{intent.tag or uuid.uuid4().hex[:8]}",
             kind=intent.kind, side=intent.side, quantity=quantity,
@@ -280,6 +283,7 @@ class PortfolioEngine:
             reduce_only=intent.reduce_only,
             oco_group=intent.oco_group,
             display_qty=intent.display_qty,
+            schedule=schedule,
             symbol=symbol, submitted_index=i, tag=intent.tag,
         ))
         return None

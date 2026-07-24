@@ -252,6 +252,9 @@ class BacktestEngine:
             ).quantity
         else:
             return  # risk_pct sizing needs a bracket stop; nothing to submit
+        from tradingagents.pro.backtest.execution import schedule_for
+        schedule = schedule_for(intent.algo, intent.algo_bars,
+                                intent.volume_profile, quantity)
         self.broker.submit(PendingOrder(
             id=f"{i}-{intent.tag or uuid.uuid4().hex[:8]}",
             kind=intent.kind, side=intent.side, quantity=quantity,
@@ -264,6 +267,7 @@ class BacktestEngine:
             reduce_only=intent.reduce_only,
             oco_group=intent.oco_group,
             display_qty=intent.display_qty,
+            schedule=schedule,
             symbol=self.replay.symbol, submitted_index=i, tag=intent.tag,
         ))
 

@@ -74,6 +74,11 @@ class OrderIntent:
     #                               group's other resting legs (track T2)
     display_qty: float | None = None  # iceberg: fill ≤ this per bar, resting
     #                                   until `quantity` is filled (track T2)
+    algo: str | None = None  # execution algo: "twap" | "vwap" — work the order
+    #                          over `algo_bars` bars instead of one fill (T2)
+    algo_bars: int = 1
+    volume_profile: tuple[float, ...] | None = None  # VWAP weights, from PAST
+    #                                                   volume (look-ahead-safe)
     tag: str = ""
 
     def __post_init__(self) -> None:

@@ -109,7 +109,9 @@ class PendingOrder:
     #                               group's other WORKING legs (track T2)
     display_qty: float | None = None  # iceberg: max size shown/filled per bar;
     #                                   the order rests until `quantity` is done
-    filled_qty: float = 0.0  # iceberg: cumulative filled so far (track T2)
+    filled_qty: float = 0.0  # iceberg/algo: cumulative filled so far (track T2)
+    schedule: tuple[float, ...] | None = None  # TWAP/VWAP: per-bar release plan
+    schedule_index: int = 0  # next schedule slot to release
 
 
 @dataclass
@@ -308,7 +310,7 @@ class SimBroker:
         fill, else None. Handles the conservative fill level, reduce-vs-open
         routing, expiry, terminal rejection, and the lifecycle record; a
         terminal order (filled/expired/rejected) is popped from the book."""
-        if order.display_qty is not None:
+        if order.display_qty is not None or order.schedule is not None:
             return self._attempt_iceberg_fill(order, bar, index)
         raw = self._fill_price(order, bar)
         if raw is None:
@@ -354,10 +356,21 @@ class SimBroker:
                 self.pending.pop(order.id, None)
             return None
         remaining = order.quantity - order.filled_qty
-        slice_qty = self.liquidity.cap_quantity(
-            min(order.display_qty, remaining), bar.volume)
+        if order.schedule is not None:
+            # TWAP/VWAP: release the next scheduled slice; retire when the
+            # schedule is spent (any unfilled remainder is honestly dropped)
+            if order.schedule_index >= len(order.schedule):
+                self._retire_algo(order, index)
+                return None
+            planned = min(order.schedule[order.schedule_index], remaining)
+            order.schedule_index += 1
+        else:
+            planned = min(order.display_qty, remaining)
+        slice_qty = self.liquidity.cap_quantity(planned, bar.volume)
         if slice_qty <= 0:
-            return None  # no liquidity this bar — keep resting
+            if order.schedule is not None and order.schedule_index >= len(order.schedule):
+                self._retire_algo(order, index)
+            return None  # nothing fillable this bar — keep resting
         is_new = order.id not in self.positions
         reason = self._add_to_position(order, raw, bar, slice_qty)
         if reason is not None:
@@ -366,12 +379,26 @@ class SimBroker:
             self.pending.pop(order.id, None)
             return None
         order.filled_qty += slice_qty
-        if order.filled_qty >= order.quantity - 1e-12:
+        done = order.filled_qty >= order.quantity - 1e-12
+        if order.schedule is not None:
+            done = done or order.schedule_index >= len(order.schedule)
+        if done:
             order.state = "FILLED"
             self._record_order(order, state="FILLED", filled_index=index,
                                fill_price=self.positions[order.id].entry_price)
             self.pending.pop(order.id, None)
         return order.id if is_new else None
+
+    def _retire_algo(self, order: PendingOrder, index: int) -> None:
+        """Terminate a schedule order whose plan is spent: FILLED if it opened a
+        position (worked what it could), else EXPIRED (never got a fill)."""
+        opened = order.id in self.positions
+        order.state = "FILLED" if opened else "EXPIRED"
+        fill_price = (self.positions[order.id].entry_price if opened
+                      else order.filled_qty)
+        self._record_order(order, state=order.state, filled_index=index,
+                           fill_price=fill_price)
+        self.pending.pop(order.id, None)
 
     def _add_to_position(self, order: PendingOrder, raw_price: float,
                          bar: OHLCVBar, quantity: float) -> str | None:
