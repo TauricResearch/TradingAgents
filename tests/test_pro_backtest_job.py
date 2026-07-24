@@ -768,3 +768,57 @@ def test_portfolio_endpoint_validation(tmp_path):
                        json={"symbols": ["BTC-USD", "XAUUSD"], "timeframe": "1d",
                              "duration": "30D",
                              "strategy_id": "rules_v1"}).status_code == 422
+
+
+# --- strategy bake-off endpoint ---------------------------------------------
+
+
+def test_bakeoff_endpoint_ranks_strategies(tmp_path):
+    state = _state(_trend_bars(200), tmp_path, timeframes=(Timeframe.D1,))
+    client = TestClient(create_app(state))
+    resp = client.post("/api/backtest/bakeoff",
+                       json={"symbol": "BTC-USD", "timeframe": "1d",
+                             "duration": "30D", "objective": "total_return",
+                             "strategy_ids": ["trend_following_v1", "momentum_v1"]})
+    assert resp.status_code == 202, resp.text
+    job_id = resp.json()["job_id"]
+
+    for _ in range(400):
+        status = client.get("/api/backtest/bakeoff/job").json()
+        if status.get("status") in ("done", "error"):
+            break
+        time.sleep(0.05)
+    assert status["status"] == "done", status.get("error")
+
+    listed = client.get("/api/backtest/bakeoffs").json()["bakeoffs"]
+    assert len(listed) == 1 and listed[0]["id"] == job_id
+    assert listed[0]["type"] == "bakeoff" and listed[0]["winner"] in (
+        "trend_following_v1", "momentum_v1")
+
+    view = client.get(f"/api/backtest/bakeoffs/{job_id}").json()["view"]
+    rows = view["results"]
+    assert {r["strategy_id"] for r in rows} == {"trend_following_v1", "momentum_v1"}
+    # ranked best-first by the chosen objective
+    objs = [r["objective_value"] for r in rows]
+    assert objs == sorted(objs, reverse=True)
+    assert all("sharpe" in r and "n_trades" in r for r in rows)
+    assert client.get("/api/backtest/bakeoffs/missing").status_code == 404
+
+
+def test_bakeoff_endpoint_validation(tmp_path):
+    state = _state(_trend_bars(200), tmp_path, timeframes=(Timeframe.D1,))
+    client = TestClient(create_app(state))
+    assert client.post("/api/backtest/bakeoff",
+                       json={"symbol": "NOPE", "timeframe": "1d",
+                             "duration": "30D"}).status_code == 422
+    # fewer than two strategies is not a bake-off
+    assert client.post("/api/backtest/bakeoff",
+                       json={"symbol": "BTC-USD", "timeframe": "1d",
+                             "duration": "30D",
+                             "strategy_ids": ["momentum_v1"]}).status_code == 422
+    # unknown objective
+    assert client.post("/api/backtest/bakeoff",
+                       json={"symbol": "BTC-USD", "timeframe": "1d",
+                             "duration": "30D", "objective": "magic",
+                             "strategy_ids": ["momentum_v1", "trend_following_v1"]}
+                       ).status_code == 422

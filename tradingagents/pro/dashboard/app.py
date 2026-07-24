@@ -68,8 +68,12 @@ class DashboardState:
     backtest_optimizations: BacktestRunStore = field(
         default_factory=lambda: BacktestRunStore(
             default_data_dir() / "backtest_optimizations.json"))
+    backtest_bakeoffs: BacktestRunStore = field(
+        default_factory=lambda: BacktestRunStore(
+            default_data_dir() / "backtest_bakeoffs.json"))
     backtest_job = None      # BacktestJob, while an interactive run is in flight
     backtest_opt_job = None  # BacktestJob, while an optimization is in flight
+    backtest_bakeoff_job = None  # BacktestJob, while a bake-off is in flight
     monte_carlo = None
     router = None            # ExecutionRouter, when attached to live/paper loop
     equity: float | None = None
@@ -1228,6 +1232,66 @@ def create_app(state: DashboardState | None = None, api_token: str | None = None
         record = state.backtest_optimizations.get(opt_id)
         if record is None:
             raise HTTPException(status_code=404, detail="optimization not found")
+        return record
+
+    @app.post("/api/backtest/bakeoff")
+    async def bakeoff(request: Request) -> JSONResponse:
+        """Run several strategies over the SAME window and rank them by an
+        honest objective (a strategy 'bake-off'). Empty strategy_ids = the
+        whole registered library. Shares the single backtest worker (409 if a
+        run/optimization/bake-off is already in flight); a large basket needs
+        confirm_cost (400 + estimate)."""
+        from pydantic import ValidationError
+
+        from tradingagents.pro.dashboard import backtest_job as btjob
+
+        body = await request.json()
+        try:
+            req = btjob.BakeoffRequest.model_validate(body)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+        params = req.model_dump()
+        try:
+            btjob.resolve_bakeoff_request(state.marketdata, params)
+        except btjob._CostConfirmationRequired as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "cost_confirmation_required",
+                        "estimate": exc.estimate}) from exc
+        except (ValueError, md.UnknownSymbolError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        if not _backtest_lock.acquire(blocking=False):
+            raise HTTPException(status_code=409,
+                                detail="a backtest or optimization is already running")
+        job = btjob.new_job(params)
+        state.backtest_bakeoff_job = job
+
+        def work():
+            try:
+                btjob.run_bakeoff_job(state, job, params)
+            finally:
+                _backtest_lock.release()
+
+        _bt_threading.Thread(target=work, name="backtest-bakeoff",
+                             daemon=True).start()
+        return JSONResponse({"job_id": job.id, "status": "started"},
+                            status_code=202)
+
+    @app.get("/api/backtest/bakeoff/job")
+    def bakeoff_job_status() -> dict:
+        job = state.backtest_bakeoff_job
+        return job.snapshot() if job is not None else {"status": "idle"}
+
+    @app.get("/api/backtest/bakeoffs")
+    def bakeoffs() -> dict:
+        return {"bakeoffs": state.backtest_bakeoffs.list()}
+
+    @app.get("/api/backtest/bakeoffs/{bakeoff_id}")
+    def bakeoff_record(bakeoff_id: str) -> dict:
+        record = state.backtest_bakeoffs.get(bakeoff_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="bakeoff not found")
         return record
 
     @app.get("/api/backtest/job")

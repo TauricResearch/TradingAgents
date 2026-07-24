@@ -1271,6 +1271,207 @@ def run_portfolio_job(state: Any, job: BacktestJob, params: dict) -> None:
         publish("backtest_error", {"status": "error", "error": str(exc)})
 
 
+# --- strategy bake-off (compare the whole library over one window) ----------
+
+BAKEOFF_CONFIRM_DECISIONS = LARGE_RUN_DECISIONS  # summed across strategies
+
+
+class BakeoffRequest(BaseModel):
+    """Run several strategies over the SAME window and rank them (rejects
+    unknown fields → 422). ``strategy_ids`` empty = every registered native
+    strategy; each runs at its declared defaults with the per-asset costs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1, max_length=32)
+    timeframe: str = Field(min_length=1, max_length=8)
+    duration: str = Field(default="1Y")
+    strategy_ids: list[str] = Field(default_factory=list, max_length=12)
+    objective: str = Field(default="sharpe", max_length=32)
+    initial_equity: float = Field(default=100_000.0, gt=0)
+    risk_per_trade_pct: float = Field(default=1.0, gt=0, le=5)
+    max_position_pct: float = Field(default=33.0, gt=0, le=100)
+    confirm_cost: bool = False
+
+
+def _native_strategy_ids() -> list[str]:
+    """Registered strategies runnable headless in a bake-off — every native
+    order-book strategy plus the deterministic rules_v1 pipeline (excludes
+    pipeline_llm, which needs the operator's model bundle)."""
+    from tradingagents.pro.backtest import list_strategies
+    return [s.id for s in list_strategies()]
+
+
+def resolve_bakeoff_request(marketdata: MarketDataService, params: dict) -> dict:
+    """Validate + normalize. Raises ValueError (→422) for unknown symbol/tf/
+    duration/strategy or a bad objective, and ``_CostConfirmationRequired``
+    (→400) for a large basket (decisions summed across strategies)."""
+    from tradingagents.pro.backtest import is_registered, objective_choices
+    from tradingagents.pro.backtest.registry import strategy_param_space
+
+    symbol = params["symbol"]
+    if symbol not in _ASSET_BY_SYMBOL:
+        raise ValueError(f"unknown symbol {symbol}")
+    asset = _ASSET_BY_SYMBOL[symbol]
+    try:
+        tf = Timeframe(params["timeframe"])
+    except ValueError as exc:
+        raise ValueError(f"unknown timeframe {params['timeframe']}") from exc
+    if tf not in marketdata.spec(symbol).timeframes:
+        raise ValueError(f"{symbol} does not support {tf.value}")
+    duration = params["duration"]
+    if duration not in DURATION_SECONDS:
+        raise ValueError(f"unknown duration {duration}")
+
+    ids = params.get("strategy_ids") or _native_strategy_ids()
+    if len(ids) < 2:
+        raise ValueError("a bake-off needs at least two strategies")
+    resolved_strats: list[tuple[str, dict]] = []
+    for sid in ids:
+        if not is_registered(sid):
+            raise ValueError(f"strategy {sid} is not registered")
+        resolved_strats.append((sid, strategy_param_space(sid).resolve({})))
+    objective = params.get("objective", "sharpe")
+    if objective not in objective_choices():
+        raise ValueError(f"unknown objective {objective}")
+
+    bars = bars_for_duration(duration, tf, asset)
+    decisions = max(1, bars - MIN_HISTORY) * len(resolved_strats)
+    if decisions >= BAKEOFF_CONFIRM_DECISIONS and not params.get("confirm_cost"):
+        raise _CostConfirmationRequired(estimate_large_run(decisions))
+    return {
+        "symbol": symbol, "asset": asset, "timeframe": tf, "duration": duration,
+        "bars": bars, "strategies": resolved_strats, "objective": objective,
+        "initial_equity": float(params.get("initial_equity", 100_000.0)),
+        "risk_per_trade_pct": float(params.get("risk_per_trade_pct", 1.0)),
+        "max_position_pct": float(params.get("max_position_pct", 33.0)),
+    }
+
+
+def run_bakeoff_job(state: Any, job: BacktestJob, params: dict) -> None:
+    """Worker body: fetch the window once, run each strategy on it (fresh
+    replay + broker, per-asset costs), collect the honest metrics, and persist
+    a ranked comparison. Emits slim bakeoff_* SSE events."""
+    from tradingagents.contracts import RiskLimits
+    from tradingagents.pro.backtest import BarReplay, SimBroker, build_strategy
+    from tradingagents.pro.backtest.multitf import HTF_SECONDS
+
+    broadcaster = state.broadcaster
+    store = getattr(state, "backtest_bakeoffs", None)
+
+    def publish(kind: str, data: dict) -> None:
+        try:
+            broadcaster.publish(kind, {"job_id": job.id, **data})
+        except Exception:
+            logger.debug("broadcast %s failed", kind, exc_info=True)
+
+    try:
+        resolved = resolve_bakeoff_request(state.marketdata, params)
+        tf: Timeframe = resolved["timeframe"]
+        symbol, asset = resolved["symbol"], resolved["asset"]
+
+        def on_page(have: int, need: int) -> None:
+            job.progress = {"phase": "fetching", "bars_have": have,
+                            "bars_needed": need,
+                            "pct": round(100.0 * have / max(1, need), 1)}
+            publish("bakeoff_progress", job.progress)
+
+        bars, truncated = fetch_window(state.marketdata, symbol, tf,
+                                       resolved["bars"], on_page=on_page,
+                                       cancel=job.cancel)
+        if len(bars) < MIN_HISTORY + 5:
+            raise ValueError(f"only {len(bars)} bars available")
+
+        risk = RiskLimits(max_risk_per_trade_pct=resolved["risk_per_trade_pct"],
+                          max_position_pct_equity=resolved["max_position_pct"])
+        config = ProConfig(asset=asset, mode=TradingMode.BACKTEST,
+                           max_debate_rounds=1, risk=risk)
+        slip, commission, liquidity = cost_profile_for(asset)
+        objective = resolved["objective"]
+        total = len(resolved["strategies"])
+        rows: list[dict] = []
+        for n, (sid, sparams) in enumerate(resolved["strategies"], 1):
+            if job.cancel.is_set():
+                break
+            strategy = build_strategy(sid, sparams)
+            want_htf = getattr(strategy, "htf_timeframes", None)
+            htf = ([t for t in want_htf if HTF_SECONDS[t] > HTF_SECONDS[tf]]
+                   if want_htf else None) or None
+            engine = BacktestEngine(
+                None, config,
+                BarReplay(symbol, asset, bars, window=MIN_HISTORY,
+                          precompute_indicators=True),
+                strategy=strategy,
+                broker=SimBroker(
+                    initial_equity=resolved["initial_equity"],
+                    slippage=slip, commission=commission, liquidity=liquidity,
+                    max_open_positions=config.risk.max_open_positions,
+                    max_gross_exposure_pct=(config.risk.max_open_positions
+                                            * config.risk.max_position_pct_equity),
+                    max_same_direction=config.risk.max_same_direction_positions),
+                memory=None, min_history=MIN_HISTORY, decide_every=1,
+                periods_per_year=periods_per_year(tf, asset),
+                htf_timeframes=htf)
+            result = engine.run()
+            report = result.report.as_dict()
+            rows.append({
+                "strategy_id": sid,
+                "objective_value": float(getattr(result.report, objective, 0.0) or 0.0),
+                "total_return": report.get("total_return"),
+                "sharpe": report.get("sharpe"),
+                "sortino": report.get("sortino"),
+                "max_drawdown": report.get("max_drawdown"),
+                "mar": report.get("mar"),
+                "profit_factor": report.get("profit_factor"),
+                "win_rate": report.get("win_rate_ex_scratch") or report.get("win_rate"),
+                "expectancy_r": report.get("expectancy_r"),
+                "sharpe_stability": report.get("sharpe_stability"),
+                "n_trades": len(result.trades),
+                "final_equity": result.final_equity,
+            })
+            job.progress = {"phase": "running", "done": n, "total": total,
+                            "pct": round(100.0 * n / max(1, total), 1),
+                            "strategy_id": sid}
+            publish("bakeoff_progress", job.progress)
+
+        if not rows:
+            raise ValueError("no strategies completed")
+        rows.sort(key=lambda r: r["objective_value"], reverse=True)  # best first
+
+        created_at = datetime.now(timezone.utc).isoformat()
+        status = "cancelled" if job.cancel.is_set() else "done"
+        summary = {"id": job.id, "created_at": created_at, "type": "bakeoff",
+                   "symbol": symbol, "timeframe": tf.value,
+                   "duration": resolved["duration"], "objective": objective,
+                   "n_strategies": len(rows), "status": status,
+                   "winner": rows[0]["strategy_id"]}
+        record = {"id": job.id, "created_at": created_at, "schema_version": 1,
+                  "type": "bakeoff", "params": job.params, "status": status,
+                  "summary": summary,
+                  "view": {"symbol": symbol, "timeframe": tf.value,
+                           "duration": resolved["duration"], "objective": objective,
+                           "window": [bars[0].start.date().isoformat(),
+                                      bars[-1].start.date().isoformat()],
+                           "window_truncated": truncated,
+                           "initial_equity": resolved["initial_equity"],
+                           "results": rows}}
+        if store is not None:
+            try:
+                store.save(record)
+            except Exception:
+                logger.exception("failed to persist bakeoff %s", job.id)
+        job.result = record
+        job.status = status
+        publish("bakeoff_done", {"status": status, "summary": summary})
+    except _CostConfirmationRequired:
+        raise  # resolved before the thread starts; never reached here
+    except Exception as exc:  # noqa: BLE001 — surface, never crash the server
+        logger.exception("bakeoff job %s failed", job.id)
+        job.status = "error"
+        job.error = str(exc)
+        publish("bakeoff_error", {"status": "error", "error": str(exc)})
+
+
 def _routing(use_llm: bool):
     from tradingagents.contracts import ModelRouting
 
@@ -1322,6 +1523,9 @@ __all__ = [
     "PORTFOLIO_MAX_SYMBOLS",
     "resolve_portfolio_request",
     "run_portfolio_job",
+    "BakeoffRequest",
+    "resolve_bakeoff_request",
+    "run_bakeoff_job",
     "DURATION_SECONDS",
     "LARGE_RUN_DECISIONS",
     "MAX_LLM_DECISIONS",

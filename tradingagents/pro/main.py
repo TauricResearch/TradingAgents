@@ -313,6 +313,8 @@ def build_service(llm=None, data_dir: str | Path | None = None):
     state.backtest_runs = build_run_store(data_path)
     state.backtest_optimizations = BacktestRunStore(
         data_path / "backtest_optimizations.json")
+    state.backtest_bakeoffs = BacktestRunStore(
+        data_path / "backtest_bakeoffs.json")
     try:
         # a leftover running checkpoint = the instance restarted mid-backtest;
         # surface it as a saved partial instead of losing the run
