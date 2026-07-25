@@ -50,22 +50,78 @@ keys. The actual upstream material lives one level down in `state_fields`, whose
 envelope, so the user sees five meaningless identifiers and none of the content
 the tab claims to show.
 
-**F6. A single turn's payload contains multiple speakers' dialogue.** The bull
-researcher's `investment_debate_state.current_response` (7374 chars) contains
-three speaker labels: `**Moderator:**` at offset 118, `**Bear Analyst:**` at
-offset 252, and `**Bull Analyst:**` only at offset 1282. The bull's own turn
-opens with ~1300 characters of moderator narration and bear argument that the
-bull's LLM authored itself. The bear's turn (8410 chars) is clean — one label at
-offset 14.
+**F6. Debate turns contain other speakers' dialogue, and every turn carries a
+doubled speaker label.** Three distinct defects, all reproduced against the real
+run store.
 
-This breaks the premise of the opposed-lane debate stage: the design assumes one
-turn equals one speaker, so the bull lane would display bear argument. It is a
-prompt-constraint defect in the agent, not a rendering defect, and it must be
-resolved before or alongside the debate stage work.
+*F6a — a debate role authors the other side's speech.* The bull researcher's
+`investment_debate_state.current_response` (7374 chars) contains three speaker
+labels: `**Moderator:**` at offset 118, `**Bear Analyst:**` at offset 252, and
+`**Bull Analyst:**` only at offset 1282. The bull's own turn opens with ~1300
+characters of moderator narration and bear argument that the bull's own LLM
+authored.
 
-Related: `investment_debate_state.history` is exactly 12000 characters — a
-compaction truncation boundary — while `bull_history` (7375) and `bear_history`
-(8411) are untruncated.
+The polluted turn is `count = 1`, the debate's **first** round, where
+`bear_history` is empty (0 chars) and `current_response` is empty. The prompt
+nevertheless instructs the bull to "refute the bear's concerns" and lists `Last
+bear argument: {current_response}` with nothing after it
+(`tradingagents/agents/researchers/bull_researcher.py:64`). Given an instruction
+to rebut an argument that does not exist, the model invented a moderator handoff
+and a bear argument so it would have something to rebut. The root cause is an
+unconditional rebuttal instruction on an empty first round, not model
+misbehaviour in general.
+
+*F6b — the speaker label is applied twice.* The bear's turn is **not** clean, as
+an earlier reading of this finding claimed. Its `current_response` begins
+`Bear Analyst: **Bear Analyst:** Thank you, Moderator.` — the code prepends
+`Bear Analyst: ` at `bear_researcher.py:73` while the model also emits its own
+`**Bear Analyst:**` heading, because the `history` fed back into the prompt is
+formatted as a labelled transcript and the model reproduces that format. The
+bull path has the identical construction at `bull_researcher.py:76`. Both sides
+are affected; the doubled label is systematic, not incidental.
+
+*F6c — the debate addresses a moderator that does not exist in the graph.* Both
+researchers write to a "Moderator", and the research manager's verdict opens
+`### Moderator's Ruling & Action Plan`. There is no moderator node in the role
+registry or the LangGraph pipeline. The transcript therefore narrates a
+participant the flow map cannot show, which will read as a missing role once the
+map draws explicit stages and edges.
+
+Scope of pollution: of 35 debate payloads across all runs in the store, 2 carry
+multiple speaker labels, both originating from the bull researcher. The risk
+three-way debate payloads are free of foreign-speaker labels in the current
+store, but `aggressive_debator.py:45`, `conservative_debator.py:45` and
+`neutral_debator.py:45` share the same prompt construction and the same
+code-side label prefix (`:54` in each), so they carry the same latent defect.
+
+Impact on this change: the opposed-lane debate stage assumes one turn equals one
+speaker. Rendered as-is, the bull lane would display the bear's argument, and
+every lane would show a redundant label directly under the avatar that already
+names the speaker. This is a prompt and state-construction defect, not a
+rendering defect.
+
+*F6d — the label is load-bearing for compaction, and the transcript is clipped
+mid-sentence.* `investment_debate_state.history` is exactly 12000 characters
+while `bull_history` (7375) and `bear_history` (8411) are untruncated. This is
+`compact_debate_history`'s `bounded_tail` branch
+(`tradingagents/graph/context_compaction.py`): with `count = 2` the transcript
+holds 2 speaker turns, which is `<= recent_turns=3`, so no whole turn can be
+dropped and the function falls back to `history[-max_characters:]`. The stored
+string confirms it — it begins mid-sentence, `"on; Zhipu is raising $4 billion."`
+The behavior is the documented fallback rather than silent corruption, but the
+prompt does receive a transcript that starts mid-clause.
+
+This makes the speaker label load-bearing: `_SPEAKER`
+(`context_compaction.py:20`) is a `re.MULTILINE` regex splitting on
+`^(?:Bull Analyst|Bear Analyst|Aggressive Analyst|Conservative Analyst|Neutral
+Analyst):`, so removing the label from the composed `history` would collapse
+every transcript into a single unsplittable turn and force the mid-sentence
+clip on every run. Labels must stay in `history` even as they leave the
+individual turn body.
+
+Note on the moderator: `grep -rn "oderator" --include="*.py" tradingagents/`
+returns nothing. No prompt asks for a moderator; the researchers invent it, and
+the research manager picks up the framing from the transcript it reads.
 
 **F7. The identity-conflict hard stop produces false positives, and the failing
 case is real.** Run `run_20260725T043002089090Z_0ff7ebc5` failed with

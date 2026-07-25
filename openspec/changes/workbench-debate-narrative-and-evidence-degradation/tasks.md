@@ -51,6 +51,26 @@
 - [ ] 3.6 Surface the verdict as a badge on the evidence steward's turn (and the final decision if 3.5 requires it), sourced from the `evidence_status` field `responseExtractor` already reads.
 - [ ] 3.7 Run a real minimum-depth analysis against a thin-coverage A-share ticker and confirm the run reaches a non-failed terminal status with the verdict visible.
 
+## 3A. Debate turn authorship (spec: debate-turn-authorship)
+
+Lands before the debate stage: the lanes are unbuildable while a turn can hold
+two speakers, and the confirmation run takes minutes, so starting it here means
+its result is ready when the lanes are. Evidence: `findings-e2e.md` F6a–F6d.
+
+- [ ] 3A.1 Audit every consumer of the debate transcript labels before touching them: `grep -rn "Bull Analyst\|Bear Analyst\|Aggressive Analyst\|Conservative Analyst\|Neutral Analyst" --include="*.py" tradingagents/`. Known load-bearing consumer is `graph/context_compaction.py:20` (`_SPEAKER`, `re.MULTILINE` split at line starts); `graph/setup.py` and `graph/conditional_logic.py` use the same strings as node names, which is unrelated and must not be changed.
+- [ ] 3A.2 Add a test locking in the compaction contract first: a composed `history` of N labelled turns splits into N turns, so a later change cannot silently collapse it into the `bounded_tail` mid-sentence clip.
+- [ ] 3A.3 In `bull_researcher.py`, branch the prompt on whether an opposing argument exists (`current_response` non-empty, or `bear_history` non-empty). Opening turn: request an opening case, omit the `Last bear argument:` line entirely. Subsequent turn: request a rebuttal and include the argument. Today the rebuttal instruction and the empty `Last bear argument:` label are unconditional (`bull_researcher.py:64`), which is what induces the invented bear dialogue.
+- [ ] 3A.4 Apply the same branch to `bear_researcher.py`.
+- [ ] 3A.5 Apply the same branch to `aggressive_debator.py`, `conservative_debator.py`, `neutral_debator.py`, each of which shares the construction and carries the same latent defect even though current run-store payloads are clean.
+- [ ] 3A.6 Remove the moderated-panel framing from all five debate prompts: the role addresses its counterpart directly and speaks only as itself. No moderator exists in the registry or the graph (`grep -rn "oderator" --include="*.py" tradingagents/` returns nothing), so nothing is being renamed — the framing is model-invented.
+- [ ] 3A.7 Add an explicit instruction that the role writes only its own argument and does not write dialogue for any other participant.
+- [ ] 3A.8 Stop prefixing the stored turn body with its own speaker label (`bull_researcher.py:76`, `bear_researcher.py:73`, `:54` in each risk debator). Keep the label when appending to the composed `history` transcript so 3A.1's consumer keeps working; `current_response` and the per-side histories carry the unlabelled body.
+- [ ] 3A.9 Instruct `managers/research_manager.py` to present its verdict under its own identity. Its prompt contains no moderator text; the `### Moderator's Ruling & Action Plan` heading observed in the verified run is inherited from the transcript it reads.
+- [ ] 3A.10 Add unit tests over the prompt builders (not the LLM): opening turn omits rebuttal wording and the opposing-argument line, subsequent turn includes both, no prompt contains moderator framing, and the stored body carries no self-label while the composed `history` does.
+- [ ] 3A.11 Add a detector asserting a debate turn body contains no attribution naming another participant, and use it in the tests. Keep it reusable — 5.x needs the same predicate for the rendering guard.
+- [ ] 3A.12 Run a real analysis with at least two debate rounds and confirm from the run store: each turn body has no self-label and no foreign attribution, the first-round turn contains no invented opposing argument, and the research manager still reaches a rating.
+- [ ] 3A.13 Record in the closeout that historical payloads are untouched (2 of 35 remain polluted) and that they are handled by the 5.x rendering guard.
+
 ## 4. Debate narrative — flow map (spec: workbench-debate-narrative)
 
 - [ ] 4.1 Add a declarative edge table to `frontend/src/domain/roles.ts`: `{ from, to, kind: "handoff" | "adversarial" | "convergence" }` covering stage handoffs, bull↔bear, the risk three-way, and each debate's convergence into its judge.
@@ -64,9 +84,10 @@
 
 ## 5. Debate narrative — debate stage (spec: workbench-debate-narrative)
 
-- [ ] 5.0a **Prerequisite**: constrain the bull and bear researcher prompts so each authors only its own argument. The verified run's bull turn opens with ~1300 chars of self-authored `**Moderator:**` and `**Bear Analyst:**` dialogue before its own case (`findings-e2e.md` F6); lane rendering would display the bear's argument inside the bull lane.
-- [ ] 5.0b Add a test asserting a debate role's turn output contains no speaker attribution naming another role.
-- [ ] 5.0c Investigate the `investment_debate_state.history` 12000-character boundary observed in the verified run while `bull_history` and `bear_history` are untruncated; confirm whether compaction is silently truncating debate history and whether the debate stage should read the per-side histories instead.
+- [ ] 5.0a Depends on phase 3A. Add a foreign-attribution guard to the debate stage: a turn body carrying an attribution naming another participant is not presented as the authoring role's own words, and is marked as containing foreign attribution rather than silently stripped. Required for historical runs, whose bodies are never rewritten (`findings-e2e.md` F6a).
+- [ ] 5.0b Suppress a turn body's redundant leading self-label so the lane does not print `Bear Analyst:` beneath the avatar that already names the role. Applies to every pre-3A run, where the label is doubled on both sides (`findings-e2e.md` F6b).
+- [ ] 5.0c Unit-test the guard against the real polluted payload (bull turn, `**Moderator:**` at offset 118, `**Bear Analyst:**` at 252, `**Bull Analyst:**` at 1282) and against a clean post-3A turn, asserting no marking on the clean one.
+- [ ] 5.0d The debate stage reads per-side bodies, not the composed `history`. `history` is compaction output and is clipped mid-sentence via the `bounded_tail` branch when the transcript holds `<= recent_turns` turns — observed at exactly 12000 chars in the verified run while `bull_history` (7375) and `bear_history` (8411) were untruncated (`findings-e2e.md` F6d). No compaction change is needed for rendering.
 - [ ] 5.1 Add `laneOf(actor_id)` to the role domain, deriving lane assignment from the registry (two research lanes, three risk lanes, none for other roles).
 - [ ] 5.2 Add a `debateScript(state, filter)` selector to `frontend/src/state/selectors.ts` returning ordered `round` / `verdict` / `linear` blocks, grouping by `turn.turn_index` and never by arrival order.
 - [ ] 5.3 Unit-test `debateScript` for: two-round research debate, in-progress round 1 of 3, three-way risk round, judging turns as verdict blocks, and analyst turns as linear blocks.
@@ -102,8 +123,10 @@
 - [ ] 7.2 Run the full backend suite (`pytest`) and confirm no regression from the evidence changes.
 - [ ] 7.3 Run `npm --prefix frontend run test:e2e` against `scripts/e2e_server.py`.
 - [ ] 7.4 Drive a real end-to-end run in the browser and confirm: prose reports readable, flow map edges live, rounds and lanes correct, inspector single-scope, and a thin-coverage ticker completing with a visible low-confidence verdict.
+- [ ] 7.4a Re-run the F6 scan over the whole run store after phase 3A and confirm the count of multi-speaker payloads has not grown beyond the 2 historical ones, and that every post-3A debate payload is clean.
+- [ ] 7.4b Open one pre-3A run and one post-3A run side by side and confirm the pre-3A lanes show the foreign-attribution marking while the post-3A lanes show none.
 - [ ] 7.5 Update `CLAUDE.md` with the new evidence verdict model and the `evidence_stop_on_fail` default flip.
-- [ ] 7.6 Update `CHANGELOG.md` recording the behavior change and the new frontend dependencies.
+- [ ] 7.6 Update `CHANGELOG.md` recording the behavior changes and the new frontend dependencies. Two behavior changes need entries, not one: the `evidence_stop_on_fail` default flip, and the debate prompt rework — the latter alters what the researchers write, so recommendation text will differ from historical runs on identical inputs.
 - [ ] 7.7 Update `Handoff.md` and the README web section for the new workbench structure.
 - [ ] 7.8 Update `.env.example` with the newly exposed evidence env overrides.
 - [ ] 7.9 Confirm the committed `tradingagents/web/static/` matches a fresh build and report the final bundle-size delta.

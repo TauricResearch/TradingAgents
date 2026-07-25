@@ -109,34 +109,40 @@ heuristics.
 - **WHEN** an analyst turn is rendered
 - **THEN** it is not assigned to an opposed lane
 
-### Requirement: A turn's rendered content contains only that role's own speech
+### Requirement: A lane never presents another role's speech as its own
 
-Lane-based rendering presumes one turn carries one speaker. A debate role's turn
-output SHALL therefore contain only that role's own argument, and SHALL NOT
-contain narration or argument attributed to the opposing role or to a moderator.
+Lane-based rendering presumes one turn carries one speaker. Turn bodies recorded
+before this change violate that premise and are never rewritten, so the debate
+view SHALL defend against it at render time.
 
-This is a constraint on the agent's output, not on the renderer: an adversarial
-role SHALL NOT author the other side's speech. Where existing output violates
-this, the debate view SHALL NOT silently display the foreign speech inside the
-authoring role's lane.
+Where a turn body carries an attribution naming a participant other than the
+authoring role, the view SHALL NOT present that foreign speech as the authoring
+role's own words, and SHALL mark the turn as containing foreign attribution
+rather than silently removing it. Surfacing the defect is required: this
+workbench exists to make agent behavior auditable, and a silent repair would hide
+the defect from the reader best placed to act on it.
 
-#### Scenario: Bull turn containing bear argument
+The constraint on what agents may author is specified separately under
+`debate-turn-authorship`.
 
-- **WHEN** a bull researcher's turn output opens with moderator narration and
-  bear argument before its own argument
-- **THEN** that output is treated as malformed
-- **AND** the bull lane does not present the bear's argument as the bull's
+#### Scenario: Historical bull turn containing bear argument
+
+- **WHEN** a bull researcher's turn body opens with moderator narration and bear
+  argument before its own argument
+- **THEN** the bull lane does not present the bear's argument as the bull's
+- **AND** the turn is marked as containing foreign attribution
 
 #### Scenario: Well-formed adversarial turn
 
-- **WHEN** a debate role's turn output contains only its own argument
+- **WHEN** a debate role's turn body contains only its own argument
 - **THEN** it renders in that role's lane in full
+- **AND** it carries no foreign-attribution marking
 
-#### Scenario: Speaker attribution is verifiable
+#### Scenario: Redundant self-label is not shown twice
 
-- **WHEN** a debate role's turn output is checked for speaker attributions
-- **THEN** any attribution naming a role other than the authoring role is
-  detectable as a defect
+- **WHEN** a turn body opens with its own role's speaker label
+- **THEN** the lane does not display that label in addition to the role identity
+  it already shows
 
 ### Requirement: Judging turns are rendered as convergence points
 

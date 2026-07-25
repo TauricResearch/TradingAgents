@@ -45,14 +45,43 @@ tickers the correct response is a lower-confidence verdict, not a refusal.
 - Render debate body content eagerly rather than behind a click-to-expand
   placeholder. E2E verification confirmed all 13 turns currently render the
   literal string `点击展开` as their entire body (`findings-e2e.md` F2).
-- **Prerequisite defect**: constrain adversarial agents to author only their own
-  speech. The bull researcher's turn currently opens with ~1300 characters of
-  self-authored moderator narration and bear argument before its own case, which
-  breaks the one-turn-one-speaker premise that lane rendering depends on
-  (`findings-e2e.md` F6).
+- Guard the lanes against turn bodies that violate the one-speaker premise:
+  historical bodies are never rewritten, so a turn carrying another
+  participant's attribution is marked as such rather than displayed as the
+  authoring role's own words, and a turn's redundant self-label is not shown
+  beside the role identity the lane already renders (`findings-e2e.md` F6).
 - Mark absent execution facts as unavailable rather than as zero: every
   `turn.completed` in the verified run carries `duration_ms: 0`, and the UI
   currently prints `0s` for all 13 roles (`findings-e2e.md` F3).
+
+### Debate turn authorship
+
+E2E verification found the adversarial agents producing malformed transcripts.
+This is agent-behavior work, in scope because the opposed-lane debate stage is
+unbuildable on top of it (`findings-e2e.md` F6).
+
+- **BREAKING (behavior)**: make the rebuttal instruction conditional. The bull
+  researcher's first-round prompt demands it "refute the bear's concerns" and
+  prints `Last bear argument:` with nothing after it, because on round one no
+  bear argument exists yet. The model resolves that contradiction by inventing a
+  moderator handoff and a bear argument to rebut — ~1300 characters of foreign
+  dialogue before its own case. Opening turns ask for an opening case; only
+  subsequent turns ask for a rebuttal and carry the argument being rebutted.
+- Move the speaker label out of the turn body. The code prepends
+  `Bull Analyst: ` / `Bear Analyst: ` to each stored turn while the model also
+  emits its own `**Bear Analyst:**` heading, so every turn on both sides carries
+  a doubled label. Attribution becomes structural (the turn's role identity);
+  the labelled `history` transcript fed back into prompts keeps its inline
+  labels, since that is what makes a multi-turn transcript legible to a model.
+- Stop staging a moderated panel. Both researchers address a "Moderator" and the
+  research manager's verdict opens `### Moderator's Ruling & Action Plan`, but no
+  moderator role exists in the registry or the graph. The debate becomes a direct
+  exchange; the judging role remains the convergence point.
+- Apply the same three fixes to the three risk debators, which share the prompt
+  construction and the code-side label prefix and therefore carry the same latent
+  defect even though the current run store shows their payloads clean.
+- Do not rewrite recorded runs. The 2 polluted payloads of 35 in the store stay
+  as they are; the rendering guard above is what makes them readable.
 
 ### Inspector information architecture
 
@@ -110,10 +139,14 @@ tickers the correct response is a lower-confidence verdict, not a refusal.
 - `evidence-confidence-degradation`: the evidence gate's verdict model,
   degradation semantics, downstream confidence propagation, and which checks
   remain hard failures.
+- `debate-turn-authorship`: what an adversarial agent is allowed to author in a
+  turn — one speaker per turn, rebuttals only when there is something to rebut,
+  attribution carried structurally rather than embedded in prose, and no
+  participants that do not exist in the pipeline.
 
 ### Modified Capabilities
 
-None. `openspec/specs/` is currently empty, so all four capabilities are new.
+None. `openspec/specs/` is currently empty, so all five capabilities are new.
 
 ## Impact
 
@@ -140,9 +173,26 @@ Backend:
 - `tradingagents/observability/projections.py` if the confidence verdict enters
   the event/projection contract consumed by the frontend.
 - Downstream prompt lenses for Research Manager / Portfolio Manager conviction.
+- `tradingagents/agents/researchers/bull_researcher.py`,
+  `tradingagents/agents/researchers/bear_researcher.py` (conditional rebuttal,
+  moderator framing removed, label out of the stored body).
+- `tradingagents/agents/risk_mgmt/aggressive_debator.py`,
+  `conservative_debator.py`, `neutral_debator.py` (same three fixes).
+- `tradingagents/agents/managers/research_manager.py`: its prompt contains no
+  moderator text (`grep -rn "oderator" --include="*.py" tradingagents/` returns
+  nothing) — the framing is inherited from the transcript it reads, so this file
+  needs only an explicit instruction to present the verdict under its own
+  identity.
+- Not modified but constraining: `tradingagents/graph/context_compaction.py:20`
+  splits the debate transcript on the literal `Bull Analyst:` /
+  `Bear Analyst:` / risk-analyst labels at line starts. The composed `history`
+  must keep those labels, or every transcript collapses into one unsplittable
+  turn.
 
 Docs: `CLAUDE.md`, `CHANGELOG.md`, `Handoff.md`, `README.md` web section.
 
 Out of scope: exposing evidence thresholds in the web request schema
 (`AnalysisRequest` / `effective_config` whitelist stays as-is); dark theme;
-changes to the 13-role convergence path.
+changes to the 13-role convergence path; adding a moderator role to the graph;
+rewriting or backfilling recorded debate payloads; changing the substance of the
+debate prompts' analytical instructions; changing `context_compaction.py`.
