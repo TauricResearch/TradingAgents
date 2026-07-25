@@ -114,6 +114,18 @@ Install the package and its dependencies:
 pip install .
 ```
 
+Alternatively, use [uv](https://docs.astral.sh/uv/) to create the project
+environment and install TradingAgents in one step:
+
+```bash
+uv sync --python 3.12
+uv run tradingagents
+```
+
+`uv sync` creates `.venv` automatically. Use `uv run <command>` to run any
+project command without activating that environment, for example
+`uv run --extra dev python -m pytest` when working on the test suite.
+
 ### Docker
 
 Alternatively, run with Docker:
