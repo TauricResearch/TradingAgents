@@ -15,6 +15,7 @@ from tradingagents.domain import (
     Conversation,
     ConversationMessage,
     JobEvent,
+    ProviderCacheEntry,
     Report,
     SourceObservation,
     TrustAssessment,
@@ -45,14 +46,21 @@ class Repository:
         self.database = database
         self.database.migrate()
 
-    def create_job(self, request: dict[str, Any], *, job_id: str | None = None) -> AnalysisJob:
+    def create_job(
+        self,
+        request: dict[str, Any],
+        *,
+        job_id: str | None = None,
+        retry_of_job_id: str | None = None,
+        retry_attempt: int = 0,
+    ) -> AnalysisJob:
         now = utc_now()
         job_id = job_id or str(uuid.uuid4())
         signature = run_signature(request)
         with self.database.connect() as conn:
             conn.execute(
-                "INSERT INTO analysis_jobs(id,request_json,status,run_signature,created_at,updated_at) VALUES (?,?,?,?,?,?)",
-                (job_id, json_text(request), "queued", signature, now, now),
+                "INSERT INTO analysis_jobs(id,request_json,status,run_signature,created_at,updated_at,retry_of_job_id,retry_attempt) VALUES (?,?,?,?,?,?,?,?)",
+                (job_id, json_text(request), "queued", signature, now, now, retry_of_job_id, retry_attempt),
             )
         return self.get_job(job_id)  # type: ignore[return-value]
 
@@ -126,7 +134,7 @@ class Repository:
         return [JobEvent(row["job_id"], row["event_id"], row["event_type"], row["timestamp"], _loads(row["data_json"], {})) for row in rows]
 
     def trim_events(self, job_id: str, *, keep: int = 512) -> None:
-        terminal = ("analysis.completed", "analysis.failed", "analysis.cancelled", "analysis.interrupted", "analysis.budget_exhausted")
+        terminal = ("analysis.completed", "analysis.failed", "analysis.cancelled", "analysis.interrupted", "analysis.budget_exhausted", "analysis.provider_rate_limited")
         with self.database.connect() as conn:
             conn.execute(
                 f"DELETE FROM job_events WHERE job_id=? AND event_type NOT IN ({','.join('?' for _ in terminal)}) "
@@ -224,6 +232,44 @@ class Repository:
             rows = conn.execute(query, params).fetchall()
         return [UsageRecord(*tuple(row)) for row in rows]
 
+    def get_provider_cache(
+        self,
+        provider: str,
+        symbol: str,
+        capability: str,
+        request_params: dict[str, Any] | None = None,
+    ) -> ProviderCacheEntry | None:
+        params_hash = hashlib.sha256(json_text(request_params or {}).encode()).hexdigest()
+        with self.database.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM provider_cache WHERE provider=? AND symbol=? AND capability=? AND request_params_hash=?",
+                (provider, symbol, capability, params_hash),
+            ).fetchone()
+        return self._provider_cache(row) if row else None
+
+    def put_provider_cache(
+        self,
+        *,
+        provider: str,
+        symbol: str,
+        capability: str,
+        request_params: dict[str, Any] | None,
+        normalized_payload: dict[str, Any],
+        source_reference: str,
+        retrieved_at: str,
+        effective_at: str | None,
+        expires_at: str,
+    ) -> ProviderCacheEntry:
+        params_hash = hashlib.sha256(json_text(request_params or {}).encode()).hexdigest()
+        payload_hash = hashlib.sha256(json_text(normalized_payload).encode()).hexdigest()
+        with self.database.connect() as conn:
+            conn.execute(
+                "INSERT INTO provider_cache(provider,symbol,capability,request_params_hash,normalized_json,source_reference,retrieved_at,effective_at,expires_at,payload_hash) VALUES (?,?,?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(provider,symbol,capability,request_params_hash) DO UPDATE SET normalized_json=excluded.normalized_json,source_reference=excluded.source_reference,retrieved_at=excluded.retrieved_at,effective_at=excluded.effective_at,expires_at=excluded.expires_at,payload_hash=excluded.payload_hash",
+                (provider, symbol, capability, params_hash, json_text(normalized_payload), source_reference, retrieved_at, effective_at, expires_at, payload_hash),
+            )
+        return self.get_provider_cache(provider, symbol, capability, request_params)  # type: ignore[return-value]
+
     def add_observation(self, value: SourceObservation) -> None:
         with self.database.connect() as conn:
             conn.execute("INSERT INTO source_observations VALUES (?,?,?,?,?,?,?,?,?,?,?)", tuple(asdict(value).values()))
@@ -261,7 +307,15 @@ class Repository:
 
     @staticmethod
     def _job(row: Any) -> AnalysisJob:
-        return AnalysisJob(row["id"], _loads(row["request_json"], {}), row["status"], row["run_signature"], row["created_at"], row["updated_at"], row["started_at"], row["finished_at"], _loads(row["error_json"]), _loads(row["result_json"]), row["report_id"], row["advice_id"], bool(row["cancel_requested"]), bool(row["resumable"]))
+        return AnalysisJob(row["id"], _loads(row["request_json"], {}), row["status"], row["run_signature"], row["created_at"], row["updated_at"], row["started_at"], row["finished_at"], _loads(row["error_json"]), _loads(row["result_json"]), row["report_id"], row["advice_id"], bool(row["cancel_requested"]), bool(row["resumable"]), row["retry_of_job_id"], int(row["retry_attempt"]))
+
+    @staticmethod
+    def _provider_cache(row: Any) -> ProviderCacheEntry:
+        return ProviderCacheEntry(
+            row["provider"], row["symbol"], row["capability"], row["request_params_hash"],
+            _loads(row["normalized_json"], {}), row["source_reference"], row["retrieved_at"],
+            row["effective_at"], row["expires_at"], row["payload_hash"],
+        )
 
     @staticmethod
     def _report(row: Any) -> Report:

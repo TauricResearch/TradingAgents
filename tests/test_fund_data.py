@@ -2,6 +2,10 @@ from types import SimpleNamespace
 
 import pandas as pd
 
+from tradingagents.agents.utils.fund_data_tools import (
+    _snapshot,
+    use_preloaded_fund_snapshot,
+)
 from tradingagents.dataflows.fund_data import fetch_fund_snapshot
 from tradingagents.instruments import AssetType, FundType, InstrumentDescriptor
 
@@ -74,3 +78,16 @@ def test_holdings_failure_retains_profile_and_performance():
     assert snapshot.price_series
     assert snapshot.top_holdings == []
     assert "secret-token" not in " ".join(snapshot.warnings)
+
+
+def test_preloaded_normalized_snapshot_is_shared_by_fund_tools():
+    normalized = fetch_fund_snapshot(
+        descriptor(), "2026-01-01", "QQQ", ticker_factory=FakeTicker
+    ).to_dict()
+    normalized["analysis_date"] = "2026-01-01"
+    normalized["benchmark_symbol"] = "QQQ"
+    with use_preloaded_fund_snapshot(normalized):
+        first = _snapshot("SPY", "2026-01-01", "QQQ")
+        first["profile"]["category"] = "mutated"
+        second = _snapshot("SPY", "2026-01-01", "QQQ")
+    assert second["profile"]["category"] == "Large Blend"

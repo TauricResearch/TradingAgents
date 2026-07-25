@@ -22,9 +22,9 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals())
 
-it('requires instrument resolution before start and renders resolved fund identity', async () => {
+it('submits a durable job without requiring a browser-side provider probe and renders identity when resolved', async () => {
   render(<App />)
-  expect(screen.getByRole('button', { name: /start analysis/i })).toBeDisabled()
+  expect(screen.getByRole('button', { name: /start analysis/i })).toBeEnabled()
   fireEvent.click(screen.getByRole('button', { name: 'Resolve' }))
   await waitFor(() => expect(screen.getAllByText('SPDR S&P 500 ETF Trust')).toHaveLength(2))
   expect(screen.getByRole('button', { name: /start analysis/i })).toBeEnabled()

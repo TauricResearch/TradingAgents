@@ -27,6 +27,7 @@ from tradingagents.agents.utils.news_data_tools import (
 )
 from tradingagents.agents.utils.prediction_markets_tools import get_prediction_markets
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
+from tradingagents.dataflows.yahoo import yahoo_rate_limit_error
 
 # Public surface: the data tools are imported here so agents and the graph
 # import them from one place, plus the instrument/language helpers defined below.
@@ -85,7 +86,7 @@ def _clean_identity_value(value: Any) -> str | None:
 _identity_cache: dict[str, dict[str, str]] = {}
 
 
-def resolve_instrument_identity(ticker: str) -> dict:
+def resolve_instrument_identity(ticker: str, *, raise_rate_limited: bool = False) -> dict:
     """Resolve deterministic identity metadata (company name, sector, …) for a ticker.
 
     This exists to stop the pipeline from hallucinating a *different* company
@@ -94,10 +95,12 @@ def resolve_instrument_identity(ticker: str) -> dict:
     the price action to a narrative and invent an identity that then cascaded
     through every downstream agent.
 
-    Best-effort by design: if yfinance is unavailable, rate-limited, or doesn't
-    recognise the ticker, we return ``{}`` and the caller falls back to
-    ticker-only context rather than failing before analysis starts. Cached so
-    the lookup happens at most once per ticker per process.
+    Best-effort by design: if yfinance is unavailable or doesn't recognise the
+    ticker, we return ``{}`` and the caller falls back to ticker-only context.
+    Web workers set ``raise_rate_limited`` so an explicit Yahoo throttle becomes
+    a stable, auditable retry state rather than a false missing-symbol result.
+    The default remains fail-open for the existing graph and CLI entry points.
+    Cached so the lookup happens at most once per ticker per process.
 
     The symbol is normalized first (e.g. ``XAUUSD`` -> ``GC=F``) so identity
     resolves for the same instrument the price path actually fetches (#983).
@@ -109,7 +112,12 @@ def resolve_instrument_identity(ticker: str) -> dict:
         return dict(_identity_cache[canonical])
     try:
         info = yf.Ticker(canonical).info or {}
-    except Exception as exc:  # noqa: BLE001 — fail open, never block the run
+    except Exception as exc:  # noqa: BLE001 — fail open apart from an explicit provider throttle
+        if limited := yahoo_rate_limit_error(exc):
+            if raise_rate_limited:
+                raise limited from exc
+            logger.debug("Yahoo rate limited identity lookup for %s", ticker)
+            return {}
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}
 

@@ -28,6 +28,7 @@ export function cancelAnalysis(jobId: string) {
   return fetch(`/api/analyses/${jobId}/cancel`, { method: 'POST' }).then(json<{ status: string }>)
 }
 export function resumeAnalysis(jobId: string) { return fetch(`/api/analyses/${jobId}/resume`, { method: 'POST' }).then(json<{ job_id: string; status: string }>) }
+export function retryAnalysis(jobId: string) { return fetch(`/api/analyses/${jobId}/retry`, { method: 'POST' }).then(json<{ job_id: string; status: string; retry_of_job_id: string }>) }
 
 export function listAnalyses() { return fetch('/api/analyses').then(json<{ items: AnalysisJob[] }>).then(value => value.items) }
 export function getAnalysis(jobId: string) { return fetch(`/api/analyses/${jobId}`).then(json<AnalysisJob>) }

@@ -27,7 +27,7 @@ export function analysisReducer(state: AnalysisState, action: Action): AnalysisS
     const result = action.job.result
     const reportKeys = ['market_report','sentiment_report','news_report','fundamentals_report','investment_plan','trader_investment_plan','final_trade_decision']
     const reports = Object.fromEntries(reportKeys.filter(key => typeof result?.[key] === 'string').map(key => [key, String(result?.[key])]))
-    return { ...initialAnalysisState, status: action.job.status, jobId: action.job.job_id, result, reports, error: action.job.error?.message, reportId: action.job.report_id, adviceId: action.job.advice_id }
+    return { ...initialAnalysisState, status: action.job.status, jobId: action.job.job_id, result, reports, error: action.job.error?.message, providerRateLimit: action.job.error?.code === 'PROVIDER_RATE_LIMITED' ? action.job.error as import('./types').ProviderRateLimitError : undefined, reportId: action.job.report_id, adviceId: action.job.advice_id }
   }
   const event = action.event
   if (event.id <= state.lastEventId) return state
@@ -66,6 +66,12 @@ export function analysisReducer(state: AnalysisState, action: Action): AnalysisS
     next.reportId = String(event.data.report_id ?? '') || undefined
     next.adviceId = String(event.data.advice_id ?? '') || undefined
     next.error = String((event.data.error as { message?: string } | undefined)?.message ?? 'Budget exhausted')
+    next.connected = false
+  }
+  if (event.type === 'analysis.provider_rate_limited') {
+    next.status = 'provider_rate_limited'
+    next.error = String((event.data.error as { message?: string } | undefined)?.message ?? 'Yahoo Finance is temporarily rate limited')
+    next.providerRateLimit = event.data.error as import('./types').ProviderRateLimitError
     next.connected = false
   }
   return next

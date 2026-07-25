@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 import uuid
 
@@ -18,16 +19,16 @@ from tradingagents.persistence.repository import utc_now
 
 def test_empty_database_migrates_to_current_version(tmp_path):
     database = Database(tmp_path / "workspace.sqlite3")
-    assert database.migrate() == 3
+    assert database.migrate() == 4
     with database.connect() as conn:
-        assert [row[0] for row in conn.execute("SELECT version FROM schema_migrations")] == [1, 2, 3]
+        assert [row[0] for row in conn.execute("SELECT version FROM schema_migrations")] == [1, 2, 3, 4]
 
 
-@pytest.mark.parametrize("old_version", [1, 2])
+@pytest.mark.parametrize("old_version", [1, 2, 3])
 def test_every_prior_version_migrates_forward(tmp_path, old_version):
     path = tmp_path / f"v{old_version}.sqlite3"
     Database(path, migrations=MIGRATIONS[:old_version]).migrate()
-    assert Database(path).migrate() == 3
+    assert Database(path).migrate() == 4
 
 
 def test_failed_migration_rolls_back_schema_and_version(tmp_path):
@@ -98,7 +99,7 @@ def test_backup_restore_round_trip_and_preview_rejections(tmp_path):
     original = repository.create_job({"symbol": "SPY"})
     backups = BackupService(repository.database)
     created = backups.create()
-    assert created.valid and created.compatible and created.schema_version == 3
+    assert created.valid and created.compatible and created.schema_version == 4
 
     repository.create_job({"symbol": "AAPL"})
     backups.restore(created.backup_id)
@@ -110,6 +111,18 @@ def test_backup_restore_round_trip_and_preview_rejections(tmp_path):
     assert not corrupt.valid and corrupt.reason == "CORRUPT_OR_INCOMPLETE"
     with pytest.raises(ValueError, match="INVALID_BACKUP_ID"):
         backups.preview("../../outside")
+
+
+def test_backup_list_is_newest_first(tmp_path):
+    repository = Repository(Database(tmp_path / "workspace.sqlite3"))
+    backups = BackupService(repository.database)
+    first = backups.create()
+    second = backups.create()
+    first_path = backups.backup_dir / f"{first.backup_id}.sqlite3"
+    second_path = backups.backup_dir / f"{second.backup_id}.sqlite3"
+    os.utime(second_path, (100, 100))
+    os.utime(first_path, (200, 200))
+    assert [item.backup_id for item in backups.list()][:2] == [first.backup_id, second.backup_id]
 
 
 def test_newer_schema_backup_is_rejected(tmp_path):

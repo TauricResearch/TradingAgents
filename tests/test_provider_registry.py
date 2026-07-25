@@ -73,3 +73,13 @@ def test_ciii_resolves_server_side_endpoint_and_key(monkeypatch):
     assert str(llm.openai_api_base) == "https://ciii.example/v1"
     key = llm.openai_api_key.get_secret_value()
     assert key == "server-only-test-key"
+
+
+@pytest.mark.unit
+def test_ciii_site_root_is_normalized_to_openai_v1(monkeypatch):
+    from tradingagents.llm_clients.factory import create_llm_client
+
+    monkeypatch.setenv("TRADINGAGENTS_CIII_BASE_URL", "https://ciii.example/")
+    monkeypatch.setenv("CIII_API_KEY", "server-only-test-key")
+    llm = create_llm_client(provider="ciii", model="ciii-test-model").get_llm()
+    assert str(llm.openai_api_base) == "https://ciii.example/v1"

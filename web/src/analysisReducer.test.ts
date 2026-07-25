@@ -24,4 +24,21 @@ describe('analysisReducer', () => {
     expect(state.result?.asset_type).toBe('fund')
     expect(analysisReducer(state, { type: 'event', event: event(3, 'analysis.cancelled') }).status).toBe('cancelled')
   })
+
+  it('stores a provider-rate-limited terminal state with safe cache detail', () => {
+    const state = analysisReducer(initialAnalysisState, {
+      type: 'event',
+      event: event(1, 'analysis.provider_rate_limited', {
+        error: {
+          code: 'PROVIDER_RATE_LIMITED',
+          message: 'Yahoo Finance is temporarily rate limited. Try again later.',
+          provider: 'yahoo_finance',
+          observed_at: '2026-07-24T00:00:00+00:00',
+          cache_status: 'expired',
+        },
+      }),
+    })
+    expect(state.status).toBe('provider_rate_limited')
+    expect(state.providerRateLimit?.cache_status).toBe('expired')
+  })
 })

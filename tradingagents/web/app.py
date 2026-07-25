@@ -9,15 +9,15 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
-import yfinance as yf
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from tradingagents.dataflows.fund_data import fetch_fund_snapshot
+from tradingagents.dataflows.errors import ProviderRateLimitedError
+from tradingagents.dataflows.symbol_utils import normalize_symbol
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.instruments import InstrumentNotFoundError, resolve_instrument
+from tradingagents.instruments import AssetType, InstrumentNotFoundError, resolve_instrument
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 from tradingagents.persistence import BackupService, Database, Repository
@@ -37,7 +37,7 @@ from tradingagents.services.conversation_service import (
 from tradingagents.usage import BudgetExhaustedError, BudgetLimits, BudgetTracker
 from tradingagents.usage.budget import summarize_usage
 
-from .jobs import JobBusyError, JobManager, JobResumeError
+from .jobs import JobBusyError, JobManager, JobResumeError, JobRetryError
 from .schemas import (
     AnalysisCreate,
     ConversationMessageCreate,
@@ -45,13 +45,7 @@ from .schemas import (
     ResolveRequest,
     RestoreRequest,
 )
-
-
-def _price_probe(symbol: str) -> bool:
-    try:
-        return not yf.Ticker(symbol).history(period="5d").empty
-    except Exception:
-        return False
+from .yahoo_resilience import CachedYahooProvider
 
 
 def _demo_identity(symbol: str) -> dict[str, str]:
@@ -62,6 +56,7 @@ def _demo_identity(symbol: str) -> dict[str, str]:
         "BTC-USD": {"company_name": "Bitcoin USD", "quote_type": "CRYPTOCURRENCY", "exchange": "CCC", "currency": "USD"},
         "EMPTY": {"company_name": "Holdings Coverage Example", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
         "FAIL": {"company_name": "Provider Failure Example", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
+        "RATE": {"company_name": "Rate Limit Recovery Example", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
         "SLOW": {"company_name": "Cancellation Example Fund", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
     }
     return values.get(symbol.upper(), {})
@@ -101,21 +96,6 @@ def _demo_fresh_data(report: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
-def _live_fresh_data(report: dict[str, Any]) -> dict[str, Any]:
-    if report.get("asset_type") != "fund":
-        raise RuntimeError("FRESH_DATA_UNAVAILABLE_FOR_ASSET")
-    symbol = str(report.get("company_of_interest"))
-    descriptor = resolve_instrument(symbol, "fund")
-    today = date.today().isoformat()
-    snapshot = fetch_fund_snapshot(
-        descriptor, today, str(report.get("benchmark_symbol") or "SPY")
-    ).to_dict()
-    value = deepcopy(report)
-    value["trade_date"] = today
-    value["fund_snapshot"] = snapshot
-    return value
-
-
 def create_app(
     *,
     demo: bool | None = None,
@@ -128,6 +108,64 @@ def create_app(
     repository = repository or Repository(_default_database())
     artifact_service = ArtifactService(repository)
     limits = BudgetLimits.from_env()
+    yahoo = CachedYahooProvider(repository)
+
+    def analysis_preflight(job, request: dict[str, Any]) -> dict[str, Any]:
+        if demo:
+            if str(request["symbol"]).upper() == "RATE" and job.record.retry_attempt == 0:
+                raise ProviderRateLimitedError("yahoo_finance", cache_status="miss")
+            identity = _demo_identity(str(request["symbol"]))
+            descriptor = resolve_instrument(
+                str(request["symbol"]),
+                str(request["asset_type"]),
+                identity_resolver=_demo_identity,
+                price_probe=lambda _symbol: True,
+            )
+            cache_status = "demo"
+        else:
+            resolved = yahoo.resolve(
+                str(request["symbol"]),
+                str(request["asset_type"]),
+                str(request["analysis_date"]),
+            )
+            descriptor, identity, cache_status = (
+                resolved.descriptor,
+                resolved.identity,
+                resolved.cache_status,
+            )
+        value = dict(request)
+        value["symbol"] = descriptor.canonical_symbol
+        value["asset_type"] = descriptor.asset_type.value
+        value["_instrument_identity"] = identity
+        value["_provider_cache_status"] = cache_status
+        if not demo and descriptor.asset_type == AssetType.FUND:
+            snapshot, snapshot_cache_status = yahoo.fund_snapshot(
+                descriptor,
+                str(request["analysis_date"]),
+                str(request.get("benchmark_symbol") or "SPY"),
+            )
+            snapshot["analysis_date"] = str(request["analysis_date"])
+            snapshot["benchmark_symbol"] = str(request.get("benchmark_symbol") or "SPY")
+            value["_fund_snapshot"] = snapshot
+            value["_provider_cache_status"] = snapshot_cache_status
+        return value
+
+    def live_fresh_data(report: dict[str, Any]) -> dict[str, Any]:
+        if report.get("asset_type") != "fund":
+            raise RuntimeError("FRESH_DATA_UNAVAILABLE_FOR_ASSET")
+        symbol = str(report.get("company_of_interest"))
+        today = date.today().isoformat()
+        resolved = yahoo.resolve(symbol, "fund", today)
+        snapshot, _cache_status = yahoo.fund_snapshot(
+            resolved.descriptor,
+            today,
+            str(report.get("benchmark_symbol") or "SPY"),
+        )
+        value = deepcopy(report)
+        value["trade_date"] = today
+        value["fund_snapshot"] = snapshot
+        return value
+
     if manager is None:
         service = DemoAnalysisService() if demo else GraphAnalysisService()
         manager = JobManager(
@@ -147,9 +185,13 @@ def create_app(
                     limits=limits,
                 )
             ),
+            preflight=analysis_preflight,
         )
-    elif manager.completion_handler is None:
-        manager.completion_handler = artifact_service.persist_analysis
+    else:
+        if manager.completion_handler is None:
+            manager.completion_handler = artifact_service.persist_analysis
+        if manager.preflight is None:
+            manager.preflight = analysis_preflight
 
     def responder_factory(request: dict[str, Any]):
         if demo:
@@ -163,11 +205,11 @@ def create_app(
     conversations = ConversationService(
         repository,
         responder_factory=responder_factory,
-        fresh_data_fetcher=_demo_fresh_data if demo else _live_fresh_data,
+        fresh_data_fetcher=_demo_fresh_data if demo else live_fresh_data,
         budget_limits=limits,
     )
     backups = BackupService(repository.database)
-    app = FastAPI(title="TradingAgents Research Workspace", version="0.2.0")
+    app = FastAPI(title="TradingAgents Research Workspace", version="0.3.0")
     app.state.jobs = manager
     app.state.repository = repository
     app.state.conversations = conversations
@@ -218,14 +260,19 @@ def create_app(
     @app.post("/api/instruments/resolve")
     def resolve(body: ResolveRequest):
         try:
-            descriptor = resolve_instrument(
-                body.symbol,
-                body.asset_type,
-                identity_resolver=_demo_identity if demo else None,
-                price_probe=(lambda _symbol: True) if demo else _price_probe,
-            )
+            if demo:
+                descriptor = resolve_instrument(
+                    body.symbol,
+                    body.asset_type,
+                    identity_resolver=_demo_identity,
+                    price_probe=lambda _symbol: True,
+                )
+            else:
+                descriptor = yahoo.resolve(body.symbol, body.asset_type, date.today().isoformat()).descriptor
         except InstrumentNotFoundError as exc:
             raise HTTPException(status_code=404, detail={"code": "INSTRUMENT_NOT_FOUND", "message": str(exc)}) from exc
+        except ProviderRateLimitedError as exc:
+            raise HTTPException(status_code=429, detail=exc.public_detail()) from exc
         return descriptor.to_dict()
 
     @app.get("/api/analyses")
@@ -235,14 +282,9 @@ def create_app(
     @app.post("/api/analyses", status_code=202)
     def create_analysis(body: AnalysisCreate):
         request_data = body.model_dump(mode="json")
-        descriptor = resolve_instrument(
-            body.symbol,
-            body.asset_type,
-            identity_resolver=_demo_identity if demo else None,
-            price_probe=(lambda _symbol: True) if demo else _price_probe,
-        )
-        request_data["symbol"] = descriptor.canonical_symbol
-        request_data["asset_type"] = descriptor.asset_type.value
+        # Only normalization is allowed on the request thread. Yahoo probing is
+        # worker work so a provider throttle still leaves a durable job record.
+        request_data["symbol"] = normalize_symbol(body.symbol)
         if body.research_depth > limits.max_debate_rounds:
             raise HTTPException(status_code=409, detail={"code": "MAX_DEBATE_ROUNDS_EXCEEDED", "message": "Research depth exceeds the configured deterministic budget"})
         try:
@@ -290,9 +332,30 @@ def create_app(
             raise HTTPException(status_code=409, detail={"code": "JOB_NOT_RESUMABLE", "message": str(exc)}) from exc
         return {"job_id": job.id, "status": job.status}
 
+    @app.post("/api/analyses/{job_id}/retry", status_code=202)
+    def retry(job_id: str):
+        job = require_job(job_id)
+        try:
+            child = manager.retry(job)
+        except (JobRetryError, JobBusyError) as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "JOB_NOT_PROVIDER_RATE_LIMITED", "message": str(exc)},
+            ) from exc
+        return {
+            "job_id": child.id,
+            "status": child.status,
+            "retry_of_job_id": job.id,
+        }
+
     @app.get("/api/analyses/{job_id}/report.md")
     def report(job_id: str):
         job = require_job(job_id)
+        if job.status == "provider_rate_limited":
+            raise HTTPException(status_code=409, detail=job.error or {
+                "code": "PROVIDER_RATE_LIMITED",
+                "message": "Yahoo Finance is temporarily rate limited. Try again later.",
+            })
         persisted = repository.get_report_for_job(job.id)
         if persisted is None:
             raise HTTPException(status_code=409, detail={"code": "REPORT_NOT_READY", "message": "Report is not ready"})
@@ -352,6 +415,8 @@ def create_app(
             raise HTTPException(status_code=404, detail={"code": "CONVERSATION_NOT_FOUND", "message": "Unknown conversation"}) from exc
         except BudgetExhaustedError as exc:
             raise HTTPException(status_code=409, detail={"code": exc.code, "message": exc.reason}) from exc
+        except ProviderRateLimitedError as exc:
+            raise HTTPException(status_code=429, detail=exc.public_detail()) from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail={"code": "FRESH_DATA_UNAVAILABLE", "message": str(exc)}) from exc
         return {"user": asdict(user), "assistant": asdict(assistant)}

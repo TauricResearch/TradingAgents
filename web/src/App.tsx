@@ -8,7 +8,7 @@ import { Area, AreaChart, CartesianGrid, Line, ResponsiveContainer, Tooltip, XAx
 import {
   cancelAnalysis, commitRestore, createAnalysis, createBackup, createConversation, getAnalysis,
   getOptions, getTrust, getUsage, listAnalyses, listBackups, listVersions, previewRestore,
-  reevaluate, resolveInstrument, sendMessage,
+  reevaluate, resolveInstrument, retryAnalysis, sendMessage,
   resumeAnalysis,
 } from './api'
 import { analysisReducer, initialAnalysisState } from './analysisReducer'
@@ -22,10 +22,11 @@ const analysts = [
 ]
 const agentOrder = ['Market Analyst', 'Sentiment Analyst', 'News Analyst', 'Fundamentals Analyst']
 const tabs = ['Overview', 'Analyst Reports', 'Debate & Risk', 'Final Decision', 'History', 'Data Quality', 'Usage', 'Advice', 'Q&A', 'Backup']
-const eventTypes = ['analysis.started', 'agent.started', 'agent.completed', 'agent.skipped', 'report.updated', 'analysis.completed', 'analysis.failed', 'analysis.cancelled', 'analysis.interrupted', 'analysis.budget_exhausted']
-const terminal = ['completed', 'failed', 'cancelled', 'interrupted', 'budget_exhausted']
+const eventTypes = ['analysis.started', 'agent.started', 'agent.completed', 'agent.skipped', 'report.updated', 'analysis.completed', 'analysis.failed', 'analysis.cancelled', 'analysis.interrupted', 'analysis.budget_exhausted', 'analysis.provider_rate_limited']
+const terminal = ['completed', 'failed', 'cancelled', 'interrupted', 'budget_exhausted', 'provider_rate_limited']
 
 function today() { return new Date().toISOString().slice(0, 10) }
+function humanize(value: string) { return value.replaceAll('_', ' ') }
 function pct(value: number | null | undefined) { return value == null ? 'N/A' : `${(value * 100).toFixed(1)}%` }
 function metricLabel(metric: Metric) {
   const labels: Record<string, string> = { total_return: 'Total return', annualized_volatility: 'Volatility', maximum_drawdown: 'Max drawdown', tracking_error: 'Tracking error' }
@@ -86,9 +87,9 @@ export default function App() {
   }
 
   async function start() {
-    if (!instrument) return
+    if (!selected.length) return
     try {
-      const job = await createAnalysis({ symbol: instrument.canonical_symbol, asset_type: mode, analysis_date: date, benchmark_symbol: benchmark, analysts: selected, research_depth: depth, llm_provider: provider, quick_model: quickModel, deep_model: deepModel, output_language: 'English' })
+      const job = await createAnalysis({ symbol: instrument?.canonical_symbol ?? symbol, asset_type: mode, analysis_date: date, benchmark_symbol: benchmark, analysts: selected, research_depth: depth, llm_provider: provider, quick_model: quickModel, deep_model: deepModel, output_language: 'English' })
       dispatch({ type: 'created', jobId: job.job_id }); setDrawer(false); setTab('Overview')
     } catch (error) { dispatch({ type: 'error', message: error instanceof Error ? error.message : 'Unable to start analysis' }) }
   }
@@ -97,6 +98,17 @@ export default function App() {
     if (!state.jobId) return
     dispatch({ type: 'cancelling' })
     try { await cancelAnalysis(state.jobId) } catch (error) { dispatch({ type: 'error', message: error instanceof Error ? error.message : 'Cancellation failed' }) }
+  }
+
+  async function retry() {
+    if (!state.jobId) return
+    try {
+      const job = await retryAnalysis(state.jobId)
+      dispatch({ type: 'created', jobId: job.job_id })
+      setTab('Overview')
+    } catch (error) {
+      dispatch({ type: 'error', message: error instanceof Error ? error.message : 'Retry could not be created' })
+    }
   }
 
   async function openHistory(job: AnalysisJob) {
@@ -140,7 +152,7 @@ export default function App() {
         <div className="field-grid"><label><span className="field-label">Quick model</span><input value={quickModel} onChange={event => setQuickModel(event.target.value)}/></label><label><span className="field-label">Deep model</span><input value={deepModel} onChange={event => setDeepModel(event.target.value)}/></label></div>
         <label><span className="field-label">Output language</span><select defaultValue="English"><option>English</option><option>Chinese</option><option>Spanish</option></select></label>
         {budget && <div className="budget-brief"><span>Analysis ceiling</span><strong>{budget.limits.max_requests_per_analysis} requests · {budget.limits.max_total_tokens_per_analysis.toLocaleString()} tokens</strong><small>{budget.historical_estimate ? `Typical ${budget.historical_estimate.requests} requests / ${budget.historical_estimate.tokens.toLocaleString()} tokens` : 'No historical estimate yet'}</small></div>}
-        <div className="sidebar-actions">{active ? <button className="danger-button" onClick={cancel}><Square size={16}/>Cancel analysis</button> : <button className="primary-button" onClick={start} disabled={!instrument || selected.length === 0}><Play size={17}/>Start analysis</button>}</div>
+        <div className="sidebar-actions">{active ? <button className="danger-button" onClick={cancel}><Square size={16}/>Cancel analysis</button> : <button className="primary-button" onClick={start} disabled={selected.length === 0}><Play size={17}/>Start analysis</button>}</div>
       </aside>
 
       <main className="main-content">
@@ -148,11 +160,12 @@ export default function App() {
           <div><span>Instrument</span><strong>{instrument?.canonical_symbol ?? state.result?.company_of_interest ?? '—'}</strong><small>{instrument?.asset_type ?? state.result?.asset_type ?? 'Not resolved'}</small></div>
           <div><span>Analysis date</span><strong>{date}</strong><small>Price cutoff</small></div>
           <div><span>Benchmark</span><strong>{benchmark}</strong><small>User selected</small></div>
-          <div><span>Job</span><strong className="capitalize">{state.status.replace('_', ' ')}</strong><small>{state.jobId ? state.jobId.slice(0,8) : 'Not started'}</small></div>
+          <div><span>Job</span><strong className="capitalize">{humanize(state.status)}</strong><small>{state.jobId ? state.jobId.slice(0,8) : 'Not started'}</small></div>
         </section>
 
-        {(resolveError || state.error) && <section className="notice error-notice"><AlertTriangle size={19}/><div><strong>{state.status === 'budget_exhausted' ? 'Budget exhausted' : 'Analysis unavailable'}</strong><p>{state.error ?? resolveError}</p></div><button className="icon-button" aria-label="Reset error" title="Reset" onClick={() => dispatch({ type:'reset' })}><RotateCcw size={17}/></button></section>}
+        {(resolveError || (state.error && state.status !== 'provider_rate_limited')) && <section className="notice error-notice"><AlertTriangle size={19}/><div><strong>{state.status === 'budget_exhausted' ? 'Budget exhausted' : 'Analysis unavailable'}</strong><p>{state.error ?? resolveError}</p></div><button className="icon-button" aria-label="Reset error" title="Reset" onClick={() => dispatch({ type:'reset' })}><RotateCcw size={17}/></button></section>}
         {state.status === 'interrupted' && <section className="notice"><AlertTriangle size={18}/><p>This run was interrupted by a service restart. It is not active and will not spend tokens automatically.</p></section>}
+        {state.status === 'provider_rate_limited' && <ProviderRateLimitNotice value={state.providerRateLimit} onRetry={retry}/>}
         {instrument?.warnings.map(warning => <section className="notice" key={warning}><AlertTriangle size={18}/><p>{warning}</p></section>)}
 
         <section className="progress-strip" aria-label="Agent progress">{agentOrder.map(agent => { const status = state.agents[agent] ?? (active ? 'pending' : 'idle'); return <div key={agent} className={`agent-step ${status}`}><span>{status === 'completed' ? <Check size={14}/> : ''}</span><div><strong>{agent.replace(' Analyst','')}</strong><small>{status}</small></div></div> })}</section>
@@ -164,7 +177,7 @@ export default function App() {
           {tab === 'Analyst Reports' && <ReportList reports={reports.filter(([key]) => key.endsWith('_report'))}/>}
           {tab === 'Debate & Risk' && <ReportList reports={reports.filter(([key]) => ['investment_plan','trader_investment_plan'].includes(key))}/>}
           {tab === 'Final Decision' && <ReportList reports={reports.filter(([key]) => key === 'final_trade_decision')}/>}
-          {tab === 'History' && <HistoryPanel onOpen={openHistory}/>}
+          {tab === 'History' && <HistoryPanel onOpen={openHistory} onRetry={retry}/>}
           {tab === 'Data Quality' && <TrustPanel jobId={state.jobId}/>}
           {tab === 'Usage' && <UsagePanel jobId={state.jobId} budget={budget}/>}
           {tab === 'Advice' && <AdvicePanel reportId={state.reportId}/>}
@@ -176,12 +189,17 @@ export default function App() {
   </div>
 }
 
-function HistoryPanel({ onOpen }: { onOpen: (job: AnalysisJob) => Promise<void> }) {
+function ProviderRateLimitNotice({ value, onRetry }: { value?: import('./types').ProviderRateLimitError; onRetry: () => Promise<void> }) {
+  const cache = value?.cache_status === 'hit' ? 'A freshness-qualified cache entry is available.' : value?.cache_status === 'expired' ? 'A cached entry exists but is expired and was not used as current data.' : 'No freshness-qualified cache entry is available.'
+  return <section className="notice error-notice"><AlertTriangle size={19}/><div><strong>Yahoo Finance rate limited</strong><p>{value?.message ?? 'Yahoo Finance is temporarily rate limited. Try again later.'}</p><small>{cache} CIII usage: 0 requests, 0 tokens, 0 retries.</small>{value?.retry_after && <small>Provider Retry-After: {value.retry_after}</small>}</div><button className="secondary-button" onClick={() => void onRetry()}><RefreshCw size={16}/>Retry later</button></section>
+}
+
+function HistoryPanel({ onOpen, onRetry }: { onOpen: (job: AnalysisJob) => Promise<void>; onRetry: () => Promise<void> }) {
   const [items, setItems] = useState<AnalysisJob[]>([])
   const [error, setError] = useState('')
   useEffect(() => { listAnalyses().then(setItems).catch(value => setError(String(value))) }, [])
   async function resume(job: AnalysisJob) { try { await resumeAnalysis(job.job_id); setItems(await listAnalyses()) } catch (value) { setError(value instanceof Error ? value.message : String(value)) } }
-  return <section className="tool-panel"><header><div><span className="eyebrow">Persistent workspace</span><h2><History size={18}/>Analysis history</h2></div><span>{items.length} runs</span></header>{error && <p className="inline-error">{error}</p>}{items.length ? <div className="table-scroll"><table><thead><tr><th>Created</th><th>Instrument</th><th>Status</th><th>Recovery</th><th>Report</th></tr></thead><tbody>{items.map(job => <tr key={job.job_id}><td>{new Date(job.created_at).toLocaleString()}</td><td><strong>{String(job.request.symbol ?? '—')}</strong><small>{String(job.request.asset_type ?? '')}</small></td><td><span className={`status-badge ${job.status}`}>{job.status.replace('_',' ')}</span></td><td>{job.resumable ? <button className="text-command" onClick={() => resume(job)}>Resume</button> : <small>{job.status === 'interrupted' ? 'Not resumable' : '—'}</small>}</td><td><button className="text-command" onClick={() => onOpen(job)} disabled={!job.result}>Open</button></td></tr>)}</tbody></table></div> : <Empty title="No persisted analyses" text="Completed and interrupted runs appear here."/>}</section>
+  return <section className="tool-panel"><header><div><span className="eyebrow">Persistent workspace</span><h2><History size={18}/>Analysis history</h2></div><span>{items.length} runs</span></header>{error && <p className="inline-error">{error}</p>}{items.length ? <div className="table-scroll"><table><thead><tr><th>Created</th><th>Instrument</th><th>Status</th><th>Recovery</th><th>Report</th></tr></thead><tbody>{items.map(job => <tr key={job.job_id}><td>{new Date(job.created_at).toLocaleString()}</td><td><strong>{String(job.request.symbol ?? '—')}</strong><small>{String(job.request.asset_type ?? '')}</small></td><td><span className={`status-badge ${job.status}`}>{humanize(job.status)}</span></td><td>{job.resumable ? <button className="text-command" onClick={() => resume(job)}>Resume</button> : job.status === 'provider_rate_limited' ? <button className="text-command" onClick={() => void onRetry()}>Retry later</button> : <small>{job.status === 'interrupted' ? 'Not resumable' : '—'}</small>}</td><td><button className="text-command" onClick={() => onOpen(job)} disabled={!job.result}>Open</button></td></tr>)}</tbody></table></div> : <Empty title="No persisted analyses" text="Completed and interrupted runs appear here."/>}</section>
 }
 
 function TrustPanel({ jobId }: { jobId?: string }) {

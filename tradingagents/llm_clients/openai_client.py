@@ -259,6 +259,14 @@ def _is_native_openai_base_url(base_url: str | None) -> bool:
     return host == "api.openai.com" or host.endswith(".openai.com")
 
 
+def _normalize_ciii_base_url(base_url: str) -> str:
+    """Accept a CIII site root while preserving explicitly configured API paths."""
+    parsed = urlparse(base_url if "://" in base_url else f"https://{base_url}")
+    if parsed.path in {"", "/"}:
+        parsed = parsed._replace(path="/v1")
+    return parsed.geturl().rstrip("/")
+
+
 class OpenAIClient(BaseLLMClient):
     """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
 
@@ -300,6 +308,8 @@ class OpenAIClient(BaseLLMClient):
                     "e.g. http://localhost:8000/v1 (vLLM) or http://localhost:1234/v1 "
                     "(LM Studio)."
                 )
+            if base_url and self.provider == "ciii":
+                base_url = _normalize_ciii_base_url(base_url)
             if base_url:
                 llm_kwargs["base_url"] = base_url
 

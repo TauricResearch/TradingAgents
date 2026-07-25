@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from time import sleep
 from typing import Any, Protocol
 
+from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.fund_data_tools import use_preloaded_fund_snapshot
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import build_analyst_execution_plan
 from tradingagents.graph.checkpointer import (
@@ -81,6 +83,14 @@ class GraphAnalysisService:
     """Own graph setup and turn streamed LangGraph states into typed events."""
 
     def execute(self, request: dict[str, Any], emit: Emit, should_cancel: Callable[[], bool]) -> dict[str, Any]:
+        snapshot = request.get("_fund_snapshot")
+        with use_preloaded_fund_snapshot(snapshot if isinstance(snapshot, dict) else None):
+            result = self._execute(request, emit, should_cancel)
+        if isinstance(snapshot, dict) and not result.get("fund_snapshot"):
+            result["fund_snapshot"] = deepcopy(snapshot)
+        return result
+
+    def _execute(self, request: dict[str, Any], emit: Emit, should_cancel: Callable[[], bool]) -> dict[str, Any]:
         config = deepcopy(DEFAULT_CONFIG)
         config.update(
             llm_provider=request["llm_provider"],
@@ -95,7 +105,12 @@ class GraphAnalysisService:
         graph = TradingAgentsGraph(selected_analysts=request["analysts"], config=config)
         symbol = request["symbol"]
         asset_type = request["asset_type"]
-        context = graph.resolve_instrument_context(symbol, asset_type)
+        identity = request.get("_instrument_identity")
+        context = (
+            build_instrument_context(symbol, asset_type, identity)
+            if isinstance(identity, dict)
+            else graph.resolve_instrument_context(symbol, asset_type)
+        )
         initial = graph.propagator.create_initial_state(
             symbol,
             request["analysis_date"],
@@ -203,7 +218,7 @@ class DemoAnalysisService:
             investment_plan="**Rating: Overweight**\n\nThe evidence supports measured exposure.",
             trader_investment_plan="Accumulate gradually with explicit risk limits.",
             final_trade_decision="**Final Rating: Overweight**\n\nMaintain disciplined position sizing.",
-            fund_snapshot=_demo_snapshot(symbol, asset_type),
+            fund_snapshot=_demo_snapshot(symbol, asset_type, request["analysis_date"]),
             generated_at=datetime.now(UTC).isoformat(),
         )
         for key in ("investment_plan", "trader_investment_plan", "final_trade_decision"):
@@ -211,7 +226,11 @@ class DemoAnalysisService:
         return result
 
 
-def _demo_snapshot(symbol: str, asset_type: str) -> dict[str, Any] | None:
+def _demo_snapshot(
+    symbol: str,
+    asset_type: str,
+    analysis_date: str | None = None,
+) -> dict[str, Any] | None:
     if asset_type != "fund":
         return None
     prices = [
@@ -221,7 +240,11 @@ def _demo_snapshot(symbol: str, asset_type: str) -> dict[str, Any] | None:
         {"date": "2026-04-01", "adjusted_close": 606.0, "benchmark": 600.0},
         {"date": "2026-05-01", "adjusted_close": 620.0, "benchmark": 611.0},
         {"date": "2026-06-01", "adjusted_close": 634.0, "benchmark": 624.0},
-        {"date": "2026-07-21", "adjusted_close": 642.0, "benchmark": 630.0},
+        {
+            "date": analysis_date or "2026-07-21",
+            "adjusted_close": 642.0,
+            "benchmark": 630.0,
+        },
     ]
     holdings = [] if symbol == "EMPTY" else [
         {"symbol": "NVDA", "name": "NVIDIA", "weight": 0.078},

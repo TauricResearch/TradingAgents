@@ -12,7 +12,7 @@ from pathlib import Path
 from .database import CURRENT_SCHEMA_VERSION, Database
 
 BACKUP_ID = re.compile(r"^[0-9a-f-]{36}$")
-REQUIRED_TABLES = {"analysis_jobs", "job_events", "reports", "advice_versions", "conversations", "usage_records", "source_observations", "trust_assessments"}
+REQUIRED_TABLES = {"analysis_jobs", "job_events", "reports", "advice_versions", "conversations", "usage_records", "source_observations", "trust_assessments", "provider_cache"}
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,12 @@ class BackupService:
     def list(self) -> list[RestorePreview]:
         if not self.backup_dir.exists():
             return []
-        return [self.preview(item.stem) for item in sorted(self.backup_dir.glob("*.sqlite3"), reverse=True)]
+        paths = sorted(
+            self.backup_dir.glob("*.sqlite3"),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+        return [self.preview(item.stem) for item in paths]
 
     def preview(self, backup_id: str) -> RestorePreview:
         path = self._path(backup_id)

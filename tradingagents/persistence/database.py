@@ -157,7 +157,34 @@ def _v3(conn: sqlite3.Connection) -> None:
     )
 
 
-MIGRATIONS: tuple[tuple[int, Migration], ...] = ((1, _v1), (2, _v2), (3, _v3))
+def _v4(conn: sqlite3.Connection) -> None:
+    _execute_script(
+        conn,
+        """
+        ALTER TABLE analysis_jobs ADD COLUMN retry_of_job_id TEXT;
+        ALTER TABLE analysis_jobs ADD COLUMN retry_attempt INTEGER NOT NULL DEFAULT 0;
+        CREATE INDEX idx_analysis_jobs_retry_of ON analysis_jobs(retry_of_job_id, created_at);
+        CREATE TABLE provider_cache (
+            provider TEXT NOT NULL,
+            symbol TEXT NOT NULL,
+            capability TEXT NOT NULL,
+            request_params_hash TEXT NOT NULL,
+            normalized_json TEXT NOT NULL,
+            source_reference TEXT NOT NULL,
+            retrieved_at TEXT NOT NULL,
+            effective_at TEXT,
+            expires_at TEXT NOT NULL,
+            payload_hash TEXT NOT NULL,
+            PRIMARY KEY (provider, symbol, capability, request_params_hash)
+        );
+        CREATE INDEX idx_provider_cache_lookup
+            ON provider_cache(provider, symbol, capability, request_params_hash);
+        CREATE INDEX idx_provider_cache_expiry ON provider_cache(expires_at);
+        """,
+    )
+
+
+MIGRATIONS: tuple[tuple[int, Migration], ...] = ((1, _v1), (2, _v2), (3, _v3), (4, _v4))
 CURRENT_SCHEMA_VERSION = MIGRATIONS[-1][0]
 
 

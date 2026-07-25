@@ -7,6 +7,7 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
+from tradingagents.dataflows.errors import ProviderRateLimitedError
 from tradingagents.persistence import Database, Repository
 from tradingagents.services.analysis_service import DemoAnalysisService
 from tradingagents.web.app import create_app
@@ -71,7 +72,7 @@ def test_phase_two_api_survives_app_recreation_and_supports_chat_versions_backup
     backup = client.post("/api/admin/backup").json()
     assert backup["valid"] and backup["compatible"] and "path" not in backup
     preview = client.post("/api/admin/restore/preview", json={"backup_id": backup["backup_id"]}).json()
-    assert preview["schema_version"] == 3
+    assert preview["schema_version"] == 4
     assert client.post("/api/admin/restore/commit", json={"backup_id": backup["backup_id"]}).json()["restored"] is True
 
     persisted_chat = client.get(f"/api/conversations/{conversation['id']}").json()
@@ -106,3 +107,39 @@ def test_budget_preflight_is_safe_and_depth_limit_is_enforced(tmp_path, monkeypa
     rejected = client.post("/api/analyses", json=payload(research_depth=2))
     assert rejected.status_code == 409
     assert rejected.json()["detail"]["code"] == "MAX_DEBATE_ROUNDS_EXCEEDED"
+
+
+def test_provider_rate_limit_is_a_persisted_terminal_api_state_with_explicit_retry(tmp_path):
+    repository = Repository(Database(tmp_path / "workspace.sqlite3"))
+    attempts = 0
+
+    def preflight(_job, value):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ProviderRateLimitedError("yahoo_finance", cache_status="expired")
+        return value
+
+    manager = JobManager(DemoAnalysisService(delay=0), repository=repository, preflight=preflight)
+    client = TestClient(create_app(demo=True, manager=manager))
+    created = client.post("/api/analyses", json=payload())
+    assert created.status_code == 202
+    parent_id = created.json()["job_id"]
+    manager.threads[parent_id].join(timeout=2)
+
+    state = client.get(f"/api/analyses/{parent_id}").json()
+    assert state["status"] == "provider_rate_limited"
+    assert state["error"]["cache_status"] == "expired"
+    assert client.get(f"/api/analyses/{parent_id}/report.md").json()["detail"]["code"] == "PROVIDER_RATE_LIMITED"
+    events = client.get(f"/api/analyses/{parent_id}/events").text
+    assert "analysis.provider_rate_limited" in events
+    usage = client.get(f"/api/analyses/{parent_id}/usage").json()["summary"]
+    assert (usage["requests"], usage["total_tokens"], usage["retries"]) == (0, 0, 0)
+
+    retried = client.post(f"/api/analyses/{parent_id}/retry")
+    assert retried.status_code == 202
+    child_id = retried.json()["job_id"]
+    manager.threads[child_id].join(timeout=2)
+    child = client.get(f"/api/analyses/{child_id}").json()
+    assert child["retry_of_job_id"] == parent_id and child["retry_attempt"] == 1
+    assert client.post(f"/api/analyses/{child_id}/retry").status_code == 409

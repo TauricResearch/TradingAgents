@@ -8,18 +8,21 @@ import re
 import tempfile
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from tradingagents.domain import AnalysisJob, JobStatus
+from tradingagents.dataflows.errors import ProviderRateLimitedError
+from tradingagents.domain import AnalysisJob, JobStatus, UsageRecord
 from tradingagents.persistence import Database, Repository
 from tradingagents.services.analysis_service import (
     AnalysisCancelledError,
     AnalysisService,
     discard_checkpoint,
 )
+from tradingagents.trust import assess_provider_rate_limited
 from tradingagents.usage import BudgetExhaustedError, BudgetTracker
 
 SECRET_RE = re.compile(
@@ -35,6 +38,7 @@ TERMINAL_STATUSES = {
     JobStatus.CANCELLED,
     JobStatus.INTERRUPTED,
     JobStatus.BUDGET_EXHAUSTED,
+    JobStatus.PROVIDER_RATE_LIMITED,
 }
 
 
@@ -43,6 +47,10 @@ class JobBusyError(RuntimeError):
 
 
 class JobResumeError(RuntimeError):
+    pass
+
+
+class JobRetryError(RuntimeError):
     pass
 
 
@@ -97,6 +105,8 @@ class Job:
             "created_at": record.created_at,
             "updated_at": record.updated_at,
             "resumable": record.resumable,
+            "retry_of_job_id": record.retry_of_job_id,
+            "retry_attempt": record.retry_attempt,
             "request": record.request,
         }
 
@@ -112,6 +122,7 @@ class JobManager:
         checkpoint_validator: Callable[[AnalysisJob], bool] | None = None,
         completion_handler: Callable[[Job, dict[str, Any]], dict[str, str]] | None = None,
         budget_factory: Callable[[Job], BudgetTracker] | None = None,
+        preflight: Callable[[Job, dict[str, Any]], dict[str, Any]] | None = None,
     ):
         self.service = service
         self.max_active = max_active
@@ -119,6 +130,7 @@ class JobManager:
         self.checkpoint_validator = checkpoint_validator or (lambda _job: False)
         self.completion_handler = completion_handler
         self.budget_factory = budget_factory
+        self.preflight = preflight
         self._tempdir: tempfile.TemporaryDirectory[str] | None = None
         if repository is None:
             self._tempdir = tempfile.TemporaryDirectory(prefix="tradingagents-tests-")
@@ -173,9 +185,11 @@ class JobManager:
         now = datetime.now(UTC).isoformat()
         self.repository.update_job(job.id, JobStatus.RUNNING, started_at=now, resumable=False)
         try:
-            tracker = self.budget_factory(job) if self.budget_factory else None
             execution_request = dict(job.request)
             execution_request["_resume_checkpoint"] = job.id in self._resume_requested
+            if self.preflight:
+                execution_request = self.preflight(job, execution_request)
+            tracker = self.budget_factory(job) if self.budget_factory else None
             if tracker:
                 tracker.validate_depth(int(job.request.get("research_depth", 1)))
                 with tracker.activate():
@@ -252,6 +266,45 @@ class JobManager:
                     "safe_error_code": exc.code,
                 },
             )
+        except ProviderRateLimitedError as exc:
+            error = exc.public_detail()
+            self.repository.add_usage(
+                UsageRecord(
+                    str(uuid.uuid4()),
+                    job.id,
+                    None,
+                    str(job.request.get("llm_provider") or "unknown"),
+                    str(job.request.get("deep_model") or "unknown"),
+                    0,
+                    0,
+                    0,
+                    0,
+                    int((time.monotonic() - started) * 1000),
+                    JobStatus.PROVIDER_RATE_LIMITED,
+                    "Yahoo Finance was rate limited before any CIII request was made.",
+                    datetime.now(UTC).isoformat(),
+                )
+            )
+            self.repository.add_trust(
+                assess_provider_rate_limited(job_id=job.id, observed_at=exc.observed_at)
+            )
+            self.repository.update_job(
+                job.id,
+                JobStatus.PROVIDER_RATE_LIMITED,
+                error=error,
+                finished_at=datetime.now(UTC).isoformat(),
+            )
+            job.emit("analysis.provider_rate_limited", {"status": "provider_rate_limited", "error": error})
+            logger.warning(
+                "analysis provider rate limited",
+                extra={
+                    "job_id": job.id,
+                    "event": "analysis.provider_rate_limited",
+                    "duration_ms": int((time.monotonic() - started) * 1000),
+                    "provider": exc.provider,
+                    "cache_status": exc.cache_status,
+                },
+            )
         except Exception as exc:  # noqa: BLE001 - application boundary redacts failures
             safe = LOCAL_PATH_RE.sub("[local path]", SECRET_RE.sub("[redacted]", str(exc)))[:300]
             error = {"code": "ANALYSIS_FAILED", "message": safe or "Analysis failed"}
@@ -312,6 +365,23 @@ class JobManager:
             self._resume_requested.add(job.id)
             job.emit("analysis.resumed", {"status": "queued"})
             self._start(job)
+
+    def retry(self, job: Job) -> Job:
+        record = job.record
+        if record.status != JobStatus.PROVIDER_RATE_LIMITED:
+            raise JobRetryError("Only provider-rate-limited jobs can be retried")
+        with self.lock:
+            if self.repository.active_count() >= self.max_active:
+                raise JobBusyError("Another analysis is already running")
+            child_record = self.repository.create_job(
+                record.request,
+                retry_of_job_id=record.id,
+                retry_attempt=record.retry_attempt + 1,
+            )
+            child = Job(self, child_record.id)
+            self.jobs[child.id] = child
+            self._start(child)
+        return child
 
     def event_stream(self, job: Job, last_id: int = 0):
         cursor = last_id

@@ -16,6 +16,7 @@ class JobStatus(StrEnum):
     CANCELLED = "cancelled"
     INTERRUPTED = "interrupted"
     BUDGET_EXHAUSTED = "budget_exhausted"
+    PROVIDER_RATE_LIMITED = "provider_rate_limited"
 
 
 class TrustLevel(StrEnum):
@@ -40,6 +41,8 @@ class AnalysisJob:
     advice_id: str | None = None
     cancel_requested: bool = False
     resumable: bool = False
+    retry_of_job_id: str | None = None
+    retry_attempt: int = 0
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,20 @@ class UsageRecord:
     status: str
     warning: str | None
     created_at: str
+
+
+@dataclass(frozen=True)
+class ProviderCacheEntry:
+    provider: str
+    symbol: str
+    capability: str
+    request_params_hash: str
+    normalized_payload: dict[str, Any]
+    source_reference: str
+    retrieved_at: str
+    effective_at: str | None
+    expires_at: str
+    payload_hash: str
 
 
 @dataclass(frozen=True)
