@@ -155,3 +155,19 @@ test('mobile Phase 2 work views remain usable without page overflow', async ({ p
   }
   await page.screenshot({ path: 'test-results/mobile-phase2-backup.png', fullPage: true })
 })
+
+for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: 'mobile', width: 390, height: 844 }]) {
+  test(`${viewport.name}: Chinese interface persists and report language remains independent`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+    await page.getByLabel('Interface language').selectOption('zh')
+    await expect(page.getByRole('button', { name: '开始分析' })).toBeVisible()
+    await expect(page.getByLabel('报告语言')).toHaveValue('English')
+    await page.reload()
+    await expect(page.getByRole('button', { name: '概览' })).toBeVisible()
+    await expect(page.getByLabel('界面语言')).toHaveValue('zh')
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    expect(overflow).toBe(false)
+    await page.screenshot({ path: `test-results/${viewport.name}-chinese-interface.png`, fullPage: true })
+  })
+}
