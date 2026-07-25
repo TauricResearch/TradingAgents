@@ -43,6 +43,7 @@ __all__ = [
     "resolve_instrument_identity",
     "get_instrument_context_from_state",
     "get_language_instruction",
+    "build_cacheable_system_content",
     "create_msg_delete",
 ]
 
@@ -63,6 +64,24 @@ def get_language_instruction() -> str:
     if lang.strip().lower() == "english":
         return ""
     return f" Write your entire response in {lang}."
+
+
+def build_cacheable_system_content(text: str, llm: object, ttl: str = "5m"):
+    """Return a cacheable Anthropic system block when the model supports it."""
+    is_native_anthropic = any(
+        cls.__module__ == "langchain_anthropic"
+        or cls.__module__.startswith("langchain_anthropic.")
+        for cls in llm.__class__.__mro__
+    )
+    if not is_native_anthropic or not text.strip():
+        return text
+    return [
+        {
+            "type": "text",
+            "text": text,
+            "cache_control": {"type": "ephemeral", "ttl": ttl},
+        }
+    ]
 
 
 def _clean_identity_value(value: Any) -> str | None:
@@ -212,6 +231,3 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
-
-

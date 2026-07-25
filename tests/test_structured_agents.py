@@ -1,4 +1,4 @@
-"""Tests for structured-output agents (Trader, Research Manager, Sentiment Analyst).
+"""Tests for structured-output agents and their shared invocation behavior.
 
 The Portfolio Manager has its own coverage in tests/test_memory_log.py
 (which exercises the full memory-log → PM injection cycle).  This file
@@ -152,6 +152,25 @@ def _structured_trader_llm(captured: dict, proposal: TraderProposal | None = Non
     return llm
 
 
+def _structured_portfolio_llm(
+    captured: dict,
+    decision: PortfolioDecision | None = None,
+):
+    if decision is None:
+        decision = PortfolioDecision(
+            rating=PortfolioRating.HOLD,
+            executive_summary="Keep exposure steady while setup matures.",
+            investment_thesis="Balanced risk-reward.",
+        )
+    structured = MagicMock()
+    structured.invoke.side_effect = lambda prompt: (
+        captured.__setitem__("prompt", prompt) or decision
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = structured
+    return llm
+
+
 @pytest.mark.unit
 def test_invoke_structured_falls_back_when_result_is_none():
     # A thinking model can answer in plain text, leaving the parser with None.
@@ -168,6 +187,27 @@ def test_invoke_structured_falls_back_when_result_is_none():
     )
     assert out == "FREETEXT"
     plain.invoke.assert_called_once()
+
+
+@pytest.mark.unit
+def test_structured_failure_reuses_the_same_prompt_shape_for_fallback():
+    from tradingagents.agents.utils.structured import invoke_structured_or_freetext
+
+    prompt = [
+        {"role": "system", "content": "stable instructions"},
+        {"role": "user", "content": "dynamic context"},
+    ]
+    structured = MagicMock()
+    structured.invoke.side_effect = ValueError("invalid structured response")
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="FREETEXT")
+
+    invoke_structured_or_freetext(
+        structured, plain, prompt, render=lambda result: str(result), agent_name="test"
+    )
+
+    structured.invoke.assert_called_once_with(prompt)
+    plain.invoke.assert_called_once_with(prompt)
 
 
 @pytest.mark.unit
@@ -202,8 +242,7 @@ class TestTraderAgent:
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (
-            "**Action**: Sell\n\nGuidance cut hits margins.\n\n"
-            "FINAL TRANSACTION PROPOSAL: **SELL**"
+            "**Action**: Sell\n\nGuidance cut hits margins.\n\nFINAL TRANSACTION PROPOSAL: **SELL**"
         )
         llm = MagicMock()
         llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")
@@ -240,9 +279,7 @@ def _structured_rm_llm(captured: dict, plan: ResearchPlan | None = None):
             strategic_actions="Hold current position; reassess after earnings.",
         )
     structured = MagicMock()
-    structured.invoke.side_effect = lambda prompt: (
-        captured.__setitem__("prompt", prompt) or plan
-    )
+    structured.invoke.side_effect = lambda prompt: captured.__setitem__("prompt", prompt) or plan
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
     return llm
@@ -272,11 +309,14 @@ class TestResearchManagerAgent:
         rm = create_research_manager(llm)
         rm(_make_rm_state())
         prompt = captured["prompt"]
+        system_prompt = prompt[0]["content"]
         for tier in ("Buy", "Overweight", "Hold", "Underweight", "Sell"):
-            assert f"**{tier}**" in prompt, f"missing {tier} in prompt"
+            assert f"**{tier}**" in system_prompt, f"missing {tier} in prompt"
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
-        plain_response = "**Recommendation**: Sell\n\n**Rationale**: ...\n\n**Strategic Actions**: ..."
+        plain_response = (
+            "**Recommendation**: Sell\n\n**Rationale**: ...\n\n**Strategic Actions**: ..."
+        )
         llm = MagicMock()
         llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")
         llm.invoke.return_value = MagicMock(content=plain_response)
@@ -325,16 +365,20 @@ class TestRenderSentimentReport:
     def test_all_six_bands_render(self):
         for band in SentimentBand:
             report = SentimentReport(
-                overall_band=band, overall_score=5.0,
-                confidence="medium", narrative="n",
+                overall_band=band,
+                overall_score=5.0,
+                confidence="medium",
+                narrative="n",
             )
             assert band.value in render_sentiment_report(report)
 
     def test_score_out_of_range_rejected(self):
         with pytest.raises(ValidationError):
             SentimentReport(
-                overall_band=SentimentBand.BULLISH, overall_score=11.0,
-                confidence="high", narrative="n",
+                overall_band=SentimentBand.BULLISH,
+                overall_score=11.0,
+                confidence="high",
+                narrative="n",
             )
 
 
@@ -352,14 +396,13 @@ def _structured_sentiment_llm(captured: dict, report: SentimentReport | None = N
     a real SentimentReport so render_sentiment_report works."""
     if report is None:
         report = SentimentReport(
-            overall_band=SentimentBand.BULLISH, overall_score=7.5,
+            overall_band=SentimentBand.BULLISH,
+            overall_score=7.5,
             confidence="high",
             narrative="StockTwits 75% bullish. News constructive. Reddit upbeat.",
         )
     structured = MagicMock()
-    structured.invoke.side_effect = lambda prompt: (
-        captured.__setitem__("prompt", prompt) or report
-    )
+    structured.invoke.side_effect = lambda prompt: captured.__setitem__("prompt", prompt) or report
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
     return llm
@@ -370,8 +413,10 @@ class TestSentimentAnalystAgent:
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}
         report = SentimentReport(
-            overall_band=SentimentBand.MILDLY_BEARISH, overall_score=4.0,
-            confidence="medium", narrative="Mixed signals across sources.",
+            overall_band=SentimentBand.MILDLY_BEARISH,
+            overall_score=4.0,
+            confidence="medium",
+            narrative="Mixed signals across sources.",
         )
         analyst = create_sentiment_analyst(_structured_sentiment_llm(captured, report))
         sr = analyst(_make_sentiment_state())["sentiment_report"]
@@ -406,3 +451,12 @@ class TestSentimentAnalystAgent:
         llm.with_structured_output.return_value = structured
         llm.invoke.return_value = MagicMock(content=plain)
         assert create_sentiment_analyst(llm)(_make_sentiment_state())["sentiment_report"] == plain
+        fallback_prompt = llm.invoke.call_args.args[0]
+        system_text = next(
+            message.content
+            for message in fallback_prompt
+            if getattr(message, "type", None) == "system"
+        )
+        assert "collaborating with other assistants" in system_text
+        assert "FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**" in system_text
+        assert "so the team knows to stop" in system_text

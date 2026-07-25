@@ -1,4 +1,7 @@
+from langchain_core.messages import HumanMessage, SystemMessage
+
 from tradingagents.agents.utils.agent_utils import (
+    build_cacheable_system_content,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -20,23 +23,34 @@ def create_neutral_debator(llm):
         instrument_context = get_instrument_context_from_state(state)
 
         trader_decision = state["trader_investment_plan"]
+        system_content = build_cacheable_system_content(
+            "You are the Neutral Risk Analyst. Your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies."
+            " Challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious."
+            " If there are no responses from the other viewpoints yet, present your own argument based on the available data."
+            " Focus on debating and persuading, not just presenting data, aiming to show the other analysts that a balanced view can produce the most reliable outcome."
+            " Output conversationally as if you are speaking without any special formatting."
+            + get_language_instruction(),
+            llm,
+        )
+        messages = [
+            SystemMessage(content=system_content),
+            HumanMessage(
+                content=f"""Analysis context:
+- Trader decision: {trader_decision}
+- Instrument context: {instrument_context}
+- Market research report: {market_research_report}
+- Social media sentiment report: {sentiment_report}
+- Latest world affairs report: {news_report}
+- Company fundamentals report: {fundamentals_report}
+- Current conversation history: {history}
+- Last aggressive argument: {current_aggressive_response}
+- Last conservative argument: {current_conservative_response}
 
-        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
+Use insights from the data sources to support a moderate, sustainable strategy to adjust the trader's decision. Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments, and advocate for a more balanced approach that provides growth potential while safeguarding against extreme volatility.""",
+            ),
+        ]
 
-{trader_decision}
-
-Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
-
-{instrument_context}
-Market Research Report: {market_research_report}
-Social Media Sentiment Report: {sentiment_report}
-Latest World Affairs Report: {news_report}
-Company Fundamentals Report: {fundamentals_report}
-Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
-
-Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
-
-        response = llm.invoke(prompt)
+        response = llm.invoke(messages)
 
         argument = f"Neutral Analyst: {response.content}"
 
@@ -46,10 +60,10 @@ Engage actively by analyzing both sides critically, addressing weaknesses in the
             "conservative_history": risk_debate_state.get("conservative_history", ""),
             "neutral_history": neutral_history + "\n" + argument,
             "latest_speaker": "Neutral",
-            "current_aggressive_response": risk_debate_state.get(
-                "current_aggressive_response", ""
+            "current_aggressive_response": risk_debate_state.get("current_aggressive_response", ""),
+            "current_conservative_response": risk_debate_state.get(
+                "current_conservative_response", ""
             ),
-            "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
             "current_neutral_response": argument,
             "count": risk_debate_state["count"] + 1,
         }
