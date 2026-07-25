@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import yfinance as yf
@@ -27,7 +27,7 @@ from tradingagents.agents.utils.news_data_tools import (
 )
 from tradingagents.agents.utils.prediction_markets_tools import get_prediction_markets
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
-from tradingagents.dataflows.yahoo import yahoo_rate_limit_error
+from tradingagents.dataflows.yahoo import yahoo_rate_limit_error, yahoo_timeout_error
 
 # Public surface: the data tools are imported here so agents and the graph
 # import them from one place, plus the instrument/language helpers defined below.
@@ -86,7 +86,14 @@ def _clean_identity_value(value: Any) -> str | None:
 _identity_cache: dict[str, dict[str, str]] = {}
 
 
-def resolve_instrument_identity(ticker: str, *, raise_rate_limited: bool = False) -> dict:
+def resolve_instrument_identity(
+    ticker: str,
+    *,
+    raise_rate_limited: bool = False,
+    raise_timed_out: bool = False,
+    timeout_seconds: float = 10,
+    ticker_factory: Callable[[str], Any] | None = None,
+) -> dict:
     """Resolve deterministic identity metadata (company name, sector, …) for a ticker.
 
     This exists to stop the pipeline from hallucinating a *different* company
@@ -111,12 +118,18 @@ def resolve_instrument_identity(ticker: str, *, raise_rate_limited: bool = False
     if canonical in _identity_cache:
         return dict(_identity_cache[canonical])
     try:
-        info = yf.Ticker(canonical).info or {}
+        ticker_factory = ticker_factory or yf.Ticker
+        info = ticker_factory(canonical).info or {}
     except Exception as exc:  # noqa: BLE001 — fail open apart from an explicit provider throttle
         if limited := yahoo_rate_limit_error(exc):
             if raise_rate_limited:
                 raise limited from exc
             logger.debug("Yahoo rate limited identity lookup for %s", ticker)
+            return {}
+        if timed_out := yahoo_timeout_error(exc, timeout_seconds=timeout_seconds):
+            if raise_timed_out:
+                raise timed_out from exc
+            logger.debug("Yahoo timed out during identity lookup for %s", ticker)
             return {}
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}

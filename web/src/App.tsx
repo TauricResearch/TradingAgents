@@ -22,8 +22,8 @@ const analysts = [
 ]
 const agentOrder = ['Market Analyst', 'Sentiment Analyst', 'News Analyst', 'Fundamentals Analyst']
 const tabs = ['Overview', 'Analyst Reports', 'Debate & Risk', 'Final Decision', 'History', 'Data Quality', 'Usage', 'Advice', 'Q&A', 'Backup']
-const eventTypes = ['analysis.started', 'agent.started', 'agent.completed', 'agent.skipped', 'report.updated', 'analysis.completed', 'analysis.failed', 'analysis.cancelled', 'analysis.interrupted', 'analysis.budget_exhausted', 'analysis.provider_rate_limited']
-const terminal = ['completed', 'failed', 'cancelled', 'interrupted', 'budget_exhausted', 'provider_rate_limited']
+const eventTypes = ['analysis.started', 'agent.started', 'agent.completed', 'agent.skipped', 'report.updated', 'analysis.completed', 'analysis.failed', 'analysis.cancelled', 'analysis.interrupted', 'analysis.budget_exhausted', 'analysis.provider_rate_limited', 'analysis.provider_timed_out']
+const terminal = ['completed', 'failed', 'cancelled', 'interrupted', 'budget_exhausted', 'provider_rate_limited', 'provider_timed_out']
 
 function today() { return new Date().toISOString().slice(0, 10) }
 function humanize(value: string) { return value.replaceAll('_', ' ') }
@@ -100,10 +100,10 @@ export default function App() {
     try { await cancelAnalysis(state.jobId) } catch (error) { dispatch({ type: 'error', message: error instanceof Error ? error.message : 'Cancellation failed' }) }
   }
 
-  async function retry() {
-    if (!state.jobId) return
+  async function retry(jobId = state.jobId) {
+    if (!jobId) return
     try {
-      const job = await retryAnalysis(state.jobId)
+      const job = await retryAnalysis(jobId)
       dispatch({ type: 'created', jobId: job.job_id })
       setTab('Overview')
     } catch (error) {
@@ -133,7 +133,7 @@ export default function App() {
       <button className="icon-button menu-button" aria-label="Open configuration" title="Configuration" onClick={() => setDrawer(true)}><Menu size={19}/></button>
       <div className="brand"><span className="brand-mark">TA</span><strong>TradingAgents</strong><span className="edition">Research Workspace</span></div>
       <div className="instrument-title"><strong>{instrument?.canonical_symbol ?? state.result?.company_of_interest ?? 'No instrument'}</strong><span>{instrument?.name ?? 'Local research history and analysis'}</span></div>
-      <div className={`connection ${state.connected ? 'online' : ''}`}><span/>{state.connected ? 'Live' : state.status}</div>
+      <div className={`connection ${state.connected ? 'online' : ''}`}><span/>{state.connected ? 'Live' : humanize(state.status)}</div>
     </header>
 
     <div className="workspace">
@@ -163,9 +163,10 @@ export default function App() {
           <div><span>Job</span><strong className="capitalize">{humanize(state.status)}</strong><small>{state.jobId ? state.jobId.slice(0,8) : 'Not started'}</small></div>
         </section>
 
-        {(resolveError || (state.error && state.status !== 'provider_rate_limited')) && <section className="notice error-notice"><AlertTriangle size={19}/><div><strong>{state.status === 'budget_exhausted' ? 'Budget exhausted' : 'Analysis unavailable'}</strong><p>{state.error ?? resolveError}</p></div><button className="icon-button" aria-label="Reset error" title="Reset" onClick={() => dispatch({ type:'reset' })}><RotateCcw size={17}/></button></section>}
+        {(resolveError || (state.error && !['provider_rate_limited', 'provider_timed_out'].includes(state.status))) && <section className="notice error-notice"><AlertTriangle size={19}/><div><strong>{state.status === 'budget_exhausted' ? 'Budget exhausted' : 'Analysis unavailable'}</strong><p>{state.error ?? resolveError}</p></div><button className="icon-button" aria-label="Reset error" title="Reset" onClick={() => dispatch({ type:'reset' })}><RotateCcw size={17}/></button></section>}
         {state.status === 'interrupted' && <section className="notice"><AlertTriangle size={18}/><p>This run was interrupted by a service restart. It is not active and will not spend tokens automatically.</p></section>}
-        {state.status === 'provider_rate_limited' && <ProviderRateLimitNotice value={state.providerRateLimit} onRetry={retry}/>}
+        {state.status === 'provider_rate_limited' && <ProviderRateLimitNotice value={state.providerRateLimit} onRetry={() => retry()}/>}
+        {state.status === 'provider_timed_out' && <ProviderTimeoutNotice value={state.providerTimeout} onRetry={() => retry()}/>}
         {instrument?.warnings.map(warning => <section className="notice" key={warning}><AlertTriangle size={18}/><p>{warning}</p></section>)}
 
         <section className="progress-strip" aria-label="Agent progress">{agentOrder.map(agent => { const status = state.agents[agent] ?? (active ? 'pending' : 'idle'); return <div key={agent} className={`agent-step ${status}`}><span>{status === 'completed' ? <Check size={14}/> : ''}</span><div><strong>{agent.replace(' Analyst','')}</strong><small>{status}</small></div></div> })}</section>
@@ -177,7 +178,7 @@ export default function App() {
           {tab === 'Analyst Reports' && <ReportList reports={reports.filter(([key]) => key.endsWith('_report'))}/>}
           {tab === 'Debate & Risk' && <ReportList reports={reports.filter(([key]) => ['investment_plan','trader_investment_plan'].includes(key))}/>}
           {tab === 'Final Decision' && <ReportList reports={reports.filter(([key]) => key === 'final_trade_decision')}/>}
-          {tab === 'History' && <HistoryPanel onOpen={openHistory} onRetry={retry}/>}
+          {tab === 'History' && <HistoryPanel onOpen={openHistory} onRetry={jobId => retry(jobId)}/>}
           {tab === 'Data Quality' && <TrustPanel jobId={state.jobId}/>}
           {tab === 'Usage' && <UsagePanel jobId={state.jobId} budget={budget}/>}
           {tab === 'Advice' && <AdvicePanel reportId={state.reportId}/>}
@@ -194,12 +195,17 @@ function ProviderRateLimitNotice({ value, onRetry }: { value?: import('./types')
   return <section className="notice error-notice"><AlertTriangle size={19}/><div><strong>Yahoo Finance rate limited</strong><p>{value?.message ?? 'Yahoo Finance is temporarily rate limited. Try again later.'}</p><small>{cache} CIII usage: 0 requests, 0 tokens, 0 retries.</small>{value?.retry_after && <small>Provider Retry-After: {value.retry_after}</small>}</div><button className="secondary-button" onClick={() => void onRetry()}><RefreshCw size={16}/>Retry later</button></section>
 }
 
-function HistoryPanel({ onOpen, onRetry }: { onOpen: (job: AnalysisJob) => Promise<void>; onRetry: () => Promise<void> }) {
+function ProviderTimeoutNotice({ value, onRetry }: { value?: import('./types').ProviderTimeoutError; onRetry: () => Promise<void> }) {
+  const cache = value?.cache_status === 'hit' ? 'A freshness-qualified cache entry is available.' : value?.cache_status === 'expired' ? 'A cached entry exists but is expired and was not used as current data.' : 'No freshness-qualified cache entry is available.'
+  return <section className="notice error-notice"><AlertTriangle size={19}/><div><strong>Yahoo Finance timed out</strong><p>{value?.message ?? 'Yahoo Finance did not respond in time. Retry when you are ready.'}</p><small>{cache} Request timeout: {value?.timeout_seconds ?? 10}s. CIII usage: 0 requests, 0 tokens, 0 retries.</small></div><button className="secondary-button" onClick={() => void onRetry()}><RefreshCw size={16}/>Retry</button></section>
+}
+
+function HistoryPanel({ onOpen, onRetry }: { onOpen: (job: AnalysisJob) => Promise<void>; onRetry: (jobId: string) => Promise<void> }) {
   const [items, setItems] = useState<AnalysisJob[]>([])
   const [error, setError] = useState('')
   useEffect(() => { listAnalyses().then(setItems).catch(value => setError(String(value))) }, [])
   async function resume(job: AnalysisJob) { try { await resumeAnalysis(job.job_id); setItems(await listAnalyses()) } catch (value) { setError(value instanceof Error ? value.message : String(value)) } }
-  return <section className="tool-panel"><header><div><span className="eyebrow">Persistent workspace</span><h2><History size={18}/>Analysis history</h2></div><span>{items.length} runs</span></header>{error && <p className="inline-error">{error}</p>}{items.length ? <div className="table-scroll"><table><thead><tr><th>Created</th><th>Instrument</th><th>Status</th><th>Recovery</th><th>Report</th></tr></thead><tbody>{items.map(job => <tr key={job.job_id}><td>{new Date(job.created_at).toLocaleString()}</td><td><strong>{String(job.request.symbol ?? '—')}</strong><small>{String(job.request.asset_type ?? '')}</small></td><td><span className={`status-badge ${job.status}`}>{humanize(job.status)}</span></td><td>{job.resumable ? <button className="text-command" onClick={() => resume(job)}>Resume</button> : job.status === 'provider_rate_limited' ? <button className="text-command" onClick={() => void onRetry()}>Retry later</button> : <small>{job.status === 'interrupted' ? 'Not resumable' : '—'}</small>}</td><td><button className="text-command" onClick={() => onOpen(job)} disabled={!job.result}>Open</button></td></tr>)}</tbody></table></div> : <Empty title="No persisted analyses" text="Completed and interrupted runs appear here."/>}</section>
+  return <section className="tool-panel"><header><div><span className="eyebrow">Persistent workspace</span><h2><History size={18}/>Analysis history</h2></div><span>{items.length} runs</span></header>{error && <p className="inline-error">{error}</p>}{items.length ? <div className="table-scroll"><table><thead><tr><th>Created</th><th>Instrument</th><th>Status</th><th>Recovery</th><th>Report</th></tr></thead><tbody>{items.map(job => <tr key={job.job_id}><td>{new Date(job.created_at).toLocaleString()}</td><td><strong>{String(job.request.symbol ?? '—')}</strong><small>{String(job.request.asset_type ?? '')}</small></td><td><span className={`status-badge ${job.status}`}>{humanize(job.status)}</span></td><td>{job.resumable ? <button className="text-command" onClick={() => resume(job)}>Resume</button> : ['provider_rate_limited', 'provider_timed_out'].includes(job.status) ? <button className="text-command" onClick={() => void onRetry(job.job_id)}>Retry</button> : <small>{job.status === 'interrupted' ? 'Not resumable' : '—'}</small>}</td><td><button className="text-command" onClick={() => onOpen(job)} disabled={!job.result}>Open</button></td></tr>)}</tbody></table></div> : <Empty title="No persisted analyses" text="Completed and interrupted runs appear here."/>}</section>
 }
 
 function TrustPanel({ jobId }: { jobId?: string }) {

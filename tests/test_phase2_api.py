@@ -7,7 +7,7 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from tradingagents.dataflows.errors import ProviderRateLimitedError
+from tradingagents.dataflows.errors import ProviderRateLimitedError, ProviderTimedOutError
 from tradingagents.persistence import Database, Repository
 from tradingagents.services.analysis_service import DemoAnalysisService
 from tradingagents.web.app import create_app
@@ -143,3 +143,41 @@ def test_provider_rate_limit_is_a_persisted_terminal_api_state_with_explicit_ret
     child = client.get(f"/api/analyses/{child_id}").json()
     assert child["retry_of_job_id"] == parent_id and child["retry_attempt"] == 1
     assert client.post(f"/api/analyses/{child_id}/retry").status_code == 409
+
+
+def test_provider_timeout_is_persisted_and_retryable_without_ciii_usage(tmp_path):
+    repository = Repository(Database(tmp_path / "workspace.sqlite3"))
+    attempts = 0
+
+    def preflight(_job, value):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ProviderTimedOutError(
+                "yahoo_finance",
+                timeout_seconds=6,
+                cache_status="expired",
+            )
+        return value
+
+    manager = JobManager(DemoAnalysisService(delay=0), repository=repository, preflight=preflight)
+    client = TestClient(create_app(demo=True, manager=manager))
+    parent_id = client.post("/api/analyses", json=payload()).json()["job_id"]
+    manager.threads[parent_id].join(timeout=2)
+
+    state = client.get(f"/api/analyses/{parent_id}").json()
+    assert state["status"] == "provider_timed_out"
+    assert state["error"]["code"] == "PROVIDER_TIMED_OUT"
+    assert state["error"]["timeout_seconds"] == 6
+    assert client.get(f"/api/analyses/{parent_id}/report.md").status_code == 409
+    assert "analysis.provider_timed_out" in client.get(f"/api/analyses/{parent_id}/events").text
+    usage = client.get(f"/api/analyses/{parent_id}/usage").json()["summary"]
+    assert (usage["requests"], usage["total_tokens"], usage["retries"]) == (0, 0, 0)
+
+    retried = client.post(f"/api/analyses/{parent_id}/retry")
+    assert retried.status_code == 202
+    child_id = retried.json()["job_id"]
+    manager.threads[child_id].join(timeout=2)
+    child = client.get(f"/api/analyses/{child_id}").json()
+    assert child["status"] == "completed"
+    assert child["retry_of_job_id"] == parent_id

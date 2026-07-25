@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from tradingagents.dataflows.errors import ProviderRateLimitedError
+from tradingagents.dataflows.errors import ProviderRateLimitedError, ProviderTimedOutError
 from tradingagents.domain import AnalysisJob, JobStatus, UsageRecord
 from tradingagents.persistence import Database, Repository
 from tradingagents.services.analysis_service import (
@@ -22,7 +22,7 @@ from tradingagents.services.analysis_service import (
     AnalysisService,
     discard_checkpoint,
 )
-from tradingagents.trust import assess_provider_rate_limited
+from tradingagents.trust import assess_provider_rate_limited, assess_provider_timed_out
 from tradingagents.usage import BudgetExhaustedError, BudgetTracker
 
 SECRET_RE = re.compile(
@@ -39,6 +39,7 @@ TERMINAL_STATUSES = {
     JobStatus.INTERRUPTED,
     JobStatus.BUDGET_EXHAUSTED,
     JobStatus.PROVIDER_RATE_LIMITED,
+    JobStatus.PROVIDER_TIMED_OUT,
 }
 
 
@@ -266,7 +267,23 @@ class JobManager:
                     "safe_error_code": exc.code,
                 },
             )
-        except ProviderRateLimitedError as exc:
+        except (ProviderRateLimitedError, ProviderTimedOutError) as exc:
+            timed_out = isinstance(exc, ProviderTimedOutError)
+            status = (
+                JobStatus.PROVIDER_TIMED_OUT
+                if timed_out
+                else JobStatus.PROVIDER_RATE_LIMITED
+            )
+            event_type = (
+                "analysis.provider_timed_out"
+                if timed_out
+                else "analysis.provider_rate_limited"
+            )
+            usage_warning = (
+                "Yahoo Finance timed out before any CIII request was made."
+                if timed_out
+                else "Yahoo Finance was rate limited before any CIII request was made."
+            )
             error = exc.public_detail()
             self.repository.add_usage(
                 UsageRecord(
@@ -280,26 +297,28 @@ class JobManager:
                     0,
                     0,
                     int((time.monotonic() - started) * 1000),
-                    JobStatus.PROVIDER_RATE_LIMITED,
-                    "Yahoo Finance was rate limited before any CIII request was made.",
+                    status,
+                    usage_warning,
                     datetime.now(UTC).isoformat(),
                 )
             )
             self.repository.add_trust(
-                assess_provider_rate_limited(job_id=job.id, observed_at=exc.observed_at)
+                assess_provider_timed_out(job_id=job.id, observed_at=exc.observed_at)
+                if timed_out
+                else assess_provider_rate_limited(job_id=job.id, observed_at=exc.observed_at)
             )
             self.repository.update_job(
                 job.id,
-                JobStatus.PROVIDER_RATE_LIMITED,
+                status,
                 error=error,
                 finished_at=datetime.now(UTC).isoformat(),
             )
-            job.emit("analysis.provider_rate_limited", {"status": "provider_rate_limited", "error": error})
+            job.emit(event_type, {"status": status, "error": error})
             logger.warning(
-                "analysis provider rate limited",
+                "analysis provider unavailable",
                 extra={
                     "job_id": job.id,
-                    "event": "analysis.provider_rate_limited",
+                    "event": event_type,
                     "duration_ms": int((time.monotonic() - started) * 1000),
                     "provider": exc.provider,
                     "cache_status": exc.cache_status,
@@ -368,8 +387,9 @@ class JobManager:
 
     def retry(self, job: Job) -> Job:
         record = job.record
-        if record.status != JobStatus.PROVIDER_RATE_LIMITED:
-            raise JobRetryError("Only provider-rate-limited jobs can be retried")
+        retryable = {JobStatus.PROVIDER_RATE_LIMITED, JobStatus.PROVIDER_TIMED_OUT}
+        if record.status not in retryable:
+            raise JobRetryError("Only provider-rate-limited or provider-timed-out jobs can be retried")
         with self.lock:
             if self.repository.active_count() >= self.max_active:
                 raise JobBusyError("Another analysis is already running")

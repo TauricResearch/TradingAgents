@@ -8,8 +8,8 @@ import pytest
 from yfinance.exceptions import YFRateLimitError
 
 from tradingagents.agents.utils.agent_utils import resolve_instrument_identity
-from tradingagents.dataflows.errors import ProviderRateLimitedError
-from tradingagents.dataflows.yahoo import yahoo_rate_limit_error
+from tradingagents.dataflows.errors import ProviderRateLimitedError, ProviderTimedOutError
+from tradingagents.dataflows.yahoo import yahoo_rate_limit_error, yahoo_timeout_error
 from tradingagents.instruments import (
     AssetType,
     FundType,
@@ -19,7 +19,11 @@ from tradingagents.instruments import (
 from tradingagents.persistence import Database, Repository
 from tradingagents.services.analysis_service import DemoAnalysisService, _demo_snapshot
 from tradingagents.web.jobs import JobManager, JobRetryError
-from tradingagents.web.yahoo_resilience import CachedYahooProvider
+from tradingagents.web.yahoo_resilience import (
+    CachedYahooProvider,
+    _bounded_ticker_factory,
+    yahoo_request_timeout_seconds,
+)
 
 
 def request():
@@ -40,6 +44,11 @@ class EmptyTicker:
 class LimitedTicker:
     def history(self, **_kwargs):
         raise YFRateLimitError()
+
+
+class TimedOutTicker:
+    def history(self, **_kwargs):
+        raise TimeoutError("transport deadline reached")
 
 
 def provider(repository, *, identity=lambda _symbol: {}, ticker=EmptyTicker, now=None):
@@ -72,6 +81,51 @@ def test_price_probe_throttle_has_stable_code_and_no_instrument_not_found(tmp_pa
         provider(repository, ticker=LimitedTicker).resolve("SPY", "fund", "2026-07-21")
     assert raised.value.public_detail()["code"] == "PROVIDER_RATE_LIMITED"
     assert raised.value.cache_status == "miss"
+
+
+def test_price_probe_timeout_has_distinct_safe_code(tmp_path):
+    repository = Repository(Database(tmp_path / "workspace.sqlite3"))
+    with pytest.raises(ProviderTimedOutError) as raised:
+        provider(repository, ticker=TimedOutTicker).resolve("SPY", "fund", "2026-07-21")
+    assert raised.value.public_detail() == {
+        "code": "PROVIDER_TIMED_OUT",
+        "message": "Yahoo Finance did not respond in time. Retry when you are ready.",
+        "provider": "yahoo_finance",
+        "observed_at": raised.value.observed_at,
+        "cache_status": "miss",
+        "timeout_seconds": 10.0,
+    }
+
+
+def test_timeout_detection_and_config_are_explicit(monkeypatch):
+    assert yahoo_timeout_error(TimeoutError(), timeout_seconds=7).timeout_seconds == 7
+    assert yahoo_timeout_error(RuntimeError("timed out maybe"), timeout_seconds=7) is None
+    monkeypatch.setenv("TRADINGAGENTS_YAHOO_TIMEOUT_SECONDS", "4.5")
+    assert yahoo_request_timeout_seconds() == 4.5
+    monkeypatch.setenv("TRADINGAGENTS_YAHOO_TIMEOUT_SECONDS", "0")
+    with pytest.raises(ValueError, match="greater than 0"):
+        yahoo_request_timeout_seconds()
+
+
+def test_bounded_session_caps_yfinance_transport_timeout(monkeypatch):
+    class Session:
+        def __init__(self):
+            self.seen = []
+
+        def request(self, method, url, *args, **kwargs):
+            self.seen.append((method, url, kwargs["timeout"]))
+            return "ok"
+
+    session = Session()
+    monkeypatch.setattr("yfinance.data.new_session", lambda: session)
+    monkeypatch.setattr(
+        "tradingagents.web.yahoo_resilience.yf.Ticker",
+        lambda symbol, session: (symbol, session),
+    )
+    ticker_factory = _bounded_ticker_factory(3)
+    assert ticker_factory("SPY") == ("SPY", session)
+    assert session.request("GET", "https://example.invalid", timeout=30) == "ok"
+    assert session.seen == [("GET", "https://example.invalid", 3)]
 
 
 def test_retry_after_is_exposed_only_when_the_provider_supplies_it():
@@ -221,3 +275,35 @@ def test_retry_creates_new_linked_job_and_never_mutates_rate_limited_parent(tmp_
     assert child.record.retry_attempt == 1
     with pytest.raises(JobRetryError):
         manager.retry(child)
+
+
+def test_timed_out_job_persists_and_user_retry_creates_a_new_job(tmp_path):
+    repository = Repository(Database(tmp_path / "workspace.sqlite3"))
+    attempts = 0
+
+    def preflight(_job, value):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ProviderTimedOutError("yahoo_finance", timeout_seconds=8)
+        return value
+
+    manager = JobManager(DemoAnalysisService(delay=0), repository=repository, preflight=preflight)
+    parent = manager.create(request())
+    manager.threads[parent.id].join(timeout=2)
+    restored = manager.get(parent.id)
+    assert restored.status == "provider_timed_out"
+    assert restored.error["code"] == "PROVIDER_TIMED_OUT"
+    assert repository.list_events(parent.id)[-1].event_type == "analysis.provider_timed_out"
+    assert repository.latest_trust(job_id=parent.id).reason_codes == ("PROVIDER_TIMED_OUT",)
+    usage = repository.list_usage(job_id=parent.id)
+    assert len(usage) == 1
+    assert (usage[0].requests, usage[0].input_tokens, usage[0].output_tokens, usage[0].retries) == (0, 0, 0, 0)
+    assert "analysis.provider_timed_out" in "".join(manager.event_stream(restored))
+
+    child = manager.retry(restored)
+    manager.threads[child.id].join(timeout=2)
+    assert manager.get(parent.id).status == "provider_timed_out"
+    assert child.record.retry_of_job_id == parent.id
+    assert child.record.retry_attempt == 1
+    assert child.status == "completed"

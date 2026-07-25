@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from tradingagents.dataflows.errors import ProviderRateLimitedError
+from tradingagents.dataflows.errors import ProviderRateLimitedError, ProviderTimedOutError
 from tradingagents.dataflows.symbol_utils import normalize_symbol
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.instruments import AssetType, InstrumentNotFoundError, resolve_instrument
@@ -57,6 +57,7 @@ def _demo_identity(symbol: str) -> dict[str, str]:
         "EMPTY": {"company_name": "Holdings Coverage Example", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
         "FAIL": {"company_name": "Provider Failure Example", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
         "RATE": {"company_name": "Rate Limit Recovery Example", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
+        "TIME": {"company_name": "Timeout Recovery Example", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
         "SLOW": {"company_name": "Cancellation Example Fund", "quote_type": "ETF", "exchange": "PCX", "currency": "USD"},
     }
     return values.get(symbol.upper(), {})
@@ -114,6 +115,12 @@ def create_app(
         if demo:
             if str(request["symbol"]).upper() == "RATE" and job.record.retry_attempt == 0:
                 raise ProviderRateLimitedError("yahoo_finance", cache_status="miss")
+            if str(request["symbol"]).upper() == "TIME" and job.record.retry_attempt == 0:
+                raise ProviderTimedOutError(
+                    "yahoo_finance",
+                    timeout_seconds=yahoo.timeout_seconds,
+                    cache_status="miss",
+                )
             identity = _demo_identity(str(request["symbol"]))
             descriptor = resolve_instrument(
                 str(request["symbol"]),
@@ -255,6 +262,7 @@ def create_app(
             "languages": ["English", "Chinese", "Spanish", "French", "Japanese"],
             "providers": providers,
             "budget": tracker.preflight(),
+            "yahoo_request_timeout_seconds": yahoo.timeout_seconds,
         }
 
     @app.post("/api/instruments/resolve")
@@ -273,6 +281,8 @@ def create_app(
             raise HTTPException(status_code=404, detail={"code": "INSTRUMENT_NOT_FOUND", "message": str(exc)}) from exc
         except ProviderRateLimitedError as exc:
             raise HTTPException(status_code=429, detail=exc.public_detail()) from exc
+        except ProviderTimedOutError as exc:
+            raise HTTPException(status_code=504, detail=exc.public_detail()) from exc
         return descriptor.to_dict()
 
     @app.get("/api/analyses")
@@ -340,7 +350,7 @@ def create_app(
         except (JobRetryError, JobBusyError) as exc:
             raise HTTPException(
                 status_code=409,
-                detail={"code": "JOB_NOT_PROVIDER_RATE_LIMITED", "message": str(exc)},
+                detail={"code": "JOB_NOT_PROVIDER_RETRYABLE", "message": str(exc)},
             ) from exc
         return {
             "job_id": child.id,
@@ -351,10 +361,10 @@ def create_app(
     @app.get("/api/analyses/{job_id}/report.md")
     def report(job_id: str):
         job = require_job(job_id)
-        if job.status == "provider_rate_limited":
+        if job.status in {"provider_rate_limited", "provider_timed_out"}:
             raise HTTPException(status_code=409, detail=job.error or {
-                "code": "PROVIDER_RATE_LIMITED",
-                "message": "Yahoo Finance is temporarily rate limited. Try again later.",
+                "code": "PROVIDER_UNAVAILABLE",
+                "message": "Yahoo Finance is temporarily unavailable. Retry when you are ready.",
             })
         persisted = repository.get_report_for_job(job.id)
         if persisted is None:
@@ -417,6 +427,8 @@ def create_app(
             raise HTTPException(status_code=409, detail={"code": exc.code, "message": exc.reason}) from exc
         except ProviderRateLimitedError as exc:
             raise HTTPException(status_code=429, detail=exc.public_detail()) from exc
+        except ProviderTimedOutError as exc:
+            raise HTTPException(status_code=504, detail=exc.public_detail()) from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail={"code": "FRESH_DATA_UNAVAILABLE", "message": str(exc)}) from exc
         return {"user": asdict(user), "assistant": asdict(assistant)}

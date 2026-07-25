@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -10,10 +12,10 @@ from typing import Any
 import yfinance as yf
 
 from tradingagents.agents.utils.agent_utils import resolve_instrument_identity
-from tradingagents.dataflows.errors import ProviderRateLimitedError
+from tradingagents.dataflows.errors import ProviderRateLimitedError, ProviderTimedOutError
 from tradingagents.dataflows.fund_data import fetch_fund_snapshot
 from tradingagents.dataflows.symbol_utils import normalize_symbol
-from tradingagents.dataflows.yahoo import yahoo_rate_limit_error
+from tradingagents.dataflows.yahoo import yahoo_rate_limit_error, yahoo_timeout_error
 from tradingagents.instruments import InstrumentDescriptor, resolve_instrument
 from tradingagents.persistence import Repository
 
@@ -21,6 +23,8 @@ PROVIDER = "yahoo_finance"
 IDENTITY_TTL = timedelta(days=1)
 PROBE_TTL = timedelta(days=1)
 SNAPSHOT_TTL = timedelta(hours=12)
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 10.0
+MAX_REQUEST_TIMEOUT_SECONDS = 120.0
 
 
 @dataclass(frozen=True)
@@ -32,6 +36,38 @@ class ResolvedInstrument:
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def yahoo_request_timeout_seconds() -> float:
+    raw = os.getenv("TRADINGAGENTS_YAHOO_TIMEOUT_SECONDS")
+    if raw is None:
+        return DEFAULT_REQUEST_TIMEOUT_SECONDS
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError("TRADINGAGENTS_YAHOO_TIMEOUT_SECONDS must be a number") from exc
+    if not math.isfinite(value) or value <= 0 or value > MAX_REQUEST_TIMEOUT_SECONDS:
+        raise ValueError(
+            f"TRADINGAGENTS_YAHOO_TIMEOUT_SECONDS must be greater than 0 and at most {MAX_REQUEST_TIMEOUT_SECONDS:g}"
+        )
+    return value
+
+
+def _bounded_ticker_factory(timeout_seconds: float) -> Callable[[str], Any]:
+    """Use yfinance's own session while capping every transport request."""
+    from yfinance.data import new_session
+
+    session = new_session()
+    original_request = session.request
+
+    def bounded_request(method, url, *args, **kwargs):
+        requested = kwargs.get("timeout")
+        if not isinstance(requested, (int, float)) or requested > timeout_seconds:
+            kwargs["timeout"] = timeout_seconds
+        return original_request(method, url, *args, **kwargs)
+
+    session.request = bounded_request
+    return lambda symbol: yf.Ticker(symbol, session=session)
 
 
 def _parse(value: str) -> datetime:
@@ -80,14 +116,22 @@ class CachedYahooProvider:
         repository: Repository,
         *,
         identity_resolver: Callable[[str], dict[str, str]] | None = None,
-        ticker_factory: Callable[[str], Any] = yf.Ticker,
+        ticker_factory: Callable[[str], Any] | None = None,
         clock: Callable[[], datetime] = _utc_now,
+        timeout_seconds: float | None = None,
     ):
         self.repository = repository
+        self.timeout_seconds = timeout_seconds or yahoo_request_timeout_seconds()
+        self.ticker_factory = ticker_factory or _bounded_ticker_factory(self.timeout_seconds)
         self.identity_resolver = identity_resolver or (
-            lambda symbol: resolve_instrument_identity(symbol, raise_rate_limited=True)
+            lambda symbol: resolve_instrument_identity(
+                symbol,
+                raise_rate_limited=True,
+                raise_timed_out=True,
+                timeout_seconds=self.timeout_seconds,
+                ticker_factory=self.ticker_factory,
+            )
         )
-        self.ticker_factory = ticker_factory
         self.clock = clock
 
     def resolve(self, symbol: str, override: str, analysis_date: str) -> ResolvedInstrument:
@@ -135,10 +179,17 @@ class CachedYahooProvider:
                 analysis_date,
                 benchmark_symbol,
                 ticker_factory=self.ticker_factory,
+                request_timeout_seconds=self.timeout_seconds,
             ).to_dict()
-        except Exception as exc:  # noqa: BLE001 - map only explicit Yahoo throttle semantics
+        except ProviderRateLimitedError as exc:
+            raise exc.with_cache_status(cache_status) from exc
+        except ProviderTimedOutError as exc:
+            raise exc.with_cache_status(cache_status) from exc
+        except Exception as exc:  # noqa: BLE001 - map only explicit provider failures
             if limited := yahoo_rate_limit_error(exc):
                 raise limited.with_cache_status(cache_status) from exc
+            if timed_out := yahoo_timeout_error(exc, timeout_seconds=self.timeout_seconds):
+                raise timed_out.with_cache_status(cache_status) from exc
             raise
         now = self.clock()
         self.repository.put_provider_cache(
@@ -163,6 +214,8 @@ class CachedYahooProvider:
             identity = self.identity_resolver(symbol) or {}
         except ProviderRateLimitedError as exc:
             raise exc.with_cache_status(status) from exc
+        except ProviderTimedOutError as exc:
+            raise exc.with_cache_status(status) from exc
         if identity:
             now = self.clock()
             self.repository.put_provider_cache(
@@ -184,10 +237,15 @@ class CachedYahooProvider:
         if cached:
             return bool(cached.normalized_payload.get("available")), "hit"
         try:
-            available = not self.ticker_factory(symbol).history(period="5d").empty
+            available = not self.ticker_factory(symbol).history(
+                period="5d",
+                timeout=self.timeout_seconds,
+            ).empty
         except Exception as exc:  # noqa: BLE001 - only explicit Yahoo throttle has its own public state
             if limited := yahoo_rate_limit_error(exc):
                 raise limited.with_cache_status(status) from exc
+            if timed_out := yahoo_timeout_error(exc, timeout_seconds=self.timeout_seconds):
+                raise timed_out.with_cache_status(status) from exc
             return False, status
         if available:
             now = self.clock()

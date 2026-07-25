@@ -85,6 +85,20 @@ test('desktop shows Yahoo rate-limit state, zero CIII usage, and explicit retry'
   await page.screenshot({ path: 'test-results/desktop-provider-rate-limit-retry.png', fullPage: true })
 })
 
+test('desktop shows Yahoo timeout and waits for the user to retry', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/')
+  await page.getByLabel('Symbol').fill('TIME')
+  await page.getByRole('button', { name: /Start analysis/ }).click()
+  await expect(jobStatus(page)).toHaveText('provider timed out')
+  await expect(page.getByText('Yahoo Finance timed out')).toBeVisible()
+  await expect(page.getByText(/Request timeout: 10s. CIII usage: 0 requests, 0 tokens, 0 retries/)).toBeVisible()
+  await page.screenshot({ path: 'test-results/desktop-provider-timeout.png', fullPage: true })
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(jobStatus(page)).toHaveText('completed', { timeout: 12_000 })
+  await page.screenshot({ path: 'test-results/desktop-provider-timeout-retry.png', fullPage: true })
+})
+
 test('desktop persists trust, usage, chat, advice versions, history, and backup', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 })
   await page.goto('/')

@@ -144,3 +144,18 @@ def assess_provider_rate_limited(*, job_id: str, observed_at: str) -> TrustAsses
         observed_at,
         (),
     )
+
+
+def assess_provider_timed_out(*, job_id: str, observed_at: str) -> TrustAssessment:
+    """Persist a deterministic non-evidence trust outcome for provider timeout."""
+    return TrustAssessment(
+        str(uuid.uuid4()),
+        job_id,
+        None,
+        TrustLevel.INSUFFICIENT,
+        False,
+        ("PROVIDER_TIMED_OUT",),
+        ("Yahoo Finance did not respond within the configured request timeout.",),
+        observed_at,
+        (),
+    )

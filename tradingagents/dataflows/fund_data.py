@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 import yfinance as yf
 
-from tradingagents.dataflows.yahoo import yahoo_rate_limit_error
+from tradingagents.dataflows.yahoo import yahoo_rate_limit_error, yahoo_timeout_error
 from tradingagents.instruments import InstrumentDescriptor
 
 from .fund_metrics import FundMetric, calculate_metrics, premium_discount
@@ -98,6 +98,7 @@ def fetch_fund_snapshot(
     benchmark_symbol: str = "SPY",
     *,
     ticker_factory=yf.Ticker,
+    request_timeout_seconds: float | None = None,
 ) -> FundSnapshot:
     observed = datetime.now(UTC).isoformat()
     warnings: list[str] = []
@@ -108,6 +109,10 @@ def fetch_fund_snapshot(
     except Exception as exc:
         if limited := yahoo_rate_limit_error(exc):
             raise limited from exc
+        if request_timeout_seconds is not None and (
+            timed_out := yahoo_timeout_error(exc, timeout_seconds=request_timeout_seconds)
+        ):
+            raise timed_out from exc
         warnings.append("Fund profile is unavailable from Yahoo Finance.")
 
     profile = FundProfile(
@@ -138,6 +143,10 @@ def fetch_fund_snapshot(
     except Exception as exc:
         if limited := yahoo_rate_limit_error(exc):
             raise limited from exc
+        if request_timeout_seconds is not None and (
+            timed_out := yahoo_timeout_error(exc, timeout_seconds=request_timeout_seconds)
+        ):
+            raise timed_out from exc
         warnings.append("Holdings and allocation data are unavailable from Yahoo Finance.")
     if not holdings:
         warnings.append("Top holdings are unavailable for this fund.")
@@ -148,17 +157,32 @@ def fetch_fund_snapshot(
     prices = pd.Series(dtype="float64")
     benchmark = pd.Series(dtype="float64")
     try:
-        prices = _series_from_history(ticker.history(start=start.isoformat(), end=end.isoformat(), auto_adjust=False))
+        history_kwargs = {
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+            "auto_adjust": False,
+        }
+        if request_timeout_seconds is not None:
+            history_kwargs["timeout"] = request_timeout_seconds
+        prices = _series_from_history(ticker.history(**history_kwargs))
     except Exception as exc:
         if limited := yahoo_rate_limit_error(exc):
             raise limited from exc
+        if request_timeout_seconds is not None and (
+            timed_out := yahoo_timeout_error(exc, timeout_seconds=request_timeout_seconds)
+        ):
+            raise timed_out from exc
         warnings.append("Fund price history is unavailable.")
     try:
         benchmark_ticker = ticker_factory(benchmark_symbol)
-        benchmark = _series_from_history(benchmark_ticker.history(start=start.isoformat(), end=end.isoformat(), auto_adjust=False))
+        benchmark = _series_from_history(benchmark_ticker.history(**history_kwargs))
     except Exception as exc:
         if limited := yahoo_rate_limit_error(exc):
             raise limited from exc
+        if request_timeout_seconds is not None and (
+            timed_out := yahoo_timeout_error(exc, timeout_seconds=request_timeout_seconds)
+        ):
+            raise timed_out from exc
         warnings.append(f"Benchmark history for {benchmark_symbol} is unavailable.")
 
     metrics = calculate_metrics(prices, analysis_date, benchmark if not benchmark.empty else None)

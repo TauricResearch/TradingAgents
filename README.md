@@ -218,6 +218,12 @@ For example, a CIII live configuration needs `CIII_API_KEY`,
 `TRADINGAGENTS_DEEP_THINK_LLM`. Configure request, token, and retry limits with
 the `TRADINGAGENTS_BUDGET_*` variables before running paid analysis. Do not put
 keys in `VITE_*` variables because those values are part of the browser build.
+Each Yahoo HTTP request has a 10-second timeout by default. Override it with a
+value greater than 0 and no more than 120 seconds when needed:
+
+```bash
+TRADINGAGENTS_YAHOO_TIMEOUT_SECONDS=15 ./scripts/start-web.sh
+```
 
 Use `Ctrl+C` to stop the foreground server. The default database is
 `~/.tradingagents/web/tradingagents.db`; override it with
@@ -262,10 +268,11 @@ Docker demo mode. SQLite, cache, and report data use named Docker volumes, so
 `docker compose down` does not remove them.
 
 Jobs are persisted before Yahoo is contacted. If Yahoo returns HTTP 429, the
-job is shown as provider-rate-limited without CIII usage; use the explicit
-**Retry later** action to create a linked retry job. The application does not
-perform long automatic backoff or silently treat a rate limit as a missing
-instrument.
+job is shown as provider-rate-limited; if a request exceeds the configured
+timeout, it is shown as provider-timed-out. Neither state consumes CIII usage.
+The application does not retry automatically: use the explicit **Retry** action
+to create a linked child job when you decide the provider is ready. It does not
+silently treat either provider condition as a missing instrument.
 
 Jobs, reports, SSE events, formal advice versions, conversations, usage,
 evidence, provider cache entries, and trust assessments persist in SQLite

@@ -95,6 +95,44 @@ class ProviderRateLimitedError(VendorRateLimitError):
         return detail
 
 
+class ProviderTimedOutError(VendorError):
+    """A named provider did not respond within the configured request timeout."""
+
+    code = "PROVIDER_TIMED_OUT"
+
+    def __init__(
+        self,
+        provider: str,
+        *,
+        timeout_seconds: float,
+        observed_at: str | None = None,
+        cache_status: str = "miss",
+    ):
+        self.provider = provider
+        self.timeout_seconds = timeout_seconds
+        self.observed_at = observed_at or datetime.now(UTC).isoformat()
+        self.cache_status = cache_status
+        super().__init__(f"{provider} timed out")
+
+    def with_cache_status(self, cache_status: str) -> ProviderTimedOutError:
+        return ProviderTimedOutError(
+            self.provider,
+            timeout_seconds=self.timeout_seconds,
+            observed_at=self.observed_at,
+            cache_status=cache_status,
+        )
+
+    def public_detail(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "message": "Yahoo Finance did not respond in time. Retry when you are ready.",
+            "provider": self.provider,
+            "observed_at": self.observed_at,
+            "cache_status": self.cache_status,
+            "timeout_seconds": self.timeout_seconds,
+        }
+
+
 class VendorNotConfiguredError(VendorError, ValueError):
     """A vendor was selected but its API key/configuration is missing.
 

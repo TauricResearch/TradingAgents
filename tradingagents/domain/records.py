@@ -17,6 +17,7 @@ class JobStatus(StrEnum):
     INTERRUPTED = "interrupted"
     BUDGET_EXHAUSTED = "budget_exhausted"
     PROVIDER_RATE_LIMITED = "provider_rate_limited"
+    PROVIDER_TIMED_OUT = "provider_timed_out"
 
 
 class TrustLevel(StrEnum):

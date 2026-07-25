@@ -119,7 +119,7 @@ td:last-child,th:last-child { text-align:right; }
 .text-command { border:0; background:transparent; color:var(--green); font-size:11px; font-weight:700; cursor:pointer; }
 .status-badge { display:inline-flex; align-items:center; min-height:22px; max-width:100%; padding:2px 7px; border:1px solid #ccd5d1; border-radius:3px; background:#f5f7f6; color:#53605b; font-size:9px; font-weight:800; text-transform:uppercase; overflow-wrap:anywhere; }
 .status-badge.completed,.status-badge.trusted,.status-badge.fresh { border-color:#a9cdbf; background:#edf7f3; color:#126148; }
-.status-badge.failed,.status-badge.insufficient,.status-badge.stale,.status-badge.budget_exhausted { border-color:#e0b4ae; background:#fff1ef; color:#a1372e; }
+.status-badge.failed,.status-badge.insufficient,.status-badge.stale,.status-badge.budget_exhausted,.status-badge.provider_rate_limited,.status-badge.provider_timed_out { border-color:#e0b4ae; background:#fff1ef; color:#a1372e; }
 .status-badge.interrupted,.status-badge.usable_with_warning,.status-badge.missing { border-color:#e4d2ae; background:#fff8e8; color:#865d1e; }
 .quality-layout { display:grid; gap:16px; min-width:0; }
 .trust-summary { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:14px; align-items:center; padding:18px; border:1px solid var(--line); border-left:4px solid var(--green); background:#fff; }

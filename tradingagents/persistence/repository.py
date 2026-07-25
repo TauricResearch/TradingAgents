@@ -134,7 +134,15 @@ class Repository:
         return [JobEvent(row["job_id"], row["event_id"], row["event_type"], row["timestamp"], _loads(row["data_json"], {})) for row in rows]
 
     def trim_events(self, job_id: str, *, keep: int = 512) -> None:
-        terminal = ("analysis.completed", "analysis.failed", "analysis.cancelled", "analysis.interrupted", "analysis.budget_exhausted", "analysis.provider_rate_limited")
+        terminal = (
+            "analysis.completed",
+            "analysis.failed",
+            "analysis.cancelled",
+            "analysis.interrupted",
+            "analysis.budget_exhausted",
+            "analysis.provider_rate_limited",
+            "analysis.provider_timed_out",
+        )
         with self.database.connect() as conn:
             conn.execute(
                 f"DELETE FROM job_events WHERE job_id=? AND event_type NOT IN ({','.join('?' for _ in terminal)}) "
