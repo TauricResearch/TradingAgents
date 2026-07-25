@@ -125,11 +125,13 @@ class AnalystPromptStabilityTests(unittest.TestCase):
         self.assertIn("FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**", system_prompt)
         self.assertIn("so the team knows to stop", system_prompt)
         self.assertIn(state["trade_date"], context_prompt)
+        self.assertIn("2026-05-13 to 2026-05-20", context_prompt)
         self.assertIn(state["company_of_interest"], context_prompt)
         self.assertIn("news block for NVDA", context_prompt)
         self.assertIn("stocktwits block for NVDA", context_prompt)
         self.assertIn("reddit block for NVDA", context_prompt)
         self.assertIn(other_state["trade_date"], other_context_prompt)
+        self.assertIn("2027-06-14 to 2027-06-21", other_context_prompt)
         self.assertIn(other_state["company_of_interest"], other_context_prompt)
 
     def _assert_tool_analyst_context_is_outside_system(

@@ -84,6 +84,7 @@ def create_sentiment_analyst(llm):
                     "human",
                     "Analysis context:\n"
                     "Today's date is {current_date}; treat it as 'now' for all analysis.\n"
+                    "Analysis window: {start_date} to {current_date}.\n"
                     "Instrument context: {instrument_context}\n"
                     "Pre-fetched data:\n\n"
                     "News headlines — Yahoo Finance, past 7 days\n"
@@ -99,6 +100,7 @@ def create_sentiment_analyst(llm):
         )
 
         prompt = prompt.partial(current_date=end_date)
+        prompt = prompt.partial(start_date=start_date)
         prompt = prompt.partial(instrument_context=instrument_context)
         prompt = prompt.partial(news_block=news_block)
         prompt = prompt.partial(stocktwits_block=stocktwits_block)
