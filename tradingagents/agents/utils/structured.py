@@ -28,6 +28,16 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
+# Schema-only structured output binds exactly one tool (the schema itself), so a
+# model that reaches for a search tool emits an unknown tool call and the whole
+# structured attempt is discarded for a free-text retry. Agents on this path
+# state the constraint explicitly rather than relying on the binding alone
+# (#1130).
+NO_EXTERNAL_TOOLS = (
+    "Use only the evidence provided in this prompt. Do not call external tools "
+    "or search the web; if something is missing, say so explicitly."
+)
+
 
 def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
     """Return ``llm.with_structured_output(schema)`` or ``None`` if unsupported.
