@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from tradingagents.analysts import ANALYST_CONFIG
+
 
 @dataclass(frozen=True)
 class RoleDefinition:
@@ -16,37 +18,16 @@ class RoleDefinition:
 
 
 ROLE_REGISTRY: tuple[RoleDefinition, ...] = (
-    RoleDefinition(
-        "analyst.market",
-        "Market Analyst",
-        "analysts",
-        "Market Analyst",
-        "chart-bars",
-        "market",
-    ),
-    RoleDefinition(
-        "analyst.sentiment",
-        "Sentiment Analyst",
-        "analysts",
-        "Sentiment Analyst",
-        "speech-pulse",
-        "social",
-    ),
-    RoleDefinition(
-        "analyst.news",
-        "News Analyst",
-        "analysts",
-        "News Analyst",
-        "newspaper",
-        "news",
-    ),
-    RoleDefinition(
-        "analyst.fundamentals",
-        "Fundamentals Analyst",
-        "analysts",
-        "Fundamentals Analyst",
-        "institution-columns",
-        "fundamentals",
+    *(
+        RoleDefinition(
+            definition.actor_id,
+            definition.node_id,
+            "analysts",
+            definition.display_name,
+            definition.icon_id,
+            definition.key,
+        )
+        for definition in ANALYST_CONFIG
     ),
     RoleDefinition(
         "evidence.steward",
@@ -123,4 +104,3 @@ def role_instance_id(run_id: str, actor_id: str) -> str:
     if not run_id:
         raise ValueError("run_id is required")
     return f"{run_id}:{actor_id}"
-

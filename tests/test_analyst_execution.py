@@ -1,5 +1,6 @@
 import unittest
 
+from tradingagents.analysts import ANALYST_CONFIG, ANALYST_WIRE_KEYS
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
@@ -16,6 +17,17 @@ class AnalystExecutionPlanTests(unittest.TestCase):
         self.assertEqual(plan.specs[0].agent_node, "News Analyst")
         self.assertEqual(plan.specs[0].tool_node, "tools_news")
         self.assertEqual(plan.specs[0].clear_node, "Msg Clear News")
+
+    def test_plan_and_wire_keys_are_derived_from_single_registry(self):
+        self.assertEqual(
+            ANALYST_WIRE_KEYS,
+            tuple(definition.key for definition in ANALYST_CONFIG),
+        )
+        plan = build_analyst_execution_plan(ANALYST_WIRE_KEYS)
+        self.assertEqual(
+            [spec.factory_key for spec in plan.specs],
+            [definition.factory_key for definition in ANALYST_CONFIG],
+        )
 
     def test_rejects_unknown_analyst_keys(self):
         with self.assertRaises(ValueError):

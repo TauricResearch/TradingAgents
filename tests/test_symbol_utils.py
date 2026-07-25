@@ -15,8 +15,31 @@ from tradingagents.dataflows.symbol_utils import (
 @pytest.mark.unit
 class TestNormalizeSymbol(unittest.TestCase):
     def test_plain_equities_unchanged(self):
-        for sym in ("AAPL", "MSFT", "TSM", "BRK.B", "0700.HK", "^GSPC", "GC=F"):
+        for sym in ("AAPL", "MSFT", "TSM", "0700.HK", "^GSPC", "GC=F"):
             self.assertEqual(normalize_symbol(sym), sym)
+
+    def test_hk_equity_prefix_zero_padded(self):
+        # HKEX bare codes -> Yahoo's zero-padded 4-digit .HK form.
+        self.assertEqual(normalize_symbol("HK2513"), "2513.HK")
+        self.assertEqual(normalize_symbol("HK388"), "0388.HK")
+        self.assertEqual(normalize_symbol("HK1"), "0001.HK")
+        self.assertEqual(normalize_symbol("HK09988"), "9988.HK")
+
+    def test_hk_suffix_normalised(self):
+        # An existing .HK ticker is re-padded to Yahoo's canonical 4-digit form.
+        self.assertEqual(normalize_symbol("2513.HK"), "2513.HK")
+        self.assertEqual(normalize_symbol("02513.HK"), "2513.HK")
+        self.assertEqual(normalize_symbol("388.HK"), "0388.HK")
+
+    def test_hk_index_alias_not_mangled(self):
+        # HK50 is the Hang Seng Index in _ALIASES; must not become 0050.HK.
+        self.assertEqual(normalize_symbol("HK50"), "^HSI")
+
+    def test_us_share_class_dot_to_dash(self):
+        # Yahoo rejects the dot separator on US share-class tickers.
+        self.assertEqual(normalize_symbol("BRK.B"), "BRK-B")
+        self.assertEqual(normalize_symbol("BRK.A"), "BRK-A")
+        self.assertEqual(normalize_symbol("BRK.C"), "BRK-C")
 
     def test_lowercases_are_upper(self):
         self.assertEqual(normalize_symbol("aapl"), "AAPL")

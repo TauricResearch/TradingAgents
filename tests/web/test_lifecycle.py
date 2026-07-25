@@ -7,7 +7,6 @@ from tradingagents.observability.lifecycle import (
     validate_transition,
 )
 
-
 pytestmark = pytest.mark.unit
 
 

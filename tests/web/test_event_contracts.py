@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from tradingagents.analysts import ANALYST_CONFIG
 from tradingagents.execution.models import (
     AnalysisCancelled,
     AnalysisRequest,
@@ -21,7 +22,6 @@ from tradingagents.observability.roles import (
     ROLES_BY_NODE_ID,
     role_instance_id,
 )
-
 
 pytestmark = pytest.mark.unit
 HASH = "a" * 64
@@ -48,6 +48,17 @@ def test_role_registry_contains_exactly_thirteen_unique_roles_and_icons():
         "manager.portfolio",
     }
     assert role_instance_id("run_1", "researcher.bull") == "run_1:researcher.bull"
+
+
+def test_selectable_observability_roles_are_derived_from_analyst_config():
+    selectable = tuple(role for role in ROLE_REGISTRY if role.analyst_key is not None)
+
+    assert tuple(role.analyst_key for role in selectable) == tuple(
+        definition.key for definition in ANALYST_CONFIG
+    )
+    assert tuple(role.node_id for role in selectable) == tuple(
+        definition.node_id for definition in ANALYST_CONFIG
+    )
 
 
 def test_artifact_and_observation_commit_are_immutable_validated_contracts():
@@ -147,4 +158,3 @@ def test_analysis_request_result_and_cancellation_are_distinct_contracts():
     with pytest.raises(AnalysisCancelled) as exc_info:
         token.raise_if_cancelled({"market_report": "partial"})
     assert exc_info.value.partial_state == {"market_report": "partial"}
-

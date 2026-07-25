@@ -10,7 +10,9 @@ claim. Deterministic, no LLM involved.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 
 import pandas as pd
 from stockstats import wrap
@@ -23,6 +25,57 @@ DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
     "rsi", "boll", "boll_ub", "boll_lb",
     "macd", "macds", "macdh", "atr",
 )
+
+# Tencent's public quote vector is a positional protocol, not a semantic JSON
+# object.  Keep only field positions verified for this product contract.  In
+# particular, do not infer a last price from an undocumented field index.
+TENCENT_QUOTE_88_FIELD_INDEX: dict[str, int] = {
+    "pe_ttm": 39,
+    "pb": 46,
+    "limit_up_price": 47,
+}
+
+
+class TencentQuoteContractError(ValueError):
+    """The supplied Tencent quote vector cannot prove the documented fields."""
+
+
+@dataclass(frozen=True)
+class TencentQuoteGroundTruth:
+    """Values proven by explicit Tencent 88-field positions only."""
+
+    pe_ttm: Decimal | None
+    pb: Decimal | None
+    limit_up_price: Decimal | None
+
+
+def parse_tencent_quote_ground_truth(fields: Sequence[object]) -> TencentQuoteGroundTruth:
+    """Read the documented Tencent vector fields without inventing a price.
+
+    A short vector is a source-contract failure, rather than evidence that a
+    missing field is zero.  Empty values remain ``None`` and are rendered as
+    unavailable.  This parser deliberately does *not* expose a current price:
+    the verified OHLCV row remains the sole exact price source in this module.
+    """
+    highest_required = max(TENCENT_QUOTE_88_FIELD_INDEX.values())
+    if len(fields) <= highest_required:
+        raise TencentQuoteContractError(
+            "Tencent quote vector has fewer fields than the verified 88-field contract."
+        )
+    return TencentQuoteGroundTruth(
+        pe_ttm=_optional_decimal(fields[TENCENT_QUOTE_88_FIELD_INDEX["pe_ttm"]]),
+        pb=_optional_decimal(fields[TENCENT_QUOTE_88_FIELD_INDEX["pb"]]),
+        limit_up_price=_optional_decimal(fields[TENCENT_QUOTE_88_FIELD_INDEX["limit_up_price"]]),
+    )
+
+
+def _optional_decimal(value: object) -> Decimal | None:
+    if value is None or not str(value).strip():
+        return None
+    try:
+        return Decimal(str(value))
+    except InvalidOperation as exc:
+        raise TencentQuoteContractError(f"Tencent quote field is not numeric: {value!r}") from exc
 
 
 def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
@@ -64,6 +117,7 @@ def build_verified_market_snapshot(
     curr_date: str,
     look_back_days: int = 30,
     indicators: Iterable[str] | None = None,
+    tencent_quote_fields: Sequence[object] | None = None,
 ) -> str:
     """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
     # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/
@@ -110,6 +164,27 @@ def build_verified_market_snapshot(
               "| Date | Close |", "|---|---:|"]
     for _, row in recent.iterrows():
         lines.append(f"| {_fmt(row['Date'])} | {_fmt(row.get('Close'))} |")
+
+    if tencent_quote_fields is not None:
+        quote = parse_tencent_quote_ground_truth(tencent_quote_fields)
+        lines += [
+            "",
+            "### Supplemental Tencent 88-field ground truth",
+            "",
+            "| Field | Verified field index | Value |",
+            "|---|---:|---:|",
+        ]
+        for name, value in (
+            ("PE (TTM)", quote.pe_ttm),
+            ("PB", quote.pb),
+            ("Limit-up price", quote.limit_up_price),
+        ):
+            key = {"PE (TTM)": "pe_ttm", "PB": "pb", "Limit-up price": "limit_up_price"}[name]
+            lines.append(f"| {name} | {TENCENT_QUOTE_88_FIELD_INDEX[key]} | {_fmt(value)} |")
+        lines.append(
+            "Tencent fields above supplement valuation and limit data only; they do not establish an "
+            "exact current price or replace the verified OHLCV row."
+        )
 
     lines += [
         "",

@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable, Mapping
 from copy import deepcopy
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Protocol
 
 from tradingagents.dataflows.config import config_scope
@@ -326,7 +326,10 @@ class SingleRunManager:
             deep_think_llm=str(config.get("deep_think_llm") or ""),
             configured_keys=dict(configured_keys or {}),
             retry_of=retry_of,
-            metadata={"effective_config": safe_config},
+            metadata={
+                "effective_config": safe_config,
+                "portfolio": asdict(request.portfolio) if request.portfolio is not None else None,
+            },
         )
         self.store.create_run(snapshot)
         self.broker.publish(
@@ -336,6 +339,18 @@ class SingleRunManager:
                 {
                     "run_status": "running",
                     "retry_of": retry_of,
+                    "ticker": snapshot.ticker,
+                    "asset_type": snapshot.asset_type,
+                    "analysis_date": snapshot.analysis_date,
+                    "selected_analysts": list(snapshot.selected_analysts),
+                    "research_depth": snapshot.max_debate_rounds,
+                    "max_debate_rounds": snapshot.max_debate_rounds,
+                    "max_risk_discuss_rounds": snapshot.max_risk_discuss_rounds,
+                    "output_language": snapshot.output_language,
+                    "llm_provider": snapshot.llm_provider,
+                    "quick_think_llm": snapshot.quick_think_llm,
+                    "deep_think_llm": snapshot.deep_think_llm,
+                    "checkpoint_enabled": bool(config.get("checkpoint_enabled")),
                 },
                 status="running",
             )
@@ -579,10 +594,17 @@ class SingleRunManager:
             reason="analysis_failed",
         )
         category = _error_category(error)
+        error_message = f"{type(error).__name__}: {error}"
+        error_traceback = _format_traceback(error)
         summary = f"Analysis failed in the {category.replace('_', ' ')} stage."
         current = self.store.read_snapshot(run_id)
         self.store.write_snapshot_atomic(
-            current.evolve(summary=summary, error_category=category)
+            current.evolve(
+                summary=summary,
+                error_category=category,
+                error_message=error_message,
+                error_traceback=error_traceback,
+            )
         )
         self.broker.publish(
             RunEventDraft(
@@ -592,6 +614,7 @@ class SingleRunManager:
                     "run_status": "failed",
                     "summary": summary,
                     "error_category": category,
+                    "error_message": error_message,
                 },
                 status="failed",
             )
@@ -930,6 +953,14 @@ def _request_from_snapshot(snapshot: RunSnapshot) -> AnalysisRequest:
             "output_language": snapshot.output_language,
         }
     )
+    from tradingagents.portfolio import portfolio_context_from_dict
+
+    portfolio_payload = snapshot.metadata.get("portfolio")
+    portfolio = (
+        portfolio_context_from_dict(portfolio_payload)
+        if isinstance(portfolio_payload, Mapping)
+        else None
+    )
     return AnalysisRequest(
         ticker=snapshot.ticker,
         analysis_date=snapshot.analysis_date,
@@ -937,6 +968,7 @@ def _request_from_snapshot(snapshot: RunSnapshot) -> AnalysisRequest:
         selected_analysts=snapshot.selected_analysts,
         max_debate_rounds=snapshot.max_debate_rounds,
         max_risk_discuss_rounds=snapshot.max_risk_discuss_rounds,
+        portfolio=portfolio,
         effective_config=config,
     )
 
@@ -1228,3 +1260,20 @@ def _error_category(error: BaseException | None) -> str:
     if isinstance(error, (ValueError, KeyError)):
         return "missing_configuration"
     return "unexpected_internal_failure"
+
+
+def _format_traceback(error: BaseException, *, limit: int = 8000) -> str:
+    """Render a truncated traceback string for durable persistence.
+
+    The full traceback can be large (deep LangGraph chains); ``limit`` keeps
+    the persisted run.json bounded while preserving the failing frame and the
+    immediate caller stack.
+    """
+    import traceback
+
+    rendered = "".join(
+        traceback.format_exception(type(error), error, error.__traceback__)
+    )
+    if len(rendered) > limit:
+        rendered = rendered[:limit] + "\n... [truncated]"
+    return rendered

@@ -9,7 +9,7 @@ import sys
 import sysconfig
 from collections import deque
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -25,7 +25,7 @@ from tradingagents.execution.config_identity import (
     project_effective_config,
     prune_removed_credential_shells,
 )
-from tradingagents.execution.models import ANALYST_WIRE_KEYS, AnalysisRequest
+from tradingagents.execution.models import AnalysisRequest
 from tradingagents.execution.runner import (
     CheckpointAuthorization,
     PreparedInitialContext,
@@ -322,13 +322,6 @@ def _build_resume_fingerprint_for_test(
         environment = runtime_environment or runtime_environment_manifest(
             capability_report=capability_report
         )
-    analyst_order = {
-        analyst: index for index, analyst in enumerate(ANALYST_WIRE_KEYS)
-    }
-    selected = sorted(
-        request.selected_analysts,
-        key=lambda analyst: analyst_order[analyst],
-    )
     semantics_hash = runtime_semantics_hash or hash_runtime_sources(package_root)
     if not _is_sha256(semantics_hash):
         raise FingerprintError("runtime_semantics_hash must be a SHA-256 digest")
@@ -340,9 +333,10 @@ def _build_resume_fingerprint_for_test(
             "ticker": normalize_ticker_symbol(request.ticker),
             "analysis_date": request.analysis_date,
             "asset_type": request.asset_type,
-            "selected_analysts": selected,
+            "selected_analysts": list(request.selected_analysts),
             "max_debate_rounds": request.max_debate_rounds,
             "max_risk_discuss_rounds": request.max_risk_discuss_rounds,
+            "portfolio": asdict(request.portfolio) if request.portfolio is not None else None,
         },
         "effective_config": prepared_config,
         "runtime_semantics_hash": semantics_hash,

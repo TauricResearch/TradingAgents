@@ -21,6 +21,7 @@ dependencies = [
     "parsel>=1.10.0",
     "python-dotenv>=1.0.0",
     "pytz>=2025.2",
+    "PyYAML>=6.0",
     "questionary>=2.1.0",
     "redis>=6.2.0",
     "requests>=2.32.4",
@@ -41,6 +42,7 @@ dev = [
 ]
 china = [
     "akshare>=1.16.0",
+    "mootdx>=0.11.0",
     "tushare>=1.4.0",
 ]
 web = [
@@ -61,7 +63,7 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
-tradingagents = ["web/static/*", "web/static/assets/*"]
+tradingagents = ["presets/*.yaml", "web/static/*", "web/static/assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

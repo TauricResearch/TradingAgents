@@ -109,7 +109,13 @@ def normalize_symbol(raw: str) -> str:
       2. Crypto rule: a known crypto base quoted in USD/USDT/USDC (dashed or
          not) -> ``BASE-USD``.
       3. Forex rule: six letters that are two ISO currency codes -> ``PAIR=X``.
-      4. Otherwise the upper-cased symbol is returned unchanged (plain
+      4. Hong Kong equity rule: ``HK`` + 1-5 digits -> zero-padded 4-digit
+         ``.HK`` (e.g. ``HK2513`` -> ``2513.HK``, ``HK388`` -> ``0388.HK``).
+      5. US share-class rule: ``SYM.A``/``SYM.B``/``SYM.C`` -> ``SYM-A``/...
+         (Yahoo rejects the dot separator; only the common class suffixes are
+         rewritten so exchange suffixes like ``.L``/``.T``/``.HK`` and A-share
+         tickers are left intact).
+      6. Otherwise the upper-cased symbol is returned unchanged (plain
          equities, ETFs, Yahoo-native symbols like ``GC=F`` or ``^GSPC``).
 
     A trailing ``+`` (broker CFD marker, e.g. ``XAUUSD+``) is stripped before
@@ -124,12 +130,30 @@ def normalize_symbol(raw: str) -> str:
     s = s.rstrip("+")
 
     crypto = _normalize_crypto(s)
+    hk_match = re.fullmatch(r"HK(\d{1,5})", s)
+    hk_suffix_match = re.fullmatch(r"(\d{1,5})\.HK", s)
     if s in _ALIASES:
         canonical = _ALIASES[s]
     elif crypto is not None:
         canonical = crypto
     elif len(s) == 6 and s[:3] in _FOREX_CURRENCIES and s[3:] in _FOREX_CURRENCIES:
         canonical = f"{s}=X"
+    elif hk_match:
+        # HKEX lists equities as bare numeric codes; Yahoo Finance requires a
+        # zero-padded 4-digit code with a .HK suffix (HK388 -> 0388.HK,
+        # HK2513 -> 2513.HK). int() strips any leading zeros first so HK09988
+        # also resolves to 9988.HK. HK50 is caught earlier by _ALIASES (^HSI).
+        canonical = f"{int(hk_match.group(1)):04d}.HK"
+    elif hk_suffix_match:
+        # Normalise an existing .HK ticker to Yahoo's zero-padded 4-digit form
+        # (02513.HK -> 2513.HK, 388.HK -> 0388.HK, 2513.HK unchanged).
+        canonical = f"{int(hk_suffix_match.group(1)):04d}.HK"
+    elif re.fullmatch(r"[A-Z]+\.[A-C]", s):
+        # US share-class tickers use a dot separator (BRK.B) that Yahoo rejects;
+        # Yahoo wants a dash (BRK-B). Only .A/.B/.C (the common class suffixes)
+        # are rewritten so exchange suffixes (.L/.T/.HK) and A-share tickers
+        # (digits before the dot) are left intact.
+        canonical = s.replace(".", "-", 1)
     else:
         canonical = s
 

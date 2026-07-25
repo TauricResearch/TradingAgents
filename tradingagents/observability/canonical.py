@@ -19,7 +19,6 @@ from tradingagents.agents.utils.agent_states import AgentState
 
 from .redaction import RedactionResult, redact_recursive
 
-
 SERIALIZER_VERSION = 1
 BUSINESS_PROJECTION_VERSION = 1
 RESERVED_OBSERVATION_FIELD = "_observation_commits"

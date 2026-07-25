@@ -30,6 +30,16 @@ export const API = {
   artifacts: (run_id: string) => `/api/runs/${run_id}/artifacts`,
   artifact: (run_id: string, artifact_id: string) =>
     `/api/runs/${run_id}/artifacts/${artifact_id}`,
+  /** Read-only projection of already persisted OHLCV/news artifacts. */
+  marketView: (run_id: string, sequence?: number) =>
+    `/api/runs/${run_id}/market-view${sequence != null ? `?v=${sequence}` : ""}`,
+  /** Read-only lookup of a public cached Layer 2 review for a captured marker. */
+  marketEventLayer2: (run_id: string, event: Pick<MarketEventDTO, "artifact_id" | "timestamp" | "title">) =>
+    `/api/runs/${run_id}/market-view/layer2?${new URLSearchParams({
+      artifact_id: event.artifact_id,
+      timestamp: event.timestamp,
+      title: event.title,
+    }).toString()}`,
   events: (run_id: string, after?: number) =>
     `/api/runs/${run_id}/events${after != null ? `?after=${after}` : ""}`,
 } as const;
@@ -72,6 +82,13 @@ export interface AnalystOptionDTO {
   id: string;
 }
 
+/** A safe YAML v1 preset: it only enables and orders existing analyst roles. */
+export interface AnalystPresetDTO {
+  id: string;
+  label: string;
+  analysts: string[];
+}
+
 export interface ConfigDefaultsDTO {
   llm_provider: string | null;
   quick_think_llm: string | null;
@@ -85,6 +102,7 @@ export interface ConfigResponseDTO {
   providers: ProviderDTO[];
   configured_keys: Record<string, boolean>;
   analysts: AnalystOptionDTO[];
+  presets: AnalystPresetDTO[];
   depths: number[];
   output_languages: string[];
   checkpoint_available: boolean;
@@ -98,6 +116,30 @@ export interface ConfigResponseDTO {
 export type ResearchDepth = 1 | 3 | 5;
 export type AssetTypeLiteral = "stock" | "crypto";
 
+export interface PortfolioPositionDTO {
+  ticker: string;
+  quantity: number;
+  average_cost: number;
+  sellable_quantity: number | null;
+}
+
+export interface PortfolioLimitsDTO {
+  max_position_weight: number;
+  lot_size: number;
+  fee_rate: number;
+  minimum_fee: number;
+  allow_short: boolean;
+}
+
+/** Optional non-secret inputs for deterministic PM execution constraints. */
+export interface PortfolioDTO {
+  cash: number;
+  positions: PortfolioPositionDTO[];
+  mark_prices: Record<string, number>;
+  currency: string;
+  limits: PortfolioLimitsDTO;
+}
+
 export interface RunCreateRequestDTO {
   ticker: string;
   analysis_date: string;
@@ -110,6 +152,7 @@ export interface RunCreateRequestDTO {
   checkpoint_enabled: boolean;
   /** Null means "let the server derive from normalized ticker". */
   asset_type: AssetTypeLiteral | null;
+  portfolio?: PortfolioDTO | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +188,7 @@ export interface RunSnapshotDTO {
   final_signal?: string | null;
   summary?: string | null;
   error_category?: string | null;
+  error_message?: string | null;
   retry_of?: string | null;
   resumed_from_sequence?: number | null;
   /** Opaque resume-fingerprint blob the frontend never interprets. */
@@ -178,6 +222,63 @@ export interface ArtifactMetadataDTO {
   content_sha256: string;
   byte_size: number;
   locator: string;
+}
+
+// ---------------------------------------------------------------------------
+// Read-only market visualisation projection (/api/runs/{run_id}/market-view)
+// ---------------------------------------------------------------------------
+
+/** A validated OHLCV record captured during the run; never a synthetic quote. */
+export interface MarketBarDTO {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
+  artifact_id: string;
+}
+
+/** A dated research/news record captured during the run. */
+export interface MarketEventDTO {
+  timestamp: string;
+  title: string;
+  artifact_id: string;
+  url?: string;
+  source?: string;
+  sentiment?: string;
+  score?: number;
+}
+
+export interface MarketViewCoverageDTO {
+  bar_source_artifact_ids: string[];
+  event_source_artifact_ids: string[];
+  skipped_artifact_count: number;
+  as_of_sequence: number;
+}
+
+/** The endpoint only reads existing artifacts and can validly return no bars. */
+export interface MarketViewDTO {
+  bars: MarketBarDTO[];
+  events: MarketEventDTO[];
+  coverage: MarketViewCoverageDTO;
+}
+
+/** Only the public fields that the durable Layer 2 cache permits. */
+export interface Layer2ConclusionDTO {
+  conclusion: string;
+  evidence_gaps: string[];
+  material_risks: string[];
+  source_ids: string[];
+}
+
+export interface MarketEventLayer2DTO {
+  /** A miss is normal: the chart must not start a vendor/model call. */
+  status: "cached" | "not_available";
+  event: Pick<MarketEventDTO, "artifact_id" | "timestamp" | "title">;
+  trigger: { reasons: string[]; cache_key: string };
+  cache_configured: boolean;
+  conclusion?: Layer2ConclusionDTO;
 }
 
 // ---------------------------------------------------------------------------
@@ -482,6 +583,15 @@ export interface ToolCancelledPayload {
   reason: string;
 }
 
+export interface ToolCrossTickerQueryPayload {
+  turn_id: string;
+  graph_task_id: string;
+  tool_call_id: string;
+  tool_name: string;
+  requested_ticker: string;
+  target_ticker: string;
+}
+
 // --- data.* ----------------------------------------------------------------
 
 export interface DataCallPayloadBase {
@@ -580,6 +690,7 @@ export type EventPayloadByType =
   | { type: "tool.execution_failed"; payload: ToolExecutionFailedPayload }
   | { type: "tool.committed"; payload: ToolCommittedPayload }
   | { type: "tool.cancelled"; payload: ToolCancelledPayload }
+  | { type: "tool.cross_ticker_query"; payload: ToolCrossTickerQueryPayload }
   | { type: "data.progress"; payload: DataProgressPayload }
   | { type: "data.completed"; payload: DataCompletedPayload }
   | { type: "data.failed"; payload: DataFailedPayload }

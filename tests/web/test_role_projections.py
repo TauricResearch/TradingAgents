@@ -166,6 +166,30 @@ def test_debate_roles_receive_reports_and_debate_state_without_downstream_plans(
     assert "risk_debate_state" not in projection.state_fields
 
 
+def test_evidence_source_alignment_reaches_bull_and_bear_only_with_explicit_scores():
+    state = _complete_state()
+    state["evidence_ledger"] = {
+        "evidence": [
+            {"source_provider": "official", "direction_score": 0.8},
+            {"source_provider": "wire", "direction_score": -0.6},
+            {"source_provider": "invalid", "direction_score": "unknown"},
+        ]
+    }
+    run_context = RoleProjectionRunContext(DEFAULT_CONFIG)
+
+    for actor_id in ("researcher.bull", "researcher.bear"):
+        alignment = project_role_input(actor_id, state, run_context).state_fields[
+            "source_alignment"
+        ]
+        assert alignment["label"] == "Wide divergence"
+        assert alignment["source_count"] == 2
+
+    evidence_alignment = project_role_input(
+        "evidence.steward", state, run_context
+    ).state_fields["source_alignment"]
+    assert evidence_alignment["mean_score"] == pytest.approx(0.1)
+
+
 def test_instrument_context_fallback_only_adds_fields_the_helper_would_read():
     state = _complete_state()
     state["instrument_context"] = ""

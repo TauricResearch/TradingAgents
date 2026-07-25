@@ -10,7 +10,6 @@ from typing import Any, Literal
 
 from tradingagents.observability.events import EVENT_SCHEMA_VERSION
 
-
 RUN_ID_PATTERN = re.compile(r"^run_\d{8}T\d{12}Z_[0-9a-f]{8}$")
 RUN_STATUSES = frozenset(
     {
@@ -60,6 +59,8 @@ class RunSnapshot:
     final_signal: str | None = None
     summary: str | None = None
     error_category: str | None = None
+    error_message: str | None = None
+    error_traceback: str | None = None
     retry_of: str | None = None
     resumed_from_sequence: int | None = None
     resume_fingerprint: dict[str, Any] | None = None

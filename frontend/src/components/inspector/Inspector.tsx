@@ -15,12 +15,17 @@ import type { ReducerState, Report } from "../../state/model";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
 import { useArtifact } from "../../hooks/useArtifact";
 import { RoleInputPanel } from "./RoleInputPanel";
+import { ToolCallCard } from "../tools/ToolCallCard";
+import { VendorProvenance } from "../tools/VendorProvenance";
 
 export interface InspectorProps {
   selectedTurnId: string | null;
+  /** Controlled active tab; when omitted Inspector keeps its own state. */
+  activeTab?: InspectorTab;
+  onTabChange?: (tab: InspectorTab) => void;
 }
 
-type InspectorTab = "role-input" | "tools" | "artifacts" | "run-input";
+export type InspectorTab = "role-input" | "tools" | "artifacts" | "run-input";
 
 const INSPECTOR_TABS: ReadonlyArray<{ id: InspectorTab; label: string }> = [
   { id: "role-input", label: "角色输入" },
@@ -142,10 +147,49 @@ function RunInputTab({ state }: { state: ReducerState | null }): JSX.Element {
   );
 }
 
-export function Inspector({ selectedTurnId }: InspectorProps): JSX.Element {
+function ToolsTab({
+  state,
+  run_id,
+  turn_id,
+}: {
+  state: ReducerState | null;
+  run_id: string | null;
+  turn_id: string | null;
+}): JSX.Element {
+  if (state === null || turn_id === null) {
+    return <div className="placeholder">选择一个角色查看工具调用</div>;
+  }
+  const tools = Object.values(state.tool_calls).filter(
+    (tc) => tc.turn_id === turn_id,
+  );
+  return (
+    <>
+      <VendorProvenance turn_id={turn_id} />
+      <span className="eyebrow">工具调用</span>
+      {tools.length === 0 ? (
+        <div className="placeholder">本轮无工具调用</div>
+      ) : (
+        tools.map((tc) => (
+          <ToolCallCard key={tc.tool_call_id} tool={tc} run_id={run_id} />
+        ))
+      )}
+    </>
+  );
+}
+
+export function Inspector({
+  selectedTurnId,
+  activeTab,
+  onTabChange,
+}: InspectorProps): JSX.Element {
   const { stream, run_id } = useWorkbenchStore();
   const state = stream.state;
-  const [activeTab, setActiveTab] = useState<InspectorTab>("role-input");
+  const [internalTab, setInternalTab] = useState<InspectorTab>("role-input");
+  const currentTab = activeTab ?? internalTab;
+  const setTab = (t: InspectorTab): void => {
+    if (onTabChange) onTabChange(t);
+    else setInternalTab(t);
+  };
 
   return (
     <div className="inspector">
@@ -154,9 +198,9 @@ export function Inspector({ selectedTurnId }: InspectorProps): JSX.Element {
           <button
             key={tab.id}
             type="button"
-            className={activeTab === tab.id ? "active" : ""}
-            aria-pressed={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            className={currentTab === tab.id ? "active" : ""}
+            aria-pressed={currentTab === tab.id}
+            onClick={() => setTab(tab.id)}
           >
             {tab.label}
           </button>
@@ -164,16 +208,16 @@ export function Inspector({ selectedTurnId }: InspectorProps): JSX.Element {
       </div>
 
       <div className="snapshot">
-        {activeTab === "role-input" && (
+        {currentTab === "role-input" && (
           <RoleInputPanel turn_id={selectedTurnId} />
         )}
-        {activeTab === "tools" && (
-          <div className="placeholder">工具调用卡片待接入</div>
+        {currentTab === "tools" && (
+          <ToolsTab state={state} run_id={run_id} turn_id={selectedTurnId} />
         )}
-        {activeTab === "artifacts" && (
+        {currentTab === "artifacts" && (
           <ArtifactsTab state={state} run_id={run_id} />
         )}
-        {activeTab === "run-input" && <RunInputTab state={state} />}
+        {currentTab === "run-input" && <RunInputTab state={state} />}
       </div>
     </div>
   );

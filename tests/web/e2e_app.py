@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass
 from typing import Any
 
 import pytest
@@ -28,11 +27,10 @@ from tradingagents.execution.models import (
     CancellationToken,
 )
 from tradingagents.observability.observer import DurableRunObserver
-from tradingagents.observability.roles import ROLE_REGISTRY, role_instance_id
+from tradingagents.observability.roles import ROLE_REGISTRY
 from tradingagents.web.api import create_app
 from tradingagents.web.manager import SingleRunManager
 from tradingagents.web.store import RunStore
-
 
 pytestmark = pytest.mark.unit
 

@@ -19,6 +19,7 @@ from tradingagents.execution.models import (
 )
 from tradingagents.observability.observer import DurableRunObserver
 from tradingagents.web.api import create_app
+from tradingagents.web.broker import EventBroker
 from tradingagents.web.manager import SingleRunManager
 from tradingagents.web.store import RunStore
 
@@ -74,11 +75,9 @@ class _FakeRunner:
             artifact = observer.store_artifact("data", business_delta)
             observer.mark_turn_output_ready(ref.turn_id, artifact=artifact)
             observer.complete_turn(ref.turn_id, duration_ms=10, reason="fake_complete")
-            # Pace the event stream so the broker's live queue can capture
-            # events between the subscribe watermark and run completion. A
-            # fully synchronous fake run can race past the broker's replay
-            # window before the browser subscribes.
-            time.sleep(0.05)
+            # Pace the event stream so live SSE delivery is observable and
+            # cancellation tests have a window to click cancel mid-run.
+            time.sleep(_PACE_SECONDS)
         return AnalysisResult(
             final_state={"final_trade_decision": "HOLD"},
             final_signal="HOLD",
@@ -89,13 +88,20 @@ def _fake_runner_factory(request: AnalysisRequest, observer: DurableRunObserver)
     return _FakeRunner(request, observer)
 
 
+# Per-turn pause (seconds). Default 50ms keeps the suite fast; raise via
+# E2E_TURN_PACE_MS so cancellation tests have a window to click cancel mid-run.
+_PACE_SECONDS = float(os.environ.get("E2E_TURN_PACE_MS", "50")) / 1000.0
+
+
 def build_app() -> Any:
     root = os.environ.get("TRADINGAGENTS_E2E_RUN_ROOT", "/tmp/tradingagents-e2e-runs")
     store = RunStore(root=root)
-    manager = SingleRunManager(store, runner_factory=_fake_runner_factory)
+    broker = EventBroker(store)
+    manager = SingleRunManager(store, broker=broker, runner_factory=_fake_runner_factory)
     environment = {"DEEPSEEK_API_KEY": "fake-deepseek-e2e-key"}
     app = create_app(
         store=store,
+        broker=broker,
         manager=manager,
         checkpoint_available=False,
         environment=environment,

@@ -15,12 +15,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from tradingagents.analysts import ANALYST_CONFIG
 from tradingagents.dataflows.symbol_utils import normalize_symbol
 from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.execution.models import ANALYST_WIRE_KEYS, AnalysisRequest
+from tradingagents.execution.models import AnalysisRequest
 from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV
 from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
+from tradingagents.portfolio import PortfolioContext, Position
+from tradingagents.presets import load_preset_catalog
 
 from .broker import EventBroker, Keepalive, SubscriptionClosed
 from .manager import (
@@ -31,6 +34,8 @@ from .manager import (
     RunNotRetryable,
     SingleRunManager,
 )
+from .market_layer2 import build_market_event_layer2_view
+from .market_view import build_market_view
 from .schemas import RESEARCH_DEPTHS, SUPPORTED_OUTPUT_LANGUAGES, RunCreateRequest
 from .store import (
     InvalidStorePath,
@@ -38,7 +43,6 @@ from .store import (
     RunStore,
     RunStoreCorruption,
 )
-
 
 TERMINAL_STREAM_EVENTS = frozenset(
     {"run.completed", "run.failed", "run.cancelled", "run.interrupted"}
@@ -165,9 +169,24 @@ def create_app(
     recover_startup: bool = True,
 ) -> FastAPI:
     """Compose the HTTP layer without importing it from legacy CLI paths."""
-    selected_store = store or RunStore()
-    selected_broker = broker or EventBroker(selected_store)
-    selected_manager = manager or SingleRunManager(selected_store, selected_broker)
+    if manager is not None:
+        # Reuse the manager's broker so worker persist (manager.broker) and
+        # SSE subscribe (app.state.broker) share one _subscribers registry.
+        # A mismatch here silently drops every live event because persist
+        # never sees the subscriber registered on the other broker.
+        manager_broker = getattr(manager, "broker", None)
+        if broker is not None and manager_broker is not None and broker is not manager_broker:
+            raise ValueError(
+                "broker must match manager.broker when both are provided; "
+                "a mismatch silently drops all live SSE events"
+            )
+        selected_manager = manager
+        selected_store = store or getattr(manager, "store", None) or RunStore()
+        selected_broker = broker or manager_broker or EventBroker(selected_store)
+    else:
+        selected_store = store or RunStore()
+        selected_broker = broker or EventBroker(selected_store)
+        selected_manager = SingleRunManager(selected_store, selected_broker)
     selected_environment = os.environ if environment is None else environment
     assets_root = Path(static_dir or Path(__file__).with_name("static")).resolve()
 
@@ -332,6 +351,50 @@ def create_app(
             headers={"Content-Length": str(len(content))},
         )
 
+    @app.get("/api/runs/{run_id}/market-view")
+    def market_view(run_id: str) -> JSONResponse:
+        """Project already-captured OHLCV/news records for the local chart.
+
+        This endpoint is intentionally read-only: it never makes a provider
+        request, so an empty payload is an honest degradation when a run has
+        no chartable artifacts.  A short private cache is safe because the
+        projection is pinned to append-only run records.
+        """
+        selected_store.read_snapshot(run_id)
+        return JSONResponse(
+            build_market_view(selected_store, run_id),
+            headers={"Cache-Control": "private, max-age=60"},
+        )
+
+    @app.get("/api/runs/{run_id}/market-view/layer2")
+    def market_event_layer2(
+        run_id: str,
+        artifact_id: str = Query(min_length=1, max_length=512),
+        timestamp: str = Query(min_length=1, max_length=64),
+        title: str = Query(min_length=1, max_length=280),
+    ) -> JSONResponse:
+        """Read a public cached Layer 2 conclusion for a captured marker.
+
+        This endpoint must stay read-only.  It revalidates the supplied marker
+        against persisted artifacts and never invokes a vendor or deep model
+        after a chart click; a cache miss is an expected, explicit result.
+        """
+        selected_store.read_snapshot(run_id)
+        payload = build_market_event_layer2_view(
+            selected_store,
+            run_id,
+            artifact_id=artifact_id,
+            timestamp=timestamp,
+            title=title,
+        )
+        if payload is None:
+            raise ApiBoundaryError(
+                404,
+                "market_event_not_found",
+                "The requested chart event was not captured by this run.",
+            )
+        return JSONResponse(payload, headers={"Cache-Control": "private, max-age=60"})
+
     @app.get("/api/runs/{run_id}/events")
     async def stream_events(
         request: Request,
@@ -460,6 +523,11 @@ def _analysis_request(
         "max_risk_discuss_rounds": body.research_depth,
     }
     configured_keys = _configured_keys(environment)
+    portfolio = (
+        _normalize_portfolio(body.portfolio.to_domain())
+        if body.portfolio is not None
+        else None
+    )
     return (
         AnalysisRequest(
             ticker=canonical_ticker,
@@ -468,10 +536,53 @@ def _analysis_request(
             selected_analysts=body.selected_analysts,
             max_debate_rounds=body.research_depth,
             max_risk_discuss_rounds=body.research_depth,
+            portfolio=portfolio,
             effective_config=effective_config,
         ),
         configured_keys,
     )
+
+
+def _normalize_portfolio(context: PortfolioContext) -> PortfolioContext:
+    """Use the same canonical symbols for analysis and portfolio constraints."""
+    def canonical(raw_ticker: str) -> str:
+        return normalize_symbol(normalize_ticker_symbol(raw_ticker))
+
+    positions = tuple(
+        Position(
+            ticker=canonical(position.ticker),
+            quantity=position.quantity,
+            average_cost=position.average_cost,
+            sellable_quantity=position.sellable_quantity,
+        )
+        for position in context.positions
+    )
+    marks: dict[str, float] = {}
+    for ticker, price in context.mark_prices.items():
+        normalized = canonical(ticker)
+        if normalized in marks and marks[normalized] != price:
+            raise ApiBoundaryError(
+                422,
+                "portfolio_symbol_conflict",
+                "Portfolio prices conflict after ticker normalization.",
+                fields=("portfolio.mark_prices",),
+            )
+        marks[normalized] = price
+    try:
+        return PortfolioContext(
+            cash=context.cash,
+            positions=positions,
+            mark_prices=marks,
+            currency=context.currency,
+            limits=context.limits,
+        )
+    except ValueError as exc:
+        raise ApiBoundaryError(
+            422,
+            "invalid_portfolio",
+            "Portfolio positions conflict after ticker normalization.",
+            fields=("portfolio.positions",),
+        ) from exc
 
 
 def _validate_model(provider: str, model: str, field: str, mode: str) -> None:
@@ -513,11 +624,9 @@ def _provider_configured(provider: str, environment: Mapping[str, str]) -> bool:
     env_name = PROVIDER_API_KEY_ENV[provider]
     if env_name is not None and not environment.get(env_name):
         return False
-    if provider == "azure" and any(
+    return provider != "azure" or not any(
         not environment.get(required) for required in AZURE_REQUIRED_ENV
-    ):
-        return False
-    return True
+    )
 
 
 def _configuration_payload(
@@ -526,6 +635,7 @@ def _configuration_payload(
     checkpoint_available: bool,
 ) -> dict[str, Any]:
     configured = _configured_keys(environment)
+    presets = load_preset_catalog()
     providers = []
     for provider, env_name in PROVIDER_API_KEY_ENV.items():
         modes = MODEL_OPTIONS.get(provider)
@@ -552,7 +662,8 @@ def _configuration_payload(
     return {
         "providers": providers,
         "configured_keys": configured,
-        "analysts": [{"id": analyst} for analyst in ANALYST_WIRE_KEYS],
+        "analysts": [analyst.as_api_option() for analyst in ANALYST_CONFIG],
+        "presets": [preset.as_config_option() for preset in presets.presets],
         "depths": list(RESEARCH_DEPTHS),
         "output_languages": list(SUPPORTED_OUTPUT_LANGUAGES),
         "checkpoint_available": checkpoint_available,

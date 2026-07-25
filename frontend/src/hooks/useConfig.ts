@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import type {
   ConfigResponseDTO,
   ModelOptionDTO,
+  PortfolioDTO,
   ProviderDTO,
   ResearchDepth,
   RunCreateRequestDTO,
@@ -32,6 +33,8 @@ export interface UseConfigResult {
   selected_analysts: string[];
   setSelectedAnalysts: (v: string[]) => void;
   toggleAnalyst: (id: string) => void;
+  selected_preset: string | null;
+  setAnalystPreset: (id: string) => void;
   research_depth: ResearchDepth;
   setResearchDepth: (v: ResearchDepth) => void;
   llm_provider: string;
@@ -44,6 +47,20 @@ export interface UseConfigResult {
   setOutputLanguage: (v: string) => void;
   checkpoint_enabled: boolean;
   setCheckpointEnabled: (v: boolean) => void;
+  portfolio_enabled: boolean;
+  setPortfolioEnabled: (v: boolean) => void;
+  portfolio_cash: string;
+  setPortfolioCash: (v: string) => void;
+  portfolio_mark_price: string;
+  setPortfolioMarkPrice: (v: string) => void;
+  portfolio_quantity: string;
+  setPortfolioQuantity: (v: string) => void;
+  portfolio_sellable_quantity: string;
+  setPortfolioSellableQuantity: (v: string) => void;
+  portfolio_average_cost: string;
+  setPortfolioAverageCost: (v: string) => void;
+  portfolio_max_weight: string;
+  setPortfolioMaxWeight: (v: string) => void;
 
   selectedProvider: ProviderDTO | null;
   quickOptions: ModelOptionDTO[];
@@ -70,13 +87,22 @@ export function useConfig(): UseConfigResult {
 
   const [ticker, setTicker] = useState<string>("");
   const [analysisDate, setAnalysisDate] = useState<string>(todayIso);
-  const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>([]);
+  const [selectedAnalysts, setSelectedAnalystsState] = useState<string[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [researchDepth, setResearchDepth] = useState<ResearchDepth>(1);
   const [llmProvider, setLlmProviderState] = useState<string>("");
   const [quickThinkLlm, setQuickThinkLlm] = useState<string>("");
   const [deepThinkLlm, setDeepThinkLlm] = useState<string>("");
   const [outputLanguage, setOutputLanguage] = useState<string>("English");
   const [checkpointEnabled, setCheckpointEnabled] = useState<boolean>(false);
+  const [portfolioEnabled, setPortfolioEnabled] = useState<boolean>(false);
+  const [portfolioCash, setPortfolioCash] = useState<string>("");
+  const [portfolioMarkPrice, setPortfolioMarkPrice] = useState<string>("");
+  const [portfolioQuantity, setPortfolioQuantity] = useState<string>("0");
+  const [portfolioSellableQuantity, setPortfolioSellableQuantity] =
+    useState<string>("");
+  const [portfolioAverageCost, setPortfolioAverageCost] = useState<string>("");
+  const [portfolioMaxWeight, setPortfolioMaxWeight] = useState<string>("0.1");
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +130,13 @@ export function useConfig(): UseConfigResult {
             : 1,
         );
         setCheckpointEnabled(c.defaults.checkpoint_enabled);
-        setSelectedAnalysts(c.analysts.map((a) => a.id));
+        const defaultPreset =
+          c.presets.find((preset) => preset.id === "full-research") ??
+          c.presets[0];
+        setSelectedPreset(defaultPreset?.id ?? null);
+        setSelectedAnalystsState(
+          defaultPreset?.analysts ?? c.analysts.map((analyst) => analyst.id),
+        );
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -128,9 +160,22 @@ export function useConfig(): UseConfigResult {
   }
 
   function toggleAnalyst(id: string): void {
-    setSelectedAnalysts((prev) =>
+    setSelectedPreset(null);
+    setSelectedAnalystsState((prev) =>
       prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
     );
+  }
+
+  function setSelectedAnalysts(value: string[]): void {
+    setSelectedPreset(null);
+    setSelectedAnalystsState(value);
+  }
+
+  function setAnalystPreset(id: string): void {
+    const preset = config?.presets.find((candidate) => candidate.id === id);
+    if (preset === undefined) return;
+    setSelectedPreset(preset.id);
+    setSelectedAnalystsState([...preset.analysts]);
   }
 
   const selectedProvider: ProviderDTO | null =
@@ -166,17 +211,75 @@ export function useConfig(): UseConfigResult {
         validationError = "请选择快速思考模型";
       } else if (!deepThinkLlm) {
         validationError = "请选择深度思考模型";
+      } else if (portfolioEnabled) {
+        const cash = Number(portfolioCash);
+        const markPrice = Number(portfolioMarkPrice);
+        const quantity = Number(portfolioQuantity);
+        const sellableQuantity = portfolioSellableQuantity
+          ? Number(portfolioSellableQuantity)
+          : quantity;
+        const averageCost = portfolioAverageCost
+          ? Number(portfolioAverageCost)
+          : markPrice;
+        const maxWeight = Number(portfolioMaxWeight);
+        if (!Number.isFinite(cash) || cash < 0) {
+          validationError = "组合现金必须是非负数字";
+        } else if (!Number.isFinite(markPrice) || markPrice <= 0) {
+          validationError = "组合参考价格必须大于 0";
+        } else if (!Number.isInteger(quantity) || quantity < 0) {
+          validationError = "持仓数量必须是非负整数";
+        } else if (
+          !Number.isInteger(sellableQuantity) ||
+          sellableQuantity < 0 ||
+          sellableQuantity > quantity
+        ) {
+          validationError = "可卖数量必须是 0 到持仓数量之间的整数";
+        } else if (!Number.isFinite(averageCost) || averageCost < 0) {
+          validationError = "持仓成本必须是非负数字";
+        } else if (!Number.isFinite(maxWeight) || maxWeight <= 0 || maxWeight > 1) {
+          validationError = "单标的上限必须在 0% 到 100% 之间";
+        }
       }
     }
   }
 
   function buildRequest(): RunCreateRequestDTO | null {
     if (config === null || validationError !== null) return null;
-    const orderedAnalysts = config.analysts
-      .map((a) => a.id)
-      .filter((id) => selectedAnalysts.includes(id));
+    const orderedAnalysts = [...selectedAnalysts];
+    const normalizedTicker = ticker.trim();
+    const portfolio: PortfolioDTO | null = portfolioEnabled
+      ? {
+          cash: Number(portfolioCash),
+          positions:
+            Number(portfolioQuantity) > 0
+              ? [
+                  {
+                    ticker: normalizedTicker,
+                    quantity: Number(portfolioQuantity),
+                    average_cost: portfolioAverageCost
+                      ? Number(portfolioAverageCost)
+                      : Number(portfolioMarkPrice),
+                    sellable_quantity: portfolioSellableQuantity
+                      ? Number(portfolioSellableQuantity)
+                      : Number(portfolioQuantity),
+                  },
+                ]
+              : [],
+          mark_prices: { [normalizedTicker]: Number(portfolioMarkPrice) },
+          currency: "CNY",
+          limits: {
+            max_position_weight: Number(portfolioMaxWeight),
+            lot_size: /^\d{6}(?:[.](?:SH|SZ|SS|BJ))?$/i.test(normalizedTicker)
+              ? 100
+              : 1,
+            fee_rate: 0.0005,
+            minimum_fee: 0,
+            allow_short: false,
+          },
+        }
+      : null;
     return {
-      ticker: ticker.trim(),
+      ticker: normalizedTicker,
       analysis_date: analysisDate,
       selected_analysts: orderedAnalysts,
       research_depth: researchDepth,
@@ -186,6 +289,7 @@ export function useConfig(): UseConfigResult {
       output_language: outputLanguage,
       checkpoint_enabled: checkpointEnabled,
       asset_type: null,
+      portfolio,
     };
   }
 
@@ -200,6 +304,8 @@ export function useConfig(): UseConfigResult {
     selected_analysts: selectedAnalysts,
     setSelectedAnalysts,
     toggleAnalyst,
+    selected_preset: selectedPreset,
+    setAnalystPreset,
     research_depth: researchDepth,
     setResearchDepth,
     llm_provider: llmProvider,
@@ -212,6 +318,20 @@ export function useConfig(): UseConfigResult {
     setOutputLanguage,
     checkpoint_enabled: checkpointEnabled,
     setCheckpointEnabled,
+    portfolio_enabled: portfolioEnabled,
+    setPortfolioEnabled,
+    portfolio_cash: portfolioCash,
+    setPortfolioCash,
+    portfolio_mark_price: portfolioMarkPrice,
+    setPortfolioMarkPrice,
+    portfolio_quantity: portfolioQuantity,
+    setPortfolioQuantity,
+    portfolio_sellable_quantity: portfolioSellableQuantity,
+    setPortfolioSellableQuantity,
+    portfolio_average_cost: portfolioAverageCost,
+    setPortfolioAverageCost,
+    portfolio_max_weight: portfolioMaxWeight,
+    setPortfolioMaxWeight,
     selectedProvider,
     quickOptions,
     deepOptions,

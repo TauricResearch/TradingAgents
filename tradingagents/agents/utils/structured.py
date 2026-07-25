@@ -48,6 +48,40 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
         return None
 
 
+def _invoke_structured_pair(
+    structured_llm: Any | None,
+    plain_llm: Any,
+    prompt: Any,
+    render: Callable[[T], str],
+    agent_name: str,
+) -> tuple[str, T | None]:
+    """Run the structured call and render to markdown; fall back to free-text.
+
+    Returns the rendered text and, when the structured path succeeded, the
+    parsed object.  The object is ``None`` on the free-text fallback so a
+    caller can decide whether a public scorecard is available to persist.
+    """
+    if structured_llm is not None:
+        try:
+            result = structured_llm.invoke(prompt)
+            if result is None:
+                # A thinking model can answer in plain text instead of calling
+                # the tool, leaving the parser with nothing to return. Treat it
+                # as a structured miss and fall back, with a clear reason.
+                raise ValueError("structured output returned no parsed result")
+            return render(result), result
+        except (ObservationError, AssertionError):
+            raise
+        except Exception as exc:
+            logger.warning(
+                "%s: structured-output invocation failed (%s); retrying once as free text",
+                agent_name, exc,
+            )
+
+    response = plain_llm.invoke(prompt)
+    return response.content, None
+
+
 def invoke_structured_or_freetext(
     structured_llm: Any | None,
     plain_llm: Any,
@@ -62,22 +96,25 @@ def invoke_structured_or_freetext(
     shape). The same value is forwarded to the free-text path so the
     fallback sees the same input the structured call did.
     """
-    if structured_llm is not None:
-        try:
-            result = structured_llm.invoke(prompt)
-            if result is None:
-                # A thinking model can answer in plain text instead of calling
-                # the tool, leaving the parser with nothing to return. Treat it
-                # as a structured miss and fall back, with a clear reason.
-                raise ValueError("structured output returned no parsed result")
-            return render(result)
-        except (ObservationError, AssertionError):
-            raise
-        except Exception as exc:
-            logger.warning(
-                "%s: structured-output invocation failed (%s); retrying once as free text",
-                agent_name, exc,
-            )
+    return _invoke_structured_pair(
+        structured_llm, plain_llm, prompt, render, agent_name
+    )[0]
 
-    response = plain_llm.invoke(prompt)
-    return response.content
+
+def invoke_structured_or_freetext_with_artifact(
+    structured_llm: Any | None,
+    plain_llm: Any,
+    prompt: Any,
+    render: Callable[[T], str],
+    agent_name: str,
+) -> tuple[str, T | None]:
+    """Like :func:`invoke_structured_or_freetext` but also return the parsed object.
+
+    The object is ``None`` on the free-text fallback path or when a thinking
+    model returned no parsed result.  Use this when the caller needs the typed
+    instance to persist a public scorecard; use the original function when only
+    the rendered text is needed.
+    """
+    return _invoke_structured_pair(
+        structured_llm, plain_llm, prompt, render, agent_name
+    )

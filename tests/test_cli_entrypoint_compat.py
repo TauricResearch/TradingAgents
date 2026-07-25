@@ -10,7 +10,6 @@ from cli.main import MessageBuffer, app
 from cli.models import AnalystType
 from tradingagents.execution.models import AnalysisResult
 
-
 pytestmark = pytest.mark.unit
 
 

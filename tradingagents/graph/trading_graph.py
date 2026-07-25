@@ -16,17 +16,21 @@ from tradingagents.agents.utils.agent_utils import (
     get_balance_sheet,
     get_cashflow,
     get_fundamentals,
+    get_fundamentals_research_bundle,
     get_global_news,
     get_income_statement,
     get_indicators,
     get_insider_transactions,
     get_macro_indicators,
+    get_market_research_bundle,
     get_news,
+    get_news_research_bundle,
     get_stock_data,
     get_verified_market_snapshot,
     resolve_instrument_identity,
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.analysts import ANALYST_WIRE_KEYS
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -71,7 +75,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=("market", "social", "news", "fundamentals"),
+        selected_analysts=ANALYST_WIRE_KEYS,
         debug=False,
         config: dict[str, Any] = None,
         callbacks: list | None = None,
@@ -208,6 +212,10 @@ class TradingAgentsGraph:
                     # LLM and required by its prompt; must be executable here or
                     # the call fails and the model reports it "unavailable").
                     get_verified_market_snapshot,
+                    # Bounded, allowlisted bundle for cross-view market
+                    # questions.  It is bound by the analyst, so register it
+                    # here as well or an LLM call would fail at ToolNode.
+                    get_market_research_bundle,
                 ]
             ),
             "social": ToolNode(
@@ -223,6 +231,7 @@ class TradingAgentsGraph:
                     get_global_news,
                     get_insider_transactions,
                     get_macro_indicators,
+                    get_news_research_bundle,
                 ]
             ),
             "fundamentals": ToolNode(
@@ -232,6 +241,7 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                    get_fundamentals_research_bundle,
                 ]
             ),
         }
@@ -365,6 +375,11 @@ class TradingAgentsGraph:
             }
         else:
             identity = resolve_instrument_identity(ticker)
+        # Stamp the run's target ticker in a contextvar so stateless @tool
+        # functions can detect cross-ticker queries and inject a notice.
+        from tradingagents.dataflows.target_context import set_target_ticker
+
+        set_target_ticker(ticker, identity.get("company_name") or identity.get("name"))
         return build_instrument_context(ticker, asset_type, identity)
 
     def _run_signature(self, asset_type: str) -> str:
@@ -476,6 +491,7 @@ class TradingAgentsGraph:
                 "conservative_history": final_state["risk_debate_state"]["conservative_history"],
                 "neutral_history": final_state["risk_debate_state"]["neutral_history"],
                 "history": final_state["risk_debate_state"]["history"],
+                "risk_signals": final_state["risk_debate_state"].get("risk_signals", []),
                 "judge_decision": final_state["risk_debate_state"]["judge_decision"],
             },
             "investment_plan": final_state["investment_plan"],

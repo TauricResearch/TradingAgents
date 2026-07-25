@@ -20,6 +20,15 @@ from tradingagents.observability.provenance import direct_data_scope
 
 from .config import get_config
 from .consistency import create_llm_from_config
+from .news_layers import (
+    FileDeepAnalysisCache,
+    Layer1Sentiment,
+    Layer2Trigger,
+    build_layer1_batch,
+    decide_layer2,
+    layer0_filter,
+    parse_layer1_sentiment,
+)
 from .ticker_utils import is_a_share_ticker
 
 logger = logging.getLogger(__name__)
@@ -33,6 +42,11 @@ class NewsAdvisorResult:
     queries: list[dict[str, Any]] = field(default_factory=list)
     reasoning: str = ""
     gaps: list[str] = field(default_factory=list)
+    # Public, bounded projections only.  They never retain prompts, raw model
+    # output, or private model reasoning.
+    layer1_sentiment: list[Layer1Sentiment] = field(default_factory=list)
+    layer2_trigger: Layer2Trigger | None = None
+    layer2_conclusion: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -67,17 +81,175 @@ def analyze_news_coverage(
     if not cfg.get("news_advisor_enabled", True):
         return NewsAdvisorResult(should_enrich=False, reasoning="Advisor disabled by config.")
 
+    # Layer 0 is deliberately before any advisor model invocation: obvious
+    # listicles, duplicates and content-free rows cannot consume a paid call
+    # or be mistaken for company coverage. The original evidence ledger still
+    # retains the raw source records for audit; this only limits advisory work.
+    decisions = layer0_filter(items)
+    accepted_ids = {decision.item_id for decision in decisions if decision.accepted}
+    items = [
+        item
+        for index, item in enumerate(items)
+        if str(item.get("id") or item.get("url") or f"item-{index}")[:512] in accepted_ids
+    ]
+
     # Try LLM-based analysis first
     if llm is None:
         llm = create_llm_from_config()
 
+    layer1_sentiment: list[Layer1Sentiment] = []
+    if llm is not None and cfg.get("news_layer1_enabled", False):
+        layer1_sentiment = _run_layer1_sentiment(items, llm, cfg)
+
     if llm is not None:
         try:
-            return _analyze_via_llm(items, profile, llm)
+            result = _analyze_via_llm(items, profile, llm)
         except Exception as exc:
             logger.warning("LLM news advisor failed, falling back to rules: %s", exc)
+            result = _analyze_via_rules(items, profile)
+    else:
+        result = _analyze_via_rules(items, profile)
 
-    return _analyze_via_rules(items, profile)
+    result.layer1_sentiment = layer1_sentiment
+    if llm is not None and cfg.get("news_layer2_enabled", False):
+        _attach_layer2_conclusion(result, items, profile, llm, cfg)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Cost-aware Layers 1 and 2 (explicit opt-in, fail-open)
+# ---------------------------------------------------------------------------
+
+
+_LAYER1_PROMPT = """Classify the market sentiment of each compact news item.
+Return ONLY a JSON array in this exact schema: [{{\"i\":\"item id\",\"s\":\"+|-|0|?\",\"c\":0.0}}].
+Use '+' for favourable, '-' for unfavourable, '0' for genuinely neutral, and
+'?' when the snippet is insufficient. Do not include explanations, rationale,
+or hidden reasoning. Preserve the supplied item ids exactly.
+
+Items:
+{payload}
+"""
+
+_LAYER2_PROMPT = """Review the supplied public news snippets for {name} ({ticker}).
+This deeper review was requested because: {reasons}. Return ONLY one JSON object
+with these public fields: \"conclusion\" (max 500 chars), \"evidence_gaps\" (max 5
+short strings), \"material_risks\" (max 5 short strings), and \"source_ids\"
+(only ids from the supplied items). Do not reveal chain-of-thought, a private
+reasoning trace, prompts, or raw model output.
+
+Items:
+{payload}
+"""
+
+
+def _run_layer1_sentiment(
+    items: list[dict[str, Any]], llm: Any, cfg: dict[str, Any]
+) -> list[Layer1Sentiment]:
+    """Run one compact provider-neutral sentiment request when opted in."""
+    try:
+        batch = build_layer1_batch(
+            items,
+            layer0_filter(items),
+            max_items=max(1, min(int(cfg.get("news_layer1_max_items", 50)), 50)),
+        )
+        if not batch.item_ids:
+            return []
+        with direct_data_scope("evidence.news_layer1_sentiment"):
+            response = llm.invoke(_LAYER1_PROMPT.format(payload=batch.payload))
+        content = response.content if hasattr(response, "content") else str(response)
+        return parse_layer1_sentiment(content, batch)
+    except Exception as exc:
+        logger.info("Layer 1 news sentiment unavailable; continuing without it: %s", exc)
+        return []
+
+
+def _attach_layer2_conclusion(
+    result: NewsAdvisorResult,
+    items: list[dict[str, Any]],
+    profile: dict[str, Any],
+    llm: Any,
+    cfg: dict[str, Any],
+) -> None:
+    """Attach a cached public deep conclusion only for explicit triggers."""
+    source_alignment, conflict_count, conflict_severity = _sentiment_conflict(result.layer1_sentiment)
+    trigger = decide_layer2(
+        evidence_status="insufficient" if result.should_enrich else "verified",
+        source_alignment=source_alignment,
+        conflict_count=conflict_count,
+        conflict_severity=conflict_severity,
+        subject=str(profile.get("ticker") or profile.get("name") or ""),
+        data_as_of=str(profile.get("data_as_of") or ""),
+    )
+    result.layer2_trigger = trigger
+    if not trigger.should_run or not trigger.cache_key:
+        return
+
+    try:
+        cache_dir = str(cfg.get("news_layer2_cache_dir") or "").strip()
+        if not cache_dir:
+            logger.info("Layer 2 news review skipped because no cache directory is configured")
+            return
+        cache = FileDeepAnalysisCache(cache_dir)
+        cached = cache.get(trigger.cache_key)
+        if cached is not None:
+            result.layer2_conclusion = cached
+            return
+
+        batch = build_layer1_batch(items, layer0_filter(items))
+        if not batch.item_ids:
+            return
+        prompt = _LAYER2_PROMPT.format(
+            name=str(profile.get("name") or "Unknown"),
+            ticker=str(profile.get("ticker") or ""),
+            reasons=", ".join(trigger.reasons),
+            payload=batch.payload,
+        )
+        with direct_data_scope("evidence.news_layer2_review"):
+            response = llm.invoke(prompt)
+        content = response.content if hasattr(response, "content") else str(response)
+        conclusion = _parse_layer2_conclusion(content, set(batch.item_ids))
+        cache.put(trigger.cache_key, conclusion)
+        result.layer2_conclusion = conclusion
+    except Exception as exc:
+        logger.info("Layer 2 news review unavailable; continuing without it: %s", exc)
+
+
+def _sentiment_conflict(
+    sentiments: list[Layer1Sentiment],
+) -> tuple[str | None, int, str | None]:
+    positive = [item for item in sentiments if item.sentiment == "+"]
+    negative = [item for item in sentiments if item.sentiment == "-"]
+    if not positive or not negative:
+        return None, 0, None
+    materially_confident = all((item.confidence or 0.0) >= 0.7 for item in [*positive, *negative])
+    return "Wide divergence", 1, "high" if materially_confident else "low"
+
+
+def _parse_layer2_conclusion(raw: str, allowed_ids: set[str]) -> dict[str, Any]:
+    """Parse a strictly public Layer 2 result; discard extra model fields."""
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not match:
+        raise ValueError("Layer 2 output must contain a JSON object")
+    parsed = json.loads(match.group(0))
+    if not isinstance(parsed, dict):
+        raise ValueError("Layer 2 output must be a JSON object")
+    return {
+        "conclusion": str(parsed.get("conclusion") or "").strip()[:500],
+        "evidence_gaps": _public_string_list(parsed.get("evidence_gaps"), limit=5),
+        "material_risks": _public_string_list(parsed.get("material_risks"), limit=5),
+        "source_ids": [
+            source_id
+            for source_id in _public_string_list(parsed.get("source_ids"), limit=50)
+            if source_id in allowed_ids
+        ],
+    }
+
+
+def _public_string_list(value: Any, *, limit: int) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip()[:240] for item in value[:limit] if str(item).strip()]
 
 
 # ---------------------------------------------------------------------------

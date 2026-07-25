@@ -62,6 +62,33 @@ class TestVerifiedSnapshot:
         close_rows = [ln for ln in snap.splitlines() if ln.startswith("| 2026-")]
         assert 0 < len(close_rows) <= 30
 
+    def test_tencent_88_field_contract_supplements_without_claiming_last_price(self, monkeypatch):
+        monkeypatch.setattr(validator, "load_ohlcv", lambda s, d, via_vendor=False: _sample_ohlcv())
+        fields = [""] * 48
+        fields[39] = "18.25"
+        fields[46] = "2.80"
+        fields[47] = "123.45"
+
+        snap = validator.build_verified_market_snapshot(
+            "600519", "2026-05-20", tencent_quote_fields=fields
+        )
+
+        assert "Supplemental Tencent 88-field ground truth" in snap
+        assert "| PE (TTM) | 39 | 18.25 |" in snap
+        assert "| PB | 46 | 2.80 |" in snap
+        assert "| Limit-up price | 47 | 123.45 |" in snap
+        assert "do not establish an exact current price" in snap
+
+    def test_tencent_contract_rejects_schema_drift_instead_of_zero_filling(self):
+        with pytest.raises(validator.TencentQuoteContractError, match="fewer fields"):
+            validator.parse_tencent_quote_ground_truth([""] * 47)
+
+    def test_tencent_contract_rejects_non_numeric_proven_fields(self):
+        fields = [""] * 48
+        fields[39] = "not-a-number"
+        with pytest.raises(validator.TencentQuoteContractError, match="not numeric"):
+            validator.parse_tencent_quote_ground_truth(fields)
+
 
 @pytest.mark.unit
 class TestTool:

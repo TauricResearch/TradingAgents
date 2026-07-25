@@ -66,6 +66,7 @@ class DataRequestObservation:
         vendor: str,
         *,
         fallback_chain: tuple[str, ...] | list[str] = (),
+        emit_started: bool = True,
     ) -> VendorAttemptRef:
         self._attempt_count += 1
         ref = VendorAttemptRef(
@@ -76,7 +77,7 @@ class DataRequestObservation:
             fallback_chain=tuple(fallback_chain),
         )
         self._attempt_ids.append(ref.vendor_call_id)
-        if self.active:
+        if self.active and emit_started:
             self._emit(
                 "data.progress",
                 ref,
@@ -152,7 +153,21 @@ class DataRequestObservation:
         )
         return artifact.artifact_id
 
-    def complete(self, normalized_value: Any, *, data_status: str = "success") -> CacheOrigin | None:
+    def skip(self, ref: VendorAttemptRef, *, reason: str) -> None:
+        """Record an intentional router skip without inventing a provider error."""
+        if not self.active:
+            return
+        self._emit(
+            "data.progress",
+            ref,
+            stage="skipped_cooldown",
+            data_status="skipped",
+            reason=reason,
+        )
+
+    def complete(
+        self, normalized_value: Any, *, data_status: str = "success"
+    ) -> CacheOrigin | None:
         if not self.active or self._cache_hit:
             return None
         normalized = self.observer.store_artifact(
@@ -170,9 +185,7 @@ class DataRequestObservation:
                 data_status=data_status,
                 duration_ms=_duration_ms(successful.ref.started_at),
                 raw_artifact_ids=list(successful.raw_artifact_ids),
-                raw_capture_status=(
-                    "captured" if successful.raw_artifact_ids else "unavailable"
-                ),
+                raw_capture_status=("captured" if successful.raw_artifact_ids else "unavailable"),
                 raw_metadata=list(successful.raw_metadata),
                 vendor_output_artifact_id=successful.vendor_output_artifact_id,
                 normalized_artifact_id=normalized.artifact_id,
@@ -338,6 +351,34 @@ def capture_direct_call(
     kwargs: Mapping[str, Any] | None = None,
     normalize: Callable[[Any], Any] | None = None,
 ) -> Any:
+    result, _origin = capture_direct_call_with_origin(
+        invocation_path=invocation_path,
+        method=method,
+        vendor=vendor,
+        function=function,
+        args=args,
+        kwargs=kwargs,
+        normalize=normalize,
+    )
+    return result
+
+
+def capture_direct_call_with_origin(
+    *,
+    invocation_path: str,
+    method: str,
+    vendor: str,
+    function: Callable[..., Any],
+    args: tuple[Any, ...] = (),
+    kwargs: Mapping[str, Any] | None = None,
+    normalize: Callable[[Any], Any] | None = None,
+) -> tuple[Any, CacheOrigin | None]:
+    """Run a direct provider call and return its durable artifact lineage.
+
+    ``capture_direct_call`` remains the compatibility wrapper for existing
+    callers.  Consumers that turn a provider response into durable domain
+    records (such as the Evidence Steward) can retain the source artifacts.
+    """
     call_kwargs = dict(kwargs or {})
     with direct_data_scope(invocation_path):
         request = begin_data_request(method, args, call_kwargs)
@@ -349,8 +390,8 @@ def capture_direct_call(
             request.fail(attempt, exc)
             raise
         request.succeed(attempt, result)
-        request.complete(normalize(result) if normalize is not None else result)
-        return result
+        origin = request.complete(normalize(result) if normalize is not None else result)
+        return result, origin
 
 
 def current_provenance_observer() -> Any | None:

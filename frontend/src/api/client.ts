@@ -13,6 +13,9 @@ import type {
   ApiErrorResponse,
   ArtifactMetadataDTO,
   ConfigResponseDTO,
+  MarketEventDTO,
+  MarketEventLayer2DTO,
+  MarketViewDTO,
   RunCreateRequestDTO,
   RunSnapshotDTO,
   RunSummaryDTO,
@@ -175,6 +178,32 @@ export function listArtifacts(
 ): Promise<ArtifactMetadataDTO[]> {
   assertRunId(run_id);
   return request<ArtifactMetadataDTO[]>("GET", API.artifacts(run_id));
+}
+
+/**
+ * GET the run's local chart projection.  The server only reads artifacts that
+ * were already captured by this run; it never issues a new market-data call.
+ * The sequence version gives browser caches a new immutable-ish key as the
+ * append-only event log grows.
+ */
+export function getMarketView(
+  run_id: string,
+  sequence?: number,
+): Promise<MarketViewDTO> {
+  assertRunId(run_id);
+  return request<MarketViewDTO>("GET", API.marketView(run_id, sequence));
+}
+
+/**
+ * Read an already-cached public Layer 2 conclusion for one marker.  The
+ * server intentionally does not invoke a data vendor or model on cache miss.
+ */
+export function getMarketEventLayer2(
+  run_id: string,
+  event: Pick<MarketEventDTO, "artifact_id" | "timestamp" | "title">,
+): Promise<MarketEventLayer2DTO> {
+  assertRunId(run_id);
+  return request<MarketEventLayer2DTO>("GET", API.marketEventLayer2(run_id, event));
 }
 
 /**

@@ -22,6 +22,7 @@ class Propagator:
         asset_type: str = "stock",
         past_context: str = "",
         instrument_context: str = "",
+        portfolio_context: dict[str, Any] | None = None,
         observation_context=None,
     ) -> dict[str, Any]:
         """Create the initial state for the agent graph.
@@ -36,6 +37,7 @@ class Propagator:
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
             "asset_type": asset_type,
+            "portfolio_context": portfolio_context,
             "instrument_context": instrument_context,
             "trade_date": str(trade_date),
             "past_context": past_context,
@@ -59,6 +61,7 @@ class Propagator:
                     "current_aggressive_response": "",
                     "current_conservative_response": "",
                     "current_neutral_response": "",
+                    "risk_signals": [],
                     "judge_decision": "",
                     "count": 0,
                 }
@@ -67,9 +70,16 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "methodology_reports": {},
             "canonical_company_profile": {},
             "evidence_status": "",
             "evidence_report": "",
+            "evidence_ledger": {},
+            "evidence_ledger_artifact_id": None,
+            "allowed_actions": [],
+            "clamp_events": [],
+            "feature_contributions": [],
+            "context_compaction_facts": [],
         }
         if observation_context is not None:
             from tradingagents.observability.graph_tasks import observe_initial_input

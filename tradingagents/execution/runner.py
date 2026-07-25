@@ -5,18 +5,23 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
+from tradingagents.dataflows.target_context import clear_target_ticker
 from tradingagents.execution.config_identity import prepare_effective_config
 from tradingagents.execution.models import (
-    ANALYST_WIRE_KEYS,
     AnalysisRequest,
     AnalysisResult,
     CancellationToken,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _serialize_portfolio_context(context: Any | None) -> dict[str, Any] | None:
+    """Keep typed request inputs serializable in LangGraph state and artifacts."""
+    return asdict(context) if context is not None else None
 
 
 def get_checkpointer(*args, **kwargs):
@@ -204,6 +209,10 @@ class AnalysisRunner:
         except BaseException:
             self._close_checkpoint(preserve_active_error=True)
             raise
+        finally:
+            # Clear the target-ticker contextvar set in resolve_instrument_context
+            # so it does not leak into a subsequent run on the same thread.
+            clear_target_ticker()
         self._close_checkpoint()
         return result
 
@@ -266,7 +275,14 @@ class AnalysisRunner:
             ticker=request.ticker,
             trade_date=request.analysis_date,
             final_trade_decision=final_state["final_trade_decision"],
+            context_facts=final_state.get("context_compaction_facts", ()),
         )
+        observer = getattr(observation_context, "observer", None)
+        record_cycle = getattr(observer, "record_cycle", None)
+        if callable(record_cycle):
+            record_cycle(
+                public_context_fact_count=len(final_state.get("context_compaction_facts", ())),
+            )
 
         if owner.config.get("checkpoint_enabled"):
             clear_checkpoint(
@@ -312,6 +328,8 @@ class AnalysisRunner:
             "past_context": initial_context.values["past_context"],
             "instrument_context": initial_context.values["instrument_context"],
         }
+        if request.portfolio is not None:
+            initial_kwargs["portfolio_context"] = _serialize_portfolio_context(request.portfolio)
         if observation_context is not None:
             initial_kwargs["observation_context"] = observation_context
         initial_state = owner.propagator.create_initial_state(
@@ -319,6 +337,13 @@ class AnalysisRunner:
             request.analysis_date,
             **initial_kwargs,
         )
+        if request.feature_contribution_artifact is not None:
+            # The only supported injection route is a typed, versioned
+            # calculator artifact.  Do not calculate z-scores from agent text.
+            initial_state = dict(initial_state)
+            initial_state["feature_contributions"] = (
+                request.feature_contribution_artifact.to_state()
+            )
         return PreparedAnalysis(
             initial_state=initial_state,
             initial_context=initial_context,
@@ -831,16 +856,6 @@ class AnalysisRunner:
             if not request_config or request_config != owner_config:
                 raise ValueError(
                     "analysis request config does not match the configured graph"
-                )
-        if checkpoint_run_id is not None:
-            canonical_order = tuple(
-                analyst
-                for analyst in ANALYST_WIRE_KEYS
-                if analyst in request.selected_analysts
-            )
-            if tuple(request.selected_analysts) != canonical_order:
-                raise ValueError(
-                    "checkpointed web analysts must use canonical registry order"
                 )
         if tuple(request.selected_analysts) != tuple(owner.selected_analysts):
             raise ValueError("analysis request analysts do not match the compiled graph")

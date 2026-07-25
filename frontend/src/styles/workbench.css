@@ -169,6 +169,432 @@ div.inspector {
 }
 
 /* ==========================================================================
+   Main — live swarm status
+   ========================================================================== */
+
+.swarm-status {
+  margin-top: 14px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.swarm-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.swarm-status h3 {
+  margin: 4px 0 0;
+  font: 600 16px var(--font-serif);
+  color: var(--text);
+}
+.swarm-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--red);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+.swarm-error .eyebrow {
+  color: var(--red);
+}
+.swarm-error-category {
+  margin-top: 4px;
+  font: 600 13px var(--font-sans);
+  color: var(--red);
+}
+.swarm-error-message {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.swarm-progress-ring {
+  --swarm-progress: 0deg;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--swarm-progress), var(--panel-2) 0);
+  box-shadow: inset 0 0 0 6px var(--panel);
+  transition: background 0.35s ease;
+}
+
+.swarm-progress-ring strong,
+.swarm-progress-ring span {
+  display: block;
+  line-height: 1.05;
+}
+
+.swarm-progress-ring strong {
+  color: var(--text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.swarm-progress-ring span {
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 9px;
+}
+
+.swarm-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.swarm-metrics div {
+  min-width: 0;
+}
+
+.swarm-metrics span,
+.swarm-current,
+.source-alignment-empty {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.swarm-metrics strong {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.swarm-workers {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.swarm-workers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.swarm-workers-table th,
+.swarm-workers-table td {
+  padding: 5px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swarm-workers-table thead th {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.swarm-workers-table tbody th {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.swarm-workers-table .worker-status-running td,
+.swarm-workers-table .worker-status-running th {
+  color: var(--text);
+}
+
+.swarm-workers-table .worker-status-completed td,
+.swarm-workers-table .worker-status-completed th {
+  color: var(--muted);
+}
+
+.swarm-workers-table .worker-status-failed td,
+.swarm-workers-table .worker-status-failed th {
+  color: var(--red);
+}
+
+.swarm-workers-table .worker-status-not_reached td,
+.swarm-workers-table .worker-status-not_reached th {
+  color: var(--faint);
+}
+
+.swarm-current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.swarm-current span + span::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--line-2);
+}
+
+.live-pulse,
+.tool-progress-dot,
+.source-status {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.live-pulse {
+  background: var(--green);
+  animation: swarm-pulse 1.6s ease-in-out infinite;
+}
+
+.tool-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tool-progress-active {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.tool-progress-active .tool-progress-dot {
+  background: var(--amber);
+  animation: swarm-pulse 1.1s ease-in-out infinite;
+}
+
+.tool-progress-name {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-progress-stage {
+  margin-left: auto;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.source-alignment {
+  margin-top: 13px;
+}
+
+.source-alignment .eyebrow {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.source-alignment ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source-alignment li {
+  display: grid;
+  grid-template-columns: 6px minmax(48px, auto) minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.source-alignment li > span:not(.source-status) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-alignment strong {
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.source-status-progress { background: var(--amber); }
+.source-status-completed { background: var(--green); }
+.source-status-failed { background: var(--red); }
+.source-status-interrupted { background: var(--faint); }
+
+@keyframes swarm-pulse {
+  50% { opacity: 0.38; }
+}
+
+/* ==========================================================================
+   Main — captured market data (not a live price feed)
+   ========================================================================== */
+
+.market-chart {
+  margin-top: 18px;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 68%, transparent);
+}
+
+.market-chart-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.market-chart h3 {
+  margin: 4px 0 0;
+  color: var(--text);
+  font: 600 16px var(--font-serif);
+}
+
+.market-chart-source {
+  color: var(--faint);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.market-chart-empty {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.market-canvas-shell {
+  position: relative;
+  width: 100%;
+  margin-top: 8px;
+  aspect-ratio: 760 / 310;
+}
+
+.market-chart-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.market-event-hit-target {
+  position: absolute;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  margin: -10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.market-event-hit-target:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.market-attribution,
+.market-tooltip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.market-attribution strong { color: var(--text); }
+.sentiment-bull { color: var(--green); }
+.sentiment-bear { color: var(--red); }
+
+.market-reset {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.market-reset:hover { color: var(--accent-strong); text-decoration: underline; }
+
+.market-tooltip {
+  min-height: 18px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.market-tooltip strong {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--text);
+  font-family: var(--font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.market-layer2 {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.market-layer2-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--text);
+}
+
+.market-layer2-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.market-layer2-conclusion p { margin: 0; }
+.market-layer2-conclusion p + p { margin-top: 4px; }
+.market-layer2-conclusion p span { color: var(--faint); }
+
+/* ==========================================================================
    Sidebar — controls (form fields, buttons)
    ========================================================================== */
 

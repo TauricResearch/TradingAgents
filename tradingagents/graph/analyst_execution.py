@@ -2,10 +2,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from time import monotonic
 
+from tradingagents.analysts import ANALYST_BY_KEY, ANALYST_CONFIG, AnalystDefinition
+
 
 @dataclass(frozen=True)
 class AnalystNodeSpec:
     key: str
+    factory_key: str
     agent_node: str
     clear_node: str
     tool_node: str
@@ -17,39 +20,21 @@ class AnalystExecutionPlan:
     specs: list[AnalystNodeSpec]
 
 
+def _to_node_spec(definition: AnalystDefinition) -> AnalystNodeSpec:
+    return AnalystNodeSpec(
+        key=definition.key,
+        factory_key=definition.factory_key,
+        agent_node=definition.node_id,
+        clear_node=definition.clear_node_id,
+        tool_node=definition.tool_node_id,
+        report_key=definition.report_key,
+    )
+
+
+# Kept as a mapping for existing consumers.  It is mechanically derived from
+# ANALYST_CONFIG rather than a second handwritten role registry.
 ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
-    "market": AnalystNodeSpec(
-        key="market",
-        agent_node="Market Analyst",
-        clear_node="Msg Clear Market",
-        tool_node="tools_market",
-        report_key="market_report",
-    ),
-    "social": AnalystNodeSpec(
-        # Wire key stays "social" for saved-config back-compat; the
-        # user-facing label is "Sentiment Analyst" to match the rename
-        # that landed in v0.2.5 (sentiment_analyst now ingests news +
-        # StockTwits + Reddit, not just social media).
-        key="social",
-        agent_node="Sentiment Analyst",
-        clear_node="Msg Clear Sentiment",
-        tool_node="tools_social",
-        report_key="sentiment_report",
-    ),
-    "news": AnalystNodeSpec(
-        key="news",
-        agent_node="News Analyst",
-        clear_node="Msg Clear News",
-        tool_node="tools_news",
-        report_key="news_report",
-    ),
-    "fundamentals": AnalystNodeSpec(
-        key="fundamentals",
-        agent_node="Fundamentals Analyst",
-        clear_node="Msg Clear Fundamentals",
-        tool_node="tools_fundamentals",
-        report_key="fundamentals_report",
-    ),
+    definition.key: _to_node_spec(definition) for definition in ANALYST_CONFIG
 }
 
 
@@ -58,9 +43,10 @@ def build_analyst_execution_plan(
 ) -> AnalystExecutionPlan:
     specs: list[AnalystNodeSpec] = []
     for analyst_key in selected_analysts:
-        spec = ANALYST_NODE_SPECS.get(analyst_key)
-        if spec is None:
+        definition = ANALYST_BY_KEY.get(analyst_key)
+        if definition is None:
             raise ValueError(f"unknown analyst key: {analyst_key}")
+        spec = ANALYST_NODE_SPECS[definition.key]
         specs.append(spec)
 
     if not specs:

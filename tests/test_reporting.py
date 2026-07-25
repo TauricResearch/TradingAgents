@@ -34,6 +34,26 @@ def test_write_report_tree_creates_files(tmp_path):
 
 
 @pytest.mark.unit
+def test_write_report_tree_persists_public_risk_signals_without_private_reasoning(tmp_path):
+    state = _state()
+    state["risk_debate_state"]["risk_signals"] = [
+        {
+            "role": "neutral",
+            "conviction": None,
+            "confidence": 0.0,
+            "abstain": True,
+            "evidence_summary": "Insufficient independently validated evidence.",
+        }
+    ]
+
+    write_report_tree(state, "AAPL", tmp_path)
+
+    signals = (tmp_path / "4_risk/public_signals.json").read_text(encoding="utf-8")
+    assert "Insufficient independently validated evidence." in signals
+    assert "private" not in signals.lower()
+
+
+@pytest.mark.unit
 def test_save_reports_explicit_path(tmp_path):
     # Unbound: with an explicit save_path, the method doesn't touch self/config.
     out = TradingAgentsGraph.save_reports(None, _state(), "AAPL", save_path=tmp_path)

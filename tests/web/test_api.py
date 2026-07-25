@@ -189,9 +189,21 @@ def test_config_uses_runtime_catalog_and_exposes_status_not_secret(
         "news",
         "fundamentals",
     }
+    market = next(item for item in payload["analysts"] if item["id"] == "market")
+    assert market == {
+        "id": "market",
+        "display_name": "Market Analyst",
+        "description": "Reads price action, technical indicators, and market structure.",
+        "investing_style": "technical and market-structure",
+        "order": 10,
+    }
     assert payload["depths"] == [1, 3, 5]
     assert "English" in payload["output_languages"]
     assert "Chinese" in payload["output_languages"]
+    assert {preset["id"] for preset in payload["presets"]} >= {
+        "full-research",
+        "market-news",
+    }
     assert isinstance(payload["checkpoint_available"], bool)
     assert secret not in response.text
     assert not any(value == os.environ["OPENAI_API_KEY"] for value in _all_strings(payload))
@@ -297,6 +309,77 @@ def test_create_validates_and_translates_only_safe_input_before_start(api):
     assert "api_key" not in str(request.effective_config).lower()
     created = store.read_snapshot(response.json()["run_id"])
     assert response.json() == jsonable_encoder(created)
+
+
+def test_create_preserves_requested_analyst_order(api):
+    client, _store, manager = api
+
+    response = client.post(
+        "/api/runs",
+        json={**VALID_RUN_BODY, "selected_analysts": ["fundamentals", "market"]},
+    )
+
+    assert response.status_code == 201
+    request, _configured_keys = manager.calls[0][1]
+    assert request.selected_analysts == ("fundamentals", "market")
+
+
+def test_create_normalizes_portfolio_symbols_before_manager(api):
+    client, _store, manager = api
+    body = {
+        **VALID_RUN_BODY,
+        "ticker": "600519",
+        "portfolio": {
+            "cash": 100_000,
+            "positions": [
+                {
+                    "ticker": "600519",
+                    "quantity": 200,
+                    "average_cost": 1450,
+                    "sellable_quantity": 100,
+                }
+            ],
+            "mark_prices": {"600519": 1500},
+            "currency": "CNY",
+            "limits": {
+                "max_position_weight": 0.2,
+                "lot_size": 100,
+                "fee_rate": 0.0005,
+                "minimum_fee": 5,
+                "allow_short": False,
+            },
+        },
+    }
+
+    response = client.post("/api/runs", json=body)
+
+    assert response.status_code == 201
+    request, _configured_keys = manager.calls[0][1]
+    assert request.ticker == "600519.SS"
+    assert request.portfolio is not None
+    assert request.portfolio.positions[0].ticker == "600519.SS"
+    assert request.portfolio.mark_prices == {"600519.SS": 1500}
+
+
+def test_create_rejects_portfolio_with_duplicate_normalized_positions(api):
+    client, _store, manager = api
+    body = {
+        **VALID_RUN_BODY,
+        "portfolio": {
+            "cash": 100_000,
+            "positions": [
+                {"ticker": "600519", "quantity": 100, "average_cost": 1500},
+                {"ticker": "600519.SH", "quantity": 100, "average_cost": 1500},
+            ],
+            "mark_prices": {"600519": 1500},
+        },
+    }
+
+    response = client.post("/api/runs", json=body)
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_portfolio"
+    assert manager.calls == []
 
 
 def test_create_rejects_missing_provider_key_before_manager(tmp_path: Path):

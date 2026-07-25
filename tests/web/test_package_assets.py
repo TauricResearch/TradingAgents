@@ -13,7 +13,6 @@ from importlib.resources import files
 
 import pytest
 
-
 pytestmark = pytest.mark.unit
 
 STATIC_DIR = files("tradingagents.web").joinpath("static")

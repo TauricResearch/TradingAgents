@@ -6,6 +6,7 @@ CLI and ``TradingAgentsGraph.save_reports`` both call this, so a headless / API
 run produces the same on-disk report tree a CLI run does.
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -84,6 +85,16 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             risk_dir.mkdir(exist_ok=True)
             (risk_dir / "neutral.md").write_text(risk["neutral_history"], encoding="utf-8")
             risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
+        risk_signals = risk.get("risk_signals")
+        if isinstance(risk_signals, list):
+            risk_dir.mkdir(exist_ok=True)
+            (risk_dir / "public_signals.json").write_text(
+                json.dumps(risk_signals, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            risk_parts.append(("Public Risk Signals", "```json\n" + json.dumps(
+                risk_signals, ensure_ascii=False, indent=2
+            ) + "\n```"))
         if risk_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
             sections.append(f"## IV. Risk Management Team Decision\n\n{content}")

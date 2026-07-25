@@ -157,6 +157,35 @@ function sampleSequence(): PersistedEventDTO[] {
 }
 
 describe("F2 runReducer", () => {
+  it("uses the input event type for inspector capture categories", () => {
+    let state = createInitialState();
+    state = runReducer(state, {
+      type: "event",
+      event: ev(1, "input.state_snapshot", {
+        artifact_id: "state-artifact-1",
+        turn_id: "turn-market-1",
+        capture_kind: "node_entry",
+        content: { ticker: "AAPL" },
+      }),
+    });
+    state = runReducer(state, {
+      type: "event",
+      event: ev(2, "input.config_snapshot", {
+        artifact_id: "config-artifact-1",
+        turn_id: "turn-market-1",
+        capture_kind: "evidence_config",
+        content: { depth: 1 },
+      }),
+    });
+
+    expect(state.artifacts["state-artifact-1"].input_capture_kinds).toEqual([
+      "state_snapshot",
+    ]);
+    expect(state.artifacts["config-artifact-1"].input_capture_kinds).toEqual([
+      "config_snapshot",
+    ]);
+  });
+
   it("batch replay and one-by-one live reduction yield deep-equal state", () => {
     const events = sampleSequence();
     // Batch: fold all events from the initial snapshot-seeded state at once.

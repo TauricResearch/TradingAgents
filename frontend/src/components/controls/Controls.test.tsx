@@ -72,6 +72,18 @@ function makeConfig(): ConfigResponseDTO {
       { id: "news" },
       { id: "fundamentals" },
     ],
+    presets: [
+      {
+        id: "full-research",
+        label: "全维度研究",
+        analysts: ["market", "social", "news", "fundamentals"],
+      },
+      {
+        id: "news-first",
+        label: "新闻优先",
+        analysts: ["news", "market"],
+      },
+    ],
     depths: [1, 3, 5],
     output_languages: ["English", "Chinese"],
     checkpoint_available: true,
@@ -197,6 +209,27 @@ describe("Controls", () => {
     expect(quickSelect.options[0].value).toBe("gpt-4o");
   });
 
+  it("applies a YAML preset's analyst enablement and order to the request", async () => {
+    mockClient.getConfig.mockResolvedValue(makeConfig());
+    mockClient.createRun.mockResolvedValue(makeSnapshot());
+    render(<Controls />);
+
+    await waitForConfig();
+    fireEvent.change(screen.getByLabelText("股票代码"), {
+      target: { value: "600519" },
+    });
+    fireEvent.change(screen.getByLabelText("研究预设"), {
+      target: { value: "news-first" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /开始分析/ }));
+
+    await waitFor(() => expect(mockClient.createRun).toHaveBeenCalledTimes(1));
+    expect(mockClient.createRun.mock.calls[0][0].selected_analysts).toEqual([
+      "news",
+      "market",
+    ]);
+  });
+
   it("disables start when the selected provider is not configured", async () => {
     const cfg = makeConfig();
     cfg.defaults.llm_provider = "openai";
@@ -286,6 +319,57 @@ describe("Controls", () => {
 
     await waitFor(() => {
       expect(mockStore.selectRun).toHaveBeenCalledWith("run_x");
+    });
+  });
+
+  it("sends a validated current-ticker portfolio constraint when enabled", async () => {
+    mockClient.getConfig.mockResolvedValue(makeConfig());
+    mockClient.createRun.mockResolvedValue(makeSnapshot());
+    render(<Controls />);
+
+    await waitForConfig();
+    fireEvent.change(screen.getByLabelText("股票代码"), {
+      target: { value: "600519" },
+    });
+    fireEvent.click(screen.getByLabelText("启用当前标的的组合约束"));
+    fireEvent.change(screen.getByLabelText("可用现金（CNY）"), {
+      target: { value: "100000" },
+    });
+    fireEvent.change(screen.getByLabelText("参考价格"), {
+      target: { value: "1500" },
+    });
+    fireEvent.change(screen.getByLabelText("持仓数量"), {
+      target: { value: "200" },
+    });
+    fireEvent.change(screen.getByLabelText("可卖数量"), {
+      target: { value: "100" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /开始分析/ })).not.toBeDisabled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /开始分析/ }));
+
+    await waitFor(() => expect(mockClient.createRun).toHaveBeenCalledTimes(1));
+    expect(mockClient.createRun.mock.calls[0][0].portfolio).toEqual({
+      cash: 100000,
+      positions: [
+        {
+          ticker: "600519",
+          quantity: 200,
+          average_cost: 1500,
+          sellable_quantity: 100,
+        },
+      ],
+      mark_prices: { "600519": 1500 },
+      currency: "CNY",
+      limits: {
+        max_position_weight: 0.1,
+        lot_size: 100,
+        fee_rate: 0.0005,
+        minimum_fee: 0,
+        allow_short: false,
+      },
     });
   });
 });

@@ -32,8 +32,14 @@ class TradingMemoryLog:
         ticker: str,
         trade_date: str,
         final_trade_decision: str,
+        context_facts: list[str] | tuple[str, ...] = (),
     ) -> None:
-        """Append pending entry at end of propagate(). No LLM call."""
+        """Append pending entry at end of propagate(). No LLM call.
+
+        ``context_facts`` is an optional, public-only compaction hand-off. It
+        contains attributable facts/caveats extracted from earlier debate
+        turns, never private model reasoning or raw tool payloads.
+        """
         if not self._log_path:
             return
         # Idempotency guard: fast raw-text scan instead of full parse
@@ -44,7 +50,8 @@ class TradingMemoryLog:
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+        facts = _render_context_facts(context_facts)
+        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{facts}{self._SEPARATOR}"
         with open(self._log_path, "a", encoding="utf-8") as f:
             f.write(entry)
 
@@ -297,3 +304,19 @@ class TradingMemoryLog:
         text = e["decision"][:300]
         suffix = "..." if len(e["decision"]) > 300 else ""
         return f"{tag}\n{text}{suffix}"
+
+
+def _render_context_facts(context_facts: list[str] | tuple[str, ...]) -> str:
+    """Format only bounded, non-empty public facts for durable recall."""
+    cleaned: list[str] = []
+    for fact in context_facts:
+        if not isinstance(fact, str):
+            continue
+        normalized = " ".join(fact.split())
+        if normalized and normalized not in cleaned:
+            cleaned.append(normalized[:320])
+    if not cleaned:
+        return ""
+    return "\n\nCONTEXT FACTS (public debate summary):\n" + "\n".join(
+        f"- {fact}" for fact in cleaned[:12]
+    )

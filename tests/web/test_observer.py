@@ -282,12 +282,11 @@ def test_direct_call_scope_uses_the_existing_role_turn(tmp_path):
         ref,
         graph_task_id="task-evidence",
         graph_step=4,
-    ):
-        with observer.direct_call_scope("fundamentals.get_balance_sheet") as context:
-            assert context.turn_id == ref.turn_id
-            assert context.graph_task_id == "task-evidence"
-            assert context.invocation_path == "direct:fundamentals.get_balance_sheet"
-            assert current_observation_context(required=True).actor_id == "evidence.steward"
+    ), observer.direct_call_scope("fundamentals.get_balance_sheet") as context:
+        assert context.turn_id == ref.turn_id
+        assert context.graph_task_id == "task-evidence"
+        assert context.invocation_path == "direct:fundamentals.get_balance_sheet"
+        assert current_observation_context(required=True).actor_id == "evidence.steward"
     assert current_observation_context() is None
 
 

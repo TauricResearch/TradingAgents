@@ -20,6 +20,7 @@ from tradingagents.observability.canonical import (
     canonical_sha256,
 )
 from tradingagents.observability.events import EVENT_SCHEMA_VERSION
+from tradingagents.portfolio import PortfolioContext, Position
 from tradingagents.web.fingerprint import (
     CheckpointIncompatible,
     DependencyClosureManifest,
@@ -106,6 +107,7 @@ def _request(
     ticker: str = " aapl ",
     selected_analysts: tuple[str, ...] = ("news", "market"),
     effective_config: dict[str, Any] | None = None,
+    portfolio: Any = None,
 ) -> AnalysisRequest:
     return AnalysisRequest(
         ticker=ticker,
@@ -120,6 +122,7 @@ def _request(
             "max_tokens": 2048,
             "backend_url": "https://api.example.com/v1?trace=discarded",
         },
+        portfolio=portfolio,
     )
 
 
@@ -451,10 +454,11 @@ def test_resume_fingerprint_document_has_the_exact_approved_top_level_shape():
             "ticker": "AAPL",
             "analysis_date": "2026-07-18",
             "asset_type": "stock",
-            "selected_analysts": ["market", "news"],
-            "max_debate_rounds": 2,
-            "max_risk_discuss_rounds": 3,
-        },
+            "selected_analysts": ["news", "market"],
+                "max_debate_rounds": 2,
+                "max_risk_discuss_rounds": 3,
+                "portfolio": None,
+            },
         "effective_config": {
             "backend_url": {
                 "scheme": "https",
@@ -528,6 +532,40 @@ def test_request_initial_context_and_state_schema_mutations_are_incompatible():
     )
     assert compare_resume_fingerprints(original, changed_schema).mismatch_categories == (
         "observation_schema",
+    )
+
+
+def test_portfolio_constraint_mutation_is_incompatible_with_resume():
+    original = _build(
+        _request(
+            portfolio=PortfolioContext(
+                cash=100_000,
+                positions=(Position("AAPL", 10, 100),),
+                mark_prices={"AAPL": 120},
+            )
+        )
+    )
+    changed = _build(
+        _request(
+            portfolio=PortfolioContext(
+                cash=100_000,
+                positions=(Position("AAPL", 10, 100),),
+                mark_prices={"AAPL": 121},
+            )
+        )
+    )
+
+    assert compare_resume_fingerprints(original, changed).mismatch_categories == (
+        "request",
+    )
+
+
+def test_analyst_order_mutation_is_incompatible_with_resume():
+    original = _build(_request(selected_analysts=("news", "market")))
+    changed = _build(_request(selected_analysts=("market", "news")))
+
+    assert compare_resume_fingerprints(original, changed).mismatch_categories == (
+        "request",
     )
 
 

@@ -9,7 +9,6 @@ from typing import Any
 
 from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV
 
-
 REDACTED_VALUE = "[REDACTED]"
 EXACT_CREDENTIAL_LEAVES = frozenset(
     {

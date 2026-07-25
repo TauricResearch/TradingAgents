@@ -2,6 +2,12 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.evaluation.source_alignment import render_source_alignment_summary
+from tradingagents.skills import (
+    build_role_skill_prompt,
+    build_skill_trigger_context,
+    emit_methodology_artifact,
+)
 
 
 def create_bull_researcher(llm):
@@ -23,6 +29,22 @@ def create_bull_researcher(llm):
             if asset_type == "stock"
             else "Asset fundamentals report (may be unavailable for crypto)"
         )
+        skill_trigger_text = build_skill_trigger_context(
+            market_research_report,
+            sentiment_report,
+            news_report,
+            fundamentals_report,
+            history,
+            current_response,
+        )
+        emit_methodology_artifact("bull_researcher", trigger_text=skill_trigger_text)
+
+        alignment_summary = render_source_alignment_summary(state.get("evidence_ledger"))
+        alignment_line = (
+            f"Evidence source alignment: {alignment_summary}\n"
+            if alignment_summary is not None
+            else ""
+        )
 
         prompt = f"""You are a Bull Analyst advocating for investing in the {target_label}. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
@@ -35,14 +57,16 @@ Key points to focus on:
 
 Resources available:
 {instrument_context}
-Market research report: {market_research_report}
+{alignment_line}Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
-""" + get_language_instruction()
+""" + get_language_instruction() + build_role_skill_prompt(
+            "bull_researcher", trigger_text=skill_trigger_text
+        )
 
         response = llm.invoke(prompt)
 

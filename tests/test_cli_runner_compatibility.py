@@ -14,7 +14,6 @@ from cli.models import AnalystType
 from cli.run_observer import CliRunObserver
 from tradingagents.execution.models import AnalysisResult
 
-
 pytestmark = pytest.mark.unit
 
 

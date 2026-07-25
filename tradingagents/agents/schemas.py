@@ -21,7 +21,16 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from tradingagents.portfolio import ConvictionSignal, aggregate_risk_convictions
+from tradingagents.research import StrategySignal, aggregate_strategy_signals
+from tradingagents.research.delegation import (
+    ResearchDelegationRequest,
+    ResearchDelegationResult,
+    render_delegation_results,
+)
+from tradingagents.skills.artifacts import SentimentRealityGapArtifact
 
 # LLMs sometimes write a placeholder string ("None", "N/A", ...) into an optional
 # numeric field instead of omitting it. Coerce those to None so the structured
@@ -70,6 +79,28 @@ class TraderAction(str, Enum):
 # ---------------------------------------------------------------------------
 
 
+class ResearchDelegationTask(BaseModel):
+    """A bounded, public subquestion the manager may delegate once.
+
+    The executor, rather than the model, decides which named tools actually
+    exist.  This schema deliberately has no prompt, trace, or hidden-reasoning
+    field, so saved plans cannot become a private chain-of-thought store.
+    """
+
+    request_id: str = Field(min_length=1, max_length=80)
+    subquestion: str = Field(min_length=1, max_length=600)
+    tool_name: str = Field(min_length=1, max_length=80)
+    arguments: dict[str, object] = Field(default_factory=dict)
+
+    def to_domain(self) -> ResearchDelegationRequest:
+        return ResearchDelegationRequest(
+            request_id=self.request_id,
+            subquestion=self.subquestion,
+            tool_name=self.tool_name,
+            arguments=self.arguments,
+        )
+
+
 class ResearchPlan(BaseModel):
     """Structured investment plan produced by the Research Manager.
 
@@ -100,17 +131,83 @@ class ResearchPlan(BaseModel):
             "including position sizing guidance consistent with the rating."
         ),
     )
+    strategy_signals: list[ResearchStrategySignal] = Field(
+        default_factory=list,
+        description=(
+            "One independent signal for each applicable lens among market, "
+            "fundamentals, news, and sentiment. conviction is in [-1, +1]; "
+            "set abstain=true when that lens lacks sufficient evidence. Do not "
+            "use zero to mean no opinion."
+        ),
+    )
+    delegation_tasks: list[ResearchDelegationTask] = Field(
+        default_factory=list,
+        max_length=3,
+        description=(
+            "At most three independent, read-only evidence lookups. Each uses only a "
+            "tool name supplied in the prompt. Do not ask a delegated task to delegate. "
+            "Write only the concrete subquestion and JSON-safe lookup arguments; do not "
+            "include hidden reasoning, prompts, or tool traces."
+        ),
+    )
 
 
-def render_research_plan(plan: ResearchPlan) -> str:
+class ResearchStrategySignal(BaseModel):
+    """A model-described input to the deterministic StrategyEngine."""
+
+    strategy_id: Literal["market", "fundamentals", "news", "sentiment"]
+    conviction: float | None = Field(default=None, ge=-1.0, le=1.0)
+    confidence: float = Field(ge=0.0, le=1.0)
+    abstain: bool = False
+    rationale: str = Field(
+        default="",
+        description="A short public evidence summary; never private model reasoning.",
+    )
+
+    @model_validator(mode="after")
+    def _require_explicit_abstain_semantics(self):
+        if self.abstain and self.conviction is not None:
+            raise ValueError("an abstaining strategy must not supply conviction")
+        if not self.abstain and self.conviction is None:
+            raise ValueError("a non-abstaining strategy must supply conviction")
+        return self
+
+    def to_domain(self) -> StrategySignal:
+        return StrategySignal(
+            strategy_id=self.strategy_id,
+            conviction=None if self.abstain else self.conviction,
+            confidence=self.confidence,
+            rationale=self.rationale,
+        )
+
+
+def render_research_plan(
+    plan: ResearchPlan,
+    delegated_results: tuple[ResearchDelegationResult, ...] = (),
+) -> str:
     """Render a ResearchPlan to markdown for storage and the trader's prompt context."""
-    return "\n".join([
+    parts = [
         f"**Recommendation**: {plan.recommendation.value}",
         "",
         f"**Rationale**: {plan.rationale}",
         "",
         f"**Strategic Actions**: {plan.strategic_actions}",
-    ])
+    ]
+    if plan.strategy_signals:
+        consensus = aggregate_strategy_signals(
+            [signal.to_domain() for signal in plan.strategy_signals]
+        )
+        conviction = "abstain" if consensus.conviction is None else f"{consensus.conviction:+.2f}"
+        parts.extend([
+            "",
+            "**Strategy Consensus**: "
+            f"{consensus.consensus_level}; conviction {conviction}; "
+            f"{consensus.disagreement}; conflicts={consensus.conflict_count}",
+        ])
+    delegated = render_delegation_results(delegated_results)
+    if delegated:
+        parts.extend(["", delegated])
+    return "\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -221,6 +318,37 @@ class PortfolioDecision(BaseModel):
         default=None,
         description="Optional recommended holding period, e.g. '3-6 months'.",
     )
+    execution_action: TraderAction | None = Field(
+        default=None,
+        description=(
+            "When deterministic portfolio constraints are supplied, request one "
+            "of Buy / Hold / Sell. It will be clamped after the model call."
+        ),
+    )
+    requested_quantity: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "When deterministic portfolio constraints are supplied, request a "
+            "non-negative whole-unit quantity. It will be clamped after the model call."
+        ),
+    )
+    risk_signals: list[RiskDebateSignal] = Field(
+        default_factory=list,
+        description=(
+            "Deprecated compatibility field. In the graph execution path the Portfolio "
+            "Manager ignores this value and consumes only independently emitted risk "
+            "signals from risk_debate_state; callers outside the graph may still render it."
+        ),
+    )
+    top_drivers: list[DecisionDriver] = Field(
+        default_factory=list,
+        max_length=5,
+        description=(
+            "At most five evidence-backed drivers. Importance must be a measured or "
+            "explicitly supplied score, not a fabricated causal claim."
+        ),
+    )
 
     @field_validator("price_target", mode="before")
     @classmethod
@@ -228,7 +356,51 @@ class PortfolioDecision(BaseModel):
         return _coerce_optional_float(v)
 
 
-def render_pm_decision(decision: PortfolioDecision) -> str:
+class RiskDebateSignal(BaseModel):
+    role: Literal["aggressive", "conservative", "neutral"]
+    conviction: float | None = Field(default=None, ge=-1.0, le=1.0)
+    confidence: float = Field(ge=0.0, le=1.0)
+    abstain: bool = False
+    evidence_summary: str = Field(
+        default="",
+        description="Short public evidence summary, not a reasoning trace.",
+    )
+
+    @model_validator(mode="after")
+    def _require_abstain_semantics(self):
+        if self.abstain and self.conviction is not None:
+            raise ValueError("an abstaining risk role must not supply conviction")
+        if not self.abstain and self.conviction is None:
+            raise ValueError("a non-abstaining risk role must supply conviction")
+        return self
+
+    def to_domain(self) -> ConvictionSignal:
+        return ConvictionSignal(
+            role=self.role,
+            conviction=None if self.abstain else self.conviction,
+            confidence=self.confidence,
+            evidence_summary=self.evidence_summary,
+        )
+
+
+class DecisionDriver(BaseModel):
+    """A citation-backed input driver; not an inferred causal attribution."""
+
+    label: str = Field(min_length=1, max_length=160)
+    importance: float = Field(ge=0.0, le=1.0)
+    evidence_ref: str = Field(
+        min_length=1,
+        max_length=320,
+        description="Source URI, artifact ID, or report section supporting this driver.",
+    )
+    direction: Literal["positive", "negative", "risk"]
+
+
+def render_pm_decision(
+    decision: PortfolioDecision,
+    *,
+    risk_signals: list[RiskDebateSignal] | None = None,
+) -> str:
     """Render a PortfolioDecision back to the markdown shape the rest of the system expects.
 
     Memory log, CLI display, and saved report files all read this markdown,
@@ -247,6 +419,28 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
         parts.extend(["", f"**Price Target**: {decision.price_target}"])
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
+    if decision.execution_action is not None:
+        quantity = decision.requested_quantity or 0
+        parts.extend(["", f"**Requested Execution**: {decision.execution_action.value} {quantity}"])
+    effective_risk_signals = decision.risk_signals if risk_signals is None else risk_signals
+    if effective_risk_signals:
+        aggregate = aggregate_risk_convictions(
+            [signal.to_domain() for signal in effective_risk_signals]
+        )
+        conviction = "abstain" if aggregate.conviction is None else f"{aggregate.conviction:+.2f}"
+        parts.extend([
+            "",
+            "**Risk Conviction Aggregate**: "
+            f"{conviction}; disagreement={aggregate.disagreement}; "
+            f"abstained={','.join(aggregate.abstained_roles) or 'none'}",
+        ])
+    if decision.top_drivers:
+        parts.extend(["", "**Top Evidence-backed Drivers**:"])
+        parts.extend(
+            f"- {driver.direction}: {driver.label} "
+            f"(importance={driver.importance:.2f}; evidence={driver.evidence_ref})"
+            for driver in decision.top_drivers
+        )
     return "\n".join(parts)
 
 
@@ -323,6 +517,15 @@ class SentimentReport(BaseModel):
             "with concrete evidence so every point adds new signal for the trader."
         ),
     )
+    reality_gap: SentimentRealityGapArtifact | None = Field(
+        default=None,
+        description=(
+            "Optional public sentiment-versus-operating-fact scorecard. Include only "
+            "sourced narrative, an explicit reality check, a divergence classification, "
+            "and a future resolution trigger. Never include hidden reasoning, prompts, "
+            "or tool traces; leave it null when operating facts are unavailable."
+        ),
+    )
 
 
 def render_sentiment_report(report: SentimentReport) -> str:
@@ -338,4 +541,18 @@ def render_sentiment_report(report: SentimentReport) -> str:
         f"**Confidence:** {report.confidence.capitalize()}",
         "",
         report.narrative,
+        *(
+            [
+                "",
+                "**Sentiment Reality Gap**: "
+                f"{report.reality_gap.divergence}"
+                + (
+                    f" (score: {report.reality_gap.reality_gap_score:+.1f})"
+                    if report.reality_gap.reality_gap_score is not None
+                    else ""
+                ),
+            ]
+            if report.reality_gap is not None
+            else []
+        ),
     ])

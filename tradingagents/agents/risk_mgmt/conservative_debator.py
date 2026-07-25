@@ -1,3 +1,9 @@
+from tradingagents.agents.risk_mgmt.signals import (
+    bind_risk_debator_output,
+    invoke_risk_debator_output,
+    public_signal_instruction,
+    replace_risk_signal,
+)
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
@@ -5,6 +11,8 @@ from tradingagents.agents.utils.agent_utils import (
 
 
 def create_conservative_debator(llm):
+    structured_llm = bind_risk_debator_output(llm, "conservative")
+
     def conservative_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
@@ -36,9 +44,14 @@ Here is the current conversation history: {history} Here is the last response fr
 
 Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
 
-        response = llm.invoke(prompt)
+        response_text, signal = invoke_risk_debator_output(
+            structured_llm,
+            llm,
+            prompt + public_signal_instruction("conservative"),
+            "conservative",
+        )
 
-        argument = f"Conservative Analyst: {response.content}"
+        argument = f"Conservative Analyst: {response_text}"
 
         new_risk_debate_state = {
             "history": history + "\n" + argument,
@@ -52,6 +65,9 @@ Engage by questioning their optimism and emphasizing the potential downsides the
             "current_conservative_response": argument,
             "current_neutral_response": risk_debate_state.get(
                 "current_neutral_response", ""
+            ),
+            "risk_signals": replace_risk_signal(
+                risk_debate_state.get("risk_signals"), signal
             ),
             "count": risk_debate_state["count"] + 1,
         }

@@ -83,76 +83,29 @@ def test_route_to_vendor_falls_back_from_tushare_to_akshare_for_a_shares(monkeyp
     assert calls == ["tushare", "akshare"]
 
 
-def test_route_to_vendor_keeps_complete_yfinance_primary_for_a_shares(monkeypatch):
+def test_route_to_vendor_skips_yfinance_for_a_shares(monkeypatch):
+    """A-share tickers must not try yfinance (needs VPN, poor coverage).
+
+    Even when yfinance is listed first in the vendor config, it is skipped
+    for A-share tickers so tushare/akshare are the primary sources.
+    """
     calls = []
-    yfinance_data = (
-        "# Stock data for 002636.SZ from 2026-01-01 to 2026-01-08\n"
-        "# Total records: 6\n\n"
-        "Date,Open,High,Low,Close,Volume\n"
-        "2026-01-01,10,11,9,10.5,1000\n"
-        "2026-01-02,10,11,9,10.5,1000\n"
-        "2026-01-05,10,11,9,10.5,1000\n"
-        "2026-01-06,10,11,9,10.5,1000\n"
-        "2026-01-07,10,11,9,10.5,1000\n"
-        "2026-01-08,10,11,9,10.5,1000\n"
-    )
 
     monkeypatch.setattr(interface, "get_vendor", lambda category, method=None: "yfinance,tushare,akshare")
     monkeypatch.setitem(
         interface.VENDOR_METHODS,
         "get_stock_data",
         {
-            "yfinance": lambda *args, **kwargs: calls.append("yfinance") or yfinance_data,
+            "yfinance": lambda *args, **kwargs: calls.append("yfinance") or "yfinance data",
             "tushare": lambda *args, **kwargs: calls.append("tushare") or "tushare data",
             "akshare": lambda *args, **kwargs: calls.append("akshare") or "akshare data",
         },
     )
-    set_config(
-        {
-            "a_share_yfinance_min_rows": 3,
-            "a_share_yfinance_min_coverage_ratio": 0.6,
-        }
-    )
 
     result = interface.route_to_vendor("get_stock_data", "002636.SZ", "2026-01-01", "2026-01-08")
 
-    assert result == yfinance_data
-    assert calls == ["yfinance"]
-
-
-def test_route_to_vendor_supplements_incomplete_yfinance_with_tushare(monkeypatch):
-    calls = []
-    yfinance_data = (
-        "# Stock data for 002636.SZ from 2026-01-01 to 2026-01-31\n"
-        "# Total records: 1\n\n"
-        "Date,Open,High,Low,Close,Volume\n"
-        "2026-01-02,10,11,9,10.5,1000\n"
-    )
-
-    monkeypatch.setattr(interface, "get_vendor", lambda category, method=None: "yfinance,tushare,akshare")
-    monkeypatch.setitem(
-        interface.VENDOR_METHODS,
-        "get_stock_data",
-        {
-            "yfinance": lambda *args, **kwargs: calls.append("yfinance") or yfinance_data,
-            "tushare": lambda *args, **kwargs: calls.append("tushare") or "# Source: tushare\nDate,Open\n2026-01-02,10\n",
-            "akshare": lambda *args, **kwargs: calls.append("akshare") or "akshare data",
-        },
-    )
-    set_config(
-        {
-            "a_share_yfinance_min_rows": 3,
-            "a_share_yfinance_min_coverage_ratio": 0.6,
-        }
-    )
-
-    result = interface.route_to_vendor("get_stock_data", "002636.SZ", "2026-01-01", "2026-01-31")
-
-    assert "Primary source: yfinance" in result
-    assert "Supplemental source: tushare" in result
-    assert "Supplement reason:" in result
-    assert "# Source: tushare" in result
-    assert calls == ["yfinance", "tushare"]
+    assert result == "tushare data"
+    assert calls == ["tushare"]
 
 
 def test_route_to_vendor_skips_china_sources_for_non_a_share_symbols(monkeypatch):
@@ -191,3 +144,36 @@ def test_route_to_vendor_raises_when_required_data_is_unavailable(monkeypatch):
         interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-31")
 
     assert "Data unavailable for 'get_stock_data'" in str(exc.value)
+
+
+def test_route_to_vendor_returns_sentinel_when_all_vendors_in_cooldown(monkeypatch):
+    """When every vendor is in cooldown, a halt-on-missing method must return
+    a NO_DATA_AVAILABLE sentinel, not raise.  A cooldown is transient and the
+    agent should report 'unavailable' rather than crash the whole turn."""
+    import time as _time
+
+    from tradingagents.dataflows.health import Cooldown, VendorHealthKey
+
+    fake_cooldown = Cooldown(
+        key=VendorHealthKey("yfinance", "a_share", "get_indicators"),
+        reason="rate_limit",
+        retry_at=_time.monotonic() + 60.0,
+    )
+
+    monkeypatch.setattr(interface, "get_vendor", lambda category, method=None: "yfinance")
+    monkeypatch.setitem(
+        interface.VENDOR_METHODS,
+        "get_indicators",
+        {"yfinance": lambda *args, **kwargs: "should not be called"},
+    )
+    monkeypatch.setattr(
+        interface._vendor_health,
+        "cooldown_for",
+        lambda **kwargs: fake_cooldown,
+    )
+    set_config({"halt_on_missing_data": True})
+
+    result = interface.route_to_vendor("get_indicators", "600519.SS", "2026-01-01", "2026-01-31")
+
+    assert result.startswith("NO_DATA_AVAILABLE:")
+    assert "cooldown" in result.lower()

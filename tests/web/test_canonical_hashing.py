@@ -22,7 +22,6 @@ from tradingagents.observability.canonical import (
 )
 from tradingagents.observability.events import ObservationCommitV1
 
-
 HASH = "a" * 64
 
 
@@ -97,9 +96,13 @@ def test_business_projection_selects_only_declared_agent_state_channels():
 
     assert "messages" in APPLICATION_STATE_FIELDS
     assert APPLICATION_STATE_FIELDS == (
+        "allowed_actions",
         "asset_type",
         "canonical_company_profile",
+        "clamp_events",
         "company_of_interest",
+        "evidence_ledger",
+        "evidence_ledger_artifact_id",
         "evidence_report",
         "evidence_status",
         "final_trade_decision",
@@ -111,6 +114,7 @@ def test_business_projection_selects_only_declared_agent_state_channels():
         "messages",
         "news_report",
         "past_context",
+        "portfolio_context",
         "risk_debate_state",
         "sender",
         "sentiment_report",

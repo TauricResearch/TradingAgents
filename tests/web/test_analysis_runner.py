@@ -12,6 +12,7 @@ from tradingagents.execution.models import (
     CancellationToken,
 )
 from tradingagents.execution.runner import AnalysisRunner, CheckpointAuthorization
+from tradingagents.portfolio import FeatureContribution, FeatureContributionArtifact
 from tradingagents.web.fingerprint import FingerprintCheckpointGuard
 from tradingagents.web.run_models import RunSnapshot, generate_run_id
 from tradingagents.web.store import RunStore
@@ -121,6 +122,45 @@ def test_runner_returns_success_object_and_preserves_completion_order():
         asset_type="stock",
         past_context="prior lesson",
         instrument_context="Apple identity",
+    )
+
+
+def test_runner_only_injects_feature_drivers_from_typed_numeric_artifact():
+    owner, _events = _owner()
+    owner.graph.invoke.return_value = {"final_trade_decision": "Rating: Hold"}
+    artifact = FeatureContributionArtifact(
+        artifact_id="calc:factor-model:2026-07-18",
+        producer="factor-model-v2",
+        methodology_ref="docs/factor-model-v2.md#normalization",
+        as_of_date="2026-07-18",
+        contributions=(
+            FeatureContribution(
+                "cash_flow",
+                -2.0,
+                0.7,
+                "risk",
+                "dataset:financials:2026-07-18",
+            ),
+        ),
+    )
+
+    AnalysisRunner(owner).run(_request(feature_contribution_artifact=artifact))
+
+    owner.graph.invoke.assert_called_once_with(
+        {
+            "input": True,
+            "feature_contributions": [
+                {
+                    "feature": "cash_flow",
+                    "z_score": -2.0,
+                    "importance": 0.7,
+                    "direction": "risk",
+                    "evidence_ref": "dataset:financials:2026-07-18",
+                    "source_artifact_id": "calc:factor-model:2026-07-18",
+                }
+            ],
+        },
+        stream_mode="values",
     )
 
 
@@ -466,19 +506,17 @@ def test_observation_run_id_is_derived_and_mismatch_is_rejected(tmp_path):
     assert events == []
 
 
-def test_web_checkpoint_requires_canonical_analyst_order():
+def test_web_checkpoint_allows_preset_analyst_order_when_graph_matches():
     owner, events = _owner(checkpoint_enabled=True)
     owner.selected_analysts = ("news", "market")
 
-    with pytest.raises(ValueError, match="canonical registry order"):
-        AnalysisRunner(owner).run(
-            _request(
-                selected_analysts=("news", "market"),
-                effective_config=dict(owner.config),
-            ),
-            checkpoint_run_id="run-123",
-            checkpoint_guard=MagicMock(),
-        )
+    AnalysisRunner(owner)._validate_request_shape(
+        _request(
+            selected_analysts=("news", "market"),
+            effective_config=dict(owner.config),
+        ),
+        checkpoint_run_id="run-123",
+    )
     assert events == []
 
 

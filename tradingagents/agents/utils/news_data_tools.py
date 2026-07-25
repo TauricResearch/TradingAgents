@@ -2,10 +2,12 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.agents.utils.tool_guard import guard_target_ticker
 from tradingagents.dataflows.interface import route_to_vendor
 
 
 @tool
+@guard_target_ticker("ticker")
 def get_news(
     ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -46,6 +48,7 @@ def get_global_news(
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool
+@guard_target_ticker("ticker")
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
 ) -> str:

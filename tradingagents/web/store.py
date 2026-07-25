@@ -24,6 +24,7 @@ ARTIFACT_KIND_DIRECTORIES = {
     "prompt": "prompts",
     "tool-result": "tool-results",
     "report-revision": "report-revisions",
+    "methodology-report": "methodology-reports",
 }
 ARTIFACT_KIND_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -205,6 +206,75 @@ class RunStore:
                 raise
             raise RunStoreCorruption(f"invalid event log for {run_id}") from exc
         return events
+
+    def append_scratchpad(self, run_id: str, entry: Any) -> dict[str, Any]:
+        """Append one already-sanitized scratchpad entry beside ``events.jsonl``.
+
+        The caller owns semantic validation. This method guarantees a durable,
+        canonical JSONL append and never writes a second representation of raw
+        prompts, tool arguments, results, or private reasoning.
+        """
+        from pydantic import ValidationError
+
+        from tradingagents.observability.scratchpad import ScratchpadEntry
+
+        run_dir = self._run_dir(run_id)
+        model_dump = getattr(entry, "model_dump", None)
+        payload = model_dump(mode="json") if callable(model_dump) else dict(entry)
+        try:
+            validated = ScratchpadEntry.model_validate(payload)
+        except ValidationError as exc:
+            raise InvalidStorePath("invalid or unsafe scratchpad entry") from exc
+        if validated.run_id != run_id:
+            raise InvalidStorePath("scratchpad run_id does not match destination")
+        content = canonical_business_value(validated.model_dump(mode="json")).bytes + b"\n"
+        with self.lock_for(run_id):
+            destination = run_dir / "scratchpad.jsonl"
+            with destination.open("ab", buffering=0) as handle:
+                handle.write(content)
+                os.fsync(handle.fileno())
+            self._fsync_directory(run_dir)
+        return validated.model_dump(mode="json")
+
+    def read_scratchpad(self, run_id: str) -> list[dict[str, Any]]:
+        """Return the safe JSONL trace; corruption is surfaced like events."""
+        from pydantic import ValidationError
+
+        from tradingagents.observability.scratchpad import ScratchpadEntry
+
+        run_dir = self._run_dir(run_id)
+        destination = run_dir / "scratchpad.jsonl"
+        if not destination.exists():
+            return []
+        entries: list[dict[str, Any]] = []
+        try:
+            with destination.open("r", encoding="utf-8") as handle:
+                for line_number, line in enumerate(handle, start=1):
+                    if not line.endswith("\n"):
+                        raise RunStoreCorruption(
+                            f"unterminated scratchpad entry at line {line_number} for {run_id}"
+                        )
+                    payload = json.loads(line)
+                    if not isinstance(payload, dict):
+                        raise RunStoreCorruption(
+                            f"invalid scratchpad entry at line {line_number} for {run_id}"
+                        )
+                    try:
+                        entry = ScratchpadEntry.model_validate(payload)
+                    except ValidationError as exc:
+                        raise RunStoreCorruption(
+                            f"unsafe scratchpad entry at line {line_number} for {run_id}"
+                        ) from exc
+                    if entry.run_id != run_id:
+                        raise RunStoreCorruption(
+                            f"invalid scratchpad entry at line {line_number} for {run_id}"
+                        )
+                    entries.append(entry.model_dump(mode="json"))
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            if isinstance(exc, RunStoreCorruption):
+                raise
+            raise RunStoreCorruption(f"invalid scratchpad log for {run_id}") from exc
+        return entries
 
     def list_runs(self) -> list[RunSummary]:
         summaries = []

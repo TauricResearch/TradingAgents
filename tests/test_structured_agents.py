@@ -27,6 +27,7 @@ from tradingagents.agents.schemas import (
     render_trader_proposal,
 )
 from tradingagents.agents.trader.trader import create_trader
+from tradingagents.skills.artifacts import SentimentRealityGapArtifact
 
 # ---------------------------------------------------------------------------
 # Render functions
@@ -387,6 +388,27 @@ def _structured_sentiment_llm(captured: dict, report: SentimentReport | None = N
 
 @pytest.mark.unit
 class TestSentimentAnalystAgent:
+    @pytest.fixture(autouse=True)
+    def _mock_sentiment_network(self, monkeypatch):
+        """Block real network calls in sentiment prefetch.
+
+        The sentiment analyst pre-fetches news, StockTwits, and Reddit for the
+        non-A-share branch. Without mocks these hit live endpoints and make the
+        suite flaky/slow. Each fetcher is replaced with a deterministic stub.
+        """
+        monkeypatch.setattr(
+            "tradingagents.agents.analysts.sentiment_analyst.fetch_reddit_posts",
+            lambda *a, **kw: "<reddit mock>",
+        )
+        monkeypatch.setattr(
+            "tradingagents.agents.analysts.sentiment_analyst.fetch_stocktwits_messages",
+            lambda *a, **kw: "<stocktwits mock>",
+        )
+        monkeypatch.setattr(
+            "tradingagents.agents.utils.news_data_tools.route_to_vendor",
+            lambda *a, **kw: "<news mock>",
+        )
+
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}
         report = SentimentReport(
@@ -426,3 +448,52 @@ class TestSentimentAnalystAgent:
         llm.with_structured_output.return_value = structured
         llm.invoke.return_value = MagicMock(content=plain)
         assert create_sentiment_analyst(llm)(_make_sentiment_state())["sentiment_report"] == plain
+
+    def test_structured_reality_gap_is_persisted_to_methodology_reports(self):
+        report = SentimentReport(
+            overall_band=SentimentBand.MIXED,
+            overall_score=5.0,
+            confidence="low",
+            narrative="Sources disagree.",
+            reality_gap=SentimentRealityGapArtifact(
+                narrative="Retail narrative is optimistic.",
+                reality_check="No supplied operating metric confirms it.",
+                divergence="indeterminate",
+                reality_gap_score=20.0,
+                limitations=["fundamental release unavailable"],
+            ),
+        )
+        result = create_sentiment_analyst(_structured_sentiment_llm({}, report))(
+            _make_sentiment_state()
+        )
+        assert result["methodology_reports"]["sentiment_analyst"] == {
+            "schema_version": "1",
+            "data_as_of": None,
+            "limitations": ["fundamental release unavailable"],
+            "narrative": "Retail narrative is optimistic.",
+            "reality_check": "No supplied operating metric confirms it.",
+            "divergence": "indeterminate",
+            "reality_gap_score": 20.0,
+            "resolution_trigger": None,
+            "confidence": None,
+        }
+
+    def test_structured_without_reality_gap_writes_no_methodology_report(self):
+        report = SentimentReport(
+            overall_band=SentimentBand.BULLISH,
+            overall_score=7.5,
+            confidence="high",
+            narrative="Bullish.",
+        )
+        result = create_sentiment_analyst(_structured_sentiment_llm({}, report))(
+            _make_sentiment_state()
+        )
+        assert "methodology_reports" not in result
+
+    def test_freetext_fallback_writes_no_methodology_report(self):
+        plain = "**Overall Sentiment:** **Bearish** (Score: 3.0/10)\n**Confidence:** Low\n\nLimited data."
+        llm = MagicMock()
+        llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")
+        llm.invoke.return_value = MagicMock(content=plain)
+        result = create_sentiment_analyst(llm)(_make_sentiment_state())
+        assert "methodology_reports" not in result

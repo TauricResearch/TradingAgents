@@ -2,10 +2,12 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.agents.utils.tool_guard import guard_target_ticker
 from tradingagents.dataflows.market_data_validator import build_verified_market_snapshot
 
 
 @tool
+@guard_target_ticker("symbol")
 def get_verified_market_snapshot(
     symbol: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str, "the current trading date, YYYY-mm-dd"],

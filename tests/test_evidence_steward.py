@@ -61,21 +61,23 @@ def _disable_llm_advisor(monkeypatch):
     )
 
 
-def test_incomplete_primary_stock_data_hard_fails_after_all_fallbacks(monkeypatch):
-    yfinance_data = (
-        "# Stock data for 002396.SZ from 2026-01-01 to 2026-01-31\n"
-        "# Total records: 1\n\n"
-        "Date,Open,High,Low,Close,Volume\n"
-        "2026-01-02,10,11,9,10.5,1000\n"
-    )
+def test_all_a_share_vendors_fail_hard_fails_after_all_fallbacks(monkeypatch):
+    """When every A-share OHLCV vendor fails, the router raises a typed
+    DataUnavailableError carrying each vendor's error so the caller can see
+    why the chain exhausted.  yfinance is intentionally absent -- it is
+    skipped for A-share tickers (needs VPN, poor coverage); the A-share
+    chain is mootdx -> tushare -> akshare.
+    """
     calls = []
 
-    monkeypatch.setattr(interface, "get_vendor", lambda category, method=None: "yfinance,tushare,akshare")
+    monkeypatch.setattr(interface, "get_vendor", lambda category, method=None: "mootdx,tushare,akshare")
     monkeypatch.setitem(
         interface.VENDOR_METHODS,
         "get_stock_data",
         {
-            "yfinance": lambda *args, **kwargs: calls.append("yfinance") or yfinance_data,
+            "mootdx": lambda *args, **kwargs: calls.append("mootdx") or (_ for _ in ()).throw(
+                interface.ChinaDataUnavailableError("mootdx unreachable")
+            ),
             "tushare": lambda *args, **kwargs: calls.append("tushare") or (_ for _ in ()).throw(
                 interface.ChinaDataUnavailableError("tushare empty")
             ),
@@ -84,19 +86,13 @@ def test_incomplete_primary_stock_data_hard_fails_after_all_fallbacks(monkeypatc
             ),
         },
     )
-    set_config(
-        {
-            "halt_on_missing_data": True,
-            "a_share_yfinance_min_rows": 3,
-            "a_share_yfinance_min_coverage_ratio": 0.6,
-        }
-    )
+    set_config({"halt_on_missing_data": True})
 
     with pytest.raises(interface.DataUnavailableError) as exc:
         interface.route_to_vendor("get_stock_data", "002396.SZ", "2026-01-01", "2026-01-31")
 
-    assert calls == ["yfinance", "tushare", "akshare"]
-    assert "Yahoo Finance returned only 1 OHLCV row" in str(exc.value)
+    assert calls == ["mootdx", "tushare", "akshare"]
+    assert "mootdx unreachable" in str(exc.value)
     assert "tushare empty" in str(exc.value)
     assert "akshare empty" in str(exc.value)
 

@@ -10,7 +10,6 @@ from importlib import metadata
 from pathlib import Path
 from typing import TypedDict
 
-
 INSTALL_COMMAND = "python -m pip install --upgrade 'tradingagents[web]'"
 
 GRAPH_RUNTIME_REQUIREMENTS = {

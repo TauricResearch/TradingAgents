@@ -1,0 +1,5 @@
+case_id,thesis,action,risk_disclosed,target_model,judge_model
+bullish-buy,bullish,buy,true,target-model,judge-model
+bearish-sell,bearish,sell,true,target-model,judge-model
+contradictory-bull,bullish,sell,true,target-model,judge-model
+abstain-hold,abstain,hold,true,target-model,judge-model

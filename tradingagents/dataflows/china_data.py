@@ -11,11 +11,10 @@ from typing import Any
 
 import pandas as pd
 
-from tradingagents.observability.provenance import capture_vendor_raw
-
 from .config import get_config
 from .ticker_utils import (
     is_a_share_ticker,
+    to_akshare_prefixed_symbol,
     to_akshare_symbol,
     to_tushare_symbol,
 )
@@ -178,27 +177,29 @@ def get_fundamentals_akshare(ticker: str, curr_date: str = None) -> str:
     ak_symbol = _require_a_share_akshare_symbol(ticker)
     sections = []
 
+    # Sina-based financial abstract is the primary source: EastMoney's
+    # stock_individual_info_em / stock_zh_a_spot_em are frequently blocked
+    # by anti-crawler measures (akfamily/akshare issues #7101, #7103, #6148),
+    # while Sina endpoints remain stable for A-share financials.
+    financial_abstract = _safe_call(
+        lambda: ak.stock_financial_abstract(symbol=ak_symbol)
+    )
     individual_info = _safe_call(lambda: ak.stock_individual_info_em(symbol=ak_symbol))
-    spot = _safe_call(lambda: ak.stock_zh_a_spot_em())
-
-    matched_spot = None
-    if isinstance(spot, pd.DataFrame) and not spot.empty and "代码" in spot.columns:
-        matched_spot = spot[spot["代码"].astype(str).str.zfill(6) == ak_symbol]
 
     _save_raw_data(
         ticker,
         curr_date or datetime.now().strftime("%Y-%m-%d"),
         "akshare_get_fundamentals",
         {
+            "stock_financial_abstract": _df_to_records(financial_abstract),
             "stock_individual_info_em": _df_to_records(individual_info),
-            "stock_zh_a_spot_em": _df_to_records(matched_spot),
         },
     )
 
+    if isinstance(financial_abstract, pd.DataFrame) and not financial_abstract.empty:
+        sections.append(_dataframe_head_markdown("Financial Abstract (Sina)", financial_abstract))
     if isinstance(individual_info, pd.DataFrame) and not individual_info.empty:
         sections.append(_dataframe_head_markdown("Individual Info", individual_info))
-    if isinstance(matched_spot, pd.DataFrame) and not matched_spot.empty:
-        sections.append(_dataframe_head_markdown("Spot Snapshot", matched_spot))
 
     if not sections:
         raise ChinaDataUnavailableError(f"AKShare returned no fundamentals data for {ak_symbol}.")
@@ -272,6 +273,73 @@ def _get_tushare_statement(
         df,
         title=f"China A-share {title} data for {ts_code}",
         source="tushare",
+    )
+
+
+def _get_akshare_statement_sina(
+    ticker: str,
+    curr_date: str | None,
+    *,
+    report_type: str,
+    title: str,
+    raw_method: str,
+) -> str:
+    """Retrieve a single financial statement from Sina via AKShare.
+
+    Sina endpoints are the preferred A-share fallback when EastMoney-based
+    akshare calls are blocked by anti-crawler measures and tushare is
+    rate-limited (akfamily/akshare issues #7101, #7103, #6148).
+    """
+    ak = _import_optional("akshare", "pip install akshare")
+    sina_symbol = to_akshare_prefixed_symbol(ticker).lower()
+    curr_date = curr_date or datetime.now().strftime("%Y-%m-%d")
+    try:
+        df = ak.stock_financial_report_sina(stock=sina_symbol, symbol=report_type)
+    except Exception as exc:
+        raise ChinaDataUnavailableError(
+            f"AKShare Sina {title} request failed for {sina_symbol}: {exc}"
+        ) from exc
+    _save_raw_data(ticker, curr_date, raw_method, df)
+    if df is None or df.empty:
+        raise ChinaDataUnavailableError(
+            f"AKShare Sina returned no {title.lower()} data for {sina_symbol}."
+        )
+    if "报告日" in df.columns:
+        df = df.sort_values("报告日", ascending=False)
+    return _format_dataframe_report(
+        df,
+        title=f"China A-share {title} for {sina_symbol}",
+        source="akshare (sina)",
+    )
+
+
+def get_balance_sheet_akshare(ticker: str, freq: str = "quarterly", curr_date: str = None) -> str:
+    return _get_akshare_statement_sina(
+        ticker,
+        curr_date,
+        report_type="资产负债表",
+        title="Balance Sheet",
+        raw_method="akshare_get_balance_sheet",
+    )
+
+
+def get_cashflow_akshare(ticker: str, freq: str = "quarterly", curr_date: str = None) -> str:
+    return _get_akshare_statement_sina(
+        ticker,
+        curr_date,
+        report_type="现金流量表",
+        title="Cash Flow",
+        raw_method="akshare_get_cashflow",
+    )
+
+
+def get_income_statement_akshare(ticker: str, freq: str = "quarterly", curr_date: str = None) -> str:
+    return _get_akshare_statement_sina(
+        ticker,
+        curr_date,
+        report_type="利润表",
+        title="Income Statement",
+        raw_method="akshare_get_income_statement",
     )
 
 
@@ -404,7 +472,7 @@ def _save_raw_data(
     method: str,
     data: Any,
 ) -> None:
-    capture_vendor_raw(
+    _capture_vendor_raw(
         _df_to_records(data),
         metadata={
             "provider": "tushare" if method.startswith("tushare") else "akshare",
@@ -429,3 +497,16 @@ def _save_raw_data(
         )
     except OSError:
         return
+
+
+def _capture_vendor_raw(data: Any, *, metadata: dict[str, Any]) -> None:
+    """Load observability only after a provider call succeeds.
+
+    Agent tools import the data router during application startup.  Keeping
+    this cross-cutting import lazy prevents a direct China-data import from
+    recursively importing that router before this module has defined its typed
+    error class.
+    """
+    from tradingagents.observability.provenance import capture_vendor_raw
+
+    capture_vendor_raw(data, metadata=metadata)

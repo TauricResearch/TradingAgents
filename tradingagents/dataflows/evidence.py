@@ -7,7 +7,7 @@ import io
 import os
 import re
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import lru_cache
@@ -18,14 +18,16 @@ import pandas as pd
 import requests
 
 from tradingagents.observability.provenance import (
-    capture_direct_call,
+    capture_direct_call_with_origin,
     capture_vendor_raw,
 )
 
 from .config import get_config
 from .consistency import attach_cross_source_info, create_llm_from_config
 from .credibility import attach_credibility
+from .evidence_ledger import build_evidence_ledger, persist_evidence_ledger
 from .news_advisor import analyze_news_coverage
+from .news_layers import Layer1Sentiment
 from .ticker_utils import (
     is_a_share_ticker,
     normalize_ticker_symbol,
@@ -58,13 +60,47 @@ def _get_wrong_identity_hints() -> tuple[str, ...]:
     return WRONG_IDENTITY_HINTS + tuple(extra)
 
 
+_LAYER1_DIRECTION_SCORES: Mapping[str, float] = {
+    "+": 0.6,
+    "-": -0.6,
+    "0": 0.0,
+}
+
+
+def _layer1_direction_scores(
+    layer1_sentiment: list[Layer1Sentiment],
+) -> dict[str, float]:
+    """Map Layer 1 per-item sentiment codes to normalized direction scores.
+
+    The Layer 1 pass is a directional classification (+/-/0/?), not a strength
+    measurement, so the scores are nominal magnitudes rather than inferred
+    precision. ``?`` (unknown) is excluded so it neither counts as neutral nor
+    skews the source-alignment projection.
+    """
+    scores: dict[str, float] = {}
+    for entry in layer1_sentiment:
+        score = _LAYER1_DIRECTION_SCORES.get(entry.sentiment)
+        if score is None:
+            continue
+        scores[entry.item_id] = score
+    return scores
+
+
 def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
     """Validate evidence quality and optionally enrich weak news context."""
     cfg = get_config()
     if not cfg.get("evidence_gate_enabled", True):
+        ledger = build_evidence_ledger(
+            profile={},
+            assessment={"status": EvidenceStatus.PASS, "items": []},
+            trade_date=str(state.get("trade_date") or ""),
+            enrichment_rounds=0,
+        )
         return {
             "evidence_status": EvidenceStatus.PASS.value,
             "evidence_report": "Evidence gate disabled by configuration.",
+            "evidence_ledger": ledger,
+            "evidence_ledger_artifact_id": persist_evidence_ledger(ledger),
         }
 
     ticker = normalize_ticker_symbol(str(state.get("company_of_interest") or ""))
@@ -73,10 +109,13 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
         return _fail_or_return(
             "无法解析 A 股 canonical company profile，不能安全进入后续讨论。",
             profile,
+            trade_date=str(state.get("trade_date") or ""),
         )
 
     core_warning = _assert_no_core_data_warnings(state, profile)
     if core_warning:
+        # _assert_no_core_data_warnings delegates to _fail_or_return, which
+        # already emits exactly one failed ledger when fail-open is configured.
         return core_warning
 
     original_items = _dedupe_news_items(
@@ -87,11 +126,12 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
     )
     assessment = _assess_news_items(original_items, profile)
     if assessment["status"] == EvidenceStatus.PASS:
-        return {
-            "canonical_company_profile": profile,
-            "evidence_status": EvidenceStatus.PASS.value,
-            "evidence_report": _format_evidence_report(profile, assessment, enrichment_rounds=0),
-        }
+        return _pass_with_ledger(
+            profile,
+            assessment,
+            trade_date=str(state.get("trade_date") or ""),
+            enrichment_rounds=0,
+        )
 
     max_rounds = int(cfg.get("evidence_max_enrichment_rounds", 3))
     deadline = time.monotonic() + float(cfg.get("evidence_max_enrichment_seconds", 90))
@@ -99,6 +139,10 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
     # Use LLM-based advisor to get targeted enrichment queries
     llm = create_llm_from_config()
     advisor = analyze_news_coverage(original_items, profile, llm)
+    # The advisor's Layer 1 pass classifies each original news item's
+    # direction; persist it as the ledger's direction_score so downstream
+    # source alignment reflects real evidence rather than being always empty.
+    direction_scores = _layer1_direction_scores(advisor.layer1_sentiment)
     if advisor.should_enrich and advisor.queries:
         enriched_items = _run_tavily_enrichment_with_queries(
             advisor.queries,
@@ -108,7 +152,9 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
             deadline,
         )
     else:
-        enriched_items = _run_tavily_enrichment(profile, str(state.get("trade_date") or ""), max_rounds, deadline)
+        enriched_items = _run_tavily_enrichment(
+            profile, str(state.get("trade_date") or ""), max_rounds, deadline
+        )
     all_items = _dedupe_news_items([*original_items, *enriched_items])
     enriched_assessment = _assess_news_items(all_items, profile)
 
@@ -118,18 +164,82 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
             enriched_assessment,
             enrichment_rounds=max_rounds,
         )
-        return {
-            "canonical_company_profile": profile,
-            "evidence_status": EvidenceStatus.PASS.value,
-            "evidence_report": evidence_report,
-            "news_report": _format_evidence_news_package(profile, all_items, evidence_report),
-        }
+        result = _pass_with_ledger(
+            profile,
+            enriched_assessment,
+            trade_date=str(state.get("trade_date") or ""),
+            enrichment_rounds=max_rounds,
+            direction_scores=direction_scores,
+        )
+        result.update(
+            {
+                "canonical_company_profile": profile,
+                "evidence_report": evidence_report,
+                "news_report": _format_evidence_news_package(profile, all_items, evidence_report),
+            }
+        )
+        return result
 
     reason = (
         f"Tavily 补充 {max_rounds} 轮后仍不足："
         f"{'; '.join(enriched_assessment['reasons']) or '未获得可用新闻证据'}。"
     )
-    return _fail_or_return(reason, profile, assessment=enriched_assessment)
+    return _fail_or_return(
+        reason,
+        profile,
+        assessment=enriched_assessment,
+        trade_date=str(state.get("trade_date") or ""),
+        enrichment_rounds=max_rounds,
+        direction_scores=direction_scores,
+    )
+
+
+def _pass_with_ledger(
+    profile: dict[str, Any],
+    assessment: dict[str, Any],
+    *,
+    trade_date: str,
+    enrichment_rounds: int,
+    direction_scores: Mapping[str, float] | None = None,
+) -> dict[str, Any]:
+    result = {
+        "canonical_company_profile": profile,
+        "evidence_status": EvidenceStatus.PASS.value,
+        "evidence_report": _format_evidence_report(
+            profile,
+            assessment,
+            enrichment_rounds=enrichment_rounds,
+        ),
+    }
+    return _with_ledger(
+        result,
+        profile=profile,
+        assessment=assessment,
+        trade_date=trade_date,
+        enrichment_rounds=enrichment_rounds,
+        direction_scores=direction_scores,
+    )
+
+
+def _with_ledger(
+    result: dict[str, Any],
+    *,
+    profile: dict[str, Any],
+    assessment: dict[str, Any],
+    trade_date: str,
+    enrichment_rounds: int,
+    direction_scores: Mapping[str, float] | None = None,
+) -> dict[str, Any]:
+    ledger = build_evidence_ledger(
+        profile=profile,
+        assessment=assessment,
+        trade_date=trade_date,
+        enrichment_rounds=enrichment_rounds,
+        direction_scores=direction_scores,
+    )
+    result["evidence_ledger"] = ledger
+    result["evidence_ledger_artifact_id"] = persist_evidence_ledger(ledger)
+    return result
 
 
 @lru_cache(maxsize=256)
@@ -168,7 +278,9 @@ def resolve_canonical_company_profile(ticker: str) -> dict[str, Any]:
                     "symbol": str(row.get("symbol") or profile["symbol"]),
                     "ts_code": str(row.get("ts_code") or profile["ts_code"]),
                     "name": str(row.get("name") or ""),
-                    "full_name": str(row.get("fullname") or row.get("full_name") or row.get("name") or ""),
+                    "full_name": str(
+                        row.get("fullname") or row.get("full_name") or row.get("name") or ""
+                    ),
                     "industry": str(row.get("industry") or ""),
                     "market": str(row.get("market") or ""),
                     "area": str(row.get("area") or ""),
@@ -345,10 +457,11 @@ def _complete_profile(profile: Any, ticker: str) -> dict[str, Any]:
     return resolve_canonical_company_profile(ticker)
 
 
-def _assert_no_core_data_warnings(state: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any] | None:
+def _assert_no_core_data_warnings(
+    state: dict[str, Any], profile: dict[str, Any]
+) -> dict[str, Any] | None:
     text = "\n\n".join(
-        str(state.get(key) or "")
-        for key in ("market_report", "fundamentals_report")
+        str(state.get(key) or "") for key in ("market_report", "fundamentals_report")
     )
     warning_patterns = (
         "Supplemental source: unavailable",
@@ -361,9 +474,9 @@ def _assert_no_core_data_warnings(state: dict[str, Any], profile: dict[str, Any]
     hits = [pattern for pattern in warning_patterns if pattern.lower() in text.lower()]
     if hits:
         return _fail_or_return(
-            "股票或财务核心数据覆盖不足，已触发证据门控："
-            + ", ".join(hits),
+            "股票或财务核心数据覆盖不足，已触发证据门控：" + ", ".join(hits),
             profile,
+            trade_date=str(state.get("trade_date") or ""),
         )
     return None
 
@@ -509,7 +622,7 @@ def _run_tavily_enrichment(
             break
         payload = _build_tavily_payload(spec, trade_date)
         try:
-            result = capture_direct_call(
+            result, origin = capture_direct_call_with_origin(
                 invocation_path=f"evidence.enrichment.fallback.{index}",
                 method="evidence_tavily_enrichment",
                 vendor="tavily",
@@ -529,7 +642,12 @@ def _run_tavily_enrichment(
         _save_enrichment_raw_response(profile, trade_date, index, payload, data)
         if response_status >= 400:
             continue
-        items.extend(_items_from_tavily_response(data))
+        items.extend(
+            _attach_provenance_artifact_ids(
+                _items_from_tavily_response(data),
+                origin.artifact_ids if origin is not None else (),
+            )
+        )
     return _dedupe_news_items(items)
 
 
@@ -551,7 +669,7 @@ def _run_tavily_enrichment_with_queries(
             break
         payload = _build_tavily_payload(spec, trade_date)
         try:
-            result = capture_direct_call(
+            result, origin = capture_direct_call_with_origin(
                 invocation_path=f"evidence.enrichment.advisor.{index}",
                 method="evidence_tavily_enrichment",
                 vendor="tavily",
@@ -571,7 +689,12 @@ def _run_tavily_enrichment_with_queries(
         _save_enrichment_raw_response(profile, trade_date, index, payload, data)
         if response_status >= 400:
             continue
-        items.extend(_items_from_tavily_response(data))
+        items.extend(
+            _attach_provenance_artifact_ids(
+                _items_from_tavily_response(data),
+                origin.artifact_ids if origin is not None else (),
+            )
+        )
     return _dedupe_news_items(items)
 
 
@@ -608,6 +731,7 @@ def _build_enrichment_queries(profile: dict[str, Any]) -> list[dict[str, Any]]:
     query_base = " ".join(part for part in (ticker, name) if part)
 
     from .ticker_utils import is_a_share_ticker
+
     if is_a_share_ticker(ticker):
         return [
             {
@@ -695,6 +819,18 @@ def _items_from_tavily_response(data: dict[str, Any]) -> list[dict[str, Any]]:
     return items
 
 
+def _attach_provenance_artifact_ids(
+    items: list[dict[str, Any]],
+    artifact_ids: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    """Carry direct-call lineage into the compact ledger, never raw payloads."""
+    if not artifact_ids:
+        return items
+    for item in items:
+        item["provenance_artifact_ids"] = list(artifact_ids)
+    return items
+
+
 def _dedupe_news_items(items: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     deduped: list[dict[str, Any]] = []
     seen = set()
@@ -759,8 +895,13 @@ def _profile_code_aliases(profile: dict[str, Any]) -> set[str]:
 
 
 def _explicit_stock_codes(text: str) -> set[str]:
-    hits = {match.group(0).upper() for match in re.finditer(r"(?<!\w)\d{6}\.(?:SZ|SH|SS|BJ)(?!\w)", text, re.IGNORECASE)}
-    for match in re.finditer(r"(?:证券代码|股票代码|stock\s+code|ticker)[：:\s]*([0-9]{6})", text, re.IGNORECASE):
+    hits = {
+        match.group(0).upper()
+        for match in re.finditer(r"(?<!\w)\d{6}\.(?:SZ|SH|SS|BJ)(?!\w)", text, re.IGNORECASE)
+    }
+    for match in re.finditer(
+        r"(?:证券代码|股票代码|stock\s+code|ticker)[：:\s]*([0-9]{6})", text, re.IGNORECASE
+    ):
         hits.add(match.group(1))
     return hits
 
@@ -775,7 +916,9 @@ def _wrong_names_bound_to_profile_code(
     if not code_tokens:
         return hits
     code_pattern = "|".join(sorted(code_tokens, key=len, reverse=True))
-    for match in re.finditer(rf"(?:{code_pattern})\s*[（(]\s*([\u4e00-\u9fffA-Za-z0-9&·-]{{2,24}})\s*[）)]", text):
+    for match in re.finditer(
+        rf"(?:{code_pattern})\s*[（(]\s*([\u4e00-\u9fffA-Za-z0-9&·-]{{2,24}})\s*[）)]", text
+    ):
         candidate = match.group(1).strip()
         if not candidate or _is_profile_alias(candidate, profile_names):
             continue
@@ -835,10 +978,7 @@ def _is_industry_relevant(item: dict[str, Any], profile: dict[str, Any]) -> bool
 
 
 def _item_text(item: dict[str, Any]) -> str:
-    return "\n".join(
-        str(item.get(key) or "")
-        for key in ("title", "content", "publisher", "url")
-    )
+    return "\n".join(str(item.get(key) or "") for key in ("title", "content", "publisher", "url"))
 
 
 def _format_evidence_report(
@@ -939,6 +1079,10 @@ def _fail_or_return(
     reason: str,
     profile: dict[str, Any],
     assessment: dict[str, Any] | None = None,
+    *,
+    trade_date: str = "",
+    enrichment_rounds: int = 0,
+    direction_scores: Mapping[str, float] | None = None,
 ) -> dict[str, Any]:
     cfg = get_config()
     report = "\n".join(
@@ -949,10 +1093,23 @@ def _fail_or_return(
             f"Reason: {reason}",
         ]
     )
+    ledger_assessment = assessment or {
+        "status": EvidenceStatus.FAIL_STOP,
+        "items": [],
+        "reasons": [reason],
+    }
+    result = _with_ledger(
+        {
+            "canonical_company_profile": profile,
+            "evidence_status": EvidenceStatus.FAIL_STOP.value,
+            "evidence_report": report,
+        },
+        profile=profile,
+        assessment=ledger_assessment,
+        trade_date=trade_date,
+        enrichment_rounds=enrichment_rounds,
+        direction_scores=direction_scores,
+    )
     if cfg.get("evidence_stop_on_fail", True):
         raise EvidenceGateError(f"{reason}\n\n{report}")
-    return {
-        "canonical_company_profile": profile,
-        "evidence_status": EvidenceStatus.FAIL_STOP.value,
-        "evidence_report": report,
-    }
+    return result

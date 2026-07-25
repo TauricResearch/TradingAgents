@@ -68,6 +68,7 @@ def test_run_graph_returns_legacy_tuple_and_preserves_side_effect_order():
         ticker="AAPL",
         trade_date="2026-07-17",
         final_trade_decision="Rating: Buy",
+        context_facts=(),
     )
     graph.signal_processor.process_signal.assert_called_once_with("Rating: Buy")
     graph.save_reports.assert_not_called()

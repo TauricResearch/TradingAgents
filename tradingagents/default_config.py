@@ -19,10 +19,15 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
+    "TRADINGAGENTS_MAX_TOOL_CALLS_PER_TURN": "max_tool_calls_per_turn",
+    "TRADINGAGENTS_MAX_TOOL_MESSAGES_IN_CONTEXT": "max_tool_messages_in_context",
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
     "TRADINGAGENTS_EVIDENCE_GATE_ENABLED":   "evidence_gate_enabled",
+    "TRADINGAGENTS_NEWS_LAYER1_ENABLED":     "news_layer1_enabled",
+    "TRADINGAGENTS_NEWS_LAYER2_ENABLED":     "news_layer2_enabled",
+    "TRADINGAGENTS_NEWS_LAYER2_CACHE_DIR":   "news_layer2_cache_dir",
 }
 
 
@@ -105,6 +110,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Hard upper bound for one model response.  It prevents a malformed or
+    # over-eager model from expanding one analyst turn into an unbounded tool
+    # batch; callers retain the first calls in their declared order.
+    "max_tool_calls_per_turn": 8,
+    # Retain only the newest tool-result messages after each tool task.  The
+    # current result batch always survives; older results can be re-fetched
+    # from durable tool observations instead of inflating the next prompt.
+    "max_tool_messages_in_context": 8,
     "analyst_concurrency_limit": 1,
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
@@ -122,11 +135,24 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance,tushare,akshare,alpha_vantage",  # Options: yfinance, tushare, akshare, alpha_vantage
+        "core_stock_apis": "mootdx,yfinance,tushare,akshare,alpha_vantage",  # Options: mootdx, yfinance, tushare, akshare, alpha_vantage (mootdx = A-share only, TCP 7709 no IP ban)
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance,tushare,akshare,alpha_vantage",  # Options: yfinance, tushare, akshare, alpha_vantage
         "news_data": "tavily,yfinance,alpha_vantage",  # Options: tavily, alpha_vantage, yfinance
         "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
+        # Optional A-share research supplements.  Their failures degrade to a
+        # source-labelled unavailable result and do not affect core OHLCV.
+        "a_share_market_data": "eastmoney,china_exchange",
+        "a_share_valuation": "tencent",
+        "a_share_research": "eastmoney,ths",
+        "a_share_options": "sina",
+        "a_share_sentiment": "ths,eastmoney",
+        # These source records are optional supplements for A-share research;
+        # they are intentionally separate from core OHLCV/fundamentals.
+        "china_macro_data": "akshare",
+        "a_share_specialty_data": "eastmoney",
+        "a_share_query_data": "iwencai",
+        "a_share_telegraph": "cls",
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
@@ -151,10 +177,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "tavily_include_images": False,
     "tavily_auto_parameters": False,
     "tavily_company_news_query_template": (
-        '"{ticker}" stock market news earnings revenue guidance analyst rating'
+        '"{ticker}" "{company_name}" stock market news earnings revenue guidance analyst rating'
     ),
     "tavily_a_share_news_query_template": (
-        '"{ticker}" "{plain_ticker}" 股票 公告 业绩 财报 经营 舆情 市场 新闻'
+        '"{ticker}" "{plain_ticker}" "{company_name}" 股票 公告 业绩 财报 经营 舆情 市场 新闻'
     ),
     "tavily_global_news_query": (
         "global financial markets macro economy central bank inflation monetary policy "
@@ -166,7 +192,16 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "tavily_company_exclude_domains": [],
     "tavily_global_include_domains": [],
     "tavily_global_exclude_domains": [],
+    # When ordinary company-news providers cannot return A-share coverage,
+    # query the existing public SSE/SZSE announcement adapter as a clearly
+    # labelled source-priority fallback.  It is not used for global news and
+    # is never a silent substitute when ordinary news already succeeded.
+    "a_share_news_official_fallback_enabled": True,
     "news_curator_max_items": 10,
+    # A-share sentiment analyst: include the dragon-tiger list (短线资金活跃度)
+    # as an optional sentiment block. Disable for a longer-horizon read where
+    # short-term hot-money signals are noise.
+    "sentiment_a_share_dragon_tiger_enabled": True,
     # Benchmark for alpha calculation in the reflection layer.
     # ``benchmark_ticker`` (when set) overrides the suffix map for all
     # tickers; leave it None to use ``benchmark_map`` for auto-detection
@@ -202,4 +237,33 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "wrong_identity_hints": [],
     # News advisor (LLM-based coverage gap analysis + targeted search)
     "news_advisor_enabled": True,
+    # Cost-aware news-analysis runtime.  The Layer 0/1/2 contracts are always
+    # available, but model calls are explicit opt-ins: deployments without an
+    # LLM or batch provider keep the ordinary advisor/rule-based behavior.
+    "news_layer1_enabled": False,
+    "news_layer1_max_items": 50,
+    "news_layer2_enabled": False,
+    "news_layer2_cache_dir": os.getenv(
+        "TRADINGAGENTS_NEWS_LAYER2_CACHE_DIR",
+        os.path.join(_TRADINGAGENTS_HOME, "cache", "news-layer2"),
+    ),
+    # Methodology scorecards deliberately keep subjective cutoffs in config,
+    # rather than burying them in a skill prompt. They are interpretation aids,
+    # not trading rules: missing inputs must remain unavailable.
+    "methodology_thresholds": {
+        "fundamentals": {
+            "altman_z_distress": 1.8,
+            "altman_z_safe": 3.0,
+            "beneish_m_manipulation": -1.78,
+        },
+        "market": {
+            "health_score_weak": 40.0,
+            "health_score_strong": 70.0,
+        },
+        "sentiment": {
+            "retail_bullish_overextension": 0.90,
+            "retail_bullish_balance": 0.70,
+            "reality_gap_material": 25.0,
+        },
+    },
 })

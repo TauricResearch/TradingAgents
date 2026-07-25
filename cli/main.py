@@ -1362,5 +1362,48 @@ def web_command(
         raise typer.Exit(code=1) from exc
 
 
+@app.command("inspect-preset")
+def inspect_preset_command(
+    preset: Path = typer.Argument(
+        ...,
+        exists=True,
+        readable=True,
+        dir_okay=False,
+        help="要校验的 YAML 分析师 preset 文件。",
+    ),
+):
+    """Validate one v1 analyst preset without starting a graph or LLM run.
+
+    The command deliberately renders the code-owned convergence path alongside
+    the requested analyst order.  That makes the v1 boundary auditable: YAML
+    may select/order existing analyst roles only; the nine downstream decision
+    roles remain mandatory and cannot be disabled from a preset.
+    """
+    from tradingagents.analysts import MANDATORY_CONVERGENCE_NODE_IDS
+    from tradingagents.presets import PresetValidationError, inspect_preset
+
+    try:
+        inspected = inspect_preset(preset)
+    except PresetValidationError as exc:
+        # Do not rely on Typer's rich exception renderer here.  Tooling needs a
+        # stable message and a deterministic non-zero status for invalid YAML.
+        typer.echo(f"Preset inspection failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    lines = [
+        "Preset inspection accepted",
+        f"id: {inspected.id}",
+        f"label: {inspected.label}",
+        "analyst_order:",
+        *(f"  {index}. {analyst}" for index, analyst in enumerate(inspected.analysts, 1)),
+        "mandatory_convergence_roles:",
+        *(
+            f"  {index}. {role}"
+            for index, role in enumerate(MANDATORY_CONVERGENCE_NODE_IDS, 1)
+        ),
+    ]
+    typer.echo("\n".join(lines))
+
+
 if __name__ == "__main__":
     app()

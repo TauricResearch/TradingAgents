@@ -78,8 +78,10 @@ Key concepts:
 ### Data Fetching Fallback Chain
 
 Data calls route through `tradingagents/dataflows/interface.py` → `route_to_vendor()`:
-- **Core stock data**: yfinance → tushare → akshare → alpha_vantage
-- **A-share handling**: auto-supplements tushare/akshare when yfinance coverage is insufficient
+- **A-share stock data**: mootdx → tushare → akshare → alpha_vantage (mootdx = TDX TCP 7709, no IP ban, primary; yfinance skipped for A-shares - needs VPN, poor coverage)
+- **Non-A-share stock data**: yfinance → alpha_vantage (tushare/akshare skipped)
+- **A-share fundamentals/financial statements**: tushare → akshare (Sina) → alpha_vantage; Sina-based `stock_financial_report_sina` and `stock_financial_abstract` are the reliable AKShare fallback because EastMoney endpoints are frequently blocked by anti-crawler measures (akfamily/akshare issues #7101, #7103, #6148)
+- **Technical indicators**: yfinance → alpha_vantage (no A-share indicator source; returns NO_DATA_AVAILABLE sentinel when unavailable)
 - **News**: multi-source parallel fetch → deduplication → credibility scoring → cross-source consistency detection → curated output
 - Each tool method can be individually vendor-configured; tool-level config takes precedence over category-level
 
@@ -93,7 +95,7 @@ Data calls route through `tradingagents/dataflows/interface.py` → `route_to_ve
 
 ### Fork-Specific Features (vs upstream)
 
-1. **A-share support**: `tradingagents/dataflows/china_data.py`, auto-supplements yfinance gaps with tushare/akshare; local three-tier identity resolution (tushare -> akshare -> yfinance)
+1. **A-share support**: `tradingagents/dataflows/china_data.py` + `tradingagents/dataflows/mootdx_provider.py`; mootdx (TDX TCP 7709, no IP ban) is the primary A-share OHLCV source, tushare remains primary for fundamentals, akshare is fallback (yfinance is skipped — needs VPN, poor A-share coverage). A-share financial statements use Sina-based AKShare (`stock_financial_report_sina`, `stock_financial_abstract`) as reliable fallback when EastMoney endpoints are blocked. Local three-tier identity resolution (tushare -> akshare -> yfinance).
 2. **Tavily news**: `tradingagents/dataflows/tavily_news.py`, A-share query templates, topic fallback, domain/score filters
 3. **Evidence Steward**: `tradingagents/agents/evidence_steward.py` + `tradingagents/dataflows/evidence.py`, assesses evidence sufficiency before downstream debate, enriches via Tavily when thin/contradictory/identity-ambiguous
 4. **News Advisor**: `tradingagents/dataflows/news_advisor.py`, LLM-driven (Agentic RAG reflection) coverage-gap analysis + targeted search
@@ -103,6 +105,7 @@ Data calls route through `tradingagents/dataflows/interface.py` → `route_to_ve
 8. **Symbol Normalization**: `tradingagents/dataflows/symbol_utils.py`, normalize commodity/forex/crypto/A-share tickers
 9. **Progress events**: `tradingagents/dataflows/progress.py`, lightweight data-call progress events surfaced in the Chinese CLI
 10. **Local web workbench**: `tradingagents web` (loopback-only) runs the real LangGraph and visualizes the 13-role debate via a React+TS+Vite SPA served by FastAPI (SSE). Frontend lives in `frontend/`; its committed build output is `tradingagents/web/static/` so an installed wheel serves without Node. Backend under `tradingagents/observability/` (events/roles/observer/projections) + `tradingagents/web/` (api/broker/manager/store) + `tradingagents/execution/runner.py`; detailed progress is in `Handoff.md`. Rebuild the frontend and commit the static drift whenever `frontend/src` changes.
+11. **A-share data source overhaul**: mootdx (TDX TCP 7709, no IP ban) is the primary A-share OHLCV source; tencent (qt.gtimg.cn) provides realtime PE/PB/market-cap; specialty data (dragon-tiger/lockups/block-trades/shareholder-counts/limit-up/break-board/limit-down/prev-limit-up pools) uses EastMoney direct HTTP (datacenter/push2ex) via `china_specialty_em.py` with SSE/SZSE official backups; new capabilities: research reports (reportapi + THS consensus EPS), industry/concept boards, ETF option T-quotes/Greeks (Sina), market hot-list/concept-hits (THS+EastMoney). akshare retained only for macro + interactive Q&A. CLS telegraph revived with local signing (zero key).
 
 ## Design Principles
 

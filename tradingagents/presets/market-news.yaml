@@ -1,0 +1,5 @@
+id: market-news
+label: 市场与新闻快速研究
+analysts:
+  - market
+  - news

@@ -199,6 +199,8 @@ class ReportArtifactWriter:
         }.items():
             if risk.get(state_key):
                 expected.add(Path("4_risk") / filename)
+        if isinstance(risk.get("risk_signals"), list):
+            expected.add(Path("4_risk/public_signals.json"))
         if risk.get("judge_decision"):
             expected.add(Path("5_portfolio/decision.md"))
 

@@ -8,8 +8,8 @@ from datetime import date
 from threading import Event
 from typing import Any, Literal
 
-
-ANALYST_WIRE_KEYS = ("market", "social", "news", "fundamentals")
+from tradingagents.analysts import ANALYST_WIRE_KEYS
+from tradingagents.portfolio import FeatureContributionArtifact, PortfolioContext
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,8 @@ class AnalysisRequest:
     selected_analysts: tuple[str, ...] = ANALYST_WIRE_KEYS
     max_debate_rounds: int = 1
     max_risk_discuss_rounds: int = 1
+    portfolio: PortfolioContext | None = None
+    feature_contribution_artifact: FeatureContributionArtifact | None = None
     effective_config: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -73,4 +75,3 @@ class CancellationToken:
     ) -> None:
         if self.is_cancelled:
             raise AnalysisCancelled(partial_state)
-

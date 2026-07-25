@@ -56,6 +56,16 @@ def _isolate_config():
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_vendor_health():
+    """Circuit-breaker state is process-lived in production, not across tests."""
+    from tradingagents.dataflows.interface import clear_vendor_health
+
+    clear_vendor_health()
+    yield
+    clear_vendor_health()
+
+
 @pytest.fixture()
 def mock_llm_client():
     client = MagicMock()

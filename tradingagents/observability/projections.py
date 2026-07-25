@@ -9,10 +9,10 @@ from types import MappingProxyType
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from tradingagents.evaluation.source_alignment import source_alignment_from_ledger
 from tradingagents.observability.canonical import canonical_sha256
 from tradingagents.observability.redaction import redact_recursive
 from tradingagents.observability.roles import ROLES_BY_ACTOR_ID
-
 
 ROLE_INPUT_PROJECTION_VERSION = 1
 EVIDENCE_CONFIG_WHITELIST_VERSION = 1
@@ -260,17 +260,24 @@ def _project_state_fields(actor_id: str, state: Mapping[str, Any]) -> dict[str, 
         projected["messages"] = state.get("messages")
         return projected
     if actor_id == "evidence.steward":
-        return {
+        projected = {
             "company_of_interest": state.get("company_of_interest"),
             "canonical_company_profile": state.get("canonical_company_profile"),
             "trade_date": state.get("trade_date"),
             **{name: state.get(name) for name in _FOUR_REPORTS},
         }
+        alignment = _project_source_alignment(state.get("evidence_ledger"))
+        if alignment is not None:
+            projected["source_alignment"] = alignment
+        return projected
     if actor_id in _INVEST_DEBATE_FIELDS:
         projected = dict(instrument)
         if actor_id in {"researcher.bull", "researcher.bear"}:
             projected["asset_type"] = state.get("asset_type", "stock")
             projected.update({name: state.get(name) for name in _FOUR_REPORTS})
+            alignment = _project_source_alignment(state.get("evidence_ledger"))
+            if alignment is not None:
+                projected["source_alignment"] = alignment
         projected["investment_debate_state"] = _project_nested(
             state.get("investment_debate_state"),
             _INVEST_DEBATE_FIELDS[actor_id],
@@ -318,6 +325,28 @@ def _project_instrument_context(
 def _project_nested(value: Any, fields: tuple[str, ...]) -> dict[str, Any]:
     source = value if isinstance(value, Mapping) else {}
     return {name: source.get(name) for name in fields}
+
+
+def _project_source_alignment(ledger: Any) -> dict[str, Any] | None:
+    """Expose a directional source view only when the ledger has real scores.
+
+    Delegates to :func:`source_alignment_from_ledger` so the observability
+    projection and the debate prompt share one extraction path and can never
+    diverge.  Returns None when no evidence record carries an explicit
+    ``direction_score``; credibility, provenance, and source counts are not
+    directional signals and are never manufactured into alignment.
+    """
+    alignment = source_alignment_from_ledger(ledger)
+    if alignment is None:
+        return None
+    return {
+        "label": alignment.label,
+        "source_count": alignment.source_count,
+        "bullish_percent": alignment.bullish_percent,
+        "bearish_percent": alignment.bearish_percent,
+        "mean_score": alignment.mean_score,
+        "score_range": alignment.score_range,
+    }
 
 
 def evidence_config_snapshot(config: Mapping[str, Any]) -> EvidenceConfigSnapshotV1:

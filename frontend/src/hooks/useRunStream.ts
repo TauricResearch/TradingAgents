@@ -10,7 +10,7 @@
  *     queue missed (resilience against fast runs / transport drops).
  *   run_id === null -> status "idle", state reset.
  */
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import type { ReducerState } from "../state/model";
 import type { PersistedEventDTO, RunSnapshotDTO } from "../api/contracts";
 import { getRun } from "../api/client";
@@ -31,7 +31,6 @@ export interface UseRunStreamResult {
   state: ReducerState | null;
   status: RunStreamStatus;
   error: Error | null;
-  close: () => void;
 }
 
 const TERMINAL_RUN_STATUSES = new Set(["completed", "failed", "cancelled", "interrupted"]);
@@ -49,26 +48,9 @@ export function useRunStream(run_id: string | null): UseRunStreamResult {
   const [error, setError] = useState<Error | null>(null);
   const subscriptionRef = useRef<SseSubscription | null>(null);
   const closedRef = useRef(false);
-  const runIdRef = useRef<string | null>(run_id);
-  runIdRef.current = run_id;
   const lastSeqRef = useRef(0);
   const reconnectCountRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const close = useCallback((): void => {
-    if (runIdRef.current === null) return;
-    closedRef.current = true;
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-    const sub = subscriptionRef.current;
-    if (sub) {
-      sub.close();
-      subscriptionRef.current = null;
-    }
-    setStatus("closed");
-  }, []);
 
   useEffect(() => {
     if (run_id === null) {
@@ -116,7 +98,15 @@ export function useRunStream(run_id: string | null): UseRunStreamResult {
             getRun(id)
               .then((snap: RunSnapshotDTO) => {
                 if (cancelled || closedRef.current) return;
-                dispatch({ type: "snapshot", snapshot: snap });
+                // Do NOT dispatch({type:"snapshot"}) here. The snapshot action
+                // returns createInitialState(snapshot) -- only meta+roles --
+                // which would wipe the turns/timeline/tool_calls already
+                // replayed into state (Bug 1: viewing a completed history run
+                // made the timeline vanish ~800ms after SSE replay finished).
+                // Reconnect only needs to know whether the run reached a
+                // terminal status with all events seen; otherwise re-subscribe
+                // from the last seen sequence and let live/replayed events
+                // update state normally.
                 if (
                   TERMINAL_RUN_STATUSES.has(snap.status) &&
                   snap.latest_sequence <= lastSeqRef.current
@@ -178,5 +168,5 @@ export function useRunStream(run_id: string | null): UseRunStreamResult {
     };
   }, [run_id]);
 
-  return { state, status, error, close };
+  return { state, status, error };
 }

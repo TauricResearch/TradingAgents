@@ -7,11 +7,12 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, RemoveMessage, ToolMessage
 from langchain_core.runnables import Runnable, RunnableConfig
 from langgraph.runtime import Runtime
 
 from tradingagents.dataflows.config import get_config
+from tradingagents.graph.runtime_events import runtime_event_sink
 from tradingagents.observability.canonical import (
     AGENT_STATE_SCHEMA_SHA256,
     BUSINESS_PROJECTION_VERSION,
@@ -67,6 +68,7 @@ class ObservedGraphTask:
         observer = run_context.observer
         _emit_task_started(observer, graph_task_id, graph_step, self.node_id)
         delta = self._invoke(state, config)
+        _record_context_cleared_if_present(observer, state, delta, self.task_kind)
         return _persist_output_candidate(
             observer,
             delta,
@@ -125,7 +127,16 @@ class ObservedNode(ObservedGraphTask):
                 self.actor_id,
                 run_context,
             )
-            delta = self._invoke(state, config)
+            with runtime_event_sink(
+                lambda event_type, detail_code, metadata: observer.record_scratchpad(
+                    event_type=event_type,
+                    detail_code=detail_code,
+                    metadata=metadata,
+                    context=observation_context,
+                )
+            ):
+                delta = self._invoke(state, config)
+            _record_context_compaction_if_present(observer, state, delta)
             tool_calls = _tool_calls_from_delta(delta)
             if tool_calls:
                 attempt_id = observer.latest_attempt_id(turn_ref.turn_id, graph_task_id)
@@ -160,6 +171,59 @@ class ObservedNode(ObservedGraphTask):
             return candidate.output
 
 
+def _record_context_compaction_if_present(
+    observer: DurableRunObserver,
+    state: Mapping[str, Any],
+    delta: Mapping[str, Any],
+) -> None:
+    """Emit a replay marker for public debate compaction, never the text itself."""
+    if "context_compaction_facts" not in delta:
+        return
+    before = state.get("context_compaction_facts", ())
+    after = delta.get("context_compaction_facts", ())
+    if not isinstance(before, (list, tuple)) or not isinstance(after, (list, tuple)):
+        return
+    new_count = max(0, len(after) - len(before))
+    if new_count == 0:
+        return
+    observer.record_scratchpad(
+        event_type="compaction",
+        detail_code="public_debate_context_compacted",
+        arguments={"previous_fact_count": len(before)},
+        result={"public_fact_count": len(after)},
+        metadata={"new_fact_count": new_count},
+    )
+
+
+def _record_context_cleared_if_present(
+    observer: DurableRunObserver,
+    state: Mapping[str, Any],
+    delta: Mapping[str, Any],
+    task_kind: TaskKind,
+) -> None:
+    """Record real message resets as counts, never as prompt/transcript text."""
+    if task_kind != "maintenance":
+        return
+    output_messages = delta.get("messages")
+    if not isinstance(output_messages, (list, tuple)):
+        return
+    removed = sum(isinstance(message, RemoveMessage) for message in output_messages)
+    if removed == 0:
+        return
+    before_messages = state.get("messages")
+    observer.record_scratchpad(
+        event_type="context_cleared",
+        detail_code="analyst_message_context_reset",
+        metadata={
+            "removed_message_count": removed,
+            "prior_message_count": len(before_messages)
+            if isinstance(before_messages, (list, tuple))
+            else 0,
+            "replacement_message_count": len(output_messages) - removed,
+        },
+    )
+
+
 class ObservedToolNode(ObservedGraphTask):
     def __init__(self, node_id: str, node: Any):
         super().__init__(node_id, "tool", node)
@@ -188,6 +252,13 @@ class ObservedToolNode(ObservedGraphTask):
             graph_task_id=graph_task_id,
             graph_step=graph_step,
             invocation_path="tool_node",
+        ) as observation_context, runtime_event_sink(
+            lambda event_type, detail_code, metadata: observer.record_scratchpad(
+                event_type=event_type,
+                detail_code=detail_code,
+                metadata=metadata,
+                context=observation_context,
+            )
         ):
             delta = self._invoke(state, config)
         expected_ids = tuple(call["id"] for call in tool_calls)

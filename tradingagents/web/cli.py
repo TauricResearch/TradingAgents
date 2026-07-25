@@ -5,9 +5,31 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-
 LOOPBACK_HOST = "127.0.0.1"
 DEFAULT_WEB_PORT = 8000
+
+
+def _configure_web_logging() -> None:
+    """Attach a file handler so graph-internal logs (agent warnings, data-layer
+    failures, structured-output fallbacks) survive alongside the uvicorn access
+    log. Without this, exceptions caught by SingleRunManager are silently
+    dropped after categorisation and the run.failed event carries no detail.
+    """
+    import logging
+    from pathlib import Path
+
+    log_dir = Path.home() / ".tradingagents" / "web" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    handler = logging.FileHandler(log_dir / "server.log", encoding="utf-8")
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
+    )
+    handler._ta_web_log = True  # type: ignore[attr-defined]
+    root = logging.getLogger()
+    if not any(getattr(h, "_ta_web_log", False) for h in root.handlers):
+        root.addHandler(handler)
+    if root.level == logging.NOTSET or root.level > logging.INFO:
+        root.setLevel(logging.INFO)
 
 
 def launch_web(
@@ -23,6 +45,8 @@ def launch_web(
     """Preflight, compose, announce, and serve one local-only application."""
     if not 1 <= port <= 65535:
         raise ValueError("port must be between 1 and 65535")
+
+    _configure_web_logging()
 
     if ensure_runtime is None:
         from .preflight import ensure_web_runtime

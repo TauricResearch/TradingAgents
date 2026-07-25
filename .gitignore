@@ -235,9 +235,16 @@ tradingagents.local.json
 
 # Cache
 **/data_cache/
+.pnpm-store/
+.vite/
 
 # Temp files
 .tmp_cache/
 tmp_run_*.py
 # Enterprise env file (secrets)
 .env.enterprise
+
+# Playwright / e2e artifacts
+frontend/test-results/
+.playwright-cli/
+.playwright-mcp/

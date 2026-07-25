@@ -8,6 +8,11 @@ from langchain_core.messages import HumanMessage, RemoveMessage
 
 # Import tools from separate utility files
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
+from tradingagents.agents.utils.data_meta_tools import (
+    get_fundamentals_research_bundle,
+    get_market_research_bundle,
+    get_news_research_bundle,
+)
 from tradingagents.agents.utils.fundamental_data_tools import (
     get_balance_sheet,
     get_cashflow,
@@ -37,6 +42,9 @@ __all__ = [
     "get_insider_transactions",
     "get_macro_indicators",
     "get_verified_market_snapshot",
+    "get_market_research_bundle",
+    "get_fundamentals_research_bundle",
+    "get_news_research_bundle",
     "build_instrument_context",
     "resolve_instrument_identity",
     "get_instrument_context_from_state",
@@ -134,7 +142,10 @@ def build_instrument_context(
     context = (
         f"The {instrument_label} to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
-        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
+        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`). "
+        "Cross-ticker queries are permitted only for explicit comparison/contrast; "
+        "any non-target ticker data in your report must be clearly labeled as "
+        "comparison data and never mixed with the target instrument's analysis."
     )
 
     details = []
@@ -210,6 +221,5 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
 
 

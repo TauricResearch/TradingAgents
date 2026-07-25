@@ -96,7 +96,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Risk Management and Portfolio Manager
 - Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
-- The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
+- The Portfolio Manager produces a structured research recommendation. When a non-secret portfolio context is supplied, deterministic cash, position, lot-size, and fee limits constrain its executable quantity; this project does not send orders to a broker or simulated exchange.
 
 <p align="center">
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
@@ -118,9 +118,7 @@ Polymarket); FRED macro data is kept because it adds value for equity analysis.
 - Local three-tier company-identity resolution: Tushare -> AkShare -> YFinance,
   so A-share tickers resolve to the correct Chinese company profile instead of
   yfinance's often-wrong or English names.
-- yfinance-primary routing with Tushare/AkShare/Alpha Vantage fallback or
-  supplementation; a coverage-ratio gate decides when A-share vendors must
-  supplement thin yfinance data.
+- mootdx-primary OHLCV routing (TDX TCP 7709, no IP ban) with Tushare/AkShare/Alpha Vantage fallback; yfinance is skipped for A-shares (needs VPN, poor coverage). EastMoney direct-HTTP specialty data (dragon-tiger/lockups/block-trades/shareholder-counts/limit-up pools) with SSE/SZSE official backups, plus Tencent realtime valuation, research reports, ETF option quotes, and market hot-lists.
 
 **Evidence Steward gate**
 - A graph node before the researcher debate that blocks downstream discussion
@@ -237,6 +235,7 @@ browser. Additive to the CLI; shares the same execution path.
 ```bash
 pip install -e ".[web]"          # FastAPI/Uvicorn/RFC8785 + LangGraph floor (plus .[china] for A-share data)
 tradingagents web                # open http://127.0.0.1:8000 (loopback only; --port/--open optional)
+tradingagents inspect-preset path/to/preset.yaml  # validate YAML analyst order and fixed convergence roles
 ```
 
 Enter a ticker, date, analysts, depth, and provider/models, then watch the

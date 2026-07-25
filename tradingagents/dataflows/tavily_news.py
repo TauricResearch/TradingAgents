@@ -15,6 +15,12 @@ import requests
 from tradingagents.observability.provenance import capture_vendor_raw
 
 from .config import get_config
+from .news_key_health import (
+    RATE_LIMIT_COOLDOWN_SECONDS,
+    TRANSIENT_FAILURE_COOLDOWN_SECONDS,
+    NewsProviderKeyPool,
+)
+from .target_context import get_target_ticker
 from .ticker_utils import is_a_share_ticker, to_akshare_symbol
 
 API_URL = "https://api.tavily.com/search"
@@ -22,6 +28,22 @@ API_URL = "https://api.tavily.com/search"
 
 class TavilyUnavailableError(Exception):
     """Raised when Tavily is not configured or cannot satisfy a news request."""
+
+
+class _TavilyHTTPError(TavilyUnavailableError):
+    """Transport failure with a structured status for key health policy."""
+
+    def __init__(self, status_code: int, detail: str = "") -> None:
+        self.status_code = status_code
+        super().__init__(f"Tavily search failed with HTTP {status_code}: {detail}")
+
+
+_tavily_key_pool = NewsProviderKeyPool("tavily")
+
+
+def clear_tavily_key_health() -> None:
+    """Clear in-process key cooldowns (mainly useful to deterministic tests)."""
+    _tavily_key_pool.clear()
 
 
 def get_news_tavily(ticker: str, start_date: str, end_date: str) -> dict[str, Any]:
@@ -81,9 +103,12 @@ def _search_tavily(
     limit: int | None = None,
     cfg: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    api_key = os.getenv("TAVILY_API_KEY")
-    if not api_key:
-        raise TavilyUnavailableError("TAVILY_API_KEY environment variable is not set.")
+    api_keys = _configured_api_keys()
+    if not api_keys:
+        raise TavilyUnavailableError(
+            "No Tavily API key is configured. Set TAVILY_API_KEY or the comma-separated TAVILY_API_KEYS."
+        )
+    _tavily_key_pool.configure(api_keys)
 
     cfg = cfg or get_config()
     configured_max = int(cfg.get("tavily_max_results", 5))
@@ -103,7 +128,7 @@ def _search_tavily(
     }
     _apply_domain_filters(payload, cfg, method)
 
-    response_data = _post_search(payload, api_key)
+    response_data = _post_with_healthy_key(payload)
     capture_vendor_raw(
         response_data,
         metadata={
@@ -115,7 +140,7 @@ def _search_tavily(
     fallback_topic = _fallback_topic(payload["topic"], response_data, method, cfg)
     if fallback_topic:
         payload["topic"] = fallback_topic
-        response_data = _post_search(payload, api_key)
+        response_data = _post_with_healthy_key(payload)
         capture_vendor_raw(
             response_data,
             metadata={
@@ -134,6 +159,72 @@ def _search_tavily(
         "response": response_data,
         "items": _items_from_response(response_data, cfg, start_date, end_date),
     }
+
+
+def _configured_api_keys() -> tuple[str, ...]:
+    """Read multi-key configuration without logging or returning it to callers."""
+    multi = os.getenv("TAVILY_API_KEYS", "")
+    values = [part.strip() for part in multi.split(",") if part.strip()]
+    legacy = os.getenv("TAVILY_API_KEY", "").strip()
+    if legacy:
+        values.append(legacy)
+    # ``dict.fromkeys`` preserves operator-supplied priority while removing
+    # duplicate credentials that would otherwise waste a rotation attempt.
+    return tuple(dict.fromkeys(values))
+
+
+def _post_with_healthy_key(payload: dict[str, Any]) -> dict[str, Any]:
+    """Try each healthy key exactly once for transient failures.
+
+    Authentication and authorization failures are made explicit and do not
+    rotate: retrying another configured credential would disguise a provider
+    policy problem and violates the data-layer no-bypass contract.
+    """
+    attempted = 0
+    last_error: Exception | None = None
+    while (api_key := _tavily_key_pool.acquire()) is not None:
+        attempted += 1
+        try:
+            data = _post_search(payload, api_key)
+        except _TavilyHTTPError as exc:
+            last_error = exc
+            cooldown_seconds, reason = _key_cooldown_for_status(exc.status_code)
+            if cooldown_seconds <= 0:
+                raise TavilyUnavailableError(
+                    f"Tavily rejected the configured request with HTTP {exc.status_code}; key rotation was not attempted."
+                ) from exc
+            _tavily_key_pool.record_failure(
+                api_key,
+                cooldown_seconds=cooldown_seconds,
+                reason=reason,
+            )
+            continue
+        except requests.RequestException as exc:
+            last_error = exc
+            _tavily_key_pool.record_failure(
+                api_key,
+                cooldown_seconds=TRANSIENT_FAILURE_COOLDOWN_SECONDS,
+                reason="network",
+            )
+            continue
+        _tavily_key_pool.record_success(api_key)
+        return data
+
+    if attempted:
+        raise TavilyUnavailableError(
+            "Tavily is temporarily unavailable: every configured key is cooling down after a transient provider failure."
+        ) from last_error
+    raise TavilyUnavailableError(
+        "Tavily is temporarily unavailable: every configured key is in cooldown."
+    )
+
+
+def _key_cooldown_for_status(status_code: int) -> tuple[float, str]:
+    if status_code == 429:
+        return RATE_LIMIT_COOLDOWN_SECONDS, "rate_limit"
+    if 500 <= status_code <= 599:
+        return TRANSIENT_FAILURE_COOLDOWN_SECONDS, f"http_{status_code}"
+    return 0.0, f"http_{status_code}"
 
 
 def _topic_for_method(cfg: dict[str, Any], method: str) -> str:
@@ -178,6 +269,11 @@ def _fallback_topic(
 
 def _build_company_news_query(ticker: str, cfg: dict[str, Any]) -> str:
     plain_ticker = to_akshare_symbol(ticker) if is_a_share_ticker(ticker) else ticker
+    # Anchor the query with the resolved company name (when available from the
+    # run's target context) so Tavily full-text search distinguishes the target
+    # company from peers that share a ticker fragment or sector keywords.
+    target = get_target_ticker()
+    company_name = (target.company_name if target else None) or ""
     template_key = (
         "tavily_a_share_news_query_template"
         if is_a_share_ticker(ticker)
@@ -188,7 +284,13 @@ def _build_company_news_query(ticker: str, cfg: dict[str, Any]) -> str:
         or cfg.get("tavily_company_news_query_template")
         or '"{ticker}" stock company market news earnings'
     )
-    return template.format(ticker=ticker, plain_ticker=plain_ticker)
+    query = template.format(
+        ticker=ticker, plain_ticker=plain_ticker, company_name=company_name
+    )
+    # Drop empty quoted placeholders (company name unavailable) and collapse
+    # whitespace so the query stays well-formed for either market.
+    query = re.sub(r'""', "", query)
+    return re.sub(r"\s+", " ", query).strip()
 
 
 def _apply_domain_filters(
@@ -249,9 +351,10 @@ def _post_search(payload: dict[str, Any], api_key: str) -> dict[str, Any]:
         data = {"raw_text": response.text}
 
     if response.status_code >= 400 and not _looks_like_invalid_topic(data):
-        raise TavilyUnavailableError(
-            f"Tavily search failed with HTTP {response.status_code}: {data}"
-        )
+        # The caller redacts details before surfacing an error.  Do not insert
+        # request headers here: a key may never become part of an exception,
+        # progress event, or durable raw-response artifact.
+        raise _TavilyHTTPError(response.status_code, "provider returned an error response")
     return data
 
 

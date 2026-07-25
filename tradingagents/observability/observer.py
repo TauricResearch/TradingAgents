@@ -12,10 +12,12 @@ from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
 
+from tradingagents.observability.cycle_record import CycleRecord
 from tradingagents.observability.errors import ObservationPersistenceError
 from tradingagents.observability.events import ArtifactRef, PersistedEvent, RunEventDraft
 from tradingagents.observability.redaction import redact_recursive
 from tradingagents.observability.roles import ROLES_BY_ACTOR_ID, role_instance_id
+from tradingagents.observability.scratchpad import ScratchpadEntry, ScratchpadEventType
 from tradingagents.web.store import RunStore
 
 from .context import (
@@ -138,6 +140,88 @@ class DurableRunObserver(BaseCallbackHandler):
             )
         )
         return artifact
+
+    def record_scratchpad(
+        self,
+        *,
+        event_type: ScratchpadEventType,
+        detail_code: str,
+        arguments: Any = None,
+        result: Any = None,
+        artifact_ids: tuple[str, ...] | list[str] = (),
+        metadata: dict[str, int | float | bool | None] | None = None,
+        context: ObservationContext | None = None,
+    ) -> ScratchpadEntry:
+        """Record a safe replay marker without serializing model-private text."""
+        snapshot = self.store.read_snapshot(self.run_id)
+        entry = ScratchpadEntry.from_values(
+            run_id=self.run_id,
+            event_type=event_type,
+            detail_code=detail_code,
+            query={
+                "ticker": snapshot.ticker,
+                "asset_type": snapshot.asset_type,
+                "analysis_date": snapshot.analysis_date,
+            },
+            arguments=arguments,
+            result=result,
+            artifact_ids=artifact_ids,
+            metadata=metadata,
+        )
+        observation = context or current_observation_context()
+        event = self.emit(
+            RunEventDraft(
+                self.run_id,
+                f"scratchpad.{event_type}",
+                entry.event_payload(),
+                actor_id=observation.actor_id if observation else None,
+                node_id=observation.node_id if observation else None,
+                status="recorded",
+            )
+        )
+        persisted = entry.model_copy(
+            update={"event_id": event.event_id, "event_sequence": event.sequence}
+        )
+        self.store.append_scratchpad(self.run_id, persisted)
+        return persisted
+
+    def record_cycle(
+        self,
+        *,
+        event_sequence_start: int = 0,
+        report_artifact_ids: tuple[str, ...] | list[str] = (),
+        public_context_fact_count: int = 0,
+    ) -> tuple[CycleRecord, ArtifactRef]:
+        """Persist a single, non-secret cycle replay/audit boundary."""
+        snapshot = self.store.read_snapshot(self.run_id)
+        scratchpad_entries = self.store.read_scratchpad(self.run_id)
+        record = CycleRecord.from_run_snapshot(
+            snapshot,
+            event_sequence_start=event_sequence_start,
+            report_artifact_ids=report_artifact_ids,
+            scratchpad_entry_ids=[
+                str(entry["entry_id"])
+                for entry in scratchpad_entries
+                if isinstance(entry.get("entry_id"), str)
+            ],
+            public_context_fact_count=public_context_fact_count,
+        )
+        artifact = self.store_artifact("cycle-record", record.model_dump(mode="json"))
+        self.emit(
+            RunEventDraft(
+                self.run_id,
+                "cycle.recorded",
+                {
+                    "cycle_id": record.cycle_id,
+                    "artifact_id": artifact.artifact_id,
+                    "content_sha256": artifact.content_sha256,
+                    "event_sequence_start": record.event_sequence_start,
+                    "event_sequence_end": record.event_sequence_end,
+                },
+                status="recorded",
+            )
+        )
+        return record, artifact
 
     def start_turn(
         self,

@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
-
 
 EVENT_SCHEMA_VERSION = 1
 SHA256_LENGTH = 64
@@ -74,9 +73,7 @@ class ObservationCommitV1:
 
 BASE_REQUIRED_PAYLOADS: dict[str, frozenset[str]] = {
     "graph.task_started": frozenset({"graph_task_id", "graph_step", "node_id"}),
-    "graph.task_abandoned": frozenset(
-        {"graph_task_id", "graph_step", "node_id", "reason"}
-    ),
+    "graph.task_abandoned": frozenset({"graph_task_id", "graph_step", "node_id", "reason"}),
     "graph.task_output_ready": frozenset(
         {
             "observation_commit",
@@ -96,9 +93,7 @@ BASE_REQUIRED_PAYLOADS: dict[str, frozenset[str]] = {
     "role.status_changed": frozenset(
         {"role_instance_id", "previous_status", "new_status", "reason"}
     ),
-    "agent.message": frozenset(
-        {"turn_id", "graph_task_id", "message_id", "message_kind"}
-    ),
+    "agent.message": frozenset({"turn_id", "graph_task_id", "message_id", "message_kind"}),
     "state.updated": frozenset({"turn_id", "changed_keys"}),
     "report.updated": frozenset({"turn_id", "report_kind", "revision", "artifact_id"}),
     "artifact.written": frozenset(
@@ -115,6 +110,17 @@ BASE_REQUIRED_PAYLOADS: dict[str, frozenset[str]] = {
 
 
 def required_payload_fields(event_type: str) -> frozenset[str]:
+    if event_type == "tool.cross_ticker_query":
+        return frozenset(
+            {
+                "turn_id",
+                "graph_task_id",
+                "tool_call_id",
+                "tool_name",
+                "requested_ticker",
+                "target_ticker",
+            }
+        )
     if event_type.startswith("run."):
         required = {"run_status"}
         if event_type in {"run.completed", "run.failed", "run.cancelled"}:
@@ -212,6 +218,43 @@ def required_payload_fields(event_type: str) -> frozenset[str]:
         )
     if event_type == "stats.updated":
         return frozenset()
+    if event_type == "evidence.ledger_written":
+        return frozenset(
+            {
+                "turn_id",
+                "graph_task_id",
+                "ledger_id",
+                "artifact_id",
+                "content_sha256",
+                "data_as_of",
+                "claim_count",
+                "evidence_count",
+                "verification_status",
+                "redaction_manifest",
+            }
+        )
+    if event_type.startswith("scratchpad."):
+        return frozenset(
+            {
+                "scratchpad_entry_id",
+                "scratchpad_event_type",
+                "detail_code",
+                "arguments_sha256",
+                "result_sha256",
+                "artifact_ids",
+                "thinking_persisted",
+            }
+        )
+    if event_type == "cycle.recorded":
+        return frozenset(
+            {
+                "cycle_id",
+                "artifact_id",
+                "content_sha256",
+                "event_sequence_start",
+                "event_sequence_end",
+            }
+        )
     return BASE_REQUIRED_PAYLOADS.get(event_type, frozenset())
 
 
@@ -229,6 +272,12 @@ def validate_event_payload(event_type: str, payload: dict[str, Any]) -> None:
         raise InvalidEvent("stats.updated requires turn_id or model_call_id")
     if event_type == "tool.requested" and "tool_execution_id" in payload:
         raise InvalidEvent("tool.requested cannot contain tool_execution_id")
+    if event_type.startswith("scratchpad."):
+        suffix = event_type.removeprefix("scratchpad.")
+        if payload.get("scratchpad_event_type") != suffix:
+            raise InvalidEvent("scratchpad event type must match its event envelope")
+        if payload.get("thinking_persisted") is not False:
+            raise InvalidEvent("scratchpad events cannot persist model-private thinking")
 
 
 @dataclass(frozen=True)
@@ -298,9 +347,9 @@ class PersistedEvent:
             event_id=f"{draft.run_id}:{sequence}",
             run_id=draft.run_id,
             sequence=sequence,
-            timestamp=captured.astimezone(UTC).isoformat(timespec="milliseconds").replace(
-                "+00:00", "Z"
-            ),
+            timestamp=captured.astimezone(UTC)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z"),
             type=draft.type,
             payload=draft.payload,
             team_id=draft.team_id,
@@ -313,4 +362,3 @@ class PersistedEvent:
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
-

@@ -131,6 +131,25 @@ class TestTradingMemoryLogCore:
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
         assert len(log.load_entries()) == 1
 
+    def test_store_decision_keeps_only_public_compaction_facts(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision(
+            "NVDA",
+            "2026-01-10",
+            DECISION_BUY,
+            context_facts=(
+                "Bull Analyst: verified backlog increased.",
+                "Bull Analyst: verified backlog increased.",
+                "Bear Analyst: cash conversion weakened.",
+            ),
+        )
+
+        text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+
+        assert "CONTEXT FACTS (public debate summary)" in text
+        assert text.count("verified backlog increased") == 1
+        assert "cash conversion weakened" in text
+
     def test_batch_update_resolves_multiple_entries(self, tmp_path):
         """batch_update_with_outcomes resolves multiple pending entries in one write."""
         log = make_log(tmp_path)

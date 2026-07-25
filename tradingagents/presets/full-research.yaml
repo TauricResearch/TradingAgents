@@ -1,0 +1,7 @@
+id: full-research
+label: 全维度研究
+analysts:
+  - market
+  - social
+  - news
+  - fundamentals

@@ -201,18 +201,20 @@ def load_ohlcv(symbol: str, curr_date: str, via_vendor: bool = False) -> pd.Data
 
 
 def _load_ohlcv_a_share(symbol: str, curr_date: str) -> pd.DataFrame:
-    """A-share OHLCV via tushare/akshare, with caching + look-ahead + stale guard.
+    """A-share OHLCV via mootdx/tushare/akshare, with caching + look-ahead + stale guard.
 
     Mirrors ``load_ohlcv``'s contract (5y window, per-symbol CSV cache,
-    curr_date filter, stale rejection) but pulls from tushare with akshare
-    fallback, so the verified-snapshot and indicator tools get real A-share
-    rows instead of yfinance's unreliable .SZ/.SS coverage.
+    curr_date filter, stale rejection) but pulls from mootdx (TCP 7709, no IP
+    ban) with tushare/akshare fallback, so the verified-snapshot and indicator
+    tools get real A-share rows instead of yfinance's unreliable .SZ/.SS
+    coverage.
     """
     from .china_data import (
         _require_a_share_tushare_symbol,
         get_stock_akshare_df,
         get_stock_tushare_df,
     )
+    from .mootdx_provider import get_stock_mootdx_df
 
     canonical = _require_a_share_tushare_symbol(symbol)  # 300750 -> 300750.SZ
     safe_symbol = safe_ticker_component(canonical)
@@ -239,6 +241,7 @@ def _load_ohlcv_a_share(symbol: str, curr_date: str) -> pd.DataFrame:
     if data is None:
         errors: list[str] = []
         for fetch, name in (
+            (get_stock_mootdx_df, "mootdx"),
             (get_stock_tushare_df, "tushare"),
             (get_stock_akshare_df, "akshare"),
         ):
@@ -254,7 +257,7 @@ def _load_ohlcv_a_share(symbol: str, curr_date: str) -> pd.DataFrame:
             raise NoMarketDataError(
                 symbol,
                 canonical,
-                "A-share vendors (tushare/akshare) returned no rows ("
+                "A-share vendors (mootdx/tushare/akshare) returned no rows ("
                 + "; ".join(errors)
                 + ")",
             )

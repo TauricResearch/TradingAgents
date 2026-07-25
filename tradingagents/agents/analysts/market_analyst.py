@@ -4,14 +4,24 @@ from tradingagents.agents.utils.agent_utils import (
     get_indicators,
     get_instrument_context_from_state,
     get_language_instruction,
+    get_market_research_bundle,
     get_stock_data,
     get_verified_market_snapshot,
+)
+from tradingagents.skills import (
+    build_role_report_contract,
+    build_role_skill_prompt,
+    build_skill_trigger_context,
+    emit_methodology_artifact,
+    finalize_role_report,
 )
 
 
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
+        skill_trigger_text = build_skill_trigger_context(state.get("messages", ()))
+        emit_methodology_artifact("market_analyst", trigger_text=skill_trigger_text)
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
 
@@ -19,6 +29,7 @@ def create_market_analyst(llm):
             get_stock_data,
             get_indicators,
             get_verified_market_snapshot,
+            get_market_research_bundle,
         ]
 
         system_message = (
@@ -50,10 +61,16 @@ Volume-Based Indicators:
 
 Before writing the final report, call get_verified_market_snapshot for this ticker and the current date, and treat it as the source of truth for any exact OHLCV, price-level, or indicator-value claim. If another tool's output conflicts with the verified snapshot, flag the discrepancy rather than inventing a reconciled number. Do not claim historical validation, support/resistance bounces, or exact percentage moves unless they are directly supported by tool output with concrete dates and prices.
 
+When several independent market views are needed, prefer get_market_research_bundle(symbol, curr_date, request). It maps your natural-language request only to reviewed capabilities, runs at most a bounded subset concurrently, and returns capability-level provenance plus public error categories. It is not a way to choose providers or invoke arbitrary tools.
+
 Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + get_language_instruction()
         )
+        system_message += build_role_skill_prompt(
+            "market_analyst", trigger_text=skill_trigger_text
+        )
+        system_message += build_role_report_contract("market_analyst")
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -83,13 +100,20 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
         result = chain.invoke(state["messages"])
 
         report = ""
+        methodology_artifact = None
 
         if len(result.tool_calls) == 0:
-            report = result.content
+            report, methodology_artifact = finalize_role_report("market_analyst", result.content)
 
-        return {
+        output = {
             "messages": [result],
             "market_report": report,
         }
+        if methodology_artifact is not None:
+            output["methodology_reports"] = {
+                **state.get("methodology_reports", {}),
+                "market_analyst": methodology_artifact,
+            }
+        return output
 
     return market_analyst_node

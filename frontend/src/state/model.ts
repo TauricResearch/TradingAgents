@@ -202,6 +202,7 @@ export interface RunMeta {
   final_signal?: string | null;
   summary?: string | null;
   error_category?: string | null;
+  error_message?: string | null;
   retry_of?: string | null;
   resumed_from_sequence?: number | null;
   resume_fingerprint?: Record<string, unknown> | null;
