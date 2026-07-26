@@ -22,10 +22,11 @@ REPORT_SECTIONS = (
 
 def deterministic_action(result: dict[str, Any]) -> str:
     decision = str(result.get("final_trade_decision") or "").lower()
+    china_fund = isinstance(result.get("china_fund_snapshot"), dict)
     if re.search(r"\b(sell|underweight)\b", decision):
-        return "sell"
+        return "redeem_partial" if china_fund else "sell"
     if re.search(r"\b(buy|overweight|accumulate)\b", decision):
-        return "buy"
+        return "subscribe" if china_fund else "buy"
     return "hold"
 
 

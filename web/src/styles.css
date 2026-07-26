@@ -172,6 +172,13 @@ td:last-child,th:last-child { text-align:right; }
 .backup-row span { margin-top:3px; color:var(--muted); font-size:9px; }
 .restore-panel .secondary-button,.restore-panel .danger-button { width:100%; margin-top:9px; }
 .compact-empty { min-height:230px; }
+.china-fund-layout { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr); gap:16px; min-width:0; }
+.china-fund-layout > .china-search,.china-fund-layout > .fund-identity,.china-fund-layout > .metrics-grid,.china-fund-layout > .chart-panel,.china-fund-layout > .fund-context,.china-fund-layout > .fund-status { grid-column:1 / -1; }
+.china-search-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:0 16px 16px; align-items:end; }.china-search-row .field-label { margin-top:0; }
+.fund-candidates { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); border-top:1px solid var(--line); }.fund-candidates button { min-height:64px; padding:10px 16px; border:0; border-right:1px solid var(--line); border-bottom:1px solid var(--line); background:#fff; color:#25312d; text-align:left; cursor:pointer; }.fund-candidates button.active { background:#f0f7f4; box-shadow:inset 3px 0 var(--green); }.fund-candidates strong,.fund-candidates span { display:block; overflow-wrap:anywhere; }.fund-candidates strong { font-size:12px; }.fund-candidates span { margin-top:4px; color:var(--muted); font-size:10px; }
+.fund-identity { display:flex; justify-content:space-between; gap:16px; padding:18px; border:1px solid var(--line); border-left:4px solid var(--green); background:#fff; }.fund-identity h2 { font-size:20px; }.fund-identity p { margin:6px 0 0; color:var(--muted); font-size:12px; }.fund-identity-tags { display:flex; align-items:center; align-self:flex-start; gap:8px; font-size:11px; }
+.fund-status-grid { display:grid; grid-template-columns:repeat(4,1fr); }.fund-status-grid > div { min-height:72px; padding:14px 16px; border-right:1px solid var(--line); display:flex; flex-direction:column; gap:6px; }.fund-status-grid > div:last-child { border-right:0; }.fund-status-grid span { color:var(--muted); font-size:10px; text-transform:uppercase; }.fund-status-grid strong { font-size:12px; overflow-wrap:anywhere; }
+.fund-operation,.fund-provenance { align-self:start; }.operation-form { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; padding:0 16px 16px; }.operation-form .field-label { margin-top:14px; }.operation-form .check-row { margin-top:15px; }.operation-form .primary-button { grid-column:1 / -1; margin-top:16px; }.operation-result { display:flex; gap:10px; margin:0 16px 16px; padding:13px; border-left:3px solid var(--orange); background:#fffaf0; }.operation-result.eligible { border-color:var(--green); background:#f0f8f4; }.operation-result strong,.operation-result small { display:block; }.operation-result p { margin:5px 0; font-size:12px; }.operation-result small { margin-top:3px; color:var(--muted); font-size:10px; overflow-wrap:anywhere; }.source-list { display:grid; gap:0; padding:0 16px 16px; }.source-list a { padding:9px 0; border-bottom:1px solid #edf0ef; color:var(--green); font-size:11px; overflow-wrap:anywhere; }
 
 @media (max-width: 1100px) {
   .workspace { grid-template-columns:286px minmax(0,1fr); }
@@ -227,6 +234,7 @@ td:last-child,th:last-child { text-align:right; }
   .version-compare { grid-template-columns:1fr; }
   .version-compare article { border-right:0; border-bottom:1px solid var(--line); }
   .backup-layout { grid-template-columns:1fr; }
+  .china-fund-layout { grid-template-columns:1fr; }.china-search-row { grid-template-columns:1fr; }.fund-identity { flex-direction:column; }.fund-identity-tags { align-self:stretch; flex-wrap:wrap; }.fund-status-grid { grid-template-columns:1fr 1fr; }.fund-status-grid > div:nth-child(2) { border-right:0; }.fund-status-grid > div:nth-child(n+3) { border-top:1px solid var(--line); }
   .backup-layout > div + div { border-left:0; border-top:1px solid var(--line); }
   .chat-compose > div { align-items:flex-start; flex-wrap:wrap; gap:4px 14px; }
   .compact-button { width:100%; margin:8px 0 0; }

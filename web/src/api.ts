@@ -1,4 +1,4 @@
-import type { AdviceVersion, AnalysisJob, AssetMode, BackupPreview, ConversationMessage, Instrument, TrustAssessment, UsageSummary } from './types'
+import type { AdviceVersion, AnalysisJob, AssetMode, BackupPreview, ChinaFundCandidate, ChinaFundEvaluation, ChinaFundSnapshot, ConversationMessage, Instrument, TrustAssessment, UsageSummary } from './types'
 
 async function json<T>(response: Response): Promise<T> {
   const body = await response.json()
@@ -48,3 +48,6 @@ export function listBackups() { return fetch('/api/admin/backups').then(json<{ i
 export function createBackup() { return fetch('/api/admin/backup', { method: 'POST' }).then(json<BackupPreview>) }
 export function previewRestore(backup_id: string) { return fetch('/api/admin/restore/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ backup_id }) }).then(json<BackupPreview>) }
 export function commitRestore(backup_id: string) { return fetch('/api/admin/restore/commit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ backup_id }) }).then(json<BackupPreview & { restored: boolean }>) }
+export function searchChinaFunds(q: string) { return fetch(`/api/funds/search?q=${encodeURIComponent(q)}`).then(json<{ items: ChinaFundCandidate[] }>).then(value => value.items) }
+export function getChinaFundSnapshot(code: string, analysisDate?: string) { return fetch(`/api/funds/${code}/snapshot${analysisDate ? `?analysis_date=${encodeURIComponent(analysisDate)}` : ''}`).then(json<ChinaFundSnapshot>) }
+export function evaluateChinaFund(code: string, payload: Record<string, unknown>) { return fetch(`/api/funds/${code}/evaluate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(json<{ snapshot: ChinaFundSnapshot; evaluation: ChinaFundEvaluation; formal_advice: { version: number } | null }>) }

@@ -176,6 +176,13 @@ drawdown, and benchmark metrics instead of company financial statements. Stock
 and crypto analysis paths remain available with the same symbols and CLI entry
 points.
 
+The **China Funds** workspace covers the Phase 3 catalog of 20 mainland,
+Hong Kong, and QDII public-fund share classes. It resolves exact six-digit codes
+or names, keeps A/C share classes distinct, retrieves normalized Eastmoney
+public data in live mode, and shows field evidence, freshness, trust, NAV
+history, transaction status, fee inputs, and deterministic subscribe/hold/
+redeem/convert eligibility. Demo mode uses checked-in synthetic observations.
+
 Install the optional backend and locked frontend dependencies from the
 repository root:
 
@@ -203,11 +210,11 @@ TRADINGAGENTS_WEB_DEMO=1 ./scripts/start-web.sh
 Open `http://127.0.0.1:8000`. This is the simplest way to run the complete
 application locally; there is no separate frontend port in this mode.
 
-Demo mode uses deterministic synthetic data and does not call Yahoo Finance or
-an LLM. It is intended for UI development, workflow testing, and evaluating the
-application without provider cost. To use live Yahoo data and the LLM provider
-selected in the UI, configure its key and model settings in `.env`, then start
-without the demo variable:
+Demo mode uses deterministic synthetic data and does not call Yahoo Finance,
+Eastmoney, or an LLM. It is intended for UI development, workflow testing, and
+evaluating the application without provider cost. To use live Yahoo/Eastmoney
+data and the LLM provider selected in the UI, configure its key and model
+settings in `.env`, then start without the demo variable:
 
 ```bash
 ./scripts/start-web.sh
@@ -279,13 +286,15 @@ evidence, provider cache entries, and trust assessments persist in SQLite
 across restarts. Backup and recovery instructions are in
 [`docs/next-phases/PHASE_2_OPERATIONS.md`](docs/next-phases/PHASE_2_OPERATIONS.md).
 
-Fund field coverage varies by Yahoo instrument. Missing profile, holdings, NAV,
-or allocation fields are shown as unavailable rather than zero. Fund profile
-and holdings are generally the latest available metadata, not historical
-point-in-time records; backdated analyses label this explicitly and only use
-price observations through the selected analysis date. Mainland China
-off-exchange public funds outside Yahoo coverage are not supported in this
-release.
+Fund field coverage varies by provider and instrument. Missing profile,
+holdings, NAV, or allocation fields are shown as unavailable rather than zero.
+Fund profile and holdings are generally the latest available metadata, not
+historical point-in-time records; backdated analyses label this explicitly and
+only use price or NAV observations through the selected analysis date. China
+public-fund support is intentionally limited to the confirmed Phase 3 catalog;
+provider holdings were unavailable in the live acceptance probe. See the
+[`Phase 3 provider matrix`](docs/next-phases/PHASE_3_PROVIDER_MATRIX.md) for
+coverage, cache, freshness, and current limitations.
 
 The web interface, like the rest of TradingAgents, is for research only and is
 not investment advice or a trade-execution system.

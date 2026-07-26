@@ -12,7 +12,7 @@ from pathlib import Path
 from .database import CURRENT_SCHEMA_VERSION, Database
 
 BACKUP_ID = re.compile(r"^[0-9a-f-]{36}$")
-REQUIRED_TABLES = {"analysis_jobs", "job_events", "reports", "advice_versions", "conversations", "usage_records", "source_observations", "trust_assessments", "provider_cache"}
+REQUIRED_TABLES = {"analysis_jobs", "job_events", "reports", "advice_versions", "conversations", "usage_records", "source_observations", "trust_assessments", "provider_cache", "china_fund_snapshots", "china_fund_advice_versions"}
 
 
 @dataclass(frozen=True)

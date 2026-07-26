@@ -72,7 +72,7 @@ def test_phase_two_api_survives_app_recreation_and_supports_chat_versions_backup
     backup = client.post("/api/admin/backup").json()
     assert backup["valid"] and backup["compatible"] and "path" not in backup
     preview = client.post("/api/admin/restore/preview", json={"backup_id": backup["backup_id"]}).json()
-    assert preview["schema_version"] == 4
+    assert preview["schema_version"] == 5
     assert client.post("/api/admin/restore/commit", json={"backup_id": backup["backup_id"]}).json()["restored"] is True
 
     persisted_chat = client.get(f"/api/conversations/{conversation['id']}").json()

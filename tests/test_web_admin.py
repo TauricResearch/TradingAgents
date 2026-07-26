@@ -19,6 +19,6 @@ def test_admin_backup_preview_and_restore_use_ids(tmp_path, monkeypatch, capsys)
     listed = run(monkeypatch, capsys, "list")
     assert listed["items"][0]["backup_id"] == created["backup_id"]
     preview = run(monkeypatch, capsys, "preview", created["backup_id"])
-    assert preview["compatible"] and preview["schema_version"] == 4
+    assert preview["compatible"] and preview["schema_version"] == 5
     restored = run(monkeypatch, capsys, "restore", created["backup_id"])
     assert restored["restored"] is True

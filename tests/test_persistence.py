@@ -19,16 +19,16 @@ from tradingagents.persistence.repository import utc_now
 
 def test_empty_database_migrates_to_current_version(tmp_path):
     database = Database(tmp_path / "workspace.sqlite3")
-    assert database.migrate() == 4
+    assert database.migrate() == 5
     with database.connect() as conn:
-        assert [row[0] for row in conn.execute("SELECT version FROM schema_migrations")] == [1, 2, 3, 4]
+        assert [row[0] for row in conn.execute("SELECT version FROM schema_migrations")] == [1, 2, 3, 4, 5]
 
 
-@pytest.mark.parametrize("old_version", [1, 2, 3])
+@pytest.mark.parametrize("old_version", [1, 2, 3, 4])
 def test_every_prior_version_migrates_forward(tmp_path, old_version):
     path = tmp_path / f"v{old_version}.sqlite3"
     Database(path, migrations=MIGRATIONS[:old_version]).migrate()
-    assert Database(path).migrate() == 4
+    assert Database(path).migrate() == 5
 
 
 def test_failed_migration_rolls_back_schema_and_version(tmp_path):
@@ -99,7 +99,7 @@ def test_backup_restore_round_trip_and_preview_rejections(tmp_path):
     original = repository.create_job({"symbol": "SPY"})
     backups = BackupService(repository.database)
     created = backups.create()
-    assert created.valid and created.compatible and created.schema_version == 4
+    assert created.valid and created.compatible and created.schema_version == 5
 
     repository.create_job({"symbol": "AAPL"})
     backups.restore(created.backup_id)
@@ -111,6 +111,33 @@ def test_backup_restore_round_trip_and_preview_rejections(tmp_path):
     assert not corrupt.valid and corrupt.reason == "CORRUPT_OR_INCOMPLETE"
     with pytest.raises(ValueError, match="INVALID_BACKUP_ID"):
         backups.preview("../../outside")
+
+
+def test_china_fund_snapshot_and_advice_round_trip(tmp_path):
+    repository = Repository(Database(tmp_path / "workspace.sqlite3"))
+    snapshot = {
+        "identity": {"code": "003516", "display_name": "国泰融安多策略灵活配置混合A"},
+        "analysis_date": "2026-07-25",
+        "retrieved_at": utc_now(),
+        "trust": {"level": "trusted", "critical_ready": True},
+        "warnings": [],
+    }
+    persisted = repository.save_china_fund_snapshot(snapshot)
+    assert repository.latest_china_fund_snapshot("003516")["snapshot"] == snapshot
+
+    first = repository.create_china_fund_advice(
+        persisted["id"],
+        "003516",
+        {"action": "hold", "confidence": "high", "reason": "Current", "executable": True},
+    )
+    second = repository.create_china_fund_advice(
+        persisted["id"],
+        "003516",
+        {"action": "subscribe", "confidence": "medium", "reason": "Open", "executable": True},
+        parent_id=first["id"],
+    )
+    assert second["version"] == 2 and second["parent_id"] == first["id"]
+    assert repository.list_china_fund_advice("003516") == [first, second]
 
 
 def test_backup_list_is_newest_first(tmp_path):

@@ -13,6 +13,7 @@ import {
   resumeAnalysis,
 } from './api'
 import { analysisReducer, initialAnalysisState } from './analysisReducer'
+import ChinaFunds from './ChinaFunds'
 import { setUiLanguage } from './i18n'
 import type {
   AdviceVersion, AnalysisEvent, AnalysisJob, AssetMode, BackupPreview, ConversationMessage,
@@ -21,7 +22,7 @@ import type {
 
 const analysts = ['market', 'social', 'news', 'fundamentals']
 const agentOrder = ['Market Analyst', 'Sentiment Analyst', 'News Analyst', 'Fundamentals Analyst']
-const tabs = ['overview', 'reports', 'debate', 'decision', 'history', 'quality', 'usage', 'advice', 'chat', 'backup'] as const
+const tabs = ['overview', 'reports', 'debate', 'decision', 'chinaFunds', 'history', 'quality', 'usage', 'advice', 'chat', 'backup'] as const
 type Tab = typeof tabs[number]
 const eventTypes = ['analysis.started', 'agent.started', 'agent.completed', 'agent.skipped', 'report.updated', 'analysis.completed', 'analysis.failed', 'analysis.cancelled', 'analysis.interrupted', 'analysis.budget_exhausted', 'analysis.provider_rate_limited', 'analysis.provider_timed_out']
 const terminal = ['completed', 'failed', 'cancelled', 'interrupted', 'budget_exhausted', 'provider_rate_limited', 'provider_timed_out']
@@ -180,6 +181,7 @@ export default function App() {
           {tab === 'reports' && <ReportList reports={reports.filter(([key]) => key.endsWith('_report'))}/>}
           {tab === 'debate' && <ReportList reports={reports.filter(([key]) => ['investment_plan','trader_investment_plan'].includes(key))}/>}
           {tab === 'decision' && <ReportList reports={reports.filter(([key]) => key === 'final_trade_decision')}/>}
+          {tab === 'chinaFunds' && <ChinaFunds onUse={(candidate, value) => { setSymbol(candidate.code); setMode('fund'); setInstrument(value); setTab('overview') }}/>}
           {tab === 'history' && <HistoryPanel onOpen={openHistory} onRetry={jobId => retry(jobId)}/>}
           {tab === 'quality' && <TrustPanel jobId={state.jobId}/>}
           {tab === 'usage' && <UsagePanel jobId={state.jobId} budget={budget}/>}

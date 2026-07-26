@@ -62,6 +62,8 @@ Provider selection criteria, in order:
 The spike output is a checked-in provider matrix with no secrets or full copied
 payloads. Provider-specific endpoint details remain inside adapters.
 
+The implementation record is [PHASE_3_PROVIDER_MATRIX.md](PHASE_3_PROVIDER_MATRIX.md).
+
 ## Provider Architecture
 
 Use capability-based adapters rather than one giant provider class:

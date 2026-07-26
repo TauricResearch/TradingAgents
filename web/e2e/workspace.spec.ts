@@ -166,8 +166,33 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: '
     await page.reload()
     await expect(page.getByRole('button', { name: '概览' })).toBeVisible()
     await expect(page.getByLabel('界面语言')).toHaveValue('zh')
+    await page.getByRole('button', { name: '中国基金' }).click()
+    await expect(page.getByText('中国公募基金')).toBeVisible()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
     expect(overflow).toBe(false)
     await page.screenshot({ path: `test-results/${viewport.name}-chinese-interface.png`, fullPage: true })
+  })
+}
+
+for (const viewport of [{ name: 'desktop', width: 1440, height: 960 }, { name: 'mobile', width: 390, height: 844 }]) {
+  test(`${viewport.name}: China fund search, QDII disclosure, operation gate, and analysis handoff`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+    await page.getByRole('button', { name: 'China Funds' }).click()
+    await page.getByLabel('China fund search').fill('016453')
+    await page.getByRole('button', { name: 'Search' }).click()
+    await page.getByRole('button', { name: /南方纳斯达克100指数/ }).click()
+    await expect(page.getByText('QDII published NAV can lag overseas markets. The displayed move is not an execution NAV.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Benchmark and market cutoff' })).toBeVisible()
+    await page.getByLabel('Fund action').selectOption('subscribe')
+    await page.getByLabel('Subscription amount').fill('1000')
+    await page.getByRole('button', { name: 'Evaluate operation' }).click()
+    await expect(page.getByText('Executable proposal')).toBeVisible()
+    await expect(page.getByText(/Formal advice version \d+ recorded\./)).toBeVisible()
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    expect(overflow).toBe(false)
+    await page.screenshot({ path: `test-results/${viewport.name}-china-fund.png`, fullPage: true })
+    await page.getByRole('button', { name: 'Use in analysis' }).click()
+    await expect(page.getByLabel('Symbol')).toHaveValue('016453')
   })
 }

@@ -168,3 +168,52 @@ export interface BackupPreview {
   size_bytes?: number | null
   reason?: string | null
 }
+
+export interface ChinaFundCandidate {
+  code: string
+  display_name: string
+  share_class: string
+  vehicle_type: string
+  strategy_type: string
+  market_scope: string
+  parent_product_id?: string | null
+  tags: string[]
+}
+
+export interface ChinaFundIdentity extends ChinaFundCandidate {
+  currency: string
+  manager_name?: string | null
+  fund_company?: string | null
+  warnings: string[]
+}
+
+export interface ChinaFundSnapshot {
+  identity: ChinaFundIdentity
+  analysis_date: string
+  retrieved_at: string
+  nav_history: Array<{ date: string; nav: string }>
+  transaction_status?: { subscription: string; redemption: string; observed_at: string } | null
+  fees: Array<{ action: string; condition: string; rate: string }>
+  benchmark?: { disclosed_text?: string | null; selected_code?: string | null; selected_name?: string | null; user_override?: string | null } | null
+  qdii_context: Record<string, unknown>
+  metrics: Metric[]
+  evidence: EvidenceField[]
+  warnings: string[]
+  capability_status: Record<string, string>
+  trust: { level: 'trusted' | 'usable_with_warning' | 'insufficient'; executable: boolean; critical_ready: boolean; reason_codes: string[]; warnings: string[]; nav_lag_trading_days?: number | null }
+}
+
+export interface ChinaFundEvaluation {
+  code: string
+  action: string
+  allowed_actions: string[]
+  blocked_actions: Record<string, string[]>
+  executable: boolean
+  confidence: string
+  reason: string
+  target_code?: string | null
+  supporting_evidence: string[]
+  opposing_evidence: string[]
+  friction: Array<{ kind: string; action: string; condition: string; rate: string; source_note: string }>
+  warnings: string[]
+}

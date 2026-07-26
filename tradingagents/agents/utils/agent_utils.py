@@ -67,6 +67,7 @@ def get_language_instruction() -> str:
     report rather than a mix of languages.
     """
     from tradingagents.dataflows.config import get_config
+
     lang = get_config().get("output_language", "English")
     if lang.strip().lower() == "english":
         return ""
@@ -211,6 +212,14 @@ def build_instrument_context(
             " Treat it as an investment fund. Use fund profile, holdings, allocation, "
             "cost, and price-based evidence; do not request company financial statements."
         )
+        if identity and identity.get("china_public_fund"):
+            context += (
+                " This is an off-exchange China public fund. Use subscribe, hold, "
+                "redeem_partial, redeem_all, or platform-confirmed convert vocabulary. "
+                "A subscription proposes a CNY amount, redemptions refer only to confirmed "
+                "units, and no analysis may imply a known execution NAV. The deterministic "
+                "trust and transaction-status gate decides whether an operation is executable."
+            )
     return context
 
 

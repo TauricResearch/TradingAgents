@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from copy import deepcopy
 from dataclasses import asdict
 from datetime import UTC, date, datetime
@@ -14,10 +15,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from tradingagents.china_funds import (
+    AmbiguousFundError,
+    CachedChinaFundProvider,
+    ChinaFundService,
+    EastmoneyFundProvider,
+    FundNotFoundError,
+    SyntheticChinaFundProvider,
+    default_registry,
+)
 from tradingagents.dataflows.errors import ProviderRateLimitedError, ProviderTimedOutError
 from tradingagents.dataflows.symbol_utils import normalize_symbol
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.instruments import AssetType, InstrumentNotFoundError, resolve_instrument
+from tradingagents.instruments import (
+    AssetType,
+    FundType,
+    InstrumentDescriptor,
+    InstrumentNotFoundError,
+    resolve_instrument,
+)
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 from tradingagents.persistence import BackupService, Database, Repository
@@ -40,12 +56,17 @@ from tradingagents.usage.budget import summarize_usage
 from .jobs import JobBusyError, JobManager, JobResumeError, JobRetryError
 from .schemas import (
     AnalysisCreate,
+    ChinaFundConversionRequest,
+    ChinaFundEvaluateRequest,
+    ChinaFundResolveRequest,
     ConversationMessageCreate,
     ReevaluateCreate,
     ResolveRequest,
     RestoreRequest,
 )
 from .yahoo_resilience import CachedYahooProvider
+
+CHINA_FUND_CODE = re.compile(r"^\d{6}$")
 
 
 def _demo_identity(symbol: str) -> dict[str, str]:
@@ -97,6 +118,60 @@ def _demo_fresh_data(report: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
+def _china_snapshot_for_analysis(snapshot) -> dict[str, Any]:
+    """Map the Phase 3 snapshot into the established fund-tool contract."""
+    identity = snapshot.identity
+
+    def number(value):
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    return {
+        "instrument": {
+            "canonical_symbol": identity.code,
+            "name": identity.display_name,
+            "fund_type": identity.vehicle_type,
+            "exchange": "China off-exchange",
+            "currency": identity.currency,
+        },
+        "profile": {
+            "share_class": identity.share_class,
+            "vehicle_type": identity.vehicle_type,
+            "strategy_type": identity.strategy_type,
+            "market_scope": identity.market_scope,
+            "manager_name": identity.manager_name,
+            "fund_company": identity.fund_company,
+            "transaction_status": asdict(snapshot.transaction_status)
+            if snapshot.transaction_status
+            else None,
+            "fees": [asdict(item) for item in snapshot.fees],
+            "benchmark": asdict(snapshot.benchmark) if snapshot.benchmark else None,
+            "qdii_context": snapshot.qdii_context,
+            "trust": snapshot.trust,
+        },
+        "metrics": [{**item, "value": number(item.get("value"))} for item in snapshot.metrics],
+        "price_series": [
+            {"date": item.date, "adjusted_close": number(item.nav)} for item in snapshot.nav_history
+        ],
+        "top_holdings": [
+            {"symbol": item.code, "name": item.name, "weight": number(item.weight)}
+            for item in snapshot.holdings
+        ],
+        "sectors": {key: number(value) for key, value in snapshot.sector_allocation.items()},
+        "asset_classes": {key: number(value) for key, value in snapshot.asset_allocation.items()},
+        "warnings": list(snapshot.warnings) + list(snapshot.trust.get("warnings", [])),
+        "source": [item.source_reference for item in snapshot.evidence],
+        "analysis_date": snapshot.analysis_date,
+        "benchmark_symbol": snapshot.benchmark.selected_code
+        if snapshot.benchmark and snapshot.benchmark.selected_code
+        else "DISCLOSED_BENCHMARK",
+        "observed_at": snapshot.retrieved_at,
+        "china_fund_snapshot": snapshot.to_dict(),
+    }
+
+
 def create_app(
     *,
     demo: bool | None = None,
@@ -110,8 +185,45 @@ def create_app(
     artifact_service = ArtifactService(repository)
     limits = BudgetLimits.from_env()
     yahoo = CachedYahooProvider(repository)
+    china_provider = (
+        SyntheticChinaFundProvider()
+        if demo
+        else CachedChinaFundProvider(EastmoneyFundProvider(), repository)
+    )
+    china_funds = ChinaFundService(default_registry(china_provider), repository)
 
     def analysis_preflight(job, request: dict[str, Any]) -> dict[str, Any]:
+        requested_symbol = str(request["symbol"])
+        requested_asset = str(request["asset_type"])
+        if CHINA_FUND_CODE.fullmatch(requested_symbol) and requested_asset in {"auto", "fund"}:
+            snapshot = china_funds.snapshot(requested_symbol, str(request["analysis_date"]))
+            identity = snapshot.identity
+            descriptor = InstrumentDescriptor(
+                requested_symbol=requested_symbol,
+                canonical_symbol=identity.code,
+                asset_type=AssetType.FUND,
+                fund_type=FundType.MUTUAL_FUND,
+                quote_type="CHINA_PUBLIC_FUND",
+                name=identity.display_name,
+                exchange="China off-exchange",
+                currency=identity.currency,
+                identity_source="china_fund_provider",
+                warnings=identity.warnings,
+            )
+            value = dict(request)
+            value["symbol"] = identity.code
+            value["asset_type"] = "fund"
+            value["_instrument_identity"] = {
+                "company_name": identity.display_name,
+                "currency": identity.currency,
+                "exchange": "China off-exchange",
+                "china_public_fund": True,
+                "market_scope": identity.market_scope,
+            }
+            value["_provider_cache_status"] = snapshot.capability_status
+            value["_fund_snapshot"] = _china_snapshot_for_analysis(snapshot)
+            value["_china_fund_snapshot"] = snapshot.to_dict()
+            return value
         if demo:
             if str(request["symbol"]).upper() == "RATE" and job.record.retry_attempt == 0:
                 raise ProviderRateLimitedError("yahoo_finance", cache_status="miss")
@@ -162,6 +274,13 @@ def create_app(
             raise RuntimeError("FRESH_DATA_UNAVAILABLE_FOR_ASSET")
         symbol = str(report.get("company_of_interest"))
         today = date.today().isoformat()
+        if CHINA_FUND_CODE.fullmatch(symbol):
+            snapshot = china_funds.snapshot(symbol, today)
+            value = deepcopy(report)
+            value["trade_date"] = today
+            value["fund_snapshot"] = _china_snapshot_for_analysis(snapshot)
+            value["china_fund_snapshot"] = snapshot.to_dict()
+            return value
         resolved = yahoo.resolve(symbol, "fund", today)
         snapshot, _cache_status = yahoo.fund_snapshot(
             resolved.descriptor,
@@ -216,11 +335,12 @@ def create_app(
         budget_limits=limits,
     )
     backups = BackupService(repository.database)
-    app = FastAPI(title="TradingAgents Research Workspace", version="0.3.0")
+    app = FastAPI(title="TradingAgents Research Workspace", version="0.4.0")
     app.state.jobs = manager
     app.state.repository = repository
     app.state.conversations = conversations
     app.state.backups = backups
+    app.state.china_funds = china_funds
     app.state.demo = demo
     app.add_middleware(
         CORSMiddleware,
@@ -268,6 +388,20 @@ def create_app(
     @app.post("/api/instruments/resolve")
     def resolve(body: ResolveRequest):
         try:
+            if CHINA_FUND_CODE.fullmatch(body.symbol) and body.asset_type in {"auto", "fund"}:
+                identity = china_funds.resolve(body.symbol)
+                return InstrumentDescriptor(
+                    requested_symbol=body.symbol,
+                    canonical_symbol=identity.code,
+                    asset_type=AssetType.FUND,
+                    fund_type=FundType.MUTUAL_FUND,
+                    quote_type="CHINA_PUBLIC_FUND",
+                    name=identity.display_name,
+                    exchange="China off-exchange",
+                    currency=identity.currency,
+                    identity_source="china_fund_provider",
+                    warnings=identity.warnings,
+                ).to_dict()
             if demo:
                 descriptor = resolve_instrument(
                     body.symbol,
@@ -284,6 +418,115 @@ def create_app(
         except ProviderTimedOutError as exc:
             raise HTTPException(status_code=504, detail=exc.public_detail()) from exc
         return descriptor.to_dict()
+
+    def fund_error(exc: Exception):
+        if isinstance(exc, AmbiguousFundError):
+            return HTTPException(
+                status_code=409,
+                detail={
+                    "code": "IDENTITY_AMBIGUOUS",
+                    "message": str(exc),
+                    "candidates": [china_funds._catalog_json(item) for item in exc.candidates],
+                },
+            )
+        if isinstance(exc, FundNotFoundError):
+            return HTTPException(
+                status_code=404,
+                detail={"code": "FUND_NOT_FOUND", "message": "Unknown China public fund"},
+            )
+        if isinstance(exc, ValueError):
+            return HTTPException(
+                status_code=422,
+                detail={"code": "INVALID_FUND_REQUEST", "message": str(exc)},
+            )
+        return HTTPException(
+            status_code=503,
+            detail={
+                "code": "FUND_PROVIDER_UNAVAILABLE",
+                "message": "China public-fund data is temporarily unavailable",
+            },
+        )
+
+    @app.get("/api/funds/search")
+    def search_funds(q: str):
+        return {"items": china_funds.search(q)}
+
+    @app.post("/api/funds/resolve")
+    def resolve_fund(body: ChinaFundResolveRequest):
+        try:
+            return china_funds.resolve(body.query).to_dict()
+        except Exception as exc:
+            raise fund_error(exc) from exc
+
+    @app.get("/api/funds/{code}")
+    def get_fund(code: str):
+        try:
+            return china_funds.resolve(code).to_dict()
+        except Exception as exc:
+            raise fund_error(exc) from exc
+
+    @app.get("/api/funds/{code}/snapshot")
+    def get_fund_snapshot(code: str, analysis_date: date | None = None):
+        try:
+            return china_funds.snapshot(
+                code, analysis_date.isoformat() if analysis_date else None
+            ).to_dict()
+        except Exception as exc:
+            raise fund_error(exc) from exc
+
+    def latest_fund_snapshot(code: str) -> dict[str, Any]:
+        persisted = repository.latest_china_fund_snapshot(code)
+        if persisted:
+            return persisted["snapshot"]
+        return china_funds.snapshot(code).to_dict()
+
+    @app.get("/api/funds/{code}/trust")
+    def get_fund_trust(code: str):
+        try:
+            return latest_fund_snapshot(code)["trust"]
+        except Exception as exc:
+            raise fund_error(exc) from exc
+
+    @app.get("/api/funds/{code}/sources")
+    def get_fund_sources(code: str):
+        try:
+            snapshot = latest_fund_snapshot(code)
+            return {"items": snapshot.get("evidence") or []}
+        except Exception as exc:
+            raise fund_error(exc) from exc
+
+    @app.post("/api/funds/{code}/evaluate")
+    def evaluate_fund(code: str, body: ChinaFundEvaluateRequest):
+        try:
+            context = body.model_dump(mode="json")
+            snapshot, evaluation = china_funds.evaluate(code, **context)
+            formal_advice = china_funds.persist_formal_advice(snapshot, evaluation)
+            return {
+                "snapshot": snapshot.to_dict(),
+                "evaluation": evaluation.to_dict(),
+                "formal_advice": formal_advice,
+            }
+        except Exception as exc:
+            raise fund_error(exc) from exc
+
+    @app.post("/api/funds/{code}/conversion-check")
+    def conversion_check(code: str, body: ChinaFundConversionRequest):
+        try:
+            snapshot, evaluation = china_funds.evaluate(
+                code, intended_action="convert", **body.model_dump(mode="json")
+            )
+            return {
+                "code": code,
+                "target_code": body.target_code,
+                "sales_platform": body.sales_platform,
+                "conversion_supported": body.conversion_supported,
+                "executable": evaluation.executable,
+                "blocked_reasons": evaluation.blocked_actions.get("convert", []),
+                "warnings": evaluation.warnings,
+                "trust": snapshot.trust,
+            }
+        except Exception as exc:
+            raise fund_error(exc) from exc
 
     @app.get("/api/analyses")
     def list_analyses(limit: int = 100):

@@ -33,6 +33,15 @@ def assess_result_evidence(
     retrieved_at: str | None = None,
 ) -> tuple[SourceObservation, TrustAssessment]:
     snapshot = result.get("fund_snapshot") or {}
+    china_snapshot = result.get("china_fund_snapshot") or snapshot.get("china_fund_snapshot")
+    if isinstance(china_snapshot, dict):
+        return _assess_china_fund_result(
+            result,
+            china_snapshot,
+            job_id=job_id,
+            conversation_id=conversation_id,
+            retrieved_at=retrieved_at,
+        )
     instrument = snapshot.get("instrument") or {}
     profile = snapshot.get("profile") or {}
     cutoff = str(result.get("trade_date") or result.get("analysis_date") or date.today().isoformat())
@@ -122,6 +131,55 @@ def assess_result_evidence(
     assessment = TrustAssessment(
         str(uuid.uuid4()), job_id, conversation_id, level, executable,
         tuple(reasons), tuple(dict.fromkeys(warnings)), datetime.now(UTC).isoformat(), tuple(evidence),
+    )
+    return observation, assessment
+
+
+def _assess_china_fund_result(
+    result: dict[str, Any],
+    snapshot: dict[str, Any],
+    *,
+    job_id: str | None,
+    conversation_id: str | None,
+    retrieved_at: str | None,
+) -> tuple[SourceObservation, TrustAssessment]:
+    identity = snapshot.get("identity") or {}
+    trust = snapshot.get("trust") or {}
+    evidence_payload = snapshot.get("evidence") or []
+    retrieved_at = retrieved_at or snapshot.get("retrieved_at") or datetime.now(UTC).isoformat()
+    normalized = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, default=str).encode()
+    references = [
+        str(item.get("source_reference"))
+        for item in evidence_payload
+        if item.get("source_reference")
+    ]
+    observation = SourceObservation(
+        str(uuid.uuid4()),
+        job_id,
+        conversation_id,
+        "china_public_fund",
+        references[0] if references else str(identity.get("code") or "unknown"),
+        retrieved_at,
+        None,
+        str(snapshot.get("analysis_date") or result.get("trade_date")),
+        hashlib.sha256(normalized).hexdigest(),
+        "normalized",
+    )
+    evidence = []
+    for item in evidence_payload:
+        value = dict(item)
+        value["normalization_warnings"] = tuple(value.get("normalization_warnings") or ())
+        evidence.append(EvidenceField(**value))
+    assessment = TrustAssessment(
+        str(uuid.uuid4()),
+        job_id,
+        conversation_id,
+        str(trust.get("level") or TrustLevel.INSUFFICIENT),
+        bool(trust.get("executable")),
+        tuple(trust.get("reason_codes") or ()),
+        tuple(trust.get("warnings") or ()),
+        str(trust.get("assessed_at") or datetime.now(UTC).isoformat()),
+        tuple(evidence),
     )
     return observation, assessment
 

@@ -184,7 +184,49 @@ def _v4(conn: sqlite3.Connection) -> None:
     )
 
 
-MIGRATIONS: tuple[tuple[int, Migration], ...] = ((1, _v1), (2, _v2), (3, _v3), (4, _v4))
+def _v5(conn: sqlite3.Connection) -> None:
+    _execute_script(
+        conn,
+        """
+        CREATE TABLE china_fund_snapshots (
+            id TEXT PRIMARY KEY,
+            code TEXT NOT NULL,
+            analysis_date TEXT NOT NULL,
+            retrieved_at TEXT NOT NULL,
+            snapshot_json TEXT NOT NULL,
+            trust_json TEXT NOT NULL,
+            payload_hash TEXT NOT NULL,
+            UNIQUE (code, analysis_date, payload_hash)
+        );
+        CREATE INDEX idx_china_fund_snapshots_lookup
+            ON china_fund_snapshots(code, analysis_date, retrieved_at DESC);
+        CREATE TABLE china_fund_advice_versions (
+            id TEXT PRIMARY KEY,
+            snapshot_id TEXT NOT NULL REFERENCES china_fund_snapshots(id),
+            code TEXT NOT NULL,
+            parent_id TEXT REFERENCES china_fund_advice_versions(id),
+            version INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            action TEXT NOT NULL,
+            confidence TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            executable INTEGER NOT NULL,
+            evaluation_json TEXT NOT NULL,
+            UNIQUE (code, version)
+        );
+        CREATE INDEX idx_china_fund_advice_code
+            ON china_fund_advice_versions(code, version DESC);
+        """,
+    )
+
+
+MIGRATIONS: tuple[tuple[int, Migration], ...] = (
+    (1, _v1),
+    (2, _v2),
+    (3, _v3),
+    (4, _v4),
+    (5, _v5),
+)
 CURRENT_SCHEMA_VERSION = MIGRATIONS[-1][0]
 
 

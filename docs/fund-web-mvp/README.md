@@ -17,6 +17,11 @@ The first release supports instruments that Yahoo Finance can resolve as an ETF
 or mutual fund. Mainland China off-exchange public funds that Yahoo Finance does
 not cover are deliberately deferred to a later data-provider integration.
 
+> Historical scope note: Phase 3 now implements a bounded China public-fund
+> catalog and provider adapter. See
+> [`docs/next-phases/PHASE_3_CHINA_FUNDS.md`](../next-phases/PHASE_3_CHINA_FUNDS.md)
+> for the current behavior; the decisions below remain the original MVP record.
+
 ## Fixed MVP Decisions
 
 - Preserve the current CLI and Python package behavior.

@@ -88,6 +88,8 @@ class GraphAnalysisService:
             result = self._execute(request, emit, should_cancel)
         if isinstance(snapshot, dict) and not result.get("fund_snapshot"):
             result["fund_snapshot"] = deepcopy(snapshot)
+        if isinstance(request.get("_china_fund_snapshot"), dict):
+            result["china_fund_snapshot"] = deepcopy(request["_china_fund_snapshot"])
         return result
 
     def _execute(self, request: dict[str, Any], emit: Emit, should_cancel: Callable[[], bool]) -> dict[str, Any]:
@@ -218,9 +220,13 @@ class DemoAnalysisService:
             investment_plan="**Rating: Overweight**\n\nThe evidence supports measured exposure.",
             trader_investment_plan="Accumulate gradually with explicit risk limits.",
             final_trade_decision="**Final Rating: Overweight**\n\nMaintain disciplined position sizing.",
-            fund_snapshot=_demo_snapshot(symbol, asset_type, request["analysis_date"]),
+            fund_snapshot=deepcopy(request.get("_fund_snapshot"))
+            if isinstance(request.get("_fund_snapshot"), dict)
+            else _demo_snapshot(symbol, asset_type, request["analysis_date"]),
             generated_at=datetime.now(UTC).isoformat(),
         )
+        if isinstance(request.get("_china_fund_snapshot"), dict):
+            result["china_fund_snapshot"] = deepcopy(request["_china_fund_snapshot"])
         for key in ("investment_plan", "trader_investment_plan", "final_trade_decision"):
             emit("report.updated", {"section": key, "title": REPORT_KEYS[key], "content": result[key]})
         return result

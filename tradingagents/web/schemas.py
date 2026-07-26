@@ -59,3 +59,31 @@ class ReevaluateCreate(BaseModel):
 
 class RestoreRequest(BaseModel):
     backup_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+
+
+class ChinaFundResolveRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=120)
+
+
+class ChinaFundEvaluateRequest(BaseModel):
+    intended_action: Literal["subscribe", "hold", "redeem_partial", "redeem_all", "convert"] = (
+        "hold"
+    )
+    analysis_date: date | None = None
+    amount: str | None = Field(default=None, max_length=40)
+    unit_fraction: str | None = Field(default=None, max_length=40)
+    confirmed_units: str | None = Field(default=None, max_length=40)
+    holding_days: int | None = Field(default=None, ge=0, le=100_000)
+    minimum_holding_known: bool = False
+    sales_platform: str | None = Field(default=None, max_length=120)
+    conversion_supported: bool = False
+    target_code: str | None = Field(default=None, pattern=r"^\d{6}$")
+
+
+class ChinaFundConversionRequest(BaseModel):
+    target_code: str = Field(pattern=r"^\d{6}$")
+    sales_platform: str = Field(min_length=1, max_length=120)
+    conversion_supported: bool = False
+    confirmed_units: str | None = Field(default=None, max_length=40)
+    holding_days: int | None = Field(default=None, ge=0, le=100_000)
+    minimum_holding_known: bool = False

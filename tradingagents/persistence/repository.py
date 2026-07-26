@@ -278,6 +278,103 @@ class Repository:
             )
         return self.get_provider_cache(provider, symbol, capability, request_params)  # type: ignore[return-value]
 
+    def save_china_fund_snapshot(self, snapshot: dict[str, Any]) -> dict[str, Any]:
+        snapshot_id = str(uuid.uuid4())
+        payload = json_text(snapshot)
+        payload_hash = hashlib.sha256(payload.encode()).hexdigest()
+        code = str((snapshot.get("identity") or {}).get("code") or "")
+        analysis_date = str(snapshot.get("analysis_date") or "")
+        retrieved_at = str(snapshot.get("retrieved_at") or utc_now())
+        trust = snapshot.get("trust") or {}
+        with self.database.connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO china_fund_snapshots"
+                "(id,code,analysis_date,retrieved_at,snapshot_json,trust_json,payload_hash) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (
+                    snapshot_id,
+                    code,
+                    analysis_date,
+                    retrieved_at,
+                    payload,
+                    json_text(trust),
+                    payload_hash,
+                ),
+            )
+            row = conn.execute(
+                "SELECT * FROM china_fund_snapshots "
+                "WHERE code=? AND analysis_date=? AND payload_hash=?",
+                (code, analysis_date, payload_hash),
+            ).fetchone()
+        return self._china_fund_snapshot(row)
+
+    def latest_china_fund_snapshot(
+        self, code: str, *, analysis_date: str | None = None
+    ) -> dict[str, Any] | None:
+        query = "SELECT * FROM china_fund_snapshots WHERE code=?"
+        params: list[Any] = [code]
+        if analysis_date is not None:
+            query += " AND analysis_date=?"
+            params.append(analysis_date)
+        query += " ORDER BY retrieved_at DESC LIMIT 1"
+        with self.database.connect() as conn:
+            row = conn.execute(query, params).fetchone()
+        return self._china_fund_snapshot(row) if row else None
+
+    def create_china_fund_advice(
+        self,
+        snapshot_id: str,
+        code: str,
+        evaluation: dict[str, Any],
+        *,
+        parent_id: str | None = None,
+    ) -> dict[str, Any]:
+        advice_id, now = str(uuid.uuid4()), utc_now()
+        with self.database.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            version = int(
+                conn.execute(
+                    "SELECT COALESCE(MAX(version),0)+1 "
+                    "FROM china_fund_advice_versions WHERE code=?",
+                    (code,),
+                ).fetchone()[0]
+            )
+            conn.execute(
+                "INSERT INTO china_fund_advice_versions"
+                "(id,snapshot_id,code,parent_id,version,created_at,action,confidence,reason,executable,evaluation_json) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    advice_id,
+                    snapshot_id,
+                    code,
+                    parent_id,
+                    version,
+                    now,
+                    str(evaluation.get("action") or "hold"),
+                    str(evaluation.get("confidence") or "low"),
+                    str(evaluation.get("reason") or ""),
+                    int(bool(evaluation.get("executable"))),
+                    json_text(evaluation),
+                ),
+            )
+            conn.execute("COMMIT")
+        return self.get_china_fund_advice(advice_id)  # type: ignore[return-value]
+
+    def get_china_fund_advice(self, advice_id: str) -> dict[str, Any] | None:
+        with self.database.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM china_fund_advice_versions WHERE id=?", (advice_id,)
+            ).fetchone()
+        return self._china_fund_advice(row) if row else None
+
+    def list_china_fund_advice(self, code: str) -> list[dict[str, Any]]:
+        with self.database.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM china_fund_advice_versions WHERE code=? ORDER BY version",
+                (code,),
+            ).fetchall()
+        return [self._china_fund_advice(row) for row in rows]
+
     def add_observation(self, value: SourceObservation) -> None:
         with self.database.connect() as conn:
             conn.execute("INSERT INTO source_observations VALUES (?,?,?,?,?,?,?,?,?,?,?)", tuple(asdict(value).values()))
@@ -324,6 +421,34 @@ class Repository:
             _loads(row["normalized_json"], {}), row["source_reference"], row["retrieved_at"],
             row["effective_at"], row["expires_at"], row["payload_hash"],
         )
+
+    @staticmethod
+    def _china_fund_snapshot(row: Any) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "code": row["code"],
+            "analysis_date": row["analysis_date"],
+            "retrieved_at": row["retrieved_at"],
+            "snapshot": _loads(row["snapshot_json"], {}),
+            "trust": _loads(row["trust_json"], {}),
+            "payload_hash": row["payload_hash"],
+        }
+
+    @staticmethod
+    def _china_fund_advice(row: Any) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "snapshot_id": row["snapshot_id"],
+            "code": row["code"],
+            "parent_id": row["parent_id"],
+            "version": row["version"],
+            "created_at": row["created_at"],
+            "action": row["action"],
+            "confidence": row["confidence"],
+            "reason": row["reason"],
+            "executable": bool(row["executable"]),
+            "evaluation": _loads(row["evaluation_json"], {}),
+        }
 
     @staticmethod
     def _report(row: Any) -> Report:
