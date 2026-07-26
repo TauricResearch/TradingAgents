@@ -30,6 +30,8 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
+- [2026-04] **Auto-Trading Bot** added — full execution layer on top of TradingAgents: broker adapter (Alpaca + mock), SQLite portfolio state, risk gate, APScheduler automation, and Streamlit dashboard. See [Auto-Trading Bot](#auto-trading-bot) below.
+- [2026-06] **TradingAgents v0.3.0** released with a verified data-access contract, an expanded provider registry (NVIDIA, Kimi, Groq, Mistral, Bedrock, and any OpenAI-compatible endpoint), FRED and Polymarket data vendors, a current-generation model catalog, and a CI gate. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-07] **TradingAgents v0.3.1** released with correctness and stability fixes: Alpha Vantage look-ahead filtering, graph-router crash-safety, graph-shape-aware checkpoint resume, working crypto sentiment sources, a configurable LLM retry budget, Bedrock API-key auth, and Claude Sonnet 5 / Fable 5 support. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-06] **TradingAgents v0.3.0** released with a verified data-access contract, an expanded provider registry (NVIDIA, Kimi, Groq, Mistral, Bedrock, and any OpenAI-compatible endpoint), FRED and Polymarket data vendors, a current-generation model catalog, and a CI gate.
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening.
@@ -232,6 +234,213 @@ print(decision)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
+
+---
+
+## Auto-Trading Bot
+
+> **Disclaimer:** This bot is designed for research and paper-trading purposes. Use real-money trading at your own risk. Start with `TRADINGBOT_BROKER=mock` and graduate to Alpaca paper trading before touching live capital. This is not financial advice.
+
+The auto-trading bot extends TradingAgents from a pure analysis tool into a full execution system. It adds four layers on top of the existing agent pipeline:
+
+```
+TradingAgents Analysis Pipeline  (existing)
+          │
+          ▼  BUY / OVERWEIGHT / HOLD / UNDERWEIGHT / SELL
+   ┌──────────────┐
+   │  SignalMapper │  translates 5-tier signal → order qty + side
+   └──────┬───────┘
+          │
+          ▼
+   ┌──────────────┐
+   │   RiskGate   │  hard limits: exposure cap, circuit breaker,
+   └──────┬───────┘  cash reserve, position concentration
+          │ approved?
+          ▼
+   ┌──────────────┐
+   │ BrokerAdapter│  Alpaca (paper/live) or MockBroker
+   └──────┬───────┘
+          │ filled order
+          ▼
+   ┌──────────────────┐
+   │ PortfolioManager │  SQLite: trades, snapshots, closed P&L
+   └──────┬───────────┘
+          │ realised P&L on SELL
+          ▼
+   TradingAgentsGraph.reflect_and_remember()   ← agents learn
+          │
+          ▼
+   ┌─────────────────┐
+   │   Dashboard     │  Streamlit web UI
+   └─────────────────┘
+```
+
+### New File Structure
+
+```
+tradingbot/
+├── config.py                  # All env-var-driven configuration
+├── broker/
+│   ├── base.py                # BrokerAdapter ABC + data models
+│   ├── alpaca.py              # Alpaca Markets (paper & live)
+│   ├── mock.py                # In-memory mock (yfinance prices)
+│   └── signal_mapper.py       # 5-tier signal → OrderInstruction
+├── portfolio/
+│   ├── models.py              # TradeRecord, PortfolioSnapshot, PerformanceMetrics
+│   ├── database.py            # SQLite: trades / snapshots / closed_positions
+│   └── manager.py             # Bridges broker ↔ DB, computes Sharpe/drawdown
+├── risk/
+│   └── gate.py                # RiskGate — 5 hard limits, never LLM-overridable
+├── scheduler/
+│   ├── runner.py              # AutoTrader — full pipeline per ticker
+│   └── scheduler.py           # APScheduler: pre-market / order-submit / post-market
+└── dashboard/
+    ├── app.py                 # Streamlit entry point
+    └── components/
+        ├── portfolio_view.py  # Live positions table + allocation pie
+        ├── performance_view.py# Equity curve, drawdown, daily P&L, metrics
+        ├── trades_view.py     # Trade history + agent reasoning + closed P&L
+        ├── signals_view.py    # Run live analysis from the UI (no execution)
+        └── risk_view.py       # Circuit breaker, exposure gauge, concentration
+
+run_bot.py          # CLI entry point for the bot
+run_dashboard.py    # Convenience launcher for the Streamlit dashboard
+```
+
+### Installation
+
+Install the extra dependencies (added to `pyproject.toml`):
+
+```bash
+pip install .
+# installs alpaca-py, apscheduler, streamlit, plotly alongside existing deps
+```
+
+### Configuration
+
+All settings are driven by environment variables. Add them to your `.env` file or export them in your shell.
+
+#### Broker
+
+| Variable | Default | Description |
+|---|---|---|
+| `TRADINGBOT_BROKER` | `mock` | `mock` (no credentials) or `alpaca` |
+| `ALPACA_API_KEY` | — | Required for Alpaca |
+| `ALPACA_API_SECRET` | — | Required for Alpaca |
+| `ALPACA_PAPER` | `true` | `true` = paper trading, `false` = live |
+
+#### Watchlist & Position Sizing
+
+| Variable | Default | Description |
+|---|---|---|
+| `TRADINGBOT_WATCHLIST` | `AAPL,MSFT,NVDA,GOOGL,AMZN` | Comma-separated tickers |
+| `FULL_POSITION_PCT` | `0.05` | Cash fraction allocated on a BUY signal (5 %) |
+| `PARTIAL_POSITION_PCT` | `0.03` | Cash fraction allocated on an OVERWEIGHT signal (3 %) |
+| `PARTIAL_EXIT_PCT` | `0.50` | Fraction of position sold on an UNDERWEIGHT signal (50 %) |
+
+#### Risk Limits
+
+| Variable | Default | Description |
+|---|---|---|
+| `MAX_SINGLE_POSITION_PCT` | `0.10` | Max portfolio fraction in one ticker (10 %) |
+| `MAX_TOTAL_EXPOSURE_PCT` | `0.80` | Max portfolio fraction invested at any time (80 %) |
+| `DAILY_LOSS_LIMIT_PCT` | `-0.02` | Circuit breaker: halt buys if daily P&L < −2 % |
+| `MIN_CASH_RESERVE` | `1000.0` | Minimum cash (USD) always kept available |
+
+#### Schedule (all times in US/Eastern)
+
+| Variable | Default | Description |
+|---|---|---|
+| `PRE_MARKET_TIME` | `08:00` | When to run agent analysis |
+| `ORDER_SUBMISSION_TIME` | `09:35` | When to submit approved orders |
+| `POST_MARKET_TIME` | `16:30` | When to snapshot portfolio and run agent reflection |
+
+#### Storage
+
+| Variable | Default | Description |
+|---|---|---|
+| `TRADINGBOT_DB_PATH` | `~/.tradingagents/tradingbot.db` | SQLite database path |
+
+### Running the Bot
+
+#### Option 1 — One-shot test (mock broker, no credentials needed)
+
+```bash
+# Analyse a single ticker for today and (mock) execute the trade
+python run_bot.py --ticker AAPL --once
+
+# Analyse a specific historical date
+python run_bot.py --ticker NVDA --date 2024-05-10 --once
+
+# Run the full watchlist once
+python run_bot.py --once
+```
+
+#### Option 2 — Human-in-the-loop (review before each trade)
+
+```bash
+python run_bot.py --once --approval
+# Prints the signal + agent summary, waits for y/n before submitting
+```
+
+#### Option 3 — Continuous scheduled mode
+
+```bash
+# Runs 3 cron jobs every weekday: pre-market analysis, order submission, post-market reflection
+python run_bot.py
+```
+
+Press `Ctrl-C` to stop.
+
+#### Option 4 — Alpaca paper trading
+
+```bash
+export TRADINGBOT_BROKER=alpaca
+export ALPACA_API_KEY=your_key
+export ALPACA_API_SECRET=your_secret
+export ALPACA_PAPER=true
+
+python run_bot.py --ticker AAPL --once
+```
+
+### Running the Dashboard
+
+```bash
+python run_dashboard.py
+```
+
+Or directly with Streamlit:
+
+```bash
+streamlit run tradingbot/dashboard/app.py
+```
+
+The dashboard opens at `http://localhost:8501` and contains five pages:
+
+| Page | What it shows |
+|---|---|
+| **Portfolio** | Live positions table (entry price, current price, unrealised P&L), allocation pie chart, 4 KPI cards |
+| **Performance** | Equity curve, drawdown chart, daily P&L bar chart, Sharpe ratio, max drawdown, win rate, profit factor |
+| **Trade History** | Every executed trade (filterable by ticker/side), full agent reasoning per trade, closed-position P&L table |
+| **Agent Reasoning** | Full per-agent tab view (12 tabs, one per agent) — run a live analysis or load past logs. Shows every analyst report, bull/bear debate, trader plan, risk debate, and portfolio manager decision in full |
+| **Risk Monitor** | Circuit breaker status, portfolio exposure gauge with cap markers, per-position concentration bar chart |
+
+The sidebar also includes a **Quick Trade** panel for placing manual orders directly from the UI.
+
+The dashboard reads from the same SQLite database as the bot, so it works whether the bot is currently running or not. Click **Refresh Data** in the sidebar to pull the latest state.
+
+### How the Learning Loop Closes
+
+Every time a SELL order is executed, the bot:
+
+1. Records the closed position P&L in the database.
+2. Calls `TradingAgentsGraph.reflect_and_remember(realised_pnl)`.
+3. The existing Reflector agents (Bull, Bear, Trader, Research Manager, Portfolio Manager) generate lessons learned.
+4. Those lessons are stored in BM25 memory and surface in future analysis runs for similar market situations.
+
+This means the agents get better over time as they accumulate real trade outcomes — not just simulated ones.
+
+---
 
 ## Persistence and Recovery
 
