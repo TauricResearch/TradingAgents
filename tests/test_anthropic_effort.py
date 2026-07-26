@@ -57,6 +57,16 @@ class TestEffortGate:
         mod.AnthropicClient(model=model, effort="low", api_key="x").get_llm()
         assert captured["kwargs"]["effort"] == "low"
 
+    @pytest.mark.parametrize(
+        "model",
+        # Claude 5 family uses single-number version IDs; all are effort-capable.
+        ["claude-sonnet-5", "claude-fable-5", "claude-mythos-5"],
+    )
+    def test_claude_5_family_receives_effort(self, monkeypatch, model):
+        captured = _capture_kwargs(monkeypatch)
+        mod.AnthropicClient(model=model, effort="high", api_key="x").get_llm()
+        assert captured["kwargs"]["effort"] == "high"
+
     def test_mythos_preview_receives_effort(self, monkeypatch):
         captured = _capture_kwargs(monkeypatch)
         mod.AnthropicClient(

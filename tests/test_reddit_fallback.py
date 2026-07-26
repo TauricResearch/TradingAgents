@@ -190,3 +190,25 @@ class TestFormatterHandlesRssPosts:
         assert "1234↑" in out
         assert "56c" in out
         assert "via RSS" not in out
+
+
+@pytest.mark.unit
+class TestCryptoSearchTerm:
+    """A crypto pair (BTC-USD) barely matches Reddit text; search the base (#1113)."""
+
+    def _captured_ticker(self, ticker):
+        seen = {}
+
+        def fake_fetch(t, sub, limit, timeout):
+            seen["ticker"] = t
+            return []
+
+        with patch.object(reddit, "_fetch_subreddit", side_effect=fake_fetch):
+            reddit.fetch_reddit_posts(ticker, subreddits=("stocks",), inter_request_delay=0)
+        return seen["ticker"]
+
+    def test_crypto_pair_searches_base(self):
+        assert self._captured_ticker("BTC-USD") == "BTC"
+
+    def test_equity_passes_through(self):
+        assert self._captured_ticker("NVDA") == "NVDA"

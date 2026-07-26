@@ -140,5 +140,79 @@ class TestCheckpointResume(unittest.TestCase):
         self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
 
 
+class TestCheckpointSignature(unittest.TestCase):
+    """A different graph shape (analyst selection / depth / asset mode) must not
+    resume the previous run's checkpoint (#1089)."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.ticker = "TEST"
+        self.date = "2026-04-20"
+
+    def test_empty_signature_is_legacy_id(self):
+        self.assertEqual(
+            thread_id(self.ticker, self.date),
+            thread_id(self.ticker, self.date, ""),
+        )
+
+    def test_signature_changes_thread_id(self):
+        legacy = thread_id(self.ticker, self.date)
+        sig_a = thread_id(self.ticker, self.date, "analysts=market,news|asset=stock")
+        sig_b = thread_id(self.ticker, self.date, "analysts=market|asset=stock")
+        self.assertNotEqual(sig_a, sig_b)          # different graph shapes differ
+        self.assertNotEqual(legacy, sig_a)         # signature-keyed differs from legacy
+        self.assertEqual(                          # same inputs are stable
+            sig_a, thread_id(self.ticker, self.date, "analysts=market,news|asset=stock")
+        )
+
+    def test_different_signature_starts_fresh(self):
+        global _should_crash
+        builder = _build_graph()
+        sig1 = "analysts=market,news,fundamentals|asset=stock"
+        sig2 = "analysts=market|asset=stock"       # dropped analysts -> different graph
+
+        _should_crash = True
+        tid1 = thread_id(self.ticker, self.date, sig1)
+        with get_checkpointer(self.tmpdir, self.ticker) as saver:
+            graph = builder.compile(checkpointer=saver)
+            with self.assertRaises(RuntimeError):
+                graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid1}})
+
+        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date, sig1))
+        # A different graph shape has no checkpoint to resume from.
+        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, self.date, sig2))
+
+        _should_crash = False
+        tid2 = thread_id(self.ticker, self.date, sig2)
+        self.assertNotEqual(tid1, tid2)
+        with get_checkpointer(self.tmpdir, self.ticker) as saver:
+            graph = builder.compile(checkpointer=saver)
+            result = graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid2}})
+        self.assertEqual(result["count"], 11)
+        # sig1's checkpoint remains untouched.
+        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date, sig1))
+
+    def test_run_signature_captures_graph_shape(self):
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+        # Build a bare instance to exercise the pure helper without heavy __init__.
+        g = object.__new__(TradingAgentsGraph)
+        g.selected_analysts = ("market", "news")
+        g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+        base = g._run_signature("stock")
+
+        self.assertNotEqual(base, g._run_signature("crypto"))     # asset mode
+        g.selected_analysts = ("market",)
+        self.assertNotEqual(base, g._run_signature("stock"))      # analyst selection
+        g.selected_analysts = ("market", "news")
+        g.config = {"max_debate_rounds": 3, "max_risk_discuss_rounds": 1}
+        self.assertNotEqual(base, g._run_signature("stock"))      # debate depth
+        g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 5}
+        self.assertNotEqual(base, g._run_signature("stock"))      # risk depth
+        # Stable for identical inputs.
+        g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+        self.assertEqual(base, g._run_signature("stock"))
+
+
 if __name__ == "__main__":
     unittest.main()

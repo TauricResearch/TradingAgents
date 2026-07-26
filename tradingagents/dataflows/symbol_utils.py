@@ -80,20 +80,25 @@ _YAHOO_SAFE = re.compile(r"^[A-Za-z0-9._\-\^=]+$")
 _CRYPTO_QUOTES = ("USDT", "USDC", "USD")
 
 
-def _normalize_crypto(s: str) -> str | None:
-    """Return ``<BASE>-USD`` if ``s`` is a known crypto quoted in USD/USDT/USDC.
-
-    Accepts dashed or undashed forms: ``BTCUSD``, ``BTCUSDT``, ``BTC-USDT``,
-    ``BTC-USDC`` all resolve to ``BTC-USD``. Returns None otherwise.
+def crypto_base(raw: str) -> str | None:
+    """Return the crypto base (e.g. ``BTC``) for a known USD/USDT/USDC-quoted
+    crypto symbol in any form the pipeline may hold — ``BTC-USD``, ``BTCUSD``,
+    ``BTC-USDT`` — or None for non-crypto symbols. Purely syntactic.
     """
-    compact = s.replace("-", "")
+    if not isinstance(raw, str):
+        return None
+    compact = raw.strip().upper().rstrip("+").replace("-", "")
     for quote in _CRYPTO_QUOTES:
         if compact.endswith(quote):
             base = compact[: -len(quote)]
-            if base in _CRYPTO_BASES:
-                return f"{base}-USD"
-            break
+            return base if base in _CRYPTO_BASES else None
     return None
+
+
+def _normalize_crypto(s: str) -> str | None:
+    """Return ``<BASE>-USD`` for a known USD/USDT/USDC-quoted crypto, else None."""
+    base = crypto_base(s)
+    return f"{base}-USD" if base else None
 
 
 def normalize_symbol(raw: str) -> str:

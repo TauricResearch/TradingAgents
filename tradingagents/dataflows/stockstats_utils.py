@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 # enough to catch the year-old frames yfinance occasionally returns (#1021).
 MAX_OHLCV_STALE_DAYS = 10
 
+# How long a same-day cache that does not yet reach the requested day may be
+# reused before it is refetched (#1150). Short enough that an intraday run picks
+# up today's close soon after it publishes, long enough that a day with no bar
+# at all (weekend, holiday) cannot trigger a download on every call.
+OHLCV_CACHE_TTL_SECONDS = 900
+
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
     """Execute a yfinance call with exponential backoff on rate limits.
@@ -122,6 +128,23 @@ def _assert_ohlcv_not_stale(
         )
 
 
+def _needs_same_day_refresh(data_file, curr_date_dt, today_date) -> bool:
+    """Whether a cached frame must be refetched to reflect the requested day.
+
+    The cache file is keyed per day, so without this a run started before the
+    day's bar was final keeps serving that snapshot to every later run (#1150).
+    Two distinct staleness cases exist for a current-day request: the bar may be
+    missing entirely, or present but still in progress — Yahoo publishes a
+    partial daily candle during market hours, whose ``Close`` is not the closing
+    price. Row inspection cannot tell a partial bar from a final one, so the TTL
+    governs every current-day cache. Historical requests always reuse the cache,
+    since those rows are immutable.
+    """
+    if curr_date_dt.date() < today_date.date():
+        return False
+    return time.time() - os.path.getmtime(data_file) > OHLCV_CACHE_TTL_SECONDS
+
+
 def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
 
@@ -159,7 +182,13 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     data = None
     if os.path.exists(data_file):
         cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
-        if not cached.empty and "Close" in cached.columns:
+        # Serve the cache only when it is usable and not a stale snapshot of the
+        # day being requested (#1150); otherwise fall through and refetch.
+        if (
+            not cached.empty
+            and "Close" in cached.columns
+            and not _needs_same_day_refresh(data_file, curr_date_dt, today_date)
+        ):
             data = cached
 
     if data is None:

@@ -41,11 +41,12 @@ def _bedrock_class():
 class BedrockClient(BaseLLMClient):
     """Client for Amazon Bedrock via the Converse API (langchain-aws).
 
-    Authentication uses the standard AWS credential chain (env vars,
-    ``~/.aws/credentials``, or an IAM role); set ``AWS_REGION`` /
-    ``AWS_DEFAULT_REGION`` and optionally ``AWS_PROFILE``. The model name is a
-    Bedrock model ID or cross-region inference profile ID, e.g.
-    ``us.anthropic.claude-opus-4-8-v1:0``.
+    Authentication is either a Bedrock API key (bearer token) via
+    ``AWS_BEARER_TOKEN_BEDROCK`` — no AWS access keys required — or the standard
+    AWS credential chain (env vars, ``~/.aws/credentials``, or an IAM role) with
+    optional ``AWS_PROFILE``. Set ``AWS_REGION`` / ``AWS_DEFAULT_REGION`` either
+    way (the token carries no region). The model name is a Bedrock model ID or
+    cross-region inference profile ID, e.g. ``us.anthropic.claude-opus-4-8-v1:0``.
     """
 
     def get_llm(self) -> Any:
@@ -59,6 +60,12 @@ class BedrockClient(BaseLLMClient):
             or _DEFAULT_REGION
         )
         llm_kwargs = {"model": self.model, "region_name": region}
+        # A Bedrock API key authenticates without AWS access keys. Passing it as
+        # api_key makes langchain-aws prefer bearer auth, so an ambient
+        # AWS_PROFILE / SigV4 credentials can't override it (#1103).
+        bearer_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+        if bearer_token:
+            llm_kwargs["api_key"] = bearer_token
         for key in ("temperature", "max_tokens", "max_retries", "callbacks"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]

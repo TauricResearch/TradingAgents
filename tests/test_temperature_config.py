@@ -16,9 +16,12 @@ class TestTemperatureForwarding:
     @pytest.mark.parametrize(
         "provider,model",
         [
+            # gpt-4.1 is intentionally a non-reasoning model: the GPT-5 family
+            # are reasoning models and correctly drop temperature (see
+            # test_openai_reasoning_effort), so forwarding is tested on gpt-4.1.
             ("openai", "gpt-4.1"),
-            ("anthropic", "claude-sonnet-4-6"),
-            ("google", "gemini-2.5-flash"),
+            ("anthropic", "claude-sonnet-5"),
+            ("google", "gemini-3.5-flash"),
             ("deepseek", "deepseek-chat"),
         ],
     )

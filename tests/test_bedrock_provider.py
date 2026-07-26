@@ -35,12 +35,46 @@ def test_helpful_error_when_langchain_aws_absent(monkeypatch):
         create_llm_client("bedrock", "m").get_llm()
 
 
+def _capture_kwargs(monkeypatch):
+    """Stub _bedrock_class so the constructor kwargs are testable without the
+    optional langchain-aws extra installed."""
+    import tradingagents.llm_clients.bedrock_client as bc
+    captured = {}
+
+    class _FakeChat:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(bc, "_bedrock_class", lambda: _FakeChat)
+    return captured
+
+
+@pytest.mark.unit
+def test_bearer_token_passed_as_api_key(monkeypatch):
+    # #1103: a Bedrock API key authenticates without AWS access keys.
+    captured = _capture_kwargs(monkeypatch)
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "bt-secret")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    create_llm_client("bedrock", "us.anthropic.claude-opus-4-8-v1:0").get_llm()
+    assert captured["api_key"] == "bt-secret"
+    assert captured["region_name"] == "us-east-1"
+
+
+@pytest.mark.unit
+def test_no_bearer_token_omits_api_key(monkeypatch):
+    # Without a token, fall back to the AWS credential chain (no api_key kwarg).
+    captured = _capture_kwargs(monkeypatch)
+    monkeypatch.delenv("AWS_BEARER_TOKEN_BEDROCK", raising=False)
+    create_llm_client("bedrock", "us.anthropic.claude-opus-4-8-v1:0").get_llm()
+    assert "api_key" not in captured
+
+
 @pytest.mark.unit
 def test_construction_when_extra_installed(monkeypatch):
     pytest.importorskip("langchain_aws")
     import tradingagents.llm_clients.bedrock_client as bc
     monkeypatch.setattr(bc, "_BEDROCK_CLASS", None)
     monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-1")
-    llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-4-6-v1:0").get_llm()
+    llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-5").get_llm()
     assert type(llm).__name__ == "NormalizedChatBedrockConverse"
     assert llm.region_name == "eu-west-1"

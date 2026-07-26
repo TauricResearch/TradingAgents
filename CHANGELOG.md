@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [0.3.1] — 2026-07-05
+
+Correctness and stability patch: data look-ahead, graph-router crash-safety,
+checkpoint identity, crypto sentiment sources, and configurable resilience.
+
+### Fixed
+
+- **Alpha Vantage look-ahead filter now runs.** The fundamentals payload is a
+  JSON string, so the dict-only guard skipped filtering and future-dated reports
+  leaked into historical runs; parse before filtering. (#1115, @zachthebird)
+- **News analyst prompt matches the tool.** The prompt advertised
+  `get_news(query, ...)` but the tool takes a ticker; aligned to stop
+  hallucinated free-text query calls. (#1116, @shcheuk)
+- **Shared debate/risk routers can't crash mid-run.** Both routers return more
+  targets than any one edge mapped; every edge now shares the complete path map,
+  so a fall-through under prompt/i18n/refactor drift stays routable.
+  (#1088, @Fr3ya, @sa7an7, @Sushanth012)
+- **Checkpoint resume respects graph shape.** The thread id folds in selected
+  analysts, debate/risk depth, and asset mode, so a resume under different
+  choices no longer continues the wrong graph. (#1089, @bossjoker1, @Ghraven)
+- **Crypto sentiment sources resolve.** StockTwits lists crypto as `<BASE>.X`
+  (Yahoo's `BTC-USD` 404s) and Reddit needs the base symbol to match; the social
+  path now maps crypto correctly for both. (#1113, @suremadoreai)
+
+### Added
+
+- **Configurable LLM retry budget.** `llm_max_retries` /
+  `TRADINGAGENTS_LLM_MAX_RETRIES` is forwarded to every provider, so a transient
+  429 burst no longer aborts a run. (#1091, @yanggaome)
+- **Bedrock API-key auth.** `AWS_BEARER_TOKEN_BEDROCK` authenticates Amazon
+  Bedrock without AWS access keys and takes precedence over an ambient
+  `AWS_PROFILE`. (#1103, @praxstack)
+- **Latest Claude models.** Added Claude Sonnet 5 (`claude-sonnet-5`) and
+  Fable 5 (`claude-fable-5`); effort control now covers the Claude 5 line.
+
 ## [0.3.0] — 2026-06-22
 
 Stabilization and extensibility release: a CI gate, a unified verified

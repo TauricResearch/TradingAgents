@@ -6,6 +6,7 @@ import pytest
 
 from tradingagents.dataflows.symbol_utils import (
     NoMarketDataError,
+    crypto_base,
     is_yahoo_safe,
     normalize_symbol,
 )
@@ -75,6 +76,26 @@ class TestIsYahooSafe(unittest.TestCase):
     def test_rejects_slash_and_space(self):
         for sym in ("a/b", "AA PL", ""):
             self.assertFalse(is_yahoo_safe(sym))
+
+
+@pytest.mark.unit
+class TestCryptoBase(unittest.TestCase):
+    def test_resolves_known_crypto_forms(self):
+        for raw in ("BTC-USD", "BTCUSD", "btc-usdt", "BTC-USDC", "BTCUSD+"):
+            self.assertEqual(crypto_base(raw), "BTC")
+        self.assertEqual(crypto_base("ETH-USD"), "ETH")
+        self.assertEqual(crypto_base("sol-usd"), "SOL")
+
+    def test_non_crypto_returns_none(self):
+        # Plain equities, class shares, and real tickers that alias elsewhere
+        # (GOLD -> gold future on the Yahoo path) must NOT read as crypto.
+        for raw in ("AAPL", "BRK-B", "GOLD", "XYZ-USD", "EURUSD", "", None):
+            self.assertIsNone(crypto_base(raw))
+
+    def test_agrees_with_normalize_symbol(self):
+        # crypto_base is the shared primitive behind the -USD normalization.
+        self.assertEqual(normalize_symbol("BTCUSD"), "BTC-USD")
+        self.assertEqual(crypto_base("BTCUSD"), "BTC")
 
 
 if __name__ == "__main__":
