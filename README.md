@@ -1,3 +1,6 @@
+原始來源
+https://github.com/TauricResearch/TradingAgents
+
 # TradingAgents（繁體中文 README）
 
 ## 本專案會調用哪些 AI？
