@@ -93,6 +93,9 @@
   (Python 3.13.13): **1,333 passed, 19 warnings, 68 subtests passed**.
 - CI dependency installation now uses `.[dev,web]`, so the Python 3.10-3.13
   matrix installs the canonical-JSON dependency required during collection.
+- Production timestamp helpers and their tests use `datetime.timezone.utc`
+  rather than the Python 3.11-only `datetime.UTC` alias, so collection remains
+  compatible with the declared Python 3.10 floor.
 - Wheel packaging contains the SPA index/JavaScript assets, and the installed
   wheel exposes working CLI help.
 - Deterministic Playwright browser suite: **9 passed (14.8s)** in the release

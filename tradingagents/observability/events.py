@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 EVENT_SCHEMA_VERSION = 1
@@ -340,14 +340,14 @@ class PersistedEvent:
         sequence: int,
         timestamp: datetime | None = None,
     ) -> PersistedEvent:
-        captured = timestamp or datetime.now(UTC)
+        captured = timestamp or datetime.now(timezone.utc)
         if captured.tzinfo is None:
             raise InvalidEvent("timestamp must be timezone-aware")
         return cls(
             event_id=f"{draft.run_id}:{sequence}",
             run_id=draft.run_id,
             sequence=sequence,
-            timestamp=captured.astimezone(UTC)
+            timestamp=captured.astimezone(timezone.utc)
             .isoformat(timespec="milliseconds")
             .replace("+00:00", "Z"),
             type=draft.type,

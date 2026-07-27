@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -27,7 +27,7 @@ def _snapshot(*, run_id=None, ticker="AAPL", captured=None, metadata=None):
         metadata=metadata or {},
     )
     if captured is not None:
-        timestamp = captured.astimezone(UTC).isoformat(timespec="milliseconds").replace(
+        timestamp = captured.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace(
             "+00:00", "Z"
         )
         snapshot = snapshot.evolve(created_at=timestamp, updated_at=timestamp)
@@ -36,8 +36,8 @@ def _snapshot(*, run_id=None, ticker="AAPL", captured=None, metadata=None):
 
 def test_create_read_and_restart_list_runs_without_database(tmp_path):
     store = RunStore(tmp_path)
-    older = _snapshot(captured=datetime(2026, 7, 18, 10, tzinfo=UTC))
-    newer = _snapshot(captured=datetime(2026, 7, 18, 11, tzinfo=UTC))
+    older = _snapshot(captured=datetime(2026, 7, 18, 10, tzinfo=timezone.utc))
+    newer = _snapshot(captured=datetime(2026, 7, 18, 11, tzinfo=timezone.utc))
     store.create_run(older)
     store.create_run(newer)
 

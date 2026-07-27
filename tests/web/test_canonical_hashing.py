@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Annotated
 
@@ -41,7 +41,7 @@ def test_canonical_value_freezes_unordered_special_and_declared_values():
         "set": {"beta", "alpha"},
         "bytes": b"\x00\xff",
         "date": date(2026, 7, 18),
-        "datetime": datetime(2026, 7, 18, 12, 30, tzinfo=UTC),
+        "datetime": datetime(2026, 7, 18, 12, 30, tzinfo=timezone.utc),
         "floats": [1.0, -0.0, float("nan"), float("inf"), float("-inf")],
         "enum": Rating.HOLD,
         "dataclass": Point(2, 3),

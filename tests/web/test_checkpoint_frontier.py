@@ -6,7 +6,7 @@ objects.  They do not need a LangGraph checkpointer or a RunStore.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any
 
@@ -32,7 +32,7 @@ from tradingagents.web.reconciliation import (
 )
 
 RUN_ID = "run-frontier-contract"
-NOW = datetime(2026, 7, 18, tzinfo=UTC)
+NOW = datetime(2026, 7, 18, tzinfo=timezone.utc)
 
 
 def _commit(

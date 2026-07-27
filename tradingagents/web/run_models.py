@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import asdict, dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from tradingagents.observability.events import EVENT_SCHEMA_VERSION
@@ -25,11 +25,11 @@ RUN_STATUSES = frozenset(
 
 
 def utc_timestamp() -> str:
-    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def generate_run_id(captured_at: datetime | None = None) -> str:
-    captured = (captured_at or datetime.now(UTC)).astimezone(UTC)
+    captured = (captured_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
     return f"run_{captured.strftime('%Y%m%dT%H%M%S%fZ')}_{uuid.uuid4().hex[:8]}"
 
 
