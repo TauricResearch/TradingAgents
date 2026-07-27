@@ -4,6 +4,7 @@ import types
 import pytest
 import requests
 
+from tradingagents.agents.evidence_steward import create_evidence_steward
 from tradingagents.dataflows import interface
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.evidence import (
@@ -59,6 +60,25 @@ def _disable_llm_advisor(monkeypatch):
         "tradingagents.dataflows.evidence.analyze_news_coverage",
         lambda *a, **kw: NewsAdvisorResult(should_enrich=True, queries=[]),
     )
+
+
+def test_evidence_steward_fault_persists_only_exception_category(monkeypatch):
+    secret = "must-not-persist"
+
+    def fail_evaluation(_state):
+        raise RuntimeError(f"https://vendor.example/api?token={secret}")
+
+    monkeypatch.setattr(
+        "tradingagents.agents.evidence_steward.evaluate_and_enrich_evidence",
+        fail_evaluation,
+    )
+
+    result = create_evidence_steward()({})
+
+    assert result["evidence_status"] == EvidenceStatus.LOW_CONFIDENCE.value
+    assert result["evidence_steward_fault"] == "RuntimeError"
+    assert "Fault category: RuntimeError" in result["evidence_report"]
+    assert secret not in result["evidence_report"]
 
 
 def test_all_a_share_vendors_fail_hard_fails_after_all_fallbacks(monkeypatch):
@@ -173,13 +193,20 @@ def test_evidence_steward_does_not_hard_fail_on_unbound_tech_company_names(monke
             "Link: https://example.com/industry-tech\n"
         )
     )
-    set_config({"evidence_gate_enabled": True, "evidence_stop_on_fail": True})
+    set_config(
+        {
+            "evidence_gate_enabled": True,
+            "evidence_stop_on_fail": True,
+        }
+    )
 
-    with pytest.raises(EvidenceGateError) as exc:
-        evaluate_and_enrich_evidence(state)
+    result = evaluate_and_enrich_evidence(state)
 
-    assert "身份冲突" not in str(exc.value)
-    assert "公司直相关新闻" in str(exc.value)
+    # News scarcity → LOW_CONFIDENCE, not FAIL_STOP / raise.
+    assert result["evidence_status"] == EvidenceStatus.LOW_CONFIDENCE.value
+    report = result["evidence_report"]
+    assert "身份冲突" not in report
+    assert "公司直相关新闻" in report
 
 
 def test_evidence_steward_allows_chinese_alias_when_yfinance_profile_is_english(monkeypatch):
@@ -233,11 +260,14 @@ def test_evidence_steward_does_not_hard_fail_on_peer_codes_from_enrichment(monke
     )
     set_config({"evidence_gate_enabled": True, "evidence_stop_on_fail": True})
 
-    with pytest.raises(EvidenceGateError) as exc:
-        evaluate_and_enrich_evidence(_base_state(news_report="No curated news found for 'get_news'."))
+    result = evaluate_and_enrich_evidence(_base_state(news_report="No curated news found for 'get_news'."))
 
-    assert "身份冲突" not in str(exc.value)
-    assert "公司直相关新闻" in str(exc.value)
+    # Peer codes in industry items are not identity conflicts; overall
+    # scarcity → LOW_CONFIDENCE, not FAIL_STOP / raise.
+    assert result["evidence_status"] == EvidenceStatus.LOW_CONFIDENCE.value
+    report = result["evidence_report"]
+    assert "身份冲突" not in report
+    assert "公司直相关新闻" in report
 
 
 def test_evidence_steward_enriches_empty_news_three_rounds_and_dedupes(monkeypatch):
@@ -303,7 +333,7 @@ def test_evidence_steward_enriches_empty_news_three_rounds_and_dedupes(monkeypat
     assert "通过" in result["evidence_report"]
 
 
-def test_evidence_steward_stops_when_enrichment_still_insufficient(monkeypatch):
+def test_evidence_steward_returns_low_confidence_when_enrichment_still_insufficient(monkeypatch):
     _disable_llm_advisor(monkeypatch)
     monkeypatch.setattr("tradingagents.dataflows.evidence._run_tavily_enrichment", lambda *args, **kwargs: [])
     set_config(
@@ -315,10 +345,13 @@ def test_evidence_steward_stops_when_enrichment_still_insufficient(monkeypatch):
         }
     )
 
-    with pytest.raises(EvidenceGateError) as exc:
-        evaluate_and_enrich_evidence(_base_state(news_report="No curated news found for 'get_news'."))
+    result = evaluate_and_enrich_evidence(_base_state(news_report="No curated news found for 'get_news'."))
 
-    assert "Tavily 补充 3 轮后仍不足" in str(exc.value)
+    # Thin evidence after enrichment → LOW_CONFIDENCE (proceeds), not FAIL_STOP.
+    assert result["evidence_status"] == EvidenceStatus.LOW_CONFIDENCE.value
+    report = result["evidence_report"]
+    assert "Evidence confidence: LOW_CONFIDENCE" in report
+    assert "Tavily enrichment rounds used: 3" in report
 
 
 def test_format_company_profile_keeps_a_share_identity_stable():
@@ -394,3 +427,213 @@ def test_graph_routes_last_analyst_to_evidence_steward_before_debate():
 
     assert "Evidence Steward" in graph.nodes
     assert "Bull Researcher" in graph.nodes
+
+
+# --- Low-confidence verdict model ---------------------------------------------------
+
+
+def test_low_confidence_default_config_thin_evidence_does_not_fail(monkeypatch):
+    """With default evidence_stop_on_fail=False, thin evidence proceeds."""
+    _disable_llm_advisor(monkeypatch)
+    monkeypatch.setattr("tradingagents.dataflows.evidence._run_tavily_enrichment", lambda *args, **kwargs: [])
+    set_config(
+        {
+            "evidence_gate_enabled": True,
+            # evidence_stop_on_fail default is False; don't override it.
+            "evidence_max_enrichment_rounds": 1,
+            "evidence_max_enrichment_seconds": 10,
+        }
+    )
+
+    result = evaluate_and_enrich_evidence(_base_state(news_report=""))
+
+    assert result["evidence_status"] == EvidenceStatus.LOW_CONFIDENCE.value
+    assert "evidence_report" in result
+
+
+def test_identity_conflict_still_fails_even_when_stop_on_fail_false(monkeypatch):
+    """Wrong-identity detection is a hard fail regardless of stop_on_fail."""
+    _disable_llm_advisor(monkeypatch)
+    state = _base_state(
+        news_report=(
+            "### 海峡股份航运业务更新\n"
+            "002320.SZ 证券代码：002320 证券简称：海峡股份，公告主体为海南海峡航运股份有限公司。\n"
+            "Link: https://example.com/002320\n"
+        )
+    )
+    set_config({"evidence_gate_enabled": True, "evidence_stop_on_fail": False})
+
+    with pytest.raises(EvidenceGateError):
+        evaluate_and_enrich_evidence(state)
+
+
+def test_core_data_degraded_patterns_produce_low_confidence(monkeypatch):
+    """Non-fatal data warnings → LOW_CONFIDENCE, not FAIL_STOP."""
+    _disable_llm_advisor(monkeypatch)
+    monkeypatch.setattr("tradingagents.dataflows.evidence._run_tavily_enrichment", lambda *args, **kwargs: [])
+    state = _base_state(
+        news_report="### 某新闻\ncontent here\n",
+        fundamentals_report="Warning: Yahoo Finance data is stale. 暂未获取完整财务数据。",
+    )
+    set_config({"evidence_gate_enabled": True, "evidence_stop_on_fail": True})
+
+    result = evaluate_and_enrich_evidence(state)
+
+    # Not a hard fail; data quality downgrade contributes to LOW_CONFIDENCE.
+    assert result["evidence_status"] == EvidenceStatus.LOW_CONFIDENCE.value
+    assert "数据质量降级" in result["evidence_report"]
+
+
+def test_core_data_fatal_pattern_still_fails(monkeypatch):
+    """'no usable financial statement' remains a hard FAIL_STOP."""
+    _disable_llm_advisor(monkeypatch)
+    state = _base_state(
+        news_report="### 某新闻\ncontent here\n",
+        fundamentals_report="Error: no usable financial statement available.",
+    )
+    set_config({"evidence_gate_enabled": True, "evidence_stop_on_fail": True})
+
+    with pytest.raises(EvidenceGateError) as exc:
+        evaluate_and_enrich_evidence(state)
+
+    assert "核心财务数据缺失" in str(exc.value)
+
+
+def test_unresolved_a_share_profile_produces_low_confidence(monkeypatch):
+    """Unresolved A-share profile name → LOW_CONFIDENCE, not FAIL_STOP."""
+    _disable_llm_advisor(monkeypatch)
+    monkeypatch.setattr("tradingagents.dataflows.evidence._run_tavily_enrichment", lambda *args, **kwargs: [])
+
+    def fake_complete_profile(profile, ticker):
+        profile["ticker"] = "600519.SS"
+        profile["symbol"] = "600519"
+        profile["ts_code"] = "600519.SH"
+        profile["name"] = ""
+        profile["full_name"] = ""
+        return profile
+
+    monkeypatch.setattr(
+        "tradingagents.dataflows.evidence._complete_profile",
+        fake_complete_profile,
+    )
+    state = _base_state(news_report="")
+    state["canonical_company_profile"] = {}
+    set_config(
+        {
+            "evidence_gate_enabled": True,
+            "evidence_stop_on_fail": True,
+            "evidence_max_enrichment_rounds": 1,
+        }
+    )
+
+    result = evaluate_and_enrich_evidence(state)
+
+    assert result["evidence_status"] == EvidenceStatus.LOW_CONFIDENCE.value
+    assert "身份信息不完整" in result["evidence_report"]
+
+
+def test_evidence_report_carries_machine_readable_confidence_line(monkeypatch):
+    _disable_llm_advisor(monkeypatch)
+    monkeypatch.setattr("tradingagents.dataflows.evidence._run_tavily_enrichment", lambda *args, **kwargs: [])
+    set_config(
+        {
+            "evidence_gate_enabled": True,
+            "news_min_company_items": 3,
+            "news_min_mixed_items": 5,
+            "evidence_max_enrichment_rounds": 1,
+        }
+    )
+    state = _base_state(news_report="")
+
+    result = evaluate_and_enrich_evidence(state)
+
+    report = result["evidence_report"]
+    assert "Evidence confidence: LOW_CONFIDENCE" in report
+    # Includes weighted counts against thresholds.
+    assert "company" in report
+    assert "mixed" in report
+
+
+def test_unresolved_profile_does_not_flag_correct_company_as_wrong_identity(monkeypatch):
+    """Regression for F7: empty profile name + correct news ≠ identity conflict."""
+    from tradingagents.dataflows.evidence import _find_wrong_identity_hits
+
+    profile = {
+        "ticker": "2513.HK",
+        "symbol": "2513",
+        "name": "",
+        "full_name": "",
+    }
+    items = [
+        {
+            "title": "智谱AI招股书更新",
+            "url": "https://example.com/zhipu",
+            "content": "智谱（2513.HK）发布最新招股书，智谱AI 持续投入大模型研发。",
+            "source": "tavily",
+        }
+    ]
+
+    hits = _find_wrong_identity_hits(items, profile)
+
+    # With an unresolved profile, name-based checks abstain.
+    assert hits == set()
+
+
+def test_additional_correct_evidence_does_not_grow_conflict_when_profile_unresolved(monkeypatch):
+    """More correct evidence must not deepen a false conflict when profile is empty."""
+    from tradingagents.dataflows.evidence import _find_wrong_identity_hits
+
+    profile = {
+        "ticker": "2513.HK",
+        "symbol": "2513",
+        "name": "",
+        "full_name": "",
+    }
+    items_round1 = [
+        {
+            "title": "智谱AI融资消息",
+            "content": "智谱（2513.HK）完成新一轮融资。",
+            "source": "tavily",
+        }
+    ]
+    items_round2 = items_round1 + [
+        {
+            "title": "智谱AI产品更新",
+            "content": "智谱AI（2513.HK）发布新一代大模型。",
+            "source": "tavily",
+        },
+        {
+            "title": "行业报道",
+            "content": "据报道，智谱华章（2513.HK）营收增长显著。",
+            "source": "tavily",
+        },
+    ]
+
+    hits1 = _find_wrong_identity_hits(items_round1, profile)
+    hits2 = _find_wrong_identity_hits(items_round2, profile)
+
+    # No conflict hits in either case; additional correct evidence does not
+    # create or deepen a spurious conflict.
+    assert hits1 == set()
+    assert hits2 == set()
+
+
+def test_configured_tavily_keys_reads_both_env_vars(monkeypatch):
+    """_configured_tavily_keys honors TAVILY_API_KEYS plus legacy TAVILY_API_KEY."""
+    from tradingagents.dataflows.evidence import _configured_tavily_keys
+
+    monkeypatch.setenv("TAVILY_API_KEYS", "key1,key2")
+    monkeypatch.setenv("TAVILY_API_KEY", "legacy")
+    assert _configured_tavily_keys() == ("key1", "key2", "legacy")
+
+    monkeypatch.delenv("TAVILY_API_KEYS", raising=False)
+    monkeypatch.setenv("TAVILY_API_KEY", "only-legacy")
+    assert _configured_tavily_keys() == ("only-legacy",)
+
+    monkeypatch.setenv("TAVILY_API_KEYS", "multi-only")
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    assert _configured_tavily_keys() == ("multi-only",)
+
+    monkeypatch.delenv("TAVILY_API_KEYS", raising=False)
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    assert _configured_tavily_keys() == ()

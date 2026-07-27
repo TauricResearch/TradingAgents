@@ -145,3 +145,105 @@ def test_constraint_text_is_unambiguous():
     # No template braces: it is embedded in ChatPromptTemplate strings, where
     # braces would be parsed as input variables.
     assert "{" not in NO_EXTERNAL_TOOLS and "}" not in NO_EXTERNAL_TOOLS
+
+
+@pytest.mark.unit
+def test_research_manager_prompt_carries_low_confidence_cap():
+    """When evidence_status is LOW_CONFIDENCE, the RM prompt includes a
+    conviction cap that forbids Buy/Sell ratings."""
+    from tradingagents.agents.schemas import PortfolioRating, ResearchPlan
+
+    captured = {}
+    llm = _capturing_llm(
+        captured,
+        ResearchPlan(
+            recommendation=PortfolioRating.HOLD,
+            rationale="evidence is thin",
+            strategic_actions="wait",
+        ),
+    )
+    state = {
+        "company_of_interest": "NVDA",
+        "investment_debate_state": {
+            "history": "h", "bull_history": "b", "bear_history": "r",
+            "current_response": "", "judge_decision": "", "count": 1,
+        },
+        "evidence_status": "LOW_CONFIDENCE",
+        "evidence_report": (
+            "## Evidence Steward Report\n"
+            "Evidence confidence: LOW_CONFIDENCE (company 1.5/3, mixed 2.0/5)\n"
+            "Company evidence items: 2\n"
+        ),
+    }
+    create_research_manager(llm)(state)
+    text = _prompt_text(captured["prompt"])
+
+    assert "Evidence Confidence Cap:" in text
+    assert "LOW_CONFIDENCE" in text
+    assert "do NOT issue Buy or Sell" in text
+
+
+@pytest.mark.unit
+def test_research_manager_prompt_has_no_cap_when_evidence_passes():
+    """When evidence_status is PASS, no conviction cap appears in the prompt."""
+    from tradingagents.agents.schemas import PortfolioRating, ResearchPlan
+
+    captured = {}
+    llm = _capturing_llm(
+        captured,
+        ResearchPlan(
+            recommendation=PortfolioRating.BUY, rationale="x", strategic_actions="y"
+        ),
+    )
+    state = {
+        "company_of_interest": "NVDA",
+        "investment_debate_state": {
+            "history": "h", "bull_history": "b", "bear_history": "r",
+            "current_response": "", "judge_decision": "", "count": 1,
+        },
+        "evidence_status": "PASS",
+        "evidence_report": "## Evidence Steward Report\nStatus: 通过\n",
+    }
+    create_research_manager(llm)(state)
+    text = _prompt_text(captured["prompt"])
+
+    assert "Evidence Confidence Cap:" not in text
+
+
+@pytest.mark.unit
+def test_portfolio_manager_prompt_carries_low_confidence_cap():
+    """When evidence_status is LOW_CONFIDENCE, the PM prompt caps final rating."""
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+
+    captured = {}
+    llm = _capturing_llm(
+        captured,
+        PortfolioDecision(
+            rating=PortfolioRating.HOLD,
+            executive_summary="x",
+            investment_thesis="y",
+        ),
+    )
+    risk = {
+        "history": "h", "aggressive_history": "a", "conservative_history": "c",
+        "neutral_history": "n", "current_aggressive_response": "",
+        "current_conservative_response": "", "current_neutral_response": "",
+        "latest_speaker": "Neutral", "count": 1,
+    }
+    state = {
+        "company_of_interest": "NVDA",
+        "risk_debate_state": risk,
+        "investment_plan": "plan",
+        "trader_investment_plan": "trader plan",
+        "evidence_status": "LOW_CONFIDENCE",
+        "evidence_report": (
+            "## Evidence Steward Report\n"
+            "Evidence confidence: LOW_CONFIDENCE (company 1.0/3, mixed 1.5/5)\n"
+        ),
+    }
+    create_portfolio_manager(llm)(state)
+    text = _prompt_text(captured["prompt"])
+
+    assert "Evidence Confidence Cap:" in text
+    assert "LOW_CONFIDENCE" in text
+    assert "do NOT issue Buy or Sell" in text

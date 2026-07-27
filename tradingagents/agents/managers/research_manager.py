@@ -49,6 +49,11 @@ def create_research_manager(
 
         investment_debate_state = state["investment_debate_state"]
 
+        evidence_status = state.get("evidence_status", "")
+        evidence_report = state.get("evidence_report", "")
+        evidence_confidence_line = _extract_confidence_line(evidence_report)
+        conviction_cap = _conviction_cap_for_evidence(evidence_status, evidence_confidence_line)
+
         delegation_instruction = ""
         if delegation_executor is not None:
             tool_names = ", ".join(delegation_executor.allowed_tool_names)
@@ -74,12 +79,15 @@ def create_research_manager(
 - **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
+{conviction_cap}
+
+Present your verdict under your own identity as the Research Manager. Do not style yourself as a "Moderator" or address a moderator — there is no moderator role; you are the judge of this debate.
 
 ---
 
 **Debate History:**
 {history}
-{report_lens_context}""" + delegation_instruction + get_language_instruction()
+{report_lens_context}""" + delegation_instruction + NO_EXTERNAL_TOOLS + get_language_instruction()
 
         default_executor: ResearchDelegationExecutor | None = None
         default_requests: tuple[ResearchDelegationRequest, ...] = ()
@@ -168,3 +176,34 @@ def _append_delegation_to_freetext(
     except ResearchDelegationError:
         return rendered
     return f"{rendered}\n\n{delegation}" if delegation else rendered
+
+
+def _extract_confidence_line(evidence_report: str) -> str | None:
+    """Extract the 'Evidence confidence:' line from an evidence steward report."""
+    if not evidence_report:
+        return None
+    for line in evidence_report.splitlines():
+        if line.strip().startswith("Evidence confidence:"):
+            return line.strip()
+    return None
+
+
+def _conviction_cap_for_evidence(
+    evidence_status: str, confidence_line: str | None
+) -> str:
+    """Return a prompt fragment capping conviction when evidence is weak.
+
+    Returns an empty string when evidence is PASS-level. Uses the existing
+    rating-scale vocabulary (Buy/Sell → Overweight/Underweight) rather than
+    inventing a parallel notion.
+    """
+    if evidence_status == "LOW_CONFIDENCE":
+        detail = confidence_line or "evidence below sufficiency thresholds"
+        return (
+            f"\n**Evidence Confidence Cap:** {detail}. Because evidence coverage "
+            "is below the sufficiency threshold, you MUST cap your rating at "
+            "Overweight (bull-leaning) or Underweight (bear-leaning) — do NOT "
+            "issue Buy or Sell. State explicitly in your rationale that evidence "
+            "confidence is LOW and the rating is capped accordingly.\n"
+        )
+    return ""
