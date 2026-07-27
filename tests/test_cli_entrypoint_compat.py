@@ -31,7 +31,10 @@ def test_analysis_invocation_forwards_checkpoint_and_config_options(prefix):
 
 
 def test_root_help_keeps_legacy_options_and_lists_explicit_analyze():
-    result = CliRunner().invoke(app, ["--help"])
+    # Rich help elides option columns on narrow non-interactive terminals.
+    # Fix the width so this compatibility check validates the declared help
+    # contract instead of the CI runner's ambient COLUMNS value.
+    result = CliRunner().invoke(app, ["--help"], env={"COLUMNS": "120"})
 
     assert result.exit_code == 0
     assert "--checkpoint" in result.output

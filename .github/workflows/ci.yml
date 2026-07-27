@@ -79,6 +79,8 @@ jobs:
           pip install -e ".[web,dev]"
       - name: Web + e2e integration tests
         run: pytest -q tests/web
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
       - name: Frontend typecheck
         run: npm --prefix frontend run typecheck
       - name: Frontend unit tests
@@ -88,7 +90,6 @@ jobs:
         # byte-identical (hashed bundle names catch any src change). A diff
         # here means someone edited frontend/src without committing the rebuild.
         run: |
-          npm --prefix frontend ci
           npm --prefix frontend run build
           if ! git diff --exit-code -- tradingagents/web/static/; then
             echo "::error::Frontend build produced drift vs committed tradingagents/web/static/. Run 'npm --prefix frontend run build' and commit the result."
